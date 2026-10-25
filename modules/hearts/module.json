@@ -1,0 +1,15 @@
+{
+  "id": "hearts",
+  "name": "Hearts",
+  "description": "The classic trick-taking game for four: dodge the hearts and the Queen of Spades, or shoot the moon. Play with friends or computer players.",
+  "minPlayers": 1,
+  "maxPlayers": 4,
+  "category": "cards",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "handsPlayed", "label": "Hands played", "agg": "sum" },
+    { "key": "moonsShot", "label": "Times you shot the moon", "agg": "sum" },
+    { "key": "queensTaken", "label": "Queens of Spades taken", "agg": "sum" },
+    { "key": "heartsTaken", "label": "Hearts taken", "agg": "sum" }
+  ]
+}
