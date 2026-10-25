@@ -1,0 +1,15 @@
+{
+  "id": "splendour",
+  "name": "Splendour",
+  "description": "An engine-building game of gems and patrons for two to four: collect gems, buy development cards for permanent discounts, win the favour of nobles and be first to the target prestige. Play with friends or computer players.",
+  "minPlayers": 1,
+  "maxPlayers": 4,
+  "category": "strategy",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "cardsBought", "label": "Development cards bought", "agg": "sum" },
+    { "key": "noblesVisited", "label": "Nobles who visited you", "agg": "sum" },
+    { "key": "reservedCards", "label": "Cards reserved", "agg": "sum" },
+    { "key": "turnsTaken", "label": "Turns taken", "agg": "sum" }
+  ]
+}
