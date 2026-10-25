@@ -1,0 +1,16 @@
+{
+  "id": "rummikub",
+  "name": "Rummikub",
+  "description": "Build runs and groups from numbered tiles and rearrange the whole table to empty your rack first. Two to six players, with computer players to fill the seats and options for the tile set.",
+  "minPlayers": 2,
+  "maxPlayers": 6,
+  "category": "strategy",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "roundsWon", "label": "Rounds won", "agg": "sum" },
+    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" },
+    { "key": "tilesPlayed", "label": "Tiles played", "agg": "sum" },
+    { "key": "jokersPlayed", "label": "Jokers played", "agg": "sum" },
+    { "key": "biggestTurn", "label": "Most tiles in one turn", "agg": "max" }
+  ]
+}
