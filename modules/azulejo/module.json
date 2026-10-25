@@ -1,0 +1,16 @@
+{
+  "id": "azulejo",
+  "name": "Azulejo",
+  "description": "Draft painted tiles from the workshop's display plates and build a patterned wall. For two to five players, with computer players to fill the seats.",
+  "minPlayers": 1,
+  "maxPlayers": 5,
+  "category": "strategy",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "rowsCompleted", "label": "Wall rows completed", "agg": "sum" },
+    { "key": "columnsCompleted", "label": "Wall columns completed", "agg": "sum" },
+    { "key": "colourSetsCompleted", "label": "Colour sets completed", "agg": "sum" },
+    { "key": "floorPenalties", "label": "Points lost to the floor", "agg": "sum" },
+    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" }
+  ]
+}
