@@ -435,7 +435,7 @@ const levels = [3, 2, 1];
 
     <section v-if="finished" class="panel end stack" aria-label="The result">
       <h2 v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].seat === state.you ? ' (you)' : '' }} wins with {{ winners[0].prestige }} prestige!</h2>
-      <h2 v-else>A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
+      <h2 v-else-if="winners.length">A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
       <p v-if="iWon" class="muted">Well played.</p>
       <p v-if="tieNote" class="muted">{{ tieNote }}</p>
       <p v-if="endNote" class="muted">{{ endNote }}</p>
