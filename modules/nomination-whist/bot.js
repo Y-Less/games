@@ -1,0 +1,98 @@
+// The computer player's judgement for Nomination Whist: plain functions of what a player may know, with no room or
+// sockets. game.js decides what is legal; everything here picks from a list it is given, so it can never cheat.
+import { rankValue, suitOf, SUITS } from '../../shared/cards.js';
+
+const TRUMP_VALUE = { 14: 0.95, 13: 0.8, 12: 0.62, 11: 0.48, 10: 0.36, 9: 0.26 };
+const SIDE_ACE = { trumps: 0.72, none: 0.9 };
+
+/** More players means fewer sure tricks: somebody is more likely to be void and to ruff. */
+const crowding = (players) => Math.max(0.55, 1 - 0.07 * (players - 3));
+
+/** How many tricks a hand is likely to win: high trumps, aces and kings elsewhere, and short suits to ruff with. */
+export function estimateTricks(hand, trump, players) {
+  const trumps = trump ? hand.filter((c) => suitOf(c) === trump) : [];
+  let total = trumps.reduce((sum, c) => sum + (TRUMP_VALUE[rankValue(c)] ?? 0.14), 0);
+  const aceValue = trump ? SIDE_ACE.trumps : SIDE_ACE.none;
+  let ruffs = 0;
+  for (const suit of SUITS) {
+    if (suit === trump) continue;
+    const ranks = hand.filter((c) => suitOf(c) === suit).map(rankValue);
+    const has = (rank) => ranks.includes(rank);
+    let side = 0;
+    if (has(14)) side += aceValue;
+    if (has(13)) side += ranks.length >= 2 ? (has(14) ? 0.55 : 0.4) : 0.2;
+    if (has(12) && ranks.length >= 3 && (has(13) || has(14))) side += 0.25;
+    if (!trump && has(11) && ranks.length >= 3 && has(12)) side += 0.2;
+    total += side * crowding(players);
+    if (hand.length >= 3) ruffs += ranks.length === 0 ? 1 : ranks.length === 1 ? 0.5 : 0;
+  }
+  if (trump) {
+    const low = trumps.filter((c) => rankValue(c) < 10).length;
+    total += Math.min(low, ruffs) * 0.55;
+  }
+  return Math.min(total, hand.length);
+}
+
+/** The nomination a computer player makes: its estimate, or the nearest number it is allowed. */
+export function chooseNomination({ hand, trump, players, allowed, rng = Math.random }) {
+  const estimate = estimateTricks(hand, trump, players) + (rng() - 0.5) * 0.3;
+  return [...allowed].sort((a, b) => a - b).reduce((best, n) => (Math.abs(n - estimate) < Math.abs(best - estimate) ? n : best));
+}
+
+const strength = (card, trump) => rankValue(card) + (suitOf(card) === trump ? 20 : 0);
+const highest = (cards, trump) => cards.reduce((a, b) => (strength(b, trump) > strength(a, trump) ? b : a));
+const lowest = (cards, trump) => cards.reduce((a, b) => (strength(b, trump) < strength(a, trump) ? b : a));
+
+/** The card that wins a set of cards played in order: the highest trump, or else the highest of the suit led. */
+export function winningCard(cards, trump) {
+  const trumps = trump ? cards.filter((c) => suitOf(c) === trump) : [];
+  const pool = trumps.length ? trumps : cards.filter((c) => suitOf(c) === suitOf(cards[0]));
+  return pool.reduce((a, b) => (rankValue(b) > rankValue(a) ? b : a));
+}
+
+/** No higher card of its suit is still out there: everything higher is in the hand or already played. */
+function isMaster(card, hand, played) {
+  const gone = new Set([...hand, ...played]);
+  for (let rank = rankValue(card) + 1; rank <= 14; rank++) {
+    const name = rank <= 10 ? String(rank) : { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[rank];
+    if (!gone.has(`${name}${suitOf(card)}`)) return false;
+  }
+  return true;
+}
+
+/**
+ * The card a computer player plays. `legal` is what it may play, `trick` the cards on the table so far (in order),
+ * `played` every card seen this round, `need` how many more tricks it nominated than it has won. While it needs
+ * tricks it wins them (sure winners first, the cheapest card that beats the table otherwise); once it has enough
+ * it ducks, and sheds its most dangerous cards when it cannot follow suit.
+ */
+export function chooseCard({ hand, legal, trick, trump, played, need, players }) {
+  if (legal.length === 1) return legal[0];
+  const wantWin = need > 0;
+  const cardsLeft = hand.length;
+
+  if (trick.length === 0) {
+    if (!wantWin) return lowest(legal, trump);
+    const masters = legal.filter((c) => isMaster(c, hand, played));
+    const trumpMasters = masters.filter((c) => suitOf(c) === trump);
+    if (trumpMasters.length) return highest(trumpMasters, trump);
+    if (masters.length) return highest(masters, trump);
+    if (need >= cardsLeft) return highest(legal, trump);
+    const side = legal.filter((c) => suitOf(c) !== trump);
+    return highest(side.length ? side : legal, trump);
+  }
+
+  const winners = legal.filter((c) => winningCard([...trick, c], trump) === c);
+  const losers = legal.filter((c) => !winners.includes(c));
+  const last = trick.length === players - 1;
+
+  if (wantWin) {
+    if (!winners.length) return lowest(legal, trump);
+    if (last) return lowest(winners, trump);
+    const masters = winners.filter((c) => isMaster(c, hand, played));
+    if (masters.length) return lowest(masters, trump);
+    const following = winners.filter((c) => suitOf(c) === suitOf(trick[0]));
+    return following.length ? highest(following, trump) : lowest(winners, trump);
+  }
+  return losers.length ? highest(losers, trump) : lowest(winners, trump);
+}

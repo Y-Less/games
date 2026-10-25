@@ -1,0 +1,15 @@
+{
+  "id": "nomination-whist",
+  "name": "Nomination Whist",
+  "description": "Oh Hell-style whist for 3 to 7: nominate exactly how many tricks you will win, with a trump suit that changes every round. Play with friends or computer players.",
+  "minPlayers": 1,
+  "maxPlayers": 7,
+  "category": "cards",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" },
+    { "key": "bidsMade", "label": "Nominations hit exactly", "agg": "sum" },
+    { "key": "tricksWon", "label": "Tricks won", "agg": "sum" },
+    { "key": "perfectGames", "label": "Perfect games (every nomination hit)", "agg": "sum" }
+  ]
+}
