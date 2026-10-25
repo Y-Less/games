@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
+import TrickCircle from '../../../src/components/TrickCircle.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
@@ -27,8 +28,8 @@ const finished = computed(() => s.value.phase === 'finished');
 const handEnd = computed(() => s.value.phase === 'handEnd');
 const playing = computed(() => s.value.phase === 'playing');
 const myTurn = computed(() => Boolean(s.value.legal));
-const trickCard = (rel) => s.value.trick.find((p) => p.seat === seatIndex(rel))?.card ?? null;
-const isWinning = (rel) => s.value.trickWinner === seatIndex(rel);
+const circleSeats = computed(() => [0, 1, 2, 3].map((rel) => ({ key: seatIndex(rel), name: nameOf(seatIndex(rel)) })));
+const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ key: p.seat, card: p.card })) : []));
 const isMoonRound = computed(() => s.value.lastHand?.moon != null);
 
 const direction = computed(() => {
@@ -122,28 +123,51 @@ const moonMessage = computed(() => {
     <section class="table" aria-label="The table">
       <div v-for="rel in [2, 1, 3]" :key="rel" class="seat" :class="[`pos${rel}`, { turn: state.turn === seatIndex(rel) && playing, away: !seatAt(rel).online }]">
         <span class="name">{{ seatAt(rel).name }}</span>
-        <span v-if="seatAt(rel).bot" class="tag">computer</span>
-        <span v-else-if="!seatAt(rel).online" class="tag">away</span>
+        <span class="tag" :class="{ hidden: !seatAt(rel).bot && seatAt(rel).online }">{{ seatAt(rel).bot ? 'computer' : 'away' }}</span>
         <div class="stack-of-cards" :aria-label="`${seatAt(rel).cards} cards`">
           <PlayingCard :card="null" size="sm" />
           <b class="count">{{ seatAt(rel).cards }}</b>
         </div>
         <span class="pts">{{ seatAt(rel).points }} pts<template v-if="seatAt(rel).tricks"> · {{ seatAt(rel).tricks }} {{ seatAt(rel).tricks === 1 ? 'trick' : 'tricks' }}</template></span>
-        <span v-if="passing" class="tag">{{ seatAt(rel).passed ? 'passed' : 'choosing' }}</span>
+        <span class="tag" :class="{ hidden: !passing }">{{ seatAt(rel).passed ? 'passed' : 'choosing' }}</span>
       </div>
 
-      <div class="centre">
-        <div v-for="rel in [2, 1, 3, 0]" :key="rel" class="played" :class="`at${rel}`">
-          <PlayingCard v-if="trickCard(rel) && playing" :card="trickCard(rel)" :size="cardSize" :class="{ won: isWinning(rel) }" />
-        </div>
-        <p v-if="!playing" class="mid muted">{{ passing ? 'Passing' : '' }}</p>
-      </div>
+      <TrickCircle class="centre" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" :size="cardSize">
+        <p class="muted">{{ passing ? 'Passing' : '' }}</p>
+      </TrickCircle>
     </section>
 
     <p class="status" :class="{ mine: myTurn || (passing && !state.pass.chosen) }" role="status">{{ status }}</p>
-    <p v-if="state.lastTrick && playing && !state.trick.length" class="muted small-note">Last trick: {{ nameOf(state.lastTrick.winner) }} took it.</p>
-    <p v-if="message" class="reason" role="alert">{{ message }}</p>
+    <div class="notes">
+      <p class="muted small-note">{{ state.lastTrick && playing && !state.trick.length ? `Last trick: ${nameOf(state.lastTrick.winner)} took it.` : '' }}</p>
+      <p class="reason" role="alert">{{ message }}</p>
+    </div>
 
+    <section class="mine-area">
+      <div class="row mine-head">
+        <strong>{{ you.name }}</strong><span class="muted">(you)</span>
+        <span class="muted">{{ you.points }} pts this hand</span>
+        <button class="quiet leave" :class="{ hidden: !playing }" :disabled="!playing" @click="send('leave')">Leave game</button>
+      </div>
+      <div class="hand" role="group" aria-label="Your hand">
+        <div v-for="card in state.hand" :key="card" class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
+          <PlayingCard
+            :card="card"
+            :size="cardSize"
+            :clickable="interactive"
+            :selected="picks.includes(card)"
+            :dimmed="dimmed(card)"
+            @pick="pick"
+          />
+        </div>
+      </div>
+      <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
+        <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
+      </div>
+      <p class="muted small-note">{{ state.received.length && state.phase === 'playing' ? 'Cards you received are marked.' : '' }}</p>
+    </section>
+
+    <!-- These come after the hand so that they never push it about. -->
     <section v-if="passing && state.pass.chosen" class="panel passed">
       <div>
         <p class="muted">You passed {{ direction }}</p>
@@ -180,30 +204,6 @@ const moonMessage = computed(() => {
         <button class="quiet" @click="send('leave')">Leave game</button>
       </div>
     </section>
-
-    <section class="mine-area">
-      <div class="row mine-head">
-        <strong>{{ you.name }}</strong><span class="muted">(you)</span>
-        <span class="muted">{{ you.points }} pts this hand</span>
-        <button v-if="playing" class="quiet leave" @click="send('leave')">Leave game</button>
-      </div>
-      <div class="hand" role="group" aria-label="Your hand">
-        <div v-for="card in state.hand" :key="card" class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
-          <PlayingCard
-            :card="card"
-            :size="cardSize"
-            :clickable="interactive"
-            :selected="picks.includes(card)"
-            :dimmed="dimmed(card)"
-            @pick="pick"
-          />
-        </div>
-      </div>
-      <div v-if="passing && !state.pass.chosen" class="row confirm">
-        <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
-      </div>
-      <p v-if="state.received.length && state.phase === 'playing'" class="muted small-note">Cards you received are marked.</p>
-    </section>
   </div>
 </template>
 
@@ -227,6 +227,10 @@ const moonMessage = computed(() => {
   border: 1px solid var(--line);
 }
 .seat {
+  width: 10rem;
+  max-width: 100%;
+  justify-self: center;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -262,6 +266,7 @@ const moonMessage = computed(() => {
   font-weight: 600;
 }
 .tag {
+  min-height: 1.1rem;
   font-size: 0.7rem;
   padding: 0 0.45rem;
   border: 1px solid var(--line);
@@ -284,48 +289,21 @@ const moonMessage = computed(() => {
   text-align: center;
 }
 .pts {
+  min-height: 1.1rem;
   font-size: 0.78rem;
   color: var(--muted);
 }
 .centre {
   grid-area: centre;
+  justify-self: center;
+}
+.hidden {
+  visibility: hidden;
+}
+.notes {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  grid-template-rows: repeat(3, auto);
-  justify-content: center;
-  justify-items: center;
-  align-items: center;
-  gap: 0.2rem;
-  min-height: 9rem;
-  position: relative;
-}
-.played {
-  display: grid;
-  place-items: center;
-}
-.at2 {
-  grid-column: 2;
-  grid-row: 1;
-}
-.at1 {
-  grid-column: 1;
-  grid-row: 2;
-}
-.at3 {
-  grid-column: 3;
-  grid-row: 2;
-}
-.at0 {
-  grid-column: 2;
-  grid-row: 3;
-}
-.mid {
-  grid-column: 2;
-  grid-row: 2;
-  margin: 0;
-}
-.won {
-  box-shadow: 0 0 0 3px var(--amber), 0 4px 10px rgb(0 0 0 / 0.5);
+  min-height: 3.2rem;
+  align-content: start;
 }
 .status {
   margin: 0;
@@ -339,11 +317,13 @@ const moonMessage = computed(() => {
 }
 .reason {
   margin: 0;
+  min-height: 1.5rem;
   text-align: center;
   color: var(--danger);
 }
 .small-note {
   margin: 0;
+  min-height: 1.3rem;
   text-align: center;
   font-size: 0.85rem;
 }
@@ -378,6 +358,7 @@ const moonMessage = computed(() => {
   justify-content: center;
   gap: 0.35rem 0;
   padding: 0.9rem 0.8rem 0.3rem;
+  min-height: 7.6rem; /* a full row of cards, so the hand never shrinks as cards are played */
 }
 .slot {
   position: relative;
@@ -430,9 +411,6 @@ const moonMessage = computed(() => {
 @media (max-width: 640px) {
   .slot {
     margin: 0 -0.55rem;
-  }
-  .centre {
-    min-height: 0;
   }
 }
 </style>

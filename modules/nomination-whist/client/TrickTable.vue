@@ -4,7 +4,7 @@
 // viewer's own seat goes in the #me slot at the bottom. Slots: #seat (one opponent: { seat, index }), #me, #centre
 // (replaces the trick, for messages). `plays` is [{ key, card }] in the order played.
 import { computed } from 'vue';
-import PlayingCard from '../../../src/components/PlayingCard.vue';
+import TrickCircle from '../../../src/components/TrickCircle.vue';
 
 const props = defineProps({
   seats: { type: Array, required: true }, // [{ key, name }], viewer first
@@ -20,7 +20,6 @@ const opponents = computed(() =>
     return { seat, index: i + 1, x: 50 - 41 * Math.sin(angle), y: 46 + 40 * Math.cos(angle) };
   }),
 );
-const nameOf = (key) => props.seats.find((s) => s.key === key)?.name ?? '';
 </script>
 
 <template>
@@ -37,13 +36,9 @@ const nameOf = (key) => props.seats.find((s) => s.key === key)?.name ?? '';
       </div>
       <div class="centre" aria-live="polite">
         <slot name="centre">
-          <ul v-if="plays.length" class="trick">
-            <li v-for="p in plays" :key="p.key" class="played" :class="{ won: p.key === winnerKey }">
-              <PlayingCard :card="p.card" size="sm" />
-              <span class="who">{{ nameOf(p.key) }}</span>
-            </li>
-          </ul>
-          <p v-else class="muted empty">{{ caption }}</p>
+          <TrickCircle :seats="seats" :plays="plays" :winner-key="winnerKey" size="sm" labels>
+            <p v-if="!plays.length" class="muted empty">{{ caption }}</p>
+          </TrickCircle>
         </slot>
       </div>
     </div>
@@ -78,37 +73,8 @@ const nameOf = (key) => props.seats.find((s) => s.key === key)?.name ?? '';
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 6.2rem;
+  min-height: 12rem; /* the trick circle's size: it never grows when cards land */
   order: -1;
-}
-.trick {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-}
-.played {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  max-width: 4.2rem;
-}
-.played.won :deep(.playing-card) {
-  box-shadow: 0 0 0 3px var(--amber), 0 4px 10px rgb(0 0 0 / 0.5);
-}
-.played.won .who {
-  color: var(--amber);
-}
-.who {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.75rem;
 }
 .empty {
   margin: 0;
@@ -147,8 +113,8 @@ const nameOf = (key) => props.seats.find((s) => s.key === key)?.name ?? '';
     position: absolute;
     inset: 0;
     margin: auto;
-    width: 46%;
-    height: 40%;
+    width: 15rem;
+    height: 12rem;
     min-height: 0;
   }
 }

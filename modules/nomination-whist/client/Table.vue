@@ -138,41 +138,10 @@ function pick(card) {
       </template>
     </TrickTable>
 
-    <p v-if="status" class="status" role="status">{{ status }}</p>
+    <p class="status" role="status">{{ status }}</p>
 
-    <section v-if="state.phase === 'nominating' && myTurn" class="panel stack nominate" aria-label="Your nomination">
-      <h3>How many tricks will you win?</h3>
-      <div class="numbers">
-        <button
-          v-for="n in options"
-          :key="n"
-          class="number"
-          :class="{ forbidden: n === state.forbidden }"
-          :disabled="n === state.forbidden"
-          :title="n === state.forbidden ? 'You cannot nominate this as the dealer' : ''"
-          @click="send('nominate', { number: n })"
-        >{{ n }}</button>
-      </div>
-      <p v-if="imDealer && state.forbidden !== null" class="rule">
-        You are the dealer, so you cannot nominate <strong>{{ state.forbidden }}</strong>: the nominations would total {{ round.cards }}, the number of tricks, and somebody has to miss.
-      </p>
-      <p v-else-if="imDealer" class="rule">You are the dealer. The others have already nominated at least {{ round.cards }} tricks between them, so any number is allowed.</p>
-      <p v-else class="muted">So far {{ total }} {{ total === 1 ? 'trick is' : 'tricks are' }} nominated out of {{ round.cards }}.</p>
-    </section>
-    <p v-else-if="state.phase === 'nominating' && !everyoneNominated && round.dealer === state.turn" class="muted rule">
-      {{ nameOf(round.dealer) }} deals and nominates last: they cannot nominate {{ state.forbidden }}.
-    </p>
-
-    <section v-if="state.phase === 'roundEnd'" class="panel stack">
-      <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
-      <div class="row">
-        <button class="primary" @click="send('next')">Deal round {{ round.number + 1 }}</button>
-        <span class="muted">Anyone can deal the next round.</span>
-      </div>
-    </section>
-
-    <section v-if="state.phase === 'nominating' || state.phase === 'playing'" class="hand-area" aria-label="Your hand">
-      <div class="hand" :class="{ crowded: hand.length > 5 }">
+    <section class="hand-area" aria-label="Your hand">
+      <div class="hand" :class="{ crowded: round.cards > 5 }" :style="{ '--n': round.cards }">
         <PlayingCard
           v-for="card in hand"
           :key="card"
@@ -183,13 +152,44 @@ function pick(card) {
           :title="state.legal?.[card] ?? undefined"
           @pick="pick"
         />
-        <p v-if="!hand.length" class="muted">You have no cards left.</p>
       </div>
-      <p v-if="hint" class="hint" role="alert">{{ hint }}</p>
-      <p v-else-if="state.phase === 'playing' && myTurn && hand.some((c) => state.legal?.[c])" class="muted">Dimmed cards cannot be played: you must follow suit.</p>
+      <p class="note" :class="hint ? 'hint' : 'muted'" :role="hint ? 'alert' : undefined">{{ hint || (state.phase === 'playing' && myTurn && hand.some((c) => state.legal?.[c]) ? 'Dimmed cards cannot be played: you must follow suit.' : '') }}</p>
     </section>
 
     <div class="row"><button class="quiet" @click="send('leave')">Leave game</button><span v-if="!finished" class="muted">A computer player takes your seat if you leave.</span></div>
+    <!-- Everything that comes and goes sits below the hand, so it never pushes the hand or the table about. -->
+    <div class="actions">
+      <section v-if="state.phase === 'nominating' && myTurn" class="panel stack nominate" aria-label="Your nomination">
+        <h3>How many tricks will you win?</h3>
+        <div class="numbers">
+          <button
+            v-for="n in options"
+            :key="n"
+            class="number"
+            :class="{ forbidden: n === state.forbidden }"
+            :disabled="n === state.forbidden"
+            :title="n === state.forbidden ? 'You cannot nominate this as the dealer' : ''"
+            @click="send('nominate', { number: n })"
+          >{{ n }}</button>
+        </div>
+        <p v-if="imDealer && state.forbidden !== null" class="rule">
+          You are the dealer, so you cannot nominate <strong>{{ state.forbidden }}</strong>: the nominations would total {{ round.cards }}, the number of tricks, and somebody has to miss.
+        </p>
+        <p v-else-if="imDealer" class="rule">You are the dealer. The others have already nominated at least {{ round.cards }} tricks between them, so any number is allowed.</p>
+        <p v-else class="muted">So far {{ total }} {{ total === 1 ? 'trick is' : 'tricks are' }} nominated out of {{ round.cards }}.</p>
+      </section>
+      <p v-else-if="state.phase === 'nominating' && !everyoneNominated && round.dealer === state.turn" class="muted rule">
+        {{ nameOf(round.dealer) }} deals and nominates last: they cannot nominate {{ state.forbidden }}.
+      </p>
+  
+      <section v-if="state.phase === 'roundEnd'" class="panel stack">
+        <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
+        <div class="row">
+          <button class="primary" @click="send('next')">Deal round {{ round.number + 1 }}</button>
+          <span class="muted">Anyone can deal the next round.</span>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -299,6 +299,7 @@ function pick(card) {
   font-size: 0.75rem;
 }
 .mine {
+  min-height: 3.6rem;
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -306,6 +307,7 @@ function pick(card) {
 }
 .status {
   margin: 0;
+  min-height: 1.7rem;
   text-align: center;
   font-family: var(--display);
   font-size: 1.1rem;
@@ -340,26 +342,37 @@ function pick(card) {
   gap: 0.4rem;
 }
 .hand {
+  --gap: 0.4rem;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.4rem;
+  gap: var(--gap);
   padding-top: 0.8rem;
+  /* Room for a full round's hand in one row, so the hand keeps its size as cards are played. */
+  box-sizing: content-box;
+  min-height: 6.2rem;
+  min-width: calc(var(--n) * 4.4rem + (var(--n) - 1) * var(--gap));
 }
 .hand.crowded {
-  gap: 0.25rem;
+  --gap: 0.25rem;
+}
+.note {
+  margin: 0;
+  min-height: 1.3rem;
+  font-size: 0.85rem;
 }
 .hint {
-  margin: 0;
   color: var(--danger);
 }
-.hand-area .muted {
-  margin: 0;
-  font-size: 0.85rem;
+.actions {
+  min-height: 13rem; /* the nomination buttons, round result or next-round button all appear here */
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
 }
 @media (max-width: 719px) {
   .hand.crowded {
-    gap: 0.15rem;
+    --gap: 0.15rem;
   }
 }
 </style>
