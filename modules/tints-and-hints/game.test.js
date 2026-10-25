@@ -1,0 +1,304 @@
+// The rules of Tints and Hints, without sockets.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as game from './game.js';
+import { COLS, ROWS, cellColour, isCell, isClose } from './grid.js';
+
+const sequence = (...values) => {
+  let i = 0;
+  return () => values[i++ % values.length];
+};
+
+/** A room of the given user ids, started with the first player as the first hinter and "M4" as the tint. */
+function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
+  const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
+  for (const id of ids.slice(1)) assert.ok(game.addPlayer(room, id).ok);
+  assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
+  // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4).
+  assert.ok(game.start(room, ids[0], sequence(0, 12 / 24, 4 / 10)).ok);
+  assert.equal(room.tint, 'M4');
+  return room;
+}
+
+const score = (room, id) => room.players.find((p) => p.id === id).score;
+
+test('the grid has 24 columns and 10 rows, and close means within one square', () => {
+  assert.equal(COLS.length, 24);
+  assert.equal(COLS[0] + COLS[23], 'AX');
+  assert.equal(ROWS.length, 10);
+  assert.ok(isCell('A0') && isCell('X9'));
+  for (const bad of ['Y0', 'A', 'A10', 'a0', 'AA', '', null, 12, ['A0']]) assert.equal(isCell(bad), false, String(bad));
+  assert.equal(cellColour('A0'), 'hsl(0deg 25% 30%)');
+  assert.equal(cellColour('X9'), 'hsl(345deg 100% 90%)');
+  assert.equal(cellColour('D5'), 'hsl(45deg 100% 50%)');
+
+  for (const near of ['M4', 'L3', 'L4', 'L5', 'M3', 'M5', 'N3', 'N4', 'N5']) assert.ok(isClose(near, 'M4'), near);
+  for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6']) assert.equal(isClose(far, 'M4'), false, far);
+  assert.equal(isClose('X4', 'A4'), false, 'the hue does not wrap round');
+  assert.equal(isClose('A0', 'B1'), true);
+});
+
+test('a lobby: colours are unique, the host sets the turns and the game needs two players', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  assert.equal(game.start(room, 1).ok, false, 'one player is not enough');
+  game.addPlayer(room, 2);
+  assert.notEqual(room.players[0].colour, room.players[1].colour);
+  assert.equal(game.setColour(room, 2, room.players[0].colour).ok, false);
+  assert.equal(game.setColour(room, 2, '#123456').ok, false);
+  assert.ok(game.setColour(room, 2, game.COLOURS[7]).ok);
+  assert.equal(room.players[1].colour, game.COLOURS[7]);
+
+  assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
+  for (const bad of [0, 6, 1.5, '2', null]) assert.equal(game.setTurnsEach(room, 1, bad).ok, false, String(bad));
+  assert.ok(game.setTurnsEach(room, 1, 5).ok);
+  assert.equal(game.start(room, 2).ok, false, 'only the host starts');
+  assert.ok(game.start(room, 1).ok);
+  assert.equal(room.turnsTotal, 10);
+  assert.equal(game.addPlayer(room, 3).ok, false, 'no joining once started');
+  assert.ok(game.addPlayer(room, 2).ok, 'but a member is still a member');
+});
+
+test('a game holds at most eight players', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  for (let id = 2; id <= 8; id++) assert.ok(game.addPlayer(room, id).ok);
+  assert.equal(game.addPlayer(room, 9).ok, false);
+  assert.equal(new Set(room.players.map((p) => p.colour)).size, 8);
+});
+
+test('guessing: the hinter cannot guess, each person guesses once a round, and squares are checked', () => {
+  const room = started();
+  assert.equal(room.hinter, 1);
+  assert.equal(game.guess(room, 1, 'A0').ok, false, 'the hinter');
+  assert.equal(game.guess(room, 9, 'A0').ok, false, 'a stranger');
+  assert.equal(game.guess(room, 2, 'Z9').ok, false, 'not on the grid');
+  assert.ok(game.guess(room, 2, 'A0').ok);
+  assert.equal(game.guess(room, 2, 'B0').ok, false, 'only one guess');
+  assert.equal(game.advance(room, 1).ok, false, 'not everyone has guessed');
+  assert.equal(game.advance(room, 2).ok, false, 'only the hinter continues');
+  assert.ok(game.guess(room, 3, 'B0').ok);
+  assert.ok(game.advance(room, 1).ok);
+  assert.equal(room.phase, 'guessing2');
+  assert.ok(game.guess(room, 2, 'C0').ok, 'a fresh guess in the second round');
+  assert.equal(game.advance(room, 1).ok, false);
+});
+
+test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per person who found it', () => {
+  const room = started([1, 2, 3, 4]);
+  game.guess(room, 2, 'M4'); // exact first: 5
+  game.guess(room, 3, 'N5'); // close first: 2
+  game.guess(room, 4, 'A0'); // miss
+  game.advance(room, 1);
+  game.guess(room, 2, 'M4'); // exact again in round two: 4 (and the hinter still only counts them once)
+  game.guess(room, 3, 'M4'); // exact second: 4
+  game.guess(room, 4, 'L4'); // close second: 1
+  game.advance(room, 1);
+  assert.equal(room.phase, 'reveal');
+  assert.equal(score(room, 2), 9);
+  assert.equal(score(room, 3), 6);
+  assert.equal(score(room, 4), 1);
+  assert.equal(score(room, 1), 6, 'two people found it, 3 each');
+  assert.deepEqual(room.result.entries.map((e) => [e.id, e.round, e.kind, e.points]), [
+    [2, 1, 'exact', 5], [3, 1, 'close', 2], [4, 1, 'miss', 0], [2, 2, 'exact', 4], [3, 2, 'exact', 4], [4, 2, 'close', 1],
+  ]);
+  assert.equal(room.result.hinterPoints, 6);
+  const [p1, p2, p3, p4] = room.players;
+  assert.deepEqual([p2.exactGuesses, p2.closeGuesses, p3.exactGuesses, p3.closeGuesses, p4.exactGuesses, p4.closeGuesses], [2, 0, 1, 1, 0, 1]);
+  assert.equal(p1.hintsGiven, 1);
+});
+
+test('turns rotate in joining order until everyone has had the set number of turns, then the game finishes', () => {
+  const room = started([1, 2, 3], { turnsEach: 2 });
+  const hinters = [];
+  for (let turn = 0; turn < 6; turn++) {
+    hinters.push(room.hinter);
+    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A0');
+    game.advance(room, room.hinter);
+    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A0');
+    assert.ok(game.advance(room, room.hinter).ok);
+    assert.equal(room.phase, 'reveal');
+    assert.equal(game.advance(room, 99).ok, false, 'a stranger cannot continue');
+    const next = game.advance(room, room.hostId);
+    assert.equal(next.finished, turn === 5);
+  }
+  assert.deepEqual(hinters, [1, 2, 3, 1, 2, 3]);
+  assert.equal(room.phase, 'finished');
+  assert.equal(game.advance(room, 1).ok, false);
+  assert.equal(game.guess(room, 2, 'A0').ok, false);
+});
+
+test('the hint is typed by the hinter only, trimmed and limited in length', () => {
+  const room = started();
+  assert.equal(game.setHint(room, 2, 'nope').ok, false);
+  assert.ok(game.setHint(room, 1, `  warm   sunset ${'x'.repeat(200)}`).ok);
+  assert.equal(room.hints.first.length, game.HINT_LENGTH);
+  assert.match(room.hints.first, /^warm sunset x/);
+  for (const id of [2, 3]) game.guess(room, id, 'A0');
+  game.advance(room, 1);
+  game.setHint(room, 1, 'a bit more orange');
+  assert.equal(room.hints.second, 'a bit more orange');
+  assert.match(room.hints.first, /^warm/);
+});
+
+test('ties: every tied leader wins and placements are shared', () => {
+  const room = started([1, 2, 3, 4]);
+  Object.assign(room.players[0], { score: 10 });
+  Object.assign(room.players[1], { score: 10 });
+  Object.assign(room.players[2], { score: 7 });
+  Object.assign(room.players[3], { score: 7 });
+  const stats = game.statsPlayers(room);
+  assert.deepEqual(stats.map((s) => [s.userId, s.outcome, s.placement, s.score]), [[1, 'win', 1, 10], [2, 'win', 1, 10], [3, 'loss', 3, 7], [4, 'loss', 3, 7]]);
+  assert.deepEqual(Object.keys(stats[0].extras), ['exactGuesses', 'closeGuesses', 'hintsGiven']);
+});
+
+test('leaving: in the lobby, the host passes on; the last one out empties the room', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  game.addPlayer(room, 2);
+  assert.deepEqual(game.removePlayer(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.equal(room.hostId, 2);
+  assert.equal(game.removePlayer(room, 2).empty, true);
+});
+
+test('leaving mid-game: the hinter leaving skips the turn, and too few players abandons the game', () => {
+  const room = started([1, 2, 3, 4]);
+  game.guess(room, 2, 'M4');
+  const left = game.removePlayer(room, 1);
+  assert.equal(left.abandoned, false);
+  assert.equal(room.hostId, 2, 'the host passes on');
+  assert.equal(room.hinter, 2, 'the next player in order becomes the hinter');
+  assert.equal(room.phase, 'guessing1');
+  assert.equal(room.first.length, 0, 'a fresh turn');
+  assert.equal(room.turn, 1, 'the cancelled turn still counts');
+
+  game.removePlayer(room, 4); // a guesser: no one is waiting for them now
+  game.guess(room, 3, 'A0');
+  assert.ok(game.advance(room, 2).ok);
+  assert.equal(room.players.length, 2);
+  assert.equal(game.removePlayer(room, 3).abandoned, true);
+  assert.equal(room.phase, 'abandoned');
+  assert.equal(game.advance(room, 2).ok, false);
+});
+
+test('rotation carries on in order when someone before the next hinter leaves', () => {
+  const room = started([1, 2, 3, 4]);
+  game.removePlayer(room, 1);
+  assert.equal(room.hinter, 2);
+  assert.equal(room.players[room.nextIdx].id, 3);
+  game.removePlayer(room, 4);
+  assert.equal(room.players[room.nextIdx].id, 3);
+});
+
+test('a game that runs out of turns because the hinter left finishes', () => {
+  const room = started([1, 2, 3], { turnsEach: 1 });
+  room.turn = 2;
+  assert.equal(game.removePlayer(room, 1).finished, true);
+  assert.equal(room.phase, 'finished');
+});
+
+test('views: only the hinter sees the tint until the reveal, and same-round guesses are hidden from other guessers', () => {
+  const room = started([1, 2, 3]);
+  game.guess(room, 2, 'B1');
+  game.guess(room, 3, 'C2');
+  const view = (id) => game.viewFor(room, id, { nameOf: (n) => `player ${n}` });
+
+  assert.equal(view(1).tint, 'M4');
+  for (const id of [2, 3]) {
+    const v = view(id);
+    assert.equal(v.tint, null);
+    assert.equal(v.result, null);
+    assert.deepEqual(v.guesses.map((g) => g.id), [id], 'only their own guess');
+    assert.ok(!JSON.stringify(v).includes('M4'));
+  }
+  assert.equal(view(1).guesses.length, 2, 'the hinter sees everything');
+  assert.equal(view(2).players.find((p) => p.id === 3).guessed, true, 'but everyone sees who has guessed');
+
+  game.advance(room, 1);
+  assert.equal(view(2).guesses.length, 2, 'first guesses open up for the second round');
+  game.guess(room, 2, 'D3');
+  assert.equal(view(3).guesses.filter((g) => g.round === 2).length, 0);
+  assert.equal(view(3).tint, null);
+  game.guess(room, 3, 'D3');
+  game.advance(room, 1);
+  assert.equal(room.phase, 'reveal');
+  const revealed = view(3);
+  assert.equal(revealed.tint, 'M4');
+  assert.equal(revealed.guesses.length, 4);
+  assert.equal(revealed.result.entries[0].name, 'player 2');
+  assert.equal(revealed.result.hinterName, 'player 1');
+  game.advance(room, 1);
+  assert.equal(view(3).tint, null, 'hidden again for the next turn');
+  assert.equal(view(3).result, null);
+});
+
+test('history: each scored turn appends its deltas and notes, and the totals equal the scores', () => {
+  const room = started([1, 2, 3]);
+  const nameOf = (id) => `player ${id}`;
+  const view = (id) => game.viewFor(room, id, { nameOf });
+  const sums = (v) => Object.fromEntries(v.scoreboard.players.map((p) => [p.id, v.scoreboard.rounds.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0)]));
+
+  assert.deepEqual(view(2).scoreboard.rounds, []);
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'N5');
+  game.advance(room, 1, Math.random, nameOf);
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'A0');
+  assert.deepEqual(view(3).scoreboard.rounds, [], 'nothing before the reveal');
+  game.advance(room, 1, Math.random, nameOf);
+  const v = view(3);
+  assert.equal(v.scoreboard.rounds.length, 1);
+  assert.deepEqual(v.scoreboard.rounds[0], {
+    label: 'Turn 1: player 1',
+    deltas: { 1: 3, 2: 9, 3: 2 },
+    notes: { 1: '1 found it', 2: 'exact in round 1, exact in round 2', 3: 'close in round 1' },
+  });
+  assert.deepEqual(v.scoreboard.players.map((p) => [p.id, p.score, p.isMe]), [[1, 3, false], [2, 9, false], [3, 2, true]]);
+  assert.equal(v.scoreboard.lowIsBetter, false);
+  assert.deepEqual(sums(v), { 1: 3, 2: 9, 3: 2 });
+
+  game.advance(room, 1);
+  assert.equal(view(2).scoreboard.rounds.length, 1, 'the new turn adds nothing until it is revealed');
+  assert.equal(JSON.stringify(view(2).scoreboard).includes(room.tint), false);
+  game.guess(room, 1, 'A0');
+  game.guess(room, 3, 'A0');
+  game.advance(room, 2);
+  game.guess(room, 1, 'A0');
+  game.guess(room, 3, 'A0');
+  game.advance(room, 2, Math.random, nameOf);
+  assert.equal(view(1).scoreboard.rounds[1].label, 'Turn 2: player 2');
+  assert.equal(view(1).scoreboard.rounds[1].notes[2], 'nobody found it');
+  assert.deepEqual(sums(view(1)), Object.fromEntries(room.players.map((p) => [p.id, p.score])));
+});
+
+test('history: a turn skipped because its hinter left adds nothing, and totals still match', () => {
+  const room = started([1, 2, 3, 4], { turnsEach: 2 });
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'M4');
+  game.guess(room, 4, 'M4');
+  game.advance(room, 1);
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'M4');
+  game.guess(room, 4, 'M4');
+  game.advance(room, 1);
+  game.advance(room, 1);
+  game.removePlayer(room, room.hinter);
+  assert.equal(room.history.length, 1);
+  assert.equal(room.phase, 'guessing1');
+  const v = game.viewFor(room, 3);
+  const totals = Object.fromEntries(v.scoreboard.players.map((p) => [p.id, v.scoreboard.rounds.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0)]));
+  for (const p of v.scoreboard.players) assert.equal(totals[p.id], p.score);
+});
+
+test('migrate: an old room without a history gets one, with the earlier points as a single entry', () => {
+  const room = started([1, 2, 3]);
+  room.players[1].score = 9;
+  room.players[0].score = 3;
+  delete room.history;
+  game.migrate(room);
+  assert.deepEqual(room.history, [{ label: 'Earlier turns', deltas: { 1: 3, 2: 9 }, notes: {} }]);
+  const v = game.viewFor(room, 2);
+  assert.equal(v.scoreboard.rounds.length, 1);
+  game.migrate(room);
+  assert.equal(room.history.length, 1, 'migrating twice changes nothing');
+  const legacy = started([1, 2]);
+  delete legacy.history;
+  assert.deepEqual(game.viewFor(legacy, 1).scoreboard.rounds, [], 'a view of an unmigrated room still works');
+});

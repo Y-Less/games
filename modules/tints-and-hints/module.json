@@ -1,0 +1,14 @@
+{
+  "id": "tints-and-hints",
+  "name": "Tints and Hints",
+  "description": "Describe a secret colour in a few words and see how close your friends can get on the colour grid.",
+  "minPlayers": 2,
+  "maxPlayers": 8,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "exactGuesses", "label": "Exact guesses", "agg": "sum" },
+    { "key": "closeGuesses", "label": "Close guesses", "agg": "sum" },
+    { "key": "hintsGiven", "label": "Hints given", "agg": "sum" }
+  ]
+}
