@@ -7,7 +7,7 @@
 // Set LAYOUT_REPORT=1 to print every area's distinct boxes (handy when a change makes one of them move).
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, drive } from './helpers.js';
+import { createWorld, drive, sleep } from './helpers.js';
 
 let world;
 before(async () => {
@@ -86,28 +86,40 @@ test('Hearts: the table, hand and status areas keep one size and position throug
     await startGame(user, '/play/hearts', 'Start a new game of Hearts');
     await user.waitForText('Hand 1');
     await user.waitForSelector('.hand button.playing-card');
-    const areas = ['.score-bar', '.info', '.table', '.table .centre', '.table .centre .slot', '.table .pos1', '.table .pos2', '.table .pos3', '.status', '.mine-area', '.mine-area .hand'];
+    const areas = ['.score-bar', '.info', '.felt', '.felt .trick', '.felt .pos1', '.felt .pos2', '.felt .pos3', '.felt .my-fan', '.status', '.notes', '.mine-area'];
     await startRecording(user, areas);
-    // The hand's cards overlap, so click each wanted card's visible left strip rather than its middle.
+    // The hand is a fan of overlapping, turned cards, so click a point of each wanted card that is really its own.
+    let clicks = 0;
     const act = async () => {
       const spot = await user.page.evaluate(() => {
         const centre = (el) => {
           const b = el.getBoundingClientRect();
           return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
         };
-        const pass = document.querySelector('.confirm button.primary');
-        if (pass && !pass.disabled) return centre(pass);
+        const pass = document.querySelector('.confirm:not(.hidden) button.primary');
+        if (pass && !pass.disabled) {
+          pass.scrollIntoView({ block: 'nearest' });
+          return centre(pass);
+        }
         const wanted = pass ? '.hand button.playing-card:not(.selected)' : '.hand button.playing-card:not(.dimmed):not([disabled])';
         for (const card of document.querySelectorAll(wanted)) {
+          card.scrollIntoView({ block: 'nearest' });
           const b = card.getBoundingClientRect();
-          const x = b.left + 10;
-          const y = b.top + b.height * 0.6;
-          if (document.elementFromPoint(x, y)?.closest('button') === card) return { x, y };
+          for (const [fx, fy] of [[0.5, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7], [0.15, 0.5], [0.85, 0.5], [0.5, 0.1]]) {
+            const x = b.left + b.width * fx;
+            const y = b.top + b.height * fy;
+            if (document.elementFromPoint(x, y)?.closest('button') === card) return { x, y };
+          }
         }
         return null;
       });
       if (!spot) return false;
       await user.page.mouse.click(spot.x, spot.y);
+      clicks += 1;
+      if (process.env.LAYOUT_SHOTS && clicks === 8) {
+        await sleep(300);
+        await user.page.screenshot({ path: `${process.env.LAYOUT_SHOTS}/hearts.png` });
+      }
       return true;
     };
     await drive({ act, finished: finishedModal(user), what: 'a hand of Hearts', timeout: 120000 });
@@ -144,7 +156,17 @@ test('Nomination Whist: the banner, table, status and hand keep one size and pos
     const areas = ['.score-bar', '.banner', '.table', '.table .ring', '.table .centre', '.table .me', '.status', '.hand-area', '.hand-area .hand'];
     await startRecording(user, areas);
     const finder = () => document.querySelector('.nominate .numbers button.number:not([disabled])') ?? document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
-    await drive({ act: () => user.clickFound(finder), finished: finishedModal(user), what: 'a round of Nomination Whist', timeout: 120000 });
+    let clicks = 0;
+    const act = async () => {
+      const done = await user.clickFound(finder);
+      clicks += done ? 1 : 0;
+      if (process.env.LAYOUT_SHOTS && clicks === 5 && done) {
+        await sleep(300);
+        await user.page.screenshot({ path: `${process.env.LAYOUT_SHOTS}/whist.png` });
+      }
+      return done;
+    };
+    await drive({ act, finished: finishedModal(user), what: 'a round of Nomination Whist', timeout: 120000 });
     assertStable('nomination-whist', await stopRecording(user), STICKY);
   })(t);
 });

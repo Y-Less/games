@@ -36,7 +36,7 @@ const opponents = computed(() =>
       </div>
       <div class="centre" aria-live="polite">
         <slot name="centre">
-          <TrickCircle :seats="seats" :plays="plays" :winner-key="winnerKey" size="sm" labels>
+          <TrickCircle :seats="seats" :plays="plays" :winner-key="winnerKey" size="md" labels>
             <p v-if="!plays.length" class="muted empty">{{ caption }}</p>
           </TrickCircle>
         </slot>

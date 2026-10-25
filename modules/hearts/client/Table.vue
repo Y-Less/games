@@ -1,8 +1,9 @@
 <script setup>
 // The card table: scoreboard, the other three seats, the current trick, your hand and the pass screen.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
+import CardFan from '../../../src/components/CardFan.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
@@ -10,19 +11,11 @@ const props = defineProps({ state: { type: Object, required: true }, send: { typ
 const board = ref(null);
 const picks = ref([]);
 const message = ref('');
-const small = ref(false);
-const measure = () => (small.value = window.innerWidth < 640);
-onMounted(() => {
-  measure();
-  window.addEventListener('resize', measure);
-});
-onBeforeUnmount(() => window.removeEventListener('resize', measure));
 
 const s = computed(() => props.state);
 const seatAt = (rel) => s.value.seats[(s.value.you + rel) % 4];
 const seatIndex = (rel) => (s.value.you + rel) % 4;
 const nameOf = (seat) => s.value.seats[seat]?.name ?? '';
-const cardSize = computed(() => (small.value ? 'sm' : 'md'));
 const passing = computed(() => s.value.phase === 'passing');
 const finished = computed(() => s.value.phase === 'finished');
 const handEnd = computed(() => s.value.phase === 'handEnd');
@@ -30,6 +23,13 @@ const playing = computed(() => s.value.phase === 'playing');
 const myTurn = computed(() => Boolean(s.value.legal));
 const circleSeats = computed(() => [0, 1, 2, 3].map((rel) => ({ key: seatIndex(rel), name: nameOf(seatIndex(rel)) })));
 const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ key: p.seat, card: p.card })) : []));
+const oppNote = (rel) => {
+  const seat = seatAt(rel);
+  if (passing.value) return seat.passed ? 'passed' : 'choosing';
+  if (seat.bot) return seat.tricks ? `computer · ${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : 'computer';
+  if (!seat.online) return 'away';
+  return seat.tricks ? `${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : '';
+};
 const isMoonRound = computed(() => s.value.lastHand?.moon != null);
 
 const direction = computed(() => {
@@ -120,21 +120,31 @@ const moonMessage = computed(() => {
       <span v-if="state.settings.jackOfDiamonds" class="muted">Jack of Diamonds: -5</span>
     </div>
 
-    <section class="table" aria-label="The table">
-      <div v-for="rel in [2, 1, 3]" :key="rel" class="seat" :class="[`pos${rel}`, { turn: state.turn === seatIndex(rel) && playing, away: !seatAt(rel).online }]">
-        <span class="name">{{ seatAt(rel).name }}</span>
-        <span class="tag" :class="{ hidden: !seatAt(rel).bot && seatAt(rel).online }">{{ seatAt(rel).bot ? 'computer' : 'away' }}</span>
-        <div class="stack-of-cards" :aria-label="`${seatAt(rel).cards} cards`">
-          <PlayingCard :card="null" size="sm" />
-          <b class="count">{{ seatAt(rel).cards }}</b>
+    <section class="felt" aria-label="The table">
+      <div v-for="rel in [2, 1, 3]" :key="rel" class="opp" :class="[`pos${rel}`, { turn: state.turn === seatIndex(rel) && playing, away: !seatAt(rel).online }]">
+        <CardFan class="opp-fan" :items="Array.from({ length: seatAt(rel).cards }, (_, n) => n)" size="sm" :step="4" :reach="6" :flip="rel === 2" :aria-label="`${seatAt(rel).cards} cards`">
+          <template #default><PlayingCard :card="null" size="sm" /></template>
+        </CardFan>
+        <div class="label">
+          <span class="name">{{ seatAt(rel).name }} <span class="dot">&bull;</span> {{ seatAt(rel).points }}</span>
+          <span class="tag">{{ oppNote(rel) }}</span>
         </div>
-        <span class="pts">{{ seatAt(rel).points }} pts<template v-if="seatAt(rel).tricks"> · {{ seatAt(rel).tricks }} {{ seatAt(rel).tricks === 1 ? 'trick' : 'tricks' }}</template></span>
-        <span class="tag" :class="{ hidden: !passing }">{{ seatAt(rel).passed ? 'passed' : 'choosing' }}</span>
       </div>
 
-      <TrickCircle class="centre" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" :size="cardSize">
+      <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg">
         <p class="muted">{{ passing ? 'Passing' : '' }}</p>
       </TrickCircle>
+
+      <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="md" :max="13">
+        <template #default="{ item: card }">
+          <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
+            <PlayingCard :card="card" size="md" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
+          </div>
+        </template>
+      </CardFan>
+      <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
+        <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
+      </div>
     </section>
 
     <p class="status" :class="{ mine: myTurn || (passing && !state.pass.chosen) }" role="status">{{ status }}</p>
@@ -148,21 +158,6 @@ const moonMessage = computed(() => {
         <strong>{{ you.name }}</strong><span class="muted">(you)</span>
         <span class="muted">{{ you.points }} pts this hand</span>
         <button class="quiet leave" :class="{ hidden: !playing }" :disabled="!playing" @click="send('leave')">Leave game</button>
-      </div>
-      <div class="hand" role="group" aria-label="Your hand">
-        <div v-for="card in state.hand" :key="card" class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
-          <PlayingCard
-            :card="card"
-            :size="cardSize"
-            :clickable="interactive"
-            :selected="picks.includes(card)"
-            :dimmed="dimmed(card)"
-            @pick="pick"
-          />
-        </div>
-      </div>
-      <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
-        <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
       </div>
       <p class="muted small-note">{{ state.received.length && state.phase === 'playing' ? 'Cards you received are marked.' : '' }}</p>
     </section>
@@ -212,90 +207,88 @@ const moonMessage = computed(() => {
   justify-content: space-between;
   font-size: 0.9rem;
 }
-.table {
-  display: grid;
-  grid-template-columns: minmax(4.6rem, 1fr) minmax(0, 2.4fr) minmax(4.6rem, 1fr);
-  grid-template-areas: '. top .' 'left centre right';
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.8rem 0.4rem;
+.felt {
+  position: relative;
   width: 100%;
-  max-width: 820px;
+  max-width: 60rem;
+  height: 37rem;
   margin: 0 auto;
   border-radius: var(--radius);
   background: radial-gradient(ellipse at center, rgb(30 80 60 / 0.55), rgb(14 40 32 / 0.55));
   border: 1px solid var(--line);
+  overflow: hidden;
 }
-.seat {
-  width: 10rem;
-  max-width: 100%;
-  justify-self: center;
-  box-sizing: border-box;
+.opp {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.4rem 0.3rem;
+  width: 18.4rem;
+  height: 9.8rem;
   border-radius: 12px;
-  border: 2px solid transparent;
-  text-align: center;
-  min-width: 0;
-}
-.seat.turn {
-  border-color: var(--amber);
-  background: rgb(224 168 74 / 0.12);
-}
-.seat.away {
-  opacity: 0.65;
 }
 .pos2 {
-  grid-area: top;
-  justify-self: center;
+  top: 0.4rem;
+  left: 50%;
+  margin-left: -9.2rem;
 }
 .pos1 {
-  grid-area: left;
+  left: 0;
+  top: 50%;
+  margin-top: -4.9rem;
+  transform-origin: 50% 50%;
+  transform: translate(-4.3rem, 0) rotate(90deg);
 }
 .pos3 {
-  grid-area: right;
+  right: 0;
+  top: 50%;
+  margin-top: -4.9rem;
+  transform: translate(4.3rem, 0) rotate(-90deg);
+}
+.opp.turn .name {
+  color: var(--amber);
+}
+.opp.away {
+  opacity: 0.65;
+}
+.label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 2.6rem;
+  line-height: 1.3;
 }
 .name {
-  max-width: 100%;
+  max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
 }
+.dot {
+  color: var(--muted);
+}
 .tag {
   min-height: 1.1rem;
-  font-size: 0.7rem;
-  padding: 0 0.45rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  font-size: 0.72rem;
   color: var(--muted);
 }
-.stack-of-cards {
-  position: relative;
-}
-.count {
+.trick {
   position: absolute;
-  right: -0.5rem;
-  bottom: -0.3rem;
-  min-width: 1.5rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  font-size: 0.8rem;
-  text-align: center;
+  left: 50%;
+  top: 10.4rem;
+  margin-left: -8.1rem;
 }
-.pts {
-  min-height: 1.1rem;
-  font-size: 0.78rem;
-  color: var(--muted);
+.my-fan {
+  position: absolute;
+  left: 50%;
+  bottom: 1.4rem;
+  margin-left: -15.4rem;
 }
-.centre {
-  grid-area: centre;
-  justify-self: center;
+.slot {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
 }
 .hidden {
   visibility: hidden;
@@ -352,30 +345,16 @@ const moonMessage = computed(() => {
 .leave {
   margin-left: auto;
 }
-.hand {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.35rem 0;
-  padding: 0.9rem 0.8rem 0.3rem;
-  min-height: 7.6rem; /* a full row of cards, so the hand never shrinks as cards are played */
-}
-.slot {
-  position: relative;
-  margin: 0 -0.95rem;
-  border-radius: 8px;
-}
-.slot:has(.selected),
-.slot:hover {
-  z-index: 2;
-}
 .slot.received :deep(.playing-card) {
   outline: 2px solid var(--moss);
   outline-offset: 1px;
 }
 .confirm {
-  justify-content: center;
-  margin-top: 0.4rem;
+  position: absolute;
+  left: 50%;
+  top: 21.5rem;
+  transform: translateX(-50%);
+  z-index: 60;
 }
 .moon {
   margin: 0;
@@ -407,10 +386,5 @@ const moonMessage = computed(() => {
 }
 .taken li.me strong {
   color: var(--amber);
-}
-@media (max-width: 640px) {
-  .slot {
-    margin: 0 -0.55rem;
-  }
 }
 </style>

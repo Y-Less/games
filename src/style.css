@@ -138,3 +138,16 @@ input::placeholder {
     animation: none !important;
   }
 }
+
+/* A game's error notice ("not your turn", "that move is illegal"...) floats over the page as a toast rather than
+   taking up room in the flow, so it can never push the table or a hand about when it appears or goes away. */
+.notice[role='alert'] {
+  position: fixed;
+  top: calc(var(--hub-bar-height, 3.4rem) + 0.6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(40rem, 92vw);
+  background: var(--bg-raised);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+}
