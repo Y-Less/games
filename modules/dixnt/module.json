@@ -1,0 +1,15 @@
+{
+  "id": "dixnt",
+  "name": "Dixnt",
+  "description": "A Dixit-style card game with a twist: one player is secretly in the dark, and the rest must work out who is bluffing.",
+  "minPlayers": 3,
+  "maxPlayers": 12,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "roundsAsImposter", "label": "Rounds as the imposter", "agg": "sum" },
+    { "key": "timesFooledGroup", "label": "Times you fooled the group", "agg": "sum" },
+    { "key": "correctGuesses", "label": "Imposters correctly spotted", "agg": "sum" },
+    { "key": "cardsPlayed", "label": "Cards played", "agg": "sum" }
+  ]
+}
