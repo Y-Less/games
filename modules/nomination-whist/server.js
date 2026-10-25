@@ -279,8 +279,8 @@ export default function (ctx) {
   };
 }
 
-/** Only the three settings, whatever else a client sends. */
+/** Only the four settings, whatever else a client sends. */
 function pickSettings(payload) {
-  const { seats, length, missPoints } = payload ?? {};
-  return Object.fromEntries(Object.entries({ seats, length, missPoints }).filter(([, value]) => value !== undefined));
+  const { seats, length, missPoints, instantWin } = payload ?? {};
+  return Object.fromEntries(Object.entries({ seats, length, missPoints, instantWin }).filter(([, value]) => value !== undefined));
 }

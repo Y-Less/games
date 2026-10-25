@@ -33,9 +33,26 @@ export function estimateTricks(hand, trump, players) {
   return Math.min(total, hand.length);
 }
 
-/** The nomination a computer player makes: its estimate, or the nearest number it is allowed. */
-export function chooseNomination({ hand, trump, players, allowed, rng = Math.random }) {
-  const estimate = estimateTricks(hand, trump, players) + (rng() - 0.5) * 0.3;
+/**
+ * Whether a 7-card hand is realistically capable of taking every trick: a run of the top trumps from the ace down
+ * (six of them, or five when every other card is a trump or an ace). The estimate above is too cautious to say this.
+ */
+export function canTakeAllSeven(hand, trump) {
+  if (!trump || hand.length !== 7) return false;
+  const trumps = new Set(hand.filter((c) => suitOf(c) === trump).map(rankValue));
+  let run = 0;
+  while (trumps.has(14 - run)) run++;
+  if (run >= 6) return true;
+  return run >= 5 && hand.every((c) => suitOf(c) === trump || rankValue(c) === 14);
+}
+
+/**
+ * The nomination a computer player makes: its estimate, or the nearest number it is allowed. When `instantWin` is true
+ * (the round can be won outright by taking all 7 tricks), a hand that can realistically do so nominates 7.
+ */
+export function chooseNomination({ hand, trump, players, allowed, instantWin = false, rng = Math.random }) {
+  const goForIt = instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump);
+  const estimate = goForIt ? 7 : estimateTricks(hand, trump, players) + (rng() - 0.5) * 0.3;
   return [...allowed].sort((a, b) => a - b).reduce((best, n) => (Math.abs(n - estimate) < Math.abs(best - estimate) ? n : best));
 }
 

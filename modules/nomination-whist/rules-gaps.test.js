@@ -10,7 +10,7 @@ const make = (settings = {}) => game.createRoom({ code: 'a-b-c', hostId: 1, host
 test('settings: bad values are refused and change nothing; valid ones resize the table', () => {
   const room = make();
   const before = JSON.stringify(room);
-  for (const input of [{ seats: 2 }, { seats: 8 }, { seats: 4.5 }, { seats: '4' }, { length: 'medium' }, { missPoints: 'yes' }, { seats: null }]) {
+  for (const input of [{ seats: 2 }, { seats: 8 }, { seats: 4.5 }, { seats: '4' }, { length: 'medium' }, { missPoints: 'yes' }, { instantWin: 'yes' }, { instantWin: 1 }, { seats: null }]) {
     assert.equal(game.setSettings(room, 1, input).ok, false, JSON.stringify(input));
   }
   assert.equal(JSON.stringify(room), before);
@@ -18,7 +18,7 @@ test('settings: bad values are refused and change nothing; valid ones resize the
   assert.equal(room.seats.length, 6);
   assert.equal(room.scores.length, 6, 'scores follow the table size');
   assert.equal(game.setSettings(room, 1, { seats: 3, length: 'short', missPoints: false }).ok, true);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false });
+  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true });
   assert.equal(room.seats.length, 3);
   assert.throws(() => make({ seats: 99 }));
 });

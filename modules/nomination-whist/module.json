@@ -10,6 +10,7 @@
     { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" },
     { "key": "bidsMade", "label": "Nominations hit exactly", "agg": "sum" },
     { "key": "tricksWon", "label": "Tricks won", "agg": "sum" },
-    { "key": "perfectGames", "label": "Perfect games (every nomination hit)", "agg": "sum" }
+    { "key": "perfectGames", "label": "Perfect games (every nomination hit)", "agg": "sum" },
+    { "key": "instantWins", "label": "Instant wins (7 nominated and won in the first or last round)", "agg": "sum" }
   ]
 }

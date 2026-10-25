@@ -34,5 +34,6 @@ A trick-taking game for 3 to 7 players, in the "Oh Hell" family. Before each rou
 
 ## Winning
 
+- **Instant win on a 7:** if, in the **first round or the last round** (the two 7-card rounds of the full game), you nominate **7** and then win **all 7 tricks**, you win the whole game on the spot. The game ends as soon as that round does, whatever the totals; the others are ranked by their scores so far. Only one player can do this in a round. If you nominate 7 and miss, you simply score as normal. In the shorter 7-down-to-1 game only the first round counts, because the last round has just 1 card. **Option:** the host can turn off "Instant win on a 7" in the lobby. It is on by default.
 - The player with the highest total after the last round wins. Tied leaders share the win.
 - A person who leaves a game in progress is replaced by a computer player, so the others can finish. Games that nobody finishes are not recorded in the statistics, and nor are computer players.

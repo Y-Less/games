@@ -115,9 +115,9 @@ async function launch(t, existingDir) {
 }
 
 /** Starts a room: the first person hosts, the others join by code, then seats are set and filled with computers. */
-async function setUp(people, { seats, length = 'full', missPoints } = {}) {
+async function setUp(people, { seats, length = 'full', missPoints, instantWin = false } = {}) {
   const [host, ...others] = people;
-  const created = await host.send('create', { seats, length, ...(missPoints === undefined ? {} : { missPoints }) });
+  const created = await host.send('create', { seats, length, instantWin, ...(missPoints === undefined ? {} : { missPoints }) });
   assert.ok(created.ok, created.error);
   for (const p of others) assert.ok((await p.send('join', { code: created.code })).ok);
   await until(() => host.state?.seats.filter((s) => s && !s.bot).length === people.length, 'everyone in the lobby');
@@ -288,6 +288,13 @@ test('the lobby: only the host changes things, seats and computer players, and t
   assert.ok(created.ok);
   assert.equal((await ann.send('create')).ok, false, 'already in a game');
   assert.equal(ann.state.seats.length, 4);
+  assert.equal(ann.state.settings.instantWin, true, 'the instant win is on by default');
+  assert.equal((await bob.send('settings', { instantWin: false })).ok, false, 'only the host');
+  assert.equal((await ann.send('settings', { instantWin: 'yes' })).ok, false);
+  assert.ok((await ann.send('settings', { instantWin: false })).ok);
+  await until(() => ann.state.settings.instantWin === false, 'the option off');
+  assert.ok((await ann.send('settings', { instantWin: true })).ok);
+  assert.equal(ann.state.settings.instantWin, true);
   assert.ok((await bob.send('join', { code: ` ${created.code.toUpperCase()} ` })).ok, 'codes are tidied');
   await until(() => ann.state.seats[1]?.name === 'bob', 'bob seated');
   assert.equal((await bob.send('settings', { seats: 5 })).ok, false);
@@ -519,4 +526,97 @@ test('a finished game is recorded only once, even across a restart', async (t) =
   await until(() => again.state?.phase === 'finished', 'the finished game');
   await sleep(200);
   assert.equal((await again.stats()).perGame[0].played, 1);
+});
+
+// ---- instant win on a 7 ----
+
+function findFile(dir, name) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = findFile(full, name);
+      if (found) return found;
+    } else if (entry.name === name) return full;
+  }
+  return null;
+}
+
+/**
+ * Ann (seat 0), Bob (seat 1) and a computer player (seat 2, the dealer) in a short game. The saved room is rewritten across a
+ * restart so that Ann holds the seven top hearts (the first round's trumps) and so wins every trick she plays.
+ */
+async function riggedFirstRound(t, { instantWin }) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whist-instant-'));
+  const first = await launch(t, root);
+  const [ann, bob] = [await first.person('ann'), await first.person('bob')];
+  await setUp([ann, bob], { seats: 3, length: 'short', instantWin });
+  assert.equal(ann.state.settings.instantWin, instantWin);
+  assert.ok((await ann.send('start')).ok);
+  await until(() => ann.state.phase === 'nominating', 'the game to start');
+  await sleep(50);
+  await first.close();
+
+  const file = findFile(root, 'rooms.json');
+  assert.ok(file, 'the room was saved');
+  const rooms = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const room = rooms[0];
+  const stack = ['A', 'K', 'Q', 'J', '10', '9', '8'].map((r) => `${r}H`);
+  const rest = ALL_CARDS.filter((c) => !stack.includes(c));
+  room.hands = [stack, rest.slice(0, 7), rest.slice(7, 14)];
+  room.dealer = 2;
+  room.turn = 0;
+  room.nominations = [null, null, null];
+  fs.writeFileSync(file, JSON.stringify(rooms));
+
+  const second = await launch(t, root);
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const [annAgain, bobAgain] = [await second.returning(ann), await second.returning(bob)];
+  await annAgain.send('resume', {});
+  await bobAgain.send('resume', {});
+  await until(() => annAgain.state?.phase === 'nominating' && annAgain.state.turn === 0 && bobAgain.state?.phase === 'nominating', 'the rigged round');
+  assert.deepEqual(annAgain.state.hand.slice().sort(), stack.slice().sort());
+  assert.ok((await annAgain.send('nominate', { number: 7 })).ok);
+  return { ann: annAgain, bob: bobAgain };
+}
+const ALL_CARDS = ['H', 'C', 'D', 'S'].flatMap((s) => ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'].map((r) => `${r}${s}`));
+
+test('nominating 7 and winning all 7 tricks in round 1 wins the game for that person at once, and the statistics say so', async (t) => {
+  const { ann, bob } = await riggedFirstRound(t, { instantWin: true });
+  await playToEnd([ann, bob]);
+  for (const p of [ann, bob]) {
+    assert.equal(p.state.rounds.length, 1, 'the one round is on the scoreboard');
+    assert.equal(p.state.instantWin, ann.state.you);
+    assert.deepEqual(p.state.winners, [ann.state.you]);
+    assert.equal(p.state.rounds[0].instantWin, ann.state.you);
+    assert.equal(p.state.rounds[0].bids[ann.state.you], 7);
+    assert.equal(p.state.rounds[0].taken[ann.state.you], 7);
+  }
+  await sleep(150);
+  const annStats = (await ann.stats()).perGame[0];
+  const bobStats = (await bob.stats()).perGame[0];
+  assert.equal(annStats.played, 1);
+  assert.equal(annStats.wins, 1);
+  assert.equal(bobStats.losses, 1);
+  assert.equal(bobStats.wins, 0);
+  const annExtras = Object.fromEntries(annStats.extras.map((e) => [e.key, e.value]));
+  const bobExtras = Object.fromEntries(bobStats.extras.map((e) => [e.key, e.value]));
+  assert.equal(annExtras.instantWins, 1);
+  assert.equal(bobExtras.instantWins, 0);
+  assert.equal(annExtras.roundsPlayed, 1);
+  assert.equal((await ann.stats()).recent[0].placement, 1);
+  assert.ok([2, 3].includes((await bob.stats()).recent[0].placement));
+});
+
+test('with the instant win option off the same 7 just scores 17 and the game goes on', async (t) => {
+  const { ann, bob } = await riggedFirstRound(t, { instantWin: false });
+  const started = Date.now();
+  while (ann.state.phase !== 'roundEnd' && Date.now() - started < 20000) {
+    let moved = false;
+    for (const p of [ann, bob]) if (await move(p)) moved = true;
+    if (!moved) await sleep(5);
+  }
+  assert.equal(ann.state.phase, 'roundEnd');
+  assert.equal(ann.state.instantWin, null);
+  assert.equal(ann.state.winners, null);
+  assert.equal(ann.state.seats[ann.state.you].score, 17);
 });

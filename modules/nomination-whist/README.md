@@ -21,6 +21,7 @@ e2e.test.js        end-to-end tests against the real site
 - Nominations run from the dealer's left to the dealer; the dealer may not make the total equal the number of tricks (screw the dealer). The server enforces it and sends the forbidden number in `forbidden` on the dealer's turn.
 - Follow suit if possible; highest trump wins, otherwise the highest card of the suit led (no trumps: only the suit led counts).
 - Scoring: exactly right is 10 plus the nomination. A miss scores the tricks actually taken, by default (host option `missPoints`, on by default; off means a miss scores 0). Highest total after the last round wins and ties share the win.
+- Instant win (host option `instantWin`, on by default; a saved room without the key counts as on): in a 7-card first round or a 7-card last round (so round 1 and round 14 of the full game, round 1 only of the short game), a seat that nominated 7 and took all 7 tricks wins at once. The round is scored and recorded in the history (with `instantWin: <seat>`), then the phase becomes `finished`, `winners` is that one seat and `instantWin` in the view names it. A failed 7 scores normally; the last round of a short game has 1 card, so it never applies. Computer players nominate 7 for an instant win only when the option is on, the round qualifies and the hand has a run of the top trumps (see `canTakeAllSeven` in bot.js).
 - Decisions the brief left open: the round-end pop-up does not block play, but the next round is dealt when any person presses "Deal round N" (computer players never advance a round by themselves); a finished trick stays on the table for 1.5 seconds; one live room per account.
 
 ## Seats and computer players
@@ -31,11 +32,11 @@ A person who leaves mid-game is replaced by a computer player. When no person is
 
 ## Statistics
 
-When the last round ends the game is recorded once, for every person still seated: win for the highest total (ties all win), loss for the rest, with `placement` from `placements()` and `score` the final total. Extras: `roundsPlayed`, `bidsMade` (rounds where the nomination was hit exactly), `tricksWon`, `perfectGames` (1 if every nomination was hit).
+When the last round ends the game is recorded once, for every person still seated: win for the highest total (ties all win), loss for the rest, with `placement` from `placements()` and `score` the final total. Extras: `roundsPlayed`, `bidsMade` (rounds where the nomination was hit exactly), `tricksWon`, `perfectGames` (1 if every nomination was hit), `instantWins` (1 for the winner of an instant win). After an instant win the winner is placed first, win; everyone else is a loss, placed by their totals below the winner.
 
 ## Socket protocol
 
-Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {seats?, length?, missPoints?}`, `leave`, `settings {seats?, length?, missPoints?}`, `addBot {seat?}`, `removeBot {seat}`, `fillBots`, `start`, `nominate {number}`, `play {card}`, `next`, `again`.
+Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {seats?, length?, missPoints?, instantWin?}`, `leave`, `settings {seats?, length?, missPoints?, instantWin?}`, `addBot {seat?}`, `removeBot {seat}`, `fillBots`, `start`, `nominate {number}`, `play {card}`, `next`, `again`.
 
 Server to client: `state`, a view personalised for that account (or `null` when not in a game). It holds your own hand, only card counts for everyone else, the standard scoreboard rounds (`rounds`: `label`, `deltas`, `notes`, plus `bids`, `taken`) and, when it is your turn to play, `legal` (each card in your hand with the reason it cannot be played, or `null`).
 

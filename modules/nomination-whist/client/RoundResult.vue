@@ -27,7 +27,7 @@ defineProps({
             <td>{{ round.taken[s.seat] }}</td>
             <td class="points">
               <strong>{{ round.deltas[s.seat] }}</strong>
-              <small>{{ round.bids[s.seat] === round.taken[s.seat] ? 'exactly right' : 'missed' }}</small>
+              <small>{{ round.instantWin === s.seat ? 'instant win!' : round.bids[s.seat] === round.taken[s.seat] ? 'exactly right' : 'missed' }}</small>
             </td>
           </tr>
         </tbody>

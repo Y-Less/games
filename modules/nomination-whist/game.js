@@ -11,12 +11,16 @@ import { chooseCard, chooseNomination } from './bot.js';
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
 export const LENGTHS = ['full', 'short'];
-export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true };
+export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true };
 export const FULL_SCHEDULE = [7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7];
 export const SHORT_SCHEDULE = [7, 6, 5, 4, 3, 2, 1];
 export const TRUMP_ORDER = ['H', 'C', 'D', 'S', null];
 export const HIT_BONUS = 10;
+/** Nominating this many (a full 7-card hand) and winning every trick in the first or last round wins the game. */
+export const INSTANT_WIN_TRICKS = 7;
 export const STAT_KEYS = ['roundsPlayed', 'bidsMade', 'tricksWon'];
+/** Games saved before the option existed have it on. */
+export const instantWinOn = (settings) => settings.instantWin !== false;
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 const LIVE = ['lobby', 'nominating', 'playing', 'roundEnd'];
@@ -56,6 +60,10 @@ export function scoreRound(bid, taken, settings) {
   return settings.missPoints ? taken : 0;
 }
 
+/** Whether a round (0-based) can end the game on the spot: the first round, or the last if it is a 7-card round. */
+export const isInstantWinRound = (settings, round) =>
+  handSize(settings, round) === INSTANT_WIN_TRICKS && (round === 0 || round === roundCount(settings) - 1);
+
 export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === Math.max(...scores) ? [seat] : []));
 
 const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
@@ -73,6 +81,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   if (input?.missPoints !== undefined) {
     if (typeof input.missPoints !== 'boolean') return fail('That scoring option must be on or off.');
     next.missPoints = input.missPoints;
+  }
+  if (input?.instantWin !== undefined) {
+    if (typeof input.instantWin !== 'boolean') return fail('That instant win option must be on or off.');
+    next.instantWin = input.instantWin;
   }
   return ok({ settings: next });
 }
@@ -103,6 +115,7 @@ function resetGame(room) {
     tally: Array.from({ length: n }, freshTally),
     history: [],
     winners: null,
+    instantWin: null,
     recorded: false,
     hands: Array.from({ length: n }, () => []),
     nominations: Array(n).fill(null),
@@ -357,7 +370,16 @@ function endRound(room) {
     taken: [...room.taken],
     points,
   });
-  if (room.roundIndex + 1 >= roundCount(room.settings)) {
+  const instant =
+    instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex)
+      ? room.nominations.findIndex((bid, seat) => bid === INSTANT_WIN_TRICKS && room.taken[seat] === INSTANT_WIN_TRICKS)
+      : -1;
+  if (instant !== -1) {
+    room.history.at(-1).instantWin = instant;
+    room.instantWin = instant;
+    room.phase = 'finished';
+    room.winners = [instant];
+  } else if (room.roundIndex + 1 >= roundCount(room.settings)) {
     room.phase = 'finished';
     room.winners = winnersOf(room.scores);
   } else {
@@ -387,6 +409,12 @@ export function playAgain(room, userId) {
 /** What the statistics should record for a finished game: one entry per human still seated. */
 export function statsPlayers(room) {
   const place = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])));
+  if (room.instantWin !== null && room.instantWin !== undefined) {
+    // The instant winner is first whatever the totals; everybody else is ranked by theirs, below the winner.
+    const others = placements(Object.fromEntries(room.scores.flatMap((score, seat) => (seat === room.instantWin ? [] : [[seat, score]]))));
+    for (const seat of Object.keys(others)) place[seat] = others[seat] + 1;
+    place[room.instantWin] = 1;
+  }
   return room.seats.flatMap((seat, i) =>
     isHuman(seat)
       ? [
@@ -395,7 +423,7 @@ export function statsPlayers(room) {
             outcome: room.winners.includes(i) ? 'win' : 'loss',
             placement: place[i],
             score: room.scores[i],
-            extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0 },
+            extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0 },
           },
         ]
       : [],
@@ -426,7 +454,7 @@ export function botPlay(room, seat) {
 }
 
 export function botNominate(room, seat, rng = Math.random) {
-  return chooseNomination({ hand: room.hands[seat], trump: trumpThisRound(room), players: room.seats.length, allowed: allowedNominations(room, seat), rng });
+  return chooseNomination({ hand: room.hands[seat], trump: trumpThisRound(room), players: room.seats.length, allowed: allowedNominations(room, seat), instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex), rng });
 }
 
 /** Performs a pending action. Returns the action, or null if there was nothing to do. */
@@ -457,6 +485,7 @@ export function roundsView(room) {
     dealer: h.dealer,
     bids: h.bids,
     taken: h.taken,
+    instantWin: h.instantWin ?? null,
   }));
 }
 
@@ -485,6 +514,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     ),
     rounds: roundsView(room),
     winners: room.winners,
+    instantWin: room.instantWin ?? null,
     limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') {

@@ -19,10 +19,10 @@ const fast = () => {
 const EVENTS = {
   resume: ['code'],
   join: ['code'],
-  create: ['seats', 'length', 'missPoints'],
+  create: ['seats', 'length', 'missPoints', 'instantWin'],
   leave: [],
   kick: ['seat'],
-  settings: ['seats', 'length', 'missPoints'],
+  settings: ['seats', 'length', 'missPoints', 'instantWin'],
   addBot: ['seat'],
   removeBot: ['seat'],
   fillBots: [],
@@ -44,8 +44,8 @@ function validateView(s, who) {
   if (s === null || s === undefined) return;
   const label = `${who} (${s.phase})`;
   assert.ok(['lobby', 'nominating', 'playing', 'roundEnd', 'finished'].includes(s.phase), `${label}: a known phase`);
-  const { seats, length, missPoints } = s.settings;
-  assert.ok(Number.isInteger(seats) && seats >= MIN_SEATS && seats <= MAX_SEATS && LENGTHS.includes(length) && typeof missPoints === 'boolean', `${label}: valid settings ${JSON.stringify(s.settings)}`);
+  const { seats, length, missPoints, instantWin } = s.settings;
+  assert.ok(Number.isInteger(seats) && seats >= MIN_SEATS && seats <= MAX_SEATS && LENGTHS.includes(length) && typeof missPoints === 'boolean' && typeof instantWin === 'boolean', `${label}: valid settings ${JSON.stringify(s.settings)}`);
   assert.equal(s.seats.length, seats, `${label}: as many seats as the setting`);
   assert.ok(s.you === -1 || (s.you >= 0 && s.you < seats && s.seats[s.you]), `${label}: seated where it says`);
   assert.ok(s.hostSeat === -1 || s.seats[s.hostSeat]?.bot === false, `${label}: the host is a person`);

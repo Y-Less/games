@@ -60,6 +60,10 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
           <input type="checkbox" :checked="state.settings.missPoints" :disabled="!isHost" @change="send('settings', { missPoints: $event.target.checked })" />
           <span>Misses score the tricks taken<span class="muted"> (otherwise a miss scores nothing)</span></span>
         </label>
+        <label class="check">
+          <input type="checkbox" :checked="state.settings.instantWin !== false" :disabled="!isHost" @change="send('settings', { instantWin: $event.target.checked })" />
+          <span>Instant win on a 7<span class="muted"> (nominate 7 and win all 7 tricks in the first or last round to win the whole game)</span></span>
+        </label>
         <p class="muted">Hit your nomination exactly and score 10 plus the number nominated. {{ rounds }} rounds in all.</p>
       </template>
       <template #footer>

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { fullDeck, isCard, suitOf } from '../../shared/cards.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 import * as g from './game.js';
-import { estimateTricks, winningCard } from './bot.js';
+import { canTakeAllSeven, chooseNomination, estimateTricks, winningCard } from './bot.js';
 
 /** A small deterministic random number generator. */
 function seeded(seed) {
@@ -41,7 +41,7 @@ test('the hand sizes run 7 down to 1 and back up, or 7 down to 1 only', () => {
   assert.equal(g.roundCount({ length: 'full' }), 14);
   assert.equal(g.roundCount({ length: 'short' }), 7);
   assert.deepEqual(Array.from({ length: 7 }, (_, i) => g.handSize({ length: 'short' }, i)), [7, 6, 5, 4, 3, 2, 1]);
-  assert.deepEqual(g.DEFAULT_SETTINGS, { seats: 4, length: 'full', missPoints: true });
+  assert.deepEqual(g.DEFAULT_SETTINGS, { seats: 4, length: 'full', missPoints: true, instantWin: true });
 });
 
 test('the trump suit repeats hearts, clubs, diamonds, spades, no trumps across all 14 rounds', () => {
@@ -133,7 +133,7 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   assert.equal(g.setSettings(room, 1, { length: 'weird' }).ok, false);
   assert.equal(g.setSettings(room, 1, { missPoints: 'yes' }).ok, false);
   assert.ok(g.setSettings(room, 1, { length: 'short', missPoints: false }).ok);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false });
+  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true });
 });
 
 test('too many people cannot be squeezed into fewer seats', () => {
@@ -510,4 +510,195 @@ test('pending actions: computers nominate, play and resolve tricks; people are w
   assert.equal(g.runPending(room), null);
   const deck = new Set(fullDeck());
   assert.ok(room.hands.flat().every((c) => deck.has(c) && suitOf(c)));
+});
+
+// ---- instant win on a 7 ----
+
+const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+/**
+ * A 3-seat game at `round` (0-based, 7-card rounds only) where `holder` has the seven top trumps, so it wins every
+ * trick whatever anybody plays. `bids` are the nominations; the dealer is seat 2, so seat 0 leads.
+ */
+function stackedRound(settings, round, { bids = [7, 0, 0], holder = 0, scores = [0, 0, 0] } = {}) {
+  const room = fullRoom(3, settings);
+  assert.ok(g.start(room, 1, seeded(1)).ok);
+  room.roundIndex = round;
+  room.dealer = 2;
+  g.dealRound(room, seeded(2));
+  const trump = g.trumpOf(round) ?? 'H';
+  const stack = RANKS.slice(0, 7).map((r) => `${r}${trump}`);
+  const rest = fullDeck().filter((c) => !stack.includes(c));
+  room.hands = [0, 1, 2].map((seat) => (seat === holder ? stack : rest.splice(0, 7)));
+  room.nominations = [...bids];
+  room.scores = [...scores];
+  room.phase = 'playing';
+  room.turn = 0;
+  for (let guard = 0; guard < 100 && room.phase === 'playing'; guard++) {
+    if (room.trick.length === 3) assert.ok(g.resolveTrick(room).ok);
+    else assert.ok(g.playCard(room, room.turn, g.legalCards(room, room.turn)[0]).ok);
+  }
+  return room;
+}
+
+const withPeople = (room) => {
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bob' };
+  room.seats[2] = { kind: 'human', id: 3, name: 'Cat' };
+  return room;
+};
+
+test('only the first round, and the last round when it has 7 cards, can end the game instantly', () => {
+  const full = { length: 'full' };
+  const short = { length: 'short' };
+  assert.deepEqual(Array.from({ length: 14 }, (_, i) => g.isInstantWinRound(full, i)), [true, ...Array(12).fill(false), true]);
+  assert.deepEqual(Array.from({ length: 7 }, (_, i) => g.isInstantWinRound(short, i)), [true, ...Array(6).fill(false)], 'the last short round has 1 card');
+  assert.equal(g.DEFAULT_SETTINGS.instantWin, true);
+});
+
+test('nominating 7 and winning all 7 tricks in the first round wins the whole game at once', () => {
+  const room = stackedRound({}, 0);
+  assert.equal(room.phase, 'finished');
+  assert.deepEqual(room.winners, [0]);
+  assert.equal(room.instantWin, 0);
+  assert.equal(room.history.length, 1, 'the round is still in the history');
+  assert.equal(room.history[0].instantWin, 0);
+  assert.deepEqual(room.history[0].points, [17, 10, 10]);
+  assert.deepEqual(room.scores, [17, 10, 10]);
+  assert.equal(g.nextRound(room, 1).ok, false, 'no more rounds');
+  const view = g.viewFor(room, 1);
+  assert.equal(view.instantWin, 0);
+  assert.equal(view.rounds[0].instantWin, 0);
+  assert.deepEqual(view.winners, [0]);
+});
+
+test('the same in the last round of a full game, whatever the totals; the others are ranked by theirs', () => {
+  const room = stackedRound({}, 13, { scores: [50, 200, 120] });
+  assert.equal(room.phase, 'finished');
+  assert.deepEqual(room.winners, [0], 'the instant winner is the only winner despite the lowest total');
+  assert.deepEqual(room.scores, [67, 210, 130]);
+  const stats = g.statsPlayers(withPeople(room));
+  assert.deepEqual(stats.map((s) => [s.userId, s.outcome, s.placement]), [[1, 'win', 1], [2, 'loss', 2], [3, 'loss', 3]]);
+  assert.deepEqual(stats.map((s) => s.extras.instantWins), [1, 0, 0]);
+  assert.deepEqual(stats.map((s) => s.extras.roundsPlayed), [1, 1, 1]);
+});
+
+test('tied others share a place below the instant winner', () => {
+  const room = withPeople(stackedRound({}, 13, { scores: [0, 100, 100] }));
+  assert.deepEqual(g.statsPlayers(room).map((s) => s.placement), [1, 2, 2]);
+});
+
+test('nominating 7 in the short game works in round 1 too', () => {
+  const room = stackedRound({ length: 'short' }, 0);
+  assert.equal(room.phase, 'finished');
+  assert.equal(room.instantWin, 0);
+});
+
+test('with the option off a 7 won in the first or last round scores normally', () => {
+  const first = stackedRound({ instantWin: false }, 0);
+  assert.equal(first.phase, 'roundEnd');
+  assert.equal(first.winners, null);
+  assert.equal(first.instantWin, null);
+  assert.deepEqual(first.scores, [17, 10, 10]);
+  const last = stackedRound({ instantWin: false }, 13, { scores: [50, 200, 120] });
+  assert.equal(last.phase, 'finished');
+  assert.deepEqual(last.winners, [1], 'ordinary scoring decides it');
+  assert.equal(last.instantWin, null);
+  assert.equal(g.statsPlayers(last)[0].extras.instantWins, 0);
+});
+
+test('a 7 that fails scores normally, and nominating less than 7 never triggers it', () => {
+  const failed = stackedRound({}, 0, { bids: [7, 0, 0], holder: 1 });
+  assert.equal(failed.phase, 'roundEnd');
+  assert.deepEqual(failed.history[0].taken, [0, 7, 0]);
+  assert.deepEqual(failed.history[0].points, [0, 7, 10]);
+  assert.equal(failed.instantWin, null);
+  const modest = stackedRound({}, 0, { bids: [6, 0, 0] });
+  assert.equal(modest.phase, 'roundEnd', 'taking 7 after nominating 6 is no instant win');
+  assert.deepEqual(modest.history[0].points, [7, 10, 10]);
+  const failedLast = stackedRound({}, 13, { bids: [7, 0, 0], holder: 1, scores: [10, 10, 10] });
+  assert.equal(failedLast.phase, 'finished');
+  assert.deepEqual(failedLast.winners, [2], 'normal scoring: the 0-nominator who got 0 scores 10');
+});
+
+test('only one seat can take all 7 tricks, so only one can win instantly', () => {
+  const room = stackedRound({}, 0, { bids: [7, 7, 0] });
+  assert.equal(room.instantWin, 0);
+  assert.deepEqual(room.winners, [0]);
+});
+
+test('the instant win option is a host setting, on by default, switched off in the lobby, and refused if not a boolean', () => {
+  const room = fullRoom(3);
+  assert.equal(room.settings.instantWin, true);
+  assert.equal(g.setSettings(room, 2, { instantWin: false }).ok, false, 'only the host');
+  assert.equal(g.setSettings(room, 1, { instantWin: 'no' }).ok, false);
+  assert.ok(g.setSettings(room, 1, { instantWin: false }).ok);
+  assert.equal(room.settings.instantWin, false);
+  assert.ok(g.setSettings(room, 1, { seats: 4 }).ok);
+  assert.equal(room.settings.instantWin, false, 'other changes keep it');
+  assert.equal(g.instantWinOn({ seats: 4, length: 'full', missPoints: true }), true, 'a game saved before the option existed has it on');
+});
+
+test('play again clears the instant win', () => {
+  const room = stackedRound({}, 0);
+  assert.ok(g.playAgain(room, 1).ok);
+  assert.equal(room.instantWin, null);
+  assert.equal(room.phase, 'lobby');
+});
+
+test('computer players nominate 7 only with a hand that can plausibly take every trick, and only when it is on offer', () => {
+  const run = (cards) => cards.split(' ');
+  const strong = run('AH KH QH JH 10H 9H 3S');
+  const withAces = run('AH KH QH JH 10H AS AD');
+  const patchy = run('AH KH QH JH 10H 3S 4D');
+  const gappy = run('AH KH QH JH 9H 8H 7H');
+  assert.equal(canTakeAllSeven(strong, 'H'), true);
+  assert.equal(canTakeAllSeven(withAces, 'H'), true);
+  assert.equal(canTakeAllSeven(patchy, 'H'), false);
+  assert.equal(canTakeAllSeven(gappy, 'H'), false);
+  assert.equal(canTakeAllSeven(strong, null), false, 'no trump suit');
+  assert.equal(canTakeAllSeven(strong, 'S'), false);
+  assert.equal(canTakeAllSeven(strong.slice(0, 5), 'H'), false, 'only for 7-card hands');
+  const all = [0, 1, 2, 3, 4, 5, 6, 7];
+  const nominate = (hand, extra) => chooseNomination({ hand, trump: 'H', players: 4, allowed: all, rng: () => 0.5, ...extra });
+  assert.equal(nominate(strong, { instantWin: true }), 7);
+  assert.ok(nominate(strong, { instantWin: false }) < 7, 'the old judgement when the rule is off or the round does not count');
+  assert.ok(nominate(patchy, { instantWin: true }) < 7);
+  assert.notEqual(nominate(strong, { instantWin: true, allowed: all.filter((n) => n !== 7) }), 7, 'the dealer may not be allowed 7');
+});
+
+test('a computer player in a qualifying round nominates 7 from a stacked hand, and not when the rule is off or the round does not count', () => {
+  const room = fullRoom(3);
+  assert.ok(g.start(room, 1, seeded(1)).ok);
+  room.roundIndex = 0;
+  room.dealer = 2;
+  g.dealRound(room, seeded(2));
+  const stack = RANKS.slice(0, 7).map((r) => `${r}H`);
+  const rest = fullDeck().filter((c) => !stack.includes(c));
+  room.hands = [stack, rest.splice(0, 7), rest.splice(0, 7)];
+  assert.equal(g.botNominate(room, 0, seeded(3)), 7);
+  room.settings.instantWin = false;
+  assert.ok(g.botNominate(room, 0, seeded(3)) < 7);
+  room.settings.instantWin = true;
+  room.roundIndex = 3;
+  room.hands = [stack.slice(0, 4), rest.splice(0, 4), rest.splice(0, 4)];
+  assert.ok(g.botNominate(room, 0, seeded(3)) <= 4, 'only 4 cards that round, and it does not qualify');
+});
+
+test('whole computer games with the rule on and off stay consistent, and any instant win is a genuine 7 for 7', () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const instantWin = seed % 2 === 0;
+    const room = fullRoom(3 + (seed % 5), { instantWin, length: seed % 3 ? 'full' : 'short' });
+    const rng = seeded(seed);
+    assert.ok(g.start(room, 1, rng).ok);
+    playOut(room, rng);
+    if (room.instantWin === null) assert.equal(room.history.length, g.roundCount(room.settings));
+    else {
+      assert.ok(instantWin);
+      const last = room.history.at(-1);
+      assert.equal(last.bids[room.instantWin], 7);
+      assert.equal(last.taken[room.instantWin], 7);
+      assert.ok(g.isInstantWinRound(room.settings, room.history.length - 1));
+      assert.deepEqual(room.winners, [room.instantWin]);
+    }
+  }
 });
