@@ -193,6 +193,21 @@ describe('the play field', () => {
     expect(button(free.w, 'End turn').attributes('disabled')).toBeUndefined();
   });
 
+  it('keeps the same elements (and so the same layout) when a tile is selected or dragged', async () => {
+    const table = [[t(1, 4), t(1, 5), t(1, 6)], [t(2, 7), t(3, 7), t(0, 7)]];
+    const { w } = mountTable(view({ racks: [[t(1, 7), t(0, 10)], [t(2, 2), t(2, 3)]], table, melded: [true, false] }));
+    const shape = () => w.findAll('.felt .set, .felt .set *, [data-rack], [data-rack] *').map((e) => `${e.element.tagName}.${e.classes().filter((c) => !['selected', 'ready', 'target'].includes(c)).join('.')}`);
+    const before = shape();
+    expect(w.findAll('.set.new')).toHaveLength(1);
+    await rackTile(w, t(1, 7)).trigger('click');
+    expect(shape()).toEqual(before);
+    await rackTile(w, t(1, 7)).trigger('dragstart');
+    expect(shape()).toEqual(before);
+    await rackTile(w, t(1, 7)).trigger('dragend');
+    expect(shape()).toEqual(before);
+    expect(w.findAll('.add')).toHaveLength(2);
+  });
+
   it('is read-only when it is not your turn', async () => {
     const { w } = mountTable(view({ racks: [[t(0, 1), t(0, 2)], [t(2, 2)]], turn: 1 }));
     expect(w.text()).toContain('is playing');

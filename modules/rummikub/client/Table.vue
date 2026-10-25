@@ -259,7 +259,13 @@ const setLabel = (set) => {
               @dragstart="dragStart($event, item.id)"
               @dragend="dragEnd"
             />
-            <button v-if="selected.length && myTurn && !set.frozen" class="add" :aria-label="`Add the selected tiles to set ${set.index + 1}`" @click.stop="dropSelected({ type: 'set', index: set.index })">+</button>
+            <button
+              v-if="myTurn && !set.frozen"
+              class="add"
+              :class="{ ready: selected.length > 0 }"
+              :tabindex="selected.length ? 0 : -1"
+              :aria-hidden="selected.length ? undefined : 'true'"
+              :aria-label="`Add the selected tiles to set ${set.index + 1}`" @click.stop="dropSelected({ type: 'set', index: set.index })">+</button>
           </div>
           <small class="label" :class="{ err: !set.result.ok }">{{ setLabel(set) }}</small>
         </div>
@@ -463,12 +469,17 @@ const setLabel = (set) => {
   color: #ffb4a3;
 }
 .add {
+  /* always present (so nothing moves when a tile is picked up); only its visibility changes */
+  visibility: hidden;
   width: 2.2rem;
   height: 3.2rem;
   padding: 0;
   border-radius: 7px;
   border-style: dashed;
   font-size: 1.3rem;
+}
+.add.ready {
+  visibility: visible;
 }
 .set.new {
   min-width: 11rem;
