@@ -1,0 +1,15 @@
+{
+  "id": "cribbage",
+  "name": "Cribbage",
+  "description": "The classic pegging card game for two to four players, with computer players to fill empty seats.",
+  "minPlayers": 1,
+  "maxPlayers": 4,
+  "category": "cards",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "handsPlayed", "label": "Hands played", "agg": "sum" },
+    { "key": "bestHand", "label": "Best hand", "agg": "max" },
+    { "key": "pegPoints", "label": "Points pegged in the play", "agg": "sum" },
+    { "key": "skunks", "label": "Skunks", "agg": "sum" }
+  ]
+}
