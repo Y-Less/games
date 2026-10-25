@@ -1,0 +1,225 @@
+// Accounts: registration, login, sessions (an opaque random cookie; only its hash is stored) and the profile.
+import crypto from 'node:crypto';
+import { promisify } from 'node:util';
+
+const scrypt = promisify(crypto.scrypt);
+
+export const SESSION_COOKIE = 'sid';
+export const SESSION_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export class AuthError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export const BACKGROUND_PRESETS = {
+  night: 'radial-gradient(1200px 700px at 50% -10%, #254452 0%, #16252d 60%)',
+  dusk: 'linear-gradient(160deg, #2b1f3d 0%, #4a2c4f 45%, #7a3e55 100%)',
+  forest: 'linear-gradient(170deg, #12261c 0%, #1d3b2a 55%, #2f5a3c 100%)',
+  ocean: 'linear-gradient(170deg, #0b1e36 0%, #12385c 55%, #1b5f84 100%)',
+  ember: 'linear-gradient(165deg, #2a120e 0%, #522018 55%, #8a3a22 100%)',
+  slate: 'linear-gradient(170deg, #1b1d22 0%, #2a2e36 100%)',
+};
+
+/** Card-back designs (CSS backgrounds). Card games draw every face-down card with the signed-in user's choice. */
+export const CARD_BACK_PRESETS = {
+  crimson:
+    'repeating-linear-gradient(45deg, #8a2433 0 7px, #6b1a27 7px 14px), #6b1a27',
+  navy: 'repeating-linear-gradient(135deg, #1f3a68 0 7px, #16294a 7px 14px), #16294a',
+  forest: 'repeating-linear-gradient(45deg, #2f6a45 0 7px, #214c32 7px 14px), #214c32',
+  gold: 'repeating-linear-gradient(135deg, #c79a3b 0 7px, #9c7425 7px 14px), #9c7425',
+  teal: 'radial-gradient(circle at 50% 50%, #2e7d86 0 22%, #1d5058 23% 60%, #123b42 61%)',
+  mono: 'repeating-linear-gradient(0deg, #2b2b2e 0 6px, #3a3a3e 6px 12px), #2b2b2e',
+};
+
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
+const USERNAME = /^[A-Za-z0-9_-]{3,20}$/;
+const KEY_LENGTH = 64;
+const isText = (value) => typeof value === 'string';
+const COLOUR = /^#[0-9a-fA-F]{6}$/;
+
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const key = await scrypt(password, salt, KEY_LENGTH);
+  return `scrypt$${salt.toString('hex')}$${key.toString('hex')}`;
+}
+
+async function checkPassword(password, stored) {
+  const [scheme, saltHex, keyHex] = String(stored).split('$');
+  if (scheme !== 'scrypt' || !saltHex || !keyHex) return false;
+  const expected = Buffer.from(keyHex, 'hex');
+  // Always do the full amount of work, and only accept a stored key of the length we wrote (a damaged hash such as
+  // "scrypt$zz$zz" decodes to an empty key, which must never match anything).
+  const actual = await scrypt(password, Buffer.from(saltHex, 'hex'), KEY_LENGTH);
+  return expected.length === KEY_LENGTH && crypto.timingSafeEqual(actual, expected);
+}
+
+/** Checks a background setting and returns the clean version that is stored. */
+export function cleanBackground(input) {
+  const type = input?.type;
+  if (type === 'preset' && isText(input.value) && Object.hasOwn(BACKGROUND_PRESETS, input.value)) return { type, value: input.value };
+  if (type === 'colour' && isText(input.value) && COLOUR.test(input.value)) return { type, value: input.value.toLowerCase() };
+  if (type === 'gradient' && isText(input.from) && isText(input.to) && COLOUR.test(input.from) && COLOUR.test(input.to)) {
+    const angle = Math.max(0, Math.min(360, Math.round(Number(input.angle ?? 160))));
+    return { type, from: input.from.toLowerCase(), to: input.to.toLowerCase(), angle: Number.isFinite(angle) ? angle : 160 };
+  }
+  if (type === 'image' && isText(input.file) && /^bg-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type, file: input.file };
+  throw new AuthError('That is not a valid background.');
+}
+
+/** Checks a card-back setting: one of the presets, or the user's own uploaded picture. */
+export function cleanCardBack(input) {
+  if (input?.type === 'preset' && isText(input.value) && Object.hasOwn(CARD_BACK_PRESETS, input.value)) return { type: 'preset', value: input.value };
+  if (input?.type === 'image' && isText(input.file) && /^cb-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type: 'image', file: input.file };
+  throw new AuthError('That is not a valid card back.');
+}
+
+function publicUser(row) {
+  let background;
+  try {
+    background = JSON.parse(row.background);
+  } catch {
+    background = { type: 'preset', value: 'night' };
+  }
+  let cardBack;
+  try {
+    cardBack = JSON.parse(row.card_back);
+  } catch {
+    cardBack = { type: 'preset', value: 'crimson' };
+  }
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack };
+}
+
+export function createAuth(db) {
+  const attempts = new Map(); // "ip|username" -> { count, first }: slows down password guessing
+
+  function throttle(key) {
+    const now = Date.now();
+    const entry = attempts.get(key);
+    if (!entry || now - entry.first > 15 * 60 * 1000) {
+      attempts.set(key, { count: 1, first: now });
+      return;
+    }
+    entry.count += 1;
+    if (entry.count > 10) throw new AuthError('Too many attempts. Please wait a few minutes and try again.', 429);
+  }
+
+  function createSession(userId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)').run(
+      hash(token),
+      userId,
+      now,
+      now + SESSION_DAYS * DAY_MS,
+    );
+    return token;
+  }
+
+  const byId = (id) => {
+    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    return row ? publicUser(row) : null;
+  };
+
+  return {
+    async register({ username, password, displayName, isBot = false }) {
+      username = String(username ?? '').trim();
+      password = String(password ?? '');
+      if (!USERNAME.test(username)) throw new AuthError('Usernames are 3 to 20 letters, numbers, dashes or underscores.');
+      if (password.length < 8) throw new AuthError('Passwords must be at least 8 characters.');
+      if (password.length > 200) throw new AuthError('That password is too long.');
+      const name = String(displayName ?? username).trim().slice(0, 20) || username;
+      if (db.prepare('SELECT 1 FROM users WHERE username_lower = ?').get(username.toLowerCase())) {
+        throw new AuthError('That username is taken.', 409);
+      }
+      const passwordHash = await hashPassword(password);
+      const { lastInsertRowid } = db
+        .prepare('INSERT INTO users (username, username_lower, password_hash, display_name, is_bot, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(username, username.toLowerCase(), passwordHash, name, isBot ? 1 : 0, Date.now());
+      const id = Number(lastInsertRowid);
+      return { user: byId(id), token: createSession(id) };
+    },
+
+    async login({ username, password, ip = '' }) {
+      username = String(username ?? '').trim();
+      throttle(`${ip}|${username.toLowerCase()}`);
+      const row = db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase());
+      // Always do the hashing work, so a missing user takes as long as a wrong password.
+      const ok = await checkPassword(String(password ?? ''), row?.password_hash ?? 'scrypt$00$00');
+      if (!row || !ok) throw new AuthError('Wrong username or password.', 401);
+      attempts.delete(`${ip}|${username.toLowerCase()}`);
+      return { user: publicUser(row), token: createSession(row.id) };
+    },
+
+    logout(token) {
+      if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hash(token));
+    },
+
+    /** The signed-in user for a session token, or null. */
+    userForToken(token) {
+      if (!token || typeof token !== 'string') return null;
+      const row = db
+        .prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?')
+        .get(hash(token), Date.now());
+      return row ? publicUser(row) : null;
+    },
+
+    userById: byId,
+
+    updateProfile(userId, { displayName, background, cardBack }) {
+      // Check everything first, so a refused change changes nothing.
+      let name;
+      if (displayName !== undefined) {
+        name = String(displayName).trim();
+        if (!name || name.length > 20) throw new AuthError('Display names are 1 to 20 characters.');
+      }
+      const cleanedBackground = background === undefined ? undefined : cleanBackground(background);
+      const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
+      // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
+      if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
+      if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
+      if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
+      if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
+      if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
+      return byId(userId);
+    },
+
+    async changePassword(userId, currentPassword, newPassword, keepToken) {
+      const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      if (!row || !(await checkPassword(String(currentPassword ?? ''), row.password_hash))) throw new AuthError('Your current password is wrong.', 401);
+      if (String(newPassword ?? '').length < 8) throw new AuthError('Passwords must be at least 8 characters.');
+      if (String(newPassword).length > 200) throw new AuthError('That password is too long.');
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(String(newPassword)), userId);
+      // Sign out every other device.
+      db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, hash(keepToken ?? ''));
+    },
+
+    deleteExpiredSessions() {
+      db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
+    },
+  };
+}
+
+export function parseCookies(header = '') {
+  const cookies = {};
+  for (const part of String(header).split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    try {
+      cookies[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+    } catch {
+      // ignore a malformed cookie
+    }
+  }
+  return cookies;
+}
+
+export function sessionCookie(token, { secure = false } = {}) {
+  const maxAge = SESSION_DAYS * 24 * 60 * 60;
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+}
+
+export const clearedCookie = `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;

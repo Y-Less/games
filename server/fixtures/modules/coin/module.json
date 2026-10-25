@@ -1,0 +1,13 @@
+{
+  "id": "coin",
+  "name": "Coin Flip",
+  "description": "A fixture module used by the tests.",
+  "minPlayers": 1,
+  "maxPlayers": 2,
+  "category": "test",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "flips", "label": "Flips", "agg": "sum" },
+    { "key": "streak", "label": "Best streak", "agg": "max" }
+  ]
+}

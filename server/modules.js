@@ -1,0 +1,90 @@
+// Finds and starts the game modules in modules/<id>/. See MODULES.md for the contract.
+//
+//   modules/<id>/module.json   { id, name, description, minPlayers, maxPlayers, category, rules, stats }
+//   modules/<id>/server.js     export default function (ctx) { ... }   (the rules and the socket handlers)
+//   modules/<id>/client/index.js   a Vue component, loaded by the site into its play field
+import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { parseCookies, SESSION_COOKIE } from './auth.js';
+import { codes } from './codes.js';
+
+const ID = /^[a-z][a-z0-9-]{1,30}$/;
+
+function readManifest(dir, folder) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, folder, 'module.json'), 'utf8'));
+  if (!ID.test(manifest.id) || manifest.id !== folder) throw new Error(`module.json id must match the folder name "${folder}"`);
+  return {
+    id: manifest.id,
+    name: String(manifest.name ?? manifest.id),
+    description: String(manifest.description ?? ''),
+    minPlayers: Number(manifest.minPlayers ?? 1),
+    maxPlayers: Number(manifest.maxPlayers ?? manifest.minPlayers ?? 1),
+    category: String(manifest.category ?? 'other'),
+    rules: manifest.rules ? String(manifest.rules) : null,
+    stats: Array.isArray(manifest.stats) ? manifest.stats.filter((s) => s?.key && s?.label) : [],
+  };
+}
+
+/**
+ * Loads every module and starts its server half.
+ * @returns {Promise<{ list: () => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
+ */
+export async function loadModules({ dir, io, app, auth, stats, dataDir, log = console.log }) {
+  const modules = new Map(); // id -> { meta, dispose }
+  const folders = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((d) => fs.statSync(path.join(dir, d.name), { throwIfNoEntry: false })?.isDirectory()) : [];
+
+  for (const folder of folders) {
+    if (!fs.existsSync(path.join(dir, folder.name, 'module.json'))) continue;
+    try {
+      const meta = readManifest(dir, folder.name);
+      const namespace = io.of(`/${meta.id}`);
+      // Every connection to a game is made by a signed-in user (the session cookie is sent with the socket handshake).
+      namespace.use((socket, next) => {
+        const token = parseCookies(socket.handshake.headers.cookie)[SESSION_COOKIE];
+        const user = auth.userForToken(token);
+        if (!user) return next(new Error('Please sign in.'));
+        socket.data.user = { id: user.id, name: user.displayName, isBot: user.isBot };
+        next();
+      });
+
+      const moduleDataDir = path.join(dataDir, 'modules', meta.id);
+      fs.mkdirSync(moduleDataDir, { recursive: true });
+      const ctx = {
+        id: meta.id,
+        io: namespace,
+        dataDir: moduleDataDir,
+        stats: { record: (result) => stats.record(meta.id, result) },
+        users: { get: (id) => auth.userById(id) },
+        codes,
+        /** Serves a folder of the module's files (e.g. images) at /assets/<id>/<subpath>. */
+        mount: (subpath, folderPath, options = {}) => app.use(`/assets/${meta.id}${subpath}`, express.static(folderPath, options)),
+        log: (...args) => log(`[${meta.id}]`, ...args),
+      };
+      const publicDir = path.join(dir, meta.id, 'public');
+      if (fs.existsSync(publicDir)) ctx.mount('', publicDir, { maxAge: '7d' });
+
+      const entry = await import(pathToFileURL(path.join(dir, meta.id, 'server.js')).href);
+      const handle = (await entry.default(ctx)) ?? {};
+      modules.set(meta.id, { meta, dir: path.join(dir, meta.id), dispose: handle.dispose });
+      log(`module loaded: ${meta.id} (${meta.name})`);
+    } catch (error) {
+      console.error(`Could not load module "${folder.name}":`, error);
+    }
+  }
+
+  return {
+    list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
+    rules(id) {
+      const entry = modules.get(id);
+      if (!entry?.meta.rules) return null;
+      const file = path.resolve(entry.dir, entry.meta.rules);
+      if (!file.startsWith(entry.dir + path.sep) || !fs.statSync(file, { throwIfNoEntry: false })?.isFile()) return null;
+      return fs.readFileSync(file, 'utf8');
+    },
+    async dispose() {
+      for (const { dispose } of modules.values()) await dispose?.();
+    },
+  };
+}

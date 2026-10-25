@@ -1,0 +1,5 @@
+node_modules/
+dist/
+data/
+modules/dixnt/bots/.bot-tokens.json
+.vitest/
