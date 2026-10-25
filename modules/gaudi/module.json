@@ -1,0 +1,15 @@
+{
+  "id": "gaudi",
+  "name": "Gaudi",
+  "description": "Draft dice, build a stained-glass window and chase your objectives over ten rounds. For two to five players, with computer players to fill the seats.",
+  "minPlayers": 1,
+  "maxPlayers": 5,
+  "category": "strategy",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "dicePlaced", "label": "Dice placed", "agg": "sum" },
+    { "key": "toolsUsed", "label": "Tools used", "agg": "sum" },
+    { "key": "perfectWindows", "label": "Perfect windows (no empty space)", "agg": "sum" },
+    { "key": "bestPublicObjective", "label": "Best single public objective", "agg": "max" }
+  ]
+}
