@@ -8,7 +8,7 @@ const { send, store } = useDixnt();
 const state = computed(() => store.state);
 const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser && !state.value.me.waiting);
 
-function open(cardId) {
+function actionsFor(cardId) {
   const actions = [];
   if (canPlay.value) {
     const chosen = state.value.me.myPick === cardId;
@@ -18,7 +18,11 @@ function open(cardId) {
       run: () => !chosen && send('playCard', { cardId }),
     });
   }
-  store.zoom = { cardId, actions };
+  return actions;
+}
+
+function open(cardId) {
+  store.zoom = { cardId, cards: [...state.value.me.hand], actionsFor };
 }
 </script>
 

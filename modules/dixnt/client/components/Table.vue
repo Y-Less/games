@@ -36,7 +36,7 @@ function castVote(playerId) {
 }
 
 function zoom(cardId) {
-  store.zoom = { cardId, actions: [] };
+  store.zoom = { cardId, cards: state.value.table.map((entry) => entry.cardId), actions: [] };
 }
 
 const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
