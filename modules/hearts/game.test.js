@@ -108,6 +108,7 @@ test('the host adds, removes and fills computer players; the game needs four sea
   assert.equal(g.addBot(room, 2).ok, false, 'not the host');
   const added = g.addBot(room, 1);
   assert.equal(added.seat, 1);
+  assert.deepEqual(g.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, true], 'the scoreboard marks computer players');
   assert.equal(room.seats[1].kind, 'bot');
   assert.match(room.seats[1].id, /^bot:\d+$/);
   assert.equal(g.addBot(room, 1, 1).ok, false, 'the seat is taken');

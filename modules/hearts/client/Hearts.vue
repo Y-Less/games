@@ -1,9 +1,11 @@
 <script setup>
 // Hearts: the screens drawn inside the site's play field. The server sends each player their own view of the game
 // as a `state` event (null when not in a game); everything the player does is a request to the server.
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
+import { useLeave } from '../../../src/playBar.js';
 import Lobby from './Lobby.vue';
+import { advanceLog } from './log.js';
 import Table from './Table.vue';
 
 const props = defineProps({
@@ -16,6 +18,7 @@ const props = defineProps({
 const state = ref(null);
 const loaded = ref(false);
 const notice = ref('');
+const log = ref([]); // Recent moves, worked out from the states as they arrive (see log.js)
 let invite = props.search.replace(/^\?/, '');
 const initialCode = invite;
 
@@ -29,6 +32,13 @@ function send(event, payload = {}) {
   });
 }
 
+// "Leave game" lives in the site's header; it is offered whenever you are in a room.
+useLeave({
+  canLeave: computed(() => Boolean(state.value)),
+  leave: () => send('leave'),
+  confirmText: computed(() => (state.value && state.value.phase !== 'lobby' && state.value.phase !== 'finished' ? 'A computer player takes your seat if you leave.' : '')),
+});
+
 async function resume() {
   const code = state.value?.code ?? invite;
   invite = '';
@@ -36,6 +46,11 @@ async function resume() {
 }
 
 function onState(next) {
+  try {
+    log.value = advanceLog(log.value, state.value, next);
+  } catch {
+    log.value = []; // the list is only a convenience: never let it stop the table from updating
+  }
   state.value = next;
   loaded.value = true;
   props.setSearch(next ? next.code : '');
@@ -67,7 +82,7 @@ onBeforeUnmount(() => {
     <template v-else>
       <p v-if="notice" class="notice" role="alert">{{ notice }}</p>
       <Lobby v-if="state.phase === 'lobby'" :state="state" :send="send" />
-      <Table v-else :state="state" :send="send" />
+      <Table v-else :state="state" :send="send" :log="log" />
     </template>
   </div>
 </template>

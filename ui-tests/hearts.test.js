@@ -1,7 +1,7 @@
 // Hearts: the shared seat lobby, then one whole hand played by clicking cards, then the score pop-up.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkScoreBarSticks, createWorld, drive } from './helpers.js';
+import { createWorld, drive } from './helpers.js';
 
 let world;
 let user;
@@ -16,6 +16,8 @@ after(async () => {
 });
 
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
+const playAreaLeaveButtons = () => user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
+const headerButtons = () => user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
 const seatTags = () => user.page.$$eval('.seats .seat', (els) => els.map((e) => ({ kind: [...e.classList].find((c) => ['human', 'bot', 'empty'].includes(c)), text: e.innerText.replace(/\s+/g, ' ').trim() })));
 
 test('the seat lobby: Start stays disabled until every seat is filled with a person or a computer player', { timeout: 60000 }, guarded('lobby', async () => {
@@ -49,6 +51,9 @@ test('the seat lobby: Start stays disabled until every seat is filled with a per
   assert.equal((await user.buttonState('Start the game')).disabled, false);
   // The game's own options are on the lobby page too.
   await user.waitForText('Rules for this game');
+  // Leave game is in the site's header, not in the lobby.
+  assert.deepEqual(await playAreaLeaveButtons(), [], 'no Leave button in the lobby');
+  assert.ok((await headerButtons()).includes('Leave game'), 'the header offers Leave game in the lobby');
 }));
 
 test('a reload mid-game puts you back in the same room', { timeout: 60000 }, guarded('reload', async () => {
@@ -101,11 +106,61 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
   await user.closeModalWithEsc();
 }));
 
-test('the score bar stays visible while the page scrolls', { timeout: 60000 }, guarded('sticky bar', async () => {
-  const result = await checkScoreBarSticks(user);
-  assert.ok(result.found);
-  assert.ok(result.top >= result.headerBottom - 2 && result.top < result.headerBottom + 40, `bar sits under the header: ${JSON.stringify(result)}`);
-  assert.ok(result.height > 20 && result.bottom < result.viewport);
+test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Hearts');
+  assert.equal(await user.page.$('.play h1'), null);
+  const names = await headerButtons();
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.deepEqual(await playAreaLeaveButtons(), [], 'no Leave button in the play area');
+}));
+
+const rect = (selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window, its rows share the same outer edges and gutters, and the cards stay inside it`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await user.page.setViewport(viewport);
+    await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    await user.waitForSelector('.felt');
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    assert.ok(['', '1'].includes(await user.page.evaluate(() => document.querySelector('.field-frame').style.zoom)), 'the game is not scaled down');
+    const frame = await rect('.game-frame');
+    assert.ok(frame.bottom <= viewport.height && frame.bottom >= viewport.height - 20, `the frame fills the window: bottom ${frame.bottom} of ${viewport.height}`);
+    const bar = await rect('.score-bar');
+    const felt = await rect('.felt');
+    const log = await rect('.box.log');
+    const status = await rect('.box.status');
+    for (const [name, r] of Object.entries({ felt, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ felt, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    assert.ok(Math.abs(log.top - status.top) <= 1 && Math.abs(log.bottom - status.bottom) <= 1, 'the two boxes are the same height');
+    assert.ok(Math.abs(status.left - log.right - 12) <= 1, `the gutter between the boxes is 12px (got ${status.left - log.right})`);
+    assert.ok(Math.abs(felt.top - bar.bottom - (log.top - felt.bottom)) <= 1, 'the same gap above and below the table');
+    // The opponents sit on the table's edges, and nothing drawn on the table leaves it.
+    const parts = { top: await rect('.pos2'), left: await rect('.pos1'), right: await rect('.pos3'), trick: await rect('.felt .trick'), hand: await rect('.felt .my-fan') };
+    assert.ok(Math.abs(parts.left.left - felt.left) <= 2, `the left opponent is on the left edge (${parts.left.left} vs ${felt.left})`);
+    assert.ok(Math.abs(parts.right.right - felt.right) <= 2, `the right opponent is on the right edge (${parts.right.right} vs ${felt.right})`);
+    assert.ok(Math.abs(parts.top.top - felt.top) <= 2, 'the top opponent is on the top edge');
+    assert.ok(Math.abs(parts.hand.bottom - felt.bottom) <= 2, 'your hand is on the bottom edge');
+    for (const [name, r] of Object.entries(parts)) assert.ok(r.left >= felt.left - 2 && r.right <= felt.right + 2 && r.top >= felt.top - 2 && r.bottom <= felt.bottom + 2, `${name} stays inside the table: ${JSON.stringify(r)} in ${JSON.stringify(felt)}`);
+    assert.ok(Math.abs((parts.trick.left + parts.trick.right) / 2 - (felt.left + felt.right) / 2) <= 2, 'the trick is in the middle');
+  }));
+}
+
+test('Leave game in the header asks first, then leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+  await user.page.setViewport({ width: 1366, height: 768 });
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.waitForText('A computer player takes your seat if you leave.');
+  await user.clickButton('Stay', { exact: true });
+  await user.waitForNoText('A computer player takes your seat');
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
+  await user.waitForText('Start a new game');
 }));
 
 test('no uncaught errors in any page', () => {

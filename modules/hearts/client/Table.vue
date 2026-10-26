@@ -1,12 +1,23 @@
 <script setup>
-// The card table: scoreboard, the other three seats, the current trick, your hand and the pass screen.
+// The card table, in the standard GameFrame: the score bar on top; the table itself (the other three seats' face-down
+// fans at the edges, the trick in the middle, your hand fanned at the bottom); and the two boxes along the bottom, Recent
+// moves and Status. Every word about what is happening (turns, instructions, hand and trick numbers, the target, the
+// passing direction) is in Status, so the table holds only cards, names and scores. The table is drawn at one design size
+// and scaled by the window (see `scale`), so nothing changes size or position while a game is played.
 import { computed, ref, watch } from 'vue';
+import GameFrame from '../../../src/components/GameFrame.vue';
+import GameLog from '../../../src/components/GameLog.vue';
+import GameStatus from '../../../src/components/GameStatus.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import CardFan from '../../../src/components/CardFan.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
 
-const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const props = defineProps({
+  state: { type: Object, required: true },
+  send: { type: Function, required: true },
+  log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
+});
 
 const board = ref(null);
 const picks = ref([]);
@@ -26,19 +37,23 @@ const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ 
 const oppNote = (rel) => {
   const seat = seatAt(rel);
   if (passing.value) return seat.passed ? 'passed' : 'choosing';
-  if (seat.bot) return seat.tricks ? `computer · ${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : 'computer';
-  if (!seat.online) return 'away';
   return seat.tricks ? `${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : '';
 };
 const isMoonRound = computed(() => s.value.lastHand?.moon != null);
+const you = computed(() => s.value.seats[s.value.you]);
+const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
+const winnerNames = computed(() => (s.value.winners ?? []).map(nameOf));
+const isHost = computed(() => s.value.hostSeat === s.value.you);
 
 const direction = computed(() => {
   const { direction: d, to } = s.value.pass;
   return { left: `to the left (${nameOf(to)})`, right: `to the right (${nameOf(to)})`, across: `across the table (${nameOf(to)})` }[d] ?? '';
 });
-const fromName = computed(() => nameOf(s.value.pass.from));
+const passFact = computed(() => ({ left: 'Passing to the left', right: 'Passing to the right', across: 'Passing across', none: 'No passing this hand' })[s.value.pass.direction] ?? '');
 
+// ---- the words, all of them in the Status box ----
 const status = computed(() => {
+  if (finished.value) return winnerNames.value.length > 1 ? `It is a tie: ${winnerNames.value.join(' and ')} win.` : `${winnerNames.value[0]} wins with ${s.value.scoreboard.players[s.value.winners[0]].score} points.`;
   if (passing.value) return s.value.pass.chosen ? 'Waiting for the others to choose their cards.' : `Choose 3 cards to pass ${direction.value}.`;
   if (playing.value) {
     if (s.value.trickWinner !== null) return `${nameOf(s.value.trickWinner)} takes the trick.`;
@@ -47,6 +62,24 @@ const status = computed(() => {
   }
   if (handEnd.value) return you.value.ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next hand.` : `Hand ${s.value.lastHand?.hand} is over: close the scores to carry on.`;
   return '';
+});
+const mine = computed(() => !finished.value && (myTurn.value || (passing.value && !s.value.pass.chosen)));
+const statusLines = computed(() => {
+  const lines = [];
+  if (message.value) lines.push({ text: message.value, tone: 'warn' });
+  if (passing.value && !s.value.pass.chosen) lines.push({ text: `Pick 3 cards, then press the button on the table (${picks.value.length} of 3 chosen).`, tone: 'muted' });
+  if (s.value.received.length && playing.value) lines.push({ text: 'The cards you received are outlined in green.', tone: 'muted' });
+  if (s.value.lastTrick && playing.value && !s.value.trick.length) lines.push({ text: `Last trick: ${nameOf(s.value.lastTrick.winner)} took it.`, tone: 'muted' });
+  if (handEnd.value && moonMessage.value) lines.push({ text: moonMessage.value, tone: 'mine' });
+  if (finished.value) {
+    lines.push({ text: isHost.value ? 'You can start another game.' : 'The host can start another game.', tone: 'muted' });
+  }
+  return lines;
+});
+const moonMessage = computed(() => {
+  const moon = s.value.lastHand?.moon;
+  if (moon == null) return '';
+  return s.value.settings.moon === 'self' ? `${nameOf(moon)} shot the moon and scores -26.` : `${nameOf(moon)} shot the moon: everyone else scores +26.`;
 });
 
 watch(
@@ -79,119 +112,104 @@ async function confirmPass() {
 const interactive = computed(() => (passing.value && !s.value.pass.chosen) || myTurn.value);
 const dimmed = (card) => myTurn.value && s.value.legal[card] !== null;
 const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
-const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
-const winnerNames = computed(() => (s.value.winners ?? []).map(nameOf));
-const you = computed(() => s.value.seats[s.value.you]);
-const moonMessage = computed(() => {
-  const moon = s.value.lastHand?.moon;
-  if (moon == null) return '';
-  return s.value.settings.moon === 'self' ? `${nameOf(moon)} shot the moon and scores -26.` : `${nameOf(moon)} shot the moon: everyone else scores +26.`;
-});
+
+// ---- fitting the room ----
+// The table is drawn at a design height of DESIGN_H rem and every piece is scaled by one factor worked out from the
+// height the frame gives it, so it is the same at every moment of a game and fills the window at any desktop size.
+const DESIGN_H = 34;
+const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * rem())));
 </script>
 
 <template>
-  <div class="table-view stack">
-    <ScoreBoard
-      ref="board"
-      :players="state.scoreboard.players"
-      :rounds="state.scoreboard.rounds"
-      :low-is-better="state.scoreboard.lowIsBetter"
-      :target="state.scoreboard.target"
-      :finished="finished"
-      :awaiting="handEnd && !you.ready"
-      :waiting="waitingFor"
-      @continue="send('next')"
-    >
-      <template #round>
-        <section v-if="state.lastHand && (handEnd || finished)" class="summary stack" aria-label="This hand">
-          <p v-if="moonMessage" class="moon" role="status">{{ moonMessage }}</p>
-          <ul class="taken">
-            <li v-for="(seat, i) in state.seats" :key="i" :class="{ me: i === state.you }">
-              <strong>{{ seat.name }}</strong>
-              <span class="muted">
-                {{ state.lastHand.details[i].hearts }} {{ state.lastHand.details[i].hearts === 1 ? 'heart' : 'hearts' }}<template v-if="state.lastHand.details[i].queen">, Queen of Spades</template><template v-if="state.settings.jackOfDiamonds && state.lastHand.details[i].jack">, Jack of Diamonds</template>
-              </span>
-              <b>{{ state.lastHand.points[i] > 0 && !isMoonRound ? '+' : '' }}{{ state.lastHand.points[i] }}</b>
-            </li>
-          </ul>
-        </section>
-      </template>
-    </ScoreBoard>
-
-    <div class="info row">
-      <span class="muted">Hand {{ state.handNumber }}<template v-if="playing"> · trick {{ state.trickNumber }} of 13</template></span>
-      <span v-if="playing || handEnd" class="muted">{{ state.heartsBroken ? 'Hearts are broken' : 'Hearts not broken yet' }}</span>
-      <span v-if="state.settings.jackOfDiamonds" class="muted">Jack of Diamonds: -5</span>
-    </div>
-
-    <section class="felt" aria-label="The table">
-      <div v-for="rel in [2, 1, 3]" :key="rel" class="opp" :class="[`pos${rel}`, { turn: state.turn === seatIndex(rel) && playing, away: !seatAt(rel).online }]">
-        <CardFan class="opp-fan" :items="Array.from({ length: seatAt(rel).cards }, (_, n) => n)" size="sm" :step="4" :reach="6" :flip="rel === 2" :aria-label="`${seatAt(rel).cards} cards`">
-          <template #default><PlayingCard :card="null" size="sm" /></template>
-        </CardFan>
-        <div class="label">
-          <span class="name">{{ seatAt(rel).name }} <span class="dot">&bull;</span> {{ seatAt(rel).points }}</span>
-          <span class="tag">{{ oppNote(rel) }}</span>
-        </div>
-      </div>
-
-      <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg">
-        <p class="muted">{{ passing ? 'Passing' : '' }}</p>
-      </TrickCircle>
-
-      <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="md" :max="13">
-        <template #default="{ item: card }">
-          <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
-            <PlayingCard :card="card" size="md" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
-          </div>
+  <GameFrame class="table-view">
+    <template #scorebar>
+      <ScoreBoard
+        ref="board"
+        :players="state.scoreboard.players"
+        :rounds="state.scoreboard.rounds"
+        :low-is-better="state.scoreboard.lowIsBetter"
+        :target="state.scoreboard.target"
+        :finished="finished"
+        :awaiting="handEnd && !you.ready"
+        :waiting="waitingFor"
+        :sticky="false"
+        @continue="send('next')"
+      >
+        <template #round>
+          <section v-if="state.lastHand && (handEnd || finished)" class="summary stack" aria-label="This hand">
+            <p v-if="moonMessage" class="moon" role="status">{{ moonMessage }}</p>
+            <ul class="taken">
+              <li v-for="(seat, i) in state.seats" :key="i" :class="{ me: i === state.you }">
+                <strong>{{ seat.name }}</strong>
+                <span class="muted">
+                  {{ state.lastHand.details[i].hearts }} {{ state.lastHand.details[i].hearts === 1 ? 'heart' : 'hearts' }}<template v-if="state.lastHand.details[i].queen">, Queen of Spades</template><template v-if="state.settings.jackOfDiamonds && state.lastHand.details[i].jack">, Jack of Diamonds</template>
+                </span>
+                <b>{{ state.lastHand.points[i] > 0 && !isMoonRound ? '+' : '' }}{{ state.lastHand.points[i] }}</b>
+              </li>
+            </ul>
+          </section>
         </template>
-      </CardFan>
-      <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
-        <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
-      </div>
-    </section>
+      </ScoreBoard>
+    </template>
 
-    <p class="status" :class="{ mine: myTurn || (passing && !state.pass.chosen) }" role="status">{{ status }}</p>
-    <div class="notes">
-      <p class="muted small-note">{{ state.lastTrick && playing && !state.trick.length ? `Last trick: ${nameOf(state.lastTrick.winner)} took it.` : '' }}</p>
-      <p class="reason" role="alert">{{ message }}</p>
-    </div>
+    <template #main="area">
+      <section class="felt" aria-label="The table" :style="{ '--s': scale(area) }">
+        <div v-for="rel in [2, 1, 3]" :key="rel" class="opp" :class="[`pos${rel}`, { away: !seatAt(rel).online }]">
+          <CardFan class="opp-fan" :items="Array.from({ length: seatAt(rel).cards }, (_, n) => n)" size="sm" :step="4" :reach="6" :flip="rel === 2" :aria-label="`${seatAt(rel).cards} cards`">
+            <template #default><PlayingCard :card="null" size="sm" /></template>
+          </CardFan>
+          <div class="label">
+            <span class="tag">{{ oppNote(rel) }}</span>
+          </div>
+        </div>
 
-    <section class="mine-area">
-      <div class="row mine-head">
-        <strong>{{ you.name }}</strong><span class="muted">(you)</span>
-        <span class="muted">{{ you.points }} pts this hand</span>
-        <button class="quiet leave" @click="send('leave')">Leave game</button>
-      </div>
-      <p class="muted small-note">{{ state.received.length && state.phase === 'playing' ? 'Cards you received are marked.' : '' }}</p>
-    </section>
+        <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-    <!-- These come after the hand so that they never push it about. -->
-    <section v-if="finished" class="panel stack">
-      <h3>{{ winnerNames.length > 1 ? 'It is a tie' : 'We have a winner' }}</h3>
-      <p class="winner">{{ winnerNames.join(' and ') }} {{ winnerNames.length > 1 ? 'win' : 'wins' }} with {{ state.scoreboard.players[state.winners[0]].score }} points.</p>
-      <div class="row">
-        <button v-if="state.hostSeat === state.you" class="primary" @click="send('again')">Play again</button>
-        <span v-else class="muted">The host can start another game.</span>
-        <button @click="board.show()">See the scores</button>
-        <button class="quiet" @click="send('leave')">Leave game</button>
-      </div>
-    </section>
-  </div>
+        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="md" :max="13">
+          <template #default="{ item: card }">
+            <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
+              <PlayingCard :card="card" size="md" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
+            </div>
+          </template>
+        </CardFan>
+        <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
+          <button class="primary" :disabled="picks.length !== 3" @click="confirmPass">Pass these {{ picks.length }} of 3 cards</button>
+        </div>
+      </section>
+    </template>
+
+    <template #log>
+      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+    </template>
+
+    <template #status>
+      <GameStatus :headline="status" :mine="mine" :lines="statusLines">
+        <template #facts>
+          <strong>Hand {{ state.handNumber }}</strong>
+          <span v-if="playing || handEnd">Trick {{ state.trickNumber }} of 13</span>
+          <span v-if="playing || handEnd">{{ state.heartsBroken ? 'Hearts are broken' : 'Hearts not broken yet' }}</span>
+          <span v-if="passing">{{ passFact }}</span>
+          <span>Play to {{ state.scoreboard.target }}</span>
+          <span v-if="state.settings.jackOfDiamonds">Jack of Diamonds: -5</span>
+        </template>
+        <div v-if="finished" class="row">
+          <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
+          <button @click="board.show()">See the scores</button>
+        </div>
+      </GameStatus>
+    </template>
+  </GameFrame>
 </template>
 
 <style scoped>
-.info {
-  justify-content: space-between;
-  font-size: 0.9rem;
-}
+/* The table: no panel over the background (the background is the table). Pieces are placed on the frame's edges and
+   scaled together by --s, so they never move. */
 .felt {
+  grid-column: 1 / -1;
   position: relative;
-  width: 100%;
-  max-width: 60rem;
-  height: 37rem;
-  margin: 0 auto;
-  border-radius: var(--radius);
+  height: 100%;
+  min-height: 0;
 }
 .opp {
   position: absolute;
@@ -203,25 +221,25 @@ const moonMessage = computed(() => {
   border-radius: 12px;
 }
 .pos2 {
-  top: 0.4rem;
+  top: 0;
   left: 50%;
   margin-left: -9.2rem;
+  transform-origin: 50% 0;
+  transform: scale(var(--s));
 }
 .pos1 {
   left: 0;
   top: 50%;
   margin-top: -4.9rem;
   transform-origin: 50% 50%;
-  transform: translate(-4.3rem, 0) rotate(90deg);
+  transform: translate(calc(var(--s) * 4.9rem - 9.2rem), 0) rotate(90deg) scale(var(--s));
 }
 .pos3 {
   right: 0;
   top: 50%;
   margin-top: -4.9rem;
-  transform: translate(4.3rem, 0) rotate(-90deg);
-}
-.opp.turn .name {
-  color: var(--amber);
+  transform-origin: 50% 50%;
+  transform: translate(calc(9.2rem - var(--s) * 4.9rem), 0) rotate(-90deg) scale(var(--s));
 }
 .opp.away {
   opacity: 0.65;
@@ -233,16 +251,6 @@ const moonMessage = computed(() => {
   height: 2.6rem;
   line-height: 1.3;
 }
-.name {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-.dot {
-  color: var(--muted);
-}
 .tag {
   min-height: 1.1rem;
   font-size: 0.72rem;
@@ -251,14 +259,18 @@ const moonMessage = computed(() => {
 .trick {
   position: absolute;
   left: 50%;
-  top: 10.4rem;
+  top: calc(var(--s) * 9.4rem);
   margin-left: -8.1rem;
+  transform-origin: 50% 0;
+  transform: scale(var(--s));
 }
 .my-fan {
   position: absolute;
   left: 50%;
-  bottom: 1.4rem;
+  bottom: 0;
   margin-left: -15.4rem;
+  transform-origin: 50% 100%;
+  transform: scale(var(--s));
 }
 .slot {
   width: 100%;
@@ -268,58 +280,6 @@ const moonMessage = computed(() => {
 .hidden {
   visibility: hidden;
 }
-.notes {
-  display: grid;
-  min-height: 3.2rem;
-  align-content: start;
-}
-.status {
-  margin: 0;
-  text-align: center;
-  min-height: 1.5rem;
-  color: var(--muted);
-}
-.status.mine {
-  color: var(--amber);
-  font-weight: 600;
-}
-.reason {
-  margin: 0;
-  min-height: 1.5rem;
-  text-align: center;
-  color: var(--danger);
-}
-.small-note {
-  margin: 0;
-  min-height: 1.3rem;
-  text-align: center;
-  font-size: 0.85rem;
-}
-.passed {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 2rem;
-  justify-content: center;
-}
-.passed p {
-  margin: 0 0 0.4rem;
-}
-.cards {
-  gap: 0.4rem;
-}
-.ghost {
-  width: 3rem;
-  aspect-ratio: 5 / 7;
-  border: 2px dashed var(--line);
-  border-radius: 6px;
-}
-.mine-head {
-  gap: 0.4rem;
-  margin-bottom: 0.2rem;
-}
-.leave {
-  margin-left: auto;
-}
 .slot.received :deep(.playing-card) {
   outline: 2px solid var(--moss);
   outline-offset: 1px;
@@ -327,21 +287,17 @@ const moonMessage = computed(() => {
 .confirm {
   position: absolute;
   left: 50%;
-  top: 21.5rem;
-  transform: translateX(-50%);
+  top: calc(var(--s) * 15.8rem);
+  transform-origin: 50% 50%;
+  transform: translateX(-50%) scale(var(--s));
   z-index: 60;
+  white-space: nowrap;
 }
 .moon {
   margin: 0;
   color: var(--amber);
   font-family: var(--display);
   font-size: 1.1rem;
-}
-.winner {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 1.3rem;
-  color: var(--amber);
 }
 .taken {
   list-style: none;

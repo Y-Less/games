@@ -545,7 +545,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
         : null,
     ),
     scoreboard: {
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, score: room.scores[i], isMe: i === me, away: isHuman(seat) && !online(seat.id), ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}) }] : [])),
+      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, score: room.scores[i], isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id), ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}) }] : [])),
       rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: true,
       target: room.settings.target,
