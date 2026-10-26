@@ -2,6 +2,7 @@
   "name": "game-hub",
   "version": "1.0.0",
   "private": true,
+  "license": "MPL-1.1",
   "type": "module",
   "description": "A generic game site: accounts, profiles, statistics and a menu of pluggable game modules.",
   "scripts": {
