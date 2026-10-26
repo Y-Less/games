@@ -74,6 +74,7 @@ test('seat count and the free wall option: only the host, only in the lobby, kee
   assert.equal(room.settings.freeWall, true);
   game.addBot(room, 1);
   assert.equal(game.setSize(room, 1, 5).ok, true);
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), room.seats.filter(Boolean).map((s) => s.kind === 'bot'), 'the scoreboard marks computer players');
   assert.equal(game.start(room, 1).ok, false, 'empty seats');
   game.fillWithBots(room, 1);
   assert.equal(game.start(room, 1).ok, true);

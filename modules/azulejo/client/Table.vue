@@ -152,9 +152,11 @@ const dims = (area) => {
   return { left, right, cell, centreHeight, plate: diameter / 2.35, popup };
 };
 
-// Other players' boards stay hidden until you click their name: one at a time, over the main area, so nothing moves.
+// Other players' boards stay hidden until you click their chip in the score bar: one at a time, over the main area, so
+// nothing moves.
 const openSeat = ref(null);
-const toggleOther = (seat) => (openSeat.value = openSeat.value === seat ? null : seat);
+const hasBoard = (seat) => seat !== s.value.you && others.value.some((o) => o.seat === seat);
+const openedBoard = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
 watch(
   () => others.value.map((o) => o.seat).join(),
   () => {
@@ -162,7 +164,7 @@ watch(
   },
 );
 const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.other')) openSeat.value = null;
+  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
 };
 const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
 onMounted(() => {
@@ -183,7 +185,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 <template>
   <GameFrame class="table-view">
     <template #scorebar>
-      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false">
+      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" :has-details="hasBoard" :open-details="openSeat" @details="(seat) => (openSeat = seat)">
         <template #round>
           <TilingSummary v-if="state.lastTiling" :tiling="state.lastTiling" :seats="state.seats" :you="state.you" />
           <p v-if="finished" class="note">The last row adds the end-of-game bonuses, so each total equals the final score.</p>
@@ -193,6 +195,9 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 
     <template #main="area">
       <div class="arena">
+        <div v-if="openedBoard" class="popup" role="group" :aria-label="`${openedBoard.name}'s board`">
+          <Board :seat="openedBoard" :cell="dims(area).popup" :free="free" :current="state.phase === 'playing' && state.turn === openedBoard.seat" :next-first="markerHolder === openedBoard.seat" />
+        </div>
         <div class="mine-col" :style="{ gridColumn: `span ${area.mainSpan}` }">
           <Board
             v-if="me"
@@ -261,31 +266,6 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
       </div>
     </template>
 
-    <template #others="area">
-      <div v-if="others.length" class="bars" :style="{ gridTemplateColumns: `repeat(${others.length}, minmax(0, 1fr))` }">
-        <div v-for="(seat, i) in others" :key="seat.seat" class="other" :class="{ open: openSeat === seat.seat }">
-          <button
-            type="button"
-            class="bar-button"
-            :class="{ turn: state.phase === 'playing' && state.turn === seat.seat, away: !seat.bot && !seat.online }"
-            :aria-expanded="openSeat === seat.seat"
-            :title="`Show or hide ${seat.name}'s board`"
-            @click="toggleOther(seat.seat)"
-          >
-            <span class="chevron" aria-hidden="true">{{ openSeat === seat.seat ? '▾' : '▸' }}</span>
-            <strong class="who">{{ seat.name }}</strong>
-            <span v-if="seat.bot" class="tag">computer</span>
-            <span v-else-if="!seat.online" class="tag away">away</span>
-            <span v-if="state.phase === 'playing' && state.turn === seat.seat" class="tag turn-tag">to move</span>
-            <span class="score">{{ seat.score }}</span>
-          </button>
-          <div v-if="openSeat === seat.seat" class="popup" :class="{ right: i >= others.length / 2 }">
-            <Board :seat="seat" :cell="dims(area).popup" :free="free" :current="state.phase === 'playing' && state.turn === seat.seat" :next-first="markerHolder === seat.seat" />
-          </div>
-        </div>
-      </div>
-    </template>
-
     <template #log>
       <GameLog :entries="s.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
     </template>
@@ -309,6 +289,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 
 <style scoped>
 .arena {
+  position: relative;
   grid-column: 1 / -1;
   height: 100%;
   display: grid;
@@ -366,73 +347,14 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
   min-height: 0;
 }
 
-/* The slim bars for the other players; a board pops up over the table above the bar that was clicked. */
-.bars {
-  display: grid;
-  gap: var(--gap, 12px);
-}
-.other {
-  position: relative;
-  min-width: 0;
-}
-.bar-button {
-  width: 100%;
-  height: 2.3rem;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0 0.8rem;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
-  text-align: left;
-  min-width: 0;
-}
-.bar-button.turn,
-.other.open .bar-button {
-  border-color: var(--amber);
-}
-.bar-button.away {
-  opacity: 0.75;
-}
-.chevron {
-  color: var(--muted);
-  width: 0.8rem;
-}
-.who {
-  font-family: var(--display);
-  max-width: 11rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tag.away {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-.tag.turn-tag {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--amber-ink);
-  font-weight: 650;
-}
-.score {
-  margin-left: auto;
-  font-family: var(--display);
-  font-size: 1.3rem;
-  line-height: 1;
-  color: var(--amber);
-  font-variant-numeric: tabular-nums;
-}
+/* Another player's board, opened from their chip in the score bar, floats over the middle of the table. */
 .popup {
   position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 6;
   filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
-.popup.right {
-  left: auto;
-  right: 0;
 }
 .popup :deep(.board) {
   background: color-mix(in srgb, var(--bg-sunken) 94%, transparent);

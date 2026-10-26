@@ -129,36 +129,34 @@ test('the site header shows the title, Rules and Leave game, and the play area h
 }));
 
 for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
-  test(`at ${viewport.width}x${viewport.height} the table fits the window, its rows share the same outer edges and gutters, and a click on a name toggles that board without moving anything`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window, its rows share the same outer edges and gutters, and a click on a name in the score bar toggles that board without moving anything`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
     await user.page.setViewport(viewport);
     await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
     await new Promise((r) => setTimeout(r, 400));
     assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
-    // Outer edges: score bar, own board, plates panel, the bars and both bottom boxes.
+    // Outer edges: score bar, own board, plates panel and both bottom boxes.
     const bar = await rect('.score-bar');
     const mine = await rect('.mine-col');
     const right = await rect('.right-col');
-    const bars = await rect('.bars');
     const log = await rect('.box.log');
     const status = await rect('.box.status');
-    for (const [name, r] of Object.entries({ mine, bars, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
-    for (const [name, r] of Object.entries({ right, bars, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
-    // Gutters: the same gap between the main row and the bars, the bars and the boxes, as between the board and the plates.
-    const gapBelowMain = bars.top - mine.bottom;
-    const gapBelowBars = log.top - bars.bottom;
-    assert.ok(Math.abs(gapBelowMain - gapBelowBars) <= 1, `row gaps ${gapBelowMain} and ${gapBelowBars}`);
+    for (const [name, r] of Object.entries({ mine, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ right, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    assert.equal(await user.page.$('.others'), null, 'no row of duplicate player bars');
+    assert.ok(log.top - mine.bottom >= 4 && log.top - mine.bottom <= 12, `the gap between the main row and the boxes: ${log.top - mine.bottom}`);
     assert.ok(Math.abs(right.bottom - mine.bottom) <= 1, 'the board and the plates panel end on the same line');
     assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
 
     // Toggling another player's board moves nothing else.
-    const areas = ['.score-bar', '.mine-col', '.right-col', '.bars', '.box.log', '.box.status', '.workshop-panel'];
+    const areas = ['.score-bar', '.mine-col', '.right-col', '.box.log', '.box.status', '.workshop-panel'];
     const before = await Promise.all(areas.map(rect));
-    await user.clickButton('computer', { scope: '.bars' });
-    await user.waitForSelector('.bars .popup section.board');
+    await user.page.click('.score-bar button.chip-button');
+    await user.waitForSelector('.arena .popup section.board');
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a board moved something');
-    assert.equal((await user.page.$$('.bars .popup')).length, 1);
-    await user.clickButton('computer', { scope: '.bars' });
-    await user.waitForSelector('.bars .popup', { hidden: true });
+    assert.equal((await user.page.$$('.arena .popup')).length, 1);
+    assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
+    await user.page.click('.score-bar button.chip-button');
+    await user.waitForSelector('.arena .popup', { hidden: true });
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'closing a board moved something');
   }));
 }

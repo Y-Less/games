@@ -183,8 +183,9 @@ describe('Azulejo table: playing', () => {
     expect(w.findAll('.plate')).toHaveLength(7);
     expect(w.findAll('.plate').every((p) => p.findAll('button.pick').length === 4)).toBe(true);
     expect(w.find('[aria-label="The centre"]').exists()).toBe(true);
-    expect(w.findAll('section.board')).toHaveLength(1); // only yours: the others are slim bars until clicked
-    expect(w.findAll('.bar-button')).toHaveLength(2);
+    expect(w.findAll('section.board')).toHaveLength(1); // only yours: the others open from the score bar
+    expect(w.findAll('.score-bar button.chip-button')).toHaveLength(2);
+    expect(w.find('.others').exists()).toBe(false);
     expect(w.findAll('[aria-label="Pattern lines"] .line')).toHaveLength(5);
     expect(w.text()).toContain('Round 1');
     expect(w.find('.game-status').text()).toContain('First-player marker: in the centre');
@@ -195,21 +196,22 @@ describe('Azulejo table: playing', () => {
     expect(w.find('[data-fits-window]').exists()).toBe(true);
   });
 
-  it('keeps the other players as slim bars; clicking a name shows or hides that board, one at a time', async () => {
+  it('opens the other players boards from their score bar chips, one at a time; yours is not a button', async () => {
     const { w } = mountTable(playView({ n: 3 }).view);
-    const bars = w.findAll('.bar-button');
+    const bars = w.findAll('.score-bar button.chip-button');
     expect(bars.map((b) => b.text())).toEqual([expect.stringContaining('p2'), expect.stringContaining('p3')]);
+    expect(bars.map((b) => b.attributes('aria-label'))).toEqual(["Show p2's details", "Show p3's details"]);
     expect(w.findAll('.popup')).toHaveLength(0);
     await bars[0].trigger('click');
     expect(w.findAll('.popup section.board')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p2');
-    expect(bars[0].attributes('aria-expanded')).toBe('true');
-    await bars[1].trigger('click');
+    expect(w.findAll('.score-bar button.chip-button')[0].attributes('aria-pressed')).toBe('true');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p3');
-    await bars[1].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(0);
-    await bars[0].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(w.findAll('.popup')).toHaveLength(0);
@@ -372,7 +374,7 @@ describe('Azulejo table: playing', () => {
     const { w } = mountTable({ ...game.viewFor(room, 1), turn: 0 });
     expect(w.text()).toContain('Free wall');
     expect(w.find('.game-status').text()).toContain('First-player marker: with p2');
-    await w.find('.bar-button').trigger('click');
+    await w.find('.score-bar button.chip-button').trigger('click');
     expect(w.find('.popup .tag.first').exists()).toBe(true);
   });
 
@@ -382,7 +384,7 @@ describe('Azulejo table: playing', () => {
     expect(v.you).toBe(-1);
     const { w } = mountTable(v);
     expect(w.find('.headline').text()).toContain('Waiting for');
-    expect(w.findAll('.bar-button').length).toBeGreaterThan(0);
+    expect(w.findAll('.score-bar button.chip-button').length).toBeGreaterThan(0);
   });
 
   it('copes with empty plates', () => {
