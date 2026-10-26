@@ -78,7 +78,16 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
     if (pass) return pass.disabled ? last('.hand button.playing-card:not(.selected)') : pass;
     return last('.hand button.playing-card:not(.dimmed):not([disabled])');
   };
-  const act = () => user.clickFoundOnTop(finder); // the hand is a fan of overlapping cards
+  const signature = () => user.page.evaluate(() => `${document.querySelectorAll('.hand button.playing-card').length}:${document.querySelector('.status')?.innerText ?? ''}`);
+  const act = async () => {
+    const before = await signature();
+    if (!(await user.clickFoundOnTop(finder))) return false; // the hand is a fan of overlapping cards
+    // Wait for the table to answer (the card leaves the hand, or the pass is made) before clicking again: a second click
+    // on a card the server has already taken would only be refused. If the server refuses anyway (an error toast, and
+    // no change), give up waiting after a moment and look at the table afresh instead of clicking on in a loop.
+    await user.page.waitForFunction((was) => `${document.querySelectorAll('.hand button.playing-card').length}:${document.querySelector('.status')?.innerText ?? ''}` !== was, { timeout: 3000, polling: 20 }, before).catch(() => {});
+    return true;
+  };
   await drive({ act, finished: async () => /^Scores after/.test(await user.modalTitle()), what: 'a hand of Hearts', timeout: 100000 });
 
   assert.equal(await user.modalTitle(), 'Scores after Hand 1');

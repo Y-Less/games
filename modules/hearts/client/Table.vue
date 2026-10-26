@@ -110,10 +110,22 @@ function pick(card) {
     else if (picks.value.length < 3) picks.value = [...picks.value, card];
     return;
   }
-  if (!s.value.legal) return;
+  if (!s.value.legal || sending.value) return;
   const reason = s.value.legal[card];
   if (reason) message.value = reason;
-  else props.send('play', { card });
+  else submit('play', { card });
+}
+
+// One card goes at a time: until the server has answered, the card just clicked is still drawn in the hand, and a second
+// click on it (a double click, say) would only come back as "That card is not in your hand."
+const sending = ref(false);
+async function submit(event, payload) {
+  sending.value = true;
+  try {
+    await props.send(event, payload);
+  } finally {
+    sending.value = false;
+  }
 }
 
 async function confirmPass() {

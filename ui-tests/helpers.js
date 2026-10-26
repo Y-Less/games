@@ -204,6 +204,7 @@ export class User {
    * clicks a point where it, rather than a neighbour, is on top.
    */
   async clickFoundOnTop(finder, ...args) {
+    await this.page.mouse.move(2, 2); // a card the pointer rests on is raised over its neighbours: take the pointer away first
     const spot = await this.page.evaluate(
       (source, ...a) => {
         const el = new Function(`return (${source})`)()(...a);
