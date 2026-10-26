@@ -737,7 +737,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
       players: room.seats.flatMap((seat, i) => {
         if (!seat) return [];
         const score = !started ? 0 : finished ? room.final.players[i].total : provisionalOf(room, i);
-        const player = { id: i, name: seat.name, score, isMe: i === me, away: isHuman(seat) && !online(seat.id) };
+        const player = { id: i, name: seat.name, score, isMe: i === me, bot: isBot(seat), current: room.turn?.seat === i, away: isHuman(seat) && !online(seat.id) };
         if (started && !finished && i === me) player.note = `+${privateOf(room, i)} secret`;
         return [player];
       }),

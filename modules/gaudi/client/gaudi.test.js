@@ -3,7 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { cellProblem } from '../rules.js';
 import { driveStep, playingRoom, seeded } from '../testing.js';
+import { leaveOffer, playBar } from '../../../src/playBar.js';
 import Gaudi from './Gaudi.vue';
+import { tableSizes } from './layout.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -92,6 +94,32 @@ describe('Gaudi shell', () => {
     expect(w.find('[role=alert]').text()).toBe('No such game.');
   });
 
+  it('offers Leave game to the site header while in a room, confirming only mid-game', async () => {
+    const socket = fakeSocket();
+    const w = mount(Gaudi, { props: { socket } });
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(null);
+    await flushPromises();
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(lobbyView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    socket.handlers.state(game.viewFor(windowsRoom(), 1));
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
+    socket.handlers.state(playView().view);
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
+    socket.emit.mockClear();
+    await leaveOffer().leave();
+    expect(socket.emit).toHaveBeenCalledWith('leave', {}, expect.any(Function));
+    socket.handlers.state(finishedView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    w.unmount();
+    expect(playBar.leave).toBeNull();
+  });
+
   it('unsubscribes on unmount', () => {
     const socket = fakeSocket();
     mount(Gaudi, { props: { socket } }).unmount();
@@ -112,8 +140,7 @@ describe('Gaudi lobby', () => {
     expect(send).toHaveBeenCalledWith('settings', { badPrivate: true });
     await button(w, 'Add a computer player').trigger('click');
     expect(send).toHaveBeenCalledWith('addBot', { seat: 1 });
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(button(w, 'Leave game')).toBeUndefined(); // Leave game is in the site header
   });
 
   it('disables the settings for non-hosts and sizes below the seated count', () => {
@@ -151,7 +178,7 @@ describe('Gaudi table: choosing windows', () => {
     await button(w, 'Choose this window').trigger('click');
     await flushPromises();
     expect(send).toHaveBeenCalledWith('window', { pid: view.options[2].pid });
-    expect(w.findAll('.waiting li')).toHaveLength(2);
+    expect(w.find('.game-status').text()).toContain('ann: choosing');
   });
 
   it('can be picked by keyboard and keeps the pick if the server refuses', async () => {
@@ -171,10 +198,10 @@ describe('Gaudi table: choosing windows', () => {
     const { w } = mountTable(view);
     expect(w.findAll('.option').every((o) => o.classes('locked'))).toBe(true);
     expect(w.findAll('.option')[1].classes('picked')).toBe(true);
-    expect(button(w, 'Choose this window')).toBeUndefined();
-    expect(w.find('[role=status]').text()).toContain('Waiting for p2, p3');
-    const done = w.findAll('.waiting li').filter((li) => li.classes('done'));
-    expect(done).toHaveLength(1);
+    expect(button(w, 'Choose this window').attributes('disabled')).toBeDefined(); // the choice is made
+    expect(w.find('.headline').text()).toContain('Waiting for p2, p3');
+    expect(w.find('.game-status').text()).toContain('ann: has chosen');
+    expect(w.find('.game-status').text()).toContain('p2: choosing');
     await w.findAll('.option')[3].trigger('click');
     expect(w.findAll('.option')[3].classes('picked')).toBe(false);
   });
@@ -185,10 +212,9 @@ describe('Gaudi table: choosing windows', () => {
     expect(w.findAll('.option')).toHaveLength(0);
   });
 
-  it('can leave from the window phase', async () => {
-    const { w, send } = mountTable(game.viewFor(windowsRoom(), 1));
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+  it('has no Leave button of its own: the site header offers it', () => {
+    const { w } = mountTable(game.viewFor(windowsRoom(), 1));
+    expect(button(w, 'Leave game')).toBeUndefined();
   });
 });
 
@@ -201,8 +227,8 @@ describe('Gaudi table: playing', () => {
     expect(w.findAll('.track .slot')).toHaveLength(10);
     expect(w.findAll('.tool')).toHaveLength(3);
     expect(w.findAll('.objective')).toHaveLength(3);
-    expect(w.find('.provisional-bar').text()).toContain('provisional');
-    expect(w.text()).toContain('Round 1 of 10');
+    expect(w.find('.game-status').text()).toContain('provisional');
+    expect(w.find('.game-status').text()).toContain('Round 1 of 10');
     expect(w.findComponent({ name: 'ScoreBoard' }).exists()).toBe(true);
     expect(w.find('.private').exists()).toBe(true);
     expect(w.findAll('.order li')).toHaveLength(view.order.length);
@@ -211,10 +237,10 @@ describe('Gaudi table: playing', () => {
   it("shows the turn status and refuses actions on someone else's turn", async () => {
     const { view } = playView({ turnSeat: 1 });
     const { w, send } = mountTable(view);
-    expect(w.find('.status').text()).toContain('Waiting for');
+    expect(w.find('.headline').text()).toContain('Waiting for');
     expect(button(w, 'End turn').attributes('disabled')).toBeDefined();
     await poolDice(w)[0].trigger('click');
-    expect(w.find('[role=alert]').text()).toContain("'s turn");
+    expect(w.find('.game-status .warn').text()).toContain("'s turn");
     expect(w.find('.pool-die.chosen').exists()).toBe(false);
     expect(send).not.toHaveBeenCalled();
   });
@@ -224,7 +250,7 @@ describe('Gaudi table: playing', () => {
     const die = placeable(view);
     expect(die).not.toBeNull();
     const { w, send } = mountTable(view);
-    expect(w.find('.status').text()).toContain('Your first turn');
+    expect(w.find('.headline').text()).toContain('Your first turn');
     expect(spaces(w).some((s) => s.classes('legal'))).toBe(false);
     await poolDice(w)[view.pool.indexOf(die)].trigger('click');
     expect(poolDice(w)[view.pool.indexOf(die)].classes('chosen')).toBe(true);
@@ -258,14 +284,14 @@ describe('Gaudi table: playing', () => {
     const { w, send } = mountTable(view);
     await poolDice(w)[view.pool.indexOf(die)].trigger('click');
     await spaces(w)[bad].trigger('click');
-    expect(w.find('[role=alert]').exists()).toBe(true);
+    expect(w.find('.game-status .warn').exists()).toBe(true);
     expect(send).not.toHaveBeenCalled();
   });
 
   it('asks you to choose a die first when a space is clicked', async () => {
     const { w, send } = mountTable(playView().view);
     await spaces(w)[0].trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('Choose a die from the pool first');
+    expect(w.find('.game-status .warn').text()).toContain('Choose a die from the pool first');
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -276,7 +302,7 @@ describe('Gaudi table: playing', () => {
     await poolDice(w)[view.pool.indexOf(die)].trigger('click');
     await spaces(w)[legalCell(view, die)].trigger('click');
     await flushPromises();
-    expect(w.find('[role=alert]').text()).toBe('Server says no.');
+    expect(w.find('.game-status .warn').text()).toBe('Server says no.');
   });
 
   it('blocks a second placement in the same turn', async () => {
@@ -284,13 +310,13 @@ describe('Gaudi table: playing', () => {
     const done = { ...view, turn: { ...view.turn, placements: view.turn.allowed } };
     const { w } = mountTable(done);
     await poolDice(w)[0].trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('already placed');
+    expect(w.find('.game-status .warn').text()).toContain('already placed');
   });
 
   it('ends the turn, with a hint when nothing has been placed', async () => {
     const { view } = playView();
     const { w, send } = mountTable(view);
-    expect(w.find('.actions').text()).toContain('not placed a die yet');
+    expect(w.find('.game-status').text()).toContain('not placed a die yet');
     await button(w, 'End turn').trigger('click');
     expect(send).toHaveBeenCalledWith('end');
   });
@@ -299,7 +325,7 @@ describe('Gaudi table: playing', () => {
     const { w } = mountTable(playView().view, makeSend({ ok: false, error: 'Too soon.' }));
     await button(w, 'End turn').trigger('click');
     await flushPromises();
-    expect(w.find('[role=alert]').text()).toBe('Too soon.');
+    expect(w.find('.game-status .warn').text()).toBe('Too soon.');
   });
 
   it('marks a tool as usable or explains why not', async () => {
@@ -310,22 +336,22 @@ describe('Gaudi table: playing', () => {
     const { w: w2 } = mountTable(poor);
     expect(w2.findAll('.tool').some((t) => t.classes('usable'))).toBe(false);
     await w2.findAll('.tool')[0].trigger('click');
-    expect(w2.find('[role=alert]').text()).toContain('favour');
-    expect(w2.find('.guide').exists()).toBe(false);
+    expect(w2.find('.game-status .warn').text()).toContain('favour');
+    expect(button(w2, 'Cancel')).toBeUndefined();
   });
 
   it('uses a pool-die tool: choose a die, then confirm', async () => {
     const { view } = playView({ tools: ['lathe', 'mirror', 'kiln'] });
     const { w, send } = mountTable(view);
     await w.findAll('.tool')[1].trigger('click'); // mirror
-    expect(w.find('.guide').text()).toContain('Mirror');
+    expect(w.find('.game-status').text()).toContain('Mirror');
     expect(w.findAll('.tool')[1].classes('active')).toBe(true);
     expect(button(w, 'Use Mirror').attributes('disabled')).toBeDefined();
     await poolDice(w)[0].trigger('click');
     await button(w, 'Use Mirror').trigger('click');
     await flushPromises();
     expect(send).toHaveBeenCalledWith('tool', { tool: 'mirror', params: { die: view.pool[0].id } });
-    expect(w.find('.guide').exists()).toBe(false);
+    expect(button(w, 'Cancel')).toBeUndefined();
   });
 
   it('uses a raise-or-lower tool', async () => {
@@ -345,10 +371,10 @@ describe('Gaudi table: playing', () => {
     const { w, send } = mountTable(view);
     await w.findAll('.tool')[0].trigger('click');
     await button(w, 'Cancel').trigger('click');
-    expect(w.find('.guide').exists()).toBe(false);
+    expect(button(w, 'Cancel')).toBeUndefined();
     await w.findAll('.tool')[0].trigger('click');
     await w.findAll('.tool')[0].trigger('click'); // clicking the active tool again turns it off
-    expect(w.find('.guide').exists()).toBe(false);
+    expect(button(w, 'Cancel')).toBeUndefined();
     await w.findAll('.tool')[0].trigger('click');
     await button(w, 'Use ').trigger('click');
     await flushPromises();
@@ -359,7 +385,7 @@ describe('Gaudi table: playing', () => {
     const { view } = playView({ tools: ['kiln', 'lathe', 'slide'] });
     const { w } = mountTable({ ...view, turn: { ...view.turn, toolUsed: true } });
     await w.findAll('.tool')[0].trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('already used a tool');
+    expect(w.find('.game-status .warn').text()).toContain('already used a tool');
   });
 
   it('shows the cost of a used tool as two and its tokens', () => {
@@ -367,7 +393,7 @@ describe('Gaudi table: playing', () => {
     const used = { ...view, tools: view.tools.map((t, i) => (i === 0 ? { ...t, spent: 1, cost: 2 } : t)) };
     const { w } = mountTable(used);
     expect(w.findAll('.tool')[0].text()).toContain('costs 2');
-    expect(w.findAll('.tool')[0].text()).toContain('1 token on this card');
+    expect(w.findAll('.tool')[0].findAll('.token.spent')).toHaveLength(1);
   });
 
   it('lists the other players and the recent log', () => {
@@ -375,24 +401,88 @@ describe('Gaudi table: playing', () => {
     const { w } = mountTable({ ...view, log: [{ seat: 0, text: 'ann did a thing' }, { seat: 1, text: 'p2 did another' }] });
     expect(w.text()).toContain('p2');
     expect(w.text()).toContain('p3');
-    const items = w.findAll('.log li');
+    const items = w.findAll('.box.log .game-log li');
     expect(items.map((i) => i.text())).toEqual(['p2 did another', 'ann did a thing']);
-    expect(items[1].find('.mine').exists()).toBe(true);
-    expect(items[0].find('.mine').exists()).toBe(false);
+    expect(items[1].find('.own').exists()).toBe(true);
+    expect(items[0].find('.own').exists()).toBe(false);
   });
 
-  it('leaves the game', async () => {
-    const { w, send } = mountTable(playView().view);
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+  it('never opens a score pop-up between rounds, but does at the end', async () => {
+    const { view } = playView();
+    const { w } = mountTable(view);
+    expect(w.findComponent({ name: 'ScoreBoard' }).props('roundPopups')).toBe(false);
+    await w.setProps({ state: { ...view, scoreboard: { ...view.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    await w.setProps({ state: { ...view, phase: 'finished', winners: [0], scoreboard: { ...view.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    await flushPromises();
+    expect(document.body.textContent).toContain('Final scores');
+  });
+
+  it('says in Status that Swift Hand allows two dice', () => {
+    const { view } = playView();
+    const { w } = mountTable({ ...view, turn: { ...view.turn, extra: true, allowed: 2 } });
+    expect(w.find('.game-status').text()).toContain('Swift Hand: you may place two dice');
+  });
+
+  it('has no Leave button of its own: the site header offers it', () => {
+    const { w } = mountTable(playView().view);
+    expect(button(w, 'Leave game')).toBeUndefined();
+    expect(w.find('.field button').exists()).toBe(false);
+  });
+
+  it('is built on the standard frame: score bar, main area, Recent moves and Status, all sized from the window', () => {
+    const { w } = mountTable(playView().view);
+    expect(w.find('[data-fits-window]').exists()).toBe(true);
+    expect(w.find('.score-bar').exists()).toBe(true);
+    expect(w.find('.box.log h3').text()).toBe('Recent moves');
+    expect(w.find('.box.status h3').text()).toBe('Status');
+    expect(w.find('.others').exists()).toBe(false);
+    expect(w.findAll('.pool-die').length).toBeGreaterThan(0);
+    // the words are all in Status: no status line, hint or error inside the main area
+    expect(w.find('.main .status').exists()).toBe(false);
+    expect(w.find('.main [role=alert]').exists()).toBe(false);
+  });
+
+  it("opens the other players' windows from their score bar names, one at a time; yours is not a button", async () => {
+    const { view } = playView({ n: 3 });
+    const { w } = mountTable(view);
+    const chips = w.findAll('.score-bar button.chip-button');
+    expect(chips.map((b) => b.text())).toEqual([expect.stringContaining('p2'), expect.stringContaining('p3')]);
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await chips[0].trigger('click');
+    expect(w.findAll('.popup .window')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p2');
+    expect(w.findAll('.score-bar button.chip-button')[0].attributes('aria-pressed')).toBe('true');
+    expect(w.findAll('[aria-label="Your window"] .space')).toHaveLength(20); // yours is still there
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p3');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(w.findAll('.popup')).toHaveLength(0);
+  });
+
+  it('shows what a tool or objective does in Status when the pointer is on it', async () => {
+    const { view } = playView({ tools: ['kiln', 'lathe', 'slide'] });
+    const { w } = mountTable(view);
+    await w.findAll('.tool')[1].trigger('mouseenter');
+    expect(w.find('.game-status').text()).toContain(view.tools[1].text);
+    expect(w.find('.game-status').text()).toContain(view.tools[1].how);
+    await w.findAll('.tool')[1].trigger('mouseleave');
+    expect(w.find('.game-status').text()).not.toContain(view.tools[1].how);
+    await w.findAll('.objective')[0].trigger('mouseenter');
+    expect(w.find('.game-status').text()).toContain(view.publicObjectives[0].text);
   });
 
   it('copes with a spectator view and an empty pool', () => {
     const { room } = playingRoom(2, { seed: 5 });
     const v = game.viewFor(room, 99);
     const { w } = mountTable({ ...v, pool: [] });
-    expect(w.text()).toContain('The pool is empty');
-    expect(w.find('.status').text()).toContain('Waiting for');
+    expect(poolDice(w)).toHaveLength(0);
+    expect(w.find('.headline').text()).toContain('Waiting for');
   });
 
   it('drops a selection when the pool changes under it', async () => {
@@ -408,18 +498,17 @@ describe('Gaudi table: finished', () => {
   it('shows the final breakdown and the end controls', async () => {
     const view = finishedView();
     const { w, send } = mountTable(view);
-    expect(w.find('.status').text()).toContain('game is over');
+    expect(w.find('.headline').text()).toContain('game is over');
     expect(w.find('.final h3').text()).toMatch(/winner|shared/i);
     expect(w.findAll('.breakdown tbody tr')).toHaveLength(2);
     expect(w.findAll('.breakdown tbody tr').filter((r) => r.classes('win')).length).toBe(view.winners.length);
     expect(w.text()).toContain('(you)');
     expect(button(w, 'End turn')).toBeUndefined();
-    expect(w.find('.provisional-bar').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('provisional');
     expect(w.find('.private').exists()).toBe(false);
     await button(w, 'Play again').trigger('click');
-    await button(w, 'Leave game').trigger('click');
     expect(send).toHaveBeenCalledWith('again');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(button(w, 'Leave game')).toBeUndefined();
   });
 
   it('opens the final scoreboard and hides Play again from non-hosts', () => {
@@ -441,5 +530,106 @@ describe('Gaudi table: finished', () => {
     const view = finishedView();
     const { w } = mountTable({ ...view, final: null });
     expect(w.find('.final').exists()).toBe(false);
+  });
+});
+
+describe('Gaudi layout sizes', () => {
+  const area = (width, height) => {
+    const unit = (width - 12 * 11) / 12;
+    return { width, height, gap: 12, columns: 12, mainSpan: 8, left: Math.round(unit * 8 + 12 * 7) };
+  };
+  it('fits the window sizes it is given and never depends on the game', () => {
+    for (const [w, h] of [[1334, 415], [1760, 715]]) {
+      const a = area(w, h);
+      const sizes = tableSizes(a, { poolMax: 11 });
+      const windowH = sizes.cell * 4 + 23;
+      expect(windowH + 24 + 16).toBeLessThanOrEqual(h);
+      expect(sizes.cell * 5 + 26).toBeLessThanOrEqual(a.left * 0.54 + 1);
+      expect(sizes.perRow * (sizes.die + 16)).toBeLessThanOrEqual(a.left);
+      expect(tableSizes(a, { poolMax: 11 })).toEqual(sizes); // the same room always gives the same sizes
+    }
+  });
+  it('gives a bigger window in a bigger room, and keeps room for the biggest pool', () => {
+    const small = tableSizes(area(1334, 415), { poolMax: 11 });
+    const big = tableSizes(area(1760, 715), { poolMax: 11 });
+    expect(big.cell).toBeGreaterThan(small.cell);
+    expect(small.poolHeight).toBeGreaterThanOrEqual(small.die + 10);
+    expect(tableSizes(area(1334, 415), { poolMax: 5 }).poolHeight).toBeLessThanOrEqual(small.poolHeight);
+  });
+  it('shrinks the spaces for a finished game so the result has room', () => {
+    const a = area(1334, 415);
+    expect(tableSizes(a, { finished: true }).cell).toBeLessThanOrEqual(tableSizes(a, {}).cell);
+  });
+});
+
+describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
+  /** A table wired to a real room: every request runs the real rules, then the table gets the new view. */
+  function wired(tools = ['swift-hand', 'lathe', 'refire']) {
+    const { room, rng } = playingRoom(2, { seed: 3 });
+    room.tools = tools;
+    room.spent = tools.map(() => 0);
+    const view = () => game.viewFor(room, 1);
+    let w;
+    const send = vi.fn(async (event, payload) => {
+      const outcome = event === 'tool' ? game.useTool(room, 0, payload, rng) : event === 'place' ? game.placeDie(room, 0, payload, rng) : event === 'end' ? game.endTurn(room, 0, rng) : { ok: false, error: 'unexpected' };
+      await w.setProps({ state: view() });
+      return outcome.ok ? outcome : { ok: false, error: outcome.error };
+    });
+    w = mount(Table, { props: { state: view(), send } });
+    return { room, w, send, view };
+  }
+  const placeAny = async (w, room) => {
+    const state = game.viewFor(room, 1);
+    const me = state.seats[state.you];
+    const pattern = { cells: me.window.rows.join('').split('') };
+    for (const [i, d] of state.pool.entries()) {
+      for (let c = 0; c < 20; c++) {
+        if (cellProblem(me.window.grid, pattern, c, d, {}) === null) {
+          await poolDice(w)[i].trigger('click');
+          await spaces(w)[c].trigger('click');
+          await flushPromises();
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  it('use the tool first, then place two dice, and the turn ends only after the second', async () => {
+    const { room, w, send } = wired();
+    await w.findAll('.tool')[0].trigger('click');
+    await button(w, 'Use Swift Hand').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('tool', { tool: 'swift-hand', params: {} });
+    expect(room.turn.extra).toBe(true);
+    expect(w.find('.headline').text()).toContain('place a die');
+    expect(await placeAny(w, room)).toBe(true);
+    expect(room.turn.seat).toBe(0);
+    expect(w.find('.headline').text()).toContain('place a die'); // still allowed to place the second
+    expect(w.find('.headline').text()).toContain('Your first turn');
+    expect(await placeAny(w, room)).toBe(true);
+    expect(room.turn.seat).toBe(1); // only now does the turn pass on
+    expect(room.grids[0].filter(Boolean)).toHaveLength(2);
+  });
+
+  it('place a die, then use the tool, then place the second', async () => {
+    const { room, w } = wired();
+    expect(await placeAny(w, room)).toBe(true);
+    await w.findAll('.tool')[0].trigger('click');
+    await button(w, 'Use Swift Hand').trigger('click');
+    await flushPromises();
+    expect(room.turn.seat).toBe(0);
+    expect(w.find('.headline').text()).toContain('place a die');
+    expect(await placeAny(w, room)).toBe(true);
+    expect(room.turn.seat).toBe(1);
+  });
+
+  it('cancelling the tool changes nothing, and the second turn is then skipped after using it', async () => {
+    const { room, w } = wired();
+    await w.findAll('.tool')[0].trigger('click');
+    await button(w, 'Cancel').trigger('click');
+    expect(room.turn.extra).toBe(false);
+    expect(room.tokens[0]).toBe(game.viewFor(room, 1).seats[0].tokens);
+    expect(button(w, 'Cancel')).toBeUndefined();
   });
 });

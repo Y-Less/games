@@ -24,12 +24,12 @@ const finder = () => {
   // Choosing a window: pick the first one, then confirm.
   const confirm = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Choose this window');
   if (confirm) return confirm.disabled ? document.querySelector('.option:not(.locked)') : confirm;
-  if (!document.querySelector('.status.mine')) return null;
+  if (!document.querySelector('.game-status .headline.mine')) return null;
   const mem = (window.__gaudi ??= { key: '', tried: [] });
-  const key = `${document.querySelector('.status').innerText}|${document.querySelectorAll('.mine .space.filled').length}|${document.querySelectorAll('.pool-die').length}`;
+  const key = `${document.querySelector('.game-status .headline').innerText}|${document.querySelectorAll('.mine .space.filled').length}|${document.querySelectorAll('.pool-die').length}`;
   if (mem.key !== key) Object.assign(mem, { key, tried: [] });
   const endTurn = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'End turn' && !b.disabled);
-  if (!document.querySelector('.status').innerText.includes('place a die;')) return endTurn;
+  if (!document.querySelector('.game-status .headline').innerText.includes('place a die;')) return endTurn;
   const chosen = document.querySelector('.pool-die.chosen');
   if (chosen) {
     const legal = document.querySelector('.mine .space.legal');
@@ -75,6 +75,15 @@ test('starting offers windows to choose from; a reload resumes the same room', {
   await user.waitForText('Choose your window');
   await user.waitForCodeInUrl(code);
   assert.ok((await user.page.$$('.option')).length >= 2, 'several windows to choose from');
+  for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+    await user.page.setViewport(viewport);
+    await new Promise((r) => setTimeout(r, 300));
+    const fit = await user.page.evaluate(() => {
+      const phase = document.querySelector('.windows-phase');
+      return { overflow: document.documentElement.scrollHeight - innerHeight, right: Math.max(...[...document.querySelectorAll('.option')].map((o) => o.getBoundingClientRect().right)), width: innerWidth, clipped: phase.scrollHeight - phase.clientHeight };
+    });
+    assert.ok(fit.overflow <= 0 && fit.right <= fit.width && fit.clipped <= 0, `the windows to choose from fit ${viewport.width}x${viewport.height}: ${JSON.stringify(fit)}`);
+  }
   assert.equal((await user.buttonState('Choose this window')).disabled, true, 'nothing chosen yet');
 
   await user.page.reload({ waitUntil: 'domcontentloaded' });
@@ -89,7 +98,63 @@ test('starting offers windows to choose from; a reload resumes the same room', {
   await user.waitForSelector('.mine .space');
 }));
 
-test('playing the whole game by clicking dice and spaces: a pop-up after every round, then the final result', { timeout: 280000 }, guarded('play a game', async () => {
+const rect = (selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+
+test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Gaudi');
+  assert.equal(await user.page.$('.play h1'), null);
+  const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
+  assert.deepEqual(inPlay, [], 'no Leave button in the play area');
+}));
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window without scaling, its rows share the same outer edges and gutters, and a click on a name in the score bar toggles that window without moving anything`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await user.page.setViewport(viewport);
+    await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    assert.equal(await user.page.evaluate(() => Number.parseFloat(document.querySelector('.field-frame')?.style.zoom) || 1), 1, 'the shell does not scale the game down');
+    const bar = await rect('.score-bar');
+    const mine = await rect('.mine-col');
+    const right = await rect('.right-col');
+    const log = await rect('.box.log');
+    const status = await rect('.box.status');
+    for (const [name, r] of Object.entries({ mine, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ right, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    assert.ok(mine.right < right.left && right.left - mine.right <= 24, `the gutter between your window and the cards: ${right.left - mine.right}`);
+    assert.equal(await user.page.$('.others'), null, 'no row of duplicate player bars');
+    assert.ok(log.top - mine.bottom >= 4 && log.top - mine.bottom <= 12, `the gap between the main row and the boxes: ${log.top - mine.bottom}`);
+    assert.ok(Math.abs(right.bottom - mine.bottom) <= 1, 'your window and the cards end on the same line');
+    assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
+    const clipped = await user.page.evaluate(() => ['.mine', '.right-col'].map((s) => { const e = document.querySelector(s); return [s, e.scrollHeight - e.clientHeight, e.scrollWidth - e.clientWidth]; }).filter(([, h, w]) => h > 1 || w > 1));
+    assert.deepEqual(clipped, [], 'nothing in the main area is cut off');
+
+    // Toggling another player's window moves nothing else.
+    const areas = ['.score-bar', '.mine-col', '.mine .pool-col', '.mine [aria-label="Your window"]', '.right-col', '.box.log', '.box.status'];
+    const before = await Promise.all(areas.map(rect));
+    await user.page.click('.score-bar button.chip-button');
+    await user.waitForSelector('.arena .popup .window');
+    assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a window moved something');
+    assert.equal((await user.page.$$('.arena .popup')).length, 1);
+    assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
+    const popup = await rect('.arena .popup');
+    const main = await rect('.arena');
+    assert.ok(popup.top >= main.top - 1 && popup.bottom <= main.bottom + 1 && popup.left >= main.left && popup.right <= main.right, 'the pop-up sits inside the main area');
+    await user.page.keyboard.press('Escape');
+    await user.waitForSelector('.arena .popup', { hidden: true });
+    assert.deepEqual(await Promise.all(areas.map(rect)), before, 'closing a window moved something');
+  }));
+}
+
+test('playing the whole game by clicking dice and spaces: no pop-up between rounds, then the final result', { timeout: 280000 }, guarded('play a game', async () => {
   const titles = new Set();
   const act = async () => {
     const title = await user.modalTitle();
@@ -103,7 +168,7 @@ test('playing the whole game by clicking dice and spaces: a pop-up after every r
   };
   await drive({ act, finished: () => user.page.$('section.final').then(Boolean), what: 'a game of Gaudi', timeout: 260000 });
 
-  assert.ok([...titles].includes('Scores after Round 1'), `the round pop-up appeared: ${[...titles]}`);
+  assert.deepEqual([...titles].filter((t) => t !== 'Final scores'), [], 'no score pop-up between rounds');
   const placed = await user.page.$$eval('.mine .space.filled', (els) => els.length);
   assert.ok(placed > 0, 'the human placed some dice');
   await user.waitForSelector('.modal');
@@ -129,9 +194,16 @@ test('after the game ends, a reload still shows the result, and Play again retur
 test('the score bar stays visible while the page scrolls', { timeout: 60000 }, guarded('sticky bar', async () => {
   const result = await checkScoreBarSticks(user);
   assert.ok(result.found);
-  assert.ok(result.top >= result.headerBottom - 2 && result.top < result.headerBottom + 40, `bar sits under the header: ${JSON.stringify(result)}`);
   assert.ok(result.height > 20 && result.bottom < result.viewport);
-  await user.clickButton('Leave game', { exact: true });
+}));
+
+test('Leave game in the header asks first, then leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.waitForText('A computer player takes your seat if you leave.');
+  await user.clickButton('Stay', { exact: true });
+  await user.waitForNoText('A computer player takes your seat');
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
   await user.waitForText('Start a new game');
 }));
 
