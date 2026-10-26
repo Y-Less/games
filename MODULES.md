@@ -135,13 +135,65 @@ Card games share a few pieces so they look and behave alike:
   `removeBot`, `fillBots`, `kick` and `start`.
 - Overlays (`position: fixed`) work inside the play field, but remember that a game can be played on a phone.
 
+## Computer players (AIs)
+
+Every game with built-in computer players should offer a range of them, from "smart" to "just pick a random legal
+move". A bot is given one for the whole game when the game starts. The registry lives in `shared/ai.js`
+(`defineAIs`, `pickAI`, `assignAIs`, `aiById`, `describeAI`); what an AI actually decides is up to the game.
+
+**Layout.** A module keeps its AIs in `modules/<id>/ai/`: one file per AI, plus `ai/index.js` that lists them:
+
+```js
+import { defineAIs } from '../../../shared/ai.js';
+import standard from './standard.js';
+import sharp from './sharp.js';
+export const AIS = defineAIs([standard, sharp /* , ... */]);
+```
+
+Adding an AI is dropping a file in that folder and adding it to the list. Keep the first entry as the fallback (what
+the bots did before AIs existed). Keep the files free of sockets and files, and of `Math.random`: use the `rng` the game
+passes in so that seeded games and tests are repeatable. The test helper `launchModule` copies the whole module folder,
+so a new `ai/` folder needs nothing extra there (a hand-written copy list in a test must include it, and `shared/ai.js`).
+
+**An AI** is a plain object:
+
+| | |
+| --- | --- |
+| `id` | unique within the game, lowercase; stored in saved rooms, so do not rename one casually |
+| `name`, `description` | shown to people (name and description only, never the functions) |
+| `weight` | optional, default 1: how often the AI is picked at random. Make the strongest and the "standard" ones the most common. `0` keeps an AI out of the random pool (it can still be set by id in tests) |
+| decision functions | game-specific, each taking one plain-data context (e.g. Hearts: `choosePass(ctx)`, `choosePlay(ctx)`, optional `bidsMoon(ctx)`). The context holds only what that seat is allowed to know, never other players' hidden cards |
+
+Hearts is the worked example (`modules/hearts/ai/`: `standard`, `sharp`, `moon`, `jack`, `avoider`, `random`). Its
+context is built by `aiContext(room, seat, rng)` in `game.js`.
+
+**Assignment and state.**
+
+- Each bot seat gets its AI id when the game starts, with `assignAIs(AIS, botSeats, rng)` using the game's own seeded
+  `rng` (not `Math.random`, wherever the game is seeded or tested). Do it after the deal if the first hand of a seeded
+  test must not change. Seats that were bots in the lobby are given theirs at start, and a new game (play again) draws again.
+- A bot that takes over from a human who leaves mid-game picks an AI at that moment (`pickAI(AIS, rng)`).
+- The id is stored in the room state beside the bot seat (`room.seats[i].ai = 'sharp'`), so it survives a restart, a
+  reconnection and a human leaving. It is part of the server's room object, which is never sent as it is: the view is
+  built field by field. The view MAY show `{ id, name }` (use `describeAI`) as `seats[].ai` for bot seats, and nothing
+  else about an AI. Hearts shows it once the game has started.
+- Look an AI up with `aiById(AIS, id)`: a room saved before this existed, or with an AI that was renamed or removed,
+  falls back to the first AI instead of breaking.
+- Anything an AI needs to remember about the hand (such as the tricks played) must be in the room state too, not in
+  the AI: AIs are stateless functions of their context, which is what makes restarts safe.
+
+**Tests.** Test the registry in `shared/ai.test.js`. For a module, test that every AI plays whole games legally and
+that they finish (all-bot tables, several seeds, each option on and off), that each AI shows its distinguishing trait
+over many seeded games, that the AI choice is assigned, saved and restored, and that a pre-AI room still plays.
+`modules/hearts/arena.js` (`playGame`, `versus`) and `modules/hearts/ai.test.js` are a template.
+
 ## Shared components (everything games should reuse)
 
 All in `src/components/`, import from `modules/<id>/client/` as `../../../src/components/<Name>.vue`:
 
 | | |
 | --- | --- |
-| `ScoreBoard` | always-visible sticky score bar, plus a large pop-up of every round that opens after each round and at the end (shape in `shared/scores.js`; slots `#round`, `#footer`; emits `continue`; `show()`/`close()`) |
+| `ScoreBoard` | always-visible sticky score bar, plus a large pop-up of every round that opens after each round and at the end (shape in `shared/scores.js`; slots `#round`, `#footer`; emits `continue` when the round pop-up is closed by any route, which is how a person says they are ready for the next round; props `waiting`, `awaiting`; `show()`/`close()`) |
 | `ScoreTable` | the all-rounds table on its own |
 | `GameModal` | a general large pop-up (Esc, backdrop click, focus kept inside) |
 | `RoomEntry` | "start a new game / join with a code" screen |

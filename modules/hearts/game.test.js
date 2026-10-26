@@ -26,6 +26,7 @@ function started(settings = {}, rng = seeded(1)) {
 /** A game in the middle of a hand with chosen hands (cards are given per seat); the first trick has been played. */
 function midHand(hands, { settings = {}, turn = 0, trick = [], tricksPlayed = 1, heartsBroken = false, taken } = {}) {
   const room = started(settings);
+  for (const seat of room.seats) if (seat?.kind === 'bot') seat.ai = 'standard'; // these tests pin down the standard AI
   room.phase = 'playing';
   room.passDirection = 'none';
   room.hands = hands.map((h) => [...h]);
@@ -386,6 +387,37 @@ test('the next hand cannot start until the hand is over, and only by a player', 
   assert.equal(g.nextHand(room, 1).ok, true);
   assert.equal(room.handNumber, 1);
   assert.equal(room.passDirection, 'right');
+});
+
+test('the next hand is dealt once every person has closed the score pop-up, and not before', () => {
+  const room = started();
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
+  room.phase = 'handEnd';
+  room.ready = [];
+  assert.equal(g.nextHand(room, 1).ok, true);
+  assert.equal(room.phase, 'handEnd', 'one of two people is not enough');
+  assert.deepEqual(room.ready, [0]);
+  assert.equal(g.nextHand(room, 1).ok, true, 'closing it twice is harmless');
+  assert.equal(room.handNumber, 0);
+  assert.equal(g.nextHand(room, 2).ok, true);
+  assert.notEqual(room.phase, 'handEnd');
+  assert.equal(room.handNumber, 1);
+  assert.deepEqual(room.ready, []);
+});
+
+test('a person leaving at the end of a hand does not hold the others up, and the server can force the next hand', () => {
+  const room = started();
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
+  room.phase = 'handEnd';
+  room.ready = [];
+  g.nextHand(room, 1);
+  assert.equal(g.removeHuman(room, 2).ok, true);
+  assert.notEqual(room.phase, 'handEnd');
+  room.phase = 'handEnd';
+  room.ready = [];
+  assert.equal(g.forceNextHand(room).ok, true);
+  assert.notEqual(room.phase, 'handEnd');
+  assert.equal(g.forceNextHand(room).ok, false);
 });
 
 test('the game ends only once somebody has reached the target, and the lowest score wins', () => {

@@ -36,8 +36,9 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
   if (!fs.existsSync(modulesDir)) {
     fs.mkdirSync(path.join(modulesDir, 'hearts'), { recursive: true });
     for (const file of ['server.js', 'game.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
+    fs.cpSync(path.join(here, 'ai'), path.join(modulesDir, 'hearts', 'ai'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'copy', 'shared'), { recursive: true });
-    for (const file of ['cards.js', 'scores.js']) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
+    for (const file of ['ai.js', 'cards.js', 'scores.js']) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
   }
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;
@@ -456,6 +457,8 @@ test('a restart loses nothing: the room comes back and the computer players carr
   assert.deepEqual(again.state.settings, before.settings);
   assert.equal(again.state.seats.length, 4);
   assert.ok(again.state.seats.slice(1).every((s) => s.bot));
+  assert.deepEqual(again.state.seats.map((s) => s.ai), before.seats.map((s) => s.ai), 'every computer player keeps its AI over a restart');
+  assert.ok(again.state.seats.slice(1).every((s) => s.ai?.id && s.ai?.name));
   assert.ok(again.state.hand.length > 0 || again.state.phase === 'handEnd');
   if (before.phase === 'playing') assert.equal(again.state.scoreboard.rounds.length, before.scoreboard.rounds.length);
 

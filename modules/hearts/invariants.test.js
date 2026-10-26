@@ -248,7 +248,7 @@ test('every pass direction is used in order and the cards go to the right seat',
     while (room.phase === 'playing') {
       game.runPending(room, rng) ?? game.playCard(room, room.turn, game.botPlay(room, room.turn, rng));
     }
-    if (room.phase === 'handEnd') game.nextHand(room, 101, rng);
+    if (room.phase === 'handEnd') for (const seat of room.seats) if (seat.kind === 'human') game.nextHand(room, seat.id, rng);
     else break;
   }
   assert.deepEqual(directions.slice(0, 4), ['left', 'right', 'across', 'none']);

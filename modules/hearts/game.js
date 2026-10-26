@@ -6,6 +6,9 @@
 // player ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
 import { placements } from '../../shared/scores.js';
 import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { AIS } from './ai/index.js';
+import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
 
 export const SEATS = 4;
 export const TARGETS = [50, 100, 150];
@@ -89,6 +92,7 @@ function resetGame(room) {
     received: emptyHands(),
     taken: emptyHands(),
     trick: [],
+    trickLog: [],
     lastTrick: null,
     turn: null,
     tricksPlayed: 0,
@@ -122,14 +126,15 @@ function newBot(room) {
  * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
  * it over. `empty` is true when no human is left, so the room should be discarded.
  */
-export function removeHuman(room, userId) {
+export function removeHuman(room, userId, rng = Math.random) {
   const seat = seatOf(room, userId);
   if (seat === -1) return fail('You are not in this game.');
   const midGame = ['passing', 'playing', 'handEnd'].includes(room.phase);
-  room.seats[seat] = midGame ? newBot(room) : null;
+  room.seats[seat] = midGame ? { ...newBot(room), ai: pickAI(AIS, rng).id } : null;
   const humans = humanSeats(room);
   if (!humans.length) return ok({ empty: true, seat });
   if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
+  advanceIfReady(room); // the person who left may have been the only one still to close the pop-up
   return ok({ empty: false, seat, replaced: midGame });
 }
 
@@ -191,6 +196,7 @@ export function deal(room, rng = Math.random) {
   room.received = emptyHands();
   room.taken = emptyHands();
   room.trick = [];
+  room.trickLog = [];
   room.lastTrick = null;
   room.tricksPlayed = 0;
   room.heartsBroken = false;
@@ -203,8 +209,13 @@ export function deal(room, rng = Math.random) {
 function beginPlay(room) {
   room.phase = 'playing';
   room.turn = room.hands.findIndex((hand) => hand.includes(TWO_OF_CLUBS));
-  room.moonBid = room.seats.findIndex((s, i) => isBot(s) && wantsMoon(room.hands[i]));
-  if (room.moonBid === -1) room.moonBid = null;
+  setMoonBid(room);
+}
+
+/** The first computer player whose AI judges its hand strong enough to go for every point (if any). */
+function setMoonBid(room) {
+  const bidder = room.seats.findIndex((s, i) => isBot(s) && aiOf(room, i).bidsMoon?.({ hand: room.hands[i], settings: room.settings }));
+  room.moonBid = bidder === -1 ? null : bidder;
 }
 
 export function start(room, userId, rng = Math.random) {
@@ -214,6 +225,11 @@ export function start(room, userId, rng = Math.random) {
   if (!humanSeats(room).length) return fail('At least one person has to play.');
   resetGame(room);
   deal(room, rng);
+  // Every computer player picks its AI for the whole game (after the deal, so the deal itself is unchanged).
+  const botSeats = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
+  const picks = assignAIs(AIS, botSeats, rng);
+  for (const i of botSeats) room.seats[i].ai = picks[i];
+  if (room.phase === 'playing') setMoonBid(room);
   return ok();
 }
 
@@ -285,6 +301,8 @@ export function resolveTrick(room) {
   room.taken[winner].push(...cards);
   room.lastTrick = { plays: room.trick, winner };
   if (cards.some(isPointCard) && winner !== room.moonBid) room.moonBid = null;
+  room.trickLog ??= [];
+  room.trickLog.push({ plays: room.trick, winner });
   room.trick = [];
   room.tricksPlayed++;
   if (room.tricksPlayed === TRICKS) {
@@ -347,14 +365,39 @@ function endHand(room) {
     room.winners = winnersOf(room.scores);
   } else {
     room.phase = 'handEnd';
+    room.ready = [];
   }
 }
 
+/** A person is ready for the next hand (they closed the score pop-up); it is dealt once every person is. */
 export function nextHand(room, userId, rng = Math.random) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'handEnd') return fail('The hand is not over.');
+  room.ready ??= [];
+  const seat = seatOf(room, userId);
+  if (!room.ready.includes(seat)) room.ready.push(seat);
+  advanceIfReady(room, rng);
+  return ok();
+}
+
+function advanceIfReady(room, rng = Math.random) {
+  if (room.phase !== 'handEnd') return false;
+  room.ready ??= [];
+  if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
+  dealNext(room, rng);
+  return true;
+}
+
+function dealNext(room, rng) {
   room.handNumber++;
+  room.ready = [];
   deal(room, rng);
+}
+
+/** Deals the next hand whether or not everyone has closed the pop-up (the server does this after a wait). */
+export function forceNextHand(room, rng = Math.random) {
+  if (room.phase !== 'handEnd') return fail('The hand is not over.');
+  dealNext(room, rng);
   return ok();
 }
 
@@ -387,90 +430,58 @@ export function statsPlayers(room) {
 
 // ---- computer players ----
 
-/** Strong enough to try for all the points? Very rare: this is a gamble that only an overwhelming hand justifies. */
-export function wantsMoon(hand) {
-  const hearts = hand.filter(isHeart);
-  const top = hand.filter((c) => rankValue(c) >= 13).length;
-  return hearts.length >= 5 && hearts.includes('AH') && hearts.includes('KH') && top >= 6 && hand.includes(QUEEN);
-}
+export const wantsMoon = standardWantsMoon;
 
-/** Three cards to pass: the dangerous ones (Queen of Spades, high spades, high hearts), then the highest others. */
+/** The AI a computer seat plays with. Seats without one (rooms saved before AIs existed) get the first, standard AI. */
+export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
+
+/** Three cards to pass, as the standard AI chooses them (kept for callers that only have a hand). */
 export function botPass(hand, settings = DEFAULT_SETTINGS) {
-  if (wantsMoon(hand)) return [...hand].sort((a, b) => rankValue(a) - rankValue(b)).slice(0, PASS_COUNT);
-  const spades = hand.filter((c) => suitOf(c) === 'S');
-  const danger = (card) => {
-    if (card === QUEEN) return 100;
-    if (settings.jackOfDiamonds && card === JACK) return -100;
-    const rank = rankValue(card);
-    if (suitOf(card) === 'S') return !hand.includes(QUEEN) || spades.length < 5 ? (rank >= 13 ? 60 + rank : rank) : -20;
-    if (isHeart(card)) return rank >= 10 ? 40 + rank : rank / 2;
-    return rank;
-  };
-  return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, PASS_COUNT);
+  return passStandard({ hand, settings });
 }
 
-const playedThisHand = (room) => new Set([...room.taken.flat(), ...room.trick.map((p) => p.card)]);
-const lowest = (cards) => cards.reduce((a, b) => (rankValue(b) < rankValue(a) ? b : a));
-const highest = (cards) => cards.reduce((a, b) => (rankValue(b) > rankValue(a) ? b : a));
+/** The plain data an AI decides from: its own hand and the public history of the hand, never other hands. */
+export function aiContext(room, seat, rng = Math.random) {
+  return {
+    seat,
+    hand: [...room.hands[seat]],
+    legal: room.phase === 'playing' ? legalCards(room, seat) : [],
+    trick: room.trick.map((p) => ({ ...p })),
+    history: (room.trickLog ?? []).map((t) => ({ plays: t.plays.map((p) => ({ ...p })), winner: t.winner })),
+    taken: room.taken.map((cards) => [...cards]),
+    scores: [...room.scores],
+    settings: { ...room.settings },
+    heartsBroken: room.heartsBroken,
+    tricksPlayed: room.tricksPlayed,
+    handNumber: room.handNumber,
+    direction: room.passDirection,
+    passed: room.passes[seat] ? [...room.passes[seat]] : [],
+    received: [...(room.received?.[seat] ?? [])],
+    moonBid: room.moonBid,
+    rng,
+  };
+}
 
-/**
- * The card a computer player plays: always one of its legal cards. It leads low, ducks tricks that carry points,
- * flushes out the Queen of Spades with low spades, dumps the Queen and high hearts when it cannot follow suit, and
- * (rarely) chases every point when its hand is overwhelming.
- */
+/** The three cards a computer seat passes, chosen by its own AI (always three different cards from its hand). */
+export function botPassFor(room, seat, rng = Math.random) {
+  const hand = room.hands[seat];
+  const valid = (cards) => Array.isArray(cards) && cards.length === PASS_COUNT && new Set(cards).size === PASS_COUNT && cards.every((c) => hand.includes(c));
+  const cards = aiOf(room, seat).choosePass(aiContext(room, seat, rng));
+  return valid(cards) ? cards : passStandard({ hand, settings: room.settings });
+}
+
+/** The card a computer player plays: always one of its legal cards, chosen by its own AI. */
 export function botPlay(room, seat, rng = Math.random) {
   const legal = legalCards(room, seat);
   if (legal.length === 1) return legal[0];
-  const { jackOfDiamonds } = room.settings;
-  const chasing = room.moonBid === seat;
-  const avoid = (cards, unwanted) => {
-    const kept = cards.filter((c) => !unwanted(c));
-    return kept.length ? kept : cards;
-  };
-  const notJack = (cards) => (jackOfDiamonds ? avoid(cards, (c) => c === JACK) : cards);
-  const pick = (cards) => cards[Math.floor(rng() * cards.length)];
-
-  if (room.trick.length === 0) {
-    if (chasing) return highest(avoid(legal, isHeart));
-    const hand = room.hands[seat];
-    const played = playedThisHand(room);
-    const lowSpades = legal.filter((c) => suitOf(c) === 'S' && rankValue(c) < 12);
-    if (lowSpades.length && !hand.includes(QUEEN) && !played.has(QUEEN)) return lowest(lowSpades);
-    let options = notJack(legal);
-    if (hand.includes(QUEEN)) options = avoid(options, (c) => suitOf(c) === 'S');
-    options = avoid(options, isHeart);
-    const floor = rankValue(lowest(options));
-    return pick(options.filter((c) => rankValue(c) === floor));
-  }
-
-  const led = suitOf(room.trick[0].card);
-  const following = legal.filter((c) => suitOf(c) === led);
-  if (following.length) {
-    const best = Math.max(...room.trick.filter((p) => suitOf(p.card) === led).map((p) => rankValue(p.card)));
-    const last = room.trick.length === SEATS - 1;
-    const winning = following.filter((c) => rankValue(c) > best);
-    const ducking = following.filter((c) => rankValue(c) < best);
-    if (chasing) return winning.length ? highest(winning) : lowest(following);
-    if (jackOfDiamonds && led === 'D' && room.trick.some((p) => p.card === JACK) && !room.trick.some((p) => isPointCard(p.card)) && winning.length) {
-      return last ? lowest(winning) : highest(winning);
-    }
-    if (ducking.length) return highest(notJack(ducking));
-    return last ? highest(avoid(following, (c) => c === QUEEN)) : lowest(avoid(following, (c) => c === QUEEN));
-  }
-
-  const queenGone = playedThisHand(room).has(QUEEN) || room.hands[seat].includes(QUEEN);
-  const worry = (card) => {
-    if (chasing) return -rankValue(card) - (isPointCard(card) ? 100 : 0);
-    if (card === QUEEN) return 1000;
-    if (jackOfDiamonds && card === JACK) return -1000;
-    if (suitOf(card) === 'S' && rankValue(card) >= 13 && !queenGone) return 700 + rankValue(card);
-    if (isHeart(card)) return 500 + rankValue(card) * 10;
-    return rankValue(card) * 10;
-  };
-  return legal.reduce((best, card) => (worry(card) > worry(best) ? card : best));
+  const card = aiOf(room, seat).choosePlay(aiContext(room, seat, rng));
+  return legal.includes(card) ? card : legal[0];
 }
 
 /** The next thing a computer (or the clock) has to do, or null when the game waits for a person. */
+/** True while the hand is over and waiting for people to close the score pop-up (the server times this out). */
+export const waitingForReady = (room) => room.phase === 'handEnd';
+
 export function pendingAction(room) {
   if (room.phase === 'passing') {
     const seat = room.seats.findIndex((s, i) => isBot(s) && !room.passes[i]);
@@ -487,7 +498,7 @@ export function runPending(room, rng = Math.random) {
   if (!action) return null;
   const result =
     action.type === 'pass'
-      ? choosePass(room, action.seat, botPass(room.hands[action.seat], room.settings))
+      ? choosePass(room, action.seat, botPassFor(room, action.seat, rng))
       : action.type === 'play'
         ? playCard(room, action.seat, botPlay(room, action.seat, rng))
         : resolveTrick(room);
@@ -519,6 +530,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             seat: i,
             name: seat.name,
             bot: isBot(seat),
+            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
             online: isBot(seat) || online(seat.id),
             cards: room.hands[i].length,
             tricks: room.taken[i].length / SEATS,
@@ -527,12 +539,13 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             jack: room.taken[i].includes(JACK),
             points: handPoints(room, i),
             passed: Boolean(room.passes[i]),
+            ready: room.phase === 'handEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
             score: room.scores[i],
           }
         : null,
     ),
     scoreboard: {
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, score: room.scores[i], isMe: i === me, away: isHuman(seat) && !online(seat.id) }] : [])),
+      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, score: room.scores[i], isMe: i === me, away: isHuman(seat) && !online(seat.id), ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}) }] : [])),
       rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: true,
       target: room.settings.target,
@@ -566,3 +579,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
   }
   return view;
 }
+
+const describeAIBrief = (ai) => {
+  const { id, name } = describeAI(ai);
+  return { id, name };
+};

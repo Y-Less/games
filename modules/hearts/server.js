@@ -5,6 +5,7 @@
 // Timing can be changed through the environment (the tests make it fast):
 //   HEARTS_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
 //   HEARTS_TRICK_PAUSE milliseconds a finished trick stays on the table (default 1500)
+//   HEARTS_NEXT_WAIT   milliseconds to wait for everyone to close the score pop-up between hands (default 60000)
 import fs from 'node:fs';
 import path from 'node:path';
 import * as game from './game.js';
@@ -15,8 +16,9 @@ const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
 function readDelays() {
   const [min, max] = String(process.env.HEARTS_BOT_DELAY ?? '600-1400').split('-').map(Number);
   const trick = Number(process.env.HEARTS_TRICK_PAUSE ?? 1500);
+  const nextWait = Number(process.env.HEARTS_NEXT_WAIT ?? 60000);
   const low = Number.isFinite(min) ? min : 600;
-  return { botMin: low, botMax: Number.isFinite(max) ? Math.max(max, low) : Math.max(1400, low), trick: Number.isFinite(trick) ? trick : 1500 };
+  return { botMin: low, botMax: Number.isFinite(max) ? Math.max(max, low) : Math.max(1400, low), trick: Number.isFinite(trick) ? trick : 1500, nextWait: Number.isFinite(nextWait) && nextWait >= 0 ? nextWait : 60000 };
 }
 
 export default function (ctx) {
@@ -94,19 +96,21 @@ export default function (ctx) {
     clearTimeout(timers.get(room.code));
     timers.delete(room.code);
     const action = game.pendingAction(room);
-    if (!action) return;
-    const wait = action.type === 'resolve' ? delays.trick : delays.botMin + Math.random() * (delays.botMax - delays.botMin);
+    if (!action && !game.waitingForReady(room)) return;
+    const wait = !action ? delays.nextWait : action.type === 'resolve' ? delays.trick : delays.botMin + Math.random() * (delays.botMax - delays.botMin);
     const timer = setTimeout(() => {
       timers.delete(room.code);
       if (rooms.get(room.code) !== room) return;
       try {
-        game.runPending(room);
+        if (action) game.runPending(room);
+        else game.forceNextHand(room);
       } catch (error) {
         ctx.log('a computer move failed:', error);
         return;
       }
       changed(room);
     }, wait);
+    timer.unref?.();
     timers.set(room.code, timer);
   }
 

@@ -47,7 +47,7 @@ dropped and nothing is recorded. Rooms are saved after every change and the comp
 
 Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`,
 `create {target?, jackOfDiamonds?, moon?}`, `leave`, `settings {...}`, `addBot {seat?}`, `removeBot {seat}`, `fillBots`,
-`start`, `pass {cards}`, `play {card}`, `next` (deal the next hand), `again` (back to the lobby after a finished game).
+`start`, `pass {cards}`, `play {card}`, `next` (ready for the next hand: sent when a person closes the score pop-up; the hand is dealt once every person has, or after `HEARTS_NEXT_WAIT` ms), `again` (back to the lobby after a finished game).
 
 Server to client: `state`, a view for that account (or `null`): its own hand, the legal plays with a reason for each
 illegal card, counts for everyone else's cards, the public table, and `scoreboard` in the standard shape of
