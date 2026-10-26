@@ -3,8 +3,10 @@ import { computed, onBeforeUnmount, provide } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { useLeave } from '../../../src/playBar.js';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { createStore } from './store.js';
 import { DIXNT_KEY } from './useDixnt.js';
 import Arena from './components/Arena.vue';
@@ -30,6 +32,24 @@ const { store, isHost, send, goHome } = dixnt;
 const state = computed(() => store.state);
 const results = computed(() => (state.value?.phase === 'results' ? state.value.results : null));
 const nameOf = dixnt.nameOf;
+
+// Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
+// button: the way to get rid of someone who has gone away). The scoreboard's ids are the players' ids.
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => state.value?.scoreboard.players ?? [],
+  hostId: () => state.value?.hostId ?? null,
+  isHost: () => isHost.value,
+  remove: (targetId) => send('removePlayer', { targetId }, { quiet: true }),
+});
+const opened = computed(() => state.value?.players.find((p) => p.id === openId.value) ?? null);
+const stageOf = (p) => {
+  const phase = state.value.phase;
+  if (p.waiting) return 'waiting for the next round';
+  if (phase === 'word') return p.isChooser ? 'choosing the word' : 'waiting for the word';
+  if (phase === 'picking') return p.hasPlayed ? 'has played a card' : 'still choosing a card';
+  if (phase === 'voting') return p.hasVoted ? 'has voted' : 'still to vote';
+  return p.isChooser ? 'the chooser' : '';
+};
 const status = computed(() => {
   const s = statusFor(state.value, { isHost: isHost.value });
   const away = state.value.players.filter((p) => !p.connected).map((p) => p.name);
@@ -69,6 +89,7 @@ useLeave({
         :low-is-better="state.scoreboard.lowIsBetter"
         :finished="state.phase === 'finished'"
         :sticky="false"
+        v-bind="scoreProps"
       >
         <template #round>
           <p v-if="results" class="summary" role="status">
@@ -82,7 +103,21 @@ useLeave({
       </ScoreBoard>
     </template>
 
-    <template #main="area"><Arena :width="area.width" :height="area.height" /></template>
+    <template #main="area">
+      <PlayerPopup v-if="popupProps" v-bind="popupProps">
+        <dl v-if="opened" class="facts">
+          <dt>Score</dt>
+          <dd>{{ opened.score }}</dd>
+          <dt>Turns as chooser</dt>
+          <dd>{{ opened.turns }}</dd>
+          <template v-if="stageOf(opened)">
+            <dt>Now</dt>
+            <dd>{{ stageOf(opened) }}</dd>
+          </template>
+        </dl>
+      </PlayerPopup>
+      <Arena :width="area.width" :height="area.height" />
+    </template>
 
     <template #log>
       <GameLog :entries="store.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry }}</GameLog>

@@ -141,15 +141,15 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     const areas = ['.score-bar', '.mine-col', '.mine .pool-col', '.mine [aria-label="Your window"]', '.right-col', '.box.log', '.box.status'];
     const before = await Promise.all(areas.map(rect));
     await user.page.click('.score-bar button.chip-button');
-    await user.waitForSelector('.arena .popup .window');
+    await user.waitForSelector('.main .popup .window');
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a window moved something');
-    assert.equal((await user.page.$$('.arena .popup')).length, 1);
+    assert.equal((await user.page.$$('.main .popup')).length, 1);
     assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
-    const popup = await rect('.arena .popup');
+    const popup = await rect('.main .popup');
     const main = await rect('.arena');
     assert.ok(popup.top >= main.top - 1 && popup.bottom <= main.bottom + 1 && popup.left >= main.left && popup.right <= main.right, 'the pop-up sits inside the main area');
     await user.page.keyboard.press('Escape');
-    await user.waitForSelector('.arena .popup', { hidden: true });
+    await user.waitForSelector('.main .popup', { hidden: true });
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'closing a window moved something');
   }));
 }

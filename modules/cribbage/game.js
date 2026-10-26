@@ -154,14 +154,13 @@ export function removeHuman(room, userId, rng = Math.random) {
   return ok({ empty: false });
 }
 
-/** The host removes someone from the lobby, or (in a game) someone who has gone away: a computer player takes over. */
-export function kick(room, hostId, seat, { away = false, rng } = {}) {
+/** The host removes someone at any time: in the lobby (or after the game) their seat is given up, and in a game a computer player takes over. */
+export function kick(room, hostId, seat, { rng } = {}) {
   const problem = requireHost(room, hostId);
   if (problem) return problem;
-  const target = room.seats[seat];
+  const target = Number.isInteger(seat) ? room.seats[seat] : null;
   if (!target || target.bot || target.left) return fail('That player is not in the game.');
   if (target.userId === hostId) return fail('You cannot remove yourself: use Leave.');
-  if (!['lobby', 'finished'].includes(room.phase) && !away) return fail('You can only remove a player who has left the game page.');
   const { userId } = target;
   const result = removeHuman(room, userId, rng);
   return result.ok ? ok({ userId, empty: result.empty }) : result;

@@ -150,7 +150,7 @@ test('everybody disconnecting mid-game: the game waits for the people, who can c
   await playOn([a, b], () => a.state.phase === 'finished' && b.state.phase === 'finished');
 });
 
-test('the host: a dropped connection keeps the role, leaving hands it on, and an absent player can be removed', async (t) => {
+test('the host: a dropped connection keeps the role, leaving hands it on, and any other player can be removed', async (t) => {
   const { ann, bob } = await started(t);
   ann.socket.close();
   await until(() => bob.state.seats[0].online === false, 'ann away');
@@ -161,8 +161,7 @@ test('the host: a dropped connection keeps the role, leaving hands it on, and an
   await ann.connect();
   await ann.call('resume', {});
   await until(() => ann.state?.phase === 'discard', 'ann back');
-  // Now bob drops: ann (host) may remove him because he is away, and a computer takes over.
-  assert.equal((await ann.call('kick', { seat: 1 })).ok, false, 'not while bob is connected');
+  // Now bob drops: ann (host) may remove him, and a computer takes over (she could have while he was connected too).
   bob.socket.close();
   await until(() => ann.state.seats[1].online === false, 'bob away');
   assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });

@@ -144,7 +144,7 @@ test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one r
   assert.equal((await eve.call('join', { code: ann.state.code })).ok, false, 'a started game cannot be joined');
   assert.equal((await ann.call('size', { seats: 3 })).ok, false);
   assert.equal((await ann.call('settings', { badPrivate: true })).ok, false);
-  assert.equal((await ann.call('kick', { seat: 1 })).ok, false, 'kick is lobby only');
+  assert.equal((await ann.call('kick', { seat: ann.state.you })).ok, false, 'not yourself');
   assert.equal((await ann.call('addBot')).ok, false);
 });
 

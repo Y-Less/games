@@ -3,11 +3,13 @@
 // round track, the tool cards and the objectives in the main area; the other players are chips in the score bar (click a name to see
 // their window over the table); Recent moves and Status along the bottom. The server sends the view; every action is one
 // request.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Die from './Die.vue';
 import WindowGrid from './WindowGrid.vue';
 import { COLOUR_HEX, COLOUR_LABEL, SHAPES, SHAPE_OF } from './glyphs.js';
@@ -276,28 +278,14 @@ const poolMax = computed(() => 2 * (s.value.size ?? s.value.seats.length) + 1);
 
 // ---- other players' windows: hidden until you click their name in the score bar, one at a time, over the main area
 // (nothing moves) ----
-const openSeat = ref(null);
-const hasWindow = (seat) => !windows.value && seat !== s.value.you && others.value.some((o) => o.seat === seat && o.window);
-const openedSeat = computed(() => others.value.find((o) => o.seat === openSeat.value && o.window) ?? null);
-watch(
-  () => others.value.map((o) => o.seat).join(),
-  () => {
-    if (openSeat.value !== null && !others.value.some((o) => o.seat === openSeat.value)) openSeat.value = null;
-  },
-);
-watch(windows, () => (openSeat.value = null));
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
+const { openId, scoreProps, popupProps, close: closePopup } = usePlayerPopup({
+  players: () => s.value.scoreboard.players,
+  hostId: () => s.value.hostSeat,
+  isHost: () => s.value.hostSeat === s.value.you,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
+const openedSeat = computed(() => others.value.find((o) => o.seat === openId.value && o.window) ?? null);
+watch(windows, closePopup);
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
 const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: finished.value, options: s.value.options?.length ?? 4 });
@@ -306,7 +294,7 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
 <template>
   <GameFrame class="table-view" :main-span="8">
     <template #scorebar>
-      <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" :round-popups="false" :has-details="hasWindow" :open-details="openSeat" @details="(seat) => (openSeat = seat)">
+      <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" :round-popups="false" v-bind="scoreProps">
         <template #round>
           <p v-if="!finished" class="provisional" role="note">
             <strong>Provisional scores.</strong> They count public objectives, favour tokens and empty spaces. Private objectives are added at the end, and each is shown only to its owner until then. Round 1 includes everyone's starting tokens less their 20 empty spaces.
@@ -317,6 +305,17 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
     </template>
 
     <template #main="area">
+      <PlayerPopup v-if="popupProps" v-bind="popupProps">
+        <section v-if="openedSeat" class="popup-window">
+          <div class="head">
+            <span v-if="openedSeat.skipping" class="tag">skips turn 2</span>
+            <span class="muted wname">{{ openedSeat.window.name }}</span>
+          </div>
+          <WindowGrid :rows="openedSeat.window.rows" :grid="openedSeat.window.grid" :cell="dims(area).popup" :label="`${openedSeat.name}'s window`" />
+          <p class="muted small">{{ openedSeat.tokens }} tokens · {{ openedSeat.empty }} empty · score {{ openedSeat.score }}</p>
+        </section>
+        <p v-else class="muted small">Still choosing a window.</p>
+      </PlayerPopup>
       <!-- Choosing windows -->
       <section v-if="windows" class="windows-phase" aria-label="Choose your window">
         <div v-if="state.options.length" class="options">
@@ -344,17 +343,6 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
 
       <!-- The game -->
       <div v-else class="arena">
-        <div v-if="openedSeat" class="popup" role="group" :aria-label="`${openedSeat.name}'s window`">
-          <section class="popup-window">
-            <div class="head">
-              <strong>{{ openedSeat.name }}</strong>
-              <span v-if="openedSeat.skipping" class="tag">skips turn 2</span>
-              <span class="muted wname">{{ openedSeat.window.name }}</span>
-            </div>
-            <WindowGrid :rows="openedSeat.window.rows" :grid="openedSeat.window.grid" :cell="dims(area).popup" :label="`${openedSeat.name}'s window`" />
-            <p class="muted small">{{ openedSeat.tokens }} tokens · {{ openedSeat.empty }} empty · score {{ openedSeat.score }}</p>
-          </section>
-        </div>
         <div class="mine-col" :style="{ gridColumn: `span ${finished ? 4 : area.mainSpan}` }">
           <section class="mine" :class="{ turn: myTurn }">
             <div class="head">
@@ -907,24 +895,14 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
 .arena {
   position: relative;
 }
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
 .popup-window {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0.5rem 0.7rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-sunken) 94%, transparent);
 }
 .popup-window .head {
+  display: flex;
+  align-items: baseline;
   gap: 0.5rem;
 }
 

@@ -4,12 +4,14 @@
 // bottom, Recent moves (the scoring) and Status. Every word about what is happening (turns, instructions, the hand
 // number, the dealer, the target, the deck and crib counts, the result) is in Status. It is drawn for every phase after
 // the lobby (discarding, pegging, the show and the end), so nothing changes size or position from one to the next.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Board from './Board.vue';
 import ShowHands from './ShowHands.vue';
 import { seatColour } from './colours.js';
@@ -66,29 +68,20 @@ async function discard() {
 
 // An opponent's details (cards held, whether they have discarded, whose crib it is, their pegs) stay hidden until you
 // click their chip in the score bar: one at a time, floating at the top of the table, so nothing moves.
-const openSeat = ref(null);
-const hasDetails = (seat) => others.value.some((o) => o.seat === seat);
-const opened = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => scorePlayers.value,
+  hostId: () => seats.value.find((x) => x.host)?.seat ?? null,
+  isHost: () => Boolean(s.value.isHost),
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
+});
+const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
 const detailLines = (o) => {
   const lines = [`${o.cards} ${o.cards === 1 ? 'card' : 'cards'} in hand`];
   if (phase.value === 'discard') lines.push(o.discarded ? 'Has put cards in the crib' : 'Still choosing cards for the crib');
   lines.push(o.seat === s.value.dealer ? 'The dealer: the crib is theirs' : `Crib: ${cribOwner.value}`);
   lines.push(`Pegs: front on ${o.score}, back on ${o.back}`);
-  if (!o.online) lines.push('Away');
   return lines;
 };
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
 
 // ---- the words, all of them in the Status box ----
 const status = computed(() => {
@@ -129,7 +122,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
 <template>
   <GameFrame class="table-view">
     <template #scorebar>
-      <ScoreBoard ref="scoreboard" :players="scorePlayers" :rounds="state.scoreboard.rounds" :target="state.target" :finished="finished" :awaiting="phase === 'show' && !you.ready" :waiting="waitingForReady" :sticky="false" :has-details="hasDetails" :open-details="openSeat" running @details="(seat) => (openSeat = seat)" @continue="send('ready')">
+      <ScoreBoard ref="scoreboard" :players="scorePlayers" :rounds="state.scoreboard.rounds" :target="state.target" :finished="finished" :awaiting="phase === 'show' && !you.ready" :waiting="waitingForReady" :sticky="false" v-bind="scoreProps" running @continue="send('ready')">
         <template #round>
           <ShowHands v-if="state.show" :state="state" class="in-modal" />
         </template>
@@ -138,14 +131,15 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
 
     <template #main="area">
       <div class="arena">
-        <div v-if="opened" class="popup" role="group" :aria-label="`${opened.name}'s details`">
-          <h4>
-            <span class="chip" :style="{ background: seatColour(opened.seat) }" />
-            {{ opened.name }}
-            <span v-if="opened.seat === state.dealer" class="badge" title="Dealer">D</span>
-          </h4>
-          <p v-for="line in detailLines(opened)" :key="line">{{ line }}</p>
-        </div>
+        <PlayerPopup v-if="popupProps" v-bind="popupProps">
+          <div v-if="opened" class="seat-details">
+            <p class="key">
+              <span class="chip" :style="{ background: seatColour(opened.seat) }" />
+              <span v-if="opened.seat === state.dealer" class="badge" title="Dealer">D</span>
+            </p>
+            <p v-for="line in detailLines(opened)" :key="line">{{ line }}</p>
+          </div>
+        </PlayerPopup>
         <div class="mine-col" :style="{ gridColumn: `span ${area.mainSpan}` }">
           <section class="zone" aria-label="The play">
             <template v-if="inPlay">
@@ -395,30 +389,16 @@ small {
   gap: 0.35rem;
 }
 
-/* An opponent's details, opened from their chip in the score bar, float over the top middle of the table. */
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  min-width: 17rem;
-  padding: 0.6rem 0.9rem;
-  border: 1px solid var(--amber);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-sunken) 96%, transparent);
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
+/* An opponent's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */
+.seat-details p {
+  margin: 0;
+  font-size: 0.9rem;
 }
-.popup h4 {
+.seat-details .key {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 0.3rem;
-  font-family: var(--display);
-}
-.popup p {
-  margin: 0;
-  font-size: 0.9rem;
+  margin-bottom: 0.2rem;
 }
 .entry {
   display: flex;

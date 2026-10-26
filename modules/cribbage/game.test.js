@@ -335,7 +335,7 @@ test('a person leaving the show lets the hand move on', () => {
   assert.equal(room.phase, 'discard');
 });
 
-test('kick: the lobby host removes people, in a game only people who are away', () => {
+test('kick: the host removes people at any time: in a game a computer player takes over', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'A', seats: 3 });
   game.addHuman(room, 2, 'B');
   assert.equal(game.kick(room, 2, 0).ok, false, 'only the host');
@@ -344,8 +344,9 @@ test('kick: the lobby host removes people, in a game only people who are away', 
   game.addHuman(room, 2, 'B');
   game.fillBots(room, 1);
   game.start(room, 1);
-  assert.equal(game.kick(room, 1, 1).ok, false, 'still here');
-  assert.equal(game.kick(room, 1, 1, { away: true }).userId, 2);
+  assert.equal(game.kick(room, 1, 1.5).ok, false, 'a nonsense seat');
+  assert.equal(game.kick(room, 1, '1').ok, false, 'a nonsense seat');
+  assert.equal(game.kick(room, 1, 1).userId, 2);
   assert.equal(room.seats[1].bot, true);
 });
 

@@ -104,6 +104,7 @@ describe('ScoreBoard computer players and details', () => {
     const button = chips()[1].find('button');
     expect(button.attributes('aria-label')).toBe("Show Bob's details");
     expect(button.attributes('aria-pressed')).toBe('false');
+    expect(button.attributes('title')).toBe('Show details');
     await button.trigger('click');
     expect(wrapper.emitted('details')).toEqual([['b']]);
     await wrapper.setProps({ openDetails: 'b' });

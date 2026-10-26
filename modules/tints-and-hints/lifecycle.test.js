@@ -168,7 +168,7 @@ test('disconnecting and reconnecting in every phase keeps your place, your guess
   for (const p of people) checkRun(p.states, p.name);
 });
 
-test('the host disconnecting keeps the host role; leaving passes it on; kick follows the rules for who is online', async (t) => {
+test('the host disconnecting keeps the host role; leaving passes it on; the host can remove anyone, online or not', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob', 'cat']);
   const { people, host } = g;
@@ -188,10 +188,9 @@ test('the host disconnecting keeps the host role; leaving passes it on; kick fol
 
   assert.equal((await ann.call('start', {})).ok, true);
   await allIn(people, 'guessing1');
-  assert.equal((await ann.call('kick', { userId: bob.id })).ok, false, 'bob is online: not removable mid-game');
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
-  assert.equal((await ann.call('kick', { userId: bob.id })).ok, true, 'an absent player can be removed mid-game');
+  assert.equal((await ann.call('kick', { userId: bob.id })).ok, true, 'a player can be removed mid-game');
   await until(() => ann.state.players.length === 2, 'bob removed');
   assert.ok(ann.state.players.every((p) => p.id !== bob.id));
   assert.equal(ann.state.phase === 'guessing1' || ann.state.phase === 'guessing2', true, 'the game went on with two');

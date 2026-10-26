@@ -45,6 +45,30 @@ async function mountGame(state) {
 }
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
 
+describe('Tints and Hints player pop-up', () => {
+  it('opens from a score chip with the colour and state, and gives the host a Remove button that kicks', async () => {
+    const { wrapper, socket } = await mountGame(view({ players: [player(1, 'Ann'), player(2, 'Bob', { colour: '#0000ff', online: false }), player(3, 'Cy', { guessed: true })] }));
+    expect(wrapper.find('.bars .remove').exists()).toBe(false); // the slim bars no longer carry a Remove button
+    await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click');
+    const popup = wrapper.find('.player-popup');
+    expect(popup.text()).toContain('Bob');
+    expect(popup.find('.dot').attributes('style')).toContain('rgb(0, 0, 255)');
+    await popup.findAll('button').find((b) => b.text() === 'Remove player').trigger('click');
+    socket.emit.mockClear();
+    await wrapper.find('.player-popup [data-confirm]').trigger('click');
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('kick', { userId: 2 }, expect.any(Function));
+    wrapper.unmount();
+  });
+
+  it('shows a guesser who is not the host no Remove button', async () => {
+    const { wrapper } = await mountGame(view({ you: 3, hostId: 1, scoreboard: { ...view().scoreboard, players: view().scoreboard.players.map((p) => ({ ...p, isMe: p.id === 3 })) } }));
+    await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click');
+    expect(wrapper.find('.player-popup').text()).not.toContain('Remove');
+    wrapper.unmount();
+  });
+});
+
 describe('Tints and Hints layout sums', () => {
   it('makes square cells that fit the room, whichever way it is short', () => {
     const wide = gridCell(900, 2000);

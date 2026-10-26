@@ -222,9 +222,7 @@ export default function (ctx) {
     on('kick', ({ seat }) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'You are not in a game.' };
-      const target = Number.isInteger(seat) ? room.seats[seat] : null;
-      const away = Boolean(target?.userId !== null && target && open(target.userId, room.code).length === 0);
-      const outcome = game.kick(room, userId, seat, { away });
+      const outcome = game.kick(room, userId, seat);
       if (!outcome.ok) return outcome;
       afterRemoval(room, outcome.userId, outcome);
       return { ok: true };

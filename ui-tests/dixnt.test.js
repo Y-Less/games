@@ -127,6 +127,34 @@ test('a reload mid-game puts you back in the same game', { timeout: 60000 }, gua
   await second.waitForSelector('.score-bar');
 }));
 
+test('the host removes a person from the game through their popup: Remove player, with an inline confirmation', { timeout: 60000 }, guarded('remove person', async () => {
+  const chips = () => host.page.$$eval('.score-bar button.chip-button', (els) => els.map((e) => e.innerText.replace(/s+/g, ' ').trim()));
+  await host.waitForSelector('.word-popup', { hidden: true }).catch(() => {});
+  assert.equal((await chips()).length, 3, 'a chip for every other player');
+  // A guest has the popup (the facts), but no Remove button.
+  await second.waitForSelector('.score-bar button.chip-button');
+  await second.page.click('.score-bar button.chip-button');
+  await second.waitForSelector('.main .player-popup');
+  assert.doesNotMatch(await second.page.$eval('.player-popup', (e) => e.innerText), /Remove/);
+  await second.page.keyboard.press('Escape');
+  await second.waitForSelector('.player-popup', { hidden: true });
+  // The host picks the bot process's account (a person, as far as the game is concerned).
+  const at = (await chips()).findIndex((c) => c.includes(botName));
+  assert.ok(at >= 0, `${botName} is in the score bar`);
+  await host.page.click(`.score-bar li:nth-child(${at + 2}) button.chip-button`);
+  await host.waitForSelector('.main .player-popup');
+  assert.match(await host.page.$eval('.player-popup', (e) => e.innerText), new RegExp(botName));
+  await host.clickButton('Remove player', { scope: '.player-popup' });
+  await host.clickButton('Yes, remove', { scope: '.player-popup' });
+  await host.waitForSelector('.player-popup', { hidden: true });
+  // Mid-game a computer player takes over the removed person's seat, so the table stays the same size.
+  const started = Date.now();
+  while ((await chips()).some((c) => c.includes(botName)) && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
+  assert.ok(!(await chips()).some((c) => c.includes(botName)), 'they are gone from the score bar');
+  assert.equal((await chips()).length, 3);
+  assert.equal((await host.page.$$('.score-bar .bot')).length, 1, 'a computer player took their seat');
+}));
+
 test('a host on their own fills the table with built-in computer players, starts, and the bots play their cards', { timeout: 90000 }, guarded('bots', async () => {
   await solo.goto('/play/dixnt');
   await solo.clickButton('Start a new game');
@@ -146,6 +174,8 @@ test('a host on their own fills the table with built-in computer players, starts
   assert.match(rows[0].text, /Sol.*you.*host/i);
   assert.match(rows[1].text, /computer/i);
   assert.equal((await solo.buttonState('Start the game')).disabled, false);
+  await solo.clickButton('Add a computer player'); // a third computer player, so that one can be removed mid-game later
+  await solo.waitForNoText('Need');
 
   // The host is the first chooser.
   await solo.clickButton('Start the game', { exact: true });
@@ -192,13 +222,39 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
   }));
 }
 
-test('the chooser types the word, and the two computer players play a card by themselves', { timeout: 90000 }, guarded('bots play', async () => {
+test('the chooser types the word, and the three computer players play a card by themselves', { timeout: 90000 }, guarded('bots play', async () => {
   await solo.page.setViewport({ width: 1280, height: 900 });
   await solo.fill('input[aria-label="Your word or phrase"]', 'Dragon');
   await solo.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
   await solo.waitForSelector('.table figcaption button.vote');
-  assert.equal((await solo.page.$$('.score-bar .bot')).length, 2, 'the bots are marked as computers in the score bar');
-  assert.equal(await solo.page.$$eval('.table figure', (els) => els.length), 2, 'a card from each of the two computer players is on the table (the chooser plays none)');
+  assert.equal((await solo.page.$$('.score-bar .bot')).length, 3, 'the bots are marked as computers in the score bar');
+  assert.equal(await solo.page.$$eval('.table figure', (els) => els.length), 3, 'a card from each of the three computer players is on the table (the chooser plays none)');
+}));
+
+test('the host always has Remove in a player popup: a computer player is removed mid-game, end to end', { timeout: 60000 }, guarded('remove computer', async () => {
+  const chips = () => solo.page.$$eval('.score-bar button.chip-button', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+  await solo.waitForSelector('.word-popup', { hidden: true }); // the chosen word is shown large for a few seconds first
+  assert.equal((await chips()).length, 3, 'a chip for every other player');
+  assert.equal(await solo.page.$eval('.score-bar button.chip-button', (e) => e.title), 'Show details');
+  await solo.page.click('.score-bar button.chip-button');
+  await solo.waitForSelector('.main .player-popup');
+  assert.match(await solo.page.$eval('.player-popup', (e) => e.innerText), /computer[\s\S]*Score[\s\S]*Remove computer player/i);
+  const popup = await rect(solo, '.player-popup');
+  const main = await rect(solo, '.main');
+  assert.ok(popup.top >= main.top - 1 && popup.bottom <= main.bottom + 1 && popup.left >= main.left && popup.right <= main.right, 'the popup sits inside the main area');
+  assert.ok(Math.abs((popup.left + popup.right) / 2 - (main.left + main.right) / 2) <= 2, 'and is centred at the top of it');
+  await solo.clickButton('Remove computer player', { scope: '.player-popup' });
+  await solo.waitForText('from the game?'); // the confirmation is inline, in the popup
+  assert.equal(await solo.page.evaluate(() => Boolean(document.querySelector('.modal-backdrop'))), false, 'not a window.confirm or modal');
+  await solo.clickButton('Cancel', { scope: '.player-popup' });
+  await solo.waitForNoText('from the game?');
+  await solo.clickButton('Remove computer player', { scope: '.player-popup' });
+  await solo.clickButton('Yes, remove', { scope: '.player-popup' });
+  await solo.waitForSelector('.player-popup', { hidden: true });
+  const started = Date.now();
+  while ((await chips()).length !== 2 && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
+  assert.equal((await chips()).length, 2, 'one computer player fewer in the score bar');
+  assert.equal((await solo.page.$$('.score-bar .bot')).length, 2);
 }));
 
 test('Leave game in the header asks first, then leaves the game', { timeout: 60000 }, guarded('leave', async () => {

@@ -41,6 +41,27 @@ function fakeSocket(connected = false) {
   return { connected, handlers, emit: vi.fn((e, p, ack) => ack?.({ ok: true })), on: vi.fn((e, f) => (handlers[e] = f)), off: vi.fn((e) => delete handlers[e]) };
 }
 
+describe('Hearts player pop-up', () => {
+  it('opens from a chip with the facts, and the host removes a computer player through removeBot; a guest has no Remove button', async () => {
+    const send = makeSend();
+    const w = mount(Table, { props: { state: view(room()), send } });
+    const chips = w.findAll('.score-bar button.chip-button');
+    expect(chips).toHaveLength(3);
+    await chips[0].trigger('click');
+    const popup = w.find('.player-popup');
+    expect(popup.text()).toContain('Cards in hand');
+    expect(popup.text()).toContain('Remove');
+    await popup.findAll('button').find((b) => /^Remove/.test(b.text())).trigger('click');
+    await w.find('.player-popup [data-confirm]').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('removeBot', { seat: expect.any(Number) });
+    const guest = mount(Table, { props: { state: { ...view(room()), hostSeat: 2 }, send: makeSend() } });
+    await guest.findAll('.score-bar button.chip-button')[0].trigger('click');
+    expect(guest.find('.player-popup').exists()).toBe(true);
+    expect(guest.find('.player-popup').text()).not.toContain('Remove');
+  });
+});
+
 describe('Hearts table in the standard frame', () => {
   it('has the score bar, the table and the two bottom boxes, and no Leave button', () => {
     const w = mount(Table, { props: { state: view(room()), send: makeSend() } });

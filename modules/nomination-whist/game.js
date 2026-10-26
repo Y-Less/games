@@ -213,14 +213,19 @@ export function addBot(room, userId, seat) {
   return ok({ seat: index });
 }
 
-/** The host removes another person from a lobby seat. */
-export function kick(room, hostId, seat) {
-  const problem = asHost(room, hostId) ?? inLobby(room);
+/**
+ * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
+ * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
+ * them home.
+ */
+export function kick(room, hostId, seat, rng = Math.random) {
+  const problem = asHost(room, hostId);
   if (problem) return problem;
   const target = Number.isInteger(seat) ? room.seats[seat] : null;
   if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  room.seats[seat] = null;
-  return ok({ userId: target.id });
+  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
+  const removed = removeHuman(room, target.id, rng);
+  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
 }
 
 export function removeBot(room, userId, seat) {

@@ -2,14 +2,16 @@
 // The game itself, in the standard frame: the score bar on top; the table (the trick in the middle, the nomination buttons in a zone of their own, and your hand along the bottom); and the two
 // boxes along the bottom, Recent moves and Status. Everything that is said (whose turn it is, the round, the trumps,
 // what you may not nominate), and the other players' details open from their chips in the score bar is in Status, so nothing in the play area grows, shrinks or moves while the game is played.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
 import { sortHand, SUIT_NAMES, SUIT_SYMBOLS } from '../../../shared/cards.js';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Final from './Final.vue';
 import { movesBetween } from './log.js';
 import RoundResult from './RoundResult.vue';
@@ -51,32 +53,17 @@ const others = computed(() => ordered.value.slice(1));
 
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
 // floating over the top of the main area so that nothing moves.
-const openSeat = ref(null);
-const hasDetails = (seat) => others.value.some((o) => o.seat === seat);
-const opened = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
-watch(
-  () => others.value.map((o) => o.seat).join(),
-  () => {
-    if (openSeat.value !== null && !hasDetails(openSeat.value)) openSeat.value = null;
-  },
-);
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
-
 const board = computed(() => ({
   players: seats.value.map((s) => ({ id: s.seat, name: s.name, score: s.score, isMe: s.seat === you.value, bot: Boolean(s.bot), current: s.seat === props.state.turn, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
   rounds: props.state.rounds,
 }));
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => board.value.players,
+  hostId: () => props.state.hostSeat,
+  isHost: () => props.state.hostSeat === you.value,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
+});
+const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
 
 const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
@@ -148,7 +135,7 @@ const roomFor = (area) => {
 <template>
   <GameFrame class="whist-table" :main-span="8">
     <template #scorebar>
-      <ScoreBoard :players="board.players" :rounds="board.rounds" :finished="finished && !instantWinner" :low-is-better="false" :awaiting="state.phase === 'roundEnd' && !seats[you].ready" :waiting="waitingFor" :sticky="false" :has-details="hasDetails" :open-details="openSeat" @details="(seat) => (openSeat = seat)" @continue="send('next')">
+      <ScoreBoard :players="board.players" :rounds="board.rounds" :finished="finished && !instantWinner" :low-is-better="false" :awaiting="state.phase === 'roundEnd' && !seats[you].ready" :waiting="waitingFor" :sticky="false" v-bind="scoreProps" @continue="send('next')">
         <template #round>
           <p v-if="instantWinner" class="instant-note" role="status"><strong>{{ instantWinner.name }}{{ instantWinner.seat === you ? ' (you)' : '' }} wins the game instantly!</strong> They nominated 7 and won all 7 tricks in {{ lastRound?.label }}.</p>
           <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
@@ -158,13 +145,10 @@ const roomFor = (area) => {
 
     <template #main="area">
       <div class="arena">
-        <div v-if="opened" class="popup" role="group" :aria-label="`${opened.name}'s details`">
-          <span class="head">
-            <strong class="name">{{ opened.name }}</strong>
-            <span v-if="opened.bot" class="tag quiet-tag">computer</span>
-            <span v-if="opened.seat === round.dealer" class="tag" title="Dealer">Dealer</span>
-          </span>
-          <dl>
+        <PlayerPopup v-if="popupProps" v-bind="popupProps">
+          <dl v-if="opened" class="facts">
+            <dt>Dealer</dt>
+            <dd>{{ opened.seat === round.dealer ? 'yes' : 'no' }}</dd>
             <dt>Cards in hand</dt>
             <dd>{{ opened.cards }}</dd>
             <dt>Nomination</dt>
@@ -176,7 +160,7 @@ const roomFor = (area) => {
             <dt>Score</dt>
             <dd>{{ opened.score }}</dd>
           </dl>
-        </div>
+        </PlayerPopup>
 
         <Final v-if="finished" class="zone-wide" :state="state" :send="send" />
         <template v-else>
@@ -313,35 +297,22 @@ const roomFor = (area) => {
   text-transform: capitalize;
 }
 
-/* Another player's details, opened from their chip in the score bar, float over the top of the table. */
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  min-width: 16rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid var(--amber);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-sunken) 96%, transparent);
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
-.popup dl {
+/* Another player's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */
+.facts {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.2rem 1rem;
-  margin: 0.4rem 0 0;
+  margin: 0;
 }
-.popup dt {
+.facts dt {
   color: var(--muted);
 }
-.popup dd {
+.facts dd {
   margin: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.popup b {
+.facts dd b {
   color: var(--parchment);
 }
 

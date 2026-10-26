@@ -38,7 +38,7 @@ function view(extra = {}, me = {}) {
     wordHidden: false,
     me: { id: 'ann', waiting: false, isChooser: true, hand: [1, 2, 3, 4, 5, 6], myPick: null, myVote: null, isImposter: false, ...me },
     players,
-    scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 'ann', away: false })), rounds: [], lowIsBetter: false },
+    scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 'ann', bot: p.bot, away: false })), rounds: [], lowIsBetter: false },
     table: [],
     voteTargets: [],
     results: null,
@@ -195,6 +195,35 @@ describe('Dixnt word pop-up', () => {
   it('does not show it for a game joined or reloaded mid-phase', async () => {
     const { wrapper } = await mountGame(asBob({ phase: 'picking' }));
     expect(wrapper.find('.word-popup').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('Dixnt player pop-up', () => {
+  it('gives the host a Remove button for a person and for a computer player, removing through removePlayer', async () => {
+    const { wrapper, socket } = await mountGame(view());
+    const chips = () => wrapper.findAll('.score-bar button.chip-button');
+    expect(chips().map((c) => c.text())).toEqual([expect.stringContaining('Bob'), expect.stringContaining('Cy'), expect.stringContaining('Di')]);
+    await chips()[0].trigger('click');
+    expect(wrapper.find('.player-popup').text()).toContain('Remove player');
+    expect(wrapper.find('.player-popup').text()).toContain('still choosing a card');
+    await chips()[1].trigger('click');
+    const remove = wrapper.find('.player-popup').findAll('button').find((b) => b.text() === 'Remove computer player');
+    expect(remove).toBeTruthy();
+    await remove.trigger('click');
+    socket.emit.mockClear();
+    await wrapper.find('.player-popup [data-confirm]').trigger('click');
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('removePlayer', { targetId: 'cy' }, expect.any(Function));
+    expect(wrapper.find('.player-popup').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the others no Remove button', async () => {
+    const { wrapper } = await mountGame(asBob({ hostId: 'ann' }));
+    await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click');
+    expect(wrapper.find('.player-popup').exists()).toBe(true);
+    expect(wrapper.find('.player-popup').text()).not.toContain('Remove');
     wrapper.unmount();
   });
 });

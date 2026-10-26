@@ -2,11 +2,13 @@
 // The Azulejo table: the display plates and the centre, your board (prominent) and everyone else's beside it, the
 // scoreboard, a log, the wall-tiling summary and the final breakdown. The server sends the view; every action is one
 // request: `move` (take a colour group and place it) or `column` (free wall only).
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { COLOUR_NAMES, COLOURS, floorPenalty, lineProblem, previewTake } from '../rules.js';
 import Board from './Board.vue';
 import { boardCell, plateLayout } from './layout.js';
@@ -148,33 +150,19 @@ const dims = (area) => {
   const rightHeight = area.height;
   const centreHeight = Math.max(64, Math.min(150, Math.floor(rightHeight * 0.26)));
   const { diameter } = plateLayout(s.value.factories.length, right, rightHeight - centreHeight - 8, { gap: 10, max: 190 });
-  const popup = boardCell(Math.min(560, area.width * 0.5), area.height * 0.96, { max: 36 });
+  const popup = boardCell(Math.min(560, area.width * 0.5), area.height * 0.72, { max: 36 });
   return { left, right, cell, centreHeight, plate: diameter / 2.35, popup };
 };
 
-// Other players' boards stay hidden until you click their chip in the score bar: one at a time, over the main area, so
-// nothing moves.
-const openSeat = ref(null);
-const hasBoard = (seat) => seat !== s.value.you && others.value.some((o) => o.seat === seat);
-const openedBoard = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
-watch(
-  () => others.value.map((o) => o.seat).join(),
-  () => {
-    if (openSeat.value !== null && !others.value.some((o) => o.seat === openSeat.value)) openSeat.value = null;
-  },
-);
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
+// Another player's board stays hidden until you click their chip in the score bar: the standard player pop-up (one at
+// a time, over the main area, so nothing moves), which also has the host's Remove button.
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => s.value.scoreboard.players,
+  hostId: () => s.value.hostSeat,
+  isHost: () => isHost.value,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
+const openedBoard = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
 
 // ---- end ----
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));
@@ -185,7 +173,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 <template>
   <GameFrame class="table-view">
     <template #scorebar>
-      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" :has-details="hasBoard" :open-details="openSeat" @details="(seat) => (openSeat = seat)">
+      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" v-bind="scoreProps">
         <template #round>
           <TilingSummary v-if="state.lastTiling" :tiling="state.lastTiling" :seats="state.seats" :you="state.you" />
           <p v-if="finished" class="note">The last row adds the end-of-game bonuses, so each total equals the final score.</p>
@@ -195,9 +183,9 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 
     <template #main="area">
       <div class="arena">
-        <div v-if="openedBoard" class="popup" role="group" :aria-label="`${openedBoard.name}'s board`">
-          <Board :seat="openedBoard" :cell="dims(area).popup" :free="free" :current="state.phase === 'playing' && state.turn === openedBoard.seat" :next-first="markerHolder === openedBoard.seat" />
-        </div>
+        <PlayerPopup v-if="popupProps" v-bind="popupProps">
+          <Board v-if="openedBoard" :seat="openedBoard" :cell="dims(area).popup" :free="free" :current="state.phase === 'playing' && state.turn === openedBoard.seat" :next-first="markerHolder === openedBoard.seat" />
+        </PlayerPopup>
         <div class="mine-col" :style="{ gridColumn: `span ${area.mainSpan}` }">
           <Board
             v-if="me"
@@ -347,18 +335,6 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
   min-height: 0;
 }
 
-/* Another player's board, opened from their chip in the score bar, floats over the middle of the table. */
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
-.popup :deep(.board) {
-  background: color-mix(in srgb, var(--bg-sunken) 94%, transparent);
-}
 
 .final {
   flex: 1;

@@ -123,6 +123,7 @@ defineExpose({ show, close });
           :class="{ 'chip-button': clickable(p) }"
           :type="clickable(p) ? 'button' : undefined"
           :aria-label="clickable(p) ? `Show ${p.name}'s details` : undefined"
+          :title="clickable(p) ? 'Show details' : undefined"
           :aria-pressed="clickable(p) ? isOpen(p) : undefined"
           @click="clickable(p) && toggleDetails(p)"
         >

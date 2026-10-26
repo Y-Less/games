@@ -6,7 +6,9 @@ import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { cellColour } from '../grid.js';
 import Board from './Board.vue';
 import { barSpan, gridCell, gridSpan } from './layout.js';
@@ -94,13 +96,29 @@ const dims = (area) => {
   const width = Math.round(unit * span + area.gap * (span - 1));
   return { span, cell: gridCell(width, area.height) };
 };
+
+// Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
+// button). The scoreboard's ids are the accounts' ids.
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => s.value.scoreboard.players,
+  hostId: () => s.value.hostId,
+  isHost: () => s.value.you === s.value.hostId,
+  remove: (userId) => props.send('kick', { userId }),
+});
+const opened = computed(() => s.value.players.find((p) => p.id === openId.value) ?? null);
+const stageOf = (p) => {
+  if (ended.value) return '';
+  if (p.id === s.value.hinter) return 'the hinter this turn';
+  if (guessing.value) return p.guessed ? 'has guessed' : 'still to guess';
+  return '';
+};
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.length)}` }));
 </script>
 
 <template>
   <GameFrame class="table-view" :main-span="8" :log-span="5">
     <template #scorebar>
-      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :sticky="false">
+      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :sticky="false" v-bind="scoreProps">
         <template #round>
           <section v-if="state.result" class="reveal stack" aria-label="This turn">
             <div class="row">
@@ -124,6 +142,18 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     </template>
 
     <template #main="area">
+      <PlayerPopup v-if="popupProps" v-bind="popupProps">
+        <dl v-if="opened" class="facts">
+          <dt>Score</dt>
+          <dd>{{ opened.score }}</dd>
+          <dt>Colour</dt>
+          <dd><span class="dot" :style="{ background: opened.colour }" /></dd>
+          <template v-if="stageOf(opened)">
+            <dt>Now</dt>
+            <dd>{{ stageOf(opened) }}</dd>
+          </template>
+        </dl>
+      </PlayerPopup>
       <div class="arena">
         <div class="grid-col" :style="{ gridColumn: `span ${dims(area).span}` }">
           <Board :guesses="state.guesses" :players="state.players" :target="state.tint" :selected="picked" :disabled="!canGuess" :cell="dims(area).cell" @pick="pick" />
@@ -187,7 +217,6 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <span v-if="p.id === state.hinter && !ended" class="tag hint-tag">hinter</span>
           <span v-else-if="guessing && p.guessed" class="tag done">guessed</span>
           <span v-if="!p.online" class="tag away">away</span>
-          <button v-if="!p.online && state.you === state.hostId" class="quiet remove" :title="`Remove ${p.name}`" @click="send('kick', { userId: p.id })">Remove</button>
           <span class="score">{{ p.score }}</span>
         </li>
       </ul>
@@ -336,6 +365,8 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
   margin-left: 0.5rem;
 }
 .dot {
+  display: inline-block;
+  vertical-align: middle;
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 50%;
@@ -397,11 +428,6 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
 .tag.away {
   color: var(--danger);
   border-color: var(--danger);
-}
-.remove {
-  flex: none;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
 }
 .score {
   margin-left: auto;

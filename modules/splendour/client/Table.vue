@@ -1,10 +1,12 @@
 <script setup>
 // The table: scoreboard, nobles, the three rows of cards, the gem supply, your actions, every player's board and the log.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
@@ -225,27 +227,13 @@ const tieNote = computed(() => {
 // ---- other players' boards: hidden until you click their name in the score bar, one at a time, over the main area
 // (nothing moves) ----
 const others = computed(() => seatOrder.value.filter((i) => i !== s.value.you).map((i) => s.value.seats[i]));
-const openSeat = ref(null);
-const hasBoard = (seat) => seat !== s.value.you && others.value.some((o) => o.seat === seat);
-const openedSeat = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
-watch(
-  () => others.value.map((o) => o.seat).join(),
-  () => {
-    if (openSeat.value !== null && !others.value.some((o) => o.seat === openSeat.value)) openSeat.value = null;
-  },
-);
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => s.value.scoreboard.players,
+  hostId: () => s.value.hostSeat,
+  isHost: () => isHost.value,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
+const openedSeat = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
 
 // ---- the words in the Status box ----
 const statusLines = computed(() => {
@@ -284,7 +272,7 @@ const levels = [3, 2, 1];
 <template>
   <GameFrame class="table-view" :main-span="6">
     <template #scorebar>
-      <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false" :has-details="hasBoard" :open-details="openSeat" @details="(seat) => (openSeat = seat)">
+      <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false" v-bind="scoreProps">
         <template #footer>
           <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
           <button v-if="finished && isHost" @click="send('again'); board.close()">Play again</button>
@@ -294,9 +282,9 @@ const levels = [3, 2, 1];
 
     <template #main="area">
       <div class="arena" :style="fs(area)">
-        <div v-if="openedSeat" class="popup" role="group" :aria-label="`${openedSeat.name}'s board`">
-          <PlayerBoard :seat="openedSeat" :is-turn="state.turn === openedSeat.seat && !finished" :gem="px(area, 1.8)" />
-        </div>
+        <PlayerPopup v-if="popupProps" v-bind="popupProps">
+          <PlayerBoard v-if="openedSeat" :seat="openedSeat" :is-turn="state.turn === openedSeat.seat && !finished" :gem="px(area, 1.8)" />
+        </PlayerPopup>
         <section class="market" aria-label="The cards">
           <div class="nobles" aria-label="Nobles">
             <span class="row-title">Nobles</span>
@@ -715,17 +703,6 @@ span.stack-btn {
 /* another player's board, over the middle of the table */
 .arena {
   position: relative;
-}
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
-.popup :deep(.board) {
-  background: var(--bg-sunken);
 }
 
 /* the log */

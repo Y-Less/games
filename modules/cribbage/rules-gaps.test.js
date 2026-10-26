@@ -60,7 +60,7 @@ test('after the game: leaving marks the seat as left, the lobby drops people who
   assert.equal(game.addHuman(room, 2, 'bob').ok, true, 'and may come back');
 });
 
-test('kicking: not yourself, not a computer player, a game in progress only when the person is away', () => {
+test('kicking: not yourself, not a computer player, a game in progress is fine: a computer player takes over', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'ann', seats: 3 });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1);
@@ -70,8 +70,7 @@ test('kicking: not yourself, not a computer player, a game in progress only when
   assert.equal(game.kick(room, 1, -1).ok, false);
   assert.equal(game.kick(room, 2, 0).ok, false);
   game.start(room, 1);
-  assert.equal(game.kick(room, 1, 1).ok, false, 'bob is still here');
-  const result = game.kick(room, 1, 1, { away: true });
+  const result = game.kick(room, 1, 1);
   assert.equal(result.ok, true);
   assert.equal(room.seats[1].bot, true);
   assert.equal(room.seats[1].replaced, true);

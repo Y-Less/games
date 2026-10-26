@@ -195,7 +195,6 @@ export default function (ctx) {
       const room = roomOfSocket();
       if (!room || room.hostId !== userId) return { ok: false, error: 'Only the host can remove players.' };
       if (!Number.isInteger(target) || target === userId || !game.hasPlayer(room, target)) return { ok: false, error: 'That player is not in the game.' };
-      if (room.phase !== 'lobby' && onlineOf(room.code)(target)) return { ok: false, error: 'You can only remove a player who has left the game page.' };
       afterRemoval(room, target, game.removePlayer(room, target));
       return { ok: true };
     });

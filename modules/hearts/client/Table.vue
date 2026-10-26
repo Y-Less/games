@@ -8,7 +8,9 @@ import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import CardFan from '../../../src/components/CardFan.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
@@ -44,6 +46,16 @@ const you = computed(() => s.value.seats[s.value.you]);
 const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
 const winnerNames = computed(() => (s.value.winners ?? []).map(nameOf));
 const isHost = computed(() => s.value.hostSeat === s.value.you);
+
+// Another player's details open from their chip in the score bar (the standard player pop-up, which also has the
+// host's Remove button).
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => s.value.scoreboard.players,
+  hostId: () => s.value.hostSeat,
+  isHost: () => isHost.value,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
+});
+const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.value) ?? null);
 
 const direction = computed(() => {
   const { direction: d, to } = s.value.pass;
@@ -134,6 +146,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
         :awaiting="handEnd && !you.ready"
         :waiting="waitingFor"
         :sticky="false"
+        v-bind="scoreProps"
         @continue="send('next')"
       >
         <template #round>
@@ -154,6 +167,24 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
     </template>
 
     <template #main="area">
+      <PlayerPopup v-if="popupProps" v-bind="popupProps">
+        <dl v-if="opened" class="facts">
+          <dt>Score</dt>
+          <dd>{{ opened.score }}</dd>
+          <dt>Cards in hand</dt>
+          <dd>{{ opened.cards }}</dd>
+          <template v-if="state.phase !== 'passing'">
+            <dt>Tricks taken</dt>
+            <dd>{{ opened.tricks }}</dd>
+            <dt>Hearts taken</dt>
+            <dd>{{ opened.hearts }}<template v-if="opened.queen">, Queen of Spades</template><template v-if="state.settings.jackOfDiamonds && opened.jack">, Jack of Diamonds</template></dd>
+            <dt>Points this hand</dt>
+            <dd>{{ opened.points }}</dd>
+          </template>
+          <dt v-else>Passing</dt>
+          <dd v-if="state.phase === 'passing'">{{ opened.passed ? 'has chosen' : 'still choosing' }}</dd>
+        </dl>
+      </PlayerPopup>
       <section class="felt" aria-label="The table" :style="{ '--s': scale(area) }">
         <div v-for="rel in [2, 1, 3]" :key="rel" class="opp" :class="[`pos${rel}`, { away: !seatAt(rel).online }]">
           <CardFan class="opp-fan" :items="Array.from({ length: seatAt(rel).cards }, (_, n) => n)" size="sm" :step="4" :reach="6" :flip="rel === 2" :aria-label="`${seatAt(rel).cards} cards`">

@@ -112,7 +112,7 @@ test('names: duplicates become Sam, Sam (2), Sam (3)', () => {
   assert.deepEqual(room.seats.filter(Boolean).map((s) => s.name), ['Sam', 'Sam (2)', 'Sam (3)']);
 });
 
-test('kick: host only, lobby only, a person other than yourself', () => {
+test('kick: host only, a person other than yourself; mid-game a computer player takes over', () => {
   const room = mk(3);
   game.addHuman(room, 2, 'B');
   game.addBot(room, 1);
@@ -125,9 +125,19 @@ test('kick: host only, lobby only, a person other than yourself', () => {
   assert.equal(done.ok, true);
   assert.equal(done.userId, 2);
   assert.equal(room.seats[1], null);
+  game.addHuman(room, 2, 'B');
   game.fillWithBots(room, 1);
   game.start(room, 1);
-  assert.equal(game.kick(room, 1, 1).ok, false, 'not once started');
+  const at = room.seats.findIndex((s) => s.id === 2); // the seats are shuffled when the game starts
+  assert.equal(game.kick(room, 2, at).ok, false, 'still only the host');
+  const mid = game.kick(room, 1, at);
+  assert.deepEqual([mid.ok, mid.userId, mid.replaced], [true, 2, true]);
+  assert.equal(room.seats[at].kind, 'bot', 'a computer player took the seat');
+  assert.equal(room.seats.every(Boolean), true);
+  assert.equal(game.kick(room, 1, at).ok, false, 'and it is not a person to kick');
+  assert.equal(game.removeBot(room, 1, at).ok, false, 'nor can it be removed from a game that has started');
+  room.phase = 'finished';
+  assert.equal(game.kick(room, 1, room.seats.findIndex((s) => s.kind === 'human' && s.id !== 1)).ok, false, 'nobody to remove once it is over');
 });
 
 test('removing a human: the seat is freed in the lobby, a computer takes over mid-game, the host passes on', () => {

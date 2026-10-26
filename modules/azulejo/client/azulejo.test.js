@@ -217,6 +217,29 @@ describe('Azulejo table: playing', () => {
     expect(w.findAll('.popup')).toHaveLength(0);
   });
 
+  it('gives the host a Remove button for every other player in the pop-up, with an inline confirmation', async () => {
+    const send = makeSend();
+    const { w } = mountTable(playView({ n: 3 }).view, send);
+    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    const remove = () => w.find('.player-popup').findAll('button').find((b) => /^Remove/.test(b.text()));
+    expect(remove().text()).toBe('Remove player');
+    await remove().trigger('click');
+    expect(send).not.toHaveBeenCalledWith('kick', expect.anything());
+    expect(w.find('.player-popup').text()).toContain('Yes, remove');
+    await w.find('.player-popup [data-confirm]').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('kick', { seat: 1 });
+    expect(w.findAll('.popup')).toHaveLength(0);
+  });
+
+  it('shows no Remove button to a player who is not the host', async () => {
+    const view = { ...playView({ n: 3 }).view, hostSeat: 2 };
+    const { w } = mountTable(view);
+    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    expect(w.find('.player-popup').exists()).toBe(true);
+    expect(w.find('.player-popup').text()).not.toContain('Remove');
+  });
+
   it('shows whose turn it is and disables the plates when it is not yours', async () => {
     const mine = mountTable(playView({ turn: 0 }).view).w;
     expect(mine.find('.headline').text()).toContain('Your turn');

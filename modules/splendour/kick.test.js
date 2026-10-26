@@ -17,7 +17,7 @@ function lobby() {
 
 test('rules: the host removes a person from a lobby seat and the seat becomes empty', () => {
   const room = lobby();
-  assert.deepEqual(game.kick(room, 1, 1), { ok: true, userId: 2 });
+  assert.deepEqual(game.kick(room, 1, 1), { ok: true, userId: 2, replaced: false });
   assert.equal(room.seats[1], null);
   assert.equal(game.hasPlayer(room, 2), false);
   assert.equal(room.hostId, 1);
@@ -37,17 +37,26 @@ test('rules: only the host can kick, and never themselves', () => {
   assert.equal(JSON.stringify(room), before);
 });
 
-test('rules: kicking is refused once the game has started or finished', () => {
+test('rules: the host can remove a person in any phase but the last: a computer player takes the seat mid-game', () => {
   for (const phase of ['playing', 'finished']) {
     const room = lobby();
     game.fillWithBots(room, 1);
-    game.start(room, 1);
+    assert.equal(game.start(room, 1).ok, true);
     room.phase = phase;
     const before = JSON.stringify(room);
-    const result = game.kick(room, 1, 1);
-    assert.equal(result.ok, false, phase);
-    assert.match(result.error, /before the game starts/);
-    assert.equal(JSON.stringify(room), before);
+    const at = room.seats.findIndex((x) => x.id === 2); // the seats are shuffled when the game starts
+    const result = game.kick(room, 1, at);
+    if (phase === 'finished') {
+      assert.equal(result.ok, false, phase);
+      assert.match(result.error, /over/);
+      assert.equal(JSON.stringify(room), before);
+    } else {
+      assert.equal(result.ok, true, phase);
+      assert.equal(result.userId, 2);
+      assert.equal(result.replaced, true);
+      assert.equal(room.seats[at].kind, 'bot', phase);
+      assert.equal(room.hostId, 1);
+    }
   }
 });
 
@@ -93,6 +102,8 @@ test('sockets: the kicked person is sent out, can rejoin, and the others are tol
   await ann.call('start');
   await until(() => ann.state.phase === 'playing', 'started');
   const at = ann.state.seats.findIndex((x) => x.name === 'bob');
-  assert.equal((await ann.call('kick', { seat: at })).ok, false, 'not after the start');
-  assert.equal(ann.state.seats[at].name, 'bob');
+  assert.equal((await ann.call('kick', { seat: at })).ok, true, 'a computer player takes over mid-game');
+  await until(() => bob.state === null && ann.state.seats[at].bot === true, 'bob out, a computer in');
+  const botAt = ann.state.seats.findIndex((x, i) => x.bot && i !== at);
+  assert.equal((await ann.call('removeBot', { seat: botAt })).ok, false, 'a computer player stays for the game');
 });

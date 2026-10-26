@@ -19,7 +19,7 @@ function lobby() {
 test('rules: the host removes a person from a lobby seat and the seat becomes empty', () => {
   const room = lobby();
   const result = game.kick(room, 1, 1);
-  assert.deepEqual(result, { ok: true, userId: 2 });
+  assert.deepEqual(result, { ok: true, userId: 2, replaced: false });
   assert.equal(room.seats[1], null);
   assert.equal(game.hasPlayer(room, 2), false);
   assert.equal(room.hostId, 1, 'the host is unchanged');
@@ -43,7 +43,7 @@ test('rules: only the host can kick, and never themselves', () => {
   assert.equal(snapshot(room), before, 'nothing changed');
 });
 
-test('rules: kicking is refused in every phase except the lobby', () => {
+test('rules: the host can remove a person in any phase but the last: a computer player takes the seat mid-game', () => {
   for (const phase of ['passing', 'playing', 'handEnd', 'finished']) {
     const room = lobby();
     game.fillWithBots(room, 1);
@@ -51,9 +51,17 @@ test('rules: kicking is refused in every phase except the lobby', () => {
     room.phase = phase;
     const before = snapshot(room);
     const result = game.kick(room, 1, 1);
-    assert.equal(result.ok, false, phase);
-    assert.match(result.error, /before the game starts/);
-    assert.equal(snapshot(room), before);
+    if (phase === 'finished') {
+      assert.equal(result.ok, false, phase);
+      assert.match(result.error, /over/);
+      assert.equal(snapshot(room), before);
+    } else {
+      assert.equal(result.ok, true, phase);
+      assert.equal(result.userId, 2);
+      assert.equal(result.replaced, true);
+      assert.equal(room.seats[1].kind, 'bot', phase);
+      assert.equal(room.hostId, 1);
+    }
   }
 });
 
@@ -155,9 +163,8 @@ test('sockets: nobody can kick themselves, a computer player, an empty or an unk
   assert.equal(bob.state.you, 1);
 });
 
-test('sockets: kicking is refused once the game has started, in every phase it passes through', async (t) => {
+test('sockets: the host removes a person mid-game and a computer player takes their seat; a computer player cannot be removed', async (t) => {
   process.env.HEARTS_BOT_DELAY = '0-3';
-  process.env.HEARTS_TRICK_PAUSE = '0';
   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
   const { code } = await ann.call('create', { target: 50 });
@@ -165,39 +172,17 @@ test('sockets: kicking is refused once the game has started, in every phase it p
   assert.equal((await ann.call('fillBots', {})).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'full table');
   assert.equal((await ann.call('start', {})).ok, true);
-  await until(() => ann.state.phase === 'passing', 'passing');
-  const refusedNow = async (phase) => {
-    const reply = await ann.call('kick', { seat: 1 });
-    assert.equal(reply.ok, false, `${phase}: the game has started`);
-    assert.match(reply.error, /before the game starts/);
-    assert.equal(ann.state.seats[1].name, 'bob', phase);
-    assert.equal(bob.state?.you, 1, phase);
-  };
-  await refusedNow('passing');
-  assert.equal((await ann.call('pass', { cards: ann.state.hand.slice(0, 3) })).ok, true);
-  assert.equal((await bob.call('pass', { cards: bob.state.hand.slice(0, 3) })).ok, true);
-  await until(() => ann.state.phase === 'playing', 'playing');
-  await refusedNow('playing');
-  // Play on to the end of the game, kicking at every step the people take.
-  const started = Date.now();
-  while (ann.state.phase !== 'finished' && Date.now() - started < 60000) {
-    for (const p of [ann, bob]) {
-      const s = p.state;
-      if (s.phase === 'playing' && s.legal) await p.call('play', { card: Object.keys(s.legal).find((c) => s.legal[c] === null) });
-      else if (s.phase === 'passing' && !s.pass.chosen) await p.call('pass', { cards: s.hand.slice(0, 3) });
-      else if (s.phase === 'handEnd') {
-        await refusedNow('handEnd');
-        await p.call('next', {});
-      }
-    }
-    await sleep(2);
-  }
-  assert.equal(ann.state.phase, 'finished');
-  await refusedNow('finished');
-  assert.equal((await ann.call('again', {})).ok, true);
-  await until(() => bob.state?.phase === 'lobby', 'back in the lobby');
-  assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true }, 'kicking works again in the lobby');
+  await until(() => ann.state.phase !== 'lobby', 'started');
+  const at = ann.state.seats.findIndex((x) => x.name === 'bob');
+  assert.deepEqual(await bob.call('kick', { seat: 0 }), { ok: false, error: 'Only the host can do that.' });
+  assert.deepEqual(await ann.call('kick', { seat: at }), { ok: true });
   await until(() => bob.state === null, 'bob sent out');
+  await until(() => ann.state.seats[at].bot === true, 'a computer player in the seat');
+  assert.notEqual(ann.state.seats[at].name, 'bob');
+  const botAt = ann.state.seats.findIndex((x, i) => x.bot && i !== at);
+  assert.equal((await ann.call('kick', { seat: botAt })).ok, false, 'a computer player is not a person');
+  assert.equal((await ann.call('removeBot', { seat: botAt })).ok, false, 'and cannot be taken out of a game that has started');
+  assert.equal(ann.state.seats.every(Boolean), true, 'every seat is still filled');
 });
 
 test('sockets: a kicked person is free to start their own game, and may be kicked again after rejoining', async (t) => {

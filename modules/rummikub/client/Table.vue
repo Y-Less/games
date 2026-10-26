@@ -11,7 +11,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { dealSize } from '../rules.js';
 import { canMove, moveTiles, placedThisTurn, sameArrangement, sortRack, startArrangement, turnStatus } from './layout.js';
 import RoundSummary from './RoundSummary.vue';
@@ -191,28 +193,14 @@ const others = computed(() => props.state.seats.filter((x) => x && x.seat !== pr
 
 // Another player's details (their tile count and so on) open from their chip in the score bar: one at a time, floating
 // over the top of the main area so that nothing moves.
-const openSeat = ref(null);
-const hasDetails = (seat) => others.value.some((o) => o.seat === seat);
-const opened = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
-const openedScore = computed(() => props.state.scoreboard.players.find((p) => p.id === openSeat.value)?.score ?? 0);
-watch(
-  () => others.value.map((o) => o.seat).join(),
-  () => {
-    if (openSeat.value !== null && !hasDetails(openSeat.value)) openSeat.value = null;
-  },
-);
-const closeOnOutside = (event) => {
-  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
-};
-const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
-onMounted(() => {
-  document.addEventListener('click', closeOnOutside);
-  window.addEventListener('keydown', closeOnEsc);
+const { openId, scoreProps, popupProps } = usePlayerPopup({
+  players: () => scorePlayers.value,
+  hostId: () => props.state.hostSeat,
+  isHost: () => isHost.value,
+  remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('click', closeOnOutside);
-  window.removeEventListener('keydown', closeOnEsc);
-});
+const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const openedScore = computed(() => props.state.scoreboard.players.find((p) => p.id === openId.value)?.score ?? 0);
 const lastLine = computed(() => props.state.log.at(-1)?.text ?? '');
 const headline = computed(() => {
   if (finished.value) return props.state.winners.length === 1 ? `${nameOf(props.state.winners[0])} wins the game!` : `${props.state.winners.map(nameOf).join(' and ')} share the win.`;
@@ -245,7 +233,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
 <template>
   <GameFrame class="table-view" :main-span="9">
     <template #scorebar>
-      <ScoreBoard :players="scorePlayers" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :awaiting="between && !youReady" :waiting="waitingNames" :sticky="false" :has-details="hasDetails" :open-details="openSeat" @details="(seat) => (openSeat = seat)" @continue="onContinue">
+      <ScoreBoard :players="scorePlayers" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :awaiting="between && !youReady" :waiting="waitingNames" :sticky="false" v-bind="scoreProps" @continue="onContinue">
         <template #round>
           <RoundSummary v-if="state.lastRound" :last-round="state.lastRound" :seats="state.seats" :settings="s" :you="state.you" />
         </template>
@@ -254,10 +242,8 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
 
     <template #main="area">
       <div class="arena" :style="{ '--rack-rows': rackRows(area) }">
-        <div v-if="opened" class="popup" role="group" :aria-label="`${opened.name}'s details`">
-          <strong class="who">{{ opened.name }}</strong>
-          <span v-if="opened.bot" class="tag">computer</span>
-          <dl>
+        <PlayerPopup v-if="popupProps" v-bind="popupProps">
+          <dl v-if="opened" class="facts">
             <dt>Tiles in rack</dt>
             <dd>{{ opened.count }}</dd>
             <dt>First meld</dt>
@@ -267,7 +253,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
             <dt>Turn</dt>
             <dd>{{ state.phase === 'playing' && state.turn === opened.seat ? 'playing now' : 'waiting' }}</dd>
           </dl>
-        </div>
+        </PlayerPopup>
         <section class="felt" aria-label="The table">
           <div v-if="!shownSets.length" class="muted empty">The table is empty. {{ myTurn ? 'Make a first set from your rack.' : '' }}</div>
           <div class="sets">
@@ -554,49 +540,20 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
   white-space: nowrap;
 }
 
-/* Another player's details, opened from their chip in the score bar, float over the top of the table. */
-.popup {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  min-width: 15rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid var(--amber);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-sunken) 96%, transparent);
-  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
-}
-.popup dl {
+/* Another player's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */
+.facts {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.2rem 1rem;
-  margin: 0.4rem 0 0;
+  margin: 0;
 }
-.popup dt {
+.facts dt {
   color: var(--muted);
 }
-.popup dd {
+.facts dd {
   margin: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-.who {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--display);
-  font-weight: 400;
-}
-.tag {
-  flex: none;
-  font-size: 0.72rem;
-  padding: 0 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
 }
 
 /* Status facts. */

@@ -204,7 +204,8 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'start', {}, /already started/);
   await refused(ann, 'settings', { target: 121 }, /already started/);
   await refused(ann, 'addBot', {}, /already started/);
-  await refused(ann, 'kick', { seat: 1 }, /left the game page/);
+  await refused(ann, 'kick', { seat: 0 }, /yourself/);
+  await refused(ann, 'kick', { seat: 'x' }, /not in the game/);
   await refused(bob, 'kick', { seat: 0 }, /host/);
   await refused(ann, 'join', { code: 'boss-aware-you' }, /already in the game/);
   await refused(ann, 'create', {}, /already in the game/);

@@ -101,7 +101,7 @@ test('seats and computer players: fill, add, remove, kick, start conditions', ()
   const other = game.createRoom({ code: 'd-e-f', hostId: 1, hostName: 'A', size: 2 });
   game.addHuman(other, 2, 'B');
   assert.equal(game.kick(other, 2, 0).ok, false, 'only the host');
-  assert.deepEqual(game.kick(other, 1, 1), { ok: true, userId: 2 });
+  assert.deepEqual(game.kick(other, 1, 1), { ok: true, userId: 2, replaced: false });
   assert.equal(other.seats[1], null);
   assert.equal(game.kick(other, 1, 7).ok, false);
 });

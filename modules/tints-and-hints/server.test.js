@@ -246,7 +246,6 @@ test('an abandoned game is not recorded, and the host can remove someone who has
   await ann.until((s) => s.players.length === 3);
 
   assert.ok((await ann.send('start')).ok);
-  assert.equal((await ann.send('kick', { userId: accounts[1].id })).ok, false, 'bob is still on the page');
   cat.socket.close();
   await ann.until((s) => s.players.find((p) => p.id === accounts[2].id).online === false);
   assert.ok((await ann.send('kick', { userId: accounts[2].id })).ok);
