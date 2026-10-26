@@ -107,11 +107,11 @@ describe('layout helpers', () => {
 describe('the play field', () => {
   const state = () => view({ racks: [[t(0, 10), t(0, 11), t(0, 12), t(1, 1), joker(STD)], [t(2, 2), t(2, 3)]] });
 
-  it('shows the pool count, the opponents tile counts and whose turn it is', () => {
+  it('shows the pool count and whose turn it is (tile counts are in the player popups)', () => {
     const { w } = mountTable(state());
     expect(w.text()).toContain('in the pool');
     expect(w.text()).toContain('Your turn');
-    expect(w.text()).toContain('2 tiles');
+    expect(w.text()).not.toContain('2 tiles');
     expect(w.findAll('[data-rack] .tile')).toHaveLength(5);
   });
 
@@ -214,30 +214,52 @@ describe('the play field', () => {
     expect(w.find('[data-rack] button.tile').exists()).toBe(false);
     expect(button(w, 'Draw a tile').attributes('disabled')).toBeDefined();
     expect(button(w, 'End turn').attributes('disabled')).toBeDefined();
-    expect(w.find('.set.new').exists()).toBe(false);
+    expect(w.find('.set.new').classes()).toContain('idle'); // the area is always there, but does nothing
+    expect(w.findAll('.add')).toHaveLength(0);
   });
 
-  it('marks wildcards with what they stand for', async () => {
-    const { w } = mountTable(view({ racks: [[t(0, 1)], [t(2, 2)]], table: [[t(1, 4), joker(STD), t(1, 6)]], melded: [true, false] }));
-    expect(setTile(w, joker(STD)).text()).toBe('5');
+  it('has the standard layout: scores on top, the table, your rack, Recent moves and Status', () => {
+    const { w } = mountTable(state());
+    expect(w.find('.game-frame .scorebar .score-bar').exists()).toBe(true);
+    expect(w.find('.main .felt').exists()).toBe(true);
+    expect(w.find('.main .rack-panel [data-rack]').exists()).toBe(true);
+    expect(w.findAll('.actions button').map((b) => b.text())).toEqual(['Undo', 'Reset turn', 'Draw a tile', 'End turn']);
+    expect(w.find('.others').exists()).toBe(false); // no bars: the players are the chips in the score bar
+    expect(w.find('.box.log h3').text()).toBe('Recent moves');
+    expect(w.find('.box.status h3').text()).toBe('Status');
+    expect(w.findAll('button').some((b) => b.text() === 'Leave game')).toBe(false); // that is in the site header
   });
 
-  it('brings up the round pop-up between rounds, and closing it says the person is ready', async () => {
-    const { room } = playingRoom(2, { seed: 1, settings: { rounds: 2 } });
-    room.racks = [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 2)]];
-    room.pool = [];
-    room.table = [];
-    room.turn = 0;
-    game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
-    const { w, send } = mountTable(game.viewFor(room, 1));
-    expect(room.phase).toBe('between');
-    expect(w.text()).toContain('Round 1 is over');
-    expect(w.text()).not.toContain('Start round 2'); // there is no separate button: the pop-up does it
-    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  it('keeps the round, the pool, the first-meld target and the live check in Status, not in the play area', async () => {
+    const { w } = mountTable(state());
+    const status = w.find('.box.status').text();
+    expect(status).toContain('Round 1');
+    expect(status).toContain('in the pool');
+    expect(status).toContain('First meld: 30 points');
+    expect(status).toContain('Your turn');
+    for (const text of ['in the pool', 'Your turn', 'First meld']) expect(w.find('.main').text()).not.toContain(text);
+    for (const id of [t(0, 10), t(0, 11)]) await rackTile(w, id).trigger('click');
+    await w.find('.set.new').trigger('click');
+    expect(w.find('.box.status').text()).toMatch(/needs|least|three|3/i); // the live message about the layout
+  });
+
+  it('shows the opponent tile count, meld and score in a popup from their chip, which closes again', async () => {
+    const { room } = playingRoom(3);
+    room.seats[1] = { ...room.seats[1], kind: 'bot' };
+    const w = mount(Table, { props: { state: game.viewFor(room, 1), send: vi.fn() }, attachTo: document.body });
+    expect(w.find('.popup').exists()).toBe(false);
+    const chips = w.findAll('.score-bar .chip-button');
+    expect(chips).toHaveLength(2); // the other players only
+    await chips[0].trigger('click');
+    expect(w.find('.popup').text()).toMatch(/Tiles in rack\s*14/);
+    expect(w.find('.popup').text()).toContain('not yet');
+    await chips[0].trigger('click');
+    expect(w.find('.popup').exists()).toBe(false);
+    await chips[1].trigger('click');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await w.vm.$nextTick();
-    expect(send).toHaveBeenCalledWith('next');
-    expect(w.text()).toContain('went out');
+    expect(w.find('.popup').exists()).toBe(false);
+    w.unmount();
   });
 });
 
@@ -273,6 +295,27 @@ describe('lobby', () => {
     const w = mount(Lobby, { props: { state: game.viewFor(room, 2), send: vi.fn() } });
     expect(w.find('#opt-numbers').attributes('disabled')).toBeDefined();
     expect(w.text()).toContain('Only the host can change these');
+  });
+});
+
+describe('the site header', () => {
+  it('offers Leave game once there is a room, and leaves through the game', async () => {
+    const { leaveOffer } = await import('../../../src/playBar.js');
+    const socket = { connected: false, emit: vi.fn((e, p, ack) => ack?.({ ok: true })), on: vi.fn((e, f) => (socket.handlers[e] = f)), off: vi.fn(), handlers: {} };
+    const w = mount(Rummikub, { props: { socket } });
+    socket.handlers.state(null);
+    await flushPromises();
+    expect(leaveOffer()).toBeNull();
+    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', size: 2 });
+    socket.handlers.state(game.viewFor(room, 1));
+    await flushPromises();
+    expect(w.findAll('button').some((b) => b.text() === 'Leave game')).toBe(false); // the lobby has none of its own
+    const offer = leaveOffer();
+    expect(offer).not.toBeNull();
+    await offer.leave();
+    expect(socket.emit).toHaveBeenCalledWith('leave', {}, expect.any(Function));
+    w.unmount();
+    expect(leaveOffer()).toBeNull();
   });
 });
 

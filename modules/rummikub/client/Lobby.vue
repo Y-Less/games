@@ -108,9 +108,6 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
         <p v-if="problem" class="problem" role="alert">{{ problem }} (A hand needs at least {{ MIN_DEAL }} tiles.)</p>
         <p v-if="!isHost" class="muted">Only the host can change these.</p>
       </template>
-      <template #footer>
-        <button class="quiet" @click="send('leave')">Leave game</button>
-      </template>
     </SeatLobby>
   </div>
 </template>

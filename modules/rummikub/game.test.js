@@ -49,6 +49,7 @@ test('seats: humans, computer players, kicking, one seat each', () => {
   assert.equal(game.kick(room, 1, 2).userId, 3);
   assert.equal(game.addBot(room, 1).ok, true);
   assert.equal(room.seats[2].kind, 'bot');
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, false, true], 'the scoreboard marks computer players');
   assert.equal(game.removeBot(room, 1, 2).ok, true);
   assert.equal(game.removeBot(room, 1, 1).ok, false, 'a person is not a computer player');
   assert.equal(game.fillWithBots(room, 1).ok, true);
