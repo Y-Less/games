@@ -30,6 +30,7 @@ Build a stained-glass window from drafted dice. Two to five players, ten rounds,
 
 - Three of the twelve tools are in play. Using a tool costs **1 favour token** the first time it is used by anyone, and **2 tokens** every time after that. The tokens stay on the card.
 - Each tool is used in a single step, with everything it needs chosen first. If anything about it is not allowed, nothing happens and you keep your tokens.
+- **Swift Hand** (on your first turn of a round only): when you end that turn you immediately take a second full turn, before anyone else moves: choose another die, place it and, if you wish, use another tool (paying favour tokens as usual). Your normal second turn of the round is then skipped, so you take two turns in a row.
 
 ## Objectives
 

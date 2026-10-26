@@ -75,7 +75,7 @@ test('computer players choose a legal move in thousands of random positions', ()
             : game.endTurn(copy, seat);
       assert.equal(result.ok, true, `${JSON.stringify(choice)}: ${result.error}`);
       if (choice.type === 'tool') tools++;
-      if (choice.type === 'end') assert.ok(room.turn.placements >= (room.turn.extra ? 2 : 1) || bot.bestPlacement(room, seat, rng) === null, 'ends the turn only when it has nothing to place');
+      if (choice.type === 'end') assert.ok(room.turn.placements >= 1 || bot.bestPlacement(room, seat, rng) === null, 'ends the turn only when it has nothing to place');
       positions++;
       // Random progress, not the computer's: random legal placements, random tools, random ends of turn.
       const roll = rng();

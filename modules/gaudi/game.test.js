@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { COLOURS, COLS, PATTERNS, PATTERN_CARDS, bagSize, emptyGrid, poolSize, patternOf } from './rules.js';
+import { botStep } from './bot.js';
 import { assertInvariants, die, driveStep, playingRoom, seeded, setWindow, viewLeaks } from './testing.js';
 
 const at = (r, c) => r * COLS + c;
@@ -542,38 +543,6 @@ test('Free Pane cannot be used after the turn\'s die has been placed', () => {
   failsAtomically(room, () => game.useTool(room, 0, { tool: 'free-pane', params: { die: 502, cell: at(3, 4) } }), /already placed/);
 });
 
-test('Swift Hand: a second die now, then the second turn is skipped', () => {
-  const { room, rng } = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502), die('topaz', 2, 503)] });
-  assert.equal(game.useTool(room, 0, { tool: 'swift-hand', params: {} }, rng).ok, true);
-  assert.equal(room.turn.seat, 0);
-  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
-  assert.equal(room.turn.seat, 0, 'a second die is allowed');
-  assert.equal(game.placeDie(room, 0, { die: 502, cell: 1 }, rng).ok, true);
-  assert.equal(room.turn.seat, 1, 'two dice and the tool: the turn ended');
-  assert.equal(game.endTurn(room, 1, rng).ok, true);
-  assert.equal(room.turn.seat, 1, 'seat 1 goes again; seat 0 skips its second turn');
-  assert.equal(room.turn.number, 2);
-  assert.equal(game.endTurn(room, 1, rng).ok, true);
-  assert.equal(room.round, 2);
-  assert.equal(room.first, 1);
-  assert.equal(room.pool.length, 5, 'the next pool is rolled');
-  assert.ok(room.log.some((l) => /skips their second turn/.test(l.text)));
-});
-
-test('Swift Hand only on the first turn; the placement can come first', () => {
-  const { room, rng } = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  game.endTurn(room, 0, rng);
-  game.endTurn(room, 1, rng);
-  assert.equal(room.turn.number, 2);
-  failsAtomically(room, () => game.useTool(room, 1, { tool: 'swift-hand', params: {} }), /first turn/);
-  const late = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  game.placeDie(late.room, 0, { die: 501, cell: 0 });
-  assert.equal(game.useTool(late.room, 0, { tool: 'swift-hand', params: {} }).ok, true);
-  assert.equal(late.room.turn.seat, 0);
-  assert.equal(game.placeDie(late.room, 0, { die: 502, cell: 1 }).ok, true);
-  assert.equal(late.room.turn.seat, 1);
-});
-
 test('every tool leaves the dice, tokens and windows consistent (random uses over random games)', () => {
   const rng = seeded(77);
   for (let g = 0; g < 40; g++) {
@@ -841,74 +810,172 @@ test('play again returns to the lobby and keeps the seats and the setting', () =
   assert.deepEqual(room.final, null);
 });
 
-// ---- Swift Hand: the whole flow, in both orders, with failures, the view and computer players ----
+// ---- Swift Hand: a whole extra turn straight after the current one, then the later second turn is skipped ----
 
-test('Swift Hand: the view tells a client two dice are allowed as soon as the tool is used, and stays so until the second lands', () => {
-  const { room, rng } = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502), die('topaz', 2, 503)] });
-  assert.equal(game.viewFor(room, 1).turn.allowed, 1);
-  assert.equal(game.useTool(room, 0, { tool: 'swift-hand', params: {} }, rng).ok, true);
-  assert.deepEqual([game.viewFor(room, 1).turn.allowed, game.viewFor(room, 1).turn.placements], [2, 0]);
-  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
-  assert.deepEqual([game.viewFor(room, 1).turn.allowed, game.viewFor(room, 1).turn.placements, game.viewFor(room, 1).turn.seat], [2, 1, 0]);
-  assert.equal(game.endTurn(room, 1, rng).ok, false, 'not your turn');
-  assert.equal(game.placeDie(room, 0, { die: 502, cell: 1 }, rng).ok, true);
-  assert.equal(game.viewFor(room, 1).turn.seat, 1, 'the turn ends only after the second die');
+const swiftLab = (n, { tokens = 5, seed = 3 } = {}) => {
+  const { room, rng } = lab(n, { tools: ['swift-hand', 'lathe', 'refire'], tokens, seed, pool: [] });
+  room.pool = Array.from({ length: 2 * n + 1 }, (_, i) => die(['ruby', 'topaz', 'jade', 'sapphire', 'amethyst'][i % 5], 1 + (i % 6), 500 + i));
+  return { room, rng };
+};
+const swift = (room, seat, rng) => game.useTool(room, seat, { tool: 'swift-hand', params: {} }, rng);
+/** Plays out the round with every player ending at once, and returns the turns taken as 'seat:number' (x = extra turn). */
+function turnsOfRound(room, rng, { onTurn = null } = {}) {
+  const taken = [];
+  const round = room.round;
+  while (room.round === round && room.phase === 'playing') {
+    const { seat, number, extra } = room.turn;
+    taken.push(`${seat}:${number}${extra ? 'x' : ''}`);
+    onTurn?.(room.turn);
+    if (room.turn.seat === seat && room.turn.number === number && room.turn.extra === extra) assert.equal(game.endTurn(room, seat, rng).ok, true);
+  }
+  return taken;
+}
+
+test('Swift Hand: finishing the turn starts a fresh full turn for the same player, with everything usable again', () => {
+  const { room, rng } = swiftLab(3);
+  const user = room.turn.seat;
+  assert.equal(swift(room, user, rng).ok, true);
+  assert.equal(room.turn.toolUsed, true);
+  assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 0 }, rng).ok, true);
+  // die and tool are both used, so the turn ended by itself and the extra turn began
+  assert.equal(room.turn.seat, user);
+  assert.equal(room.turn.extra, true);
+  assert.deepEqual([room.turn.placements, room.turn.toolUsed, room.turn.number], [0, false, 1]);
+  const view = game.viewFor(room, 1).turn;
+  assert.deepEqual([view.extra, view.allowed, view.placements], [true, 1, 0]);
+  assert.ok(room.log.some((l) => /takes an extra turn/.test(l.text)));
+  // a full second turn: another die and another tool (1 token, since refire was never used)
+  assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 1 }, rng).ok, true);
+  assert.equal(room.turn.seat, user, 'the tool is still to come');
+  assert.equal(game.useTool(room, user, { tool: 'refire', params: { die: room.pool[0].id } }, rng).ok, true);
+  assert.notEqual(room.turn.seat, user, 'only after the extra turn does anyone else move');
+  assert.equal(room.tokens[user], 5 - 1 - 1);
 });
 
-test('Swift Hand costs a token once, is charged even if the second die is never placed, and ending the turn early is allowed', () => {
-  const { room, rng } = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], tokens: 3, pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  assert.equal(game.useTool(room, 0, { tool: 'swift-hand', params: {} }, rng).ok, true);
-  assert.equal(room.tokens[0], 2);
-  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
-  assert.equal(game.endTurn(room, 0, rng).ok, true, 'a player may stop after one die');
-  assert.equal(room.turn.seat, 1);
+test('Swift Hand: placing first, then using the tool also gives the extra turn', () => {
+  const { room, rng } = swiftLab(2);
+  const user = room.turn.seat;
+  assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 0 }, rng).ok, true);
+  assert.equal(room.turn.seat, user);
+  assert.equal(swift(room, user, rng).ok, true, 'the tool still works after the die');
+  // die and tool are both used, so the turn ends by itself and the extra turn begins
+  assert.deepEqual([room.turn.seat, room.turn.extra, room.turn.placements], [user, true, 0]);
+  assert.equal(game.endTurn(room, user, rng).ok, true, 'the extra turn can be ended without doing anything');
+  assert.notEqual(room.turn.seat, user);
 });
 
-test('Swift Hand: a failed or repeated use changes nothing (no token lost, no second die granted)', () => {
-  const { room, rng } = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], tokens: 0, pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'swift-hand', params: {} }, rng), /costs 1 favour/);
-  assert.equal(room.turn.extra, false);
-  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
-  failsAtomically(room, () => game.placeDie(room, 0, { die: 502, cell: 1 }, rng), /already placed/);
-  const rich = lab(2, { tools: ['swift-hand', 'lathe', 'refire'], tokens: 5, pool: [die('ruby', 3, 501), die('jade', 5, 502), die('topaz', 2, 503)] });
-  assert.equal(game.useTool(rich.room, 0, { tool: 'swift-hand', params: {} }, rich.rng).ok, true);
-  failsAtomically(rich.room, () => game.useTool(rich.room, 0, { tool: 'swift-hand', params: {} }, rich.rng), /already used a tool/);
-  assert.equal(rich.room.tokens[0], 4, 'charged once');
-  failsAtomically(rich.room, () => game.useTool(rich.room, 1, { tool: 'swift-hand', params: {} }, rich.rng), /not your turn/);
-  const third = game.placeDie(rich.room, 0, { die: 501, cell: 0 }, rich.rng);
-  assert.equal(third.ok, true);
-  assert.equal(game.placeDie(rich.room, 0, { die: 502, cell: 1 }, rich.rng).ok, true);
-  failsAtomically(rich.room, () => game.placeDie(rich.room, 0, { die: 503, cell: 2 }, rich.rng), /not your turn/);
+test('Swift Hand: End turn alone is enough, and it cannot be used again in the extra turn', () => {
+  const { room, rng } = swiftLab(2, { tokens: 9 });
+  const user = room.turn.seat;
+  assert.equal(swift(room, user, rng).ok, true);
+  assert.equal(game.endTurn(room, user, rng).ok, true);
+  assert.equal(room.turn.extra, true);
+  failsAtomically(room, () => swift(room, user, rng), /already taking an extra turn/);
+  assert.equal(room.tokens[user], 8);
 });
 
-test('Swift Hand: the skipped second turn is announced and only the user of the tool loses it, for any number of players', () => {
+test('Swift Hand: the extra turn is followed by the normal order and the later second turn is skipped, at every position and size', () => {
   for (const n of [2, 3, 4, 5]) {
-    const { room, rng } = playingRoom(n, { seed: 10 + n });
-    room.tools = ['swift-hand', 'lathe', 'refire'];
-    room.spent = [0, 0, 0];
-    const user = room.turn.seat;
-    assert.equal(game.useTool(room, user, { tool: 'swift-hand', params: {} }, rng).ok, true);
-    assert.equal(room.skip[user], true);
-    assert.deepEqual(room.skip.filter(Boolean).length, 1);
-    for (let guard = 0; guard < 4 * n && room.round === 1; guard++) game.endTurn(room, room.turn.seat, rng);
-    assert.equal(room.round, 2, `${n} players: the round ended`);
-    assert.equal(room.log.filter((l) => /skips their second turn/.test(l.text)).length, 1);
-    assert.equal(room.skip.some(Boolean), false, 'the skip does not carry into the next round');
+    for (let position = 0; position < n; position++) {
+      const { room, rng } = swiftLab(n, { seed: 20 + n });
+      const forward = Array.from({ length: n }, (_, i) => (room.first + i) % n);
+      const user = forward[position];
+      const normal = [...forward.map((s) => `${s}:1`), ...forward.slice().reverse().map((s) => `${s}:2`)];
+      const expected = normal.flatMap((turn) => (turn === `${user}:1` ? [turn, `${user}:1x`] : turn === `${user}:2` ? [] : [turn]));
+      let used = false;
+      const taken = turnsOfRound(room, rng, {
+        onTurn: (turn) => {
+          if (!used && turn.seat === user && turn.number === 1 && !turn.extra) {
+            used = true;
+            assert.equal(swift(room, user, rng).ok, true);
+          }
+        },
+      });
+      assert.deepEqual(taken, expected, `${n} players, user in position ${position + 1}`);
+      assert.equal(room.round, 2, 'the round ended and the next began');
+      assert.equal(room.skip.some(Boolean), false, 'the skip does not carry on');
+      assert.equal(room.log.filter((l) => /skips their second turn/.test(l.text)).length, 1);
+    }
   }
 });
 
-test('Swift Hand: a computer player that has used it places a second die, and whole games with it on the table stay consistent', () => {
-  for (let seed = 1; seed <= 12; seed++) {
-    const { room, rng } = playingRoom(2, { seed });
-    for (const seat of room.seats) seat.bot = true;
+test('Swift Hand: the player at the turn of the snake order whose second turn directly follows the first gets exactly two turns in a row', () => {
+  const { room, rng } = swiftLab(3);
+  const last = (room.first + 2) % 3;
+  const taken = turnsOfRound(room, rng, {
+    onTurn: (turn) => {
+      if (turn.seat === last && turn.number === 1 && !turn.extra) assert.equal(swift(room, last, rng).ok, true);
+    },
+  });
+  assert.deepEqual(taken.filter((t) => t.startsWith(`${last}:`)), [`${last}:1`, `${last}:1x`]);
+  assert.equal(taken.length, 6);
+});
+
+test('Swift Hand: when the round ends the pool is rolled once and the first player moves on', () => {
+  const { room, rng } = swiftLab(2);
+  const user = room.turn.seat;
+  const before = room.first;
+  swift(room, user, rng);
+  turnsOfRound(room, rng);
+  assert.equal(room.round, 2);
+  assert.equal(room.pool.length, 5);
+  assert.notEqual(room.first, before);
+  assert.equal(room.turn.extra, false);
+  assert.equal(room.track.length, 1);
+});
+
+test('Swift Hand: a failed use changes nothing, a repeat is refused, and it is only for the first turn', () => {
+  const poor = swiftLab(2, { tokens: 0 });
+  failsAtomically(poor.room, () => swift(poor.room, poor.room.turn.seat, poor.rng), /costs 1 favour/);
+  assert.equal(poor.room.turn.swift, false);
+  const rich = swiftLab(2);
+  assert.equal(swift(rich.room, rich.room.turn.seat, rich.rng).ok, true);
+  failsAtomically(rich.room, () => swift(rich.room, rich.room.turn.seat, rich.rng), /already used a tool/);
+  failsAtomically(rich.room, () => swift(rich.room, 1 - rich.room.turn.seat, rich.rng), /not your turn/);
+  const second = swiftLab(2);
+  game.endTurn(second.room, second.room.turn.seat, second.rng);
+  game.endTurn(second.room, second.room.turn.seat, second.rng);
+  assert.equal(second.room.turn.number, 2);
+  failsAtomically(second.room, () => swift(second.room, second.room.turn.seat, second.rng), /first turn/);
+});
+
+test('Swift Hand: a game saved and restored mid-extra-turn carries on, and a player who leaves is replaced by a computer that finishes it', () => {
+  const { room, rng } = swiftLab(2);
+  const user = room.turn.seat;
+  swift(room, user, rng);
+  game.endTurn(room, user, rng);
+  assert.equal(room.turn.extra, true);
+  const restored = JSON.parse(JSON.stringify(room));
+  assert.deepEqual(restored.turn, room.turn);
+  assert.equal(game.viewFor(restored, 1).turn.extra, true);
+  assert.equal(game.placeDie(restored, user, { die: restored.pool[0].id, cell: 0 }, rng).ok, true);
+  const taken = turnsOfRound(restored, rng);
+  assert.deepEqual(taken.filter((t) => t.startsWith(`${user}:`)), [`${user}:1x`], 'the skipped second turn never comes');
+  assert.equal(restored.round, 2);
+
+  const left = swiftLab(2);
+  const seat = left.room.turn.seat;
+  swift(left.room, seat, left.rng);
+  game.endTurn(left.room, seat, left.rng);
+  assert.equal(game.removeHuman(left.room, left.room.seats[seat].id, left.rng).ok, true);
+  assert.equal(left.room.turn.extra, true);
+  assert.equal(game.isBot(left.room.seats[seat]), true);
+  assert.ok(['place', 'tool', 'end'].includes(botStep(left.room, seat, left.rng).type));
+});
+
+test('Swift Hand: a computer player that has it takes the extra turn, and whole games with it on the table stay consistent', () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const { room, rng } = playingRoom(2 + (seed % 3), { seed });
+    room.seats.forEach((s) => (s.bot = true));
     room.tools = ['swift-hand', 'lathe', 'refire'];
     room.spent = [0, 0, 0];
-    const seat = room.turn.seat;
-    assert.equal(game.useTool(room, seat, { tool: 'swift-hand', params: {} }, rng).ok, true);
-    const grid = () => room.grids[seat].filter(Boolean).length;
-    for (let i = 0; i < 6 && room.turn.seat === seat && room.round === 1; i++) driveStep(room, rng);
-    assert.ok(grid() <= 2, 'never more than two dice');
-    assert.notEqual(room.turn.seat, seat, 'the computer player finished the turn');
+    const user = room.turn.seat;
+    assert.equal(swift(room, user, rng).ok, true);
+    for (let i = 0; i < 10 && !room.turn.extra; i++) driveStep(room, rng);
+    assert.equal(room.turn.extra, true, 'the computer player ended its first turn and the extra one began');
+    assert.equal(room.turn.seat, user);
+    for (let i = 0; i < 10 && room.turn.seat === user; i++) driveStep(room, rng);
+    assert.notEqual(room.turn.seat, user, 'and finished it');
     for (let i = 0; i < 4000 && room.phase !== 'finished'; i++) driveStep(room, rng);
     assert.equal(room.phase, 'finished');
     assertInvariants(room, 'bots with swift hand, seed ' + seed);

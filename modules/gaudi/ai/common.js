@@ -9,7 +9,7 @@
 import { CELLS, COLOURS, COLS, ORTHOGONAL, ROWS, SHADES, isDeadSpace, legalCells, objectivePoints, objectiveOf, patternOf, privatePoints, restrictionOf } from '../rules.js';
 
 export const pickOne = (items, rng) => items[Math.floor(rng() * items.length)];
-export const allowedPlacements = (state) => (state.turn.extra ? 2 : 1);
+export const allowedPlacements = () => 1; // Swift Hand gives a whole extra turn, never two dice in one
 export const toolCost = (state, index) => (state.spent[index] > 0 ? 2 : 1);
 
 /** The cost of a tool in this game if the seat can pay for it right now, otherwise 0. */

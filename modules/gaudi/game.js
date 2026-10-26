@@ -256,16 +256,17 @@ export const TOOLS = [
   {
     id: 'swift-hand',
     name: 'Swift Hand',
-    text: 'On your first turn of a round, place a second die this turn. You then skip your second turn of the round.',
-    how: 'Just confirm.',
+    text: 'On your first turn of a round, take a second full turn straight after this one (choose another die, use more favour tokens if you wish). You then skip your second turn of the round.',
+    how: 'Just confirm, then finish this turn as usual: your extra turn starts at once.',
     prepare(room, seat) {
       if (room.turn.number !== 1) return { error: 'Swift Hand can only be used on your first turn of a round.' };
+      if (room.turn.extra) return { error: 'You are already taking an extra turn.' };
       return {
         commit() {
-          room.turn.extra = true;
+          room.turn.swift = true; // when this turn ends, the same player starts another full turn
           room.skip[seat] = true;
         },
-        note: 'took a second die now, and will skip their second turn',
+        note: 'will take an extra turn now, and skip their second turn',
       };
     },
   },
@@ -426,14 +427,19 @@ export function addBot(room, userId, seat) {
   return ok({ seat: index });
 }
 
-/** The host removes another person from a lobby seat. */
-export function kick(room, hostId, seat) {
-  const problem = hostInLobby(room, hostId);
+/**
+ * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
+ * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
+ * them home.
+ */
+export function kick(room, hostId, seat, rng = Math.random) {
+  const problem = asHost(room, hostId);
   if (problem) return problem;
   const target = isInt(seat) ? room.seats[seat] : null;
   if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  room.seats[seat] = null;
-  return ok({ userId: target.id });
+  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
+  const removed = removeHuman(room, target.id, rng);
+  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
 }
 
 export function removeBot(room, userId, seat) {
@@ -517,6 +523,13 @@ function startRound(room, rng) {
 }
 
 function advanceTurn(room, rng) {
+  if (room.turn?.swift && room.phase === 'playing') {
+    // Swift Hand: a fresh full turn for the same player, before anyone else moves.
+    const { seat, number } = room.turn;
+    room.turn = { seat, number, placements: 0, toolUsed: false, extra: true, swift: false };
+    addLog(room, seat, `${seatName(room, seat)} takes an extra turn`);
+    return;
+  }
   for (;;) {
     room.turnIndex++;
     if (room.turnIndex >= room.order.length) return endRound(room, rng);
@@ -526,7 +539,7 @@ function advanceTurn(room, rng) {
       addLog(room, seat, `${seatName(room, seat)} skips their second turn`);
       continue;
     }
-    room.turn = { seat, number, placements: 0, toolUsed: false, extra: false };
+    room.turn = { seat, number, placements: 0, toolUsed: false, extra: false, swift: false };
     return;
   }
 }
@@ -598,7 +611,7 @@ function finishGame(room) {
   addLog(room, null, `The game is over. ${winners.map((s) => rows[s].name).join(' and ')} ${winners.length > 1 ? 'share the win' : 'wins'}.`);
 }
 
-const allowedPlacements = (room) => (room.turn.extra ? 2 : 1);
+const allowedPlacements = () => 1; // one die per turn; Swift Hand gives a whole extra turn instead
 
 function myTurn(room, seat) {
   if (room.phase !== 'playing' || !room.turn) return fail('The game is not being played.');

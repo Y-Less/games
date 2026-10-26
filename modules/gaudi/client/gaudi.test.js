@@ -418,10 +418,10 @@ describe('Gaudi table: playing', () => {
     expect(document.body.textContent).toContain('Final scores');
   });
 
-  it('says in Status that Swift Hand allows two dice', () => {
+  it('says in Status that Swift Hand gives an extra turn', () => {
     const { view } = playView();
-    const { w } = mountTable({ ...view, turn: { ...view.turn, extra: true, allowed: 2 } });
-    expect(w.find('.game-status').text()).toContain('Swift Hand: you may place two dice');
+    const { w } = mountTable({ ...view, turn: { ...view.turn, extra: true } });
+    expect(w.find('.game-status').text()).toContain('Extra turn (Swift Hand)');
   });
 
   it('has no Leave button of its own: the site header offers it', () => {
@@ -595,32 +595,37 @@ describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
     return false;
   };
 
-  it('use the tool first, then place two dice, and the turn ends only after the second', async () => {
+  it('use the tool, place a die and the extra turn follows at once: a second full turn for the same player', async () => {
     const { room, w, send } = wired();
     await w.findAll('.tool')[0].trigger('click');
     await button(w, 'Use Swift Hand').trigger('click');
     await flushPromises();
     expect(send).toHaveBeenCalledWith('tool', { tool: 'swift-hand', params: {} });
-    expect(room.turn.extra).toBe(true);
-    expect(w.find('.headline').text()).toContain('place a die');
+    expect(room.turn.swift).toBe(true);
+    expect(w.find('.game-status').text()).toContain('Swift Hand is active');
     expect(await placeAny(w, room)).toBe(true);
     expect(room.turn.seat).toBe(0);
-    expect(w.find('.headline').text()).toContain('place a die'); // still allowed to place the second
-    expect(w.find('.headline').text()).toContain('Your first turn');
+    expect(room.turn.extra).toBe(true);
+    expect(w.find('.headline').text()).toContain('Your extra turn: place a die; you may use a tool');
+    expect(w.find('.game-status').text()).toContain('Extra turn (Swift Hand)');
     expect(await placeAny(w, room)).toBe(true);
+    await button(w, 'End turn').trigger('click');
+    await flushPromises();
     expect(room.turn.seat).toBe(1); // only now does the turn pass on
     expect(room.grids[0].filter(Boolean)).toHaveLength(2);
   });
 
-  it('place a die, then use the tool, then place the second', async () => {
+  it('place a die, End turn with Swift Hand pending: the extra turn starts and End turn works again', async () => {
     const { room, w } = wired();
     expect(await placeAny(w, room)).toBe(true);
     await w.findAll('.tool')[0].trigger('click');
     await button(w, 'Use Swift Hand').trigger('click');
     await flushPromises();
-    expect(room.turn.seat).toBe(0);
-    expect(w.find('.headline').text()).toContain('place a die');
-    expect(await placeAny(w, room)).toBe(true);
+    expect(room.turn.extra).toBe(true);
+    expect(w.find('.headline').text()).toContain('extra turn');
+    expect(button(w, 'End turn').attributes('disabled')).toBeUndefined();
+    await button(w, 'End turn').trigger('click');
+    await flushPromises();
     expect(room.turn.seat).toBe(1);
   });
 

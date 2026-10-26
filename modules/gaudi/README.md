@@ -41,7 +41,7 @@ the sum of the shades of the dice of your secret colour. On: each such die is wo
 - Windows: each card's two faces are a light one (difficulty 3 or 4) and a heavy one (5 or 6). Every window is proved
   completable by `rules.test.js` with a search.
 - Tools (twelve, three per game): Lathe, Exchange, Re-fire, Great Kiln, Mirror, Slide Rule, Twin Slide, Tint Shifter,
-  Gauge Breaker, Track Echo, Free Pane, Swift Hand. A tool is one request with all its parameters; the server checks
+  Gauge Breaker, Track Echo, Free Pane, Swift Hand (an extra full turn straight after the current one; the later second turn is skipped). A tool is one request with all its parameters; the server checks
   everything first and only then charges the tokens and applies it. The first use of a card costs 1 favour token
   (anyone's use counts), every later use 2. The tokens stay on the card.
 - Objectives (ten, three per game): Rainbow rows and columns, Tonal rows and columns, Pale, Middle and Deep pairs, Full

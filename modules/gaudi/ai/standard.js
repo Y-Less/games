@@ -63,7 +63,7 @@ function bestTool(state, seat, rng, current) {
   if (turn.toolUsed) return null;
   const grid = state.grids[seat];
   const pattern = patternOf(state.patterns[seat]);
-  if (turn.placements >= (turn.extra ? 2 : 1)) return null;
+  if (turn.placements >= 1) return null;
   const stuck = !current;
   const candidates = [];
   const evaluate = (die, cost, make) => {
@@ -113,7 +113,7 @@ export default {
   chooseWindow,
   chooseStep(state, seat, rng) {
     const { turn } = state;
-    const canPlace = turn.placements < (turn.extra ? 2 : 1);
+    const canPlace = turn.placements < 1;
     const best = canPlace ? bestPlacement(state, seat, rng) : null;
     const tool = canPlace ? bestTool(state, seat, rng, best) : null;
     if (tool) return { type: 'tool', tool: tool.tool, params: tool.params };

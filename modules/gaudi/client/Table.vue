@@ -231,7 +231,7 @@ const status = computed(() => {
   const t = s.value.turn;
   const die = t.placements < t.allowed ? 'place a die' : 'your die is placed';
   const tool = t.toolUsed ? 'your tool is used' : 'you may use a tool';
-  return `Your ${turnNumber.value} turn: ${die}; ${tool}. End your turn when you are done.`;
+  return `Your ${t.extra ? 'extra' : turnNumber.value} turn: ${die}; ${tool}. End your turn when you are done.`;
 });
 const endHint = computed(() => (myTurn.value && s.value.turn.placements === 0 && s.value.pool.length ? 'You have not placed a die yet.' : ''));
 const myPrivateRule = computed(() =>
@@ -250,7 +250,8 @@ const statusLines = computed(() => {
     lines.push({ text: modeSummary.value, tone: 'muted' });
   } else if (hint.value) lines.push({ text: hint.value, tone: 'muted' });
   else if (myTurn.value) lines.push({ text: 'Click a die in the pool, then a highlighted space in your window.', tone: 'muted' });
-  if (myTurn.value && s.value.turn.extra) lines.push({ text: `Swift Hand: you may place two dice this turn (${s.value.turn.placements} of 2 placed), and you skip your second turn of the round.`, tone: 'mine' });
+  if (myTurn.value && s.value.turn.extra) lines.push({ text: 'Extra turn (Swift Hand): a whole new turn, so choose another die and use more favour tokens if you wish. Your second turn of the round is skipped.', tone: 'mine' });
+  else if (myTurn.value && s.value.turn.swift) lines.push({ text: 'Swift Hand is active: when you end this turn you take an extra turn straight away, and your second turn of the round is skipped.', tone: 'mine' });
   if (endHint.value && !mode.value) lines.push({ text: endHint.value, tone: 'muted' });
   if (!finished.value) {
     lines.push({ text: `Your window: ${me.value?.empty} empty ${me.value?.empty === 1 ? 'space' : 'spaces'}, provisional score ${me.value?.score}.`, tone: 'muted' });

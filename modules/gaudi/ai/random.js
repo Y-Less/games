@@ -8,7 +8,7 @@ export default {
   weight: 0.5,
   chooseWindow: (options, rng) => pickOne(options, rng),
   chooseStep(state, seat, rng) {
-    if (state.turn.placements >= (state.turn.extra ? 2 : 1)) return { type: 'end' };
+    if (state.turn.placements >= 1) return { type: 'end' };
     const options = placementsOf(state, seat);
     if (!options.length) return { type: 'end' };
     const { die, cell } = pickOne(options, rng);
