@@ -13,7 +13,7 @@ See `rules.md` (shown by the Rules button) for the rules. Decisions worth knowin
 - Set order is irrelevant. `rules.resolveSet` decides what each wildcard stands for and the server keeps sets in that order.
 - Deal: 14 each, or `floor(tiles / (players + 1))` when that is smaller; fewer than 6 each is refused when starting.
 - Rounds: the lowest rack wins; losers lose the difference to the winner's rack (equal to their rack when someone goes out).
-- Rounds after the first wait for every person to press Continue (or 60 s, `RUMMIKUB_ROUND_WAIT`).
+- Rounds after the first wait for every person to close the scores pop-up (or 60 s, `RUMMIKUB_ROUND_WAIT`).
 - Turn timer (host option, off by default): when it runs out the player draws (or passes). The server enforces it.
 
 ## Files
@@ -29,4 +29,4 @@ See `rules.md` (shown by the Rules button) for the rules. Decisions worth knowin
 ## Environment
 
 - `RUMMIKUB_BOT_DELAY=min-max` (milliseconds) changes the computer players' thinking time (default 900-1800).
-- `RUMMIKUB_ROUND_WAIT=ms` how long to wait for Continue between rounds.
+- `RUMMIKUB_ROUND_WAIT=ms` how long to wait for the scores pop-up to be closed between rounds.

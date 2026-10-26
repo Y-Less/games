@@ -40,4 +40,4 @@ Before you may touch the table you must lay down a **first meld**: new sets made
 - A round ends when somebody **empties their rack** and wins it, or when the **pool is empty and everybody has passed in a row**; then the player with the **lowest rack total** wins (tied players share the win).
 - Tiles in a rack are worth their number, and a wildcard is worth **30**.
 - Every other player **loses their rack total** and the winner **gains the total of the others' racks**. If the round ended with nobody out, each other player loses the difference between their rack and the winner's, and the winner gains all of that (shared, rounded down, between tied winners).
-- A game is one round by default. With more rounds, scores add up, everybody presses Continue to start the next round (it starts by itself after a minute), and the highest total after the last round wins.
+- A game is one round by default. With more rounds, scores add up, everybody closes the scores pop-up to say they are ready for the next round (it starts by itself after a minute), and the highest total after the last round wins.

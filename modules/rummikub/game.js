@@ -10,7 +10,9 @@
 // A round: everybody is dealt tiles; on their turn a player either plays (sends the whole table as they want it, which
 // is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty). The round ends when someone empties
 // their rack, or when the pool is empty and everyone has passed in a row. A game is `settings.rounds` rounds.
+import { assignAIs, describeAI, pickAI, aiById } from '../../shared/ai.js';
 import { placements, winnersOf } from '../../shared/scores.js';
+import { AIS } from './ai/index.js';
 import {
   DEFAULT_SETTINGS,
   JOKER_VALUE,
@@ -131,12 +133,14 @@ export function addHuman(room, userId, name) {
   return ok({ seat });
 }
 
-function newBot(room) {
+function newBot(room, rng) {
   const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
   const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
   let name = base;
   for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  return { kind: 'bot', id: `bot:${room.nextBot++}`, name };
+  const bot = { kind: 'bot', id: `bot:${room.nextBot++}`, name };
+  if (rng) bot.ai = pickAI(AIS, rng).id; // a computer joining mid-game picks its logic now; lobby ones pick when the game starts
+  return bot;
 }
 
 /**
@@ -147,7 +151,7 @@ export function removeHuman(room, userId, rng = Math.random) {
   const seat = seatOf(room, userId);
   if (seat === -1) return fail('You are not in this game.');
   const midGame = inRound(room);
-  room.seats[seat] = midGame ? newBot(room) : null;
+  room.seats[seat] = midGame ? newBot(room, rng) : null;
   if (midGame) addLog(room, seat, `${room.seats[seat].name} takes over from a player who left`);
   const humans = humanSeats(room);
   if (!humans.length) return ok({ empty: true, seat });
@@ -233,6 +237,10 @@ export function start(room, userId, rng = Math.random, now = Date.now()) {
   const s = room.settings;
   addLog(room, null, `The game begins: ${s.rounds} ${s.rounds === 1 ? 'round' : 'rounds'}, ${totalTiles(s)} tiles.`);
   startRound(room, rng, now);
+  // every computer player chooses its logic for the whole game (after the deal, so the deal does not depend on it)
+  const botSeats = room.seats.flatMap((seat, i) => (isBot(seat) ? [i] : []));
+  const chosen = assignAIs(AIS, botSeats, rng);
+  for (const i of botSeats) room.seats[i].ai = chosen[i];
   return ok();
 }
 
@@ -464,6 +472,7 @@ export function viewFor(room, userId, { online = () => true, now = Date.now() } 
             seat: i,
             name: seat.name,
             bot: isBot(seat),
+            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAI(aiById(AIS, seat.ai)) } : {}),
             online: isBot(seat) || online(seat.id),
             score: started ? room.scores[i] : 0,
             count: started ? room.racks[i].length : 0,
