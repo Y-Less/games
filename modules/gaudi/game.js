@@ -2,11 +2,13 @@
 // Every action returns { ok: true, ... } or { ok: false, error }; an error never names hidden information.
 //
 // Seats 0..size-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
-// ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
+// ({ kind: 'bot', id: 'bot:<n>', name, ai: <id of its AI, set when the game starts> }) or null (empty, lobby only).
 //
 // Dice: { id, c: colour, v: 1-6 }. The bag holds { id, c } only (a die has no face until it is rolled). Every die is in
 // exactly one place: the bag, the pool, a round-track entry or a window. There is no discard pile: every tool keeps
 // every die in play, so bag + pool + track + windows is always 10 x (2n + 1).
+import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { AIS } from './ai/index.js';
 import {
   BAD_PRIVATE_POINTS,
   CELLS,
@@ -357,23 +359,29 @@ export function addHuman(room, userId, name) {
   return ok({ seat });
 }
 
-function newBot(room) {
+/** A new computer player. A replacement joining mid-game passes the rng and picks its AI now; lobby bots get one at the start. */
+function newBot(room, rng = null) {
   const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
   const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
   let name = base;
   for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  return { kind: 'bot', id: `bot:${room.nextBot++}`, name };
+  const seat = { kind: 'bot', id: `bot:${room.nextBot++}`, name };
+  if (rng) seat.ai = pickAI(AIS, rng).id;
+  return seat;
 }
+
+/** The AI a computer seat plays with (rooms saved before AIs existed fall back to the first). */
+export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /**
  * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
  * it over. `empty` is true when no human is left, so the room should be discarded.
  */
-export function removeHuman(room, userId) {
+export function removeHuman(room, userId, rng = Math.random) {
   const seat = seatOf(room, userId);
   if (seat === -1) return fail('You are not in this game.');
   const midGame = room.phase === 'windows' || room.phase === 'playing';
-  room.seats[seat] = midGame ? newBot(room) : null;
+  room.seats[seat] = midGame ? newBot(room, rng) : null;
   if (midGame) addLog(room, seat, `${room.seats[seat].name} takes over from a player who left`);
   const humans = humanSeats(room);
   if (!humans.length) return ok({ empty: true, seat });
@@ -456,6 +464,10 @@ export function start(room, userId, rng = Math.random) {
   room.options = room.seats.map((_, seat) => cards.slice(seat * 2, seat * 2 + 2).flatMap((card) => card.faces.map((f) => f.pid)));
   room.picked = room.seats.map(() => null);
   room.phase = 'windows';
+  // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
+  const botSeats = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
+  const picked = assignAIs(AIS, botSeats, rng);
+  for (const i of botSeats) room.seats[i].ai = picked[i];
   return ok();
 }
 
@@ -657,6 +669,7 @@ export function playAgain(room, userId) {
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over.');
   resetGame(room);
+  for (const seat of room.seats) if (isBot(seat)) delete seat.ai; // a new game picks new AIs
   room.phase = 'lobby';
   return ok();
 }
@@ -709,6 +722,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             seat: i,
             name: seat.name,
             bot: isBot(seat),
+            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: { id: aiOf(room, i).id, name: aiOf(room, i).name } } : {}),
             online: isBot(seat) || online(seat.id),
             picked: room.phase === 'windows' ? Boolean(room.picked[i]) : started,
             window: started ? windowView(room, i) : null,
