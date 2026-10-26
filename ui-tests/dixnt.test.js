@@ -36,6 +36,8 @@ test('the host creates a game; two people join (by invite link and by typing the
   await host.clickButton('Start a new game');
   await host.waitForText('Waiting for players');
   code = await host.inviteCode();
+  assert.ok((await host.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()))).includes('Leave game'), 'the header offers Leave game in the lobby too');
+  assert.deepEqual(await host.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((s) => /^Leave/.test(s))), [], 'no Leave button in the lobby');
   await host.waitForCodeInUrl(code);
   assert.equal(await host.copyInvite(), `${world.base}/play/dixnt?${code}`);
   assert.equal((await host.buttonState('Need 2 more players')).disabled, true, 'cannot start alone');
@@ -90,8 +92,8 @@ test('a round: the chooser types a word, everyone plays a card and votes, and th
       return u.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
     }
     const text = await u.text();
-    if ((text.includes('Play the card that fits') || text.includes('get to see the word')) && !(await u.page.$('.hand .slot.played'))) return u.clickFound(() => document.querySelector('.hand .slot'));
-    if (!text.includes('Your pick') && /Who was in the dark\?/.test(text)) return u.clickFound(() => [...document.querySelectorAll('.table figcaption button')].find((b) => b.innerText.trim() === 'Vote'));
+    if (/play the card that fits|you did not see the word/i.test(text) && !(await u.page.$('.hand .slot.played'))) return u.clickFound(() => document.querySelector('.hand .slot'));
+    if (!text.includes('Your pick')) return u.clickFound(() => [...document.querySelectorAll('.table figcaption button')].find((b) => b.innerText.trim() === 'Vote'));
     return false;
   };
   await drive({
@@ -145,13 +147,68 @@ test('a host on their own fills the table with built-in computer players, starts
   assert.match(rows[1].text, /computer/i);
   assert.equal((await solo.buttonState('Start the game')).disabled, false);
 
-  // The host is the first chooser: type the word, and the two bots play a card by themselves.
+  // The host is the first chooser.
   await solo.clickButton('Start the game', { exact: true });
   await solo.waitForSelector('input[aria-label="Your word or phrase"]');
+}));
+
+const rect = (user, selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+
+test('the site header has the title, Rules and Leave game, and neither the lobby nor the play area has a Leave button', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await solo.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Dixnt');
+  const names = await solo.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  const inPlay = await solo.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
+  assert.deepEqual(inPlay, [], 'no Leave button in the play area');
+  assert.ok(await solo.page.$('.game-frame'), 'the game is drawn in the standard frame');
+}));
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window, and its rows share the same outer edges and gutters`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await solo.page.setViewport(viewport);
+    await solo.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(await solo.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    const bar = await rect(solo, '.score-bar');
+    const arena = await rect(solo, '.arena');
+    const log = await rect(solo, '.box.log');
+    const status = await rect(solo, '.box.status');
+    const hand = await rect(solo, '.hand-zone');
+    const controls = await rect(solo, '.controls');
+    assert.equal(await solo.page.$('ul[aria-label="Players"]'), null, 'no duplicate player bars: the score bar is the one list');
+    for (const [name, r] of Object.entries({ arena, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ arena, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    assert.ok(Math.abs(log.right + 12 - status.left) <= 1, 'the bottom boxes have the same gutter');
+    assert.ok(log.top - arena.bottom >= 4 && log.top - arena.bottom <= 12, `the gap between the main area and the boxes: ${log.top - arena.bottom}`);
+    assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
+    assert.ok(Math.abs(hand.bottom - arena.bottom) <= 1, 'the hand ends the main area');
+    assert.ok(controls.bottom <= hand.top && controls.top >= arena.top, 'the controls zone sits between the table and the hand');
+  }));
+}
+
+test('the chooser types the word, and the two computer players play a card by themselves', { timeout: 90000 }, guarded('bots play', async () => {
+  await solo.page.setViewport({ width: 1280, height: 900 });
   await solo.fill('input[aria-label="Your word or phrase"]', 'Dragon');
   await solo.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
-  await solo.waitForText('Who was in the dark?');
-  assert.equal((await solo.page.$$('.bar .tag.bot')).length, 2, 'the bots are marked as computers');
+  await solo.waitForSelector('.table figcaption button.vote');
+  assert.equal((await solo.page.$$('.score-bar .bot')).length, 2, 'the bots are marked as computers in the score bar');
+  assert.equal(await solo.page.$$eval('.table figure', (els) => els.length), 2, 'a card from each of the two computer players is on the table (the chooser plays none)');
+}));
+
+test('Leave game in the header asks first, then leaves the game', { timeout: 60000 }, guarded('leave', async () => {
+  await solo.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await solo.waitForText('Your score will be lost.');
+  await solo.clickButton('Stay', { exact: true });
+  await solo.waitForNoText('Your score will be lost.');
+  await solo.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await solo.clickButton('Yes, leave', { exact: true });
+  await solo.waitForText('Start a new game');
 }));
 
 test('no uncaught errors in any page', () => {

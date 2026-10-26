@@ -1,17 +1,19 @@
 <script setup>
 import { computed, onBeforeUnmount, provide } from 'vue';
-import InviteCode from '../../../src/components/InviteCode.vue';
+import GameFrame from '../../../src/components/GameFrame.vue';
+import GameLog from '../../../src/components/GameLog.vue';
+import GameStatus from '../../../src/components/GameStatus.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { useLeave } from '../../../src/playBar.js';
 import { createStore } from './store.js';
 import { DIXNT_KEY } from './useDixnt.js';
-import Hand from './components/Hand.vue';
+import Arena from './components/Arena.vue';
 import HomeScreen from './components/HomeScreen.vue';
-import FinishedPanel from './components/FinishedPanel.vue';
 import Lightbox from './components/Lightbox.vue';
 import LobbyView from './components/LobbyView.vue';
-import PhasePanel from './components/PhasePanel.vue';
-import PlayerBar from './components/PlayerBar.vue';
-import ResultsPanel from './components/ResultsPanel.vue';
+import WordPopup from './components/WordPopup.vue';
+import { roundNumber } from './moveLog.js';
+import { statusFor, styleName } from './status.js';
 
 const props = defineProps({
   socket: { type: Object, required: true },
@@ -26,82 +28,88 @@ onBeforeUnmount(() => dixnt.dispose());
 
 const { store, isHost, send, goHome } = dixnt;
 const state = computed(() => store.state);
-// Skipped rounds don't count, so this follows the scoreboard's "Round N" labels.
-const roundNumber = computed(() => Math.min(state.value.completedRounds + (state.value.phase === 'results' ? 0 : 1), state.value.totalRounds));
 const results = computed(() => (state.value?.phase === 'results' ? state.value.results : null));
 const nameOf = dixnt.nameOf;
-const showHand = computed(() => ['word', 'picking'].includes(state.value?.phase));
+const status = computed(() => {
+  const s = statusFor(state.value, { isHost: isHost.value });
+  const away = state.value.players.filter((p) => !p.connected).map((p) => p.name);
+  return away.length ? { ...s, lines: [...s.lines, { text: `Away: ${away.join(', ')}.`, tone: 'warn' }] } : s;
+});
+const word = computed(() => (state.value.wordHidden ? '???' : state.value.word));
 
-async function leave() {
-  const takenOver = state.value.phase !== 'lobby' && !state.value.me.waiting && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id);
-  const warning = takenOver ? 'Leave the game? A computer player will take over your seat and your score.' : 'Leave the game? Your score will be lost.';
-  if (!window.confirm(warning)) return;
-  await send('leave');
-  goHome();
-}
-async function endGame() {
-  if (window.confirm('End the game and return everyone to the lobby? Scores are reset.')) await send('endGame');
-}
-async function skipRound() {
-  if (window.confirm('Abandon this round (no points) and move on to the next word-chooser?')) await send('abortRound');
-}
+// "Leave game" lives in the site's header, whenever you are in a game. Mid-game it asks first: a computer player takes
+// over your seat if anyone else is still playing, otherwise your score is lost.
+const takenOver = computed(() => Boolean(state.value) && !state.value.me.waiting && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id));
+useLeave({
+  canLeave: computed(() => Boolean(state.value)),
+  leave: async () => {
+    await send('leave');
+    goHome();
+  },
+  confirmText: computed(() => {
+    if (!state.value || ['lobby', 'finished'].includes(state.value.phase)) return '';
+    return takenOver.value ? 'A computer player will take over your seat and your score.' : 'Your score will be lost.';
+  }),
+});
 </script>
 
 <template>
   <div v-if="!store.checkedSession" class="splash muted">Connecting…</div>
   <HomeScreen v-else-if="!state" />
 
-  <div v-else class="game">
-    <header>
-      <InviteCode :code="state.code" />
-      <span v-if="state.phase === 'finished'" class="muted round">Game over</span>
-      <span v-else-if="state.phase !== 'lobby'" class="muted round">
-        Round {{ roundNumber }} of {{ state.totalRounds }} · deck {{ state.drawCount }} / discard {{ state.discardCount }}
-      </span>
-      <div class="menu">
-        <button v-if="isHost && ['word', 'picking', 'voting'].includes(state.phase)" class="quiet" @click="skipRound">
-          Skip round
-        </button>
-        <button v-if="isHost && !['lobby', 'finished'].includes(state.phase)" class="quiet" @click="endGame">End game</button>
-        <button class="quiet" @click="leave">Leave</button>
-      </div>
-    </header>
-
-    <ScoreBoard
-      v-if="state.phase !== 'lobby'"
-      :players="state.scoreboard.players"
-      :rounds="state.scoreboard.rounds"
-      :low-is-better="state.scoreboard.lowIsBetter"
-      :finished="state.phase === 'finished'"
-    >
-      <template #round>
-        <p v-if="results" class="summary" role="status">
-          <template v-if="results.judging === 'favourite'">{{ nameOf(state.chooserId) }} picked {{ nameOf(results.winnerId) }}’s card.</template>
-          <template v-else>
-            {{ nameOf(results.imposterId) }} was the imposter.
-            {{ results.judging === 'chooser' ? (results.groupCorrect ? 'The chooser spotted them.' : 'The chooser was fooled.') : results.groupCorrect ? 'The group found them.' : 'The group was fooled.' }}
-          </template>
-        </p>
-      </template>
-    </ScoreBoard>
-
-    <PlayerBar />
-
-    <main class="stack">
-      <LobbyView v-if="state.phase === 'lobby'" />
-      <ResultsPanel v-else-if="state.phase === 'results'" />
-      <FinishedPanel v-else-if="state.phase === 'finished'" />
-      <PhasePanel v-else />
-      <Hand v-if="showHand" />
-    </main>
-
-    <Teleport to="body">
-      <div v-if="!store.connected" class="offline" role="status">Connection lost. Trying to reconnect…</div>
-      <div v-if="store.toast" class="toast" role="status">{{ store.toast }}</div>
-    </Teleport>
+  <div v-else-if="state.phase === 'lobby'" class="game">
+    <main class="stack"><LobbyView /></main>
   </div>
 
+  <GameFrame v-else class="table-view" :main-span="12" :log-span="5">
+    <template #scorebar>
+      <ScoreBoard
+        :players="state.scoreboard.players"
+        :rounds="state.scoreboard.rounds"
+        :low-is-better="state.scoreboard.lowIsBetter"
+        :finished="state.phase === 'finished'"
+        :sticky="false"
+      >
+        <template #round>
+          <p v-if="results" class="summary" role="status">
+            <template v-if="results.judging === 'favourite'">{{ nameOf(state.chooserId) }} picked {{ nameOf(results.winnerId) }}’s card.</template>
+            <template v-else>
+              {{ nameOf(results.imposterId) }} was the imposter.
+              {{ results.judging === 'chooser' ? (results.groupCorrect ? 'The chooser spotted them.' : 'The chooser was fooled.') : results.groupCorrect ? 'The group found them.' : 'The group was fooled.' }}
+            </template>
+          </p>
+        </template>
+      </ScoreBoard>
+    </template>
+
+    <template #main="area"><Arena :width="area.width" :height="area.height" /></template>
+
+    <template #log>
+      <GameLog :entries="store.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry }}</GameLog>
+    </template>
+
+    <template #status>
+      <GameStatus :headline="status.headline" :mine="status.mine" :lines="status.lines">
+        <template #facts>
+          <strong v-if="state.phase === 'finished'">Game over</strong>
+          <strong v-else>Round {{ roundNumber(state) }} of {{ state.totalRounds }}</strong>
+          <span>{{ styleName(state.judging) }}</span>
+          <span v-if="state.phase !== 'finished'">Chooser: {{ nameOf(state.chooserId) }}</span>
+          <span v-if="word" class="word">Word: <strong>{{ word }}</strong></span>
+          <span>Deck {{ state.drawCount }} / discard {{ state.discardCount }}</span>
+          <span class="muted">Code {{ state.code }}</span>
+        </template>
+      </GameStatus>
+    </template>
+  </GameFrame>
+
   <Lightbox />
+  <WordPopup v-if="state && state.phase !== 'lobby'" />
+
+  <Teleport to="body">
+    <div v-if="store.state && !store.connected" class="offline" role="status">Connection lost. Trying to reconnect…</div>
+    <div v-if="store.state && store.toast" class="toast" role="status">{{ store.toast }}</div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -115,24 +123,9 @@ async function skipRound() {
   flex-direction: column;
   gap: 1rem;
 }
-header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.3rem 1rem;
-}
-.round {
-  font-size: 0.9rem;
-}
 .summary {
   margin: 0 0 0.6rem;
   text-align: center;
-}
-.menu {
-  margin-left: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
 }
 .toast,
 .offline {

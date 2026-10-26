@@ -773,7 +773,7 @@ export class Game {
         hasVoted: s.phase === 'voting' ? p.id in s.votes : false,
       })),
       scoreboard: {
-        players: s.players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === id, away: !p.bot && !connectedIds.has(p.id) })),
+        players: s.players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === id, bot: Boolean(p.bot), current: p.id === s.chooserId, away: !p.bot && !connectedIds.has(p.id) })),
         rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
         lowIsBetter: false,
       },

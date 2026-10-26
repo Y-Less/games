@@ -1,15 +1,29 @@
 <script setup>
+// The cards played this round, large, in the main area. Each card has a fixed caption under it (the player's name,
+// then the vote button or the votes it got), so the table is the same size in every phase. While people are still
+// choosing, a face-down card marks each one who has played and a dashed slot each who has not. Click a card to look
+// closer (the viewer steps through the whole table).
 import { computed } from 'vue';
 import { useDixnt } from '../useDixnt.js';
+import { CAPTION } from '../layout.js';
 import CardImg from './CardImg.vue';
+
+const props = defineProps({
+  cardWidth: { type: Number, required: true },
+  cardHeight: { type: Number, required: true },
+  count: { type: Number, required: true }, // how many cards the table is sized for: everyone in the round
+  columns: { type: Number, required: true }, // how many fit in a row
+});
 
 const { nameOf, send, store } = useDixnt();
 
-// The cards played this round. In the voting phase each card has a vote button; in the results phase
-// the cards show who voted for whom and the points gained.
 const state = computed(() => store.state);
 const voting = computed(() => state.value.phase === 'voting');
 const results = computed(() => state.value.results);
+const revealed = computed(() => voting.value || state.value.phase === 'results');
+const played = computed(() => state.value.players.filter((p) => p.hasPlayed).length);
+// The slots before the reveal: face-down cards for those who have played, then empty places.
+const slots = computed(() => Array.from({ length: props.count }, (_, i) => ({ down: i < played.value })));
 
 const votersFor = (playerId) =>
   Object.entries(results.value?.votes ?? {})
@@ -22,6 +36,7 @@ function voteSummary(playerId) {
   const names = votersFor(playerId);
   return `${count} vote${count === 1 ? '' : 's'}${names.length ? `: ${names.join(', ')}` : ''}`;
 }
+const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : `${results.value.tally[playerId]} vote${results.value.tally[playerId] === 1 ? '' : 's'}`);
 
 /** Votes in the 'everyone' style can be changed, but a chooser's decision ends the round, so ask first. */
 function castVote(playerId) {
@@ -35,89 +50,120 @@ function castVote(playerId) {
   send('vote', { targetId: playerId });
 }
 
-function zoom(cardId) {
-  store.zoom = { cardId, cards: state.value.table.map((entry) => entry.cardId), actions: [] };
+const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
+const voteLabel = (playerId) => (state.value.me.myVote === playerId ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : 'Vote');
+
+function actionsFor(cardId) {
+  const entry = state.value.table.find((e) => e.cardId === cardId);
+  if (!entry || !canVoteFor(entry.playerId)) return [];
+  const picked = state.value.me.myVote === entry.playerId;
+  return [{ label: picked ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : `Vote for ${nameOf(entry.playerId)}`, primary: true, run: () => !picked && castVote(entry.playerId) }];
 }
 
-const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
+function zoom(cardId) {
+  store.zoom = { cardId, cards: state.value.table.map((entry) => entry.cardId), actionsFor };
+}
 </script>
 
 <template>
-  <div class="table">
-    <figure
-      v-for="entry in state.table"
-      :key="entry.playerId"
-      class="played"
-      :class="{
-        mine: entry.playerId === state.me.id,
-        chosen: voting && state.me.myVote === entry.playerId,
-        imposter: results && results.imposterId === entry.playerId,
-        winner: results && results.winnerId === entry.playerId,
-      }"
-    >
-      <button class="art" :aria-label="`Look closer at ${nameOf(entry.playerId)}'s card`" @click="zoom(entry.cardId)">
-        <CardImg :card-id="entry.cardId" />
-        <span v-if="results && results.imposterId === entry.playerId" class="stamp">Imposter</span>
-        <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">Favourite</span>
-      </button>
-      <figcaption>
-        <strong>{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.me.id" class="muted"> (you)</span></strong>
-
-        <template v-if="voting">
-          <button
-            v-if="canVoteFor(entry.playerId)"
-            :class="{ primary: state.me.myVote === entry.playerId }"
-            @click="castVote(entry.playerId)"
-          >
-            {{ state.me.myVote === entry.playerId ? 'Your pick' : state.judging === 'favourite' ? 'Pick this one' : 'Vote' }}
+  <div class="table" :style="{ '--card-w': `${cardWidth}px`, '--card-h': `${cardHeight}px`, '--caption': `${CAPTION}px`, '--cols': columns }">
+    <template v-if="revealed">
+      <figure
+        v-for="entry in state.table"
+        :key="entry.playerId"
+        class="played"
+        :class="{
+          mine: entry.playerId === state.me.id,
+          chosen: voting && state.me.myVote === entry.playerId,
+          imposter: results && results.imposterId === entry.playerId,
+          winner: results && results.winnerId === entry.playerId,
+        }"
+      >
+        <button class="art" :aria-label="`Look closer at ${nameOf(entry.playerId)}'s card`" @click="zoom(entry.cardId)">
+          <CardImg :card-id="entry.cardId" />
+          <span v-if="results && results.imposterId === entry.playerId" class="stamp">Imposter</span>
+          <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">Favourite</span>
+        </button>
+        <figcaption>
+          <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.me.id" class="muted"> (you)</span></strong>
+          <button v-if="canVoteFor(entry.playerId)" class="vote" :class="{ primary: state.me.myVote === entry.playerId }" @click="castVote(entry.playerId)">
+            {{ voteLabel(entry.playerId) }}
           </button>
-        </template>
-
-        <template v-if="results">
-          <span class="muted votes">{{ voteSummary(entry.playerId) }}</span>
-        </template>
-      </figcaption>
-    </figure>
+          <span v-else-if="results" class="muted votes" :title="voteSummary(entry.playerId)">{{ voteCount(entry.playerId) }}</span>
+        </figcaption>
+      </figure>
+    </template>
+    <template v-else>
+      <figure v-for="(slot, i) in slots" :key="i" class="played">
+        <div class="art slot" :class="{ down: slot.down, empty: !slot.down }" :aria-label="slot.down ? 'A card played face down' : 'A card still to be played'">
+          <span v-if="slot.down" class="card-back back" />
+        </div>
+        <figcaption />
+      </figure>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .table {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  align-items: start;
-}
-@media (min-width: 900px) {
-  .table {
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  }
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: calc(var(--cols) * (var(--card-w) + 12px));
+  height: 100%;
+  margin: 0 auto;
 }
 .played {
   margin: 0;
+  width: var(--card-w);
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 .art {
   position: relative;
+  display: block;
+  width: var(--card-w);
+  height: var(--card-h);
   padding: 0;
-  border: 3px solid transparent;
-  border-radius: 14px;
+  border: 0;
+  border-radius: 12px;
   background: none;
+  box-shadow: 0 0 0 3px transparent;
+  transition: box-shadow 0.15s;
+}
+.art :deep(.card-img) {
+  height: 100%;
 }
 .art:hover:not(:disabled) {
   background: none;
-  border-color: var(--line);
+  box-shadow: 0 0 0 3px var(--line);
 }
 .chosen .art {
-  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber);
 }
 .imposter .art {
-  border-color: var(--rust);
+  box-shadow: 0 0 0 3px var(--rust);
 }
 .winner .art {
-  border-color: var(--moss);
+  box-shadow: 0 0 0 3px var(--moss);
+}
+.art.slot {
+  cursor: default;
+}
+.art.empty {
+  border: 2px dashed var(--line);
+  background: color-mix(in srgb, var(--bg-raised) 40%, transparent);
+}
+.back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.4);
 }
 .stamp.favourite {
   background: var(--moss);
@@ -137,13 +183,30 @@ const canVoteFor = (playerId) => voting.value && state.value.voteTargets.include
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.5);
 }
 figcaption {
+  height: var(--caption);
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
-  text-align: center;
+  padding-top: 0.2rem;
+  min-width: 0;
+}
+.who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+.vote {
+  flex: none;
+  padding: 0.1rem 0.7rem;
+  font-size: 0.85rem;
 }
 .votes {
-  font-size: 0.9rem;
+  flex: none;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 </style>

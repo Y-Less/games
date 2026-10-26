@@ -1,6 +1,7 @@
 // Client-side game store: the latest personalised state from the server, over the socket the site gives us.
 import { computed, reactive } from 'vue';
 import { normaliseCode } from '../../../shared/codes.js';
+import { newEntries } from './moveLog.js';
 
 /** The code in an invite link (or a pasted one), tidied with the site's shared rules; '' if there is none. */
 const tidyCode = normaliseCode;
@@ -15,9 +16,11 @@ export function createStore({ socket, user, search, setSearch }) {
     connected: socket.connected,
     checkedSession: false, // true once the server has said whether we are already in a game
     state: null,
+    log: [], // "Recent moves": worked out here from the changes between one state and the next
     code: tidyCode(search), // the game we are in, or the one an invite link points at
     codeExists: null, // for an invite link: does that game exist? (null until the server has said)
     toast: '',
+    wordPopup: null, // { word, key }: the word just chosen, shown large to everyone for a few seconds
     zoom: null, // { cardId, actions: [{ label, run, primary }] } for the card lightbox
   });
 
@@ -57,12 +60,18 @@ export function createStore({ socket, user, search, setSearch }) {
     store.connected = false;
   };
   function onState(state) {
+    store.log = !state || state.phase === 'lobby' ? [] : [...store.log, ...newEntries(store.state, state)].slice(-200);
+    // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per round.
+    if (state && store.state?.phase === 'word' && state.phase === 'picking') {
+      store.wordPopup = { word: state.wordHidden ? '???' : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden) };
+    }
     store.state = state;
     if (state) {
       store.code = state.code;
       setSearch(state.code);
     } else {
       store.zoom = null;
+      store.wordPopup = null;
       lookUpCode();
     }
   }

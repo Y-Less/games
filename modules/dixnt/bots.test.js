@@ -63,6 +63,8 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.throws(() => game.fillWithBots(guest.id), GameError);
   const { id } = game.addBot(host.id);
   assert.equal(game.player(id).bot, true);
+  assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.bot), [false, false, true], 'the scoreboard marks computer players');
+  assert.equal(game.viewFor(host.id).scoreboard.players.some((p) => p.current), false, 'nobody is the chooser in the lobby');
   assert.equal(game.player(id).token.startsWith('bot:'), true);
   assert.equal(game.player(id).hand.length, 0);
   assert.throws(() => game.removeBot(guest.id, id), GameError);
@@ -539,4 +541,15 @@ test('over sockets: garbage to the bot events is refused and harms nothing', asy
   assert.equal((await ann.call('declareAI', { id: 'sharp' })).ok, true, 'the external-bot event still works for accounts');
   await drive([ann, bob]);
   assert.equal(await site.alive(), true);
+});
+
+test('the scoreboard marks the chooser as the current player once the game is on', () => {
+  const game = new Game({ getCardIds: () => cards(400), hints: [] });
+  const host = game.addPlayer('Host', 'user:1');
+  game.addPlayer('Guest', 'user:2');
+  game.addBot(host.id);
+  game.start(host.id);
+  const current = game.viewFor(host.id).scoreboard.players.filter((p) => p.current);
+  assert.equal(current.length, 1);
+  assert.equal(current[0].id, game.viewFor(host.id).chooserId);
 });
