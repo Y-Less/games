@@ -8,9 +8,10 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Runtime image: production dependencies, built client, server and modules.
+# Runtime image: production dependencies, built client, server and modules (without the Dixnt cards).
 FROM node:22-slim
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
+# The Dixnt cards are mounted at /cards, not baked in.
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data DIXNT_CARDS_DIR=/cards
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev

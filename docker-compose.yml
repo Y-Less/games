@@ -8,6 +8,7 @@ services:
     networks:
       - gateway
     volumes:
+      - ./modules/dixnt/cards:/cards:ro
       - games-data:/data
     labels:
       - traefik.enable=true
