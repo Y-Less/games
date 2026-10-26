@@ -3,6 +3,7 @@
 // scoreboard, a log, the wall-tiling summary and the final breakdown. The server sends the view; every action is one
 // request: `move` (take a colour group and place it) or `column` (free wall only).
 import { computed, ref, watch } from 'vue';
+import GameLog from '../../../src/components/GameLog.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { COLOUR_NAMES, COLOURS, floorPenalty, lineProblem, previewTake } from '../rules.js';
 import Board from './Board.vue';
@@ -131,7 +132,6 @@ const choose = computed(() => (s.value.phase === 'tiling' ? s.value.choice : nul
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));
 const rankText = (row) => (row.placement === 1 ? 'Winner' : ['', '1st', '2nd', '3rd', '4th', '5th'][row.placement] ?? `${row.placement}th`);
 const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
-const recent = computed(() => [...s.value.log].reverse().slice(0, 9));
 </script>
 
 <template>
@@ -256,9 +256,7 @@ const recent = computed(() => [...s.value.log].reverse().slice(0, 9));
 
     <section class="panel log">
       <h3>Recent play</h3>
-      <ol aria-label="Recent actions">
-        <li v-for="(entry, i) in recent" :key="i" :class="{ old: i > 3 }">{{ entry.text }}</li>
-      </ol>
+      <GameLog class="recent" :entries="s.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
     </section>
 
     <p v-if="!finished" class="row foot"><button class="quiet" @click="send('leave')">Leave game</button><span class="muted small">A computer player takes your seat if you leave.</span></p>
@@ -307,9 +305,14 @@ const recent = computed(() => [...s.value.log].reverse().slice(0, 9));
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  min-height: 17rem;
 }
 .side {
   min-width: 0;
+  /* As tall as the board beside it, whatever the move panel and the tiling summary say: they scroll instead of growing the page. */
+  align-self: stretch;
+  contain: size;
+  overflow-y: auto;
 }
 .move h3,
 .log h3 {
@@ -337,15 +340,11 @@ const recent = computed(() => [...s.value.log].reverse().slice(0, 9));
   font-size: 0.85rem;
   margin: 0;
 }
-.log ol {
-  margin: 0.3rem 0 0;
-  padding-left: 1.1rem;
+.log .recent {
+  --log-height: 8rem;
+  margin-top: 0.3rem;
   font-size: 0.85rem;
-  display: grid;
   gap: 0.1rem;
-}
-.log li.old {
-  color: var(--muted);
 }
 .others {
   display: grid;

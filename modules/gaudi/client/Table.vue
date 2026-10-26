@@ -2,6 +2,7 @@
 // The Gaudi table: choosing a window, then the draft pool, your window, the round track, the tool cards, the
 // objectives, everybody's windows and the final breakdown. The server sends the view; every action is one request.
 import { computed, ref, watch } from 'vue';
+import GameLog from '../../../src/components/GameLog.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import Die from './Die.vue';
 import WindowGrid from './WindowGrid.vue';
@@ -406,7 +407,7 @@ const shapeOf = (c) => SHAPES[SHAPE_OF[c]];
               </div>
               <p>{{ tool.text }}</p>
               <p class="muted small">How: {{ tool.how }}</p>
-              <p v-if="tool.spent" class="muted small"><i v-for="n in tool.spent" :key="n" class="token spent" /> {{ tool.spent }} {{ tool.spent === 1 ? 'token' : 'tokens' }} on this card</p>
+              <p class="muted small spent-line" :class="{ unused: !tool.spent }" :aria-hidden="tool.spent ? undefined : 'true'"><i v-for="n in tool.spent" :key="n" class="token spent" /> {{ tool.spent }} {{ tool.spent === 1 ? 'token' : 'tokens' }} on this card</p>
             </div>
           </section>
 
@@ -498,9 +499,9 @@ const shapeOf = (c) => SHAPES[SHAPE_OF[c]];
 
       <section class="panel stack log-panel">
         <h3>Recent actions</h3>
-        <ul class="log" aria-label="Recent actions">
-          <li v-for="(entry, i) in [...state.log].reverse()" :key="i" :class="{ mine: entry.seat === state.you }">{{ entry.text }}</li>
-        </ul>
+        <GameLog class="log" :entries="state.log" newest-first empty="Nothing has happened yet." v-slot="{ entry }">
+          <span :class="{ mine: entry.seat === state.you }">{{ entry.text }}</span>
+        </GameLog>
       </section>
     </template>
   </div>
@@ -837,19 +838,15 @@ const shapeOf = (c) => SHAPES[SHAPE_OF[c]];
   border-radius: 3px;
   margin-right: 0.35rem;
 }
+.spent-line.unused {
+  visibility: hidden; /* the line is always there, so a card does not grow when a token is put on it */
+}
 .log {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 11rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  --log-height: 9rem;
   font-size: 0.88rem;
   color: var(--muted);
 }
-.log li.mine {
+.log .mine {
   color: var(--parchment);
 }
 .foot {

@@ -90,7 +90,7 @@ function over(source, colour) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 17rem;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 .plates {
   display: flex;
@@ -165,6 +165,9 @@ function over(source, colour) {
   padding: 0.5rem 0.7rem 0.7rem;
   min-height: 7rem;
   background: rgb(0 0 0 / 0.14);
+  /* The row is as tall as the plates, whatever is in the centre: a big pile scrolls instead of growing the page. */
+  contain: size;
+  overflow-y: auto;
 }
 .centre h3 {
   font-size: 0.95rem;

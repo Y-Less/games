@@ -177,9 +177,16 @@ onBeforeUnmount(() => clearInterval(ticker));
 
 const readyNames = computed(() => props.state.seats.filter((x) => x && !x.bot && x.ready).map((x) => x.name));
 const waitingNames = computed(() => (between.value ? props.state.seats.filter((x) => x && !x.bot && !x.ready).map((x) => x.name) : []));
-const scorePlayers = computed(() => props.state.scoreboard.players.map((p) => (between.value ? { ...p, ready: Boolean(props.state.seats[p.id]?.bot || props.state.seats[p.id]?.ready) } : p)));
+const scorePlayers = computed(() => props.state.scoreboard.players.map((p) => ({ ...p, ready: between.value && Boolean(props.state.seats[p.id]?.bot || props.state.seats[p.id]?.ready) })));
 const youReady = computed(() => Boolean(me.value?.ready));
 const hand = computed(() => dealSize(s.value, props.state.size));
+const statusLine = computed(() => {
+  if (myTurn.value) return hint.value || summary.value;
+  return props.state.phase === 'playing' ? `Waiting for ${nameOf(props.state.turn)}. Each player starts with ${hand.value} tiles.` : '';
+});
+const bannerNote = computed(
+  () => `${props.state.log.at(-1)?.text ?? ''} ${youReady.value ? `Waiting for ${waitingNames.value.join(', ')}` : 'Close the scores to carry on.'} Ready: ${readyNames.value.join(', ') || 'nobody yet'}`,
+);
 const lastLine = computed(() => props.state.log.at(-1)?.text ?? '');
 const whoseTurn = computed(() => (props.state.phase === 'playing' ? (myTurn.value ? 'Your turn' : `${nameOf(props.state.turn)} is playing`) : ''));
 const setLabel = (set) => {
@@ -214,20 +221,20 @@ const setLabel = (set) => {
           <span v-if="p.bot" class="tag">computer</span>
         </li>
       </ul>
-      <p class="muted last" aria-live="polite">{{ lastLine }}</p>
-    </section>
-
-    <section v-if="between || finished" class="panel banner" role="status">
-      <template v-if="finished">
-        <strong v-if="state.winners.length === 1">{{ nameOf(state.winners[0]) }} wins the game!</strong>
-        <strong v-else>{{ state.winners.map(nameOf).join(' and ') }} share the win.</strong>
-        <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-        <span v-else class="muted">Waiting for the host to play again.</span>
-      </template>
-      <template v-else>
-        <strong>Round {{ state.round }} is over.</strong>
-        <span class="muted">{{ youReady ? `Waiting for ${waitingNames.join(', ')}` : 'Close the scores to carry on.' }} Ready: {{ readyNames.join(', ') || 'nobody yet' }}</span>
-      </template>
+      <!-- One line of fixed height for the last move, the end of a round and the end of the game, so none of them moves the page. -->
+      <div class="last" aria-live="polite" role="status">
+        <template v-if="finished">
+          <strong v-if="state.winners.length === 1">{{ nameOf(state.winners[0]) }} wins the game!</strong>
+          <strong v-else>{{ state.winners.map(nameOf).join(' and ') }} share the win.</strong>
+          <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
+          <span v-else class="muted">Waiting for the host to play again.</span>
+        </template>
+        <template v-else-if="between">
+          <strong>Round {{ state.round }} is over.</strong>
+          <span class="muted clip" :title="bannerNote">{{ bannerNote }}</span>
+        </template>
+        <span v-else class="muted clip" :title="lastLine">{{ lastLine }}</span>
+      </div>
     </section>
 
     <section class="panel felt" aria-label="The table">
@@ -327,8 +334,7 @@ const setLabel = (set) => {
         </button>
         <button class="primary" :disabled="!canEnd" @click="endTurn">End turn</button>
       </div>
-      <p v-if="myTurn" class="status" :class="{ ok: status.ok, err: changed && !status.ok }" role="status">{{ hint || summary }}</p>
-      <p v-else-if="state.phase === 'playing'" class="muted status">Waiting for {{ nameOf(state.turn) }}. Each player starts with {{ hand }} tiles.</p>
+      <p class="status clip" :class="{ ok: myTurn && status.ok, err: myTurn && changed && !status.ok, muted: !myTurn }" role="status" :title="statusLine">{{ statusLine }}</p>
     </section>
   </div>
 </template>
@@ -409,19 +415,25 @@ const setLabel = (set) => {
   color: var(--muted);
 }
 .last {
-  margin: 0.5rem 0 0;
-  min-height: 1.4em;
-}
-.banner {
   display: flex;
-  gap: 1rem;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.4rem 0 0;
+  height: 2.2rem;
+  overflow: hidden;
+}
+.last .clip {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .felt {
   background: radial-gradient(900px 400px at 50% 0%, #25503f, #173428);
   border-color: #2d5a47;
-  min-height: 12rem;
+  /* A fixed height however many sets are laid: a long game scrolls the table instead of growing the page. */
+  height: 16rem;
+  overflow-y: auto;
 }
 .empty {
   padding: 0.4rem;
@@ -514,7 +526,8 @@ const setLabel = (set) => {
   flex-wrap: wrap;
   gap: 0.3rem;
   padding: 0.6rem;
-  min-height: 4.8rem;
+  height: 4.8rem;
+  overflow-y: auto;
   border-radius: 12px;
   background: linear-gradient(180deg, #5b4527, #46341c);
   border: 1px solid #2c200f;
@@ -529,6 +542,12 @@ const setLabel = (set) => {
 }
 .status {
   margin: 0;
+  height: 1.5em; /* always one line, whatever it says or even if there is nothing to say */
+}
+.status.clip {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .status.ok {
   color: var(--moss);

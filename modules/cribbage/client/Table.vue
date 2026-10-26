@@ -2,6 +2,7 @@
 // The discard and play phases: opponents, crib, starter, the running count, your hand and the scoring log.
 import { computed, ref, watch } from 'vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
+import GameLog from '../../../src/components/GameLog.vue';
 import CardRow from './CardRow.vue';
 import { seatColour } from './colours.js';
 
@@ -17,7 +18,6 @@ const inPlay = computed(() => props.state.phase === 'play');
 const turn = computed(() => (inPlay.value ? props.state.play.turn : -1));
 const myTurn = computed(() => turn.value === me.value);
 const playable = computed(() => new Set(props.state.play?.playable ?? []));
-const log = computed(() => [...props.state.log].reverse());
 const need = computed(() => props.state.need);
 const cribOwner = computed(() => (youDeal.value ? 'your' : `${dealer.value.name}'s`));
 const waitingFor = computed(() => seats.value.filter((s) => !s.discarded).map((s) => s.name));
@@ -133,13 +133,9 @@ async function discard() {
 
     <section class="panel log">
       <h3>Scoring</h3>
-      <ul>
-        <li v-if="!log.length" class="muted">Nothing scored yet this hand.</li>
-        <li v-for="(entry, i) in log" :key="log.length - i">
-          <span class="dot" :style="{ background: seatColour(entry.seat) }" />
-          {{ entry.text }}
-        </li>
-      </ul>
+      <GameLog :entries="state.log" newest-first label="Scoring" empty="Nothing scored yet this hand." v-slot="{ entry }">
+        <span class="entry"><span class="dot" :style="{ background: seatColour(entry.seat) }" />{{ entry.text }}</span>
+      </GameLog>
     </section>
   </div>
 </template>
@@ -278,17 +274,13 @@ small {
   background: #fbf8f0;
   border-color: #b9b2a2;
 }
-.log ul {
-  list-style: none;
-  margin: 0.4rem 0 0;
-  padding: 0;
-  height: 9rem;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.log {
+  --log-height: 9rem;
 }
-.log li {
+.log :deep(.game-log) {
+  margin-top: 0.4rem;
+}
+.log .entry {
   display: flex;
   align-items: center;
   gap: 0.5rem;

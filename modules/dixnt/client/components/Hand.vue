@@ -42,7 +42,7 @@ function open(cardId) {
         <span v-if="state.me.myPick === cardId" class="badge">Played</span>
       </button>
     </div>
-    <p v-if="canPlay && state.me.myPick === null" class="muted hint">Tap a card to look closer and play it.</p>
+    <p class="muted hint" :class="{ hidden: !(canPlay && state.me.myPick === null) }">Tap a card to look closer and play it.</p>
   </section>
 </template>
 
@@ -90,6 +90,9 @@ function open(cardId) {
   font-weight: 700;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
+}
+.hint.hidden {
+  visibility: hidden; /* kept, so playing a card does not shorten the page */
 }
 .hint {
   margin: 0.6rem 0 0;

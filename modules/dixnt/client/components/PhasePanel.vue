@@ -11,6 +11,14 @@ const state = computed(() => store.state);
 
 const inRound = computed(() => players.value.filter((p) => !p.waiting));
 const waitingOnCards = computed(() => inRound.value.filter((p) => !p.isChooser && !p.hasPlayed));
+const waitingNames = computed(() => waitingOnCards.value.map((p) => p.name).join(', '));
+const pickingNote = computed(() => {
+  const me = state.value.me;
+  if (me.waiting) return 'You’ve joined mid-round, so you’ll be dealt in next round.';
+  if (me.isChooser) return `Waiting for ${waitingNames.value}…`;
+  if (me.myPick !== null) return `Card played. You can swap it until everyone has played.${waitingOnCards.value.length ? ` Waiting for ${waitingNames.value}…` : ''}`;
+  return '';
+});
 const waitingOnVotes = computed(() => inRound.value.filter((p) => !p.hasVoted));
 </script>
 
@@ -27,14 +35,8 @@ const waitingOnVotes = computed(() => inRound.value.filter((p) => !p.hasVoted));
   <!-- 2. Everyone plays a card -->
   <template v-else-if="state.phase === 'picking'">
     <WordBanner />
-    <p v-if="state.me.waiting" class="panel muted">You’ve joined mid-round, so you’ll be dealt in next round.</p>
-    <p v-else-if="state.me.isChooser" class="muted center">
-      Waiting for {{ waitingOnCards.map((p) => p.name).join(', ') }}…
-    </p>
-    <p v-else-if="state.me.myPick !== null" class="muted center">
-      Card played. You can swap it until everyone has played.
-      <template v-if="waitingOnCards.length">Waiting for {{ waitingOnCards.map((p) => p.name).join(', ') }}…</template>
-    </p>
+    <!-- Always one line of the same height, whatever it says, so playing a card does not move the hand below it. -->
+    <p class="muted center note-line" :title="pickingNote">{{ pickingNote }}</p>
   </template>
 
   <!-- 3. Cards revealed: talk it through and vote whenever you like -->
@@ -77,7 +79,7 @@ const waitingOnVotes = computed(() => inRound.value.filter((p) => !p.hasVoted));
         Explain why you chose your card and listen to the others. You can vote at any time, and change your vote
         until everyone has voted. The round ends when the last vote is in.
       </p>
-      <p class="status">
+      <p class="status long">
         <template v-if="state.me.waiting">You’ll join in next round.</template>
         <template v-else-if="state.me.myVote === null">You haven’t voted yet. Pick the player you think didn’t see the word.</template>
         <template v-else>Your vote is in. You can still change it.</template>
@@ -97,5 +99,16 @@ const waitingOnVotes = computed(() => inRound.value.filter((p) => !p.hasVoted));
 }
 .status {
   margin: 0;
+  min-height: 1.5em;
+}
+.status.long {
+  min-height: 3em; /* the longest wording and the list of who has still to vote take two lines */
+}
+.note-line {
+  height: 1.5em;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 </style>

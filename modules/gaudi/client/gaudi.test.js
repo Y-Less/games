@@ -377,7 +377,8 @@ describe('Gaudi table: playing', () => {
     expect(w.text()).toContain('p3');
     const items = w.findAll('.log li');
     expect(items.map((i) => i.text())).toEqual(['p2 did another', 'ann did a thing']);
-    expect(items[1].classes('mine')).toBe(true);
+    expect(items[1].find('.mine').exists()).toBe(true);
+    expect(items[0].find('.mine').exists()).toBe(false);
   });
 
   it('leaves the game', async () => {

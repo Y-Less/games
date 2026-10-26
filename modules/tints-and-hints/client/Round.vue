@@ -54,7 +54,7 @@ function leave() {
 
 <template>
   <div class="stack">
-    <section class="panel stack">
+    <section class="panel stack turn">
       <div class="row head">
         <h2>Turn {{ state.turn }} of {{ state.turnsTotal }}</h2>
         <span v-if="guessing" class="muted">Round {{ round }} of 2</span>
@@ -82,7 +82,7 @@ function leave() {
         <p>
           <strong>{{ hinterName }}</strong> is the hinter. {{ round === 1 ? 'Listen to the hint and guess the tint.' : 'Here is a second hint. Where would you guess now?' }}
         </p>
-        <p v-if="hint" class="hint-text">&ldquo;{{ hint }}&rdquo;</p>
+        <p class="hint-text" :class="{ hidden: !hint }">&ldquo;{{ hint }}&rdquo;</p>
         <div class="row">
           <span class="swatch unknown" :style="picked ? { background: cellColour(picked) } : null">{{ picked ?? '??' }}</span>
           <template v-if="!mine?.guessed">
@@ -158,11 +158,20 @@ function leave() {
   min-width: 12rem;
   flex-wrap: nowrap;
 }
+.turn {
+  /* Tall enough for the longest version (the hinter's, with the hint box and the buttons), so the board below never moves between phases or roles. */
+  min-height: 18.5rem;
+}
 .hint-text {
   font-family: var(--display);
   font-size: 1.2rem;
+  line-height: 1.5;
+  min-height: 1.5em; /* always there, so the hint arriving does not push the board down */
   margin: 0;
   color: var(--amber);
+}
+.hint-text.hidden {
+  visibility: hidden;
 }
 .legend {
   margin: 0;

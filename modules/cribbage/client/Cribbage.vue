@@ -71,7 +71,7 @@ const standings = computed(() =>
   finished.value ? state.value.seats.map((s) => ({ ...s, place: state.value.placements[s.seat] })).sort((a, b) => a.place - b.place || b.score - a.score) : [],
 );
 const skunked = computed(() => finished.value && state.value.seats.filter((s) => s.seat !== state.value.winner && s.score < state.value.skunkLine));
-const scorePlayers = computed(() => state.value.scoreboard.players.map((p) => (phase.value === 'show' ? { ...p, ready: Boolean(state.value.seats[p.id]?.ready) } : p)));
+const scorePlayers = computed(() => state.value.scoreboard.players.map((p) => ({ ...p, ready: phase.value === 'show' && Boolean(state.value.seats[p.id]?.ready) })));
 const waitingForReady = computed(() => (phase.value === 'show' ? state.value.seats.filter((s) => !s.ready).map((s) => s.name) : []));
 </script>
 
@@ -147,7 +147,20 @@ const waitingForReady = computed(() => (phase.value === 'show' ? state.value.sea
   font-size: 0.9rem;
 }
 .notice {
+  /* A toast over the top of the game rather than a line in it: an error must not push the whole table down. */
+  position: fixed;
+  top: calc((var(--hub-bar-height, 3.4rem) + 0.5rem) / var(--fit-zoom, 1)); /* the game may be scaled down to fit the window */
+  left: calc(50vw / var(--fit-zoom, 1)); /* the middle of the window, however much the game is scaled */
+  transform: translateX(-50%);
+  z-index: 30;
+  width: max-content;
+  max-width: 40rem;
   margin: 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.5);
   color: var(--danger);
 }
 .places {

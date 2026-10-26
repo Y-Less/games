@@ -49,8 +49,7 @@ async function remove(p) {
           ×
         </button>
       </div>
-      <div v-if="!p.connected" class="status muted">offline</div>
-      <div v-else-if="status(p)" class="status" :class="status(p).tone">{{ status(p).text }}</div>
+      <div class="status" :class="p.connected ? status(p)?.tone : 'muted'">{{ p.connected ? (status(p)?.text ?? '') : 'offline' }}</div>
     </li>
   </ul>
 </template>
@@ -118,6 +117,7 @@ async function remove(p) {
 }
 .status {
   font-size: 0.8rem;
+  min-height: 1.6em; /* a player with nothing to report keeps the line, so the bar never changes height */
 }
 .status.done {
   color: var(--moss);
