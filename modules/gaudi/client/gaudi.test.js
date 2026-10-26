@@ -212,6 +212,34 @@ describe('Gaudi table: choosing windows', () => {
     expect(w.findAll('.option')).toHaveLength(0);
   });
 
+  it('shows your private objective, the public objectives and the tools before you choose, and in Status', async () => {
+    const room = windowsRoom(3);
+    const view = game.viewFor(room, 1);
+    const { w } = mountTable(view);
+    expect(w.find('.deal .private').text()).toContain(room.privateColours[0][0].toUpperCase() + room.privateColours[0].slice(1));
+    expect(w.findAll('.deal .objective')).toHaveLength(3);
+    expect(w.findAll('.deal .tool')).toHaveLength(3);
+    expect(w.find('.game-status').text()).toContain('Your private objective is');
+    await w.findAll('.deal .tool')[0].trigger('mouseenter');
+    expect(w.find('.game-status').text()).toContain(view.tools[0].text);
+    const other = mountTable(game.viewFor(room, 2)).w;
+    expect(other.find('.deal .private').text()).not.toBe(w.find('.deal .private').text());
+  });
+
+  it("says in the other player's pop-up whether they have chosen, and in Status", async () => {
+    const room = windowsRoom(3);
+    game.chooseWindow(room, 1, room.options[1][0]);
+    const { w } = mountTable(game.viewFor(room, 1));
+    const chips = w.findAll('.score-bar button.chip-button');
+    await chips[0].trigger('click'); // p2, who has chosen
+    expect(w.find('.popup').text()).toContain('Has chosen a window');
+    expect(w.find('.popup').text()).not.toContain('Still choosing');
+    await chips[1].trigger('click'); // p3, who has not
+    expect(w.find('.popup').text()).toContain('Still choosing a window');
+    expect(w.find('.game-status').text()).toContain('p2: has chosen');
+    expect(w.find('.game-status').text()).toContain('p3: choosing');
+  });
+
   it('has no Leave button of its own: the site header offers it', () => {
     const { w } = mountTable(game.viewFor(windowsRoom(), 1));
     expect(button(w, 'Leave game')).toBeUndefined();

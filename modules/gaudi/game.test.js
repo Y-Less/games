@@ -981,3 +981,66 @@ test('Swift Hand: a computer player that has it takes the extra turn, and whole 
     assertInvariants(room, 'bots with swift hand, seed ' + seed);
   }
 });
+
+// ---- the window-choice phase: what is dealt before the windows, and who has chosen ----
+
+function windowsRoomOf(n, seed = 5) {
+  const rng = seeded(seed);
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'p1', size: n });
+  for (let i = 2; i <= n; i++) game.addHuman(room, i, `p${i}`);
+  assert.equal(game.start(room, 1, rng).ok, true);
+  assert.equal(room.phase, 'windows');
+  return { room, rng };
+}
+
+test('window choice: each viewer sees their own private objective, and the public objectives and tools, before choosing', () => {
+  const { room } = windowsRoomOf(3);
+  for (let seat = 0; seat < 3; seat++) {
+    const view = game.viewFor(room, seat + 1);
+    assert.equal(view.phase, 'windows');
+    assert.deepEqual(view.privateObjective, { colour: room.privateColours[seat], points: 0 });
+    assert.equal(view.publicObjectives.length, 3);
+    assert.deepEqual(view.publicObjectives.map((o) => o.id), room.publicIds);
+    assert.equal(view.tools.length, 3);
+    assert.ok(view.tools.every((t) => t.text && t.how && t.cost === 1));
+    const others = room.privateColours.filter((_, i) => i !== seat);
+    assert.equal(JSON.stringify(view).includes('privateColour'), false);
+    assert.equal(game.viewFor(room, seat + 1).privateObjective.colour === others[0], false, 'a different colour for each player');
+  }
+  assert.equal(game.viewFor(room, 99).privateObjective, null, 'a spectator has none');
+  assert.equal(game.viewFor(room, 99).publicObjectives.length, 3, 'the public cards are public');
+});
+
+test('window choice: nobody else\'s private objective, choice or window is in a view; the same cards carry into the game', () => {
+  const { room, rng } = windowsRoomOf(2);
+  const first = room.options[0][1];
+  assert.equal(game.chooseWindow(room, 0, first, rng).ok, true);
+  const theirs = JSON.parse(JSON.stringify(game.viewFor(room, 2)));
+  assert.equal(JSON.stringify(theirs).includes(first), false, 'their view does not show which window was chosen');
+  assert.equal(theirs.seats[0].window, null);
+  assert.equal(theirs.privateObjective.colour, room.privateColours[1]);
+  const before = { tools: room.tools.slice(), publics: room.publicIds.slice(), colours: room.privateColours.slice() };
+  assert.equal(game.chooseWindow(room, 1, room.options[1][0], rng).ok, true);
+  assert.equal(room.phase, 'playing');
+  assert.deepEqual({ tools: room.tools, publics: room.publicIds, colours: room.privateColours }, before, 'what was seen before choosing is what is played');
+  assert.equal(game.viewFor(room, 1).privateObjective.colour, before.colours[0]);
+});
+
+test('window choice: the objectives and the choices survive a restart', () => {
+  const { room, rng } = windowsRoomOf(3);
+  game.chooseWindow(room, 1, room.options[1][2], rng);
+  const restored = JSON.parse(JSON.stringify(room));
+  for (let seat = 0; seat < 3; seat++) assert.deepEqual(game.viewFor(restored, seat + 1).privateObjective, game.viewFor(room, seat + 1).privateObjective);
+  assert.deepEqual(game.viewFor(restored, 1).seats.map((s) => s.picked), [false, true, false]);
+});
+
+test('window choice: every seat in the view says whether it has chosen, for everybody, and the viewer is told which was theirs', () => {
+  const { room, rng } = windowsRoomOf(4);
+  for (const viewer of [1, 2, 3, 4]) assert.deepEqual(game.viewFor(room, viewer).seats.map((s) => s.picked), [false, false, false, false]);
+  game.chooseWindow(room, 2, room.options[2][3], rng);
+  game.chooseWindow(room, 0, room.options[0][0], rng);
+  for (const viewer of [1, 2, 3, 4]) assert.deepEqual(game.viewFor(room, viewer).seats.map((s) => s.picked), [true, false, true, false]);
+  assert.equal(game.viewFor(room, 3).chosen, room.options[2][3]);
+  assert.equal(game.viewFor(room, 2).chosen, null);
+  assert.equal(game.viewFor(room, 1).seats[2].window, null, 'who chose what stays hidden until everyone has chosen');
+});

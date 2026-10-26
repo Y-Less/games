@@ -31,7 +31,7 @@ export function tableSizes(area, { poolMax = 11, finished = false, options = 4 }
   const perRow = Math.max(3, Math.floor((poolWidth + 6) / (die + 10 + 6)));
   const poolHeight = Math.ceil(poolMax / perRow) * (die + 10) + (Math.ceil(poolMax / perRow) - 1) * 4;
   const optionWidth = (area.width - 16 * (options - 1)) / options - 26;
-  const option = clamp(24, Math.floor(Math.min((area.height - 120 - WINDOW_FIXED_H) / 4, (optionWidth - WINDOW_FIXED) / 5)), 56);
+  const option = clamp(24, Math.floor(Math.min((area.height - 235 - WINDOW_FIXED_H) / 4, (optionWidth - WINDOW_FIXED) / 5)), 56);
   const popup = clamp(22, Math.floor((area.height * 0.93 - 96 - WINDOW_FIXED_H) / 4), 60);
   return { cell, die, perRow, poolHeight, trackDie: 20, option, popup };
 }

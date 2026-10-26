@@ -468,6 +468,12 @@ export function start(room, userId, rng = Math.random) {
   // Two double-sided cards (four windows) each, no card dealt twice.
   const cards = shuffle(PATTERN_CARDS.slice(), rng);
   room.options = room.seats.map((_, seat) => cards.slice(seat * 2, seat * 2 + 2).flatMap((card) => card.faces.map((f) => f.pid)));
+  // As in Sagrada, the tools, the public objectives and each player's private objective are dealt before the windows
+  // are chosen, so that the choice can take them into account.
+  room.tools = shuffle(TOOL_IDS.slice(), rng).slice(0, TOOL_COUNT);
+  room.spent = room.tools.map(() => 0);
+  room.publicIds = shuffle(OBJECTIVE_IDS.slice(), rng).slice(0, PUBLIC_COUNT);
+  room.privateColours = shuffle(COLOURS.slice(), rng).slice(0, room.size);
   room.picked = room.seats.map(() => null);
   room.phase = 'windows';
   // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
@@ -492,10 +498,6 @@ function beginGame(room, rng) {
   room.grids = room.seats.map(() => emptyGrid());
   room.tokens = room.patterns.map((pid) => patternOf(pid).difficulty);
   room.tokenTotal = room.tokens.reduce((a, b) => a + b, 0);
-  room.tools = shuffle(TOOL_IDS.slice(), rng).slice(0, TOOL_COUNT);
-  room.spent = room.tools.map(() => 0);
-  room.publicIds = shuffle(OBJECTIVE_IDS.slice(), rng).slice(0, PUBLIC_COUNT);
-  room.privateColours = shuffle(COLOURS.slice(), rng).slice(0, n);
   room.bag = makeBag(n, rng);
   room.pool = [];
   room.track = [];
@@ -717,6 +719,15 @@ function windowView(room, seat) {
   return { pid: pattern.pid, name: pattern.name, difficulty: pattern.difficulty, rows: pattern.rows, grid: room.grids[seat] };
 }
 
+const pickToolText = (id) => {
+  const { name, text, how } = toolOf(id);
+  return { name, text, how };
+};
+const publicText = (id) => {
+  const { name, text, points, unit } = objectiveOf(id);
+  return { id, name, text, points, unit };
+};
+
 /** Everything one account may know: the public table and its own secrets, never anybody else's. */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -768,6 +779,13 @@ export function viewFor(room, userId, { online = () => true } = {}) {
       return { pid, name, difficulty, rows };
     });
     view.chosen = me === -1 ? null : room.picked[me];
+  }
+  if (room.phase === 'windows' && room.privateColours.length) {
+    // Dealt before the windows: the viewer's own private objective (nobody else's) and the table's public cards.
+    view.tools = room.tools.map((id, i) => ({ id, ...pickToolText(id), spent: room.spent[i], cost: toolCost(room, i) }));
+    view.publicObjectives = room.publicIds.map((id) => ({ ...publicText(id), mine: null }));
+    view.privateObjective = me === -1 ? null : { colour: room.privateColours[me], points: 0 };
+    view.badPrivate = room.settings.badPrivate;
   }
   if (started) {
     view.round = room.round;

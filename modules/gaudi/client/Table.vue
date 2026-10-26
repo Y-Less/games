@@ -243,6 +243,8 @@ const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
   if (windows.value) {
+    if (s.value.privateObjective) lines.push({ text: `Your private objective is ${colourName(s.value.privateObjective.colour)}. ${myPrivateRule.value} Only you can see it until the end.`, tone: 'mine' });
+    if (hint.value) lines.push({ text: hint.value, tone: 'muted' });
     lines.push({ text: 'Everyone chooses at the same time, and nobody sees the others\' choices until all are in. A harder window gives more favour tokens.', tone: 'muted' });
     lines.push({ text: s.value.seats.filter(Boolean).map((seat) => `${seat.name}: ${seat.picked ? 'has chosen' : 'choosing…'}`).join(' · '), tone: 'muted' });
     return lines;
@@ -284,8 +286,8 @@ const { openId, scoreProps, popupProps, close: closePopup } = usePlayerPopup({
   isHost: () => s.value.hostSeat === s.value.you,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+const openedPlayer = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
 const openedSeat = computed(() => others.value.find((o) => o.seat === openId.value && o.window) ?? null);
-watch(windows, closePopup);
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
 const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: finished.value, options: s.value.options?.length ?? 4 });
@@ -314,6 +316,7 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
           <WindowGrid :rows="openedSeat.window.rows" :grid="openedSeat.window.grid" :cell="dims(area).popup" :label="`${openedSeat.name}'s window`" />
           <p class="muted small">{{ openedSeat.tokens }} tokens · {{ openedSeat.empty }} empty · score {{ openedSeat.score }}</p>
         </section>
+        <p v-else-if="openedPlayer?.picked && windows" class="muted small">Has chosen a window. It stays hidden until everyone has chosen.</p>
         <p v-else class="muted small">Still choosing a window.</p>
       </PlayerPopup>
       <!-- Choosing windows -->
@@ -338,6 +341,36 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
         </div>
         <div class="row choose-row">
           <button class="primary" :disabled="!picked || Boolean(state.chosen)" @click="chooseWindow">Choose this window</button>
+        </div>
+        <div v-if="state.privateObjective" class="deal" aria-label="The cards dealt for this game">
+          <section class="furniture" aria-label="Tool cards">
+            <span class="row-title">Tool cards</span>
+            <div class="deal-items">
+              <div v-for="tool in state.tools" :key="tool.id" class="tool" tabindex="0" @mouseenter="hint = toolHint(tool)" @mouseleave="hint = ''" @focus="hint = toolHint(tool)" @blur="hint = ''">
+                <div class="tool-head"><strong>{{ tool.name }}</strong><span class="cost">costs {{ tool.cost }}</span></div>
+                <p class="line">{{ tool.text }}</p>
+              </div>
+            </div>
+          </section>
+          <section class="furniture" aria-label="Public objectives">
+            <span class="row-title">Public objectives</span>
+            <div class="deal-items">
+              <div v-for="o in state.publicObjectives" :key="o.id" class="objective" tabindex="0" @mouseenter="hint = objectiveHint(o)" @mouseleave="hint = ''" @focus="hint = objectiveHint(o)" @blur="hint = ''">
+                <div class="tool-head"><strong>{{ o.name }}</strong><span class="cost">{{ o.points }} per {{ o.unit }}</span></div>
+                <p class="line">{{ o.text }}</p>
+              </div>
+            </div>
+          </section>
+          <section class="furniture private" aria-label="Your private objective" @mouseenter="hint = `Your private objective: ${colourName(state.privateObjective.colour)}. ${myPrivateRule}`" @mouseleave="hint = ''">
+            <svg class="chip" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true">
+              <rect x="1" y="1" width="38" height="38" rx="8" :fill="COLOUR_HEX[state.privateObjective.colour]" />
+              <path :d="shapeOf(state.privateObjective.colour)" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2" />
+            </svg>
+            <div class="private-text">
+              <span class="row-title">Your private objective</span>
+              <span class="private-line"><strong>{{ colourName(state.privateObjective.colour) }}</strong></span>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -624,6 +657,26 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
 }
 .choose-row {
   flex: none;
+}
+.deal {
+  flex: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 5fr 5fr 2fr;
+  gap: 12px;
+  align-items: start;
+}
+.deal-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.deal .tool {
+  cursor: default;
+  opacity: 1;
+}
+.deal .private {
+  align-self: end;
 }
 
 /* ---- the table: your window and the pool on the left, the cards and objectives on the right ---- */
