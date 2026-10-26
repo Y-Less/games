@@ -197,6 +197,32 @@ export class User {
     return true;
   }
 
+  /**
+   * Like clickFound, but for elements that overlap their neighbours (a fanned hand): scrolls the element into view and
+   * clicks a point where it, rather than a neighbour, is on top.
+   */
+  async clickFoundOnTop(finder, ...args) {
+    const spot = await this.page.evaluate(
+      (source, ...a) => {
+        const el = new Function(`return (${source})`)()(...a);
+        if (!el) return null;
+        el.scrollIntoView({ block: 'nearest' });
+        const b = el.getBoundingClientRect();
+        for (const [fx, fy] of [[0.5, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7], [0.15, 0.5], [0.85, 0.5], [0.5, 0.1]]) {
+          const x = b.left + b.width * fx;
+          const y = b.top + b.height * fy;
+          if (el.contains(document.elementFromPoint(x, y))) return { x, y };
+        }
+        return null;
+      },
+      finder.toString(),
+      ...args,
+    );
+    if (!spot) return false;
+    await this.page.mouse.click(spot.x, spot.y);
+    return true;
+  }
+
   /** The text of the open GameModal pop-up ('' when none is open), and its title. */
   async modalTitle() {
     return this.page.evaluate(() => document.querySelector('.modal-backdrop [role="dialog"] h2')?.textContent?.trim() ?? '');

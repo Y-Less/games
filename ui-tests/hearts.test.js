@@ -67,11 +67,13 @@ test('a reload mid-game puts you back in the same room', { timeout: 60000 }, gua
 test('playing a whole hand by clicking cards ends with the scores pop-up and its All rounds table', { timeout: 120000 }, guarded('play a hand', async () => {
   // Pick three cards to pass when asked, confirm, then play the first card that is legal whenever it is our turn.
   const finder = () => {
-    const pass = document.querySelector('.confirm button.primary');
-    if (pass) return pass.disabled ? document.querySelector('.hand button.playing-card:not(.selected)') : pass;
-    return document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
+    const pass = document.querySelector('.confirm:not(.hidden) button.primary');
+    // The hand is a fan, so take the right-most wanted card: it is the one with nothing on top of it.
+    const last = (selector) => [...document.querySelectorAll(selector)].at(-1) ?? null;
+    if (pass) return pass.disabled ? last('.hand button.playing-card:not(.selected)') : pass;
+    return last('.hand button.playing-card:not(.dimmed):not([disabled])');
   };
-  const act = () => user.clickFound(finder);
+  const act = () => user.clickFoundOnTop(finder); // the hand is a fan of overlapping cards
   await drive({ act, finished: async () => /^Scores after/.test(await user.modalTitle()), what: 'a hand of Hearts', timeout: 100000 });
 
   assert.equal(await user.modalTitle(), 'Scores after Hand 1');
@@ -90,9 +92,10 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
   assert.ok(sum === 26 || sum === 78, `the hand's points add up (got ${sum})`);
   assert.match(modal.summary, /hearts?/);
 
+  // Closing the pop-up is how a person says they are ready: with only computer players left to wait for, hand 2 is dealt.
   await user.closeModalWithEsc();
-  await user.waitForText('Hand 1 is over');
-  await user.clickButton('See the scores', { exact: true });
+  await user.waitForText('Hand 2');
+  await user.clickButton('All rounds', { exact: true });
   await user.waitForSelector('.modal');
   assert.equal(await user.modalTitle(), 'Scores so far');
   await user.closeModalWithEsc();

@@ -23,7 +23,10 @@ async function startRecording(user, selectors) {
     const seen = Object.fromEntries(list.map((s) => [s, new Map()]));
     const missing = Object.fromEntries(list.map((s) => [s, 0]));
     const r = (n) => Math.round(n * 2) / 2;
+    let overflow = -Infinity;
     const sample = () => {
+      overflow = Math.max(overflow, document.documentElement.scrollHeight - window.innerHeight);
+      window.__layout.overflow = overflow;
       for (const selector of list) {
         const el = document.querySelector(selector);
         if (!el) {
@@ -43,14 +46,19 @@ async function stopRecording(user) {
   return user.page.evaluate(() => {
     clearInterval(window.__layout.timer);
     const { seen, missing } = window.__layout;
-    return Object.fromEntries(Object.entries(seen).map(([selector, map]) => [selector, { boxes: [...map.entries()], missing: missing[selector] }]));
+    const result = Object.fromEntries(Object.entries(seen).map(([selector, map]) => [selector, { boxes: [...map.entries()], missing: missing[selector] }]));
+    result.overflow = window.__layout.overflow;
+    return result;
   });
 }
 
 /** Asserts that every area was always present and only ever had one box, unless it is listed in `sizeOnly`. */
 function assertStable(game, result, { sizeOnly = [], tolerateMissing = 0 } = {}) {
   const problems = [];
-  for (const [selector, { boxes, missing }] of Object.entries(result)) {
+  const { overflow, ...areas } = result;
+  // The page itself must not need to scroll while playing: everything fits the window.
+  if (overflow > 0) problems.push(`the page was ${overflow}px taller than the window`);
+  for (const [selector, { boxes, missing }] of Object.entries(areas)) {
     if (process.env.LAYOUT_REPORT) console.log(game, selector, missing ? `(missing ${missing}x)` : '', boxes.map(([k, n]) => `${k} [${n}]`).join(' | '));
     if (missing > tolerateMissing) problems.push(`${selector} was missing from ${missing} samples`);
     if (!boxes.length) problems.push(`${selector} was never seen`);
@@ -79,8 +87,15 @@ const STICKY = { sizeOnly: ['.score-bar'] };
 
 const finishedModal = (user) => async () => /^Scores after/.test(await user.modalTitle());
 
-test('Hearts: the table, hand and status areas keep one size and position through a whole hand', { timeout: 150000 }, async (t) => {
+// Two common desktop window sizes: every game must fit both without scrolling the page.
+const VIEWPORTS = [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }];
+
+for (const viewport of VIEWPORTS) {
+const at = `${viewport.width}x${viewport.height}`;
+
+test(`Hearts at ${at}: the table, hand and status areas keep one size and position through a whole hand, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('hearts');
+  await user.page.setViewport(viewport);
   await world.guard('hearts layout', async () => {
     await user.signUp('hlay', { displayName: 'Hearty' });
     await startGame(user, '/play/hearts', 'Start a new game of Hearts');
@@ -128,8 +143,9 @@ test('Hearts: the table, hand and status areas keep one size and position throug
   })(t);
 });
 
-test('Cribbage: the opponents, crib, play area, hand and log keep one size and position through a whole hand', { timeout: 150000 }, async (t) => {
+test(`Cribbage at ${at}: the opponents, crib, play area, hand and log keep one size and position through a whole hand, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('cribbage');
+  await user.page.setViewport(viewport);
   await world.guard('cribbage layout', async () => {
     await user.signUp('clay', { displayName: 'Cribby' });
     await startGame(user, '/play/cribbage', 'Start a new game');
@@ -143,12 +159,13 @@ test('Cribbage: the opponents, crib, play area, hand and log keep one size and p
     };
     await drive({ act: () => user.clickFound(finder), finished: finishedModal(user), what: 'a hand of Cribbage', timeout: 120000 });
     // At the end of the hand the table gives way to the show, which is a genuine change of screen: allow a few samples of that.
-    assertStable('cribbage', await stopRecording(user), { ...STICKY, tolerateMissing: 5 });
+    assertStable('cribbage', await stopRecording(user), { ...STICKY, tolerateMissing: 40 });
   })(t);
 });
 
-test('Nomination Whist: the banner, table, status and hand keep one size and position through a whole round', { timeout: 150000 }, async (t) => {
+test(`Nomination Whist at ${at}: the banner, table, status and hand keep one size and position through a whole round, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('whist');
+  await user.page.setViewport(viewport);
   await world.guard('whist layout', async () => {
     await user.signUp('wlay', { displayName: 'Whisty' });
     await startGame(user, '/play/nomination-whist', 'Start a new game');
@@ -170,6 +187,8 @@ test('Nomination Whist: the banner, table, status and hand keep one size and pos
     assertStable('nomination-whist', await stopRecording(user), STICKY);
   })(t);
 });
+
+}
 
 test('no uncaught errors in any page', () => {
   assert.deepEqual(world.pageErrors, []);

@@ -135,7 +135,7 @@ async function leaveSite() {
   flex: 1;
   width: 100%;
   max-width: 1200px;
-  margin: 1rem auto 2rem;
+  margin: 0.5rem auto 0.75rem;
   padding: 0 1rem;
 }
 </style>

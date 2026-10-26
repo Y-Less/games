@@ -161,6 +161,42 @@ describe('ScoreBoard pop-up', () => {
     expect(dialog()).toBeNull();
   });
 
+  it('Escape, Close and clicking outside the round pop-up also say continue, but only the first time', async () => {
+    make({ rounds: [round1] });
+    await wrapper.setProps({ rounds: [round1, round2] });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('continue')).toHaveLength(1);
+    await wrapper.find('button.all').trigger('click');
+    document.body.querySelector('button[aria-label="Close"]').click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('continue')).toHaveLength(1);
+  });
+
+  it('shows who is still to close it, and ticks the people who have', async () => {
+    make({ rounds: [round1], players: players.map((p) => ({ ...p, ready: p.id === 'b' })), waiting: ['Ann', 'Cat'] });
+    await wrapper.setProps({ rounds: [round1, round2] });
+    expect(dialog().querySelector('.waiting').textContent).toContain('Waiting for Ann, Cat');
+    expect(chips().map((c) => c.find('.tick').exists())).toEqual([false, true, false]);
+  });
+
+  it('brings the pop-up back for someone who still has to close it, and drops it when the game moves on', async () => {
+    make({ rounds: [round1], awaiting: true });
+    expect(dialog()).not.toBeNull();
+    expect(dialog().getAttribute('aria-label')).toBe('Scores after Hand 1');
+    await wrapper.setProps({ awaiting: false });
+    expect(dialog()).toBeNull();
+    expect(wrapper.emitted('continue')).toBeUndefined();
+  });
+
+  it('does not need the final pop-up to be closed to be ready', async () => {
+    make({ rounds: [round1], finished: true, awaiting: true });
+    await wrapper.find('button.all').trigger('click');
+    document.body.querySelector('button.primary').click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('continue')).toBeUndefined();
+  });
+
   it('emits closed (but not continue) when dismissed with Escape or Close', async () => {
     make({ rounds: [round1] });
     await wrapper.find('button.all').trigger('click');

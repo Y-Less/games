@@ -45,7 +45,7 @@ const status = computed(() => {
     if (myTurn.value) return s.value.trickNumber === 1 && !s.value.trick.length ? 'You have the 2 of clubs: lead it.' : 'Your turn: play a card.';
     return s.value.turn === null ? '' : `Waiting for ${nameOf(s.value.turn)}.`;
   }
-  if (handEnd.value) return `Hand ${s.value.lastHand?.hand} is over.`;
+  if (handEnd.value) return you.value.ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next hand.` : `Hand ${s.value.lastHand?.hand} is over: close the scores to carry on.`;
   return '';
 });
 
@@ -79,6 +79,7 @@ async function confirmPass() {
 const interactive = computed(() => (passing.value && !s.value.pass.chosen) || myTurn.value);
 const dimmed = (card) => myTurn.value && s.value.legal[card] !== null;
 const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
+const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
 const winnerNames = computed(() => (s.value.winners ?? []).map(nameOf));
 const you = computed(() => s.value.seats[s.value.you]);
 const moonMessage = computed(() => {
@@ -97,6 +98,9 @@ const moonMessage = computed(() => {
       :low-is-better="state.scoreboard.lowIsBetter"
       :target="state.scoreboard.target"
       :finished="finished"
+      :awaiting="handEnd && !you.ready"
+      :waiting="waitingFor"
+      @continue="send('next')"
     >
       <template #round>
         <section v-if="state.lastHand && (handEnd || finished)" class="summary stack" aria-label="This hand">
@@ -157,38 +161,12 @@ const moonMessage = computed(() => {
       <div class="row mine-head">
         <strong>{{ you.name }}</strong><span class="muted">(you)</span>
         <span class="muted">{{ you.points }} pts this hand</span>
-        <button class="quiet leave" :class="{ hidden: !playing }" :disabled="!playing" @click="send('leave')">Leave game</button>
+        <button class="quiet leave" @click="send('leave')">Leave game</button>
       </div>
       <p class="muted small-note">{{ state.received.length && state.phase === 'playing' ? 'Cards you received are marked.' : '' }}</p>
     </section>
 
     <!-- These come after the hand so that they never push it about. -->
-    <section v-if="passing && state.pass.chosen" class="panel passed">
-      <div>
-        <p class="muted">You passed {{ direction }}</p>
-        <div class="row cards">
-          <PlayingCard v-for="c in state.pass.chosen" :key="c" :card="c" size="sm" />
-        </div>
-      </div>
-      <div>
-        <p class="muted">{{ state.pass.incomingReady ? `${fromName} has passed you three cards` : `Waiting for ${fromName} to pass` }}</p>
-        <div class="row cards">
-          <template v-if="state.pass.incomingReady"><PlayingCard v-for="n in 3" :key="n" :card="null" size="sm" /></template>
-          <span v-else v-for="n in 3" :key="n" class="ghost" />
-        </div>
-      </div>
-    </section>
-
-    <section v-if="handEnd" class="panel stack">
-      <h3>Hand {{ state.lastHand?.hand }} is over</h3>
-      <p v-if="moonMessage" class="moon">{{ moonMessage }}</p>
-      <div class="row">
-        <button class="primary" @click="send('next')">Deal the next hand</button>
-        <button @click="board.show()">See the scores</button>
-        <button class="quiet" @click="send('leave')">Leave game</button>
-      </div>
-    </section>
-
     <section v-if="finished" class="panel stack">
       <h3>{{ winnerNames.length > 1 ? 'It is a tie' : 'We have a winner' }}</h3>
       <p class="winner">{{ winnerNames.join(' and ') }} {{ winnerNames.length > 1 ? 'win' : 'wins' }} with {{ state.scoreboard.players[state.winners[0]].score }} points.</p>
@@ -214,9 +192,6 @@ const moonMessage = computed(() => {
   height: 37rem;
   margin: 0 auto;
   border-radius: var(--radius);
-  background: radial-gradient(ellipse at center, rgb(30 80 60 / 0.55), rgb(14 40 32 / 0.55));
-  border: 1px solid var(--line);
-  overflow: hidden;
 }
 .opp {
   position: absolute;

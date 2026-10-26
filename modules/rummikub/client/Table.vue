@@ -176,6 +176,8 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(ticker));
 
 const readyNames = computed(() => props.state.seats.filter((x) => x && !x.bot && x.ready).map((x) => x.name));
+const waitingNames = computed(() => (between.value ? props.state.seats.filter((x) => x && !x.bot && !x.ready).map((x) => x.name) : []));
+const scorePlayers = computed(() => props.state.scoreboard.players.map((p) => (between.value ? { ...p, ready: Boolean(props.state.seats[p.id]?.bot || props.state.seats[p.id]?.ready) } : p)));
 const youReady = computed(() => Boolean(me.value?.ready));
 const hand = computed(() => dealSize(s.value, props.state.size));
 const lastLine = computed(() => props.state.log.at(-1)?.text ?? '');
@@ -188,10 +190,9 @@ const setLabel = (set) => {
 
 <template>
   <div class="table-view stack">
-    <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" @continue="onContinue">
+    <ScoreBoard :players="scorePlayers" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :awaiting="between && !youReady" :waiting="waitingNames" @continue="onContinue">
       <template #round>
         <RoundSummary v-if="state.lastRound" :last-round="state.lastRound" :seats="state.seats" :settings="s" :you="state.you" />
-        <p v-if="between" class="muted">Press Continue when you are ready for round {{ state.round + 1 }} of {{ s.rounds }}.</p>
       </template>
     </ScoreBoard>
 
@@ -225,8 +226,7 @@ const setLabel = (set) => {
       </template>
       <template v-else>
         <strong>Round {{ state.round }} is over.</strong>
-        <button class="primary" :disabled="youReady" @click="send('next')">{{ youReady ? 'Waiting for the others' : `Start round ${state.round + 1}` }}</button>
-        <span class="muted">Ready: {{ readyNames.join(', ') || 'nobody yet' }}</span>
+        <span class="muted">{{ youReady ? `Waiting for ${waitingNames.join(', ')}` : 'Close the scores to carry on.' }} Ready: {{ readyNames.join(', ') || 'nobody yet' }}</span>
       </template>
     </section>
 

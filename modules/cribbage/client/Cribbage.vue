@@ -71,6 +71,7 @@ const standings = computed(() =>
   finished.value ? state.value.seats.map((s) => ({ ...s, place: state.value.placements[s.seat] })).sort((a, b) => a.place - b.place || b.score - a.score) : [],
 );
 const skunked = computed(() => finished.value && state.value.seats.filter((s) => s.seat !== state.value.winner && s.score < state.value.skunkLine));
+const scorePlayers = computed(() => state.value.scoreboard.players.map((p) => (phase.value === 'show' ? { ...p, ready: Boolean(state.value.seats[p.id]?.ready) } : p)));
 const waitingForReady = computed(() => (phase.value === 'show' ? state.value.seats.filter((s) => !s.ready).map((s) => s.name) : []));
 </script>
 
@@ -90,7 +91,7 @@ const waitingForReady = computed(() => (phase.value === 'show' ? state.value.sea
       <Lobby v-if="phase === 'lobby'" :state="state" :send="send" />
 
       <template v-else>
-        <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :target="state.target" :finished="finished" running>
+        <ScoreBoard :players="scorePlayers" :rounds="state.scoreboard.rounds" :target="state.target" :finished="finished" :awaiting="phase === 'show' && !me.ready" :waiting="waitingForReady" running @continue="send('ready')">
           <template #round>
             <ShowHands v-if="state.show" :state="state" class="in-modal" />
           </template>
@@ -120,11 +121,7 @@ const waitingForReady = computed(() => (phase.value === 'show' ? state.value.sea
 
         <section v-if="phase === 'show'" class="panel stack">
           <h2>The show</h2>
-          <ShowHands :state="state" />
-          <div class="row">
-            <button class="primary" :disabled="me.ready" @click="send('ready')">{{ me.ready ? 'Ready' : 'Next hand' }}</button>
-            <span v-if="waitingForReady.length" class="muted">Waiting for {{ waitingForReady.join(', ') }}…</span>
-          </div>
+          <p class="muted">{{ me.ready ? `Waiting for ${waitingForReady.join(', ')}…` : 'Close the scores pop-up when you are ready for the next hand.' }}</p>
         </section>
 
         <details v-if="finished && state.show" class="panel">

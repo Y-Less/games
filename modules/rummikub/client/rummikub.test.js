@@ -222,7 +222,7 @@ describe('the play field', () => {
     expect(setTile(w, joker(STD)).text()).toBe('5');
   });
 
-  it('opens the round pop-up data and offers Continue between rounds', async () => {
+  it('brings up the round pop-up between rounds, and closing it says the person is ready', async () => {
     const { room } = playingRoom(2, { seed: 1, settings: { rounds: 2 } });
     room.racks = [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 2)]];
     room.pool = [];
@@ -232,7 +232,10 @@ describe('the play field', () => {
     const { w, send } = mountTable(game.viewFor(room, 1));
     expect(room.phase).toBe('between');
     expect(w.text()).toContain('Round 1 is over');
-    await button(w, 'Start round 2').trigger('click');
+    expect(w.text()).not.toContain('Start round 2'); // there is no separate button: the pop-up does it
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await w.vm.$nextTick();
     expect(send).toHaveBeenCalledWith('next');
     expect(w.text()).toContain('went out');
   });

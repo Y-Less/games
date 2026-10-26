@@ -67,8 +67,9 @@ test('a whole round, nominating then playing seven tricks, ends with the scores 
   assert.equal(modal.heads.length, 5, 'Round plus four players');
   assert.match(modal.result, /Nominated/);
 
+  // Closing the pop-up is how a person says they are ready: with only computer players left to wait for, round 2 is dealt.
   await user.closeModalWithEsc();
-  await user.waitForText('The round is over.');
+  await user.waitForText('Round 2 of 14');
   await user.clickButton('All rounds', { exact: true });
   await user.waitForSelector('.modal');
   assert.equal(await user.modalTitle(), 'Scores so far');
@@ -82,9 +83,9 @@ test('the score bar stays visible while the page scrolls', { timeout: 60000 }, g
   assert.ok(result.height > 20 && result.bottom < result.viewport);
 }));
 
-test('the next round can be dealt', { timeout: 60000 }, guarded('next round', async () => {
-  await user.clickButton('Deal round 2');
+test('the next round was dealt without a separate button', { timeout: 60000 }, guarded('next round', async () => {
   await user.waitForText('Round 2 of 14');
+  assert.equal((await user.buttonState('Deal round 2')).present, false);
 }));
 
 test('no uncaught errors in any page', () => {

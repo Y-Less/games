@@ -5,6 +5,11 @@
 //     and any time from the "All rounds" button.
 // Give it the standard shape from shared/scores.js. Slots: #round (extra detail about the round that has just
 // finished, shown above the table in the pop-up) and #footer (replaces the default Continue button).
+// Closing the pop-up that a round ending opened (its Continue button, Close, Esc or a click outside) emits `continue`:
+// that is how a person says they are ready for the next round, so games need no separate button for it. Pass
+// `waiting` (the names of people still to close it) to show "Waiting for ..." in the footer, `awaiting` (true while
+// this person still has to close it) to bring it back if they reload or it was missed, and a boolean `ready` on a
+// player to show a tick on their chip once they have.
 import { computed, ref, watch } from 'vue';
 import { placements } from '../../shared/scores.js';
 import GameModal from './GameModal.vue';
@@ -19,6 +24,8 @@ const props = defineProps({
   autoOpen: { type: Boolean, default: true }, // open the pop-up when a round finishes
   running: { type: Boolean, default: false },
   sticky: { type: Boolean, default: true },
+  waiting: { type: Array, default: () => [] }, // names of the people who have not yet closed the round pop-up
+  awaiting: { type: Boolean, default: false }, // this person still has to close the round pop-up
 });
 const emit = defineEmits(['closed', 'continue']);
 
@@ -33,6 +40,22 @@ const title = computed(() => {
   if (justFinished.value && lastRound.value) return `Scores after ${lastRound.value.label}`;
   return 'Scores so far';
 });
+
+// Someone who still has to close the round pop-up (they reloaded, or it opened before they joined) gets it again;
+// once the game moves on without them, it goes.
+watch(
+  () => props.awaiting && !props.finished,
+  (needed) => {
+    if (needed && !open.value && props.rounds.length) {
+      justFinished.value = true;
+      open.value = true;
+    } else if (!needed && open.value && justFinished.value && !props.finished) {
+      justFinished.value = false;
+      open.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 // A new round arriving while the page is open (not the history that arrives when you reconnect) opens the pop-up.
 let seen = props.rounds.length;
@@ -65,10 +88,10 @@ function close() {
   closed();
 }
 function proceed() {
-  emit('continue'); // lets a game treat Continue as "ready for the next round"
   close();
 }
 function closed() {
+  if (justFinished.value && !props.finished) emit('continue'); // closing the round's pop-up means "ready for the next round"
   justFinished.value = false;
   emit('closed');
 }
@@ -81,6 +104,7 @@ defineExpose({ show, close });
       <li v-for="p in players" :key="p.id" class="chip" :class="{ me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away }">
         <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
         <strong class="points">{{ p.score }}</strong>
+        <span v-if="p.ready" class="tick" title="Ready for the next round" aria-label="ready">&#10003;</span>
         <small v-if="p.note" class="muted">{{ p.note }}</small>
       </li>
     </ul>
@@ -95,7 +119,10 @@ defineExpose({ show, close });
     <slot name="round" />
     <ScoreTable :players="players" :rounds="rounds" :low-is-better="lowIsBetter" :target="target" :running="running" />
     <template #footer>
-      <slot name="footer"><button class="primary" data-autofocus @click="proceed">{{ finished ? 'Close' : 'Continue' }}</button></slot>
+      <slot name="footer">
+        <span v-if="waiting.length && !finished" class="waiting muted" role="status">Waiting for {{ waiting.join(', ') }}&hellip;</span>
+        <button class="primary" data-autofocus @click="proceed">{{ finished ? 'Close' : 'Continue' }}</button>
+      </slot>
     </template>
   </GameModal>
 </template>
@@ -112,7 +139,7 @@ defineExpose({ show, close });
 }
 .score-bar.sticky {
   position: sticky;
-  top: var(--hub-bar-height, 3.4rem);
+  top: calc(var(--hub-bar-height, 3.4rem) / var(--fit-zoom, 1)); /* the game may be scaled down to fit the window */
   z-index: 10;
 }
 .chips {
@@ -162,6 +189,13 @@ defineExpose({ show, close });
 }
 .chip small {
   font-size: 0.72rem;
+}
+.tick {
+  color: var(--moss, #7fb069);
+  font-weight: 700;
+}
+.waiting {
+  margin-right: auto;
 }
 .winner {
   margin: 0 0 0.6rem;

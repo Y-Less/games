@@ -35,6 +35,7 @@ const nameOf = (seat) => seats.value[seat]?.name ?? '';
 const myTurn = computed(() => props.state.turn === you.value);
 const total = computed(() => seats.value.reduce((sum, s) => sum + (s.bid ?? 0), 0));
 const everyoneNominated = computed(() => seats.value.every((s) => s.bid !== null));
+const waitingFor = computed(() => (props.state.phase === 'roundEnd' ? seats.value.filter((s) => !s.ready).map((s) => s.name) : []));
 const lastRound = computed(() => props.state.rounds.at(-1) ?? null);
 const instantWinner = computed(() => (props.state.instantWin === null || props.state.instantWin === undefined ? null : (seats.value[props.state.instantWin] ?? null)));
 
@@ -42,7 +43,7 @@ const instantWinner = computed(() => (props.state.instantWin === null || props.s
 const ordered = computed(() => seats.value.map((_, i) => seats.value[(you.value + i) % seats.value.length]).map((s) => ({ key: s.seat, name: s.name, ...s })));
 
 const board = computed(() => ({
-  players: seats.value.map((s) => ({ id: s.seat, name: s.name, score: s.score, isMe: s.seat === you.value, away: s.away && !s.bot, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
+  players: seats.value.map((s) => ({ id: s.seat, name: s.name, score: s.score, isMe: s.seat === you.value, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
   rounds: props.state.rounds,
 }));
 
@@ -65,7 +66,7 @@ const status = computed(() => {
     if (props.state.turn === null) return `${nameOf(props.state.trickWinner)} wins the trick.`;
     return myTurn.value ? 'Your turn: play a card.' : `Waiting for ${nameOf(props.state.turn)} to play.`;
   }
-  if (phase === 'roundEnd') return 'The round is over.';
+  if (phase === 'roundEnd') return seats.value[you.value].ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next round.` : 'The round is over: close the scores to carry on.';
   return '';
 });
 
@@ -82,7 +83,7 @@ function pick(card) {
 
 <template>
   <div class="stack">
-    <ScoreBoard :players="board.players" :rounds="board.rounds" :finished="finished && !instantWinner" :low-is-better="false">
+    <ScoreBoard :players="board.players" :rounds="board.rounds" :finished="finished && !instantWinner" :low-is-better="false" :awaiting="state.phase === 'roundEnd' && !seats[you].ready" :waiting="waitingFor" @continue="send('next')">
       <template #round>
         <p v-if="instantWinner" class="instant-note" role="status"><strong>{{ instantWinner.name }}{{ instantWinner.seat === you ? ' (you)' : '' }} wins the game instantly!</strong> They nominated 7 and won all 7 tricks in {{ lastRound?.label }}.</p>
         <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
@@ -182,14 +183,7 @@ function pick(card) {
         {{ nameOf(round.dealer) }} deals and nominates last: they cannot nominate {{ state.forbidden }}.
       </p>
   
-      <section v-if="state.phase === 'roundEnd'" class="panel stack">
-        <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
-        <div class="row">
-          <button class="primary" @click="send('next')">Deal round {{ round.number + 1 }}</button>
-          <span class="muted">Anyone can deal the next round.</span>
-        </div>
-      </section>
-    </div>
+      </div>
   </div>
 </template>
 
@@ -303,7 +297,6 @@ function pick(card) {
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-sunken);
 }
 .status {
   margin: 0;

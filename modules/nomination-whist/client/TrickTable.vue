@@ -62,7 +62,6 @@ const opponents = computed(() =>
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-sunken);
 }
 .spot.turn,
 .me.turn {

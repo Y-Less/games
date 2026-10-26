@@ -1,7 +1,7 @@
 <script setup>
 // Hosts one game module inside the site's play field. The module's client half (modules/<id>/client/index.js) is a
 // Vue component; the shell gives it a connected socket for its own namespace and the signed-in user.
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
 import { api, session } from '../session.js';
@@ -62,6 +62,46 @@ async function openRules() {
 // Lets a module keep its own addresses (for example an invite link) without the shell reloading it.
 const setSearch = (search) => window.history.replaceState(null, '', `${window.location.pathname}${search ? `?${search.replace(/^\?/, '')}` : ''}`);
 const search = window.location.search;
+
+// Fit the game to the window: the game is drawn at its natural size, and if that is taller than the room below the
+// title it is scaled down (never up) so the page does not need to scroll while playing. The natural height only ever
+// grows within a window size, so the scale settles instead of bouncing as panels come and go.
+const frame = ref(null);
+const MIN_SCALE = 0.55;
+let natural = 0;
+let observer = null;
+function fit() {
+  const el = frame.value;
+  const inner = el?.firstElementChild;
+  if (!el || !inner || !el.offsetParent) return;
+  const current = Number.parseFloat(el.style.zoom) || 1;
+  natural = Math.max(natural, inner.getBoundingClientRect().height / current);
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const room = window.innerHeight - top - 12;
+  const scale = natural > 0 ? Math.min(1, Math.max(MIN_SCALE, room / natural)) : 1;
+  const next = Math.floor(scale * 100) / 100;
+  if (Math.abs(next - current) >= 0.01) {
+    el.style.zoom = String(next);
+    el.style.setProperty('--fit-zoom', String(next)); // sticky bars inside the game divide their offset by this
+  }
+}
+function refit() {
+  natural = 0;
+  fit();
+}
+onMounted(() => {
+  window.addEventListener('resize', refit);
+  observer = new ResizeObserver(fit);
+});
+watch(frame, (el, old) => {
+  if (old) observer?.unobserve(old.firstElementChild ?? old);
+  if (el?.firstElementChild) observer?.observe(el.firstElementChild);
+  else if (el) new MutationObserver((_, self) => el.firstElementChild && (observer.observe(el.firstElementChild), self.disconnect())).observe(el, { childList: true });
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', refit);
+  observer?.disconnect();
+});
 </script>
 
 <template>
@@ -74,7 +114,7 @@ const search = window.location.search;
     <p v-if="problem" class="panel" role="alert">{{ problem }}</p>
     <div v-else-if="socket && !connected" class="panel muted">Connecting…</div>
 
-    <div v-if="socket && GameComponent" v-show="connected" class="field-frame">
+    <div v-if="socket && GameComponent" v-show="connected" ref="frame" class="field-frame">
       <GameComponent :socket="socket" :user="session.user" :search="search" :set-search="setSearch" />
     </div>
 
@@ -94,13 +134,9 @@ const search = window.location.search;
   font-size: 1.5rem;
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
-/* The game's own area: a calm panel so any user background stays readable behind it. */
+/* The game is played directly on the user's chosen background: no panel, scrim or frame behind it. */
 .field-frame {
-  background: rgb(14 26 32 / 0.9);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 1rem;
-  min-height: 60vh;
+  min-height: 0;
 }
 .backdrop {
   position: fixed;

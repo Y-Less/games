@@ -86,8 +86,9 @@ test('playing a hand (crib, pegging, the show) ends with the scores pop-up and i
   assert.equal(modal.heads.length, 3, 'Round plus two players');
   assert.match(modal.show, /hand/i, 'the pop-up shows the counted hands');
 
+  // Closing the pop-up is how a person says they are ready: with only a computer player left to wait for, hand 2 is dealt.
   await user.closeModalWithEsc();
-  await user.waitForText('The show');
+  await user.waitForText('Hand 2');
   await user.clickButton('All rounds', { exact: true });
   await user.waitForSelector('.modal');
   assert.equal(await user.modalTitle(), 'Scores so far');
@@ -101,9 +102,9 @@ test('the score bar stays visible while the page scrolls', { timeout: 60000 }, g
   assert.ok(result.height > 20 && result.bottom < result.viewport);
 }));
 
-test('the next hand can be started from the show', { timeout: 60000 }, guarded('next hand', async () => {
-  await user.clickButton('Next hand', { exact: true });
+test('the next hand was dealt without a separate button', { timeout: 60000 }, guarded('next hand', async () => {
   await user.waitForText('Hand 2');
+  assert.equal((await user.buttonState('Next hand', { scope: 'body' })).present, false);
   await user.waitForSelector('.hand button.playing-card');
 }));
 
