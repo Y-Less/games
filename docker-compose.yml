@@ -1,0 +1,30 @@
+services:
+  games:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Behind traefik: trust it for the client address and the https scheme
+      TRUST_PROXY: "1"
+    networks:
+      - gateway
+    volumes:
+      - games-data:/data
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=gateway
+      - traefik.http.routers.games.entrypoints=https
+      - traefik.http.routers.games.rule=Host(`games.y-less.com`)
+      - traefik.http.routers.games.tls.certresolver=default
+      - traefik.http.services.games.loadbalancer.server.port=3000
+      # Redirect plain http to https
+      - traefik.http.routers.games-http.entrypoints=http
+      - traefik.http.routers.games-http.rule=Host(`games.y-less.com`)
+      - traefik.http.routers.games-http.middlewares=games-https
+      - traefik.http.middlewares.games-https.redirectscheme.scheme=https
+
+networks:
+  gateway:
+    external: true
+
+volumes:
+  games-data:
