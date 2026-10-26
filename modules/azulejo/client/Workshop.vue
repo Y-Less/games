@@ -12,6 +12,7 @@ const props = defineProps({
   selected: { type: Object, default: null }, // { source: number | 'centre', colour }
   active: { type: Boolean, default: false }, // it is your turn: tiles can be chosen
   plate: { type: Number, default: 40 },
+  centreHeight: { type: Number, default: 0 }, // a fixed height for the centre box (pixels); 0 lets the CSS decide
 });
 const emit = defineEmits(['pick']);
 
@@ -55,7 +56,7 @@ function over(source, colour) {
       </div>
     </div>
 
-    <div class="centre" role="group" aria-label="The centre" :class="{ empty: !centre.length && !markerInCentre }">
+    <div class="centre" role="group" aria-label="The centre" :class="{ empty: !centre.length && !markerInCentre }" :style="centreHeight ? { height: `${centreHeight}px` } : null">
       <h3>The centre</h3>
       <div class="centre-tiles">
         <span v-if="markerInCentre" class="marker" title="The first player to take from the centre takes this marker (it costs a floor slot) and starts the next round.">
@@ -87,15 +88,19 @@ function over(source, colour) {
 
 <style scoped>
 .workshop {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 17rem;
-  gap: 1rem;
-  align-items: stretch;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 .plates {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
+  align-content: center;
+  gap: 10px;
   justify-content: center;
 }
 .plate {
@@ -162,10 +167,11 @@ function over(source, colour) {
 .centre {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
-  padding: 0.5rem 0.7rem 0.7rem;
-  min-height: 7rem;
-  background: rgb(0 0 0 / 0.14);
-  /* The row is as tall as the plates, whatever is in the centre: a big pile scrolls instead of growing the page. */
+  padding: 0.4rem 0.7rem 0.5rem;
+  flex: none;
+  height: 7rem;
+  background: rgb(0 0 0 / 0.3);
+  /* The box is a fixed size, whatever is in the centre: a big pile scrolls instead of growing the page. */
   contain: size;
   overflow-y: auto;
 }

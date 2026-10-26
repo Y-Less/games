@@ -66,9 +66,6 @@ const plates = computed(() => 2 * props.state.size + 1);
         </p>
         <p v-if="!isHost" class="muted">Only the host can change these.</p>
       </template>
-      <template #footer>
-        <button class="quiet" @click="send('leave')">Leave game</button>
-      </template>
     </SeatLobby>
   </div>
 </template>

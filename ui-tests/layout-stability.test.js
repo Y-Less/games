@@ -213,7 +213,7 @@ const gaudiFinder = () => {
   return next ?? endTurn;
 };
 const azulejoFinder = () => {
-  if (!document.querySelector('.status.mine')) return null;
+  if (!document.querySelector('.game-status .headline.mine')) return null;
   const column = document.querySelector('.spot.choice');
   if (column) return column;
   if (document.querySelector('.workshop button.pick[aria-pressed="true"]')) return document.querySelector('.mine .line.ok') ?? document.querySelector('.mine .floor.open');
@@ -282,10 +282,9 @@ wholeGameLayout({
   finder: azulejoFinder,
   ready: /Round 1/,
   finished: finalShown,
-  areas: ['.score-bar', '.table-view', '.info', '.workshop-panel', '.mine-row', '.mine-row .side', '.log', '.log .game-log'],
+  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.right-col', '.workshop-panel', '.bars', '.box.log', '.box.status', '.box.log .game-log'],
   stopWhen: 'section.final',
-  newest: { '.log .game-log': 0 },
-  allowOverflow: viewport.height < 800, // at 1366x768 Azulejo is already at the smallest scale the site allows, and still scrolls a little
+  newest: { '.box.log .game-log': 0 },
 });
 // Rummikub: a human who only draws a tile each turn (so the rack grows) while the computer players lay sets on the table.
 wholeGameLayout({

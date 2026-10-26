@@ -58,17 +58,18 @@ for (const game of GAMES) {
     await user.goto('/');
     await user.waitForText('Choose a game.');
     await user.clickButton(game.name, { scope: 'main' });
-    await user.waitForSelector('.play h1');
+    await user.waitForSelector('header.bar h1');
     assert.equal(user.url.pathname, `/play/${game.id}`);
-    assert.equal(await user.page.$eval('.play h1', (e) => e.textContent.trim()), game.name);
-    await user.waitForText(`Playing ${game.name}`); // the header says so too
+    // The title and the Rules button live in the site header, not in the play area.
+    assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), game.name);
+    assert.equal(await user.page.$('.play h1'), null, 'no second title in the play area');
 
     // A distinctive line from the game's own rules.md must show in the dialog.
     const rules = fs.readFileSync(path.join(root, 'modules', game.id, 'rules.md'), 'utf8');
     const headings = rules.split(/\r?\n/).filter((l) => /^#{2,3} /.test(l)).map((l) => l.replace(/^#+\s*/, '').trim());
     assert.ok(headings.length >= 2, 'the rules have headings to look for');
 
-    await user.clickButton('Rules', { exact: true });
+    await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
     const dialog = '[role="dialog"][aria-label="Rules"]';
     await user.waitForSelector(dialog);
     await user.waitForNoText('Loading…');
@@ -81,7 +82,7 @@ for (const game of GAMES) {
     await user.waitForSelector(dialog, { hidden: true, timeout: 3000 });
 
     // So does the Close button.
-    await user.clickButton('Rules', { exact: true });
+    await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
     await user.waitForSelector(dialog);
     await user.clickButton('Close', { exact: true, scope: dialog });
     await user.waitForSelector(dialog, { hidden: true, timeout: 3000 });

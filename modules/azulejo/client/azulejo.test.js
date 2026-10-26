@@ -8,6 +8,8 @@ import Table from './Table.vue';
 import Workshop from './Workshop.vue';
 import Board from './Board.vue';
 import Tile from './Tile.vue';
+import { boardCell, boardSize, plateLayout } from './layout.js';
+import { leaveOffer, playBar } from '../../../src/playBar.js';
 import TilingSummary from './TilingSummary.vue';
 
 // (The shared test kit imports the database, which a browser-style test cannot load, so the few helpers are repeated.)
@@ -54,7 +56,7 @@ function finishedView(n = 2) {
   return game.viewFor(room, 1);
 }
 const makeSend = (reply = { ok: true }) => vi.fn(() => Promise.resolve(reply));
-const mountTable = (state, send = makeSend()) => ({ send, w: mount(Table, { props: { state, send } }) });
+const mountTable = (state, send = makeSend(), attach = false) => ({ send, w: mount(Table, { props: { state, send }, attachTo: attach ? document.body : undefined }) });
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
 const plateTile = (w, f, i = 0) => w.findAll('.plate')[f].findAll('button.pick')[i];
 const lineButtons = (w) => w.find('[aria-label="Pattern lines"]').findAll('.line');
@@ -108,6 +110,29 @@ describe('Azulejo shell', () => {
     expect(w.find('[role=alert]').text()).toBe('No such game.');
   });
 
+  it('offers Leave game to the site header while in a room, confirming only mid-game', async () => {
+    const socket = fakeSocket();
+    const w = mount(Azulejo, { props: { socket } });
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(null);
+    await flushPromises();
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(lobbyView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    socket.handlers.state(playView().view);
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
+    socket.emit.mockClear();
+    await leaveOffer().leave();
+    expect(socket.emit).toHaveBeenCalledWith('leave', {}, expect.any(Function));
+    socket.handlers.state(finishedView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    w.unmount();
+    expect(playBar.leave).toBeNull();
+  });
+
   it('unsubscribes on unmount', () => {
     const socket = fakeSocket();
     mount(Azulejo, { props: { socket } }).unmount();
@@ -128,8 +153,7 @@ describe('Azulejo lobby', () => {
     expect(send).toHaveBeenCalledWith('settings', { freeWall: true });
     await button(w, 'Add a computer player').trigger('click');
     expect(send).toHaveBeenCalledWith('addBot', { seat: 1 });
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(button(w, 'Leave game')).toBeUndefined(); // it is in the site's header now
   });
 
   it('disables settings for non-hosts and sizes below the seated count', () => {
@@ -159,23 +183,46 @@ describe('Azulejo table: playing', () => {
     expect(w.findAll('.plate')).toHaveLength(7);
     expect(w.findAll('.plate').every((p) => p.findAll('button.pick').length === 4)).toBe(true);
     expect(w.find('[aria-label="The centre"]').exists()).toBe(true);
-    expect(w.findAll('section.board')).toHaveLength(3);
-    expect(w.findAll('[aria-label="Pattern lines"] .line')).toHaveLength(15);
+    expect(w.findAll('section.board')).toHaveLength(1); // only yours: the others are slim bars until clicked
+    expect(w.findAll('.bar-button')).toHaveLength(2);
+    expect(w.findAll('[aria-label="Pattern lines"] .line')).toHaveLength(5);
     expect(w.text()).toContain('Round 1');
-    expect(w.text()).toContain('Marker: in the centre');
+    expect(w.find('.game-status').text()).toContain('First-player marker: in the centre');
     expect(w.findAll('.lid-count')).toHaveLength(5);
     expect(w.findComponent({ name: 'ScoreBoard' }).exists()).toBe(true);
-    expect(w.find('.tag').exists()).toBe(true);
+    expect(w.find('[aria-label="Recent moves"]').exists()).toBe(true);
+    expect(w.find('[aria-label="Status"]').exists()).toBe(true);
+    expect(w.find('[data-fits-window]').exists()).toBe(true);
+  });
+
+  it('keeps the other players as slim bars; clicking a name shows or hides that board, one at a time', async () => {
+    const { w } = mountTable(playView({ n: 3 }).view);
+    const bars = w.findAll('.bar-button');
+    expect(bars.map((b) => b.text())).toEqual([expect.stringContaining('p2'), expect.stringContaining('p3')]);
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await bars[0].trigger('click');
+    expect(w.findAll('.popup section.board')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p2');
+    expect(bars[0].attributes('aria-expanded')).toBe('true');
+    await bars[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p3');
+    await bars[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await bars[0].trigger('click');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(w.findAll('.popup')).toHaveLength(0);
   });
 
   it('shows whose turn it is and disables the plates when it is not yours', async () => {
     const mine = mountTable(playView({ turn: 0 }).view).w;
-    expect(mine.find('.status').text()).toContain('Your turn');
-    expect(mine.find('.status').classes('mine')).toBe(true);
+    expect(mine.find('.headline').text()).toContain('Your turn');
+    expect(mine.find('.headline').classes('mine')).toBe(true);
     expect(plateTile(mine, 0).attributes('disabled')).toBeUndefined();
     const { view } = playView({ turn: 1 });
     const { w, send } = mountTable(view);
-    expect(w.find('.status').text()).toContain('Waiting for');
+    expect(w.find('.headline').text()).toContain('Waiting for');
     expect(plateTile(w, 0).attributes('disabled')).toBeDefined();
     await plateTile(w, 0).trigger('click');
     expect(send).not.toHaveBeenCalled();
@@ -188,8 +235,8 @@ describe('Azulejo table: playing', () => {
     await plateTile(w, 0).trigger('click');
     expect(plateTile(w, 0).classes('sel')).toBe(true);
     expect(plateTile(w, 0).attributes('aria-pressed')).toBe('true');
-    expect(w.find('.chosen').text()).toContain('from factory 1');
-    expect(w.find('.status').text()).toContain('Now choose where');
+    expect(w.find('.game-status').text()).toContain('from factory 1');
+    expect(w.find('.headline').text()).toContain('Now choose where');
     expect(lineButtons(w).every((l) => l.element.tagName === 'BUTTON')).toBe(true);
     expect(lineButtons(w).every((l) => l.classes('ok'))).toBe(true);
     expect(floor(w).element.tagName).toBe('BUTTON');
@@ -200,10 +247,10 @@ describe('Azulejo table: playing', () => {
     const { w } = mountTable(playView().view);
     await plateTile(w, 0).trigger('click');
     await plateTile(w, 0).trigger('click');
-    expect(w.find('.chosen').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('from factory 1');
     await plateTile(w, 0).trigger('click');
     await button(w, 'Choose another colour').trigger('click');
-    expect(w.find('.chosen').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('from factory 1');
   });
 
   it('sends a move for a line and clears the selection', async () => {
@@ -214,7 +261,7 @@ describe('Azulejo table: playing', () => {
     await lineButtons(w)[2].trigger('click');
     await flushPromises();
     expect(send).toHaveBeenCalledWith('move', { source: 0, colour, line: 2 });
-    expect(w.find('.chosen').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('from factory 1');
   });
 
   it('sends a move for the floor', async () => {
@@ -233,8 +280,8 @@ describe('Azulejo table: playing', () => {
     const centre = w.find('[aria-label="The centre"]');
     expect(centre.findAll('button.pick')).toHaveLength(3);
     await centre.findAll('button.pick')[0].trigger('click');
-    expect(w.find('.chosen').text()).toContain('2 Terracotta from the centre');
-    expect(w.find('.chosen').text()).toContain('first-player marker');
+    expect(w.find('.game-status').text()).toContain('2 Terracotta from the centre');
+    expect(w.find('.game-status').text()).toContain('first-player marker');
     await lineButtons(w)[1].trigger('click');
     expect(send).toHaveBeenCalledWith('move', { source: 'centre', colour: 2, line: 1 });
   });
@@ -244,7 +291,7 @@ describe('Azulejo table: playing', () => {
     await plateTile(w, 0).trigger('click');
     await lineButtons(w)[0].trigger('click');
     await flushPromises();
-    expect(w.find('[role=alert]').text()).toBe('Not allowed.');
+    expect(w.find('.game-status .line.warn').text()).toBe('Not allowed.');
     expect(plateTile(w, 0).classes('sel')).toBe(true);
   });
 
@@ -258,7 +305,7 @@ describe('Azulejo table: playing', () => {
     expect(lineButtons(w)[1].classes('no')).toBe(true);
     expect(lineButtons(w)[1].attributes('aria-disabled')).toBe('true');
     await lineButtons(w)[1].trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('already holds');
+    expect(w.find('.game-status .line.warn').text()).toContain('already holds');
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -266,11 +313,11 @@ describe('Azulejo table: playing', () => {
     const { w } = mountTable(playView().view);
     await plateTile(w, 0).trigger('click');
     await lineButtons(w)[0].trigger('mouseenter');
-    expect(w.find('p.preview').text()).toMatch(/go on line 1/);
+    expect(w.find('.game-status').text()).toMatch(/go on line 1/);
     await floor(w).trigger('mouseenter');
-    expect(w.find('p.preview').text()).toContain('go to the floor');
+    expect(w.find('.game-status').text()).toContain('go to the floor');
     await floor(w).trigger('mouseleave');
-    expect(w.find('p.preview').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('go to the floor');
   });
 
   it('drops the selection when the turn moves on', async () => {
@@ -278,14 +325,14 @@ describe('Azulejo table: playing', () => {
     const { w } = mountTable(view);
     await plateTile(w, 0).trigger('click');
     await w.setProps({ state: { ...view, turn: 1 } });
-    expect(w.find('.chosen').exists()).toBe(false);
+    expect(w.find('.game-status').text()).not.toContain('from factory 1');
   });
 
   it('shows the wall-tiling choice and sends the chosen column', async () => {
     const { view } = playView();
     const state = { ...view, phase: 'tiling', turn: null, choosing: [0], choice: { row: 1, colour: 2, columns: [0, 3] } };
     const { w, send } = mountTable(state);
-    expect(w.find('.status').text()).toContain('choose the column for your Terracotta tile in row 2');
+    expect(w.find('.headline').text()).toContain('choose the column for your Terracotta tile in row 2');
     const spots = w.findAll('button.spot.choice');
     expect(spots).toHaveLength(2);
     await spots[1].trigger('click');
@@ -295,11 +342,11 @@ describe('Azulejo table: playing', () => {
   it('says who the tiling phase is waiting for', () => {
     const { view } = playView();
     const { w } = mountTable({ ...view, phase: 'tiling', turn: null, choosing: [1], choice: null });
-    expect(w.find('.status').text()).toContain('waiting for p2');
+    expect(w.find('.headline').text()).toContain('waiting for p2');
     expect(w.findAll('button.spot.choice')).toHaveLength(0);
   });
 
-  it('shows the last wall-tiling in the side panel', () => {
+  it('shows the last wall-tiling in the round pop-up', async () => {
     const { view } = playView();
     const lastTiling = {
       round: 1,
@@ -308,26 +355,25 @@ describe('Azulejo table: playing', () => {
         { seat: 1, placed: [], dropped: [{ row: 1 }], penalty: 0, lost: 0, before: 0, after: 0 },
       ],
     };
-    const { w } = mountTable({ ...view, lastTiling });
-    expect(w.find('.summary').text()).toContain('Wall-tiling, round 1');
-    expect(w.find('.summary').text()).toContain('no line was full');
-    expect(w.find('.summary').text()).toContain('found no place');
+    const { w } = mountTable({ ...view, lastTiling }, makeSend(), true);
+    w.findComponent({ name: 'ScoreBoard' }).vm.show();
+    await flushPromises();
+    const summary = document.body.querySelector('.summary').textContent;
+    expect(summary).toContain('Wall-tiling, round 1');
+    expect(summary).toContain('no line was full');
+    expect(summary).toContain('found no place');
+    w.unmount();
   });
 
-  it('flags the free wall variant and the marker holder', () => {
+  it('flags the free wall variant and the marker holder', async () => {
     const { room } = playingRoom(2, { seed: 4, free: true });
     room.markerInCentre = false;
     room.floors[1] = [-1];
     const { w } = mountTable({ ...game.viewFor(room, 1), turn: 0 });
     expect(w.text()).toContain('Free wall');
-    expect(w.text()).toContain('Marker: with p2');
-    expect(w.find('.tag.first').exists()).toBe(true);
-  });
-
-  it('leaves the game', async () => {
-    const { w, send } = mountTable(playView().view);
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(w.find('.game-status').text()).toContain('First-player marker: with p2');
+    await w.find('.bar-button').trigger('click');
+    expect(w.find('.popup .tag.first').exists()).toBe(true);
   });
 
   it('copes with a spectator view (you is -1)', () => {
@@ -335,8 +381,8 @@ describe('Azulejo table: playing', () => {
     const v = game.viewFor(room, 99);
     expect(v.you).toBe(-1);
     const { w } = mountTable(v);
-    expect(w.find('.status').text()).toContain('Waiting for');
-    expect(w.findAll('section.board').length).toBeGreaterThan(0);
+    expect(w.find('.headline').text()).toContain('Waiting for');
+    expect(w.findAll('.bar-button').length).toBeGreaterThan(0);
   });
 
   it('copes with empty plates', () => {
@@ -348,20 +394,18 @@ describe('Azulejo table: playing', () => {
 });
 
 describe('Azulejo table: finished', () => {
-  it('shows the final breakdown and hides the plates and leave line', async () => {
+  it('shows the final breakdown and hides the plates', async () => {
     const view = finishedView();
     const { w, send } = mountTable(view);
-    expect(w.find('.status').text()).toContain('game is over');
+    expect(w.find('.headline').text()).toContain('game is over');
     expect(w.find('.final h3').text()).toBe('Final result');
     expect(w.findAll('.breakdown tbody tr')).toHaveLength(2);
     expect(w.findAll('.breakdown tbody tr').filter((r) => r.classes('win')).length).toBe(view.winners.length);
     expect(w.find('.workshop').exists()).toBe(false);
-    expect(w.find('.foot').exists()).toBe(false);
     expect(w.findComponent({ name: 'ScoreBoard' }).props('finished')).toBe(true);
+    expect(button(w, 'Leave game')).toBeUndefined(); // it is in the site's header now
     await button(w, 'Play again').trigger('click');
-    await button(w, 'Leave game').trigger('click');
     expect(send).toHaveBeenCalledWith('again');
-    expect(send).toHaveBeenCalledWith('leave');
   });
 
   it('hides Play again from non-hosts', () => {
@@ -474,5 +518,28 @@ describe('Azulejo robustness', () => {
       if (i % 7 === 0) expect(() => mount(Table, { props: { state: game.viewFor(room, 1), send: makeSend() } })).not.toThrow();
     }
     expect(rng2()).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('Azulejo layout sums', () => {
+  it('sizes a board to the room it is given, within limits', () => {
+    expect(boardCell(900, 330)).toBeLessThan(boardCell(900, 640));
+    expect(boardCell(300, 900)).toBeLessThan(boardCell(900, 900));
+    expect(boardCell(5000, 5000, { max: 60 })).toBe(60);
+    expect(boardCell(10, 10, { min: 22 })).toBe(22);
+    const { width, height } = boardSize(40);
+    expect(width).toBeGreaterThan(400);
+    expect(height).toBeGreaterThan(300);
+  });
+
+  it('fits every plate in the room in the best rows and columns', () => {
+    for (const count of [5, 7, 9, 11]) {
+      const { diameter, columns } = plateLayout(count, 700, 300, { gap: 10, max: 400 });
+      const rows = Math.ceil(count / columns);
+      expect(diameter * columns + 10 * (columns - 1)).toBeLessThanOrEqual(700);
+      expect(diameter * rows + 10 * (rows - 1)).toBeLessThanOrEqual(300);
+      expect(diameter).toBeGreaterThan(40);
+    }
+    expect(plateLayout(5, 700, 300, { max: 90 }).diameter).toBe(90);
   });
 });

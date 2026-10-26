@@ -21,7 +21,7 @@ const seatKinds = () => user.page.$$eval('.seats .seat', (els) => els.map((e) =>
 
 /** One click of a human playing Azulejo, decided inside the page: returns the element to click, or null. */
 const finder = () => {
-  if (!document.querySelector('.status.mine')) return null;
+  if (!document.querySelector('.game-status .headline.mine')) return null;
   const column = document.querySelector('.spot.choice'); // free wall only
   if (column) return column;
   if (document.querySelector('.workshop button.pick[aria-pressed="true"]')) {
@@ -108,12 +108,74 @@ test('after the game ends, a reload still shows the result, and Play again retur
   await user.waitForText('Round 1');
 }));
 
+const rect = (selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+
+test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Azulejo');
+  assert.equal(await user.page.$('.play h1'), null);
+  const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
+  assert.deepEqual(inPlay, [], 'no Leave button in the play area');
+  await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
+  await user.waitForSelector('[role="dialog"][aria-label="Rules"]');
+  await user.page.keyboard.press('Escape');
+}));
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window, its rows share the same outer edges and gutters, and a click on a name toggles that board without moving anything`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await user.page.setViewport(viewport);
+    await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    // Outer edges: score bar, own board, plates panel, the bars and both bottom boxes.
+    const bar = await rect('.score-bar');
+    const mine = await rect('.mine-col');
+    const right = await rect('.right-col');
+    const bars = await rect('.bars');
+    const log = await rect('.box.log');
+    const status = await rect('.box.status');
+    for (const [name, r] of Object.entries({ mine, bars, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ right, bars, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    // Gutters: the same gap between the main row and the bars, the bars and the boxes, as between the board and the plates.
+    const gapBelowMain = bars.top - mine.bottom;
+    const gapBelowBars = log.top - bars.bottom;
+    assert.ok(Math.abs(gapBelowMain - gapBelowBars) <= 1, `row gaps ${gapBelowMain} and ${gapBelowBars}`);
+    assert.ok(Math.abs(right.bottom - mine.bottom) <= 1, 'the board and the plates panel end on the same line');
+    assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
+
+    // Toggling another player's board moves nothing else.
+    const areas = ['.score-bar', '.mine-col', '.right-col', '.bars', '.box.log', '.box.status', '.workshop-panel'];
+    const before = await Promise.all(areas.map(rect));
+    await user.clickButton('computer', { scope: '.bars' });
+    await user.waitForSelector('.bars .popup section.board');
+    assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a board moved something');
+    assert.equal((await user.page.$$('.bars .popup')).length, 1);
+    await user.clickButton('computer', { scope: '.bars' });
+    await user.waitForSelector('.bars .popup', { hidden: true });
+    assert.deepEqual(await Promise.all(areas.map(rect)), before, 'closing a board moved something');
+  }));
+}
+
 test('the score bar stays visible while the page scrolls', { timeout: 60000 }, guarded('sticky bar', async () => {
   const result = await checkScoreBarSticks(user);
   assert.ok(result.found);
-  assert.ok(result.top >= result.headerBottom - 2 && result.top < result.headerBottom + 40, `bar sits under the header: ${JSON.stringify(result)}`);
   assert.ok(result.height > 20 && result.bottom < result.viewport);
-  await user.clickButton('Leave game', { exact: true });
+}));
+
+test('Leave game in the header asks first, then leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.waitForText('A computer player takes your seat if you leave.');
+  await user.clickButton('Stay', { exact: true });
+  await user.waitForNoText('A computer player takes your seat');
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
   await user.waitForText('Start a new game');
 }));
 

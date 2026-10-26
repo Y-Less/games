@@ -1,13 +1,26 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { session, signOut } from './session.js';
+import { leaveOffer, playBar } from './playBar.js';
 
 const route = useRoute();
 const router = useRouter();
 const menuOpen = ref(false);
 const playing = computed(() => route.name === 'play');
-const currentGame = computed(() => session.games.find((g) => g.id === route.params.game));
+const offer = computed(() => (playing.value ? leaveOffer() : null));
+const confirming = ref(false);
+watch(offer, (now) => {
+  if (!now) confirming.value = false;
+});
+function askLeave() {
+  if (offer.value?.confirmText) confirming.value = true;
+  else doLeave();
+}
+async function doLeave() {
+  confirming.value = false;
+  await offer.value?.leave();
+}
 
 async function leaveSite() {
   menuOpen.value = false;
@@ -24,7 +37,21 @@ async function leaveSite() {
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">Games</RouterLink>
         <RouterLink to="/stats" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
       </nav>
-      <span v-if="playing && currentGame" class="now muted">Playing {{ currentGame.name }}</span>
+
+      <div v-if="playing && playBar.game" class="game-bar">
+        <div v-if="offer" class="leave">
+          <button class="quiet" :aria-expanded="confirming" @click="askLeave">Leave game</button>
+          <div v-if="confirming" class="confirm panel" role="alertdialog" aria-label="Leave game">
+            <p>{{ offer.confirmText }}</p>
+            <div class="row">
+              <button class="primary" @click="doLeave">Yes, leave</button>
+              <button class="quiet" @click="confirming = false">Stay</button>
+            </div>
+          </div>
+        </div>
+        <h1 class="game-title">{{ playBar.game.name }}</h1>
+        <button v-if="playBar.game.hasRules" class="quiet" @click="playBar.game.openRules()">Rules</button>
+      </div>
 
       <div v-if="session.user" class="account">
         <button class="quiet" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">{{ session.user.displayName }} ▾</button>
@@ -82,17 +109,42 @@ async function leaveSite() {
 .links a.on {
   background: var(--bg-raised);
 }
-.now {
-  font-size: 0.9rem;
+.game-bar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.game-title {
+  color: var(--amber);
+  font-size: 1.35rem;
   white-space: nowrap;
+}
+.game-bar button {
+  padding: 0.3rem 0.9rem;
+}
+.game-bar + .account {
+  margin-left: 0;
+}
+.leave {
+  position: relative;
+}
+.confirm {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: 18rem;
+  background: var(--bg-raised);
+  z-index: 30;
+}
+.confirm p {
+  margin: 0 0 0.6rem;
 }
 @media (max-width: 640px) {
   .bar {
     gap: 0.4rem;
     padding: 0.5rem 0.6rem;
-  }
-  .now {
-    display: none;
   }
   .links a {
     padding: 0.35rem 0.55rem;

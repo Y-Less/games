@@ -104,6 +104,30 @@ Use the shared look: the site's stylesheet (`src/style.css`) defines CSS variabl
 a phone-width screen as well as a desktop one. Do not set `body` or `html` styles. Do not draw your own page
 header: the site has one.
 
+**The header: title, Rules and Leave game.** While a game is open, the site header (not the play area) shows the game's
+title and a Rules button at the top right, and a "Leave game" button in the menu bar. Never draw your own title, Rules
+or Leave button. The title and Rules come from `module.json` and `rules.md`; Leave is switched on by the game:
+
+```js
+import { useLeave } from '../../../src/playBar.js';
+useLeave({
+  canLeave: computed(() => Boolean(state.value)),       // boolean, ref or function: false hides the button
+  leave: () => send('leave'),                           // the game's own leave logic (may return a promise)
+  confirmText: computed(() => (playing.value ? 'A computer player takes your seat if you leave.' : '')),
+});
+```
+
+Call it once from the game's top component (it unregisters itself on unmount). A non-empty `confirmText` makes the
+header ask first ("Yes, leave" / "Stay"); an empty one leaves at once. `src/playBar.js` is the whole contract
+(`playBar`, `useLeave`, `leaveOffer`).
+
+**The standard screen.** Build the table with `GameFrame` (below): the score bar on top, the table, optional slim bars
+for the other players, and two boxes along the bottom that are the same in every game: Recent moves (left, a `GameLog`)
+and Status (right, a `GameStatus`). All status, instruction and turn messages, and game-state facts (round or turn
+number, bag/deck counts, first-player marker, target score), go in Status; errors may be toasts. Nothing may grow or
+shrink while the game is played, and the page never scrolls: the frame is sized from the window only. Azulejo
+(`modules/azulejo/client/Table.vue`) is the reference.
+
 Game addresses: the site serves a module at `/play/<id>`. A game with invite links should use
 `/play/<id>?<code>` (so a link shared with a friend signs them in first, then lands in the right place).
 
@@ -199,6 +223,8 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `RoomEntry` | "start a new game / join with a code" screen |
 | `InviteCode` | the code pill that copies the invite link |
 | `SeatLobby` | seats and computer players waiting room |
+| `GameFrame` | the standard screen: a 12-column grid sized to the window (`data-fits-window`, no page scroll). Slots `scorebar`, `main`, `others`, `log`, `status`; `main` and `others` receive `{ width, height, left, right, gap, mainSpan, columns }` (pixels) so a game can size its pieces. Props `mainSpan` (columns for the left part of the main row, default 7) and `logSpan` (columns for Recent moves, default 6) set each row's split on the shared grid, so outer edges and gutters line up while splits differ; a game's main content may use `grid-template-columns: subgrid` and `grid-column: span N` |
+| `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
 
 Before writing a new screen for a game, check whether one of these already does the job; if you build something that

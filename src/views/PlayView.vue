@@ -1,11 +1,12 @@
 <script setup>
 // Hosts one game module inside the site's play field. The module's client half (modules/<id>/client/index.js) is a
 // Vue component; the shell gives it a connected socket for its own namespace and the signed-in user.
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
 import { api, session } from '../session.js';
 import { renderMarkdown } from '../markdown.js';
+import { playBar } from '../playBar.js';
 
 const props = defineProps({ game: { type: String, required: true } });
 const router = useRouter();
@@ -44,7 +45,12 @@ onMounted(() => {
 });
 const closeRulesOnEsc = (event) => event.key === 'Escape' && (showRules.value = false);
 onMounted(() => window.addEventListener('keydown', closeRulesOnEsc));
+// The title and Rules button live in the site header (App.vue), which reads them from playBar.
+watchEffect(() => {
+  playBar.game = meta.value ? { name: meta.value.name, hasRules: Boolean(meta.value.rules), openRules } : null;
+});
 onBeforeUnmount(() => {
+  playBar.game = null;
   window.removeEventListener('keydown', closeRulesOnEsc);
   socket.value?.close();
 });
@@ -115,11 +121,6 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="play stack">
-    <div v-if="meta" class="top row">
-      <h1>{{ meta.name }}</h1>
-      <button v-if="meta.rules" class="quiet" @click="openRules">Rules</button>
-    </div>
-
     <p v-if="problem" class="panel" role="alert">{{ problem }}</p>
     <div v-else-if="socket && !connected" class="panel muted">Connecting…</div>
 
@@ -138,11 +139,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.top h1 {
-  color: var(--amber);
-  font-size: 1.5rem;
-  text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
-}
 /* The game is played directly on the user's chosen background: no panel, scrim or frame behind it. */
 .field-frame {
   min-height: 0;
