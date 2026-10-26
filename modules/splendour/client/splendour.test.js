@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { started } from '../kit.js';
+import { leaveOffer, playBar } from '../../../src/playBar.js';
 import Splendour from './Splendour.vue';
+import { DESIGN, SPANS, fontSize } from './layout.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -81,13 +83,37 @@ describe('Splendour shell', () => {
     const w = mount(Splendour, { props: { socket } });
     socket.handlers.state(lobbyView());
     await flushPromises();
-    await button(w, 'Leave game').trigger('click');
+    await leaveOffer().leave();
     await flushPromises();
     expect(w.find('[role=alert]').text()).toContain('did not answer');
     socket.emit = vi.fn((e, p, ack) => ack({ ok: false, error: 'Nope.' }));
-    await button(w, 'Leave game').trigger('click');
+    await leaveOffer().leave();
     await flushPromises();
     expect(w.find('[role=alert]').text()).toBe('Nope.');
+  });
+
+  it('offers Leave game to the site header while in a room, confirming only mid-game', async () => {
+    const socket = fakeSocket();
+    const w = mount(Splendour, { props: { socket } });
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(null);
+    await flushPromises();
+    expect(leaveOffer()).toBeNull();
+    socket.handlers.state(lobbyView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    expect(button(w, 'Leave game')).toBeUndefined();
+    socket.handlers.state(playView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
+    socket.emit.mockClear();
+    await leaveOffer().leave();
+    expect(socket.emit).toHaveBeenCalledWith('leave', {}, expect.any(Function));
+    socket.handlers.state(finishedView());
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    w.unmount();
+    expect(playBar.leave).toBeNull();
   });
 
   it('unsubscribes on unmount', () => {
@@ -108,8 +134,7 @@ describe('Splendour lobby', () => {
     expect(send).toHaveBeenCalledWith('settings', { target: 20 });
     await button(w, 'Add a computer player').trigger('click');
     expect(send).toHaveBeenCalledWith('addBot', { seat: 1 });
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(button(w, 'Leave game')).toBeUndefined(); // Leave game is in the site header
   });
 
   it('marks the current settings and disables them for non-hosts', () => {
@@ -138,9 +163,10 @@ describe('Splendour table: playing', () => {
     expect(w.findAll('.level-row')).toHaveLength(3);
     expect(w.findAll('.level-row').every((r) => r.findAll('button.dev-card').length === 4)).toBe(true);
     expect(w.findAll('.supply button.stack-btn')).toHaveLength(5);
-    expect(w.findAll('.boards > section')).toHaveLength(4);
-    expect(w.text()).toContain('Round 1');
-    expect(w.text()).toContain('first to 15 prestige');
+    expect(w.findAll('section.board')).toHaveLength(1); // only yours: the others open from the score bar
+    expect(w.find('section.board').classes('large')).toBe(true);
+    expect(w.find('.game-status').text()).toContain('Round 1');
+    expect(w.find('.game-status').text()).toContain('First to 15 prestige');
     expect(w.text()).toContain('Nothing has happened yet');
     expect(w.text()).toContain('ann');
   });
@@ -148,10 +174,10 @@ describe('Splendour table: playing', () => {
   it('shows whose turn it is', () => {
     const v = playView();
     const mine = mountTable({ ...v, turn: 0 }).w;
-    expect(mine.find('.status').text()).toContain('Your turn');
+    expect(mine.find('.headline').text()).toContain('Your turn');
     const theirs = mountTable({ ...v, turn: 1 }).w;
-    expect(theirs.find('.status').text()).toContain('Waiting for');
-    expect(theirs.find('.status').classes('mine')).toBe(false);
+    expect(theirs.find('.headline').text()).toContain('Waiting for');
+    expect(theirs.find('.headline').classes('mine')).toBe(false);
   });
 
   it('selects gems, highlights them, and takes three different gems', async () => {
@@ -188,17 +214,17 @@ describe('Splendour table: playing', () => {
     const v = playView();
     const { w } = mountTable({ ...v, turn: 0 });
     for (const c of [0, 1, 2, 3]) await supplyButton(w, c).trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('at most three');
+    expect(w.find('.game-status .warn').text()).toContain('at most three');
     const low = mountTable({ ...v, turn: 0, supply: [3, 3, 3, 3, 3, 5] }).w;
     await supplyButton(low, 0).trigger('click');
     await supplyButton(low, 0).trigger('click');
-    expect(low.find('[role=alert]').text()).toContain('at least four');
+    expect(low.find('.game-status .warn').text()).toContain('at least four');
   });
 
   it("does not let you take gems on someone else's turn", async () => {
     const { w, send } = mountTable({ ...playView(), turn: 1 });
     await supplyButton(w, 0).trigger('click');
-    expect(w.find('[role=alert]').text()).toContain('not your turn');
+    expect(w.find('.game-status .warn').text()).toContain('not your turn');
     expect(supplyButton(w, 0).classes('picked')).toBe(false);
     expect(send).not.toHaveBeenCalled();
   });
@@ -220,7 +246,7 @@ describe('Splendour table: playing', () => {
     expect(cardButton(w, 2, 1).classes('affordable')).toBe(false);
     await cardButton(w, 2, 0).trigger('click');
     expect(cardButton(w, 2, 0).classes('selected')).toBe(true);
-    expect(w.text()).toContain('You can afford it');
+    expect(w.find('.game-status').text()).toContain('You can afford it');
     await button(w, 'Buy this card').trigger('click');
     await flushPromises();
     expect(send).toHaveBeenCalledWith('buy', { card: id });
@@ -232,7 +258,8 @@ describe('Splendour table: playing', () => {
     const id = v.board[1][0];
     const { w, send } = mountTable(v);
     await cardButton(w, 2, 0).trigger('click');
-    expect(w.find('.cannot').text()).toContain('cannot afford');
+    expect(w.find('.game-status .warn').text()).toContain('cannot afford');
+    expect(w.find('.cannot').exists()).toBe(true);
     expect(button(w, 'Buy this card').attributes('disabled')).toBeDefined();
     await button(w, 'Reserve').trigger('click');
     await flushPromises();
@@ -252,7 +279,7 @@ describe('Splendour table: playing', () => {
   it('reserves blind from a pile', async () => {
     const { w, send } = mountTable({ ...playView(), turn: 0 });
     await w.findAll('.pile-button')[0].trigger('click'); // level 3
-    expect(w.text()).toContain('Reserve from the level 3 pile');
+    expect(w.find('.game-status').text()).toContain('Reserve from the level 3 pile');
     await button(w, 'Reserve the top card').trigger('click');
     expect(send).toHaveBeenCalledWith('reserve', { level: 3 });
   });
@@ -287,8 +314,8 @@ describe('Splendour table: playing', () => {
       seats: v.seats.map((s, i) => (i === 0 ? { ...s, tokens: [3, 3, 2, 2, 2, 0] } : s)),
     };
     const { w, send } = mountTable(state);
-    expect(w.text()).toContain('Return 2 tokens');
-    expect(w.find('.status').text()).toContain('return 2');
+    expect(w.find('.headline').text()).toContain('return 2');
+    expect(w.find('.game-status').text()).toContain('give back');
     const give = w.findAll('.give-row button');
     await give[0].trigger('click');
     expect(button(w, 'Return 1 of 2').attributes('disabled')).toBeDefined();
@@ -305,7 +332,7 @@ describe('Splendour table: playing', () => {
     const v = playView();
     const options = v.nobles.slice(0, 2);
     const { w, send } = mountTable({ ...v, turn: 0, pending: { seat: 0, type: 'noble', options } });
-    expect(w.text()).toContain('Choose a noble');
+    expect(w.find('.headline').text()).toContain('choose one');
     const choices = w.find('.action').findAll('button');
     expect(choices).toHaveLength(2);
     await choices[1].trigger('click');
@@ -315,13 +342,13 @@ describe('Splendour table: playing', () => {
   it("shows others' pending choices without controls", () => {
     const v = playView();
     const { w } = mountTable({ ...v, turn: 1, pending: { seat: 1, type: 'return', count: 1 } });
-    expect(w.find('.status').text()).toContain('is returning tokens');
-    expect(w.text()).not.toContain('Return 1 token');
+    expect(w.find('.headline').text()).toContain('is returning tokens');
+    expect(w.find('.action').text()).not.toContain('Return 1');
   });
 
   it('announces the last round', () => {
     const { w } = mountTable({ ...playView(), finalRound: true, triggeredBy: 1 });
-    expect(w.find('.last-round').text()).toContain('last round');
+    expect(w.find('.game-status').text()).toContain('last round');
   });
 
   it('shows the recent moves from the log', () => {
@@ -335,30 +362,59 @@ describe('Splendour table: playing', () => {
       { round: 2, seat: 1, kind: 'return', give: [1, 1, 0, 0, 0, 0] },
     ];
     const { w } = mountTable({ ...v, log });
-    const items = w.findAll('.log li');
+    const items = w.findAll('.box.log .game-log li');
     expect(items).toHaveLength(6);
-    expect(items[5].text()).toContain('returned 2 tokens'); // oldest first: the newest entry is at the bottom
-    expect(items[0].classes('mine')).toBe(true);
-    expect(w.find('.log').text()).toContain('the top card of pile 2');
+    expect(items[0].text()).toContain('returned 2 tokens'); // newest first, like every game
+    expect(items[5].find('.own').exists()).toBe(true);
+    expect(w.find('.box.log').text()).toContain('the top card of pile 2');
   });
 
   it('keeps the recent moves in a fixed, scrolling box that follows the newest entry', async () => {
     const v = playView();
     const entry = (n) => ({ round: 1 + Math.floor(n / 4), seat: n % 4, kind: 'take', colours: [0, 1, 2] });
     const { w } = mountTable({ ...v, log: Array.from({ length: 3 }, (_, n) => entry(n)) });
-    const ol = w.find('.log ol');
-    expect(ol.exists()).toBe(true);
+    expect(w.find('.box.log .game-log').exists()).toBe(true);
     await w.setProps({ state: { ...v, log: Array.from({ length: 40 }, (_, n) => entry(n)) } });
     await flushPromises();
-    expect(w.findAll('.log li')).toHaveLength(40);
-    expect(w.find('.log').element.parentElement.querySelector('.log')).not.toBeNull();
+    expect(w.findAll('.box.log .game-log li')).toHaveLength(40);
+    expect(w.find('.box.log .game-log').element.scrollTop).toBe(0); // the newest entry is at the top and stays in view
   });
 
   it('is sized to the window by its own font size and height, not by the game', () => {
     const { w } = mountTable(playView());
-    const style = w.find('.table-view').attributes('style');
-    expect(style).toMatch(/height: [0-9]+px/);
-    expect(style).toMatch(/font-size: [0-9.]+px/);
+    expect(w.find('[data-fits-window]').exists()).toBe(true);
+    expect(w.find('.table-view').attributes('style')).toMatch(/height: [0-9]+px/);
+    expect(w.find('.arena').attributes('style')).toMatch(/font-size: [0-9.]+px/);
+  });
+
+  it('is built on the standard frame, with every word in the Status box', () => {
+    const { w } = mountTable(playView());
+    expect(w.find('.box.log h3').text()).toBe('Recent moves');
+    expect(w.find('.box.status h3').text()).toBe('Status');
+    expect(w.find('.others').exists()).toBe(false);
+    expect(w.find('.arena .status').exists()).toBe(false);
+    expect(w.find('.arena [role=alert]').exists()).toBe(false);
+  });
+
+  it("opens the other players' boards from their score bar names, one at a time; yours is not a button", async () => {
+    const { w } = mountTable(playView());
+    const chips = () => w.findAll('.score-bar button.chip-button');
+    expect(chips()).toHaveLength(3);
+    expect(chips().map((b) => b.attributes('aria-label'))).not.toContain("Show ann's details");
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await chips()[0].trigger('click');
+    expect(w.findAll('.popup section.board')).toHaveLength(1);
+    expect(chips()[0].attributes('aria-pressed')).toBe('true');
+    expect(w.findAll('section.board')).toHaveLength(2); // yours stays where it is
+    await chips()[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(1);
+    expect(chips()[0].attributes('aria-pressed')).toBe('false');
+    await chips()[1].trigger('click');
+    expect(w.findAll('.popup')).toHaveLength(0);
+    await chips()[2].trigger('click');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(w.findAll('.popup')).toHaveLength(0);
   });
 
   it('never opens a pop-up between rounds, but does at the end', async () => {
@@ -378,17 +434,16 @@ describe('Splendour table: playing', () => {
     expect(w.findComponent({ name: 'ScoreBoard' }).exists()).toBe(true);
   });
 
-  it('leaves the game', async () => {
-    const { w, send } = mountTable(playView());
-    await button(w, 'Leave game').trigger('click');
-    expect(send).toHaveBeenCalledWith('leave');
+  it('has no Leave button of its own: the site header offers it', () => {
+    const { w } = mountTable(playView());
+    expect(button(w, 'Leave game')).toBeUndefined();
   });
 
   it('copes with a spectator view (you is -1)', () => {
     const v = game.viewFor(started(4), 999);
     expect(v.you).toBe(-1);
     const { w } = mountTable(v);
-    expect(w.find('.status').text()).toContain('Waiting for');
+    expect(w.find('.headline').text()).toContain('Waiting for');
   });
 
   it('copes with no nobles left and empty slots', () => {
@@ -407,18 +462,17 @@ describe('Splendour table: finished', () => {
     expect(w.find('.end h2').text()).toContain('(you)');
     expect(w.text()).toContain('Well played');
     expect(w.findAll('.standings li')).toHaveLength(4);
-    expect(w.find('.status').text()).toContain('game is over');
-    expect(w.text()).toContain('Game over');
+    expect(w.find('.headline').text()).toContain('game is over');
+    expect(w.find('.game-status').text()).toContain('See the scores');
     expect(button(w, 'Take')).toBeUndefined();
   });
 
-  it('lets the host play again and anyone leave', async () => {
+  it('lets the host play again; leaving is in the header', async () => {
     const { w, send } = mountTable(finishedView());
     const end = w.find('.end');
     await end.findAll('button').find((b) => b.text() === 'Play again').trigger('click');
-    await end.findAll('button').find((b) => b.text() === 'Leave').trigger('click');
     expect(send).toHaveBeenCalledWith('again');
-    expect(send).toHaveBeenCalledWith('leave');
+    expect(end.findAll('button').some((b) => /^Leave/.test(b.text()))).toBe(false);
   });
 
   it('shows waiting text instead of Play again to non-hosts', () => {
@@ -439,5 +493,31 @@ describe('Splendour table: finished', () => {
   it('survives a missing winners list', () => {
     const w = mountTable({ ...finishedView(), winners: undefined }).w;
     expect(w.find('.end').exists()).toBe(true);
+  });
+});
+
+describe('Splendour layout', () => {
+  const area = (width, height) => ({ width, height, gap: 12, columns: 12, mainSpan: 6 });
+  it('picks one font size from the room, and a bigger room gives a bigger one', () => {
+    const small = fontSize(area(1334, 460));
+    const big = fontSize(area(1760, 712));
+    expect(small).toBeGreaterThan(9);
+    expect(big).toBeGreaterThan(small);
+    expect(fontSize(area(1334, 460))).toBe(small);
+  });
+  it('never lets the market, your board or the action panel outgrow their columns or the height', () => {
+    for (const [w, h] of [[1334, 460], [1760, 712], [1000, 600]]) {
+      const a = area(w, h);
+      const f = fontSize(a);
+      const unit = (w - 12 * 11) / 12;
+      const span = (n) => unit * n + 12 * (n - 1);
+      expect(f * DESIGN.height).toBeLessThanOrEqual(h + 0.5);
+      expect(f * DESIGN.market).toBeLessThanOrEqual(span(SPANS.market) + 0.5);
+      expect(f * DESIGN.mine).toBeLessThanOrEqual(span(SPANS.mine) + 0.5);
+      expect(f * DESIGN.action).toBeLessThanOrEqual(span(SPANS.action) + 0.5);
+    }
+  });
+  it('does not depend on the game', () => {
+    expect(fontSize(area(1334, 460))).toBe(fontSize({ ...area(1334, 460), unrelated: 5 }));
   });
 });

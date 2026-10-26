@@ -14,6 +14,8 @@ const props = defineProps({
   afford: { type: Object, default: () => ({}) },
   selected: { type: String, default: null },
   interactive: { type: Boolean, default: false },
+  large: { type: Boolean, default: false }, // your own board: full-size reserved cards and bigger gems
+  gem: { type: Number, default: 19 }, // the size of a gem in px
 });
 defineEmits(['pick']);
 
@@ -22,7 +24,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
 </script>
 
 <template>
-  <section class="board panel" :class="{ me: isMe, turn: isTurn }" :aria-label="`${seat.name}'s board`">
+  <section class="board panel" :class="{ me: isMe, turn: isTurn, large }" :style="{ '--gem': `${gem}px` }" :aria-label="`${seat.name}'s board`">
     <div class="left">
       <header class="head">
         <strong class="name" :title="seat.name">{{ seat.name }}</strong>
@@ -34,13 +36,13 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
       <div class="row-block" :title="`Tokens (${total}/10)`">
         <span class="label">Tokens <small>{{ total }}/10</small></span>
         <span class="gems">
-          <span v-for="(n, c) in seat.tokens" :key="c" class="held"><Gem :colour="c" :size="19" :count="n" :faded="n === 0" /></span>
+          <span v-for="(n, c) in seat.tokens" :key="c" class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
         </span>
       </div>
       <div class="row-block" :title="`Card bonuses (${seat.bought} ${seat.bought === 1 ? 'card' : 'cards'})`">
         <span class="label">Cards <small>{{ seat.bought }}</small></span>
         <span class="gems">
-          <span v-for="(n, c) in seat.bonuses" :key="c" class="held"><Gem :colour="c" :size="19" :count="n" :faded="n === 0" /></span>
+          <span v-for="(n, c) in seat.bonuses" :key="c" class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
           <span v-for="n in seat.nobles" :key="n" class="noble-badge" :title="NOBLE_BY_ID[n].name" :aria-label="`Noble: ${NOBLE_BY_ID[n].name}`">&#9819;3</span>
         </span>
       </div>
@@ -49,7 +51,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
       <template v-for="(r, i) in seat.reserved" :key="r.card ?? `hidden-${i}`">
         <CardFace
           v-if="r.card"
-          small
+          :small="!large"
           :card="r.card"
           :need="needOf(r.card)"
           :affordable="Boolean(afford[r.card])"
@@ -57,7 +59,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
           :clickable="isMe && interactive"
           @pick="$emit('pick', r.card)"
         />
-        <CardFace v-else small :level="r.level" />
+        <CardFace v-else :small="!large" :level="r.level" />
       </template>
       <span v-for="i in 3 - seat.reserved.length" :key="`free-${i}`" class="free-slot" aria-hidden="true" />
     </div>
@@ -158,7 +160,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
   display: flex;
   gap: 0.15em;
   align-items: center;
-  height: 1.3em;
+  height: calc(var(--gem, 19px) + 2px);
 }
 .held {
   display: inline-flex;
@@ -171,6 +173,30 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
   color: var(--amber);
   background: #251d10;
   white-space: nowrap;
+}
+.board.large {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.6em;
+  padding: 0.5em 0.5em 0.6em;
+}
+.board.large .reserved {
+  justify-content: space-between;
+}
+.board.large .name {
+  font-size: 1.1em;
+  max-width: 10em;
+}
+.board.large .left {
+  gap: 0.5em;
+}
+.board.large .label {
+  font-size: 0.65em;
+}
+.board.large .free-slot {
+  width: 5.2em;
+  height: 7em;
+  border-radius: 0.6em;
 }
 .reserved {
   display: flex;

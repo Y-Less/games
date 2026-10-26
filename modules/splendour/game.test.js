@@ -69,6 +69,7 @@ test('starting needs every seat filled and a human, and only the host can start'
   game.addBot(room, 1);
   assert.equal(game.start(room, 1).ok, true);
   assert.equal(room.phase, 'playing');
+  assert.ok(game.viewFor(room, 1).scoreboard.players.some((p) => p.bot), 'the scoreboard marks computer players');
   assert.equal(game.start(room, 1).ok, false, 'cannot start twice');
   const bots = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 2 } });
   game.fillWithBots(bots, 1);

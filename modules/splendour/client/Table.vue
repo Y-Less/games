@@ -1,11 +1,15 @@
 <script setup>
 // The table: scoreboard, nobles, the three rows of cards, the gem supply, your actions, every player's board and the log.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import GameFrame from '../../../src/components/GameFrame.vue';
+import GameLog from '../../../src/components/GameLog.vue';
+import GameStatus from '../../../src/components/GameStatus.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
 import { GEM_NAMES } from './gems.js';
+import { fontSize, px } from './layout.js';
 import NobleTile from './NobleTile.vue';
 import PlayerBoard from './PlayerBoard.vue';
 
@@ -218,355 +222,290 @@ const tieNote = computed(() => {
   return winners.value.length === 1 ? 'Level on prestige: the player with fewer cards wins.' : 'Level on prestige and on cards bought: the win is shared.';
 });
 
-// ---- fitting the window ----
-// The table is as tall as the room below the page title and never taller, so the page does not scroll. Everything
-// inside is sized in em, and the table's font size is chosen from the window size alone (never from the game), so
-// nothing grows or shrinks while the game is played. It is designed for DESIGN_W x DESIGN_MAIN pixels at 16px text.
-const DESIGN_W = 1120;
-const DESIGN_MAIN = 512; // the height of the three columns
-const CHROME = 100; // the score bar and the status line, which do not scale
-const root = ref(null);
-const fit = ref({ height: Math.max(360, window.innerHeight - 220), scale: 1 }); // a safe first guess, then measured
-function measure() {
-  const el = root.value;
-  if (!el) return;
-  const top = el.getBoundingClientRect().top + window.scrollY;
-  const height = Math.max(380, Math.floor(window.innerHeight - top - 14));
-  const width = el.parentElement?.clientWidth || window.innerWidth;
-  const scale = Math.min(width / DESIGN_W, (height - CHROME) / DESIGN_MAIN);
-  fit.value = { height, scale: Math.round(Math.min(1.35, Math.max(0.5, scale)) * 100) / 100 };
-}
-const rootStyle = computed(() => ({ height: `${fit.value.height}px`, fontSize: `${16 * fit.value.scale}px` }));
+// ---- other players' boards: hidden until you click their name in the score bar, one at a time, over the main area
+// (nothing moves) ----
+const others = computed(() => seatOrder.value.filter((i) => i !== s.value.you).map((i) => s.value.seats[i]));
+const openSeat = ref(null);
+const hasBoard = (seat) => seat !== s.value.you && others.value.some((o) => o.seat === seat);
+const openedSeat = computed(() => others.value.find((o) => o.seat === openSeat.value) ?? null);
+watch(
+  () => others.value.map((o) => o.seat).join(),
+  () => {
+    if (openSeat.value !== null && !others.value.some((o) => o.seat === openSeat.value)) openSeat.value = null;
+  },
+);
+const closeOnOutside = (event) => {
+  if (openSeat.value !== null && !event.target.closest?.('.score-bar .chip-button, .popup')) openSeat.value = null;
+};
+const closeOnEsc = (event) => event.key === 'Escape' && (openSeat.value = null);
 onMounted(() => {
-  measure();
-  window.addEventListener('resize', measure);
-  // Tell the page shell (which scales tall games down) that this screen fits by itself.
-  nextTick(() => window.dispatchEvent(new Event('resize')));
+  document.addEventListener('click', closeOnOutside);
+  window.addEventListener('keydown', closeOnEsc);
 });
-onBeforeUnmount(() => window.removeEventListener('resize', measure));
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeOnOutside);
+  window.removeEventListener('keydown', closeOnEsc);
+});
 
-// ---- the log: a fixed box that scrolls, newest at the bottom, following the latest unless you scroll up ----
-const logEl = ref(null);
-let following = true;
+// ---- the words in the Status box ----
+const statusLines = computed(() => {
+  const lines = [];
+  if (message.value) lines.push({ text: message.value, tone: 'warn' });
+  if (lastRound.value) lines.push({ text: lastRound.value, tone: 'mine' });
+  const pending = pendingMine.value;
+  if (pending?.type === 'return') lines.push({ text: 'You may hold only 10 tokens. Click the tokens you want to give back.', tone: 'muted' });
+  else if (pending?.type === 'noble') lines.push({ text: 'Several nobles would like to visit you, but only one can. Click the one you choose (each is worth 3 prestige).', tone: 'muted' });
+  else if (finished.value) lines.push({ text: 'See the scores for the whole game, or play again.', tone: 'muted' });
+  else if (sel.value?.kind === 'card') {
+    const card = selectedInfo.value;
+    lines.push({ text: `Level ${card.level} card: ${card.points} prestige, gives a ${GEM_NAMES[card.bonus]} bonus.`, tone: 'mine' });
+    if (quote.value) {
+      lines.push(`You can afford it. You would pay ${payText(payPlan.value)}${payPlan.value[5] ? ` (using ${payPlan.value[5]} Gold)` : ''}.`);
+    } else {
+      const short = missing.value.left.map((n, c) => (n > 0 ? [`${n} ${GEM_NAMES[c]}`] : [])).flat();
+      lines.push({ text: `You cannot afford this yet: you are short of ${short.join(', ') || 'Gold'}${tokens.value[5] ? ` (your ${tokens.value[5]} Gold can cover ${Math.min(tokens.value[5], missing.value.total)})` : ''}.`, tone: 'warn' });
+    }
+    if (!myTurn.value && !pendingMine.value) lines.push({ text: s.value.pending ? 'Wait for the other player to finish.' : 'You can look at cards now, but can only act on your own turn.', tone: 'muted' });
+  } else if (sel.value?.kind === 'deck') {
+    lines.push({ text: `Reserve from the level ${sel.value.level} pile: you take the top card without seeing it first. Only you will know what it is until you buy it. ${goldLeft.value ? 'You also take 1 Gold.' : 'There is no Gold left, so you take none.'}`, tone: 'mine' });
+  } else if (!pending) {
+    lines.push({ text: takeCheck.value.text, tone: takeCheck.value.ok ? 'mine' : 'muted' });
+    lines.push({ text: 'Click gems to take them, or click a card to buy or reserve it.', tone: 'muted' });
+  }
+  return lines;
+});
+
+// ---- fitting the room: one font size from the area the frame gives the table (see layout.js) ----
+const fs = (area) => ({ fontSize: `${fontSize(area)}px` });
 const recent = computed(() => s.value.log);
-function onLogScroll() {
-  const el = logEl.value;
-  if (el) following = el.scrollHeight - el.scrollTop - el.clientHeight < 12;
-}
-async function followLog() {
-  await nextTick();
-  if (logEl.value && following) logEl.value.scrollTop = logEl.value.scrollHeight;
-}
-watch(() => s.value.log.length, followLog);
-watch(logEl, followLog);
 const levels = [3, 2, 1];
 </script>
 
 <template>
-  <div ref="root" class="table-view" data-fits-window :style="rootStyle">
-    <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false">
-      <template #footer>
-        <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
-        <template v-if="finished">
-          <button v-if="isHost" @click="send('again'); board.close()">Play again</button>
-          <button class="quiet" @click="send('leave'); board.close()">Leave</button>
+  <GameFrame class="table-view" :main-span="6">
+    <template #scorebar>
+      <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false" :has-details="hasBoard" :open-details="openSeat" @details="(seat) => (openSeat = seat)">
+        <template #footer>
+          <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
+          <button v-if="finished && isHost" @click="send('again'); board.close()">Play again</button>
         </template>
-      </template>
-    </ScoreBoard>
+      </ScoreBoard>
+    </template>
 
-    <div class="info">
-      <span class="muted round">Round {{ state.round }} · first to {{ state.settings.target }} prestige</span>
-      <p class="status" :class="{ mine: myTurn || pendingMine }" role="status" :title="banner">{{ banner }}</p>
-      <p v-if="lastRound" class="last-round" role="status" :title="lastRound">{{ lastRound }}</p>
-      <button v-if="!finished" class="quiet leave" title="A computer player takes your seat if you leave" @click="send('leave')">Leave game</button>
-    </div>
-
-    <div class="layout">
-      <section class="market" aria-label="The cards">
-        <div class="nobles" aria-label="Nobles">
-          <span class="row-title">Nobles</span>
-          <div class="noble-row">
-            <NobleTile v-for="n in state.nobles" :key="n" :noble="n" :bonuses="bonuses" />
-            <span v-if="!state.nobles.length" class="muted">All the nobles have visited.</span>
-          </div>
+    <template #main="area">
+      <div class="arena" :style="fs(area)">
+        <div v-if="openedSeat" class="popup" role="group" :aria-label="`${openedSeat.name}'s board`">
+          <PlayerBoard :seat="openedSeat" :is-turn="state.turn === openedSeat.seat && !finished" :gem="px(area, 1.8)" />
         </div>
-        <div v-for="level in levels" :key="level" class="level-row" :aria-label="`Level ${level} cards`">
-          <button
-            class="pile-button"
-            :class="{ chosen: sel?.kind === 'deck' && sel.level === level }"
-            :disabled="!state.decks[level]"
-            :title="`Reserve the top card of the level ${level} pile without seeing it`"
-            :aria-label="`Level ${level} pile, ${state.decks[level]} cards. Select to reserve the top card.`"
-            @click="pickDeck(level)"
-          >
-            <CardFace :level="level" :count="state.decks[level]" />
-          </button>
-          <template v-for="(id, slot) in state.board[level]" :key="`${level}-${slot}`">
-            <CardFace v-if="id" clickable :card="id" :need="needOf(id)" :affordable="Boolean(state.afford?.[id])" :selected="selectedCard === id" @pick="pickCard(id)" />
-            <span v-else class="empty-slot" aria-hidden="true" />
-          </template>
-        </div>
-      </section>
-
-      <div class="boards">
-        <PlayerBoard
-          v-for="i in seatOrder"
-          :key="i"
-          :seat="state.seats[i]"
-          :is-me="i === state.you"
-          :is-turn="state.turn === i && !finished"
-          :afford="state.afford ?? {}"
-          :selected="selectedCard"
-          :interactive="!finished"
-          @pick="pickCard"
-        />
-      </div>
-
-      <aside class="side">
-        <section class="panel action stack" aria-label="Your move">
-          <!-- Returning tokens -->
-          <template v-if="pendingMine?.type === 'return'">
-            <h3>Return {{ pendingMine.count }} {{ pendingMine.count === 1 ? 'token' : 'tokens' }}</h3>
-            <p class="muted">You may hold only 10 tokens. Click the tokens you want to give back.</p>
-            <div class="give-row">
-              <button v-for="(n, c) in tokens" :key="c" class="stack-btn" :disabled="n - giveBack[c] <= 0 || giveTotal >= pendingMine.count" @click="addGive(c)">
-                <Gem :colour="c" :size="26" :count="n - giveBack[c]" :faded="n - giveBack[c] === 0" />
-              </button>
-            </div>
-            <div class="row">
-              <span class="muted">Returning:</span>
-              <button v-for="(n, c) in giveBack" v-show="n > 0" :key="c" class="chip" :title="`Keep one ${GEM_NAMES[c]}`" @click="removeGive(c)"><Gem :colour="c" :size="16" :count="n" /> ✕</button>
-              <span v-if="!giveTotal" class="muted">nothing yet</span>
-            </div>
-            <button class="primary" :disabled="giveTotal !== pendingMine.count || busy" @click="confirmGive">Return {{ giveTotal }} of {{ pendingMine.count }}</button>
-          </template>
-
-          <!-- Choosing a noble -->
-          <template v-else-if="pendingMine?.type === 'noble'">
-            <h3>Choose a noble</h3>
-            <p class="muted">Several nobles would like to visit you, but only one can. Click the one you choose (each is worth 3 prestige).</p>
+        <section class="market" aria-label="The cards">
+          <div class="nobles" aria-label="Nobles">
+            <span class="row-title">Nobles</span>
             <div class="noble-row">
-              <NobleTile v-for="n in pendingMine.options" :key="n" :noble="n" clickable highlight :bonuses="bonuses" @pick="chooseNoble(n)" />
+              <NobleTile v-for="n in state.nobles" :key="n" :noble="n" :bonuses="bonuses" />
+              <span v-if="!state.nobles.length" class="muted">All the nobles have visited.</span>
             </div>
-          </template>
+          </div>
+          <div class="levels">
+            <div v-for="level in levels" :key="level" class="level-row" :aria-label="`Level ${level} cards`">
+              <button
+                class="pile-button"
+                :class="{ chosen: sel?.kind === 'deck' && sel.level === level }"
+                :disabled="!state.decks[level]"
+                :title="`Reserve the top card of the level ${level} pile without seeing it`"
+                :aria-label="`Level ${level} pile, ${state.decks[level]} cards. Select to reserve the top card.`"
+                @click="pickDeck(level)"
+              >
+                <CardFace :level="level" :count="state.decks[level]" />
+              </button>
+              <template v-for="(id, slot) in state.board[level]" :key="`${level}-${slot}`">
+                <CardFace v-if="id" clickable :card="id" :need="needOf(id)" :affordable="Boolean(state.afford?.[id])" :selected="selectedCard === id" @pick="pickCard(id)" />
+                <span v-else class="empty-slot" aria-hidden="true" />
+              </template>
+            </div>
+          </div>
+        </section>
 
-          <template v-else-if="finished">
-            <h3>Game over</h3>
-            <p class="muted">See the scores for the whole game, or play again.</p>
-            <button class="primary" @click="board.show()">Show the scores</button>
-          </template>
+        <div class="mine-col">
+          <PlayerBoard v-if="me" class="mine-board" :seat="me" is-me :is-turn="turnIsMine && !finished" :afford="state.afford ?? {}" :selected="selectedCard" :interactive="!finished" large :gem="px(area, 1.9)" @pick="pickCard" />
+          <section class="supply" aria-label="The gem supply">
+            <span class="row-title">Supply</span>
+            <div class="stacks">
+              <button
+                v-for="c in [0, 1, 2, 3, 4]"
+                :key="c"
+                class="stack-btn"
+                :class="{ picked: picks.includes(c) }"
+                :aria-pressed="picks.includes(c)"
+                :aria-label="`${GEM_NAMES[c]}: ${supply[c]} left`"
+                @click="clickGem(c)"
+              >
+                <Gem :colour="c" :size="px(area, 2.2)" :count="supply[c]" :faded="supply[c] === 0" />
+                <span v-if="picks.filter((x) => x === c).length" class="badge">{{ picks.filter((x) => x === c).length }}</span>
+                <small class="muted">{{ GEM_NAMES[c] }}</small>
+              </button>
+              <span class="stack-btn gold" :title="'Gold is wild. You gain it by reserving a card.'">
+                <Gem :colour="5" :size="px(area, 2.2)" :count="supply[5]" :faded="supply[5] === 0" />
+                <small class="muted">Gold</small>
+              </span>
+            </div>
+          </section>
+        </div>
 
-          <!-- A card is selected -->
-          <template v-else-if="sel?.kind === 'card'">
-            <h3>Level {{ selectedInfo.level }} card</h3>
-            <p class="detail">
-              <b>{{ selectedInfo.points }}</b> prestige · gives a <Gem :colour="selectedInfo.bonus" :size="13" /> {{ GEM_NAMES[selectedInfo.bonus] }} bonus
-            </p>
-            <template v-if="quote">
-              <p class="pay">
-                You can afford it. You would pay
-                <span v-for="(n, c) in payPlan" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="18" :count="n" /></span>
+        <aside class="side">
+          <section v-if="!finished" class="action stack" aria-label="Your move">
+            <!-- Returning tokens -->
+            <template v-if="pendingMine?.type === 'return'">
+              <div class="give-row">
+                <button v-for="(n, c) in tokens" :key="c" class="stack-btn" :disabled="n - giveBack[c] <= 0 || giveTotal >= pendingMine.count" @click="addGive(c)">
+                  <Gem :colour="c" :size="px(area, 1.8)" :count="n - giveBack[c]" :faded="n - giveBack[c] === 0" />
+                </button>
+              </div>
+              <div class="row">
+                <span class="muted">Returning:</span>
+                <button v-for="(n, c) in giveBack" v-show="n > 0" :key="c" class="chip" :title="`Keep one ${GEM_NAMES[c]}`" @click="removeGive(c)"><Gem :colour="c" :size="16" :count="n" /> ✕</button>
+                <span v-if="!giveTotal" class="muted">nothing yet</span>
+              </div>
+              <button class="primary" :disabled="giveTotal !== pendingMine.count || busy" @click="confirmGive">Return {{ giveTotal }} of {{ pendingMine.count }}</button>
+            </template>
+
+            <!-- Choosing a noble -->
+            <template v-else-if="pendingMine?.type === 'noble'">
+              <div class="noble-row">
+                <NobleTile v-for="n in pendingMine.options" :key="n" :noble="n" clickable highlight :bonuses="bonuses" @pick="chooseNoble(n)" />
+              </div>
+            </template>
+
+            <!-- A card is selected -->
+            <template v-else-if="sel?.kind === 'card'">
+              <p v-if="quote" class="pay">
+                You would pay
+                <span v-for="(n, c) in payPlan" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="px(area, 1.4)" :count="n" /></span>
                 <span v-if="!sum(payPlan)">nothing</span>
                 <span class="sr-only">({{ payText(payPlan) }})</span>
               </p>
-              <p class="muted small-text">That is {{ payText(payPlan) }}<template v-if="payPlan[5]"> (using {{ payPlan[5] }} Gold)</template>.</p>
-              <div v-if="quote.maxGold > quote.minGold" class="row gold-choice">
+              <p v-else class="cannot">
+                Short of
+                <span v-for="(n, c) in missing.left" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="px(area, 1.4)" :count="n" /></span>
+              </p>
+              <div v-if="quote && quote.maxGold > quote.minGold" class="row gold-choice">
                 <span class="muted">Pay with Gold:</span>
                 <button class="quiet" :disabled="goldUsed <= quote.minGold" aria-label="Use less Gold" @click="payGold = goldUsed - 1">−</button>
                 <b>{{ goldUsed }}</b>
                 <button class="quiet" :disabled="goldUsed >= quote.maxGold" aria-label="Use more Gold" @click="payGold = goldUsed + 1">+</button>
               </div>
+              <div class="row">
+                <button class="primary" :disabled="!quote || !myTurn || busy" :title="!myTurn ? reserveWhy : !quote ? 'You cannot afford this card' : ''" @click="buy">Buy this card</button>
+                <button v-if="!inReserve" :disabled="!canReserve || busy" :title="reserveWhy" @click="reserve">Reserve<template v-if="goldLeft"> (+1 Gold)</template><template v-else> (no Gold left)</template></button>
+                <button class="quiet" @click="sel = null">Cancel</button>
+              </div>
             </template>
-            <p v-else class="cannot">
-              You cannot afford this yet: you are short of
-              <template v-if="missing.total - Math.min(missing.total, tokens[5]) > 0 || missing.total > 0">
-                <span v-for="(n, c) in missing.left" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="18" :count="n" /></span>
-                <template v-if="tokens[5]"> (your {{ tokens[5] }} Gold can cover {{ Math.min(tokens[5], missing.total) }})</template>
-              </template>
-              .
-            </p>
+
+            <!-- A pile is selected -->
+            <template v-else-if="sel?.kind === 'deck'">
+              <div class="row">
+                <button class="primary" :disabled="!canReserve || busy" :title="reserveWhy" @click="reserve">Reserve the top card</button>
+                <button class="quiet" @click="sel = null">Cancel</button>
+              </div>
+            </template>
+
+            <!-- Taking gems -->
+            <template v-else>
+              <div class="picks" aria-live="polite">
+                <span class="muted">Selected:</span>
+                <Gem v-for="(c, i) in picks" :key="i" :colour="c" :size="px(area, 1.7)" />
+                <span v-if="!picks.length" class="muted">none</span>
+              </div>
+              <div class="row">
+                <button class="primary" :disabled="!takeCheck.ok || !myTurn || busy" @click="confirmTake">Take {{ picks.length || '' }} {{ picks.length === 1 ? 'gem' : 'gems' }}</button>
+                <button class="quiet" :disabled="!picks.length" @click="picks = []">Clear</button>
+                <button v-if="state.canPass" @click="send('pass')">Pass (nothing else is possible)</button>
+              </div>
+            </template>
+          </section>
+
+          <section v-else class="end" aria-label="The result">
+            <h2 v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].seat === state.you ? ' (you)' : '' }} wins with {{ winners[0].prestige }} prestige!</h2>
+            <h2 v-else-if="winners.length">A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
+            <p v-if="iWon" class="muted">Well played.</p>
+            <p v-if="tieNote" class="muted">{{ tieNote }}</p>
+            <p v-if="endNote" class="muted">{{ endNote }}</p>
+            <ol class="standings">
+              <li v-for="x in standings" :key="x.seat">
+                <b>{{ x.name }}</b> <span>{{ x.prestige }} prestige</span> <span class="muted">{{ x.cards }} {{ x.cards === 1 ? 'card' : 'cards' }}, {{ x.nobles }} {{ x.nobles === 1 ? 'noble' : 'nobles' }}</span>
+              </li>
+            </ol>
             <div class="row">
-              <button class="primary" :disabled="!quote || !myTurn || busy" :title="!myTurn ? reserveWhy : !quote ? 'You cannot afford this card' : ''" @click="buy">Buy this card</button>
-              <button v-if="!inReserve" :disabled="!canReserve || busy" :title="reserveWhy" @click="reserve">Reserve<template v-if="goldLeft"> (+1 Gold)</template><template v-else> (no Gold left)</template></button>
-              <button class="quiet" @click="sel = null">Cancel</button>
+              <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
+              <span v-else class="muted">Waiting for the host to start another game, or leave (top right).</span>
+              <button @click="board.show()">Show the scores</button>
             </div>
-            <p v-if="!myTurn && !pendingMine" class="muted small-text">{{ s.pending ? 'Wait for the other player to finish.' : 'You can look at cards now, but can only act on your own turn.' }}</p>
+          </section>
+        </aside>
+      </div>
+    </template>
+
+    <template #log>
+      <GameLog :entries="recent" newest-first empty="Nothing has happened yet." v-slot="{ entry: e }">
+        <span class="move" :class="{ own: e.seat === state.you }">
+          <span class="r">R{{ e.round }}</span>
+          <b>{{ nameOf(e.seat) }}</b>
+          <template v-if="e.kind === 'take'">
+            took <Gem v-for="c in e.colours" :key="c" :colour="c" :size="13" />
           </template>
-
-          <!-- A pile is selected -->
-          <template v-else-if="sel?.kind === 'deck'">
-            <h3>Reserve from the level {{ sel.level }} pile</h3>
-            <p class="muted">You take the top card without seeing it first. Only you will know what it is until you buy it. {{ goldLeft ? 'You also take 1 Gold.' : 'There is no Gold left, so you take none.' }}</p>
-            <div class="row">
-              <button class="primary" :disabled="!canReserve || busy" :title="reserveWhy" @click="reserve">Reserve the top card</button>
-              <button class="quiet" @click="sel = null">Cancel</button>
-            </div>
+          <template v-else-if="e.kind === 'take2'">took two <Gem :colour="e.colour" :size="13" /></template>
+          <template v-else-if="e.kind === 'reserve'">
+            reserved
+            <template v-if="e.card">a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /></template>
+            <template v-else>the top card of pile {{ e.level }}</template>
+            <template v-if="e.gold"> and took <Gem :colour="5" :size="13" /></template>
           </template>
-
-          <!-- Taking gems -->
-          <template v-else>
-            <h3>{{ myTurn ? 'Your move' : 'Gems' }}</h3>
-            <p class="muted small-text">Click gems to take them, or click a card to buy or reserve it.</p>
-            <div class="picks" aria-live="polite">
-              <span class="muted">Selected:</span>
-              <Gem v-for="(c, i) in picks" :key="i" :colour="c" :size="22" />
-              <span v-if="!picks.length" class="muted">none</span>
-            </div>
-            <p class="check" :class="{ ok: takeCheck.ok }">{{ takeCheck.text }}</p>
-            <div class="row">
-              <button class="primary" :disabled="!takeCheck.ok || !myTurn || busy" @click="confirmTake">Take {{ picks.length || '' }} {{ picks.length === 1 ? 'gem' : 'gems' }}</button>
-              <button class="quiet" :disabled="!picks.length" @click="picks = []">Clear</button>
-              <button v-if="state.canPass" @click="send('pass')">Pass (nothing else is possible)</button>
-            </div>
+          <template v-else-if="e.kind === 'buy'">
+            bought a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /><template v-if="CARD_BY_ID[e.card].points"> (+{{ CARD_BY_ID[e.card].points }})</template>
           </template>
-          <p v-if="message" class="notice" role="alert">{{ message }}</p>
-        </section>
+          <template v-else-if="e.kind === 'return'">returned {{ e.give.reduce((a, b) => a + b, 0) }} tokens</template>
+          <template v-else-if="e.kind === 'noble'">was visited by {{ NOBLE_BY_ID[e.noble].name }} (+3)</template>
+          <template v-else-if="e.kind === 'pass'">passed</template>
+        </span>
+      </GameLog>
+    </template>
 
-        <section class="panel supply" aria-label="The gem supply">
-          <span class="row-title">Supply</span>
-          <div class="stacks">
-            <button
-              v-for="c in [0, 1, 2, 3, 4]"
-              :key="c"
-              class="stack-btn"
-              :class="{ picked: picks.includes(c) }"
-              :aria-pressed="picks.includes(c)"
-              :aria-label="`${GEM_NAMES[c]}: ${supply[c]} left`"
-              @click="clickGem(c)"
-            >
-              <Gem :colour="c" :size="34" :count="supply[c]" :faded="supply[c] === 0" />
-              <span v-if="picks.filter((x) => x === c).length" class="badge">{{ picks.filter((x) => x === c).length }}</span>
-              <small class="muted">{{ GEM_NAMES[c] }}</small>
-            </button>
-            <span class="stack-btn gold" :title="'Gold is wild. You gain it by reserving a card.'">
-              <Gem :colour="5" :size="34" :count="supply[5]" :faded="supply[5] === 0" />
-              <small class="muted">Gold</small>
-            </span>
-          </div>
-        </section>
-
-        <section v-if="!finished" class="panel log" aria-label="Recent moves">
-          <span class="row-title">Recent moves</span>
-          <ol ref="logEl" @scroll="onLogScroll">
-            <li v-for="(e, i) in recent" :key="`${e.round}-${i}-${e.kind}`" :class="{ mine: e.seat === state.you }">
-              <span class="r">R{{ e.round }}</span>
-              <b>{{ nameOf(e.seat) }}</b>
-              <template v-if="e.kind === 'take'">
-                took <Gem v-for="c in e.colours" :key="c" :colour="c" :size="13" />
-              </template>
-              <template v-else-if="e.kind === 'take2'">took two <Gem :colour="e.colour" :size="13" /></template>
-              <template v-else-if="e.kind === 'reserve'">
-                reserved
-                <template v-if="e.card">a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /></template>
-                <template v-else>the top card of pile {{ e.level }}</template>
-                <template v-if="e.gold"> and took <Gem :colour="5" :size="13" /></template>
-              </template>
-              <template v-else-if="e.kind === 'buy'">
-                bought a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /><template v-if="CARD_BY_ID[e.card].points"> (+{{ CARD_BY_ID[e.card].points }})</template>
-              </template>
-              <template v-else-if="e.kind === 'return'">returned {{ e.give.reduce((a, b) => a + b, 0) }} tokens</template>
-              <template v-else-if="e.kind === 'noble'">was visited by {{ NOBLE_BY_ID[e.noble].name }} (+3)</template>
-              <template v-else-if="e.kind === 'pass'">passed</template>
-            </li>
-            <li v-if="!recent.length" class="muted">Nothing has happened yet.</li>
-          </ol>
-        </section>
-        <section v-if="finished" class="panel end" aria-label="The result">
-          <h2 v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].seat === state.you ? ' (you)' : '' }} wins with {{ winners[0].prestige }} prestige!</h2>
-          <h2 v-else-if="winners.length">A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
-          <p v-if="iWon" class="muted">Well played.</p>
-          <p v-if="tieNote" class="muted">{{ tieNote }}</p>
-          <p v-if="endNote" class="muted">{{ endNote }}</p>
-          <ol class="standings">
-            <li v-for="x in standings" :key="x.seat">
-              <b>{{ x.name }}</b> <span>{{ x.prestige }} prestige</span> <span class="muted">{{ x.cards }} {{ x.cards === 1 ? 'card' : 'cards' }}, {{ x.nobles }} {{ x.nobles === 1 ? 'noble' : 'nobles' }}</span>
-            </li>
-          </ol>
-          <div class="row">
-            <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-            <span v-else class="muted">Waiting for the host to start another game.</span>
-            <button class="quiet" @click="send('leave')">Leave</button>
-          </div>
-        </section>
-      </aside>
-    </div>
-
-  </div>
+    <template #status>
+      <GameStatus :headline="banner" :mine="Boolean(myTurn || pendingMine)" :lines="statusLines">
+        <template #facts>
+          <strong>Round {{ state.round }}</strong>
+          <span>First to {{ state.settings.target }} prestige</span>
+          <span>Piles left: {{ levels.map((l) => `${state.decks[l]} (level ${l})`).join(', ') }}</span>
+        </template>
+      </GameStatus>
+    </template>
+  </GameFrame>
 </template>
 
 <style scoped>
-/* Everything is sized in em: the table's font size is set from the window (see "fitting the window"), so the layout is
-   one fixed shape that fills the room under the page title. Nothing here depends on how much has happened in the game. */
-.table-view {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.info {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  height: 1.9rem;
-  flex: none;
-  min-width: 0;
-}
-.info > * {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.round {
-  flex: none;
-  font-size: 0.85rem;
-}
-.status {
-  margin: 0;
-  flex: 1;
-  font-family: var(--display);
-  font-size: 1.05rem;
-}
-.status.mine {
-  color: var(--amber);
-}
-.last-round {
-  margin: 0;
-  flex: 0 1 auto;
-  padding: 0.1rem 0.6rem;
-  border: 1px solid var(--amber);
-  border-radius: 999px;
-  color: var(--amber);
-  font-size: 0.8rem;
-}
-.leave {
-  flex: none;
-  margin-left: auto;
-  padding: 0.1rem 0.8rem;
-  font-size: 0.8rem;
-}
-.layout {
-  flex: 1;
-  min-height: 0;
+/* Everything in the arena is sized in em: the font size is set from the area the frame gives the table (see layout.js),
+   so the layout is one fixed shape on the frame's grid. Nothing here depends on how much has happened in the game. */
+.arena {
+  grid-column: 1 / -1;
+  height: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 0.8em;
-}
-.layout > * {
+  grid-template-columns: subgrid;
   min-height: 0;
+}
+.arena > * {
   min-width: 0;
+  min-height: 0;
 }
 .market {
+  grid-column: span 6;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8em;
+}
+.levels {
+  padding-bottom: 0.4em; /* room for the shadow cards behind each pile */
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
-  padding: 0.6em;
-  border-radius: 0.8em;
-  background: radial-gradient(900px 400px at 30% 0%, rgb(255 255 255 / 0.04), transparent), rgb(8 18 22 / 0.55);
-  border: 1px solid var(--line);
-  overflow: hidden;
+  justify-content: space-between;
 }
 .row-title {
   font-size: 0.65em;
@@ -586,7 +525,7 @@ const levels = [3, 2, 1];
   align-items: flex-start;
 }
 .nobles > .noble-row {
-  min-height: 6.2em;
+  width: 10.9em;
 }
 .level-row {
   display: flex;
@@ -633,87 +572,17 @@ const levels = [3, 2, 1];
 .pile-button:disabled {
   opacity: 0.3;
 }
-.boards {
+
+/* your board, big, with the gem supply under it */
+.mine-col {
+  grid-column: span 3;
   display: flex;
   flex-direction: column;
-  gap: 0.45em;
-  align-content: start;
-  overflow: hidden;
+  justify-content: space-between;
+  gap: 0.6em;
 }
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5em;
-}
-.side > .panel {
-  padding: 0.5em 0.6em;
-  border-radius: 0.8em;
-  box-sizing: border-box;
-}
-.action {
+.mine-board {
   flex: none;
-  height: 15.5em;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35em;
-}
-.action h3 {
-  font-size: 1rem;
-  margin: 0;
-}
-.action .muted,
-.action p {
-  font-size: 0.85rem;
-}
-.small-text {
-  font-size: 0.8rem;
-  margin: 0;
-}
-.detail {
-  margin: 0;
-}
-.detail :deep(.gem),
-.pay :deep(.gem),
-.cannot :deep(.gem) {
-  vertical-align: middle;
-}
-.pay,
-.cannot {
-  margin: 0;
-}
-.cannot {
-  color: var(--danger);
-}
-.paychip {
-  display: inline-flex;
-}
-.gold-choice {
-  gap: 0.4rem;
-}
-.gold-choice button {
-  padding: 0.1rem 0.7rem;
-}
-.picks {
-  display: flex;
-  align-items: center;
-  gap: 0.3em;
-  min-height: 1.6em;
-}
-.check {
-  margin: 0;
-  color: var(--muted);
-}
-.check.ok {
-  color: var(--moss);
-}
-.notice {
-  margin: 0;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--danger);
-  border-radius: 10px;
-  color: var(--danger);
-  font-size: 0.8rem;
 }
 .supply {
   flex: none;
@@ -723,11 +592,6 @@ const levels = [3, 2, 1];
   grid-template-columns: repeat(6, 1fr);
   gap: 0.3em;
   margin-top: 0.2em;
-}
-.give-row {
-  display: flex;
-  gap: 0.3em;
-  flex-wrap: wrap;
 }
 .stack-btn {
   position: relative;
@@ -765,75 +629,131 @@ span.stack-btn {
   display: grid;
   place-items: center;
 }
+
+/* what you are doing with the gems and cards: buttons only; the words are in the Status box */
+.side {
+  grid-column: span 3;
+  display: flex;
+  flex-direction: column;
+}
+.action,
+.end {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 0.6em 0.7em;
+  border-radius: 0.8em;
+  background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  font-size: 0.9em;
+}
+.action .muted {
+  font-size: 0.85em;
+}
+.pay,
+.cannot {
+  margin: 0;
+}
+.pay :deep(.gem),
+.cannot :deep(.gem) {
+  vertical-align: middle;
+}
+.cannot {
+  color: var(--danger);
+}
+.paychip {
+  display: inline-flex;
+}
+.gold-choice {
+  gap: 0.4rem;
+}
+.gold-choice button {
+  padding: 0.1rem 0.7rem;
+}
+.picks {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  min-height: 1.8em;
+}
+.give-row {
+  display: flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   padding: 0.1rem 0.5rem;
 }
-.log,
-.end {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.log ol {
-  list-style: none;
-  margin: 0.2em 0 0;
-  padding: 0;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-  font-size: 0.78em;
-}
-.log li {
-  display: block;
-  line-height: 1.5;
-}
-.log li :deep(.gem) {
-  vertical-align: middle;
-  margin: 0 1px;
-}
-.log li b {
-  margin-right: 0.25em;
-}
-.log li.mine b {
-  color: var(--amber);
-}
-.log .r {
-  font-size: 0.8em;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 0.25em;
-}
 .end {
   gap: 0.3em;
-  overflow: auto;
 }
 .end h2 {
   color: var(--amber);
-  font-size: 1.1rem;
+  font-size: 1.2em;
   margin: 0;
 }
 .end p {
   margin: 0;
-  font-size: 0.85rem;
 }
 .standings {
   margin: 0;
   padding-left: 1.2em;
-  font-size: 0.85rem;
 }
 .standings li {
   display: flex;
   gap: 0.8em;
   flex-wrap: wrap;
+}
+
+/* another player's board, over the middle of the table */
+.arena {
+  position: relative;
+}
+.popup {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.55));
+}
+.popup :deep(.board) {
+  background: var(--bg-sunken);
+}
+
+/* the log */
+.move {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.move :deep(.gem) {
+  vertical-align: middle;
+  margin: 0 1px;
+}
+.move b {
+  margin-right: 0.25em;
+}
+.move.own {
+  color: var(--parchment);
+}
+.move.own b {
+  color: var(--amber);
+}
+.move .r {
+  font-size: 0.8em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 0.25em;
+  margin-right: 0.3em;
 }
 .sr-only {
   position: absolute;

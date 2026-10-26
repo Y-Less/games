@@ -170,7 +170,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   for (const card of ['c00', 'c91', 'C01', 'c1', '', ' c01', 5, null, ['c01'], { card: 'c01' }, 'x'.repeat(100000), 'constructor', '__proto__']) await refused(mover, 'buy', { card }, /./);
   for (const card of ['c91', 5, null, '__proto__']) await refused(mover, 'reserve', { card }, /./);
   await refused(mover, 'reserve', { level: 4 }, /card or a level/);
-  await refused(mover, 'reserve', { card: mover.state.seats[waiter.state.you].reserved[0]?.card ?? 'c01', level: 1 }, /./);
+  await refused(mover, 'reserve', { card: mover.state.seats[waiter.state.you].reserved[0]?.card ?? 'c91', level: 1 }, /./);
   await refused(mover, 'giveBack', { tokens: [1, 0, 0, 0, 0, 0] }, /do not have to/);
   await refused(mover, 'noble', { noble: 'n1' }, /no noble/);
   await refused(mover, 'pass', {}, /nothing else/);
