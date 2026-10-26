@@ -1,6 +1,6 @@
 <script setup>
 // The table: scoreboard, nobles, the three rows of cards, the gem supply, your actions, every player's board and the log.
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import CardFace from './CardFace.vue';
@@ -218,13 +218,53 @@ const tieNote = computed(() => {
   return winners.value.length === 1 ? 'Level on prestige: the player with fewer cards wins.' : 'Level on prestige and on cards bought: the win is shared.';
 });
 
-const recent = computed(() => [...s.value.log].reverse().slice(0, 12));
+// ---- fitting the window ----
+// The table is as tall as the room below the page title and never taller, so the page does not scroll. Everything
+// inside is sized in em, and the table's font size is chosen from the window size alone (never from the game), so
+// nothing grows or shrinks while the game is played. It is designed for DESIGN_W x DESIGN_MAIN pixels at 16px text.
+const DESIGN_W = 1120;
+const DESIGN_MAIN = 512; // the height of the three columns
+const CHROME = 100; // the score bar and the status line, which do not scale
+const root = ref(null);
+const fit = ref({ height: Math.max(360, window.innerHeight - 220), scale: 1 }); // a safe first guess, then measured
+function measure() {
+  const el = root.value;
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const height = Math.max(380, Math.floor(window.innerHeight - top - 14));
+  const width = el.parentElement?.clientWidth || window.innerWidth;
+  const scale = Math.min(width / DESIGN_W, (height - CHROME) / DESIGN_MAIN);
+  fit.value = { height, scale: Math.round(Math.min(1.35, Math.max(0.5, scale)) * 100) / 100 };
+}
+const rootStyle = computed(() => ({ height: `${fit.value.height}px`, fontSize: `${16 * fit.value.scale}px` }));
+onMounted(() => {
+  measure();
+  window.addEventListener('resize', measure);
+  // Tell the page shell (which scales tall games down) that this screen fits by itself.
+  nextTick(() => window.dispatchEvent(new Event('resize')));
+});
+onBeforeUnmount(() => window.removeEventListener('resize', measure));
+
+// ---- the log: a fixed box that scrolls, newest at the bottom, following the latest unless you scroll up ----
+const logEl = ref(null);
+let following = true;
+const recent = computed(() => s.value.log);
+function onLogScroll() {
+  const el = logEl.value;
+  if (el) following = el.scrollHeight - el.scrollTop - el.clientHeight < 12;
+}
+async function followLog() {
+  await nextTick();
+  if (logEl.value && following) logEl.value.scrollTop = logEl.value.scrollHeight;
+}
+watch(() => s.value.log.length, followLog);
+watch(logEl, followLog);
 const levels = [3, 2, 1];
 </script>
 
 <template>
-  <div class="table-view stack">
-    <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished">
+  <div ref="root" class="table-view" data-fits-window :style="rootStyle">
+    <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false">
       <template #footer>
         <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
         <template v-if="finished">
@@ -234,11 +274,12 @@ const levels = [3, 2, 1];
       </template>
     </ScoreBoard>
 
-    <div class="info row">
-      <span class="muted">Round {{ state.round }} · first to {{ state.settings.target }} prestige</span>
-      <p class="status" :class="{ mine: myTurn || pendingMine }" role="status">{{ banner }}</p>
+    <div class="info">
+      <span class="muted round">Round {{ state.round }} · first to {{ state.settings.target }} prestige</span>
+      <p class="status" :class="{ mine: myTurn || pendingMine }" role="status" :title="banner">{{ banner }}</p>
+      <p v-if="lastRound" class="last-round" role="status" :title="lastRound">{{ lastRound }}</p>
+      <button v-if="!finished" class="quiet leave" title="A computer player takes your seat if you leave" @click="send('leave')">Leave game</button>
     </div>
-    <p v-if="lastRound" class="last-round" role="status">{{ lastRound }}</p>
 
     <div class="layout">
       <section class="market" aria-label="The cards">
@@ -267,6 +308,20 @@ const levels = [3, 2, 1];
         </div>
       </section>
 
+      <div class="boards">
+        <PlayerBoard
+          v-for="i in seatOrder"
+          :key="i"
+          :seat="state.seats[i]"
+          :is-me="i === state.you"
+          :is-turn="state.turn === i && !finished"
+          :afford="state.afford ?? {}"
+          :selected="selectedCard"
+          :interactive="!finished"
+          @pick="pickCard"
+        />
+      </div>
+
       <aside class="side">
         <section class="panel action stack" aria-label="Your move">
           <!-- Returning tokens -->
@@ -275,12 +330,12 @@ const levels = [3, 2, 1];
             <p class="muted">You may hold only 10 tokens. Click the tokens you want to give back.</p>
             <div class="give-row">
               <button v-for="(n, c) in tokens" :key="c" class="stack-btn" :disabled="n - giveBack[c] <= 0 || giveTotal >= pendingMine.count" @click="addGive(c)">
-                <Gem :colour="c" :size="34" :count="n - giveBack[c]" :faded="n - giveBack[c] === 0" />
+                <Gem :colour="c" :size="26" :count="n - giveBack[c]" :faded="n - giveBack[c] === 0" />
               </button>
             </div>
             <div class="row">
               <span class="muted">Returning:</span>
-              <button v-for="(n, c) in giveBack" v-show="n > 0" :key="c" class="chip" :title="`Keep one ${GEM_NAMES[c]}`" @click="removeGive(c)"><Gem :colour="c" :size="20" :count="n" /> ✕</button>
+              <button v-for="(n, c) in giveBack" v-show="n > 0" :key="c" class="chip" :title="`Keep one ${GEM_NAMES[c]}`" @click="removeGive(c)"><Gem :colour="c" :size="16" :count="n" /> ✕</button>
               <span v-if="!giveTotal" class="muted">nothing yet</span>
             </div>
             <button class="primary" :disabled="giveTotal !== pendingMine.count || busy" @click="confirmGive">Return {{ giveTotal }} of {{ pendingMine.count }}</button>
@@ -305,12 +360,12 @@ const levels = [3, 2, 1];
           <template v-else-if="sel?.kind === 'card'">
             <h3>Level {{ selectedInfo.level }} card</h3>
             <p class="detail">
-              <b>{{ selectedInfo.points }}</b> prestige · gives a <Gem :colour="selectedInfo.bonus" :size="20" /> {{ GEM_NAMES[selectedInfo.bonus] }} bonus
+              <b>{{ selectedInfo.points }}</b> prestige · gives a <Gem :colour="selectedInfo.bonus" :size="13" /> {{ GEM_NAMES[selectedInfo.bonus] }} bonus
             </p>
             <template v-if="quote">
               <p class="pay">
                 You can afford it. You would pay
-                <span v-for="(n, c) in payPlan" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="22" :count="n" /></span>
+                <span v-for="(n, c) in payPlan" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="18" :count="n" /></span>
                 <span v-if="!sum(payPlan)">nothing</span>
                 <span class="sr-only">({{ payText(payPlan) }})</span>
               </p>
@@ -325,7 +380,7 @@ const levels = [3, 2, 1];
             <p v-else class="cannot">
               You cannot afford this yet: you are short of
               <template v-if="missing.total - Math.min(missing.total, tokens[5]) > 0 || missing.total > 0">
-                <span v-for="(n, c) in missing.left" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="22" :count="n" /></span>
+                <span v-for="(n, c) in missing.left" v-show="n > 0" :key="c" class="paychip"><Gem :colour="c" :size="18" :count="n" /></span>
                 <template v-if="tokens[5]"> (your {{ tokens[5] }} Gold can cover {{ Math.min(tokens[5], missing.total) }})</template>
               </template>
               .
@@ -354,7 +409,7 @@ const levels = [3, 2, 1];
             <p class="muted small-text">Click gems to take them, or click a card to buy or reserve it.</p>
             <div class="picks" aria-live="polite">
               <span class="muted">Selected:</span>
-              <Gem v-for="(c, i) in picks" :key="i" :colour="c" :size="30" />
+              <Gem v-for="(c, i) in picks" :key="i" :colour="c" :size="22" />
               <span v-if="!picks.length" class="muted">none</span>
             </div>
             <p class="check" :class="{ ok: takeCheck.ok }">{{ takeCheck.text }}</p>
@@ -379,35 +434,35 @@ const levels = [3, 2, 1];
               :aria-label="`${GEM_NAMES[c]}: ${supply[c]} left`"
               @click="clickGem(c)"
             >
-              <Gem :colour="c" :size="46" :count="supply[c]" :faded="supply[c] === 0" />
+              <Gem :colour="c" :size="34" :count="supply[c]" :faded="supply[c] === 0" />
               <span v-if="picks.filter((x) => x === c).length" class="badge">{{ picks.filter((x) => x === c).length }}</span>
               <small class="muted">{{ GEM_NAMES[c] }}</small>
             </button>
             <span class="stack-btn gold" :title="'Gold is wild. You gain it by reserving a card.'">
-              <Gem :colour="5" :size="46" :count="supply[5]" :faded="supply[5] === 0" />
+              <Gem :colour="5" :size="34" :count="supply[5]" :faded="supply[5] === 0" />
               <small class="muted">Gold</small>
             </span>
           </div>
         </section>
 
-        <section class="panel log" aria-label="Recent moves">
+        <section v-if="!finished" class="panel log" aria-label="Recent moves">
           <span class="row-title">Recent moves</span>
-          <ol>
+          <ol ref="logEl" @scroll="onLogScroll">
             <li v-for="(e, i) in recent" :key="`${e.round}-${i}-${e.kind}`" :class="{ mine: e.seat === state.you }">
               <span class="r">R{{ e.round }}</span>
               <b>{{ nameOf(e.seat) }}</b>
               <template v-if="e.kind === 'take'">
-                took <Gem v-for="c in e.colours" :key="c" :colour="c" :size="16" />
+                took <Gem v-for="c in e.colours" :key="c" :colour="c" :size="13" />
               </template>
-              <template v-else-if="e.kind === 'take2'">took two <Gem :colour="e.colour" :size="16" /></template>
+              <template v-else-if="e.kind === 'take2'">took two <Gem :colour="e.colour" :size="13" /></template>
               <template v-else-if="e.kind === 'reserve'">
                 reserved
-                <template v-if="e.card">a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="16" /></template>
+                <template v-if="e.card">a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /></template>
                 <template v-else>the top card of pile {{ e.level }}</template>
-                <template v-if="e.gold"> and took <Gem :colour="5" :size="16" /></template>
+                <template v-if="e.gold"> and took <Gem :colour="5" :size="13" /></template>
               </template>
               <template v-else-if="e.kind === 'buy'">
-                bought a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="16" /><template v-if="CARD_BY_ID[e.card].points"> (+{{ CARD_BY_ID[e.card].points }})</template>
+                bought a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /><template v-if="CARD_BY_ID[e.card].points"> (+{{ CARD_BY_ID[e.card].points }})</template>
               </template>
               <template v-else-if="e.kind === 'return'">returned {{ e.give.reduce((a, b) => a + b, 0) }} tokens</template>
               <template v-else-if="e.kind === 'noble'">was visited by {{ NOBLE_BY_ID[e.noble].name }} (+3)</template>
@@ -416,84 +471,105 @@ const levels = [3, 2, 1];
             <li v-if="!recent.length" class="muted">Nothing has happened yet.</li>
           </ol>
         </section>
+        <section v-if="finished" class="panel end" aria-label="The result">
+          <h2 v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].seat === state.you ? ' (you)' : '' }} wins with {{ winners[0].prestige }} prestige!</h2>
+          <h2 v-else-if="winners.length">A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
+          <p v-if="iWon" class="muted">Well played.</p>
+          <p v-if="tieNote" class="muted">{{ tieNote }}</p>
+          <p v-if="endNote" class="muted">{{ endNote }}</p>
+          <ol class="standings">
+            <li v-for="x in standings" :key="x.seat">
+              <b>{{ x.name }}</b> <span>{{ x.prestige }} prestige</span> <span class="muted">{{ x.cards }} {{ x.cards === 1 ? 'card' : 'cards' }}, {{ x.nobles }} {{ x.nobles === 1 ? 'noble' : 'nobles' }}</span>
+            </li>
+          </ol>
+          <div class="row">
+            <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
+            <span v-else class="muted">Waiting for the host to start another game.</span>
+            <button class="quiet" @click="send('leave')">Leave</button>
+          </div>
+        </section>
       </aside>
     </div>
 
-    <div class="boards">
-      <PlayerBoard
-        v-for="i in seatOrder"
-        :key="i"
-        :seat="state.seats[i]"
-        :is-me="i === state.you"
-        :is-turn="state.turn === i && !finished"
-        :afford="state.afford ?? {}"
-        :selected="selectedCard"
-        :interactive="!finished"
-        @pick="pickCard"
-      />
-    </div>
-
-    <section v-if="finished" class="panel end stack" aria-label="The result">
-      <h2 v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].seat === state.you ? ' (you)' : '' }} wins with {{ winners[0].prestige }} prestige!</h2>
-      <h2 v-else-if="winners.length">A shared win: {{ winners.map((w) => w.name).join(' and ') }} with {{ winners[0].prestige }} prestige.</h2>
-      <p v-if="iWon" class="muted">Well played.</p>
-      <p v-if="tieNote" class="muted">{{ tieNote }}</p>
-      <p v-if="endNote" class="muted">{{ endNote }}</p>
-      <ol class="standings">
-        <li v-for="x in standings" :key="x.seat">
-          <b>{{ x.name }}</b> <span>{{ x.prestige }} prestige</span> <span class="muted">{{ x.cards }} {{ x.cards === 1 ? 'card' : 'cards' }}, {{ x.nobles }} {{ x.nobles === 1 ? 'noble' : 'nobles' }}</span>
-        </li>
-      </ol>
-      <div class="row">
-        <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-        <span v-else class="muted">Waiting for the host to start another game.</span>
-        <button class="quiet" @click="send('leave')">Leave</button>
-      </div>
-    </section>
-
-    <div v-else class="row foot">
-      <button class="quiet" @click="send('leave')">Leave game</button>
-      <span class="muted small-text">A computer player takes your seat if you leave.</span>
-    </div>
   </div>
 </template>
 
 <style scoped>
+/* Everything is sized in em: the table's font size is set from the window (see "fitting the window"), so the layout is
+   one fixed shape that fills the room under the page title. Nothing here depends on how much has happened in the game. */
+.table-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 .info {
-  justify-content: space-between;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  height: 1.9rem;
+  flex: none;
+  min-width: 0;
+}
+.info > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.round {
+  flex: none;
+  font-size: 0.85rem;
 }
 .status {
   margin: 0;
+  flex: 1;
   font-family: var(--display);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
 }
 .status.mine {
   color: var(--amber);
 }
 .last-round {
   margin: 0;
-  padding: 0.4rem 0.8rem;
+  flex: 0 1 auto;
+  padding: 0.1rem 0.6rem;
   border: 1px solid var(--amber);
-  border-radius: 10px;
+  border-radius: 999px;
   color: var(--amber);
+  font-size: 0.8rem;
+}
+.leave {
+  flex: none;
+  margin-left: auto;
+  padding: 0.1rem 0.8rem;
+  font-size: 0.8rem;
 }
 .layout {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 310px;
-  gap: 1rem;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0.8em;
+}
+.layout > * {
+  min-height: 0;
+  min-width: 0;
 }
 .market {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.8rem;
-  border-radius: var(--radius);
+  gap: 0.5em;
+  padding: 0.6em;
+  border-radius: 0.8em;
   background: radial-gradient(900px 400px at 30% 0%, rgb(255 255 255 / 0.04), transparent), rgb(8 18 22 / 0.55);
   border: 1px solid var(--line);
+  overflow: hidden;
 }
 .row-title {
-  font-size: 0.74rem;
+  font-size: 0.65em;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -501,22 +577,35 @@ const levels = [3, 2, 1];
 .nobles {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.15em;
 }
 .noble-row {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5em;
   flex-wrap: wrap;
+  align-items: flex-start;
+}
+.nobles > .noble-row {
+  min-height: 6.2em;
 }
 .level-row {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.5em;
   align-items: center;
 }
+.empty-slot {
+  flex: none;
+  width: 5.2em;
+  height: 7em;
+  box-sizing: border-box;
+  border-radius: 0.6em;
+  border: 2px dashed var(--line);
+}
 .pile-button {
+  flex: none;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0.6em;
   background: none;
   position: relative;
 }
@@ -525,19 +614,18 @@ const levels = [3, 2, 1];
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 0.6em;
   background: var(--card-back, #4a1420);
-  border: 3px solid #f4efe3;
+  border: 0.2em solid #f4efe3;
   z-index: -1;
-  transform: translate(3px, 3px);
+  transform: translate(0.15em, 0.15em);
 }
 .pile-button::after {
-  transform: translate(6px, 6px);
+  transform: translate(0.3em, 0.3em);
   opacity: 0.7;
 }
 .pile-button:hover:not(:disabled) {
   background: none;
-  transform: translateY(-2px);
 }
 .pile-button.chosen :deep(.dev-card) {
   box-shadow: 0 0 0 3px var(--amber);
@@ -545,22 +633,41 @@ const levels = [3, 2, 1];
 .pile-button:disabled {
   opacity: 0.3;
 }
-.empty-slot {
-  width: 104px;
-  height: 142px;
-  border-radius: 10px;
-  border: 2px dashed var(--line);
+.boards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  align-content: start;
+  overflow: hidden;
 }
 .side {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5em;
+}
+.side > .panel {
+  padding: 0.5em 0.6em;
+  border-radius: 0.8em;
+  box-sizing: border-box;
+}
+.action {
+  flex: none;
+  height: 15.5em;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
 }
 .action h3 {
-  font-size: 1.1rem;
+  font-size: 1rem;
+  margin: 0;
+}
+.action .muted,
+.action p {
+  font-size: 0.85rem;
 }
 .small-text {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin: 0;
 }
 .detail {
@@ -590,12 +697,11 @@ const levels = [3, 2, 1];
 .picks {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  min-height: 34px;
+  gap: 0.3em;
+  min-height: 1.6em;
 }
 .check {
   margin: 0;
-  font-size: 0.9rem;
   color: var(--muted);
 }
 .check.ok {
@@ -603,41 +709,43 @@ const levels = [3, 2, 1];
 }
 .notice {
   margin: 0;
-  padding: 0.4rem 0.7rem;
+  padding: 0.3rem 0.6rem;
   border: 1px solid var(--danger);
   border-radius: 10px;
   color: var(--danger);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+}
+.supply {
+  flex: none;
 }
 .supply .stacks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
-  margin-top: 0.3rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.3em;
+  margin-top: 0.2em;
 }
 .give-row {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.3em;
   flex-wrap: wrap;
-  margin-top: 0.3rem;
 }
 .stack-btn {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.1rem;
-  padding: 0.3rem 0.35rem 0.15rem;
-  border-radius: 12px;
+  gap: 0.05em;
+  padding: 0.2em 0.1em 0.1em;
+  border-radius: 0.7em;
   background: var(--bg-sunken);
   border: 1px solid var(--line);
-  min-width: 3.4rem;
+  min-width: 0;
 }
 span.stack-btn {
   opacity: 0.95;
 }
 .stack-btn small {
-  font-size: 0.66rem;
+  font-size: 0.55em;
 }
 .stack-btn.picked {
   border-color: var(--amber);
@@ -645,14 +753,14 @@ span.stack-btn {
 }
 .badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 1.3rem;
-  height: 1.3rem;
+  top: -0.4em;
+  right: -0.2em;
+  min-width: 1.2em;
+  height: 1.2em;
   border-radius: 999px;
   background: var(--amber);
   color: var(--amber-ink);
-  font-size: 0.75rem;
+  font-size: 0.7em;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -663,16 +771,25 @@ span.stack-btn {
   gap: 0.25rem;
   padding: 0.1rem 0.5rem;
 }
-.log ol {
-  list-style: none;
-  margin: 0.3rem 0 0;
-  padding: 0;
+.log,
+.end {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.85rem;
-  max-height: 16rem;
-  overflow: auto;
+  overflow: hidden;
+}
+.log ol {
+  list-style: none;
+  margin: 0.2em 0 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  font-size: 0.78em;
 }
 .log li {
   display: block;
@@ -682,35 +799,41 @@ span.stack-btn {
   vertical-align: middle;
   margin: 0 1px;
 }
+.log li b {
+  margin-right: 0.25em;
+}
 .log li.mine b {
   color: var(--amber);
 }
 .log .r {
-  font-size: 0.68rem;
+  font-size: 0.8em;
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 0 0.25rem;
+  padding: 0 0.25em;
 }
-.boards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-  gap: 0.8rem;
+.end {
+  gap: 0.3em;
+  overflow: auto;
 }
 .end h2 {
   color: var(--amber);
+  font-size: 1.1rem;
+  margin: 0;
+}
+.end p {
+  margin: 0;
+  font-size: 0.85rem;
 }
 .standings {
   margin: 0;
-  padding-left: 1.2rem;
+  padding-left: 1.2em;
+  font-size: 0.85rem;
 }
 .standings li {
   display: flex;
-  gap: 0.8rem;
+  gap: 0.8em;
   flex-wrap: wrap;
-}
-.foot {
-  justify-content: space-between;
 }
 .sr-only {
   position: absolute;

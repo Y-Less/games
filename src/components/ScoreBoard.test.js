@@ -177,7 +177,7 @@ describe('ScoreBoard pop-up', () => {
     make({ rounds: [round1], players: players.map((p) => ({ ...p, ready: p.id === 'b' })), waiting: ['Ann', 'Cat'] });
     await wrapper.setProps({ rounds: [round1, round2] });
     expect(dialog().querySelector('.waiting').textContent).toContain('Waiting for Ann, Cat');
-    expect(chips().map((c) => c.find('.tick').exists())).toEqual([false, true, false]);
+    expect(chips().map((c) => c.find('.tick:not(.unready)').exists())).toEqual([false, true, false]);
   });
 
   it('brings the pop-up back for someone who still has to close it, and drops it when the game moves on', async () => {
@@ -254,5 +254,22 @@ describe('ScoreBoard pop-up', () => {
     await wrapper.find('button.all').trigger('click');
     expect(dialog().querySelector('tfoot th').textContent).toContain('/ 121');
     expect(dialog().querySelector('.run')).not.toBeNull();
+  });
+});
+
+describe('ScoreBoard without round pop-ups', () => {
+  it('stays closed when a round ends, but still opens at the end and from the button', async () => {
+    make({ roundPopups: false, rounds: [round1] });
+    await wrapper.setProps({ rounds: [round1, round2] });
+    expect(dialog()).toBeNull();
+    await wrapper.setProps({ finished: true });
+    expect(dialog()).not.toBeNull();
+    expect(dialog().textContent).toContain('Final scores');
+    expect(dialog().textContent).toContain('Hand 2');
+  });
+
+  it('does not bring a missed round pop-up back for a person who is awaited', () => {
+    make({ roundPopups: false, rounds: [round1], awaiting: true });
+    expect(dialog()).toBeNull();
   });
 });

@@ -43,11 +43,11 @@ const description = computed(() => {
     <template v-if="info">
       <span class="top">
         <b class="points" :class="{ none: !info.points }">{{ info.points || '' }}</b>
-        <Gem :colour="info.bonus" :size="small ? 22 : 30" />
+        <Gem :colour="info.bonus" :size="small ? 17 : 25" />
       </span>
       <span class="costs">
         <span v-for="c in costs" :key="c.colour" class="cost" :class="{ paid: c.left === 0 }">
-          <Gem :colour="c.colour" :size="small ? 18 : 22" :count="c.left" :faded="c.left === 0" />
+          <Gem :colour="c.colour" :size="small ? 15 : 20" :count="c.left" :faded="c.left === 0" />
           <small v-if="c.left !== c.cost" class="was">{{ c.cost }}</small>
         </span>
       </span>
@@ -61,16 +61,19 @@ const description = computed(() => {
 </template>
 
 <style scoped>
+/* Sizes are in em so the whole table scales with the window (see Table.vue). */
 .dev-card {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  width: 104px;
-  height: 142px;
-  padding: 6px 7px 7px;
-  border-radius: 10px;
+  flex: none;
+  box-sizing: border-box;
+  width: 5.2em;
+  height: 7em;
+  padding: 0.35em 0.4em 0.4em;
+  border-radius: 0.6em;
   border: 1px solid color-mix(in srgb, var(--tint) 55%, #000);
   background:
     radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--tint) 38%, transparent) 0, transparent 55%),
@@ -82,21 +85,21 @@ const description = computed(() => {
   overflow: hidden;
 }
 .dev-card.small {
-  width: 78px;
-  height: 108px;
-  padding: 4px 5px 5px;
-  border-radius: 8px;
+  width: 3.4em;
+  height: 4.6em;
+  padding: 0.2em 0.25em 0.25em;
+  border-radius: 0.45em;
 }
 button.dev-card {
   cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition: box-shadow 0.12s, border-color 0.12s;
 }
 button.dev-card:hover:not(:disabled) {
-  transform: translateY(-3px);
+  box-shadow: 0 0 0 2px var(--parchment), 0 3px 8px rgb(0 0 0 / 0.5);
 }
-.dev-card.selected {
+.dev-card.selected,
+button.dev-card.selected:hover {
   box-shadow: 0 0 0 3px var(--amber), 0 6px 14px rgb(0 0 0 / 0.55);
-  transform: translateY(-4px);
 }
 .dev-card.affordable {
   border-color: var(--moss);
@@ -114,37 +117,37 @@ button.dev-card:hover:not(:disabled) {
 }
 .points {
   font-family: var(--display);
-  font-size: 1.7rem;
+  font-size: 1.45em;
   line-height: 1;
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
 }
 .small .points {
-  font-size: 1.3rem;
+  font-size: 1em;
 }
 .costs {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: start;
+  gap: 0.1em 0.3em;
 }
 .cost {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 0.1em;
 }
 .was {
   color: var(--muted);
   text-decoration: line-through;
-  font-size: 0.68rem;
+  font-size: 0.55em;
 }
 .can {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
-  font-size: 0.62rem;
+  right: 0.3em;
+  bottom: 0.3em;
+  font-size: 0.5em;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0 0.4rem;
+  padding: 0 0.4em;
   border-radius: 999px;
   background: var(--moss);
   color: #10230e;
@@ -153,20 +156,23 @@ button.dev-card:hover:not(:disabled) {
 .dev-card.back {
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 0.3em;
   background: var(--card-back, linear-gradient(160deg, #6b1a27, #3c0f18));
-  border: 3px solid #f4efe3;
+  border: 0.2em solid #f4efe3;
 }
 .level {
   font-family: var(--display);
-  font-size: 1.6rem;
+  font-size: 1.3em;
   color: #f4efe3;
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
   letter-spacing: 0.06em;
 }
+.small .level {
+  font-size: 0.9em;
+}
 .pile {
-  font-size: 0.72rem;
-  padding: 0 0.45rem;
+  font-size: 0.6em;
+  padding: 0 0.45em;
   border-radius: 999px;
   background: rgb(0 0 0 / 0.55);
   color: #f4efe3;

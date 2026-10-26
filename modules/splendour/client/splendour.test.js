@@ -337,9 +337,40 @@ describe('Splendour table: playing', () => {
     const { w } = mountTable({ ...v, log });
     const items = w.findAll('.log li');
     expect(items).toHaveLength(6);
-    expect(items[0].text()).toContain('returned 2 tokens');
-    expect(items[5].classes('mine')).toBe(true);
+    expect(items[5].text()).toContain('returned 2 tokens'); // oldest first: the newest entry is at the bottom
+    expect(items[0].classes('mine')).toBe(true);
     expect(w.find('.log').text()).toContain('the top card of pile 2');
+  });
+
+  it('keeps the recent moves in a fixed, scrolling box that follows the newest entry', async () => {
+    const v = playView();
+    const entry = (n) => ({ round: 1 + Math.floor(n / 4), seat: n % 4, kind: 'take', colours: [0, 1, 2] });
+    const { w } = mountTable({ ...v, log: Array.from({ length: 3 }, (_, n) => entry(n)) });
+    const ol = w.find('.log ol');
+    expect(ol.exists()).toBe(true);
+    await w.setProps({ state: { ...v, log: Array.from({ length: 40 }, (_, n) => entry(n)) } });
+    await flushPromises();
+    expect(w.findAll('.log li')).toHaveLength(40);
+    expect(w.find('.log').element.parentElement.querySelector('.log')).not.toBeNull();
+  });
+
+  it('is sized to the window by its own font size and height, not by the game', () => {
+    const { w } = mountTable(playView());
+    const style = w.find('.table-view').attributes('style');
+    expect(style).toMatch(/height: [0-9]+px/);
+    expect(style).toMatch(/font-size: [0-9.]+px/);
+  });
+
+  it('never opens a pop-up between rounds, but does at the end', async () => {
+    const v = playView();
+    const { w } = mountTable({ ...v, scoreboard: { ...v.scoreboard, rounds: [] } });
+    const board = w.findComponent({ name: 'ScoreBoard' });
+    expect(board.props('roundPopups')).toBe(false);
+    await w.setProps({ state: { ...v, scoreboard: { ...v.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    await w.setProps({ state: { ...v, phase: 'finished', winners: [0], scoreboard: { ...v.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    await flushPromises();
+    expect(document.body.textContent).toContain('Final scores');
   });
 
   it('shows the scoreboard from the state', () => {

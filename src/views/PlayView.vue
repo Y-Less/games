@@ -75,6 +75,15 @@ function fit() {
   const inner = el?.firstElementChild;
   if (!el || !inner || !el.offsetParent) return;
   const current = Number.parseFloat(el.style.zoom) || 1;
+  // A screen that lays itself out to fit the window (its root has data-fits-window) is never scaled.
+  if (el.querySelector('[data-fits-window]')) {
+    natural = 0;
+    if (current !== 1) {
+      el.style.zoom = '1';
+      el.style.setProperty('--fit-zoom', '1');
+    }
+    return;
+  }
   natural = Math.max(natural, inner.getBoundingClientRect().height / current);
   const top = el.getBoundingClientRect().top + window.scrollY;
   const room = window.innerHeight - top - 12;

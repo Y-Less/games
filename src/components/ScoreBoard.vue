@@ -1,7 +1,8 @@
 <script setup>
 // The standard scoreboard for every game:
 //   - a bar with everyone's current score, always visible (it sticks under the site header while the page scrolls);
-//   - a large pop-up with every round so far, which opens by itself after each round and again at the end,
+//   - a large pop-up with every round so far, which opens by itself after each round (unless `roundPopups` is false, for
+//     games whose rounds mean little) and again at the end,
 //     and any time from the "All rounds" button.
 // Give it the standard shape from shared/scores.js. Slots: #round (extra detail about the round that has just
 // finished, shown above the table in the pop-up) and #footer (replaces the default Continue button).
@@ -21,7 +22,8 @@ const props = defineProps({
   lowIsBetter: { type: Boolean, default: false },
   target: { type: Number, default: null },
   finished: { type: Boolean, default: false },
-  autoOpen: { type: Boolean, default: true }, // open the pop-up when a round finishes
+  autoOpen: { type: Boolean, default: true }, // open the pop-up when a round finishes (and at the end)
+  roundPopups: { type: Boolean, default: true }, // false: no pop-up between rounds, only the final one (and the button)
   running: { type: Boolean, default: false },
   sticky: { type: Boolean, default: true },
   waiting: { type: Array, default: () => [] }, // names of the people who have not yet closed the round pop-up
@@ -46,7 +48,7 @@ const title = computed(() => {
 watch(
   () => props.awaiting && !props.finished,
   (needed) => {
-    if (needed && !open.value && props.rounds.length) {
+    if (needed && !open.value && props.rounds.length && props.roundPopups) {
       justFinished.value = true;
       open.value = true;
     } else if (!needed && open.value && justFinished.value && !props.finished) {
@@ -62,7 +64,7 @@ let seen = props.rounds.length;
 watch(
   () => props.rounds.length,
   (count) => {
-    if (count > seen && props.autoOpen) {
+    if (count > seen && props.autoOpen && props.roundPopups) {
       justFinished.value = true;
       open.value = true;
     }
@@ -104,7 +106,7 @@ defineExpose({ show, close });
       <li v-for="p in players" :key="p.id" class="chip" :class="{ me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away }">
         <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
         <strong class="points">{{ p.score }}</strong>
-        <span v-if="p.ready" class="tick" title="Ready for the next round" aria-label="ready">&#10003;</span>
+        <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
         <small v-if="p.note" class="muted">{{ p.note }}</small>
       </li>
     </ul>
@@ -183,12 +185,17 @@ defineExpose({ show, close });
   color: var(--amber);
 }
 .points {
+  min-width: 2ch;
+  text-align: right;
   font-family: var(--display);
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
 }
 .chip small {
   font-size: 0.72rem;
+}
+.tick.unready {
+  visibility: hidden; /* the tick's room is kept, so a chip does not widen when its player is ready */
 }
 .tick {
   color: var(--moss, #7fb069);

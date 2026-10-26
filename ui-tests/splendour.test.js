@@ -1,8 +1,8 @@
 // Splendour: the shared seat lobby, a reload mid-game, then a whole game against a computer player played by clicking
-// gems and cards, with the score pop-up after every round and the final result.
+// gems and cards: no score pop-up between rounds, a stable layout that fits the window, and the final result.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkScoreBarSticks, createWorld, drive } from './helpers.js';
+import { createWorld, drive } from './helpers.js';
 
 let world;
 let user;
@@ -64,7 +64,7 @@ test('starting deals the table, and a reload resumes the same room', { timeout: 
   assert.equal(await user.page.$('.entry'), null, 'not back at the start screen');
 }));
 
-test('playing a whole game by clicking gems and cards: a pop-up after every round, then the final result', { timeout: 240000 }, guarded('play a game', async () => {
+test('playing a whole game by clicking gems and cards: no pop-up between rounds, a layout that never moves, then the final result', { timeout: 240000 }, guarded('play a game', async () => {
   const titles = new Set();
   const finder = () => {
     const action = document.querySelector('.action');
@@ -89,20 +89,51 @@ test('playing a whole game by clicking gems and cards: a pop-up after every roun
     if (card && !picked) return card;
     return [...document.querySelectorAll('.supply button.stack-btn')].find((b) => b.getAttribute('aria-pressed') === 'false' && !/: 0 left/.test(b.getAttribute('aria-label')));
   };
+  // The boxes of the main areas, the page's overflow and the shell's scale, sampled all game long: each must only ever
+  // have one value (the recent-moves box in particular must not grow as moves are made).
+  const seen = {};
+  const probe = () =>
+    user.page.evaluate(() => {
+      const box = (selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return 'missing';
+        const b = el.getBoundingClientRect();
+        return Math.round(b.left + scrollX) + ',' + Math.round(b.top + scrollY) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height);
+      };
+      const frame = document.querySelector('.field-frame');
+      return {
+        table: box('.table-view'),
+        market: box('.market'),
+        boards: box('.boards'),
+        side: box('.side'),
+        action: box('.action'),
+        supply: box('.supply'),
+        log: document.querySelector('.log') ? box('.log') : 'ended',
+        scale: (Number.parseFloat(frame?.style.zoom) || 1) + ' ' + getComputedStyle(document.querySelector('.table-view')).fontSize,
+        overflow: String(Math.max(0, document.documentElement.scrollHeight - innerHeight)),
+      };
+    });
   const act = async () => {
     const title = await user.modalTitle();
     if (title) {
       titles.add(title);
-if (title === 'Final scores') return false; // the game is over: leave this pop-up for the checks below
+      if (title === 'Final scores') return false; // the game is over: leave this pop-up for the checks below
       await user.page.keyboard.press('Escape');
       return true;
     }
+    for (const [key, value] of Object.entries(await probe())) (seen[key] ??= new Set()).add(value);
     return user.clickFound(finder);
   };
   const done = () => user.page.$('section.end').then(Boolean);
   await drive({ act, finished: done, what: 'a game of Splendour', timeout: 220000 });
 
-  assert.ok([...titles].some((t) => /^Scores after Round \d+$/.test(t)), `a round pop-up appeared: ${[...titles]}`);
+  assert.deepEqual([...titles].filter((t) => t !== 'Final scores'), [], 'no pop-up between rounds');
+  for (const [key, values] of Object.entries(seen)) {
+    const live = [...values].filter((v) => v !== 'ended'); // the log box is replaced by the result when the game ends
+    assert.equal(live.length, 1, key + ' kept one box all game: ' + live.join(' | '));
+  }
+  assert.equal([...seen.overflow][0], '0', 'the page never needed to scroll');
+  assert.match([...seen.scale][0], /^1 /, 'the shell did not scale the game down');
   assert.match(await user.page.$eval('section.end h2', (el) => el.innerText), /wins with|shared win/);
   assert.ok((await user.page.$$eval('section.end .standings li', (els) => els.length)) === 2);
   // The final pop-up arrives by itself, with every round in its table.
@@ -129,7 +160,7 @@ test('after the game ends, a reload still shows the result and Play again starts
   assert.equal(await user.page.$('.table-view'), null);
 }));
 
-test('the score bar stays visible while the page scrolls', { timeout: 60000 }, guarded('sticky bar', async () => {
+test('the table fits the window at common desktop sizes, without the page scrolling or being scaled', { timeout: 90000 }, guarded('fits the window', async () => {
   await user.goto('/play/splendour');
   await user.clickButton('Start a new game');
   await user.clickButton('2 players', { exact: true });
@@ -137,10 +168,27 @@ test('the score bar stays visible while the page scrolls', { timeout: 60000 }, g
   await user.waitForNoText('more seat');
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');
-  const result = await checkScoreBarSticks(user);
-  assert.ok(result.found);
-  assert.ok(result.top >= result.headerBottom - 2 && result.top < result.headerBottom + 40, `bar sits under the header: ${JSON.stringify(result)}`);
-  assert.ok(result.height > 20 && result.bottom < result.viewport);
+  for (const [width, height] of [[1366, 768], [1600, 900], [1920, 1080]]) {
+    await user.page.setViewport({ width, height });
+    await user.page.waitForFunction(() => document.documentElement.scrollHeight <= innerHeight, { timeout: 5000 });
+    const result = await user.page.evaluate(() => {
+      const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+      const frame = document.querySelector('.field-frame');
+      return {
+        overflow: document.documentElement.scrollHeight - innerHeight,
+        scale: Number.parseFloat(frame.style.zoom) || 1,
+        bar: rect('.score-bar').top - rect('header.bar').bottom,
+        bottoms: ['.market', '.boards', '.side', '.table-view'].map((s) => rect(s).bottom),
+        leave: rect('.info .leave').bottom,
+        viewport: innerHeight,
+      };
+    });
+    const label = width + 'x' + height + ' ' + JSON.stringify(result);
+    assert.ok(result.overflow <= 0, 'the page does not scroll at ' + label);
+    assert.equal(result.scale, 1, 'the shell does not scale the game at ' + label);
+    assert.ok(result.bar >= -2 && result.bar < 80, 'the score bar sits under the header at ' + label);
+    assert.ok(result.bottoms.every((bottom) => bottom <= result.viewport), 'everything is inside the window at ' + label);
+  }
 }));
 
 test('no uncaught errors in any page', () => {
