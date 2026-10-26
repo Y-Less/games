@@ -8,7 +8,8 @@ An Oh Hell-style trick-taking game for 3 to 7 players, with built-in computer pl
 module.json        menu entry and the statistics this game reports
 rules.md           the player-facing rules (shown by the Rules button)
 game.js            the rules as pure functions over a plain room object (no sockets, no files)
-bot.js             the computer players' judgement (nominations and card play), also pure
+ai/                the computer players' AIs (ai/index.js exports AIS): standard (the original), random, cautious, optimist, counter, sharp; each has nominate(ctx) and play(ctx) over plain data. Each computer seat picks one by weight at game start (seats[].ai, saved with the room; a replacement picks when it joins; older rooms fall back to standard)
+bot.js             re-exports the standard AI's functions (the original judgement)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, bot timers, personalised views, statistics
 client/            Vue 3 components: NominationWhist (root), Lobby, Table, TrickTable, RoundResult, Final
 game.test.js       rules and computer-player tests
@@ -22,7 +23,7 @@ e2e.test.js        end-to-end tests against the real site
 - Follow suit if possible; highest trump wins, otherwise the highest card of the suit led (no trumps: only the suit led counts).
 - Scoring: exactly right is 10 plus the nomination. A miss scores the tricks actually taken, by default (host option `missPoints`, on by default; off means a miss scores 0). Highest total after the last round wins and ties share the win.
 - Instant win (host option `instantWin`, on by default; a saved room without the key counts as on): in a 7-card first round or a 7-card last round (so round 1 and round 14 of the full game, round 1 only of the short game), a seat that nominated 7 and took all 7 tricks wins at once. The round is scored and recorded in the history (with `instantWin: <seat>`), then the phase becomes `finished`, `winners` is that one seat and `instantWin` in the view names it. A failed 7 scores normally; the last round of a short game has 1 card, so it never applies. Computer players nominate 7 for an instant win only when the option is on, the round qualifies and the hand has a run of the top trumps (see `canTakeAllSeven` in bot.js).
-- Decisions the brief left open: the round-end pop-up does not block play, but the next round is dealt when any person presses "Deal round N" (computer players never advance a round by themselves); a finished trick stays on the table for 1.5 seconds; one live room per account.
+- Decisions the brief left open: closing the round-end score pop-up marks that person ready (`next`), and the next round is dealt once every person is (computer players count as ready), or after `NOMINATION_WHIST_NEXT_WAIT` ms; a finished trick stays on the table for 1.5 seconds; one live room per account.
 
 ## Seats and computer players
 

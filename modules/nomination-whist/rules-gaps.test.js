@@ -53,7 +53,9 @@ test('after the end: a person who leaves keeps a "gone" seat; play again clears 
   game.start(room, 1, rng);
   while (room.phase !== 'finished') {
     if (game.pendingAction(room)) game.runPending(room, rng);
-    else if (room.phase === 'roundEnd') game.nextRound(room, 1, rng);
+    else if (room.phase === 'roundEnd') {
+      for (const seat of room.seats) if (seat.kind === 'human') game.nextRound(room, seat.id, rng);
+    }
     else if (room.phase === 'nominating') game.nominate(room, room.turn, game.allowedNominations(room, room.turn)[0]);
     else game.playCard(room, room.turn, game.legalCards(room, room.turn)[0]);
   }

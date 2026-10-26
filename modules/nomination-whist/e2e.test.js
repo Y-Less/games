@@ -168,7 +168,7 @@ async function playToEnd(people, { timeout = 60000 } = {}) {
   while (Date.now() - started < timeout) {
     if (people.every((p) => p.state?.phase === 'finished')) return;
     let moved = false;
-    for (const [i, p] of people.entries()) if (await move(p, { next: i === 0 })) moved = true;
+    for (const [i, p] of people.entries()) if (await move(p, { next: true })) moved = true;
     if (!moved) await sleep(5);
   }
   assert.fail(`the game did not finish: ${people.map((p) => p.state?.phase).join(', ')}`);
@@ -436,7 +436,7 @@ test('a person who leaves mid-game is replaced by a computer player; the game go
   const [ann, bob, cat] = [await person('ann'), await person('bob'), await person('cat')];
   const code = await setUp([ann, bob, cat], { seats: 4, length: 'short' });
   await ann.send('start');
-  for (let i = 0; i < 40; i++) for (const p of [ann, bob, cat]) await move(p, { next: p === ann });
+  for (let i = 0; i < 40; i++) for (const p of [ann, bob, cat]) await move(p, { next: true });
   const bobSeat = bob.state.you;
   assert.ok((await bob.send('leave')).ok);
   await until(() => bob.state === null, 'bob out of the game');

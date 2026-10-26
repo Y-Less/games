@@ -6,7 +6,8 @@
 // name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
 import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
-import { chooseCard, chooseNomination } from './bot.js';
+import { AIS } from './ai/index.js';
+import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -162,15 +163,16 @@ function newBot(room) {
  * Removes a human. Before the game starts the seat is freed; mid-game a computer player takes it over; after the end
  * the seat is kept (so the final scores still make sense). `empty` is true when no human is left: discard the room.
  */
-export function removeHuman(room, userId) {
+export function removeHuman(room, userId, rng = Math.random) {
   const seat = seatOf(room, userId);
   if (seat === -1) return fail('You are not in this game.');
   const name = room.seats[seat].name;
-  if (MID_GAME.includes(room.phase)) room.seats[seat] = newBot(room);
+  if (MID_GAME.includes(room.phase)) room.seats[seat] = { ...newBot(room), ai: pickAI(AIS, rng).id };
   else room.seats[seat] = room.phase === 'finished' ? { kind: 'gone', name } : null;
   const humans = humanSeats(room);
   if (!humans.length) return ok({ empty: true, seat });
   if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
+  advanceIfReady(room); // the person who left may have been the only one still to close the pop-up
   return ok({ empty: false, seat, replaced: MID_GAME.includes(room.phase) });
 }
 
@@ -246,7 +248,17 @@ export function start(room, userId, rng = Math.random) {
   resetGame(room);
   room.dealer = Math.floor(rng() * room.seats.length);
   dealRound(room, rng);
+  assignBotAIs(room, rng);
   return ok();
+}
+
+/** Every computer player picks the AI it will play this game with (kept on the seat, so it survives a restart). */
+function assignBotAIs(room, rng) {
+  const bots = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
+  const chosen = assignAIs(AIS, bots, rng);
+  room.seats.forEach((s, i) => {
+    if (isBot(s)) s.ai = chosen[i];
+  });
 }
 
 export function dealRound(room, rng = Math.random) {
@@ -384,23 +396,51 @@ function endRound(room) {
     room.winners = winnersOf(room.scores);
   } else {
     room.phase = 'roundEnd';
+    room.ready = [];
   }
 }
 
+/** A person is ready for the next round (they closed the score pop-up); it is dealt once every person is. */
 export function nextRound(room, userId, rng = Math.random) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'roundEnd') return fail('The round is not over.');
-  room.roundIndex++;
-  room.dealer = (room.dealer + 1) % room.seats.length;
-  dealRound(room, rng);
+  room.ready ??= [];
+  const seat = seatOf(room, userId);
+  if (!room.ready.includes(seat)) room.ready.push(seat);
+  advanceIfReady(room, rng);
   return ok();
 }
+
+function advanceIfReady(room, rng = Math.random) {
+  if (room.phase !== 'roundEnd') return false;
+  room.ready ??= [];
+  if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
+  dealNext(room, rng);
+  return true;
+}
+
+function dealNext(room, rng) {
+  room.roundIndex++;
+  room.dealer = (room.dealer + 1) % room.seats.length;
+  room.ready = [];
+  dealRound(room, rng);
+}
+
+/** Deals the next round whether or not everyone has closed the pop-up (the server does this after a wait). */
+export function forceNextRound(room, rng = Math.random) {
+  if (room.phase !== 'roundEnd') return fail('The round is not over.');
+  dealNext(room, rng);
+  return ok();
+}
+
+export const waitingForReady = (room) => room.phase === 'roundEnd';
 
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over.');
   room.seats = room.seats.map((s) => (s?.kind === 'gone' ? null : s));
+  for (const s of room.seats) if (s) delete s.ai;
   resetGame(room);
   room.phase = 'lobby';
   return ok();
@@ -440,21 +480,60 @@ export function pendingAction(room) {
   return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
 }
 
-/** The card a computer player would play: always one of its legal cards. */
-export function botPlay(room, seat) {
-  return chooseCard({
+/** The AI a computer player plays with; rooms saved before AIs existed fall back to the first one. */
+export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
+
+/** What an AI may know when it nominates: its own hand and the public table, never anybody else's cards. */
+function nominateContext(room, seat, rng) {
+  return {
+    hand: room.hands[seat],
+    trump: trumpThisRound(room),
+    players: room.seats.length,
+    allowed: allowedNominations(room, seat),
+    instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex),
+    missPoints: room.settings.missPoints !== false,
+    seat,
+    dealer: room.dealer,
+    cards: cardsThisRound(room),
+    nominations: [...room.nominations],
+    rng,
+  };
+}
+
+/** The same for a card to play: the trick so far, what has been played, and everybody's nominations and tricks. */
+function playContext(room, seat, rng) {
+  return {
     hand: room.hands[seat],
     legal: legalCards(room, seat),
     trick: room.trick.map((p) => p.card),
+    trickPlays: room.trick.map((p) => ({ ...p })),
     trump: trumpThisRound(room),
-    played: room.played,
+    played: [...room.played],
     need: room.nominations[seat] - room.taken[seat],
     players: room.seats.length,
-  });
+    seat,
+    nominations: [...room.nominations],
+    taken: [...room.taken],
+    handSizes: room.hands.map((h) => h.length),
+    cards: cardsThisRound(room),
+    instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex),
+    missPoints: room.settings.missPoints !== false,
+    rng,
+  };
 }
 
+/** The card a computer player would play: always one of its legal cards (an AI that answers illegally is overruled). */
+export function botPlay(room, seat, rng = Math.random) {
+  const context = playContext(room, seat, rng);
+  const card = aiOf(room, seat).play(context);
+  return context.legal.includes(card) ? card : AIS[0].play(context);
+}
+
+/** The number a computer player would nominate: always an allowed one. */
 export function botNominate(room, seat, rng = Math.random) {
-  return chooseNomination({ hand: room.hands[seat], trump: trumpThisRound(room), players: room.seats.length, allowed: allowedNominations(room, seat), instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex), rng });
+  const context = nominateContext(room, seat, rng);
+  const number = aiOf(room, seat).nominate(context);
+  return context.allowed.includes(number) ? number : AIS[0].nominate(context);
 }
 
 /** Performs a pending action. Returns the action, or null if there was nothing to do. */
@@ -465,7 +544,7 @@ export function runPending(room, rng = Math.random) {
     action.type === 'nominate'
       ? nominate(room, action.seat, botNominate(room, action.seat, rng))
       : action.type === 'play'
-        ? playCard(room, action.seat, botPlay(room, action.seat))
+        ? playCard(room, action.seat, botPlay(room, action.seat, rng))
         : resolveTrick(room);
   if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
   return action;
@@ -489,6 +568,8 @@ export function roundsView(room) {
   }));
 }
 
+const aiSummary = ({ id, name }) => ({ id, name });
+
 /** Everything one account may know: its own hand and the public table, never anybody else's cards. */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -504,11 +585,13 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             seat: i,
             name: seat.name,
             bot: isBot(seat),
+            ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
             away: seat.kind === 'gone' || (isHuman(seat) && !online(seat.id)),
             cards: room.hands[i].length,
             bid: room.nominations[i],
             tricks: room.taken[i],
             score: room.scores[i],
+            ready: room.phase === 'roundEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
           }
         : null,
     ),

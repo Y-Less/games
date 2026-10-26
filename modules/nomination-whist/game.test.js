@@ -25,7 +25,9 @@ function fullRoom(seats = 4, settings = {}) {
 /** Plays a whole game for every seat with the computer's judgement. */
 function playOut(room, rng) {
   for (let guard = 0; guard < 100000 && room.phase !== 'finished'; guard++) {
-    if (room.phase === 'roundEnd') assert.ok(g.nextRound(room, 1, rng).ok);
+    if (room.phase === 'roundEnd') {
+      for (const seat of room.seats) if (seat?.kind === 'human') assert.ok(g.nextRound(room, seat.id, rng).ok);
+    }
     else {
       const seat = room.phase === 'nominating' || room.trick.length < room.seats.length ? room.turn : null;
       if (seat === null) assert.ok(g.resolveTrick(room).ok);
@@ -373,6 +375,38 @@ test('leaving: a computer player takes the seat mid-game, the host passes on, an
   assert.equal(room.hostId, 1);
   assert.equal(g.removeHuman(room, 2).ok, false);
   assert.equal(g.removeHuman(room, 1).empty, true);
+});
+
+test('the next round is dealt once every person has closed the score pop-up, and not before', () => {
+  const room = fullRoom(4);
+  g.start(room, 1, seeded(3));
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
+  room.phase = 'roundEnd';
+  room.ready = [];
+  assert.ok(g.nextRound(room, 1).ok);
+  assert.equal(room.phase, 'roundEnd', 'one of two people is not enough');
+  assert.ok(g.nextRound(room, 1).ok, 'closing it twice is harmless');
+  assert.equal(g.viewFor(room, 1).seats[0].ready, true);
+  assert.equal(g.viewFor(room, 1).seats[1].ready, false);
+  assert.equal(g.viewFor(room, 1).seats[2].ready, true, 'computer players are always ready');
+  assert.ok(g.nextRound(room, 2).ok);
+  assert.notEqual(room.phase, 'roundEnd');
+  assert.deepEqual(room.ready, []);
+});
+
+test('a person leaving at the end of a round does not hold the others up, and the server can force the next round', () => {
+  const room = fullRoom(4);
+  g.start(room, 1, seeded(3));
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
+  room.phase = 'roundEnd';
+  room.ready = [];
+  g.nextRound(room, 1);
+  assert.ok(g.removeHuman(room, 2).ok);
+  assert.notEqual(room.phase, 'roundEnd');
+  room.phase = 'roundEnd';
+  assert.ok(g.forceNextRound(room).ok);
+  assert.notEqual(room.phase, 'roundEnd');
+  assert.equal(g.forceNextRound(room).ok, false);
 });
 
 test('leaving after the game ended keeps the final table intact until the host plays again', () => {
