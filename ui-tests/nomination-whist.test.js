@@ -1,7 +1,7 @@
 // Nomination Whist: the shared seat lobby, then one whole round played by nominating and clicking cards.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkScoreBarSticks, createWorld, drive } from './helpers.js';
+import { createWorld, drive } from './helpers.js';
 
 let world;
 let user;
@@ -27,6 +27,8 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
   assert.equal(await user.copyInvite(), `${world.base}/play/nomination-whist?${code}`);
 
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty']);
+  assert.equal((await user.buttonState('Leave game', { scope: '.field' })).present, false, 'the lobby has no Leave button of its own');
+  assert.equal((await user.buttonState('Leave game', { scope: 'header.bar' })).present, true, 'the header offers it');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
   await user.clickButton('Add a computer player');
   await user.waitForText('2 more seats to fill.');
@@ -76,16 +78,92 @@ test('a whole round, nominating then playing seven tricks, ends with the scores 
   await user.closeModalWithEsc();
 }));
 
-test('the score bar stays visible while the page scrolls', { timeout: 60000 }, guarded('sticky bar', async () => {
-  const result = await checkScoreBarSticks(user);
-  assert.ok(result.found);
-  assert.ok(result.top >= result.headerBottom - 2 && result.top < result.headerBottom + 40, `bar sits under the header: ${JSON.stringify(result)}`);
-  assert.ok(result.height > 20 && result.bottom < result.viewport);
+const rect = (selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+const rects = (selector) =>
+  user.page.evaluate((sel) => [...document.querySelectorAll(sel)].map((el) => {
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }), selector);
+
+test('the site header shows the title, Rules and Leave game, and neither the play area nor the lobby has a Leave button', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Nomination Whist');
+  const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
+  assert.deepEqual(inPlay, [], 'no Leave button in the play area');
 }));
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window and every row shares the same outer edges and gutters`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await user.page.setViewport(viewport);
+    await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no sideways scroll');
+    const bar = await rect('.score-bar');
+    const frame = await rect('.game-frame');
+    assert.ok(frame.bottom <= viewport.height, `the frame ends inside the window: ${frame.bottom}`);
+    const log = await rect('.box.log');
+    const status = await rect('.box.status');
+    const nominate = await rect('.nominate');
+    const mine = await rect('.mine');
+    const main = await rect('.game-frame .main');
+    const near = (a, b, what) => assert.ok(Math.abs(a - b) <= 1, `${what}: ${a} vs ${b}`);
+    // Left edges: your hand row and Recent moves with the score bar; right edges: the nomination zone, Status.
+    assert.equal(await user.page.$('.seats'), null, 'no row of duplicate player seats');
+    near(mine.left, bar.left, 'your row left');
+    near(log.left, bar.left, 'Recent moves left');
+    near(nominate.right, bar.right, 'nomination zone right');
+    near(mine.right, bar.right, 'your row right');
+    near(status.right, bar.right, 'Status right');
+    // The gutters: the same between seats and between the two bottom boxes.
+    const gutter = status.left - log.right;
+    assert.ok(gutter >= 10 && gutter <= 14, `gutter between the bottom boxes: ${gutter}`);
+    assert.ok(log.top - main.bottom >= 4 && log.top - main.bottom <= 12, `gap between the table and the boxes: ${log.top - main.bottom}`);
+    near(log.bottom, status.bottom, 'the bottom boxes end on one line');
+    assert.ok(mine.bottom <= main.bottom + 1, 'your hand is inside the main area');
+    // Status holds the words; the play area holds none of them.
+    const inPlay = await user.page.$eval('.game-frame .main', (el) => el.innerText);
+    for (const text of ['Round 2 of 14', 'Your turn', 'Dealer:', 'Waiting for']) assert.ok(!inPlay.includes(text), `"${text}" should be in Status, not in the play area`);
+    assert.match(await user.page.$eval('.box.status', (el) => el.innerText), /Round \d+ of 14[\s\S]*Dealer:[\s\S]*Trumps:/);
+  }));
+}
 
 test('the next round was dealt without a separate button', { timeout: 60000 }, guarded('next round', async () => {
   await user.waitForText('Round 2 of 14');
   assert.equal((await user.buttonState('Deal round 2')).present, false);
+}));
+
+test('clicking a player chip toggles a popup with their cards and nomination, and moves nothing', { timeout: 60000 }, guarded('popup', async () => {
+  const areas = ['.score-bar', '.centre', '.nominate', '.mine', '.hand', '.box.log', '.box.status'];
+  const boxes = () => Promise.all(areas.map(rect));
+  const was = await boxes();
+  await user.page.click('.score-bar button.chip-button');
+  await user.waitForSelector('.main .popup');
+  assert.match(await user.page.$eval('.popup', (e) => e.innerText), /Cards in hand\s*\d+[\s\S]*Score/);
+  assert.deepEqual(await boxes(), was, 'opening the popup moved something');
+  await user.page.click('.score-bar button.chip-button');
+  await user.waitForSelector('.main .popup', { hidden: true });
+  await user.page.click('.score-bar button.chip-button');
+  await user.page.keyboard.press('Escape');
+  await user.waitForSelector('.main .popup', { hidden: true });
+  assert.deepEqual(await boxes(), was, 'closing the popup moved something');
+}));
+
+test('Leave game in the header asks first, then leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.waitForText('A computer player takes your seat if you leave.');
+  await user.clickButton('Stay', { exact: true });
+  await user.waitForNoText('A computer player takes your seat');
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
+  await user.waitForText('Start a new game');
 }));
 
 test('no uncaught errors in any page', () => {

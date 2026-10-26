@@ -35,7 +35,6 @@ const iWon = computed(() => props.state.winners.includes(props.state.you));
     <div class="row">
       <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
       <span v-else class="muted">The host can start another game.</span>
-      <button class="quiet" @click="send('leave')">Leave game</button>
     </div>
   </section>
 </template>

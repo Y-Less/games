@@ -1,8 +1,9 @@
 <script setup>
 // Nomination Whist: the screens drawn inside the site's play field. The server sends each player their own view of
 // the game as a `state` event (null when not in a game); everything the player does is a request to the server.
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
+import { useLeave } from '../../../src/playBar.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -31,6 +32,13 @@ function send(event, payload = {}) {
     });
   });
 }
+
+// "Leave game" lives in the site's header; it is offered whenever you are in a room.
+useLeave({
+  canLeave: computed(() => Boolean(state.value)),
+  leave: () => send('leave'),
+  confirmText: computed(() => (['nominating', 'playing', 'roundEnd'].includes(state.value?.phase) ? 'A computer player takes your seat if you leave.' : '')),
+});
 
 async function resume() {
   const code = state.value?.code ?? pendingInvite;

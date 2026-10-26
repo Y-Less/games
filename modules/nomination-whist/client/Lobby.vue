@@ -66,9 +66,6 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
         </label>
         <p class="muted">Hit your nomination exactly and score 10 plus the number nominated. {{ rounds }} rounds in all.</p>
       </template>
-      <template #footer>
-        <button class="quiet" @click="send('leave')">Leave game</button>
-      </template>
     </SeatLobby>
   </div>
 </template>

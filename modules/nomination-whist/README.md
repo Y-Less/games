@@ -11,7 +11,7 @@ game.js            the rules as pure functions over a plain room object (no sock
 ai/                the computer players' AIs (ai/index.js exports AIS): standard (the original), random, cautious, optimist, counter, sharp; each has nominate(ctx) and play(ctx) over plain data. Each computer seat picks one by weight at game start (seats[].ai, saved with the room; a replacement picks when it joins; older rooms fall back to standard)
 bot.js             re-exports the standard AI's functions (the original judgement)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, bot timers, personalised views, statistics
-client/            Vue 3 components: NominationWhist (root), Lobby, Table, TrickTable, RoundResult, Final
+client/            Vue 3 components: NominationWhist (root), Lobby, Table, RoundResult, log (Recent moves), Final
 game.test.js       rules and computer-player tests
 e2e.test.js        end-to-end tests against the real site
 ```
@@ -43,7 +43,7 @@ Server to client: `state`, a view personalised for that account (or `null` when 
 
 ## Reusable parts
 
-`client/TrickTable.vue` is a generic card table for trick-taking games: opponents round an oval (a wrapped row on a phone), the trick in the middle with who played each card, and the viewer's seat in a slot. Other card games could use it as it is.
+The table is laid out with the shared `GameFrame`, `TrickCircle`, `ScoreBoard`, `GameLog` and `GameStatus` components; `client/log.js` works the Recent moves list out from the changes between states.
 
 ## Tests
 
