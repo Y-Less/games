@@ -288,7 +288,7 @@ const levels = [3, 2, 1];
         <section class="market" aria-label="The cards">
           <div class="nobles" aria-label="Nobles">
             <span class="row-title">Nobles</span>
-            <div class="noble-row">
+            <div class="noble-row noble-grid" style="grid-template-columns: repeat(2, 5.2em)">
               <NobleTile v-for="n in state.nobles" :key="n" :noble="n" :bonuses="bonuses" />
               <span v-if="!state.nobles.length" class="muted">All the nobles have visited.</span>
             </div>
@@ -512,8 +512,11 @@ const levels = [3, 2, 1];
   flex-wrap: wrap;
   align-items: flex-start;
 }
-.nobles > .noble-row {
-  width: 10.9em;
+/* Nobles go two to a row (up to six of them in three rows), so the column never grows taller than the cards beside it. */
+.nobles > .noble-grid {
+  display: grid;
+  gap: 0.5em;
+  align-content: start;
 }
 .level-row {
   display: flex;

@@ -446,6 +446,17 @@ describe('Splendour table: playing', () => {
     expect(w.find('.headline').text()).toContain('Waiting for');
   });
 
+  it('lays the nobles out two to a row (three nobles for two players, five for four)', () => {
+    for (const seats of [2, 3, 4]) {
+      const v = playView(started(seats));
+      expect(v.nobles).toHaveLength(seats + 1);
+      const { w } = mountTable(v);
+      const grid = w.find('.nobles .noble-grid');
+      expect(grid.attributes('style')).toContain('repeat(2,');
+      expect(grid.findAll('.noble')).toHaveLength(seats + 1);
+    }
+  });
+
   it('copes with no nobles left and empty slots', () => {
     const v = playView();
     const { w } = mountTable({ ...v, nobles: [], board: { ...v.board, 1: [v.board[1][0], null, null, null] }, decks: { 1: 0, 2: 1, 3: 1 } });

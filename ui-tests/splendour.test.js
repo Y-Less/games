@@ -245,6 +245,46 @@ test('the table fits the window at common desktop sizes, without the page scroll
   }
 }));
 
+test('with four players the five nobles sit in two columns inside the market and overlap nothing', { timeout: 90000 }, guarded('nobles', async () => {
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
+  await user.waitForText('Start a new game');
+  await user.clickButton('Start a new game');
+  await user.waitForText('Waiting for players');
+  await user.clickButton('Fill the empty seats with computer players');
+  await user.waitForNoText('more seat');
+  await user.clickButton('Start the game', { exact: true });
+  await user.waitForSelector('.score-bar');
+  for (const [width, height] of [[1366, 768], [1920, 1080]]) {
+    await user.page.setViewport({ width, height });
+    await new Promise((r) => setTimeout(r, 500)); // the frame re-measures after the window changes
+    const found = await user.page.evaluate(() => {
+      const box = (el) => {
+        const b = el.getBoundingClientRect();
+        return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+      };
+      const nobles = [...document.querySelectorAll('.nobles .noble')].map(box);
+      const others = Object.fromEntries(['.market', '.mine-col', '.side', '.box.log', '.box.status', '.score-bar', '.levels'].map((s) => [s, document.querySelector(s) ? box(document.querySelector(s)) : null]));
+      return { nobles, others };
+    });
+    const label = width + 'x' + height + ' ' + JSON.stringify(found);
+    const overlap = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    assert.equal(found.nobles.length, 5, 'five nobles for four players at ' + label);
+    assert.equal(new Set(found.nobles.map((n) => Math.round(n.left))).size, 2, 'the nobles are in two columns at ' + label);
+    assert.equal(new Set(found.nobles.map((n) => Math.round(n.top))).size, 3, 'in three rows at ' + label);
+    const { market } = { market: found.others['.market'] };
+    for (const [i, n] of found.nobles.entries()) {
+      assert.ok(n.left >= market.left - 1 && n.right <= market.right + 1 && n.top >= market.top - 1 && n.bottom <= market.bottom + 1, 'noble ' + i + ' is inside the market at ' + label);
+      for (const [name, other] of Object.entries(found.others)) {
+        if (!other || name === '.market') continue;
+        assert.ok(!overlap(n, other), 'noble ' + i + ' overlaps ' + name + ' at ' + label);
+      }
+      for (const [j, m] of found.nobles.entries()) if (j > i) assert.ok(!overlap(n, m), 'nobles ' + i + ' and ' + j + ' overlap at ' + label);
+    }
+    await user.page.screenshot({ path: process.env.NOBLE_SHOTS ? process.env.NOBLE_SHOTS + '/nobles-' + width + 'x' + height + '.png' : undefined });
+  }
+}));
+
 test('no uncaught errors in any page', () => {
   assert.deepEqual(world.pageErrors, []);
 });
