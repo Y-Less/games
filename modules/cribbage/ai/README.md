@@ -1,6 +1,6 @@
 # Cribbage computer players (AIs)
 
-Every computer-controlled seat in Cribbage plays with one of six AIs. The game is for two to four players; the AIs make
+Every computer-controlled seat in Cribbage plays with one of six AIs. The game is for two to five players; the AIs make
 two kinds of decision: which cards to discard to the crib, and which card to peg. The general mechanism is described in
 `MODULES.md` ("Computer players (AIs)") and `shared/ai.js`.
 

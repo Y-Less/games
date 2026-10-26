@@ -1,6 +1,6 @@
 # Cribbage
 
-A game for 2, 3 or 4 players, everyone playing for themselves. The first to reach the target score wins: 121, or 61 for a short game. The host chooses the number of seats (empty seats can be filled with computer players) and the target.
+A game for 2, 3, 4 or 5 players, everyone playing for themselves. The first to reach the target score wins: 121, or 61 for a short game. The host chooses the number of seats (empty seats can be filled with computer players) and the target.
 
 ## Dealing
 
@@ -9,6 +9,7 @@ The dealer owns the **crib**, an extra hand of four cards that is counted for th
 - **Two players:** six cards each. Each player puts two cards in the crib.
 - **Three players:** five cards each, plus one extra card from the deck placed in the crib. Each player puts one card in the crib.
 - **Four players:** five cards each. Each player puts one card in the crib.
+- **Five players:** the dealer is dealt four cards and keeps them all; everyone else is dealt five and puts one card in the crib, which makes up the crib's four cards.
 
 After everyone has discarded, the starter card is cut from the deck. If it is a Jack, the dealer pegs 2 for **his heels** at once.
 
@@ -24,7 +25,7 @@ Points are pegged at once for:
 - **Runs:** the last three or more cards played form a run in any order (for example 4, 6, 5), one point per card. A card from outside the run breaks it.
 - **Go or last card:** when nobody left can play, the last player to play scores 1 and the count starts again from 0 with the cards that remain, led by the next player in turn. The last card of the play scores 1 too, unless it made 31.
 
-With three or four players, a player who cannot play is passed over while the others carry on; once nobody can play, the last player to have played scores the go.
+With three or more players, a player who cannot play is passed over while the others carry on; once nobody can play, the last player to have played scores the go.
 
 ## The show
 

@@ -1,6 +1,6 @@
 # Cribbage
 
-Cribbage for two to four players (everyone for themselves), played to 61 or 121, with built-in computer players.
+Cribbage for two to five players (everyone for themselves), played to 61 or 121, with built-in computer players.
 The rules players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 
 ## Layout
@@ -8,7 +8,7 @@ The rules players see are in `rules.md`; the module contract is in `../../MODULE
 - `module.json` the menu entry and the statistics the game reports.
 - `scoring.js` pure counting: `scoreHand` (the show, itemised) and `scorePlay` (pegging).
 - `ai/` the computer players' AIs (`ai/index.js` exports `AIS`): `standard` (the original: expected hand value over every starter, adjusted for the crib, and a pegging rule of thumb), `random`, `greedy`, `balanced`, `pegger` and `sharp`. Each has `discard(ctx)` and `play(ctx)` over plain data. Each computer seat picks one by weight when the game starts (`seats[].ai`, saved with the room; a replacement for a person who leaves picks at that moment; rooms saved earlier fall back to `standard`). `bot.js` re-exports the standard AI's functions.
-- `game.js` the rules as pure functions over a plain room object: lobby, dealing for 2, 3 and 4 players, discards, the play with go and last card, the show, ready-up, leaving, the history of hands, personalised views and the statistics result.
+- `game.js` the rules as pure functions over a plain room object: lobby, dealing for 2 to 5 players, discards, the play with go and last card, the show, ready-up, leaving, the history of hands, personalised views and the statistics result.
 - `server.js` the socket layer: rooms keyed by three-word codes, saved to `ctx.dataDir/rooms.json`, a timer that makes computer players move, statistics.
 - `client/` the Vue half: `Cribbage.vue` (root), `Lobby.vue`, `Table.vue` (discard and play), `ShowHands.vue`, `Board.vue` (the SVG peg board), `CardRow.vue`. It uses the shared `ScoreBoard`, `RoomEntry`, `InviteCode` and `PlayingCard` components.
 - `*.test.js` rules tests and `e2e.test.js`, which runs the real site.

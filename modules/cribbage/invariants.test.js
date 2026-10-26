@@ -1,5 +1,5 @@
 // Property-style tests for the Cribbage rules: hundreds of seeded games (people choosing random legal moves, computers
-// using their own judgement, two to four seats, both targets, people leaving mid-game) with the invariants checked
+// using their own judgement, two to five seats, both targets, people leaving mid-game) with the invariants checked
 // after every action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
 const pick = (rng, list) => list[Math.floor(rng() * list.length)];
 
 function newRoom(rng) {
-  const seats = 2 + Math.floor(rng() * 3);
+  const seats = 2 + Math.floor(rng() * 4);
   const room = game.createRoom({ code: 'a-b-c', hostId: 101, name: 'h101', target: pick(rng, game.TARGETS), seats, now: 1 });
   const humans = 1 + Math.floor(rng() * Math.min(3, seats));
   for (let i = 1; i < humans; i++) assert.equal(game.addHuman(room, 101 + i, `h${101 + i}`).ok, true);
@@ -23,11 +23,13 @@ function newRoom(rng) {
 
 function checkRoom(room, label, handsSeen) {
   const n = room.seats.length;
-  const { discards } = game.dealRules(n);
   if (room.phase === 'discard') {
     const cards = [...room.hands.flat(), ...room.crib, ...room.deck];
     assert.deepEqual(cards.sort(), DECK, `${label}: 52 cards in hands, crib and deck while discarding`);
-    for (const [i, s] of room.seats.entries()) assert.equal(room.hands[i].length, game.dealRules(n).dealt - (s.discarded ? discards : 0));
+    for (const [i, s] of room.seats.entries()) {
+      const rules = game.dealRules(n, i === room.dealer);
+      assert.equal(room.hands[i].length, rules.dealt - (s.discarded ? rules.discards : 0));
+    }
   }
   if (room.phase === 'play') {
     const kept = room.kept.flat();
@@ -109,7 +111,7 @@ function playGame(seed, { leaves = true } = {}) {
     if (room.phase === 'discard') {
       const waiting = room.seats.flatMap((s, i) => (!s.bot && !s.discarded ? [i] : []));
       const seat = pick(rng, waiting);
-      const { discards } = game.dealRules(room.seats.length);
+      const { discards } = game.dealRules(room.seats.length, seat === room.dealer);
       const hand = room.hands[seat];
       if (rng() < 0.3) {
         const snap = JSON.stringify(room);
@@ -154,13 +156,13 @@ function playGame(seed, { leaves = true } = {}) {
   return room;
 }
 
-test('200 seeded games with 2 to 4 seats and both targets keep every invariant after every action', () => {
+test('200 seeded games with 2 to 5 seats and both targets keep every invariant after every action', () => {
   const seen = new Set();
   for (let seed = 1; seed <= 200; seed++) {
     const room = playGame(seed);
     seen.add(`${room.seats.length}/${room.target}`);
   }
-  assert.equal(seen.size, 6, 'every combination of seats and target was played');
+  assert.equal(seen.size, 8, 'every combination of seats and target was played');
 });
 
 test('games with nobody leaving also terminate (seeds 1000 onward)', () => {
@@ -176,7 +178,7 @@ test('the show entries of every hand add up to what the board says', () => {
     while (room.phase !== 'finished' && hands < 12) {
       if (game.pendingBot(room)) game.botMove(room, rng);
       else if (room.phase === 'discard') {
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length).discards), rng);
+        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
       } else if (room.phase === 'play') {
         const seat = room.play.turn;
         game.playCard(room, seat, game.playableCards(room, seat)[0]);
@@ -200,7 +202,7 @@ test('the crib always has four cards and the starter is never a card anybody hol
     while (room.phase !== 'finished' && guard++ < 3000) {
       if (game.pendingBot(room)) game.botMove(room, rng);
       else if (room.phase === 'discard') {
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length).discards), rng);
+        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
       } else if (room.phase === 'play') {
         const seat = room.play.turn;
         assert.ok(!room.hands.flat().includes(room.starter));

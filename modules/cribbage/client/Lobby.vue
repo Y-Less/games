@@ -22,7 +22,8 @@ const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSea
 const dealing = computed(() => {
   if (props.state.seatCount === 2) return 'Two players: six cards each, two to the crib.';
   if (props.state.seatCount === 3) return 'Three players: five cards each, one card each to the crib, and one more from the deck.';
-  return 'Four players: five cards each, one card each to the crib.';
+  if (props.state.seatCount === 4) return 'Four players: five cards each, one card each to the crib.';
+  return 'Five players: five cards each, one to the crib, but the dealer is dealt only four and adds nothing.';
 });
 </script>
 

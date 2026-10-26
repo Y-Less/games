@@ -37,7 +37,7 @@ test('settings: the seat count cannot drop below the people seated, and bad valu
   assert.equal(game.setSettings(room, 1, { seats: 3, target: 61 }).ok, true);
   assert.equal(room.seatCount, 3);
   assert.equal(game.setSettings(room, 1, {}).ok, true, 'nothing to change is fine');
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, name: 'a', seats: 99 }).seatCount, 4);
+  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, name: 'a', seats: 99 }).seatCount, 5);
   assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, name: 'a', seats: -3 }).seatCount, 2);
   assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, name: 'a', target: 77 }).target, 121);
 });

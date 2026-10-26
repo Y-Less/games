@@ -9,7 +9,7 @@ import { pipValue, scoreHand, scorePlay } from './scoring.js';
 
 export const TARGETS = [61, 121];
 export const MIN_SEATS = 2;
-export const MAX_SEATS = 4;
+export const MAX_SEATS = 5;
 export const MAX_NAME_LENGTH = 24;
 export const BOT_NAMES = ['Robin', 'Sam', 'Jo', 'Max', 'Kit', 'Lee', 'Pat', 'Ash', 'Bea', 'Fen'];
 /** A winner "skunks" an opponent who finishes below this. */
@@ -19,8 +19,14 @@ const LOG_LIMIT = 60;
 const fail = (error) => ({ ok: false, error });
 const ok = (extra = {}) => ({ ok: true, ...extra });
 
-/** Cards each player is dealt, how many of them go to the crib, and how many extra cards the deck adds to the crib. */
-export const dealRules = (players) => ({ dealt: players === 2 ? 6 : 5, discards: players === 2 ? 2 : 1, extraToCrib: players === 3 ? 1 : 0 });
+/**
+ * Cards each player is dealt, how many of them go to the crib, and how many extra cards the deck adds to the crib.
+ * With five players the dealer is dealt only four cards and adds nothing to the crib: the others' discards make it.
+ */
+export const dealRules = (players, isDealer = false) => {
+  const dealerLight = players === 5 && isDealer;
+  return { dealt: players === 2 ? 6 : dealerLight ? 4 : 5, discards: players === 2 ? 2 : dealerLight ? 0 : 1, extraToCrib: players === 3 ? 1 : 0 };
+};
 
 const PIPS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const byRank = (a, b) => PIPS.indexOf(rankOf(a)) - PIPS.indexOf(rankOf(b)) || a.slice(-1).localeCompare(b.slice(-1));
@@ -124,7 +130,7 @@ export function setSettings(room, userId, { target, seats }) {
   if (problem) return problem;
   if (target !== undefined && !TARGETS.includes(target)) return fail('Play to 61 or 121.');
   if (seats !== undefined) {
-    if (!Number.isInteger(seats) || seats < MIN_SEATS || seats > MAX_SEATS) return fail('A game has 2 to 4 seats.');
+    if (!Number.isInteger(seats) || seats < MIN_SEATS || seats > MAX_SEATS) return fail('A game has 2 to 5 seats.');
     if (seats < room.seats.length) return fail('Remove a player first: that would leave too few seats.');
     room.seatCount = seats;
   }
@@ -207,9 +213,9 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
 // ---- dealing ----
 
 function deal(room, rng) {
-  const { dealt, extraToCrib } = dealRules(room.seats.length);
+  const { extraToCrib } = dealRules(room.seats.length);
   room.deck = shuffle(fullDeck(), rng);
-  room.hands = room.seats.map(() => sortCards(room.deck.splice(0, dealt)));
+  room.hands = room.seats.map((_, i) => sortCards(room.deck.splice(0, dealRules(room.seats.length, i === room.dealer).dealt)));
   room.crib = room.deck.splice(0, extraToCrib);
   room.kept = [];
   room.starter = null;
@@ -221,7 +227,7 @@ function deal(room, rng) {
   room.phase = 'discard';
   for (const s of room.seats) {
     s.ready = false;
-    s.discarded = false;
+    s.discarded = dealRules(room.seats.length, room.seats.indexOf(s) === room.dealer).discards === 0; // nothing to discard
     s.stats.handsPlayed++;
   }
 }
@@ -269,7 +275,7 @@ export function returnToLobby(room, userId, present = () => true) {
 export function discard(room, seat, cards, rng = Math.random) {
   if (room.phase !== 'discard') return fail('It is not time to discard.');
   const s = room.seats[seat];
-  const { discards } = dealRules(room.seats.length);
+  const { discards } = dealRules(room.seats.length, seat === room.dealer);
   if (s.discarded) return fail('You have already discarded.');
   if (!Array.isArray(cards) || cards.length !== discards) return fail(`Choose ${discards} card${discards === 1 ? '' : 's'} for the crib.`);
   if (!cards.every(isCard) || new Set(cards).size !== cards.length || !cards.every((c) => room.hands[seat].includes(c))) return fail('Those cards are not in your hand.');
@@ -400,7 +406,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat].ai);
 
 /** Everything an AI may know when choosing what to discard: plain data about its own hand and the table. */
 function discardContext(room, seat, rng) {
-  const { discards } = dealRules(room.seats.length);
+  const { discards } = dealRules(room.seats.length, seat === room.dealer);
   return { hand: room.hands[seat], discardCount: discards, isDealer: seat === room.dealer, players: room.seats.length, me: seat, scores: room.seats.map((s) => s.score), target: room.target, rng };
 }
 
@@ -454,7 +460,6 @@ export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
   const live = room.phase === 'discard' || room.phase === 'play';
   const p = room.play;
-  const { discards } = dealRules(room.seats.length);
   return {
     code: room.code,
     phase: room.phase,
@@ -482,7 +487,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
       ready: room.phase === 'show' ? s.bot || s.ready : false,
     })),
     hand: live && me !== -1 ? room.hands[me] : [],
-    need: room.phase === 'discard' && me !== -1 && !room.seats[me].discarded ? discards : 0,
+    need: room.phase === 'discard' && me !== -1 && !room.seats[me].discarded ? dealRules(room.seats.length, me === room.dealer).discards : 0,
     cribCount: live || room.phase === 'show' ? room.crib.length : 0,
     deckCount: live ? room.deck.length : 0,
     starter: room.starter,

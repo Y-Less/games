@@ -173,7 +173,7 @@ async function startGame(humans, { seats = humans.length, target = 61, autoplay 
   return code;
 }
 
-for (const seats of [2, 3, 4]) {
+for (const seats of [2, 3, 4, 5]) {
   test(`a whole game with ${seats} seats: one human, computer players, statistics and no leaks`, async (t) => {
     const { person } = await launch(t);
     const alex = await person(`alex${seats}`).open();
@@ -189,8 +189,9 @@ for (const seats of [2, 3, 4]) {
 
     const need = seats === 2 ? 2 : 1;
     const firstDeal = alex.states.find((s) => s.phase === 'discard');
-    assert.equal(firstDeal.need, need);
-    assert.equal(firstDeal.hand.length, seats === 2 ? 6 : 5);
+    const dealerLight = seats === 5 && firstDeal.dealer === firstDeal.you; // the five-player dealer holds four and discards none
+    assert.equal(firstDeal.need, dealerLight ? 0 : need);
+    assert.equal(firstDeal.hand.length, seats === 2 ? 6 : dealerLight ? 4 : 5);
     assert.equal(firstDeal.cribCount, seats === 3 ? 1 : 0);
 
     const stats = await alex.stats();

@@ -177,7 +177,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   };
   // Lobby: settings and seats.
   for (const target of [0, 60, 122, '61', null, [61], 61.5]) await refused(ann, 'settings', { target }, /61 or 121/);
-  for (const seats of [1, 5, 2.5, '3', -2, null, [3]]) await refused(ann, 'settings', { seats }, /2 to 4|./);
+  for (const seats of [1, 6, 2.5, '3', -2, null, [3]]) await refused(ann, 'settings', { seats }, /2 to 5|./);
   await refused(bob, 'settings', { target: 121 }, /host/);
   await refused(ann, 'addBot', {}, /taken/);
   await refused(ann, 'removeBot', { seat: 0 }, /no computer/);

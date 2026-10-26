@@ -53,7 +53,7 @@ test('lobby: seats, settings, computer players and starting', () => {
   assert.equal(game.start(room, 1).ok, false, 'a seat is empty');
   assert.equal(game.addBot(room, 2).ok, false, 'only the host');
   assert.ok(game.setSettings(room, 1, { seats: 4, target: 61 }).ok);
-  assert.equal(game.setSettings(room, 1, { seats: 5 }).ok, false);
+  assert.equal(game.setSettings(room, 1, { seats: 6 }).ok, false);
   assert.equal(game.setSettings(room, 1, { target: 100 }).ok, false);
   assert.ok(game.addBot(room, 1).ok);
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, true);
@@ -83,40 +83,64 @@ test('lobby: names are made unique, a second person can join and the host passes
   assert.deepEqual(game.removeHuman(room, 2), { ok: true, empty: true });
 });
 
-test('dealing by player count: 6 each; 5 each plus one to the crib; 5 each', () => {
+test('dealing by player count: 6 each; 5 each plus one to the crib; 5 each; 5 each but four for the dealer', () => {
   const expectations = [
-    [2, { hand: 6, crib: 0, discards: 2 }],
-    [3, { hand: 5, crib: 1, discards: 1 }],
-    [4, { hand: 5, crib: 0, discards: 1 }],
+    [2, { hand: 6, dealer: 6, crib: 0, discards: 2 }],
+    [3, { hand: 5, dealer: 5, crib: 1, discards: 1 }],
+    [4, { hand: 5, dealer: 5, crib: 0, discards: 1 }],
+    [5, { hand: 5, dealer: 4, crib: 0, discards: 1 }],
   ];
   for (const [seats, want] of expectations) {
     const room = started(seats);
     assert.equal(room.phase, 'discard');
-    assert.ok(room.hands.every((h) => h.length === want.hand), `${seats} players: ${want.hand} each`);
+    room.hands.forEach((h, i) => assert.equal(h.length, i === room.dealer ? want.dealer : want.hand, `${seats} players: seat ${i}`));
     assert.equal(room.crib.length, want.crib);
-    assert.equal(game.viewFor(room, 1).need, want.discards);
+    const asker = (room.dealer + 1) % seats;
+    assert.equal(game.viewFor(room, 1).need, room.dealer === 0 ? (want.dealer === 4 ? 0 : want.discards) : want.discards);
+    assert.equal(room.seats[asker].discarded, false);
+    assert.equal(room.seats[room.dealer].discarded, want.dealer === 4, 'a dealer with nothing to discard is already done');
     const everything = [...room.hands.flat(), ...room.crib, ...room.deck];
     assert.equal(new Set(everything).size, 52, 'no card dealt twice');
     assert.equal(everything.length, 52);
   }
 });
 
+test('five players: the dealer cannot discard, the others each add one card and the play begins with four in the crib', () => {
+  const room = started(5);
+  const { dealer } = room;
+  assert.equal(game.discard(room, dealer, [room.hands[dealer][0]]).ok, false, 'the dealer has already finished');
+  let phase = room.phase;
+  for (let i = 1; i <= 4; i++) {
+    const seat = (dealer + i) % 5;
+    assert.equal(phase, 'discard');
+    assert.ok(game.discard(room, seat, room.hands[seat].slice(0, 1)).ok);
+    phase = room.phase;
+  }
+  assert.equal(phase, 'play');
+  assert.equal(room.crib.length, 4);
+  assert.ok(room.hands.every((h) => h.length === 4));
+  assert.equal(room.deck.length, 52 - 24 - 1);
+  assert.equal(game.viewFor(room, 1).need, 0);
+});
+
 test('discarding: validated, builds the crib, then the starter is cut and the play begins', () => {
-  for (const seats of [2, 3, 4]) {
+  for (const seats of [2, 3, 4, 5]) {
     const room = started(seats);
+    const first = (room.dealer + 1) % seats; // never the dealer, who has nothing to discard with five players
     const need = game.dealRules(seats).discards;
     const given = [];
-    assert.equal(game.discard(room, 0, room.hands[0].slice(0, need - 1)).ok, false, 'too few');
-    assert.equal(game.discard(room, 0, room.hands[0].slice(0, need + 1)).ok, false, 'too many');
-    if (need === 2) assert.equal(game.discard(room, 0, [room.hands[0][0], room.hands[0][0]]).ok, false, 'duplicates are refused');
+    assert.equal(game.discard(room, first, room.hands[first].slice(0, need - 1)).ok, false, 'too few');
+    assert.equal(game.discard(room, first, room.hands[first].slice(0, need + 1)).ok, false, 'too many');
+    if (need === 2) assert.equal(game.discard(room, first, [room.hands[first][0], room.hands[first][0]]).ok, false, 'duplicates are refused');
     const other = room.deck[0];
-    assert.equal(game.discard(room, 0, [other, ...room.hands[0]].slice(0, need)).ok, false, 'not in your hand');
-    const mine = room.hands[0].slice(0, need);
-    assert.ok(game.discard(room, 0, mine).ok);
+    assert.equal(game.discard(room, first, [other, ...room.hands[first]].slice(0, need)).ok, false, 'not in your hand');
+    const mine = room.hands[first].slice(0, need);
+    assert.ok(game.discard(room, first, mine).ok);
     given.push(...mine);
-    assert.equal(game.discard(room, 0, room.hands[0].slice(0, need)).ok, false, 'only once');
-    assert.equal(game.playCard(room, 1, room.hands[1][0]).ok, false, 'not time to play');
-    for (let i = 1; i < seats; i++) {
+    assert.equal(game.discard(room, first, room.hands[first].slice(0, need)).ok, false, 'only once');
+    assert.equal(game.playCard(room, first, room.hands[first][0]).ok, false, 'not time to play');
+    for (let i = 0; i < seats; i++) {
+      if (i === first || room.seats[i].discarded) continue;
       const cards = room.hands[i].slice(0, need);
       given.push(...cards);
       assert.ok(game.discard(room, i, cards).ok);
@@ -127,7 +151,8 @@ test('discarding: validated, builds the crib, then the starter is cut and the pl
     for (const card of given) assert.ok(room.crib.includes(card), 'crib holds the discards');
     assert.ok(isCard(room.starter));
     assert.equal(room.play.turn, (room.dealer + 1) % seats, 'the player left of the dealer leads');
-    assert.equal(room.deck.length, 52 - seats * game.dealRules(seats).dealt - game.dealRules(seats).extraToCrib - 1);
+    const dealtCards = room.kept.length * 4 + room.crib.length;
+    assert.equal(room.deck.length, 52 - dealtCards - 1);
   }
 });
 
