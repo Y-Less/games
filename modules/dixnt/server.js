@@ -1,4 +1,7 @@
 // Server half of Dixnt: games keyed by three-word invite codes, one player per account, saved under ctx.dataDir.
+// Computer players are seats in the game (see game.js); this file plays their moves on a timer, one at a time.
+//
+//   DIXNT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +11,7 @@ import { Game, GameError, MAX_NAME_LENGTH } from './game.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MAX_GAMES = 500;
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // games nobody has touched for two weeks are forgotten
+const DEFAULT_BOT_DELAY = [600, 1400];
 const TALLY_KEYS = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed'];
 
 const tokenFor = (user) => `user:${user.id}`;
@@ -31,7 +35,15 @@ function loadHints() {
     .filter(Boolean);
 }
 
+/** DIXNT_BOT_DELAY ("600-1400", or one number) as [min, max] milliseconds. */
+function readBotDelay() {
+  const [min, max = min] = String(process.env.DIXNT_BOT_DELAY ?? '').split('-').map(Number);
+  if (!Number.isFinite(min) || min < 0) return DEFAULT_BOT_DELAY;
+  return [min, Number.isFinite(max) ? Math.max(max, min) : min];
+}
+
 export default function (ctx) {
+  const [botMin, botMax] = readBotDelay();
   const cardsDir = resolveCardsDir();
   const gamesFile = path.join(ctx.dataDir, 'games.json');
   const hints = loadHints();
@@ -78,6 +90,7 @@ export default function (ctx) {
   // ---- games: one per invite code ----
   /** code -> { game, touched, tally, tallied, recorded } */
   const games = new Map();
+  const timers = new Map(); // code -> the timer for the next computer move
   const freshTally = () => ({});
 
   function createGame({ saved = null, touched = Date.now(), code = ctx.codes.generate((c) => games.has(c)), tally = freshTally(), tallied = 0, recorded = false } = {}) {
@@ -122,11 +135,42 @@ export default function (ctx) {
     }, 300);
   }
 
+  function discard(code) {
+    clearTimeout(timers.get(code));
+    timers.delete(code);
+    games.delete(code);
+  }
+
+  /** Plays the next computer move after a short wait, then looks again; stops when nothing is pending. */
+  function schedule(code) {
+    clearTimeout(timers.get(code));
+    timers.delete(code);
+    const entry = games.get(code);
+    if (!entry?.game.pendingBotAction()) return;
+    const timer = setTimeout(() => {
+      timers.delete(code);
+      if (games.get(code) !== entry) return;
+      try {
+        entry.game.runBotAction();
+      } catch (error) {
+        ctx.log('a computer move failed:', error);
+        return;
+      }
+      entry.touched = Date.now();
+      track(code, entry);
+      broadcast(code);
+      scheduleSave();
+      schedule(code);
+    }, botMin + Math.random() * (botMax - botMin));
+    timer.unref?.();
+    timers.set(code, timer);
+  }
+
   function pruneGames() {
     let changed = false;
     for (const [code, entry] of games) {
-      if (Date.now() - entry.touched > STALE_AFTER_MS || entry.game.s.players.length === 0) {
-        games.delete(code);
+      if (Date.now() - entry.touched > STALE_AFTER_MS || !entry.game.humans().length) {
+        discard(code);
         changed = true;
       }
     }
@@ -145,7 +189,10 @@ export default function (ctx) {
     const { game } = entry;
     const s = game.s;
     const results = s.results;
-    const tokenOfPlayer = (id) => game.player(id)?.token;
+    const tokenOfPlayer = (id) => {
+      const player = game.player(id);
+      return player && !player.bot ? player.token : null; // computer players are not accounts and are not counted
+    };
     for (const id of Object.keys(s.picks)) {
       const token = tokenOfPlayer(id);
       if (token) tallyOf(entry, token).cardsPlayed++;
@@ -254,8 +301,11 @@ export default function (ctx) {
       const entry = games.get(code);
       if (entry) {
         entry.touched = Date.now();
-        if (entry.game.s.players.length === 0) games.delete(code); // the last player left
-        else track(code, entry);
+        if (!entry.game.humans().length) discard(code); // the last person left: computer players alone do not keep a game
+        else {
+          track(code, entry);
+          schedule(code);
+        }
       }
       broadcast(code);
     }
@@ -348,7 +398,7 @@ export default function (ctx) {
     });
 
     action(socket, 'leave', (player, _payload, game) => {
-      game.removePlayer(player.id, player.id);
+      game.leave(player.id, player.id);
       sessions.delete(socket.id);
       socket.emit('state', null);
     });
@@ -357,6 +407,9 @@ export default function (ctx) {
     action(socket, 'setJudging', (player, { mode }, game) => game.setJudging(player.id, mode));
     action(socket, 'setCategories', (player, { keys }, game) => game.setCategories(player.id, keys));
     action(socket, 'declareAI', (player, { id }, game) => game.setAI(player.id, id));
+    action(socket, 'addBot', (player, _payload, game) => game.addBot(player.id));
+    action(socket, 'fillBots', (player, { count }, game) => game.fillWithBots(player.id, count));
+    action(socket, 'removeBot', (player, { targetId }, game) => game.removeBot(player.id, targetId));
     action(socket, 'start', (player, _payload, game) => game.start(player.id));
     action(socket, 'endGame', (player, _payload, game) => game.returnToLobby(player.id));
     action(socket, 'hints', (_player, _payload, game) => ({ hints: game.nextHints(3) }));
@@ -365,14 +418,18 @@ export default function (ctx) {
     action(socket, 'vote', (player, { targetId }, game) => game.vote(player.id, targetId));
     action(socket, 'nextRound', (player, _payload, game) => game.nextRound(player.id));
     action(socket, 'abortRound', (player, _payload, game) => game.abortRound(player.id));
-    action(socket, 'removePlayer', (player, { targetId }, game) => game.removePlayer(player.id, targetId));
+    action(socket, 'removePlayer', (player, { targetId }, game) => game.leave(player.id, targetId));
   });
+
+  for (const code of games.keys()) schedule(code);
 
   ctx.log(`${getCardIds().length} cards in ${getCategories().length} categories, ${hints.length} hints, ${games.size} saved games`);
 
   return {
     dispose() {
       clearInterval(pruneTimer);
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
       try {
         saveNow();
       } catch (error) {

@@ -21,9 +21,9 @@
 // Length: the game ends once every player has chosen the word `roundsEach` times (a round only counts as a turn
 // once it has been completed). Then the phase becomes 'finished' and the host can return everyone to the lobby.
 
-import { aiById } from '../../shared/ai.js';
+import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { winnersOf } from '../../shared/scores.js';
-import { AIS } from './ai/index.js';
+import { AIS, buildCardInfo } from './ai/index.js';
 
 export const POINTS_PER_VOTE = 100;
 export const CHOOSER_CORRECT_POINTS = 100;
@@ -34,11 +34,17 @@ export const MIN_ROUNDS_EACH = 1;
 export const MAX_ROUNDS_EACH = 10;
 export const DEFAULT_ROUNDS_EACH = 2;
 export const MIN_PLAYERS = 3;
+export const MAX_PLAYERS = 12;
 export const MIN_HAND_SIZE = 3;
 export const MAX_HAND_SIZE = 12;
 export const DEFAULT_HAND_SIZE = 8;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_WORD_LENGTH = 60;
+
+/** Names for the computer players, in the order they are used. */
+const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo', 'Juno', 'Kit', 'Luna'];
+/** Used only if the word list is empty, so a computer chooser can always give a word. */
+const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 
 export class GameError extends Error {}
 const fail = (message) => {
@@ -82,7 +88,11 @@ export class Game {
   static blankState() {
     return {
       phase: 'lobby',
-      players: [], // { id, token, name, score, turns, hand: number[], waiting: boolean }
+      // { id, token, name, score, turns, hand: number[], waiting: boolean, bot?: true, ai?: string }. A computer player
+      // has bot: true, no account (its token is 'bot:<n>', which no user token can match) and, once a game starts,
+      // the id of its AI.
+      players: [],
+      nextBot: 1,
       hostId: null,
       handSize: DEFAULT_HAND_SIZE,
       judging: 'everyone',
@@ -201,6 +211,7 @@ export class Game {
 
   addPlayer(name, token) {
     const clean = String(name ?? '').trim().replace(/\s+/g, ' ');
+    if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
     if (!clean) fail('Please enter a name.');
     if (clean.length > MAX_NAME_LENGTH) fail(`Names can be at most ${MAX_NAME_LENGTH} characters.`);
     if (this.s.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
@@ -221,8 +232,9 @@ export class Game {
   }
 
   /**
-   * A bot says which AI it plays with (when it joins, and again at the start of every game). Stored on the seat and
-   * shown to everyone as { id, name } for that seat only. Humans never call this, so their seats stay unmarked.
+   * A bot running as its own process (bots/bot.js, signed in as an account) says which AI it plays with, when it joins
+   * and again at the start of every game. Stored on the seat and shown to everyone as { id, name } for that seat only.
+   * Built-in computer players never call this: the game deals them an AI itself when it starts.
    */
   setAI(id, aiId) {
     const player = this.requirePlayer(id);
@@ -236,6 +248,67 @@ export class Game {
     return { id, name };
   }
 
+  /** People in the game (accounts), as opposed to computer players. */
+  humans() {
+    return this.s.players.filter((p) => !p.bot);
+  }
+
+  /** A fresh computer-player seat (it gets an AI when a game starts, or when it takes over mid-game). */
+  newBot() {
+    const s = this.s;
+    const used = new Set(s.players.map((p) => p.name.toLowerCase()));
+    let name = BOT_NAMES.find((n) => !used.has(n.toLowerCase())) ?? 'Computer';
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `Computer ${n}`;
+    s.nextBot ??= 1;
+    return { id: newPublicId(), token: `bot:${s.nextBot++}`, name, score: 0, turns: 0, hand: [], waiting: s.phase !== 'lobby', bot: true };
+  }
+
+  /** The host adds one computer player to the lobby. */
+  addBot(byId) {
+    if (!this.isHost(byId)) fail('Only the host can add computer players.');
+    if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
+    if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
+    const bot = this.newBot();
+    this.s.players.push(bot);
+    return { id: bot.id };
+  }
+
+  /** The host fills the lobby with computer players until there are `target` players (default: enough to start). */
+  fillWithBots(byId, target = MIN_PLAYERS) {
+    if (!this.isHost(byId)) fail('Only the host can add computer players.');
+    if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
+    const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(Number(target)) || MIN_PLAYERS));
+    while (this.s.players.length < wanted) this.s.players.push(this.newBot());
+  }
+
+  /** The host removes a computer player from the lobby. */
+  removeBot(byId, targetId) {
+    if (!this.isHost(byId)) fail('Only the host can remove computer players.');
+    if (this.s.phase !== 'lobby') fail('Computer players can only be removed in the lobby.');
+    const index = this.s.players.findIndex((p) => p.id === targetId && p.bot);
+    if (index < 0) fail('That is not a computer player.');
+    this.s.players.splice(index, 1);
+  }
+
+  /**
+   * A person leaves, or the host removes someone. While a round is on (or its results are showing) a computer player
+   * takes over a person's seat, keeping their hand, score and turns, so the game carries on at any size as long as
+   * another person is still there. In every other case (lobby, finished game, a late joiner still waiting, a computer
+   * player, or nobody else left) the seat is simply removed, as removePlayer does.
+   */
+  leave(byId, targetId) {
+    const s = this.s;
+    if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
+    const target = this.player(targetId);
+    if (!target) fail('That player is not in the game.');
+    const midGame = ['word', 'picking', 'voting', 'results'].includes(s.phase);
+    if (!midGame || target.bot || target.waiting || this.humans().length < 2) return this.removePlayer(byId, targetId);
+    const { name, token } = this.newBot();
+    Object.assign(target, { bot: true, token, name, ai: pickAI(AIS, this.rng).id });
+    if (s.hostId === targetId) s.hostId = this.humans()[0].id;
+  }
+
+  /** Takes a player out of the game outright; the round is abandoned if it needed them. */
   removePlayer(byId, targetId) {
     const s = this.s;
     if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
@@ -248,8 +321,9 @@ export class Game {
     }
     s.discard.push(...removed.hand);
     if (index < s.nextChooserIdx) s.nextChooserIdx--;
-    if (s.hostId === targetId) s.hostId = s.players[0]?.id ?? null;
-    if (!s.players.length) {
+    if (s.hostId === targetId) s.hostId = this.humans()[0]?.id ?? null;
+    if (!this.humans().length) {
+      // Nobody is left to play with (the server drops a game like this), so start from a clean sheet.
       Object.assign(s, Game.blankState(), {
         handSize: s.handSize,
         judging: s.judging,
@@ -324,6 +398,10 @@ export class Game {
     s.round = 0;
     s.completed = 0;
     s.nextChooserIdx = 0;
+    // Every computer player gets an AI for the whole game (people who run their own bot process declare theirs).
+    const bots = s.players.filter((p) => p.bot);
+    const picks = assignAIs(AIS, bots.map((p) => p.id), this.rng);
+    for (const p of bots) p.ai = picks[p.id];
     this.startRound();
   }
 
@@ -350,6 +428,7 @@ export class Game {
       p.waiting = false;
       p.turns = 0;
       p.score = 0;
+      if (p.bot) delete p.ai; // a new AI is dealt at the next start
     }
   }
 
@@ -558,6 +637,75 @@ export class Game {
     return winnersOf(Object.fromEntries(this.s.players.map((p) => [p.id, p.score])));
   }
 
+  // ---------- computer players ----------
+
+  /** The AI a computer seat plays with (a seat saved without one gets the first, standard AI). */
+  aiOf(player) {
+    return aiById(AIS, player.ai);
+  }
+
+  /**
+   * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }. Computer players
+   * never start the game or move on from the results: the host does that, so they can never hold a game up.
+   */
+  pendingBotAction() {
+    const s = this.s;
+    if (s.phase === 'word') {
+      const chooser = this.player(s.chooserId);
+      return chooser?.bot ? { type: 'word', id: chooser.id } : null;
+    }
+    if (s.phase === 'picking') {
+      const bot = this.cardPlayers().find((p) => p.bot && !(p.id in s.picks) && p.hand.length);
+      return bot ? { type: 'card', id: bot.id } : null;
+    }
+    if (s.phase === 'voting') {
+      const bot = this.voters().find((p) => p.bot && !(p.id in s.votes));
+      return bot ? { type: 'vote', id: bot.id } : null;
+    }
+    return null;
+  }
+
+  /** Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead. */
+  botDecide(player, decision, options, input) {
+    let answer;
+    try {
+      answer = this.aiOf(player)[decision]({ ...input, cards: buildCardInfo({ categories: this.getCategories() }), round: this.s.round, judging: this.s.judging }, this.rng);
+    } catch {
+      answer = undefined; // a broken AI must not stop the game
+    }
+    return options.includes(answer) ? answer : options[Math.floor(this.rng() * options.length)];
+  }
+
+  /**
+   * Plays one pending computer move. Each decision is made from that seat's own view (viewFor), so a computer player
+   * knows only what a person in the same seat would: its hand, the clue (unless it is the imposter), the table.
+   */
+  runBotAction(action = this.pendingBotAction()) {
+    if (!action) return false;
+    const s = this.s;
+    const view = this.viewFor(action.id);
+    if (action.type === 'word') {
+      const hints = this.nextHints(3);
+      const options = hints.length ? hints : FALLBACK_WORDS;
+      this.submitWord(action.id, this.botDecide(this.player(action.id), 'chooseWord', options, { hints: options, hand: view.me.hand }));
+    } else if (action.type === 'card') {
+      const cardId = this.botDecide(this.player(action.id), 'playCard', view.me.hand, { word: view.word, hand: view.me.hand });
+      this.playCard(action.id, cardId);
+    } else {
+      const targetId = this.botDecide(this.player(action.id), 'vote', view.voteTargets, {
+        word: view.word,
+        table: view.table,
+        targets: view.voteTargets,
+        me: action.id,
+        imposter: s.imposterId === action.id, // it saw ??? instead of the clue, so it knows
+        chooser: view.me.isChooser,
+        scores: Object.fromEntries(view.players.map((p) => [p.id, p.score])),
+      });
+      this.vote(action.id, targetId);
+    }
+    return true;
+  }
+
   // ---------- what each player is allowed to see ----------
 
   viewFor(id, connectedIds = new Set()) {
@@ -584,6 +732,7 @@ export class Game {
       chooserId: s.chooserId,
       hostId: s.hostId,
       minPlayers: MIN_PLAYERS,
+      maxPlayers: MAX_PLAYERS,
       pointsPerVote: POINTS_PER_VOTE,
       pointsChooserCorrect: CHOOSER_CORRECT_POINTS,
       pointsFooledChooser: CHOOSER_FOOLED_POINTS,
@@ -616,14 +765,15 @@ export class Game {
         score: p.score,
         turns: p.turns ?? 0,
         waiting: p.waiting,
-        connected: connectedIds.has(p.id),
+        connected: p.bot || connectedIds.has(p.id),
+        bot: Boolean(p.bot),
         ai: p.ai ? this.aiView(p.ai) : null, // bot seats only
         isChooser: p.id === s.chooserId,
         hasPlayed: inPlay && p.id in s.picks,
         hasVoted: s.phase === 'voting' ? p.id in s.votes : false,
       })),
       scoreboard: {
-        players: s.players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === id, away: !connectedIds.has(p.id) })),
+        players: s.players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === id, away: !p.bot && !connectedIds.has(p.id) })),
         rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
         lowIsBetter: false,
       },

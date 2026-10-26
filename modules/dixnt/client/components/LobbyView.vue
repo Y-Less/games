@@ -5,6 +5,7 @@ import { useDixnt } from '../useDixnt.js';
 
 const { isHost, players, send, store } = useDixnt();
 const state = computed(() => store.state);
+const full = computed(() => players.value.length >= state.value.maxPlayers);
 const missingPlayers = computed(() => Math.max(0, state.value.minPlayers - players.value.length));
 const cardsNeeded = computed(() => players.value.length * state.value.handSize);
 const enoughCards = computed(() => state.value.availableCards >= cardsNeeded.value);
@@ -43,6 +44,30 @@ function toggleCategory(key) {
       {{ state.minPlayers }} players.
     </p>
     <div class="row"><InviteCode :code="state.code" /></div>
+  </section>
+
+  <section class="panel stack">
+    <h2>Players</h2>
+    <ul class="seats" aria-label="Players in this game">
+      <li v-for="p in players" :key="p.id" class="seat" :class="{ bot: p.bot, me: p.id === state.me.id, away: !p.connected }">
+        <span class="who">
+          {{ p.name }}
+          <span v-if="p.id === state.me.id" class="tag">you</span>
+          <span v-if="p.id === state.hostId" class="tag">host</span>
+          <span v-if="p.bot" class="tag bot">computer</span>
+          <span v-if="!p.bot && !p.connected" class="tag away">away</span>
+        </span>
+        <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { targetId: p.id })">Remove</button>
+        <button v-else-if="isHost && p.id !== state.me.id" class="quiet" @click="send('removePlayer', { targetId: p.id })">Remove</button>
+      </li>
+    </ul>
+    <div v-if="isHost" class="row">
+      <button :disabled="full" @click="send('addBot')">Add a computer player</button>
+      <button v-if="missingPlayers > 0" @click="send('fillBots', { count: state.minPlayers })">
+        Fill up to {{ state.minPlayers }} players with computer players
+      </button>
+      <span v-if="full" class="muted">The table is full ({{ state.maxPlayers }} players).</span>
+    </div>
   </section>
 
   <section class="panel stack">
@@ -152,6 +177,52 @@ function toggleCategory(key) {
 </template>
 
 <style scoped>
+.seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.seat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+.seat.me {
+  border-color: var(--amber);
+}
+.seat.away {
+  opacity: 0.65;
+}
+.who {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--amber);
+  color: var(--amber);
+}
+.tag.bot {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+.tag.away {
+  border-color: var(--danger);
+  color: var(--danger);
+}
 .num {
   width: 5rem;
 }

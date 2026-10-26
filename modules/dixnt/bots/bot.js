@@ -1,4 +1,5 @@
-// A stand-alone bot player. It is a completely separate process that talks to the site over the same HTTP and
+// An optional stand-alone bot player (the lobby's built-in computer players need none of this: the server plays them).
+// This one signs in as an account, so it is a person seat played by a program. It is a completely separate process that talks to the site over the same HTTP and
 // Socket.IO API as the browser client, so you can run as many as you like.
 //
 //   node modules/dixnt/bots/bot.js --join boss-aware-you --name Robin

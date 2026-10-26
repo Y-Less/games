@@ -2,21 +2,23 @@
 
 ## Purpose and how bots get an AI
 
-Dixnt bots are not part of the server. A bot is a separate process (`bots/bot.js`) that uses only the site's public
-Socket.IO API, like the browser does. The decision logic is in this folder: one file per AI, and `ai/index.js` exports
-the `AIS` array (built with `defineAIs` from `shared/ai.js`).
+Dixnt's computer players are built in: the host adds them in the lobby (they are seats in the room, not accounts) and
+the server plays them. The decision logic is in this folder: one file per AI, and `ai/index.js` exports the `AIS` array
+(built with `defineAIs` from `shared/ai.js`). The optional stand-alone bot process (`bots/bot.js`) uses the same code.
 
-- **Choosing.** On joining, the bot picks an AI with `pickAI(AIS)` (weighted random), or the one named with `--ai ID`
-  (an unknown id is refused at start-up). It picks again whenever a new game starts (the phase moves from the lobby or
-  a finished game to the first round); with `--ai` it re-declares the same one. It also re-declares after
-  reconnecting, because the server may have restarted.
-- **Telling the server.** The bot sends the `declareAI` event with `{ id }`. The server (`game.setAI`) refuses unknown
-  ids, stores the id on the player and saves it with the room.
-- **View.** `players[].ai` is `{ id, name }` for bots and `null` for people. A seat saved with an AI that no longer
-  exists falls back to the first AI (`standard`); one saved before this feature has none.
-- **What the bot does.** When it is the chooser it asks the server for hints and the AI picks one; when cards are being
-  played the AI picks from its hand; when voting the AI picks from the legal targets. If an AI throws or answers with
-  something illegal, the bot makes a random legal choice instead. The bot process passes `Math.random` as the `rng`.
+- **Choosing.** When a game starts, `Game.start` deals every computer player an AI with `assignAIs(AIS, ids, rng)`
+  (weighted random, using the game's rng, so seeded games repeat) and stores its id on the seat; the seat is saved with
+  the room, and a new game deals again. A person who leaves mid-round is replaced by a computer player that gets a random
+  AI with `pickAI`. The external `bots/bot.js` instead picks with `pickAI(AIS)`, or the one named with `--ai ID`, and
+  tells the server with the `declareAI` event (`game.setAI` refuses unknown ids); built-in bots never use `declareAI`.
+- **View.** `players[].ai` is `{ id, name }` for computer players once a game has started and `null` for people (and
+  for built-in bots in the lobby). A seat saved with an AI that no longer exists falls back to the first AI
+  (`standard`); one saved before this feature has none.
+- **What a computer player does.** The server asks `Game.runBotAction()` for the next move after a short wait
+  (`DIXNT_BOT_DELAY`). When it is the chooser, the AI picks one of three hints from the game's list; when cards are being
+  played the AI picks from its hand; when voting the AI picks from the legal targets. Every decision is built from that
+  seat's own view, so the AI never sees more than a person would. If an AI throws or answers with something illegal, a
+  random legal choice is made instead. The game's rng is passed as the `rng` (the external bot passes `Math.random`).
 
 ## The AIs
 
@@ -96,5 +98,5 @@ seeded games each:
    table, and the clue only if they can see it). Use the supplied `rng` for randomness, never `Math.random`. The
    helpers in `util.js` (`pick`, `best`, `fitter`, `clueStrength`, `oddness`) and `lexicon.js` are there to reuse.
 4. Add it to the list in `ai/index.js`, keeping `standard` first (the fallback for unknown ids).
-5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour. The bot
-   itself needs no change: it uses `AIS`, and `--help` lists the new id.
+5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour. Neither the server nor the
+   external bot needs a change: both use `AIS`, and `--help` lists the new id.

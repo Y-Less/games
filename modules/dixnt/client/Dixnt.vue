@@ -33,7 +33,9 @@ const nameOf = dixnt.nameOf;
 const showHand = computed(() => ['word', 'picking'].includes(state.value?.phase));
 
 async function leave() {
-  if (!window.confirm('Leave the game? Your score will be lost.')) return;
+  const takenOver = state.value.phase !== 'lobby' && !state.value.me.waiting && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id);
+  const warning = takenOver ? 'Leave the game? A computer player will take over your seat and your score.' : 'Leave the game? Your score will be lost.';
+  if (!window.confirm(warning)) return;
   await send('leave');
   goHome();
 }

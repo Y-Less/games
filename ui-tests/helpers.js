@@ -30,6 +30,7 @@ const FAST_ENV = {
   SPLENDOUR_BOT_DELAY: '0-5',
   GAUDI_BOT_DELAY: '0-5',
   AZULEJO_BOT_DELAY: '0-5',
+  DIXNT_BOT_DELAY: '0-5',
 };
 
 function findChrome() {

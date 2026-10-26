@@ -315,10 +315,12 @@ test('a game ended early by the host, or abandoned, is not recorded', async (t) 
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the second game to start');
   assert.equal((await bob.call('leave')).ok, true);
-  assert.equal((await cat.call('leave')).ok, true, 'too few players sends everyone back to the lobby');
-  await until(() => ann.state.phase === 'lobby', 'the lobby again');
+  assert.equal((await cat.call('leave')).ok, true, 'computer players take their seats, so the game carries on');
+  await until(() => ann.state.players.filter((p) => p.bot).length === 2, 'two computer players');
+  assert.equal(ann.state.phase, 'word');
+  assert.equal(ann.state.players.length, 4);
   assert.equal((await dan.call('leave')).ok, true);
-  assert.equal((await ann.call('leave')).ok, true, 'the last player closes the game');
+  assert.equal((await ann.call('leave')).ok, true, 'the last person closes the game');
   await sleep(100);
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM results').get().n, 0, 'nothing was recorded');
 });

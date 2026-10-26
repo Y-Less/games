@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+process.env.DIXNT_BOT_DELAY = '0-3';
 
 function makeFakeCards(dataDir) {
   const cardsDir = path.join(dataDir, 'cards');
@@ -225,13 +226,14 @@ test('the host leaving hands the host role on, in the lobby and in the middle of
   const newHost = bob;
   const rest = people.filter((p) => p !== host);
   await toPhase(rest, newHost, 'picking');
-  // The new host leaves in the middle of picking: three become two, so the game returns to the lobby.
+  // The new host leaves in the middle of picking: a computer player takes the seat and the other person hosts.
   assert.equal((await newHost.call('leave')).ok, true);
   const remaining = rest.filter((p) => p !== newHost);
-  await everyone(remaining, 'lobby');
+  await until(() => remaining.every((p) => p.state?.players.length === 3 && p.state.players.some((x) => x.bot)), 'a computer player in the seat');
   assert.equal(remaining.length, 2);
+  assert.ok(remaining.every((p) => p.state.phase === 'picking'), 'the round carries on');
   assert.ok(remaining.some((p) => p.state.hostId === p.state.me.id), 'someone hosts');
-  assert.ok(remaining.every((p) => p.state.me.hand.length === 0 && p.state.completedRounds === 0), 'a clean lobby');
+  assert.ok(remaining.filter((p) => p.state.hostId === p.state.me.id).length === 1, 'exactly one host');
   void dan;
 });
 
@@ -260,7 +262,7 @@ test('the game vanishing under connected sockets: the last player leaving ends i
   assert.notEqual(next.code, undefined);
 });
 
-test('the host removing a player sends every socket of theirs out; they may rejoin, and a removed mid-game player is replaced by nothing', async (t) => {
+test('the host removing a player sends every socket of theirs out; they may rejoin, and a removed mid-game player is replaced by a computer player', async (t) => {
   const site = await launch(t);
   const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat', 'dan']);
   const [, bob, cat, dan] = people;
@@ -272,8 +274,8 @@ test('the host removing a player sends every socket of theirs out; they may rejo
   assert.equal((await host.call('removePlayer', { targetId: bobId })).ok, true);
   await until(() => bob.state === null && bobPhone.state === null, 'bob out on both sockets');
   const rest = [host, cat, dan];
-  await until(() => rest.every((p) => p.state?.players.length === 3), 'three left');
-  assert.ok(rest.every((p) => !p.state.players.some((x) => x.id === bobId)));
+  await until(() => rest.every((p) => p.state?.players.length === 4), 'four seats');
+  assert.ok(rest.every((p) => p.state.players.find((x) => x.id === bobId)?.bot), 'a computer player holds the seat');
   assert.equal((await bob.call('playCard', { cardId: 10001 })).ok, false);
   assert.equal((await bob.call('join', { code })).ok, true, 'back in, waiting for the next round');
   await until(() => bob.state?.me.waiting === true, 'bob waiting');

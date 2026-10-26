@@ -46,6 +46,10 @@ const EVENTS = {
   nextRound: [],
   abortRound: [],
   removePlayer: ['targetId'],
+  addBot: [],
+  fillBots: ['count'],
+  removeBot: ['targetId'],
+  declareAI: ['id'],
 };
 
 /** Checks one view for internal consistency. */

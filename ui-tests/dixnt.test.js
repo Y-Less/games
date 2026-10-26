@@ -9,6 +9,7 @@ let world;
 let host;
 let second;
 let third;
+let solo;
 let code;
 let bot = null;
 let botName;
@@ -17,9 +18,11 @@ before(async () => {
   host = await world.newUser('host');
   second = await world.newUser('invitee');
   third = await world.newUser('typist');
+  solo = await world.newUser('loner');
   await host.signUp('dix', { displayName: 'Dora' });
   await second.signUp('dix', { displayName: 'Dan' });
   await third.signUp('dix', { displayName: 'Dee' });
+  await solo.signUp('dix', { displayName: 'Sol' });
 });
 after(async () => {
   if (bot && bot.exitCode === null) bot.kill();
@@ -120,6 +123,35 @@ test('a reload mid-game puts you back in the same game', { timeout: 60000 }, gua
   await second.waitForText('Round 1 of 4');
   await second.waitForCodeInUrl(code);
   await second.waitForSelector('.score-bar');
+}));
+
+test('a host on their own fills the table with built-in computer players, starts, and the bots play their cards', { timeout: 90000 }, guarded('bots', async () => {
+  await solo.goto('/play/dixnt');
+  await solo.clickButton('Start a new game');
+  await solo.waitForText('Waiting for players');
+  const seats = () => solo.page.$$eval('ul.seats .seat', (els) => els.map((e) => ({ bot: e.classList.contains('bot'), text: e.innerText.replace(/\s+/g, ' ').trim() })));
+  assert.equal((await solo.buttonState('Need 2 more players')).disabled, true);
+
+  await solo.clickButton('Add a computer player');
+  await solo.waitForText('Need 1 more player');
+  assert.equal((await seats()).filter((s) => s.bot).length, 1);
+  await solo.clickButton('Remove', { scope: '.seat.bot' });
+  await solo.waitForText('Need 2 more players');
+  await solo.clickButton('Fill up to 3 players with computer players');
+  await solo.waitForText('Start the game');
+  const rows = await seats();
+  assert.deepEqual(rows.map((s) => s.bot), [false, true, true]);
+  assert.match(rows[0].text, /Sol.*you.*host/i);
+  assert.match(rows[1].text, /computer/i);
+  assert.equal((await solo.buttonState('Start the game')).disabled, false);
+
+  // The host is the first chooser: type the word, and the two bots play a card by themselves.
+  await solo.clickButton('Start the game', { exact: true });
+  await solo.waitForSelector('input[aria-label="Your word or phrase"]');
+  await solo.fill('input[aria-label="Your word or phrase"]', 'Dragon');
+  await solo.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
+  await solo.waitForText('Who was in the dark?');
+  assert.equal((await solo.page.$$('.bar .tag.bot')).length, 2, 'the bots are marked as computers');
 }));
 
 test('no uncaught errors in any page', () => {

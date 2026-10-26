@@ -38,6 +38,7 @@ async function remove(p) {
       <div class="top">
         <span class="name">{{ p.name }}</span>
         <span v-if="p.id === state.hostId" class="tag" title="Host">host</span>
+        <span v-if="p.bot" class="tag bot" :title="p.ai ? `Computer player (${p.ai.name})` : 'Computer player'">computer</span>
         <button
           v-if="isHost && p.id !== state.me.id"
           class="remove quiet"
@@ -103,6 +104,10 @@ async function remove(p) {
   border: 1px solid var(--amber);
   border-radius: 999px;
   padding: 0 0.4rem;
+}
+.tag.bot {
+  border-color: var(--muted);
+  color: var(--muted);
 }
 .remove {
   margin-left: auto;
