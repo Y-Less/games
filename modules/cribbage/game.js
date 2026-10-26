@@ -2,7 +2,8 @@
 // Seats are numbered in clockwise order from 0; a seat holds a person (userId) or a computer player (bot: true).
 // Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
-import { chooseDiscard, choosePlay } from './bot.js';
+import { AIS } from './ai/index.js';
+import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements } from '../../shared/scores.js';
 import { pipValue, scoreHand, scorePlay } from './scoring.js';
 
@@ -144,7 +145,7 @@ export function removeHuman(room, userId, rng = Math.random) {
   else if (room.phase === 'finished') room.seats[index].left = true;
   else {
     room.botsMade++;
-    Object.assign(room.seats[index], { userId: null, bot: true, botId: `bot:${room.botsMade}`, replaced: true });
+    Object.assign(room.seats[index], { userId: null, bot: true, botId: `bot:${room.botsMade}`, replaced: true, ai: pickAI(AIS, rng).id });
   }
   const humans = humanSeats(room);
   if (room.hostId === userId && humans.length) room.hostId = humans[0].userId;
@@ -238,7 +239,18 @@ export function start(room, userId, rng = Math.random) {
   room.handDeltas = {};
   room.dealer = Math.floor(rng() * room.seats.length);
   deal(room, rng);
+  assignBotAIs(room, rng);
   return ok();
+}
+
+/** Every computer player picks the AI it will play this game with (kept on the seat, so it survives a restart). */
+function assignBotAIs(room, rng) {
+  const bots = room.seats.flatMap((s, i) => (s.bot ? [i] : []));
+  const chosen = assignAIs(AIS, bots, rng);
+  room.seats.forEach((s, i) => {
+    if (s.bot) s.ai = chosen[i];
+    else delete s.ai;
+  });
 }
 
 /** From the finished game back to the lobby, with the same seats (people who have gone are dropped). */
@@ -247,7 +259,10 @@ export function returnToLobby(room, userId, present = () => true) {
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over yet.');
   room.seats = room.seats.filter((s) => s.bot || (!s.left && present(s.userId)));
-  for (const s of room.seats) Object.assign(s, { score: 0, back: 0, ready: false, discarded: false, stats: freshStats() });
+  for (const s of room.seats) {
+    Object.assign(s, { score: 0, back: 0, ready: false, discarded: false, stats: freshStats() });
+    delete s.ai;
+  }
   Object.assign(room, { phase: 'lobby', winner: null, recorded: false, hands: [], kept: [], crib: [], deck: [], starter: null, play: null, show: null, log: [], history: [], handDeltas: {}, handNo: 0 });
   return ok();
 }
@@ -381,22 +396,59 @@ export function pendingBot(room) {
   return null;
 }
 
-/** Makes the pending computer player's move. */
+/** The AI a computer player plays with; rooms saved before AIs existed fall back to the first one. */
+export const aiOf = (room, seat) => aiById(AIS, room.seats[seat].ai);
+
+/** Everything an AI may know when choosing what to discard: plain data about its own hand and the table. */
+function discardContext(room, seat, rng) {
+  const { discards } = dealRules(room.seats.length);
+  return { hand: room.hands[seat], discardCount: discards, isDealer: seat === room.dealer, players: room.seats.length, me: seat, scores: room.seats.map((s) => s.score), target: room.target, rng };
+}
+
+/** The same for a card to play: the count, the cards played so far, and how many each player still holds. */
+function playContext(room, seat, rng) {
+  const p = room.play;
+  const played = room.kept.flatMap((kept, i) => kept.filter((c) => !room.hands[i].includes(c)));
+  return {
+    hand: room.hands[seat],
+    count: p.count,
+    sequence: p.sequence.map((x) => x.card),
+    played,
+    starter: room.starter,
+    players: room.seats.length,
+    me: seat,
+    isDealer: seat === room.dealer,
+    cardsLeft: room.hands.map((h) => h.length),
+    scores: room.seats.map((s) => s.score),
+    target: room.target,
+    rng,
+  };
+}
+
+/** Makes the pending computer player's move. An AI that answers illegally is overruled by the standard one. */
 export function botMove(room, rng = Math.random) {
   const pending = pendingBot(room);
   if (!pending) return fail('No computer player has a move.');
   const { seat, kind } = pending;
+  const ai = aiOf(room, seat);
   if (kind === 'discard') {
-    const { discards } = dealRules(room.seats.length);
-    return discard(room, seat, chooseDiscard(room.hands[seat], { discardCount: discards, isDealer: seat === room.dealer }), rng);
+    const context = discardContext(room, seat, rng);
+    let cards = ai.discard(context);
+    const valid = Array.isArray(cards) && cards.length === context.discardCount && new Set(cards).size === cards.length && cards.every((c) => context.hand.includes(c));
+    if (!valid) cards = AIS[0].discard(context);
+    return discard(room, seat, cards, rng);
   }
-  const card = choosePlay(room.hands[seat], { count: room.play.count, sequence: room.play.sequence.map((x) => x.card) });
+  const context = playContext(room, seat, rng);
+  let card = ai.play(context);
+  if (!playableCards(room, seat).includes(card)) card = AIS[0].play(context);
   return playCard(room, seat, card);
 }
 
 // ---- views and statistics ----
 
 const seatPlacements = (room) => Object.values(placements(Object.fromEntries(room.seats.map((s, i) => [i, s.score]))));
+
+const aiSummary = ({ id, name }) => ({ id, name });
 
 /** What one person may see. Other players' hands and discards stay hidden until the show. */
 export function viewFor(room, userId, { online = () => true } = {}) {
@@ -420,6 +472,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
       name: s.name,
       bot: s.bot,
       replaced: Boolean(s.replaced),
+      ai: s.bot && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
       host: s.userId !== null && s.userId === room.hostId,
       online: s.bot || (s.userId !== null && online(s.userId)),
       left: Boolean(s.left),
