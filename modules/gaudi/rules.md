@@ -17,7 +17,7 @@ Build a stained-glass window from drafted dice. Two to five players, ten rounds,
 ## A round
 
 - Each player takes **two turns** in snake order: clockwise from the round's first player, then back again. With three players that is A B C C B A.
-- On your turn you may, in either order and each at most once, **place one die** from the pool and **use one tool card**. You can also do neither. Press **End turn** when you are finished (the turn ends by itself when you have done both).
+- On your turn you may, in either order and each at most once, **place one die** from the pool and **use one tool card**. You can also do neither. Press **End turn** when you are finished. The turn never ends by itself: until you press End turn you may change your mind with **Undo turn**, which takes the whole turn back to how it began (your window, the pool, your favour tokens, any tool you used) so that you can choose differently. Undo never reaches back past End turn..
 - After the last turn, the leftover dice go onto the **round track**, and the first-player marker moves one seat clockwise.
 
 ## Placing dice

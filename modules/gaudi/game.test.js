@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { COLOURS, COLS, PATTERNS, PATTERN_CARDS, bagSize, emptyGrid, poolSize, patternOf } from './rules.js';
+import { cellProblem, COLOURS, COLS, PATTERNS, PATTERN_CARDS, bagSize, emptyGrid, poolSize, patternOf } from './rules.js';
 import { botStep } from './bot.js';
 import { assertInvariants, die, driveStep, playingRoom, seeded, setWindow, viewLeaks } from './testing.js';
 
@@ -305,11 +305,13 @@ test('placing a die: whose turn, which die, which space, once per turn', () => {
   failsAtomically(room, () => game.placeDie(room, 1, { die: 502, cell: at(1, 1) }), /edge/);
 });
 
-test('a turn ends by itself once the die has been placed and a tool used', () => {
+test('a turn does not end by itself, even when the die has been placed and a tool used: End turn is required', () => {
   const { room, rng } = lab(2, { pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
   assert.equal(game.useTool(room, 0, { tool: 'lathe', params: { die: 502, delta: -1 } }, rng).ok, true);
   assert.equal(room.turn.seat, 0, 'the die is still to place');
   assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
+  assert.equal(room.turn.seat, 0, 'die and tool are used, but the player may still undo or end');
+  assert.equal(game.endTurn(room, 0, rng).ok, true);
   assert.equal(room.turn.seat, 1);
   assert.equal(room.turnIndex, 1);
 });
@@ -526,7 +528,7 @@ test('Free Pane: places a die without the touching rule, as the turn\'s die', ()
   const { room, rng } = lab(2, { tools: ['free-pane', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
   assert.equal(game.useTool(room, 0, { tool: 'free-pane', params: { die: 501, cell: at(2, 2) } }, rng).ok, true, 'the middle, as a first die');
   assert.equal(room.grids[0][at(2, 2)].id, 501);
-  assert.equal(room.turn.seat, 1, 'die and tool both used: the turn ended');
+  assert.equal(room.turn.seat, 0, 'die and tool both used: the turn waits for End turn');
   assert.deepEqual(room.pool.map((d) => d.id), [502]);
   assert.equal(room.tally[0].dicePlaced, 1);
   // Not as the second die of a turn, and neighbours still matter.
@@ -837,7 +839,8 @@ test('Swift Hand: finishing the turn starts a fresh full turn for the same playe
   assert.equal(swift(room, user, rng).ok, true);
   assert.equal(room.turn.toolUsed, true);
   assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 0 }, rng).ok, true);
-  // die and tool are both used, so the turn ended by itself and the extra turn began
+  assert.equal(room.turn.extra, false, 'the turn goes on until End turn');
+  assert.equal(game.endTurn(room, user, rng).ok, true);
   assert.equal(room.turn.seat, user);
   assert.equal(room.turn.extra, true);
   assert.deepEqual([room.turn.placements, room.turn.toolUsed, room.turn.number], [0, false, 1]);
@@ -848,6 +851,8 @@ test('Swift Hand: finishing the turn starts a fresh full turn for the same playe
   assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 1 }, rng).ok, true);
   assert.equal(room.turn.seat, user, 'the tool is still to come');
   assert.equal(game.useTool(room, user, { tool: 'refire', params: { die: room.pool[0].id } }, rng).ok, true);
+  assert.equal(room.turn.seat, user, 'End turn is still needed');
+  assert.equal(game.endTurn(room, user, rng).ok, true);
   assert.notEqual(room.turn.seat, user, 'only after the extra turn does anyone else move');
   assert.equal(room.tokens[user], 5 - 1 - 1);
 });
@@ -858,7 +863,7 @@ test('Swift Hand: placing first, then using the tool also gives the extra turn',
   assert.equal(game.placeDie(room, user, { die: room.pool[0].id, cell: 0 }, rng).ok, true);
   assert.equal(room.turn.seat, user);
   assert.equal(swift(room, user, rng).ok, true, 'the tool still works after the die');
-  // die and tool are both used, so the turn ends by itself and the extra turn begins
+  assert.equal(game.endTurn(room, user, rng).ok, true);
   assert.deepEqual([room.turn.seat, room.turn.extra, room.turn.placements], [user, true, 0]);
   assert.equal(game.endTurn(room, user, rng).ok, true, 'the extra turn can be ended without doing anything');
   assert.notEqual(room.turn.seat, user);
@@ -1043,4 +1048,183 @@ test('window choice: every seat in the view says whether it has chosen, for ever
   assert.equal(game.viewFor(room, 3).chosen, room.options[2][3]);
   assert.equal(game.viewFor(room, 2).chosen, null);
   assert.equal(game.viewFor(room, 1).seats[2].window, null, 'who chose what stays hidden until everyone has chosen');
+});
+
+// ---- taking a turn back until End turn ----
+
+const stateOf = (room) => JSON.stringify({ grids: room.grids, pool: room.pool, track: room.track, bag: room.bag, tokens: room.tokens, spent: room.spent, tally: room.tally, skip: room.skip, turn: room.turn });
+
+test('undo: a turn that has not changed anything has nothing to undo', () => {
+  const { room, rng } = playingRoom(2, { seed: 4 });
+  const seat = room.turn.seat;
+  failsAtomically(room, () => game.undoTurn(room, seat), /nothing to undo/);
+  assert.equal(game.viewFor(room, seat + 1).turn.canUndo, false);
+  game.endTurn(room, seat, rng);
+});
+
+test('undo: taking back a placed die puts it back in the pool, and it can be placed somewhere else instead', () => {
+  const { room, rng } = playingRoom(2, { seed: 4 });
+  const seat = room.turn.seat;
+  const before = stateOf(room);
+  const target = room.pool[0];
+  const cells = [];
+  for (let c = 0; c < 20 && cells.length < 2; c++) if (!cellProblem(room.grids[seat], patternOf(room.patterns[seat]), c, target)) cells.push(c);
+  assert.equal(game.placeDie(room, seat, { die: target.id, cell: cells[0] }, rng).ok, true);
+  assert.equal(game.viewFor(room, seat + 1).turn.canUndo, true);
+  assert.equal(game.undoTurn(room, seat).ok, true);
+  assert.equal(stateOf(room), before, 'exactly as the turn began');
+  assert.equal(game.placeDie(room, seat, { die: target.id, cell: cells[1] }, rng).ok, true, 'and placed again, differently');
+  assert.equal(room.grids[seat][cells[1]].id, target.id);
+  assertInvariants(room, 'undo then redo');
+});
+
+test('undo: every kind of tool is taken back exactly, including the dice values it rolled, and the tokens come back', () => {
+  let exercised = 0;
+  for (const tool of ['lathe', 'refire', 'kiln', 'mirror']) {
+    const { room, rng } = playingRoom(3, { seed: 9 });
+    room.tools = [tool, ...['lathe', 'refire', 'kiln', 'mirror', 'exchange'].filter((x) => x !== tool).slice(0, 2)];
+    room.spent = [0, 0, 0];
+    const seat = room.turn.seat;
+    const before = stateOf(room);
+    const params = tool === 'lathe' ? { die: room.pool.find((d) => d.v > 1).id, delta: -1 } : tool === 'kiln' ? {} : { die: room.pool[0].id };
+    const used = game.useTool(room, seat, { tool, params }, rng);
+    if (!used.ok) continue; // (kiln is only for the second turn, say)
+    assert.equal(game.undoTurn(room, seat).ok, true, tool);
+    assert.equal(stateOf(room), before, `${tool}: back to the start of the turn, nothing rolled again`);
+    assertInvariants(room, `undo ${tool}`);
+    exercised++;
+  }
+  assert.ok(exercised >= 3, 'most tools were really used and undone');
+});
+
+test('undo: a die and a tool together, Free Pane, Swift Hand and Exchange all come back, and then the turn can be played differently', () => {
+  const { room, rng } = playingRoom(2, { seed: 11 });
+  room.tools = ['free-pane', 'swift-hand', 'refire'];
+  room.spent = [0, 0, 0];
+  const seat = room.turn.seat;
+  const before = stateOf(room);
+  assert.equal(game.useTool(room, seat, { tool: 'free-pane', params: { die: room.pool[0].id, cell: 7 } }, rng).ok, true);
+  assert.equal(game.undoTurn(room, seat).ok, true);
+  assert.equal(stateOf(room), before);
+  assert.equal(game.useTool(room, seat, { tool: 'swift-hand', params: {} }, rng).ok, true);
+  assert.equal(room.skip[seat], true);
+  assert.equal(game.undoTurn(room, seat).ok, true);
+  assert.equal(room.skip[seat], false, 'the skipped turn comes back too');
+  assert.equal(room.turn.swift, false);
+  assert.equal(stateOf(room), before);
+  assert.equal(game.useTool(room, seat, { tool: 'refire', params: { die: room.pool[1].id } }, rng).ok, true, 'a different tool this time');
+  assertInvariants(room, 'undo, then another tool');
+});
+
+test('undo: it never touches the other players, never rolls anything, and the log of the undone actions goes away', () => {
+  const { room, rng } = playingRoom(3, { seed: 5 });
+  room.tools = ['refire', 'lathe', 'kiln'];
+  room.spent = [0, 0, 0];
+  const seat = room.turn.seat;
+  const others = JSON.stringify(room.grids.filter((_, i) => i !== seat).concat([room.tokens.filter((_, i) => i !== seat)]));
+  const bag = JSON.stringify(room.bag);
+  const logBefore = room.log.length;
+  let calls = 0;
+  const counting = () => (calls++, rng());
+  game.useTool(room, seat, { tool: 'refire', params: { die: room.pool[0].id } }, rng);
+  assert.equal(room.log.length > logBefore, true);
+  const rolled = calls;
+  assert.equal(game.undoTurn(room, seat, counting).ok, true);
+  assert.equal(calls, rolled, 'undo asks for no random numbers');
+  assert.equal(JSON.stringify(room.bag), bag);
+  assert.equal(room.log.length, logBefore);
+  assert.equal(JSON.stringify(room.grids.filter((_, i) => i !== seat).concat([room.tokens.filter((_, i) => i !== seat)])), others);
+  assertInvariants(room, 'undo is quiet');
+});
+
+test('undo: refused out of turn, in other phases, with nothing to undo, with junk, and never across End turn', () => {
+  const { room, rng } = playingRoom(2, { seed: 4 });
+  const seat = room.turn.seat;
+  const other = 1 - seat;
+  game.placeDie(room, seat, { die: room.pool[0].id, cell: legalSpot2(room, seat) }, rng);
+  failsAtomically(room, () => game.undoTurn(room, other), /not your turn/);
+  for (const junk of [undefined, null, -1, 99, 'x', {}]) failsAtomically(room, () => game.undoTurn(room, junk), null);
+  assert.equal(game.endTurn(room, seat, rng).ok, true);
+  failsAtomically(room, () => game.undoTurn(room, seat), /not your turn/);
+  failsAtomically(room, () => game.undoTurn(room, other), /nothing to undo/);
+  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  assert.equal(game.undoTurn(lobby, 0).ok, false);
+  const windows = windowsRoomOf(2).room;
+  assert.equal(game.undoTurn(windows, 0).ok, false);
+});
+function legalSpot2(room, seat) {
+  const d = room.pool[0];
+  for (let c = 0; c < 20; c++) if (!cellProblem(room.grids[seat], patternOf(room.patterns[seat]), c, d)) return c;
+  return 0;
+}
+
+test('undo: the snapshot is saved with the room, kept through a restart mid-turn, and never sent to anybody', () => {
+  const { room, rng } = playingRoom(2, { seed: 4 });
+  const seat = room.turn.seat;
+  const before = stateOf(room);
+  game.placeDie(room, seat, { die: room.pool[0].id, cell: legalSpot2(room, seat) }, rng);
+  const restored = JSON.parse(JSON.stringify(room));
+  assert.equal(game.viewFor(restored, seat + 1).turn.canUndo, true);
+  assert.equal(game.undoTurn(restored, seat).ok, true);
+  assert.equal(stateOf(restored), before);
+  for (const viewer of [1, 2, 99]) {
+    const text = JSON.stringify(game.viewFor(room, viewer));
+    assert.equal(/"undo"|logLength/.test(text), false, 'no snapshot in a view');
+  }
+  assert.equal(game.viewFor(room, 2 - seat).turn.canUndo, true, 'the flag is about the current turn, whoever looks (it is harmless)');
+});
+
+test('undo: with Swift Hand the extra turn can be undone on its own, but never back across End turn', () => {
+  const { room, rng } = playingRoom(2, { seed: 4 });
+  room.tools = ['swift-hand', 'lathe', 'refire'];
+  room.spent = [0, 0, 0];
+  room.tokens = room.tokens.map(() => 6);
+  room.tokenTotal = 12;
+  const seat = room.turn.seat;
+  game.useTool(room, seat, { tool: 'swift-hand', params: {} }, rng);
+  game.placeDie(room, seat, { die: room.pool[0].id, cell: legalSpot2(room, seat) }, rng);
+  assert.equal(game.endTurn(room, seat, rng).ok, true);
+  assert.equal(room.turn.extra, true);
+  assert.equal(game.viewFor(room, seat + 1).turn.canUndo, false, 'nothing yet in the extra turn');
+  failsAtomically(room, () => game.undoTurn(room, seat), /nothing to undo/);
+  const start = stateOf(room);
+  game.placeDie(room, seat, { die: room.pool[0].id, cell: legalSpot2(room, seat) }, rng);
+  assert.equal(game.undoTurn(room, seat).ok, true);
+  assert.equal(stateOf(room), start, 'only the extra turn was taken back');
+  assert.equal(room.skip[seat], true, 'the first turn\'s Swift Hand still stands');
+  assert.equal(room.turn.extra, true);
+  assertInvariants(room, 'swift hand undo');
+});
+
+test('undo: whole games of computer players, which end their turns themselves, still finish with every die accounted for', () => {
+  for (let seed = 1; seed <= 8; seed++) {
+    const { room, rng } = playingRoom(2 + (seed % 4), { seed });
+    room.seats.forEach((s) => (s.bot = true));
+    for (let i = 0; i < 6000 && room.phase !== 'finished'; i++) {
+      driveStep(room, rng);
+      if (room.phase === 'playing' && i % 37 === 0) assertInvariants(room, `bots seed ${seed}`);
+    }
+    assert.equal(room.phase, 'finished', `seed ${seed}`);
+  }
+});
+
+test('undo: a person who plays, undoes and replays many times in a whole game keeps every die in exactly one place', () => {
+  const { room, rng } = playingRoom(2, { seed: 21 });
+  room.seats[1].bot = true;
+  for (let i = 0; i < 6000 && room.phase !== 'finished'; i++) {
+    if (room.phase === 'playing' && room.turn.seat === 0) {
+      const spot = (() => {
+        for (const d of room.pool) for (let c = 0; c < 20; c++) if (!cellProblem(room.grids[0], patternOf(room.patterns[0]), c, d)) return { die: d.id, cell: c };
+        return null;
+      })();
+      if (spot) {
+        assert.equal(game.placeDie(room, 0, spot, rng).ok, true);
+        assert.equal(game.undoTurn(room, 0).ok, true);
+        assert.equal(game.placeDie(room, 0, spot, rng).ok, true);
+      }
+      assert.equal(game.endTurn(room, 0, rng).ok, true);
+    } else driveStep(room, rng);
+    if (i % 25 === 0) assertInvariants(room, 'undo game');
+  }
+  assert.equal(room.phase, 'finished');
 });

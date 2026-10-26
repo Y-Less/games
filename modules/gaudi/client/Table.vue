@@ -233,7 +233,7 @@ const status = computed(() => {
   const t = s.value.turn;
   const die = t.placements < t.allowed ? 'place a die' : 'your die is placed';
   const tool = t.toolUsed ? 'your tool is used' : 'you may use a tool';
-  return `Your ${t.extra ? 'extra' : turnNumber.value} turn: ${die}; ${tool}. End your turn when you are done.`;
+  return `Your ${t.extra ? 'extra' : turnNumber.value} turn: ${die}; ${tool}. Click End turn when you are happy.`;
 });
 const endHint = computed(() => (myTurn.value && s.value.turn.placements === 0 && s.value.pool.length ? 'You have not placed a die yet.' : ''));
 const myPrivateRule = computed(() =>
@@ -257,6 +257,7 @@ const statusLines = computed(() => {
   if (myTurn.value && s.value.turn.extra) lines.push({ text: 'Extra turn (Swift Hand): a whole new turn, so choose another die and use more favour tokens if you wish. Your second turn of the round is skipped.', tone: 'mine' });
   else if (myTurn.value && s.value.turn.swift) lines.push({ text: 'Swift Hand is active: when you end this turn you take an extra turn straight away, and your second turn of the round is skipped.', tone: 'mine' });
   if (endHint.value && !mode.value) lines.push({ text: endHint.value, tone: 'muted' });
+  if (myTurn.value && s.value.turn.canUndo) lines.push({ text: 'You can change your mind until you click End turn: Undo turn takes this whole turn back.', tone: 'muted' });
   if (!finished.value) {
     lines.push({ text: `Your window: ${me.value?.empty} empty ${me.value?.empty === 1 ? 'space' : 'spaces'}, provisional score ${me.value?.score}.`, tone: 'muted' });
     lines.push({ text: 'Scores are provisional until the end: private objectives are not counted yet.', tone: 'muted' });
@@ -266,6 +267,13 @@ const statusLines = computed(() => {
 });
 const toolHint = (tool) => `${tool.name}: ${tool.text} How: ${tool.how}`;
 const objectiveHint = (o) => `${o.name}: ${o.text} ${o.points} per ${o.unit}.${o.mine ? ` You have ${o.mine.sets}: ${o.mine.points} points.` : ''}`;
+
+async function undoTurn() {
+  const reply = await props.send('undo');
+  selected.value = null;
+  mode.value = null;
+  message.value = reply.ok ? '' : reply.error;
+}
 
 async function endTurn() {
   const reply = await props.send('end');
@@ -417,6 +425,7 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
 
                 <div class="actions">
                   <button class="primary" :disabled="!myTurn" @click="endTurn">End turn</button>
+                  <button :disabled="!myTurn || !state.turn?.canUndo" title="Take this whole turn back to how it began" @click="undoTurn">Undo turn</button>
                   <template v-if="mode">
                     <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v >= 6" @click="applyTool({ delta: 1 })">Raise by one</button>
                     <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v <= 1" @click="applyTool({ delta: -1 })">Lower by one</button>

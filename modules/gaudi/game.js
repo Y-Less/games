@@ -324,6 +324,7 @@ function resetGame(room) {
     order: [],
     turnIndex: 0,
     turn: null,
+    undo: null,
     skip: [],
     history: [],
     snapshot: [],
@@ -524,12 +525,59 @@ function startRound(room, rng) {
   advanceTurn(room, rng);
 }
 
+/**
+ * Remembers how the table was when the current turn began, so that the player can take the whole turn back until they
+ * press End turn. It holds everything a turn can change (the window, the pool, the round track, the bag, the favour tokens,
+ * the tool markers and the tallies, and the Swift Hand skip), including the dice values already rolled, so that undoing
+ * is exact and never rolls anything again. It is saved with the room and never sent to anyone.
+ */
+function saveTurnStart(room) {
+  const seat = room.turn.seat;
+  room.undo = {
+    seat,
+    turn: { ...room.turn },
+    logLength: room.log.length,
+    grid: room.grids[seat],
+    pool: room.pool,
+    track: room.track,
+    bag: room.bag,
+    tokens: room.tokens,
+    spent: room.spent,
+    tally: room.tally[seat],
+    skip: room.skip,
+  };
+  room.undo = JSON.parse(JSON.stringify(room.undo));
+}
+
+const turnChanged = (room) => Boolean(room.turn) && (room.turn.placements > 0 || room.turn.toolUsed);
+
+/** Takes the whole of the current turn back to its start (the player's own turn only; never across End turn). */
+export function undoTurn(room, seat) {
+  const problem = myTurn(room, seat);
+  if (problem) return problem;
+  const saved = room.undo;
+  if (!saved || saved.seat !== seat || !turnChanged(room)) return fail('There is nothing to undo this turn.');
+  const copy = JSON.parse(JSON.stringify(saved));
+  room.grids[seat] = copy.grid;
+  room.pool = copy.pool;
+  room.track = copy.track;
+  room.bag = copy.bag;
+  room.tokens = copy.tokens;
+  room.spent = copy.spent;
+  room.tally[seat] = copy.tally;
+  room.skip = copy.skip;
+  room.turn = copy.turn;
+  room.log.length = copy.logLength;
+  return ok();
+}
+
 function advanceTurn(room, rng) {
   if (room.turn?.swift && room.phase === 'playing') {
     // Swift Hand: a fresh full turn for the same player, before anyone else moves.
     const { seat, number } = room.turn;
     room.turn = { seat, number, placements: 0, toolUsed: false, extra: true, swift: false };
     addLog(room, seat, `${seatName(room, seat)} takes an extra turn`);
+    saveTurnStart(room);
     return;
   }
   for (;;) {
@@ -542,6 +590,7 @@ function advanceTurn(room, rng) {
       continue;
     }
     room.turn = { seat, number, placements: 0, toolUsed: false, extra: false, swift: false };
+    saveTurnStart(room);
     return;
   }
 }
@@ -555,6 +604,7 @@ function endRound(room, rng) {
   room.track.push(room.pool);
   room.pool = [];
   room.turn = null;
+  room.undo = null;
   const now = room.seats.map((_, seat) => provisionalOf(room, seat));
   room.history.push({
     label: `Round ${room.round}`,
@@ -621,11 +671,6 @@ function myTurn(room, seat) {
   return null;
 }
 
-/** Ends the turn automatically once the die and the tool have both been used. */
-function settle(room, rng) {
-  if (room.turn.placements >= allowedPlacements(room) && room.turn.toolUsed) advanceTurn(room, rng);
-}
-
 function putDie(room, seat, poolAt, cell) {
   const [die] = room.pool.splice(poolAt, 1);
   room.grids[seat][cell] = die;
@@ -644,7 +689,6 @@ export function placeDie(room, seat, args, rng = Math.random) {
   const reason = cellProblem(room.grids[seat], patternOf(room.patterns[seat]), cell, room.pool[at]);
   if (reason) return fail(reason);
   putDie(room, seat, at, cell);
-  settle(room, rng);
   return ok();
 }
 
@@ -668,7 +712,6 @@ export function useTool(room, seat, args, rng = Math.random) {
   room.tally[seat].toolsUsed++;
   prepared.commit();
   addLog(room, seat, `${seatName(room, seat)} used ${def.name}${prepared.note ? `: ${prepared.note}` : ''} (${cost} ${cost === 1 ? 'token' : 'tokens'})`);
-  settle(room, rng);
   return ok({ cost });
 }
 
@@ -792,7 +835,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.first = room.first;
     view.order = room.order;
     view.turnIndex = room.turnIndex;
-    view.turn = room.turn ? { ...room.turn, allowed: allowedPlacements(room) } : null;
+    view.turn = room.turn ? { ...room.turn, allowed: allowedPlacements(room), canUndo: Boolean(room.undo) && room.undo.seat === room.turn.seat && turnChanged(room) } : null;
     view.pool = room.pool;
     view.track = room.track;
     view.bagCount = room.bag.length;

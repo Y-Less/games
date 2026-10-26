@@ -369,7 +369,7 @@ wholeGameLayout({
   finder: gaudiFinder,
   ready: /Round 1 of 10/,
   finished: finalShown,
-  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.mine', '.mine .pool-col', '.mine .pool', '.mine .actions', '.mine .track', '.right-col', '.box.log', '.box.status', '.box.log .game-log'],
+  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.mine', '.mine .pool-col', '.mine .pool', '.mine .actions', '.mine .actions button:nth-child(1)', '.mine .actions button:nth-child(2)', '.mine .track', '.right-col', '.box.log', '.box.status', '.box.log .game-log'],
   stopWhen: 'section.final',
   newest: { '.box.log .game-log': 0 },
 });

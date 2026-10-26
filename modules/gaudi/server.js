@@ -262,6 +262,7 @@ export default function (ctx) {
     on('place', ({ die, cell }) => act((room, seat) => game.placeDie(room, seat, { die, cell })));
     on('tool', ({ tool, params }) => act((room, seat) => game.useTool(room, seat, { tool, params })));
     on('end', () => act((room, seat) => game.endTurn(room, seat)));
+    on('undo', () => act((room, seat) => game.undoTurn(room, seat)));
     on('again', () => act((room) => game.playAgain(room, userId)));
 
     socket.on('disconnect', () => {

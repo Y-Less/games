@@ -119,6 +119,35 @@ test('the site header shows the title, Rules and Leave game, and the play area h
   assert.deepEqual(inPlay, [], 'no Leave button in the play area');
 }));
 
+test('a placed die can be taken back with Undo turn until End turn, and the turn never ends by itself', { timeout: 60000 }, guarded('undo', async () => {
+  await user.waitForSelector('.game-status .headline.mine');
+  const undo = () => user.page.evaluate(() => [...document.querySelectorAll('.actions button')].find((b) => b.innerText.trim() === 'Undo turn')?.disabled);
+  assert.equal(await undo(), true, 'nothing to undo yet');
+  const filled = () => user.page.$$eval('.mine .space.filled', (e) => e.length);
+  const before = await filled();
+  let placed = false;
+  for (const die of await user.page.$$('.pool-die')) {
+    await die.click();
+    const legal = await user.page.$('.mine .space.legal');
+    if (legal) {
+      await legal.click();
+      placed = true;
+      break;
+    }
+    await die.click();
+  }
+  assert.ok(placed, 'a die could be placed');
+  await user.page.waitForFunction((n) => document.querySelectorAll('.mine .space.filled').length === n + 1, {}, before);
+  assert.equal(await undo(), false, 'Undo turn is available');
+  assert.match(await user.page.$eval('.game-status .headline', (e) => e.innerText), /Click End turn when you are happy/);
+  const boxes = () => Promise.all(['.mine .actions', '.mine .pool-col', '.mine .track'].map(rect));
+  const still = await boxes();
+  await user.clickButton('Undo turn', { exact: true });
+  await user.page.waitForFunction((n) => document.querySelectorAll('.mine .space.filled').length === n, {}, before);
+  assert.equal(await undo(), true, 'nothing left to undo');
+  assert.deepEqual(await boxes(), still, 'undoing moved nothing');
+}));
+
 for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
   test(`at ${viewport.width}x${viewport.height} the table fits the window without scaling, its rows share the same outer edges and gutters, and a click on a name in the score bar toggles that window without moving anything`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
     await user.page.setViewport(viewport);

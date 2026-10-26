@@ -599,7 +599,7 @@ describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
     const view = () => game.viewFor(room, 1);
     let w;
     const send = vi.fn(async (event, payload) => {
-      const outcome = event === 'tool' ? game.useTool(room, 0, payload, rng) : event === 'place' ? game.placeDie(room, 0, payload, rng) : event === 'end' ? game.endTurn(room, 0, rng) : { ok: false, error: 'unexpected' };
+      const outcome = event === 'tool' ? game.useTool(room, 0, payload, rng) : event === 'place' ? game.placeDie(room, 0, payload, rng) : event === 'end' ? game.endTurn(room, 0, rng) : event === 'undo' ? game.undoTurn(room, 0) : { ok: false, error: 'unexpected' };
       await w.setProps({ state: view() });
       return outcome.ok ? outcome : { ok: false, error: outcome.error };
     });
@@ -632,6 +632,10 @@ describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
     expect(room.turn.swift).toBe(true);
     expect(w.find('.game-status').text()).toContain('Swift Hand is active');
     expect(await placeAny(w, room)).toBe(true);
+    expect(room.turn.extra).toBe(false); // the turn goes on until End turn
+    expect(w.find('.headline').text()).toContain('Click End turn when you are happy');
+    await button(w, 'End turn').trigger('click');
+    await flushPromises();
     expect(room.turn.seat).toBe(0);
     expect(room.turn.extra).toBe(true);
     expect(w.find('.headline').text()).toContain('Your extra turn: place a die; you may use a tool');
@@ -649,12 +653,48 @@ describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
     await w.findAll('.tool')[0].trigger('click');
     await button(w, 'Use Swift Hand').trigger('click');
     await flushPromises();
+    await button(w, 'End turn').trigger('click');
+    await flushPromises();
     expect(room.turn.extra).toBe(true);
     expect(w.find('.headline').text()).toContain('extra turn');
     expect(button(w, 'End turn').attributes('disabled')).toBeUndefined();
     await button(w, 'End turn').trigger('click');
     await flushPromises();
     expect(room.turn.seat).toBe(1);
+  });
+
+  it('Undo turn: disabled until something is done, takes the whole turn back, and nothing ends the turn but End turn', async () => {
+    const { room, w, send } = wired(['refire', 'lathe', 'kiln']);
+    expect(button(w, 'Undo turn').attributes('disabled')).toBeDefined();
+    expect(button(w, 'End turn').classes('primary')).toBe(true);
+    const before = JSON.stringify(room.grids[0]);
+    expect(await placeAny(w, room)).toBe(true);
+    expect(w.find('.game-status').text()).toContain('Undo turn takes this whole turn back');
+    await w.findAll('.tool')[0].trigger('click');
+    await poolDice(w)[0].trigger('click');
+    await button(w, 'Use Re-fire').trigger('click');
+    await flushPromises();
+    expect(room.turn.seat).toBe(0); // die and tool done, but the turn waits for End turn
+    expect(w.find('.headline').text()).toContain('Click End turn when you are happy');
+    expect(button(w, 'Undo turn').attributes('disabled')).toBeUndefined();
+    await button(w, 'Undo turn').trigger('click');
+    await flushPromises();
+    expect(send).toHaveBeenCalledWith('undo');
+    expect(JSON.stringify(room.grids[0])).toBe(before);
+    expect(room.turn.toolUsed).toBe(false);
+    expect(button(w, 'Undo turn').attributes('disabled')).toBeDefined();
+    expect(w.find('.pool-die.chosen').exists()).toBe(false);
+    expect(await placeAny(w, room)).toBe(true); // and the turn can be played again
+  });
+
+  it('Undo turn is disabled when it is not your turn, and a refusal is shown in Status', async () => {
+    const { view } = playView({ turnSeat: 1 });
+    const { w } = mountTable({ ...view, turn: { ...view.turn, canUndo: true } });
+    expect(button(w, 'Undo turn').attributes('disabled')).toBeDefined();
+    const mine = mountTable({ ...playView().view, turn: { ...playView().view.turn, canUndo: true } }, makeSend({ ok: false, error: 'There is nothing to undo this turn.' }));
+    await button(mine.w, 'Undo turn').trigger('click');
+    await flushPromises();
+    expect(mine.w.find('.game-status .warn').text()).toContain('nothing to undo');
   });
 
   it('cancelling the tool changes nothing, and the second turn is then skipped after using it', async () => {

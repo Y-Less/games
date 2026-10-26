@@ -31,6 +31,7 @@ const EVENTS = {
   place: ['die', 'cell'],
   tool: ['tool', 'params'],
   end: [],
+  undo: [],
   again: [],
 };
 
