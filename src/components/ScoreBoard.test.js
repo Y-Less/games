@@ -79,6 +79,49 @@ describe('ScoreBoard bar', () => {
   });
 });
 
+describe('ScoreBoard computer players and details', () => {
+  it('shows a computer icon only for computer players, without changing the name', () => {
+    make({ players: [{ id: 'a', name: 'Ann', score: 1 }, { id: 'b', name: 'Robo', score: 2, bot: true }] });
+    expect(chips().map((c) => c.find('[aria-label="Computer player"]').exists())).toEqual([false, true]);
+    expect(chips()[1].find('.name').text()).toBe('Robo');
+  });
+
+  it('marks the current player with aria-current and a class, and no one else', async () => {
+    make({ players: [{ id: 'a', name: 'Ann', score: 1, current: true }, { id: 'b', name: 'Bob', score: 2 }] });
+    expect(chips().map((c) => c.attributes('aria-current'))).toEqual(['true', undefined]);
+    expect(chips().map((c) => c.classes('current'))).toEqual([true, false]);
+  });
+
+  it('keeps chips plain unless hasDetails says otherwise', () => {
+    make();
+    expect(wrapper.findAll('.chip button')).toHaveLength(0);
+    make({ hasDetails: (id) => id !== 'a' });
+    expect(chips().map((c) => c.find('button').exists())).toEqual([false, true, true]);
+  });
+
+  it('makes a details chip a labelled button that emits details with the id, and null when it is open', async () => {
+    make({ hasDetails: (id) => id === 'b' });
+    const button = chips()[1].find('button');
+    expect(button.attributes('aria-label')).toBe("Show Bob's details");
+    expect(button.attributes('aria-pressed')).toBe('false');
+    await button.trigger('click');
+    expect(wrapper.emitted('details')).toEqual([['b']]);
+    await wrapper.setProps({ openDetails: 'b' });
+    expect(chips()[1].find('button').attributes('aria-pressed')).toBe('true');
+    expect(chips()[1].classes('open')).toBe(true);
+    await chips()[1].find('button').trigger('click');
+    expect(wrapper.emitted('details')[1]).toEqual([null]);
+  });
+
+  it('keeps the name, score and ready tick inside a details button', () => {
+    make({ hasDetails: () => true, players: players.map((p) => ({ ...p, ready: true })) });
+    const button = chips()[0].find('button');
+    expect(button.find('.name').text()).toBe('Ann (you)');
+    expect(button.find('.points').text()).toBe('30');
+    expect(button.find('.tick:not(.unready)').exists()).toBe(true);
+  });
+});
+
 describe('ScoreBoard pop-up', () => {
   it('opens by itself when a round is added', async () => {
     make({ rounds: [round1] });

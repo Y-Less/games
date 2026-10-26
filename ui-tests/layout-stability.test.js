@@ -4,7 +4,7 @@
 // players while a recorder inside the page samples the bounding boxes of the main areas every few milliseconds, then
 // asserts that each area only ever had one size and one position.
 //
-// Gaudi, Azulejo and Rummikub are played the same way (their recent-actions lists, tables and racks must not grow), and
+// Gaudi, Splendour, Azulejo and Rummikub are played the same way (their recent-actions lists, tables and racks must not grow), and
 // Dixnt (against computer players) and Tints and Hints (two people) are checked for the areas that stay on screen.
 //
 // Set LAYOUT_REPORT=1 to print every area's distinct boxes (handy when a change makes one of them move).
@@ -72,11 +72,12 @@ function assertStable(game, result, { sizeOnly = [], tolerateMissing = 0, allowO
   assert.deepEqual(problems, [], `${game}: the layout moved while playing`);
 }
 
-async function startGame(user, path, startLabel, { fill = true } = {}) {
+async function startGame(user, path, startLabel, { fill = true, lobby = null } = {}) {
   await user.goto(path);
   await user.clickButton(startLabel);
   await user.waitForText('Waiting for players');
-  if (fill) {
+  if (lobby) await lobby(user); // a game that wants its own lobby settings (fewer seats, a lower target)
+  else if (fill) {
     // Two or more empty seats offer "Fill the empty seats"; a single empty seat only offers "Add a computer player".
     const bulk = await user.buttonState('Fill the empty seats with computer players');
     await user.clickButton(bulk.present ? 'Fill the empty seats with computer players' : 'Add a computer player');
@@ -97,7 +98,7 @@ const VIEWPORTS = [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }];
 for (const viewport of VIEWPORTS) {
 const at = `${viewport.width}x${viewport.height}`;
 
-test(`Hearts at ${at}: the table, hand and status areas keep one size and position through a whole hand, and the page does not scroll`, { timeout: 150000 }, async (t) => {
+test(`Hearts at ${at}: the table, hand, bottom boxes and every piece keep one size and position through a whole hand, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('hearts');
   await user.page.setViewport(viewport);
   await world.guard('hearts layout', async () => {
@@ -105,7 +106,9 @@ test(`Hearts at ${at}: the table, hand and status areas keep one size and positi
     await startGame(user, '/play/hearts', 'Start a new game of Hearts');
     await user.waitForText('Hand 1');
     await user.waitForSelector('.hand button.playing-card');
-    const areas = ['.score-bar', '.info', '.felt', '.felt .trick', '.felt .pos1', '.felt .pos2', '.felt .pos3', '.felt .my-fan', '.status', '.notes', '.mine-area'];
+    await sleep(300);
+    // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
+    const areas = ['.game-frame', '.score-bar', '.felt', '.felt .trick', '.felt .pos1', '.felt .pos2', '.felt .pos3', '.felt .my-fan', '.felt .confirm', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     // The hand is a fan of overlapping, turned cards, so click a point of each wanted card that is really its own.
     let clicks = 0;
@@ -143,38 +146,108 @@ test(`Hearts at ${at}: the table, hand and status areas keep one size and positi
     };
     await drive({ act, finished: finishedModal(user), what: 'a hand of Hearts', timeout: 120000 });
     assert.deepEqual(world.pageErrors, []);
-    assertStable('hearts', await stopRecording(user), STICKY);
+    assertStable('hearts', await stopRecording(user), {});
+    assert.equal(await user.page.evaluate(() => document.querySelector('.box.log .game-log').scrollTop), 0, 'the newest move is in view');
+    await assertGridEdges(user, 'hearts', viewport, { left: ['.felt'], right: ['.felt'] });
   })(t);
 });
 
-test(`Cribbage at ${at}: the opponents, crib, play area, hand and log keep one size and position through a whole hand, and the page does not scroll`, { timeout: 150000 }, async (t) => {
+test(`Cribbage at ${at}: the board, piles, play area, hand and bottom boxes keep one size and position through a whole hand, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('cribbage');
   await user.page.setViewport(viewport);
   await world.guard('cribbage layout', async () => {
     await user.signUp('clay', { displayName: 'Cribby' });
     await startGame(user, '/play/cribbage', 'Start a new game');
     await user.waitForText('Send to the crib');
-    const areas = ['.score-bar', '.opponents', '.middle', '.zone', '.hand-area', '.log'];
+    await sleep(300);
+    // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
+    const areas = ['.game-frame', '.score-bar', '.arena', '.mine-col', '.right-col', '.zone', '.hand-area', '.board-box', '.board-box svg.board', '.piles', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     const finder = () => {
-      const send = document.querySelector('.panel button.primary');
+      const send = document.querySelector('.zone button.primary');
       if (send && /Send to the crib/.test(send.innerText)) return send.disabled ? document.querySelector('.hand button.playing-card:not(.selected):not([disabled])') : send;
       return document.querySelector('.hand button.playing-card:not([disabled])');
     };
     await drive({ act: () => user.clickFound(finder), finished: finishedModal(user), what: 'a hand of Cribbage', timeout: 120000 });
-    // At the end of the hand the table gives way to the show, which is a genuine change of screen: allow a few samples of that.
-    assertStable('cribbage', await stopRecording(user), { ...STICKY, tolerateMissing: 40 });
+    // The same areas are drawn in every phase (discarding, pegging, the show), so none may ever be missing or move.
+    assertStable('cribbage', await stopRecording(user), {});
+    assert.equal(await user.page.evaluate(() => document.querySelector('.box.log .game-log').scrollTop), 0, 'the newest scoring line is in view');
+    await assertGridEdges(user, 'cribbage', viewport, {
+      left: ['.mine-col'],
+      right: ['.right-col'],
+      gutters: [['.mine-col', '.right-col']],
+    });
   })(t);
 });
 
-test(`Nomination Whist at ${at}: the banner, table, status and hand keep one size and position through a whole round, and the page does not scroll`, { timeout: 150000 }, async (t) => {
+/**
+ * Edge and gutter alignment of a frame-based game: every listed row must start and end on the score bar's outer edges,
+ * the bottom boxes must be one gutter apart and end on one line, and the frame must end inside the window.
+ * `left` and `right` list the selectors whose left (right) edges are the score bar's; `gutters` lists [leftSelector,
+ * rightSelector] pairs that must be one gutter apart (the gutter being the gap between the two bottom boxes).
+ */
+async function assertGridEdges(user, game, viewport, { left = [], right = [], gutters = [] }) {
+  const problems = await user.page.evaluate((spec, height) => {
+    const box = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+    };
+    const out = [];
+    const bar = box('.score-bar');
+    const log = box('.box.log');
+    const status = box('.box.status');
+    const frame = box('.game-frame');
+    const near = (a, b, what) => Math.abs(a - b) > 1 && out.push(`${what}: ${a} vs ${b}`);
+    if (frame.bottom > height) out.push(`the frame ends at ${frame.bottom}, below the window (${height})`);
+    if (document.documentElement.scrollWidth > window.innerWidth) out.push('the page scrolls sideways');
+    const gutter = status.left - log.right;
+    if (gutter < 10 || gutter > 14) out.push(`the gutter between the bottom boxes is ${gutter}`);
+    near(log.bottom, status.bottom, 'the bottom boxes end on one line');
+    near(log.left, bar.left, 'Recent moves left edge');
+    near(status.right, bar.right, 'Status right edge');
+    for (const sel of spec.left) {
+      const b = box(sel);
+      b ? near(b.left, bar.left, `${sel} left edge`) : out.push(`${sel} is missing`);
+    }
+    for (const sel of spec.right) {
+      const b = box(sel);
+      b ? near(b.right, bar.right, `${sel} right edge`) : out.push(`${sel} is missing`);
+    }
+    for (const [l, r] of spec.gutters) {
+      const x = box(l);
+      const y = box(r);
+      x && y ? near(y.left - x.right, gutter, `the gutter between ${l} and ${r}`) : out.push(`${l} or ${r} is missing`);
+    }
+    return out;
+  }, { left, right, gutters }, viewport.height);
+  assert.deepEqual(problems, [], `${game}: edges and gutters do not line up at ${viewport.width}x${viewport.height}`);
+}
+
+/** Clicking a player's chip in the score bar opens their popup, clicking it again closes it, and neither moves `areas`. */
+async function assertChipPopupMovesNothing(user, game, areas) {
+  const boxes = () => user.page.evaluate((list) => list.map((sel) => { const b = document.querySelector(sel)?.getBoundingClientRect(); return b ? [b.left, b.top, b.width, b.height].map(Math.round).join(',') : null; }), areas);
+  const was = await boxes();
+  await user.page.click('.score-bar button.chip-button');
+  await user.waitForSelector('.main .popup');
+  assert.deepEqual(await boxes(), was, `${game}: opening a player's popup moved something`);
+  await user.page.click('.score-bar button.chip-button');
+  await user.waitForSelector('.main .popup', { hidden: true });
+  assert.deepEqual(await boxes(), was, `${game}: closing a player's popup moved something`);
+}
+
+test(`Nomination Whist at ${at}: the trick, nomination zone, hand and both bottom boxes keep one size and position through a whole round, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('whist');
   await user.page.setViewport(viewport);
   await world.guard('whist layout', async () => {
     await user.signUp('wlay', { displayName: 'Whisty' });
     await startGame(user, '/play/nomination-whist', 'Start a new game');
     await user.waitForText('Round 1 of 14');
-    const areas = ['.score-bar', '.banner', '.table', '.table .ring', '.table .centre', '.table .me', '.status', '.hand-area', '.hand-area .hand'];
+    await user.waitForSelector('.game-frame .hand .playing-card');
+    await sleep(300);
+    // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
+    const areas = ['.game-frame', '.scorebar', '.score-bar', '.game-frame .main', '.centre', '.centre .trick-circle', '.nominate', '.nominate .numbers', '.mine', '.mine .strip', '.hand', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     const finder = () => document.querySelector('.nominate .numbers button.number:not([disabled])') ?? document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
     let clicks = 0;
@@ -183,12 +256,20 @@ test(`Nomination Whist at ${at}: the banner, table, status and hand keep one siz
       clicks += done ? 1 : 0;
       if (process.env.LAYOUT_SHOTS && clicks === 5 && done) {
         await sleep(300);
-        await user.page.screenshot({ path: `${process.env.LAYOUT_SHOTS}/whist.png` });
+        await user.page.screenshot({ path: `${process.env.LAYOUT_SHOTS}/whist-${at}.png` });
       }
       return done;
     };
     await drive({ act, finished: finishedModal(user), what: 'a round of Nomination Whist', timeout: 120000 });
-    assertStable('nomination-whist', await stopRecording(user), STICKY);
+    assertStable('nomination-whist', await stopRecording(user), {});
+    await assertGridEdges(user, 'nomination-whist', viewport, {
+      left: ['.mine', '.centre'],
+      right: ['.nominate', '.mine'],
+      gutters: [],
+    });
+    await user.closeModalWithEsc(); // the round's scores pop-up covers the chips
+    await sleep(300);
+    await assertChipPopupMovesNothing(user, 'nomination-whist', ['.score-bar', '.centre', '.nominate', '.mine', '.hand', '.box.log', '.box.status']);
   })(t);
 });
 
@@ -197,12 +278,12 @@ test(`Nomination Whist at ${at}: the banner, table, status and hand keep one siz
 const gaudiFinder = () => {
   const confirm = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Choose this window');
   if (confirm) return confirm.disabled ? document.querySelector('.option:not(.locked)') : confirm;
-  if (!document.querySelector('.status.mine')) return null;
+  if (!document.querySelector('.game-status .headline.mine')) return null;
   const mem = (window.__gaudi ??= { key: '', tried: [] });
-  const key = `${document.querySelector('.status').innerText}|${document.querySelectorAll('.mine .space.filled').length}|${document.querySelectorAll('.pool-die').length}`;
+  const key = `${document.querySelector('.game-status .headline').innerText}|${document.querySelectorAll('.mine .space.filled').length}|${document.querySelectorAll('.pool-die').length}`;
   if (mem.key !== key) Object.assign(mem, { key, tried: [] });
   const endTurn = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'End turn' && !b.disabled);
-  if (!document.querySelector('.status').innerText.includes('place a die;')) return endTurn;
+  if (!document.querySelector('.game-status .headline').innerText.includes('place a die;')) return endTurn;
   const chosen = document.querySelector('.pool-die.chosen');
   if (chosen) {
     const legal = document.querySelector('.mine .space.legal');
@@ -211,6 +292,23 @@ const gaudiFinder = () => {
   }
   const next = [...document.querySelectorAll('.pool-die')].find((d) => !mem.tried.includes(d.getAttribute('aria-label')) && !d.classList.contains('chosen'));
   return next ?? endTurn;
+};
+const splendourFinder = () => {
+  const action = document.querySelector('.action');
+  if (!action || !document.querySelector('.game-status .headline.mine')) return null;
+  const byText = (re) => [...action.querySelectorAll('button')].find((b) => re.test(b.innerText.trim()) && !b.disabled);
+  if (action.querySelector('.give-row')) return byText(/^Return [0-9]+ of/) ?? action.querySelector('.give-row button:not(:disabled)');
+  const noble = action.querySelector('.noble-row button');
+  if (noble) return noble;
+  const buy = [...action.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Buy this card');
+  if (buy) return buy.disabled ? byText(/^Cancel$/) : buy;
+  const take = byText(/^Take [0-9]/);
+  if (take) return take;
+  const pass = byText(/^Pass/);
+  if (pass) return pass;
+  const card = document.querySelector('.market button.dev-card.affordable');
+  if (card && !action.querySelectorAll('.picks svg').length) return card;
+  return [...document.querySelectorAll('.supply button.stack-btn')].find((b) => b.getAttribute('aria-pressed') === 'false' && !/: 0 left/.test(b.getAttribute('aria-label')));
 };
 const azulejoFinder = () => {
   if (!document.querySelector('.game-status .headline.mine')) return null;
@@ -227,13 +325,13 @@ const rummikubFinder = () => [...document.querySelectorAll('.actions button')].f
  * boxes of `areas` are sampled. `ready` is a regular expression for the text that shows the game proper has begun, and
  * `finished(user)` says when it is over. The result screen is not sampled (`stopWhen`): it is allowed to differ.
  */
-function wholeGameLayout({ name, path, finder, ready, finished, areas, stopWhen, newest, allowOverflow = false, timeout = 280000 }) {
+function wholeGameLayout({ name, path, finder, ready, finished, areas, stopWhen, newest, allowOverflow = false, timeout = 280000, lobby = null }) {
   test(`${name} at ${at}: ${areas.length} areas keep one size and position through a whole game${allowOverflow ? '' : ', and the page does not scroll'}`, { timeout }, async (t) => {
     const user = await world.newUser(name.toLowerCase());
     await user.page.setViewport(viewport);
     await world.guard(`${name} layout`, async () => {
       await user.signUp(`${name.slice(0, 3).toLowerCase()}lay`, { displayName: `${name}r` });
-      await startGame(user, path, 'Start a new game');
+      await startGame(user, path, 'Start a new game', { lobby });
       let acts = 0;
       const act = async () => {
         const title = await user.modalTitle();
@@ -271,10 +369,24 @@ wholeGameLayout({
   finder: gaudiFinder,
   ready: /Round 1 of 10/,
   finished: finalShown,
-  areas: ['.score-bar', '.table-view', '.info', '.main', '.main .right', '.log-panel', '.log-panel .game-log'],
+  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.mine', '.mine .pool-col', '.mine .pool', '.mine .actions', '.mine .track', '.right-col', '.box.log', '.box.status', '.box.log .game-log'],
   stopWhen: 'section.final',
-  newest: { '.log-panel .game-log': 0 },
-  allowOverflow: true,
+  newest: { '.box.log .game-log': 0 },
+});
+wholeGameLayout({
+  name: 'Splendour',
+  path: '/play/splendour',
+  finder: splendourFinder,
+  ready: /Round 1/,
+  finished: (user) => user.page.$('section.end').then(Boolean),
+  areas: ['.score-bar', '.game-frame', '.arena', '.market', '.mine-col', '.mine-board', '.supply', '.side', '.action', '.box.log', '.box.status', '.box.log .game-log'],
+  stopWhen: 'section.end',
+  newest: { '.box.log .game-log': 0 },
+  lobby: async (user) => {
+    await user.clickButton('2 players', { exact: true });
+    await user.clickButton('Add a computer player');
+    await user.clickButton('10', { exact: true });
+  },
 });
 wholeGameLayout({
   name: 'Azulejo',
@@ -282,7 +394,7 @@ wholeGameLayout({
   finder: azulejoFinder,
   ready: /Round 1/,
   finished: finalShown,
-  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.right-col', '.workshop-panel', '.bars', '.box.log', '.box.status', '.box.log .game-log'],
+  areas: ['.score-bar', '.game-frame', '.arena', '.mine-col', '.right-col', '.workshop-panel', '.box.log', '.box.status', '.box.log .game-log'],
   stopWhen: 'section.final',
   newest: { '.box.log .game-log': 0 },
 });
@@ -293,14 +405,32 @@ wholeGameLayout({
   finder: rummikubFinder,
   ready: /Round 1/,
   finished: (user) => user.text().then((text) => /wins the game|share the win/.test(text)),
-  areas: ['.score-bar', '.table-view', '.info', '.info .last', '.felt', '.rack-panel', '.rack', '.rack-panel .status'],
+  areas: ['.game-frame', '.scorebar', '.game-frame .main', '.felt', '.rack-panel', '.rack', '.actions', '.actions .set.new', '.actions .buttons', '.box.log', '.box.status', '.box.log .game-log'],
+  newest: { '.box.log .game-log': 0 },
+});
+test(`Rummikub at ${at}: the table, rack, buttons and both bottom boxes line up on the grid, the chip popups move nothing and the page does not scroll`, { timeout: 90000 }, async (t) => {
+  const user = await world.newUser('rummikub-grid');
+  await user.page.setViewport(viewport);
+  await world.guard('rummikub grid', async () => {
+    await user.signUp('rgrid', { displayName: 'Rummer' });
+    await startGame(user, '/play/rummikub', 'Start a new game');
+    await user.waitForSelector('[data-rack] .tile');
+    await sleep(300);
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    await assertGridEdges(user, 'rummikub', viewport, {
+      left: ['.felt', '.rack-panel'],
+      right: ['.felt', '.actions'],
+      gutters: [['.rack-panel', '.actions']],
+    });
+    await assertChipPopupMovesNothing(user, 'rummikub', ['.score-bar', '.felt', '.rack-panel', '.actions', '.box.log', '.box.status']);
+  })(t);
 });
 
 
 // Dixnt: every round has its own screens (choose a word, play a card, vote, results), so the page as a whole is
 // allowed to change between them, but the player bar and the hand must never change size within a game, and the
 // "waiting for" line must keep one size, whoever is still to play or vote.
-test(`Dixnt at ${at}: the player bar, hand and waiting line keep one size through a game against computer players`, { timeout: 200000 }, async (t) => {
+test(`Dixnt at ${at}: the table, controls and hand zones keep one size and position through a game against computer players, and the page does not scroll`, { timeout: 200000 }, async (t) => {
   const user = await world.newUser('dixnt');
   await user.page.setViewport(viewport);
   await world.guard('dixnt layout', async () => {
@@ -312,8 +442,7 @@ test(`Dixnt at ${at}: the player bar, hand and waiting line keep one size throug
     await user.clickButton('Add a computer player');
     await user.clickButton('Start the game', { exact: true });
     await user.waitForText('Round 1 of');
-    const players = '[aria-label="Players"]'; // (the site's own header is a .bar too)
-    await startRecording(user, ['.score-bar', players, `${players} .player`, '.hand', '.note-line']);
+    await startRecording(user, ['.score-bar', '.game-frame', '.arena', '.table-zone', '.controls', '.hand-zone', '.hand .cards', '.box.log', '.box.status', '.box.log .game-log'], { stopWhen: '.standings' });
     const act = async () => {
       const title = await user.modalTitle();
       if (title) {
@@ -331,17 +460,23 @@ test(`Dixnt at ${at}: the player bar, hand and waiting line keep one size throug
         return user.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
       }
       const text = await user.text();
-      if (/Play the card that fits|get to see the word/.test(text) && !(await user.page.$('.hand .slot.played'))) return user.clickFound(() => document.querySelector('.hand .slot'));
-      if (/Who was in the dark\?|will pick their favourite|which card do you like/i.test(text)) {
+      if (/play the card that fits|you did not see the word/i.test(text) && !(await user.page.$('.hand .slot.played'))) return user.clickFound(() => document.querySelector('.hand .slot'));
+      {
         const voted = await user.clickFound(() => [...document.querySelectorAll('.table figcaption button')].find((b) => /^(Vote|Pick this one)$/.test(b.innerText.trim())));
         if (voted) return true;
       }
       return user.clickFound(() => [...document.querySelectorAll('button.primary')].find((b) => /^(Next round|That was the last round)/.test(b.innerText.trim())));
     };
     await drive({ act, finished: () => user.page.$('.standings').then(Boolean), what: 'a game of Dixnt', timeout: 150000 });
-    const result = await stopRecording(user);
-    delete result.overflow;
-    assertStable('dixnt', result, { sizeOnly: ['.hand', '[aria-label="Players"]', '[aria-label="Players"] .player', '.score-bar', '.note-line'], tolerateMissing: 100000, allowOverflow: true });
+    // Every zone keeps its size AND its position through word, picking, voting and results, and the page never scrolls.
+    // (The word pop-up floats over the play area and takes no room; the table itself may be replaced by the ideas.)
+    assertStable('dixnt', await stopRecording(user), { tolerateMissing: 100000 });
+    const edges = await user.page.evaluate(() => {
+      const r = (s) => document.querySelector(s)?.getBoundingClientRect();
+      const bar = r('.score-bar');
+      return { left: ['.arena', '.box.log'].map((s) => r(s).left - bar.left), right: ['.arena', '.box.status'].map((s) => r(s).right - bar.right) };
+    }).catch(() => null);
+    if (edges) assert.ok([...edges.left, ...edges.right].every((d) => Math.abs(d) <= 1), `outer edges line up: ${JSON.stringify(edges)}`);
   })(t);
 });
 
@@ -349,7 +484,7 @@ test(`Dixnt at ${at}: the player bar, hand and waiting line keep one size throug
 // Tints and Hints has no computer players, so two people play a two-turn game; the first person's page is sampled. The
 // turn panel differs by role and phase, but the board under it and the score bar must keep one size, and the hint line
 // is always there (empty until the hint arrives), so the hint appearing does not push the board down.
-test(`Tints and Hints at ${at}: the board and score bar keep one size through a two-player game, and the hint does not move the board`, { timeout: 150000 }, async (t) => {
+test(`Tints and Hints at ${at}: every zone keeps one size and position through a two-player game, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const host = await world.newUser('tint-host');
   const second = await world.newUser('tint-second');
   await host.page.setViewport(viewport);
@@ -368,7 +503,7 @@ test(`Tints and Hints at ${at}: the board and score bar keep one size through a 
     await host.waitForText('1 turn each');
     await host.clickButton('Start the game', { exact: true });
     await host.waitForText('Turn 1 of');
-    await startRecording(host, ['.score-bar', '.board', '.hint-text', ...(process.env.LAYOUT_EXTRA ? process.env.LAYOUT_EXTRA.split(',') : [])]);
+    await startRecording(host, ['.score-bar', '.game-frame', '.arena', '.board', '.side', '.side .block', '.bars', '.box.log', '.box.status', '.box.log .game-log', ...(process.env.LAYOUT_EXTRA ? process.env.LAYOUT_EXTRA.split(',') : [])]);
     const all = [host, second];
     const seen = new Set();
     const step = async (u) => {
@@ -389,10 +524,8 @@ test(`Tints and Hints at ${at}: the board and score bar keep one size through a 
       return u.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
     };
     await drive({ act: async () => (await Promise.all(all.map(step))).some(Boolean), finished: async () => seen.has('Final scores'), timeout: 120000, what: 'Tints and Hints' });
-    const result = await stopRecording(host);
-    delete result.overflow;
-    // The hint line only exists in the guessing phases and the board leaves with the game, so those may be missing.
-    assertStable('tints-and-hints', result, { sizeOnly: ['.score-bar'], tolerateMissing: 100000, allowOverflow: true });
+    // Every zone keeps its size and its position through hints, guesses and the reveal, and the page never scrolls.
+    assertStable('tints-and-hints', await stopRecording(host), { tolerateMissing: 100000 });
   })(t);
 });
 

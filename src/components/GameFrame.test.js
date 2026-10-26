@@ -25,6 +25,7 @@ describe('GameFrame', () => {
     const { others, ...rest } = slots;
     const w = mount(GameFrame, { slots: rest, props: { logTitle: 'History', statusTitle: 'Info' } });
     expect(w.find('.others').exists()).toBe(false);
+    expect(w.classes()).toContain('no-others'); // three rows, so that the boxes keep their fixed row
     expect(w.find('[aria-label="History"]').exists()).toBe(true);
     expect(w.find('[aria-label="Info"]').exists()).toBe(true);
   });

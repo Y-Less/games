@@ -79,7 +79,7 @@ defineExpose({ measure });
 </script>
 
 <template>
-  <div ref="root" class="game-frame" data-fits-window :style="style">
+  <div ref="root" class="game-frame" :class="{ 'no-others': !$slots.others }" data-fits-window :style="style">
     <div class="scorebar"><slot name="scorebar" /></div>
     <div ref="mainBox" class="main"><slot name="main" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" /></div>
     <div v-if="$slots.others" class="others"><slot name="others" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" /></div>
@@ -109,6 +109,10 @@ defineExpose({ measure });
   row-gap: 0.5rem;
   min-width: 0;
   overflow: visible;
+}
+/* A game with no bars (no `others` slot) has three rows, with the boxes in the last, which keeps its fixed height. */
+.game-frame.no-others {
+  grid-template-rows: auto minmax(0, 1fr) clamp(6.5rem, 22%, 13rem);
 }
 .game-frame > * {
   grid-column: 1 / -1;

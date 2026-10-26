@@ -217,7 +217,8 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 
 | | |
 | --- | --- |
-| `ScoreBoard` | always-visible sticky score bar, plus a large pop-up of every round that opens after each round and at the end (shape in `shared/scores.js`; slots `#round`, `#footer`; emits `continue` when the round pop-up is closed by any route, which is how a person says they are ready for the next round; props `waiting`, `awaiting`; `show()`/`close()`) |
+| `ScoreBoard` | always-visible sticky score bar, plus a large pop-up of every round that opens after each round and at the end (shape in `shared/scores.js`; slots `#round`, `#footer`; emits `continue` when the round pop-up is closed by any route, which is how a person says they are ready for the next round; props `waiting`, `awaiting`; `show()`/`close()`; scoreboard players are `{ id, name, score, isMe?, away?, note?, ready?, bot?, current? }`: `bot: true` gets the `BotIcon` on the chip, and `current: true` (whose turn it is; in Dixnt the word-chooser; in Tints and Hints the hinter) gives the chip a bright glow and `aria-current`, set by the server in every game's view; optional per-player details: prop `hasDetails` `(playerId) => boolean` turns those chips into buttons (aria-label "Show NAME's details"), prop `openDetails` is the id whose details are open (aria-pressed), and event `details` carries the clicked id, or `null` when that one was already open) |
+| `BotIcon` | the small robot glyph for a computer player (`size` px, `label` default "Computer player"); reuse it wherever a seat can be a computer |
 | `ScoreTable` | the all-rounds table on its own |
 | `GameModal` | a general large pop-up (Esc, backdrop click, focus kept inside) |
 | `RoomEntry` | "start a new game / join with a code" screen |

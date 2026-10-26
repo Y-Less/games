@@ -11,8 +11,13 @@
 // `waiting` (the names of people still to close it) to show "Waiting for ..." in the footer, `awaiting` (true while
 // this person still has to close it) to bring it back if they reload or it was missed, and a boolean `ready` on a
 // player to show a tick on their chip once they have.
+// A player with `current: true` (whose turn it is, or who is leading the round) gets a bright glowing chip, with
+// aria-current, drawn without changing the chip's size. A player with `bot: true` gets a small computer icon (BotIcon) on their chip. Games that can show more about each
+// player (their own board, say) pass `hasDetails`, a function (playerId) => boolean: those chips become buttons that
+// emit `details` with the player's id, or with null when that player's details (`openDetails`) are already open.
 import { computed, ref, watch } from 'vue';
 import { placements } from '../../shared/scores.js';
+import BotIcon from './BotIcon.vue';
 import GameModal from './GameModal.vue';
 import ScoreTable from './ScoreTable.vue';
 
@@ -28,8 +33,16 @@ const props = defineProps({
   sticky: { type: Boolean, default: true },
   waiting: { type: Array, default: () => [] }, // names of the people who have not yet closed the round pop-up
   awaiting: { type: Boolean, default: false }, // this person still has to close the round pop-up
+  hasDetails: { type: Function, default: null }, // (playerId) => boolean: this player's chip opens their details
+  openDetails: { type: [String, Number], default: null }, // the player whose details are open now, if any
 });
-const emit = defineEmits(['closed', 'continue']);
+const emit = defineEmits(['closed', 'continue', 'details']);
+
+const clickable = (p) => Boolean(props.hasDetails?.(p.id));
+const isOpen = (p) => props.openDetails !== null && props.openDetails === p.id;
+function toggleDetails(p) {
+  emit('details', isOpen(p) ? null : p.id);
+}
 
 const open = ref(false);
 const justFinished = ref(false); // the pop-up was opened by a round ending (rather than by the button)
@@ -103,11 +116,22 @@ defineExpose({ show, close });
 <template>
   <section class="score-bar" :class="{ sticky }" aria-label="Scores">
     <ul class="chips">
-      <li v-for="p in players" :key="p.id" class="chip" :class="{ me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away }">
-        <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
-        <strong class="points">{{ p.score }}</strong>
-        <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
-        <small v-if="p.note" class="muted">{{ p.note }}</small>
+      <li v-for="p in players" :key="p.id" class="chip" :aria-current="p.current ? 'true' : undefined" :class="{ current: p.current, open: isOpen(p), me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away }">
+        <component
+          :is="clickable(p) ? 'button' : 'span'"
+          class="chip-body"
+          :class="{ 'chip-button': clickable(p) }"
+          :type="clickable(p) ? 'button' : undefined"
+          :aria-label="clickable(p) ? `Show ${p.name}'s details` : undefined"
+          :aria-pressed="clickable(p) ? isOpen(p) : undefined"
+          @click="clickable(p) && toggleDetails(p)"
+        >
+          <span v-if="p.bot" class="bot"><BotIcon /></span>
+          <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
+          <strong class="points">{{ p.score }}</strong>
+          <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
+          <small v-if="p.note" class="muted">{{ p.note }}</small>
+        </component>
       </li>
     </ul>
     <button class="quiet all" @click="show">All rounds</button>
@@ -155,12 +179,51 @@ defineExpose({ show, close });
 }
 .chip {
   display: flex;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+.chip-body {
+  display: flex;
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.25rem 0.7rem;
   border-radius: 999px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--line);
+  min-width: 0;
+}
+button.chip-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+button.chip-button:hover,
+button.chip-button:focus-visible {
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+button.chip-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+.chip.current {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 22%, var(--bg-sunken));
+  box-shadow: 0 0 0 2px var(--amber), 0 0 14px 3px color-mix(in srgb, var(--amber) 70%, transparent); /* outside the box: no change of size */
+}
+.chip.current .name {
+  font-weight: 650;
+}
+.chip.open {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, var(--bg-sunken));
+}
+.bot {
+  display: inline-flex;
+  align-self: center;
+  color: var(--muted);
+  font-size: 1rem;
 }
 .chip.me {
   border-color: var(--amber);
@@ -212,7 +275,7 @@ defineExpose({ show, close });
   text-align: center;
 }
 @media (max-width: 480px) {
-  .chip {
+  .chip-body {
     padding: 0.15rem 0.5rem;
     gap: 0.3rem;
   }

@@ -2,7 +2,7 @@
 //
 // The standard scoreboard shape that games send to clients (and that <ScoreBoard> draws):
 //   {
-//     players: [{ id, name, score, isMe?, away?, note? }],
+//     players: [{ id, name, score, isMe?, away?, note?, bot?, current? }],   // bot: computer player (icon); current: whose turn it is (glowing chip)
 //     rounds:  [{ label: 'Hand 1', deltas: { [playerId]: points }, notes?: { [playerId]: 'shot the moon' } }],
 //     lowIsBetter: false,
 //     target: 121               // optional: the score the game is played to
