@@ -29,6 +29,10 @@ Client to server (each takes a payload and an acknowledgement `{ ok, error? }`):
 
 Server to client: `state`, a view personalised for that account (or `null` when not in a game). The hidden target is only in the hinter's view until the reveal.
 
+## Computer players
+
+This game has no computer players. The hinter types a free-text hint for a colour, so a bot would need to understand colour words to guess, and a way to describe a colour to give hints. That would be a new feature with its own bot process, not a small addition; see `MODULES.md` (Computer players) for how other games add AIs.
+
 ## Tests
 
 `npm test` from the platform folder runs them with the rest.
