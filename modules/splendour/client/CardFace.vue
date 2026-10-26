@@ -43,11 +43,11 @@ const description = computed(() => {
     <template v-if="info">
       <span class="top">
         <b class="points" :class="{ none: !info.points }">{{ info.points || '' }}</b>
-        <Gem :colour="info.bonus" :size="small ? 17 : 25" />
+        <Gem :colour="info.bonus" :size="small ? 17 : 27" />
       </span>
       <span class="costs">
         <span v-for="c in costs" :key="c.colour" class="cost" :class="{ paid: c.left === 0 }">
-          <Gem :colour="c.colour" :size="small ? 15 : 20" :count="c.left" :faded="c.left === 0" />
+          <Gem :colour="c.colour" :size="small ? 15 : 22" :count="c.left" :faded="c.left === 0" />
           <small v-if="c.left !== c.cost" class="was">{{ c.cost }}</small>
         </span>
       </span>
@@ -70,8 +70,8 @@ const description = computed(() => {
   align-items: stretch;
   flex: none;
   box-sizing: border-box;
-  width: 5.2em;
-  height: 7em;
+  width: 5.8em;
+  height: 7.8em;
   padding: 0.35em 0.4em 0.4em;
   border-radius: 0.6em;
   border: 1px solid color-mix(in srgb, var(--tint) 55%, #000);

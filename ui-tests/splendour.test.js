@@ -67,26 +67,24 @@ test('starting deals the table, and a reload resumes the same room', { timeout: 
 test('playing a whole game by clicking gems and cards: no pop-up between rounds, a layout that never moves, then the final result', { timeout: 240000 }, guarded('play a game', async () => {
   const titles = new Set();
   const finder = () => {
-    const action = document.querySelector('.action');
-    const mine = document.querySelector('.game-status .headline.mine');
-    if (!action || !mine) return null;
-    const enabled = (el) => el && !el.disabled;
-    const byText = (re) => [...action.querySelectorAll('button')].find((b) => re.test(b.innerText.trim()) && !b.disabled);
-    // Over ten tokens: give some back, then confirm.
-    if (action.querySelector('.give-row')) return byText(/^Return \d+ of/) ?? action.querySelector('.give-row button:not(:disabled)');
-    // Several nobles: pick one.
-    const noble = action.querySelector('.noble-row button');
+    const actions = document.querySelector('.mine-board .actions');
+    if (!actions || !document.querySelector('.game-status .headline.mine')) return null;
+    const byText = (re) => [...actions.querySelectorAll('button')].find((b) => re.test(b.innerText.trim()) && !b.disabled);
+    // Over ten tokens: your own tokens are the selector, then confirm in the bottom row of your board.
+    const tokens = [...document.querySelectorAll('.mine-board .token-btn:not(:disabled)')];
+    if (tokens.length) return byText(/^Return [0-9]+ of/) ?? tokens.find((t) => !t.classList.contains('picked')) ?? tokens[0];
+    // Several nobles: the eligible ones in the market glow; pick one.
+    const noble = document.querySelector('.nobles button.noble');
     if (noble) return noble;
     // A card is selected: buy it if we can, otherwise let it go.
-    const buy = [...action.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Buy this card');
-    if (buy) return enabled(buy) ? buy : byText(/^Cancel$/);
-    const take = byText(/^Take \d/);
+    const buy = [...actions.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Buy this card');
+    if (buy) return buy.disabled ? byText(/^Cancel$/) : buy;
+    const take = byText(/^Take [0-9]/);
     if (take) return take;
     const pass = byText(/^Pass/);
     if (pass) return pass;
     const card = document.querySelector('.market button.dev-card.affordable');
-    const picked = action.querySelectorAll('.picks svg').length;
-    if (card && !picked) return card;
+    if (card && !document.querySelector('.supply .stack-btn.picked')) return card;
     return [...document.querySelectorAll('.supply button.stack-btn')].find((b) => b.getAttribute('aria-pressed') === 'false' && !/: 0 left/.test(b.getAttribute('aria-label')));
   };
   // The boxes of the main areas, the page's overflow and the shell's scale, sampled all game long: each must only ever
@@ -106,8 +104,8 @@ test('playing a whole game by clicking gems and cards: no pop-up between rounds,
         market: box('.market'),
         mine: box('.mine-col'),
         board: box('.mine-board'),
-        side: box('.side'),
-        action: document.querySelector('.action') ? box('.action') : 'ended',
+        actions: box('.mine-board .actions'),
+        status: box('.box.status'),
         supply: box('.supply'),
         log: box('.box.log'),
         logList: box('.box.log .game-log'),
@@ -127,18 +125,18 @@ test('playing a whole game by clicking gems and cards: no pop-up between rounds,
     for (const [key, value] of Object.entries(await probe())) (seen[key] ??= new Set()).add(value);
     return user.clickFound(finder);
   };
-  const done = () => user.page.$('section.end').then(Boolean);
+  const done = () => user.page.$('.box.status .standings').then(Boolean);
   await drive({ act, finished: done, what: 'a game of Splendour', timeout: 220000 });
 
   assert.deepEqual([...titles].filter((t) => t !== 'Final scores'), [], 'no pop-up between rounds');
   for (const [key, values] of Object.entries(seen)) {
-    const live = [...values].filter((v) => v !== 'ended'); // the action panel is replaced by the result when the game ends
+    const live = [...values];
     assert.equal(live.length, 1, key + ' kept one box all game: ' + live.join(' | '));
   }
   assert.equal([...seen.overflow][0], '0', 'the page never needed to scroll');
   assert.match([...seen.scale][0], /^1 /, 'the shell did not scale the game down');
-  assert.match(await user.page.$eval('section.end h2', (el) => el.innerText), /wins with|shared win/);
-  assert.ok((await user.page.$$eval('section.end .standings li', (els) => els.length)) === 2);
+  assert.match(await user.page.$eval('.box.status .headline', (el) => el.innerText), /wins with|shared win/);
+  assert.ok((await user.page.$$eval('.box.status .standings li', (els) => els.length)) === 2);
   // The final pop-up arrives by itself, with every round in its table.
   await user.waitForSelector('.modal');
   assert.equal(await user.modalTitle(), 'Final scores');
@@ -150,7 +148,7 @@ test('playing a whole game by clicking gems and cards: no pop-up between rounds,
 
 test('after the game ends, a reload still shows the result and Play again starts a new lobby', { timeout: 60000 }, guarded('again', async () => {
   await user.page.reload({ waitUntil: 'domcontentloaded' });
-  await user.waitForSelector('section.end');
+  await user.waitForSelector('.box.status .standings');
   await user.waitForCodeInUrl(code);
   await user.clickButton('Play again', { exact: true });
   await user.waitForText('Waiting for players');
@@ -201,9 +199,9 @@ test('the table fits the window at common desktop sizes, without the page scroll
         overflow: document.documentElement.scrollHeight - innerHeight,
         scale: Number.parseFloat(frame.style.zoom) || 1,
         bar: rect('.score-bar').top - rect('header.bar').bottom,
-        bottoms: ['.market', '.mine-col', '.side', '.table-view'].map((s) => rect(s).bottom),
+        bottoms: ['.market', '.mine-col', '.table-view'].map((s) => rect(s).bottom),
         viewport: innerHeight,
-        clipped: ['.market', '.mine-col', '.side'].map((s) => { const e = document.querySelector(s); return [s, e.scrollHeight - e.clientHeight, e.scrollWidth - e.clientWidth]; }).filter(([, h, w]) => h > 1 || w > 1),
+        clipped: ['.market', '.mine-col'].map((s) => { const e = document.querySelector(s); return [s, e.scrollHeight - e.clientHeight, e.scrollWidth - e.clientWidth]; }).filter(([, h, w]) => h > 1 || w > 1),
       };
     });
     const label = width + 'x' + height + ' ' + JSON.stringify(result);
@@ -217,19 +215,23 @@ test('the table fits the window at common desktop sizes, without the page scroll
     const bar = await rect('.score-bar');
     const market = await rect('.market');
     const mine = await rect('.mine-col');
-    const side = await rect('.side');
+    const nobles = await rect('.nobles');
+    const levels = await rect('.levels');
     const log = await rect('.box.log');
     const status = await rect('.box.status');
     for (const [name, r] of Object.entries({ market, log })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left} at ${label}`);
-    for (const [name, r] of Object.entries({ side, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right} at ${label}`);
-    assert.ok(mine.left - market.right === 12 && side.left - mine.right === 12, `the gutters between the columns are 12px at ${label}: ${mine.left - market.right}, ${side.left - mine.right}`);
+    for (const [name, r] of Object.entries({ mine, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right} at ${label}`);
+    assert.ok(levels.left - nobles.right === 12 && mine.left - levels.right === 12, `the gutters between the columns are 12px at ${label}: ${levels.left - nobles.right}, ${mine.left - levels.right}`);
+    // The nobles only take their narrow column; the cards and your play area share the rest (about 50% and 33%).
+    const whole = bar.right - bar.left;
+    for (const [name, r, share] of [['nobles', nobles, 0.167], ['cards', levels, 0.5], ['mine', mine, 0.333]]) assert.ok(Math.abs((r.right - r.left) / whole - share) < 0.03, `${name} take about ${share} of the width at ${label}: ${(r.right - r.left) / whole}`);
     assert.equal(await user.page.$('.others'), null, 'no row of duplicate player bars');
     assert.ok(log.top - market.bottom >= 4 && log.top - market.bottom <= 12, `the gap between the main row and the boxes at ${label}: ${log.top - market.bottom}`);
-    assert.ok(Math.abs(side.bottom - market.bottom) <= 1 && Math.abs(mine.bottom - market.bottom) <= 1, 'the three columns end on the same line at ' + label);
+    assert.ok(Math.abs(mine.bottom - market.bottom) <= 1, 'the columns end on the same line at ' + label);
     assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
 
     // Toggling another player's board from the score bar moves nothing else.
-    const areas = ['.score-bar', '.market', '.mine-col', '.mine-board', '.supply', '.side', '.box.log', '.box.status'];
+    const areas = ['.score-bar', '.market', '.mine-col', '.mine-board', '.supply', '.box.log', '.box.status'];
     const before = await Promise.all(areas.map(rect));
     await user.page.click('.score-bar button.chip-button');
     await user.waitForSelector('.arena .popup section.board');
@@ -264,12 +266,14 @@ test('with four players the five nobles sit in two columns inside the market and
         return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
       };
       const nobles = [...document.querySelectorAll('.nobles .noble')].map(box);
-      const others = Object.fromEntries(['.market', '.mine-col', '.side', '.box.log', '.box.status', '.score-bar', '.levels'].map((s) => [s, document.querySelector(s) ? box(document.querySelector(s)) : null]));
-      return { nobles, others };
+      const others = Object.fromEntries(['.market', '.mine-col', '.box.log', '.box.status', '.score-bar', '.levels'].map((s) => [s, document.querySelector(s) ? box(document.querySelector(s)) : null]));
+      const width = (selector) => document.querySelector(selector)?.getBoundingClientRect().width ?? 0;
+      return { nobles, others, nobleWidth: width('.nobles .noble'), cardWidth: width('.levels .dev-card:not(.back)') };
     });
     const label = width + 'x' + height + ' ' + JSON.stringify(found);
     const overlap = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
     assert.equal(found.nobles.length, 5, 'five nobles for four players at ' + label);
+    assert.ok(found.nobleWidth > 0 && found.nobleWidth <= found.cardWidth + 1, 'a noble is no wider than a card at ' + label + ': ' + found.nobleWidth + ' vs ' + found.cardWidth);
     assert.equal(new Set(found.nobles.map((n) => Math.round(n.left))).size, 2, 'the nobles are in two columns at ' + label);
     assert.equal(new Set(found.nobles.map((n) => Math.round(n.top))).size, 3, 'in three rows at ' + label);
     const { market } = { market: found.others['.market'] };

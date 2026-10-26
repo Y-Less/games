@@ -9,6 +9,7 @@ const props = defineProps({
   noble: { type: String, required: true },
   clickable: { type: Boolean, default: false },
   highlight: { type: Boolean, default: false },
+  dimmed: { type: Boolean, default: false }, // not a choice while another noble is being chosen
   small: { type: Boolean, default: false },
   bonuses: { type: Array, default: null }, // the viewer's bonuses, to show how close they are
 });
@@ -16,11 +17,11 @@ defineEmits(['pick']);
 
 const info = computed(() => NOBLE_BY_ID[props.noble]);
 const needs = computed(() => Object.entries(info.value.requires).map(([colour, count]) => ({ colour: Number(colour), count })));
-const description = computed(() => `${info.value.name}: worth ${info.value.points} prestige. Needs ${needs.value.map((n) => `${n.count} ${GEM_NAMES[n.colour]}`).join(', ')} cards.`);
+const description = computed(() => `${props.clickable ? 'Choose ' : ''}${info.value.name}: worth ${info.value.points} prestige. Needs ${needs.value.map((n) => `${n.count} ${GEM_NAMES[n.colour]}`).join(', ')} cards.`);
 </script>
 
 <template>
-  <component :is="clickable ? 'button' : 'div'" class="noble" :class="{ highlight, small, clickable }" :title="description" :aria-label="description" @click="clickable && $emit('pick')">
+  <component :is="clickable ? 'button' : 'div'" class="noble" :class="{ highlight, small, clickable, dimmed }" :title="description" :aria-label="description" @click="clickable && $emit('pick')">
     <svg class="crest" viewBox="0 0 24 24"  aria-hidden="true">
       <path d="M3 18 L2 7 L8 12 L12 4 L16 12 L22 7 L21 18 Z" fill="#e0a84a" stroke="#fff0c6" stroke-width="1" stroke-linejoin="round" />
       <rect x="3" y="19" width="18" height="2.4" rx="1" fill="#c8603f" />
@@ -60,6 +61,22 @@ const description = computed(() => `${info.value.name}: worth ${info.value.point
 }
 button.noble {
   cursor: pointer;
+}
+.noble.dimmed {
+  opacity: 0.4;
+}
+.noble.clickable.highlight {
+  animation: choose-me 1.4s ease-in-out infinite;
+}
+@keyframes choose-me {
+  50% {
+    box-shadow: 0 0 0 3px var(--amber), 0 0 16px 4px rgb(224 168 74 / 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .noble.clickable.highlight {
+    animation: none;
+  }
 }
 button.noble:hover {
   box-shadow: 0 0 0 2px var(--parchment), 0 3px 8px rgb(0 0 0 / 0.5);

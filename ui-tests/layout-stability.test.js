@@ -294,20 +294,24 @@ const gaudiFinder = () => {
   return next ?? endTurn;
 };
 const splendourFinder = () => {
-  const action = document.querySelector('.action');
-  if (!action || !document.querySelector('.game-status .headline.mine')) return null;
-  const byText = (re) => [...action.querySelectorAll('button')].find((b) => re.test(b.innerText.trim()) && !b.disabled);
-  if (action.querySelector('.give-row')) return byText(/^Return [0-9]+ of/) ?? action.querySelector('.give-row button:not(:disabled)');
-  const noble = action.querySelector('.noble-row button');
+  const actions = document.querySelector('.mine-board .actions');
+  if (!actions || !document.querySelector('.game-status .headline.mine')) return null;
+  const byText = (re) => [...actions.querySelectorAll('button')].find((b) => re.test(b.innerText.trim()) && !b.disabled);
+  // Over ten tokens: your own tokens are the selector, then confirm in the bottom row of your board.
+  const tokens = [...document.querySelectorAll('.mine-board .token-btn:not(:disabled)')];
+  if (tokens.length) return byText(/^Return [0-9]+ of/) ?? tokens.find((t) => !t.classList.contains('picked')) ?? tokens[0];
+  // Several nobles: the eligible ones in the market glow; pick one.
+  const noble = document.querySelector('.nobles button.noble');
   if (noble) return noble;
-  const buy = [...action.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Buy this card');
+  // A card is selected: buy it if we can, otherwise let it go.
+  const buy = [...actions.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Buy this card');
   if (buy) return buy.disabled ? byText(/^Cancel$/) : buy;
   const take = byText(/^Take [0-9]/);
   if (take) return take;
   const pass = byText(/^Pass/);
   if (pass) return pass;
   const card = document.querySelector('.market button.dev-card.affordable');
-  if (card && !action.querySelectorAll('.picks svg').length) return card;
+  if (card && !document.querySelector('.supply .stack-btn.picked')) return card;
   return [...document.querySelectorAll('.supply button.stack-btn')].find((b) => b.getAttribute('aria-pressed') === 'false' && !/: 0 left/.test(b.getAttribute('aria-label')));
 };
 const azulejoFinder = () => {
@@ -378,9 +382,9 @@ wholeGameLayout({
   path: '/play/splendour',
   finder: splendourFinder,
   ready: /Round 1/,
-  finished: (user) => user.page.$('section.end').then(Boolean),
-  areas: ['.score-bar', '.game-frame', '.arena', '.market', '.mine-col', '.mine-board', '.supply', '.side', '.action', '.box.log', '.box.status', '.box.log .game-log'],
-  stopWhen: 'section.end',
+  finished: (user) => user.page.$('.box.status .standings').then(Boolean),
+  areas: ['.score-bar', '.game-frame', '.arena', '.market', '.mine-col', '.mine-board', '.mine-board .actions', '.supply', '.box.log', '.box.status', '.box.log .game-log'],
+  stopWhen: '.box.status .standings',
   newest: { '.box.log .game-log': 0 },
   lobby: async (user) => {
     await user.clickButton('2 players', { exact: true });

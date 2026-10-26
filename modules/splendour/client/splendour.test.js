@@ -182,7 +182,8 @@ describe('Splendour table: playing', () => {
 
   it('selects gems, highlights them, and takes three different gems', async () => {
     const { w, send } = mountTable({ ...playView(), turn: 0 });
-    expect(button(w, 'Take').attributes('disabled')).toBeDefined();
+    expect(button(w, 'Take')).toBeUndefined(); // the buttons appear in your board once gems are chosen in the supply
+    expect(w.find('.action').exists()).toBe(false);
     for (const c of [0, 1, 2]) await supplyButton(w, c).trigger('click');
     expect(supplyButton(w, 1).classes('picked')).toBe(true);
     expect(supplyButton(w, 1).attributes('aria-pressed')).toBe('true');
@@ -259,7 +260,6 @@ describe('Splendour table: playing', () => {
     const { w, send } = mountTable(v);
     await cardButton(w, 2, 0).trigger('click');
     expect(w.find('.game-status .warn').text()).toContain('cannot afford');
-    expect(w.find('.cannot').exists()).toBe(true);
     expect(button(w, 'Buy this card').attributes('disabled')).toBeDefined();
     await button(w, 'Reserve').trigger('click');
     await flushPromises();
@@ -316,11 +316,19 @@ describe('Splendour table: playing', () => {
     const { w, send } = mountTable(state);
     expect(w.find('.headline').text()).toContain('return 2');
     expect(w.find('.game-status').text()).toContain('give back');
-    const give = w.findAll('.give-row button');
+    expect(w.find('.give-row').exists()).toBe(false);
+    expect(w.text()).not.toContain('Returning:');
+    // Your own tokens are the selector, and the confirm button is in the bottom row of your board.
+    const give = w.findAll('.mine-board .token-btn');
+    expect(give).toHaveLength(6);
+    expect(w.find('.mine-board .actions').text()).toContain('Return 0 of 2');
     await give[0].trigger('click');
+    expect(give[0].classes('picked')).toBe(true);
+    expect(give[0].find('.badge').text()).toBe('1');
     expect(button(w, 'Return 1 of 2').attributes('disabled')).toBeDefined();
     await give[1].trigger('click');
     await give[2].trigger('click'); // over the limit: ignored
+    expect(give[2].classes('picked')).toBe(false);
     const confirm = button(w, 'Return 2 of 2');
     expect(confirm.attributes('disabled')).toBeUndefined();
     await confirm.trigger('click');
@@ -332,18 +340,42 @@ describe('Splendour table: playing', () => {
     const v = playView();
     const options = v.nobles.slice(0, 2);
     const { w, send } = mountTable({ ...v, turn: 0, pending: { seat: 0, type: 'noble', options } });
-    expect(w.find('.headline').text()).toContain('choose one');
-    const choices = w.find('.action').findAll('button');
-    expect(choices).toHaveLength(2);
-    await choices[1].trigger('click');
+    expect(w.find('.headline').text()).toContain('Choose a noble');
+    expect(w.find('.action').exists()).toBe(false);
+    // The choice is made on the nobles in the market: the eligible ones glow and say "Choose ...", the others are dimmed.
+    const tiles = w.findAll('.nobles .noble');
+    expect(tiles).toHaveLength(v.nobles.length);
+    const eligible = tiles.filter((t) => t.classes('clickable'));
+    expect(eligible).toHaveLength(2);
+    for (const t of eligible) {
+      expect(t.classes('highlight')).toBe(true);
+      expect(t.attributes('aria-label')).toMatch(/^Choose /);
+      expect(t.element.tagName).toBe('BUTTON');
+    }
+    const others = tiles.filter((t) => !t.classes('clickable'));
+    expect(others.length).toBeGreaterThan(0);
+    for (const t of others) {
+      expect(t.classes('dimmed')).toBe(true);
+      expect(t.element.tagName).toBe('DIV');
+      expect(t.attributes('aria-label')).not.toMatch(/^Choose /);
+    }
+    await eligible[1].trigger('click');
     expect(send).toHaveBeenCalledWith('noble', { noble: options[1] });
+  });
+
+  it('shows the nobles as plain tiles when no choice is pending', () => {
+    const { w } = mountTable({ ...playView(), turn: 0 });
+    for (const t of w.findAll('.nobles .noble')) {
+      expect(t.classes('clickable') || t.classes('dimmed') || t.classes('highlight')).toBe(false);
+    }
   });
 
   it("shows others' pending choices without controls", () => {
     const v = playView();
     const { w } = mountTable({ ...v, turn: 1, pending: { seat: 1, type: 'return', count: 1 } });
     expect(w.find('.headline').text()).toContain('is returning tokens');
-    expect(w.find('.action').text()).not.toContain('Return 1');
+    expect(w.text()).not.toContain('Return 1 of');
+    expect(w.find('.mine-board .token-btn').exists()).toBe(false);
   });
 
   it('announces the last round', () => {
@@ -469,18 +501,19 @@ describe('Splendour table: playing', () => {
 describe('Splendour table: finished', () => {
   it('announces the winner and the standings, hiding the play controls', () => {
     const { w } = mountTable(finishedView());
-    expect(w.find('.end h2').text()).toContain('wins with 16 prestige');
-    expect(w.find('.end h2').text()).toContain('(you)');
+    // The result is in the Status box, nowhere else.
+    expect(w.find('.end').exists()).toBe(false);
+    expect(w.find('.side').exists()).toBe(false);
+    expect(w.find('.box.status .headline').text()).toContain('wins with 16 prestige');
+    expect(w.find('.box.status .headline').text()).toContain('(you)');
     expect(w.text()).toContain('Well played');
-    expect(w.findAll('.standings li')).toHaveLength(4);
-    expect(w.find('.headline').text()).toContain('game is over');
-    expect(w.find('.game-status').text()).toContain('See the scores');
+    expect(w.findAll('.box.status .standings li')).toHaveLength(4);
     expect(button(w, 'Take')).toBeUndefined();
   });
 
   it('lets the host play again; leaving is in the header', async () => {
     const { w, send } = mountTable(finishedView());
-    const end = w.find('.end');
+    const end = w.find('.box.status');
     await end.findAll('button').find((b) => b.text() === 'Play again').trigger('click');
     expect(send).toHaveBeenCalledWith('again');
     expect(end.findAll('button').some((b) => /^Leave/.test(b.text()))).toBe(false);
@@ -488,14 +521,14 @@ describe('Splendour table: finished', () => {
 
   it('shows waiting text instead of Play again to non-hosts', () => {
     const { w } = mountTable(finishedView({ hostSeat: 1 }));
-    expect(w.find('.end').text()).toContain('Waiting for the host');
-    expect(w.find('.end').findAll('button').some((b) => b.text() === 'Play again')).toBe(false);
+    expect(w.find('.box.status').text()).toContain('Waiting for the host');
+    expect(w.find('.box.status').findAll('button').some((b) => b.text() === 'Play again')).toBe(false);
   });
 
   it('describes a shared win and end reasons', () => {
     const v = finishedView({ winners: [0, 1], endReason: 'limit' });
     const w = mountTable({ ...v, standings: v.standings.map((x) => ({ ...x, prestige: 15, cards: 3 })) }).w;
-    expect(w.find('.end h2').text()).toContain('A shared win');
+    expect(w.find('.box.status .headline').text()).toContain('A shared win');
     expect(w.text()).toContain('win is shared');
     expect(w.text()).toContain('round limit');
     expect(mountTable(finishedView({ endReason: 'stalled' })).w.text()).toContain('Nobody could do anything');
@@ -503,7 +536,7 @@ describe('Splendour table: finished', () => {
 
   it('survives a missing winners list', () => {
     const w = mountTable({ ...finishedView(), winners: undefined }).w;
-    expect(w.find('.end').exists()).toBe(true);
+    expect(w.find('.box.status .standings').exists()).toBe(true);
   });
 });
 
@@ -516,17 +549,21 @@ describe('Splendour layout', () => {
     expect(big).toBeGreaterThan(small);
     expect(fontSize(area(1334, 460))).toBe(small);
   });
-  it('never lets the market, your board or the action panel outgrow their columns or the height', () => {
+  it('never lets the market or your board outgrow their columns or the height', () => {
     for (const [w, h] of [[1334, 460], [1760, 712], [1000, 600]]) {
       const a = area(w, h);
       const f = fontSize(a);
       const unit = (w - 12 * 11) / 12;
       const span = (n) => unit * n + 12 * (n - 1);
       expect(f * DESIGN.height).toBeLessThanOrEqual(h + 0.5);
-      expect(f * DESIGN.market).toBeLessThanOrEqual(span(SPANS.market) + 0.5);
+      expect(f * DESIGN.nobles).toBeLessThanOrEqual(span(SPANS.nobles) + 0.5);
+      expect(f * DESIGN.cards).toBeLessThanOrEqual(span(SPANS.cards) + 0.5);
       expect(f * DESIGN.mine).toBeLessThanOrEqual(span(SPANS.mine) + 0.5);
-      expect(f * DESIGN.action).toBeLessThanOrEqual(span(SPANS.action) + 0.5);
     }
+  });
+  it('gives the nobles only their two-column grid, and the cards and your play area the rest', () => {
+    expect(SPANS).toEqual({ nobles: 2, cards: 6, mine: 4 });
+    expect(SPANS.nobles + SPANS.cards + SPANS.mine).toBe(12);
   });
   it('does not depend on the game', () => {
     expect(fontSize(area(1334, 460))).toBe(fontSize({ ...area(1334, 460), unrelated: 5 }));

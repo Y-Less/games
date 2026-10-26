@@ -6,6 +6,7 @@ import { computed } from 'vue';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
+import { GEM_NAMES } from './gems.js';
 
 const props = defineProps({
   seat: { type: Object, required: true },
@@ -16,8 +17,10 @@ const props = defineProps({
   interactive: { type: Boolean, default: false },
   large: { type: Boolean, default: false }, // your own board: full-size reserved cards and bigger gems
   gem: { type: Number, default: 19 }, // the size of a gem in px
+  pickTokens: { type: Boolean, default: false }, // your own board while returning tokens: the tokens are the selector
+  give: { type: Array, default: () => [0, 0, 0, 0, 0, 0] }, // how many of each token are marked to give back
 });
-defineEmits(['pick']);
+defineEmits(['pick', 'token']);
 
 const total = computed(() => props.seat.tokens.reduce((a, b) => a + b, 0));
 const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.seat.bonuses[i]));
@@ -36,7 +39,21 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
       <div class="row-block" :title="`Tokens (${total}/10)`">
         <span class="label">Tokens <small>{{ total }}/10</small></span>
         <span class="gems">
-          <span v-for="(n, c) in seat.tokens" :key="c" class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
+          <template v-for="(n, c) in seat.tokens" :key="c">
+            <button
+              v-if="pickTokens"
+              class="held token-btn"
+              :class="{ picked: give[c] > 0 }"
+              :disabled="n === 0"
+              :aria-pressed="give[c] > 0"
+              :aria-label="`Give back ${GEM_NAMES[c]}: you hold ${n}, ${give[c]} marked`"
+              @click="$emit('token', c)"
+            >
+              <Gem :colour="c" :size="gem" :count="n" :faded="n === 0" />
+              <span v-if="give[c] > 0" class="badge">{{ give[c] }}</span>
+            </button>
+            <span v-else class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
+          </template>
         </span>
       </div>
       <div class="row-block" :title="`Card bonuses (${seat.bought} ${seat.bought === 1 ? 'card' : 'cards'})`">
@@ -63,6 +80,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
       </template>
       <span v-for="i in 3 - seat.reserved.length" :key="`free-${i}`" class="free-slot" aria-hidden="true" />
     </div>
+    <div v-if="large" class="actions"><slot name="actions" /></div>
   </section>
 </template>
 
@@ -87,7 +105,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
 .left {
   display: flex;
   flex-direction: column;
-  gap: 0.25em;
+  gap: 0.45em;
   min-width: 0;
 }
 .head {
@@ -144,14 +162,14 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
 .row-block {
   display: flex;
   flex-direction: column;
-  gap: 0.05em;
+  gap: 0.3em;
 }
 .label {
   font-size: 0.55em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  line-height: 1.1;
+  line-height: 1.5;
 }
 .label small {
   font-size: 1em;
@@ -175,27 +193,74 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
   white-space: nowrap;
 }
 .board.large {
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.6em;
-  padding: 0.5em 0.5em 0.6em;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.5em;
+  padding: 0.5em 0.6em 0.6em;
 }
 .board.large .reserved {
   justify-content: space-between;
+}
+/* the bottom row of your own board: the buttons for what you are doing. Its height is always reserved. */
+.actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.6rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.actions :deep(button) {
+  padding: 0.25rem 0.9rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.token-btn {
+  position: relative;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.token-btn:disabled {
+  cursor: default;
+}
+.token-btn.picked {
+  box-shadow: 0 0 0 3px var(--amber);
+}
+.token-btn.picked :deep(.gem) {
+  opacity: 0.55;
+}
+.badge {
+  position: absolute;
+  top: -0.4em;
+  right: -0.3em;
+  min-width: 1.3em;
+  height: 1.3em;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--amber-ink);
+  font-size: 0.75em;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
 }
 .board.large .name {
   font-size: 1.1em;
   max-width: 10em;
 }
 .board.large .left {
-  gap: 0.5em;
+  gap: 0.7em;
 }
 .board.large .label {
   font-size: 0.65em;
 }
 .board.large .free-slot {
-  width: 5.2em;
-  height: 7em;
+  width: 5.8em;
+  height: 7.8em;
   border-radius: 0.6em;
 }
 .reserved {
