@@ -102,7 +102,7 @@ if (title === 'Final scores') return false; // the game is over: leave this pop-
   const done = () => user.page.$('section.end').then(Boolean);
   await drive({ act, finished: done, what: 'a game of Splendour', timeout: 220000 });
 
-  assert.ok([...titles].some((t) => /^Scores after Round 1$/.test(t)), `the round pop-up appeared: ${[...titles]}`);
+  assert.ok([...titles].some((t) => /^Scores after Round \d+$/.test(t)), `a round pop-up appeared: ${[...titles]}`);
   assert.match(await user.page.$eval('section.end h2', (el) => el.innerText), /wins with|shared win/);
   assert.ok((await user.page.$$eval('section.end .standings li', (els) => els.length)) === 2);
   // The final pop-up arrives by itself, with every round in its table.

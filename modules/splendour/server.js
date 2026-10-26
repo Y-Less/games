@@ -4,10 +4,13 @@
 //
 // Timing can be changed through the environment (the tests make it fast):
 //   SPLENDOUR_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
+//   SPLENDOUR_AI          an AI id (see ai/index.js) that every computer player uses instead of a random pick, for repeatable runs
 import fs from 'node:fs';
 import path from 'node:path';
 import * as game from './game.js';
 import * as bot from './bot.js';
+import { aiById } from '../../shared/ai.js';
+import { AIS } from './ai/index.js';
 
 const KEEP_FINISHED_MS = 24 * 60 * 60 * 1000;
 const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -21,6 +24,7 @@ function readDelays() {
 export default function (ctx) {
   const file = path.join(ctx.dataDir, 'rooms.json');
   const delays = readDelays();
+  const forcedAI = aiById(AIS, process.env.SPLENDOUR_AI).id === process.env.SPLENDOUR_AI ? process.env.SPLENDOUR_AI : null;
   const rooms = new Map();
   const sockets = new Map(); // user id -> the sockets that user has open
   const timers = new Map(); // room code -> the timer for the next computer move
@@ -250,7 +254,13 @@ export default function (ctx) {
     on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
     on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
     on('fillBots', () => act((room) => game.fillWithBots(room, userId)));
-    on('start', () => act((room) => game.start(room, userId)));
+    on('start', () =>
+      act((room) => {
+        const outcome = game.start(room, userId);
+        if (outcome.ok && forcedAI) for (const id of Object.keys(room.ais)) room.ais[id] = forcedAI;
+        return outcome;
+      }),
+    );
     on('take', ({ colours }) => act((room, seat) => game.takeGems(room, seat, colours)));
     on('takeTwo', ({ colour }) => act((room, seat) => game.takeTwo(room, seat, colour)));
     on('reserve', ({ card, level }) => act((room, seat) => game.reserveCard(room, seat, card !== undefined ? { card } : { level })));
