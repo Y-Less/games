@@ -5,6 +5,8 @@
 // ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>', name }) or null
 // (empty, lobby only). Seat order is turn order; it is shuffled when the game starts.
 import { placements } from '../../shared/scores.js';
+import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { AIS } from './ai/index.js';
 import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, GOLD, cardsOfLevel, isCardId, isNobleId } from './cards.js';
 
 export const SEAT_COUNTS = [2, 3, 4];
@@ -92,6 +94,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now = Date.n
 function resetGame(room) {
   Object.assign(room, {
     players: [],
+    ais: {}, // bot id -> the id of the AI it plays with, chosen when the game starts
     supply: emptyTokens(),
     decks: { 1: [], 2: [], 3: [] },
     board: { 1: [], 2: [], 3: [] },
@@ -143,13 +146,14 @@ function newBot(room) {
 
 /**
  * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
- * it over. `empty` is true when no human is left, so the room should be discarded.
+ * it over (and picks its AI then). `empty` is true when no human is left, so the room should be discarded.
  */
-export function removeHuman(room, userId) {
+export function removeHuman(room, userId, rng = Math.random) {
   const seat = seatOf(room, userId);
   if (seat === -1) return fail('You are not in this game.');
   const midGame = room.phase === 'playing';
   room.seats[seat] = midGame ? newBot(room) : null;
+  if (midGame) (room.ais ??= {})[room.seats[seat].id] = pickAI(AIS, rng).id;
   const humans = humanSeats(room);
   if (!humans.length) return ok({ empty: true, seat });
   if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
@@ -235,6 +239,7 @@ export function start(room, userId, rng = Math.random) {
     room.board[level] = Array.from({ length: BOARD_SLOTS }, () => room.decks[level].pop() ?? null);
   }
   room.nobles = shuffle(NOBLES.map((x) => x.id), rng).slice(0, n + 1);
+  room.ais = assignAIs(AIS, room.seats.filter(isBot).map((s) => s.id), rng); // after the deal, so the deal is unchanged
   room.roundDeltas = Array(n).fill(0);
   room.roundNotes = Array.from({ length: n }, () => []);
   room.turn = 0;
@@ -577,6 +582,10 @@ export function viewFor(room, userId, { online = () => true } = {}) {
       const base = { seat: i, name: seat.name, bot: isBot(seat), online: isBot(seat) || online(seat.id) };
       if (!started) return base;
       const p = room.players[i];
+      if (isBot(seat)) {
+        const ai = aiById(AIS, room.ais?.[seat.id]);
+        base.ai = { id: ai.id, name: ai.name };
+      }
       return {
         ...base,
         tokens: [...p.tokens],

@@ -11,7 +11,9 @@ module.json    menu entry (1 to 4 people), and the statistics this game reports
 rules.md       the player-facing rules
 cards.js       the card set: gem colours, 90 development cards and 10 nobles, generated from cost patterns
 game.js        the rules as pure functions over a plain room object (no sockets, no files), and each player's view
-bot.js         the computer players (heuristics over legal moves; only public information)
+bot.js         runs the computer players: builds the plain-data situation, asks the seat's AI, checks the answer is legal
+ai/            the AIs (one file each, index.js exports AIS): standard, sharp, noble-hunter, engine-builder, rusher, blocker, random.
+               Each bot is given one at game start (room.ais, bot id -> AI id; old rooms fall back to standard); ai-kit.js runs tournaments
 server.js      the socket layer: rooms, saving to ctx.dataDir/rooms.json, timers for computer moves, statistics
 client/        Vue 3: Splendour (root), Lobby, Table, and the drawn pieces Gem, CardFace and NobleTile
 *.test.js      cards, rules, computer players, invariants, robustness (garbage payloads), kick, end to end
