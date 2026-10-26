@@ -13,6 +13,7 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 - `client/` the Vue half. `index.js` exports `Dixnt.vue`, which builds the store (`store.js`) from the props the site
   passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.
 - `bots/bot.js` a stand-alone bot player (see below).
+- `ai/` the bots' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
 - `hints.txt` the word and phrase suggestions for the chooser.
 - `*.test.js` the rules tests (`game`, `judging`, `rounds`, `favourite`, `history`) and `e2e.test.js`, which runs the real site.
 

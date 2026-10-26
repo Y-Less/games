@@ -21,7 +21,9 @@
 // Length: the game ends once every player has chosen the word `roundsEach` times (a round only counts as a turn
 // once it has been completed). Then the phase becomes 'finished' and the host can return everyone to the lobby.
 
+import { aiById } from '../../shared/ai.js';
 import { winnersOf } from '../../shared/scores.js';
+import { AIS } from './ai/index.js';
 
 export const POINTS_PER_VOTE = 100;
 export const CHOOSER_CORRECT_POINTS = 100;
@@ -216,6 +218,22 @@ export class Game {
     this.s.players.push(player);
     this.s.hostId ??= player.id;
     return player;
+  }
+
+  /**
+   * A bot says which AI it plays with (when it joins, and again at the start of every game). Stored on the seat and
+   * shown to everyone as { id, name } for that seat only. Humans never call this, so their seats stay unmarked.
+   */
+  setAI(id, aiId) {
+    const player = this.requirePlayer(id);
+    if (!AIS.some((ai) => ai.id === aiId)) fail('Unknown AI.');
+    player.ai = aiId;
+  }
+
+  /** { id, name } of an AI; a saved id that no longer exists falls back to the first AI. */
+  aiView(aiId) {
+    const { id, name } = aiById(AIS, aiId);
+    return { id, name };
   }
 
   removePlayer(byId, targetId) {
@@ -599,6 +617,7 @@ export class Game {
         turns: p.turns ?? 0,
         waiting: p.waiting,
         connected: connectedIds.has(p.id),
+        ai: p.ai ? this.aiView(p.ai) : null, // bot seats only
         isChooser: p.id === s.chooserId,
         hasPlayed: inPlay && p.id in s.picks,
         hasVoted: s.phase === 'voting' ? p.id in s.votes : false,

@@ -51,9 +51,9 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
       filter: (source) => !['cards', 'node_modules', '.bot-tokens.json'].includes(path.basename(source)),
     });
   }
-  // The module imports ../../shared/scores.js, so the copy needs a shared folder beside its modules folder.
+  // The module imports ../../shared/scores.js and ai.js, so the copy needs a shared folder beside its modules folder.
   fs.mkdirSync(path.join(dataDir, 'shared'), { recursive: true });
-  fs.copyFileSync(path.join(here, '..', '..', 'shared', 'scores.js'), path.join(dataDir, 'shared', 'scores.js'));
+  for (const file of ['scores.js', 'ai.js']) fs.copyFileSync(path.join(here, '..', '..', 'shared', file), path.join(dataDir, 'shared', file));
   process.env.DIXNT_CARDS_DIR = cardsDir;
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;

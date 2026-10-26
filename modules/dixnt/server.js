@@ -356,6 +356,7 @@ export default function (ctx) {
     action(socket, 'setRounds', (player, { count }, game) => game.setRounds(player.id, count));
     action(socket, 'setJudging', (player, { mode }, game) => game.setJudging(player.id, mode));
     action(socket, 'setCategories', (player, { keys }, game) => game.setCategories(player.id, keys));
+    action(socket, 'declareAI', (player, { id }, game) => game.setAI(player.id, id));
     action(socket, 'start', (player, _payload, game) => game.start(player.id));
     action(socket, 'endGame', (player, _payload, game) => game.returnToLobby(player.id));
     action(socket, 'hints', (_player, _payload, game) => ({ hints: game.nextHints(3) }));
