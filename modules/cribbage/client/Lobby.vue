@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
@@ -28,7 +29,8 @@ const dealing = computed(() => {
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share the code above (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.</p>
+      <p class="muted">Share this code (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.</p>
+      <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
     <SeatLobby
@@ -51,9 +53,6 @@ const dealing = computed(() => {
           <button v-for="t in targets" :key="t" :class="{ primary: state.target === t }" :disabled="!state.isHost" :aria-pressed="state.target === t" @click="send('settings', { target: t })">{{ t }}</button>
         </div>
         <p class="muted small">{{ dealing }}</p>
-      </template>
-      <template #footer>
-        <button class="quiet" @click="send('leave')">Leave game</button>
       </template>
     </SeatLobby>
   </div>

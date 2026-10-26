@@ -57,6 +57,7 @@ test('lobby: seats, settings, computer players and starting', () => {
   assert.equal(game.setSettings(room, 1, { target: 100 }).ok, false);
   assert.ok(game.addBot(room, 1).ok);
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, true);
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, true], 'the scoreboard marks computer players');
   assert.equal(game.addBot(room, 1).ok, false, 'full');
   assert.equal(game.setSettings(room, 1, { seats: 3 }).ok, true);
   assert.ok(game.fillBots(room, 1).ok);

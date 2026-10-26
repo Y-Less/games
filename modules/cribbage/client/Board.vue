@@ -85,6 +85,7 @@ const label = computed(() => props.seats.map((s) => `${s.name} ${s.score}`).join
   display: block;
   width: 100%;
   max-width: 560px;
+  max-height: 100%; /* in a box of its own (the table) the whole board is shown at the size that fits */
   margin: 0 auto;
 }
 .wood {
