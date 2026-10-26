@@ -1,13 +1,12 @@
 <script setup>
 // Tints and Hints: the screens drawn inside the site's play field. The server sends each player their own view of
 // the game as a `state` event (null when not in a game); everything the player does is a request to the server.
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
-import ScoreBoard from '../../../src/components/ScoreBoard.vue';
-import { cellColour } from '../grid.js';
-import Final from './Final.vue';
+import { useLeave } from '../../../src/playBar.js';
 import Lobby from './Lobby.vue';
-import Round from './Round.vue';
+import { newEntries } from './moveLog.js';
+import Table from './Table.vue';
 
 const props = defineProps({
   socket: { type: Object, required: true },
@@ -19,9 +18,9 @@ const props = defineProps({
 const state = ref(null);
 const loaded = ref(false);
 const notice = ref('');
+const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
 let invite = props.search.replace(/^\?/, '');
 const initialCode = invite;
-const kindText = { exact: 'Exactly right', close: 'Close', miss: 'Missed' };
 
 function send(event, payload = {}) {
   notice.value = '';
@@ -33,6 +32,13 @@ function send(event, payload = {}) {
   });
 }
 
+// "Leave game" lives in the site's header; it is offered whenever you are in a room, and asks first mid-game.
+useLeave({
+  canLeave: computed(() => Boolean(state.value)),
+  leave: () => send('leave'),
+  confirmText: computed(() => (['guessing1', 'guessing2', 'reveal'].includes(state.value?.phase) ? 'You will not be able to come back.' : '')),
+});
+
 async function resume() {
   const code = state.value?.code ?? invite;
   invite = '';
@@ -40,6 +46,7 @@ async function resume() {
 }
 
 function onState(next) {
+  log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(state.value, next)].slice(-200);
   state.value = next;
   loaded.value = true;
   props.setSearch(next ? next.code : '');
@@ -70,37 +77,8 @@ onBeforeUnmount(() => {
     />
     <template v-else>
       <p v-if="notice" class="notice" role="alert">{{ notice }}</p>
-      <!-- Lives here, not in Round or Final, so the pop-up that follows the last turn survives the change of screen. -->
-      <ScoreBoard
-        v-if="state.phase !== 'lobby'"
-        :players="state.scoreboard.players"
-        :rounds="state.scoreboard.rounds"
-        :low-is-better="state.scoreboard.lowIsBetter"
-        :finished="state.phase === 'finished'"
-      >
-        <template #round>
-          <section v-if="state.result" class="reveal stack" aria-label="This turn">
-            <div class="row">
-              <span class="swatch" :style="{ background: cellColour(state.result.tint) }" role="img" :aria-label="`The tint was ${state.result.tint}`">{{ state.result.tint }}</span>
-              <div class="stack">
-                <strong>The tint was {{ state.result.tint }}.</strong>
-                <span class="muted">{{ state.result.hinterName }} scores {{ state.result.hinterPoints }} for the hints.</span>
-              </div>
-            </div>
-            <ul class="entries">
-              <li v-for="(e, i) in state.result.entries" :key="i" class="row">
-                <span class="name">{{ e.name }}</span>
-                <span class="muted">round {{ e.round }}, {{ e.cell }}</span>
-                <span :class="e.kind">{{ kindText[e.kind] }}</span>
-                <strong>+{{ e.points }}</strong>
-              </li>
-            </ul>
-          </section>
-        </template>
-      </ScoreBoard>
       <Lobby v-if="state.phase === 'lobby'" :state="state" :send="send" />
-      <Final v-else-if="state.phase === 'finished' || state.phase === 'abandoned'" :state="state" :send="send" />
-      <Round v-else :state="state" :send="send" />
+      <Table v-else :state="state" :send="send" :log="log" />
     </template>
   </div>
 </template>
@@ -122,40 +100,5 @@ onBeforeUnmount(() => {
   background: var(--bg-raised);
   box-shadow: 0 4px 18px rgb(0 0 0 / 0.5);
   color: var(--danger);
-}
-.reveal {
-  margin-bottom: 0.8rem;
-}
-.swatch {
-  display: grid;
-  place-items: center;
-  width: 4rem;
-  height: 4rem;
-  flex: none;
-  border-radius: 12px;
-  border: 2px solid var(--parchment);
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 0 4px #000, 0 0 4px #000;
-}
-.entries {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.name {
-  font-weight: 600;
-}
-.exact {
-  color: var(--moss);
-}
-.close {
-  color: var(--amber);
-}
-.miss {
-  color: var(--muted);
 }
 </style>

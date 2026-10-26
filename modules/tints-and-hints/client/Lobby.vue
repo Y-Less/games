@@ -61,7 +61,6 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
         <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">Start the game</button>
         <span v-if="isHost && !canStart" class="muted">You need at least {{ state.limits.min }} players.</span>
         <span v-if="!isHost" class="muted">Waiting for the host to start.</span>
-        <button class="quiet" @click="send('leave')">Leave game</button>
       </div>
     </section>
     <div class="row" aria-hidden="true">

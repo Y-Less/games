@@ -290,7 +290,7 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
       winner: final.get(p.id)?.winner ?? false,
     })),
     scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, away: !onlineOf(p.id) })),
+      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, bot: false, current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !onlineOf(p.id) })),
       rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,
     },

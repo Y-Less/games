@@ -101,14 +101,65 @@ test('everyone plays three turns: hints, guesses, the reveal, and the pop-ups', 
     assert.ok(titles.some((t) => /^Scores after Turn 1/.test(t)), `${u.label} saw the pop-up after turn 1: ${titles}`);
     assert.ok(titles.includes('Final scores'));
   }
-  await host.waitForText(/We have a winner|It is a tie/);
+  await host.waitForText(/wins? with \d+ points/);
   await host.clickButton('All rounds', { exact: true });
   await host.waitForSelector('.modal');
   const rows = await host.page.$$eval('.modal .score-table tbody th', (els) => els.map((e) => e.textContent.trim()));
   assert.equal(rows.length, 3, `all three turns are in the All rounds table: ${rows}`);
   assert.match(await host.page.$eval('.modal', (e) => e.innerText), /wins!|win\./);
   await host.closeModalWithEsc();
-  await host.clickButton('Back to the menu', { exact: true });
+}));
+
+const rect = (user, selector) =>
+  user.page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
+  }, selector);
+
+test('the site header has the title, Rules and Leave game, and the play area has no Leave or Back to the menu button', { timeout: 60000 }, guarded('header', async () => {
+  assert.equal(await host.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Tints and Hints');
+  const names = await host.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
+  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  const inPlay = await host.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^(Leave|Back to the menu)/.test(t)));
+  assert.deepEqual(inPlay, [], 'no Leave button in the play area');
+  assert.ok(await host.page.$('.game-frame'), 'the game is drawn in the standard frame');
+}));
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) {
+  test(`at ${viewport.width}x${viewport.height} the table fits the window, its rows share the same outer edges and gutters, and the grid cells are square`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
+    await host.page.setViewport(viewport);
+    await host.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(await host.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
+    const bar = await rect(host, '.score-bar');
+    const arena = await rect(host, '.arena');
+    const board = await rect(host, '.board');
+    const side = await rect(host, '.side');
+    const log = await rect(host, '.box.log');
+    const status = await rect(host, '.box.status');
+    const bars = await host.page.$$eval('ul[aria-label="Players"] li', (els) => els.map((e) => {
+      const b = e.getBoundingClientRect();
+      return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom), height: Math.round(b.height) };
+    }));
+    assert.equal(bars.length, 2, 'a slim bar for each of the other players');
+    for (const [name, r] of Object.entries({ arena, board, log, 'first bar': bars[0] })) assert.ok(Math.abs(r.left - bar.left) <= 1, `${name} left edge ${r.left} vs score bar ${bar.left}`);
+    for (const [name, r] of Object.entries({ arena, side, status })) assert.ok(Math.abs(r.right - bar.right) <= 1, `${name} right edge ${r.right} vs score bar ${bar.right}`);
+    assert.ok(Math.abs(bars[1].left - bars[0].right - 12) <= 1, `the gutter between the bars is the frame's: ${bars[1].left - bars[0].right}`);
+    assert.ok(Math.abs(log.right + 12 - status.left) <= 1, 'the bottom boxes have the same gutter');
+    assert.ok(board.right <= side.left - 4, 'the grid ends before the controls begin');
+    assert.ok(board.bottom <= arena.bottom + 1 && board.top >= arena.top - 1, 'the grid is inside the main area');
+    assert.ok(bars[0].top - arena.bottom >= 4 && bars[0].top - arena.bottom <= 12, `the gap between the main area and the bars: ${bars[0].top - arena.bottom}`);
+    assert.ok(log.top - bars[0].bottom >= 4 && log.top - bars[0].bottom <= 12, `the gap between the bars and the boxes: ${log.top - bars[0].bottom}`);
+    assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
+    const cells = await host.page.$$eval('.board button.cell', (els) => els.slice(0, 50).map((e) => { const b = e.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; }));
+    assert.ok(cells.every(([w, h]) => w === h && w >= 30), `square cells, large enough to see: ${cells[0]}`);
+  }));
+}
+
+test('Leave game in the header leaves the finished game straight away (nothing to confirm)', { timeout: 60000 }, guarded('leave', async () => {
+  await host.clickButton('Leave game', { exact: true, scope: 'header.bar' });
   await host.waitForText('Start a new game');
 }));
 

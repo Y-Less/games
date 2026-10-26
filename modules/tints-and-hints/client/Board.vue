@@ -1,8 +1,10 @@
 <script setup>
 // The colour grid. Guesses are drawn as nested rings in each player's colour: dotted for the first round and solid
-// for the second. The grid scrolls sideways on a narrow screen so that every square stays easy to tap.
+// for the second. It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
+// table gives it and never changes size while the game is played.
 import { computed } from 'vue';
 import { COLS, ROWS, cellColour } from '../grid.js';
+import { GAP, HEAD } from './layout.js';
 
 const props = defineProps({
   guesses: { type: Array, default: () => [] },
@@ -10,6 +12,7 @@ const props = defineProps({
   target: { type: String, default: null },
   selected: { type: String, default: null },
   disabled: { type: Boolean, default: false },
+  cell: { type: Number, default: 28 },
 });
 const emit = defineEmits(['pick']);
 
@@ -23,62 +26,63 @@ const label = (cell) => {
   const here = markers.value[cell] ?? [];
   return [cell, props.target === cell ? 'the tint' : '', ...here.map((m) => `${m.name} round ${m.round}`)].filter(Boolean).join(', ');
 };
+const style = computed(() => ({
+  '--cell': `${props.cell}px`,
+  '--head': `${HEAD}px`,
+  '--gap': `${GAP}px`,
+  '--ring': `${Math.max(2, Math.round(props.cell / 12))}px`,
+  '--step': `${Math.max(3, Math.round(props.cell / 8))}px`,
+}));
 </script>
 
 <template>
-  <div class="scroller">
-    <div class="board" role="group" aria-label="Colour grid">
-      <span class="head" />
-      <span v-for="c in COLS" :key="c" class="head">{{ c }}</span>
-      <template v-for="r in ROWS" :key="r">
-        <span class="head">{{ r }}</span>
-        <button
-          v-for="c in COLS"
-          :key="c + r"
-          class="cell"
-          :class="{ selected: selected === c + r, target: target === c + r }"
-          :style="{ background: cellColour(c + r) }"
-          :disabled="disabled"
-          :aria-label="label(c + r)"
-          :title="label(c + r)"
-          @click="emit('pick', c + r)"
-        >
-          <span
-            v-for="(m, i) in markers[c + r]"
-            :key="m.id + '-' + m.round"
-            class="ring"
-            :class="m.round === 1 ? 'first' : 'second'"
-            :style="{ inset: `${2 + i * 4}px`, borderColor: m.colour }"
-          />
-        </button>
-      </template>
-    </div>
+  <div class="board" role="group" aria-label="Colour grid" :style="style">
+    <span class="head" />
+    <span v-for="c in COLS" :key="c" class="head">{{ c }}</span>
+    <template v-for="r in ROWS" :key="r">
+      <span class="head">{{ r }}</span>
+      <button
+        v-for="c in COLS"
+        :key="c + r"
+        class="cell"
+        :class="{ selected: selected === c + r, target: target === c + r }"
+        :style="{ background: cellColour(c + r) }"
+        :disabled="disabled"
+        :aria-label="label(c + r)"
+        :title="label(c + r)"
+        @click="emit('pick', c + r)"
+      >
+        <span
+          v-for="(m, i) in markers[c + r]"
+          :key="m.id + '-' + m.round"
+          class="ring"
+          :class="m.round === 1 ? 'first' : 'second'"
+          :style="{ inset: `calc(var(--ring) * 0.7 + ${i} * var(--step))`, borderColor: m.colour }"
+        />
+      </button>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.scroller {
-  overflow-x: auto;
-  padding-bottom: 0.4rem;
-}
 .board {
-  --cell: 28px;
   display: grid;
-  grid-template-columns: 1.2rem repeat(24, minmax(var(--cell), 1fr));
-  gap: 1px;
-  min-width: max-content;
-  width: 100%;
+  grid-template-columns: var(--head) repeat(24, var(--cell));
+  grid-template-rows: var(--head) repeat(10, var(--cell));
+  gap: var(--gap);
+  width: max-content;
+  height: max-content;
 }
 .head {
   display: grid;
   place-items: center;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--muted);
 }
 .cell {
   position: relative;
-  aspect-ratio: 1;
-  min-width: var(--cell);
+  width: var(--cell);
+  height: var(--cell);
   padding: 0;
   border: 0;
   border-radius: 3px;
@@ -101,13 +105,13 @@ const label = (cell) => {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 1.1rem;
+  font-size: calc(var(--cell) * 0.5);
   color: #fff;
   text-shadow: 0 0 3px #000, 0 0 3px #000;
 }
 .ring {
   position: absolute;
-  border-width: 3px;
+  border-width: var(--ring);
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.7), inset 0 0 0 1px rgb(0 0 0 / 0.7);
 }
