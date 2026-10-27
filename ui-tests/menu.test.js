@@ -8,7 +8,7 @@ import { createWorld, root } from './helpers.js';
 const GAMES = [
   { id: 'cribbage', name: 'Cribbage', players: '1–5 players', category: 'Card games' },
   { id: 'dixnt', name: 'Dixnt', players: '3–12 players', category: 'Party games' },
-  { id: 'hearts', name: 'Hearts', players: '1–5 players', category: 'Card games' },
+  { id: 'hearts', name: 'Hearts', players: '1–4 players', category: 'Card games' },
   { id: 'nomination-whist', name: 'Nomination Whist', players: '1–7 players', category: 'Card games' },
   { id: 'tints-and-hints', name: 'Tints and Hints', players: '2–8 players', category: 'Party games' },
 ];
