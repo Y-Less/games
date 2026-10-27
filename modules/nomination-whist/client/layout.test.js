@@ -33,6 +33,18 @@ describe('the table in the standard frame', () => {
     expect(w.find('.box.status h3').text()).toBe('Status');
   });
 
+  it('always shows every opponent face down with their name and a short note, whose turn it is marked', () => {
+    const { w } = mountTable(game.viewFor(started(2), 1));
+    const opps = w.findAll('.main .opponent-hands .opp');
+    expect(opps).toHaveLength(3);
+    expect(opps.map((o) => o.classes().find((c) => ['left', 'top', 'right'].includes(c)))).toEqual(['left', 'top', 'right']);
+    expect(opps.every((o) => o.findAll('.playing-card').length === 7)).toBe(true);
+    expect(opps[1].find('.who').text()).toBeTruthy();
+    expect(opps[1].classes()).toContain('current');
+    expect(opps[1].find('.tag').text()).toBe('nominating…');
+    expect(opps[0].find('.tag').text()).toBe('not yet nominated');
+  });
+
   it('keeps the round, dealer, trumps and every instruction in Status, not in the play area', () => {
     const { w } = mountTable(game.viewFor(started(), 1));
     const status = w.find('.box.status').text();

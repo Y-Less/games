@@ -247,7 +247,7 @@ test(`Nomination Whist at ${at}: the trick, nomination zone, hand and both botto
     await user.waitForSelector('.game-frame .hand .playing-card');
     await sleep(300);
     // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
-    const areas = ['.game-frame', '.scorebar', '.score-bar', '.game-frame .main', '.centre', '.centre .trick-circle', '.nominate', '.nominate .numbers', '.mine', '.hand', '.box.log', '.box.status', '.box.log .game-log'];
+    const areas = ['.game-frame', '.scorebar', '.score-bar', '.game-frame .main', '.centre', '.centre .trick-circle', '.nominate', '.nominate .numbers', '.opponents', '.opponents .opp.left', '.opponents .opp.top', '.opponents .opp.right', '.mine', '.hand', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     const finder = () => document.querySelector('.nominate .numbers button.number:not([disabled])') ?? document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
     let clicks = 0;

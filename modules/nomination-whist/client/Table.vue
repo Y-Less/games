@@ -5,6 +5,7 @@
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
+import OpponentHands from '../../../src/components/OpponentHands.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
@@ -50,6 +51,13 @@ const nominating = computed(() => props.state.phase === 'nominating' && myTurn.v
 /** Everyone clockwise from the viewer, as TrickCircle wants them. */
 const ordered = computed(() => seats.value.map((_, i) => seats.value[(you.value + i) % seats.value.length]).map((s) => ({ key: s.seat, name: s.name, ...s })));
 const others = computed(() => ordered.value.slice(1));
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** The short line under an opponent's name: what they nominated and how many tricks they have won so far. */
+function noteFor(seat) {
+  if (seat.bid === null) return props.state.phase === 'nominating' && props.state.turn === seat.seat ? 'nominating…' : 'not yet nominated';
+  return props.state.phase === 'nominating' ? `nominated ${seat.bid}` : `nominated ${seat.bid} · won ${seat.tricks}`;
+}
+const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s.name, cards: s.cards, note: noteFor(s), away: Boolean(s.away && !s.bot), current: s.seat === props.state.turn })));
 
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
 // floating over the top of the main area so that nothing moves.
@@ -123,10 +131,12 @@ function pick(card) {
 }
 
 // The sizes follow the room the frame leaves, never the game, so nothing changes size while playing.
+const TOP_RESERVE = 124; // pixels kept clear along the top for an opponent's hand
+const TOP_HANDS = [1, 3, 5, 6]; // how many opponents there are when one sits along the top, over the trick
 const roomFor = (area) => {
   const handLarge = area.height >= 600;
   const handRem = handLarge ? 9.2 : 7.2;
-  const spare = area.height - (0.4 + handRem) * 16 - 8; // the hand and the gap above it
+  const spare = area.height - (0.4 + handRem) * 16 - 8 - (TOP_HANDS.includes(others.value.length) ? TOP_RESERVE : 0); // the hand and the gap above it
   // The trick is drawn large and then scaled to the room that is left (never to what is on the table).
   return { hand: handLarge ? 'lg' : 'md', zoom: Math.max(0.8, Math.min(1.6, spare / 242)) };
 };
@@ -164,7 +174,8 @@ const roomFor = (area) => {
 
         <Final v-if="finished" class="zone-wide" :state="state" :send="send" />
         <template v-else>
-          <div class="centre" aria-live="polite">
+          <div class="opponents"><OpponentHands :opponents="opponents" :max="MOST_CARDS" /></div>
+          <div class="centre" :style="{ paddingTop: TOP_HANDS.includes(others.length) ? `${TOP_RESERVE}px` : undefined }" aria-live="polite">
             <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" size="lg" labels />
           </div>
           <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
@@ -298,6 +309,15 @@ const roomFor = (area) => {
 }
 .facts dd b {
   color: var(--parchment);
+}
+
+/* The opponents' hands go round the edges of the table above your own hand. */
+.opponents {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* The trick in the middle of the left part, the nomination zone in the right part (the same size whatever it holds). */
