@@ -61,6 +61,7 @@ test('the random AI: describes the 4 x 4 block of its square, and guesses inside
   const all = COLS.flatMap((c) => ROWS.map((r) => c + r));
   const names = new Set(all.map(describeCell));
   assert.equal(names.size, 60, 'every block has its own description');
+  for (const n of names) assert.ok(!/(red|orange|yellow|green|blue|purple|pink|violet|brown|grey|gray|white|black|gold|silver|indigo|magenta|teal|lime|cyan|turquoise)/i.test(n), `${n} is an object, not a colour name`);
   for (const cell of all) assert.ok(cellsDescribedBy(describeCell(cell)).includes(cell), cell);
   for (let i = 0; i < 400; i++) {
     const tint = all[Math.floor(rng() * all.length)];
@@ -74,7 +75,7 @@ test('the random AI: describes the 4 x 4 block of its square, and guesses inside
       assert.ok(block.includes(cell), `${cell} is in the block for ${hint}`);
     }
   }
-  const spread = new Set(Array.from({ length: 200 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'vivid green', second: '' } }, rng)));
+  const spread = new Set(Array.from({ length: 200 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'fresh grass', second: '' } }, rng)));
   assert.ok(spread.size > 10, 'it picks among the 16');
   const any = new Set(Array.from({ length: 400 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'my own words', second: '' } }, rng)));
   assert.ok(any.size > 100, 'a hint that is not a description gives a random square');

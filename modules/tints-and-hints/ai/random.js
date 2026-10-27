@@ -1,5 +1,5 @@
 // The only computer player for Tints and Hints, for testing: it has no real logic. The grid is cut into 4 x 4 blocks of
-// squares, each with a colour description. As the hinter it describes the block that holds its secret square; as a
+// squares, each described by an object of a similar colour. As the hinter it describes the block that holds its secret square; as a
 // guesser it picks a random square from the block the latest hint describes (or any square, if the hint is not one of
 // the descriptions, such as a person's own words). Randomness comes only from the `rng` the game passes in.
 import { COLS, ROWS, cellsDescribedBy, describeCell } from '../grid.js';

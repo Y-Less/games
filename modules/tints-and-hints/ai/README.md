@@ -4,7 +4,7 @@ The computer players exist for testing, so there is one AI and it has no logic.
 
 | id | name | what it does |
 | --- | --- | --- |
-| `random` | Random | The grid is cut into 4 x 4 blocks (12 by 5), each with a colour description such as "vivid green" (`describeGroup` in `grid.js`). As the hinter it gives the description of the block holding its secret square; as a guesser it picks a random square of the block that the current hint describes, or any square if the hint is a person's own words (it ignores the first guesses). |
+| `random` | Random | The grid is cut into 4 x 4 blocks (12 by 5), each with a description by an object of a similar colour, such as "fresh grass" (`describeGroup` in `grid.js`). As the hinter it gives the description of the block holding its secret square; as a guesser it picks a random square of the block that the current hint describes, or any square if the hint is a person's own words (it ignores the first guesses). |
 
 - **Layout.** `index.js` builds `AIS` with `defineAIs` from `shared/ai.js`; add an AI by dropping a file here and listing
   it. Keep the first entry as the fallback. Files use only the `rng` they are given, never `Math.random`.
