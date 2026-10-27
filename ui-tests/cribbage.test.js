@@ -153,6 +153,10 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     assert.ok(Math.abs(boardBox.top - right.top) <= 1, 'the board box is on the top edge of its half');
     assert.ok(board.left >= boardBox.left - 1 && board.right <= boardBox.right + 1 && board.top >= boardBox.top - 1 && board.bottom <= boardBox.bottom + 1, 'the board is inside its box');
     assert.ok(hand.right <= mine.right + 1 && hand.left >= mine.left - 1, 'your hand is inside its half');
+    // The opponent's face-down hand and name are shown over the play zone, above your hand and clear of the board side.
+    const opp = await user.page.$eval('.opponent-hands .opp', (e) => ({ name: e.querySelector('.who').textContent.trim(), cards: e.querySelectorAll('.playing-card').length, ...(({ left, right, top, bottom }) => ({ left, right, top, bottom }))(e.getBoundingClientRect()) }));
+    assert.ok(opp.name.length > 0 && opp.cards > 0, `an opponent's hand is shown: ${JSON.stringify(opp)}`);
+    assert.ok(opp.left >= mine.left - 1 && opp.right <= mine.right + 1 && opp.top >= mine.top - 1 && opp.bottom <= hand.top + 1, `the opponent is inside the play zone: ${JSON.stringify(opp)} vs ${JSON.stringify(mine)}`);
     // An opponent's chip opens their details over the top of the table without moving anything; Esc and a second click close it.
     const areas = ['.score-bar', '.mine-col', '.right-col', '.box.log', '.box.status', '.board-box'];
     const before = await Promise.all(areas.map(rect));

@@ -18,6 +18,8 @@ import { MAX_OPPONENTS, OPPONENT_LAYOUTS } from '../opponentLayouts.js';
 const props = defineProps({
   opponents: { type: Array, required: true },
   max: { type: Number, default: 13 },
+  // Rem of table height per unit of scale (the bigger, the smaller the hands): a short, busy table can ask for smaller ones.
+  base: { type: Number, default: 34 },
 });
 
 // Sizes, in rem, of one hand drawn at scale 1 (small cards in a fan, then the name under it).
@@ -66,7 +68,7 @@ const scale = computed(() => {
   const h = height / rem;
   const { left, top, right } = layout.value;
   const sideCount = Math.max(left.length, right.length);
-  let s = Math.max(0.5, Math.min(1.4, h / 34));
+  let s = Math.max(0.5, Math.min(1.4, h / props.base));
   if (sideCount) s = Math.min(s, (h - 2 * PAD) / (sideCount * block.value.width + (sideCount - 1) * GAP));
   if (top.length) s = Math.min(s, (w - 2 * (block.value.height + 2 * PAD)) / (top.length * block.value.width + (top.length - 1) * GAP));
   return Math.max(0.4, s);

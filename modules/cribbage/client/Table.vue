@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
+import OpponentHands from '../../../src/components/OpponentHands.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
@@ -26,6 +27,19 @@ const me = computed(() => s.value.you);
 const seats = computed(() => s.value.seats);
 const you = computed(() => seats.value[me.value]);
 const others = computed(() => seats.value.filter((x) => x.seat !== me.value));
+const seatAt = (rel) => seats.value[(me.value + rel) % seats.value.length];
+const oppNote = (seat) => {
+  const dealing = seat.seat === s.value.dealer;
+  if (phase.value === 'discard') return `${dealing ? 'dealer, ' : ''}${seat.discarded ? 'discarded' : 'choosing'}`;
+  return dealing ? 'dealer' : '';
+};
+// The others, clockwise from you (the player after you first), face down.
+const opponents = computed(() =>
+  seats.value.slice(1).map((_, i) => {
+    const seat = seatAt(i + 1);
+    return { key: seat.seat, name: seat.name, cards: seat.cards, note: oppNote(seat), away: !seat.online, current: turn.value === seat.seat };
+  }),
+);
 const dealer = computed(() => seats.value[s.value.dealer]);
 const youDeal = computed(() => s.value.dealer === me.value);
 const inPlay = computed(() => phase.value === 'play');
@@ -115,6 +129,16 @@ const dims = (area) => {
   const pilesHeight = Math.round(pile * 1.4 + 14 + 20);
   return { hand, peg, pile, pilesHeight, boardHeight: Math.max(120, area.height - pilesHeight - 8) };
 };
+// The opponents' hands sit over the pegging zone (above your hand): top centre for one, three or five opponents (so the
+// zone is inset from the top), and left and right for two or more (inset from the sides). A hand is drawn about 0.3 of
+// the zone's height deep (see OpponentHands), so that is how far the pegging row is kept away from each edge.
+const OPPONENT_DEPTH = 0.31;
+const room = (area) => {
+  const n = opponents.value.length;
+  const d = dims(area);
+  const depth = Math.round((area.height - (d.hand * 1.4 + 19)) * OPPONENT_DEPTH);
+  return { paddingTop: n % 2 === 1 ? `${depth}px` : '', paddingInline: n >= 2 ? `${depth}px` : '' };
+};
 const sequence = computed(() => (inPlay.value ? s.value.play.sequence : []));
 const previous = computed(() => (inPlay.value && !sequence.value.length ? s.value.play.previous : []));
 </script>
@@ -141,7 +165,8 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
           </div>
         </PlayerPopup>
         <div class="mine-col" :style="{ gridColumn: `span ${area.mainSpan}` }">
-          <section class="zone" aria-label="The play">
+          <section class="zone" aria-label="The play" :style="room(area)">
+            <OpponentHands :opponents="opponents" :max="6" :base="28" />
             <template v-if="inPlay">
               <div class="count" aria-label="The count">
                 <span class="muted">Count</span>
@@ -235,6 +260,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
 }
 .mine-col,
 .right-col {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -245,6 +271,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
 .zone {
   flex: 1;
   min-height: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
