@@ -711,13 +711,7 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0.4rem 0.6rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-}
-.mine.turn {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 1px var(--amber);
+  padding: 0.4rem 0 0.5rem;
 }
 .head {
   flex: none;
