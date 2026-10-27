@@ -12,7 +12,7 @@ import { FULL_SCHEDULE, SHORT_SCHEDULE } from './game.js';
 import { blank, byId, playGames } from './tournament.js';
 
 if (!isMainThread) {
-  parentPort.on('message', (job) => parentPort.postMessage({ job: job.id, totals: playGames({ ...workerData, ...job }) }));
+  parentPort.on('message', (job) => parentPort.postMessage({ job: job.id, games: job.to - job.from, totals: playGames({ ...workerData, ...job }) }));
 } else {
   const HELP = `Usage: node modules/nomination-whist/sim/tourney.js [options]
 
@@ -56,20 +56,37 @@ if (!isMainThread) {
   const started = Date.now();
   let next = 0;
   let done = 0;
+  let gamesDone = 0;
+  let lastDraw = 0;
+  /** A status bar on stderr, redrawn at most four times a second (one line per ten seconds when not on a terminal). */
+  const showProgress = (final = false) => {
+    const now = Date.now();
+    if (!final && now - lastDraw < (process.stderr.isTTY ? 250 : 10000)) return;
+    lastDraw = now;
+    const fraction = gamesDone / games;
+    const rate = gamesDone / ((now - started) / 1000);
+    const eta = rate > 0 ? Math.round((games - gamesDone) / rate) : 0;
+    const clock = (secs) => `${Math.floor(secs / 3600)}:${String(Math.floor(secs / 60) % 60).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+    const filled = Math.round(fraction * 30);
+    const line = `[${'#'.repeat(filled)}${'-'.repeat(30 - filled)}] ${(100 * fraction).toFixed(1).padStart(5)}%  ${Math.round(gamesDone).toLocaleString('en-GB')}/${games.toLocaleString('en-GB')} games  ${Math.round(rate).toLocaleString('en-GB')}/s  ETA ${clock(eta)}`;
+    process.stderr.write(process.stderr.isTTY ? `\r${line}\x1b[K${final ? '\n' : ''}` : `${line}\n`);
+  };
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs.length) }, () => new Worker(fileURLToPath(import.meta.url), { workerData: base }));
   const give = (worker) => (next < jobs.length ? worker.postMessage(jobs[next++]) : worker.terminate());
   await new Promise((resolve) => {
     for (const worker of workers) {
-      worker.on('message', ({ totals: part }) => {
+      worker.on('message', ({ totals: part, games: played }) => {
         for (const [name, t] of Object.entries(part)) for (const key of Object.keys(t)) totals[name][key] += t[key];
+        gamesDone += played;
+        showProgress();
         if (++done === jobs.length) resolve();
         else give(worker);
-        if (done % 20 === 0) process.stderr.write(`\r${done * chunk} games, ${Math.round((done * chunk) / ((Date.now() - started) / 1000))}/s   `);
       });
       give(worker);
     }
   });
   workers.forEach((w) => w.terminate());
+  showProgress(true);
   const seconds = (Date.now() - started) / 1000;
   console.log(`\n${games} games, ${names.length} players (${names.join(', ')}), ${seconds.toFixed(1)}s, ${Math.round(games / seconds)} games/s`);
   const rows = Object.entries(totals).map(([name, t]) => ({
