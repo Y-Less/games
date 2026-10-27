@@ -110,6 +110,7 @@ const statusLines = computed(() => {
   const lines = [];
   if (hint.value) lines.push({ text: hint.value, tone: 'warn' });
   if (props.state.phase === 'nominating') {
+    if (myTurn.value && props.state.suggestion != null) lines.push({ text: `Suggested nomination for your hand: ${props.state.suggestion} (highlighted).`, tone: 'muted' });
     if (myTurn.value && imDealer.value && props.state.forbidden !== null) {
       lines.push(`You are the dealer, so you cannot nominate ${props.state.forbidden}: the nominations would total ${round.value.cards}, the number of tricks, and somebody has to miss.`);
     } else if (myTurn.value && imDealer.value) {
@@ -188,9 +189,9 @@ const roomFor = (area) => {
                 v-for="n in options"
                 :key="n"
                 class="number"
-                :class="{ forbidden: n === state.forbidden && nominating }"
+                :class="{ forbidden: n === state.forbidden && nominating, suggested: n === state.suggestion && nominating }"
                 :disabled="!nominating || n === state.forbidden"
-                :title="n === state.forbidden && nominating ? 'You cannot nominate this as the dealer' : ''"
+                :title="n === state.forbidden && nominating ? 'You cannot nominate this as the dealer' : n === state.suggestion && nominating ? 'Suggested for your hand' : ''"
                 @click="send('nominate', { number: n })"
               >{{ n }}</button>
             </div>
@@ -377,6 +378,12 @@ const roomFor = (area) => {
 .number.forbidden {
   text-decoration: line-through;
   border-style: dashed;
+}
+.number.suggested {
+  /* Drawn with the border and a ring, never the size, so the row does not move when the suggestion appears. */
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber);
+  font-weight: 700;
 }
 .zone-wide {
   grid-column: 1 / -1;

@@ -7,6 +7,7 @@
 import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
+import { lut } from './ai/lut.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
 export const MIN_SEATS = 3;
@@ -489,7 +490,7 @@ export function pendingAction(room) {
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /** What an AI may know when it nominates: its own hand and the public table, never anybody else's cards. */
-function nominateContext(room, seat, rng) {
+export function nominateContext(room, seat, rng) {
   return {
     hand: room.hands[seat],
     trump: trumpThisRound(room),
@@ -506,7 +507,7 @@ function nominateContext(room, seat, rng) {
 }
 
 /** The same for a card to play: the trick so far, what has been played, and everybody's nominations and tricks. */
-function playContext(room, seat, rng) {
+export function playContext(room, seat, rng) {
   return {
     hand: room.hands[seat],
     legal: legalCards(room, seat),
@@ -532,6 +533,17 @@ export function botPlay(room, seat, rng = Math.random) {
   const context = playContext(room, seat, rng);
   const card = aiOf(room, seat).play(context);
   return context.legal.includes(card) ? card : AIS[0].play(context);
+}
+
+/**
+ * The nomination the bidding table suggests to the person whose turn it is to nominate: the allowed number (so never the
+ * dealer's forbidden one) with the best expected score for their own hand. Null at any other time, so nobody is told it early.
+ */
+export function suggestedNomination(room, seat) {
+  if (room.phase !== 'nominating' || room.turn !== seat) return null;
+  const context = nominateContext(room, seat, () => 0.5);
+  const number = lut.nominate(context);
+  return context.allowed.includes(number) ? number : null;
 }
 
 /** The number a computer player would nominate: always an allowed one. */
@@ -621,6 +633,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.lastTrick = room.lastTrick;
     view.turn = room.turn;
     view.forbidden = forbiddenNow(room);
+    view.suggestion = suggestedNomination(room, me);
     const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
     view.legal = canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
   }
