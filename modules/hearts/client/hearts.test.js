@@ -83,7 +83,7 @@ describe('Hearts table in the standard frame', () => {
     expect(status).toMatch(/Choose 3 cards to pass to the left/);
     const felt = w.find('.felt').text();
     expect(felt).not.toMatch(/Choose|Hand \d|Trick|Play to|Passing|Hearts (are|not)|Your turn|Waiting/);
-    expect(felt).not.toContain('Hazel'); // names and scores are on the score bar, not repeated on the table
+    expect(felt).toContain('Hazel'); // each opponent's name sits by their cards
     expect(w.findAll('.opp [aria-label="13 cards"]')).toHaveLength(3);
   });
 

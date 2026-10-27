@@ -203,16 +203,17 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
             <template #default><PlayingCard :card="null" size="sm" /></template>
           </CardFan>
           <div class="label">
+            <strong class="who">{{ seatAt(rel).name }}</strong>
             <span class="tag">{{ oppNote(rel) }}</span>
           </div>
         </div>
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="md" :max="13">
+        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13">
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
-              <PlayingCard :card="card" size="md" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
+              <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
             </div>
           </template>
         </CardFan>
@@ -294,9 +295,16 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
   height: 2.6rem;
   line-height: 1.3;
 }
+.who {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.05rem;
+}
 .tag {
   min-height: 1.1rem;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 .trick {
@@ -310,8 +318,8 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 .my-fan {
   position: absolute;
   left: 50%;
-  bottom: 0;
-  margin-left: -15.4rem;
+  bottom: 0.8rem;
+  margin-left: -20.3rem;
   transform-origin: 50% 100%;
   transform: scale(var(--s));
 }
