@@ -40,7 +40,8 @@ const hint = computed(() => (round.value === 2 && s.value.hints.second ? s.value
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
 const reveal = computed(() => phase.value === 'reveal');
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
-const canGuess = computed(() => guessing.value && !isHinter.value && !mine.value?.guessed);
+const hintGiven = computed(() => round.value === 2 || Boolean(s.value.hints.first)); // nobody guesses until the first hint is in
+const canGuess = computed(() => guessing.value && !isHinter.value && !mine.value?.guessed && hintGiven.value);
 const standings = computed(() => [...s.value.players].sort((a, b) => b.score - a.score));
 const winners = computed(() => standings.value.filter((p) => p.winner).map((p) => p.name));
 
@@ -72,7 +73,8 @@ const headline = computed(() => {
   if (phase.value === 'abandoned') return 'The game was abandoned.';
   if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
   if (phase.value === 'reveal') return `The tint was ${s.value.tint}. ${s.value.result?.hinterName ?? hinterName.value} scores ${s.value.result?.hinterPoints ?? 0} for the hints.`;
-  if (isHinter.value) return 'Your turn to hint: describe your tint without naming the square.';
+  if (isHinter.value) return hintGiven.value ? 'Your turn to hint: describe your tint without naming the square.' : 'Your turn to hint: type a first hint describing your tint (without naming the square). Nobody can guess until you do.';
+  if (!hintGiven.value) return `Waiting for ${hinterName.value}'s first hint.`;
   if (mine.value?.guessed) return `Guess locked in. Waiting for the others (${guessedCount.value} of ${guessers.value.length}).`;
   return round.value === 1 ? 'Your turn: listen to the hint and guess the tint.' : 'Here is a second hint. Where would you guess now?';
 });
@@ -188,8 +190,8 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
 
           <div class="block action">
             <form v-if="isHinter && guessing" class="hint row" @submit.prevent="saveHint">
-              <input v-model="hintText" maxlength="80" :placeholder="round === 1 ? 'Optional: type your hint' : 'Optional: a second hint'" aria-label="Hint" @input="hintSaved = false" />
-              <button type="submit">{{ hintSaved ? 'Sent' : 'Send hint' }}</button>
+              <input v-model="hintText" maxlength="80" :placeholder="round === 1 ? 'Type your first hint' : 'Optional: a second hint'" aria-label="Hint" @input="hintSaved = false" />
+              <button type="submit" :disabled="round === 1 && !hintText.trim()">{{ hintSaved ? 'Sent' : 'Send hint' }}</button>
             </form>
             <button v-else-if="canGuess" class="primary wide" :disabled="!picked" @click="lockIn">Lock in guess</button>
           </div>

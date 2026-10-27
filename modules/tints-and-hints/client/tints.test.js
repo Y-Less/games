@@ -161,7 +161,7 @@ describe('Tints and Hints screen', () => {
   });
 
   it('lets a guesser pick a square and lock it in, and keeps the controls in the same blocks for the hinter', async () => {
-    const { wrapper, socket } = await mountGame(view());
+    const { wrapper, socket } = await mountGame(view({ hints: { first: 'a warm evening', second: '' } }));
     const lock = button(wrapper, 'Lock in guess');
     expect(lock.attributes('disabled')).toBeDefined();
     await wrapper.findAll('.board button.cell')[40].trigger('click');
@@ -171,12 +171,42 @@ describe('Tints and Hints screen', () => {
     expect(socket.emit).toHaveBeenCalledWith('guess', { cell: expect.stringMatching(/^[A-Z]{1,2}[0-9]{1,2}$/) }, expect.any(Function));
     expect(wrapper.findAll('.side .block')).toHaveLength(3);
 
-    socket.handlers.state(asHinter());
+    socket.handlers.state(asHinter({ hints: { first: 'a warm evening', second: '' } }));
     await flushPromises();
     expect(wrapper.findAll('.side .block')).toHaveLength(3);
     expect(wrapper.find('form.hint input').exists()).toBe(true);
     expect(button(wrapper, 'Continue to the second round').attributes('disabled')).toBeDefined(); // nobody has guessed yet
     expect(wrapper.find('.swatch').text()).toBe('J6');
+    wrapper.unmount();
+  });
+
+  it('keeps the guess board shut until the first hint is given, and says who is awaited', async () => {
+    const { wrapper, socket } = await mountGame(view());
+    expect(wrapper.find('.box.status').text()).toContain("Waiting for Bob's first hint.");
+    expect(wrapper.findAll('.board button.cell').every((c) => c.attributes('disabled') !== undefined)).toBe(true);
+    expect(button(wrapper, 'Lock in guess')).toBeUndefined();
+    socket.handlers.state(view({ hints: { first: 'a warm evening', second: '' } }));
+    await flushPromises();
+    expect(wrapper.find('.box.status').text()).not.toContain('first hint');
+    expect(wrapper.findAll('.board button.cell').every((c) => c.attributes('disabled') === undefined)).toBe(true);
+    expect(button(wrapper, 'Lock in guess')).toBeDefined();
+    wrapper.unmount();
+  });
+
+  it('disables the hinter Send hint button while the first hint is empty, but not the second', async () => {
+    const { wrapper, socket } = await mountGame(asHinter());
+    const send = () => button(wrapper, 'Send hint');
+    expect(send().attributes('disabled')).toBeDefined();
+    await wrapper.find('form.hint input').setValue('   ');
+    expect(send().attributes('disabled')).toBeDefined();
+    await wrapper.find('form.hint input').setValue('a warm evening');
+    expect(send().attributes('disabled')).toBeUndefined();
+    socket.emit.mockClear();
+    await wrapper.find('form.hint').trigger('submit');
+    expect(socket.emit).toHaveBeenCalledWith('hint', { text: 'a warm evening' }, expect.any(Function));
+    socket.handlers.state(asHinter({ phase: 'guessing2', hints: { first: 'a warm evening', second: '' } }));
+    await flushPromises();
+    expect(send().attributes('disabled')).toBeUndefined();
     wrapper.unmount();
   });
 

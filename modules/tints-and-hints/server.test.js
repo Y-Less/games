@@ -270,7 +270,8 @@ test('rooms survive a restart of the site, and the game can be finished afterwar
   const hinterIndex = ann.state.tint ? 0 : 1;
   const tint = [ann, bob][hinterIndex].state.tint;
   const guesser = [ann, bob][1 - hinterIndex];
-  await guesser.send('guess', { cell: tint });
+  assert.ok((await [ann, bob][hinterIndex].send('hint', { text: 'a warm evening' })).ok);
+  assert.ok((await guesser.send('guess', { cell: tint })).ok);
   await first.close();
   assert.ok(fs.existsSync(path.join(dataDir, 'modules', ID, 'rooms.json')));
 
@@ -338,6 +339,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   const hinter = both.find((p) => p.state.tint);
   const guesser = both.find((p) => p !== hinter);
   const tint = hinter.state.tint;
+  assert.ok((await hinter.send('hint', { text: 'a warm evening' })).ok);
   await guesser.send('guess', { cell: tint });
   await hinter.send('advance');
   await guesser.send('guess', { cell: farFrom(tint) });
@@ -404,6 +406,7 @@ test('at the reveal, someone who is away (never closes the scores) does not hold
   for (const p of both) await p.until((s) => s.phase === 'guessing1');
   const hinter = both.find((p) => p.state.tint);
   const guesser = both.find((p) => p !== hinter);
+  assert.ok((await hinter.send('hint', { text: 'warm' })).ok);
   await guesser.send('guess', { cell: 'A1' });
   await hinter.send('advance');
   await guesser.send('guess', { cell: 'A1' });

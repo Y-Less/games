@@ -22,6 +22,8 @@ function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
 
 /** Every person closes the scores pop-up at the reveal. */
 const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id));
+/** The hinter gives the (mandatory) first hint, so guessing can begin. */
+const hint = (room, text = 'warm') => assert.ok(game.setHint(room, room.hinter, text).ok);
 const score = (room, id) => room.players.find((p) => p.id === id).score;
 
 test('the grid has 52 columns and 24 rows, and close means within one square', () => {
@@ -32,11 +34,15 @@ test('the grid has 52 columns and 24 rows, and close means within one square', (
   assert.deepEqual(parseCell('AC14'), { col: 28, row: 13 });
   assert.ok(isCell('A1') && isCell('AZ24'));
   for (const bad of ['BA1', 'A', 'A25', 'A0', 'a1', 'AA', 'A01', 'A1 ', '1A', '', null, 12, ['A1']]) assert.equal(isCell(bad), false, String(bad));
-  assert.equal(cellColour('A1'), 'hsl(0deg 12.5% 20%)', 'the darkest row');
-  assert.equal(cellColour('AZ24'), 'hsl(353.08deg 100% 95%)', 'the palest row, on the last hue');
-  assert.equal(cellColour('B1').startsWith('hsl(6.92deg'), true, 'columns are 360 / 52 degrees apart');
-  const lightness = ROWS.map((r) => Number(/ (\d+(?:\.\d+)?)%\)$/.exec(cellColour('A' + r))[1]));
-  assert.ok(lightness.every((l, i) => i === 0 || l >= lightness[i - 1]), 'no row is darker than the one above');
+  // Colours are evenly spread in OKLCH: hue along the columns, lightness down the rows.
+  const rgb = (cell) => /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/.exec(cellColour(cell)).slice(1).map((h) => parseInt(h, 16));
+  for (const c of ['A1', 'M12', 'AZ24']) assert.match(cellColour(c), /^#[0-9a-f]{6}$/, c);
+  const brightness = (cell) => { const [r, g, b] = rgb(cell).map((v) => (v / 255) ** 2.2); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  for (const c of COLS) for (let r = 1; r < ROWS.length; r++) assert.ok(brightness(c + (r + 1)) > brightness(c + r) - 0.004, `${c}${r + 1} is no darker than ${c}${r}`);
+  assert.ok(brightness('M1') < 0.03 && brightness('M24') > 0.8, 'dark at the top, pale at the bottom');
+  const spread = new Set(COLS.map((c) => cellColour(c + '12')));
+  assert.equal(spread.size, COLS.length, 'every column in a row is a different colour');
+  assert.notEqual(cellColour('A12'), cellColour('AZ12'));
 
   for (const near of ['M4', 'L3', 'L4', 'L5', 'M3', 'M5', 'N3', 'N4', 'N5']) assert.ok(isClose(near, 'M4'), near);
   for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6', 'L2']) assert.equal(isClose(far, 'M4'), false, far);
@@ -83,6 +89,7 @@ test('a game holds at most eight players', () => {
 test('guessing: the hinter cannot guess, each person guesses once a round, and squares are checked', () => {
   const room = started();
   assert.equal(room.hinter, 1);
+  hint(room);
   assert.equal(game.guess(room, 1, 'A1').ok, false, 'the hinter');
   assert.equal(game.guess(room, 9, 'A1').ok, false, 'a stranger');
   assert.equal(game.guess(room, 2, 'BA9').ok, false, 'not on the grid');
@@ -99,6 +106,7 @@ test('guessing: the hinter cannot guess, each person guesses once a round, and s
 
 test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per person who found it', () => {
   const room = started([1, 2, 3, 4]);
+  hint(room);
   game.guess(room, 2, 'M4'); // exact first: 5
   game.guess(room, 3, 'N5'); // close first: 2
   game.guess(room, 4, 'A1'); // miss
@@ -126,6 +134,7 @@ test('turns rotate in joining order until everyone has had the set number of tur
   const hinters = [];
   for (let turn = 0; turn < 6; turn++) {
     hinters.push(room.hinter);
+    hint(room);
     for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
     game.advance(room, room.hinter);
     for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
@@ -150,6 +159,7 @@ test('turns rotate in joining order until everyone has had the set number of tur
 test('the reveal waits for every person to be ready; computer players always are; leavers and a forced move do not block it', () => {
   const room = started([1, 2, 3, 4]);
   for (let round = 0; round < 2; round++) {
+    if (round === 0) hint(room);
     for (const p of room.players.filter((q) => q.id !== 1)) game.guess(room, p.id, 'A1');
     game.advance(room, 1);
   }
@@ -168,6 +178,7 @@ test('the reveal waits for every person to be ready; computer players always are
   assert.equal(game.ready(room, 2).ok, false, 'not at the reveal any more');
   assert.equal(game.forceNext(room).ok, false);
   for (let round = 0; round < 2; round++) {
+    if (round === 0) hint(room);
     for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
     game.advance(room, room.hinter);
   }
@@ -209,6 +220,7 @@ test('leaving: in the lobby, the host passes on; the last one out empties the ro
 
 test('leaving mid-game: the hinter leaving skips the turn, and too few players abandons the game', () => {
   const room = started([1, 2, 3, 4]);
+  hint(room);
   game.guess(room, 2, 'M4');
   const left = game.removePlayer(room, 1);
   assert.equal(left.abandoned, false);
@@ -219,6 +231,7 @@ test('leaving mid-game: the hinter leaving skips the turn, and too few players a
   assert.equal(room.turn, 1, 'the cancelled turn still counts');
 
   game.removePlayer(room, 4); // a guesser: no one is waiting for them now
+  hint(room);
   game.guess(room, 3, 'A1');
   assert.ok(game.advance(room, 2).ok);
   assert.equal(room.players.length, 2);
@@ -245,6 +258,7 @@ test('a game that runs out of turns because the hinter left finishes', () => {
 
 test('views: only the hinter sees the tint until the reveal, and same-round guesses are hidden from other guessers', () => {
   const room = started([1, 2, 3]);
+  hint(room);
   game.guess(room, 2, 'B1');
   game.guess(room, 3, 'C2');
   const view = (id) => game.viewFor(room, id, { nameOf: (n) => `player ${n}` });
@@ -285,6 +299,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   const sums = (v) => Object.fromEntries(v.scoreboard.players.map((p) => [p.id, v.scoreboard.rounds.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0)]));
 
   assert.deepEqual(view(2).scoreboard.rounds, []);
+  hint(room);
   game.guess(room, 2, 'M4');
   game.guess(room, 3, 'N5');
   game.advance(room, 1, Math.random, nameOf);
@@ -306,6 +321,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   closeReveal(room);
   assert.equal(view(2).scoreboard.rounds.length, 1, 'the new turn adds nothing until it is revealed');
   assert.equal(JSON.stringify(view(2).scoreboard).includes(room.tint), false);
+  hint(room);
   game.guess(room, 1, 'A1');
   game.guess(room, 3, 'A1');
   game.advance(room, 2);
@@ -319,6 +335,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
 
 test('history: a turn skipped because its hinter left adds nothing, and totals still match', () => {
   const room = started([1, 2, 3, 4], { turnsEach: 2 });
+  hint(room);
   game.guess(room, 2, 'M4');
   game.guess(room, 3, 'M4');
   game.guess(room, 4, 'M4');
@@ -350,4 +367,55 @@ test('migrate: an old room without a history gets one, with the earlier points a
   const legacy = started([1, 2]);
   delete legacy.history;
   assert.deepEqual(game.viewFor(legacy, 1).scoreboard.rounds, [], 'a view of an unmigrated room still works');
+});
+
+test('the first hint is mandatory: an empty or blank one is refused and changes nothing', () => {
+  const room = started();
+  for (const bad of ['', '   ', '\n\t ', null, undefined]) {
+    assert.equal(game.setHint(room, 1, bad).ok, false, JSON.stringify(bad));
+    assert.equal(room.hints.first, '');
+    assert.equal(room.phase, 'guessing1');
+  }
+  assert.deepEqual(room.first, []);
+  assert.ok(game.setHint(room, 1, 'warm').ok);
+  assert.equal(game.setHint(room, 1, '  ').ok, false, 'blanking it again is refused too');
+  assert.equal(room.hints.first, 'warm', 'and the hint given stays');
+});
+
+test('nobody can guess before the first hint, and everyone can once it is given', () => {
+  const room = started([1, 2, 3]);
+  for (const id of [1, 2, 3, 9]) assert.equal(game.guess(room, id, 'A1').ok, false, 'player ' + id);
+  assert.equal(room.first.length, 0);
+  assert.equal(game.advance(room, 1).ok, false);
+  hint(room);
+  assert.ok(game.guess(room, 2, 'A1').ok);
+  assert.ok(game.guess(room, 3, 'B1').ok);
+  assert.equal(game.guess(room, 1, 'C1').ok, false, 'the hinter still cannot');
+  assert.ok(game.advance(room, 1).ok);
+});
+
+test('the second hint stays optional', () => {
+  const room = started();
+  hint(room);
+  for (const id of [2, 3]) game.guess(room, id, 'A1');
+  assert.ok(game.advance(room, 1).ok);
+  assert.equal(room.phase, 'guessing2');
+  assert.ok(game.setHint(room, 1, '').ok, 'an empty second hint is allowed');
+  assert.equal(room.hints.second, '');
+  assert.equal(room.hints.first, 'warm');
+  assert.ok(game.guess(room, 2, 'A1').ok);
+  assert.ok(game.guess(room, 3, 'A1').ok);
+  assert.ok(game.advance(room, 1).ok);
+  assert.equal(room.phase, 'reveal');
+});
+
+test('a computer guesser waits for a human hinter to give the first hint', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  assert.ok(game.addPlayer(room, 2).ok);
+  assert.ok(game.addBot(room, 1).ok);
+  assert.ok(game.start(room, 1, sequence(0, 12.5 / 52, 3.5 / 24)).ok);
+  assert.equal(room.hinter, 1);
+  assert.equal(game.pendingBotAction(room), null, 'no guess before the hint');
+  hint(room);
+  assert.equal(game.pendingBotAction(room)?.type, 'guess', 'then it may guess');
 });

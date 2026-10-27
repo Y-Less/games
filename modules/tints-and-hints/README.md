@@ -8,8 +8,8 @@ A port of the author's standalone "Tints and Hints" (an Express server with one 
 module.json        menu entry, player limits and the statistics this game reports
 rules.md           the player-facing rules (shown by the Rules button)
 grid.js            the 52 x 24 colour grid: square names, colours, "close" test (shared by server and client)
-                   (names: columns A..Z, AA..AZ, rows 1..24; columns are equal steps round the wheel and the rows are spread evenly over the old levels,
-                   are linear blends in HSL; rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 5`)
+                   (names: columns A..Z, AA..AZ, rows 1..24; hue steps evenly along the columns and lightness down the rows, both worked out in OKLCH so the steps look equal to the eye;
+                   rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 5`)
 game.js            the rules as pure functions over a plain room object (no sockets, no files)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, personalised views, statistics
 ai/                the computer players (registry, the random AI, README)

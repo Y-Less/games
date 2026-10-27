@@ -35,6 +35,7 @@ test('two actions in the same tick: only one wins (start, guess, advance), from 
 
   // Two guessers guess at once, and the same guesser from two sockets at once.
   const hinter = g.hinter();
+  assert.equal((await hinter.call('hint', { text: 'warm' })).ok, true);
   const [first, second] = people.filter((p) => p !== hinter);
   const firstTab = await first.twin();
   await firstTab.call('resume', {});
@@ -151,6 +152,7 @@ test('disconnecting and reconnecting in every phase keeps your place, your guess
     await bounce(`turn ${turn + 1} guessing1`);
     for (let round = 0; round < 2; round++) {
       const h = g.hinter();
+      if (round === 0) assert.equal((await h.call('hint', { text: 'warm' })).ok, true);
       for (const p of people.filter((x) => x !== h)) await p.call('guess', { cell: 'B2' });
       assert.equal((await h.call('advance', {})).ok, true);
       await allIn(people, round === 0 ? 'guessing2' : 'reveal');

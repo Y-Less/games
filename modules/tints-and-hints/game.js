@@ -158,7 +158,9 @@ export function start(room, id, rng = Math.random) {
 
 export function setHint(room, id, text) {
   if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('You cannot give a hint now.');
-  room.hints[room.phase === 'guessing1' ? 'first' : 'second'] = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
+  if (room.phase === 'guessing1' && !clean) return fail('The first hint is needed: type one before anyone guesses.');
+  room.hints[room.phase === 'guessing1' ? 'first' : 'second'] = clean;
   return ok();
 }
 
@@ -166,6 +168,7 @@ export function guess(room, id, cell) {
   if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('It is not time to guess.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (id === room.hinter) return fail('You are giving the hint, so you cannot guess.');
+  if (room.phase === 'guessing1' && !room.hints.first) return fail('Wait for the first hint.');
   if (!isCell(cell)) return fail('That is not a square on the grid.');
   const list = room.phase === 'guessing1' ? room.first : room.second;
   if (list.some((g) => g.id === id)) return fail('You have already guessed. Wait for the others.');
@@ -418,7 +421,7 @@ export function pendingBotAction(room) {
   const key = room.phase === 'guessing1' ? 'first' : 'second';
   if (hinter?.bot && !room.hints[key]) return { type: 'hint', id: hinter.id };
   const list = room[key];
-  const guesser = guessers(room).find((p) => p.bot && !list.some((g) => g.id === p.id));
+  const guesser = key === 'first' && !room.hints.first ? null : guessers(room).find((p) => p.bot && !list.some((g) => g.id === p.id)); // nobody guesses before the first hint
   if (guesser) return { type: 'guess', id: guesser.id };
   if (hinter?.bot && allGuessed(room)) return { type: 'advance', id: hinter.id };
   return null;

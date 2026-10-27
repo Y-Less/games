@@ -17,6 +17,7 @@ function started(n = 3, turnsEach = 2) {
   return room;
 }
 const closeRound = (room) => {
+  if (room.phase === 'guessing1' && !room.hints.first) assert.equal(game.setHint(room, room.hinter, 'warm').ok, true); // the first hint is mandatory
   for (const p of room.players) if (p.id !== room.hinter) game.guess(room, p.id, 'A1');
   return game.advance(room, room.hinter, first);
 };
@@ -41,12 +42,15 @@ test('hints: whitespace is collapsed, the second hint is separate, and an object
   const room = started();
   assert.equal(game.setHint(room, room.hinter, '  very \n  warm\t red  ').ok, true);
   assert.equal(room.hints.first, 'very warm red');
-  assert.equal(game.setHint(room, room.hinter, undefined).ok, true);
-  assert.equal(room.hints.first, '');
+  assert.equal(game.setHint(room, room.hinter, undefined).ok, false, 'nothing is not a first hint');
+  assert.equal(room.hints.first, 'very warm red');
   closeRound(room);
   assert.equal(room.phase, 'guessing2');
   game.setHint(room, room.hinter, 'second');
-  assert.deepEqual(room.hints, { first: '', second: 'second' });
+  assert.deepEqual(room.hints, { first: 'very warm red', second: 'second' });
+  assert.equal(game.setHint(room, room.hinter, undefined).ok, true, 'the second hint can be left empty');
+  assert.equal(room.hints.second, '');
+  game.setHint(room, room.hinter, 'second');
   assert.equal(game.setHint(room, room.hinter, 'x'.repeat(500)).ok, true);
   assert.equal(room.hints.second.length, game.HINT_LENGTH);
   const guesser = room.players.find((p) => p.id !== room.hinter).id;
@@ -120,6 +124,7 @@ test('sockets: the host can send away an absent person after the game ended; the
     const here = key(ann);
     const hinter = both.find((p) => p.id === ann.state.hinter);
     const guesser = both.find((p) => p !== hinter);
+    if (ann.state.phase === 'guessing1') assert.equal((await hinter.call('hint', { text: 'warm' })).ok, true);
     if (ann.state.phase !== 'reveal') assert.equal((await guesser.call('guess', { cell: 'A1' })).ok, true);
     if (ann.state.phase === 'reveal') for (const p of both) assert.equal((await p.call('ready', {})).ok, true);
     else assert.equal((await hinter.call('advance', {})).ok, true);

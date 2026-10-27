@@ -4,32 +4,66 @@
 // (1) through vivid (about 13 to 15) to pale (24). Names are a run of letters followed by digits, so they are never
 // ambiguous.
 //
-// The columns are spread evenly round the colour wheel (360 / 52 degrees apart). The rows run through the old 10-step
-// scale (and the darker steps above it) and are spread evenly over 24 rows: the old grid's levels are no longer
-// exactly on rows, they are blended between neighbours.
+// Colours are worked out in OKLCH, a space built so that equal steps look equal to the eye (its lightness is already
+// the cube root of linear light, so it is spread by how bright things look, not by the sRGB gamma of about 2.2).
+//   - Columns go round the hue in equal steps (360 / 52 degrees), starting at a red.
+//   - Rows rise in lightness in equal steps, from dark (0.28) to pale (0.93). The chroma is a fraction of the most that
+//     sRGB can show at that lightness and hue (eased along the row, see below): greyish at the top, rising to the fullest colour by about row 13,
+//     and then limited only by the gamut, which is what makes the paler rows pastel.
+// Every colour is a plain sRGB hex string, so it is the same in every browser.
 export const COLS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((c) => 'A' + c)];
 export const ROWS = Array.from({ length: 24 }, (_, i) => String(i + 1));
 export const CELL_COUNT = COLS.length * ROWS.length;
 
-// Saturation and lightness of the old rows. Between two of them the step is the average, in HSL (the hue stays put along
-// a row, so linear steps in saturation and lightness are a smooth blend). Three steps of 5 in lightness at a low
-// saturation come before them (the darkest, 15, is left out), and the last step is 95. The 23 steps are then spread
-// evenly over the 24 rows.
-const OLD_LEVELS = [[25, 30], [50, 30], [75, 30], [100, 30], [100, 40], [100, 50], [100, 60], [100, 70], [100, 80], [100, 90], [100, 100]];
-const STEPS = [
-  [12.5, 20], [12.5, 25], [12.5, 30],
-  ...Array.from({ length: 20 }, (_, j) => {
-    const [s0, l0] = OLD_LEVELS[j >> 1];
-    if (j % 2 === 0) return [s0, l0];
-    const [s1, l1] = OLD_LEVELS[(j >> 1) + 1];
-    return [(s0 + s1) / 2, (l0 + l1) / 2];
-  }),
-];
-const LEVELS = Array.from({ length: 24 }, (_, i) => {
-  const at = (i * (STEPS.length - 1)) / (ROWS.length - 1);
-  const lo = Math.min(STEPS.length - 2, Math.floor(at));
-  const f = at - lo;
-  return [0, 1].map((k) => Math.round((STEPS[lo][k] + (STEPS[lo + 1][k] - STEPS[lo][k]) * f) * 100) / 100);
+const HUE_START = 15; // degrees of OKLCH hue for column A (a red), so each 4-column block is centred on a named hue
+const L_DARK = 0.28;
+const L_PALE = 0.93;
+const CHROMA_FIRST = 0.25; // the top row's share of the full chroma
+const CHROMA_RISE = 1.5; // how fast it grows down the rows (in shares per whole grid)
+
+const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+/** The linear sRGB of an OKLCH colour (components outside 0 to 1 are out of gamut). */
+function oklchToLinear(L, C, hue) {
+  const a = C * Math.cos((hue * Math.PI) / 180);
+  const b = C * Math.sin((hue * Math.PI) / 180);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+}
+const inGamut = (rgb) => rgb.every((v) => v >= -1e-6 && v <= 1 + 1e-6);
+/** The most chroma sRGB can show at this lightness and hue. */
+function maxChroma(L, hue) {
+  let lo = 0;
+  let hi = 0.4;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (inGamut(oklchToLinear(L, mid, hue))) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+function hexOf(L, chroma, hue) {
+  const rgb = oklchToLinear(L, chroma, hue);
+  return '#' + rgb.map((v) => Math.round(Math.min(1, Math.max(0, encode(Math.max(0, v)))) * 255).toString(16).padStart(2, '0')).join('');
+}
+// The most chroma sRGB can show peaks sharply at the corners of its gamut (the primaries and secondaries), which would
+// show up as creases across the rows. So along each row the limit is eased: the lowest limit within SMOOTH columns either
+// way, then averaged over the same width. That can only come out at or under the real limit, so every colour stays
+// inside sRGB, and it changes smoothly from one hue to the next.
+const SMOOTH = 2;
+const ringAt = (list, i) => list[((i % list.length) + list.length) % list.length];
+function easedLimits(limits) {
+  const low = limits.map((_, i) => Math.min(...Array.from({ length: 2 * SMOOTH + 1 }, (__, k) => ringAt(limits, i + k - SMOOTH))));
+  return low.map((_, i) => Array.from({ length: 2 * SMOOTH + 1 }, (__, k) => ringAt(low, i + k - SMOOTH)).reduce((x, y) => x + y, 0) / (2 * SMOOTH + 1));
+}
+const hueOf = (col) => (HUE_START + (col * 360) / COLS.length) % 360;
+const COLOURS = ROWS.map((_, row) => {
+  const t = row / (ROWS.length - 1);
+  const L = L_DARK + (L_PALE - L_DARK) * t;
+  const share = Math.min(1, CHROMA_FIRST + CHROMA_RISE * t);
+  const limits = easedLimits(COLS.map((__, col) => maxChroma(L, hueOf(col))));
+  return COLS.map((__, col) => hexOf(L, share * limits[col], hueOf(col)));
 });
 
 const NAME = /^([A-Z]{1,2})([1-9]\d?)$/;
@@ -48,8 +82,7 @@ export const isCell = (cell) => parseCell(cell) !== null;
 
 export function cellColour(cell) {
   const { col, row } = parseCell(cell);
-  const [saturation, lightness] = LEVELS[row];
-  return `hsl(${Math.round((col * 36000) / COLS.length) / 100}deg ${saturation}% ${lightness}%)`;
+  return COLOURS[row][col];
 }
 
 /** Within one square of the target, diagonals included. The hue does not wrap round from the last column to the first. */

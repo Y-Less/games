@@ -14,7 +14,7 @@ The grid has 52 columns (A to Z, then AA to AZ, which run round the colour wheel
 
 ## A turn
 
-1. The **hinter** sees the secret square and gives a first hint, out loud or in the hint box. Hints should describe the colour, not name the square.
+1. The **hinter** sees the secret square and gives a first hint in the hint box; it is required, and nobody can guess until it is sent. Hints should describe the colour, not name the square.
 2. Everyone else picks a square and locks it in. You only get one guess a round. Guesses stay hidden from the other guessers until the round is closed.
 3. When everyone has guessed, the hinter presses **Continue**. The first guesses are now visible to all, and the hinter gives a second hint to help.
 4. Everyone guesses again. This time you can see where people guessed the first time.

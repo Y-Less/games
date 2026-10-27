@@ -110,7 +110,13 @@ function playRandomGame(seed) {
     } else if (phase === 'guessing1' || phase === 'guessing2') {
       const list = phase === 'guessing1' ? room.first : room.second;
       const waiting = guessers.filter((p) => !list.some((g) => g.id === p.id));
-      if (rng() < 0.4 && room.hinter) {
+      if (phase === 'guessing1' && !room.hints.first) {
+        // The first hint is mandatory: nobody can guess until it is given, and a blank one is refused.
+        if (waiting.length) illegal('a guess before the first hint', () => game.guess(room, pick(rng, waiting).id, randomCell(rng)));
+        illegal('a blank first hint', () => game.setHint(room, room.hinter, rng() < 0.5 ? '' : '  	 '));
+        assert.equal(game.setHint(room, room.hinter, `first ${'z'.repeat(Math.floor(rng() * 20))}`).ok, true);
+        check('first hint');
+      } else if (rng() < 0.4 && room.hinter) {
         assert.equal(game.setHint(room, room.hinter, `  a   hint ${'z'.repeat(Math.floor(rng() * 120))} `, ).ok, true);
         check('hint');
       } else if (waiting.length) {
@@ -179,6 +185,7 @@ test('random games without leavers always finish with exactly turnsEach turns pe
         continue;
       }
       if (!hinters.length || (hinters.at(-1).turn !== room.turn)) hinters.push({ turn: room.turn, id: room.hinter });
+      if (room.phase === 'guessing1') assert.equal(game.setHint(room, room.hinter, 'warm').ok, true);
       for (const p of room.players) if (p.id !== room.hinter) game.guess(room, p.id, randomCell(rng));
       game.advance(room, room.hinter, rng);
       checkRoom(room, `seed ${seed}`);

@@ -66,6 +66,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
       for (const p of members) assert.equal((await p.call('ready', {})).ok, true);
       if (turn < 2) {
         await until(() => members.every((p) => p.state?.phase === 'guessing1'), 'the next turn');
+        assert.equal((await hinterOf().call('hint', { text: 'a warm sunset' })).ok, true);
         await guessAll();
         await advance();
         await until(() => members.every((p) => p.state?.phase === 'guessing2'), 'guessing2');
