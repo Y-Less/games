@@ -108,7 +108,7 @@ test(`Hearts at ${at}: the table, hand, bottom boxes and every piece keep one si
     await user.waitForSelector('.hand button.playing-card');
     await sleep(300);
     // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
-    const areas = ['.game-frame', '.score-bar', '.felt', '.felt .trick', '.felt .pos1', '.felt .pos2', '.felt .pos3', '.felt .my-fan', '.felt .confirm', '.box.log', '.box.status', '.box.log .game-log'];
+    const areas = ['.game-frame', '.score-bar', '.felt', '.felt .trick', '.felt .opp.left', '.felt .opp.top', '.felt .opp.right', '.felt .my-fan', '.felt .confirm', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     // The hand is a fan of overlapping, turned cards, so click a point of each wanted card that is really its own.
     let clicks = 0;

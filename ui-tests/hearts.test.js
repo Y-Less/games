@@ -167,7 +167,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     assert.ok(Math.abs(status.left - log.right - 12) <= 1, `the gutter between the boxes is 12px (got ${status.left - log.right})`);
     assert.ok(Math.abs(felt.top - bar.bottom - (log.top - felt.bottom)) <= 1, 'the same gap above and below the table');
     // The opponents sit on the table's edges, and nothing drawn on the table leaves it.
-    const parts = { top: await rect('.pos2'), left: await rect('.pos1'), right: await rect('.pos3'), trick: await rect('.felt .trick'), hand: await rect('.felt .my-fan') };
+    const parts = { top: await rect('.felt .opp.top'), left: await rect('.felt .opp.left'), right: await rect('.felt .opp.right'), trick: await rect('.felt .trick'), hand: await rect('.felt .my-fan') };
     assert.ok(Math.abs(parts.left.left - felt.left) <= 2, `the left opponent is on the left edge (${parts.left.left} vs ${felt.left})`);
     assert.ok(Math.abs(parts.right.right - felt.right) <= 2, `the right opponent is on the right edge (${parts.right.right} vs ${felt.right})`);
     assert.ok(Math.abs(parts.top.top - felt.top) <= 2, 'the top opponent is on the top edge');

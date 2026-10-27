@@ -26,7 +26,7 @@ const STEP = 4;
 const REACH = 6 * CARD;
 const LABEL = 2.6;
 const GAP = 0.8;
-const PAD = 0.4;
+const PAD = 0; // hands sit right on the edges of the table
 const rad = (deg) => (deg * Math.PI) / 180;
 const fan = computed(() => {
   const angle = ((props.max - 1) / 2) * STEP;
