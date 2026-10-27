@@ -7,7 +7,9 @@ A port of the author's standalone "Tints and Hints" (an Express server with one 
 ```
 module.json        menu entry, player limits and the statistics this game reports
 rules.md           the player-facing rules (shown by the Rules button)
-grid.js            the 24 x 10 colour grid: square names, colours, "close" test (shared by server and client)
+grid.js            the 48 x 20 colour grid: square names, colours, "close" test (shared by server and client)
+                   (names: columns A..Z, AA..AV, rows 1..20; every second column and row is exactly a square of the former 24 x 10 grid, the rest
+                   are linear blends in HSL; rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 2`)
 game.js            the rules as pure functions over a plain room object (no sockets, no files)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, personalised views, statistics
 ai/                the computer players (registry, the random AI, README)
@@ -21,7 +23,7 @@ server.test.js     end-to-end tests against the real site (whole game, abandonme
 
 - 2 to 8 players, one hinter per turn, in joining order, starting with a random player.
 - Round one: guessers each pick a square (hidden from one another); the hinter continues; round two: guess again, now seeing the first guesses; the hinter continues and the target is revealed.
-- Score: exact 5 / close 2 in round one, exact 4 / close 1 in round two; the hinter gets 3 for each player who found the exact square. Close means within one square, diagonals included, with no wrap-around from X to A.
+- Score: exact 5 / close 2 in round one, exact 4 / close 1 in round two; the hinter gets 3 for each player who found the exact square. Close means within one square, diagonals included, with no wrap-around from AV to A.
 - The original is endless; here a game lasts `turnsEach x players` turns (host's choice, 1 to 5, default 2).
 - Finished games are reported once: tied leaders all `win`, the rest `loss`, with placement, score and the extras `exactGuesses`, `closeGuesses` and `hintsGiven`. Abandoned games (fewer than two players left) are not recorded.
 

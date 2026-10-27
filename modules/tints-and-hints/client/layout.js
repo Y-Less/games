@@ -6,7 +6,7 @@ export const HEAD = 18; // the width of the row labels and the height of the col
 export const GAP = 1; // between squares
 
 /** The side of one square so that the whole grid (labels included) fits in `width` x `height`. */
-export function gridCell(width, height, { min = 14, max = 90 } = {}) {
+export function gridCell(width, height, { min = 6, max = 45 } = {}) {
   const across = (width - HEAD - GAP * COLS.length) / COLS.length;
   const down = (height - HEAD - GAP * ROWS.length) / ROWS.length;
   return Math.max(min, Math.min(max, Math.floor(Math.min(across, down))));
@@ -19,7 +19,7 @@ export const gridSize = (cell) => ({ width: HEAD + COLS.length * (cell + GAP), h
  * How many of the 12 frame columns the grid should take: the fewest (from `min` to `max`) that let it be as big as the
  * height allows, so the controls beside it get the rest. `area` is what GameFrame gives the main slot.
  */
-export function gridSpan(area, { min = 7, max = 9 } = {}) {
+export function gridSpan(area, { min = 7, max = 10 } = {}) {
   const wanted = gridSize(gridCell(Infinity, area.height, { max: 200 })).width;
   const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
   for (let span = min; span <= max; span++) if (unit * span + area.gap * (span - 1) >= wanted) return span;

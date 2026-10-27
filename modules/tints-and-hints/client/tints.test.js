@@ -80,14 +80,14 @@ describe('Tints and Hints layout sums', () => {
     expect(width).toBeLessThanOrEqual(900);
     const tall = gridCell(4000, 400);
     expect(gridSize(tall).height).toBeLessThanOrEqual(400);
-    expect(gridCell(10, 10)).toBe(14); // never below the least
+    expect(gridCell(10, 10)).toBe(6); // never below the least
   });
 
   it('takes the fewest columns that let the grid be as big as the height allows', () => {
     const area = { width: 1334, height: 420, gap: 12, columns: 12 };
     expect(gridSpan(area)).toBeGreaterThanOrEqual(7);
-    expect(gridSpan(area)).toBeLessThanOrEqual(9);
-    expect(gridSpan({ ...area, height: 1000 })).toBe(9);
+    expect(gridSpan(area)).toBeLessThanOrEqual(10);
+    expect(gridSpan({ ...area, height: 1000 })).toBe(10);
     expect(12 % barSpan(3)).toBe(0);
     expect(12 % barSpan(7)).toBe(0);
   });
@@ -106,7 +106,7 @@ describe('Tints and Hints move log', () => {
     const reveal = view({
       phase: 'reveal',
       tint: 'J6',
-      result: { tint: 'J6', hinterName: 'Bob', hinterPoints: 6, entries: [{ id: 1, name: 'Ann', round: 1, cell: 'J6', kind: 'exact', points: 5 }, { id: 3, name: 'Cy', round: 1, cell: 'A0', kind: 'miss', points: 0 }] },
+      result: { tint: 'J6', hinterName: 'Bob', hinterPoints: 6, entries: [{ id: 1, name: 'Ann', round: 1, cell: 'J6', kind: 'exact', points: 5 }, { id: 3, name: 'Cy', round: 1, cell: 'A1', kind: 'miss', points: 0 }] },
     });
     const lines = newEntries(second, reveal);
     expect(lines.at(-1)).toBe('The tint was J6. Bob scores 6 for the hints.'); // the newest is last, and the list shows newest first
@@ -145,7 +145,7 @@ describe('Tints and Hints screen', () => {
 
   it('draws the grid, slim bars for the others, and the standard boxes with the turn, round and hint in Status', async () => {
     const { wrapper } = await mountGame(view({ hints: { first: 'a warm evening', second: '' } }));
-    expect(wrapper.findAll('.board button.cell')).toHaveLength(240);
+    expect(wrapper.findAll('.board button.cell')).toHaveLength(960);
     expect(wrapper.findAll('ul[aria-label="Players"] li').map((li) => li.find('.who').text())).toEqual(['Bob', 'Cy']); // everyone but you
     expect(wrapper.find('ul[aria-label="Players"] li .hint-tag').text()).toBe('hinter');
     const status = wrapper.find('.box.status').text();
@@ -165,7 +165,7 @@ describe('Tints and Hints screen', () => {
     expect(lock.attributes('disabled')).toBeUndefined();
     socket.emit.mockClear();
     await lock.trigger('click');
-    expect(socket.emit).toHaveBeenCalledWith('guess', { cell: expect.stringMatching(/^[A-X][0-9]$/) }, expect.any(Function));
+    expect(socket.emit).toHaveBeenCalledWith('guess', { cell: expect.stringMatching(/^[A-Z]{1,2}[0-9]{1,2}$/) }, expect.any(Function));
     expect(wrapper.findAll('.side .block')).toHaveLength(3);
 
     socket.handlers.state(asHinter());

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
-import { COLS } from './grid.js';
+import { parseCell } from './grid.js';
 
 const modulesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ID = 'tints-and-hints';
@@ -75,7 +75,7 @@ async function launch(t, existingDir) {
   return { site, base, account, close, dataDir };
 }
 
-const farFrom = (cell) => (COLS.indexOf(cell[0]) < 12 ? 'X9' : 'A0');
+const farFrom = (cell) => (parseCell(cell).col < 24 ? 'AV20' : 'A1');
 
 test('a whole game: create, join by code, start, two rounds a turn, reveal, finish and statistics', async (t) => {
   const { account } = await launch(t);
@@ -141,7 +141,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
     expected.get(hinter.state.you).hints += 1;
 
     assert.equal((await guessing[0].send('advance')).ok, false, 'a guesser cannot continue');
-    assert.equal((await hinter.send('guess', { cell: 'A0' })).ok, false, 'the hinter cannot guess');
+    assert.equal((await hinter.send('guess', { cell: 'A1' })).ok, false, 'the hinter cannot guess');
     assert.equal((await hinter.send('advance')).ok, false, 'not everyone has guessed');
     assert.equal((await guessing[0].send('guess', { cell: 'ZZ' })).ok, false);
     assert.ok((await hinter.send('hint', { text: 'like a sunset' })).ok);

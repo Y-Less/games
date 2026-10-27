@@ -4,7 +4,7 @@ A game for 2 to 8 players. One player secretly sees a colour on a grid and descr
 
 ## The grid
 
-The grid has 24 columns (A to X, which run round the colour wheel) and 10 rows (0 to 9, from muted and dark, through vivid, to pale). A square is a column and a row, such as **M4**.
+The grid has 48 columns (A to Z, then AA to AV, which run round the colour wheel) and 20 rows (1 to 20, from muted and dark, through vivid, to pale). A square is a column and a row, such as **M9** or **AC14**.
 
 ## Starting
 
@@ -23,7 +23,7 @@ The grid has 24 columns (A to X, which run round the colour wheel) and 10 rows (
 
 ## Scoring
 
-A guess is **close** if it is within one square of the target in any direction, diagonals included. The colours do not wrap round from X to A.
+A guess is **close** if it is within one square of the target in any direction, diagonals included. The colours do not wrap round from AV to A.
 
 - First round: **5 points** for the exact square, **2 points** for a close one.
 - Second round: **4 points** for the exact square, **1 point** for a close one.

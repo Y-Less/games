@@ -214,7 +214,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   await until(() => ann.state === null && annTab.state === null, 'both tabs sent out');
   await until(() => bob.state.hostId === bob.id && bob.state.players.length === 1, 'bob hosts');
   assert.equal((await annTab.call('start', {})).ok, false);
-  assert.equal((await annTab.call('guess', { cell: 'A0' })).error, 'You are not in a game.');
+  assert.equal((await annTab.call('guess', { cell: 'A1' })).error, 'You are not in a game.');
 
   // The last person leaves: the room is gone, even for a second socket that is still attached to it.
   const bobTab = await bob.twin();
@@ -224,7 +224,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   await until(() => bob.state === null && bobTab.state === null, 'room gone for both tabs');
   for (const p of [ann, bob, bobTab]) {
     assert.deepEqual(await p.call('join', { code: g.code }), { ok: false, error: 'No game has that code.' });
-    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A0' }], ['kick', { userId: 1 }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
+    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { userId: 1 }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
       const reply = await p.call(event, payload);
       assert.equal(reply.ok, false, event);
     }

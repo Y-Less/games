@@ -36,7 +36,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
     return h && ['guessing1', 'guessing2'].includes(h.state.phase) && h.state.tint ? [h.state.tint] : [];
   };
 
-  const guessAll = async (cell = 'A0') => {
+  const guessAll = async (cell = 'A1') => {
     for (const p of members) if (p !== hinterOf()) assert.equal((await p.call('guess', { cell })).ok, true);
   };
   const advance = async () => assert.equal((await hinterOf().call('advance', {})).ok, true);
@@ -83,7 +83,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
       const hinter = hinterOf();
       const guesser = members.find((p) => p !== hinter && p !== ann) ?? bob;
       const extra = {
-        guess: [{ cell: 'A0' }, { cell: 'a0' }, { cell: 'A0 ' }, { cell: 'AA' }, { cell: 'Y0' }, { cell: 'A10' }, { cell: ['A0'] }, { cell: 'X9' }],
+        guess: [{ cell: 'A1' }, { cell: 'a0' }, { cell: 'A0 ' }, { cell: 'AA' }, { cell: 'AW1' }, { cell: 'A21' }, { cell: ['A1'] }, { cell: 'AV20' }],
         hint: [{ text: 'a pleasant hint' }, { text: 'x'.repeat(81) }, { text: '   ' }],
         kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
         colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }],
@@ -128,10 +128,10 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   const everyone = [ann, bob, cat];
 
   // Before the start: nothing but lobby actions work.
-  for (const [event, payload] of [['hint', { text: 'x' }], ['guess', { cell: 'A0' }], ['advance', {}]]) {
+  for (const [event, payload] of [['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['advance', {}]]) {
     for (const p of everyone) assert.equal((await p.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { userId: bob.id }], ['guess', { cell: 'A0' }], ['hint', { text: 'x' }], ['advance', {}]]) {
+  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { userId: bob.id }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
     const reply = await eve.call(event, payload);
     assert.deepEqual(reply, { ok: false, error: event === 'kick' ? 'Only the host can remove players.' : 'You are not in a game.' }, event);
   }
@@ -143,7 +143,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   const guessers = everyone.filter((p) => p !== hinter);
   const tint = hinter.state.tint;
 
-  assert.equal((await hinter.call('guess', { cell: 'A0' })).ok, false, 'the hinter cannot guess');
+  assert.equal((await hinter.call('guess', { cell: 'A1' })).ok, false, 'the hinter cannot guess');
   for (const g of guessers) {
     assert.equal((await g.call('hint', { text: 'I will help' })).ok, false, 'guessers cannot hint');
     assert.equal((await g.call('advance', {})).ok, false, 'guessers cannot advance');
@@ -171,7 +171,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   assert.equal((await hinter.call('advance', {})).ok, true);
   await until(() => guessers.every((g) => g.state.phase === 'reveal'), 'the reveal');
   for (const g of guessers) assert.equal(g.state.tint, tint, 'revealed to all');
-  assert.equal((await guessers[0].call('guess', { cell: 'A0' })).ok, false, 'no guessing at the reveal');
+  assert.equal((await guessers[0].call('guess', { cell: 'A1' })).ok, false, 'no guessing at the reveal');
   assert.equal((await hinter.call('hint', { text: 'late' })).ok, false, 'no hints at the reveal');
   const outsider = guessers.find((g) => g !== ann);
   if (outsider) assert.equal((await outsider.call('advance', {})).ok, false, 'a guest cannot close the reveal');

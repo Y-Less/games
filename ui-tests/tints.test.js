@@ -157,7 +157,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     assert.ok(log.top - bars[0].bottom >= 4 && log.top - bars[0].bottom <= 12, `the gap between the bars and the boxes: ${log.top - bars[0].bottom}`);
     assert.ok(Math.abs(log.bottom - status.bottom) <= 1);
     const cells = await host.page.$$eval('.board button.cell', (els) => els.slice(0, 50).map((e) => { const b = e.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; }));
-    assert.ok(cells.every(([w, h]) => w === h && w >= 30), `square cells, large enough to see: ${cells[0]}`);
+    assert.ok(cells.every(([w, h]) => w === h && w >= 14), `square cells, large enough to see: ${cells[0]}`);
   }));
 }
 

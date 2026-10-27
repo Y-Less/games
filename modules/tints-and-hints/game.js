@@ -1,6 +1,6 @@
 // The rules of Tints and Hints, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
-import { COLS, ROWS, isCell, isClose } from './grid.js';
+import { COLS, ROWS, isCell, isClose, fromOldCell } from './grid.js';
 import { placements, totalsFromRounds } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
@@ -14,6 +14,8 @@ export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClos
 
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana'];
+/** Version of the colour grid the squares of a room are named in (1, with no marker, was the 24 x 10 grid). */
+const GRID_VERSION = 2;
 const LIVE = ['lobby', 'guessing1', 'guessing2', 'reveal'];
 const fail = (error) => ({ ok: false, error });
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -39,6 +41,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     turn: 0,
     players: [newPlayer(hostId, COLOURS[0])],
     nextIdx: 0,
+    grid: GRID_VERSION, // 2 = the 48 x 20 grid; rooms without it were saved with the old 24 x 10 grid (see migrate)
     nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
     hinter: null,
     tint: null,
@@ -231,11 +234,22 @@ function recordHistory(room, nameOf, found) {
 }
 
 /**
- * Brings a room saved by an older version up to date: it gets a history, and if the scores are more than the
+ * Brings a room saved by an older version up to date: its squares are renamed for the finer grid, it gets a history, and if the scores are more than the
  * history adds up to (turns scored before the history was kept) the difference becomes one "Earlier turns" entry,
  * so the totals always equal the scores.
  */
 export function migrate(room) {
+  if (room.grid !== GRID_VERSION) {
+    // A room saved with the old 24 x 10 grid: every square is renamed to the same colour in the finer grid.
+    const renamed = (cell) => fromOldCell(cell) ?? cell;
+    if (room.tint) room.tint = renamed(room.tint);
+    for (const list of [room.first, room.second]) for (const g of list ?? []) g.cell = renamed(g.cell);
+    if (room.result) {
+      room.result.tint = renamed(room.result.tint);
+      for (const e of room.result.entries ?? []) e.cell = renamed(e.cell);
+    }
+    room.grid = GRID_VERSION;
+  }
   room.nextBot ??= 1;
   if (!Array.isArray(room.history)) room.history = [];
   const totals = totalsFromRounds(room.history, room.players.map((p) => p.id));

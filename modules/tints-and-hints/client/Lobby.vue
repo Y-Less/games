@@ -74,7 +74,7 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
       </div>
     </section>
     <div class="row" aria-hidden="true">
-      <span v-for="c in ['A4', 'F4', 'K4', 'P4', 'U4']" :key="c" class="strip" :style="{ background: cellColour(c) }" />
+      <span v-for="c in ['A9', 'K9', 'U9', 'AE9', 'AO9']" :key="c" class="strip" :style="{ background: cellColour(c) }" />
     </div>
   </div>
 </template>

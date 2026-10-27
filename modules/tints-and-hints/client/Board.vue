@@ -67,8 +67,8 @@ const style = computed(() => ({
 <style scoped>
 .board {
   display: grid;
-  grid-template-columns: var(--head) repeat(24, var(--cell));
-  grid-template-rows: var(--head) repeat(10, var(--cell));
+  grid-template-columns: var(--head) repeat(v-bind('COLS.length'), var(--cell));
+  grid-template-rows: var(--head) repeat(v-bind('ROWS.length'), var(--cell));
   gap: var(--gap);
   width: max-content;
   height: max-content;
@@ -105,7 +105,7 @@ const style = computed(() => ({
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: calc(var(--cell) * 0.5);
+  font-size: max(12px, calc(var(--cell) * 0.9));
   color: #fff;
   text-shadow: 0 0 3px #000, 0 0 3px #000;
 }

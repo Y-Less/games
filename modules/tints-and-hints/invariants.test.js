@@ -3,16 +3,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { COLS, ROWS, isCell } from './grid.js';
+import { COLS, ROWS, cellName, isCell, parseCell } from './grid.js';
 import { seeded } from '../../shared/testkit.js';
 import { checkRoom, checkView, NEXT_PHASES } from './checks.js';
 
 const pick = (rng, list) => list[Math.floor(rng() * list.length)];
 const randomCell = (rng) => pick(rng, COLS) + pick(rng, ROWS);
 const near = (cell, rng) => {
-  const col = Math.min(COLS.length - 1, Math.max(0, COLS.indexOf(cell[0]) + Math.floor(rng() * 3) - 1));
-  const row = Math.min(9, Math.max(0, Number(cell[1]) + Math.floor(rng() * 3) - 1));
-  return COLS[col] + row;
+  const at = parseCell(cell);
+  const col = Math.min(COLS.length - 1, Math.max(0, at.col + Math.floor(rng() * 3) - 1));
+  const row = Math.min(ROWS.length - 1, Math.max(0, at.row + Math.floor(rng() * 3) - 1));
+  return cellName(col, row);
 };
 const snapshot = (room) => JSON.stringify(room);
 
@@ -94,7 +95,7 @@ function playRandomGame(seed) {
       const choices = [
         () => game.guess(room, stranger, randomCell(rng)),
         () => game.guess(room, room.hinter, randomCell(rng)),
-        () => game.guess(room, any.id, pick(rng, ['', 'a0', 'A', 'Y0', 'A10', 'AA', null, 5, ['A0']])),
+        () => game.guess(room, any.id, pick(rng, ['', 'a0', 'A', 'AW1', 'A21', 'AA', null, 5, ['A1']])),
         () => game.setHint(room, guessers[0]?.id ?? stranger, 'nope'),
         () => game.advance(room, stranger, rng),
         () => game.start(room, room.hostId, rng),
@@ -144,7 +145,7 @@ function playRandomGame(seed) {
   // Nothing more can be done once it has ended.
   const ended = room.phase;
   for (const p of room.players) {
-    illegal('a guess after the end', () => game.guess(room, p.id, 'A0'));
+    illegal('a guess after the end', () => game.guess(room, p.id, 'A1'));
     illegal('a hint after the end', () => game.setHint(room, p.id, 'late'));
     illegal('advancing after the end', () => game.advance(room, p.id, rng));
     illegal('starting again', () => game.start(room, p.id, rng));

@@ -39,7 +39,7 @@ function personActs(room, rng) {
       if (!room.hints[key]) return game.setHint(room, 1, 'a person\'s hint').ok;
       return game.advance(room, 1, rng).ok; // refuses until everyone has guessed
     }
-    return !me.guessed && game.guess(room, 1, 'A0').ok;
+    return !me.guessed && game.guess(room, 1, 'A1').ok;
   }
   return room.phase === 'reveal' && game.advance(room, 1, rng).ok;
 }
@@ -247,6 +247,16 @@ test('old saved rooms still load: migrate gives them a bot counter', () => {
   game.migrate(room);
   assert.equal(room.nextBot, 1);
   assert.equal(game.addBot(room, 1).id, 'bot:1');
+});
+
+test('rooms saved with the old 24 x 10 grid are renamed to the same colours in the finer grid', () => {
+  const room = lobbyWith(0);
+  delete room.grid;
+  Object.assign(room, { tint: 'M4', first: [{ id: 1, cell: 'A0' }], second: [{ id: 2, cell: 'X9' }], result: { tint: 'B1', entries: [{ id: 1, cell: 'C2' }] } });
+  game.migrate(room);
+  assert.deepEqual([room.tint, room.first[0].cell, room.second[0].cell, room.result.tint, room.result.entries[0].cell], ['Y9', 'A1', 'AU19', 'C3', 'E5']);
+  game.migrate(room);
+  assert.equal(room.tint, 'Y9', 'a migrated room is left alone');
 });
 
 // ---------- real sockets ----------

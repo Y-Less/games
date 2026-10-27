@@ -17,7 +17,7 @@ function started(n = 3, turnsEach = 2) {
   return room;
 }
 const closeRound = (room) => {
-  for (const p of room.players) if (p.id !== room.hinter) game.guess(room, p.id, 'A0');
+  for (const p of room.players) if (p.id !== room.hinter) game.guess(room, p.id, 'A1');
   return game.advance(room, room.hinter, first);
 };
 
@@ -90,12 +90,12 @@ test('advancing from the lobby, or from a phase with a stranger, is refused with
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
   game.addPlayer(room, 2);
   assert.match(game.advance(room, 1).error, /nothing to continue/);
-  assert.equal(game.guess(room, 2, 'A0').ok, false);
+  assert.equal(game.guess(room, 2, 'A1').ok, false);
   assert.equal(game.setHint(room, 1, 'x').ok, false);
   game.start(room, 1, first);
   assert.equal(game.addPlayer(room, 2).ok, true, 'a player already in is told ok');
   assert.match(game.addPlayer(room, 3).error, /already started/);
-  assert.match(game.guess(room, 3, 'A0').error, /not in this game/);
+  assert.match(game.guess(room, 3, 'A1').error, /not in this game/);
 });
 
 test('viewFor an abandoned or finished game gives placements and shows the tint', () => {
@@ -121,7 +121,7 @@ test('sockets: the host can send away an absent person after the game ended; the
     const here = key(ann);
     const hinter = both.find((p) => p.id === ann.state.hinter);
     const guesser = both.find((p) => p !== hinter);
-    if (ann.state.phase !== 'reveal') assert.equal((await guesser.call('guess', { cell: 'A0' })).ok, true);
+    if (ann.state.phase !== 'reveal') assert.equal((await guesser.call('guess', { cell: 'A1' })).ok, true);
     assert.equal((await hinter.call('advance', {})).ok, true);
     await until(() => key(ann) !== here || ann.state.phase === 'finished', 'the next step');
   }

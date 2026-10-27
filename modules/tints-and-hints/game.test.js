@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { COLS, ROWS, cellColour, isCell, isClose } from './grid.js';
+import { COLS, ROWS, cellColour, cellName, fromOldCell, isCell, isClose, parseCell } from './grid.js';
 
 const sequence = (...values) => {
   let i = 0;
@@ -14,28 +14,37 @@ function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
   const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addPlayer(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
-  // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4).
-  assert.ok(game.start(room, ids[0], sequence(0, 12 / 24, 4 / 10)).ok);
+  // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4, the fourth).
+  assert.ok(game.start(room, ids[0], sequence(0, 12.5 / 48, 3.5 / 20)).ok);
   assert.equal(room.tint, 'M4');
   return room;
 }
 
 const score = (room, id) => room.players.find((p) => p.id === id).score;
 
-test('the grid has 24 columns and 10 rows, and close means within one square', () => {
-  assert.equal(COLS.length, 24);
-  assert.equal(COLS[0] + COLS[23], 'AX');
-  assert.equal(ROWS.length, 10);
-  assert.ok(isCell('A0') && isCell('X9'));
-  for (const bad of ['Y0', 'A', 'A10', 'a0', 'AA', '', null, 12, ['A0']]) assert.equal(isCell(bad), false, String(bad));
-  assert.equal(cellColour('A0'), 'hsl(0deg 25% 30%)');
-  assert.equal(cellColour('X9'), 'hsl(345deg 100% 90%)');
-  assert.equal(cellColour('D5'), 'hsl(45deg 100% 50%)');
+test('the grid has 48 columns and 20 rows, and close means within one square', () => {
+  assert.equal(COLS.length, 48);
+  assert.equal(COLS[25] + COLS[26] + COLS[47], 'ZAAAV');
+  assert.equal(ROWS.length, 20);
+  assert.equal(new Set(COLS.flatMap((c) => ROWS.map((r) => c + r))).size, 960, 'every name is distinct');
+  assert.deepEqual(parseCell('AC14'), { col: 28, row: 13 });
+  assert.ok(isCell('A1') && isCell('AV20'));
+  for (const bad of ['AW1', 'A', 'A21', 'A0', 'a1', 'AA', 'A01', 'A1 ', '1A', '', null, 12, ['A1']]) assert.equal(isCell(bad), false, String(bad));
+  assert.equal(cellColour('A1'), 'hsl(0deg 25% 30%)');
+  assert.equal(cellColour('B2'), 'hsl(7.5deg 37.5% 30%)', 'between the old squares');
+  assert.equal(cellColour('C1'), 'hsl(15deg 25% 30%)', 'an old square keeps its colour');
+  assert.equal(cellColour('AV20'), 'hsl(352.5deg 100% 95%)');
+  assert.equal(cellColour('G11'), 'hsl(45deg 100% 50%)');
 
   for (const near of ['M4', 'L3', 'L4', 'L5', 'M3', 'M5', 'N3', 'N4', 'N5']) assert.ok(isClose(near, 'M4'), near);
-  for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6']) assert.equal(isClose(far, 'M4'), false, far);
-  assert.equal(isClose('X4', 'A4'), false, 'the hue does not wrap round');
-  assert.equal(isClose('A0', 'B1'), true);
+  for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6', 'L2']) assert.equal(isClose(far, 'M4'), false, far);
+  assert.equal(isClose('AV4', 'A4'), false, 'the hue does not wrap round');
+  assert.equal(isClose('Z4', 'AA4'), true, 'neighbours across the single to double letter step');
+  assert.equal(fromOldCell('X9'), 'AU19');
+  assert.equal(cellColour(fromOldCell('M4')), 'hsl(180deg 100% 40%)');
+  assert.equal(fromOldCell('Y0'), null);
+  assert.equal(cellName(0, 19), 'A20');
+  assert.equal(isClose('A1', 'B1'), true);
 });
 
 test('a lobby: colours are unique, the host sets the turns and the game needs two players', () => {
@@ -68,17 +77,17 @@ test('a game holds at most eight players', () => {
 test('guessing: the hinter cannot guess, each person guesses once a round, and squares are checked', () => {
   const room = started();
   assert.equal(room.hinter, 1);
-  assert.equal(game.guess(room, 1, 'A0').ok, false, 'the hinter');
-  assert.equal(game.guess(room, 9, 'A0').ok, false, 'a stranger');
-  assert.equal(game.guess(room, 2, 'Z9').ok, false, 'not on the grid');
-  assert.ok(game.guess(room, 2, 'A0').ok);
-  assert.equal(game.guess(room, 2, 'B0').ok, false, 'only one guess');
+  assert.equal(game.guess(room, 1, 'A1').ok, false, 'the hinter');
+  assert.equal(game.guess(room, 9, 'A1').ok, false, 'a stranger');
+  assert.equal(game.guess(room, 2, 'AW9').ok, false, 'not on the grid');
+  assert.ok(game.guess(room, 2, 'A1').ok);
+  assert.equal(game.guess(room, 2, 'B1').ok, false, 'only one guess');
   assert.equal(game.advance(room, 1).ok, false, 'not everyone has guessed');
   assert.equal(game.advance(room, 2).ok, false, 'only the hinter continues');
-  assert.ok(game.guess(room, 3, 'B0').ok);
+  assert.ok(game.guess(room, 3, 'B1').ok);
   assert.ok(game.advance(room, 1).ok);
   assert.equal(room.phase, 'guessing2');
-  assert.ok(game.guess(room, 2, 'C0').ok, 'a fresh guess in the second round');
+  assert.ok(game.guess(room, 2, 'C1').ok, 'a fresh guess in the second round');
   assert.equal(game.advance(room, 1).ok, false);
 });
 
@@ -86,7 +95,7 @@ test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per pe
   const room = started([1, 2, 3, 4]);
   game.guess(room, 2, 'M4'); // exact first: 5
   game.guess(room, 3, 'N5'); // close first: 2
-  game.guess(room, 4, 'A0'); // miss
+  game.guess(room, 4, 'A1'); // miss
   game.advance(room, 1);
   game.guess(room, 2, 'M4'); // exact again in round two: 4 (and the hinter still only counts them once)
   game.guess(room, 3, 'M4'); // exact second: 4
@@ -111,9 +120,9 @@ test('turns rotate in joining order until everyone has had the set number of tur
   const hinters = [];
   for (let turn = 0; turn < 6; turn++) {
     hinters.push(room.hinter);
-    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A0');
+    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
     game.advance(room, room.hinter);
-    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A0');
+    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
     assert.ok(game.advance(room, room.hinter).ok);
     assert.equal(room.phase, 'reveal');
     assert.equal(game.advance(room, 99).ok, false, 'a stranger cannot continue');
@@ -123,7 +132,7 @@ test('turns rotate in joining order until everyone has had the set number of tur
   assert.deepEqual(hinters, [1, 2, 3, 1, 2, 3]);
   assert.equal(room.phase, 'finished');
   assert.equal(game.advance(room, 1).ok, false);
-  assert.equal(game.guess(room, 2, 'A0').ok, false);
+  assert.equal(game.guess(room, 2, 'A1').ok, false);
 });
 
 test('the hint is typed by the hinter only, trimmed and limited in length', () => {
@@ -132,7 +141,7 @@ test('the hint is typed by the hinter only, trimmed and limited in length', () =
   assert.ok(game.setHint(room, 1, `  warm   sunset ${'x'.repeat(200)}`).ok);
   assert.equal(room.hints.first.length, game.HINT_LENGTH);
   assert.match(room.hints.first, /^warm sunset x/);
-  for (const id of [2, 3]) game.guess(room, id, 'A0');
+  for (const id of [2, 3]) game.guess(room, id, 'A1');
   game.advance(room, 1);
   game.setHint(room, 1, 'a bit more orange');
   assert.equal(room.hints.second, 'a bit more orange');
@@ -170,7 +179,7 @@ test('leaving mid-game: the hinter leaving skips the turn, and too few players a
   assert.equal(room.turn, 1, 'the cancelled turn still counts');
 
   game.removePlayer(room, 4); // a guesser: no one is waiting for them now
-  game.guess(room, 3, 'A0');
+  game.guess(room, 3, 'A1');
   assert.ok(game.advance(room, 2).ok);
   assert.equal(room.players.length, 2);
   assert.equal(game.removePlayer(room, 3).abandoned, true);
@@ -240,7 +249,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   game.guess(room, 3, 'N5');
   game.advance(room, 1, Math.random, nameOf);
   game.guess(room, 2, 'M4');
-  game.guess(room, 3, 'A0');
+  game.guess(room, 3, 'A1');
   assert.deepEqual(view(3).scoreboard.rounds, [], 'nothing before the reveal');
   game.advance(room, 1, Math.random, nameOf);
   const v = view(3);
@@ -257,11 +266,11 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   game.advance(room, 1);
   assert.equal(view(2).scoreboard.rounds.length, 1, 'the new turn adds nothing until it is revealed');
   assert.equal(JSON.stringify(view(2).scoreboard).includes(room.tint), false);
-  game.guess(room, 1, 'A0');
-  game.guess(room, 3, 'A0');
+  game.guess(room, 1, 'A1');
+  game.guess(room, 3, 'A1');
   game.advance(room, 2);
-  game.guess(room, 1, 'A0');
-  game.guess(room, 3, 'A0');
+  game.guess(room, 1, 'A1');
+  game.guess(room, 3, 'A1');
   game.advance(room, 2, Math.random, nameOf);
   assert.equal(view(1).scoreboard.rounds[1].label, 'Turn 2: player 2');
   assert.equal(view(1).scoreboard.rounds[1].notes[2], 'nobody found it');
