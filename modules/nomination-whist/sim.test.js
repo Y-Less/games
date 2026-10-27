@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { rankValue } from '../../shared/cards.js';
+import { fullDeck, rankValue, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
+import { bestNomination, biddingModel, lut, trickChances } from './ai/lut.js';
 import { FULL_SCHEDULE, SHORT_SCHEDULE, forbiddenNomination, isInstantWinRound as liveInstantWinRound, scoreRound, trumpOf } from './game.js';
 import { isInstantWinRound, playGame } from './sim/game.js';
 import { mulberry32 } from './sim/rng.js';
@@ -102,4 +103,35 @@ test('tournament totals add up and do not depend on how the games are split into
   assert.equal(games, 60 * 3, 'every game gives every AI one seat');
   assert.ok(whole.random.score / whole.random.games < whole.standard.score / whole.standard.games);
   assert.deepEqual(playGames({ ...base, from: 0, to: 60 }), whole, 'repeatable');
+});
+
+test('the bidding table covers 3 to 7 players and every row is a distribution', () => {
+  const model = biddingModel();
+  assert.ok(model, 'run sim/train-bids.js to create sim/models/bidding.json');
+  for (const players of [3, 4, 5, 6, 7]) {
+    for (let cards = 1; cards <= 7; cards++) {
+      for (const trump of ['H', 'C', 'D', 'S', 'N']) {
+        for (const row of model.players[players][cards][trump]) {
+          assert.equal(row.length, cards + 1);
+          assert.ok(Math.abs(row.reduce((a, b) => a + b, 0) - 1) < 0.001);
+        }
+      }
+    }
+  }
+});
+
+test('the lookup AI nominates only allowed numbers, and expects more tricks from a stronger hand', () => {
+  const rng = mulberry32(9);
+  const chancesFor = (hand, players) => trickChances(biddingModel(), { hand, trump: 'H', players });
+  const mean = (chances) => chances.reduce((sum, p, taken) => sum + p * taken, 0);
+  assert.ok(mean(chancesFor(['AH', 'KH', 'QH', 'AS', 'KS'], 4)) > mean(chancesFor(['2D', '3C', '4S', '5D', '6C'], 4)));
+  assert.equal(bestNomination([0.1, 0.9], [0, 1]), 1);
+  assert.equal(bestNomination([0.1, 0.9], [0]), 0, 'a forbidden number is never chosen');
+  for (let i = 0; i < 300; i++) {
+    const players = 3 + (i % 5);
+    const cards = 1 + (i % 7);
+    const hand = shuffle(fullDeck(), rng).slice(0, cards);
+    const allowed = Array.from({ length: cards + 1 }, (_, n) => n).filter((n) => n !== (i % 3 === 0 ? 1 : -1));
+    assert.ok(allowed.includes(lut.nominate({ hand, trump: i % 2 ? 'S' : null, players, allowed, rng })));
+  }
 });

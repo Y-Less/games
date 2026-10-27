@@ -25,3 +25,19 @@ About 4,000 games a second with the quick AIs on a 24-thread machine; `sharp` is
 
 Plays single deals for any players x cards x trump combination and counts card win rates, hand estimates against tricks
 taken, and nomination hit rates (`--help` for the options; `--dump` writes every hand for training a model).
+
+## The bidding table: `train-bids.js` and `models/bidding.json`
+
+```
+node modules/nomination-whist/sim/run.js --deals 20_000_000 --players 3-7 --out sim-out/whist      # about two minutes
+node modules/nomination-whist/sim/train-bids.js --players 3-7 --in sim-out/whist                  # writes models/bidding.json
+```
+
+For each player count (3 to 7), number of cards and trump suit, the table holds the chance of taking each number of tricks
+for a hand of a given estimated worth (the Standard AI's `estimateTricks`, in quarters of a trick), smoothed over
+neighbouring estimates where the data is thin. The `lut` AI (`ai/lut.js`) nominates the allowed number with the best expected
+score from that row, so the dealer's forbidden number and the scoring options are applied when it plays. `lut` is in the
+simulation AI list (`ais.js`) but not in the live game's (`ai/index.js`) yet.
+
+`tourney.js --ai lut,standard,lut,standard` compares it with Standard; with the 20 million deals it beats Standard at every
+player count, by more as players are added (7 players, 100,000 games: 110 against 101 mean score).
