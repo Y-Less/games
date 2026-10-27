@@ -5,6 +5,7 @@ import { leaveOffer, playBar } from '../../../src/playBar.js';
 import Hearts from './Hearts.vue';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
+import { cardName } from '../../../shared/cards.js';
 import { advanceLog } from './log.js';
 
 function seeded(seed) {
@@ -98,9 +99,9 @@ describe('Hearts table in the standard frame', () => {
     const w = mount(Table, { props: { state: view(room()), send: makeSend() } });
     const status = w.find('.box.status').text();
     expect(status).toContain('Hand 1');
-    expect(status).toContain('Passing to the left');
     expect(status).toContain('Play to 100');
-    expect(status).toMatch(/Choose 3 cards to pass to the left/);
+    expect(status).toMatch(/Passing 3 to the left: choose 3 cards for [A-Za-z]+./);
+    expect(status).toMatch(/You will receive 3 cards from [A-Za-z]+./);
     const felt = w.find('.felt').text();
     expect(felt).not.toMatch(/Choose|Hand \d|Trick|Play to|Passing|Hearts (are|not)|Your turn|Waiting/);
     expect(felt).toContain('Hazel'); // each opponent's name sits by their cards
@@ -152,7 +153,77 @@ describe('Hearts table in the standard frame', () => {
   });
 });
 
+/** A room for `seats` players (seat 0 is the person), either at the passing stage or with the first card due. */
+function roomOf(seats, { started = true } = {}) {
+  const r = room({ started: false, settings: { seats } });
+  if (started) expect(game.start(r, 1, seeded(7)).ok).toBe(true);
+  return r;
+}
+
+describe('Hearts for 3 to 7 players', () => {
+  const cases = { 3: [17, 3, 2], 4: [13, 3, 3], 5: [10, 3, 4], 6: [8, 2, 5], 7: [7, 2, 6] }; // cards each, passed, opponents
+  for (const [n, [each, pass, others]] of Object.entries(cases)) {
+    it(`draws ${n} players: ${others} opponents with ${each} cards each, a hand of ${each}, passing ${pass}`, async () => {
+      const send = makeSend();
+      const w = mount(Table, { props: { state: view(roomOf(Number(n))), send } });
+      expect(w.findAll('.opp')).toHaveLength(others);
+      expect(w.findAll(`.opp [aria-label="${each} cards"]`)).toHaveLength(others);
+      expect(w.findAll('.hand button.playing-card')).toHaveLength(each);
+      expect(w.findAll('.score-bar button.chip-button')).toHaveLength(Number(n));
+      expect(w.findAll('.trick .slot')).toHaveLength(Number(n));
+      expect(w.find('.box.status').text()).toContain(`choose ${pass} cards`);
+      const button = w.find('.confirm button');
+      for (const c of w.findAll('.hand button.playing-card').slice(0, pass + 1)) await c.trigger('click'); // a further card is not taken
+      expect(button.text()).toBe(`Pass these ${pass} of ${pass} cards`);
+      await button.trigger('click');
+      expect(send).toHaveBeenCalledWith('pass', { cards: view(roomOf(Number(n))).hand.slice(0, pass) });
+    });
+  }
+
+  it('says which card must lead and how many tricks there are', () => {
+    for (const [n, card, tricks] of [[3, '3C', 17], [5, '3C', 10], [6, '4C', 8], [7, '3C', 7]]) {
+      const r = roomOf(n, { started: false });
+      r.handNumber = n === 3 ? 2 : n - 1; // the hold hand: no passing
+      expect(game.start(r, 1, seeded(7)).ok).toBe(true);
+      r.handNumber = n === 3 ? 2 : n - 1;
+      game.deal(r, seeded(9));
+      const state = view(r);
+      expect(state.phase).toBe('playing');
+      expect(state.deal.tricks).toBe(tricks);
+      const w = mount(Table, { props: { state: { ...state, turn: state.you, legal: Object.fromEntries(state.hand.map((c) => [c, null])) }, send: makeSend() } });
+      expect(w.find('.box.status').text()).toContain(`Trick 1 of ${tricks}`);
+      expect(w.find('.box.status').text()).toMatch(new RegExp(`You have the ${cardName(state.deal.openingCard)}: lead it`));
+      expect(card).toBe(state.deal.openingCard);
+    }
+  });
+
+  it('fits the widest hand into the same width as the 13-card hand', () => {
+    const w3 = mount(Table, { props: { state: view(roomOf(3)), send: makeSend() } });
+    const w4 = mount(Table, { props: { state: view(roomOf(4)), send: makeSend() } });
+    const width = (w) => parseFloat(w.find('.hand').element.style.width);
+    expect(width(w3)).toBeCloseTo(width(w4), 0);
+  });
+});
+
 describe('Hearts lobby', () => {
+  it('lets the host pick 3 to 7 players and describes the deal; a guest cannot', async () => {
+    const send = makeSend();
+    const state = view(roomOf(5, { started: false }));
+    const w = mount(Lobby, { props: { state, send } });
+    expect(w.findAll('fieldset button').filter((b) => /^[3-7]$/.test(b.text())).map((b) => b.text())).toEqual(['3', '4', '5', '6', '7']);
+    expect(w.text()).toContain('Five players: 10 cards each, 2C and 2D removed, pass 3 cards.');
+    const seven = w.findAll('fieldset button').find((b) => b.text() === '7');
+    await seven.trigger('click');
+    expect(send).toHaveBeenCalledWith('settings', { seats: 7 });
+    const checkbox = w.find('input[type=checkbox]');
+    expect(checkbox.element.checked).toBe(true); // the Jack of Diamonds is on by default
+    const guest = mount(Lobby, { props: { state: { ...state, hostSeat: 3 }, send } });
+    expect(guest.find('fieldset[disabled]').exists()).toBe(true);
+    const six = mount(Lobby, { props: { state: view(roomOf(6, { started: false })), send } });
+    expect(six.text()).toContain('Six players: 8 cards each, 2C, 3C, 2D and 3D removed, pass 2 cards.');
+    expect(mount(Lobby, { props: { state: view(roomOf(4, { started: false })), send } }).text()).toContain('Four players: 13 cards each, none removed, pass 3 cards.');
+  });
+
   it('has no Leave button (the site header has it)', () => {
     const w = mount(Lobby, { props: { state: view(room({ started: false })), send: makeSend() } });
     expect(w.findAll('button').some((b) => /leave/i.test(b.text()))).toBe(false);

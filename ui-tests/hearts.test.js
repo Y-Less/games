@@ -29,6 +29,18 @@ test('the seat lobby: Start stays disabled until every seat is filled with a per
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/hearts?${code}`, 'the invite pill copies the invite link');
 
+  // The host chooses 3 to 7 players (four to begin with); the seat list and the line about the deal follow.
+  assert.equal(await user.page.$eval('fieldset button[aria-pressed="true"]', (b) => b.innerText.trim()), '4');
+  assert.ok(await user.page.$eval('input[type=checkbox]', (c) => c.checked), 'the Jack of Diamonds is on by default');
+  await user.waitForText('Four players: 13 cards each, none removed, pass 3 cards.');
+  for (const [n, line] of [[7, 'Seven players: 7 cards each, 2C, 2D and 3D removed, pass 2 cards.'], [3, 'Three players: 17 cards each, 2C removed, pass 3 cards.'], [5, 'Five players: 10 cards each, 2C and 2D removed, pass 3 cards.']]) {
+    await user.clickButton(String(n), { exact: true, scope: 'fieldset' });
+    await user.waitForText(line);
+    assert.equal((await seatTags()).length, n, `${n} seats`);
+    await user.waitForText(`${n - 1} more seats to fill.`);
+  }
+  await user.clickButton('4', { exact: true, scope: 'fieldset' });
+  await user.waitForText('Four players:');
   let seats = await seatTags();
   assert.equal(seats.length, 4);
   assert.deepEqual(seats.map((s) => s.kind), ['human', 'empty', 'empty', 'empty']);
@@ -101,9 +113,9 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
   assert.equal(modal.heads.length, 5, 'Round plus four players');
   assert.ok(modal.heads.some((h) => h.includes('Hearty (you)')));
   assert.equal(modal.totals.length, 4);
-  // 26 points in a hand, or 78 if someone shoots the moon (everyone else scores 26).
+  // 26 points in a hand less 5 for the Jack of Diamonds (on by default), or 78 less 5 if someone shoots the moon (everyone else scores 26).
   const sum = modal.totals.reduce((a, b) => a + b, 0);
-  assert.ok(sum === 26 || sum === 78, `the hand's points add up (got ${sum})`);
+  assert.ok([21, 73].includes(sum), `the hand's points add up (got ${sum})`);
   assert.match(modal.summary, /hearts?/);
 
   // Closing the pop-up is how a person says they are ready: with only computer players left to wait for, hand 2 is dealt.

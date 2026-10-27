@@ -16,6 +16,15 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
+const taken = computed(() => props.state.seats.filter(Boolean).length);
+const numberWord = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
+// One line about the deal for the chosen number of players, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
+const dealing = computed(() => {
+  const { cardsEach, removed, passCount } = props.state.deal;
+  const out = removed.length ? `, ${removed.length > 1 ? `${removed.slice(0, -1).join(', ')} and ${removed.at(-1)}` : removed[0]} removed` : ', none removed';
+  return `${numberWord[props.state.seatCount]} players: ${cardsEach} cards each${out}, pass ${passCount} cards.`;
+});
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
 const moonText = { others: 'Everyone else scores +26', self: 'The shooter scores -26' };
 const change = (settings) => props.send('settings', settings);
@@ -39,6 +48,13 @@ const change = (settings) => props.send('settings', settings);
     >
       <template #settings>
         <h3>Rules for this game</h3>
+        <fieldset class="group" :disabled="!isHost">
+          <legend class="muted">Players</legend>
+          <div class="row">
+            <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="n < taken" :aria-pressed="state.seatCount === n" @click="change({ seats: n })">{{ n }}</button>
+          </div>
+          <p class="muted deal">{{ dealing }}</p>
+        </fieldset>
         <fieldset class="group" :disabled="!isHost">
           <legend class="muted">Play to</legend>
           <div class="row">
@@ -71,6 +87,10 @@ const change = (settings) => props.send('settings', settings);
 .group legend {
   padding: 0;
   margin-bottom: 0.4rem;
+}
+.deal {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
 }
 .check {
   display: flex;

@@ -24,6 +24,9 @@ function hash(text) {
   return h;
 }
 
+// With more than four seats the cards are spread a little wider, so that every one still shows.
+const spread = computed(() => (props.seats.length > 4 ? 1.4 : 1));
+
 const slots = computed(() =>
   props.seats.map((seat, i) => {
     const angle = (2 * Math.PI * i) / props.seats.length;
@@ -39,7 +42,7 @@ const slots = computed(() =>
 </script>
 
 <template>
-  <div class="trick-circle" :class="size" role="group" aria-label="The trick" aria-live="polite">
+  <div class="trick-circle" :class="size" :style="{ '--spread': spread }" role="group" aria-label="The trick" aria-live="polite">
     <div
       v-for="slot in slots"
       :key="slot.seat.key"
@@ -75,7 +78,7 @@ const slots = computed(() =>
   top: 50%;
   width: var(--w);
   height: var(--h);
-  transform: translate(-50%, -50%) translate(calc(var(--sx) * var(--w) * 0.42), calc(var(--sy) * var(--h) * 0.27)) rotate(var(--turn));
+  transform: translate(-50%, -50%) translate(calc(var(--sx) * var(--w) * 0.42 * var(--spread, 1)), calc(var(--sy) * var(--h) * 0.27 * var(--spread, 1))) rotate(var(--turn));
   pointer-events: none;
 }
 .slot.won :deep(.playing-card) {

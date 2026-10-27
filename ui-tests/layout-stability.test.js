@@ -95,20 +95,64 @@ const finishedModal = (user) => async () => /^Scores after/.test(await user.moda
 // Two common desktop window sizes: every game must fit both without scrolling the page.
 const VIEWPORTS = [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }];
 
+/** At the start of a Hearts hand (passing): every hand, the trick circle, the pass button and your hand are apart. */
+async function assertHeartsTable(user, seats) {
+  const boxes = await user.page.evaluate(() => {
+    const r = (el) => {
+      const b = el.getBoundingClientRect();
+      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+    };
+    const button = document.querySelector('.felt .confirm button');
+    const hand = document.querySelector('.felt .my-fan');
+    const felt = document.querySelector('.felt');
+    // Look at the cards themselves for the hand and the opponents, not at their outer boxes (rotated hands have roomy corners).
+    const cards = (el) => [...el.querySelectorAll('.playing-card')].map(r);
+    const hull = (list) => ({ left: Math.min(...list.map((b) => b.left)), right: Math.max(...list.map((b) => b.right)), top: Math.min(...list.map((b) => b.top)), bottom: Math.max(...list.map((b) => b.bottom)) });
+    return {
+      felt: r(felt),
+      opps: [...document.querySelectorAll('.felt .opp')].map((el, i) => ({ name: `opponent ${i + 1}`, ...hull(cards(el)) })),
+      hand: { name: 'your hand', ...hull(cards(hand)) },
+      button: button ? { name: 'pass button', ...r(button) } : null,
+      trick: { name: 'trick', ...r(document.querySelector('.felt .trick')) },
+      count: document.querySelectorAll('.felt .opp').length,
+    };
+  });
+  assert.equal(boxes.count, seats - 1, 'one hand per opponent');
+  const parts = [...boxes.opps, boxes.hand, boxes.button].filter(Boolean);
+  const touching = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  for (let i = 0; i < parts.length; i++) {
+    for (let j = i + 1; j < parts.length; j++) assert.ok(!touching(parts[i], parts[j]), `${parts[i].name} overlaps ${parts[j].name} with ${seats} players`);
+    const p = parts[i];
+    assert.ok(p.left >= boxes.felt.left - 2 && p.right <= boxes.felt.right + 2 && p.top >= boxes.felt.top - 2 && p.bottom <= boxes.felt.bottom + 2, `${p.name} stays on the table with ${seats} players`);
+  }
+  // The trick circle is a box with room round its cards: only the hands of the opponents must stay clear of it.
+  for (const o of boxes.opps) assert.ok(!touching(o, boxes.trick), `${o.name} overlaps the trick with ${seats} players`);
+}
+
 for (const viewport of VIEWPORTS) {
 const at = `${viewport.width}x${viewport.height}`;
 
-test(`Hearts at ${at}: the table, hand, bottom boxes and every piece keep one size and position through a whole hand, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
+// Four players at both sizes, and the other table shapes once each (3 players: 17 cards and two opponents; 6 and 7: the most opponents).
+const HEARTS_SEATS = viewport.width === 1366 ? [4, 3, 6] : [4, 7];
+for (const seats of HEARTS_SEATS) {
+test(`Hearts with ${seats} players at ${at}: the table, hand, bottom boxes and every piece keep one size and position through a whole hand, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('hearts');
   await user.page.setViewport(viewport);
   await world.guard('hearts layout', async () => {
     await user.signUp('hlay', { displayName: 'Hearty' });
-    await startGame(user, '/play/hearts', 'Start a new game of Hearts');
+    await startGame(user, '/play/hearts', 'Start a new game of Hearts', {
+      lobby: async (u) => {
+        if (seats !== 4) await u.clickButton(String(seats), { exact: true, scope: 'fieldset' });
+        await u.clickButton('Fill the empty seats with computer players');
+      },
+    });
     await user.waitForText('Hand 1');
     await user.waitForSelector('.hand button.playing-card');
     await sleep(300);
+    await assertHeartsTable(user, seats);
     // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
-    const areas = ['.game-frame', '.score-bar', '.felt', '.felt .trick', '.felt .opp.left', '.felt .opp.top', '.felt .opp.right', '.felt .my-fan', '.felt .confirm', '.box.log', '.box.status', '.box.log .game-log'];
+    const sides = seats === 3 ? ['.opp.left', '.opp.right'] : ['.opp.left', '.opp.top', '.opp.right']; // two opponents sit left and right; three or more also have one on top
+    const areas = ['.game-frame', '.score-bar', '.felt', '.felt .trick', ...sides.map((s) => `.felt ${s}`), '.felt .my-fan', '.felt .confirm', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     // The hand is a fan of overlapping, turned cards, so click a point of each wanted card that is really its own.
     let clicks = 0;
@@ -151,6 +195,7 @@ test(`Hearts at ${at}: the table, hand, bottom boxes and every piece keep one si
     await assertGridEdges(user, 'hearts', viewport, { left: ['.felt'], right: ['.felt'] });
   })(t);
 });
+}
 
 test(`Cribbage at ${at}: the board, piles, play area, hand and bottom boxes keep one size and position through a whole hand, line up on the grid, and the page does not scroll`, { timeout: 150000 }, async (t) => {
   const user = await world.newUser('cribbage');

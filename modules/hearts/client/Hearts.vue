@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
     <RoomEntry
       v-else-if="!state"
       noun="game of Hearts"
-      intro="Four players, one deck, and the lowest score wins. Computer players can fill any empty seats."
+      intro="Three to seven players (four is usual), one deck, and the lowest score wins. Computer players can fill any empty seats."
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"
