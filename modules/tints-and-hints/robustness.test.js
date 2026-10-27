@@ -84,7 +84,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
       const hinter = hinterOf();
       const guesser = members.find((p) => p !== hinter && p !== ann) ?? bob;
       const extra = {
-        guess: [{ cell: 'A1' }, { cell: 'a0' }, { cell: 'A0 ' }, { cell: 'AA' }, { cell: 'AW1' }, { cell: 'A21' }, { cell: ['A1'] }, { cell: 'AV20' }],
+        guess: [{ cell: 'A1' }, { cell: 'a0' }, { cell: 'A0 ' }, { cell: 'AA' }, { cell: 'AW1' }, { cell: 'A25' }, { cell: ['A1'] }, { cell: 'AV24' }],
         hint: [{ text: 'a pleasant hint' }, { text: 'x'.repeat(81) }, { text: '   ' }],
         kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
         colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }],

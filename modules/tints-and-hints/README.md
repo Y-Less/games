@@ -7,9 +7,9 @@ A port of the author's standalone "Tints and Hints" (an Express server with one 
 ```
 module.json        menu entry, player limits and the statistics this game reports
 rules.md           the player-facing rules (shown by the Rules button)
-grid.js            the 48 x 20 colour grid: square names, colours, "close" test (shared by server and client)
-                   (names: columns A..Z, AA..AV, rows 1..20; every second column, and every second row from row 2, is exactly a square of the former 24 x 10 grid, the rest
-                   are linear blends in HSL; rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 2`)
+grid.js            the 48 x 24 colour grid: square names, colours, "close" test (shared by server and client)
+                   (names: columns A..Z, AA..AV, rows 1..24; every second column, and every second row from row 5, is exactly a square of the former 24 x 10 grid, the rest
+                   are linear blends in HSL; rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 4`)
 game.js            the rules as pure functions over a plain room object (no sockets, no files)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, personalised views, statistics
 ai/                the computer players (registry, the random AI, README)

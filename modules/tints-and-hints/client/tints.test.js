@@ -8,7 +8,7 @@ import { barSpan, gridCell, gridSize, gridSpan } from './layout.js';
 import { newEntries } from './moveLog.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
 
-vi.setConfig({ testTimeout: 20000 }); // 960 real buttons per mounted grid are slow in jsdom
+vi.setConfig({ testTimeout: 20000 }); // 1152 real buttons per mounted grid are slow in jsdom
 
 const player = (id, name, extra = {}) => ({ id, name, colour: '#ff0000', score: 0, online: true, guessed: false, placement: null, winner: false, ...extra });
 function view(extra = {}) {
@@ -148,7 +148,7 @@ describe('Tints and Hints screen', () => {
 
   it('draws the grid, slim bars for the others, and the standard boxes with the turn, round and hint in Status', async () => {
     const { wrapper } = await mountGame(view({ hints: { first: 'a warm evening', second: '' } }));
-    expect(wrapper.findAll('.board button.cell')).toHaveLength(960);
+    expect(wrapper.findAll('.board button.cell')).toHaveLength(1152);
     expect(wrapper.findAll('ul[aria-label="Players"] li').map((li) => li.find('.who').text())).toEqual(['Bob', 'Cy']); // everyone but you
     expect(wrapper.find('ul[aria-label="Players"] li .hint-tag').text()).toBe('hinter');
     const status = wrapper.find('.box.status').text();

@@ -60,7 +60,7 @@ test('the random AI: describes the 4 x 4 block of its square, and guesses inside
   const rng = seededRng(3);
   const all = COLS.flatMap((c) => ROWS.map((r) => c + r));
   const names = new Set(all.map(describeCell));
-  assert.equal(names.size, 60, 'every block has its own description');
+  assert.equal(names.size, 72, 'every block has its own description');
   for (const n of names) assert.ok(!/(red|orange|yellow|green|blue|purple|pink|violet|brown|grey|gray|white|black|gold|silver|indigo|magenta|teal|lime|cyan|turquoise)/i.test(n), `${n} is an object, not a colour name`);
   for (const cell of all) assert.ok(cellsDescribedBy(describeCell(cell)).includes(cell), cell);
   for (let i = 0; i < 400; i++) {
@@ -262,13 +262,13 @@ test('rooms saved with the old 24 x 10 grid are renamed to the same colours in t
   delete room.grid;
   Object.assign(room, { tint: 'M4', first: [{ id: 1, cell: 'A0' }], second: [{ id: 2, cell: 'X9' }], result: { tint: 'B1', entries: [{ id: 1, cell: 'C2' }] } });
   game.migrate(room);
-  assert.deepEqual([room.tint, room.first[0].cell, room.second[0].cell, room.result.tint, room.result.entries[0].cell], ['Y10', 'A2', 'AU20', 'C4', 'E6']);
+  assert.deepEqual([room.tint, room.first[0].cell, room.second[0].cell, room.result.tint, room.result.entries[0].cell], ['Y13', 'A5', 'AU23', 'C7', 'E9']);
   game.migrate(room);
-  assert.equal(room.tint, 'Y10', 'a migrated room is left alone');
+  assert.equal(room.tint, 'Y13', 'a migrated room is left alone');
   const v2 = lobbyWith(0);
   Object.assign(v2, { grid: 2, tint: 'Y9', first: [{ id: 1, cell: 'A1' }], second: [{ id: 2, cell: 'AU20' }] });
   game.migrate(v2);
-  assert.deepEqual([v2.tint, v2.first[0].cell, v2.second[0].cell], ['Y10', 'A2', 'AU20'], 'the earlier finer grid moves down a row');
+  assert.deepEqual([v2.tint, v2.first[0].cell, v2.second[0].cell], ['Y13', 'A5', 'AU24'], 'the earlier finer grid moves down four rows');
 });
 
 // ---------- real sockets ----------
