@@ -41,8 +41,8 @@ const emit = defineEmits(['closed', 'continue', 'details', 'hover', 'unhover']);
 
 const clickable = (p) => Boolean(props.hasDetails?.(p.id));
 const isOpen = (p) => props.openDetails !== null && props.openDetails === p.id;
-function toggleDetails(p) {
-  emit('details', isOpen(p) ? null : p.id);
+function toggleDetails(p, event) {
+  emit('details', isOpen(p) ? null : p.id, event?.currentTarget);
 }
 
 const open = ref(false);
@@ -126,8 +126,8 @@ defineExpose({ show, close });
           :aria-label="clickable(p) ? `Show ${p.name}'s details` : undefined"
           :title="clickable(p) ? 'Show details' : undefined"
           :aria-pressed="clickable(p) ? isOpen(p) : undefined"
-          @click="clickable(p) && toggleDetails(p)"
-          @pointerenter="clickable(p) && emit('hover', p.id)"
+          @click="clickable(p) && toggleDetails(p, $event)"
+          @pointerenter="clickable(p) && emit('hover', p.id, $event.currentTarget)"
           @pointerleave="clickable(p) && emit('unhover')"
         >
           <span v-if="p.bot" class="bot"><BotIcon /></span>

@@ -106,12 +106,12 @@ describe('ScoreBoard computer players and details', () => {
     expect(button.attributes('aria-pressed')).toBe('false');
     expect(button.attributes('title')).toBe('Show details');
     await button.trigger('click');
-    expect(wrapper.emitted('details')).toEqual([['b']]);
+    expect(wrapper.emitted('details')[0][0]).toBe('b');
     await wrapper.setProps({ openDetails: 'b' });
     expect(chips()[1].find('button').attributes('aria-pressed')).toBe('true');
     expect(chips()[1].classes('open')).toBe(true);
     await chips()[1].find('button').trigger('click');
-    expect(wrapper.emitted('details')[1]).toEqual([null]);
+    expect(wrapper.emitted('details')[1][0]).toBe(null);
   });
 
   it('keeps the name, score and ready tick inside a details button', () => {

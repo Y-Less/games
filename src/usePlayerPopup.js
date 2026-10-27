@@ -14,7 +14,7 @@
 //   });
 //   <ScoreBoard v-bind="scoreProps" ... />
 //   <PlayerPopup v-if="popupProps" v-bind="popupProps"> ...the game's panel for openId... </PlayerPopup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 
 // What counts as "inside": the chips that open pop-ups, and the pop-up itself.
 export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
@@ -22,6 +22,7 @@ export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
 export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, remove = null }) {
   const openId = ref(null);
   const error = ref('');
+  const anchor = shallowRef(null); // the chip the pop-up hangs under
   let pinned = false; // opened by a click, so moving the pointer away does not close it
   let timer = null;
   const LEAVE_DELAY = 300; // ms the pointer may spend between the chip and the pop-up
@@ -51,8 +52,9 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   const close = () => open(null);
 
   // Hovering a chip shows its pop-up; leaving the chip or the pop-up closes it after a moment unless it was pinned.
-  function hover(id) {
+  function hover(id, chip = null) {
     cancelClose();
+    if (chip) anchor.value = chip;
     if (openId.value !== id) open(id);
   }
   function unhover() {
@@ -64,8 +66,9 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     }, LEAVE_DELAY);
   }
   // A click on a chip: the first pins its pop-up open, the next one closes it.
-  function click(id) {
+  function click(id, chip = null) {
     cancelClose();
+    if (chip) anchor.value = chip;
     if (id === null) {
       if (pinned) close();
       else pinned = true;
@@ -117,7 +120,7 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   const scoreProps = computed(() => ({ hasDetails, openDetails: openId.value, onDetails: click, onHover: hover, onUnhover: unhover }));
   // Spread on <PlayerPopup v-if="popupProps" v-bind="popupProps">; null while nothing is open.
   const popupProps = computed(() =>
-    selected.value ? { player: selected.value, canRemove: Boolean(isHost() && remove), error: error.value, onRemove: removeSelected, onPointerenter: cancelClose, onPointerleave: unhover } : null,
+    selected.value ? { player: selected.value, canRemove: Boolean(isHost() && remove), error: error.value, anchor: anchor.value, onRemove: removeSelected, onPointerenter: cancelClose, onPointerleave: unhover } : null,
   );
 
   return { openId, selected, scoreProps, popupProps, open, close, hover, unhover, click, error };

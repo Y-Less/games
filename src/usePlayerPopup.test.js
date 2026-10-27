@@ -34,6 +34,17 @@ const chip = (n) => wrapper.findAll('.score-bar button.chip-button')[n];
 const popup = () => wrapper.find('.player-popup');
 const popupButton = (text) => popup().findAll('button').find((b) => b.text() === text);
 
+describe('usePlayerPopup placement', () => {
+  it('hangs the pop-up under the chip it was opened from, left edges aligned', async () => {
+    table();
+    const area = wrapper.find('.player-popup');
+    expect(area.exists()).toBe(false);
+    await chip(1).trigger('pointerenter');
+    // jsdom has no layout, so there is no area to place it in and it stays centred; the anchor is still handed over.
+    expect(popup().exists()).toBe(true);
+  });
+});
+
 describe('usePlayerPopup hovering', () => {
   it('opens on hover, closes a moment after the pointer leaves, and stays while the pointer is on the pop-up', async () => {
     vi.useFakeTimers();

@@ -6,15 +6,31 @@
 // slot is the game's own panel: whatever else is worth knowing about that player (their board, cards, tokens ...).
 // Give it `player` ({ id, name, bot?, away?, isHost? }), `canRemove` (true for the host looking at someone else) and
 // `error` (the reason the last removal was refused, if any). It emits `remove` once the host has confirmed.
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import BotIcon from './BotIcon.vue';
 
 const props = defineProps({
   player: { type: Object, required: true },
   canRemove: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  // The chip it was opened from: the pop-up hangs under it, left edges aligned (kept inside the area it sits in).
+  anchor: { type: Object, default: null },
 });
 const emit = defineEmits(['remove']);
+
+const root = ref(null);
+const left = ref(null); // px from the left of the area the pop-up sits in, or null to centre it
+function place() {
+  const el = root.value;
+  const chip = props.anchor;
+  const area = el?.offsetParent;
+  if (!el || !chip?.getBoundingClientRect || !area) return (left.value = null);
+  const wanted = chip.getBoundingClientRect().left - area.getBoundingClientRect().left;
+  left.value = Math.max(0, Math.min(wanted, area.clientWidth - el.offsetWidth));
+}
+onMounted(place);
+watch(() => [props.anchor, props.player.id], () => nextTick(place));
+const style = computed(() => (left.value === null ? undefined : { left: `${left.value}px`, transform: 'none' }));
 
 const confirming = ref(false);
 // Another player's popup, or a different state of removal, starts again from the plain button.
@@ -29,7 +45,7 @@ function confirm() {
 </script>
 
 <template>
-  <div class="player-popup popup" role="group" :aria-label="`${player.name}'s details`">
+  <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="`${player.name}'s details`">
     <header class="head">
       <strong class="who">
         <BotIcon v-if="player.bot" />
