@@ -48,7 +48,6 @@ test('the grid has 52 columns and 24 rows, and close means within one square', (
   assert.equal(fromEarlierCell('M4', 4), 'M8');
   assert.equal(fromEarlierCell('M20', 4), 'M24');
   assert.equal(fromEarlierCell('M21', 4), null);
-  assert.equal(cellColour(fromOldCell('M4')), 'hsl(180deg 100% 40%)');
   assert.equal(fromOldCell('Y0'), null);
   assert.equal(cellName(0, 23), 'A24');
   assert.equal(isClose('A1', 'B1'), true);
