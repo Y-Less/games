@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { fullDeck, rankValue, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
-import { bestNomination, biddingModel, lut, trickChances } from './ai/lut.js';
+import { bestNomination, biddingModel, lut, playModel, trickChances } from './ai/lut.js';
 import { FULL_SCHEDULE, SHORT_SCHEDULE, forbiddenNomination, isInstantWinRound as liveInstantWinRound, scoreRound, trumpOf } from './game.js';
 import { isInstantWinRound, playGame } from './sim/game.js';
+import { COARSE_CELLS, FINE_CELLS, coarseOfFine, keysFor } from './sim/play-features.js';
+import { emptyPlayModel, loadPlayModel, savePlayModel } from './sim/play-model.js';
 import { mulberry32 } from './sim/rng.js';
 import { playGames } from './sim/tournament.js';
 
@@ -133,5 +139,73 @@ test('the lookup AI nominates only allowed numbers, and expects more tricks from
     const hand = shuffle(fullDeck(), rng).slice(0, cards);
     const allowed = Array.from({ length: cards + 1 }, (_, n) => n).filter((n) => n !== (i % 3 === 0 ? 1 : -1));
     assert.ok(allowed.includes(lut.nominate({ hand, trump: i % 2 ? 'S' : null, players, allowed, rng })));
+  }
+});
+
+test('play-table keys are in range, the fine key refines the coarse one, and cards differ only where they should', () => {
+  const rng = mulberry32(21);
+  const ais = Array(5).fill({
+    nominate: (ctx) => ctx.allowed[0],
+    play: (ctx) => ctx.legal[0],
+  });
+  let decisions = 0;
+  const seen = new Set();
+  for (let g = 0; g < 200; g++) {
+    playGame({ ais: ais.slice(0, 3 + (g % 3)), schedule: SHORT_SCHEDULE }, rng, (e) => {
+      if (e.type !== 'play') return;
+      for (const key of keysFor(e.context)) {
+        assert.ok(Number.isInteger(key.coarse) && key.coarse >= 0 && key.coarse < COARSE_CELLS);
+        assert.ok(Number.isInteger(key.fine) && key.fine >= 0 && key.fine < FINE_CELLS);
+        assert.equal(coarseOfFine(key.fine), key.coarse);
+        seen.add(key.coarse);
+      }
+      decisions++;
+    });
+  }
+  assert.ok(decisions > 1000 && seen.size > 50, 'many different situations come up');
+});
+
+test('the play table saves and loads without changing a value beyond a hundredth of a point', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whist-model-'));
+  const files = [pathToFileURL(path.join(dir, 'p.json')), pathToFileURL(path.join(dir, 'p.bin'))];
+  const model = emptyPlayModel();
+  model.fine[5] = 12.345;
+  model.fine[9] = -3.2;
+  model.coarse[7] = 0.5;
+  savePlayModel(model, { trainedOn: { deals: 1 } }, ...files);
+  const back = loadPlayModel(...files);
+  assert.ok(Math.abs(back.fine[5] - 12.345) <= 0.006);
+  assert.ok(Math.abs(back.fine[9] + 3.2) <= 0.006);
+  assert.ok(Math.abs(back.coarse[7] - 0.5) <= 0.006);
+  assert.ok(Number.isNaN(back.fine[0]) && Number.isNaN(back.coarse[0]));
+  assert.equal(back.meta.trainedOn.deals, 1);
+  assert.equal(loadPlayModel(pathToFileURL(path.join(dir, 'missing.json')), files[1]), null);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('the lookup AI plays legal cards through whole games at every player count', () => {
+  const rng = mulberry32(33);
+  for (let players = 3; players <= 7; players++) {
+    const game = playGame({ ais: Array(players).fill(lut), schedule: SHORT_SCHEDULE }, rng);
+    assert.equal(game.rounds.length, SHORT_SCHEDULE.length);
+    for (const round of game.rounds) assert.equal(round.taken.reduce((a, b) => a + b, 0), round.cards);
+  }
+});
+
+test('with a table that always prefers the lowest-valued key the AI follows it, and without one it plays as Standard', () => {
+  const rng = mulberry32(4);
+  const preferHighCards = emptyPlayModel();
+  preferHighCards.coarse.fill(0);
+  const previous = playModel();
+  try {
+    playModel(null);
+    const plain = playGame({ ais: Array(4).fill(lut), schedule: SHORT_SCHEDULE }, mulberry32(4));
+    const standardGame = playGame({ ais: Array(4).fill({ ...ai('standard'), nominate: lut.nominate }), schedule: SHORT_SCHEDULE }, mulberry32(4));
+    assert.deepEqual(plain.scores, standardGame.scores, 'no table means Standard play');
+    playModel(preferHighCards);
+    const withTable = playGame({ ais: Array(4).fill(lut), schedule: SHORT_SCHEDULE }, rng);
+    assert.equal(withTable.rounds.length, SHORT_SCHEDULE.length);
+  } finally {
+    playModel(previous);
   }
 });

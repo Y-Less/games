@@ -41,3 +41,24 @@ simulation AI list (`ais.js`) but not in the live game's (`ai/index.js`) yet.
 
 `tourney.js --ai lut,standard,lut,standard` compares it with Standard; with the 20 million deals it beats Standard at every
 player count, by more as players are added (7 players, 100,000 games: 110 against 101 mean score).
+
+## The play table: `train-play.js` (experimental, no table shipped)
+
+```
+node modules/nomination-whist/sim/train-play.js --players 3-7 --iterations 3 --deals 20_000_000 --fresh
+```
+
+Self-play learning of a card-play lookup table. Every seat plays the current table (Standard's play to start with), a few
+plays are replaced by a random legal card (`--epsilon`), and only those random plays are recorded, with the points the round
+turned out to be worth to the player (a random card is the only unbiased way to measure what a play is worth). Averaging
+gives a value for each key from `play-features.js`: my need and slack, players after me, trumps or not, who is winning the
+trick and whether they want it, how many players after me want a trick or have made their number, and the card's role,
+whether it beats the table, whether it is a trump and how many unseen cards outrank it. The table (`models/play.json` and
+`play.bin`, 3.8 MB, a fine and a coarse level) is read by `ai/lut.js`; without the files the AI plays as Standard does.
+
+**Result so far:** it does not help. After 20 million deals per iteration, with 30% and then 3% random plays, the table
+plays no better than Standard's rules, and worse than Lookup's bidding table with Standard play (4 players: 94.3 against
+Standard's 95.0, where bidding alone scores 97.1 against 95.7), and extra iterations do not change that. So no `play.*`
+files are committed. Likely reasons: the keys do not say which cards the hand keeps for later (so a "good" play now may
+wreck the rest of the hand), they ignore the scores, and Standard's rules already play these situations well. Next steps
+worth trying are a richer hand description in the key, or a play AI that targets rivals directly using the scores.

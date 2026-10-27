@@ -1,12 +1,22 @@
 // Plays from lookup tables learned by simulation (modules/nomination-whist/sim). The bidding table gives, for every player
 // count, number of cards and trump suit, the chance of each number of tricks for a hand of a given estimated worth; the AI
-// nominates the allowed number with the best expected score. Without a table file it plays as Standard does.
+// nominates the allowed number with the best expected score. The play table gives the average points of each kind of play
+// in each situation (my need, the state of the other players, the card), and the AI plays the best one. Without a table
+// file it plays as Standard does.
 import fs from 'node:fs';
+import { bestPlay, loadPlayModel } from '../sim/play-model.js';
 import { roundPoints } from './sharp.js';
 import { canTakeAllSeven, chooseCard, chooseNomination, estimateTricks } from './standard.js';
 
 const BIDDING_FILE = new URL('../sim/models/bidding.json', import.meta.url);
 let bidding; // undefined until first needed, then the table or null if there is none
+let playing; // the same for the play table
+
+/** The play table (loaded once); `set` replaces it, with null for none or undefined to load from the file again. */
+export function playModel(set) {
+  if (set !== undefined || playing === undefined) playing = set === undefined ? loadPlayModel() : set;
+  return playing;
+}
 
 /** Loads (once) the bidding table; `reload` clears what was loaded, for tests and for use after retraining. */
 export function biddingModel(reload = false) {
@@ -55,5 +65,9 @@ export const lut = {
     const chances = model && trickChances(model, { hand, trump, players });
     return chances ? bestNomination(chances, allowed, missPoints) : chooseNomination(ctx);
   },
-  play: (ctx) => chooseCard(ctx),
+  play(ctx) {
+    if (ctx.legal.length === 1) return ctx.legal[0];
+    const model = playModel();
+    return (model && bestPlay(model, ctx)) ?? chooseCard(ctx);
+  },
 };

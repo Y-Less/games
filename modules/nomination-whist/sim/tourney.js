@@ -24,6 +24,7 @@ if (!isMainThread) {
   --seed N         base seed (default 1)
   --workers N      worker threads (default: cores - 1)
   --chunk N        games per job (default 200)
+  --json           print the results as JSON, keyed by AI, instead of a table (the status bar still goes to stderr)
 `;
   const { values: opts } = parseArgs({
     options: {
@@ -35,6 +36,7 @@ if (!isMainThread) {
       seed: { type: 'string', default: '1' },
       workers: { type: 'string', default: String(Math.max(1, os.cpus().length - 1)) },
       chunk: { type: 'string', default: '200' },
+      json: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
   });
@@ -88,7 +90,6 @@ if (!isMainThread) {
   workers.forEach((w) => w.terminate());
   showProgress(true);
   const seconds = (Date.now() - started) / 1000;
-  console.log(`\n${games} games, ${names.length} players (${names.join(', ')}), ${seconds.toFixed(1)}s, ${Math.round(games / seconds)} games/s`);
   const rows = Object.entries(totals).map(([name, t]) => ({
     ai: name,
     'mean score': +(t.score / t.games).toFixed(1),
@@ -98,5 +99,9 @@ if (!isMainThread) {
     'avg tricks': +(t.tricks / t.bids).toFixed(2),
     'instant wins': t.instantWins,
   }));
-  console.table(rows.sort((a, b) => b['mean score'] - a['mean score']));
+  if (opts.json) console.log(JSON.stringify(Object.fromEntries(rows.map((row) => [row.ai, row]))));
+  else {
+    console.log(`\n${games} games, ${names.length} players (${names.join(', ')}), ${seconds.toFixed(1)}s, ${Math.round(games / seconds)} games/s`);
+    console.table(rows.sort((a, b) => b['mean score'] - a['mean score']));
+  }
 }
