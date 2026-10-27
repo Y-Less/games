@@ -7,10 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
 import { AIS } from './ai/index.js';
-import { WORDS } from './ai/random.js';
 import { checkRoom } from './checks.js';
 import * as game from './game.js';
-import { isCell } from './grid.js';
+import { COLS, ROWS, cellsDescribedBy, describeCell, isCell } from './grid.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.TINTS_BOT_DELAY = '0-3';
@@ -54,23 +53,31 @@ function playOut(room, rng, guard = 3000) {
   assert.fail('the game did not finish');
 }
 
-test('the random AI: a short everyday word as a hint, and any legal square as a guess', () => {
+test('the random AI: describes the 4 x 4 block of its square, and guesses inside the block a hint describes', () => {
   assert.deepEqual(AIS.map((ai) => ai.id), ['random']);
   const [ai] = AIS;
   assert.equal(ai.name, 'Random');
   const rng = seededRng(3);
-  const hints = new Set();
-  const cells = new Set();
+  const all = COLS.flatMap((c) => ROWS.map((r) => c + r));
+  const names = new Set(all.map(describeCell));
+  assert.equal(names.size, 60, 'every block has its own description');
+  for (const cell of all) assert.ok(cellsDescribedBy(describeCell(cell)).includes(cell), cell);
   for (let i = 0; i < 400; i++) {
-    const hint = ai.hint({ round: 1 }, rng);
-    assert.ok(WORDS.includes(hint) && hint.trim() && hint.length <= game.HINT_LENGTH, hint);
-    hints.add(hint);
-    const cell = ai.guess({ round: 2 }, rng);
-    assert.ok(isCell(cell), cell);
-    cells.add(cell);
+    const tint = all[Math.floor(rng() * all.length)];
+    const hint = ai.hint({ round: 1, tint }, rng);
+    assert.equal(hint, describeCell(tint));
+    assert.ok(hint.length <= game.HINT_LENGTH);
+    const block = cellsDescribedBy(hint);
+    assert.equal(block.length, 16);
+    for (const round of [1, 2]) {
+      const cell = ai.guess({ round, cells: all, hints: { first: hint, second: hint } }, rng);
+      assert.ok(block.includes(cell), `${cell} is in the block for ${hint}`);
+    }
   }
-  assert.ok(hints.size > 5 && cells.size > 100, 'it really is random');
-  assert.ok(WORDS.length >= 10 && WORDS.every((w) => /^[a-z]+$/.test(w)));
+  const spread = new Set(Array.from({ length: 200 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'vivid green', second: '' } }, rng)));
+  assert.ok(spread.size > 10, 'it picks among the 16');
+  const any = new Set(Array.from({ length: 400 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'my own words', second: '' } }, rng)));
+  assert.ok(any.size > 100, 'a hint that is not a description gives a random square');
 });
 
 test('the host adds, fills and removes computer players in the lobby, up to the maximum', () => {

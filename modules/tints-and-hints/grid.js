@@ -61,3 +61,41 @@ export function fromV2Cell(cell) {
   const p = parseCell(cell);
   return p && p.row < ROWS.length - 1 ? cellName(p.col, p.row + 1) : null;
 }
+
+// ---------- 4 x 4 groups, for the computer players ----------
+// The grid is cut into blocks of 4 columns by 4 rows (12 by 5, 16 squares each). Each block has a plain-words colour
+// description, such as "vivid green" or "pale pink", which a computer hinter gives and a computer guesser looks up.
+export const GROUP_SIZE = 4;
+const HUES = ['red', 'orange', 'yellow', 'lime', 'green', 'teal', 'sky blue', 'blue', 'indigo', 'purple', 'magenta', 'pink'];
+const BANDS = ['muted dark', 'dark', 'vivid', 'light', 'pale'];
+
+/** The block (column group, row group, both from 0) that a square is in. */
+export function groupOf(cell) {
+  const p = parseCell(cell);
+  return p && { col: Math.floor(p.col / GROUP_SIZE), row: Math.floor(p.row / GROUP_SIZE) };
+}
+
+/** The description of a block, e.g. "dark teal". Every block has a different one. */
+export function describeGroup({ col, row }) {
+  const hue = HUES[col];
+  if (row === 0 && hue === 'orange') return 'muted brown';
+  if (row === 1 && hue === 'orange') return 'brown';
+  return `${BANDS[row]} ${hue}`;
+}
+
+/** The description of the block that holds a square, or null if it is not a square. */
+export const describeCell = (cell) => (parseCell(cell) ? describeGroup(groupOf(cell)) : null);
+
+/** The 16 squares of a block. */
+export function groupCells({ col, row }) {
+  const out = [];
+  for (let c = col * GROUP_SIZE; c < (col + 1) * GROUP_SIZE; c++) for (let r = row * GROUP_SIZE; r < (row + 1) * GROUP_SIZE; r++) out.push(cellName(c, r));
+  return out;
+}
+
+/** The 16 squares described by a hint (any case, spare spaces ignored), or null if the text is not one of the descriptions. */
+export function cellsDescribedBy(text) {
+  const wanted = String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  for (let col = 0; col < HUES.length; col++) for (let row = 0; row < BANDS.length; row++) if (describeGroup({ col, row }) === wanted) return groupCells({ col, row });
+  return null;
+}
