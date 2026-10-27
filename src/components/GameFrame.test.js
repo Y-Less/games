@@ -11,6 +11,24 @@ const slots = {
 };
 
 describe('GameFrame', () => {
+  it('minimises both boxes from either button, leaving their titles, and tells the main slot', async () => {
+    localStorage.removeItem('gameframe.minimised');
+    const w = mount(GameFrame, { slots: { ...slots, main: '<template #main="{ minimised }"><div id="m">{{ minimised }}</div></template>' } });
+    expect(w.find('#m').text()).toBe('false');
+    await w.find('.box.log .fold').trigger('click');
+    expect(w.classes()).toContain('minimised');
+    expect(w.find('#m').text()).toBe('true');
+    expect(w.find('.box.log .body').element.style.display).toBe('none');
+    expect(w.find('.box.status .body').element.style.display).toBe('none');
+    expect(w.find('.box.log h3').text()).toBe('Recent moves');
+    expect(w.find('.box.status h3').text()).toBe('Status');
+    await w.find('.box.status .fold').trigger('click');
+    expect(w.classes()).not.toContain('minimised');
+    expect(w.find('.box.log .body').element.style.display).toBe('');
+    expect(w.find('#m').text()).toBe('false');
+    localStorage.removeItem('gameframe.minimised');
+  });
+
   it('lays out the standard areas and tells the page it fits the window', () => {
     const w = mount(GameFrame, { slots });
     expect(w.attributes('data-fits-window')).toBeDefined();

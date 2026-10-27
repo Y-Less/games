@@ -140,8 +140,8 @@ describe('Hearts table in the standard frame', () => {
     const w = mount(Table, { props: { state: view(r), send } });
     const status = w.find('.box.status');
     expect(status.text()).toContain('wins with 20 points');
-    expect(status.findAll('button').map((b) => b.text())).toEqual(['Play again', 'See the scores']);
-    await status.findAll('button')[0].trigger('click');
+    expect(status.findAll('.body button').map((b) => b.text())).toEqual(['Play again', 'See the scores']);
+    await status.findAll('.body button')[0].trigger('click');
     expect(send).toHaveBeenCalledWith('again');
     expect(w.findAll('button').some((b) => /^leave/i.test(b.text()))).toBe(false);
   });

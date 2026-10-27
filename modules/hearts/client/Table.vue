@@ -212,7 +212,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13" straight>
+        <CardFan class="my-fan hand" :class="{ fanned: area.minimised }" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13" :straight="!area.minimised">
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: showReceived && state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
@@ -324,6 +324,9 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
   margin-left: -19.9rem;
   transform-origin: 50% 100%;
   transform: scale(var(--s));
+}
+.my-fan.fanned {
+  margin-left: -20.3rem; /* the fanned hand is a little wider than the flat row */
 }
 .slot {
   width: 100%;

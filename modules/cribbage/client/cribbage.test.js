@@ -110,8 +110,8 @@ describe('Cribbage table in the standard frame', () => {
     const status = w.find('.box.status');
     expect(status.text()).toContain('Alex (you) wins!');
     expect(status.text()).toMatch(/1\. Alex \(you\): 121/);
-    expect(status.findAll('button').map((b) => b.text())).toEqual(['Play again (back to the lobby)', 'See the scores']);
-    await status.findAll('button')[0].trigger('click');
+    expect(status.findAll('.body button').map((b) => b.text())).toEqual(['Play again (back to the lobby)', 'See the scores']);
+    await status.findAll('.body button')[0].trigger('click');
     expect(send).toHaveBeenCalledWith('rematch');
     expect(noLeave(w)).toBe(true);
   });

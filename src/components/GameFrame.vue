@@ -12,7 +12,8 @@
 // window alone, never from the game: nothing grows or shrinks during play. It draws no panel over the player's chosen
 // background; only the two bottom boxes have (translucent) backgrounds of their own. Slots: scorebar, main, others,
 // log, status. The `main` and `others` slots are given the size of its area ({ width, height } in pixels) so a game can size its
-// pieces to fit it. The root carries data-fits-window, which tells the play view not to scale the game down.
+// pieces to fit it. Both bottom boxes have a minimise button; either one hides the bodies of both boxes (leaving just their
+// titles), which gives the main area the room, and `minimised` is passed to the main slot so that a game can use it (the choice is remembered). The root carries data-fits-window, which tells the play view not to scale the game down.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = defineProps({
@@ -23,6 +24,28 @@ const props = defineProps({
   logTitle: { type: String, default: 'Recent moves' },
   statusTitle: { type: String, default: 'Status' },
 });
+
+const STORE = 'gameframe.minimised';
+const remembered = () => {
+  try {
+    return localStorage.getItem(STORE) === '1';
+  } catch {
+    return false;
+  }
+};
+const minimised = ref(remembered());
+function toggle() {
+  minimised.value = !minimised.value;
+  try {
+    localStorage.setItem(STORE, minimised.value ? '1' : '0');
+  } catch {
+    // not remembered: it still works for this visit
+  }
+  nextTick(() => {
+    measureMain();
+    window.dispatchEvent(new Event('resize'));
+  });
+}
 
 const root = ref(null);
 const mainBox = ref(null);
@@ -79,18 +102,24 @@ defineExpose({ measure });
 </script>
 
 <template>
-  <div ref="root" class="game-frame" :class="{ 'no-others': !$slots.others }" data-fits-window :style="style">
+  <div ref="root" class="game-frame" :class="{ 'no-others': !$slots.others, minimised }" data-fits-window :style="style">
     <div class="scorebar"><slot name="scorebar" /></div>
-    <div ref="mainBox" class="main"><slot name="main" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" /></div>
+    <div ref="mainBox" class="main"><slot name="main" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" :minimised="minimised" /></div>
     <div v-if="$slots.others" class="others"><slot name="others" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" /></div>
     <div class="bottom">
       <section class="box log" :aria-label="logTitle">
-        <h3>{{ logTitle }}</h3>
-        <div class="body"><slot name="log" /></div>
+        <div class="head">
+          <h3>{{ logTitle }}</h3>
+          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? 'Show Recent moves and Status' : 'Minimise Recent moves and Status'" :title="minimised ? 'Show' : 'Minimise'" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
+        </div>
+        <div v-show="!minimised" class="body"><slot name="log" /></div>
       </section>
       <section class="box status" :aria-label="statusTitle">
-        <h3>{{ statusTitle }}</h3>
-        <div class="body"><slot name="status" /></div>
+        <div class="head">
+          <h3>{{ statusTitle }}</h3>
+          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? 'Show Recent moves and Status' : 'Minimise Recent moves and Status'" :title="minimised ? 'Show' : 'Minimise'" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
+        </div>
+        <div v-show="!minimised" class="body"><slot name="status" /></div>
       </section>
     </div>
   </div>
@@ -113,6 +142,13 @@ defineExpose({ measure });
 /* A game with no bars (no `others` slot) has three rows, with the boxes in the last, which keeps its fixed height. */
 .game-frame.no-others {
   grid-template-rows: auto minmax(0, 1fr) clamp(6.5rem, 22%, 13rem);
+}
+/* Minimised: the boxes shrink to their titles and the main area takes the room. */
+.game-frame.minimised {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+.game-frame.minimised.no-others {
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 .game-frame > * {
   grid-column: 1 / -1;
@@ -155,11 +191,30 @@ defineExpose({ measure });
   font-size: 0.9rem;
   --log-height: 100%; /* GameLog fills the box and scrolls inside it */
 }
-.box h3 {
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex: none;
   margin-bottom: 0.25rem;
+}
+.box h3 {
+  margin: 0;
   font-size: 0.95rem;
   color: var(--amber);
+}
+.fold {
+  padding: 0 0.5rem;
+  line-height: 1.3;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.fold:hover {
+  color: var(--parchment);
+  border-color: var(--line);
 }
 .body {
   flex: 1;
