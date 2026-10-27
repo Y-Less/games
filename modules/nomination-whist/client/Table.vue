@@ -54,7 +54,10 @@ const others = computed(() => ordered.value.slice(1));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** The short line under an opponent's name: what they nominated and how many tricks they have won so far. */
 function noteFor(seat) {
-  if (seat.bid === null) return props.state.phase === 'nominating' && props.state.turn === seat.seat ? 'nominating…' : 'not yet nominated';
+  if (seat.bid === null) {
+    if (props.state.phase === 'nominating' && props.state.turn === seat.seat) return 'nominating…';
+    return seat.seat === props.state.round?.dealer ? 'dealer' : 'not yet nominated'; // the dealer nominates last
+  }
   return props.state.phase === 'nominating' ? `nominated ${seat.bid}` : `nominated ${seat.bid} · won ${seat.tricks}`;
 }
 const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s.name, cards: s.cards, note: noteFor(s), away: Boolean(s.away && !s.bot), current: s.seat === props.state.turn })));

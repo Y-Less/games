@@ -42,7 +42,8 @@ describe('the table in the standard frame', () => {
     expect(opps[1].find('.who').text()).toBeTruthy();
     expect(opps[1].classes()).toContain('current');
     expect(opps[1].find('.tag').text()).toBe('nominating…');
-    expect(opps[0].find('.tag').text()).toBe('not yet nominated');
+    expect(opps[0].find('.tag').text()).toBe('dealer'); // the dealer nominates last, so this stands in for "not yet nominated"
+    expect(opps[2].find('.tag').text()).toBe('not yet nominated');
   });
 
   it('keeps the round, dealer, trumps and every instruction in Status, not in the play area', () => {
