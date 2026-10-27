@@ -33,6 +33,8 @@ const passing = computed(() => s.value.phase === 'passing');
 const finished = computed(() => s.value.phase === 'finished');
 const handEnd = computed(() => s.value.phase === 'handEnd');
 const playing = computed(() => s.value.phase === 'playing');
+// The cards you received are marked only until the first card of the hand is played.
+const showReceived = computed(() => playing.value && s.value.trickNumber === 1 && !s.value.trick.length);
 const myTurn = computed(() => Boolean(s.value.legal));
 const circleSeats = computed(() => [0, 1, 2, 3].map((rel) => ({ key: seatIndex(rel), name: nameOf(seatIndex(rel)) })));
 const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ key: p.seat, card: p.card })) : []));
@@ -80,7 +82,7 @@ const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
   if (passing.value && !s.value.pass.chosen) lines.push({ text: `Pick 3 cards, then press the button on the table (${picks.value.length} of 3 chosen).`, tone: 'muted' });
-  if (s.value.received.length && playing.value) lines.push({ text: 'The cards you received are outlined in green.', tone: 'muted' });
+  if (s.value.received.length && showReceived.value) lines.push({ text: 'The cards you received are outlined in green.', tone: 'muted' });
   if (s.value.lastTrick && playing.value && !s.value.trick.length) lines.push({ text: `Last trick: ${nameOf(s.value.lastTrick.winner)} took it.`, tone: 'muted' });
   if (handEnd.value && moonMessage.value) lines.push({ text: moonMessage.value, tone: 'mine' });
   if (finished.value) {
@@ -212,7 +214,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 
         <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13" straight>
           <template #default="{ item: card }">
-            <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
+            <div class="slot" :class="{ received: showReceived && state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
             </div>
           </template>

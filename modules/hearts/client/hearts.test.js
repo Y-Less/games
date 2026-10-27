@@ -62,6 +62,21 @@ describe('Hearts player pop-up', () => {
   });
 });
 
+describe('Hearts received cards', () => {
+  it('are outlined until the first card of the hand is played, and not after', () => {
+    const state = { ...view(playing()), received: [] };
+    state.received = [state.hand[0]];
+    const before = mount(Table, { props: { state, send: makeSend() } });
+    expect(before.findAll('.slot.received')).toHaveLength(1);
+    expect(before.find('.box.status').text()).toContain('outlined in green');
+    const after = mount(Table, { props: { state: { ...state, trick: [{ seat: 1, card: '2C' }] }, send: makeSend() } });
+    expect(after.findAll('.slot.received')).toHaveLength(0);
+    expect(after.find('.box.status').text()).not.toContain('outlined in green');
+    const later = mount(Table, { props: { state: { ...state, trickNumber: 2 }, send: makeSend() } });
+    expect(later.findAll('.slot.received')).toHaveLength(0);
+  });
+});
+
 describe('Hearts table in the standard frame', () => {
   it('has the score bar, the table and the two bottom boxes, and no Leave button', () => {
     const w = mount(Table, { props: { state: view(room()), send: makeSend() } });
