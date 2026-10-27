@@ -80,7 +80,7 @@ const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trum
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
 const imDealer = computed(() => round.value.dealer === you.value);
 const MOST_CARDS = 7; // the most cards in a hand: the nomination zone always has room for 0 to this
-const options = computed(() => Array.from({ length: MOST_CARDS + 1 }, (_, n) => (n <= round.value.cards ? n : null)));
+const options = computed(() => Array.from({ length: Math.min(MOST_CARDS, round.value.cards) + 1 }, (_, n) => n));
 
 const plays = computed(() => {
   const trick = props.state.trick.length ? props.state.trick : props.state.phase === 'roundEnd' ? (props.state.lastTrick?.plays ?? []) : [];
@@ -184,17 +184,15 @@ const roomFor = (area) => {
           <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
             <h3>Your nomination</h3>
             <div class="numbers">
-              <template v-for="(n, i) in options" :key="i">
-                <button
-                  v-if="n !== null"
-                  class="number"
-                  :class="{ forbidden: n === state.forbidden && nominating }"
-                  :disabled="!nominating || n === state.forbidden"
-                  :title="n === state.forbidden && nominating ? 'You cannot nominate this as the dealer' : ''"
-                  @click="send('nominate', { number: n })"
-                >{{ n }}</button>
-                <span v-else class="number ghost" aria-hidden="true" />
-              </template>
+              <button
+                v-for="n in options"
+                :key="n"
+                class="number"
+                :class="{ forbidden: n === state.forbidden && nominating }"
+                :disabled="!nominating || n === state.forbidden"
+                :title="n === state.forbidden && nominating ? 'You cannot nominate this as the dealer' : ''"
+                @click="send('nominate', { number: n })"
+              >{{ n }}</button>
             </div>
           </section>
         </template>
@@ -363,20 +361,18 @@ const roomFor = (area) => {
   color: var(--amber);
 }
 .numbers {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* a short row (a round of one or two cards) is centred, not pushed to the left */
   gap: 0.5rem;
-  width: 100%;
-  max-width: 24rem;
+  width: calc(4 * 5.6rem + 3 * 0.5rem); /* at most four to a row */
 }
 .number {
+  width: 5.6rem;
   height: 2.8rem;
   padding: 0;
   font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
-}
-.number.ghost {
-  visibility: hidden;
 }
 .number.forbidden {
   text-decoration: line-through;
