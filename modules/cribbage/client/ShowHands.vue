@@ -1,5 +1,5 @@
 <script setup>
-// The show: each hand (and the crib) laid out with the starter and an itemised count.
+// The show: each hand (and the box) laid out with the starter and an itemised count.
 import { computed } from 'vue';
 import { rankOf, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
 import CardRow from './CardRow.vue';
@@ -16,7 +16,7 @@ const nameOf = (seat) => props.state.seats[seat].name;
   <div class="show stack">
     <div v-for="entry in entries" :key="`${entry.kind}-${entry.seat}`" class="entry" :style="{ borderLeftColor: seatColour(entry.seat) }">
       <h3>
-        <span class="title">{{ nameOf(entry.seat) }}<span v-if="entry.seat === state.you" class="muted"> (you)</span>: {{ entry.kind === 'crib' ? 'the crib' : 'hand' }}</span>
+        <span class="title">{{ nameOf(entry.seat) }}<span v-if="entry.seat === state.you" class="muted"> (you)</span>: {{ entry.kind === 'crib' ? 'the box' : 'hand' }}</span>
         <strong class="total">{{ entry.total }}</strong>
       </h3>
       <div class="laid">

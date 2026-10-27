@@ -52,14 +52,14 @@ describe('Cribbage table in the standard frame', () => {
     expect(w.find('.panel').exists()).toBe(false);
   });
 
-  it('keeps the instruction, hand number, dealer, target and deck and crib counts in Status', () => {
+  it('keeps the instruction, hand number, dealer, target and deck and box counts in Status', () => {
     const state = view(room());
     const w = mount(Table, { props: { state, send: makeSend() } });
     const status = w.find('.box.status').text();
     expect(status).toContain('Hand 1');
     expect(status).toContain('First to 121');
     expect(status).toMatch(/Deck: 40/);
-    expect(status).toMatch(/crib: 0/);
+    expect(status).toMatch(/box: 0/);
     expect(status).toMatch(/deals|You deal/);
     expect(status).toMatch(/Choose 2 cards for (your|Robin's|\w+'s) crib\./);
     const table = w.find('.arena').text();

@@ -20,8 +20,8 @@ const fail = (error) => ({ ok: false, error });
 const ok = (extra = {}) => ({ ok: true, ...extra });
 
 /**
- * Cards each player is dealt, how many of them go to the crib, and how many extra cards the deck adds to the crib.
- * With five players the dealer is dealt only four cards and adds nothing to the crib: the others' discards make it.
+ * Cards each player is dealt, how many of them go to the box, and how many extra cards the deck adds to the box.
+ * With five players the dealer is dealt only four cards and adds nothing to the box: the others' discards make it.
  */
 export const dealRules = (players, isDealer = false) => {
   const dealerLight = players === 5 && isDealer;
@@ -179,7 +179,7 @@ function log(room, seat, text, points = 0) {
   if (room.log.length > LOG_LIMIT) room.log.splice(0, room.log.length - LOG_LIMIT);
 }
 
-/** Closes the hand's entry in the history: what each seat scored in it (pegging, heels, hands and crib). */
+/** Closes the hand's entry in the history: what each seat scored in it (pegging, heels, hands and box). */
 function commitHand(room) {
   room.history.push({ label: `Hand ${room.handNo}`, deltas: room.handDeltas });
   room.handDeltas = {};
@@ -277,7 +277,7 @@ export function discard(room, seat, cards, rng = Math.random) {
   const s = room.seats[seat];
   const { discards } = dealRules(room.seats.length, seat === room.dealer);
   if (s.discarded) return fail('You have already discarded.');
-  if (!Array.isArray(cards) || cards.length !== discards) return fail(`Choose ${discards} card${discards === 1 ? '' : 's'} for the crib.`);
+  if (!Array.isArray(cards) || cards.length !== discards) return fail(`Choose ${discards} card${discards === 1 ? '' : 's'} for the box.`);
   if (!cards.every(isCard) || new Set(cards).size !== cards.length || !cards.every((c) => room.hands[seat].includes(c))) return fail('Those cards are not in your hand.');
   room.hands[seat] = room.hands[seat].filter((c) => !cards.includes(c));
   room.crib.push(...cards);

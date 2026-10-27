@@ -20,10 +20,10 @@ const seats = computed(() => [
 const targets = computed(() => props.state.limits.targets);
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
 const dealing = computed(() => {
-  if (props.state.seatCount === 2) return 'Two players: six cards each, two to the crib.';
-  if (props.state.seatCount === 3) return 'Three players: five cards each, one card each to the crib, and one more from the deck.';
-  if (props.state.seatCount === 4) return 'Four players: five cards each, one card each to the crib.';
-  return 'Five players: five cards each, one to the crib, but the dealer is dealt only four and adds nothing.';
+  if (props.state.seatCount === 2) return 'Two players: six cards each, two to the box.';
+  if (props.state.seatCount === 3) return 'Three players: five cards each, one card each to the box, and one more from the deck.';
+  if (props.state.seatCount === 4) return 'Four players: five cards each, one card each to the box.';
+  return 'Five players: five cards each, one to the box, but the dealer is dealt only four and adds nothing.';
 });
 </script>
 

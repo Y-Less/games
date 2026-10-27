@@ -61,21 +61,21 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
 test('starting the game deals the discard phase, and a reload resumes the same room', { timeout: 60000 }, guarded('start and reload', async () => {
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');
-  await user.waitForText('Send to the crib');
+  await user.waitForText('Send to the box');
   await user.waitForCodeInUrl(code);
   assert.equal(await user.page.$$eval('.hand button.playing-card', (c) => c.length), 6, 'two players are dealt six cards each');
 
   await user.page.reload({ waitUntil: 'domcontentloaded' });
   await user.waitForSelector('.score-bar');
-  await user.waitForText('Send to the crib');
+  await user.waitForText('Send to the box');
   await user.waitForCodeInUrl(code);
   assert.equal(await user.page.$('.entry'), null, 'not back at the start screen');
 }));
 
-test('playing a hand (crib, pegging, the show) ends with the scores pop-up and its All rounds table', { timeout: 120000 }, guarded('play a hand', async () => {
+test('playing a hand (box, pegging, the show) ends with the scores pop-up and its All rounds table', { timeout: 120000 }, guarded('play a hand', async () => {
   const finder = () => {
     const send = document.querySelector('.zone button.primary');
-    if (send && /Send to the crib/.test(send.innerText)) return send.disabled ? document.querySelector('.hand button.playing-card:not(.selected):not([disabled])') : send;
+    if (send && /Send to the box/.test(send.innerText)) return send.disabled ? document.querySelector('.hand button.playing-card:not(.selected):not([disabled])') : send;
     return document.querySelector('.hand button.playing-card:not([disabled])');
   };
   const act = () => user.clickFound(finder);

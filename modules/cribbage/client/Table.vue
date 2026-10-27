@@ -1,8 +1,8 @@
 <script setup>
 // The Cribbage table, in the standard GameFrame: the score bar on top; the table (your pegging row and hand on the left,
-// the board with the deck, starter and crib on the right); what each opponent holds, shown over the table when you click their chip in the score bar; and the two boxes along the
+// the board with the deck, starter and box on the right); what each opponent holds, shown over the table when you click their chip in the score bar; and the two boxes along the
 // bottom, Recent moves (the scoring) and Status. Every word about what is happening (turns, instructions, the hand
-// number, the dealer, the target, the deck and crib counts, the result) is in Status. It is drawn for every phase after
+// number, the dealer, the target, the deck and box counts, the result) is in Status. It is drawn for every phase after
 // the lobby (discarding, pegging, the show and the end), so nothing changes size or position from one to the next.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -79,7 +79,7 @@ async function discard() {
   if (reply?.ok) picked.value = [];
 }
 
-// An opponent's details (cards held, whether they have discarded, whose crib it is, their pegs) stay hidden until you
+// An opponent's details (cards held, whether they have discarded, whose box it is, their pegs) stay hidden until you
 // click their chip in the score bar: one at a time, floating at the top of the table, so nothing moves.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => scorePlayers.value,
@@ -91,8 +91,8 @@ const opened = computed(() => seats.value.find((o) => o.seat === openId.value) ?
 const detailLines = (o) => {
   const lines = [`${o.cards} ${o.cards === 1 ? 'card' : 'cards'} in hand`];
   const mine = o.seat === me.value;
-  if (phase.value === 'discard') lines.push(mine ? (o.discarded ? 'You have put cards in the crib' : 'You are still choosing cards for the crib') : o.discarded ? 'Has put cards in the crib' : 'Still choosing cards for the crib');
-  lines.push(o.seat === s.value.dealer ? (mine ? 'You are the dealer: the crib is yours' : 'The dealer: the crib is theirs') : `Crib: ${cribOwner.value}`);
+  if (phase.value === 'discard') lines.push(mine ? (o.discarded ? 'You have put cards in the box' : 'You are still choosing cards for the box') : o.discarded ? 'Has put cards in the box' : 'Still choosing cards for the box');
+  lines.push(o.seat === s.value.dealer ? (mine ? 'You are the dealer: the box is yours' : 'The dealer: the box is theirs') : `Box: ${cribOwner.value}`);
   lines.push(`Pegs: front on ${o.score}, back on ${o.back}`);
   return lines;
 };
@@ -100,7 +100,7 @@ const detailLines = (o) => {
 // ---- the words, all of them in the Status box ----
 const status = computed(() => {
   if (finished.value) return `${winner.value.name}${winner.value.seat === me.value ? ' (you)' : ''} wins!`;
-  if (phase.value === 'discard') return need.value ? `Choose ${need.value} card${need.value === 1 ? '' : 's'} for ${cribOwner.value} crib.` : `Waiting for ${waitingFor.value.join(', ')}…`;
+  if (phase.value === 'discard') return need.value ? `Choose ${need.value} card${need.value === 1 ? '' : 's'} for ${cribOwner.value} box.` : `Waiting for ${waitingFor.value.join(', ')}…`;
   if (inPlay.value) return myTurn.value ? (playable.value.size ? 'Your turn: choose a card.' : 'Your turn.') : `${seats.value[turn.value].name} to play.`;
   if (phase.value === 'show') return you.value.ready ? `Waiting for ${waitingForReady.value.join(', ')}…` : 'Close the scores pop-up when you are ready for the next hand.';
   return '';
@@ -108,7 +108,7 @@ const status = computed(() => {
 const mine = computed(() => !finished.value && ((phase.value === 'discard' && Boolean(need.value)) || (inPlay.value && myTurn.value)));
 const statusLines = computed(() => {
   const lines = [];
-  if (phase.value === 'discard' && need.value) lines.push({ text: `${picked.value.length} of ${need.value} chosen: pick them, then press Send to the crib.`, tone: 'muted' });
+  if (phase.value === 'discard' && need.value) lines.push({ text: `${picked.value.length} of ${need.value} chosen: pick them, then press Send to the box.`, tone: 'muted' });
   if (inPlay.value) {
     const { sequence, previous } = s.value.play;
     if (!sequence.length) lines.push({ text: previous.length ? 'The count has started again at 0.' : 'Nothing has been played yet.', tone: 'muted' });
@@ -125,7 +125,7 @@ const statusLines = computed(() => {
 const dims = (area) => {
   const hand = Math.round(Math.max(52, Math.min(124, (area.height * 0.34) / 1.4))); // width of a card in your hand, px
   const peg = Math.round(hand * 0.8); // width of a card in the pegging row
-  const pile = Math.round(Math.max(40, Math.min(64, area.height * 0.12))); // width of a card in the deck, starter and crib
+  const pile = Math.round(Math.max(40, Math.min(64, area.height * 0.12))); // width of a card in the deck, starter and box
   const pilesHeight = Math.round(pile * 1.4 + 14 + 20);
   return { hand, peg, pile, pilesHeight, boardHeight: Math.max(120, area.height - pilesHeight - 8) };
 };
@@ -180,7 +180,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
               </div>
             </template>
             <div v-else-if="phase === 'discard' && need" class="send">
-              <button class="primary" :disabled="picked.length !== need" @click="discard">Send to the crib</button>
+              <button class="primary" :disabled="picked.length !== need" @click="discard">Send to the box</button>
             </div>
           </section>
 
@@ -215,11 +215,11 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
               </div>
               <small class="muted">Starter</small>
             </div>
-            <div class="pile" aria-label="The crib">
+            <div class="pile" aria-label="The box">
               <div class="slot-box crib">
                 <PlayingCard v-for="n in Math.max(state.cribCount, 1)" :key="n" :card="null" size="sm" :class="{ faded: !state.cribCount }" />
               </div>
-              <small class="muted">Crib</small>
+              <small class="muted">Box</small>
             </div>
           </div>
         </div>
@@ -239,7 +239,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
           <span class="dealer"><span class="badge" title="Dealer">D</span>{{ youDeal ? 'You deal' : `${dealer.name} deals` }}</span>
           <span>First to {{ state.target }}</span>
           <span>Deck: {{ state.deckCount }}</span>
-          <span>{{ youDeal ? 'Your' : `${dealer.name}'s` }} crib: {{ state.cribCount }}</span>
+          <span>{{ youDeal ? 'Your' : `${dealer.name}'s` }} box: {{ state.cribCount }}</span>
         </template>
         <div v-if="finished" class="row">
           <button v-if="state.isHost" class="primary" @click="send('rematch')">Play again (back to the lobby)</button>

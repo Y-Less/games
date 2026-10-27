@@ -4,12 +4,12 @@ A game for 2, 3, 4 or 5 players, everyone playing for themselves. The first to r
 
 ## Dealing
 
-The dealer owns the **crib**, an extra hand of four cards that is counted for the dealer at the end of the hand. The deal passes clockwise after every hand. Everyone ends up keeping four cards.
+The dealer owns the **box**, an extra hand of four cards that is counted for the dealer at the end of the hand. The deal passes clockwise after every hand. Everyone ends up keeping four cards.
 
-- **Two players:** six cards each. Each player puts two cards in the crib.
-- **Three players:** five cards each, plus one extra card from the deck placed in the crib. Each player puts one card in the crib.
-- **Four players:** five cards each. Each player puts one card in the crib.
-- **Five players:** the dealer is dealt four cards and keeps them all; everyone else is dealt five and puts one card in the crib, which makes up the crib's four cards.
+- **Two players:** six cards each. Each player puts two cards in the box.
+- **Three players:** five cards each, plus one extra card from the deck placed in the box. Each player puts one card in the box.
+- **Four players:** five cards each. Each player puts one card in the box.
+- **Five players:** the dealer is dealt four cards and keeps them all; everyone else is dealt five and puts one card in the box, which makes up the box's four cards.
 
 After everyone has discarded, the starter card is cut from the deck. If it is a Jack, the dealer pegs 2 for **his heels** at once.
 
@@ -29,12 +29,12 @@ With three or more players, a player who cannot play is passed over while the ot
 
 ## The show
 
-When all the cards have been played, hands are counted with the starter, in order from the player to the dealer's left clockwise, with the dealer's hand last and then the dealer's crib. The game counts for you and lists every combination.
+When all the cards have been played, hands are counted with the starter, in order from the player to the dealer's left clockwise, with the dealer's hand last and then the dealer's box. The game counts for you and lists every combination.
 
 - **Fifteens:** every combination of cards adding up to 15 scores 2.
 - **Pairs:** 2 for each pair of the same rank.
 - **Runs:** 1 point per card for every run of three or more. Double and triple runs count each run separately, so a double run of three is 8 points with its pair.
-- **Flush:** four cards of one suit in the hand scores 4, or 5 if the starter matches too. In the crib a flush counts only if the starter matches as well, for 5.
+- **Flush:** four cards of one suit in the hand scores 4, or 5 if the starter matches too. In the box a flush counts only if the starter matches as well, for 5.
 - **His nobs:** a Jack in the hand of the same suit as the starter scores 1.
 
 There is no muggins: points are never stolen for missed scores.
