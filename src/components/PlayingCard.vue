@@ -2,7 +2,7 @@
 // A playing card drawn in CSS. `card` is a string such as "QS" (see shared/cards.js); pass null for a face-down card,
 // which shows the viewer's chosen card back. With `clickable` it is a button and emits `pick`.
 import { computed } from 'vue';
-import { cardName, isRed, rankOf, SUIT_SYMBOLS, suitOf } from '../../shared/cards.js';
+import { cardName, isJoker, isRed, rankOf, SUIT_SYMBOLS, suitOf } from '../../shared/cards.js';
 
 const props = defineProps({
   card: { type: String, default: null },
@@ -15,8 +15,9 @@ const props = defineProps({
 defineEmits(['pick']);
 
 const label = computed(() => (props.card ? cardName(props.card) : 'face-down card'));
-const rank = computed(() => (props.card ? rankOf(props.card) : ''));
-const symbol = computed(() => (props.card ? SUIT_SYMBOLS[suitOf(props.card)] : ''));
+const joker = computed(() => Boolean(props.card && isJoker(props.card)));
+const rank = computed(() => (!props.card ? '' : joker.value ? '★' : rankOf(props.card)));
+const symbol = computed(() => (!props.card || joker.value ? '' : SUIT_SYMBOLS[suitOf(props.card)]));
 const red = computed(() => props.card && isRed(props.card));
 const tag = computed(() => (props.clickable ? 'button' : 'div'));
 </script>
@@ -25,7 +26,7 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   <component
     :is="tag"
     class="playing-card"
-    :class="[size, { face: card, 'card-back': !card, red, selected, dimmed, clickable }]"
+    :class="[size, { face: card, 'card-back': !card, red, joker, selected, dimmed, clickable }]"
     :type="clickable ? 'button' : undefined"
     :disabled="clickable ? disabled : undefined"
     :aria-label="label"
@@ -34,7 +35,8 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   >
     <template v-if="card">
       <span class="corner top"><b>{{ rank }}</b><i>{{ symbol }}</i></span>
-      <span class="pip">{{ symbol }}</span>
+      <span class="pip">{{ joker ? '★' : symbol }}</span>
+      <span v-if="joker" class="joker-label" aria-hidden="true">JOKER</span>
       <span class="corner bottom"><b>{{ rank }}</b><i>{{ symbol }}</i></span>
     </template>
   </component>
@@ -101,6 +103,17 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   place-items: center;
   font-size: calc(var(--w) * 0.62);
   line-height: 1;
+  pointer-events: none;
+}
+.joker-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 17%;
+  text-align: center;
+  font-size: calc(var(--w) * 0.14);
+  font-weight: 700;
+  letter-spacing: 0.1em;
   pointer-events: none;
 }
 .clickable {

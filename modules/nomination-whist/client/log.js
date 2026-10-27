@@ -1,8 +1,8 @@
 // The "Recent moves" list of Nomination Whist. The server sends the state, not a history, so the list is worked out
 // here from what changed between one state and the next: a new round, a nomination, a card played, a trick won.
-import { SUIT_NAMES, SUIT_SYMBOLS, rankOf, suitOf } from '../../../shared/cards.js';
+import { SUIT_NAMES, SUIT_SYMBOLS, isJoker, rankOf, suitOf } from '../../../shared/cards.js';
 
-const shortCard = (card) => `${rankOf(card)}${SUIT_SYMBOLS[suitOf(card)]}`;
+const shortCard = (card) => (isJoker(card) ? 'a Joker' : `${rankOf(card)}${SUIT_SYMBOLS[suitOf(card)]}`);
 
 /** The log entries ({ text }) for what changed from `prev` to `next` (either may be null), oldest first. */
 export function movesBetween(prev, next) {
@@ -19,7 +19,11 @@ export function movesBetween(prev, next) {
     if (seat.bid !== null && prev.seats[i]?.bid === null) out.push({ text: `${name(i)} nominated ${seat.bid}.` });
   });
   for (const play of next.trick.slice(prev.trick.length)) out.push({ text: `${name(play.seat)} played ${shortCard(play.card)}.` });
-  if (next.trick.length === next.seats.length && prev.trick.length !== next.seats.length) out.push({ text: `${name(next.trickWinner)} won the trick.` });
+  if (next.trick.length === next.seats.length && prev.trick.length !== next.seats.length) {
+    const jokers = next.trick.filter((p) => isJoker(p.card));
+    if (jokers.length === 2) out.push({ text: isJoker(next.trick[0].card) ? 'The second Joker beats the Joker that led.' : 'Both Jokers were played, so they cancel out.' });
+    out.push({ text: `${name(next.trickWinner)} won the trick.` });
+  }
   if (next.phase === 'roundEnd' && prev.phase !== 'roundEnd') out.push({ text: `Round ${next.round.number} is over.` });
   if (next.phase === 'finished' && prev.phase !== 'finished') out.push({ text: 'The game is over.' });
   return out;

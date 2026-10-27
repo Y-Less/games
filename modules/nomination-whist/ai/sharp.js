@@ -2,6 +2,7 @@
 // nomination (and later the card) with the best expected score. Following suit, trumps and the order of play are
 // all handled by playing the round out with the real rules, so nothing is guessed.
 import { suitOf } from '../../../shared/cards.js';
+import { ledSuit, legalCards } from '../trick.js';
 import { nearestAllowed, unseenCards, winningCard } from './cards.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
@@ -59,12 +60,7 @@ export function dealUnseen(unseen, needs, rng) {
   return Object.fromEntries(needs.map((n) => [n.seat, unseen.slice(at, (at += n.count))]));
 }
 
-const legalFrom = (hand, trick) => {
-  if (!trick.length) return hand;
-  const led = suitOf(trick[0].card);
-  const following = hand.filter((c) => suitOf(c) === led);
-  return following.length ? following : hand;
-};
+const legalFrom = (hand, trick) => legalCards(hand, trick.map((p) => p.card));
 
 const winnerOf = (plays, trump) => {
   const best = winningCard(plays.map((p) => p.card), trump);
@@ -72,7 +68,7 @@ const winnerOf = (plays, trump) => {
 };
 
 /** Plays a round out from where it stands, every seat using the standard rule; returns the tricks each seat took. */
-export function playOut({ hands, trick, turn, taken, bids, trump, players, played }) {
+export function playOut({ hands, trick, turn, taken, bids, trump, players, played, jokers = false }) {
   const hand = hands.map((h) => [...h]);
   const won = [...taken];
   const seen = [...played];
@@ -87,7 +83,7 @@ export function playOut({ hands, trick, turn, taken, bids, trump, players, playe
     }
     if (!hand[seat].length) break;
     const legal = legalFrom(hand[seat], current);
-    const card = legal.length === 1 ? legal[0] : chooseCard({ hand: hand[seat], legal, trick: current.map((p) => p.card), trump, played: seen, need: bids[seat] - won[seat], players });
+    const card = legal.length === 1 ? legal[0] : chooseCard({ hand: hand[seat], legal, trick: current.map((p) => p.card), trump, played: seen, need: bids[seat] - won[seat], players, jokers });
     hand[seat] = hand[seat].filter((c) => c !== card);
     current.push({ seat, card });
     seen.push(card);
@@ -101,8 +97,8 @@ const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
 /** The suits each seat has shown it does not hold, from the trick in progress. */
 function knownVoids(trickPlays) {
   const voids = {};
-  if (!trickPlays.length) return voids;
-  const led = suitOf(trickPlays[0].card);
+  const led = ledSuit(trickPlays.map((p) => p.card));
+  if (led === null) return voids; // nothing led, or a Joker: no suit was followed or refused
   for (const { seat, card } of trickPlays) if (suitOf(card) !== led) voids[seat] = [led];
   return voids;
 }
@@ -115,13 +111,13 @@ export const sharp = {
   description: 'Simulates the rest of the round many times to pick the nomination and the card with the best expected score.',
   weight: 1.5,
 
-  nominate({ hand, trump, players, allowed, instantWin = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true }) {
+  nominate({ hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true }) {
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
     const cards = hand.length;
     const centre = estimateTricks(hand, trump, players);
     const candidates = allowed.filter((n) => Math.abs(n - centre) <= 2.2 || n === 0);
     if (candidates.length <= 1) return candidates[0] ?? nearestAllowed(allowed, centre);
-    const unseen = unseenCards(hand, []);
+    const unseen = unseenCards(hand, [], jokers);
     const others = Array.from({ length: players }, (_, s) => s).filter((s) => s !== seat);
     const totals = candidates.map(() => 0);
     for (let n = 0; n < NOMINATE_SAMPLES; n++) {
@@ -129,7 +125,7 @@ export const sharp = {
       const hands = Array.from({ length: players }, (_, s) => (s === seat ? hand : dealt[s]));
       const bids = hands.map((h, s) => nominations[s] ?? clamp(Math.round(estimateTricks(h, trump, players)), 0, cards));
       candidates.forEach((candidate, i) => {
-        const taken = playOut({ hands, trick: [], turn: (dealer + 1) % players, taken: Array(players).fill(0), bids: bids.map((b, s) => (s === seat ? candidate : b)), trump, players, played: [] });
+        const taken = playOut({ hands, trick: [], turn: (dealer + 1) % players, taken: Array(players).fill(0), bids: bids.map((b, s) => (s === seat ? candidate : b)), trump, players, played: [], jokers });
         totals[i] += roundPoints(candidate, taken[seat], { missPoints, instantWin, cards });
       });
     }
@@ -137,10 +133,10 @@ export const sharp = {
   },
 
   play(ctx) {
-    const { hand, legal, trump, played, players, rng = Math.random, seat = 0, nominations, taken, handSizes, trickPlays = [], missPoints = true, instantWin = false, cards } = ctx;
+    const { hand, legal, trump, played, players, rng = Math.random, seat = 0, nominations, taken, handSizes, trickPlays = [], missPoints = true, instantWin = false, jokers = false, cards } = ctx;
     if (legal.length === 1) return legal[0];
     const bids = nominations;
-    const unseen = unseenCards(hand, played);
+    const unseen = unseenCards(hand, played, jokers);
     const voids = knownVoids(trickPlays);
     const others = Array.from({ length: players }, (_, s) => s).filter((s) => s !== seat);
     const preferred = chooseCard(ctx);
@@ -149,7 +145,7 @@ export const sharp = {
       const dealt = dealUnseen(unseen, others.map((s) => ({ seat: s, count: handSizes[s], voids: voids[s] ?? [] })), rng);
       legal.forEach((card, i) => {
         const hands = Array.from({ length: players }, (_, s) => (s === seat ? hand.filter((c) => c !== card) : dealt[s]));
-        const result = playOut({ hands, trick: [...trickPlays, { seat, card }], turn: (seat + 1) % players, taken, bids, trump, players, played: [...played, card] });
+        const result = playOut({ hands, trick: [...trickPlays, { seat, card }], turn: (seat + 1) % players, taken, bids, trump, players, played: [...played, card], jokers });
         totals[i] += roundPoints(bids[seat], result[seat], { missPoints, instantWin, cards });
       });
     }

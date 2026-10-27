@@ -15,6 +15,9 @@ making a nomination plus the nomination, one point per trick on a miss, and the 
 tricks in the first or last round wins the game on the spot; `--no-instant-win` turns it off). The table shows each AI's
 mean score, win share (ties split), nomination hit rate, average nomination and tricks, and instant wins.
 
+`--jokers` shuffles the two Jokers in (see `rules.md`; the rules live in `../trick.js`). The learned bidding tables were trained
+without Jokers, so only the rule-based AIs (`standard`, `counter`, `cautious`, `optimist`, `sharp`, `random`) bid properly in those games.
+
 About 4,000 games a second with the quick AIs on a 24-thread machine; `sharp` is far slower.
 
 - `game.js` plays a round or a whole game with any AIs and an optional `observe` callback for every decision. AI contexts

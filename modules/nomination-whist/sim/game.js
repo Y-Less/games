@@ -2,22 +2,16 @@
 // know the state of the table. It follows the rules in ../rules.md through the live game's own helpers (schedule, trump
 // order, scoring, the dealer's forbidden number, trick winner), and gives the AIs the same contexts as game.js does,
 // plus the score situation: `scores` (everybody's total before this round), `round` (0-based) and `rounds` (in the game).
-import { shuffle, sortHand, suitOf, fullDeck } from '../../../shared/cards.js';
+import { deckFor, shuffle, sortHand } from '../../../shared/cards.js';
 import { AIS } from '../ai/index.js';
+import { legalCards } from '../trick.js';
 import { FULL_SCHEDULE, INSTANT_WIN_TRICKS, SHORT_SCHEDULE, forbiddenNomination, scoreRound, trickWinner, trumpOf, winnersOf } from '../game.js';
 
 /** Whether a round can end the game on the spot (the same rule as isInstantWinRound in ../game.js): a 7-card first or last round. */
 export const isInstantWinRound = (schedule, round) => schedule[round] === INSTANT_WIN_TRICKS && (round === 0 || round === schedule.length - 1);
 
 const standard = AIS.find((ai) => ai.id === 'standard');
-const DECK = fullDeck();
-
-const legalOf = (hand, trick) => {
-  if (!trick.length) return hand;
-  const led = suitOf(trick[0].card);
-  const follow = hand.filter((card) => suitOf(card) === led);
-  return follow.length ? follow : hand;
-};
+const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card));
 
 /**
  * Plays one round. `observe`, when given, is called as `observe({ type: 'nominate' | 'play' | 'trick', ... })` for
@@ -25,11 +19,12 @@ const legalOf = (hand, trick) => {
  * @returns {{ nominations: number[], taken: number[], hands: string[][] }} `hands` are as dealt
  */
 export function playRound({ ais, cards, trump, dealer, scores, round, rounds, settings, instantWin = false }, rng, observe = null) {
+  const jokers = settings.jokers === true;
   const players = ais.length;
-  const deck = shuffle(DECK, rng);
+  const deck = shuffle(deckFor(jokers), rng);
   const hands = Array.from({ length: players }, (_, seat) => sortHand(deck.slice(seat * cards, (seat + 1) * cards)));
   const dealt = hands.map((hand) => [...hand]);
-  const shared = { trump, players, dealer, cards, scores: [...scores], round, rounds, instantWin, missPoints: settings.missPoints, rng };
+  const shared = { trump, players, dealer, cards, scores: [...scores], round, rounds, instantWin, jokers, missPoints: settings.missPoints, rng };
 
   const nominations = Array(players).fill(null);
   for (let i = 1; i <= players; i++) {
@@ -83,12 +78,13 @@ export function playRound({ ais, cards, trump, dealer, scores, round, rounds, se
  * Plays a whole game and returns its record.
  * With `instantWin` on, a player who nominates 7 and wins all 7 tricks in a 7-card first or last round wins the game on
  * the spot (`instantWin` in the result is that seat, otherwise null); the scores are those at that moment.
- * @param {{ ais: object[], firstDealer?: number, schedule?: number[], missPoints?: boolean, instantWin?: boolean }} game  one AI per seat
+ * With `jokers` on, the two Jokers are shuffled in (see ../trick.js for what they do).
+ * @param {{ ais: object[], firstDealer?: number, schedule?: number[], missPoints?: boolean, instantWin?: boolean, jokers?: boolean }} game  one AI per seat
  * @returns {{ scores: number[], winners: number[], instantWin: number | null, rounds: object[] }}
  */
-export function playGame({ ais, firstDealer = 0, schedule = FULL_SCHEDULE, missPoints = true, instantWin = true }, rng, observe = null) {
+export function playGame({ ais, firstDealer = 0, schedule = FULL_SCHEDULE, missPoints = true, instantWin = true, jokers = false }, rng, observe = null) {
   const players = ais.length;
-  const settings = { missPoints };
+  const settings = { missPoints, jokers };
   const scores = Array(players).fill(0);
   const rounds = [];
   let instantWinner = null;

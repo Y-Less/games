@@ -18,7 +18,7 @@ test('settings: bad values are refused and change nothing; valid ones resize the
   assert.equal(room.seats.length, 6);
   assert.equal(room.scores.length, 6, 'scores follow the table size');
   assert.equal(game.setSettings(room, 1, { seats: 3, length: 'short', missPoints: false }).ok, true);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true });
+  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true, jokers: false });
   assert.equal(room.seats.length, 3);
   assert.throws(() => make({ seats: 99 }));
 });

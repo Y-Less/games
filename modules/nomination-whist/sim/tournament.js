@@ -8,7 +8,7 @@ export const byId = new Map(SIM_AIS.map((ai) => [ai.id, ai]));
 export const blank = () => ({ games: 0, rounds: 0, score: 0, wins: 0, bids: 0, hits: 0, tricks: 0, bidTotal: 0, instantWins: 0 });
 
 /** Plays games numbered `from` to `to - 1` and returns the totals for each AI name. */
-export function playGames({ names, seed, from, to, schedule, missPoints, instantWin }) {
+export function playGames({ names, seed, from, to, schedule, missPoints, instantWin, jokers = false }) {
   const rng = mulberry32(mixSeed(seed, from));
   const totals = Object.fromEntries([...new Set(names)].map((name) => [name, blank()]));
   for (let g = from; g < to; g++) {
@@ -16,7 +16,7 @@ export function playGames({ names, seed, from, to, schedule, missPoints, instant
     const seatNames = names.map((_, seat) => names[(seat + shift) % names.length]);
     const ais = seatNames.map((name) => byId.get(name));
     const firstDealer = Math.floor(rng() * names.length);
-    const { scores, winners, rounds, instantWin: instant } = playGame({ ais, firstDealer, schedule, missPoints, instantWin }, rng);
+    const { scores, winners, rounds, instantWin: instant } = playGame({ ais, firstDealer, schedule, missPoints, instantWin, jokers }, rng);
     seatNames.forEach((name, seat) => {
       const t = totals[name];
       t.games++;

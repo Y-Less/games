@@ -25,6 +25,16 @@ A trick-taking game for 3 to 7 players, in the "Oh Hell" family. Before each rou
 - A trick is won by the **highest trump** played. If no trump was played, it is won by the **highest card of the suit led**. In a no-trump round, only the suit led counts.
 - Aces are high.
 
+### Jokers (option)
+
+The host can turn on **Jokers** in the lobby (off by default). The two Jokers, one black and one red, are then shuffled into the pack, which makes 54 cards.
+
+- A Joker **wins the trick**, even against trumps and aces.
+- You may play a Joker only if you **cannot follow suit**, or if you are **leading**. If you can follow suit you must, and the Joker stays in your hand.
+- If **both Jokers are played in the same trick, both lose**: they cancel out, and the trick is won by the rest of the cards as usual (the highest trump, or the highest card of the suit led).
+- If you **lead a Joker**, there is no suit to follow, so everyone else may play any card. The Joker wins the trick unless the other Joker is played on top of it, and then the **second Joker wins** instead.
+- The suggested nomination is not offered in games with Jokers.
+
 ## Scoring
 
 - If you win **exactly** the number of tricks you nominated, you score **10 plus the number you nominated**. Nominating 0 and winning none scores 10.

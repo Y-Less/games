@@ -1,10 +1,12 @@
 // The original computer player's judgement for Nomination Whist: plain functions of what a player may know, with no room or
 // sockets. game.js decides what is legal; everything here picks from a list it is given, so it can never cheat.
-import { rankValue, suitOf, SUITS } from '../../../shared/cards.js';
+import { isJoker, rankValue, suitOf, SUITS } from '../../../shared/cards.js';
 import { highest, isMaster, lowest, nearestAllowed, winningCard } from './cards.js';
 
 const TRUMP_VALUE = { 14: 0.95, 13: 0.8, 12: 0.62, 11: 0.48, 10: 0.36, 9: 0.26 };
 const SIDE_ACE = { trumps: 0.72, none: 0.9 };
+/** A Joker wins whenever it is led or played on a suit it cannot follow, unless the other Joker is in the same trick. */
+export const JOKER_VALUE = 0.85;
 
 /** More players means fewer sure tricks: somebody is more likely to be void and to ruff. */
 const crowding = (players) => Math.max(0.55, 1 - 0.07 * (players - 3));
@@ -31,6 +33,7 @@ export function estimateTricks(hand, trump, players) {
     const low = trumps.filter((c) => rankValue(c) < 10).length;
     total += Math.min(low, ruffs) * 0.55;
   }
+  total += hand.filter(isJoker).length * JOKER_VALUE;
   return Math.min(total, hand.length);
 }
 
@@ -63,14 +66,14 @@ export function chooseNomination({ hand, trump, players, allowed, instantWin = f
  * tricks it wins them (sure winners first, the cheapest card that beats the table otherwise); once it has enough
  * it ducks, and sheds its most dangerous cards when it cannot follow suit.
  */
-export function chooseCard({ hand, legal, trick, trump, played, need, players }) {
+export function chooseCard({ hand, legal, trick, trump, played, need, players, jokers = false }) {
   if (legal.length === 1) return legal[0];
   const wantWin = need > 0;
   const cardsLeft = hand.length;
 
   if (trick.length === 0) {
     if (!wantWin) return lowest(legal, trump);
-    const masters = legal.filter((c) => isMaster(c, hand, played));
+    const masters = legal.filter((c) => isMaster(c, hand, played, jokers));
     const trumpMasters = masters.filter((c) => suitOf(c) === trump);
     if (trumpMasters.length) return highest(trumpMasters, trump);
     if (masters.length) return highest(masters, trump);
@@ -86,7 +89,7 @@ export function chooseCard({ hand, legal, trick, trump, played, need, players })
   if (wantWin) {
     if (!winners.length) return lowest(legal, trump);
     if (last) return lowest(winners, trump);
-    const masters = winners.filter((c) => isMaster(c, hand, played));
+    const masters = winners.filter((c) => isMaster(c, hand, played, jokers));
     if (masters.length) return lowest(masters, trump);
     const following = winners.filter((c) => suitOf(c) === suitOf(trick[0]));
     return following.length ? highest(following, trump) : lowest(winners, trump);

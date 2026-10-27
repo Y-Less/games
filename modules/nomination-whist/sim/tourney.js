@@ -24,6 +24,7 @@ if (!isMainThread) {
   --seed N         base seed (default 1)
   --workers N      worker threads (default: cores - 1)
   --chunk N        games per job (default 200)
+  --jokers         shuffle the two Jokers in (the AIs' bidding tables were not trained with them, so only the rule-based AIs are fair)
   --json           print the results as JSON, keyed by AI, instead of a table (the status bar still goes to stderr)
 `;
   const { values: opts } = parseArgs({
@@ -36,6 +37,7 @@ if (!isMainThread) {
       seed: { type: 'string', default: '1' },
       workers: { type: 'string', default: String(Math.max(1, os.cpus().length - 1)) },
       chunk: { type: 'string', default: '200' },
+      jokers: { type: 'boolean', default: false },
       json: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
@@ -51,7 +53,7 @@ if (!isMainThread) {
   const num = (text) => Number(String(text).replaceAll('_', ''));
   const games = num(opts.games);
   const chunk = num(opts.chunk);
-  const base = { names, seed: num(opts.seed), schedule: opts.short ? SHORT_SCHEDULE : FULL_SCHEDULE, missPoints: !opts['no-miss-points'], instantWin: !opts['no-instant-win'] };
+  const base = { names, seed: num(opts.seed), schedule: opts.short ? SHORT_SCHEDULE : FULL_SCHEDULE, missPoints: !opts['no-miss-points'], instantWin: !opts['no-instant-win'], jokers: opts.jokers };
 
   const jobs = Array.from({ length: Math.ceil(games / chunk) }, (_, id) => ({ id, from: id * chunk, to: Math.min(games, (id + 1) * chunk) }));
   const totals = Object.fromEntries([...new Set(names)].map((name) => [name, blank()]));

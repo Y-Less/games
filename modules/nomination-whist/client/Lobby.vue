@@ -64,6 +64,10 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
           <input type="checkbox" :checked="state.settings.instantWin !== false" :disabled="!isHost" @change="send('settings', { instantWin: $event.target.checked })" />
           <span>Instant win on a 7<span class="muted"> (nominate 7 and win all 7 tricks in the first or last round to win the whole game)</span></span>
         </label>
+        <label class="check">
+          <input type="checkbox" :checked="state.settings.jokers === true" :disabled="!isHost" @change="send('settings', { jokers: $event.target.checked })" />
+          <span>Jokers<span class="muted"> (the two Jokers are shuffled in: a Joker wins the trick if you lead it or cannot follow suit, unless the other Joker is played in the same trick, when both lose)</span></span>
+        </label>
         <p class="muted">Hit your nomination exactly and score 10 plus the number nominated. {{ rounds }} rounds in all.</p>
       </template>
     </SeatLobby>

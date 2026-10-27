@@ -4,11 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { fullDeck, rankValue, shuffle } from '../../shared/cards.js';
+import { fullDeck, isJoker, rankValue, shuffle, suitOf } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { bestNomination, biddingModel, contextChances, contextModel, lut, lutc, playModel, trickChances } from './ai/lut.js';
 import { FULL_SCHEDULE, SHORT_SCHEDULE, forbiddenNomination, isInstantWinRound as liveInstantWinRound, scoreRound, trumpOf } from './game.js';
+import { SIM_AIS } from './sim/ais.js';
 import { isInstantWinRound, playGame } from './sim/game.js';
+import { ledSuit } from './trick.js';
 import { cellOf } from './sim/bids-features.js';
 import { COARSE_CELLS, FINE_CELLS, coarseOfFine, keysFor } from './sim/play-features.js';
 import { emptyPlayModel, loadPlayModel, savePlayModel } from './sim/play-model.js';
@@ -259,4 +261,34 @@ test('the table-aware lookup AI nominates only allowed numbers, with or without 
     const allowed = Array.from({ length: cards + 1 }, (_, n) => n).filter((n) => n !== (i % 4 === 0 ? 0 : -1));
     assert.ok(allowed.includes(lutc.nominate({ hand, trump: i % 2 ? 'D' : null, players, allowed, nominations, seat, rng })));
   }
+});
+
+test('whole games with the Jokers shuffled in, for every simulator AI, keep every rule', () => {
+  const rng = mulberry32(61);
+  let jokersPlayed = 0;
+  SIM_AIS.forEach((ai, index) => {
+    const players = 3 + (index % 5);
+    const game = playGame(
+      { ais: Array(players).fill(ai), schedule: SHORT_SCHEDULE, jokers: true, instantWin: false },
+      rng,
+      (event) => {
+        if (event.type === 'play' && isJoker(event.card)) {
+          jokersPlayed++;
+          // a Joker is only ever played when leading or when unable to follow suit
+          const led = ledSuit(event.context.trickPlays.map((p) => p.card));
+          assert.ok(led === null || !event.context.hand.some((c) => suitOf(c) === led), `${ai.id} played a Joker while able to follow suit`);
+        }
+      },
+    );
+    for (const round of game.rounds) assert.equal(round.taken.reduce((a, b) => a + b, 0), round.cards);
+  });
+  assert.ok(jokersPlayed > 20, `Jokers were played (${jokersPlayed})`);
+});
+
+test('with the Jokers every hand is dealt from the 54 cards, and the tournament passes the option on', () => {
+  const base = { names: ['standard', 'counter', 'random'], seed: 5, schedule: SHORT_SCHEDULE, missPoints: true, instantWin: false };
+  const plain = playGames({ ...base, from: 0, to: 40, jokers: false });
+  const withJokers = playGames({ ...base, from: 0, to: 40, jokers: true });
+  assert.notDeepEqual(plain, withJokers, 'the Jokers change the games');
+  assert.deepEqual(playGames({ ...base, from: 0, to: 40, jokers: true }), withJokers, 'and are repeatable');
 });

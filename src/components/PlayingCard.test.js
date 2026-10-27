@@ -93,3 +93,24 @@ describe('PlayingCard clicking', () => {
     expect(w.emitted('pick')).toEqual([[null]]);
   });
 });
+
+describe('a Joker', () => {
+  it('is drawn with a star and a label, and is red or black like the Jokers in the pack', () => {
+    const black = mount(PlayingCard, { props: { card: 'JK1' } });
+    expect(black.classes()).toContain('joker');
+    expect(black.classes()).not.toContain('red');
+    expect(black.attributes('aria-label')).toBe('black joker');
+    expect(black.text()).toContain('JOKER');
+    expect(black.find('.pip').text()).toBe('★');
+    const red = mount(PlayingCard, { props: { card: 'JK2' } });
+    expect(red.classes()).toContain('red');
+    expect(red.attributes('aria-label')).toBe('red joker');
+  });
+
+  it('does not change how an ordinary card looks', () => {
+    const ace = mount(PlayingCard, { props: { card: 'AS' } });
+    expect(ace.classes()).not.toContain('joker');
+    expect(ace.find('.joker-label').exists()).toBe(false);
+    expect(ace.attributes('aria-label')).toBe('ace of spades');
+  });
+});

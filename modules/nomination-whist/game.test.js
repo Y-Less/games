@@ -43,7 +43,7 @@ test('the hand sizes run 7 down to 1 and back up, or 7 down to 1 only', () => {
   assert.equal(g.roundCount({ length: 'full' }), 14);
   assert.equal(g.roundCount({ length: 'short' }), 7);
   assert.deepEqual(Array.from({ length: 7 }, (_, i) => g.handSize({ length: 'short' }, i)), [7, 6, 5, 4, 3, 2, 1]);
-  assert.deepEqual(g.DEFAULT_SETTINGS, { seats: 4, length: 'full', missPoints: true, instantWin: true });
+  assert.deepEqual(g.DEFAULT_SETTINGS, { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false });
 });
 
 test('the trump suit repeats hearts, clubs, diamonds, spades, no trumps across all 14 rounds', () => {
@@ -135,7 +135,7 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   assert.equal(g.setSettings(room, 1, { length: 'weird' }).ok, false);
   assert.equal(g.setSettings(room, 1, { missPoints: 'yes' }).ok, false);
   assert.ok(g.setSettings(room, 1, { length: 'short', missPoints: false }).ok);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true });
+  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true, jokers: false });
 });
 
 test('too many people cannot be squeezed into fewer seats', () => {

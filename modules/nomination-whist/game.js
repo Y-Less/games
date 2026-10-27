@@ -4,16 +4,17 @@
 // Seats run clockwise: the player to your left is seat + 1, so play and nominations go round in increasing seat order.
 // A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>',
 // name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
-import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
+import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
 import { lutc } from './ai/lut.js';
+import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
 export const LENGTHS = ['full', 'short'];
-export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true };
+export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false };
 export const FULL_SCHEDULE = [7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7];
 export const SHORT_SCHEDULE = [7, 6, 5, 4, 3, 2, 1];
 export const TRUMP_ORDER = ['H', 'C', 'D', 'S', null];
@@ -87,6 +88,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   if (input?.instantWin !== undefined) {
     if (typeof input.instantWin !== 'boolean') return fail('That instant win option must be on or off.');
     next.instantWin = input.instantWin;
+  }
+  if (input?.jokers !== undefined) {
+    if (typeof input.jokers !== 'boolean') return fail('The Jokers option must be on or off.');
+    next.jokers = input.jokers;
   }
   return ok({ settings: next });
 }
@@ -270,7 +275,7 @@ function assignBotAIs(room, rng) {
 export function dealRound(room, rng = Math.random) {
   const n = room.seats.length;
   const cards = handSize(room.settings, room.roundIndex);
-  const deck = shuffle(fullDeck(), rng);
+  const deck = shuffle(deckFor(room.settings.jokers === true), rng);
   room.hands = Array.from({ length: n }, (_, i) => sortHand(deck.slice(i * cards, (i + 1) * cards)));
   room.nominations = Array(n).fill(null);
   room.taken = Array(n).fill(0);
@@ -322,11 +327,10 @@ export function nominate(room, seat, number) {
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return 'That card is not in your hand.';
-  if (room.trick.length === 0) return null;
-  const led = suitOf(room.trick[0].card);
-  if (suitOf(card) === led) return null;
-  if (hand.some((c) => suitOf(c) === led)) return `You must follow suit (${SUIT_NAMES[led]}).`;
-  return null;
+  const trick = room.trick.map((p) => p.card);
+  if (legalCardsFor(hand, trick).includes(card)) return null;
+  const led = SUIT_NAMES[ledSuit(trick)];
+  return isJoker(card) ? `You can only play a Joker when you cannot follow suit (${led}).` : `You must follow suit (${led}).`;
 }
 
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
@@ -345,12 +349,10 @@ export function playCard(room, seat, card) {
   return ok({ complete: room.trick.length === n });
 }
 
-/** The seat winning a (possibly unfinished) trick: the highest trump, or if there is none, the highest card led. */
+/** The seat winning a (possibly unfinished) trick: see trick.js for the rules, including the Jokers. */
 export function trickWinner(trick, trump) {
-  const led = suitOf(trick[0].card);
-  const trumps = trump ? trick.filter((p) => suitOf(p.card) === trump) : [];
-  const pool = trumps.length ? trumps : trick.filter((p) => suitOf(p.card) === led);
-  return pool.reduce((best, play) => (rankValue(play.card) > rankValue(best.card) ? play : best)).seat;
+  const best = winningCard(trick.map((p) => p.card), trump);
+  return trick.find((p) => p.card === best).seat;
 }
 
 /** Gives a finished trick to its winner, who leads next; after the last trick the round is scored. */
@@ -498,6 +500,7 @@ export function nominateContext(room, seat, rng) {
     allowed: allowedNominations(room, seat),
     instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex),
     missPoints: room.settings.missPoints !== false,
+    jokers: room.settings.jokers === true,
     seat,
     dealer: room.dealer,
     cards: cardsThisRound(room),
@@ -524,6 +527,7 @@ export function playContext(room, seat, rng) {
     cards: cardsThisRound(room),
     instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex),
     missPoints: room.settings.missPoints !== false,
+    jokers: room.settings.jokers === true,
     rng,
   };
 }
@@ -542,6 +546,7 @@ export function botPlay(room, seat, rng = Math.random) {
  */
 export function suggestedNomination(room, seat) {
   if (room.phase !== 'nominating' || room.turn !== seat) return null;
+  if (room.settings.jokers) return null; // the table was learned from games without Jokers, so it would mislead
   const context = nominateContext(room, seat, () => 0.5);
   const number = lutc.nominate(context);
   return context.allowed.includes(number) ? number : null;
