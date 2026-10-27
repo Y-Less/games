@@ -14,7 +14,8 @@
 // A player with `current: true` (whose turn it is, or who is leading the round) gets a bright glowing chip, with
 // aria-current, drawn without changing the chip's size. A player with `bot: true` gets a small computer icon (BotIcon) on their chip. Games that can show more about each
 // player (their own board, say) pass `hasDetails`, a function (playerId) => boolean: those chips become buttons that
-// emit `details` with the player's id, or with null when that player's details (`openDetails`) are already open.
+// emit `details` with the player's id on a click, or with null when that player's details (`openDetails`) are already open,
+// and `hover` (with the id) and `unhover` as the pointer enters and leaves the chip (usePlayerPopup turns these into the pop-up).
 import { computed, ref, watch } from 'vue';
 import { placements } from '../../shared/scores.js';
 import BotIcon from './BotIcon.vue';
@@ -36,7 +37,7 @@ const props = defineProps({
   hasDetails: { type: Function, default: null }, // (playerId) => boolean: this player's chip opens their details
   openDetails: { type: [String, Number], default: null }, // the player whose details are open now, if any
 });
-const emit = defineEmits(['closed', 'continue', 'details']);
+const emit = defineEmits(['closed', 'continue', 'details', 'hover', 'unhover']);
 
 const clickable = (p) => Boolean(props.hasDetails?.(p.id));
 const isOpen = (p) => props.openDetails !== null && props.openDetails === p.id;
@@ -126,6 +127,8 @@ defineExpose({ show, close });
           :title="clickable(p) ? 'Show details' : undefined"
           :aria-pressed="clickable(p) ? isOpen(p) : undefined"
           @click="clickable(p) && toggleDetails(p)"
+          @pointerenter="clickable(p) && emit('hover', p.id)"
+          @pointerleave="clickable(p) && emit('unhover')"
         >
           <span v-if="p.bot" class="bot"><BotIcon /></span>
           <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>

@@ -34,6 +34,44 @@ const chip = (n) => wrapper.findAll('.score-bar button.chip-button')[n];
 const popup = () => wrapper.find('.player-popup');
 const popupButton = (text) => popup().findAll('button').find((b) => b.text() === text);
 
+describe('usePlayerPopup hovering', () => {
+  it('opens on hover, closes a moment after the pointer leaves, and stays while the pointer is on the pop-up', async () => {
+    vi.useFakeTimers();
+    try {
+      table();
+      await chip(0).trigger('pointerenter');
+      expect(popup().text()).toContain('Bob');
+      await chip(0).trigger('pointerleave');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(popup().exists()).toBe(true); // the pointer is crossing to the pop-up
+      await popup().trigger('pointerenter');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(popup().exists()).toBe(true);
+      await popup().trigger('pointerleave');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(popup().exists()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a click pins the pop-up open past the pointer leaving, and the next click closes it', async () => {
+    vi.useFakeTimers();
+    try {
+      table();
+      await chip(0).trigger('pointerenter');
+      await chip(0).trigger('click'); // already open from the hover: this pins it
+      await chip(0).trigger('pointerleave');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(popup().exists()).toBe(true);
+      await chip(0).trigger('click');
+      expect(popup().exists()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('usePlayerPopup', () => {
   it('makes every other player a button, and not you', () => {
     table();
