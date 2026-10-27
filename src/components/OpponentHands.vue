@@ -131,6 +131,14 @@ const placed = computed(() => {
   align-items: center;
   border-radius: 12px;
 }
+/* The hand across the table has its name above the cards, with the note above the name. */
+.opp.top {
+  flex-direction: column-reverse;
+}
+.opp.top .label {
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+}
 .opp.away {
   opacity: 0.65;
 }
