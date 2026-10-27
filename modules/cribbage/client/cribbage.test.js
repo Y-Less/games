@@ -23,7 +23,7 @@ function room({ seats = 2, started = true } = {}) {
   return r;
 }
 const view = (r) => game.viewFor(r, 1);
-/** Everyone has put their cards in the crib, so the pegging has begun. */
+/** Everyone has put their cards in the box, so the pegging has begun. */
 function pegging(seats = 2) {
   const r = room({ seats });
   const count = game.viewFor(r, 1).need;
@@ -61,9 +61,9 @@ describe('Cribbage table in the standard frame', () => {
     expect(status).toMatch(/Deck: 40/);
     expect(status).toMatch(/box: 0/);
     expect(status).toMatch(/deals|You deal/);
-    expect(status).toMatch(/Choose 2 cards for (your|Robin's|\w+'s) crib\./);
+    expect(status).toMatch(/Choose 2 cards for (your|Robin's|\w+'s) box\./);
     const table = w.find('.arena').text();
-    expect(table).not.toMatch(/Choose|Hand \d|First to|Deck \(|crib \(|deals|Waiting|Your turn|to play/);
+    expect(table).not.toMatch(/Choose|Hand \d|First to|Deck \(|box \(|deals|Waiting|Your turn|to play/);
   });
 
   it('sends two chosen cards to the crib with the button in the play area', async () => {
