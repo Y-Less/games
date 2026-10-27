@@ -164,7 +164,7 @@ const roomFor = (area) => {
 
         <Final v-if="finished" class="zone-wide" :state="state" :send="send" />
         <template v-else>
-          <div class="centre" :style="{ gridColumn: `span ${area.mainSpan}` }" aria-live="polite">
+          <div class="centre" aria-live="polite">
             <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" size="lg" labels />
           </div>
           <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
@@ -302,14 +302,19 @@ const roomFor = (area) => {
 
 /* The trick in the middle of the left part, the nomination zone in the right part (the same size whatever it holds). */
 .centre {
+  grid-column: 1 / -1;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+/* The nomination buttons sit over the middle of the whole table, which is where the cards are played later. */
 .nominate {
-  grid-column: span 4;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 2;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -317,6 +322,10 @@ const roomFor = (area) => {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
+  pointer-events: none;
+}
+.nominate .numbers {
+  pointer-events: auto;
 }
 .nominate.hidden {
   visibility: hidden; /* once the round has started the zone stays (so nothing moves) but is empty */
