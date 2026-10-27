@@ -4,7 +4,7 @@ A game for 2 to 8 players. One player secretly sees a colour on a grid and descr
 
 ## The grid
 
-The grid has 48 columns (A to Z, then AA to AV, which run round the colour wheel) and 20 rows (1 to 20, from muted and dark, through vivid, to pale). A square is a column and a row, such as **M9** or **AC14**.
+The grid has 48 columns (A to Z, then AA to AV, which run round the colour wheel) and 20 rows (1 to 20, from very muted and dark, through vivid, to light). A square is a column and a row, such as **M9** or **AC14**.
 
 ## Starting
 

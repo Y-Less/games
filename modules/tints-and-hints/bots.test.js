@@ -254,9 +254,13 @@ test('rooms saved with the old 24 x 10 grid are renamed to the same colours in t
   delete room.grid;
   Object.assign(room, { tint: 'M4', first: [{ id: 1, cell: 'A0' }], second: [{ id: 2, cell: 'X9' }], result: { tint: 'B1', entries: [{ id: 1, cell: 'C2' }] } });
   game.migrate(room);
-  assert.deepEqual([room.tint, room.first[0].cell, room.second[0].cell, room.result.tint, room.result.entries[0].cell], ['Y9', 'A1', 'AU19', 'C3', 'E5']);
+  assert.deepEqual([room.tint, room.first[0].cell, room.second[0].cell, room.result.tint, room.result.entries[0].cell], ['Y10', 'A2', 'AU20', 'C4', 'E6']);
   game.migrate(room);
-  assert.equal(room.tint, 'Y9', 'a migrated room is left alone');
+  assert.equal(room.tint, 'Y10', 'a migrated room is left alone');
+  const v2 = lobbyWith(0);
+  Object.assign(v2, { grid: 2, tint: 'Y9', first: [{ id: 1, cell: 'A1' }], second: [{ id: 2, cell: 'AU20' }] });
+  game.migrate(v2);
+  assert.deepEqual([v2.tint, v2.first[0].cell, v2.second[0].cell], ['Y10', 'A2', 'AU20'], 'the earlier finer grid moves down a row');
 });
 
 // ---------- real sockets ----------

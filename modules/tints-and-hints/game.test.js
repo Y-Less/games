@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { COLS, ROWS, cellColour, cellName, fromOldCell, isCell, isClose, parseCell } from './grid.js';
+import { COLS, ROWS, cellColour, cellName, fromOldCell, fromV2Cell, isCell, isClose, parseCell } from './grid.js';
 
 const sequence = (...values) => {
   let i = 0;
@@ -32,17 +32,20 @@ test('the grid has 48 columns and 20 rows, and close means within one square', (
   assert.deepEqual(parseCell('AC14'), { col: 28, row: 13 });
   assert.ok(isCell('A1') && isCell('AV20'));
   for (const bad of ['AW1', 'A', 'A21', 'A0', 'a1', 'AA', 'A01', 'A1 ', '1A', '', null, 12, ['A1']]) assert.equal(isCell(bad), false, String(bad));
-  assert.equal(cellColour('A1'), 'hsl(0deg 25% 30%)');
-  assert.equal(cellColour('B2'), 'hsl(7.5deg 37.5% 30%)', 'between the old squares');
-  assert.equal(cellColour('C1'), 'hsl(15deg 25% 30%)', 'an old square keeps its colour');
-  assert.equal(cellColour('AV20'), 'hsl(352.5deg 100% 95%)');
-  assert.equal(cellColour('G11'), 'hsl(45deg 100% 50%)');
+  assert.equal(cellColour('A1'), 'hsl(0deg 12.5% 30%)', 'the new top row');
+  assert.equal(cellColour('A2'), 'hsl(0deg 25% 30%)');
+  assert.equal(cellColour('B3'), 'hsl(7.5deg 37.5% 30%)', 'between the old squares');
+  assert.equal(cellColour('C2'), 'hsl(15deg 25% 30%)', 'an old square keeps its colour');
+  assert.equal(cellColour('AV20'), 'hsl(352.5deg 100% 90%)', 'the old palest row is the bottom');
+  assert.equal(cellColour('G12'), 'hsl(45deg 100% 50%)');
 
   for (const near of ['M4', 'L3', 'L4', 'L5', 'M3', 'M5', 'N3', 'N4', 'N5']) assert.ok(isClose(near, 'M4'), near);
   for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6', 'L2']) assert.equal(isClose(far, 'M4'), false, far);
   assert.equal(isClose('AV4', 'A4'), false, 'the hue does not wrap round');
   assert.equal(isClose('Z4', 'AA4'), true, 'neighbours across the single to double letter step');
-  assert.equal(fromOldCell('X9'), 'AU19');
+  assert.equal(fromOldCell('X9'), 'AU20');
+  assert.equal(fromV2Cell('M4'), 'M5');
+  assert.equal(fromV2Cell('M20'), null);
   assert.equal(cellColour(fromOldCell('M4')), 'hsl(180deg 100% 40%)');
   assert.equal(fromOldCell('Y0'), null);
   assert.equal(cellName(0, 19), 'A20');
