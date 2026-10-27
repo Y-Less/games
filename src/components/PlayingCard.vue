@@ -66,8 +66,9 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
   font-family: var(--body);
 }
-.face.red {
-  color: #b4281f;
+.playing-card.face.red,
+.playing-card.face.red:hover:not(:disabled) {
+  color: #b4281f; /* hovering must not turn a red card black */
 }
 .corner {
   position: absolute;
