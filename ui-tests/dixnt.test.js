@@ -242,7 +242,9 @@ test('the host always has Remove in a player popup: a computer player is removed
   const popup = await rect(solo, '.player-popup');
   const main = await rect(solo, '.main');
   assert.ok(popup.top >= main.top - 1 && popup.bottom <= main.bottom + 1 && popup.left >= main.left && popup.right <= main.right, 'the popup sits inside the main area');
-  assert.ok(Math.abs((popup.left + popup.right) / 2 - (main.left + main.right) / 2) <= 2, 'and is centred at the top of it');
+  const chip = await solo.page.$eval('.score-bar .chip:not(.me) button.chip-button', (e) => { const r = e.getBoundingClientRect(); return { left: r.left, bottom: r.bottom }; });
+  assert.ok(Math.abs(popup.left - chip.left) <= 2, `and hangs under its chip, left edges aligned (${popup.left} vs ${chip.left})`);
+  assert.ok(popup.top >= chip.bottom - 1, 'below the chip');
   await solo.clickButton('Remove computer player', { scope: '.player-popup' });
   await solo.waitForText('from the game?'); // the confirmation is inline, in the popup
   assert.equal(await solo.page.evaluate(() => Boolean(document.querySelector('.modal-backdrop'))), false, 'not a window.confirm or modal');
