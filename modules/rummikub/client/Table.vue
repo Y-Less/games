@@ -395,9 +395,6 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
   min-height: 0;
   padding: 0.6rem 0.8rem;
   overflow-y: auto;
-  border-radius: var(--radius);
-  background: radial-gradient(900px 400px at 50% 0%, #25503f, #173428);
-  border: 1px solid #2d5a47;
 }
 .empty {
   padding: 0.4rem;
