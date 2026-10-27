@@ -38,7 +38,8 @@ const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
 const hint = computed(() => (round.value === 2 && s.value.hints.second ? s.value.hints.second : s.value.hints.first));
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
-const canContinue = computed(() => isHinter.value || s.value.you === s.value.hostId);
+const reveal = computed(() => phase.value === 'reveal');
+const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
 const canGuess = computed(() => guessing.value && !isHinter.value && !mine.value?.guessed);
 const standings = computed(() => [...s.value.players].sort((a, b) => b.score - a.score));
 const winners = computed(() => standings.value.filter((p) => p.winner).map((p) => p.name));
@@ -82,7 +83,9 @@ const lines = computed(() => {
   if (phase.value === 'reveal') {
     return [
       'Every guess is on the grid.',
-      canContinue.value ? { text: lastTurn.value ? 'Press "Finish the game" when you are ready.' : 'Press "Next turn" when you are ready.', tone: 'mine' } : { text: `Waiting for ${hinterName.value} to continue.`, tone: 'muted' },
+      mine.value?.ready
+        ? { text: `Waiting for ${waitingFor.value.join(', ')} to be ready${lastTurn.value ? ' for the final scores' : ' for the next turn'}.`, tone: 'muted' }
+        : { text: 'Close the scores when you are ready to carry on.', tone: 'mine' },
     ];
   }
   if (isHinter.value) return [`${guessedCount.value} of ${guessers.value.length} have guessed.`];
@@ -118,7 +121,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
 <template>
   <GameFrame class="table-view" :main-span="8" :log-span="5">
     <template #scorebar>
-      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :sticky="false" v-bind="scoreProps">
+      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :awaiting="reveal && !mine?.ready" :waiting="waitingFor" :sticky="false" v-bind="scoreProps" @continue="send('ready')">
         <template #round>
           <section v-if="state.result" class="reveal stack" aria-label="This turn">
             <div class="row">
@@ -195,7 +198,6 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
             <button v-if="isHinter && guessing" class="primary wide" :disabled="!allGuessed" @click="send('advance')">
               {{ round === 1 ? 'Continue to the second round' : 'Reveal the tint' }}
             </button>
-            <button v-else-if="phase === 'reveal' && canContinue" class="primary wide" @click="send('advance')">{{ lastTurn ? 'Finish the game' : 'Next turn' }}</button>
           </div>
 
           <ol v-if="state.phase === 'finished'" class="standings" aria-label="Final scores">

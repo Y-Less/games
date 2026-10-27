@@ -42,6 +42,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     players: [newPlayer(hostId, COLOURS[0])],
     nextIdx: 0,
     grid: GRID_VERSION, // 2 = the 48 x 20 grid; rooms without it were saved with the old 24 x 10 grid (see migrate)
+    ready: [], // at the reveal: the people who have closed the scores pop-up
     nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
     hinter: null,
     tint: null,
@@ -89,6 +90,7 @@ function newBot(room) {
   let name = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
   for (let n = 2; used.has(name); n++) name = `Computer ${n}`;
   room.nextBot ??= 1;
+  room.ready ??= [];
   return { ...newPlayer(`bot:${room.nextBot++}`, freeColour(room)), bot: true, name };
 }
 
@@ -135,6 +137,7 @@ function startTurn(room, rng) {
   room.first = [];
   room.second = [];
   room.result = null;
+  room.ready = [];
   room.phase = 'guessing1';
 }
 
@@ -260,6 +263,7 @@ export function migrate(room) {
 
 function finishTurn(room, rng) {
   room.turn++;
+  room.ready = [];
   if (room.turn >= room.turnsTotal) {
     room.phase = 'finished';
     return true;
@@ -268,23 +272,44 @@ function finishTurn(room, rng) {
   return false;
 }
 
-/** Moves on: the hinter closes each round of guessing, then the hinter or host closes the reveal. */
+/** Moves on: the hinter closes each round of guessing. (The reveal is closed by everyone, see `ready`.) */
 export function advance(room, id, rng = Math.random, nameOf = String) {
   nameOf = namer(room, nameOf);
-  if (room.phase === 'reveal') {
-    if (id !== room.hinter && id !== room.hostId) return fail('Only the hinter or the host can continue.');
-    return ok({ finished: finishTurn(room, rng) });
-  }
+  if (room.phase === 'reveal') return fail('Close the scores to carry on.');
   if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('There is nothing to continue.');
   if (id !== room.hinter) return fail('Only the hinter can continue.');
   if (!allGuessed(room)) return fail('Wait for everyone to guess.');
   if (room.phase === 'guessing1') room.phase = 'guessing2';
   else {
     scoreTurn(room, nameOf);
+    room.ready = [];
     room.phase = 'reveal';
   }
   return ok({ finished: false });
 }
+
+/** The people who have yet to close the scores at the reveal. */
+const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
+
+/**
+ * At the reveal, a person has closed the scores pop-up and is ready for the next turn. Once every person is ready
+ * (computer players always are) the next turn starts, or the game finishes after the last one.
+ */
+export function ready(room, id, rng = Math.random) {
+  if (!hasPlayer(room, id)) return fail('You are not in this game.');
+  if (room.phase !== 'reveal') return fail('There are no scores to close.');
+  if (!room.ready.includes(id)) room.ready.push(id);
+  return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
+}
+
+/** Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait). */
+export function forceNext(room, rng = Math.random) {
+  if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
+  return ok({ finished: finishTurn(room, rng) });
+}
+
+/** True while the reveal waits for people to close the scores (the server times this out). */
+export const waitingForReady = (room) => room.phase === 'reveal';
 
 /** Someone leaves (or is removed by the host). Returns { empty, abandoned, finished }. */
 export function removePlayer(room, id, rng = Math.random) {
@@ -296,13 +321,16 @@ export function removePlayer(room, id, rng = Math.random) {
   if (room.players.length) room.nextIdx %= room.players.length;
   room.first = room.first.filter((g) => g.id !== id);
   room.second = room.second.filter((g) => g.id !== id);
+  room.ready = (room.ready ?? []).filter((x) => x !== id);
   if (room.hostId === id && room.players.length) room.hostId = (humans(room)[0] ?? room.players[0]).id;
   if (!humans(room).length) return ok({ empty: true, abandoned: false, finished: false });
   if (room.phase === 'lobby') return ok({ empty: false, abandoned: false, finished: false });
   if (room.players.length < MIN_PLAYERS) {
     room.phase = 'abandoned';
+    room.ready = [];
     return ok({ empty: false, abandoned: true, finished: false });
   }
+  if (room.phase === 'reveal') return ok({ empty: false, abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
   return ok({ empty: false, abandoned: false, finished: wasHinter ? finishTurn(room, rng) : false });
 }
 
@@ -361,11 +389,12 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
       bot: Boolean(p.bot),
       ai: p.bot && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
       guessed: current.some((g) => g.id === p.id),
+      ready: room.phase === 'reveal' ? Boolean(p.bot) || room.ready.includes(p.id) : false,
       placement: final.get(p.id)?.placement ?? null,
       winner: final.get(p.id)?.winner ?? false,
     })),
     scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, bot: Boolean(p.bot), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !p.bot && !onlineOf(p.id) })),
+      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, bot: Boolean(p.bot), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !p.bot && !onlineOf(p.id), ...(room.phase === 'reveal' ? { ready: Boolean(p.bot) || room.ready.includes(p.id) } : {}) })),
       rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,
     },

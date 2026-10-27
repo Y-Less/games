@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { COLS, ROWS, cellName, isCell, parseCell } from './grid.js';
 import { seeded } from '../../shared/testkit.js';
-import { checkRoom, checkView, NEXT_PHASES } from './checks.js';
+import { checkRoom, checkView, readyAll, NEXT_PHASES } from './checks.js';
 
 const pick = (rng, list) => list[Math.floor(rng() * list.length)];
 const randomCell = (rng) => pick(rng, COLS) + pick(rng, ROWS);
@@ -127,15 +127,11 @@ function playRandomGame(seed) {
         check('advance');
       }
     } else if (phase === 'reveal') {
-      const who = rng() < 0.5 ? room.hinter : room.hostId;
-      if (!room.players.some((p) => p.id === who)) {
-        game.advance(room, room.hostId, rng);
-      } else {
-        const outsider = room.players.find((p) => p.id !== room.hinter && p.id !== room.hostId);
-        if (outsider) illegal('an ordinary guest continuing', () => game.advance(room, outsider.id, rng));
-        assert.equal(game.advance(room, who, rng).ok, true);
-      }
-      check('next turn');
+      illegal('advancing at the reveal', () => game.advance(room, pick(rng, room.players).id, rng));
+      illegal('a stranger being ready', () => game.ready(room, 5000, rng));
+      if (rng() < 0.15) assert.equal(game.forceNext(room, rng).ok, true);
+      else assert.equal(game.ready(room, pick(rng, room.players).id, rng).ok, true);
+      check('ready');
     }
     if (room.phase !== previous) {
       assert.ok(NEXT_PHASES[previous].includes(room.phase), `seed ${seed}: ${previous} -> ${room.phase}`);
@@ -179,7 +175,7 @@ test('random games without leavers always finish with exactly turnsEach turns pe
     const hinters = [];
     while (room.phase !== 'finished') {
       if (room.phase === 'reveal') {
-        game.advance(room, room.hostId, rng);
+        readyAll(game, room, rng);
         continue;
       }
       if (!hinters.length || (hinters.at(-1).turn !== room.turn)) hinters.push({ turn: room.turn, id: room.hinter });

@@ -29,7 +29,7 @@ server.test.js     end-to-end tests against the real site (whole game, abandonme
 
 ## Socket protocol
 
-Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance`.
+Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance` (the hinter closing a round of guessing), `ready` (at the reveal: this person closed the scores pop-up).
 
 Server to client: `state`, a view personalised for that account (or `null` when not in a game). The hidden target is only in the hinter's view until the reveal.
 
@@ -37,7 +37,7 @@ Server to client: `state`, a view personalised for that account (or `null` when 
 
 Built-in computer players exist **for testing only** and have no logic. The host adds, removes and fills them in the lobby (`addBot`, `removeBot {seat}`, `fillBots {count?}`); they are seats in the room (`bot: true`, id `bot:<n>`, a name), not accounts, so they have no token and are never recorded in the statistics (people only: `statsPlayers`). The table still holds 2 to 8 seats, computers included.
 
-- **What they do.** A computer hinter types a random everyday word as its hint (the fixed `WORDS` list in `ai/random.js`); a computer guesser picks a random legal square in both rounds (round two ignores the first guesses). They never press "Next turn" at the reveal: the host, always a person, does that. The server plays them after a short random wait (`TINTS_BOT_DELAY`, "min-max" ms, default 600-1400), one move at a time, using `pendingBotAction(room)` and `runBotAction(room, rng)` in `game.js`. Each decision is built from that seat's own `viewFor`, so a guesser never sees the tint.
+- **What they do.** A computer hinter types a random everyday word as its hint (the fixed `WORDS` list in `ai/random.js`); a computer guesser picks a random legal square in both rounds (round two ignores the first guesses). They are always ready at the reveal, so the next turn starts once every person has closed the scores pop-up (or after `TINTS_NEXT_WAIT`, default 60 s, for people who are away). The server plays them after a short random wait (`TINTS_BOT_DELAY`, "min-max" ms, default 600-1400), one move at a time, using `pendingBotAction(room)` and `runBotAction(room, rng)` in `game.js`. Each decision is built from that seat's own `viewFor`, so a guesser never sees the tint.
 - **AIs.** `ai/` holds the AI registry (`ai/index.js`, built with `defineAIs` from `shared/ai.js`) and `ai/README.md`. There is one AI, `random` ("Random"). Its id is stored on the seat at game start (`assignAIs` with the game's rng) and views show `players[].ai` as `{ id, name, description }` for computer seats once the game has started.
 - **Leaving and removal.** The host can remove any player in the pop-up of the score bar (`kick` for a person, `removeBot` for a computer). A person who leaves mid-game is not replaced: the game carries on with fewer players as before, and is abandoned when fewer than two seats or no people are left (a room with only computers is dropped).
 

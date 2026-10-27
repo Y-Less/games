@@ -41,7 +41,7 @@ function personActs(room, rng) {
     }
     return !me.guessed && game.guess(room, 1, 'A1').ok;
   }
-  return room.phase === 'reveal' && game.advance(room, 1, rng).ok;
+  return room.phase === 'reveal' && game.ready(room, 1, rng).ok;
 }
 
 function playOut(room, rng, guard = 3000) {
@@ -276,7 +276,7 @@ async function humanStep(p) {
     }
     return !me.guessed && (await p.call('guess', { cell: 'C3' })).ok === true;
   }
-  if (s.phase === 'reveal' && s.hostId === p.id) return (await p.call('advance', {})).ok === true;
+  if (s.phase === 'reveal' && !me.ready) return (await p.call('ready', {})).ok === true;
   return false;
 }
 

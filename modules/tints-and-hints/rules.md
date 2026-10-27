@@ -19,7 +19,7 @@ The grid has 48 columns (A to Z, then AA to AV, which run round the colour wheel
 3. When everyone has guessed, the hinter presses **Continue**. The first guesses are now visible to all, and the hinter gives a second hint to help.
 4. Everyone guesses again. This time you can see where people guessed the first time.
 5. The hinter presses **Continue** again. The secret square is revealed and the points are handed out.
-6. The hinter (or the host) presses **Next turn**.
+6. Everyone closes the scores pop-up to say they are ready; when all of them have, the next turn starts (or the game ends after the last turn).
 
 ## Scoring
 

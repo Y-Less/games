@@ -2,10 +2,13 @@
 // fake socket (header Leave, the grid, the bars, the controls in their fixed blocks, no Leave button in the play area).
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TintsAndHints from './TintsAndHints.vue';
 import { barSpan, gridCell, gridSize, gridSpan } from './layout.js';
 import { newEntries } from './moveLog.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
+
+vi.setConfig({ testTimeout: 20000 }); // 960 real buttons per mounted grid are slow in jsdom
 
 const player = (id, name, extra = {}) => ({ id, name, colour: '#ff0000', score: 0, online: true, guessed: false, placement: null, winner: false, ...extra });
 function view(extra = {}) {
@@ -177,17 +180,24 @@ describe('Tints and Hints screen', () => {
     wrapper.unmount();
   });
 
-  it('shows the reveal and a next-turn button to the hinter and host', async () => {
+  it('has no Next turn button at the reveal: closing the scores pop-up sends ready, then it waits for the others', async () => {
     const result = { tint: 'J6', hinterName: 'Ann', hinterPoints: 6, entries: [] };
-    const { wrapper, socket } = await mountGame(asHinter({ phase: 'reveal', result }));
+    const players = (ready) => [player(1, 'Ann', { ready: ready[0] }), player(2, 'Bob', { colour: '#0000ff', ready: ready[1] }), player(3, 'Cy', { colour: '#00ff00', ready: ready[2] })];
+    const { wrapper, socket } = await mountGame(asHinter({ phase: 'reveal', result, players: players([false, true, false]) }));
     expect(wrapper.find('.box.status').text()).toContain('The tint was J6');
-    socket.emit.mockClear();
-    await button(wrapper, 'Next turn').trigger('click');
-    expect(socket.emit).toHaveBeenCalledWith('advance', {}, expect.any(Function));
-    socket.handlers.state(view({ phase: 'reveal', tint: 'J6', hostId: 3, result }));
-    await flushPromises();
+    expect(wrapper.find('.box.status').text()).toContain('Close the scores when you are ready');
     expect(button(wrapper, 'Next turn')).toBeUndefined();
-    expect(wrapper.find('.box.status').text()).toContain('Waiting for Bob to continue.');
+    expect(button(wrapper, 'Finish the game')).toBeUndefined();
+    const board = wrapper.findComponent(ScoreBoard);
+    expect(board.props('awaiting')).toBe(true);
+    expect(board.props('waiting')).toEqual(['Ann', 'Cy']);
+    socket.emit.mockClear();
+    board.vm.$emit('continue');
+    expect(socket.emit).toHaveBeenCalledWith('ready', {}, expect.any(Function));
+    socket.handlers.state(asHinter({ phase: 'reveal', result, players: players([true, true, false]) }));
+    await flushPromises();
+    expect(wrapper.findComponent(ScoreBoard).props('awaiting')).toBe(false);
+    expect(wrapper.find('.box.status').text()).toContain('Waiting for Cy to be ready for the next turn.');
     wrapper.unmount();
   });
 });

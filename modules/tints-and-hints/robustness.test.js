@@ -22,6 +22,7 @@ const EVENTS = {
   hint: ['text'],
   guess: ['cell'],
   advance: [],
+  ready: [],
 };
 const PHASES = ['lobby', 'guessing1', 'guessing2', 'reveal', 'finished'];
 
@@ -62,7 +63,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
     await until(() => members.every((p) => p.state?.phase === 'reveal'), 'reveal');
     if (phase === 'reveal') return;
     for (let turn = 0; turn < 3; turn++) {
-      assert.equal((await hinterOf().call('advance', {})).ok, true);
+      for (const p of members) assert.equal((await p.call('ready', {})).ok, true);
       if (turn < 2) {
         await until(() => members.every((p) => p.state?.phase === 'guessing1'), 'the next turn');
         await guessAll();
@@ -173,8 +174,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const g of guessers) assert.equal(g.state.tint, tint, 'revealed to all');
   assert.equal((await guessers[0].call('guess', { cell: 'A1' })).ok, false, 'no guessing at the reveal');
   assert.equal((await hinter.call('hint', { text: 'late' })).ok, false, 'no hints at the reveal');
-  const outsider = guessers.find((g) => g !== ann);
-  if (outsider) assert.equal((await outsider.call('advance', {})).ok, false, 'a guest cannot close the reveal');
+  for (const outsider of [hinter, ...guessers]) assert.equal((await outsider.call('advance', {})).ok, false, 'nobody closes the reveal with advance');
   for (const p of everyone) checkRun(p.states, p.name);
 });
 

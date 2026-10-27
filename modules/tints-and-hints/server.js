@@ -3,6 +3,7 @@
 // seats in the room (see game.js); this file plays their moves on a timer, one at a time, from their own view.
 //
 //   TINTS_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
+//   TINTS_NEXT_WAIT   milliseconds the reveal waits for everyone to close the scores before moving on (default 60000)
 import fs from 'node:fs';
 import path from 'node:path';
 import * as game from './game.js';
@@ -20,6 +21,7 @@ function readBotDelay() {
 
 export default function (ctx) {
   const [botMin, botMax] = readBotDelay();
+  const nextWait = Number(process.env.TINTS_NEXT_WAIT ?? 60000) >= 0 ? Number(process.env.TINTS_NEXT_WAIT ?? 60000) : 60000;
   const file = path.join(ctx.dataDir, 'rooms.json');
   const timers = new Map(); // room code -> the timer for the next computer move
   const rooms = new Map();
@@ -102,19 +104,21 @@ export default function (ctx) {
     clearTimeout(timers.get(code));
     timers.delete(code);
     const room = rooms.get(code);
-    if (!room || !game.pendingBotAction(room)) return;
+    const action = room && game.pendingBotAction(room);
+    if (!room || (!action && !game.waitingForReady(room))) return;
     const timer = setTimeout(() => {
       timers.delete(code);
       if (rooms.get(code) !== room) return;
       try {
-        game.runBotAction(room, Math.random, undefined, nameOf);
+        if (action) game.runBotAction(room, Math.random, action, nameOf);
+        else game.forceNext(room); // somebody has not closed the scores (away, or gone): move on without them
       } catch (error) {
         ctx.log('a computer move failed:', error);
         return;
       }
       recordIfFinished(room);
       changed(room);
-    }, botMin + Math.random() * (botMax - botMin));
+    }, action ? botMin + Math.random() * (botMax - botMin) : nextWait);
     timer.unref?.();
     timers.set(code, timer);
   }
@@ -270,6 +274,7 @@ export default function (ctx) {
     on('start', () => act((room) => game.start(room, userId)));
     on('hint', ({ text }) => act((room) => game.setHint(room, userId, text)));
     on('guess', ({ cell }) => act((room) => game.guess(room, userId, cell)));
+    on('ready', () => act((room) => game.ready(room, userId)));
     on('advance', () => act((room) => game.advance(room, userId, Math.random, nameOf)));
 
     socket.on('disconnect', () => {

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as game from './game.js';
 import { launchModule, until, sleep } from '../../shared/testkit.js';
-import { checkRoom } from './checks.js';
+import { checkRoom, readyAll } from './checks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const first = () => 0;
@@ -25,10 +25,10 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   const room = started(2, 1);
   closeRound(room);
   closeRound(room);
-  game.advance(room, room.hinter, first);
+  readyAll(game, room, first);
   closeRound(room);
   closeRound(room);
-  game.advance(room, room.hinter, first);
+  readyAll(game, room, first);
   assert.equal(room.phase, 'finished');
   const before = JSON.stringify(room);
   assert.deepEqual(game.removePlayer(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
@@ -65,7 +65,7 @@ test('colours: taking someone else\'s is refused, keeping your own is fine, and 
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8, 'the freed colour is reused');
 });
 
-test('a hinter who leaves at the reveal leaves the host to continue; at the second round the turn is skipped', () => {
+test('a hinter who leaves at the reveal does not hold the others up; at the second round the turn is skipped', () => {
   const room = started(3, 1);
   closeRound(room);
   closeRound(room);
@@ -73,9 +73,8 @@ test('a hinter who leaves at the reveal leaves the host to continue; at the seco
   const gone = room.hinter;
   game.removePlayer(room, gone, first);
   assert.equal(room.phase, 'reveal');
-  const stranger = room.players.find((p) => p.id !== room.hostId).id;
-  if (gone !== room.hostId) assert.equal(game.advance(room, stranger, first).ok, false);
-  assert.equal(game.advance(room, room.hostId, first).ok, true);
+  assert.equal(game.advance(room, room.hostId, first).ok, false, 'the reveal is closed by being ready');
+  assert.equal(readyAll(game, room, first).ok, true);
   assert.equal(room.phase, 'guessing1');
   checkRoom(room);
   closeRound(room);
@@ -122,7 +121,8 @@ test('sockets: the host can send away an absent person after the game ended; the
     const hinter = both.find((p) => p.id === ann.state.hinter);
     const guesser = both.find((p) => p !== hinter);
     if (ann.state.phase !== 'reveal') assert.equal((await guesser.call('guess', { cell: 'A1' })).ok, true);
-    assert.equal((await hinter.call('advance', {})).ok, true);
+    if (ann.state.phase === 'reveal') for (const p of both) assert.equal((await p.call('ready', {})).ok, true);
+    else assert.equal((await hinter.call('advance', {})).ok, true);
     await until(() => key(ann) !== here || ann.state.phase === 'finished', 'the next step');
   }
   await until(() => both.every((p) => p.state.phase === 'finished'), 'finished');

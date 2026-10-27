@@ -190,8 +190,8 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
       await hinter.until((s) => s.players.every((p) => p.online), 'everyone back');
     }
     const bystander = guessing.find((g) => g.state.you !== accounts[0].id);
-    assert.equal((await bystander.send('advance')).ok, false, 'a guesser who is not the host cannot close the reveal');
-    assert.ok((await hinter.send('advance')).ok);
+    assert.equal((await bystander.send('advance')).ok, false, 'nobody closes the reveal with advance');
+    for (const p of [hinter, ...guessing]) assert.ok((await p.send('ready')).ok, 'closing the scores');
   }
 
   const final = await ann.until((s) => s.phase === 'finished', 'the end');
@@ -308,9 +308,9 @@ test('rooms survive a restart of the site, and the game can be finished afterwar
   assert.ok((await hinter2.send('advance')).ok);
   assert.ok((await guesser2.send('guess', { cell: tint })).ok);
   assert.ok((await hinter2.send('advance')).ok);
-  assert.ok((await hinter2.send('advance')).ok);
+  for (const p of [hinter2, guesser2]) assert.ok((await p.send('ready')).ok);
   await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.equal(hinter2.state().phase, 'guessing1', 'the second turn begins');
+  assert.equal(hinter2.state().phase, 'guessing1', 'the second turn begins once both are ready');
   ann2.socket.close();
   bob2.socket.close();
   await second.close();
@@ -389,4 +389,29 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   for (const p of players) assert.equal(rounds.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score, 'old rooms still add up');
   assert.equal(legacy.bob.phase, 'reveal');
   await third.close();
+});
+
+test('at the reveal, someone who is away (never closes the scores) does not hold the game up for ever', async (t) => {
+  process.env.TINTS_NEXT_WAIT = '200';
+  t.after(() => delete process.env.TINTS_NEXT_WAIT);
+  const { account } = await launch(t);
+  const [ann, bob] = [await (await account('ann')).open(), await (await account('bob')).open()];
+  const { code } = await ann.send('create', { turnsEach: 2 });
+  await bob.send('join', { code });
+  await ann.until((s) => s?.players.length === 2);
+  await ann.send('start');
+  const both = [ann, bob];
+  for (const p of both) await p.until((s) => s.phase === 'guessing1');
+  const hinter = both.find((p) => p.state.tint);
+  const guesser = both.find((p) => p !== hinter);
+  await guesser.send('guess', { cell: 'A1' });
+  await hinter.send('advance');
+  await guesser.send('guess', { cell: 'A1' });
+  await hinter.send('advance');
+  await hinter.until((s) => s.phase === 'reveal');
+  assert.equal(hinter.state.players.find((p) => p.id === hinter.state.you).ready, false);
+  await hinter.send('ready');
+  await guesser.until((s) => s.players.find((p) => p.id === hinter.state.you).ready, 'the hinter ready');
+  assert.equal(guesser.state.phase, 'reveal', 'still waiting for the other person');
+  await guesser.until((s) => s.phase === 'guessing1' && s.turn === 2, 'the next turn after the wait');
 });

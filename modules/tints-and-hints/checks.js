@@ -21,6 +21,8 @@ export function checkRoom(room, what = 'room') {
   assert.ok(PHASES.includes(room.phase), `${what}: unknown phase ${room.phase}`);
   assert.equal(new Set(ids).size, ids.length, `${what}: duplicate players`);
   assert.ok(ids.length <= MAX_PLAYERS, `${what}: too many players`);
+  assert.ok((room.ready ?? []).every((id) => ids.includes(id)), `${what}: someone who is not a player is ready`);
+  if (room.phase !== 'reveal') assert.equal((room.ready ?? []).length, 0, `${what}: ready people outside the reveal`);
   const colours = room.players.map((p) => p.colour);
   assert.equal(new Set(colours).size, colours.length, `${what}: colours are shared`);
   assert.ok(colours.every((c) => COLOURS.includes(c)), `${what}: a colour is not on the palette`);
@@ -117,4 +119,14 @@ export function checkRun(states, what = 'run') {
     if (previous && previous.code === view.code) assert.ok(NEXT_PHASES[previous.phase].includes(view.phase), `${what} #${i}: ${previous.phase} -> ${view.phase}`);
     previous = view;
   });
+}
+
+/** Every person in the room closes the scores pop-up at the reveal; returns the last reply (so the turn moves on). */
+export function readyAll(game, room, rng) {
+  let last = { ok: false, error: 'nobody' };
+  for (const p of [...room.players]) {
+    if (room.phase !== 'reveal') break;
+    last = game.ready(room, p.id, rng);
+  }
+  return last;
 }

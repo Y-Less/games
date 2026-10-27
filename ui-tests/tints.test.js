@@ -87,7 +87,7 @@ test('everyone plays three turns: hints, guesses, the reveal, and the pop-ups', 
     }
     const lock = await u.buttonState('Lock in guess');
     if (lock.present && lock.disabled) return u.clickFound((n) => document.querySelectorAll('.board button.cell:not([disabled])')[n], cellIndex[u.label]);
-    const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint', ...(u === host ? ['Next turn', 'Finish the game'] : [])];
+    const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint'];
     return u.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
   };
   const finished = async () => all.every((u) => seen.get(u).has('Final scores'));

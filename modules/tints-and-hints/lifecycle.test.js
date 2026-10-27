@@ -58,12 +58,12 @@ test('two actions in the same tick: only one wins (start, guess, advance), from 
   assert.equal(host.state.phase, 'guessing2', 'it did not skip on to the reveal');
   assert.equal(host.state.guesses.length === 0 || host.state.guesses.every((x) => x.round === 1), true);
 
-  // Both rounds again, then two advances at the reveal move exactly one turn on.
+  // Both rounds again, then everyone being ready (some twice) at the reveal moves exactly one turn on.
   for (const p of [first, second]) assert.equal((await p.call('guess', { cell: 'A1' })).ok, true);
   assert.equal((await hinter.call('advance', {})).ok, true);
   await allIn(people, 'reveal');
-  const reveal = await Promise.all([hinter.call('advance', {}), hinterTab.call('advance', {}), host.call('advance', {})]);
-  assert.equal(reveal.filter((r) => r.ok).length, 1, 'the reveal closes once');
+  const reveal = await Promise.all([...people.map((p) => p.call('ready', {})), hinterTab.call('ready', {})]);
+  assert.ok(reveal.filter((r) => r.ok).length >= people.length, 'everyone is ready');
   await allIn(people, 'guessing1');
   await sleep(40);
   assert.equal(host.state.turn, 2, 'one turn on, not two');
@@ -146,7 +146,7 @@ test('disconnecting and reconnecting in every phase keeps your place, your guess
 
   // Finish the game with bob dropping out and in at every step.
   for (let turn = 1; turn < 3; turn++) {
-    assert.equal((await g.hinter().call('advance', {})).ok, true);
+    for (const p of people) assert.equal((await p.call('ready', {})).ok, true);
     await allIn(people, 'guessing1');
     await bounce(`turn ${turn + 1} guessing1`);
     for (let round = 0; round < 2; round++) {
@@ -156,7 +156,7 @@ test('disconnecting and reconnecting in every phase keeps your place, your guess
       await allIn(people, round === 0 ? 'guessing2' : 'reveal');
     }
   }
-  assert.equal((await g.hinter().call('advance', {})).ok, true);
+  for (const p of people) await p.call('ready', {});
   await allIn(people, 'finished');
   const done = await bounce('finished');
   assert.ok(done.players.every((p) => p.placement >= 1));

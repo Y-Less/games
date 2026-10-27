@@ -20,6 +20,8 @@ function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
   return room;
 }
 
+/** Every person closes the scores pop-up at the reveal. */
+const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id));
 const score = (room, id) => room.players.find((p) => p.id === id).score;
 
 test('the grid has 48 columns and 20 rows, and close means within one square', () => {
@@ -125,14 +127,48 @@ test('turns rotate in joining order until everyone has had the set number of tur
     for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
     assert.ok(game.advance(room, room.hinter).ok);
     assert.equal(room.phase, 'reveal');
-    assert.equal(game.advance(room, 99).ok, false, 'a stranger cannot continue');
-    const next = game.advance(room, room.hostId);
+    assert.equal(game.advance(room, room.hinter).ok, false, 'the reveal is closed with ready, not advance');
+    assert.equal(game.ready(room, 99).ok, false, 'a stranger cannot be ready');
+    let next;
+    for (const p of room.players) {
+      assert.equal(room.phase, 'reveal', 'the turn waits until everyone is ready');
+      next = game.ready(room, p.id);
+      assert.ok(next.ok);
+    }
     assert.equal(next.finished, turn === 5);
   }
   assert.deepEqual(hinters, [1, 2, 3, 1, 2, 3]);
   assert.equal(room.phase, 'finished');
   assert.equal(game.advance(room, 1).ok, false);
   assert.equal(game.guess(room, 2, 'A1').ok, false);
+});
+
+test('the reveal waits for every person to be ready; computer players always are; leavers and a forced move do not block it', () => {
+  const room = started([1, 2, 3, 4]);
+  for (let round = 0; round < 2; round++) {
+    for (const p of room.players.filter((q) => q.id !== 1)) game.guess(room, p.id, 'A1');
+    game.advance(room, 1);
+  }
+  assert.equal(room.phase, 'reveal');
+  assert.equal(game.viewFor(room, 2).players.find((p) => p.id === 3).ready, false);
+  assert.equal(game.ready(room, 2).ok, true);
+  assert.equal(game.ready(room, 2).ok, true, 'being ready twice is harmless');
+  assert.equal(game.viewFor(room, 3).players.find((p) => p.id === 2).ready, true);
+  assert.equal(game.viewFor(room, 3).scoreboard.players.find((p) => p.id === 2).ready, true);
+  game.ready(room, 1);
+  game.ready(room, 3);
+  assert.equal(room.phase, 'reveal');
+  assert.equal(game.removePlayer(room, 4).ok, true, 'the one who has not closed the scores leaves');
+  assert.equal(room.phase, 'guessing1', 'so the others were all ready and the next turn starts');
+  assert.deepEqual(room.ready, []);
+  assert.equal(game.ready(room, 2).ok, false, 'not at the reveal any more');
+  assert.equal(game.forceNext(room).ok, false);
+  for (let round = 0; round < 2; round++) {
+    for (const p of room.players.filter((q) => q.id !== room.hinter)) game.guess(room, p.id, 'A1');
+    game.advance(room, room.hinter);
+  }
+  assert.equal(game.forceNext(room).ok, true, 'the server moves on after a wait, whoever is away');
+  assert.equal(room.phase, 'guessing1');
 });
 
 test('the hint is typed by the hinter only, trimmed and limited in length', () => {
@@ -233,7 +269,7 @@ test('views: only the hinter sees the tint until the reveal, and same-round gues
   assert.equal(revealed.guesses.length, 4);
   assert.equal(revealed.result.entries[0].name, 'player 2');
   assert.equal(revealed.result.hinterName, 'player 1');
-  game.advance(room, 1);
+  closeReveal(room);
   assert.equal(view(3).tint, null, 'hidden again for the next turn');
   assert.equal(view(3).result, null);
 });
@@ -263,7 +299,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   assert.equal(v.scoreboard.lowIsBetter, false);
   assert.deepEqual(sums(v), { 1: 3, 2: 9, 3: 2 });
 
-  game.advance(room, 1);
+  closeReveal(room);
   assert.equal(view(2).scoreboard.rounds.length, 1, 'the new turn adds nothing until it is revealed');
   assert.equal(JSON.stringify(view(2).scoreboard).includes(room.tint), false);
   game.guess(room, 1, 'A1');
@@ -287,7 +323,7 @@ test('history: a turn skipped because its hinter left adds nothing, and totals s
   game.guess(room, 3, 'M4');
   game.guess(room, 4, 'M4');
   game.advance(room, 1);
-  game.advance(room, 1);
+  closeReveal(room);
   game.removePlayer(room, room.hinter);
   assert.equal(room.history.length, 1);
   assert.equal(room.phase, 'guessing1');
