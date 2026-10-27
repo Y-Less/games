@@ -278,12 +278,13 @@ test('four accounts play a whole game: identity comes from the account, and the 
   assertScoreboard(players, 4);
   assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), ['Round 1', 'Round 2', 'Round 3', 'Round 4']);
 
-  // Reconnecting restores the player, with or without saying which game.
+  // Reconnecting restores the player given the game's code; without one, a finished game is not resumed (back from the menu starts afresh).
   const before = bob.me().score;
   const again = person('bob');
   again.cookie = bob.cookie;
   await again.connect();
-  assert.equal((await again.call('resume')).ok, true);
+  assert.equal((await again.call('resume')).ok, false, 'a finished game is not resumed without its code');
+  assert.equal((await again.call('resume', { code: bob.state.code })).ok, true);
   await until(() => again.state, 'the state after resuming');
   assert.equal(again.state.me.id, bob.state.me.id);
   assert.equal(again.me().score, before);

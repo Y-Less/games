@@ -485,12 +485,13 @@ test('a restart after the game has finished does not record it a second time', a
   await playToEnd([ann]);
   await sleep(150);
   const cookie = ann.cookie;
+  const code = ann.state.code;
   await first.stop();
   const second = await launch(t, { dataDir });
   const again = second.person('ann');
   again.cookie = cookie;
   await again.connect();
-  await again.call('resume');
+  await again.call('resume', { code }); // a finished game is only resumed with its code
   await until(() => again.state?.phase === 'finished', 'the finished game');
   await sleep(150);
   assert.equal((await again.stats()).perGame.find((g) => g.name === 'Gaudi').played, 1);

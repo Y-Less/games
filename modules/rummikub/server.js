@@ -70,8 +70,6 @@ export default function (ctx) {
   const open = (id, code) => [...(sockets.get(id) ?? [])].filter((s) => s.data.code === code);
   const online = (code) => (id) => open(id, code).length > 0;
   const liveRoomOf = (userId) => [...rooms.values()].find((r) => game.isLive(r) && game.hasPlayer(r, userId));
-  const latestRoomOf = (userId) =>
-    liveRoomOf(userId) ?? [...rooms.values()].filter((r) => game.hasPlayer(r, userId)).sort((a, b) => b.updatedAt - a.updatedAt)[0];
 
   function push(room) {
     for (const seat of room.seats) {
@@ -166,10 +164,9 @@ export default function (ctx) {
       return { ok: true, code: mine.code };
     }
     if (!code) {
-      const latest = latestRoomOf(userId);
-      if (latest) attach(socket, latest);
-      else socket.emit('state', null);
-      return { ok: true, code: latest?.code ?? null };
+      // A finished game is not resumed without its invite code: coming back from the menu starts afresh.
+      socket.emit('state', null);
+      return { ok: true, code: null };
     }
     const room = rooms.get(code);
     if (!room) {

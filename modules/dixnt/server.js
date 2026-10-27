@@ -353,12 +353,13 @@ export default function (ctx) {
     });
 
     // Reconnect: succeeds only if this account is still a player in that game. Without a code, the account's most
-    // recently used game is chosen.
+    // recently used unfinished game is chosen.
     socket.on('resume', (payload, ack) =>
       respond(socket, ack, () => {
         let code = ctx.codes.normalise(payload?.code);
         if (!code) {
-          const mine = [...games].filter(([, e]) => e.game.findByToken(token)).sort((a, b) => b[1].touched - a[1].touched);
+          // A finished game is not resumed without its code: coming back from the menu starts afresh.
+          const mine = [...games].filter(([, e]) => e.game.s.phase !== 'finished' && e.game.findByToken(token)).sort((a, b) => b[1].touched - a[1].touched);
           code = mine[0]?.[0] ?? '';
         }
         if (!code || !games.get(code)?.game.findByToken(token)) throw new GameError('Please join the game.');

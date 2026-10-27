@@ -517,12 +517,13 @@ test('a finished game is recorded only once, even across a restart', async (t) =
   await ann.send('start');
   await playToEnd([ann]);
   await sleep(250);
+  const code = ann.state.code;
   assert.equal((await ann.stats()).perGame[0].played, 1);
   await first.close();
   const second = await launch(t, root);
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const again = await second.returning(ann);
-  assert.ok((await again.send('resume', {})).ok);
+  assert.ok((await again.send('resume', { code })).ok);
   await until(() => again.state?.phase === 'finished', 'the finished game');
   await sleep(200);
   assert.equal((await again.stats()).perGame[0].played, 1);
