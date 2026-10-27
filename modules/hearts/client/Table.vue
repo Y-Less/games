@@ -327,6 +327,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 }
 .my-fan.fanned {
   margin-left: -20.3rem; /* the fanned hand is a little wider than the flat row */
+  bottom: 1.2rem; /* and its outer corners drop low, so it sits higher to clear the minimised boxes */
 }
 .slot {
   width: 100%;
