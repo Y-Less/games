@@ -318,7 +318,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 .my-fan {
   position: absolute;
   left: 50%;
-  bottom: 0.8rem;
+  bottom: -0.8rem;
   margin-left: -20.3rem;
   transform-origin: 50% 100%;
   transform: scale(var(--s));
