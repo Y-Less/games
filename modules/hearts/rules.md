@@ -17,7 +17,7 @@ A game for four players. Nobody wants points: the lowest score wins.
 - The player holding the **2 of clubs** leads it to start the first trick.
 - You must **follow suit** if you can. If you cannot, you may play any card.
 - The highest card of the suit led wins the trick, and its winner leads the next one.
-- You cannot lead a heart until hearts have been **broken** (a heart has been played), unless you hold nothing but hearts. The Queen of Spades does not break hearts.
+- You cannot lead a heart until hearts have been **broken** (a heart or the Queen of Spades has been played), unless you hold nothing but hearts.
 - On the first trick you cannot play a heart or the Queen of Spades, unless every card you hold is one of those.
 
 ## Scoring

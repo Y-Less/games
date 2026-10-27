@@ -238,17 +238,16 @@ test('hearts cannot be led until broken, unless the hand is all hearts', () => {
   assert.deepEqual(g.legalCards(room, 0), ['AH', '3H'], 'only hearts left');
 });
 
-test('the Queen of Spades does not break hearts, but any heart played does', () => {
+test('hearts are broken by the Queen of Spades or by any heart', () => {
   const room = midHand([['5C', 'AH'], ['2D', 'QS'], ['2D', '3H'], ['2D']], { trick: [{ seat: 0, card: '5S' }], turn: 1 });
   room.hands[1] = ['QS', '9C'];
   room.trick = [{ seat: 0, card: '5D' }];
   assert.equal(g.playCard(room, 1, 'QS').ok, true, 'void in diamonds, so the queen may go');
-  assert.equal(room.heartsBroken, false);
-  room.trick = [{ seat: 0, card: '5D' }, { seat: 1, card: '9S' }];
-  room.hands[2] = ['3H', '2C'];
-  room.turn = 2;
-  assert.equal(g.playCard(room, 2, '3H').ok, true);
-  assert.equal(room.heartsBroken, true);
+  assert.equal(room.heartsBroken, true, 'the queen breaks hearts');
+  const other = midHand([['5C', 'AH'], ['2D'], ['3H', '2C'], ['2D']], { trick: [{ seat: 0, card: '5D' }, { seat: 1, card: '9S' }], turn: 2 });
+  assert.equal(other.heartsBroken, false);
+  assert.equal(g.playCard(other, 2, '3H').ok, true);
+  assert.equal(other.heartsBroken, true, 'any heart breaks them');
 });
 
 test('you must follow suit when you can, and may play anything when you cannot', () => {

@@ -166,7 +166,7 @@ function playCardIn(sim, seat, card) {
   const hand = sim.hands[seat];
   hand.splice(hand.indexOf(card), 1);
   sim.trick.push({ seat, card });
-  if (suit(card) === 'H') sim.broken = true;
+  if (suit(card) === 'H' || card === QUEEN) sim.broken = true;
   if (card === QUEEN) sim.queenGone = true;
 }
 
@@ -316,7 +316,7 @@ export function lookAhead(ctx, { jackValue = 5 } = {}) {
         hands,
         trick: ctx.trick.map((p) => ({ ...p })),
         tricks: ctx.tricksPlayed,
-        broken: ctx.heartsBroken || isHeart(card),
+        broken: ctx.heartsBroken || isHeart(card) || card === QUEEN,
         hearts: ctx.taken.map((cards) => cards.filter(isHeart).length),
         queen: ctx.taken.findIndex((cards) => cards.includes(QUEEN)),
         jackTaker: ctx.taken.findIndex((cards) => cards.includes(JACK)),

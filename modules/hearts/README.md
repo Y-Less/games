@@ -19,7 +19,7 @@ e2e.test.js    the real site: whole games, lobby, hidden hands, reconnects, conc
 
 ## Rules decisions
 
-- The Queen of Spades does not break hearts. Hearts are broken as soon as any heart is played.
+- Hearts are broken as soon as any heart or the Queen of Spades is played.
 - First trick: following clubs is required; a player with no clubs may not play a heart or the Queen of Spades unless
   every card in their hand is one of those. The Jack of Diamonds is never restricted.
 - Shooting the moon means taking all 13 hearts and the Queen of Spades. The Jack of Diamonds (optional, -5) is not

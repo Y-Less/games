@@ -287,7 +287,7 @@ export function playCard(room, seat, card) {
   if (reason) return fail(reason);
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
-  if (isHeart(card)) room.heartsBroken = true;
+  if (isHeart(card) || card === QUEEN) room.heartsBroken = true; // the queen breaks hearts too
   room.turn = room.trick.length === SEATS ? null : (seat + 1) % SEATS;
   return ok({ complete: room.trick.length === SEATS });
 }
