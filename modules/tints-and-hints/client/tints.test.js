@@ -191,3 +191,19 @@ describe('Tints and Hints screen', () => {
     wrapper.unmount();
   });
 });
+
+describe('Tints and Hints computer players at the table', () => {
+  it('shows a computer player with the robot icon and the host removes it with removeBot', async () => {
+    const players = [player(1, 'Ann'), player(2, 'Bob', { colour: '#0000ff' }), player('bot:1', 'Ada', { bot: true, ai: { id: 'random', name: 'Random' } })];
+    const state = view({ players });
+    state.scoreboard.players = players.map((p) => ({ id: p.id, name: p.name, score: 0, isMe: p.id === 1, bot: Boolean(p.bot), away: false }));
+    const { wrapper, socket } = await mountGame(state);
+    expect(wrapper.findAll('.score-bar .bot-icon')).toHaveLength(1);
+    await wrapper.findAll('.score-bar button.chip-button')[2].trigger('click');
+    expect(wrapper.find('.player-popup').text()).toContain('Random');
+    await wrapper.find('.player-popup').findAll('button').find((b) => b.text() === 'Remove computer player').trigger('click');
+    const confirm = wrapper.find('.player-popup').findAll('button').find((b) => /^(Yes|Remove|Confirm)/.test(b.text()) && b.text() !== 'Remove computer player');
+    if (confirm) await confirm.trigger('click');
+    expect(socket.emit).toHaveBeenCalledWith('removeBot', { seat: 'bot:1' }, expect.any(Function));
+  });
+});

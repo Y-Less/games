@@ -2,6 +2,8 @@
 // Every action returns { ok: true, ... } or { ok: false, error }.
 import { COLS, ROWS, isCell, isClose } from './grid.js';
 import { placements, totalsFromRounds } from '../../shared/scores.js';
+import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { AIS } from './ai/index.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
@@ -10,6 +12,8 @@ export const HINT_LENGTH = 80;
 export const COLOURS = ['#ffffff', '#000000', '#808080', '#ff2d95', '#00e5ff', '#ffd400', '#7cff3a', '#6a00ff'];
 export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClose: 1, hinterPerGuesser: 3 };
 
+/** Names for the computer players, in the order they are used. */
+const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana'];
 const LIVE = ['lobby', 'guessing1', 'guessing2', 'reveal'];
 const fail = (error) => ({ ok: false, error });
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -17,9 +21,13 @@ const ok = (extra = {}) => ({ ok: true, ...extra });
 export const isLive = (room) => LIVE.includes(room.phase);
 export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
+const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const guessers = (room) => room.players.filter((p) => p.id !== room.hinter);
 const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.floor(rng() * ROWS.length)];
 const newPlayer = (id, colour) => ({ id, colour, score: 0, exactGuesses: 0, closeGuesses: 0, hintsGiven: 0 });
+/** People (accounts), as opposed to computer players. */
+export const humans = (room) => room.players.filter((p) => !p.bot);
+const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
 
 export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_EACH.default }) {
   return {
@@ -31,6 +39,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     turn: 0,
     players: [newPlayer(hostId, COLOURS[0])],
     nextIdx: 0,
+    nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
     hinter: null,
     tint: null,
     hints: { first: '', second: '' },
@@ -48,7 +57,7 @@ export function addPlayer(room, id) {
   if (hasPlayer(room, id)) return ok();
   if (room.phase !== 'lobby') return fail('That game has already started.');
   if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  room.players.push(newPlayer(id, COLOURS.find((c) => !room.players.some((p) => p.colour === c))));
+  room.players.push(newPlayer(id, freeColour(room)));
   return ok();
 }
 
@@ -72,6 +81,49 @@ export function setTurnsEach(room, id, turnsEach) {
   return ok();
 }
 
+function newBot(room) {
+  const used = new Set(room.players.filter((p) => p.bot).map((p) => p.name));
+  let name = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
+  for (let n = 2; used.has(name); n++) name = `Computer ${n}`;
+  room.nextBot ??= 1;
+  return { ...newPlayer(`bot:${room.nextBot++}`, freeColour(room)), bot: true, name };
+}
+
+function hostOnlyInLobby(room, id, what) {
+  if (id !== room.hostId) return fail(`Only the host can ${what} computer players.`);
+  if (room.phase !== 'lobby') return fail(`Computer players can only be ${what === 'add' ? 'added' : 'removed'} in the lobby.`);
+  return null;
+}
+
+/** The host adds one computer player to the lobby. */
+export function addBot(room, id) {
+  const refused = hostOnlyInLobby(room, id, 'add');
+  if (refused) return refused;
+  if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
+  const bot = newBot(room);
+  room.players.push(bot);
+  return ok({ id: bot.id });
+}
+
+/** The host fills the lobby with computer players until there are `target` players (default: enough to start). */
+export function fillBots(room, id, target = MIN_PLAYERS) {
+  const refused = hostOnlyInLobby(room, id, 'add');
+  if (refused) return refused;
+  const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(Number(target)) || MIN_PLAYERS));
+  while (room.players.length < wanted) room.players.push(newBot(room));
+  return ok();
+}
+
+/** The host removes a computer player from the lobby (in a game, see removePlayer). */
+export function removeBot(room, id, botId) {
+  const refused = hostOnlyInLobby(room, id, 'remove');
+  if (refused) return refused;
+  const index = room.players.findIndex((p) => p.id === botId && p.bot);
+  if (index === -1) return fail('That is not a computer player.');
+  room.players.splice(index, 1);
+  return ok();
+}
+
 function startTurn(room, rng) {
   room.hinter = room.players[room.nextIdx].id;
   room.nextIdx = (room.nextIdx + 1) % room.players.length;
@@ -91,6 +143,10 @@ export function start(room, id, rng = Math.random) {
   room.turn = 0;
   room.nextIdx = Math.floor(rng() * room.players.length);
   startTurn(room, rng);
+  // Every computer player gets an AI for the whole game (after the deal, so seeded games deal as they always did).
+  const bots = room.players.filter((p) => p.bot);
+  const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
+  for (const p of bots) p.ai = picks[p.id];
   return ok();
 }
 
@@ -180,6 +236,7 @@ function recordHistory(room, nameOf, found) {
  * so the totals always equal the scores.
  */
 export function migrate(room) {
+  room.nextBot ??= 1;
   if (!Array.isArray(room.history)) room.history = [];
   const totals = totalsFromRounds(room.history, room.players.map((p) => p.id));
   const missing = Object.fromEntries(room.players.map((p) => [p.id, p.score - totals[p.id]]).filter(([, diff]) => diff !== 0));
@@ -199,6 +256,7 @@ function finishTurn(room, rng) {
 
 /** Moves on: the hinter closes each round of guessing, then the hinter or host closes the reveal. */
 export function advance(room, id, rng = Math.random, nameOf = String) {
+  nameOf = namer(room, nameOf);
   if (room.phase === 'reveal') {
     if (id !== room.hinter && id !== room.hostId) return fail('Only the hinter or the host can continue.');
     return ok({ finished: finishTurn(room, rng) });
@@ -224,8 +282,8 @@ export function removePlayer(room, id, rng = Math.random) {
   if (room.players.length) room.nextIdx %= room.players.length;
   room.first = room.first.filter((g) => g.id !== id);
   room.second = room.second.filter((g) => g.id !== id);
-  if (room.hostId === id && room.players.length) room.hostId = room.players[0].id;
-  if (!room.players.length) return ok({ empty: true, abandoned: false, finished: false });
+  if (room.hostId === id && room.players.length) room.hostId = (humans(room)[0] ?? room.players[0]).id;
+  if (!humans(room).length) return ok({ empty: true, abandoned: false, finished: false });
   if (room.phase === 'lobby') return ok({ empty: false, abandoned: false, finished: false });
   if (room.players.length < MIN_PLAYERS) {
     room.phase = 'abandoned';
@@ -240,9 +298,9 @@ export function standings(room) {
   return [...room.players].sort((a, b) => b.score - a.score).map((p) => ({ ...p, placement: places[p.id], winner: places[p.id] === 1 }));
 }
 
-/** The statistics for a finished game, in the shape of ctx.stats.record. */
+/** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
 export function statsPlayers(room) {
-  return standings(room).map((p) => ({
+  return standings(room).filter((p) => !p.bot).map((p) => ({
     userId: p.id,
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
@@ -256,6 +314,7 @@ export function statsPlayers(room) {
  * stay hidden from the other guessers until the round is closed.
  */
 export function viewFor(room, userId, { nameOf = String, onlineOf = () => true } = {}) {
+  nameOf = namer(room, nameOf);
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
   const list = (guesses, round) => {
@@ -284,17 +343,69 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
       name: nameOf(p.id),
       colour: p.colour,
       score: p.score,
-      online: onlineOf(p.id),
+      online: p.bot || onlineOf(p.id),
+      bot: Boolean(p.bot),
+      ai: p.bot && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
       guessed: current.some((g) => g.id === p.id),
       placement: final.get(p.id)?.placement ?? null,
       winner: final.get(p.id)?.winner ?? false,
     })),
     scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, bot: false, current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !onlineOf(p.id) })),
+      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), score: p.score, isMe: p.id === userId, bot: Boolean(p.bot), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !p.bot && !onlineOf(p.id) })),
       rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,
     },
     colours: COLOURS,
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
   };
+}
+
+// ---------- computer players ----------
+
+/**
+ * The next thing a computer player has to do, or null: { type: 'hint' | 'guess' | 'advance', id }. Computer players
+ * never move on from the reveal: that is the hinter's or the host's job, and the host is always a person, so a
+ * computer player cannot hold the game up or rush people past their results.
+ */
+export function pendingBotAction(room) {
+  if (!['guessing1', 'guessing2'].includes(room.phase)) return null;
+  const hinter = playerOf(room, room.hinter);
+  const key = room.phase === 'guessing1' ? 'first' : 'second';
+  if (hinter?.bot && !room.hints[key]) return { type: 'hint', id: hinter.id };
+  const list = room[key];
+  const guesser = guessers(room).find((p) => p.bot && !list.some((g) => g.id === p.id));
+  if (guesser) return { type: 'guess', id: guesser.id };
+  if (hinter?.bot && allGuessed(room)) return { type: 'advance', id: hinter.id };
+  return null;
+}
+
+const ALL_CELLS = COLS.flatMap((c) => ROWS.map((r) => c + r));
+
+/**
+ * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser
+ * never sees the secret tint. An AI that throws or answers with something illegal is replaced by a random legal choice.
+ */
+export function runBotAction(room, rng = Math.random, action = pendingBotAction(room), nameOf = String) {
+  if (!action) return false;
+  const player = playerOf(room, action.id);
+  const ai = aiById(AIS, player.ai);
+  const view = viewFor(room, action.id, { nameOf });
+  const round = room.phase === 'guessing1' ? 1 : 2;
+  const attempt = (decide) => {
+    try {
+      return decide();
+    } catch {
+      return undefined; // a broken AI must not stop the game
+    }
+  };
+  if (action.type === 'hint') {
+    const text = attempt(() => ai.hint({ round, tint: view.tint }, rng));
+    const clean = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
+    return setHint(room, action.id, clean || 'something').ok;
+  }
+  if (action.type === 'guess') {
+    const cell = attempt(() => ai.guess({ round, cells: ALL_CELLS, hints: view.hints, guesses: view.guesses }, rng));
+    return guess(room, action.id, isCell(cell) ? cell : randomCell(rng)).ok;
+  }
+  return advance(room, action.id, rng, nameOf).ok;
 }

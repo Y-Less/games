@@ -7,6 +7,7 @@ let world;
 let host;
 let second;
 let third;
+let solo;
 let code;
 const seen = new Map(); // user -> the pop-up titles that appeared
 before(async () => {
@@ -17,6 +18,8 @@ before(async () => {
   await host.signUp('tint', { displayName: 'Hana' });
   await second.signUp('tint', { displayName: 'Ivor' });
   await third.signUp('tint', { displayName: 'Jess' });
+  solo = await world.newUser('loner');
+  await solo.signUp('tint', { displayName: 'Sol' });
 });
 after(async () => {
   await world?.close();
@@ -161,6 +164,47 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
 test('Leave game in the header leaves the finished game straight away (nothing to confirm)', { timeout: 60000 }, guarded('leave', async () => {
   await host.clickButton('Leave game', { exact: true, scope: 'header.bar' });
   await host.waitForText('Start a new game');
+}));
+
+test('a host on their own fills the lobby with computer players and plays until a turn result shows', { timeout: 120000 }, guarded('bots', async () => {
+  await solo.goto('/play/tints-and-hints');
+  await solo.clickButton('Start a new game');
+  await solo.waitForText('Waiting for players');
+  const seats = () => solo.page.$$eval('.players li', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+  assert.equal((await solo.buttonState('Start the game')).disabled, true);
+  await solo.clickButton('Add a computer player');
+  await solo.waitForText('Players (2 of 8)');
+  await solo.clickButton('Remove', { scope: '.players li:nth-child(2)' });
+  await solo.waitForText('Players (1 of 8)');
+  await solo.clickButton('Fill up to 2 players with computer players');
+  await solo.waitForText('Players (2 of 8)');
+  await solo.clickButton('Add a computer player');
+  await solo.waitForText('Players (3 of 8)');
+  const rows = await seats();
+  assert.match(rows[0], /Sol.*host/);
+  assert.match(rows[1], /computer/);
+  assert.match(rows[2], /computer/);
+  await solo.clickButton('Fewer turns');
+  await solo.waitForText('1 turn each');
+  await solo.clickButton('Start the game', { exact: true });
+
+  let title = null;
+  const step = async () => {
+    title = await solo.modalTitle();
+    if (title) return false;
+    const send = await solo.buttonState('Send hint');
+    if (send.present && !send.disabled) {
+      await solo.fill('form.hint input', 'a warm evening');
+      return solo.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send hint'));
+    }
+    const lock = await solo.buttonState('Lock in guess');
+    if (lock.present && lock.disabled) return solo.clickFound((n) => document.querySelectorAll('.board button.cell:not([disabled])')[n], 77);
+    const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint'];
+    return solo.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
+  };
+  await drive({ act: step, finished: async () => /^Scores after Turn/.test(title ?? ''), timeout: 100000, what: 'a turn result with computer players' });
+  assert.equal((await solo.page.$$('.score-bar .bot-icon')).length, 2, 'the computers carry the robot icon in the score bar');
+  await solo.closeModalWithEsc();
 }));
 
 test('no uncaught errors in any page', () => {

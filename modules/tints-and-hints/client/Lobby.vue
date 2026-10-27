@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import BotIcon from '../../../src/components/BotIcon.vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import { cellColour } from '../grid.js';
 
@@ -11,6 +12,8 @@ const mine = computed(() => props.state.players.find((p) => p.id === props.state
 const turns = computed(() => props.state.limits.turns);
 const total = computed(() => props.state.turnsEach * props.state.players.length);
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
+const full = computed(() => props.state.players.length >= props.state.limits.max);
+const missing = computed(() => Math.max(0, props.state.limits.min - props.state.players.length));
 </script>
 
 <template>
@@ -27,11 +30,18 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
         <li v-for="p in state.players" :key="p.id" class="row">
           <span class="chip" :style="{ background: p.colour }" />
           <span class="name">{{ p.name }}<span v-if="p.id === state.you" class="muted"> (you)</span></span>
+          <span v-if="p.bot" class="muted bot-tag"><BotIcon :size="16" /> computer</span>
           <span v-if="p.id === state.hostId" class="muted">host</span>
           <span v-if="!p.online" class="muted">away</span>
-          <button v-if="isHost && p.id !== state.you" class="quiet" @click="send('kick', { userId: p.id })">Remove</button>
+          <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { seat: p.id })">Remove</button>
+          <button v-else-if="isHost && p.id !== state.you" class="quiet" @click="send('kick', { userId: p.id })">Remove</button>
         </li>
       </ul>
+      <div v-if="isHost" class="row bots">
+        <button :disabled="full" @click="send('addBot')">Add a computer player</button>
+        <button v-if="missing > 0" @click="send('fillBots', { count: state.limits.min })">Fill up to {{ state.limits.min }} players with computer players</button>
+        <span v-if="full" class="muted">The table is full ({{ state.limits.max }} players).</span>
+      </div>
       <div class="stack">
         <span class="muted">Your marker colour</span>
         <div class="row">
@@ -70,6 +80,14 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
 </template>
 
 <style scoped>
+.bots {
+  flex-wrap: wrap;
+}
+.bot-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 .players {
   list-style: none;
   margin: 0;

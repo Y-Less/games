@@ -103,7 +103,7 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => s.value.scoreboard.players,
   hostId: () => s.value.hostId,
   isHost: () => s.value.you === s.value.hostId,
-  remove: (userId) => props.send('kick', { userId }),
+  remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
 });
 const opened = computed(() => s.value.players.find((p) => p.id === openId.value) ?? null);
 const stageOf = (p) => {
@@ -144,6 +144,10 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     <template #main="area">
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
+          <template v-if="opened.ai">
+            <dt>Plays</dt>
+            <dd>{{ opened.ai.name }}</dd>
+          </template>
           <dt>Score</dt>
           <dd>{{ opened.score }}</dd>
           <dt>Colour</dt>
