@@ -126,7 +126,7 @@ function pick(card) {
 const roomFor = (area) => {
   const handLarge = area.height >= 600;
   const handRem = handLarge ? 9.2 : 7.2;
-  const spare = area.height - (1.9 + 0.4 + handRem) * 16 - 8; // your strip, the hand and the gap between them
+  const spare = area.height - (0.4 + handRem) * 16 - 8; // the hand and the gap above it
   // The trick is drawn large and then scaled to the room that is left (never to what is on the table).
   return { hand: handLarge ? 'lg' : 'md', zoom: Math.max(0.8, Math.min(1.6, spare / 242)) };
 };
@@ -167,7 +167,7 @@ const roomFor = (area) => {
           <div class="centre" :style="{ gridColumn: `span ${area.mainSpan}` }" aria-live="polite">
             <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" size="lg" labels />
           </div>
-          <section class="nominate" :class="{ live: nominating }" aria-label="Your nomination">
+          <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
             <h3>Your nomination</h3>
             <div class="numbers">
               <template v-for="(n, i) in options" :key="i">
@@ -185,15 +185,7 @@ const roomFor = (area) => {
           </section>
         </template>
 
-        <div class="mine" :class="{ turn: myTurn && !finished }">
-          <div class="strip">
-            <span class="name">{{ nameOf(you) }} (you)</span>
-            <span v-if="imDealer" class="tag" title="Dealer">D</span>
-            <span class="tally">
-              <template v-if="seats[you].bid !== null">nominated <b>{{ seats[you].bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ seats[you].tricks }}</b></template></template>
-              <template v-else>not yet nominated</template>
-            </span>
-          </div>
+        <div class="mine">
           <section class="hand" :class="roomFor(area).hand" aria-label="Your hand">
             <PlayingCard
               v-for="card in hand"
@@ -220,6 +212,10 @@ const roomFor = (area) => {
           <strong>Round {{ round.number }} of {{ round.total }}</strong>
           <span>{{ round.cards }} {{ round.cards === 1 ? 'card' : 'cards' }} each</span>
           <span>Dealer: {{ nameOf(round.dealer) }}{{ imDealer ? ' (you)' : '' }}</span>
+          <span class="tally">
+            <template v-if="seats[you].bid !== null">You nominated <b>{{ seats[you].bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ seats[you].tricks }}</b></template></template>
+            <template v-else>You have not nominated yet</template>
+          </span>
           <span class="trump" :class="trumpClass" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
           <span v-if="state.phase === 'nominating'">{{ total }} of {{ round.cards }} {{ round.cards === 1 ? 'trick' : 'tricks' }} nominated</span>
         </template>
@@ -246,13 +242,8 @@ const roomFor = (area) => {
   row-gap: 8px;
   min-height: 0;
 }
-.mine.turn .strip {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 1px var(--amber);
-}
 .head,
-.body,
-.strip {
+.body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -264,13 +255,6 @@ const roomFor = (area) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.tally {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.85rem;
-  color: var(--muted);
 }
 .tally b {
   color: var(--parchment);
@@ -331,10 +315,15 @@ const roomFor = (area) => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 0.5rem;
+}
+.nominate.hidden {
+  visibility: hidden; /* once the round has started the zone stays (so nothing moves) but is empty */
 }
 .nominate h3 {
   margin: 0;
+  text-align: center;
   font-size: 0.95rem;
   color: var(--muted);
 }
@@ -345,6 +334,8 @@ const roomFor = (area) => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
+  width: 100%;
+  max-width: 24rem;
 }
 .number {
   height: 2.8rem;
@@ -371,12 +362,6 @@ const roomFor = (area) => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-.strip {
-  height: 1.9rem;
-  padding: 0 0.7rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
 }
 .hand {
   display: flex;
