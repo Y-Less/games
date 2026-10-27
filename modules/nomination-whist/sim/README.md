@@ -89,4 +89,6 @@ players, 4.0 at 4, 2.7 at 5, 1.6 at 6 and 1.2 at 7 (for example, 4 players: 99.9
 
 Games with the strongest card player, `lutc-sharp` against `lut-sharp` in `tourney.js`, run at only about 38 games a second
 (Sharp simulates inside every card it plays), roughly 500 times slower than the others, so those comparisons use thousands of
-games, not millions.
+games, not millions. With Sharp's card play on every seat (20,000 games at 3 and 4 players, 10,000 at 5 to 7), `lutc-sharp`
+still beats `lut-sharp` at every count, by about the same margins: 3.0 at 3 players, 3.5 at 4, 2.4 at 5, 1.3 at 6 and 1.0 at 7
+(4 players: 100.9 against 97.4, win share 28.2% against 21.8%), so the table trained on Standard's play carries over to strong play.
