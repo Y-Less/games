@@ -17,7 +17,7 @@ function seeded(seed) {
 
 /** A started game: seat 0 is the human (account 1), the rest are computers. */
 function started(settings = {}, rng = seeded(1)) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
+  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false, ...settings } });
   g.fillWithBots(room, 1);
   assert.equal(g.start(room, 1, rng).ok, true);
   return room;
@@ -72,7 +72,7 @@ function simulate(settings, seed) {
 
 test('a new room has the default settings and the host in the first seat', () => {
   const room = g.createRoom({ code: 'a-b-c', hostId: 7, hostName: 'Ann' });
-  assert.deepEqual(room.settings, { target: 100, jackOfDiamonds: false, moon: 'others' });
+  assert.deepEqual(room.settings, { target: 100, jackOfDiamonds: true, moon: 'others' }, 'the Jack of Diamonds is on by default');
   assert.equal(room.phase, 'lobby');
   assert.deepEqual(room.seats[0], { kind: 'human', id: 7, name: 'Ann' });
   assert.deepEqual(room.seats.slice(1), [null, null, null]);

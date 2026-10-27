@@ -2,18 +2,24 @@
 // Spades with low spades, dumps the Queen and high hearts when it cannot follow suit, and (rarely) chases every point
 // when its hand is overwhelming.
 import { rankValue, suitOf } from '../../../shared/cards.js';
-import { JACK, QUEEN, SEATS, avoiding, highest, isHeart, isPointCard, lowest, playedSet } from './util.js';
+import { JACK, QUEEN, avoiding, highest, isHeart, isPointCard, lowest, passSize, playedSet, seatsIn } from './util.js';
 
-/** Strong enough to try for all the points? Very rare: this is a gamble that only an overwhelming hand justifies. */
+/**
+ * Strong enough to try for all the points? Very rare: this is a gamble that only an overwhelming hand justifies. The
+ * bar (written for 13 cards: five hearts, six kings or aces) scales with the number of cards in the hand.
+ */
 export function wantsMoon(hand) {
   const hearts = hand.filter(isHeart);
   const top = hand.filter((c) => rankValue(c) >= 13).length;
-  return hearts.length >= 5 && hearts.includes('AH') && hearts.includes('KH') && top >= 6 && hand.includes(QUEEN);
+  const share = hand.length / 13;
+  return hearts.length >= Math.max(3, Math.ceil(5 * share)) && hearts.includes('AH') && hearts.includes('KH') && top >= Math.max(4, Math.ceil(6 * share)) && hand.includes(QUEEN);
 }
 
-/** Three cards to pass: the dangerous ones (Queen of Spades, high spades, high hearts), then the highest others. */
-export function passStandard({ hand, settings }) {
-  if (wantsMoon(hand)) return [...hand].sort((a, b) => rankValue(a) - rankValue(b)).slice(0, 3);
+/** The cards to pass (3, or 2 with 6 or 7 players): the dangerous ones (Queen of Spades, high spades, high hearts), then the highest others. */
+export function passStandard(ctx) {
+  const { hand, settings } = ctx;
+  const count = passSize(ctx);
+  if (wantsMoon(hand)) return [...hand].sort((a, b) => rankValue(a) - rankValue(b)).slice(0, count);
   const spades = hand.filter((c) => suitOf(c) === 'S');
   const danger = (card) => {
     if (card === QUEEN) return 100;
@@ -23,7 +29,7 @@ export function passStandard({ hand, settings }) {
     if (isHeart(card)) return rank >= 10 ? 40 + rank : rank / 2;
     return rank;
   };
-  return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, 3);
+  return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, count);
 }
 
 export function playStandard(ctx) {
@@ -51,7 +57,7 @@ export function playStandard(ctx) {
   const following = legal.filter((c) => suitOf(c) === led);
   if (following.length) {
     const best = Math.max(...trick.filter((p) => suitOf(p.card) === led).map((p) => rankValue(p.card)));
-    const last = trick.length === SEATS - 1;
+    const last = trick.length === seatsIn(ctx) - 1;
     const winning = following.filter((c) => rankValue(c) > best);
     const ducking = following.filter((c) => rankValue(c) < best);
     if (chasing) return winning.length ? highest(winning) : lowest(following);

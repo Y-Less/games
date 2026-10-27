@@ -116,10 +116,11 @@ test('disconnecting and reconnecting in every phase keeps the seat, the hand and
   const { site, ann, bob } = await started(t);
   const drop = async (person) => {
     const hand = [...person.state.hand];
+    const code = person.state.code;
     person.socket.close();
     await until(() => [ann, bob].filter((p) => p !== person).every((p) => p.state.seats[person === ann ? 0 : 1].online === false), `${person.name} to show as away`);
     await person.connect();
-    assert.equal((await person.call('resume', {})).ok, true);
+    assert.equal((await person.call('resume', { code })).ok, true); // a finished game is only resumed with its code
     await until(() => person.state?.phase, 'the state after resuming');
     assert.deepEqual(person.state.hand.filter((c) => hand.includes(c)).sort(), hand.filter((c) => person.state.hand.includes(c)).sort());
     await until(() => [ann, bob].every((p) => p.state.seats.every((s) => s.online)), 'everyone online again');

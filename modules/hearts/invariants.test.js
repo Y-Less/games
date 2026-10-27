@@ -3,15 +3,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import { deckFor, openingCard, tricksFor, passCountFor } from './deals.js';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
 
-const DECK = [...fullDeck()].sort();
+const deckOf = (room) => [...deckFor(room.seats.length)].sort();
 const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
 const pick = (rng, list) => list[Math.floor(rng() * list.length)];
 
-function newRoom(rng, humans) {
-  const settings = { target: pick(rng, game.TARGETS), jackOfDiamonds: rng() < 0.5, moon: pick(rng, game.MOON_MODES) };
+function newRoom(rng, humans, seats = 3 + Math.floor(rng() * 5)) {
+  humans = Math.min(humans, seats);
+  const settings = { seats, target: pick(rng, game.TARGETS), jackOfDiamonds: rng() < 0.5, moon: pick(rng, game.MOON_MODES) };
   const room = game.createRoom({ code: 'a-b-c', hostId: 101, hostName: 'h101', settings, now: 1 });
   for (let i = 1; i < humans; i++) assert.equal(game.addHuman(room, 101 + i, `h${101 + i}`).ok, true);
   assert.equal(game.fillWithBots(room, 101).ok, true);
@@ -25,40 +27,41 @@ function checkRoom(room, label) {
   // Cards are conserved: 52 distinct cards in hands, taken piles and the current trick, from the deal to the last trick.
   if (['passing', 'playing', 'handEnd', 'finished'].includes(room.phase)) {
     if (room.phase === 'handEnd' || room.phase === 'finished') {
-      assert.deepEqual([...room.taken.flat()].sort(), DECK, `${label}: all 52 cards were taken at the end of the hand`);
+      assert.deepEqual([...room.taken.flat()].sort(), deckOf(room), `${label}: all cards were taken at the end of the hand`);
       assert.ok(room.hands.every((h) => h.length === 0), `${label}: hands are empty at the end of the hand`);
     } else {
-      assert.deepEqual(cardsInPlay(room).sort(), DECK, `${label}: 52 distinct cards`);
+      assert.deepEqual(cardsInPlay(room).sort(), deckOf(room), `${label}: distinct cards`);
     }
   }
   if (room.phase === 'passing') {
-    assert.ok(room.hands.every((h) => h.length === 13), `${label}: 13 cards each while passing`);
-    for (const [seat, pass] of room.passes.entries()) if (pass) assert.ok(pass.length === 3 && pass.every((c) => room.hands[seat].includes(c)), `${label}: a pass is three cards from the hand`);
+    assert.ok(room.hands.every((h) => h.length === tricksFor(room.seats.length)), `${label}: a full hand each while passing`);
+    for (const [seat, pass] of room.passes.entries()) if (pass) assert.ok(pass.length === passCountFor(room.seats.length) && pass.every((c) => room.hands[seat].includes(c)), `${label}: a pass is three cards from the hand`);
   }
   if (room.phase === 'playing') {
-    assert.ok(room.trick.length <= 4);
-    assert.ok(room.tricksPlayed >= 0 && room.tricksPlayed < 13);
-    const expected = 13 - room.tricksPlayed;
+    const n = room.seats.length;
+    assert.ok(room.trick.length <= n);
+    assert.ok(room.tricksPlayed >= 0 && room.tricksPlayed < tricksFor(n));
+    const expected = tricksFor(n) - room.tricksPlayed;
     for (const [seat, hand] of room.hands.entries()) {
       const played = room.trick.some((p) => p.seat === seat) ? 1 : 0;
       assert.equal(hand.length, expected - played, `${label}: seat ${seat} holds the right number of cards`);
     }
-    if (room.trick.length < 4) {
-      assert.ok(Number.isInteger(room.turn) && room.turn >= 0 && room.turn < 4, `${label}: a valid current player`);
+    if (room.trick.length < n) {
+      assert.ok(Number.isInteger(room.turn) && room.turn >= 0 && room.turn < n, `${label}: a valid current player`);
       assert.ok(game.legalCards(room, room.turn).length > 0, `${label}: the player to move always has a legal card`);
-      assert.equal(room.turn, (room.trick.length ? room.trick.at(-1).seat + 1 : room.turn) % 4);
+      assert.equal(room.turn, (room.trick.length ? room.trick.at(-1).seat + 1 : room.turn) % n);
     } else {
       assert.equal(room.turn, null);
     }
     assert.equal(new Set(room.trick.map((p) => p.seat)).size, room.trick.length, `${label}: one card per seat in a trick`);
   }
   // Scores equal the sum of the history, and the history is what the scoreboard says.
-  for (let seat = 0; seat < 4; seat++) {
+  for (let seat = 0; seat < room.seats.length; seat++) {
     assert.equal(room.scores[seat], room.history.reduce((sum, h) => sum + h.points[seat], 0), `${label}: score of seat ${seat} equals its history`);
     assert.equal(room.scores[seat], room.history.reduce((sum, h) => sum + h.deltas[seat], 0));
   }
   assert.equal(room.history.length, room.handNumber + (['handEnd', 'finished'].includes(room.phase) ? 1 : 0), `${label}: one history line per finished hand`);
-  assert.equal(room.tally.reduce((sum, t) => sum + t.handsPlayed, 0), room.history.length * 4);
+  assert.equal(room.tally.reduce((sum, t) => sum + t.handsPlayed, 0), room.history.length * room.seats.length);
   if (room.phase === 'finished') {
     assert.ok(room.scores.some((s) => s >= room.settings.target));
     assert.deepEqual(room.winners, game.winnersOf(room.scores));
@@ -81,6 +84,8 @@ function checkView(room, userId, label) {
     ...(view.trick ?? []).map((p) => p.card),
     ...(view.lastTrick?.plays ?? []).map((p) => p.card),
     ...Object.keys(view.legal ?? {}),
+    ...(view.deal?.removed ?? []), // which cards were left out of the deck is public
+    view.deal?.openingCard,
   ]);
   // lastHand names no cards, only counts.
   for (const card of text.match(CARD) ?? []) assert.ok(allowed.has(card), `${label}: viewer ${userId} was sent ${card}`);
@@ -128,17 +133,18 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
       if (waiting.length && (!pending || rng() < 0.5)) {
         const seat = pick(rng, waiting);
         const hand = room.hands[seat];
+        const count = passCountFor(room.seats.length);
         // Sometimes try something wrong first: it must be refused and change nothing.
         if (rng() < 0.3) {
           const before = JSON.stringify(room);
-          assert.equal(game.choosePass(room, seat, hand.slice(0, 2)).ok, false);
-          assert.equal(game.choosePass(room, seat, [hand[0], hand[0], hand[1]]).ok, false);
-          assert.equal(game.choosePass(room, seat, [hand[0], hand[1], room.hands[(seat + 1) % 4].find((c) => !hand.includes(c))]).ok, false);
+          assert.equal(game.choosePass(room, seat, hand.slice(0, count - 1)).ok, false);
+          assert.equal(game.choosePass(room, seat, [hand[0], hand[0], ...hand.slice(1, count - 1)]).ok, false);
+          assert.equal(game.choosePass(room, seat, [...hand.slice(0, count - 1), room.hands[(seat + 1) % room.seats.length].find((c) => !hand.includes(c))]).ok, false);
           assert.equal(JSON.stringify(room), before, `${label}: refused passes change nothing`);
         }
         const shuffled = [...hand].sort(() => rng() - 0.5);
-        assert.equal(game.choosePass(room, seat, shuffled.slice(0, 3)).ok, true);
-        assert.equal(game.choosePass(room, seat, shuffled.slice(0, 3)).ok, false, `${label}: passing twice is refused`);
+        assert.equal(game.choosePass(room, seat, shuffled.slice(0, count)).ok, true);
+        assert.equal(game.choosePass(room, seat, shuffled.slice(0, count)).ok, false, `${label}: passing twice is refused`);
       } else {
         assert.ok(game.runPending(room, rng));
       }
@@ -147,7 +153,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
     if (pending) {
       const wasTrick = room.trick.length;
       game.runPending(room, rng);
-      if (pending.type === 'resolve') assert.equal(wasTrick, 4);
+      if (pending.type === 'resolve') assert.equal(wasTrick, room.seats.length);
       continue;
     }
     // A person's turn: a random legal card, after trying an illegal one.
@@ -159,7 +165,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
     if (illegal.length && rng() < 0.5) {
       const before = JSON.stringify(room);
       assert.equal(game.playCard(room, seat, pick(rng, illegal)).ok, false);
-      assert.equal(game.playCard(room, (seat + 1) % 4, pick(rng, legal)).ok, false, `${label}: out of turn`);
+      assert.equal(game.playCard(room, (seat + 1) % room.seats.length, pick(rng, legal)).ok, false, `${label}: out of turn`);
       assert.equal(JSON.stringify(room), before);
     }
     const card = pick(rng, legal);
@@ -184,7 +190,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
 function checkPlayRules(room, seat, card, label) {
   const hand = room.hands[seat];
   if (room.trick.length === 0) {
-    if (room.tricksPlayed === 0) assert.equal(card, '2C', `${label}: the first card of a hand is the 2 of clubs`);
+    if (room.tricksPlayed === 0) assert.equal(card, openingCard(room.seats.length), `${label}: the first card of a hand is the lowest club in the deck`);
     else if (suitOf(card) === 'H' && !room.heartsBroken) assert.ok(hand.every((c) => suitOf(c) === 'H'), `${label}: hearts led before they were broken`);
     return;
   }
@@ -220,7 +226,7 @@ test('every hand scores the right total: 26, adjusted by the Jack of Diamonds, o
     for (const [i, h] of room.history.entries()) {
       const total = h.points.reduce((a, b) => a + b, 0);
       // The Jack of Diamonds still counts on a moon hand (someone always took it in a full hand): -5 on top.
-      if (h.moon !== null) assert.equal(total, (room.settings.moon === 'self' ? -26 : 78) + (room.settings.jackOfDiamonds ? -5 : 0), `seed ${seed} hand ${i}`);
+      if (h.moon !== null) assert.equal(total, (room.settings.moon === 'self' ? -26 : 26 * (room.seats.length - 1)) + (room.settings.jackOfDiamonds ? -5 : 0), `seed ${seed} hand ${i}`);
       else assert.ok(total === 26 || (room.settings.jackOfDiamonds && total === 21), `seed ${seed} hand ${i}: ${total}`);
     }
   }
@@ -228,7 +234,7 @@ test('every hand scores the right total: 26, adjusted by the Jack of Diamonds, o
 
 test('every pass direction is used in order and the cards go to the right seat', () => {
   const rng = seeded(77);
-  const room = newRoom(rng, 4);
+  const room = newRoom(rng, 4, 4);
   game.start(room, 101, rng);
   const directions = [];
   for (let hand = 0; hand < 8; hand++) {
@@ -273,7 +279,7 @@ test('the view never names a card the viewer should not see, even for a stranger
   for (const id of [101, 102, 'bot:1', 'bot:2', 5, null, undefined, '101', {}, [], '__proto__']) {
     const view = game.viewFor(room, id);
     const mine = game.seatOf(room, id);
-    const allowed = new Set([...(mine === -1 ? [] : room.hands[mine])]);
+    const allowed = new Set([...(mine === -1 ? [] : room.hands[mine]), ...view.deal.removed, view.deal.openingCard]); // the deal itself is public
     for (const card of JSON.stringify(view).match(CARD) ?? []) assert.ok(allowed.has(card), `${String(id)} saw ${card}`);
   }
 });

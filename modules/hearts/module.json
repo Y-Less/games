@@ -1,9 +1,9 @@
 {
   "id": "hearts",
   "name": "Hearts",
-  "description": "The classic trick-taking game for four: dodge the hearts and the Queen of Spades, or shoot the moon. Play with friends or computer players.",
+  "description": "The classic trick-taking game for three to seven players: dodge the hearts and the Queen of Spades, or shoot the moon. Play with friends or computer players.",
   "minPlayers": 1,
-  "maxPlayers": 4,
+  "maxPlayers": 7,
   "category": "cards",
   "rules": "rules.md",
   "stats": [

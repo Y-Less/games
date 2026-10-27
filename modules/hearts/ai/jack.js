@@ -4,7 +4,7 @@
 // Jack only when it will win the trick, and take a trick that holds the Jack even at the cost of a few hearts. When
 // the option is off it is exactly the standard AI.
 import { rankValue, suitOf } from '../../../shared/cards.js';
-import { JACK, bySuit } from './util.js';
+import { JACK, bySuit, passSize } from './util.js';
 import standard, { passStandard } from './standard.js';
 import { lookAhead } from './sharp.js';
 
@@ -19,7 +19,7 @@ function passJack(ctx) {
   const keep = pass.filter((c) => !diamonds.has(c));
   const rest = ctx.hand.filter((c) => !diamonds.has(c) && !keep.includes(c)).sort((a, b) => rankValue(b) - rankValue(a));
   const filler = ctx.hand.filter((c) => diamonds.has(c) && !keep.includes(c)).sort((a, b) => rankValue(a) - rankValue(b));
-  return [...keep, ...rest, ...filler].slice(0, 3);
+  return [...keep, ...rest, ...filler].slice(0, passSize(ctx));
 }
 
 function playJack(ctx) {

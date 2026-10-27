@@ -2,7 +2,7 @@
 // those that carry hearts or the Queen of Spades), never gives a heart away and, once the attempt is clearly dead
 // (somebody else has taken a point card, or too many tricks are out of reach), plays like the standard AI.
 import { rankValue, suitOf } from '../../../shared/cards.js';
-import { QUEEN, SEATS, SUIT_LIST, TRICKS, avoiding, bySuit, highest, isHeart, isPointCard, lowest, observe, preferring } from './util.js';
+import { QUEEN, SUIT_LIST, avoiding, bySuit, highest, isHeart, isPointCard, lowest, observe, passSize, preferring, seatsIn, tricksIn } from './util.js';
 import standard from './standard.js';
 
 /** How many tricks this hand can count on: cards that outrank everything still unseen in their suit. */
@@ -33,16 +33,19 @@ export function moonAlive(ctx, know = observe(ctx)) {
       if (!canBeat) return false;
     }
   }
-  const left = TRICKS - ctx.tricksPlayed;
-  if (ctx.tricksPlayed >= 3 && left - sureTricks(ctx, know) >= 5) return false;
+  // (written for 13 tricks: from the fourth trick on, give up when five or more of those left are out of reach)
+  const tricks = tricksIn(ctx);
+  const left = tricks - ctx.tricksPlayed;
+  if (ctx.tricksPlayed >= Math.ceil((3 * tricks) / 13) && left - sureTricks(ctx, know) >= Math.max(2, Math.ceil((5 * tricks) / 13))) return false;
   return true;
 }
 
-function passMoon({ hand }) {
+function passMoon(ctx) {
+  const { hand } = ctx;
   const length = (suit) => hand.filter((c) => suitOf(c) === suit).length;
   // Keep strong, long suits and hearts; the cards worth least to a moon attempt are passed.
   const keep = (card) => rankValue(card) * 1.5 + length(suitOf(card)) * 2.5 + (isHeart(card) ? 4 : 0) + (card === QUEEN ? 8 : 0);
-  return [...hand].sort((a, b) => keep(a) - keep(b)).slice(0, 3);
+  return [...hand].sort((a, b) => keep(a) - keep(b)).slice(0, passSize(ctx));
 }
 
 function playMoon(ctx) {
@@ -70,7 +73,7 @@ function playMoon(ctx) {
     const best = Math.max(...trick.filter((p) => suitOf(p.card) === led).map((p) => rankValue(p.card)));
     const winning = following.filter((c) => rankValue(c) > best);
     if (!winning.length) return lowest(following);
-    const last = trick.length === SEATS - 1;
+    const last = trick.length === seatsIn(ctx) - 1;
     if (last) return lowest(winning);
     // Not last: the cheapest card that nobody left can beat, otherwise the highest.
     const safe = winning.filter(isMaster);

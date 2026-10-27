@@ -4,6 +4,18 @@ Every computer-controlled seat in Hearts plays with one of six AIs, each a diffe
 "anything legal". This file describes what each one does and how to add another. The general mechanism is in
 `MODULES.md` ("Computer players (AIs)") and `shared/ai.js`.
 
+## Any number of players
+
+Hearts is played by 3 to 7 players (see `../deals.js`), so no AI may assume four seats, 13 cards or three cards passed.
+The context carries `seatCount`, `trickCount`, `passCount`, `passOffset` (the pass as an offset to the left, 0 for
+none) and `openingCard`; `util.js` has `seatsIn(ctx)`, `tricksIn(ctx)` and `passSize(ctx)`, which fall back to the
+four-player values for a context without them. `observe` counts only the cards really in the deck (the removed low cards
+are never "unseen"), and `choosePass` must return `ctx.passCount` cards (3, or 2 with 6 or 7 players; an invalid pass is
+replaced by the standard AI's). The tactics are tuned for four players: with 3 or 5 to 7 they are sound but approximate
+(for example the moon bid and the "moon is out of reach" limits scale with the number of cards in the hand). Sharp's
+look-ahead plays out the hand with the real number of seats and tricks, and a seven-player game takes no longer than a
+four-player one.
+
 ## How a bot gets its AI
 
 - When the host starts a game, every bot seat is given an AI by a weighted random pick (`assignAIs(AIS, botSeats, rng)`
@@ -42,7 +54,7 @@ including the Ace and King, six cards of King or higher, and the Queen of Spades
 lowest cards and plays to win tricks. Limitations: it keeps no memory of voids and never tracks who has taken points,
 so it can feed a lone point-taker the hearts they need for a moon.
 
-**Sharp.** The strongest AI. For passing it tries every set of three cards from its hand (286 for a 13-card hand) and keeps the set that leaves the hand
+**Sharp.** The strongest AI. For passing it tries every set of cards to pass from its hand (286 sets of three for a 13-card hand) and keeps the set that leaves the hand
 with the lowest risk estimate (uncovered Queen, high spades, high hearts, minus a credit for short suits; the Jack counts
 as an asset when the option is on). With a moon-worthy hand it passes like Moon. For play it counts every card seen,
 notes which seats are void in which suits (from failures to follow), and then looks ahead: it deals the unseen cards to
@@ -115,7 +127,7 @@ beats a mixed Avoider/Standard/Jack table over 60 games.
 3. The context is built by `aiContext` in `game.js` and holds plain data only: `seat`, `hand`, `legal`, `trick`
    (`[{ seat, card }]`), `history` (finished tricks of this hand), `taken` (cards won per seat), `scores`, `settings`
    (`target`, `jackOfDiamonds`, `moon`), `heartsBroken`, `tricksPlayed`, `handNumber`, `direction`, `passed`,
-   `received`, `moonBid` (the seat chasing the moon, or null) and `rng`. It never contains another player's hand.
+   `received`, `seatCount`, `trickCount`, `passCount`, `passOffset`, `openingCard`, `moonBid` (the seat chasing the moon, or null) and `rng`. It never contains another player's hand.
 4. Use `ctx.rng`, never `Math.random`, so seeded games and tests repeat. Keep the file free of sockets, files and state:
    an AI is a pure function of its context. Shared helpers (card counting in `observe`, `pointTakers`, `cardPoints`,
    and so on) are in `ai/util.js`.

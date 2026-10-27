@@ -12,7 +12,8 @@
 //  - with an overwhelming hand it goes for the moon itself, using the Moon AI's play for as long as that is alive.
 // Passing tries every set of three cards against a hand-risk estimate (uncovered Queen, high spades, high hearts, short suits).
 import { rankValue, suitOf } from '../../../shared/cards.js';
-import { JACK, QUEEN, SEATS, TRICKS, SUIT_LIST, bySuit, isHeart, isPointCard, observe, pointTakers } from './util.js';
+import { JACK, QUEEN, SUIT_LIST, bySuit, isHeart, isPointCard, observe, passSize, pointTakers, seatsIn, tricksIn } from './util.js';
+import { HAND_POINTS, offsetOfDirection, openingCard } from '../deals.js';
 import standard, { wantsMoon } from './standard.js';
 import moon, { moonAlive } from './moon.js';
 
@@ -54,20 +55,26 @@ function handRisk(hand, settings) {
   return risk;
 }
 
-function passSharp({ hand, settings }) {
-  if (wantsMoon(hand)) return moon.choosePass({ hand, settings });
+/** Every way to choose `size` cards from a hand (in hand order). */
+function* choices(hand, size, from = 0, chosen = []) {
+  if (chosen.length === size) {
+    yield chosen;
+    return;
+  }
+  for (let i = from; i <= hand.length - (size - chosen.length); i++) yield* choices(hand, size, i + 1, [...chosen, hand[i]]);
+}
+
+function passSharp(ctx) {
+  const { hand, settings } = ctx;
+  const size = passSize(ctx);
+  if (wantsMoon(hand)) return moon.choosePass(ctx);
   let best = null;
   let bestRisk = Infinity;
-  for (let i = 0; i < hand.length; i++) {
-    for (let j = i + 1; j < hand.length; j++) {
-      for (let k = j + 1; k < hand.length; k++) {
-        const out = [hand[i], hand[j], hand[k]];
-        const risk = handRisk(hand.filter((c) => !out.includes(c)), settings);
-        if (risk < bestRisk - 1e-9) {
-          bestRisk = risk;
-          best = out;
-        }
-      }
+  for (const out of choices(hand, size)) {
+    const risk = handRisk(hand.filter((c) => !out.includes(c)), settings);
+    if (risk < bestRisk - 1e-9) {
+      bestRisk = risk;
+      best = out;
     }
   }
   return best;
@@ -87,7 +94,7 @@ const suit = (card) => card[card.length - 1];
 function legalIn(sim, seat) {
   const hand = sim.hands[seat];
   if (!sim.trick.length) {
-    if (sim.tricks === 0 && hand.includes('2C')) return ['2C'];
+    if (sim.tricks === 0 && hand.includes(sim.opening)) return [sim.opening];
     if (!sim.broken) {
       const open = hand.filter((c) => suit(c) !== 'H');
       if (open.length) return open;
@@ -132,7 +139,7 @@ function modelPlay(sim, seat, legal) {
   if (following.length) {
     let best = 0;
     for (const p of sim.trick) if (suit(p.card) === led && rv(p.card) > best) best = rv(p.card);
-    const last = sim.trick.length === SEATS - 1;
+    const last = sim.trick.length === sim.n - 1;
     const winning = following.filter((c) => rv(c) > best);
     const ducking = following.filter((c) => rv(c) < best);
     if (chasing) return winning.length ? highestOf(winning) : lowestOf(following);
@@ -186,19 +193,19 @@ function finishTrick(sim) {
 
 /** Plays the hand out from the current position (the card in `sim.trick` so far) and returns each seat's points. */
 function playOut(sim, settings, jackValue) {
-  while (sim.tricks < TRICKS) {
-    if (sim.trick.length === SEATS) {
+  while (sim.tricks < sim.total) {
+    if (sim.trick.length === sim.n) {
       finishTrick(sim);
       continue;
     }
     const seat = sim.turn;
     playCardIn(sim, seat, modelPlay(sim, seat, legalIn(sim, seat)));
-    sim.turn = (seat + 1) % SEATS;
+    sim.turn = (seat + 1) % sim.n;
   }
   const shooter = sim.hearts.findIndex((h, s) => h === 13 && sim.queen === s);
   return sim.hearts.map((h, s) => {
     let points;
-    if (shooter !== -1) points = settings.moon === 'self' ? (s === shooter ? -26 : 0) : s === shooter ? 0 : 26;
+    if (shooter !== -1) points = settings.moon === 'self' ? (s === shooter ? -HAND_POINTS : 0) : s === shooter ? 0 : HAND_POINTS;
     else points = h + (sim.queen === s ? 13 : 0);
     return points + (settings.jackOfDiamonds && sim.jackTaker === s ? -jackValue : 0);
   });
@@ -207,13 +214,14 @@ function playOut(sim, settings, jackValue) {
 /** Deals the unseen cards to the other seats: known voids are respected and the cards this seat passed go to their receiver. */
 function sampleWorld(ctx, know, rng) {
   const { seat } = ctx;
-  const others = [0, 1, 2, 3].filter((t) => t !== seat);
+  const n = seatsIn(ctx);
+  const others = Array.from({ length: n }, (_, t) => t).filter((t) => t !== seat);
   const unseen = [...know.unseen];
-  const shift = { left: 1, right: 3, across: 2 }[ctx.direction];
-  const receiver = shift ? (seat + shift) % SEATS : -1;
+  const shift = ctx.passOffset ?? offsetOfDirection(n, ctx.direction);
+  const receiver = shift ? (seat + shift) % n : -1;
   for (let attempt = 0; attempt < 30; attempt++) {
-    const hands = [[], [], [], []];
-    const room = [0, 0, 0, 0];
+    const hands = Array.from({ length: n }, () => []);
+    const room = Array(n).fill(0);
     for (const t of others) room[t] = know.sizes[t];
     const free = [];
     for (const card of unseen) {
@@ -277,6 +285,7 @@ function playSharp(ctx) {
  */
 export function lookAhead(ctx, { jackValue = 5 } = {}) {
   const { legal, seat, settings } = ctx;
+  const n = seatsIn(ctx);
   const know = observe(ctx);
   const rng = ctx.rng ?? Math.random;
 
@@ -323,11 +332,14 @@ export function lookAhead(ctx, { jackValue = 5 } = {}) {
         queenGone: know.played.has(QUEEN) || card === QUEEN,
         jack: Boolean(settings.jackOfDiamonds),
         chaser,
-        turn: (seat + 1) % SEATS,
+        turn: (seat + 1) % n,
+        n,
+        total: tricksIn(ctx),
+        opening: openingCard(n),
       };
       sim.trick.push({ seat, card });
       const points = playOut(sim, settings, jackValue);
-      total += points[seat] - (TUNING.relative * points.reduce((a, b, s) => a + (s === seat ? 0 : b), 0)) / 3;
+      total += points[seat] - (TUNING.relative * points.reduce((a, b, s) => a + (s === seat ? 0 : b), 0)) / (n - 1);
     }
     const value = total / worlds.length;
     if (value < bestValue - 1e-9 || (Math.abs(value - bestValue) <= 1e-9 && rv(card) > rv(best))) {

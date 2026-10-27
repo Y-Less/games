@@ -35,7 +35,7 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
   const modulesDir = path.join(dataDir, 'copy', 'modules');
   if (!fs.existsSync(modulesDir)) {
     fs.mkdirSync(path.join(modulesDir, 'hearts'), { recursive: true });
-    for (const file of ['server.js', 'game.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
+    for (const file of ['server.js', 'game.js', 'deals.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
     fs.cpSync(path.join(here, 'ai'), path.join(modulesDir, 'hearts', 'ai'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'copy', 'shared'), { recursive: true });
     for (const file of ['ai.js', 'cards.js', 'scores.js']) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
@@ -156,7 +156,7 @@ const extrasOf = (stats) => Object.fromEntries(stats.perGame[0].extras.map((e) =
 function assertNoLeaks(person) {
   for (const s of person.states) {
     if (!s) continue;
-    const allowed = new Set([...(s.hand ?? []), ...(s.received ?? []), ...(s.pass?.chosen ?? []), ...(s.trick ?? []).map((p) => p.card), ...(s.lastTrick?.plays ?? []).map((p) => p.card)]);
+    const allowed = new Set([...(s.hand ?? []), ...(s.received ?? []), ...(s.pass?.chosen ?? []), ...(s.trick ?? []).map((p) => p.card), ...(s.lastTrick?.plays ?? []).map((p) => p.card), ...(s.deal?.removed ?? []), s.deal?.openingCard]); // the deal is public
     for (const card of JSON.stringify(s).match(CARD) ?? []) assert.ok(allowed.has(card), `${person.name} was sent ${card}, which is not theirs to see`);
     assert.ok(s.seats.every((seat) => !seat || !('hand' in seat)));
   }
@@ -297,11 +297,37 @@ test('hands stay hidden: nobody is ever sent a card they may not see', async (t)
   assert.ok(moment);
   const bobsThen = bob.states.find((s) => s?.phase === 'playing' && s.hand.length === 13 && s.trick.length === moment.trick.length);
   const text = JSON.stringify(moment);
-  for (const card of bobsThen.hand.filter((c) => !moment.hand.includes(c) && !moment.trick.some((p) => p.card === c))) assert.ok(!text.includes(`"${card}"`));
+  for (const card of bobsThen.hand.filter((c) => !moment.hand.includes(c) && !moment.trick.some((p) => p.card === c) && c !== moment.deal.openingCard)) assert.ok(!text.includes(`"${card}"`));
 
   const stats = await Promise.all([ann.stats(), bob.stats()]);
   for (const s of stats) assert.equal(s.perGame[0].played, 1);
   assert.equal(stats[0].recent[0].players, 2);
+});
+
+test('the host chooses the number of players: a six-player game of one person and five computers', async (t) => {
+  fast();
+  const { person } = await launch(t);
+  const ann = await person('ann').open();
+  assert.equal((await ann.call('create', { seats: 8 })).ok, false, 'eight seats is too many');
+  assert.equal((await ann.call('create', { seats: 2 })).ok, false, 'two seats is too few');
+  await ann.create({ seats: 6 });
+  await until(() => ann.state?.phase === 'lobby', 'the lobby');
+  assert.equal(ann.state.seatCount, 6);
+  assert.equal(ann.state.seats.length, 6);
+  assert.deepEqual([ann.state.limits.minSeats, ann.state.limits.maxSeats], [3, 7]);
+  assert.equal((await ann.call('settings', { seats: 9 })).ok, false);
+  assert.equal((await ann.call('settings', { seats: 5 })).ok, true);
+  await until(() => ann.state.seatCount === 5, 'five seats');
+  assert.equal((await ann.call('settings', { seats: 6 })).ok, true);
+  assert.equal((await ann.call('fillBots')).ok, true);
+  await until(() => ann.state.seats.every(Boolean), 'six seats');
+  assert.equal((await ann.call('settings', { seats: 3 })).ok, false, 'cannot shrink below the seated players');
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => ann.state.phase === 'passing', 'the deal');
+  assert.equal(ann.state.hand.length, 8);
+  assert.equal(ann.state.pass.cards, 2);
+  assert.equal(ann.state.deal.removed.length, 4);
+  assert.equal((await ann.call('settings', { seats: 4 })).ok, false, 'not once started');
 });
 
 test('reconnects: a second socket, a new socket and a resume all find the same game', async (t) => {
@@ -340,7 +366,7 @@ test('reconnects: a second socket, a new socket and a resume all find the same g
   assert.equal(back.state.code, ann.code);
 
   // Everything still works from the new socket, and from both at once.
-  for (let i = 0; i < 400 && back.state.phase !== 'finished'; i++) {
+  for (let i = 0; i < 1500 && back.state.phase !== 'finished'; i++) {
     for (const p of [back, phone]) await p.step().catch(() => {});
     await sleep(3);
   }
@@ -482,12 +508,13 @@ test('a restart after the game has finished does not record it a second time', a
   await playToEnd([ann]);
   await sleep(150);
   const cookie = ann.cookie;
+  const code = ann.code;
   await first.stop();
   const second = await launch(t, { dataDir });
   const again = second.person('ann');
   again.cookie = cookie;
   await again.connect();
-  await again.call('resume');
+  await again.call('resume', { code }); // a finished game is only resumed with its code
   await until(() => again.state?.phase === 'finished', 'the finished game');
   await sleep(150);
   assert.equal((await again.stats()).perGame[0].played, 1);

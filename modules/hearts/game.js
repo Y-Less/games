@@ -1,26 +1,25 @@
 // The rules of Hearts, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
 //
-// Seats 0..3 run clockwise: the player to your left is seat + 1, so passing "left" sends cards to seat + 1 and play
-// goes round in increasing seat order. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer
+// Three to seven players (the host's choice, 4 by default; see deals.js for the deal and the passing of each size).
+// Seats 0..n-1 run clockwise: the player to your left is seat + 1, so passing "left" sends cards to seat + 1 and play
+// goes round in increasing seat order. The number of seats is room.seats.length. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer
 // player ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
 import { placements } from '../../shared/scores.js';
-import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
+import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
+import { DEFAULT_SEATS, HAND_POINTS, MAX_SEATS, MIN_SEATS, deckFor, dealFor, describePass, directionName, isSeatCount, offsetFor, offsetOfDirection, openingCard, passCountFor, tricksFor } from './deals.js';
 
-export const SEATS = 4;
+export { DEFAULT_SEATS, MAX_SEATS, MIN_SEATS, HAND_POINTS, openingCard };
 export const TARGETS = [50, 100, 150];
 export const MOON_MODES = ['others', 'self'];
-export const DEFAULT_SETTINGS = { target: 100, jackOfDiamonds: false, moon: 'others' };
-export const PASS_DIRECTIONS = ['left', 'right', 'across', 'none'];
-export const PASS_COUNT = 3;
-export const TRICKS = 13;
+export const DEFAULT_SETTINGS = { target: 100, jackOfDiamonds: true, moon: 'others' };
+export const PASS_DIRECTIONS = ['left', 'right', 'across', 'none']; // the four-player rotation (see deals.js for the rest)
 export const QUEEN = 'QS';
 export const JACK = 'JD';
-export const TWO_OF_CLUBS = '2C';
-export const MOON_POINTS = 26;
+export const MOON_POINTS = HAND_POINTS;
 export const JACK_POINTS = -5;
 export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken'];
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
@@ -37,11 +36,15 @@ export const isBot = (seat) => seat?.kind === 'bot';
 export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
 export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
 export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
-export const passTarget = (seat, direction) => (seat + { left: 1, right: 3, across: 2, none: 0 }[direction]) % SEATS;
-export const passSource = (seat, direction) => (seat + SEATS - { left: 1, right: 3, across: 2, none: 0 }[direction]) % SEATS;
+export const seatCountOf = (room) => room.seats.length;
+export const passTarget = (seat, direction, seats = DEFAULT_SEATS) => (seat + offsetOfDirection(seats, direction)) % seats;
+export const passSource = (seat, direction, seats = DEFAULT_SEATS) => (seat + seats - offsetOfDirection(seats, direction)) % seats;
+const emptySeats = (n) => Array.from({ length: n }, () => null);
 
 const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
-const emptyHands = () => Array.from({ length: SEATS }, () => []);
+const emptyHands = (n) => Array.from({ length: n }, () => []);
+
+const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
@@ -61,13 +64,15 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
 }
 
 export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+  const seatCount = settings.seats ?? DEFAULT_SEATS;
+  if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
   const normalised = normaliseSettings(settings);
   const room = {
     code,
     hostId,
     phase: 'lobby',
     settings: normalised.ok ? normalised.settings : { ...DEFAULT_SETTINGS },
-    seats: [{ kind: 'human', id: hostId, name: hostName }, null, null, null],
+    seats: [{ kind: 'human', id: hostId, name: hostName }, ...emptySeats(seatCount - 1)],
     nextBot: 1,
     createdAt: now,
     updatedAt: now,
@@ -78,19 +83,21 @@ export function createRoom({ code, hostId, hostName, settings = {}, now = Date.n
 }
 
 function resetGame(room) {
+  const n = room.seats.length;
   Object.assign(room, {
-    scores: [0, 0, 0, 0],
-    tally: Array.from({ length: SEATS }, freshTally),
+    scores: Array(n).fill(0),
+    tally: Array.from({ length: n }, freshTally),
     history: [],
     lastHand: null,
     winners: null,
     recorded: false,
     handNumber: 0,
-    passDirection: 'left',
-    hands: emptyHands(),
-    passes: [null, null, null, null],
-    received: emptyHands(),
-    taken: emptyHands(),
+    passDirection: directionName(n, offsetFor(n, 0)),
+    passOffset: offsetFor(n, 0),
+    hands: emptyHands(n),
+    passes: emptySeats(n),
+    received: emptyHands(n),
+    taken: emptyHands(n),
     trick: [],
     trickLog: [],
     lastTrick: null,
@@ -146,8 +153,21 @@ export function setSettings(room, userId, input) {
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
+  if (input?.seats !== undefined) {
+    if (!isSeatCount(input.seats)) return fail(seatsProblem);
+    const seated = room.seats.filter(Boolean).length;
+    if (input.seats < seated) return fail('Remove a player first: that would leave too few seats.');
+    resizeSeats(room, input.seats);
+  }
   room.settings = next.settings;
   return ok();
+}
+
+/** Grows or shrinks the table. Shrinking keeps everyone seated, closing up the gaps in turn order if it has to. */
+function resizeSeats(room, count) {
+  if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
+  room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
+  resetGame(room);
 }
 
 export function addBot(room, userId, seat) {
@@ -155,7 +175,7 @@ export function addBot(room, userId, seat) {
   if (problem) return problem;
   const index = seat === undefined ? firstEmpty(room) : seat;
   if (index === -1) return fail('Every seat is taken.');
-  if (!Number.isInteger(index) || index < 0 || index >= SEATS) return fail('There is no such seat.');
+  if (!Number.isInteger(index) || index < 0 || index >= room.seats.length) return fail('There is no such seat.');
   if (room.seats[index]) return fail('That seat is taken.');
   room.seats[index] = newBot(room);
   return ok({ seat: index });
@@ -187,19 +207,22 @@ export function removeBot(room, userId, seat) {
 export function fillWithBots(room, userId) {
   const problem = asHost(room, userId) ?? inLobby(room);
   if (problem) return problem;
-  for (let i = 0; i < SEATS; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
+  for (let i = 0; i < room.seats.length; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
   return ok();
 }
 
 // ---- dealing and passing ----
 
 export function deal(room, rng = Math.random) {
-  const deck = shuffle(fullDeck(), rng);
-  room.hands = Array.from({ length: SEATS }, (_, i) => sortHand(deck.slice(i * TRICKS, (i + 1) * TRICKS)));
-  room.passDirection = PASS_DIRECTIONS[room.handNumber % PASS_DIRECTIONS.length];
-  room.passes = [null, null, null, null];
-  room.received = emptyHands();
-  room.taken = emptyHands();
+  const n = room.seats.length;
+  const each = tricksFor(n);
+  const deck = shuffle(deckFor(n), rng);
+  room.hands = Array.from({ length: n }, (_, i) => sortHand(deck.slice(i * each, (i + 1) * each)));
+  room.passOffset = offsetFor(n, room.handNumber);
+  room.passDirection = directionName(n, room.passOffset);
+  room.passes = emptySeats(n);
+  room.received = emptyHands(n);
+  room.taken = emptyHands(n);
   room.trick = [];
   room.trickLog = [];
   room.lastTrick = null;
@@ -207,26 +230,26 @@ export function deal(room, rng = Math.random) {
   room.heartsBroken = false;
   room.moonBid = null;
   room.turn = null;
-  if (room.passDirection === 'none') beginPlay(room);
+  if (room.passOffset === 0) beginPlay(room);
   else room.phase = 'passing';
 }
 
 function beginPlay(room) {
   room.phase = 'playing';
-  room.turn = room.hands.findIndex((hand) => hand.includes(TWO_OF_CLUBS));
+  room.turn = room.hands.findIndex((hand) => hand.includes(openingCard(room.seats.length)));
   setMoonBid(room);
 }
 
 /** The first computer player whose AI judges its hand strong enough to go for every point (if any). */
 function setMoonBid(room) {
-  const bidder = room.seats.findIndex((s, i) => isBot(s) && aiOf(room, i).bidsMoon?.({ hand: room.hands[i], settings: room.settings }));
+  const bidder = room.seats.findIndex((s, i) => isBot(s) && aiOf(room, i).bidsMoon?.({ hand: room.hands[i], settings: room.settings, seatCount: room.seats.length }));
   room.moonBid = bidder === -1 ? null : bidder;
 }
 
 export function start(room, userId, rng = Math.random) {
   const problem = asHost(room, userId) ?? inLobby(room);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('All four seats need a player. Add computer players to fill the empty ones.');
+  if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
   if (!humanSeats(room).length) return fail('At least one person has to play.');
   resetGame(room);
   deal(room, rng);
@@ -241,7 +264,8 @@ export function start(room, userId, rng = Math.random) {
 export function choosePass(room, seat, cards) {
   if (room.phase !== 'passing') return fail('It is not time to pass cards.');
   if (room.passes[seat]) return fail('You have already passed your cards.');
-  if (!Array.isArray(cards) || cards.length !== PASS_COUNT || new Set(cards).size !== PASS_COUNT) return fail(`Choose exactly ${PASS_COUNT} different cards to pass.`);
+  const count = passCountFor(room.seats.length);
+  if (!Array.isArray(cards) || cards.length !== count || new Set(cards).size !== count) return fail(`Choose exactly ${count} different cards to pass.`);
   if (!cards.every((card) => typeof card === 'string' && room.hands[seat].includes(card))) return fail('You can only pass cards from your hand.');
   room.passes[seat] = sortHand(cards);
   if (room.passes.every(Boolean)) exchange(room);
@@ -249,9 +273,10 @@ export function choosePass(room, seat, cards) {
 }
 
 function exchange(room) {
+  const n = room.seats.length;
   const hands = room.hands.map((hand, seat) => hand.filter((card) => !room.passes[seat].includes(card)));
-  for (let seat = 0; seat < SEATS; seat++) {
-    const received = room.passes[passSource(seat, room.passDirection)];
+  for (let seat = 0; seat < n; seat++) {
+    const received = room.passes[passSource(seat, room.passDirection, n)];
     room.received[seat] = [...received];
     hands[seat] = sortHand([...hands[seat], ...received]);
   }
@@ -266,7 +291,10 @@ export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return 'That card is not in your hand.';
   if (room.trick.length === 0) {
-    if (room.tricksPlayed === 0) return card === TWO_OF_CLUBS ? null : 'You must lead the 2 of clubs.';
+    if (room.tricksPlayed === 0) {
+      const opening = openingCard(room.seats.length);
+      return card === opening ? null : `You must lead the ${cardName(opening)}.`;
+    }
     if (isHeart(card) && !room.heartsBroken && hand.some((c) => !isHeart(c))) return 'Hearts have not been broken yet.';
     return null;
   }
@@ -288,8 +316,9 @@ export function playCard(room, seat, card) {
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
   if (isHeart(card) || card === QUEEN) room.heartsBroken = true; // the queen breaks hearts too
-  room.turn = room.trick.length === SEATS ? null : (seat + 1) % SEATS;
-  return ok({ complete: room.trick.length === SEATS });
+  const n = room.seats.length;
+  room.turn = room.trick.length === n ? null : (seat + 1) % n;
+  return ok({ complete: room.trick.length === n });
 }
 
 /** The seat that is winning a (possibly unfinished) trick: the highest card of the suit led. */
@@ -300,7 +329,7 @@ export function trickWinner(trick) {
 
 /** Gives a finished trick to its winner, who leads next; after the last trick the hand is scored. */
 export function resolveTrick(room) {
-  if (room.phase !== 'playing' || room.trick.length !== SEATS) return fail('There is no finished trick.');
+  if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('There is no finished trick.');
   const winner = trickWinner(room.trick);
   const cards = room.trick.map((p) => p.card);
   room.taken[winner].push(...cards);
@@ -310,7 +339,7 @@ export function resolveTrick(room) {
   room.trickLog.push({ plays: room.trick, winner });
   room.trick = [];
   room.tricksPlayed++;
-  if (room.tricksPlayed === TRICKS) {
+  if (room.tricksPlayed === tricksFor(room.seats.length)) {
     room.turn = null;
     endHand(room);
     return ok({ winner, handOver: true });
@@ -324,7 +353,7 @@ export function resolveTrick(room) {
 /**
  * What each seat scores for a hand, given the cards each took in tricks. Hearts are 1, the Queen of Spades 13 and, if
  * the setting is on, the Jack of Diamonds -5. A player who takes every heart and the Queen of Spades shoots the moon:
- * everyone else scores 26 (or, in the "self" mode, the shooter scores -26 and the others nothing). The Jack of
+ * everyone else scores 26, whatever the number of players (or, in the "self" mode, the shooter scores -26 and the others nothing). The Jack of
  * Diamonds still counts on a moon hand, when the setting is on: whoever took it also scores -5 (the Jack does not
  * have to be taken to shoot the moon).
  */
@@ -334,7 +363,7 @@ export function scoreHand(taken, settings) {
     queen: cards.includes(QUEEN),
     jack: cards.includes(JACK),
   }));
-  const moonSeat = details.findIndex((d) => d.hearts === 13 && d.queen);
+  const moonSeat = details.findIndex((d) => d.hearts === 13 && d.queen /* every heart is always in the deck */);
   const jackPoints = (d) => (settings.jackOfDiamonds && d.jack ? JACK_POINTS : 0);
   let points;
   if (moonSeat !== -1) {
@@ -440,9 +469,9 @@ export const wantsMoon = standardWantsMoon;
 /** The AI a computer seat plays with. Seats without one (rooms saved before AIs existed) get the first, standard AI. */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
-/** Three cards to pass, as the standard AI chooses them (kept for callers that only have a hand). */
-export function botPass(hand, settings = DEFAULT_SETTINGS) {
-  return passStandard({ hand, settings });
+/** Cards to pass, as the standard AI chooses them (kept for callers that only have a hand). */
+export function botPass(hand, settings = DEFAULT_SETTINGS, count = 3) {
+  return passStandard({ hand, settings, passCount: count });
 }
 
 /** The plain data an AI decides from: its own hand and the public history of the hand, never other hands. */
@@ -460,6 +489,11 @@ export function aiContext(room, seat, rng = Math.random) {
     tricksPlayed: room.tricksPlayed,
     handNumber: room.handNumber,
     direction: room.passDirection,
+    seatCount: room.seats.length,
+    trickCount: tricksFor(room.seats.length),
+    passCount: passCountFor(room.seats.length),
+    passOffset: room.passOffset ?? offsetOfDirection(room.seats.length, room.passDirection),
+    openingCard: openingCard(room.seats.length),
     passed: room.passes[seat] ? [...room.passes[seat]] : [],
     received: [...(room.received?.[seat] ?? [])],
     moonBid: room.moonBid,
@@ -467,12 +501,14 @@ export function aiContext(room, seat, rng = Math.random) {
   };
 }
 
-/** The three cards a computer seat passes, chosen by its own AI (always three different cards from its hand). */
+/** The cards a computer seat passes, chosen by its own AI (always the right number of different cards from its hand). */
 export function botPassFor(room, seat, rng = Math.random) {
   const hand = room.hands[seat];
-  const valid = (cards) => Array.isArray(cards) && cards.length === PASS_COUNT && new Set(cards).size === PASS_COUNT && cards.every((c) => hand.includes(c));
-  const cards = aiOf(room, seat).choosePass(aiContext(room, seat, rng));
-  return valid(cards) ? cards : passStandard({ hand, settings: room.settings });
+  const count = passCountFor(room.seats.length);
+  const valid = (cards) => Array.isArray(cards) && cards.length === count && new Set(cards).size === count && cards.every((c) => hand.includes(c));
+  const ctx = aiContext(room, seat, rng);
+  const cards = aiOf(room, seat).choosePass(ctx);
+  return valid(cards) ? cards : passStandard(ctx);
 }
 
 /** The card a computer player plays: always one of its legal cards, chosen by its own AI. */
@@ -493,7 +529,7 @@ export function pendingAction(room) {
     return seat === -1 ? null : { type: 'pass', seat };
   }
   if (room.phase !== 'playing') return null;
-  if (room.trick.length === SEATS) return { type: 'resolve' };
+  if (room.trick.length === room.seats.length) return { type: 'resolve' };
   return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
 }
 
@@ -522,7 +558,7 @@ function handPoints(room, seat) {
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
   const playing = room.phase === 'playing';
-  const myTurn = playing && room.turn === me && room.trick.length < SEATS;
+  const myTurn = playing && room.turn === me && room.trick.length < room.seats.length;
   const view = {
     code: room.code,
     phase: room.phase,
@@ -538,7 +574,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
             online: isBot(seat) || online(seat.id),
             cards: room.hands[i].length,
-            tricks: room.taken[i].length / SEATS,
+            tricks: room.taken[i].length / room.seats.length,
             hearts: room.taken[i].filter(isHeart).length,
             queen: room.taken[i].includes(QUEEN),
             jack: room.taken[i].includes(JACK),
@@ -558,31 +594,41 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     handNumber: room.handNumber + 1,
     lastHand: room.lastHand,
     winners: room.winners,
-    limits: { targets: TARGETS, moonModes: MOON_MODES },
+    seatCount: room.seats.length,
+    deal: dealView(room.seats.length),
+    limits: { targets: TARGETS, moonModes: MOON_MODES, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') {
     view.hand = room.hands[me] ?? [];
     view.received = (room.received[me] ?? []).filter((c) => view.hand.includes(c));
     view.trick = room.trick;
-    view.trickWinner = room.trick.length === SEATS ? trickWinner(room.trick) : null;
+    view.trickWinner = room.trick.length === room.seats.length ? trickWinner(room.trick) : null;
     view.lastTrick = room.lastTrick;
     view.turn = room.turn;
     view.heartsBroken = room.heartsBroken;
-    view.trickNumber = Math.min(room.tricksPlayed + 1, TRICKS);
+    view.trickNumber = Math.min(room.tricksPlayed + 1, tricksFor(room.seats.length));
     view.legal = myTurn ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
   }
-  if (room.phase === 'passing') {
-    view.pass = {
-      direction: room.passDirection,
-      to: passTarget(me, room.passDirection),
-      from: passSource(me, room.passDirection),
-      chosen: room.passes[me],
-      incomingReady: Boolean(room.passes[passSource(me, room.passDirection)]),
-    };
+  const n = room.seats.length;
+  const offset = room.passOffset ?? offsetOfDirection(n, room.passDirection);
+  const name = (seat) => (seat === null || seat === undefined || !room.seats[seat] ? null : room.seats[seat].name);
+  const base = { ...describePass(n, offset), cards: passCountFor(n) };
+  if (room.phase === 'passing' && me !== -1 && offset !== 0) {
+    const to = passTarget(me, room.passDirection, n);
+    const from = passSource(me, room.passDirection, n);
+    view.pass = { ...base, to, from, toName: name(to), fromName: name(from), chosen: room.passes[me], incomingReady: Boolean(room.passes[from]) };
   } else {
-    view.pass = { direction: room.passDirection, to: null, from: null, chosen: null, incomingReady: false };
+    view.pass = { ...base, to: null, from: null, toName: null, fromName: null, chosen: null, incomingReady: false };
   }
+  // Who passes to whom this hand (public once the hand is dealt), for drawing the arrows.
+  view.pass.targets = room.phase === 'lobby' || offset === 0 ? [] : room.seats.map((_, seat) => passTarget(seat, room.passDirection, n));
   return view;
+}
+
+/** What the table needs to describe the deal for this many players: removed cards are public. */
+function dealView(seats) {
+  const deal = dealFor(seats);
+  return { cardsEach: deal.each, tricks: deal.each, passCount: deal.pass, removed: [...deal.removed], openingCard: openingCard(seats), handPoints: HAND_POINTS, rotation: deal.rotation.map((offset) => describePass(seats, offset)) };
 }
 
 const describeAIBrief = (ai) => {

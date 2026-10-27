@@ -61,7 +61,7 @@ function validateView(s, who) {
     assert.ok(s.turn === null || (s.turn >= 0 && s.turn < 4), `${label}: a valid turn`);
   }
   if (s.phase === 'passing') assert.ok(s.seats.every((seat) => seat.cards === 13), `${label}: 13 each`);
-  const allowed = new Set([...s.hand, ...s.received, ...(s.pass?.chosen ?? []), ...s.trick.map((p) => p.card), ...(s.lastTrick?.plays ?? []).map((p) => p.card)]);
+  const allowed = new Set([...s.hand, ...s.received, ...(s.pass?.chosen ?? []), ...s.trick.map((p) => p.card), ...(s.lastTrick?.plays ?? []).map((p) => p.card), ...(s.deal?.removed ?? []), s.deal?.openingCard]); // the deal is public
   for (const card of cardsIn(s)) assert.ok(allowed.has(card), `${label}: was sent ${card}, which is not theirs to see`);
 }
 

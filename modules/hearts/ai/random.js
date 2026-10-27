@@ -4,10 +4,10 @@ export default {
   name: 'Random',
   description: 'Passes and plays any legal card at random.',
   weight: 0.5,
-  choosePass({ hand, rng }) {
+  choosePass({ hand, rng, passCount = 3 }) {
     const pool = [...hand];
     const out = [];
-    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    while (out.length < passCount && pool.length) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
     return out;
   },
   choosePlay({ legal, rng }) {

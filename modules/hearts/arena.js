@@ -14,11 +14,11 @@ export function seeded(seed) {
 }
 
 /**
- * Plays one whole game. `ais` is the AI id for each of the four seats. Every move is checked for legality by the rules
+ * Plays one whole game. `ais` is the AI id for each seat (3 to 7 of them, 4 by default in versus). Every move is checked for legality by the rules
  * (the game throws on an illegal one). Returns { room, hands: [{ points, moon, details }], scores }.
  */
 export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 100, ...settings } });
+  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 100, jackOfDiamonds: false, seats: ais.length, ...settings } });
   g.fillWithBots(room, 1);
   g.start(room, 1, rng);
   room.seats[0] = { kind: 'bot', id: 'bot:90', name: 'Zed' };
@@ -38,18 +38,18 @@ export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
 }
 
 /**
- * Plays `games` games with `subject` in seat (game number mod 4) and `field` (an AI id, or an array of three) in the
+ * Plays `games` games with `subject` in seat (game number mod seats) and `field` (an AI id, or an array of seats - 1) in the
  * others, rotating the subject's seat so no seat is favoured. Returns the subject's and the field's averages.
  */
-export function versus({ subject, field, games, settings = {}, seedBase = 1 }) {
+export function versus({ subject, field, games, settings = {}, seedBase = 1, seats = 4 }) {
   const out = { games, subjectScore: 0, fieldScore: 0, subjectWins: 0, subjectHandPoints: 0, hands: 0, subjectMoons: 0, fieldMoons: 0, subjectJacks: 0, fieldJacks: 0, subjectHands: 0, fieldHands: 0 };
   for (let n = 0; n < games; n++) {
-    const subjectSeat = n % 4;
-    const others = Array.isArray(field) ? [...field] : [field, field, field];
-    const ais = Array.from({ length: 4 }, (_, i) => (i === subjectSeat ? subject : others.shift()));
+    const subjectSeat = n % seats;
+    const others = Array.isArray(field) ? [...field] : Array.from({ length: seats - 1 }, () => field);
+    const ais = Array.from({ length: seats }, (_, i) => (i === subjectSeat ? subject : others.shift()));
     const { room, hands, scores } = playGame({ ais, seed: seedBase + n, settings });
     out.subjectScore += scores[subjectSeat];
-    out.fieldScore += (scores.reduce((a, b) => a + b, 0) - scores[subjectSeat]) / 3;
+    out.fieldScore += (scores.reduce((a, b) => a + b, 0) - scores[subjectSeat]) / (seats - 1);
     if (room.winners.includes(subjectSeat)) out.subjectWins += 1 / room.winners.length;
     for (const hand of hands) {
       out.hands++;
@@ -62,7 +62,7 @@ export function versus({ subject, field, games, settings = {}, seedBase = 1 }) {
       });
     }
     out.subjectHands += hands.length;
-    out.fieldHands += hands.length * 3;
+    out.fieldHands += hands.length * (seats - 1);
   }
   return out;
 }

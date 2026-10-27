@@ -3,9 +3,10 @@
 // It also holds its high hearts back while only one player has taken points (see pointTakers): dumping them on the
 // lone point-taker could hand them the moon, so it sheds other cards first.
 import { rankValue, suitOf } from '../../../shared/cards.js';
-import { JACK, QUEEN, SEATS, avoiding, bySuit, highest, isHeart, lowest, playedSet, pointTakers } from './util.js';
+import { JACK, QUEEN, avoiding, bySuit, highest, isHeart, lowest, passSize, playedSet, pointTakers, seatsIn } from './util.js';
 
-function passAvoider({ hand, settings }) {
+function passAvoider(ctx) {
+  const { hand, settings } = ctx;
   const spades = bySuit(hand, 'S');
   const hasQueen = hand.includes(QUEEN);
   const danger = (card) => {
@@ -18,7 +19,7 @@ function passAvoider({ hand, settings }) {
     const length = hand.filter((c) => suitOf(c) === suitOf(card)).length;
     return rank + (length <= 2 ? 12 - length * 3 : 0);
   };
-  return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, 3);
+  return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, passSize(ctx));
 }
 
 function playAvoider(ctx) {
@@ -41,7 +42,7 @@ function playAvoider(ctx) {
   const following = legal.filter((c) => suitOf(c) === led);
   if (following.length) {
     const best = Math.max(...trick.filter((p) => suitOf(p.card) === led).map((p) => rankValue(p.card)));
-    const last = trick.length === SEATS - 1;
+    const last = trick.length === seatsIn(ctx) - 1;
     const ducking = following.filter((c) => rankValue(c) < best);
     if (ducking.length) return highest(keepJack(ducking));
     // Forced to win: take it as low as possible unless last, when nobody can overtake and the highest card is shed.

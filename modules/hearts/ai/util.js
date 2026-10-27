@@ -1,9 +1,13 @@
 // Helpers shared by the Hearts AIs. Everything here works on plain data (see the context described in index.js) and
 // knows nothing about rooms or sockets. No Math.random: a game passes its own `rng` in the context.
 import { rankValue, suitOf } from '../../../shared/cards.js';
+import { DEFAULT_SEATS, deckFor, tricksFor } from '../deals.js';
 
-export const SEATS = 4;
-export const TRICKS = 13;
+// The number of players varies (3 to 7), so nothing here is a constant: the context says how many seats, tricks and
+// pass cards this game has (seatCount, trickCount, passCount); a context without them is a four-player one.
+export const seatsIn = (ctx) => ctx.seatCount ?? ctx.taken?.length ?? DEFAULT_SEATS;
+export const tricksIn = (ctx) => ctx.trickCount ?? tricksFor(seatsIn(ctx));
+export const passSize = (ctx) => ctx.passCount ?? 3;
 export const QUEEN = 'QS';
 export const JACK = 'JD';
 export const SUIT_LIST = ['C', 'D', 'H', 'S'];
@@ -49,14 +53,10 @@ export function winningPlay(trick) {
 export function observe(ctx) {
   const played = playedSet(ctx);
   const mine = new Set(ctx.hand);
+  const seats = seatsIn(ctx);
   const unseen = new Set();
-  for (const suit of SUIT_LIST) {
-    for (let rank = 2; rank <= 14; rank++) {
-      const card = `${['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'][rank - 2]}${suit}`;
-      if (!played.has(card) && !mine.has(card)) unseen.add(card);
-    }
-  }
-  const voids = Array.from({ length: SEATS }, () => new Set());
+  for (const card of deckFor(seats)) if (!played.has(card) && !mine.has(card)) unseen.add(card);
+  const voids = Array.from({ length: seats }, () => new Set());
   const note = (plays) => {
     if (!plays.length) return;
     const led = suitOf(plays[0].card);
@@ -65,14 +65,14 @@ export function observe(ctx) {
   for (const entry of ctx.history ?? []) note(entry.plays);
   note(ctx.trick);
   const onTable = new Set(ctx.trick.map((p) => p.seat));
-  const sizes = Array.from({ length: SEATS }, (_, s) => TRICKS - ctx.tricksPlayed - (onTable.has(s) ? 1 : 0));
+  const sizes = Array.from({ length: seats }, (_, s) => tricksIn(ctx) - ctx.tricksPlayed - (onTable.has(s) ? 1 : 0));
   return { played, unseen, voids, sizes };
 }
 
 export const unseenOf = (know, suit) => [...know.unseen].filter((c) => suitOf(c) === suit);
 
 /** The next seat to play after `seat`. */
-export const after = (seat, n = 1) => (seat + n) % SEATS;
+export const after = (seat, n = 1, seats = DEFAULT_SEATS) => (seat + n) % seats;
 
 /** The seats that have taken a heart or the Queen of Spades this hand. A moon needs this to stay at one seat. */
 export const pointTakers = (ctx) => new Set(ctx.taken.flatMap((cards, s) => (cards.some(isPointCard) ? [s] : [])));
