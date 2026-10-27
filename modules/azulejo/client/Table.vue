@@ -135,12 +135,6 @@ const marker = computed(() => {
 const markerHolder = computed(() => s.value.seats.findIndex((x) => x && x.floor.includes(-1)));
 
 // ---- boards ----
-const others = computed(() => {
-  const n = s.value.size;
-  const out = [];
-  for (let k = 1; k < n; k++) out.push(s.value.seats[(s.value.you + k) % n]);
-  return out.filter(Boolean);
-});
 const choose = computed(() => (s.value.phase === 'tiling' ? s.value.choice : null));
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
@@ -162,7 +156,7 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const openedBoard = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const openedBoard = computed(() => (openId.value === null ? null : (s.value.seats.find((o) => o && o.seat === openId.value) ?? null))); // yours too: your own summary
 
 // ---- end ----
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));

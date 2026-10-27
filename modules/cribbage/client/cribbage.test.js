@@ -121,8 +121,10 @@ describe('Cribbage opponent details', () => {
   it('opens from the opponent chip, shows what they hold, and closes again', async () => {
     const w = mount(Table, { props: { state: view(room({ seats: 3 })), send: makeSend() }, attachTo: document.body });
     expect(w.find('.popup').exists()).toBe(false);
-    const chips = w.findAll('.score-bar .chip-button');
-    expect(chips).toHaveLength(2); // the other two players, not you
+    const all = w.findAll('.score-bar .chip-button');
+    expect(all).toHaveLength(3); // every player, you included
+    const chips = all.filter((c) => !c.text().includes('(you)'));
+    expect(chips).toHaveLength(2);
     await chips[0].trigger('click');
     const text = w.find('.popup').text();
     expect(text).toMatch(/5 cards in hand/);

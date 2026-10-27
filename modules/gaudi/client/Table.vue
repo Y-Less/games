@@ -37,15 +37,6 @@ const toolFree = computed(() => myTurn.value && !s.value.turn.toolUsed);
 const pattern = computed(() => (me.value?.window ? { cells: me.value.window.rows.join('').split('') } : null));
 const myGrid = computed(() => mode.value?.grid ?? me.value?.window?.grid ?? Array(20).fill(null));
 const poolDie = (id) => (s.value.pool ?? []).find((d) => d.id === id) ?? null;
-const others = computed(() => {
-  const n = s.value.seats.length;
-  const out = [];
-  for (let k = 1; k < n; k++) {
-    const seat = s.value.seats[(Math.max(0, s.value.you) + k) % n];
-    if (seat) out.push(seat);
-  }
-  return out;
-});
 const waitingFor = computed(() => s.value.seats.filter((seat) => seat && !seat.picked).map((seat) => seat.name));
 const turnNumber = computed(() => (s.value.turn?.number === 2 ? 'second' : 'first'));
 const colourName = (c) => COLOUR_LABEL[c] ?? c;
@@ -294,8 +285,9 @@ const { openId, scoreProps, popupProps, close: closePopup } = usePlayerPopup({
   isHost: () => s.value.hostSeat === s.value.you,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const openedPlayer = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
-const openedSeat = computed(() => others.value.find((o) => o.seat === openId.value && o.window) ?? null);
+const openedPlayer = computed(() => s.value.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too
+const openedSeat = computed(() => (openedPlayer.value?.window ? openedPlayer.value : null));
+const openedIsMe = computed(() => openedPlayer.value !== null && openedPlayer.value.seat === s.value.you);
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
 const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: finished.value, options: s.value.options?.length ?? 4 });
@@ -324,8 +316,8 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
           <WindowGrid :rows="openedSeat.window.rows" :grid="openedSeat.window.grid" :cell="dims(area).popup" :label="`${openedSeat.name}'s window`" />
           <p class="muted small">{{ openedSeat.tokens }} tokens · {{ openedSeat.empty }} empty · score {{ openedSeat.score }}</p>
         </section>
-        <p v-else-if="openedPlayer?.picked && windows" class="muted small">Has chosen a window. It stays hidden until everyone has chosen.</p>
-        <p v-else class="muted small">Still choosing a window.</p>
+        <p v-else-if="openedPlayer?.picked && windows" class="muted small">{{ openedIsMe ? 'You have chosen a window.' : 'Has chosen a window.' }} It stays hidden until everyone has chosen.</p>
+        <p v-else class="muted small">{{ openedIsMe ? 'You are still choosing a window.' : 'Still choosing a window.' }}</p>
       </PlayerPopup>
       <!-- Choosing windows -->
       <section v-if="windows" class="windows-phase" aria-label="Choose your window">

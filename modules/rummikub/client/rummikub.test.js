@@ -248,8 +248,10 @@ describe('the play field', () => {
     room.seats[1] = { ...room.seats[1], kind: 'bot' };
     const w = mount(Table, { props: { state: game.viewFor(room, 1), send: vi.fn() }, attachTo: document.body });
     expect(w.find('.popup').exists()).toBe(false);
-    const chips = w.findAll('.score-bar .chip-button');
-    expect(chips).toHaveLength(2); // the other players only
+    const all = w.findAll('.score-bar .chip-button');
+    expect(all).toHaveLength(3); // every player, you included
+    const chips = all.filter((c) => !c.text().includes('(you)'));
+    expect(chips).toHaveLength(2);
     await chips[0].trigger('click');
     expect(w.find('.popup').text()).toMatch(/Tiles in rack\s*14/);
     expect(w.find('.popup').text()).toContain('not yet');

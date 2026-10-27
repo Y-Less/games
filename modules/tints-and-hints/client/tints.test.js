@@ -49,7 +49,11 @@ describe('Tints and Hints player pop-up', () => {
   it('opens from a score chip with the colour and state, and gives the host a Remove button that kicks', async () => {
     const { wrapper, socket } = await mountGame(view({ players: [player(1, 'Ann'), player(2, 'Bob', { colour: '#0000ff', online: false }), player(3, 'Cy', { guessed: true })] }));
     expect(wrapper.find('.bars .remove').exists()).toBe(false); // the slim bars no longer carry a Remove button
+    expect(wrapper.findAll('.score-bar button.chip-button')).toHaveLength(3); // yours too
     await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click');
+    expect(wrapper.find('.player-popup').text()).toContain('Ann');
+    expect(wrapper.find('.player-popup').text()).not.toContain('Remove'); // not even the host can remove themselves
+    await wrapper.findAll('.score-bar button.chip-button')[1].trigger('click');
     const popup = wrapper.find('.player-popup');
     expect(popup.text()).toContain('Bob');
     expect(popup.find('.dot').attributes('style')).toContain('rgb(0, 0, 255)');

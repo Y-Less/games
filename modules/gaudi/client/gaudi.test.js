@@ -231,10 +231,12 @@ describe('Gaudi table: choosing windows', () => {
     game.chooseWindow(room, 1, room.options[1][0]);
     const { w } = mountTable(game.viewFor(room, 1));
     const chips = w.findAll('.score-bar button.chip-button');
-    await chips[0].trigger('click'); // p2, who has chosen
+    await chips[0].trigger('click'); // p1, you, who have chosen nothing yet
+    expect(w.find('.popup').text()).toContain('You are still choosing a window');
+    await chips[1].trigger('click'); // p2, who has chosen
     expect(w.find('.popup').text()).toContain('Has chosen a window');
     expect(w.find('.popup').text()).not.toContain('Still choosing');
-    await chips[1].trigger('click'); // p3, who has not
+    await chips[2].trigger('click'); // p3, who has not
     expect(w.find('.popup').text()).toContain('Still choosing a window');
     expect(w.find('.game-status').text()).toContain('p2: has chosen');
     expect(w.find('.game-status').text()).toContain('p3: choosing');
@@ -471,23 +473,27 @@ describe('Gaudi table: playing', () => {
     expect(w.find('.main [role=alert]').exists()).toBe(false);
   });
 
-  it("opens the other players' windows from their score bar names, one at a time; yours is not a button", async () => {
+  it("opens the other players' windows from their score bar names, one at a time; yours is one too", async () => {
     const { view } = playView({ n: 3 });
     const { w } = mountTable(view);
     const chips = w.findAll('.score-bar button.chip-button');
-    expect(chips.map((b) => b.text())).toEqual([expect.stringContaining('p2'), expect.stringContaining('p3')]);
+    expect(chips.map((b) => b.text())).toEqual([expect.stringContaining('p1'), expect.stringContaining('p2'), expect.stringContaining('p3')]);
     expect(w.findAll('.popup')).toHaveLength(0);
-    await chips[0].trigger('click');
+    await chips[0].trigger('click'); // yours: your own window, with no Remove button
+    expect(w.findAll('.popup .window')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p1');
+    expect(w.find('.player-popup').text()).not.toContain('Remove');
+    await chips[1].trigger('click');
     expect(w.findAll('.popup .window')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p2');
-    expect(w.findAll('.score-bar button.chip-button')[0].attributes('aria-pressed')).toBe('true');
+    expect(w.findAll('.score-bar button.chip-button')[1].attributes('aria-pressed')).toBe('true');
     expect(w.findAll('[aria-label="Your window"] .space')).toHaveLength(20); // yours is still there
-    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[2].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p3');
-    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[2].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(0);
-    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(w.findAll('.popup')).toHaveLength(0);

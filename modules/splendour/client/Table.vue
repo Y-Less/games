@@ -235,14 +235,13 @@ const tieNote = computed(() => {
 
 // ---- other players' boards: hidden until you click their name in the score bar, one at a time, over the main area
 // (nothing moves) ----
-const others = computed(() => seatOrder.value.filter((i) => i !== s.value.you).map((i) => s.value.seats[i]));
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => s.value.scoreboard.players,
   hostId: () => s.value.hostSeat,
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const openedSeat = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const openedSeat = computed(() => s.value.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too: your own summary
 
 // ---- the words in the Status box ----
 const statusLines = computed(() => {
@@ -296,7 +295,7 @@ const levels = [3, 2, 1];
     <template #main="area">
       <div class="arena" :style="fs(area)">
         <PlayerPopup v-if="popupProps" v-bind="popupProps">
-          <PlayerBoard v-if="openedSeat" :seat="openedSeat" :is-turn="state.turn === openedSeat.seat && !finished" :gem="px(area, 1.8)" />
+          <PlayerBoard v-if="openedSeat" :seat="openedSeat" :is-me="openedSeat.seat === state.you" :is-turn="state.turn === openedSeat.seat && !finished" :gem="px(area, 1.8)" />
         </PlayerPopup>
         <section class="market" aria-label="The cards">
           <div class="nobles" aria-label="Nobles">

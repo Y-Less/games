@@ -428,22 +428,27 @@ describe('Splendour table: playing', () => {
     expect(w.find('.arena [role=alert]').exists()).toBe(false);
   });
 
-  it("opens the other players' boards from their score bar names, one at a time; yours is not a button", async () => {
+  it("opens the other players' boards from their score bar names, one at a time; yours is one too", async () => {
     const { w } = mountTable(playView());
     const chips = () => w.findAll('.score-bar button.chip-button');
-    expect(chips()).toHaveLength(3);
-    expect(chips().map((b) => b.attributes('aria-label'))).not.toContain("Show ann's details");
+    const mine = () => chips().findIndex((b) => b.text().includes('(you)'));
+    const others = () => chips().map((_, i) => i).filter((i) => i !== mine());
+    expect(chips()).toHaveLength(4);
+    expect(chips().map((b) => b.attributes('aria-label'))).toContain("Show ann's details");
     expect(w.findAll('.popup')).toHaveLength(0);
-    await chips()[0].trigger('click');
+    await chips()[mine()].trigger('click'); // your own board and facts, and no Remove button
     expect(w.findAll('.popup section.board')).toHaveLength(1);
-    expect(chips()[0].attributes('aria-pressed')).toBe('true');
+    expect(w.find('.player-popup').text()).not.toContain('Remove');
+    await chips()[others()[0]].trigger('click');
+    expect(w.findAll('.popup section.board')).toHaveLength(1);
+    expect(chips()[others()[0]].attributes('aria-pressed')).toBe('true');
     expect(w.findAll('section.board')).toHaveLength(2); // yours stays where it is
-    await chips()[1].trigger('click');
+    await chips()[others()[1]].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(1);
-    expect(chips()[0].attributes('aria-pressed')).toBe('false');
-    await chips()[1].trigger('click');
+    expect(chips()[others()[0]].attributes('aria-pressed')).toBe('false');
+    await chips()[others()[1]].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(0);
-    await chips()[2].trigger('click');
+    await chips()[others()[2]].trigger('click');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(w.findAll('.popup')).toHaveLength(0);

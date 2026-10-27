@@ -229,10 +229,10 @@ async function assertGridEdges(user, game, viewport, { left = [], right = [], gu
 async function assertChipPopupMovesNothing(user, game, areas) {
   const boxes = () => user.page.evaluate((list) => list.map((sel) => { const b = document.querySelector(sel)?.getBoundingClientRect(); return b ? [b.left, b.top, b.width, b.height].map(Math.round).join(',') : null; }), areas);
   const was = await boxes();
-  await user.page.click('.score-bar button.chip-button');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.waitForSelector('.main .player-popup');
   assert.deepEqual(await boxes(), was, `${game}: opening a player's popup moved something`);
-  await user.page.click('.score-bar button.chip-button');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.waitForSelector('.main .player-popup', { hidden: true });
   assert.deepEqual(await boxes(), was, `${game}: closing a player's popup moved something`);
 }

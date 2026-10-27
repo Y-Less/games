@@ -84,21 +84,22 @@ describe('the table in the standard frame', () => {
     state.seats[1].bid = 3;
     const w = mount(Table, { props: { state, send: vi.fn() }, attachTo: document.body });
     expect(w.find('.popup').exists()).toBe(false);
-    expect(w.findAll('.score-bar .chip-button')).toHaveLength(3); // not your own chip
-    await w.findAll('.score-bar .chip-button')[0].trigger('click');
+    expect(w.findAll('.score-bar .chip-button')).toHaveLength(4); // yours too
+    const others = () => w.findAll('.score-bar .chip-button').filter((c) => !c.text().includes('(you)'));
+    await others()[0].trigger('click');
     const popup = w.find('.popup');
     expect(popup.text()).toContain(state.seats[1].name);
     expect(popup.text()).toContain('Cards in hand');
     expect(popup.text()).toContain('nominated 3');
     expect(popup.text()).toContain('Score');
-    await w.findAll('.score-bar .chip-button')[0].trigger('click'); // the same chip again
+    await others()[0].trigger('click'); // the same chip again
     expect(w.find('.popup').exists()).toBe(false);
-    await w.findAll('.score-bar .chip-button')[1].trigger('click');
+    await others()[1].trigger('click');
     expect(w.find('.popup').exists()).toBe(true);
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await w.vm.$nextTick();
     expect(w.find('.popup').exists()).toBe(false);
-    await w.findAll('.score-bar .chip-button')[1].trigger('click');
+    await others()[1].trigger('click');
     document.body.click(); // outside
     await w.vm.$nextTick();
     expect(w.find('.popup').exists()).toBe(false);

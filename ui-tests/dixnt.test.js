@@ -128,12 +128,12 @@ test('a reload mid-game puts you back in the same game', { timeout: 60000 }, gua
 }));
 
 test('the host removes a person from the game through their popup: Remove player, with an inline confirmation', { timeout: 60000 }, guarded('remove person', async () => {
-  const chips = () => host.page.$$eval('.score-bar button.chip-button', (els) => els.map((e) => e.innerText.replace(/s+/g, ' ').trim()));
+  const chips = () => host.page.$$eval('.score-bar .chip:not(.me) button.chip-button', (els) => els.map((e) => e.innerText.replace(/s+/g, ' ').trim()));
   await host.waitForSelector('.word-popup', { hidden: true }).catch(() => {});
   assert.equal((await chips()).length, 3, 'a chip for every other player');
   // A guest has the popup (the facts), but no Remove button.
-  await second.waitForSelector('.score-bar button.chip-button');
-  await second.page.click('.score-bar button.chip-button');
+  await second.waitForSelector('.score-bar .chip:not(.me) button.chip-button');
+  await second.page.click('.score-bar .chip:not(.me) button.chip-button');
   await second.waitForSelector('.main .player-popup');
   assert.doesNotMatch(await second.page.$eval('.player-popup', (e) => e.innerText), /Remove/);
   await second.page.keyboard.press('Escape');
@@ -232,11 +232,11 @@ test('the chooser types the word, and the three computer players play a card by 
 }));
 
 test('the host always has Remove in a player popup: a computer player is removed mid-game, end to end', { timeout: 60000 }, guarded('remove computer', async () => {
-  const chips = () => solo.page.$$eval('.score-bar button.chip-button', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+  const chips = () => solo.page.$$eval('.score-bar .chip:not(.me) button.chip-button', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
   await solo.waitForSelector('.word-popup', { hidden: true }); // the chosen word is shown large for a few seconds first
   assert.equal((await chips()).length, 3, 'a chip for every other player');
-  assert.equal(await solo.page.$eval('.score-bar button.chip-button', (e) => e.title), 'Show details');
-  await solo.page.click('.score-bar button.chip-button');
+  assert.equal(await solo.page.$eval('.score-bar .chip:not(.me) button.chip-button', (e) => e.title), 'Show details');
+  await solo.page.click('.score-bar .chip:not(.me) button.chip-button');
   await solo.waitForSelector('.main .player-popup');
   assert.match(await solo.page.$eval('.player-popup', (e) => e.innerText), /computer[\s\S]*Score[\s\S]*Remove computer player/i);
   const popup = await rect(solo, '.player-popup');

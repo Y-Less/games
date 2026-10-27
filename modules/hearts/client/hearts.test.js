@@ -46,8 +46,13 @@ describe('Hearts player pop-up', () => {
     const send = makeSend();
     const w = mount(Table, { props: { state: view(room()), send } });
     const chips = w.findAll('.score-bar button.chip-button');
-    expect(chips).toHaveLength(3);
-    await chips[0].trigger('click');
+    expect(chips).toHaveLength(4);
+    await chips.find((c) => c.text().includes('(you)')).trigger('click');
+    expect(w.find('.player-popup').exists()).toBe(true);
+    expect(w.find('.player-popup').text()).not.toContain('Remove'); // not even the host can remove themselves
+    await chips.find((c) => c.text().includes('(you)')).trigger('click');
+    expect(w.find('.player-popup').exists()).toBe(false);
+    await chips.find((c) => !c.text().includes('(you)')).trigger('click');
     const popup = w.find('.player-popup');
     expect(popup.text()).toContain('Cards in hand');
     expect(popup.text()).toContain('Remove');
@@ -56,7 +61,7 @@ describe('Hearts player pop-up', () => {
     await flushPromises();
     expect(send).toHaveBeenCalledWith('removeBot', { seat: expect.any(Number) });
     const guest = mount(Table, { props: { state: { ...view(room()), hostSeat: 2 }, send: makeSend() } });
-    await guest.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await guest.findAll('.score-bar button.chip-button').find((c) => !c.text().includes('(you)')).trigger('click');
     expect(guest.find('.player-popup').exists()).toBe(true);
     expect(guest.find('.player-popup').text()).not.toContain('Remove');
   });

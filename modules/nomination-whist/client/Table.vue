@@ -71,7 +71,7 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => props.state.hostSeat === you.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const opened = computed(() => ordered.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
 
 const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));

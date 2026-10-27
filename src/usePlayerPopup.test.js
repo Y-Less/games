@@ -50,9 +50,9 @@ describe('usePlayerPopup hovering', () => {
     vi.useFakeTimers();
     try {
       table();
-      await chip(0).trigger('pointerenter');
+      await chip(1).trigger('pointerenter');
       expect(popup().text()).toContain('Bob');
-      await chip(0).trigger('pointerleave');
+      await chip(1).trigger('pointerleave');
       await vi.advanceTimersByTimeAsync(100);
       expect(popup().exists()).toBe(true); // the pointer is crossing to the pop-up
       await popup().trigger('pointerenter');
@@ -70,12 +70,12 @@ describe('usePlayerPopup hovering', () => {
     vi.useFakeTimers();
     try {
       table();
-      await chip(0).trigger('pointerenter');
-      await chip(0).trigger('click'); // already open from the hover: this pins it
-      await chip(0).trigger('pointerleave');
+      await chip(1).trigger('pointerenter');
+      await chip(1).trigger('click'); // already open from the hover: this pins it
+      await chip(1).trigger('pointerleave');
       await vi.advanceTimersByTimeAsync(1000);
       expect(popup().exists()).toBe(true);
-      await chip(0).trigger('click');
+      await chip(1).trigger('click');
       expect(popup().exists()).toBe(false);
     } finally {
       vi.useRealTimers();
@@ -84,34 +84,44 @@ describe('usePlayerPopup hovering', () => {
 });
 
 describe('usePlayerPopup', () => {
-  it('makes every other player a button, and not you', () => {
+  it('makes every player a button, you included', () => {
     table();
-    expect(wrapper.findAll('.score-bar button.chip-button').map((b) => b.attributes('aria-label'))).toEqual(["Show Bob's details", "Show Robo's details"]);
+    expect(wrapper.findAll('.score-bar button.chip-button').map((b) => b.attributes('aria-label'))).toEqual(["Show Ann's details", "Show Bob's details", "Show Robo's details"]);
     expect(chip(0).attributes('title')).toBe('Show details');
+  });
+
+  it('opens your own pop-up, tagged you, and never offers to remove you', async () => {
+    table();
+    await chip(0).trigger('click');
+    expect(popup().exists()).toBe(true);
+    expect(popup().text()).toContain('Ann');
+    expect(popup().find('.tag').text()).toBe('you');
+    expect(popup().find('.panel-text').text()).toBe('open: 0');
+    expect(popup().text()).not.toContain('Remove');
   });
 
   it('opens one pop-up at a time, and a second click on the chip closes it', async () => {
     table();
     expect(popup().exists()).toBe(false);
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     expect(popup().text()).toContain('Bob');
     expect(popup().find('.panel-text').text()).toBe('open: 1');
-    await chip(1).trigger('click');
+    await chip(2).trigger('click');
     expect(wrapper.findAll('.player-popup')).toHaveLength(1);
     expect(popup().text()).toContain('Robo');
-    await chip(1).trigger('click');
+    await chip(2).trigger('click');
     expect(popup().exists()).toBe(false);
   });
 
   it('closes on Esc and on a click outside, but not on a click inside', async () => {
     table();
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     await popup().trigger('click');
     expect(popup().exists()).toBe(true);
     document.body.click();
     await flushPromises();
     expect(popup().exists()).toBe(false);
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(popup().exists()).toBe(false);
@@ -119,19 +129,19 @@ describe('usePlayerPopup', () => {
 
   it('gives only the host the Remove button, worded for people and for computer players', async () => {
     table({ host: false });
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     expect(popup().text()).not.toContain('Remove');
     wrapper.unmount();
     table();
-    await chip(0).trigger('click');
-    expect(popup().text()).toContain('Remove player');
     await chip(1).trigger('click');
+    expect(popup().text()).toContain('Remove player');
+    await chip(2).trigger('click');
     expect(popup().text()).toContain('Remove computer player');
   });
 
   it("removes after the confirmation, through the game's own call, and closes", async () => {
     const { remove } = table();
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     await popupButton('Remove player').trigger('click');
     expect(popup().exists()).toBe(true); // opening the confirmation does not close it
     expect(remove).not.toHaveBeenCalled();
@@ -144,7 +154,7 @@ describe('usePlayerPopup', () => {
 
   it('keeps the pop-up open with the reason when the server refuses', async () => {
     table({ remove: vi.fn(() => Promise.resolve({ ok: false, error: 'Not now.' })) });
-    await chip(1).trigger('click');
+    await chip(2).trigger('click');
     await popupButton('Remove computer player').trigger('click');
     await popup().find('[data-confirm]').trigger('click');
     await flushPromises();
@@ -153,7 +163,7 @@ describe('usePlayerPopup', () => {
 
   it('closes by itself when the player goes', async () => {
     const { players } = table();
-    await chip(0).trigger('click');
+    await chip(1).trigger('click');
     players.value = players.value.filter((p) => p.id !== 1);
     await flushPromises();
     expect(popup().exists()).toBe(false);

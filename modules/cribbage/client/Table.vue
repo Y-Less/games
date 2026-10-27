@@ -26,7 +26,6 @@ const phase = computed(() => s.value.phase);
 const me = computed(() => s.value.you);
 const seats = computed(() => s.value.seats);
 const you = computed(() => seats.value[me.value]);
-const others = computed(() => seats.value.filter((x) => x.seat !== me.value));
 const seatAt = (rel) => seats.value[(me.value + rel) % seats.value.length];
 const oppNote = (seat) => {
   const dealing = seat.seat === s.value.dealer;
@@ -88,11 +87,12 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => Boolean(s.value.isHost),
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const opened = computed(() => seats.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
 const detailLines = (o) => {
   const lines = [`${o.cards} ${o.cards === 1 ? 'card' : 'cards'} in hand`];
-  if (phase.value === 'discard') lines.push(o.discarded ? 'Has put cards in the crib' : 'Still choosing cards for the crib');
-  lines.push(o.seat === s.value.dealer ? 'The dealer: the crib is theirs' : `Crib: ${cribOwner.value}`);
+  const mine = o.seat === me.value;
+  if (phase.value === 'discard') lines.push(mine ? (o.discarded ? 'You have put cards in the crib' : 'You are still choosing cards for the crib') : o.discarded ? 'Has put cards in the crib' : 'Still choosing cards for the crib');
+  lines.push(o.seat === s.value.dealer ? (mine ? 'You are the dealer: the crib is yours' : 'The dealer: the crib is theirs') : `Crib: ${cribOwner.value}`);
   lines.push(`Pegs: front on ${o.score}, back on ${o.back}`);
   return lines;
 };

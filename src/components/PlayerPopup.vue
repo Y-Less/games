@@ -51,6 +51,7 @@ function confirm() {
         <BotIcon v-if="player.bot" />
         {{ player.name }}
       </strong>
+      <span v-if="player.isMe" class="tag">you</span>
       <span v-if="player.isHost" class="tag host">host</span>
       <span class="tag state" :class="{ away: player.away }">{{ player.away ? 'away' : player.bot ? 'computer' : 'connected' }}</span>
     </header>

@@ -184,7 +184,7 @@ describe('Azulejo table: playing', () => {
     expect(w.findAll('.plate').every((p) => p.findAll('button.pick').length === 4)).toBe(true);
     expect(w.find('[aria-label="The centre"]').exists()).toBe(true);
     expect(w.findAll('section.board')).toHaveLength(1); // only yours: the others open from the score bar
-    expect(w.findAll('.score-bar button.chip-button')).toHaveLength(2);
+    expect(w.findAll('.score-bar button.chip-button')).toHaveLength(3);
     expect(w.find('.others').exists()).toBe(false);
     expect(w.findAll('[aria-label="Pattern lines"] .line')).toHaveLength(5);
     expect(w.text()).toContain('Round 1');
@@ -196,22 +196,26 @@ describe('Azulejo table: playing', () => {
     expect(w.find('[data-fits-window]').exists()).toBe(true);
   });
 
-  it('opens the other players boards from their score bar chips, one at a time; yours is not a button', async () => {
+  it('opens the other players boards from their score bar chips, one at a time; yours is one too', async () => {
     const { w } = mountTable(playView({ n: 3 }).view);
     const bars = w.findAll('.score-bar button.chip-button');
-    expect(bars.map((b) => b.text())).toEqual([expect.stringContaining('p2'), expect.stringContaining('p3')]);
-    expect(bars.map((b) => b.attributes('aria-label'))).toEqual(["Show p2's details", "Show p3's details"]);
+    expect(bars.map((b) => b.text())).toEqual([expect.stringContaining('p1'), expect.stringContaining('p2'), expect.stringContaining('p3')]);
+    expect(bars.map((b) => b.attributes('aria-label'))).toEqual(["Show p1's details", "Show p2's details", "Show p3's details"]);
     expect(w.findAll('.popup')).toHaveLength(0);
-    await bars[0].trigger('click');
+    await bars[0].trigger('click'); // yours opens too
+    expect(w.findAll('.popup section.board')).toHaveLength(1);
+    expect(w.find('.popup').text()).toContain('p1');
+    expect(w.find('.player-popup').text()).not.toContain('Remove');
+    await bars[1].trigger('click');
     expect(w.findAll('.popup section.board')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p2');
-    expect(w.findAll('.score-bar button.chip-button')[0].attributes('aria-pressed')).toBe('true');
-    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    expect(w.findAll('.score-bar button.chip-button')[1].attributes('aria-pressed')).toBe('true');
+    await w.findAll('.score-bar button.chip-button')[2].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(1);
     expect(w.find('.popup').text()).toContain('p3');
-    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[2].trigger('click');
     expect(w.findAll('.popup')).toHaveLength(0);
-    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(w.findAll('.popup')).toHaveLength(0);
@@ -220,7 +224,7 @@ describe('Azulejo table: playing', () => {
   it('gives the host a Remove button for every other player in the pop-up, with an inline confirmation', async () => {
     const send = makeSend();
     const { w } = mountTable(playView({ n: 3 }).view, send);
-    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     const remove = () => w.find('.player-popup').findAll('button').find((b) => /^Remove/.test(b.text()));
     expect(remove().text()).toBe('Remove player');
     await remove().trigger('click');
@@ -235,7 +239,7 @@ describe('Azulejo table: playing', () => {
   it('shows no Remove button to a player who is not the host', async () => {
     const view = { ...playView({ n: 3 }).view, hostSeat: 2 };
     const { w } = mountTable(view);
-    await w.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click');
     expect(w.find('.player-popup').exists()).toBe(true);
     expect(w.find('.player-popup').text()).not.toContain('Remove');
   });
@@ -397,7 +401,7 @@ describe('Azulejo table: playing', () => {
     const { w } = mountTable({ ...game.viewFor(room, 1), turn: 0 });
     expect(w.text()).toContain('Free wall');
     expect(w.find('.game-status').text()).toContain('First-player marker: with p2');
-    await w.find('.score-bar button.chip-button').trigger('click');
+    await w.findAll('.score-bar button.chip-button')[1].trigger('click'); // p2, the viewer, holds the marker
     expect(w.find('.popup .tag.first').exists()).toBe(true);
   });
 

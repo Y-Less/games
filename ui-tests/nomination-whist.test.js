@@ -144,13 +144,13 @@ test('clicking a player chip toggles a popup with their cards and nomination, an
   const areas = ['.score-bar', '.centre', '.nominate', '.mine', '.hand', '.box.log', '.box.status'];
   const boxes = () => Promise.all(areas.map(rect));
   const was = await boxes();
-  await user.page.click('.score-bar button.chip-button');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.waitForSelector('.main .popup');
   assert.match(await user.page.$eval('.popup', (e) => e.innerText), /Cards in hand\s*\d+[\s\S]*Score/);
   assert.deepEqual(await boxes(), was, 'opening the popup moved something');
-  await user.page.click('.score-bar button.chip-button');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.waitForSelector('.main .popup', { hidden: true });
-  await user.page.click('.score-bar button.chip-button');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.page.keyboard.press('Escape');
   await user.waitForSelector('.main .popup', { hidden: true });
   assert.deepEqual(await boxes(), was, 'closing the popup moved something');

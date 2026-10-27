@@ -150,12 +150,12 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     // Toggling another player's board moves nothing else.
     const areas = ['.score-bar', '.mine-col', '.right-col', '.box.log', '.box.status', '.workshop-panel'];
     const before = await Promise.all(areas.map(rect));
-    await user.page.click('.score-bar button.chip-button');
+    await user.page.click('.score-bar .chip:not(.me) button.chip-button');
     await user.waitForSelector('.arena .popup section.board');
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a board moved something');
     assert.equal((await user.page.$$('.arena .popup')).length, 1);
-    assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
-    await user.page.click('.score-bar button.chip-button');
+    assert.equal(await user.page.$eval('.score-bar .chip:not(.me) button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
+    await user.page.click('.score-bar .chip:not(.me) button.chip-button');
     await user.waitForSelector('.arena .popup', { hidden: true });
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'closing a board moved something');
   }));

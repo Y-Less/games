@@ -125,16 +125,16 @@ test('the site header shows the title, Rules and Leave game, and the play area h
 
 test('every player has a popup with the facts and, for the host, Remove computer player (refused inline once the game is on)', { timeout: 60000 }, guarded('player popup', async () => {
   await user.page.setViewport({ width: 1366, height: 768 });
-  await user.waitForSelector('.score-bar button.chip-button');
-  assert.equal((await user.page.$$('.score-bar button.chip-button')).length, 3, 'a button for every other player');
-  assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.title), 'Show details');
-  await user.page.click('.score-bar button.chip-button');
+  await user.waitForSelector('.score-bar .chip:not(.me) button.chip-button');
+  assert.equal((await user.page.$$('.score-bar .chip:not(.me) button.chip-button')).length, 3, 'a button for every other player');
+  assert.equal(await user.page.$eval('.score-bar .chip:not(.me) button.chip-button', (e) => e.title), 'Show details');
+  await user.page.click('.score-bar .chip:not(.me) button.chip-button');
   await user.waitForSelector('.main .player-popup');
   assert.match(await user.page.$eval('.player-popup', (e) => e.innerText), /computer[\s\S]*Cards in hand[\s\S]*Remove computer player/);
   await user.clickButton('Remove computer player', { scope: '.player-popup' });
   await user.clickButton('Yes, remove', { scope: '.player-popup' });
   await user.waitForText('only change that before the game starts');
-  assert.equal((await user.page.$$('.score-bar button.chip-button')).length, 3, 'the computer player is still seated');
+  assert.equal((await user.page.$$('.score-bar .chip:not(.me) button.chip-button')).length, 3, 'the computer player is still seated');
   await user.page.keyboard.press('Escape');
   await user.waitForSelector('.player-popup', { hidden: true });
 }));

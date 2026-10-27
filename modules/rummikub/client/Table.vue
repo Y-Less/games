@@ -189,8 +189,6 @@ const waitingNames = computed(() => (between.value ? props.state.seats.filter((x
 const scorePlayers = computed(() => props.state.scoreboard.players.map((p) => ({ ...p, ready: between.value && Boolean(props.state.seats[p.id]?.bot || props.state.seats[p.id]?.ready) })));
 const youReady = computed(() => Boolean(me.value?.ready));
 const hand = computed(() => dealSize(s.value, props.state.size));
-const others = computed(() => props.state.seats.filter((x) => x && x.seat !== props.state.you));
-
 // Another player's details (their tile count and so on) open from their chip in the score bar: one at a time, floating
 // over the top of the main area so that nothing moves.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
@@ -199,7 +197,7 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
-const opened = computed(() => others.value.find((o) => o.seat === openId.value) ?? null);
+const opened = computed(() => props.state.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too: your own summary
 const openedScore = computed(() => props.state.scoreboard.players.find((p) => p.id === openId.value)?.score ?? 0);
 const lastLine = computed(() => props.state.log.at(-1)?.text ?? '');
 const headline = computed(() => {

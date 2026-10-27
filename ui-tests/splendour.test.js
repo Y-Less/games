@@ -233,11 +233,11 @@ test('the table fits the window at common desktop sizes, without the page scroll
     // Toggling another player's board from the score bar moves nothing else.
     const areas = ['.score-bar', '.market', '.mine-col', '.mine-board', '.supply', '.box.log', '.box.status'];
     const before = await Promise.all(areas.map(rect));
-    await user.page.click('.score-bar button.chip-button');
+    await user.page.click('.score-bar .chip:not(.me) button.chip-button');
     await user.waitForSelector('.arena .popup section.board');
     assert.deepEqual(await Promise.all(areas.map(rect)), before, 'opening a board moved something at ' + label);
     assert.equal((await user.page.$$('.arena .popup')).length, 1);
-    assert.equal(await user.page.$eval('.score-bar button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
+    assert.equal(await user.page.$eval('.score-bar .chip:not(.me) button.chip-button', (e) => e.getAttribute('aria-pressed')), 'true');
     const popup = await rect('.arena .popup');
     const arena = await rect('.arena');
     assert.ok(popup.top >= arena.top - 1 && popup.bottom <= arena.bottom + 1 && popup.left >= arena.left && popup.right <= arena.right, 'the pop-up sits inside the main area at ' + label);

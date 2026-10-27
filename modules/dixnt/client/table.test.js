@@ -203,11 +203,14 @@ describe('Dixnt player pop-up', () => {
   it('gives the host a Remove button for a person and for a computer player, removing through removePlayer', async () => {
     const { wrapper, socket } = await mountGame(view());
     const chips = () => wrapper.findAll('.score-bar button.chip-button');
-    expect(chips().map((c) => c.text())).toEqual([expect.stringContaining('Bob'), expect.stringContaining('Cy'), expect.stringContaining('Di')]);
-    await chips()[0].trigger('click');
+    expect(chips().map((c) => c.text())).toEqual([expect.stringContaining('Ann'), expect.stringContaining('Bob'), expect.stringContaining('Cy'), expect.stringContaining('Di')]);
+    await chips()[0].trigger('click'); // the host's own summary: facts, but nobody removes themselves
+    expect(wrapper.find('.player-popup').text()).toContain('Turns as chooser');
+    expect(wrapper.find('.player-popup').text()).not.toContain('Remove');
+    await chips()[1].trigger('click');
     expect(wrapper.find('.player-popup').text()).toContain('Remove player');
     expect(wrapper.find('.player-popup').text()).toContain('still choosing a card');
-    await chips()[1].trigger('click');
+    await chips()[2].trigger('click');
     const remove = wrapper.find('.player-popup').findAll('button').find((b) => b.text() === 'Remove computer player');
     expect(remove).toBeTruthy();
     await remove.trigger('click');
@@ -221,7 +224,7 @@ describe('Dixnt player pop-up', () => {
 
   it('shows the others no Remove button', async () => {
     const { wrapper } = await mountGame(asBob({ hostId: 'ann' }));
-    await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click');
+    await wrapper.findAll('.score-bar button.chip-button')[0].trigger('click'); // the host
     expect(wrapper.find('.player-popup').exists()).toBe(true);
     expect(wrapper.find('.player-popup').text()).not.toContain('Remove');
     wrapper.unmount();
