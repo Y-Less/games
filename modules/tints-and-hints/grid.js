@@ -7,7 +7,7 @@
 // Colours are worked out in OKLCH, a space built so that equal steps look equal to the eye (its lightness is already
 // the cube root of linear light, so it is spread by how bright things look, not by the sRGB gamma of about 2.2).
 //   - Columns go round the hue in equal steps (360 / 52 degrees), starting at a red.
-//   - Rows rise in lightness in equal steps, from dark (0.28) to pale (0.93). The chroma is a fraction of the most that
+//   - Rows rise in lightness in equal steps, from dark (0.34) to pale (0.94). The chroma is a fraction of the most that
 //     sRGB can show at that lightness and hue (eased along the row, see below): greyish at the top, rising to the fullest colour by about row 13,
 //     and then limited only by the gamut, which is what makes the paler rows pastel.
 // Every colour is a plain sRGB hex string, so it is the same in every browser.
@@ -16,10 +16,10 @@ export const ROWS = Array.from({ length: 24 }, (_, i) => String(i + 1));
 export const CELL_COUNT = COLS.length * ROWS.length;
 
 const HUE_START = 15; // degrees of OKLCH hue for column A (a red), so each 4-column block is centred on a named hue
-const L_DARK = 0.28;
-const L_PALE = 0.93;
-const CHROMA_FIRST = 0.25; // the top row's share of the full chroma
-const CHROMA_RISE = 1.5; // how fast it grows down the rows (in shares per whole grid)
+const L_DARK = 0.34;
+const L_PALE = 0.94;
+const CHROMA_FIRST = 0.35; // the top row's share of the full chroma
+const CHROMA_RISE = 1.7; // how fast it grows down the rows (in shares per whole grid)
 
 const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
 /** The linear sRGB of an OKLCH colour (components outside 0 to 1 are out of gamut). */
@@ -48,10 +48,10 @@ function hexOf(L, chroma, hue) {
   return '#' + rgb.map((v) => Math.round(Math.min(1, Math.max(0, encode(Math.max(0, v)))) * 255).toString(16).padStart(2, '0')).join('');
 }
 // The most chroma sRGB can show peaks sharply at the corners of its gamut (the primaries and secondaries), which would
-// show up as creases across the rows. So along each row the limit is eased: the lowest limit within SMOOTH columns either
+// show up as creases across the rows. So along each row the limit is eased: the lowest limit within SMOOTH column either
 // way, then averaged over the same width. That can only come out at or under the real limit, so every colour stays
 // inside sRGB, and it changes smoothly from one hue to the next.
-const SMOOTH = 2;
+const SMOOTH = 1;
 const ringAt = (list, i) => list[((i % list.length) + list.length) % list.length];
 function easedLimits(limits) {
   const low = limits.map((_, i) => Math.min(...Array.from({ length: 2 * SMOOTH + 1 }, (__, k) => ringAt(limits, i + k - SMOOTH))));

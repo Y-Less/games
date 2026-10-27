@@ -39,7 +39,7 @@ test('the grid has 52 columns and 24 rows, and close means within one square', (
   for (const c of ['A1', 'M12', 'AZ24']) assert.match(cellColour(c), /^#[0-9a-f]{6}$/, c);
   const brightness = (cell) => { const [r, g, b] = rgb(cell).map((v) => (v / 255) ** 2.2); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
   for (const c of COLS) for (let r = 1; r < ROWS.length; r++) assert.ok(brightness(c + (r + 1)) > brightness(c + r) - 0.004, `${c}${r + 1} is no darker than ${c}${r}`);
-  assert.ok(brightness('M1') < 0.03 && brightness('M24') > 0.8, 'dark at the top, pale at the bottom');
+  assert.ok(brightness('M1') < 0.06 && brightness('M24') > 0.8, 'dark at the top, pale at the bottom');
   const spread = new Set(COLS.map((c) => cellColour(c + '12')));
   assert.equal(spread.size, COLS.length, 'every column in a row is a different colour');
   assert.notEqual(cellColour('A12'), cellColour('AZ12'));
