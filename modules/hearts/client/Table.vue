@@ -210,7 +210,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13">
+        <CardFan class="my-fan hand" role="group" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="13" straight>
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
@@ -318,8 +318,8 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 .my-fan {
   position: absolute;
   left: 50%;
-  bottom: -0.8rem;
-  margin-left: -20.3rem;
+  bottom: 0;
+  margin-left: -19.9rem;
   transform-origin: 50% 100%;
   transform: scale(var(--s));
 }
