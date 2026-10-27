@@ -13,6 +13,7 @@ import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import CardFan from '../../../src/components/CardFan.vue';
+import OpponentHands from '../../../src/components/OpponentHands.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
 
 const props = defineProps({
@@ -43,6 +44,13 @@ const oppNote = (rel) => {
   if (passing.value) return seat.passed ? 'passed' : 'choosing';
   return seat.tricks ? `${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : '';
 };
+// The other three, clockwise from you: the player after you first.
+const opponents = computed(() =>
+  [1, 2, 3].map((rel) => {
+    const seat = seatAt(rel);
+    return { key: seatIndex(rel), name: seat.name, cards: seat.cards, note: oppNote(rel), away: !seat.online, current: s.value.turn === seatIndex(rel) };
+  }),
+);
 const isMoonRound = computed(() => s.value.lastHand?.moon != null);
 const you = computed(() => s.value.seats[s.value.you]);
 const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
@@ -200,15 +208,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
         </dl>
       </PlayerPopup>
       <section class="felt" aria-label="The table" :style="{ '--s': scale(area) }">
-        <div v-for="rel in [2, 1, 3]" :key="rel" class="opp" :class="[`pos${rel}`, { away: !seatAt(rel).online }]">
-          <CardFan class="opp-fan" :items="Array.from({ length: seatAt(rel).cards }, (_, n) => n)" size="sm" :step="4" :reach="6" :flip="rel === 2" :aria-label="`${seatAt(rel).cards} cards`">
-            <template #default><PlayingCard :card="null" size="sm" /></template>
-          </CardFan>
-          <div class="label">
-            <strong class="who">{{ seatAt(rel).name }}</strong>
-            <span class="tag">{{ oppNote(rel) }}</span>
-          </div>
-        </div>
+        <OpponentHands :opponents="opponents" :max="13" />
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
@@ -256,58 +256,6 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
   position: relative;
   height: 100%;
   min-height: 0;
-}
-.opp {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 18.4rem;
-  height: 9.8rem;
-  border-radius: 12px;
-}
-.pos2 {
-  top: 0;
-  left: 50%;
-  margin-left: -9.2rem;
-  transform-origin: 50% 0;
-  transform: scale(var(--s));
-}
-.pos1 {
-  left: 0;
-  top: 50%;
-  margin-top: -4.9rem;
-  transform-origin: 50% 50%;
-  transform: translate(calc(var(--s) * 4.9rem - 9.2rem), 0) rotate(90deg) scale(var(--s));
-}
-.pos3 {
-  right: 0;
-  top: 50%;
-  margin-top: -4.9rem;
-  transform-origin: 50% 50%;
-  transform: translate(calc(9.2rem - var(--s) * 4.9rem), 0) rotate(-90deg) scale(var(--s));
-}
-.opp.away {
-  opacity: 0.65;
-}
-.label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 2.6rem;
-  line-height: 1.3;
-}
-.who {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 1.05rem;
-}
-.tag {
-  min-height: 1.1rem;
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 .trick {
   position: absolute;
