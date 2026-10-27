@@ -75,7 +75,7 @@ async function launch(t, existingDir) {
   return { site, base, account, close, dataDir };
 }
 
-const farFrom = (cell) => (parseCell(cell).col < 24 ? 'AV20' : 'A1');
+const farFrom = (cell) => (parseCell(cell).col < 24 ? 'AZ24' : 'A1');
 
 test('a whole game: create, join by code, start, two rounds a turn, reveal, finish and statistics', async (t) => {
   const { account } = await launch(t);

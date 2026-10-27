@@ -1,6 +1,6 @@
 // The rules of Tints and Hints, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
-import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell } from './grid.js';
+import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
 import { placements, totalsFromRounds } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
@@ -15,7 +15,7 @@ export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClos
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana'];
 /** Version of the colour grid the squares of a room are named in (1, with no marker, was the 24 x 10 grid). */
-const GRID_VERSION = 4;
+const GRID_VERSION = 5;
 const LIVE = ['lobby', 'guessing1', 'guessing2', 'reveal'];
 const fail = (error) => ({ ok: false, error });
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -41,7 +41,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     turn: 0,
     players: [newPlayer(hostId, COLOURS[0])],
     nextIdx: 0,
-    grid: GRID_VERSION, // 4 = the 48 x 24 grid (2 and 3 were 48 x 20); rooms without it were saved with the old 24 x 10 grid (see migrate)
+    grid: GRID_VERSION, // 5 = the 52 x 24 grid (4 was 48 x 24, 2 and 3 were 48 x 20); rooms without it were saved with the old 24 x 10 grid (see migrate)
     ready: [], // at the reveal: the people who have closed the scores pop-up
     nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
     hinter: null,
@@ -244,8 +244,9 @@ function recordHistory(room, nameOf, found) {
 export function migrate(room) {
   if (room.grid !== GRID_VERSION) {
     // A room saved with the old 24 x 10 grid: every square is renamed to the same colour in the finer grid.
-    // A room from the 48 x 20 grid has its squares moved down 4 rows (version 2) or 3 (version 3), to the same colours.
-    const renamed = room.grid === 2 || room.grid === 3 ? (cell) => fromEarlierCell(cell, room.grid === 2 ? 4 : 3) ?? cell : (cell) => fromOldCell(cell) ?? cell;
+    // An older room has its squares renamed to the nearest square of the same colour: first to the 48 x 24 grid (version 4), then to this one.
+    const toV4 = room.grid === 2 || room.grid === 3 ? (cell) => fromEarlierCell(cell, room.grid === 2 ? 4 : 3) ?? cell : room.grid === 4 ? (cell) => cell : (cell) => fromOldCell(cell) ?? cell;
+    const renamed = (cell) => fromV4Cell(toV4(cell)) ?? cell;
     if (room.tint) room.tint = renamed(room.tint);
     for (const list of [room.first, room.second]) for (const g of list ?? []) g.cell = renamed(g.cell);
     if (room.result) {

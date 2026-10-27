@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { COLS, ROWS, cellColour, cellName, fromOldCell, fromEarlierCell, isCell, isClose, parseCell } from './grid.js';
+import { COLS, ROWS, cellColour, cellName, fromOldCell, fromEarlierCell, fromV4Cell, isCell, isClose, parseCell } from './grid.js';
 
 const sequence = (...values) => {
   let i = 0;
@@ -15,7 +15,7 @@ function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
   for (const id of ids.slice(1)) assert.ok(game.addPlayer(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
   // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4, the fourth).
-  assert.ok(game.start(room, ids[0], sequence(0, 12.5 / 48, 3.5 / 24)).ok);
+  assert.ok(game.start(room, ids[0], sequence(0, 12.5 / 52, 3.5 / 24)).ok);
   assert.equal(room.tint, 'M4');
   return room;
 }
@@ -24,28 +24,27 @@ function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
 const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id));
 const score = (room, id) => room.players.find((p) => p.id === id).score;
 
-test('the grid has 48 columns and 24 rows, and close means within one square', () => {
-  assert.equal(COLS.length, 48);
-  assert.equal(COLS[25] + COLS[26] + COLS[47], 'ZAAAV');
+test('the grid has 52 columns and 24 rows, and close means within one square', () => {
+  assert.equal(COLS.length, 52);
+  assert.equal(COLS[25] + COLS[26] + COLS[51], 'ZAAAZ');
   assert.equal(ROWS.length, 24);
-  assert.equal(new Set(COLS.flatMap((c) => ROWS.map((r) => c + r))).size, 1152, 'every name is distinct');
+  assert.equal(new Set(COLS.flatMap((c) => ROWS.map((r) => c + r))).size, 1248, 'every name is distinct');
   assert.deepEqual(parseCell('AC14'), { col: 28, row: 13 });
-  assert.ok(isCell('A1') && isCell('AV24'));
-  for (const bad of ['AW1', 'A', 'A25', 'A0', 'a1', 'AA', 'A01', 'A1 ', '1A', '', null, 12, ['A1']]) assert.equal(isCell(bad), false, String(bad));
-  assert.equal(cellColour('A1'), 'hsl(0deg 12.5% 15%)', 'the new top row');
-  assert.equal(cellColour('A4'), 'hsl(0deg 12.5% 30%)');
-  assert.equal(cellColour('A5'), 'hsl(0deg 25% 30%)');
-  assert.equal(cellColour('B6'), 'hsl(7.5deg 37.5% 30%)', 'between the old squares');
-  assert.equal(cellColour('C5'), 'hsl(15deg 25% 30%)', 'an old square keeps its colour');
-  assert.equal(cellColour('AV23'), 'hsl(352.5deg 100% 90%)', 'the old palest row');
-  assert.equal(cellColour('AV24'), 'hsl(352.5deg 100% 95%)', 'the new bottom row');
-  assert.equal(cellColour('G15'), 'hsl(45deg 100% 50%)');
+  assert.ok(isCell('A1') && isCell('AZ24'));
+  for (const bad of ['BA1', 'A', 'A25', 'A0', 'a1', 'AA', 'A01', 'A1 ', '1A', '', null, 12, ['A1']]) assert.equal(isCell(bad), false, String(bad));
+  assert.equal(cellColour('A1'), 'hsl(0deg 12.5% 20%)', 'the darkest row');
+  assert.equal(cellColour('AZ24'), 'hsl(353.08deg 100% 95%)', 'the palest row, on the last hue');
+  assert.equal(cellColour('B1').startsWith('hsl(6.92deg'), true, 'columns are 360 / 52 degrees apart');
+  const lightness = ROWS.map((r) => Number(/ (\d+(?:\.\d+)?)%\)$/.exec(cellColour('A' + r))[1]));
+  assert.ok(lightness.every((l, i) => i === 0 || l >= lightness[i - 1]), 'no row is darker than the one above');
 
   for (const near of ['M4', 'L3', 'L4', 'L5', 'M3', 'M5', 'N3', 'N4', 'N5']) assert.ok(isClose(near, 'M4'), near);
   for (const far of ['K4', 'O4', 'M2', 'M6', 'K2', 'O6', 'L2']) assert.equal(isClose(far, 'M4'), false, far);
-  assert.equal(isClose('AV4', 'A4'), false, 'the hue does not wrap round');
+  assert.equal(isClose('AZ4', 'A4'), false, 'the hue does not wrap round');
   assert.equal(isClose('Z4', 'AA4'), true, 'neighbours across the single to double letter step');
-  assert.equal(fromOldCell('X9'), 'AU23');
+  assert.equal(fromOldCell('X9'), 'AU23', 'the old grid first becomes the 48 x 24 grid');
+  assert.equal(fromV4Cell('AU23'), 'AY23', 'and then this one');
+  assert.equal(fromV4Cell('A1'), 'A1');
   assert.equal(fromEarlierCell('M4', 4), 'M8');
   assert.equal(fromEarlierCell('M20', 4), 'M24');
   assert.equal(fromEarlierCell('M21', 4), null);
@@ -87,7 +86,7 @@ test('guessing: the hinter cannot guess, each person guesses once a round, and s
   assert.equal(room.hinter, 1);
   assert.equal(game.guess(room, 1, 'A1').ok, false, 'the hinter');
   assert.equal(game.guess(room, 9, 'A1').ok, false, 'a stranger');
-  assert.equal(game.guess(room, 2, 'AW9').ok, false, 'not on the grid');
+  assert.equal(game.guess(room, 2, 'BA9').ok, false, 'not on the grid');
   assert.ok(game.guess(room, 2, 'A1').ok);
   assert.equal(game.guess(room, 2, 'B1').ok, false, 'only one guess');
   assert.equal(game.advance(room, 1).ok, false, 'not everyone has guessed');

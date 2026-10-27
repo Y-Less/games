@@ -95,7 +95,7 @@ function playRandomGame(seed) {
       const choices = [
         () => game.guess(room, stranger, randomCell(rng)),
         () => game.guess(room, room.hinter, randomCell(rng)),
-        () => game.guess(room, any.id, pick(rng, ['', 'a0', 'A', 'AW1', 'A25', 'AA', null, 5, ['A1']])),
+        () => game.guess(room, any.id, pick(rng, ['', 'a0', 'A', 'BA1', 'A25', 'AA', null, 5, ['A1']])),
         () => game.setHint(room, guessers[0]?.id ?? stranger, 'nope'),
         () => game.advance(room, stranger, rng),
         () => game.start(room, room.hostId, rng),
