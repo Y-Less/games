@@ -7,7 +7,7 @@
 import { fullDeck, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
-import { lut } from './ai/lut.js';
+import { lutc } from './ai/lut.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
 export const MIN_SEATS = 3;
@@ -537,12 +537,13 @@ export function botPlay(room, seat, rng = Math.random) {
 
 /**
  * The nomination the bidding table suggests to the person whose turn it is to nominate: the allowed number (so never the
- * dealer's forbidden one) with the best expected score for their own hand. Null at any other time, so nobody is told it early.
+ * dealer's forbidden one) with the best expected score for their own hand, their table position and what the players
+ * before them have nominated (a hand is worth more when they nominated low). Null at any other time, so nobody is told it early.
  */
 export function suggestedNomination(room, seat) {
   if (room.phase !== 'nominating' || room.turn !== seat) return null;
   const context = nominateContext(room, seat, () => 0.5);
-  const number = lut.nominate(context);
+  const number = lutc.nominate(context);
   return context.allowed.includes(number) ? number : null;
 }
 

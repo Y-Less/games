@@ -4,6 +4,7 @@
 // in each situation (my need, the state of the other players, the card), and the AI plays the best one. Without a table
 // file it plays as Standard does.
 import fs from 'node:fs';
+import { cellOf } from '../sim/bids-features.js';
 import { bestPlay, loadPlayModel } from '../sim/play-model.js';
 import { roundPoints } from './sharp.js';
 import { canTakeAllSeven, chooseCard, chooseNomination, estimateTricks } from './standard.js';
@@ -11,6 +12,27 @@ import { canTakeAllSeven, chooseCard, chooseNomination, estimateTricks } from '.
 const BIDDING_FILE = new URL('../sim/models/bidding.json', import.meta.url);
 let bidding; // undefined until first needed, then the table or null if there is none
 let playing; // the same for the play table
+let contextual; // and for the bidding table with table state
+const CONTEXT_FILE = new URL('../sim/models/bidding-context.json', import.meta.url);
+
+/** Loads (once) the bidding table with table state, or null if there is none. */
+export function contextModel(reload = false) {
+  if (reload) contextual = undefined;
+  if (contextual === undefined) {
+    try {
+      contextual = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
+    } catch {
+      contextual = null;
+    }
+  }
+  return contextual;
+}
+
+/** The chances of each number of tricks given the hand and the nominations so far, or null if the table has no such row. */
+export function contextChances(model, ctx) {
+  const { key, unclaimed, after } = cellOf(ctx);
+  return model.players[ctx.players]?.[ctx.hand.length]?.[ctx.trump ?? 'N']?.[key]?.[unclaimed]?.[after] ?? null;
+}
 
 /** The play table (loaded once); `set` replaces it, with null for none or undefined to load from the file again. */
 export function playModel(set) {
@@ -52,6 +74,22 @@ export function bestNomination(chances, allowed, missPoints = true) {
   }
   return best;
 }
+
+/** Lookup that also reads the nominations made before it: a hand is worth more when the players before nominated low. */
+export const lutc = {
+  id: 'lutc',
+  name: 'Lookup (table-aware)',
+  description: 'Nominates from tables learned by simulation that also take account of how many tricks the players before have already claimed.',
+  weight: 0,
+  nominate(ctx) {
+    const { hand, trump, allowed, instantWin = false, missPoints = true } = ctx;
+    if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
+    const model = contextModel();
+    const chances = model && contextChances(model, ctx);
+    return chances ? bestNomination(chances, allowed, missPoints) : lut.nominate(ctx);
+  },
+  play: (ctx) => lut.play(ctx),
+};
 
 export const lut = {
   id: 'lut',

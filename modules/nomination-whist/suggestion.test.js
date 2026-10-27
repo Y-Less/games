@@ -74,3 +74,25 @@ test('the suggestion is the same every time it is asked for', () => {
   const first = g.viewFor(room, 1).suggestion;
   for (let i = 0; i < 20; i++) assert.equal(g.viewFor(room, 1).suggestion, first);
 });
+
+test('the suggestion takes the earlier nominations into account: never lower when they nominated low, and sometimes higher', () => {
+  let higher = 0;
+  let compared = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const room = toAnnsTurn(seed, 4 + (seed % 4));
+    const before = room.nominations.map((bid) => bid);
+    if (before.every((bid) => bid === null)) continue; // Ann is first: nobody has nominated yet
+    const cards = g.cardsThisRound(room);
+    const withEveryone = (value) => {
+      room.nominations = before.map((bid) => (bid === null ? null : value));
+      return g.suggestedNomination(room, 0);
+    };
+    const whenLow = withEveryone(0);
+    const whenHigh = withEveryone(cards);
+    compared++;
+    assert.ok(whenLow >= whenHigh, `seed ${seed}: suggested ${whenLow} after nominations of 0 but ${whenHigh} after ${cards} each`);
+    if (whenLow > whenHigh) higher++;
+    room.nominations = before;
+  }
+  assert.ok(compared >= 100 && higher >= 10, `compared ${compared}, higher ${higher}`);
+});

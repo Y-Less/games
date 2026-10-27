@@ -62,3 +62,31 @@ Standard's 95.0, where bidding alone scores 97.1 against 95.7), and extra iterat
 files are committed. Likely reasons: the keys do not say which cards the hand keeps for later (so a "good" play now may
 wreck the rest of the hand), they ignore the scores, and Standard's rules already play these situations well. Next steps
 worth trying are a richer hand description in the key, or a play AI that targets rivals directly using the scores.
+
+## The bidding table with table state: `train-bids-context.js` and `models/bidding-context.json`
+
+```
+node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 100_000_000      # about 8 minutes
+```
+
+The same idea as the plain bidding table, but each cell also knows where you sit and what the players before you did:
+
+- **key**: Standard's estimate of the hand in quarters of a trick; in a one-card round the card itself.
+- **unclaimed**: the cards dealt minus the tricks the players before have already nominated (clamped to -2): a hand is worth
+  more when they nominated low.
+- **after**: exactly how many players still nominate after you (0 is the dealer). The first to nominate leads the first
+  trick, and the dealer plays last, so this is your table position.
+
+Why the card itself in a one-card round: with 3 players and no trumps, whoever leads wins unless one of the two other cards is
+a higher card of the same suit, which for even a deuce is only 42% likely. So the leader should nominate 1 whatever the card
+(winning 58% or more beats the 50% break-even); `sim.test.js` checks the table says so for all 52 cards. It does not hold with
+trumps: a low side card leading in a 3-player trump round wins about 26% of the time.
+
+The `lutc` AI reads the table (falling back to the plain one for cells nobody reached), and the suggested nomination shown to
+people on their turn comes from it. Over 10 million games of `lutc` against `lut` (standard card play, 2 million per player
+count, odd counts split between both seat mixes), `lutc` wins at every count; its mean score is higher by about 3.5 at 3
+players, 4.0 at 4, 2.7 at 5, 1.6 at 6 and 1.2 at 7 (for example, 4 players: 99.9 against 95.9, win share 28.7% against 21.3%).
+
+Games with the strongest card player, `lutc-sharp` against `lut-sharp` in `tourney.js`, run at only about 38 games a second
+(Sharp simulates inside every card it plays), roughly 500 times slower than the others, so those comparisons use thousands of
+games, not millions.

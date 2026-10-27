@@ -6,9 +6,10 @@ import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { fullDeck, rankValue, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
-import { bestNomination, biddingModel, lut, playModel, trickChances } from './ai/lut.js';
+import { bestNomination, biddingModel, contextChances, contextModel, lut, lutc, playModel, trickChances } from './ai/lut.js';
 import { FULL_SCHEDULE, SHORT_SCHEDULE, forbiddenNomination, isInstantWinRound as liveInstantWinRound, scoreRound, trumpOf } from './game.js';
 import { isInstantWinRound, playGame } from './sim/game.js';
+import { cellOf } from './sim/bids-features.js';
 import { COARSE_CELLS, FINE_CELLS, coarseOfFine, keysFor } from './sim/play-features.js';
 import { emptyPlayModel, loadPlayModel, savePlayModel } from './sim/play-model.js';
 import { mulberry32 } from './sim/rng.js';
@@ -207,5 +208,55 @@ test('with a table that always prefers the lowest-valued key the AI follows it, 
     assert.equal(withTable.rounds.length, SHORT_SCHEDULE.length);
   } finally {
     playModel(previous);
+  }
+});
+
+test('the table-state cell counts what the players before have claimed and how many nominate after', () => {
+  const hand = ['AH', 'KH', '2C'];
+  const cell = (nominations, players = 4) => cellOf({ hand, trump: 'H', players, nominations });
+  assert.equal(cell([null, null, null, null]).unclaimed, 3 + 2, 'nothing claimed: all three tricks are free');
+  assert.equal(cell([1, null, null, null]).unclaimed, 2 + 2);
+  assert.equal(cell([1, null, null, null]).after, 2, 'two more nominate after the second player');
+  assert.equal(cell([1, 1, 0, null]).after, 0, 'the dealer is last');
+  assert.equal(cell([1, 1, 0, null]).unclaimed, 1 + 2);
+  assert.equal(cell([3, 3, 2, null]).unclaimed, 0, 'over-claimed by more than two is the bottom bucket');
+  assert.equal(cell([1, 0, null, null], 4).after, 1);
+  assert.equal(cellOf({ hand, trump: null, players: 4 }).after, 3, 'the first to nominate has three after them: position is exact');
+  assert.equal(cellOf({ hand, trump: null, players: 7 }).after, 6);
+});
+
+test('a one-card round is keyed by the card itself', () => {
+  const keys = new Set(fullDeck().map((card) => cellOf({ hand: [card], trump: null, players: 3 }).key));
+  assert.equal(keys.size, 52);
+});
+
+test('3 players, one card, no trumps, first to nominate (and so to lead): whatever the card, nominate 1', { skip: !contextModel() }, () => {
+  const model = contextModel();
+  for (const card of fullDeck()) {
+    const chances = contextChances(model, { hand: [card], trump: null, players: 3, nominations: [null, null, null] });
+    assert.ok(chances, `a row for ${card}`);
+    assert.ok(chances[1] > 0.5, `${card} wins the trick more often than not (${chances[1]})`);
+    assert.equal(bestNomination(chances, [0, 1]), 1, `${card}: nominate 1`);
+  }
+});
+
+test('a hand is worth more tricks when the players before nominated low', { skip: !contextModel() }, () => {
+  const model = contextModel();
+  const hand = ['AH', 'QH', 'KS'];
+  const mean = (nominations) => contextChances(model, { hand, trump: 'H', players: 4, nominations }).reduce((sum, p, taken) => sum + p * taken, 0);
+  assert.ok(mean([0, 0, 0, null]) > mean([2, 2, 1, null]), 'with nothing claimed there are more tricks left for it');
+});
+
+test('the table-aware lookup AI nominates only allowed numbers, with or without its table', () => {
+  const rng = mulberry32(12);
+  for (let i = 0; i < 400; i++) {
+    const players = 3 + (i % 5);
+    const cards = 1 + (i % 7);
+    const hand = shuffle(fullDeck(), rng).slice(0, cards);
+    const nominations = Array.from({ length: players }, (_, seat) => (seat < i % players ? Math.floor(rng() * (cards + 1)) : null));
+    const seat = i % players;
+    nominations[seat] = null;
+    const allowed = Array.from({ length: cards + 1 }, (_, n) => n).filter((n) => n !== (i % 4 === 0 ? 0 : -1));
+    assert.ok(allowed.includes(lutc.nominate({ hand, trump: i % 2 ? 'D' : null, players, allowed, nominations, seat, rng })));
   }
 });
