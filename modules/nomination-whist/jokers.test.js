@@ -44,6 +44,16 @@ test('a lone Joker wins the trick, over trumps and aces', () => {
   assert.equal(winningCard(['2H', RED], 'C'), RED);
 });
 
+test('in a round with no trumps a Joker still wins, as a trump of its own', () => {
+  assert.equal(winningCard(['AS', '2C', BLACK, 'KS'], null), BLACK, 'over the ace of the suit led');
+  assert.equal(winningCard(['2S', 'KD', 'AH', RED], null), RED, 'played last, off suit');
+  assert.equal(winningCard([BLACK, 'AS', 'KS'], null), BLACK, 'a Joker that led');
+  assert.equal(winningCard(['3S', BLACK, 'AS', RED], null), 'AS', 'two Jokers cancel and the highest of the suit led wins');
+  assert.equal(winningCard([BLACK, '2S', RED], null), RED, 'a second Joker beats a Joker that led');
+  assert.deepEqual(legalCards(['AS', BLACK], ['2C']), ['AS', BLACK], 'with no trumps it is played only when you cannot follow suit');
+  assert.deepEqual(legalCards(['AC', BLACK], ['2C']), ['AC'], 'and not while you can');
+});
+
 test('two Jokers in one trick both lose, and the rest of the trick decides as usual', () => {
   assert.equal(winningCard(['5H', BLACK, 'KH', RED], null), 'KH', 'highest of the suit led');
   assert.equal(winningCard(['5H', RED, '2C', BLACK], 'C'), '2C', 'a trump among the rest still beats the suit led');
