@@ -8,6 +8,7 @@
 // `error` (the reason the last removal was refused, if any). It emits `remove` once the host has confirmed.
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import BotIcon from './BotIcon.vue';
+import StyledName from './StyledName.vue';
 
 const props = defineProps({
   player: { type: Object, required: true },
@@ -49,7 +50,7 @@ function confirm() {
     <header class="head">
       <strong class="who">
         <BotIcon v-if="player.bot" />
-        {{ player.name }}
+        <StyledName :name="player.name" :user-id="player.userId ?? null" />
       </strong>
       <span v-if="player.isMe" class="tag">you</span>
       <span v-if="player.isHost" class="tag host">host</span>

@@ -612,6 +612,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
         ? {
             seat: i,
             name: seat.name,
+            userId: isHuman(seat) ? seat.id : undefined,
             bot: isBot(seat),
             ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
             away: seat.kind === 'gone' || (isHuman(seat) && !online(seat.id)),

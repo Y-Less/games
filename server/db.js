@@ -70,6 +70,9 @@ export function openDatabase(dataDir) {
   if (!columns.includes('card_back')) {
     db.exec(`ALTER TABLE users ADD COLUMN card_back TEXT NOT NULL DEFAULT '{"type":"preset","value":"crimson"}'`);
   }
+  if (!columns.includes('name_style')) {
+    db.exec(`ALTER TABLE users ADD COLUMN name_style TEXT NOT NULL DEFAULT '{"style":"plain"}'`);
+  }
   return db;
 }
 

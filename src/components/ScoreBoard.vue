@@ -21,9 +21,10 @@ import { placements } from '../../shared/scores.js';
 import BotIcon from './BotIcon.vue';
 import GameModal from './GameModal.vue';
 import ScoreTable from './ScoreTable.vue';
+import StyledName from './StyledName.vue';
 
 const props = defineProps({
-  players: { type: Array, required: true }, // [{ id, name, score, isMe?, away?, note? }]
+  players: { type: Array, required: true }, // [{ id, name, score, userId?, isMe?, away?, note? }]; userId: the account, for the name style
   rounds: { type: Array, default: () => [] },
   lowIsBetter: { type: Boolean, default: false },
   target: { type: Number, default: null },
@@ -132,7 +133,7 @@ defineExpose({ show, close });
           @pointerleave="clickable(p) && emit('unhover')"
         >
           <span v-if="p.bot" class="bot"><BotIcon /></span>
-          <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
+          <span class="name"><StyledName :name="p.name" :user-id="p.userId ?? null" /><span v-if="p.isMe" class="you"> (you)</span></span>
           <strong class="points">{{ p.score }}</strong>
           <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
           <small v-if="p.note" class="muted">{{ p.note }}</small>

@@ -102,8 +102,8 @@ export async function startSite(options = {}) {
   api.get('/me', (req, res) => res.json({ user: auth.userForToken(tokenOf(req)) }));
 
   api.patch('/me', requireUser, handler(async (req, res) => {
-    const { displayName, background, cardBack } = req.body ?? {};
-    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack });
+    const { displayName, background, cardBack, nameStyle } = req.body ?? {};
+    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle });
     if (background !== undefined && user.background.type !== 'image') removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') removeImages('cb', user.id);
     res.json({ user });
@@ -135,7 +135,13 @@ export async function startSite(options = {}) {
   imageUpload('/me/background-image', 'bg', 'background');
   imageUpload('/me/card-back-image', 'cb', 'cardBack');
 
-  api.get('/shop', requireUser, (req, res) => res.json(shop.listing(req.user.id)));
+  // What other players see of people: GET /api/players?ids=1,2,3 -> { players: { 1: { displayName, nameStyle }, ... } }
+  api.get('/players', requireUser, (req, res) => {
+    const ids = String(req.query.ids ?? '').split(',').filter(Boolean).map(Number);
+    res.json({ players: auth.publicProfiles(ids) });
+  });
+
+  api.get('/shop',requireUser, (req, res) => res.json(shop.listing(req.user.id)));
   api.post('/shop/buy', requireUser, handler(async (req, res) => res.json(shop.buy(req.user.id, req.body?.item))));
 
   api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));

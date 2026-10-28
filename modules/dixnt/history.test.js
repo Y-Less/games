@@ -74,7 +74,7 @@ test('the scoreboard shape is the same for everybody, with isMe and away set per
   assert.deepEqual(views[0].scoreboard.players.map((p) => p.isMe), [true, false, false]);
   assert.deepEqual(views[1].scoreboard.players.map((p) => p.isMe), [false, true, false]);
   assert.deepEqual(views[0].scoreboard.players.map((p) => p.away), [false, false, true]);
-  assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score']);
+  assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score', 'userId']);
 });
 
 test('nothing is revealed early: the history only grows when the round is over', () => {

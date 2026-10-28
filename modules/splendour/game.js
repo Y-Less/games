@@ -607,7 +607,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     }),
     scoreboard: {
       players: room.seats.flatMap((seat, i) =>
-        seat ? [{ id: i, name: seat.name, score: started ? prestigeOf(room.players[i]) : 0, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [],
+        seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: started ? prestigeOf(room.players[i]) : 0, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [],
       ),
       rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,

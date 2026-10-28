@@ -65,7 +65,7 @@ const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
 // floating over the top of the main area so that nothing moves.
 const board = computed(() => ({
-  players: seats.value.map((s) => ({ id: s.seat, name: s.name, score: s.score, isMe: s.seat === you.value, bot: Boolean(s.bot), current: s.seat === props.state.turn, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
+  players: seats.value.map((s) => ({ id: s.seat, name: s.name, userId: s.userId, score: s.score, isMe: s.seat === you.value, bot: Boolean(s.bot), current: s.seat === props.state.turn, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
   rounds: props.state.rounds,
 }));
 const { openId, scoreProps, popupProps } = usePlayerPopup({

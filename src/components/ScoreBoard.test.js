@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { session } from '../session.js';
 import ScoreBoard from './ScoreBoard.vue';
 
 let wrapper;
@@ -315,5 +316,16 @@ describe('ScoreBoard without round pop-ups', () => {
   it('does not bring a missed round pop-up back for a person who is awaited', () => {
     make({ roundPopups: false, rounds: [round1], awaiting: true });
     expect(dialog()).toBeNull();
+  });
+});
+
+describe('ScoreBoard name styles', () => {
+  it("draws a player's name in their bought style when the game gives their account id", () => {
+    session.user = { id: 7, nameStyle: { style: 'emerald' } };
+    make({ players: [{ id: 0, name: 'Ann', userId: 7, score: 1, isMe: true }, { id: 1, name: 'Robo', score: 0, bot: true }] });
+    const [ann, robo] = chips();
+    expect(ann.find('.styled-name').attributes('data-name-style')).toBe('emerald');
+    expect(robo.find('.styled-name').classes()).not.toContain('styled');
+    expect(ann.find('.name').text()).toBe('Ann (you)');
   });
 });

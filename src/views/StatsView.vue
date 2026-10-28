@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import StyledName from '../components/StyledName.vue';
 import { api, session } from '../session.js';
 
 const stats = ref(null);
@@ -55,7 +56,7 @@ const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
           <h3>Most wins</h3>
           <ol class="board">
             <li v-for="row in boards[game.game]" :key="row.userId" :class="{ me: row.userId === session.user.id }">
-              {{ row.name }} <span class="muted">{{ row.wins }} won from {{ row.played }}</span>
+              <StyledName :name="row.name" :user-id="row.userId" /> <span class="muted">{{ row.wins }} won from {{ row.played }}</span>
             </li>
           </ol>
         </template>

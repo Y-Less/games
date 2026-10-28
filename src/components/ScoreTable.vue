@@ -2,6 +2,7 @@
 // Every round's scores in a table, with totals. Standard shape: see shared/scores.js.
 import { computed } from 'vue';
 import { placements } from '../../shared/scores.js';
+import StyledName from './StyledName.vue';
 
 const props = defineProps({
   players: { type: Array, required: true }, // [{ id, name, score, isMe? }]
@@ -46,7 +47,7 @@ const sign = (n) => (n > 0 && props.lowIsBetter === false ? `+${n}` : String(n))
       <thead>
         <tr>
           <th scope="col">Round</th>
-          <th v-for="p in players" :key="p.id" scope="col" :colspan="split ? 2 : undefined" :class="{ me: p.isMe }">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></th>
+          <th v-for="p in players" :key="p.id" scope="col" :colspan="split ? 2 : undefined" :class="{ me: p.isMe }"><StyledName :name="p.name" :user-id="p.userId ?? null" /><span v-if="p.isMe" class="you"> (you)</span></th>
         </tr>
       </thead>
       <tbody>

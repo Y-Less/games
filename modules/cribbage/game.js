@@ -497,7 +497,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     winner: room.winner,
     placements: room.phase === 'finished' ? seatPlacements(room) : null,
     scoreboard: {
-      players: room.seats.map((s, i) => ({ id: i, name: s.name, score: s.score, isMe: i === me, bot: Boolean(s.bot), current: room.phase === 'play' && room.play?.turn === i, away: !s.bot && !s.left && !online(s.userId) })),
+      players: room.seats.map((s, i) => ({ id: i, name: s.name, userId: s.bot ? undefined : s.userId, score: s.score, isMe: i === me, bot: Boolean(s.bot), current: room.phase === 'play' && room.play?.turn === i, away: !s.bot && !s.left && !online(s.userId) })),
       rounds: room.history,
       lowIsBetter: false,
       target: room.target,

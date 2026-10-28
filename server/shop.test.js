@@ -89,6 +89,34 @@ test('the free starting choices need nothing, and a refused change changes nothi
   assert.equal((await c.get('/api/me')).data.user.displayName, 'shopper');
 });
 
+test('name styles: plain is free, the rest are bought, and a bad style is refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 650 });
+  assert.deepEqual((await c.get('/api/me')).data.user.nameStyle, { style: 'plain' });
+  assert.equal((await c.patch('/api/me', { nameStyle: { style: 'plain' } })).status, 200);
+  assert.equal((await c.patch('/api/me', { nameStyle: { style: 'gold' } })).status, 403);
+  for (const nameStyle of [{ style: 'nonsense' }, { style: 7 }, {}, null, 'gold', { style: '__proto__' }]) {
+    assert.equal((await c.patch('/api/me', { nameStyle })).status, 400, JSON.stringify(nameStyle));
+  }
+  assert.equal((await c.post('/api/shop/buy', { item: 'ns:ruby' })).status, 200);
+  const changed = await c.patch('/api/me', { nameStyle: { style: 'ruby' } });
+  assert.deepEqual(changed.data.user.nameStyle, { style: 'ruby' });
+});
+
+test('players: anyone signed in can see names and name styles, and nothing more', async (t) => {
+  const { c, user, client } = await shopSite(t, { coins: 650 });
+  await c.post('/api/shop/buy', { item: 'ns:ruby' });
+  await c.patch('/api/me', { nameStyle: { style: 'ruby' } });
+  const other = client();
+  const { data } = await register(other, 'watcher', 'password1');
+  const { status, data: seen } = await other.get(`/api/players?ids=${user.id},${data.user.id},9999,abc,-1`);
+  assert.equal(status, 200);
+  assert.deepEqual(seen.players[user.id], { displayName: 'shopper', nameStyle: { style: 'ruby' } });
+  assert.deepEqual(seen.players[data.user.id], { displayName: 'watcher', nameStyle: { style: 'plain' } });
+  assert.deepEqual(Object.keys(seen.players).sort(), [String(user.id), String(data.user.id)].sort());
+  assert.deepEqual((await other.get('/api/players')).data, { players: {} });
+  assert.equal((await client().get('/api/players?ids=1')).status, 401);
+});
+
 test('colours, gradients and uploads are separate unlocks', async (t) => {
   const { c, dataDir } = await shopSite(t, { coins: 5000 });
   const colour = { type: 'colour', value: '#112233' };
