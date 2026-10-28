@@ -181,6 +181,23 @@ describe('the play field', () => {
     expect(w.findAll('.sets .set:not(.new)')).toHaveLength(0);
   });
 
+  it('tiles are draggable spans with the button role (Firefox will not drag a <button>), and work from the keyboard', async () => {
+    const { w } = mountTable(state());
+    const tileEl = rackTile(w, t(0, 10));
+    expect(tileEl.element.tagName).toBe('SPAN');
+    expect(w.findAll('[data-rack] button')).toHaveLength(0);
+    expect(tileEl.attributes('role')).toBe('button');
+    expect(tileEl.attributes('tabindex')).toBe('0');
+    expect(tileEl.attributes('draggable')).toBe('true');
+    await tileEl.trigger('keydown', { key: 'Enter' });
+    expect(tileEl.attributes('aria-pressed')).toBe('true');
+    await tileEl.trigger('keydown', { key: ' ' });
+    expect(tileEl.attributes('aria-pressed')).toBe('false');
+    const idle = mountTable({ ...state(), turn: 1 }).w;
+    expect(rackTile(idle, t(0, 10)).attributes('role')).toBeUndefined();
+    expect(rackTile(idle, t(0, 10)).attributes('draggable')).toBe('false');
+  });
+
   it('the whole table is a new-set target: select a few tiles and drag them anywhere on it', async () => {
     const { w } = mountTable(state());
     expect(w.find('.felt').classes()).not.toContain('dropping');

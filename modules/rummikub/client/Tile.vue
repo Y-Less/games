@@ -1,6 +1,7 @@
 <script setup>
 // One Rummikub tile: the number in the colour's hue with the colour's own shape beneath it. A wildcard is a dark tile with a
-// star-burst. `stands` (for a wildcard inside a set) shows what the wildcard has been worked out to stand for.
+// star-burst. It is a span with the button role, not a <button>, because Firefox will not start a drag from a button.
+// `stands` (for a wildcard inside a set) shows what the wildcard has been worked out to stand for.
 import { computed } from 'vue';
 import { tileOf } from '../rules.js';
 import { SHAPES, colourInfo } from './colours.js';
@@ -28,10 +29,12 @@ const label = computed(() => {
 </script>
 
 <template>
-  <component
-    :is="interactive ? 'button' : 'span'"
-    :type="interactive ? 'button' : undefined"
+  <span
     class="tile"
+    :role="interactive ? 'button' : undefined"
+    :tabindex="interactive ? 0 : undefined"
+    @keydown.enter.prevent="interactive && $event.currentTarget.click()"
+    @keydown.space.prevent="interactive && $event.currentTarget.click()"
     :class="[size, { selected, fresh, recent, drawn, locked, joker: tile.joker }]"
     :style="info ? { '--hue': info.hue } : undefined"
     :draggable="interactive && !locked"
@@ -54,7 +57,7 @@ const label = computed(() => {
         <polygon v-else :points="shape.points" />
       </svg>
     </template>
-  </component>
+  </span>
 </template>
 
 <style scoped>
@@ -92,15 +95,8 @@ const label = computed(() => {
   height: 2.8rem;
   font-size: 1.15rem;
 }
-span.tile {
+.tile:not([role='button']) {
   cursor: default;
-}
-/* A press anywhere on a tile is a press on the tile itself, so the browser always sees the draggable element, never its number or shape. */
-.tile {
-  -webkit-user-drag: element;
-}
-.tile > * {
-  pointer-events: none;
 }
 .shape {
   width: 0.62em;
