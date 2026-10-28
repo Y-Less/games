@@ -749,3 +749,9 @@ test('claiming scores the hand as if it had been played, points the others held 
   assert.equal(room.lastHand.details[0].hearts, 3); // the ace, 2 and 3 of hearts
   assert.equal(room.scores[0] - before, 3);
 });
+
+test('there is nothing to claim on the last trick', () => {
+  const room = midHand([['AS'], ['2C'], ['4C'], ['6C']], { turn: 0, tricksPlayed: 12, taken: [[], fullDeck().filter((c) => !['AS', '2C', '4C', '6C'].includes(c)), [], []], heartsBroken: true });
+  assert.equal(g.canClaim(room, 0), false);
+  assert.equal(g.viewFor(room, 1).canClaim, false);
+});

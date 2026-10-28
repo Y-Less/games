@@ -337,7 +337,7 @@ export function trickWinner(trick) {
 export function canClaim(room, seat) {
   if (room.phase !== 'playing' || room.turn !== seat || room.trick.length !== 0) return false;
   const hand = room.hands[seat];
-  if (!hand.length) return false;
+  if (hand.length < 2) return false; // on the last trick there is nothing to claim: just play the card
   const known = new Set([...hand, ...room.taken.flat()]);
   const unseen = deckFor(room.seats.length).filter((card) => !known.has(card));
   return hand.every((card) => unseen.every((other) => suitOf(other) !== suitOf(card) || rankValue(other) < rankValue(card)));
