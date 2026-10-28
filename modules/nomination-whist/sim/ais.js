@@ -9,4 +9,7 @@ import { sharp } from '../ai/sharp.js';
 
 const withSharpPlay = (ai) => ({ ...ai, id: `${ai.id}-sharp`, name: `${ai.name} + Sharp play`, play: sharp.play });
 
-export const SIM_AIS = defineAIs([...AIS, lut, lutc, withSharpPlay(lut), withSharpPlay(lutc)]);
+/** `lutc` held to the table for games without Jokers even in a Jokers game: the baseline for the table learned for them. */
+const lutcPlain = { ...lutc, id: 'lutc-plain', name: 'Lookup (table-aware, no-Jokers table)', nominate: (ctx) => lutc.nominate({ ...ctx, jokers: false }) };
+
+export const SIM_AIS = defineAIs([...AIS, lut, lutc, lutcPlain, withSharpPlay(lut), withSharpPlay(lutc)]);

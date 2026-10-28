@@ -15,7 +15,7 @@ process.env.NOMINATION_WHIST_TRICK_PAUSE = '1';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'nomination-whist';
-const CARD = /"(?:[2-9]|10|[JQKA])[CDHS]"/g;
+const CARD = /"(?:(?:[2-9]|10|[JQKA])[CDHS]|JK[12])"/g; // a card, or one of the two Jokers
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(condition, what, timeout = 20000) {
@@ -115,9 +115,9 @@ async function launch(t, existingDir) {
 }
 
 /** Starts a room: the first person hosts, the others join by code, then seats are set and filled with computers. */
-async function setUp(people, { seats, length = 'full', missPoints, instantWin = false } = {}) {
+async function setUp(people, { seats, length = 'full', missPoints, instantWin = false, jokers } = {}) {
   const [host, ...others] = people;
-  const created = await host.send('create', { seats, length, instantWin, ...(missPoints === undefined ? {} : { missPoints }) });
+  const created = await host.send('create', { seats, length, instantWin, ...(missPoints === undefined ? {} : { missPoints }), ...(jokers === undefined ? {} : { jokers }) });
   assert.ok(created.ok, created.error);
   for (const p of others) assert.ok((await p.send('join', { code: created.code })).ok);
   await until(() => host.state?.seats.filter((s) => s && !s.bot).length === people.length, 'everyone in the lobby');
@@ -262,6 +262,30 @@ test('a full 14-round game with seven seats, two people and five computers; both
   }
 });
 
+test('a full 14-round game with seven seats and the Jokers on: they are dealt and played, and nobody is sent a card they should not see', async (t) => {
+  const { person } = await launch(t);
+  const [ann, bob] = [await person('ann'), await person('bob')];
+  await setUp([ann, bob], { seats: 7, jokers: true });
+  assert.equal(ann.state.settings.jokers, true, 'the setting reached the room');
+  assert.ok((await ann.send('start')).ok);
+  await until(() => bob.state.phase !== 'lobby', 'bob to see the game');
+  const seenInHands = new Set();
+  const seenInTricks = new Set();
+  const watch = setInterval(() => {
+    for (const p of [ann, bob]) {
+      for (const card of p.state?.hand ?? []) if (card.startsWith('JK')) seenInHands.add(card);
+      for (const play of p.state?.trick ?? []) if (play.card.startsWith('JK')) seenInTricks.add(play.card);
+    }
+  }, 1);
+  await playToEnd([ann, bob], { timeout: 90000 });
+  clearInterval(watch);
+  for (const p of [ann, bob]) assertHistory(p, { rounds: 14, seats: 7 });
+  assert.ok(seenInHands.size + seenInTricks.size > 0, 'a whole 14-round game with the Jokers on dealt and played some');
+  assertNoLeaks(ann);
+  assertNoLeaks(bob);
+  assert.ok(ann.payloads.some((raw) => /JK[12]/.test(raw)));
+});
+
 test('five seats with missed nominations scoring nothing when the host turns the option off', async (t) => {
   const { person } = await launch(t);
   const ann = await person('ann');
@@ -295,6 +319,13 @@ test('the lobby: only the host changes things, seats and computer players, and t
   await until(() => ann.state.settings.instantWin === false, 'the option off');
   assert.ok((await ann.send('settings', { instantWin: true })).ok);
   assert.equal(ann.state.settings.instantWin, true);
+  assert.equal(ann.state.settings.jokers, false, 'the Jokers are off by default');
+  assert.equal((await bob.send('settings', { jokers: true })).ok, false, 'only the host');
+  assert.equal((await ann.send('settings', { jokers: 'yes' })).ok, false);
+  assert.ok((await ann.send('settings', { jokers: true })).ok);
+  await until(() => ann.state.settings.jokers === true, 'the Jokers on');
+  assert.ok((await ann.send('settings', { jokers: false })).ok);
+  assert.equal(ann.state.settings.jokers, false);
   assert.ok((await bob.send('join', { code: ` ${created.code.toUpperCase()} ` })).ok, 'codes are tidied');
   await until(() => ann.state.seats[1]?.name === 'bob', 'bob seated');
   assert.equal((await bob.send('settings', { seats: 5 })).ok, false);

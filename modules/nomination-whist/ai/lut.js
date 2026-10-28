@@ -12,20 +12,27 @@ import { canTakeAllSeven, chooseCard, chooseNomination, estimateTricks } from '.
 const BIDDING_FILE = new URL('../sim/models/bidding.json', import.meta.url);
 let bidding; // undefined until first needed, then the table or null if there is none
 let playing; // the same for the play table
-let contextual; // and for the bidding table with table state
-const CONTEXT_FILE = new URL('../sim/models/bidding-context.json', import.meta.url);
+const contextual = {}; // and for the bidding tables with table state: one for games without Jokers, one with
+const CONTEXT_FILES = {
+  false: new URL('../sim/models/bidding-context.json', import.meta.url),
+  true: new URL('../sim/models/bidding-context-jokers.json', import.meta.url),
+};
 
-/** Loads (once) the bidding table with table state, or null if there is none. */
-export function contextModel(reload = false) {
-  if (reload) contextual = undefined;
-  if (contextual === undefined) {
+/**
+ * Loads (once) the bidding table with table state for games with or without the Jokers, or null if there is none. The two
+ * are separate tables because a Joker is worth most of a trick and changes what every other hand is worth.
+ */
+export function contextModel(jokers = false, reload = false) {
+  const key = jokers === true;
+  if (reload) delete contextual[key];
+  if (contextual[key] === undefined) {
     try {
-      contextual = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
+      contextual[key] = JSON.parse(fs.readFileSync(CONTEXT_FILES[key], 'utf8'));
     } catch {
-      contextual = null;
+      contextual[key] = null;
     }
   }
-  return contextual;
+  return contextual[key];
 }
 
 /** The chances of each number of tricks given the hand and the nominations so far, or null if the table has no such row. */
@@ -82,9 +89,9 @@ export const lutc = {
   description: 'Nominates from tables learned by simulation that also take account of how many tricks the players before have already claimed.',
   weight: 0,
   nominate(ctx) {
-    const { hand, trump, allowed, instantWin = false, missPoints = true } = ctx;
+    const { hand, trump, allowed, instantWin = false, missPoints = true, jokers = false } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
-    const model = contextModel();
+    const model = contextModel(jokers);
     const chances = model && contextChances(model, ctx);
     return chances ? bestNomination(chances, allowed, missPoints) : lut.nominate(ctx);
   },

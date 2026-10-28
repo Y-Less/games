@@ -9,17 +9,16 @@
 // Why the card itself in a one-card round: with three players in a no-trump round, the player who leads wins unless one of
 // the two other cards is a higher card of the same suit, which even for a deuce is only 42% likely, so whatever the card,
 // nominating 1 is right (it wins 58% or more, and nominating 1 beats nominating 0 above 50%).
-import { fullDeck } from '../../../shared/cards.js';
+import { deckFor, fullDeck } from '../../../shared/cards.js';
 import { estimateTricks } from '../ai/standard.js';
 
 export const ESTIMATE_STEPS = 4; // estimates are in quarters of a trick, 0 to 4 x cards
 export const UNCLAIMED_MIN = -2; // tricks claimed beyond the cards dealt, at most this many are told apart
 export const AFTER_BUCKETS = 7; // players still to nominate after me, 0 (the dealer) to 6
-const DECK = fullDeck();
-const CARD_INDEX = new Map(DECK.map((card, i) => [card, i]));
+const CARD_INDEX = new Map(deckFor(true).map((card, i) => [card, i])); // the 52 cards, then the two Jokers
 
-/** The number of buckets of each part for a round of `cards` cards. */
-export const keyBuckets = (cards) => (cards === 1 ? DECK.length : cards * ESTIMATE_STEPS + 1);
+/** The number of buckets of each part for a round of `cards` cards (the keys of a one-card round include the Jokers when they are in play). */
+export const keyBuckets = (cards, jokers = false) => (cards === 1 ? fullDeck().length + (jokers ? 2 : 0) : cards * ESTIMATE_STEPS + 1);
 export const unclaimedBuckets = (cards) => cards - UNCLAIMED_MIN + 1;
 
 /**

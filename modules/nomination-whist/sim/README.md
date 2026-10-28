@@ -15,8 +15,7 @@ making a nomination plus the nomination, one point per trick on a miss, and the 
 tricks in the first or last round wins the game on the spot; `--no-instant-win` turns it off). The table shows each AI's
 mean score, win share (ties split), nomination hit rate, average nomination and tricks, and instant wins.
 
-`--jokers` shuffles the two Jokers in (see `rules.md`; the rules live in `../trick.js`). The learned bidding tables were trained
-without Jokers, so only the rule-based AIs (`standard`, `counter`, `cautious`, `optimist`, `sharp`, `random`) bid properly in those games.
+`--jokers` shuffles the two Jokers in (see `rules.md`; the rules live in `../trick.js`).
 
 About 4,000 games a second with the quick AIs on a 24-thread machine; `sharp` is far slower.
 
@@ -95,3 +94,16 @@ Games with the strongest card player, `lutc-sharp` against `lut-sharp` in `tourn
 games, not millions. With Sharp's card play on every seat (20,000 games at 3 and 4 players, 10,000 at 5 to 7), `lutc-sharp`
 still beats `lut-sharp` at every count, by about the same margins: 3.0 at 3 players, 3.5 at 4, 2.4 at 5, 1.3 at 6 and 1.0 at 7
 (4 players: 100.9 against 97.4, win share 28.2% against 21.8%), so the table trained on Standard's play carries over to strong play.
+
+### With the Jokers
+
+A Joker is worth most of a trick and changes what every other hand is worth, so games with Jokers have their own table:
+
+```
+node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 100_000_000 --jokers      # models/bidding-context-jokers.json
+```
+
+`lutc` (and the suggested nomination) read `bidding-context-jokers.json` when the game has Jokers and `bidding-context.json`
+when it does not; the two files are trained separately and neither affects the other. In a one-card round the key can be a
+Joker, whose chance of taking the trick leading is far above a deuce's. `lutc-plain` is `lutc` held to the no-Jokers table even
+in a Jokers game, the baseline for the Jokers table. Without a Jokers table file the suggestion is simply not offered in a Jokers game.

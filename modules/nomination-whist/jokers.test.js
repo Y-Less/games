@@ -7,6 +7,7 @@ import { deckFor, isJoker, JOKERS, sortHand } from '../../shared/cards.js';
 import * as g from './game.js';
 import { ledSuit, legalCards, winningCard } from './trick.js';
 import { AIS } from './ai/index.js';
+import { bestNomination, contextChances, contextModel } from './ai/lut.js';
 
 const seeded = (seed) => {
   let s = seed >>> 0;
@@ -149,13 +150,47 @@ test('whole games with Jokers, for every live AI and every number of seats, play
   }
 });
 
-test('with Jokers the suggested nomination is not offered, and without them it still is', () => {
+test('with Jokers the suggested nomination comes from the table learned for them, and is always allowed', { skip: !contextModel(true) }, () => {
   const rng = seeded(3);
-  for (const jokers of [true, false]) {
-    const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4, jokers } });
+  let offered = 0;
+  for (let seed = 1; seed <= 60; seed++) {
+    const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 + (seed % 5), jokers: true } });
     g.fillWithBots(room, 1);
     g.start(room, 1, rng);
     while (room.phase === 'nominating' && room.turn !== 0) g.runPending(room, rng);
-    assert.equal(g.viewFor(room, 1).suggestion === null, jokers);
+    const view = g.viewFor(room, 1);
+    assert.ok(Number.isInteger(view.suggestion), 'a suggestion is made in a Jokers game');
+    assert.notEqual(view.suggestion, view.forbidden);
+    assert.ok(g.nominate(room, 0, view.suggestion).ok);
+    offered++;
   }
+  assert.equal(offered, 60);
+});
+
+test('the Jokers table has its own file and its one-card rows cover the Jokers', { skip: !contextModel(true) }, () => {
+  assert.notEqual(contextModel(true), contextModel(false));
+  assert.equal(contextModel(true).trainedOn.jokers, true);
+  assert.ok(!contextModel(false).trainedOn.jokers);
+  for (const joker of JOKERS) {
+    // a Joker led in a 3-player one-card round almost always wins, so the first to nominate should say 1
+    const chances = contextChances(contextModel(true), { hand: [joker], trump: null, players: 3, nominations: [null, null, null], jokers: true });
+    assert.ok(chances, `a row for ${joker}`);
+    assert.ok(chances[1] > 0.8, `${joker} leading takes the trick ${chances[1]}`);
+    assert.equal(bestNomination(chances, [0, 1]), 1);
+  }
+});
+
+test('a Joker makes a hand worth more tricks in the Jokers table', { skip: !contextModel(true) }, () => {
+  const model = contextModel(true);
+  const mean = (hand) => contextChances(model, { hand, trump: 'H', players: 4, nominations: [null, null, null, null], jokers: true }).reduce((sum, p, taken) => sum + p * taken, 0);
+  assert.ok(mean(['AH', 'KS', 'JK1']) > mean(['AH', 'KS', '3C']) + 0.4);
+});
+
+test('without the Jokers option the table for games without Jokers is used, so existing games are unchanged', () => {
+  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
+  g.fillWithBots(room, 1);
+  g.start(room, 1, seeded(9));
+  assert.equal(room.settings.jokers, false);
+  while (room.turn !== 0) g.runPending(room, seeded(9));
+  assert.ok(Number.isInteger(g.viewFor(room, 1).suggestion));
 });

@@ -3,7 +3,7 @@
 // number of tricks given the hand (its estimated worth, or the card itself in a one-card round), how many tricks the
 // players before have claimed, and exactly how many players still nominate after (your table position). Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 50_000_000
-// Writes models/bidding-context.json, which the `lutc` AI (ai/lut.js) reads.
+// Writes models/bidding-context.json (or bidding-context-jokers.json with --jokers), which the `lutc` AI (ai/lut.js) reads.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,7 +18,8 @@ const HELP = `Usage: node modules/nomination-whist/sim/train-bids-context.js [op
   --players LIST   player counts, e.g. 3-7 or 4,5                  (default 3-7)
   --deals N        deals to play (default 50 million; underscores allowed)
   --min-n N        a cell is smoothed over its neighbours until N hands back it (default 300)
-  --out FILE       where the table goes (default modules/nomination-whist/sim/models/bidding-context.json)
+  --jokers         train for games with the two Jokers shuffled in (a separate table, written to bidding-context-jokers.json)
+  --out FILE       where the table goes (default modules/nomination-whist/sim/models/bidding-context[-jokers].json)
   --seed N, --workers N, --chunk N`;
 
 const { values: opts } = parseArgs({
@@ -26,7 +27,8 @@ const { values: opts } = parseArgs({
     players: { type: 'string', default: '3-7' },
     deals: { type: 'string', default: '50000000' },
     'min-n': { type: 'string', default: '300' },
-    out: { type: 'string', default: 'modules/nomination-whist/sim/models/bidding-context.json' },
+    out: { type: 'string', default: '' },
+    jokers: { type: 'boolean', default: false },
     seed: { type: 'string', default: '1' },
     workers: { type: 'string', default: String(Math.max(1, os.cpus().length - 1)) },
     chunk: { type: 'string', default: '50000' },
@@ -44,6 +46,8 @@ const players = opts.players.split(',').flatMap((part) => {
   return Array.from({ length: to - from + 1 }, (_, i) => from + i);
 });
 const minN = num(opts['min-n']);
+const jokers = opts.jokers;
+const outFile = opts.out || `modules/nomination-whist/sim/models/bidding-context${jokers ? '-jokers' : ''}.json`;
 
 /** Plays the deals in worker threads, with a status bar, and returns the summed counts. */
 async function collect() {
@@ -54,7 +58,7 @@ async function collect() {
   let done = 0;
   let lastDraw = 0;
   const started = Date.now();
-  const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./bids-collect.js', import.meta.url)), { workerData: { seed: num(opts.seed), size: chunk, players } }));
+  const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./bids-collect.js', import.meta.url)), { workerData: { seed: num(opts.seed), size: chunk, players, jokers } }));
   await new Promise((resolve) => {
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
@@ -94,7 +98,7 @@ const countsAt = (total, p, cards, trump, cell) => Array.from({ length: cards + 
  * Returns null for a cell nobody reached and that has no busy neighbours.
  */
 function probabilities(total, p, cards, trump, e, u, a) {
-  const eMax = keyBuckets(cards);
+  const eMax = keyBuckets(cards, jokers);
   const uMax = unclaimedBuckets(cards);
   // A cell that never came up (an impossible combination, or a freak one) stays empty: the AI falls back to the plain table.
   if (countsAt(total, p, cards, trump, { key: e, unclaimed: u, after: a }).every((n) => n === 0)) return null;
@@ -118,11 +122,11 @@ function probabilities(total, p, cards, trump, e, u, a) {
 }
 
 const deals = num(opts.deals);
-console.log(`${players.join(',')} players, ${deals.toLocaleString('en-GB')} deals`);
+console.log(`${players.join(',')} players, ${deals.toLocaleString('en-GB')} deals${jokers ? ', with Jokers' : ''}`);
 const started = Date.now();
 const total = await collect();
 console.log(`collected in ${Math.round((Date.now() - started) / 1000)}s; smoothing ...`);
-const model = { kind: 'bidding-context', version: 1, estimateSteps: ESTIMATE_STEPS, unclaimedMin: UNCLAIMED_MIN, afterBuckets: AFTER_BUCKETS, trainedOn: { deals, players, minN }, players: {} };
+const model = { kind: 'bidding-context', version: 1, estimateSteps: ESTIMATE_STEPS, unclaimedMin: UNCLAIMED_MIN, afterBuckets: AFTER_BUCKETS, trainedOn: { deals, players, minN, jokers }, players: {} };
 let made = 0;
 let missing = 0;
 for (const p of players) {
@@ -130,7 +134,7 @@ for (const p of players) {
   for (let cards = 1; cards <= MAX_CARDS; cards++) {
     model.players[p][cards] = {};
     TRUMP_ORDER.forEach((trump, trumpIndex) => {
-      const table = Array.from({ length: keyBuckets(cards) }, (_, e) =>
+      const table = Array.from({ length: keyBuckets(cards, jokers) }, (_, e) =>
         Array.from({ length: unclaimedBuckets(cards) }, (_, u) =>
           Array.from({ length: AFTER_BUCKETS }, (_, a) => {
             const row = probabilities(total, p, cards, trumpIndex, e, u, a);
@@ -143,7 +147,7 @@ for (const p of players) {
     });
   }
 }
-const file = path.resolve(opts.out);
+const file = path.resolve(outFile);
 fs.mkdirSync(path.dirname(file), { recursive: true });
 fs.writeFileSync(file, JSON.stringify(model));
-console.log(`Wrote ${opts.out}: ${made.toLocaleString('en-GB')} rows filled, ${missing.toLocaleString('en-GB')} cells never reached (the AI falls back to the plain bidding table there), ${(fs.statSync(file).size / 1048576).toFixed(1)} MB.`);
+console.log(`Wrote ${outFile}: ${made.toLocaleString('en-GB')} rows filled, ${missing.toLocaleString('en-GB')} cells never reached (the AI falls back to the plain bidding table there), ${(fs.statSync(file).size / 1048576).toFixed(1)} MB.`);
