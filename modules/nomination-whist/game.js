@@ -645,7 +645,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.turn = room.turn;
     view.forbidden = forbiddenNow(room);
     view.suggestion = suggestedNomination(room, me);
-    view.lastChance = room.phase === 'nominating' && room.turn === me && cannotWinOnPoints(nominateContext(room, me, () => 0.5));
+    // told only when it really is the one way to win: they cannot win on points and the suggestion is 7 (the dealer may be forbidden it)
+    view.lastChance = view.suggestion === 7 && cannotWinOnPoints(nominateContext(room, me, () => 0.5));
     const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
     view.legal = canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
   }

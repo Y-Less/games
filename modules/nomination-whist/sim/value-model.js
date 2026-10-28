@@ -31,8 +31,8 @@ export function valueModel(jokers = false, reload = false) {
 }
 
 /** What the table holds for this situation: an array with an entry per nomination, or null if it has none. */
-export function valueRow(model, ctx, boost = 0) {
-  const { key, unclaimed, after, regime } = valueCell(ctx, boost);
+export function valueRow(model, ctx) {
+  const { key, unclaimed, after, regime } = valueCell(ctx);
   return model.players[ctx.players]?.[regime]?.[ctx.hand.length]?.[key]?.[unclaimed]?.[after] ?? null;
 }
 
@@ -43,8 +43,8 @@ export const expectedPoints = (entry, bid, missPoints = true) => entry[0] * (10 
  * The allowed nomination with the best expected points, or null if the table knows nothing about the allowed ones here.
  * Only nominations the table has data for are considered.
  */
-export function bestByValue(model, ctx, boost = 0) {
-  const row = valueRow(model, ctx, boost);
+export function bestByValue(model, ctx) {
+  const row = valueRow(model, ctx);
   if (!row) return null;
   const { allowed, missPoints = true } = ctx;
   let best = null;

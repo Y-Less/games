@@ -23,12 +23,12 @@ function lastRound(scores) {
 describe('the last chance', () => {
   window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 
-  it('tells a player who cannot win on points to go for 7, and highlights a high suggestion', () => {
+  it('tells a player who cannot win on points to go for 7, and highlights 7', () => {
     const state = lastRound([0, 100, 90]);
     const w = mount(Table, { props: { state, send: send() }, attachTo: document.body });
     const marked = w.findAll('button.number').filter((b) => b.classes('suggested'));
-    expect(state.suggestion).toBeGreaterThanOrEqual(6); // every card's weight is turned up, so the suggestion is high
-    expect(marked.map((b) => b.text())).toEqual([String(state.suggestion)]);
+    expect(state.suggestion).toBe(7);
+    expect(marked.map((b) => b.text())).toEqual(['7']);
     expect(document.body.textContent).toContain('You can no longer win on points');
     expect(document.body.textContent).toContain('nominate 7');
     expect(document.body.textContent).not.toContain('Suggested nomination for your hand');

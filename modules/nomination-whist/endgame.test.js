@@ -1,6 +1,7 @@
 // The last chance: in the last round, with the instant win on, a player who cannot win on points has nothing to lose, because
-// only nominating 7 and taking all 7 tricks can win the game. That is not a rule: every card's weight in the hand estimate is
-// turned up, so the hand reads as very strong and each AI's own judgement nominates high (and then plays for every trick).
+// only nominating 7 and taking all 7 tricks can win the game. Every card's weight in the hand estimate is turned up, so the
+// hand reads as very strong: if that makes the nomination 7, it is 7 (and the player then plays for every trick); if 7 is not
+// allowed (a dealer may be forbidden it) the boost is dropped and the player nominates as usual.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as g from './game.js';
@@ -73,29 +74,22 @@ test("the boost is added to every card's weight, and only then", () => {
 
 const trying = [...AIS, ...SIM_AIS].filter((ai, i, all) => ai.id !== 'random' && all.findIndex((o) => o.id === ai.id) === i);
 
-test('with nothing to lose every AI that is trying to win nominates very high, even with a weak hand, and not otherwise', () => {
+test('with nothing to lose every AI that is trying to win nominates 7, even with a weak hand, and not otherwise', () => {
   assert.ok(trying.length >= 8, 'every AI is covered');
   for (const ai of trying) {
     for (const trump of ['H', null]) {
-      const desperate = ai.nominate(nominating([0, 100, 90], { trump }));
+      assert.equal(ai.nominate(nominating([0, 100, 90], { trump })), 7, `${ai.id} should go for the instant win`);
       const normal = ai.nominate(nominating([95, 100, 90], { trump }));
-      assert.ok(desperate >= 6, `${ai.id} nominated only ${desperate} with nothing to lose`);
       assert.ok(normal <= 3, `${ai.id} nominated ${normal} with a weak hand when it could still win`);
     }
   }
 });
 
-test('the rule-based AIs, whose estimates come straight from the weights, nominate exactly 7', () => {
-  for (const id of ['standard', 'cautious', 'optimist', 'counter', 'sharp']) {
-    const ai = AIS.find((a) => a.id === id);
-    assert.equal(ai.nominate(nominating([0, 100, 90])), 7, id);
-  }
-});
-
-test('a dealer who may not nominate 7 nominates the nearest number it may', () => {
+test('a dealer who may not nominate 7 nominates as usual, not the next best number', () => {
   const allowed = ALL.filter((n) => n !== 7);
-  for (const id of ['standard', 'cautious', 'optimist', 'counter', 'sharp']) {
-    assert.equal(AIS.find((a) => a.id === id).nominate(nominating([0, 100, 90], { allowed })), 6, id);
+  for (const ai of trying) {
+    const stuck = ai.nominate(nominating([0, 100, 90], { allowed }));
+    assert.ok(stuck <= 3, `${ai.id} nominated ${stuck}: a 6 can no more win the game than a 0`);
   }
 });
 
@@ -119,16 +113,13 @@ function lastRoundFor(scores, { seats = 3, seed = 5, settings = {} } = {}) {
   return room;
 }
 
-test('the person is told, and a high nomination is suggested, when they can no longer win on points', () => {
-  let high = 0;
+test('the person is told, and 7 is suggested, when they can no longer win on points', () => {
   for (let seed = 1; seed <= 40; seed++) {
     const room = lastRoundFor([0, 100, 90], { seed });
     const view = g.viewFor(room, 1);
     assert.equal(view.lastChance, true);
-    assert.ok(Number.isInteger(view.suggestion) && view.suggestion >= 0 && view.suggestion <= 7);
-    if (view.suggestion >= 6) high++;
+    assert.equal(view.suggestion, 7, `seed ${seed}`);
   }
-  assert.ok(high >= 38, `with every card boosted the suggestion is nearly always 6 or 7 (${high} of 40)`);
   const room = lastRoundFor([0, 100, 90]);
   assert.ok(g.nominate(room, 0, g.viewFor(room, 1).suggestion).ok);
   assert.equal(g.viewFor(room, 1).lastChance, false, 'only while it is their turn to nominate');
@@ -142,7 +133,7 @@ test('nobody is told it when they can still win, in an earlier round, with the o
   const can = g.viewFor(canWin, 1);
   assert.equal(can.lastChance, false);
   assert.ok(can.suggestion <= 3, `an ordinary suggestion for a weak hand (${can.suggestion})`);
-  assert.ok(g.viewFor(cannot, 1).suggestion >= 6, 'the same weak hand, with nothing to lose, is suggested a high nomination');
+  assert.equal(g.viewFor(cannot, 1).suggestion, 7, 'the same weak hand, with nothing to lose, is suggested 7');
   const early = lastRoundFor([0, 100, 90]);
   early.roundIndex = 9;
   g.dealRound(early, seeded(2));
@@ -151,19 +142,19 @@ test('nobody is told it when they can still win, in an earlier round, with the o
   assert.equal(g.viewFor(lastRoundFor([0, 100, 90]), 2).lastChance, false, 'a person whose turn it is not');
 });
 
-test('a dealer who may not nominate 7 is suggested the nearest number instead', () => {
+test('a dealer who may not nominate 7 is suggested the usual nomination, and not told it is their last chance', () => {
   const room = lastRoundFor([0, 100, 90]);
   room.dealer = 0;
   g.dealRound(room, seeded(3));
   while (room.turn !== 0) assert.ok(g.nominate(room, room.turn, 0).ok);
+  room.hands[0] = [...WEAK];
   const view = g.viewFor(room, 1);
   assert.equal(view.forbidden, 7);
-  assert.equal(view.lastChance, true, 'they still have nothing to lose');
-  assert.notEqual(view.suggestion, 7);
-  assert.ok(view.suggestion >= 5, `suggested ${view.suggestion}`);
+  assert.equal(view.lastChance, false, '7 is not a number they may nominate');
+  assert.ok(view.suggestion <= 3, `suggested ${view.suggestion} for a weak hand`);
 });
 
-test('computer players in the last round nominate very high when they cannot win on points, whatever their hands', () => {
+test('computer players in the last round nominate 7 when they cannot win on points, whatever their hands', () => {
   let high = 0;
   let behind = 0;
   for (let seed = 1; seed <= 30; seed++) {
@@ -173,29 +164,36 @@ test('computer players in the last round nominate very high when they cannot win
     while (room.phase === 'nominating' && guard++ < 10) {
       const seat = room.turn;
       const number = g.botNominate(room, seat, rng);
-      if (seat !== 0) {
+      if (seat !== 0 && room.seats[seat].ai !== 'random') {
         behind++;
-        if (number >= 6) high++;
+        if (number === 7) high++;
       }
       assert.ok(g.nominate(room, seat, number).ok);
     }
   }
-  assert.ok(high >= behind - 3, `${high} of ${behind} nominated 6 or 7`);
+  assert.equal(high, behind, `${high} of ${behind} nominated 7`);
+  assert.ok(behind > 30, `${behind} computer nominations were checked (Random ignores the last chance by design)`);
 });
 
-test('in whole simulated games, every AI that cannot win on points nominates high', () => {
+test('in whole simulated games, every AI that cannot win on points nominates 7 when it may, and not otherwise', () => {
   const rng = mulberry32(17);
   const ais = SIM_AIS.filter((ai) => ai.id !== 'random' && !ai.id.endsWith('-sharp') && ai.id !== 'sharp');
   let situations = 0;
-  let high = 0;
+  let sevens = 0;
+  let forbidden = 0;
   for (let game = 0; game < 400; game++) {
     const lineup = Array.from({ length: 3 + (game % 5) }, (_, i) => ais[(game + i) % ais.length]);
     playGame({ ais: lineup, instantWin: true }, rng, (event) => {
       if (event.type !== 'nominate' || !cannotWinOnPoints(event.context)) return;
       situations++;
-      if (event.nomination >= 5) high++; // a dealer forbidden 7 may be left with 6 or a little less
+      if (event.context.allowed.includes(7)) {
+        assert.equal(event.nomination, 7, `${lineup[event.seat].id} had nothing to lose`);
+        sevens++;
+      } else {
+        forbidden++; // 7 is not allowed: the boost is dropped and the AI nominates as usual
+      }
     });
   }
   assert.ok(situations > 50, `the situation comes up (${situations})`);
-  assert.ok(high >= situations * 0.95, `${high} of ${situations} nominated high`);
+  assert.ok(sevens > 40, `most of them could nominate 7 (${sevens} of ${situations}, ${forbidden} forbidden it)`);
 });

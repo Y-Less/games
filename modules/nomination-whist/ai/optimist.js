@@ -1,6 +1,6 @@
 // Over-nominates: it assumes the cards will fall its way, and fights for every trick it has promised.
 import { nearestAllowed } from './cards.js';
-import { lastChanceBoost } from './endgame.js';
+import { withLastChance } from './endgame.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
 export const optimist = {
@@ -11,8 +11,7 @@ export const optimist = {
   nominate(ctx) {
     const { hand, trump, players, allowed, instantWin = false, rng = Math.random } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
-    const estimate = estimateTricks(hand, trump, players, lastChanceBoost(ctx)) * 1.1 + 0.45 + (rng() - 0.5) * 0.3;
-    return nearestAllowed(allowed, Math.min(hand.length, estimate));
+    return withLastChance(ctx, (boost) => nearestAllowed(allowed, Math.min(hand.length, estimateTricks(hand, trump, players, boost) * 1.1 + 0.45 + (rng() - 0.5) * 0.3)));
   },
   play: (ctx) => chooseCard(ctx),
 };

@@ -4,7 +4,7 @@
 import { suitOf } from '../../../shared/cards.js';
 import { ledSuit, legalCards } from '../trick.js';
 import { nearestAllowed, unseenCards, winningCard } from './cards.js';
-import { lastChanceBoost } from './endgame.js';
+import { withLastChance } from './endgame.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
 const NOMINATE_SAMPLES = 36;
@@ -106,6 +106,26 @@ function knownVoids(trickPlays) {
 
 const bestIndex = (values) => values.reduce((best, value, i) => (value > values[best] ? i : best), 0);
 
+/** The nomination with the best average score over many deals of the unseen cards, among those near the hand's estimate (`centre`). */
+function sampledNomination({ hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true }, centre) {
+  const cards = hand.length;
+  const candidates = allowed.filter((n) => Math.abs(n - centre) <= 2.2 || n === 0);
+  if (candidates.length <= 1) return candidates[0] ?? nearestAllowed(allowed, centre);
+  const unseen = unseenCards(hand, [], jokers);
+  const others = Array.from({ length: players }, (_, s) => s).filter((s) => s !== seat);
+  const totals = candidates.map(() => 0);
+  for (let n = 0; n < NOMINATE_SAMPLES; n++) {
+    const dealt = dealUnseen(unseen, others.map((s) => ({ seat: s, count: cards, voids: [] })), rng);
+    const hands = Array.from({ length: players }, (_, s) => (s === seat ? hand : dealt[s]));
+    const bids = hands.map((h, s) => nominations[s] ?? clamp(Math.round(estimateTricks(h, trump, players)), 0, cards));
+    candidates.forEach((candidate, i) => {
+      const taken = playOut({ hands, trick: [], turn: (dealer + 1) % players, taken: Array(players).fill(0), bids: bids.map((b, s) => (s === seat ? candidate : b)), trump, players, played: [], jokers });
+      totals[i] += roundPoints(candidate, taken[seat], { missPoints, instantWin, cards });
+    });
+  }
+  return candidates[bestIndex(totals)];
+}
+
 export const sharp = {
   id: 'sharp',
   name: 'Sharp',
@@ -113,28 +133,13 @@ export const sharp = {
   weight: 1.5,
 
   nominate(ctx) {
-    const { hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true } = ctx;
+    const { hand, trump, players, allowed, instantWin = false } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
-    const cards = hand.length;
-    const boost = lastChanceBoost(ctx);
-    const centre = estimateTricks(hand, trump, players, boost);
-    // nothing to lose and only an instant win can win: read the hand at its boosted weight, which is all there is to say
-    if (boost) return nearestAllowed(allowed, centre);
-    const candidates = allowed.filter((n) => Math.abs(n - centre) <= 2.2 || n === 0);
-    if (candidates.length <= 1) return candidates[0] ?? nearestAllowed(allowed, centre);
-    const unseen = unseenCards(hand, [], jokers);
-    const others = Array.from({ length: players }, (_, s) => s).filter((s) => s !== seat);
-    const totals = candidates.map(() => 0);
-    for (let n = 0; n < NOMINATE_SAMPLES; n++) {
-      const dealt = dealUnseen(unseen, others.map((s) => ({ seat: s, count: cards, voids: [] })), rng);
-      const hands = Array.from({ length: players }, (_, s) => (s === seat ? hand : dealt[s]));
-      const bids = hands.map((h, s) => nominations[s] ?? clamp(Math.round(estimateTricks(h, trump, players)), 0, cards));
-      candidates.forEach((candidate, i) => {
-        const taken = playOut({ hands, trick: [], turn: (dealer + 1) % players, taken: Array(players).fill(0), bids: bids.map((b, s) => (s === seat ? candidate : b)), trump, players, played: [], jokers });
-        totals[i] += roundPoints(candidate, taken[seat], { missPoints, instantWin, cards });
-      });
-    }
-    return candidates[bestIndex(totals)];
+    return withLastChance(ctx, (boost) => {
+      const centre = estimateTricks(hand, trump, players, boost);
+      // nothing to lose and only an instant win can win: read the hand at its boosted weight, which is all there is to say
+      return boost ? nearestAllowed(allowed, centre) : sampledNomination(ctx, centre);
+    });
   },
 
   play(ctx) {

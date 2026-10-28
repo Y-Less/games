@@ -144,7 +144,10 @@ queen and a low heart, nominating 2 (6.2) beats 1 (5.1).
 ## The last chance (`ai/endgame.js`)
 
 In the last round with the instant win on, a player who cannot win on points (even 17, the most a round gives, leaves them behind
-the best of the others) can only win by nominating 7 and taking all 7 tricks, so there is nothing to lose. This is not a rule:
-every card's weight in the AIs' hand estimates is turned up (`lastChanceBoost`, added to the estimate in `estimateTricks`,
-`countTricks` and the table lookups), so the hand reads as very strong and each AI nominates high, then plays for every trick.
-The person is told in their Status box and the suggestion is set high. Random ignores it.
+the best of the others) can only win by nominating 7 and taking all 7 tricks, so there is nothing to lose. This is not a rule that
+forces a nomination: every card's weight in the hand estimate is turned up (`LAST_CHANCE_BOOST`, added in `estimateTricks`, and
+`countTricks`), so even a mediocre hand reads as very strong. **If those boosted weights give a nomination of 7, the player nominates
+7 and then plays for every trick; if they do not (a dealer who may not nominate 7, say) the boost is dropped and the player nominates
+as usual**, because a 6 can no more win the game than a 0. `withLastChance(ctx, decide)` does this for every AI (the table-based
+AIs read the boosted hand straight from its weights rather than from their tables, which are about points); Random ignores it.
+The person is told in their Status box, only when 7 really is what is suggested.

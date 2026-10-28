@@ -34,8 +34,8 @@ function keyOf(ctx, base) {
   return base.key;
 }
 
-/** The cell for a nomination: `hand`, `trump`, `players` and the `nominations` so far, as the AIs are given them (`boost`: see cellOf). */
-export function valueCell(ctx, boost = 0) {
-  const base = cellOf(ctx, boost);
+/** The cell for a nomination: `hand`, `trump`, `players` and the `nominations` so far, as the AIs are given them. */
+export function valueCell(ctx) {
+  const base = cellOf(ctx);
   return { key: keyOf(ctx, base), unclaimed: base.unclaimed, after: base.after, regime: ctx.trump ? 1 : 0 };
 }

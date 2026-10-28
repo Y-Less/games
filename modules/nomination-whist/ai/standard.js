@@ -2,7 +2,7 @@
 // sockets. game.js decides what is legal; everything here picks from a list it is given, so it can never cheat.
 import { isJoker, rankValue, suitOf, SUITS } from '../../../shared/cards.js';
 import { highest, isMaster, lowest, nearestAllowed, winningCard } from './cards.js';
-import { lastChanceBoost } from './endgame.js';
+import { withLastChance } from './endgame.js';
 
 const TRUMP_VALUE = { 14: 0.95, 13: 0.8, 12: 0.62, 11: 0.48, 10: 0.36, 9: 0.26 };
 const SIDE_ACE = { trumps: 0.72, none: 0.9 };
@@ -59,8 +59,7 @@ export function canTakeAllSeven(hand, trump) {
 export function chooseNomination(ctx) {
   const { hand, trump, players, allowed, instantWin = false, rng = Math.random } = ctx;
   const goForIt = instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump);
-  const estimate = goForIt ? 7 : estimateTricks(hand, trump, players, lastChanceBoost(ctx)) + (rng() - 0.5) * 0.3;
-  return nearestAllowed(allowed, estimate);
+  return withLastChance(ctx, (boost) => nearestAllowed(allowed, goForIt ? 7 : estimateTricks(hand, trump, players, boost) + (rng() - 0.5) * 0.3));
 }
 
 /**

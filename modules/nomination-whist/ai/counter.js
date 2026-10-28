@@ -2,7 +2,7 @@
 // that both to nominate and to decide when to win and when to duck.
 import { isJoker, rankValue, suitOf } from '../../../shared/cards.js';
 import { highest, lowest, nearestAllowed, strength, unseenCards, winningCard } from './cards.js';
-import { lastChanceBoost } from './endgame.js';
+import { withLastChance } from './endgame.js';
 import { canTakeAllSeven } from './standard.js';
 
 /**
@@ -46,7 +46,7 @@ export const counter = {
   nominate(ctx) {
     const { hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
-    return nearestAllowed(allowed, countTricks(hand, trump, players, [], jokers, lastChanceBoost(ctx)) + (rng() - 0.5) * 0.2);
+    return withLastChance(ctx, (boost) => nearestAllowed(allowed, countTricks(hand, trump, players, [], jokers, boost) + (rng() - 0.5) * 0.2));
   },
   play({ hand, legal, trick, trump, played, need, players, jokers = false }) {
     if (legal.length === 1) return legal[0];
