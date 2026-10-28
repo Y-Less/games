@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { cardBackCss, changePassword, session, updateProfile, uploadBackground, uploadCardBack } from '../session.js';
+import { RouterLink } from 'vue-router';
+import { cardBackCss, changePassword, owns, session, updateProfile, uploadBackground, uploadCardBack } from '../session.js';
 
 const displayName = ref(session.user.displayName);
 const current = computed(() => session.user.background);
@@ -73,9 +74,10 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
           v-for="(css, key) in session.presets"
           :key="key"
           class="swatch"
-          :class="{ chosen: isPreset(key) }"
+          :class="{ chosen: isPreset(key), locked: !owns(`bg:${key}`) }"
           :style="{ backgroundImage: css }"
-          :title="key"
+          :title="owns(`bg:${key}`) ? key : `${key}: buy it in the shop`"
+          :disabled="!owns(`bg:${key}`)"
           :aria-label="`${key} background`"
           :aria-pressed="isPreset(key)"
           @click="choose({ type: 'preset', value: key })"
@@ -83,23 +85,26 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       </div>
 
       <h3>A colour</h3>
+      <p v-if="!owns('bg-colour')" class="muted">Unlock this in the <RouterLink to="/shop">shop</RouterLink>.</p>
       <div class="row">
-        <input v-model="colour" type="color" class="colour" aria-label="Background colour" />
-        <button @click="choose({ type: 'colour', value: colour })">Use this colour</button>
+        <input v-model="colour" type="color" class="colour" aria-label="Background colour" :disabled="!owns('bg-colour')" />
+        <button :disabled="!owns('bg-colour')" @click="choose({ type: 'colour', value: colour })">Use this colour</button>
       </div>
 
       <h3>A gradient</h3>
+      <p v-if="!owns('bg-gradient')" class="muted">Unlock this in the <RouterLink to="/shop">shop</RouterLink>.</p>
       <div class="row">
-        <input v-model="gradient.from" type="color" class="colour" aria-label="Gradient start" />
-        <input v-model="gradient.to" type="color" class="colour" aria-label="Gradient end" />
-        <label class="angle">Angle <input v-model.number="gradient.angle" type="range" min="0" max="360" /></label>
+        <input v-model="gradient.from" type="color" class="colour" aria-label="Gradient start" :disabled="!owns('bg-gradient')" />
+        <input v-model="gradient.to" type="color" class="colour" aria-label="Gradient end" :disabled="!owns('bg-gradient')" />
+        <label class="angle">Angle <input v-model.number="gradient.angle" type="range" min="0" max="360" :disabled="!owns('bg-gradient')" /></label>
         <span class="preview" :style="{ backgroundImage: `linear-gradient(${gradient.angle}deg, ${gradient.from}, ${gradient.to})` }" />
-        <button @click="choose({ type: 'gradient', ...gradient })">Use this gradient</button>
+        <button :disabled="!owns('bg-gradient')" @click="choose({ type: 'gradient', ...gradient })">Use this gradient</button>
       </div>
 
       <h3>Your own picture</h3>
-      <p class="muted">PNG, JPEG or WebP, up to 3 MB.</p>
-      <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a background picture" @change="upload" />
+      <p v-if="!owns('bg-upload')" class="muted">Unlock this in the <RouterLink to="/shop">shop</RouterLink>.</p>
+      <p v-else class="muted">PNG, JPEG or WebP, up to 3 MB.</p>
+      <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a background picture" :disabled="!owns('bg-upload')" @change="upload" />
     </div>
 
     <div class="panel stack">
@@ -110,9 +115,10 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
           v-for="(css, key) in session.cardBacks"
           :key="key"
           class="back"
-          :class="{ chosen: isBackPreset(key) }"
+          :class="{ chosen: isBackPreset(key), locked: !owns(`cb:${key}`) }"
           :style="{ background: css }"
-          :title="key"
+          :title="owns(`cb:${key}`) ? key : `${key}: buy it in the shop`"
+          :disabled="!owns(`cb:${key}`)"
           :aria-label="`${key} card back`"
           :aria-pressed="isBackPreset(key)"
           @click="chooseCardBack({ type: 'preset', value: key })"
@@ -120,8 +126,9 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
         <span v-if="session.user.cardBack.type === 'image'" class="back chosen" :style="{ background: cardBackCss(session.user.cardBack) }" title="Your picture" />
       </div>
       <h3>Your own picture</h3>
-      <p class="muted">PNG, JPEG or WebP, up to 3 MB. Portrait pictures fit best.</p>
-      <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a card back picture" @change="uploadBack" />
+      <p v-if="!owns('cb-upload')" class="muted">Unlock this in the <RouterLink to="/shop">shop</RouterLink>.</p>
+      <p v-else class="muted">PNG, JPEG or WebP, up to 3 MB. Portrait pictures fit best.</p>
+      <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a card back picture" :disabled="!owns('cb-upload')" @change="uploadBack" />
     </div>
 
     <form class="panel stack" @submit.prevent="savePassword">
@@ -175,6 +182,11 @@ h3 {
   padding: 0;
   background-size: cover;
   border: 2px solid var(--line);
+}
+.swatch.locked,
+.back.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .swatch.chosen {
   border-color: var(--amber);

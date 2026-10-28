@@ -7,6 +7,7 @@ export const session = reactive({
   games: [],
   presets: {},
   cardBacks: {},
+  shop: null, // { balance, items: [{ id, type, name, price, owned }] } once fetched: what is for sale and your coins
 });
 
 /** A `next` address that is safe to go to: a path on this site only (never an absolute URL, '//host' or '/\\host'). Otherwise '/'. */
@@ -54,8 +55,31 @@ export function applyBackground(background) {
 
 function setUser(user) {
   session.user = user;
+  if (!user) session.shop = null;
   applyBackground(user?.background);
   document.documentElement.style.setProperty('--card-back', cardBackCss(user?.cardBack));
+}
+
+/** Fetches the shop's listing and your coin balance (call again after anything that can change them). */
+export async function refreshShop() {
+  if (!session.user) return;
+  try {
+    session.shop = await api('GET', '/api/shop');
+  } catch {
+    // the balance and locks just stay as they were
+  }
+}
+
+/** Whether you may use an item: true for anything not known to be for sale (before the listing has arrived, nothing is locked). */
+export function owns(itemId) {
+  const item = session.shop?.items.find((i) => i.id === itemId);
+  return item ? item.owned : true;
+}
+
+/** Buys an item with coins. Throws with the server's reason (not enough coins ...). */
+export async function buy(itemId) {
+  await api('POST', '/api/shop/buy', { item: itemId });
+  await refreshShop();
 }
 
 export async function loadSession() {
@@ -65,6 +89,7 @@ export async function loadSession() {
     session.presets = config.backgrounds;
     session.cardBacks = config.cardBacks;
     setUser(me.user);
+    await refreshShop();
   } finally {
     session.ready = true;
   }

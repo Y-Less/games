@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { session, signOut } from './session.js';
+import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
 
 const route = useRoute();
@@ -10,6 +10,8 @@ const menuOpen = ref(false);
 const playing = computed(() => route.name === 'play');
 const offer = computed(() => (playing.value ? leaveOffer() : null));
 const confirming = ref(false);
+// Coins can change whenever a game ends, so the balance is read again on every page change.
+watch(() => route.fullPath, () => refreshShop());
 watch(offer, (now) => {
   if (!now) confirming.value = false;
 });
@@ -37,6 +39,7 @@ async function leaveSite() {
       <nav v-if="session.user" class="links" aria-label="Main">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">Games</RouterLink>
         <RouterLink to="/stats" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
+        <RouterLink to="/shop" :class="{ on: route.name === 'shop' }">Shop</RouterLink>
       </nav>
 
       <div v-if="playing && playBar.game" class="game-bar">
@@ -54,10 +57,14 @@ async function leaveSite() {
         <button v-if="playBar.game.hasRules" class="quiet" @click="playBar.game.openRules()">Rules</button>
       </div>
 
+      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :title="`${session.shop.balance} coins: spend them in the shop`" aria-label="Your coins">
+        <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
+      </RouterLink>
       <div v-if="session.user" class="account">
         <button class="quiet" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">{{ session.user.displayName }} ▾</button>
         <div v-if="menuOpen" class="dropdown panel" @click="menuOpen = false">
-          <RouterLink to="/profile">Profile and background</RouterLink>
+          <RouterLink to="/profile">Profile</RouterLink>
+          <RouterLink to="/shop">Shop</RouterLink>
           <RouterLink to="/stats">My statistics</RouterLink>
           <button class="quiet" @click="leaveSite">Sign out</button>
         </div>
@@ -124,6 +131,26 @@ async function leaveSite() {
 }
 .game-bar button {
   padding: 0.3rem 0.9rem;
+}
+.coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  color: var(--amber);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.coin {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe08a, #c79a3b 70%);
+  box-shadow: inset 0 0 0 2px #9c7425;
+}
+.coins + .account,
+.game-bar + .coins {
+  margin-left: 0;
 }
 .game-bar + .account {
   margin-left: 0;

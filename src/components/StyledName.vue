@@ -9,9 +9,10 @@ import { profileOf } from '../profiles.js';
 const props = defineProps({
   name: { type: String, required: true },
   userId: { type: Number, default: null },
+  styleId: { type: String, default: null }, // show this style whatever the player owns (the shop's previews)
 });
 
-const style = computed(() => nameStyleById(profileOf(props.userId)?.nameStyle?.style));
+const style = computed(() => nameStyleById(props.styleId ?? profileOf(props.userId)?.nameStyle?.style));
 const styled = computed(() => style.value.id !== 'plain');
 const css = computed(() =>
   styled.value ? { '--ns-border': style.value.border, '--ns-fill': style.value.fill, ...(style.value.text ? { '--ns-text': style.value.text } : {}) } : undefined,
