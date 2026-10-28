@@ -63,8 +63,6 @@ const boxWidth = computed(() => (props.straight ? `${(props.max - 1) * props.ove
 .fan.straight .fan-card {
   transform-origin: 50% 50%;
 }
-/* Only the hovered card jumps in front; a selected one stays raised in its own place so it never covers its neighbours. */
-.fan-card:hover {
-  z-index: 50 !important;
-}
+/* A hovered or selected card only rises (PlayingCard); it keeps its own place in the stacking order, so it never
+   covers its neighbours. */
 </style>
