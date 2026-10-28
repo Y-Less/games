@@ -38,7 +38,7 @@ async function oldDatabase(dir) {
 test('a new database has every table, foreign keys on and WAL journalling', (t) => {
   const { dir, track } = workspace(t);
   const db = track(openDatabase(dir));
-  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'result_players', 'results', 'sessions', 'users']);
+  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users']);
   assert.ok(columnsOf(db).includes('card_back'));
   assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
   assert.equal(db.prepare('PRAGMA journal_mode').get().journal_mode, 'wal');
@@ -79,7 +79,7 @@ test('a database created without the card_back column gets it on open, and keeps
   assert.equal(migrated.displayName, 'Old Timer');
   assert.deepEqual(migrated.background, { type: 'preset', value: 'forest' }, 'existing settings are untouched');
   assert.deepEqual(migrated.cardBack, { type: 'preset', value: 'crimson' }, 'the new column has its default');
-  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'result_players', 'results', 'sessions', 'users'], 'the newer tables were added');
+  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users'], 'the newer tables were added');
   assert.equal(createAuth(db).updateProfile(user.id, { cardBack: { type: 'preset', value: 'gold' } }).cardBack.value, 'gold');
   const login = await createAuth(db).login({ username: 'veteran', password: 'old password' });
   assert.equal(login.user.id, user.id, 'the old password still works');
@@ -88,15 +88,20 @@ test('a database created without the card_back column gets it on open, and keeps
 test('the whole site starts on an old database, and an old session still works after the migration', async (t) => {
   const { dir, track } = workspace(t);
   const { token } = await oldDatabase(dir);
-  const { client, close } = await withSite(t, { dataDir: dir });
+  const { client, close, site } = await withSite(t, { dataDir: dir, shopLocked: true });
   track({ close });
   const c = client();
   c.setCookie(`sid=${token}`);
   const me = (await c.get('/api/me')).data.user;
   assert.equal(me.username, 'veteran');
   assert.deepEqual(me.cardBack, { type: 'preset', value: 'crimson' });
+  assert.deepEqual(me.background, { type: 'preset', value: 'forest' }, 'what they already used is theirs to keep');
+  assert.equal((await c.patch('/api/me', { cardBack: { type: 'preset', value: 'teal' } })).status, 403, 'but the rest is for sale');
+  site.db.prepare("INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, 'cb:teal', 0)").run(me.id);
   assert.equal((await c.patch('/api/me', { cardBack: { type: 'preset', value: 'teal' } })).data.user.cardBack.value, 'teal');
   assert.equal((await register(client(), 'newcomer', 'password1')).data.user.cardBack.value, 'crimson');
+  const owned = site.db.prepare('SELECT item_id FROM owned_items WHERE user_id = ? ORDER BY item_id').all(me.id).map((r) => r.item_id);
+  assert.deepEqual(owned, ['bg:forest', 'cb:teal']);
 });
 
 test('deleting a user removes their sessions (cascade)', async (t) => {

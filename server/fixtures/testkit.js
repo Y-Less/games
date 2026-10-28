@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../index.js';
+import { allItems } from '../shop.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const fixtureModules = path.join(here, 'modules');
@@ -89,9 +90,18 @@ export function rawRequest(base, { method = 'GET', path: requestPath, headers = 
   });
 }
 
+/** Makes every account created from now on own everything that is for sale, so tests that are not about the shop can ignore it. */
+export function unlockEverything(db) {
+  const rows = allItems()
+    .filter((item) => item.price > 0)
+    .map((item) => `(NEW.id, '${item.id.replace(/'/g, "''")}', 0)`)
+    .join(', ');
+  db.exec(`CREATE TRIGGER IF NOT EXISTS test_unlock_everything AFTER INSERT ON users BEGIN INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) VALUES ${rows}; END;`);
+}
+
 /**
  * Starts a real site on a spare port in its own data folder. Options: modulesDir, distDir, env (set only while the
- * site starts, for TRUST_PROXY), dataDir, port. Returns { site, base, dataDir, logs, client(), close }.
+ * site starts, for TRUST_PROXY), dataDir, port, shopLocked (new accounts own nothing that is for sale). Returns { site, base, dataDir, logs, client(), close }.
  */
 export async function withSite(t, options = {}) {
   const ownDir = !options.dataDir;
@@ -117,6 +127,8 @@ export async function withSite(t, options = {}) {
       else process.env[key] = value;
     }
   }
+  // Most tests are not about the shop, so by default every new account owns everything on sale.
+  if (!options.shopLocked) unlockEverything(site.db);
   const base = `http://127.0.0.1:${site.port}`;
   let closed = false;
   const close = async () => {

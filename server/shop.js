@@ -1,0 +1,115 @@
+// The shop: what can be bought with coins, and who owns what. Free items (price 0) belong to everyone. Everything a
+// player can choose on their profile (a background, a card back ...) is an item here, and the server refuses to save a
+// choice the player does not own.
+import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS } from './auth.js';
+import { createCoins } from './coins.js';
+import { transaction } from './db.js';
+
+/** Items in the order the shop lists them: { id, type, name, price }. Add new kinds of item with `add`. */
+const catalogue = [];
+const byId = new Map();
+function add(item) {
+  if (byId.has(item.id)) throw new Error(`Duplicate shop item "${item.id}"`);
+  catalogue.push(item);
+  byId.set(item.id, item);
+}
+
+const titled = (key) => key[0].toUpperCase() + key.slice(1);
+const BACKGROUND_PRICES = { night: 0, slate: 300, dusk: 500, forest: 500, ocean: 500, ember: 500 };
+const CARD_BACK_PRICE = 300;
+
+for (const key of Object.keys(BACKGROUND_PRESETS)) {
+  add({ id: `bg:${key}`, type: 'background', name: titled(key), price: BACKGROUND_PRICES[key] ?? 500 });
+}
+add({ id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800 });
+add({ id: 'bg-gradient', type: 'unlock', name: 'Your own gradient', price: 1000 });
+add({ id: 'bg-upload', type: 'unlock', name: 'Your own background picture', price: 2000 });
+for (const key of Object.keys(CARD_BACK_PRESETS)) {
+  add({ id: `cb:${key}`, type: 'card-back', name: titled(key), price: key === 'crimson' ? 0 : CARD_BACK_PRICE });
+}
+add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
+
+/** Another module adds its own items (name styles, avatar parts ...) here once, when the site starts. */
+export const registerItems = (items) => items.forEach(add);
+
+export const itemById = (id) => byId.get(id) ?? null;
+export const allItems = () => catalogue.slice();
+
+/** The item that a saved background setting needs, or null when it needs nothing. */
+export function itemForBackground(background) {
+  if (background?.type === 'preset') return `bg:${background.value}`;
+  if (background?.type === 'colour') return 'bg-colour';
+  if (background?.type === 'gradient') return 'bg-gradient';
+  if (background?.type === 'image') return 'bg-upload';
+  return null;
+}
+
+/** The item that a saved card-back setting needs. */
+export const itemForCardBack = (cardBack) => (cardBack?.type === 'image' ? 'cb-upload' : `cb:${cardBack?.value}`);
+
+/** Whether a user may use an item: it is free, or they have bought it. An unknown item is never owned. */
+export function owns(db, userId, itemId) {
+  const item = byId.get(itemId);
+  if (!item) return false;
+  if (item.price === 0) return true;
+  return Boolean(db.prepare('SELECT 1 FROM owned_items WHERE user_id = ? AND item_id = ?').get(userId, itemId));
+}
+
+/**
+ * Gives every user the items their current settings need, so introducing the shop takes nothing away from anyone.
+ * Safe to run on every start: it only adds what is missing.
+ */
+export function grandfather(db) {
+  const grant = db.prepare('INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)');
+  const parse = (text) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  };
+  for (const row of db.prepare('SELECT id, background, card_back FROM users').all()) {
+    for (const itemId of [itemForBackground(parse(row.background)), itemForCardBack(parse(row.card_back))]) {
+      if (itemId && byId.has(itemId) && byId.get(itemId).price > 0) grant.run(row.id, itemId, Date.now());
+    }
+  }
+}
+
+/** A refused shop request; an AuthError, so the site turns it into a JSON reply with its status. */
+export class ShopError extends AuthError {}
+
+/** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
+export function checkSettings(db, userId, { background, cardBack }) {
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack)]) {
+    if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
+  }
+}
+
+export function createShop(db) {
+  const coins = createCoins(db);
+  return {
+    owns: (userId, itemId) => owns(db, userId, itemId),
+
+    /** Everything on sale, with whether this user owns each item, and their balance. */
+    listing(userId) {
+      const owned = new Set(db.prepare('SELECT item_id FROM owned_items WHERE user_id = ?').all(userId).map((r) => r.item_id));
+      return {
+        balance: coins.balance(userId),
+        items: catalogue.map((item) => ({ ...item, owned: item.price === 0 || owned.has(item.id) })),
+      };
+    },
+
+    /** Buys an item for the user. Refuses unknown items, items already owned, and prices they cannot afford. */
+    buy(userId, itemId) {
+      const item = typeof itemId === 'string' ? byId.get(itemId) : null;
+      if (!item) throw new ShopError('There is no such item.', 404);
+      return transaction(db, () => {
+        if (owns(db, userId, itemId)) throw new ShopError('You already have that.', 409);
+        if (coins.balance(userId) < item.price) throw new ShopError('You do not have enough coins for that.', 402);
+        coins.spend(userId, item.price, `shop:${item.id}`);
+        db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)').run(userId, item.id, Date.now());
+        return { item, balance: coins.balance(userId) };
+      });
+    },
+  };
+}

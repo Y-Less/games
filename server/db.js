@@ -42,6 +42,12 @@ CREATE TABLE IF NOT EXISTS coin_ledger (
   result_id INTEGER REFERENCES results(id) ON DELETE SET NULL,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS owned_items (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL,
+  bought_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, item_id)
+);
 CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
 -- A game pays a player once, even if it were recorded twice.
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_once ON coin_ledger (user_id, result_id) WHERE reason = 'placement';

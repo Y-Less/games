@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from './index.js';
+import { unlockEverything } from './fixtures/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const modulesDir = path.join(here, 'fixtures', 'modules');
@@ -14,6 +15,7 @@ const modulesDir = path.join(here, 'fixtures', 'modules');
 async function withSite(t) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hub-test-'));
   const site = await startSite({ port: 0, dataDir, modulesDir, log: () => {} });
+  unlockEverything(site.db);
   const base = `http://127.0.0.1:${site.port}`;
   t.after(async () => {
     await site.close();

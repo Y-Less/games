@@ -93,7 +93,12 @@ function publicUser(row) {
   return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack };
 }
 
-export function createAuth(db) {
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object }) => void }} [options]
+ *   canUse throws when a profile change uses something the user has not bought (the shop supplies it; tests may omit it).
+ */
+export function createAuth(db, { canUse = () => {} } = {}) {
   const attempts = new Map(); // "ip|username" -> { count, first }: slows down password guessing
 
   function throttle(key) {
@@ -181,6 +186,7 @@ export function createAuth(db) {
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
       if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
+      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack });
       if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
       if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);

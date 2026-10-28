@@ -9,6 +9,7 @@ import { Server } from 'socket.io';
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, clearedCookie, parseCookies, SESSION_COOKIE, sessionCookie, createAuth } from './auth.js';
 import { openDatabase } from './db.js';
 import { loadModules } from './modules.js';
+import { checkSettings, createShop, grandfather } from './shop.js';
 import { createStats } from './stats.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,7 +34,9 @@ export async function startSite(options = {}) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 
   const db = openDatabase(options.memory ? ':memory:' : dataDir);
-  const auth = createAuth(db);
+  grandfather(db); // whoever already uses something now sold in the shop keeps it
+  const auth = createAuth(db, { canUse: (userId, settings) => checkSettings(db, userId, settings) });
+  const shop = createShop(db);
   let moduleList = [];
   const stats = createStats(db, () => moduleList);
 
@@ -118,6 +121,8 @@ export async function startSite(options = {}) {
       requireUser,
       express.raw({ type: Object.keys(IMAGE_TYPES), limit: '3mb' }),
       handler(async (req, res) => {
+        // Check the unlock before anything is written to disk.
+        checkSettings(db, req.user.id, { [setting]: { type: 'image' } });
         const type = IMAGE_TYPES[req.headers['content-type']?.split(';')[0]];
         if (!type || !Buffer.isBuffer(req.body) || !req.body.length) throw new AuthError('Please upload a PNG, JPEG or WebP image (up to 3 MB).', 415);
         if (!type.magic(req.body)) throw new AuthError('That file is not really an image of that type.', 415);
@@ -130,7 +135,10 @@ export async function startSite(options = {}) {
   imageUpload('/me/background-image', 'bg', 'background');
   imageUpload('/me/card-back-image', 'cb', 'cardBack');
 
-  api.get('/stats/me', requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
+  api.get('/shop', requireUser, (req, res) => res.json(shop.listing(req.user.id)));
+  api.post('/shop/buy', requireUser, handler(async (req, res) => res.json(shop.buy(req.user.id, req.body?.item))));
+
+  api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
   api.get('/stats/leaderboard/:game', requireUser, (req, res) => {
     if (!moduleList.some((g) => g.id === req.params.game)) return res.status(404).json({ error: 'No such game.' });
     res.json({ leaderboard: stats.leaderboard(req.params.game) });
