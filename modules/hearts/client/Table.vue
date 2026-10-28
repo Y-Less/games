@@ -145,6 +145,9 @@ async function confirmPass() {
   if (reply.ok) picks.value = [];
 }
 
+// Once you have passed, those cards are gone from your hand while the others choose (the fan keeps its size, see `max`).
+const shownHand = computed(() => (passing.value && s.value.pass.chosen ? s.value.hand.filter((card) => !s.value.pass.chosen.includes(card)) : s.value.hand));
+
 const interactive = computed(() => (passing.value && !s.value.pass.chosen) || myTurn.value);
 const dimmed = (card) => myTurn.value && s.value.legal[card] !== null;
 const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
@@ -234,7 +237,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" :class="{ fanned: area.minimised }" role="group" :style="handStyle(area.minimised)" aria-label="Your hand" :items="state.hand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!area.minimised">
+        <CardFan class="my-fan hand" :class="{ fanned: area.minimised }" role="group" :style="handStyle(area.minimised)" aria-label="Your hand" :items="shownHand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!area.minimised">
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: showReceived && state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />

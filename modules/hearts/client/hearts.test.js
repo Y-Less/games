@@ -131,6 +131,20 @@ describe('Hearts table in the standard frame', () => {
     expect(send).toHaveBeenCalledWith('pass', { cards: state.hand.slice(0, 3) });
   });
 
+  it('takes the passed cards out of your hand while the others choose, without shrinking the hand', () => {
+    const r = room();
+    const before = view(r).hand;
+    const passed = before.slice(0, 3);
+    expect(game.choosePass(r, 0, passed).ok).toBe(true);
+    const state = view(r);
+    expect(state.phase).toBe('passing'); // the computers have not chosen yet
+    expect(state.hand).toEqual(before); // the server still holds them until everyone has chosen
+    const w = mount(Table, { props: { state, send: makeSend() } });
+    expect(w.findAll('.hand .playing-card')).toHaveLength(10); // no longer buttons: nothing more to choose
+    expect(w.find('.hand').attributes('style')).toBe(mount(Table, { props: { state: view(room()), send: makeSend() } }).find('.hand').attributes('style'));
+    expect(w.find('.confirm').classes()).toContain('hidden');
+  });
+
   it('draws the recent moves it is given, newest first', () => {
     const w = mount(Table, { props: { state: view(room()), send: makeSend(), log: [{ text: 'Hand 1 is dealt.' }, { text: 'Hazel played the two of clubs.' }] } });
     const rows = w.findAll('.box.log li').map((li) => li.text());
