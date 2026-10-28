@@ -1,4 +1,5 @@
 // Game statistics. Modules report finished games with record(); the site turns them into profile stats and leaderboards.
+import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
 const OUTCOMES = ['win', 'loss', 'draw'];
@@ -9,6 +10,8 @@ const OUTCOMES = ['win', 'loss', 'draw'];
  */
 export function createStats(db, listGames) {
   const knownUser = db.prepare('SELECT 1 FROM users WHERE id = ?');
+  const isBot = db.prepare('SELECT is_bot FROM users WHERE id = ?');
+  const coins = createCoins(db);
 
   /**
    * Records one finished game.
@@ -25,6 +28,9 @@ export function createStats(db, listGames) {
         .run(game, result.code ?? null, Date.now());
       const insert = db.prepare('INSERT INTO result_players (result_id, user_id, placement, score, outcome, extras) VALUES (?, ?, ?, ?, ?, ?)');
       for (const p of players) {
+        // Bot accounts take part in games but never earn coins. There is no minimum number of people: beating
+        // computer players pays the same as beating people.
+        if (!isBot.get(p.userId).is_bot) coins.awardPlacement(p.userId, Number(lastInsertRowid), p);
         insert.run(
           lastInsertRowid,
           p.userId,
