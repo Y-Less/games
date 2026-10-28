@@ -167,7 +167,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 <template>
   <GameFrame class="table-view">
     <template #scorebar>
-      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" v-bind="scoreProps">
+      <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" v-bind="scoreProps" running>
         <template #round>
           <TilingSummary v-if="state.lastTiling" :tiling="state.lastTiling" :seats="state.seats" :you="state.you" />
           <p v-if="finished" class="note">The last row adds the end-of-game bonuses, so each total equals the final score.</p>

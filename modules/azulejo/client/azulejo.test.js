@@ -394,6 +394,20 @@ describe('Azulejo table: playing', () => {
     w.unmount();
   });
 
+  it('shows each round beside the running total in the all-rounds table', async () => {
+    const { view } = playView();
+    const rounds = [
+      { label: 'Round 1', deltas: { 0: 4, 1: 2 } },
+      { label: 'Round 2', deltas: { 0: -1, 1: 5 } },
+    ];
+    const { w } = mountTable({ ...view, scoreboard: { ...view.scoreboard, rounds } }, makeSend(), true);
+    w.findComponent({ name: 'ScoreBoard' }).vm.show();
+    await flushPromises();
+    const cells = [...document.body.querySelectorAll('.score-table tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.replace(/\s+/g, ' ').trim()));
+    expect(cells).toEqual([['+4 (4)', '+2 (2)'], ['-1 (3)', '+5 (7)']]);
+    w.unmount();
+  });
+
   it('flags the free wall variant and the marker holder', async () => {
     const { room } = playingRoom(2, { seed: 4, free: true });
     room.markerInCentre = false;
