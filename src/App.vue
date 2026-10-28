@@ -20,6 +20,7 @@ function askLeave() {
 async function doLeave() {
   confirming.value = false;
   await offer.value?.leave();
+  router.push({ name: 'games' });
 }
 
 async function leaveSite() {
