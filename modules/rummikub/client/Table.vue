@@ -252,7 +252,13 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
             <dd>{{ state.phase === 'playing' && state.turn === opened.seat ? 'playing now' : 'waiting' }}</dd>
           </dl>
         </PlayerPopup>
-        <section class="felt" aria-label="The table">
+        <section
+          class="felt"
+          :class="{ dropping: myTurn && dragging.length }"
+          aria-label="The table"
+          @dragover.prevent
+          @drop.prevent="drop({ type: 'new' })"
+        >
           <div v-if="!shownSets.length" class="muted empty">The table is empty. {{ myTurn ? 'Make a first set from your rack.' : '' }}</div>
           <div class="sets">
             <div
@@ -263,7 +269,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
               :data-set="set.index"
               @click.self="dropSelected({ type: 'set', index: set.index })"
               @dragover.prevent
-              @drop.prevent="drop({ type: 'set', index: set.index })"
+              @drop.prevent.stop="drop({ type: 'set', index: set.index })"
             >
               <div class="tiles" @click.self="dropSelected({ type: 'set', index: set.index })">
                 <Tile
@@ -399,6 +405,11 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
 }
 .empty {
   padding: 0.4rem;
+}
+/* While tiles are being dragged, the whole felt says it will take them as a new set (dropping on a set adds to that set). */
+.felt.dropping {
+  outline: 2px dashed var(--amber);
+  outline-offset: -4px;
 }
 .sets {
   display: flex;

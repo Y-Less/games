@@ -181,6 +181,28 @@ describe('the play field', () => {
     expect(w.findAll('.sets .set:not(.new)')).toHaveLength(0);
   });
 
+  it('the whole table is a new-set target: select a few tiles and drag them anywhere on it', async () => {
+    const { w } = mountTable(state());
+    expect(w.find('.felt').classes()).not.toContain('dropping');
+    for (const id of [t(0, 10), t(0, 11), t(0, 12)]) await rackTile(w, id).trigger('click');
+    await rackTile(w, t(0, 11)).trigger('dragstart'); // dragging one of the selected tiles takes them all
+    expect(w.find('.felt').classes()).toContain('dropping');
+    await w.find('.felt').trigger('drop'); // not on the New set area
+    expect(w.find('.felt').classes()).not.toContain('dropping');
+    expect(w.findAll('.sets .set:not(.new)')).toHaveLength(1);
+    expect(w.findAll('.sets .set:not(.new) .tile')).toHaveLength(3);
+    expect(w.findAll('[data-rack] .tile')).toHaveLength(2);
+    // a drop on an existing set still adds to that set, and does not also start another
+    await rackTile(w, t(1, 1)).trigger('dragstart');
+    await w.find('.sets .set:not(.new)').trigger('drop');
+    expect(w.findAll('.sets .set:not(.new)')).toHaveLength(1);
+    expect(w.findAll('.sets .set:not(.new) .tile')).toHaveLength(4);
+    // and another tile dragged onto the bare table starts a set of its own
+    await rackTile(w, joker(STD)).trigger('dragstart');
+    await w.find('.felt').trigger('drop');
+    expect(w.findAll('.sets .set:not(.new)')).toHaveLength(2);
+  });
+
   it('draws when asked, and the sort toggle changes the rack order', async () => {
     const { w, send } = mountTable(state());
     await button(w, 'Draw a tile').trigger('click');
