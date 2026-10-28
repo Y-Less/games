@@ -146,15 +146,12 @@ small {
 .run {
   font-size: 0.8rem;
 }
-/* Two columns per player: the points keep the usual column width, the running total sits in a narrower one beside it. */
+/* Two columns per player, both the usual column width; the running total is dimmer (muted) than the points. */
 .split-row .points {
-  min-width: 4.5rem;
   padding-right: 0.3rem;
 }
 .split-row .total {
-  min-width: 2.5rem;
   padding-left: 0.3rem;
-  font-size: 0.85rem;
 }
 /* A round with notes: the row and its notes read as one, so the line goes under the notes. */
 .split-row.noted th,
