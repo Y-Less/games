@@ -256,6 +256,7 @@ export default function (ctx) {
     on('start', () => act((room) => game.start(room, userId)));
     on('pass', ({ cards }) => act((room, seat) => game.choosePass(room, seat, cards)));
     on('play', ({ card }) => act((room, seat) => game.playCard(room, seat, card)));
+    on('claim', () => act((room, seat) => game.claimAll(room, seat)));
     on('next', () => act((room) => game.nextHand(room, userId)));
     on('again', () => act((room) => game.playAgain(room, userId)));
 

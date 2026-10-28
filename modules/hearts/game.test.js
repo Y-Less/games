@@ -705,3 +705,47 @@ test('a computer player does better than random: it takes fewer points than a pl
   }
   assert.ok(bot < naive, `computers ${bot} against naive ${naive}`);
 });
+
+// ---- claiming the rest of a hand ----
+
+/** A hand with two tricks left: the given hands, everything else already taken (by seat 1) so that nothing is unseen. */
+function lateHand(hands) {
+  const inHands = new Set(hands.flat());
+  const taken = [[], fullDeck().filter((card) => !inHands.has(card)), [], []];
+  return midHand(hands, { turn: 0, tricksPlayed: 11, taken, heartsBroken: true });
+}
+
+test('a player who leads with the highest of every suit they hold can claim, and takes every remaining trick', () => {
+  const room = lateHand([['AS', 'AH'], ['2C', '3C'], ['4C', '5C'], ['6C', '7C']]);
+  assert.equal(g.canClaim(room, 0), true);
+  assert.equal(g.viewFor(room, 1).canClaim, true);
+  const result = g.claimAll(room, 0);
+  assert.equal(result.ok, true);
+  assert.equal(result.tricks, 2);
+  assert.equal(room.taken[0].length, 8); // both tricks, all eight cards
+  assert.ok(['handEnd', 'finished'].includes(room.phase));
+  assert.deepEqual(room.lastClaim, { seat: 0, tricks: 2, hand: 1 });
+  assert.equal(room.trickLog.length, 2);
+});
+
+test('a claim is refused while a higher card of a suit you hold is still out, or when you do not have the lead', () => {
+  const room = lateHand([['KS', 'AH'], ['2C', 'AS'], ['4C', '5C'], ['6C', '7C']]);
+  assert.equal(g.canClaim(room, 0), false);
+  assert.equal(g.claimAll(room, 0).ok, false);
+  assert.equal(room.tricksPlayed, 11);
+  const other = lateHand([['AS', 'AH'], ['2C', '3C'], ['4C', '5C'], ['6C', '7C']]);
+  other.turn = 1;
+  assert.equal(g.claimAll(other, 0).ok, false);
+  assert.equal(g.claimAll(other, 1).ok, false); // seat 1's cards are low
+  other.turn = 0;
+  other.trick = [{ seat: 0, card: 'AS' }];
+  assert.equal(g.canClaim(other, 0), false);
+});
+
+test('claiming scores the hand as if it had been played, points the others held included', () => {
+  const room = lateHand([['AS', 'AH'], ['2H', '3H'], ['4C', '5C'], ['6C', '7C']]);
+  const before = room.scores[0];
+  assert.equal(g.claimAll(room, 0).ok, true);
+  assert.equal(room.lastHand.details[0].hearts, 3); // the ace, 2 and 3 of hearts
+  assert.equal(room.scores[0] - before, 3);
+});

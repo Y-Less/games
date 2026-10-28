@@ -293,3 +293,33 @@ describe('advanceLog', () => {
     expect(advanceLog(long, at(), at({ handNumber: 2 })).length).toBe(120);
   });
 });
+
+describe('Claim all', () => {
+  const claimButton = (w) => w.findAll('button').find((b) => b.text() === 'Claim all');
+
+  it('is offered only when you lead and cannot lose another trick, and sends the claim', async () => {
+    const send = makeSend();
+    const w = mount(Table, { props: { state: { ...view(playing()), canClaim: false }, send } });
+    expect(claimButton(w)).toBeUndefined();
+    await w.setProps({ state: { ...view(playing()), canClaim: true } });
+    expect(claimButton(w)).toBeDefined();
+    expect(w.find('.confirm').classes()).not.toContain('hidden');
+    expect(w.find('.box.status').text()).toContain('cannot lose another trick');
+    await claimButton(w).trigger('click');
+    expect(send).toHaveBeenCalledWith('claim', undefined);
+  });
+
+  it('keeps its place hidden, not removed, when there is nothing to claim', () => {
+    const w = mount(Table, { props: { state: { ...view(playing()), canClaim: false }, send: makeSend() } });
+    expect(w.find('.confirm').classes()).toContain('hidden');
+  });
+
+  it('is noted in Recent moves once', () => {
+    const seats = ['Ann', 'Bo', 'Cy', 'Di'].map((name) => ({ name }));
+    const at = (extra) => ({ code: 'a-b-c', phase: 'playing', handNumber: 1, seats, trick: [], trickWinner: null, ...extra });
+    const claim = { seat: 0, tricks: 3, hand: 1 };
+    const log = advanceLog([], at(), at({ phase: 'handEnd', lastClaim: claim }));
+    expect(log.map((l) => l.text)).toContain('Ann claims the remaining 3 tricks.');
+    expect(advanceLog(log, at({ phase: 'handEnd', lastClaim: claim }), at({ phase: 'handEnd', lastClaim: claim })).filter((l) => /claims/.test(l.text))).toHaveLength(1);
+  });
+});

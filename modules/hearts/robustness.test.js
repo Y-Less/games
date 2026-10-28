@@ -29,6 +29,7 @@ const EVENTS = {
   start: [],
   pass: ['cards'],
   play: ['card'],
+  claim: [],
   next: [],
   again: [],
 };

@@ -101,6 +101,7 @@ function resetGame(room) {
     trick: [],
     trickLog: [],
     lastTrick: null,
+    lastClaim: null,
     turn: null,
     tricksPlayed: 0,
     heartsBroken: false,
@@ -226,6 +227,7 @@ export function deal(room, rng = Math.random) {
   room.trick = [];
   room.trickLog = [];
   room.lastTrick = null;
+  room.lastClaim = null;
   room.tricksPlayed = 0;
   room.heartsBroken = false;
   room.moonBid = null;
@@ -325,6 +327,42 @@ export function playCard(room, seat, card) {
 export function trickWinner(trick) {
   const led = suitOf(trick[0].card);
   return trick.reduce((best, play) => (suitOf(play.card) === led && rankValue(play.card) > rankValue(best.card) ? play : best), trick[0]).seat;
+}
+
+/**
+ * True when the seat has the lead and cannot lose another trick whatever the others hold: every card in its hand is higher
+ * than every card of its suit that has not been played and is not in its hand. Leading them in any order then wins every
+ * trick (a player with none of the suit cannot beat it, and follows only with lower cards).
+ */
+export function canClaim(room, seat) {
+  if (room.phase !== 'playing' || room.turn !== seat || room.trick.length !== 0) return false;
+  const hand = room.hands[seat];
+  if (!hand.length) return false;
+  const known = new Set([...hand, ...room.taken.flat()]);
+  const unseen = deckFor(room.seats.length).filter((card) => !known.has(card));
+  return hand.every((card) => unseen.every((other) => suitOf(other) !== suitOf(card) || rankValue(other) < rankValue(card)));
+}
+
+/**
+ * The seat takes every remaining trick. The rest of the hand is played out for real (the others' cards go where they
+ * would have gone, so the scoring is exact), recorded in the trick log like any other.
+ */
+export function claimAll(room, seat) {
+  if (room.phase !== 'playing') return fail('The game is not being played.');
+  if (room.turn !== seat || room.trick.length !== 0) return fail('You can only claim when it is your turn to lead.');
+  if (!canClaim(room, seat)) return fail('You could still lose a trick: a higher card is out there.');
+  const n = room.seats.length;
+  const tricks = tricksFor(n) - room.tricksPlayed;
+  while (room.phase === 'playing') {
+    for (let i = 0; i < n; i++) {
+      const who = room.turn;
+      const result = playCard(room, who, legalCards(room, who)[0]);
+      if (!result.ok) throw new Error(`Claiming played an illegal card: ${result.error}`);
+    }
+    resolveTrick(room);
+  }
+  room.lastClaim = { seat, tricks, hand: room.handNumber + 1 };
+  return ok({ tricks });
 }
 
 /** Gives a finished trick to its winner, who leads next; after the last trick the hand is scored. */
@@ -605,6 +643,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.trickWinner = room.trick.length === room.seats.length ? trickWinner(room.trick) : null;
     view.lastTrick = room.lastTrick;
     view.turn = room.turn;
+    view.canClaim = canClaim(room, me);
+    view.lastClaim = room.lastClaim ?? null;
     view.heartsBroken = room.heartsBroken;
     view.trickNumber = Math.min(room.tricksPlayed + 1, tricksFor(room.seats.length));
     view.legal = myTurn ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;

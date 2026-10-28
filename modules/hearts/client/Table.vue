@@ -41,6 +41,7 @@ const playing = computed(() => s.value.phase === 'playing');
 // The cards you received are marked only until the first card of the hand is played.
 const showReceived = computed(() => playing.value && s.value.trickNumber === 1 && !s.value.trick.length);
 const myTurn = computed(() => Boolean(s.value.legal));
+const claimable = computed(() => playing.value && Boolean(s.value.canClaim)); // you lead and cannot lose another trick
 const circleSeats = computed(() => Array.from({ length: count.value }, (_, rel) => ({ key: seatIndex(rel), name: nameOf(seatIndex(rel)) })));
 const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ key: p.seat, card: p.card })) : []));
 const oppNote = (rel) => {
@@ -89,6 +90,7 @@ const statusLines = computed(() => {
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
   if (passing.value && !s.value.pass.chosen) lines.push({ text: `Pick ${passCount.value} cards, then press the button on the table (${picks.value.length} of ${passCount.value} chosen).`, tone: 'muted' });
   if (passing.value && s.value.pass.fromName) lines.push({ text: `You will receive ${passCount.value} cards from ${s.value.pass.fromName}.`, tone: 'muted' });
+  if (claimable.value) lines.push({ text: 'No one can beat your cards: you cannot lose another trick. Press Claim all to take them.', tone: 'mine' });
   if (s.value.received.length && showReceived.value) lines.push({ text: 'The cards you received are outlined in green.', tone: 'muted' });
   if (s.value.lastTrick && playing.value && !s.value.trick.length) lines.push({ text: `Last trick: ${nameOf(s.value.lastTrick.winner)} took it.`, tone: 'muted' });
   if (handEnd.value && moonMessage.value) lines.push({ text: moonMessage.value, tone: 'mine' });
@@ -238,8 +240,9 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
             </div>
           </template>
         </CardFan>
-        <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) }">
-          <button class="primary" :disabled="picks.length !== passCount" @click="confirmPass">Pass these {{ picks.length }} of {{ passCount }} cards</button>
+        <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) && !claimable }">
+          <button v-if="claimable" class="primary claim" :disabled="sending" @click="submit('claim')">Claim all</button>
+          <button v-else class="primary" :disabled="picks.length !== passCount" @click="confirmPass">Pass these {{ picks.length }} of {{ passCount }} cards</button>
         </div>
       </section>
     </template>

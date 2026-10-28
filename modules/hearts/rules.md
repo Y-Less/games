@@ -29,6 +29,7 @@ A game for three to seven players (four is the usual number). Nobody wants point
 - The highest card of the suit led wins the trick, and its winner leads the next one.
 - You cannot lead a heart until hearts have been **broken** (a heart or the Queen of Spades has been played), unless you hold nothing but hearts.
 - On the first trick you cannot play a heart or the Queen of Spades, unless every card you hold is one of those.
+- **Claim all:** when you have the lead and every card in your hand is higher than every unplayed card of its suit that you do not hold, you cannot lose another trick, and a **Claim all** button appears. Pressing it plays out the rest of the hand: you take every remaining trick, and the points the others were still holding come to you, exactly as if it had been played.
 
 ## Scoring
 

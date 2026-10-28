@@ -29,6 +29,9 @@ export function advanceLog(log, prev, next) {
     if (next.trickWinner !== null && next.trickWinner !== undefined && next.trickWinner !== prev.trickWinner) add(`${nameOf(next, next.trickWinner)} takes the trick.`);
   }
 
+  const claim = next.lastClaim;
+  if (claim && claim.hand === next.handNumber && !prev.lastClaim) add(`${nameOf(next, claim.seat)} claims the remaining ${claim.tricks} ${claim.tricks === 1 ? 'trick' : 'tricks'}.`);
+
   if (next.phase === 'handEnd' && prev.phase !== 'handEnd') add(`Hand ${prev.handNumber} is over.`);
   if (next.phase === 'finished' && prev.phase !== 'finished') {
     const names = (next.winners ?? []).map((seat) => nameOf(next, seat));

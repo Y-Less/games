@@ -60,7 +60,7 @@ dropped and nothing is recorded. Rooms are saved after every change and the comp
 
 Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`,
 `create {target?, jackOfDiamonds?, moon?, seats?}`, `leave`, `settings {...}`, `addBot {seat?}`, `removeBot {seat}`, `fillBots`,
-`start`, `pass {cards}`, `play {card}`, `next` (ready for the next hand: sent when a person closes the score pop-up; the hand is dealt once every person has, or after `HEARTS_NEXT_WAIT` ms), `again` (back to the lobby after a finished game).
+`start`, `pass {cards}`, `play {card}`, `claim` (take every remaining trick: refused unless `canClaim`, below), `next` (ready for the next hand: sent when a person closes the score pop-up; the hand is dealt once every person has, or after `HEARTS_NEXT_WAIT` ms), `again` (back to the lobby after a finished game).
 
 Server to client: `state`, a view for that account (or `null`): `seatCount`, `limits { targets, moonModes, minSeats: 3,
 maxSeats: 7 }`, `deal { cardsEach, tricks, passCount, removed, openingCard, handPoints, rotation }` (`rotation` is the
@@ -68,7 +68,7 @@ pass of each hand of a round as `pass`-style objects, below), `pass { direction,
 'none'), distance, count, label, cards, to, from, toName, fromName, targets, chosen, incomingReady }` (`to`, `from` and the
 names only while you are passing, `targets[seat]` is who each seat passes to this hand; `label` is for example "Passing
 3 to the left"), `trickNumber` out of `deal.tricks`, and its own hand, the legal plays with a reason for each
-illegal card, counts for everyone else's cards, the public table, and `scoreboard` in the standard shape of
+illegal card, counts for everyone else's cards, the public table, and `canClaim` (you lead and no unplayed card can beat any card in your hand), `lastClaim { seat, tricks, hand }` (the claim that ended this hand, if any), and `scoreboard` in the standard shape of
 `shared/scores.js` (with the whole round history, `lowIsBetter: true` and `target`).
 
 ## Statistics
