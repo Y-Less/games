@@ -29,7 +29,7 @@ export const LIMITS = {
   timer: [0, 300],
 };
 export const MIN_TIMER = 15; // seconds; a timer shorter than this (but not off) is raised to it
-export const DEFAULT_SETTINGS = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0 };
+export const DEFAULT_SETTINGS = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0, playOnMeld: false };
 
 export const COLOUR_NAMES = ['Red', 'Blue', 'Orange', 'Black', 'Green', 'Purple', 'Teal', 'Pink'];
 
@@ -90,6 +90,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
     let n = clamp(Math.round(value), LIMITS[key]);
     if (key === 'timer' && n > 0) n = Math.max(MIN_TIMER, n);
     next[key] = n;
+  }
+  if (Object.hasOwn(input, 'playOnMeld') && input.playOnMeld !== undefined) {
+    if (typeof input.playOnMeld !== 'boolean') return fail('Play on after melding must be on or off.');
+    next.playOnMeld = input.playOnMeld;
   }
   return { ok: true, settings: next };
 }
@@ -175,7 +179,9 @@ const isIdList = (s, list) => Array.isArray(list) && list.every((id) => validTil
  *   melded    whether the player has already made their first meld
  *   meld      the points the first meld needs
  * Every old tile must still be on the table, every new tile must come from the rack, every set must be valid and, until
- * the first meld, the old sets must be untouched and the new sets (rack tiles only) must be worth `meld` points.
+ * the first meld, the old sets must be untouched and the new sets (rack tiles only) must be worth `meld` points. With the
+ * `playOnMeld` option the meld is the sets that contain no old tile, and once they are worth `meld` points the rest of the
+ * table may be rearranged in the same turn.
  * Returns { ok, sets (canonical), added: [ids], points (value of the new sets, first meld only) } or { ok: false, error }.
  */
 export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SETTINGS.meld }) {
@@ -201,7 +207,10 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
   }
 
   let points = 0;
-  if (!melded) {
+  if (!melded && s.playOnMeld) {
+    for (const resolved of sets) if (!resolved.items.some((item) => oldSet.has(item.id))) points += resolved.value;
+    if (points < meld) return fail(`Your first meld must be worth at least ${meld} points from new sets of your own tiles; those are worth ${points}.`);
+  } else if (!melded) {
     // The old sets must be exactly as they were; the rest are the player's own new sets.
     const untouched = new Map();
     for (const set of before) untouched.set(sortedKey(set), (untouched.get(sortedKey(set)) ?? 0) + 1);

@@ -58,10 +58,12 @@ const fresh = computed(() => placedThisTurn(arr.value, props.state.table));
 const recent = computed(() => new Set(props.state.lastPlay?.ids ?? []));
 const rackTiles = computed(() => sortRack(s.value, arr.value.rack, sortMode.value));
 const oldIds = computed(() => new Set(props.state.table.flat()));
-const frozenSet = (ids) => !melded.value && ids.some((id) => oldIds.value.has(id));
+// With the "play on after melding" option the table opens as soon as the new sets of your own tiles are worth enough.
+const unlocked = computed(() => melded.value || (s.value.playOnMeld === true && status.value.points >= s.value.meld));
+const frozenSet = (ids) => !unlocked.value && ids.some((id) => oldIds.value.has(id));
 /** Whether the + button of a set can take the selected tiles right now. */
 const canAddTo = (set) => myTurn.value && !set.frozen && selected.value.length > 0;
-const lockedTile = (id) => !melded.value && oldIds.value.has(id);
+const lockedTile = (id) => !unlocked.value && oldIds.value.has(id);
 
 const shownSets = computed(() =>
   arr.value.sets.map((ids, index) => {
@@ -78,12 +80,12 @@ const summary = computed(() => {
   if (!changed.value) {
     return melded.value
       ? 'Move tiles from your rack onto the table, or rearrange it. Or draw a tile.'
-      : `Make a first meld of ${s.value.meld} or more points from your own tiles, or draw a tile.`;
+      : `Make a first meld of ${s.value.meld} or more points from your own tiles${s.value.playOnMeld ? ', then play on with the whole table,' : ''} or draw a tile.`;
   }
   if (status.value.ok) {
     return melded.value
       ? `Ready: ${status.value.placed} ${status.value.placed === 1 ? 'tile' : 'tiles'} played.`
-      : `Ready: first meld worth ${status.value.points} points.`;
+      : `Ready: first meld worth ${status.value.points} points${status.value.placed > 0 && s.value.playOnMeld ? ', and the table is open' : ''}.`;
   }
   return status.value.error;
 });
@@ -93,7 +95,7 @@ function remember() {
   undoStack.value.push({ arr: arr.value });
 }
 function place(ids, target) {
-  const problem = canMove(arr.value, ids, target, { before: props.state.table, melded: melded.value });
+  const problem = canMove(arr.value, ids, target, { before: props.state.table, melded: unlocked.value });
   if (problem) {
     hint.value = problem;
     return false;

@@ -335,10 +335,27 @@ test('a restart loses nothing: the room, its settings and the computer players c
   assert.equal((await again.call('resume')).ok, true);
   await until(() => again.state?.phase, 'the saved game');
   assert.equal(again.state.code, code);
-  assert.deepEqual({ ...again.state.settings }, { numbers: 11, colours: 5, wildcards: 3, rounds: 2, meld: 24, timer: 0 });
+  assert.deepEqual({ ...again.state.settings }, { numbers: 11, colours: 5, wildcards: 3, rounds: 2, meld: 24, timer: 0, playOnMeld: false });
   assert.equal(again.state.seats.filter((s) => s.bot).length, 2);
   assert.ok(again.state.rack.length > 0, 'the rack was saved');
   await playToEnd([again], { timeout: 120000 });
   await sleep(150);
   assert.equal(gameStats(await again.stats()).played, 1);
+});
+
+test('the play-on-after-melding option is chosen by the host, reaches the game over the socket, and is kept when others change settings', async (t) => {
+  fast();
+  const site = await launch(t);
+  const ann = await site.person('ann').open();
+  await ann.call('create', { seats: 3 });
+  assert.equal(ann.state.settings.playOnMeld, false);
+  assert.equal((await ann.call('settings', { playOnMeld: true })).ok, true);
+  assert.equal(ann.state.settings.playOnMeld, true);
+  assert.equal((await ann.call('settings', { meld: 20 })).ok, true);
+  assert.equal(ann.state.settings.playOnMeld, true, 'unrelated settings leave it alone');
+  assert.equal((await ann.call('settings', { playOnMeld: 'yes' })).ok, false, 'only a boolean');
+  assert.equal(ann.state.settings.playOnMeld, true);
+  const bob = await site.person('bob').open();
+  await bob.call('create', { seats: 3, playOnMeld: true });
+  assert.equal(bob.state.settings.playOnMeld, true, 'it can be chosen when the game is created');
 });

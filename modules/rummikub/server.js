@@ -297,9 +297,9 @@ export default function (ctx) {
   };
 }
 
-/** Only the host-set numbers, whatever else a client sends. */
+/** Only the host-set options, whatever else a client sends. */
 function pickSettings(payload) {
   const picked = {};
-  for (const key of Object.keys(LIMITS)) if (payload && Object.hasOwn(payload, key) && payload[key] !== undefined) picked[key] = payload[key];
+  for (const key of [...Object.keys(LIMITS), 'playOnMeld']) if (payload && Object.hasOwn(payload, key) && payload[key] !== undefined) picked[key] = payload[key];
   return picked;
 }

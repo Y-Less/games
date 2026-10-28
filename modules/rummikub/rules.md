@@ -6,7 +6,7 @@ Be the first to empty your rack by building **runs** and **groups** of numbered 
 
 - Tiles are numbered **1 to N** in **C colours**, with **two copies** of every colour and number, plus a few **wildcards** (jokers). The standard game is 13 numbers, 4 colours and 2 wildcards: 106 tiles.
 - Every colour has its own shape as well as its own hue, so no tile depends on colour alone.
-- The host chooses in the lobby (anything out of range is moved to the nearest allowed value): **numbers per colour** (2 to 20, default 13), **colours** (2 to 8, default 4), **wildcards** (0 to 8, default 2), **rounds** (1 to 10, default 1), the **first meld** points (0 to 60, default 30) and an optional **turn timer** (off by default; 15 seconds to 5 minutes).
+- The host chooses in the lobby (anything out of range is moved to the nearest allowed value): **numbers per colour** (2 to 20, default 13), **colours** (2 to 8, default 4), **wildcards** (0 to 8, default 2), **rounds** (1 to 10, default 1), the **first meld** points (0 to 60, default 30), an optional **turn timer** and the option to **play on after melding** (off by default; 15 seconds to 5 minutes).
 - The tile set must be able to make a set at all (at least 3 numbers or 3 colours).
 
 ## Dealing
@@ -34,6 +34,8 @@ You either **play** or **draw**.
 ## The first meld
 
 Before you may touch the table you must lay down a **first meld**: new sets made **only of your own rack tiles**, worth at least **30 points** together (or whatever the host chose). Each tile counts its number, and a wildcard counts as the tile it stands for. Until you have melded you cannot add to, split or take from sets already on the table; those stay exactly as they are. Once you have melded, the whole table is yours to rearrange.
+
+**Play on after melding** (a host option, off by default): the table opens the moment your meld is laid, in the same turn. Your meld is then the new sets made only of your own tiles, worth the threshold together; with that in place you may also add to, split and take from the sets already on the table, as long as every tile on the table stays on it and every set is valid when you finish.
 
 ## Ending a round and scoring
 

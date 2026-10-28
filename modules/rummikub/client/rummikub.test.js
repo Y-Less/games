@@ -181,6 +181,51 @@ describe('the play field', () => {
     expect(w.findAll('.sets .set:not(.new)')).toHaveLength(0);
   });
 
+  describe('play on after melding', () => {
+    const table = [[t(1, 5), t(2, 5), t(3, 5)]];
+    const racks = [[t(0, 5), t(0, 10), t(0, 11), t(0, 12)], [t(2, 2)]];
+    const meldFirst = async (w) => {
+      for (const id of [t(0, 10), t(0, 11), t(0, 12)]) await rackTile(w, id).trigger('click');
+      await w.find('.set.new').trigger('click');
+    };
+    const oldSet = (w) => w.findAll('.sets .set:not(.new)').find((set) => set.find(`[data-id="${t(1, 5)}"]`).exists());
+
+    it('with the option on, the table opens as soon as the meld is worth enough, and tiles can be added to old sets', async () => {
+      const { w } = mountTable(view({ racks, table, melded: [false, true], turn: 0, settings: { playOnMeld: true } }));
+      expect(w.findAll('.sets .tile.locked')).toHaveLength(3);
+      await rackTile(w, t(0, 5)).trigger('click');
+      await oldSet(w).trigger('click');
+      expect(oldSet(w).findAll('.tile')).toHaveLength(3); // refused: not melded yet
+      await rackTile(w, t(0, 5)).trigger('click'); // put it down again
+      await meldFirst(w);
+      expect(w.findAll('.sets .tile.locked')).toHaveLength(0);
+      expect(w.text()).toContain('the table is open');
+      await rackTile(w, t(0, 5)).trigger('click');
+      await oldSet(w).trigger('click');
+      expect(oldSet(w).findAll('.tile')).toHaveLength(4);
+      expect(button(w, 'End turn').attributes('disabled')).toBeUndefined();
+    });
+
+    it('with the option off, the table stays shut after the meld, as before', async () => {
+      const { w } = mountTable(view({ racks, table, melded: [false, true], turn: 0 }));
+      await meldFirst(w);
+      expect(w.findAll('.sets .tile.locked')).toHaveLength(3);
+      await rackTile(w, t(0, 5)).trigger('click');
+      await oldSet(w).trigger('click');
+      expect(oldSet(w).findAll('.tile')).toHaveLength(3);
+    });
+
+    it('the lobby offers it to the host and sends the choice', async () => {
+      const send = vi.fn(() => Promise.resolve({ ok: true }));
+      const state = view({ racks, table, settings: {} });
+      const w = mount(Lobby, { props: { state: { ...state, phase: 'lobby' }, send } });
+      const box = w.find('#opt-playOnMeld');
+      expect(box.exists()).toBe(true);
+      await box.setValue(true);
+      expect(send).toHaveBeenCalledWith('settings', { playOnMeld: true });
+    });
+  });
+
   it('a set has the same parts on every turn, so the boxes never change size or move', async () => {
     const table = [[t(0, 1), t(0, 2), t(0, 3)], [t(1, 5), t(2, 5), t(3, 5)]];
     const racks = [[t(0, 4), t(1, 9)], [t(2, 2)]];

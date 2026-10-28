@@ -95,6 +95,11 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
             </select>
             <small class="muted">When it runs out the player draws a tile.</small>
           </div>
+          <div class="field">
+            <label for="opt-playOnMeld">Play on after melding</label>
+            <input id="opt-playOnMeld" type="checkbox" :checked="s.playOnMeld" :disabled="!isHost" @change="send('settings', { playOnMeld: $event.target.checked })" />
+            <small class="muted">Once your first meld is laid you may rearrange the whole table in the same turn, not from your next.</small>
+          </div>
         </div>
 
         <div class="colours" aria-label="The colours in play">

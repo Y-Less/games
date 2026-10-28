@@ -80,9 +80,9 @@ test('small tile sets: groups need three colours, runs need three numbers', () =
 test('settings are validated and clamped', () => {
   assert.deepEqual(normaliseSettings({}).settings, DEFAULT_SETTINGS);
   const huge = normaliseSettings({ numbers: 999, colours: 99, wildcards: 99, rounds: 99, meld: 999, timer: 99999 }).settings;
-  assert.deepEqual(huge, { numbers: 20, colours: 8, wildcards: 8, rounds: 10, meld: 60, timer: 300 });
+  assert.deepEqual(huge, { numbers: 20, colours: 8, wildcards: 8, rounds: 10, meld: 60, timer: 300, playOnMeld: false });
   const tiny = normaliseSettings({ numbers: -5, colours: 0, wildcards: -1, rounds: 0, meld: -3, timer: 3 }).settings;
-  assert.deepEqual(tiny, { numbers: 2, colours: 2, wildcards: 0, rounds: 1, meld: 0, timer: 15 });
+  assert.deepEqual(tiny, { numbers: 2, colours: 2, wildcards: 0, rounds: 1, meld: 0, timer: 15, playOnMeld: false });
   assert.equal(normaliseSettings({ numbers: 9.6 }).settings.numbers, 10, 'rounded');
   for (const bad of ['9', NaN, Infinity, null, true, {}, []]) assert.equal(normaliseSettings({ numbers: bad }).ok, false, String(bad));
   assert.equal(normaliseSettings({ unknown: 1 }).settings.numbers, 13);
@@ -187,4 +187,42 @@ test('replacing a joker: take the joker from a set, put the tile there, use the 
   assert.deepEqual([...ok.added].sort(), [t(0, 5), t(1, 9), t(2, 9)].sort());
   const kept = play(before, rack, [[t(0, 4), t(0, 5), t(0, 6)]], opts);
   assert.equal(kept.ok, false, 'the joker may not leave the table');
+});
+
+const PLAY_ON = { ...STD, playOnMeld: true };
+const playOn = (before, rack, proposed, extra = {}) => checkPlay(PLAY_ON, { before, rack, proposed, melded: false, meld: 30, ...extra });
+
+test('play on after melding: once the new sets of your own tiles are worth enough, the rest of the table opens in the same turn', () => {
+  const before = [[t(1, 5), t(2, 5), t(3, 5)]];
+  const rack = [t(0, 5), t(0, 10), t(0, 11), t(0, 12), t(1, 9)];
+  const meld = [t(0, 10), t(0, 11), t(0, 12)];
+  const extended = [t(1, 5), t(2, 5), t(3, 5), t(0, 5)];
+  assert.equal(play(before, rack, [extended, meld]).ok, false, 'without the option the table is still shut');
+  const result = playOn(before, rack, [extended, meld]);
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.points, 33, 'only the set of new tiles counts towards the meld');
+  assert.deepEqual([...result.added].sort((a, b) => a - b), [t(0, 5), t(0, 10), t(0, 11), t(0, 12)].sort((a, b) => a - b));
+  const split = playOn(before, rack, [[t(1, 5), t(2, 5)], [t(3, 5), t(0, 5), t(1, 9)], meld]);
+  assert.equal(split.ok, false, 'a split that leaves an invalid set is still refused');
+  assert.equal(playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(0, 10), t(0, 11), t(0, 12), t(1, 9)]]).ok, false, 'tiles in a set with old tiles do not count towards the meld');
+});
+
+test('play on after melding: the meld itself must still be worth enough, from sets with no old tile in them', () => {
+  const before = [[t(1, 5), t(2, 5), t(3, 5)]];
+  const rack = [t(0, 5), t(1, 2), t(2, 2), t(3, 2)];
+  const small = playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(1, 2), t(2, 2), t(3, 2)]]);
+  assert.equal(small.ok, false);
+  assert.match(small.error, /at least 30.*worth 6/);
+  assert.equal(playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(1, 2), t(2, 2), t(3, 2)]], { meld: 6 }).ok, true, 'a lower threshold');
+  assert.equal(playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)]], { melded: true }).ok, true, 'someone who has melded is not asked again');
+});
+
+test('the option is a boolean setting, off by default, and nothing else is accepted', () => {
+  assert.equal(DEFAULT_SETTINGS.playOnMeld, false);
+  assert.equal(normaliseSettings({}).settings.playOnMeld, false);
+  const on = normaliseSettings({ playOnMeld: true });
+  assert.equal(on.settings.playOnMeld, true);
+  assert.equal(normaliseSettings({ meld: 20 }, on.settings).settings.playOnMeld, true, 'other changes leave it alone');
+  assert.equal(normaliseSettings({ playOnMeld: false }, on.settings).settings.playOnMeld, false);
+  for (const bad of ['yes', 1, null, {}]) assert.equal(normaliseSettings({ playOnMeld: bad }).ok, false, String(bad));
 });
