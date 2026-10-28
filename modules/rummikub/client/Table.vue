@@ -59,6 +59,8 @@ const recent = computed(() => new Set(props.state.lastPlay?.ids ?? []));
 const rackTiles = computed(() => sortRack(s.value, arr.value.rack, sortMode.value));
 const oldIds = computed(() => new Set(props.state.table.flat()));
 const frozenSet = (ids) => !melded.value && ids.some((id) => oldIds.value.has(id));
+/** Whether the + button of a set can take the selected tiles right now. */
+const canAddTo = (set) => myTurn.value && !set.frozen && selected.value.length > 0;
 const lockedTile = (id) => !melded.value && oldIds.value.has(id);
 
 const shownSets = computed(() =>
@@ -294,13 +296,15 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
                   @dragstart="dragStart($event, item.id)"
                   @dragend="dragEnd"
                 />
+                <!-- always drawn, so a set is the same size on every turn; it only shows when it can be used -->
                 <button
-                  v-if="myTurn && !set.frozen"
                   class="add"
-                  :class="{ ready: selected.length > 0 }"
-                  :tabindex="selected.length ? 0 : -1"
-                  :aria-hidden="selected.length ? undefined : 'true'"
-                  :aria-label="`Add the selected tiles to set ${set.index + 1}`" @click.stop="dropSelected({ type: 'set', index: set.index })">+</button>
+                  :class="{ ready: canAddTo(set) }"
+                  :tabindex="canAddTo(set) ? 0 : -1"
+                  :aria-hidden="canAddTo(set) ? undefined : 'true'"
+                  :aria-label="`Add the selected tiles to set ${set.index + 1}`"
+                  @click.stop="dropSelected({ type: 'set', index: set.index })"
+                >+</button>
               </div>
               <small class="label" :class="{ err: !set.result.ok }">{{ setLabel(set) }}</small>
             </div>

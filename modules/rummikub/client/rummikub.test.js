@@ -181,6 +181,22 @@ describe('the play field', () => {
     expect(w.findAll('.sets .set:not(.new)')).toHaveLength(0);
   });
 
+  it('a set has the same parts on every turn, so the boxes never change size or move', async () => {
+    const table = [[t(0, 1), t(0, 2), t(0, 3)], [t(1, 5), t(2, 5), t(3, 5)]];
+    const racks = [[t(0, 4), t(1, 9)], [t(2, 2)]];
+    const mine = mountTable(view({ racks, table, melded: [true, true], turn: 0 })).w;
+    const theirs = mountTable(view({ racks, table, melded: [true, true], turn: 1 })).w;
+    const unmelded = mountTable(view({ racks, table, melded: [false, true], turn: 0 })).w;
+    for (const w of [mine, theirs, unmelded]) {
+      expect(w.findAll('.sets .set:not(.new)')).toHaveLength(2);
+      expect(w.findAll('.sets .set:not(.new) .add')).toHaveLength(2); // drawn in every case
+      expect(w.findAll('.sets .add.ready')).toHaveLength(0); // and hidden until it can take the selected tiles
+    }
+    await rackTile(mine, t(0, 4)).trigger('click');
+    expect(mine.findAll('.sets .add.ready')).toHaveLength(2);
+    expect(unmelded.findAll('.sets .add')[0].attributes('aria-hidden')).toBe('true');
+  });
+
   it('tiles are draggable spans with the button role (Firefox will not drag a <button>), and work from the keyboard', async () => {
     const { w } = mountTable(state());
     const tileEl = rackTile(w, t(0, 10));
