@@ -186,6 +186,8 @@ describe('the play field', () => {
     expect(w.find('.felt').classes()).not.toContain('dropping');
     for (const id of [t(0, 10), t(0, 11), t(0, 12)]) await rackTile(w, id).trigger('click');
     await rackTile(w, t(0, 11)).trigger('dragstart'); // dragging one of the selected tiles takes them all
+    expect(w.find('.felt').classes()).not.toContain('dropping'); // not inside dragstart itself: that can cancel the drag
+    await new Promise((resolve) => setTimeout(resolve, 5));
     expect(w.find('.felt').classes()).toContain('dropping');
     await w.find('.felt').trigger('drop'); // not on the New set area
     expect(w.find('.felt').classes()).not.toContain('dropping');

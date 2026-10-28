@@ -37,6 +37,7 @@ const arr = ref(startArrangement(props.state.table, props.state.rack));
 const undoStack = ref([]);
 const selected = ref([]);
 const dragging = ref([]);
+const dropHint = ref(false); // the table's outline while dragging: set a moment after the drag starts (see dragStart)
 const hint = ref('');
 const sortMode = ref('run');
 const busy = ref(false);
@@ -125,14 +126,20 @@ function dragStart(event, id) {
   } catch {
     // an environment without data transfer (the tests)
   }
+  // Changing the page inside dragstart can make the browser cancel the drag, so the outline waits until it has begun.
+  setTimeout(() => {
+    dropHint.value = dragging.value.length > 0;
+  }, 0);
 }
 function drop(target) {
   const ids = dragging.value;
   dragging.value = [];
+  dropHint.value = false;
   if (myTurn.value && ids.length) place(ids, target);
 }
 const dragEnd = () => {
   dragging.value = [];
+  dropHint.value = false;
 };
 
 function undo() {
@@ -254,7 +261,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
         </PlayerPopup>
         <section
           class="felt"
-          :class="{ dropping: myTurn && dragging.length }"
+          :class="{ dropping: myTurn && dropHint }"
           aria-label="The table"
           @dragover.prevent
           @drop.prevent="drop({ type: 'new' })"

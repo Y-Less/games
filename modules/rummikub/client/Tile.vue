@@ -95,6 +95,13 @@ const label = computed(() => {
 span.tile {
   cursor: default;
 }
+/* A press anywhere on a tile is a press on the tile itself, so the browser always sees the draggable element, never its number or shape. */
+.tile {
+  -webkit-user-drag: element;
+}
+.tile > * {
+  pointer-events: none;
+}
 .shape {
   width: 0.62em;
   height: 0.62em;
