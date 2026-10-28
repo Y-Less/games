@@ -130,9 +130,9 @@ export const lutc = {
  */
 export const lutv = {
   id: 'lutv',
-  name: 'Lookup (bid values)',
-  description: 'Nominates the number that was worth most in simulated games from hands, positions and earlier nominations like this one.',
-  weight: 0,
+  name: 'Statistician',
+  description: 'Nominates the number that was worth most in millions of simulated games from hands, seats and earlier nominations like its own, then plays to it.',
+  weight: 1.5,
   nominate(ctx) {
     const { hand, trump, allowed, instantWin = false, jokers = false } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;

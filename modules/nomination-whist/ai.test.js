@@ -75,7 +75,7 @@ function allBotGame(ais, { seed = 1, settings = {} } = {}) {
 // ---- the registry ----
 
 test('every AI is described, standard is the fallback, and random has a low weight', () => {
-  assert.deepEqual(IDS, ['standard', 'random', 'cautious', 'optimist', 'counter', 'sharp']);
+  assert.deepEqual(IDS, ['standard', 'random', 'cautious', 'optimist', 'counter', 'sharp', 'lutv']);
   for (const a of AIS) {
     assert.ok(a.name && a.description, a.id);
     assert.equal(typeof a.nominate, 'function');
