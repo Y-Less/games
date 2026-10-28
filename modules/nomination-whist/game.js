@@ -8,7 +8,7 @@ import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/ca
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
 import { cannotWinOnPoints } from './ai/endgame.js';
-import { contextModel, lutc } from './ai/lut.js';
+import { contextModel, lutv } from './ai/lut.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
@@ -544,15 +544,16 @@ export function botPlay(room, seat, rng = Math.random) {
 }
 
 /**
- * The nomination the bidding table suggests to the person whose turn it is to nominate: the allowed number (so never the
- * dealer's forbidden one) with the best expected score for their own hand, their table position and what the players
- * before them have nominated (a hand is worth more when they nominated low), from the table learned for games with or without the Jokers. Null at any other time, so nobody is told it early.
+ * The nomination the bid-value table suggests to the person whose turn it is to nominate: the allowed number (so never the
+ * dealer's forbidden one) that was worth most in simulated games from their own cards, their table position and what the
+ * players before them have nominated, with the player then playing to it. From the table learned for games with or without
+ * the Jokers (falling back to the table-aware one where it has nothing). Null at any other time, so nobody is told it early.
  */
 export function suggestedNomination(room, seat) {
   if (room.phase !== 'nominating' || room.turn !== seat) return null;
   if (room.settings.jokers && !contextModel(true)) return null; // no table has been learned for games with Jokers, and the plain one would mislead
   const context = nominateContext(room, seat, () => 0.5);
-  const number = lutc.nominate(context);
+  const number = lutv.nominate(context);
   return context.allowed.includes(number) ? number : null;
 }
 

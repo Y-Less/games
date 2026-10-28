@@ -107,3 +107,44 @@ node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 10
 when it does not; the two files are trained separately and neither affects the other. In a one-card round the key can be a
 Joker, whose chance of taking the trick leading is far above a deuce's. `lutc-plain` is `lutc` held to the no-Jokers table even
 in a Jokers game, the baseline for the Jokers table. Without a Jokers table file the suggestion is simply not offered in a Jokers game.
+
+## The bid-value table: `train-values.js` and `models/bidding-values.json`
+
+```
+node modules/nomination-whist/sim/train-values.js --players 3-7 --deals 200_000_000 --iterations 2 --min-n 100     # about 35 minutes
+node modules/nomination-whist/sim/train-values.js --players 3-7 --deals 200_000_000 --iterations 1 --min-n 100 --jokers   # bidding-values-jokers.json
+```
+
+The earlier tables estimate how many tricks a hand tends to take if it nominates the usual number and plays to it, then score
+each nomination against that one distribution. That is wrong whenever the nomination changes how you play: nominating 1 with the
+queen of trumps and a deuce, and nominating 0 and trying to duck, are different games. This table learns what **each nomination is
+worth**: every deal is played with the table's best nomination by all the seats but one, which nominates a random allowed number
+instead, then everybody plays to what they nominated (Standard's card play), and for every nomination of every seat the cell of
+the decision, the number nominated and the tricks taken are counted. A nomination made by the table depends only on its cell and
+the others are random, so the average for a nomination in a cell is what it is worth there.
+
+The cell (`value-features.js`):
+
+- **hand**: for one or two cards the exact cards, each as its rank and whether it is a trump (the suit itself does not matter, and
+  neither does which suit is trumps), plus whether a pair share a suit; from three cards the Standard estimate in quarters of a trick.
+  (The estimate rounds a queen of trumps and a low trump with a lucky side card to the same half-trick, which is how the older
+  table came to advise nominating 0 with the queen of trumps.)
+- **unclaimed** and **after**: as in the table-aware table (tricks the earlier players left unclaimed, and your exact position).
+- **regime**: trumps or no trumps.
+
+Each entry is the chance of hitting the nomination and the tricks taken on a miss, so the AI (`lutv`) scores a nomination as
+`pHit x (10 + n) + tricks on a miss` (or without the last part if a miss scores nothing) and nominates the best allowed number;
+it falls back to `lutc` where the table has no entry. Two iterations (the second playing the first's table) gave the same result.
+
+Over 200,000 games per player count against `lutc` (standard card play): 3 players 92.3 against 90.0, 4 players 98.7 against 96.5,
+5 players 103.6 against 100.1, 6 players 107.2 against 104.5, 7 players 109.9 against 107.5. For the queen of trumps with a
+low card on a 2-card round (7 players, first to nominate) it values nominating 1 at 8.9 points and nominating 0 at 2.8; with the
+queen and a low heart, nominating 2 (6.2) beats 1 (5.1).
+
+## The last chance (`ai/endgame.js`)
+
+In the last round with the instant win on, a player who cannot win on points (even 17, the most a round gives, leaves them behind
+the best of the others) can only win by nominating 7 and taking all 7 tricks, so there is nothing to lose. This is not a rule:
+every card's weight in the AIs' hand estimates is turned up (`lastChanceBoost`, added to the estimate in `estimateTricks`,
+`countTricks` and the table lookups), so the hand reads as very strong and each AI nominates high, then plays for every trick.
+The person is told in their Status box and the suggestion is set high. Random ignores it.
