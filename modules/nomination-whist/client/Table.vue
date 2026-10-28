@@ -8,6 +8,7 @@ import GameLog from '../../../src/components/GameLog.vue';
 import OpponentHands from '../../../src/components/OpponentHands.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
+import CardFan from '../../../src/components/CardFan.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
@@ -143,7 +144,7 @@ const TOP_RESERVE = 124; // pixels kept clear along the top for an opponent's ha
 const TOP_HANDS = [1, 3, 5, 6]; // how many opponents there are when one sits along the top, over the trick
 const roomFor = (area) => {
   const handLarge = area.height >= 600;
-  const handRem = handLarge ? 9.2 : 7.2;
+  const handRem = handLarge ? 9.6 : 7.6; // a card and the fan's lift for the one under the pointer
   const spare = area.height - (0.4 + handRem) * 16 - 8 - (TOP_HANDS.includes(others.value.length) ? TOP_RESERVE : 0); // the hand and the gap above it
   // The trick is drawn large and then scaled to the room that is left (never to what is on the table).
   return { hand: handLarge ? 'lg' : 'md', zoom: Math.max(0.8, Math.min(1.6, spare / 242)) };
@@ -203,18 +204,13 @@ const roomFor = (area) => {
         </template>
 
         <div class="mine">
-          <section class="hand" :class="roomFor(area).hand" aria-label="Your hand">
-            <PlayingCard
-              v-for="card in hand"
-              :key="card"
-              :card="card"
-              :size="roomFor(area).hand"
-              :clickable="state.phase === 'playing' && myTurn"
-              :dimmed="Boolean(state.legal?.[card])"
-              :title="state.legal?.[card] ?? undefined"
-              @pick="pick"
-            />
-          </section>
+          <CardFan class="hand" role="group" aria-label="Your hand" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" straight>
+            <template #default="{ item: card }">
+              <div class="slot" :title="state.legal?.[card] ?? undefined">
+                <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" @pick="pick" />
+              </div>
+            </template>
+          </CardFan>
         </div>
       </div>
     </template>
@@ -403,13 +399,11 @@ const roomFor = (area) => {
   gap: 0.4rem;
 }
 .hand {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 0.4rem;
-  height: 7.2rem; /* medium cards (6.2rem) and the lift of the one under the pointer */
+  align-self: center; /* the fan is as wide as a full hand and keeps its size as cards are played */
 }
-.hand.lg {
-  height: 9.2rem;
+.slot {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
 }
 </style>

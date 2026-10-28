@@ -33,6 +33,14 @@ describe('the table in the standard frame', () => {
     expect(w.find('.box.status h3').text()).toBe('Status');
   });
 
+  it('draws your hand as the shared overlapping fan, as Hearts does', () => {
+    const { w } = mountTable(game.viewFor(started(), 1));
+    const fan = w.find('.main .fan.hand');
+    expect(fan.exists()).toBe(true);
+    expect(fan.classes()).toContain('straight');
+    expect(fan.findAll('.fan-card')).toHaveLength(7);
+  });
+
   it('always shows every opponent face down with their name and a short note, whose turn it is marked', () => {
     const { w } = mountTable(game.viewFor(started(2), 1));
     const opps = w.findAll('.main .opponent-hands .opp');
