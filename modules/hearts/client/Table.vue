@@ -170,6 +170,17 @@ const handStyle = (fanned) => {
   const width = fanned ? 2 * 8 * CARD_W * Math.sin(((n - 1) / 2) * step * (Math.PI / 180)) + CARD_W + 0.6 : (n - 1) * overlap * CARD_W + CARD_W + 0.6;
   return { marginLeft: `${(-width / 2).toFixed(2)}rem` };
 };
+// The hand is spread in an arc when it fits: the arc's middle cards stand higher than a flat row's (by its sag), so it
+// needs that much more room between the trick and the bottom edge. The design leaves CLEAR rem there; a window taller
+// than the table can be scaled to (see `scale`) leaves more. The minimised boxes also give the arc its room.
+const CLEAR = 2.9; // rem between the lowest played card and the top of a flat hand, in the design
+const arcSag = computed(() => 8 * CARD_W * (1 - Math.cos(((cardsEach.value - 1) / 2) * handLook.value.step * (Math.PI / 180))));
+function arcFits(area) {
+  if (area.minimised) return true;
+  const s = scale(area);
+  const spare = area.height / rem() - DESIGN_H * s; // rem the table cannot use because it stops growing
+  return arcSag.value * s + 0.4 <= CLEAR * s + spare;
+}
 
 // ---- fitting the room ----
 // The table is drawn at a design height of DESIGN_H rem and every piece is scaled by one factor worked out from the
@@ -237,7 +248,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" :class="{ fanned: area.minimised }" role="group" :style="handStyle(area.minimised)" aria-label="Your hand" :items="shownHand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!area.minimised">
+        <CardFan class="my-fan hand" :class="{ fanned: arcFits(area), minimised: area.minimised }" role="group" :style="handStyle(arcFits(area))" aria-label="Your hand" :items="shownHand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!arcFits(area)">
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: showReceived && state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
@@ -297,7 +308,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
   transform-origin: 50% 100%;
   transform: scale(var(--s));
 }
-.my-fan.fanned {
+.my-fan.fanned.minimised {
   bottom: 1.2rem; /* and its outer corners drop low, so it sits higher to clear the minimised boxes */
 }
 .slot {

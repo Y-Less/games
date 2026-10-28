@@ -1,6 +1,6 @@
 // The standard layout of Nomination Whist: the frame, the words in Status, the log built from state changes, and the
 // header's Leave game.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { leaveOffer } from '../../../src/playBar.js';
@@ -18,6 +18,17 @@ function started(turn = 0) {
   room.turn = turn;
   return room;
 }
+/** Makes every element report this height, as the frame measures its main area from it (jsdom has no layout). */
+function withAreaHeight(height, { minimised = false } = {}) {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => height });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 });
+  localStorage.setItem('gameframe.minimised', minimised ? '1' : '0');
+}
+afterEach(() => {
+  delete HTMLElement.prototype.clientHeight;
+  delete HTMLElement.prototype.clientWidth;
+  localStorage.removeItem('gameframe.minimised');
+});
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const mountTable = (state, send = vi.fn(() => Promise.resolve({ ok: true }))) => ({ send, w: mount(Table, { props: { state, send } }) });
 
@@ -39,6 +50,24 @@ describe('the table in the standard frame', () => {
     expect(fan.exists()).toBe(true);
     expect(fan.classes()).toContain('straight');
     expect(fan.findAll('.fan-card')).toHaveLength(7);
+  });
+
+  it('spreads your hand in an arc when there is room, and lays it flat when there is not', async () => {
+    withAreaHeight(1000);
+    const big = mountTable(game.viewFor(started(), 1)).w;
+    await flushPromises();
+    expect(big.find('.main .fan.hand').classes()).not.toContain('straight');
+    withAreaHeight(400);
+    const small = mountTable(game.viewFor(started(), 1)).w;
+    await flushPromises();
+    expect(small.find('.main .fan.hand').classes()).toContain('straight');
+  });
+
+  it('spreads your hand in an arc, even on a small screen, when the bottom boxes are minimised', async () => {
+    withAreaHeight(400, { minimised: true });
+    const { w } = mountTable(game.viewFor(started(), 1));
+    await flushPromises();
+    expect(w.find('.main .fan.hand').classes()).not.toContain('straight');
   });
 
   it('always shows every opponent face down with their name and a short note, whose turn it is marked', () => {

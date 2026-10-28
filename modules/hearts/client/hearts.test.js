@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
@@ -36,6 +36,18 @@ function playing() {
   expect(r.phase).toBe('playing');
   return r;
 }
+/** Makes every element report this height, as the frame measures its main area from it (jsdom has no layout). */
+function withAreaHeight(height, { minimised = false } = {}) {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => height });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 });
+  localStorage.setItem('gameframe.minimised', minimised ? '1' : '0');
+}
+afterEach(() => {
+  delete HTMLElement.prototype.clientHeight;
+  delete HTMLElement.prototype.clientWidth;
+  localStorage.removeItem('gameframe.minimised');
+});
+
 const makeSend = () => vi.fn(() => Promise.resolve({ ok: true }));
 function fakeSocket(connected = false) {
   const handlers = {};
@@ -143,6 +155,27 @@ describe('Hearts table in the standard frame', () => {
     expect(w.findAll('.hand .playing-card')).toHaveLength(10); // no longer buttons: nothing more to choose
     expect(w.find('.hand').attributes('style')).toBe(mount(Table, { props: { state: view(room()), send: makeSend() } }).find('.hand').attributes('style'));
     expect(w.find('.confirm').classes()).toContain('hidden');
+  });
+
+  it('spreads the hand in an arc when the table has room for it, and lays it flat when it has not', async () => {
+    withAreaHeight(1000);
+    const big = mount(Table, { props: { state: view(room()), send: makeSend() } });
+    await flushPromises();
+    expect(big.find('.my-fan').classes()).toContain('fanned');
+    expect(big.find('.my-fan').classes()).not.toContain('straight');
+    withAreaHeight(520);
+    const small = mount(Table, { props: { state: view(room()), send: makeSend() } });
+    await flushPromises();
+    expect(small.find('.my-fan').classes()).toContain('straight');
+    expect(small.find('.my-fan').classes()).not.toContain('fanned');
+  });
+
+  it('spreads the hand in an arc, even on a small screen, when the Recent moves and Status boxes are minimised', async () => {
+    withAreaHeight(520, { minimised: true });
+    const w = mount(Table, { props: { state: view(room()), send: makeSend() } });
+    await flushPromises();
+    expect(w.find('.my-fan').classes()).toEqual(expect.arrayContaining(['fanned', 'minimised']));
+    expect(w.find('.my-fan').classes()).not.toContain('straight');
   });
 
   it('draws the recent moves it is given, newest first', () => {

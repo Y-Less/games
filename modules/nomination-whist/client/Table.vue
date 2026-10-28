@@ -142,12 +142,21 @@ function pick(card) {
 // The sizes follow the room the frame leaves, never the game, so nothing changes size while playing.
 const TOP_RESERVE = 124; // pixels kept clear along the top for an opponent's hand
 const TOP_HANDS = [1, 3, 5, 6]; // how many opponents there are when one sits along the top, over the trick
+const CARD_REM = { md: 4.4, lg: 5.8 };
+// The hand is spread in an arc when there is room: the arc's middle cards stand higher than a flat row's, by its sag.
+const arcSag = (size) => 8 * CARD_REM[size] * (1 - Math.cos(((MOST_CARDS - 1) / 2) * 3.6 * (Math.PI / 180)));
+const ZOOM_MAX = 1.6;
 const roomFor = (area) => {
   const handLarge = area.height >= 600;
-  const handRem = handLarge ? 9.6 : 7.6; // a card and the fan's lift for the one under the pointer
-  const spare = area.height - (0.4 + handRem) * 16 - 8 - (TOP_HANDS.includes(others.value.length) ? TOP_RESERVE : 0); // the hand and the gap above it
+  const size = handLarge ? 'lg' : 'md';
+  const fromRoom = (handRem) => area.height - (0.4 + handRem) * 16 - 8 - (TOP_HANDS.includes(others.value.length) ? TOP_RESERVE : 0); // the hand and the gap above it
+  const flat = handLarge ? 9.6 : 7.6; // a card and the fan's lift for the one under the pointer
+  const arc = flat + arcSag(size);
+  // The arc is used when the minimised boxes have given the table more room, or when the trick is already as big as it
+  // gets and there is still room to spare (a large screen).
+  const fanned = Boolean(area.minimised) || fromRoom(arc) / 242 >= ZOOM_MAX;
   // The trick is drawn large and then scaled to the room that is left (never to what is on the table).
-  return { hand: handLarge ? 'lg' : 'md', zoom: Math.max(0.8, Math.min(1.6, spare / 242)) };
+  return { hand: size, fanned, zoom: Math.max(0.8, Math.min(ZOOM_MAX, fromRoom(fanned ? arc : flat) / 242)) };
 };
 </script>
 
@@ -204,7 +213,7 @@ const roomFor = (area) => {
         </template>
 
         <div class="mine">
-          <CardFan class="hand" role="group" aria-label="Your hand" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" straight>
+          <CardFan class="hand" role="group" aria-label="Your hand" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" :straight="!roomFor(area).fanned">
             <template #default="{ item: card }">
               <div class="slot" :title="state.legal?.[card] ?? undefined">
                 <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" @pick="pick" />
