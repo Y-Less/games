@@ -10,6 +10,11 @@ See `rules.md` (shown by the Rules button) for the rules. Decisions worth knowin
   (`rules.checkPlay`): all old tiles remain, only rack tiles were added, every set is valid, and before the first meld the
   old sets are untouched and the new sets (rack tiles only) are worth the threshold. The client's rack is not trusted or needed
   (the rack is the server's); an invalid layout is refused with no change, and "Reset turn" is local to the client.
+- A joker on the table remembers what it stands for (`rules.pinnedJokers`: one tile, or two at the end of a run or in a group of three)
+  and cannot be moved; adding a tile it could stand for frees it into a set of its own (`layout.releaseJokers`). `checkPlay` enforces
+  the same from the final table: each such joker is still in a set where it could be the same tile, or a fitting tile was swapped in
+  from the rack or moved from another set. A duplicate dropped into a run splits it (`layout.splitRunAtDuplicate`). The bots leave
+  joker sets alone unless the rack has a tile to swap in.
 - Set order is irrelevant. `rules.resolveSet` decides what each wildcard stands for and the server keeps sets in that order.
 - Deal: 14 each, or `floor(tiles / (players + 1))` when that is smaller; fewer than 6 each is refused when starting.
 - Rounds: the lowest rack wins; losers lose the difference to the winner's rack (equal to their rack when someone goes out).

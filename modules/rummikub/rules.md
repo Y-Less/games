@@ -28,8 +28,16 @@ You either **play** or **draw**.
 - **Play**: add one or more tiles from your rack to the table. You may rearrange the table however you like: split runs, combine sets, take a tile from one set to make another, replace a wildcard with the tile it stood for and use the wildcard elsewhere. When you press **End turn** the table must follow these rules, or nothing changes and you can carry on arranging (or press **Reset turn**):
   - every tile that was on the table at the start of your turn is still on the table;
   - the only new tiles come from your own rack, and you added at least one;
-  - every set is a valid run or group.
+  - every set is a valid run or group;
+  - every wildcard that was on the table is still standing for what it stood for, or has been swapped (see below).
+- Dropping a **second copy of a tile into a run** splits the run there: add a second 5 to 2 3 4 5 6 and you get 2 3 4 5 and 5 6, ready to be finished.
 - Wildcards can never be kept: because every tile must stay on the table, one you take from a set has to be used in a valid set again in the same turn.
+
+## Wildcards on the table
+
+A wildcard on the table **remembers what it stands for**: one tile, or one of two where either fits (at the end of a run, or in a group of three). It **cannot be moved**. You can take the other tiles out of its set and it still remembers, so moving a wildcard is never enough: it has to be **replaced**.
+
+When you add a tile that the wildcard could stand for to its set, the wildcard is replaced and moves out into a new group of its own, which you must then use in a set before the end of your turn. A tile that does not fit leaves the wildcard where it is.
 
 ## The first meld
 

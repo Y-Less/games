@@ -15,7 +15,7 @@ const props = defineProps({
   recent: { type: Boolean, default: false }, // played by the last player
   drawn: { type: Boolean, default: false }, // drawn from the pool, until its owner's next turn
   locked: { type: Boolean, default: false },
-  stands: { type: Object, default: null }, // { number, colour } for a wildcard
+  stands: { type: Object, default: null }, // { number, colour, text? } for a wildcard; text is what to show (for example "3/6")
   interactive: { type: Boolean, default: true },
 });
 
@@ -23,7 +23,7 @@ const tile = computed(() => tileOf(props.settings, props.id));
 const info = computed(() => (tile.value.joker ? null : colourInfo(tile.value.colour)));
 const shape = computed(() => (info.value ? SHAPES[info.value.shape] : null));
 const label = computed(() => {
-  if (tile.value.joker) return props.stands ? `Wildcard standing for ${props.stands.number}` : 'Wildcard';
+  if (tile.value.joker) return props.stands ? `Wildcard standing for ${props.stands.text ?? props.stands.number}` : 'Wildcard';
   return `${info.value.name} ${tile.value.number}`;
 });
 </script>
@@ -47,7 +47,7 @@ const label = computed(() => {
       <svg class="burst" viewBox="0 0 12 12" aria-hidden="true">
         <polygon points="6,0.4 7.3,4.1 11.2,3.2 8.5,6 11.2,8.8 7.3,7.9 6,11.6 4.7,7.9 0.8,8.8 3.5,6 0.8,3.2 4.7,4.1" />
       </svg>
-      <span v-if="stands" class="as">{{ stands.number }}</span>
+      <span v-if="stands" class="as">{{ stands.text ?? stands.number }}</span>
     </template>
     <template v-else>
       <span class="num">{{ tile.number }}</span>

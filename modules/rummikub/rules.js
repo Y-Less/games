@@ -161,6 +161,74 @@ export function resolveSet(s, ids) {
   return fail('A set is a run (one colour, consecutive numbers) or a group (one number, different colours).');
 }
 
+// ---- jokers that are already on the table ----
+
+const sameTile = (a, b) => a.colour === b.colour && a.number === b.number;
+
+/**
+ * The tiles a joker in this set could be swapped for: every colour and number that, put in the joker's place, leaves a
+ * valid set. Usually one; two for a joker at the end of a run or in a group of three, where either of two tiles fits.
+ */
+export function jokerOptions(s, ids, jokerId) {
+  const others = ids.filter((id) => id !== jokerId);
+  const copy = s.colours * s.numbers; // the second copy of a tile is this many ids on
+  const options = [];
+  for (let colour = 0; colour < s.colours; colour++) {
+    for (let number = 1; number <= s.numbers; number++) {
+      const first = colour * s.numbers + number - 1;
+      const probe = [first, first + copy].find((id) => !others.includes(id));
+      if (probe !== undefined && resolveSet(s, [...others, probe]).ok) options.push({ colour, number });
+    }
+  }
+  return options;
+}
+
+/**
+ * The jokers on the table at the start of a turn, each with what it stands for (see jokerOptions): a Map of joker id to
+ * options. A joker remembers these for the whole turn, whatever happens to the rest of its set, and can only leave its
+ * place by being swapped for a tile that matches one of them.
+ */
+export function pinnedJokers(s, table) {
+  const pinned = new Map();
+  for (const set of table) {
+    for (const id of set) {
+      if (!isJoker(s, id)) continue;
+      const options = jokerOptions(s, set, id);
+      if (options.length) pinned.set(id, options);
+    }
+  }
+  return pinned;
+}
+
+/** Whether this tile is one a joker with these options could be swapped for. */
+export const fitsJoker = (s, id, options) => !isJoker(s, id) && options.some((option) => sameTile(option, tileOf(s, id)));
+
+const JOKER_TAKEN = 'A joker on the table cannot just be moved: swap in the tile it stands for first.';
+
+/**
+ * The rule for jokers already on the table: each must still be in a set where it could stand for what it stood for, or have
+ * been swapped for a tile that fits. A fitting tile counts if it came from the rack or has moved to a different set (the
+ * table is only judged as it ends, so this is the check that can be made). Returns an error message or null.
+ */
+function jokerProblem(s, before, proposed, oldSet) {
+  const pinned = pinnedJokers(s, before);
+  if (!pinned.size) return null;
+  const setOf = new Map();
+  proposed.forEach((set, i) => set.forEach((id) => setOf.set(id, i)));
+  const startSetOf = new Map();
+  before.forEach((set, i) => set.forEach((id) => startSetOf.set(id, i)));
+  const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id));
+  const spare = proposed.flat().filter((id) => !isJoker(s, id) && (!oldSet.has(id) || !sameIds(proposed[setOf.get(id)], before[startSetOf.get(id)])));
+  for (const [id, options] of pinned) {
+    const stays = jokerOptions(s, proposed[setOf.get(id)], id).some((now) => options.some((was) => sameTile(now, was)));
+    if (stays) continue;
+    const at = spare.findIndex((tile) => fitsJoker(s, tile, options));
+    if (at === -1) return JOKER_TAKEN;
+    spare.splice(at, 1);
+  }
+  return null;
+}
+
 /** The canonical order of a valid set, or the ids as they are when it is not valid (the client keeps unfinished sets). */
 export const orderedSet = (s, ids) => {
   const r = resolveSet(s, ids);
@@ -181,7 +249,7 @@ const isIdList = (s, list) => Array.isArray(list) && list.every((id) => validTil
  * Every old tile must still be on the table, every new tile must come from the rack, every set must be valid and, until
  * the first meld, the old sets must be untouched and the new sets (rack tiles only) must be worth `meld` points. With the
  * `playOnMeld` option the meld is the sets that contain no old tile, and once they are worth `meld` points the rest of the
- * table may be rearranged in the same turn.
+ * table may be rearranged in the same turn. A joker that was on the table keeps what it stood for (see pinnedJokers).
  * Returns { ok, sets (canonical), added: [ids], points (value of the new sets, first meld only) } or { ok: false, error }.
  */
 export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SETTINGS.meld }) {
@@ -205,6 +273,9 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
     if (!resolved.ok) return fail(`Set ${i + 1}: ${resolved.error}`);
     sets.push(resolved);
   }
+
+  const jokers = jokerProblem(s, before, proposed, oldSet);
+  if (jokers) return fail(jokers);
 
   let points = 0;
   if (!melded && s.playOnMeld) {

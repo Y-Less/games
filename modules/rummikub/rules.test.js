@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SETTINGS, checkPlay, dealSize, normaliseSettings, rackValue, resolveSet, startProblem, tileOf, totalTiles } from './rules.js';
+import { DEFAULT_SETTINGS, checkPlay, dealSize, jokerOptions, normaliseSettings, pinnedJokers, rackValue, resolveSet, startProblem, tileOf, totalTiles } from './rules.js';
 import { STD, joker, tile } from './testing.js';
 
 const t = (c, n, copy = 0) => tile(STD, c, n, copy);
@@ -225,4 +225,48 @@ test('the option is a boolean setting, off by default, and nothing else is accep
   assert.equal(normaliseSettings({ meld: 20 }, on.settings).settings.playOnMeld, true, 'other changes leave it alone');
   assert.equal(normaliseSettings({ playOnMeld: false }, on.settings).settings.playOnMeld, false);
   for (const bad of ['yes', 1, null, {}]) assert.equal(normaliseSettings({ playOnMeld: bad }).ok, false, String(bad));
+});
+
+// ---- jokers already on the table ----
+
+const numbersOf = (options) => options.map((o) => o.number).sort((a, b) => a - b);
+
+test('a joker on the table knows what it can be swapped for: one tile, or two at the end of a run or in a group of three', () => {
+  assert.deepEqual(numbersOf(jokerOptions(STD, [t(0, 4), t(0, 5), J()], J())), [3, 6], 'the end of a run');
+  assert.deepEqual(numbersOf(jokerOptions(STD, [t(0, 4), J(), t(0, 6)], J())), [5], 'the middle of a run');
+  assert.deepEqual(numbersOf(jokerOptions(STD, [t(0, 4), t(0, 5), t(0, 6), J()], J())), [3, 7], 'a longer run still has two ends');
+  assert.deepEqual(numbersOf(jokerOptions(STD, [t(0, 1), t(0, 2), J()], J())), [3], 'a run cannot go below 1');
+  assert.deepEqual(jokerOptions(STD, [t(0, 7), t(1, 7), J()], J()).map((o) => o.colour).sort(), [2, 3], 'a group of three: either missing colour');
+  assert.deepEqual(jokerOptions(STD, [t(0, 7), t(1, 7), t(2, 7), J()], J()).map((o) => o.colour), [3], 'a group of four: the last colour');
+  const two = numbersOf(jokerOptions(STD, [t(0, 4), J(0), J(1)], J(0)));
+  assert.ok([3, 5, 6].every((n) => two.includes(n)), `two jokers: either could be swapped for a tile that leaves a valid set with the other (${two})`);
+  assert.equal(pinnedJokers(STD, [[t(0, 4), t(0, 5), J()], [t(1, 1), t(2, 1), t(3, 1)]]).size, 1, 'only the jokers are pinned');
+  assert.deepEqual(numbersOf(pinnedJokers(STD, [[t(0, 4), t(0, 5), J()]]).get(J())), [3, 6]);
+});
+
+const onTable = [[t(0, 4), t(0, 5), J()]]; // the joker is the 3 or the 6
+const turn = (rack, proposed, before = onTable) => checkPlay(STD, { before, rack, proposed, melded: true, meld: 30 });
+
+test('a joker on the table can only be taken by swapping in a tile it stands for, which can then be used anywhere', () => {
+  const rack = [t(0, 6), t(1, 9), t(2, 9)];
+  const swapped = turn(rack, [[t(0, 4), t(0, 5), t(0, 6)], [J(), t(1, 9), t(2, 9)]]);
+  assert.equal(swapped.ok, true, swapped.error);
+  const other = turn([t(0, 3), t(1, 9), t(2, 9)], [[t(0, 3), t(0, 4), t(0, 5)], [J(), t(1, 9), t(2, 9)]]);
+  assert.equal(other.ok, true, 'the other tile it could be (the 3) swaps it just as well');
+  const taken = turn([t(1, 9), t(2, 9)], [[t(0, 4), t(0, 5)], [J(), t(1, 9), t(2, 9)]]);
+  assert.equal(taken.ok, false);
+  const wrongColour = turn([t(1, 6), t(1, 9), t(2, 9)], [[t(0, 4), t(0, 5), t(1, 6)], [J(), t(1, 9), t(2, 9)]]);
+  assert.equal(wrongColour.ok, false);
+  const longer = [[t(0, 4), t(0, 5), t(0, 6), J()]];
+  const taken2 = turn([t(1, 9), t(2, 9)], [[t(0, 4), t(0, 5), t(0, 6)], [J(), t(1, 9), t(2, 9)]], longer);
+  assert.equal(taken2.ok, false, 'a valid run left behind is not a swap');
+  assert.match(taken2.error, /swap in the tile/);
+});
+
+test('a joker that stays keeps its value whatever else happens to its set', () => {
+  const kept = turn([t(0, 7)], [[t(0, 4), t(0, 5), J(), t(0, 7)]]);
+  assert.equal(kept.ok, true, 'it is still the 6');
+  const group = [[t(0, 7), t(1, 7), J()]];
+  assert.equal(turn([t(2, 7)], [[t(0, 7), t(1, 7), t(2, 7)], [J()]], group).ok, false, 'a joker alone is not a set');
+  assert.equal(turn([t(2, 7), t(1, 9), t(2, 9)], [[t(0, 7), t(1, 7), t(2, 7)], [J(), t(1, 9), t(2, 9)]], group).ok, true, 'swapped for the 7 of the third colour');
 });

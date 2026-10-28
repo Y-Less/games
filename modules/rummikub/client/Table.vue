@@ -14,8 +14,8 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
-import { dealSize } from '../rules.js';
-import { canMove, moveTiles, placedThisTurn, sameArrangement, sortRack, startArrangement, turnStatus } from './layout.js';
+import { dealSize, pinnedJokers } from '../rules.js';
+import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './layout.js';
 import RoundSummary from './RoundSummary.vue';
 import Tile from './Tile.vue';
 
@@ -63,7 +63,10 @@ const unlocked = computed(() => melded.value || (s.value.playOnMeld === true && 
 const frozenSet = (ids) => !unlocked.value && ids.some((id) => oldIds.value.has(id));
 /** Whether the + button of a set can take the selected tiles right now. */
 const canAddTo = (set) => myTurn.value && !set.frozen && selected.value.length > 0;
-const lockedTile = (id) => !unlocked.value && oldIds.value.has(id);
+// Jokers that were on the table when the turn began remember what they stand for, and stay put until a tile that fits is swapped in.
+const pinned = computed(() => pinnedJokers(s.value, props.state.table));
+const fixedJokers = computed(() => new Set([...pinned.value.keys()].filter((id) => !arr.value.freed?.includes(id))));
+const lockedTile = (id) => (!unlocked.value && oldIds.value.has(id)) || fixedJokers.value.has(id);
 
 const shownSets = computed(() =>
   arr.value.sets.map((ids, index) => {
@@ -72,7 +75,12 @@ const shownSets = computed(() =>
     return { index, ids, result, items, frozen: frozenSet(ids) };
   }),
 );
-const stands = (item) => (item.joker && item.number ? { number: item.number, colour: item.colour } : null);
+// What a joker stands for: what a joker already on the table remembers (one tile, or two to choose between), or what its set makes it.
+const stands = (item) => {
+  const options = fixedJokers.value.has(item.id) ? pinned.value.get(item.id) : null;
+  if (options) return { number: options[0].number, colour: options[0].colour, text: [...new Set(options.map((o) => o.number))].join('/') };
+  return item.joker && item.number ? { number: item.number, colour: item.colour } : null;
+};
 
 const canEnd = computed(() => myTurn.value && status.value.ok && !busy.value);
 const summary = computed(() => {
@@ -95,21 +103,26 @@ function remember() {
   undoStack.value.push({ arr: arr.value });
 }
 function place(ids, target) {
-  const problem = canMove(arr.value, ids, target, { before: props.state.table, melded: unlocked.value });
+  const problem = canMove(arr.value, ids, target, { before: props.state.table, melded: unlocked.value, fixed: fixedJokers.value });
   if (problem) {
     hint.value = problem;
     return false;
   }
   hint.value = '';
   remember();
-  arr.value = moveTiles(arr.value, ids, target);
+  const moved = moveTiles(arr.value, ids, target);
+  const split = ids.length === 1 ? splitRunAtDuplicate(s.value, arr.value, moved, ids[0]) : null;
+  const released = releaseJokers(s.value, split?.arr ?? moved, pinned.value);
+  if (split) hint.value = `The run was split at the second ${split.number}.`;
+  if (released.freed.length > (moved.freed?.length ?? 0)) hint.value = 'The joker is replaced: it has moved to a set of its own, so use it in a set this turn.';
+  arr.value = released;
   selected.value = [];
   return true;
 }
 function pick(id) {
   if (!myTurn.value) return;
   if (lockedTile(id)) {
-    hint.value = FROZEN;
+    hint.value = fixedJokers.value.has(id) ? JOKER_STAYS : FROZEN;
     return;
   }
   hint.value = '';

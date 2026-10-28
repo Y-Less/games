@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
-import { numberedCount } from '../rules.js';
+import { numberedCount, pinnedJokers } from '../rules.js';
 import { TILE_COLOURS, SHAPES } from './colours.js';
-import { canMove, moveTiles, placedThisTurn, sortRack, startArrangement, turnStatus } from './layout.js';
+import { canMove, moveTiles, placedThisTurn, releaseJokers, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './layout.js';
 import Lobby from './Lobby.vue';
 import Rummikub from './Rummikub.vue';
 import Table from './Table.vue';
@@ -469,5 +469,155 @@ describe('the shell', () => {
     socket.handlers.state(null);
     await flushPromises();
     expect(w.text()).toContain('No game has that code.');
+  });
+});
+
+describe('jokers that are already on the table', () => {
+  const J0 = joker(STD);
+  const run = [t(0, 4), t(0, 5), J0]; // the joker is the 3 or the 6
+  const startTable = [run];
+  const pinned = pinnedJokers(STD, startTable);
+
+  it('cannot be moved, but the other tiles in their set can', () => {
+    const arr = startArrangement(startTable, [t(0, 6), t(1, 9)]);
+    const fixed = new Set([J0]);
+    expect(canMove(arr, [J0], { type: 'new' }, { before: startTable, melded: true, fixed })).toMatch(/joker/);
+    expect(canMove(arr, [J0], { type: 'new' }, { before: startTable, melded: true })).toBeNull();
+    expect(canMove(arr, [t(0, 4)], { type: 'new' }, { before: startTable, melded: true, fixed })).toBeNull();
+  });
+
+  it('are replaced and move out to a new group when a tile they stand for is added to their set', () => {
+    const arr = startArrangement(startTable, [t(0, 6), t(0, 3), t(0, 7), t(1, 6)]);
+    for (const id of [t(0, 6), t(0, 3)]) {
+      const after = releaseJokers(STD, moveTiles(arr, [id], { type: 'set', index: 0 }), pinned);
+      expect(after.sets).toHaveLength(2);
+      expect([...after.sets[0]].sort()).toEqual([t(0, 4), t(0, 5), id].sort());
+      expect(after.sets[1]).toEqual([J0]);
+      expect(after.freed).toEqual([J0]);
+    }
+    for (const id of [t(0, 7), t(1, 6)]) {
+      const after = releaseJokers(STD, moveTiles(arr, [id], { type: 'set', index: 0 }), pinned);
+      expect(after.sets).toHaveLength(1);
+      expect(after.freed).toEqual([]);
+    }
+  });
+
+  it('keep what they stood for when everything else is taken out of their set, and are then replaced by that tile', () => {
+    const arr = startArrangement(startTable, [t(0, 6)]);
+    const emptied = moveTiles(moveTiles(arr, [t(0, 4)], { type: 'new' }), [t(0, 5)], { type: 'new' });
+    expect(emptied.sets[0]).toEqual([J0]);
+    expect(releaseJokers(STD, emptied, pinned)).toBe(emptied);
+    const replaced = releaseJokers(STD, moveTiles(emptied, [t(0, 6)], { type: 'set', index: 0 }), pinned);
+    expect(replaced.sets[0]).toEqual([t(0, 6)]);
+    expect(replaced.sets.at(-1)).toEqual([J0]);
+  });
+
+  it('a freed joker is no longer fixed', () => {
+    const arr = startArrangement(startTable, [t(0, 6)]);
+    const after = releaseJokers(STD, moveTiles(arr, [t(0, 6)], { type: 'set', index: 0 }), pinned);
+    expect(after.freed).toEqual([J0]);
+    expect(releaseJokers(STD, after, pinned)).toBe(after);
+  });
+});
+
+describe('a second copy of a tile dropped into a run splits it', () => {
+  const split = (set, id, extra = []) => {
+    const prev = { sets: [set, ...extra], rack: [id], freed: [] };
+    const next = moveTiles(prev, [id], { type: 'set', index: 0 });
+    return splitRunAtDuplicate(STD, prev, next, id);
+  };
+
+  it('2 3 4 5 6 and a second 5 become 2 3 4 5 and 5 6', () => {
+    const result = split([t(0, 2), t(0, 3), t(0, 4), t(0, 5), t(0, 6)], t(0, 5, 1));
+    expect(result.number).toBe(5);
+    expect(result.arr.sets[0]).toEqual([t(0, 2), t(0, 3), t(0, 4), t(0, 5)]);
+    expect([...result.arr.sets[1]].sort()).toEqual([t(0, 5, 1), t(0, 6)].sort());
+    expect(result.arr.sets).toHaveLength(2);
+  });
+
+  it('works when a joker is in the run: 3 * 5 6 7 8 9 10 and a second 6 become 3 * 5 6 and 6 7 8 9 10', () => {
+    const J0 = joker(STD);
+    const result = split([t(0, 3), J0, t(0, 5), t(0, 6), t(0, 7), t(0, 8), t(0, 9), t(0, 10)], t(0, 6, 1));
+    expect(result.arr.sets).toEqual([[t(0, 3), J0, t(0, 5), t(0, 6)], [t(0, 6, 1), t(0, 7), t(0, 8), t(0, 9), t(0, 10)]]);
+    expect(split([t(0, 4), J0, t(0, 6)], t(0, 4, 1)).arr.sets).toEqual([[t(0, 4)], [t(0, 4, 1), J0, t(0, 6)]]);
+    expect(split([t(0, 4), J0, t(0, 6)], t(0, 5))).toBeNull(); // the 5 is what the joker stands for: that is a swap, not a split
+  });
+
+  it('at the end of a run the copy is left on its own', () => {
+    const result = split([t(0, 2), t(0, 3), t(0, 4), t(0, 5)], t(0, 5, 1));
+    expect(result.arr.sets).toEqual([[t(0, 2), t(0, 3), t(0, 4), t(0, 5)], [t(0, 5, 1)]]);
+  });
+
+  it('other sets are left alone, and nothing is split unless it is a duplicate in a run', () => {
+    const other = [t(1, 1), t(2, 1), t(3, 1)];
+    expect(split([t(0, 2), t(0, 3), t(0, 4), t(0, 5), t(0, 6)], t(0, 5, 1), [other]).arr.sets).toContainEqual(other);
+    expect(split([t(0, 2), t(0, 3), t(0, 4)], t(0, 7))).toBeNull(); // not a duplicate
+    expect(split([t(0, 2), t(0, 3), t(0, 4)], t(1, 3))).toBeNull(); // another colour
+    expect(split([t(0, 7), t(1, 7), t(2, 7)], t(0, 7, 1))).toBeNull(); // a group, not a run
+    expect(split([t(0, 2), t(0, 3)], t(0, 3, 1))).toBeNull(); // not yet a run
+  });
+});
+
+describe('on the table', () => {
+  const J0 = joker(STD);
+  const run = [t(0, 2), t(0, 3), t(0, 4), t(0, 5), t(0, 6)];
+  const tileEl = (w, id) => w.find(`[data-id="${id}"]`);
+  const numeric = (a, b) => a - b;
+  const setsOf = (w) => w.findAll('.sets .set:not(.new)').map((set) => set.findAll('.tile').map((x) => Number(x.attributes('data-id'))));
+
+  it('dragging a second copy of a tile onto a run splits the run there', async () => {
+    const { w } = mountTable(view({ racks: [[t(0, 5, 1), t(1, 9)], [t(2, 2)]], table: [run], melded: [true, true], turn: 0 }));
+    await rackTile(w, t(0, 5, 1)).trigger('dragstart');
+    await w.find('.sets .set:not(.new)').trigger('drop');
+    const sets = setsOf(w);
+    expect(sets).toHaveLength(2);
+    expect([...sets[0]].sort(numeric)).toEqual([t(0, 2), t(0, 3), t(0, 4), t(0, 5)]);
+    expect([...sets[1]].sort(numeric)).toEqual([t(0, 5, 1), t(0, 6)].sort(numeric));
+    expect(w.text()).toContain('split at the second 5');
+  });
+
+  it('the same with a joker in the run: 3 * 5 6 7 8 9 10 and a second 6', async () => {
+    const wild = [t(0, 3), J0, t(0, 5), t(0, 6), t(0, 7), t(0, 8), t(0, 9), t(0, 10)];
+    const { w } = mountTable(view({ racks: [[t(0, 6, 1), t(1, 9)], [t(2, 2)]], table: [wild], melded: [true, true], turn: 0 }));
+    await rackTile(w, t(0, 6, 1)).trigger('dragstart');
+    await w.find('.sets .set:not(.new)').trigger('drop');
+    const sets = setsOf(w);
+    expect(sets).toHaveLength(2);
+    expect([...sets[0]].sort(numeric)).toEqual([t(0, 3), t(0, 5), t(0, 6), J0].sort(numeric));
+    expect([...sets[1]].sort(numeric)).toEqual([t(0, 6, 1), t(0, 7), t(0, 8), t(0, 9), t(0, 10)].sort(numeric));
+    expect(w.text()).toContain('split at the second 6');
+    expect(w.text()).not.toContain('cannot repeat');
+  });
+
+  it('a joker on the table cannot be dragged or picked; swapping in its tile frees it into a set of its own', async () => {
+    const table = [[t(0, 4), t(0, 5), J0]];
+    const { w } = mountTable(view({ racks: [[t(0, 6), t(1, 9), t(2, 9)], [t(3, 2)]], table, melded: [true, true], turn: 0 }));
+    expect(tileEl(w, J0).attributes('draggable')).toBe('false');
+    expect(tileEl(w, J0).text()).toContain('3/6'); // what it stands for: the 3 or the 6
+    await tileEl(w, J0).trigger('click');
+    expect(w.text()).toContain('stays where it is');
+    await rackTile(w, t(0, 6)).trigger('dragstart');
+    await w.find('.sets .set:not(.new)').trigger('drop');
+    const sets = setsOf(w);
+    expect(sets).toHaveLength(2);
+    expect([...sets[0]].sort(numeric)).toEqual([t(0, 4), t(0, 5), t(0, 6)]);
+    expect(sets[1]).toEqual([J0]);
+    expect(w.text()).toContain('joker is replaced');
+    expect(tileEl(w, J0).attributes('draggable')).toBe('true'); // free now
+    // use it in a group of 9s and the turn can be ended
+    for (const id of [J0, t(1, 9), t(2, 9)]) await tileEl(w, id).trigger('click');
+    await w.find('.set.new').trigger('click');
+    expect(setsOf(w)).toHaveLength(2);
+    expect(button(w, 'End turn').attributes('disabled')).toBeUndefined();
+  });
+
+  it('a tile that does not fit leaves the joker where it is, still standing for what it did', async () => {
+    const table = [[t(0, 4), t(0, 5), J0]];
+    const { w } = mountTable(view({ racks: [[t(0, 7), t(1, 9), t(2, 9)], [t(3, 2)]], table, melded: [true, true], turn: 0 }));
+    await rackTile(w, t(0, 7)).trigger('dragstart');
+    await w.find('.sets .set:not(.new)').trigger('drop');
+    expect(setsOf(w)).toHaveLength(1);
+    expect(tileEl(w, J0).attributes('draggable')).toBe('false');
+    expect(button(w, 'End turn').attributes('disabled')).toBeUndefined(); // 4 5 joker 7 is a valid run, with the joker as the 6
   });
 });

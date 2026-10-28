@@ -5,7 +5,7 @@
 // value of a finished table is the points of rack tiles it uses (a joker is worth 30) unless the caller supplies its
 // own `weights`, with memoising of states already seen and a cap on the number of states (a deterministic node count,
 // never the clock), so a turn is always quick and always repeatable.
-import { JOKER_VALUE, checkPlay, isJoker, rackValue, resolveSet, tileOf } from './rules.js';
+import { JOKER_VALUE, checkPlay, fitsJoker, isJoker, jokerOptions, rackValue, resolveSet, tileOf } from './rules.js';
 
 export const SEARCH_BUDGET = 6000;
 
@@ -187,9 +187,21 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
   const table = room.table;
   if (!room.melded[seat]) return meldAttempts(room, seat, { budget, weights, jokerWeight });
   const attempts = [];
-  const full = inventory(s, table.flat(), rack);
+  // A joker on the table cannot just be moved: it stands for a tile until that tile is swapped in. So a set with a joker is only
+  // taken apart if the rack has a tile that fits (the server judges whether the swap was made); otherwise it stays as it is.
+  const swappable = (ids) => ids.filter((id) => isJoker(s, id)).some((j) => rack.some((r) => fitsJoker(s, r, jokerOptions(s, ids, j))));
+  const stays = table.filter((ids) => ids.some((id) => isJoker(s, id)) && !swappable(ids));
+  const loose = table.filter((ids) => !stays.includes(ids));
+  const full = inventory(s, loose.flat(), rack);
   const a = solve(s, { need: full.need, opt: full.opt, jn: full.jn, jo: full.jo, mode: 'rack', budget, weights, jokerWeight });
-  if (a && a.value > 0) attempts.push({ value: a.value, table: realise(full, a.sets) });
+  if (a && a.value > 0) attempts.push({ value: a.value, table: [...stays, ...realise(full, a.sets)] });
+  const withJoker = table.filter((ids) => ids.some((id) => isJoker(s, id)));
+  if (withJoker.length > stays.length) {
+    // the same without touching any joker set, in case the swap does not come off
+    const safe = inventory(s, table.filter((ids) => !withJoker.includes(ids)).flat(), rack);
+    const c = solve(s, { need: safe.need, opt: safe.opt, jn: safe.jn, jo: safe.jo, mode: 'rack', budget, weights, jokerWeight });
+    if (c && c.value > 0) attempts.push({ value: c.value, table: [...withJoker, ...realise(safe, c.sets)] });
+  }
   const own = inventory(s, [], rack);
   const b = solve(s, { need: own.need, opt: own.opt, jn: 0, jo: own.jo, mode: 'rack', budget, weights, jokerWeight });
   if (b && b.value > 0 && b.sets.length) attempts.push({ value: b.value, table: [...table, ...realise(own, b.sets)] });
@@ -197,7 +209,7 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
 }
 
 export function standardPlay(room, seat, options = {}) {
-  return firstLegal(room, seat, standardAttempts(room, seat, options), 2);
+  return firstLegal(room, seat, standardAttempts(room, seat, options), 3);
 }
 
 // ---- a limit on how many table tiles may be moved ----
@@ -211,9 +223,15 @@ export function standardPlay(room, seat, options = {}) {
 export const SHUFFLE_LIMITS = { solveNodes: 800, totalNodes: 20000, combos: 120 };
 
 /** Possible ways to free tiles from one set: { cost, freed, kept } (kept: the pieces that stay together). */
-function setOptions(s, ids) {
+function setOptions(s, ids, rack = []) {
   const L = ids.length;
   const resolved = resolveSet(s, ids);
+  const jokers = ids.filter((id) => isJoker(s, id));
+  if (jokers.length) {
+    // a joker on the table cannot be moved, only swapped for a tile that fits: so the set stays, or is freed if the rack has one
+    const swap = jokers.some((j) => rack.some((r) => fitsJoker(s, r, jokerOptions(s, ids, j))));
+    return swap ? [{ cost: 0, freed: [], kept: [ids] }, { cost: L, freed: ids, kept: [] }] : [{ cost: 0, freed: [], kept: [ids] }];
+  }
   const opts = [{ cost: 0, freed: [], kept: [ids] }, { cost: L, freed: ids, kept: [] }];
   const add = (freedIdx, pieces) => {
     const freed = freedIdx.map((i) => ids[i]);
@@ -286,7 +304,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
     if (rackHasJoker || x.joker || rackTiles.some((r) => touches(x, r))) return true;
     return tableTiles1.some((tiles, j) => j !== setIndex && tiles.some((y, k) => direct[j][k] && touches(x, y)));
   });
-  const perSet = room.table.map((ids, index) => setOptions(s, ids).filter((o) => o.cost === 0 || relevant(o.freed, index)));
+  const perSet = room.table.map((ids, index) => setOptions(s, ids, rack).filter((o) => o.cost === 0 || relevant(o.freed, index)));
   const maxFrom = Array(perSet.length + 1).fill(0);
   for (let i = perSet.length - 1; i >= 0; i--) maxFrom[i] = maxFrom[i + 1] + Math.max(...perSet[i].map((o) => o.cost));
 
