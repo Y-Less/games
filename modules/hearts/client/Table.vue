@@ -185,6 +185,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
         :rounds="state.scoreboard.rounds"
         :low-is-better="state.scoreboard.lowIsBetter"
         :target="state.scoreboard.target"
+        split-totals
         :finished="finished"
         :awaiting="handEnd && !you.ready"
         :waiting="waitingFor"

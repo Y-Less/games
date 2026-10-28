@@ -144,3 +144,18 @@ describe('ScoreTable', () => {
     expect(w.findAll('tbody td').map((c) => c.text())).toEqual(['0', '0', '0']);
   });
 });
+
+describe('ScoreTable with split totals', () => {
+  it('gives each player a points column and a running-total column, with notes below both', () => {
+    const w = make({ split: true });
+    expect(w.findAll('thead th').map((h) => h.attributes('colspan') ?? '')).toEqual(['', '2', '2', '2']);
+    const rows = w.findAll('tbody tr');
+    expect(rows).toHaveLength(3); // hand 1, hand 2 and the notes under hand 2
+    expect(rows[0].findAll('td').map((c) => c.text())).toEqual(['+10', '10', '+5', '5', '0', '0']);
+    expect(rows[1].findAll('td').map((c) => c.text())).toEqual(['+20', '30', '+15', '20', '+10', '10']);
+    expect(rows[2].findAll('td')).toHaveLength(3);
+    expect(rows[2].findAll('td')[2].attributes('colspan')).toBe('2');
+    expect(rows[2].text()).toContain('shot the moon');
+    expect(w.findAll('tfoot td')[0].attributes('colspan')).toBe('2');
+  });
+});

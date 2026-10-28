@@ -31,6 +31,7 @@ const props = defineProps({
   autoOpen: { type: Boolean, default: true }, // open the pop-up when a round finishes (and at the end)
   roundPopups: { type: Boolean, default: true }, // false: no pop-up between rounds, only the final one (and the button)
   running: { type: Boolean, default: false },
+  splitTotals: { type: Boolean, default: false }, // two columns per player in the table: the round's points and the running total
   sticky: { type: Boolean, default: true },
   waiting: { type: Array, default: () => [] }, // names of the people who have not yet closed the round pop-up
   awaiting: { type: Boolean, default: false }, // this person still has to close the round pop-up
@@ -147,7 +148,7 @@ defineExpose({ show, close });
       <template v-else>A tie: {{ winners.map((w) => w.name).join(' and ') }} win.</template>
     </p>
     <slot name="round" />
-    <ScoreTable :players="players" :rounds="rounds" :low-is-better="lowIsBetter" :target="target" :running="running" />
+    <ScoreTable :players="players" :rounds="rounds" :low-is-better="lowIsBetter" :target="target" :running="running" :split="splitTotals" />
     <template #footer>
       <slot name="footer">
         <span v-if="waiting.length && !finished" class="waiting muted" role="status">Waiting for {{ waiting.join(', ') }}&hellip;</span>
