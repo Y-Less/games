@@ -120,3 +120,28 @@ test('only allowed numbers are ever chosen, and scoring a miss as nothing makes 
   const row = valueRow(model, nominating(['QH', '3H'], 'H', 7));
   assert.ok(expectedPoints(row[2], 2, false) < expectedPoints(row[2], 2, true), 'a miss scoring nothing is worth less');
 });
+
+const jokerModel = valueModel(true);
+
+test('the table for games with Jokers is its own file, and values a Joker as most of a trick', { skip: !jokerModel }, () => {
+  assert.notEqual(jokerModel, model);
+  assert.equal(jokerModel.trainedOn.jokers, true);
+  assert.ok(!model.trainedOn.jokers);
+  for (const joker of ['JK1', 'JK2']) {
+    // leading a Joker in a 3-player one-card round almost always wins the trick, so nominate 1
+    const ctx = nominating([joker], null, 3, { jokers: true });
+    assert.equal(bestByValue(jokerModel, ctx), 1, joker);
+    assert.ok(valueRow(jokerModel, ctx)[1][0] > 0.8, `${joker} led wins most of the time`);
+  }
+  // a Joker beside a high card makes a 2-card hand worth nominating 2 where the same hand with a deuce is not
+  const withJoker = nominating(['JK1', 'AS'], 'H', 4, { jokers: true });
+  const withDeuce = nominating(['2C', 'AS'], 'H', 4, { jokers: true });
+  assert.ok(bestByValue(jokerModel, withJoker) > bestByValue(jokerModel, withDeuce), 'a Joker is worth more than a deuce');
+});
+
+test('a game with the Jokers is advised from the Jokers table and a game without from the other', { skip: !jokerModel }, () => {
+  const hand = ['QH', '3H'];
+  const base = nominating(hand, 'H', 4);
+  assert.equal(lutv.nominate({ ...base, jokers: false, rng: () => 0.5 }), bestByValue(model, base));
+  assert.equal(lutv.nominate({ ...base, jokers: true, rng: () => 0.5 }), bestByValue(jokerModel, base));
+});

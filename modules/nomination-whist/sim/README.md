@@ -141,6 +141,11 @@ Over 200,000 games per player count against `lutc` (standard card play): 3 playe
 low card on a 2-card round (7 players, first to nominate) it values nominating 1 at 8.9 points and nominating 0 at 2.8; with the
 queen and a low heart, nominating 2 (6.2) beats 1 (5.1).
 
+For games with the Jokers the table is trained separately (`bidding-values-jokers.json`, one iteration of 200 million deals with the Jokers
+shuffled in): over 200,000 games per player count against `lutc` in Jokers games it scores 93.7 against 91.4 at 3 players, 99.8
+against 97.3 at 4, 104.1 against 101.6 at 5, 107.8 against 105.6 at 6 and 110.5 against 108.4 at 7. `lutv` reads whichever table
+matches the game's Jokers setting, and so does the suggested nomination.
+
 ## The last chance (`ai/endgame.js`)
 
 In the last round with the instant win on, a player who cannot win on points (even 17, the most a round gives, leaves them behind
