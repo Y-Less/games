@@ -276,8 +276,12 @@ function startRound(room, rng, now) {
 
 // ---- playing ----
 
+/** The marks of drawn tiles: games saved before they existed have none yet. */
+const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
+
 function nextTurn(room, now) {
   room.turn = (room.turn + 1) % room.size;
+  room.drawn = withDrawn(room);
   room.drawn[room.turn] = null; // a drawn tile stays marked until its owner's next turn begins
   room.moves++;
   setDeadline(room, now);
@@ -321,6 +325,7 @@ export function draw(room, seat, now = Date.now(), reason = '') {
   if (room.pool.length) {
     const tile = room.pool.pop();
     room.racks[seat].push(tile);
+    room.drawn = withDrawn(room);
     room.drawn[seat] = tile;
     room.racks[seat].sort((a, b) => a - b);
     room.idle = 0;
@@ -508,7 +513,7 @@ export function viewFor(room, userId, { online = () => true, now = Date.now() } 
     view.table = room.table;
     view.poolCount = room.pool.length;
     view.rack = me === -1 ? [] : room.racks[me];
-    view.drawn = me === -1 ? null : room.drawn[me];
+    view.drawn = me === -1 ? null : room.drawn?.[me] ?? null;
     view.lastPlay = room.lastPlay;
     view.remaining = room.deadline === null || room.phase !== 'playing' ? null : Math.max(0, room.deadline - now);
     view.lastRound = room.lastRound;

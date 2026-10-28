@@ -361,3 +361,17 @@ test('passing with an empty pool marks nothing, and a new round clears the mark'
   assert.equal(room.phase, 'playing');
   assert.deepEqual(room.drawn, [null, null, null], 'a new round starts with nothing marked');
 });
+
+test('a game saved before drawn tiles were marked can still be viewed, drawn in and played on', () => {
+  const { room: fresh } = playingRoom(3, { seed: 5 });
+  const saved = JSON.parse(JSON.stringify(fresh));
+  delete saved.drawn;
+  const room = saved;
+  const seat = room.turn;
+  assert.equal(game.viewFor(room, seat + 1).drawn, null, 'viewing it does not fail');
+  const next = room.pool[room.pool.length - 1];
+  assert.equal(game.draw(room, seat).ok, true);
+  assert.equal(room.turn, (seat + 1) % 3, 'the turn passed');
+  assert.equal(game.viewFor(room, seat + 1).drawn, next);
+  assertInvariants(room);
+});
