@@ -115,6 +115,21 @@ describe('the play field', () => {
     expect(w.findAll('[data-rack] .tile')).toHaveLength(5);
   });
 
+  it('highlights the tile you drew in the rack, and nothing when none is marked', async () => {
+    const plain = mountTable(state());
+    expect(plain.w.findAll('[data-rack] .tile.drawn')).toHaveLength(0);
+    const marked = { ...state(), turn: 1, drawn: t(0, 12) };
+    const { w } = mountTable(marked);
+    const drawn = w.findAll('[data-rack] .tile.drawn');
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].attributes('data-id')).toBe(String(t(0, 12)));
+    expect(w.findAll('.sets .tile.drawn')).toHaveLength(0);
+    await w.setProps({ state: { ...marked, drawn: null } });
+    expect(w.findAll('.tile.drawn')).toHaveLength(0);
+    await w.setProps({ state: { ...marked, phase: 'between' } });
+    expect(w.findAll('.tile.drawn')).toHaveLength(0);
+  });
+
   it('click-to-move: select tiles, click New set, End turn sends the whole table', async () => {
     const { w, send } = mountTable(state());
     expect(button(w, 'End turn').attributes('disabled')).toBeDefined();

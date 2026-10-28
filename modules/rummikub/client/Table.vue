@@ -316,6 +316,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
               :settings="s"
               :id="id"
               :selected="selected.includes(id)"
+              :drawn="id === state.drawn && state.phase === 'playing'"
               :interactive="myTurn"
               @click.stop="pick(id)"
               @dragstart="dragStart($event, id)"

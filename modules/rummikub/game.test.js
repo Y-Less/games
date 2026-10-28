@@ -320,3 +320,44 @@ test('persistence: a room survives a JSON round trip', () => {
   void rng;
   void seeded;
 });
+
+test('the tile you draw is marked, for you alone, until your next turn begins', () => {
+  const { room } = playingRoom(3, { seed: 5 });
+  const first = room.turn;
+  const second = (first + 1) % 3;
+  const third = (second + 1) % 3;
+  const userOf = (seat) => seat + 1;
+  for (let seat = 0; seat < 3; seat++) assert.equal(game.viewFor(room, userOf(seat)).drawn, null, 'nothing is marked at the start');
+
+  const next = room.pool[room.pool.length - 1];
+  assert.equal(game.draw(room, first).ok, true);
+  assert.equal(game.viewFor(room, userOf(first)).drawn, next, 'the drawn tile is the one marked');
+  assert.ok(game.viewFor(room, userOf(first)).rack.includes(next), 'and it is in the rack');
+  assert.equal(game.viewFor(room, userOf(second)).drawn, null, 'the others are not told which tile it was');
+  assert.equal(game.viewFor(room, 99).drawn, null, 'nor is a spectator');
+
+  assert.equal(game.draw(room, second).ok, true);
+  assert.equal(game.viewFor(room, userOf(first)).drawn, next, 'it stays marked while the others take their turns');
+  assert.equal(game.draw(room, third).ok, true);
+  assert.equal(room.turn, first);
+  assert.equal(game.viewFor(room, userOf(first)).drawn, null, 'it is cleared when your next turn begins');
+  assert.notEqual(game.viewFor(room, userOf(second)).drawn, null, "and the next player's tile is still marked until theirs");
+  assertInvariants(room);
+});
+
+test('passing with an empty pool marks nothing, and a new round clears the mark', () => {
+  const { room } = playingRoom(3, { seed: 9, settings: { rounds: 2 } });
+  setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)], [t(1, 1), t(2, 2)]], turn: 0 });
+  room.pool = [];
+  assert.equal(game.draw(room, 0).ok, true, 'a pass');
+  assert.equal(room.drawn[0], null, 'nothing was drawn');
+  room.drawn[1] = t(2, 5); // a mark left over from the round
+  room.turn = 0;
+  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  assert.equal(room.phase, 'between');
+  game.next(room, 0);
+  game.next(room, 1);
+  game.next(room, 2);
+  assert.equal(room.phase, 'playing');
+  assert.deepEqual(room.drawn, [null, null, null], 'a new round starts with nothing marked');
+});

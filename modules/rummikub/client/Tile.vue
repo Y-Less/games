@@ -12,6 +12,7 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
   fresh: { type: Boolean, default: false }, // played from the rack this turn
   recent: { type: Boolean, default: false }, // played by the last player
+  drawn: { type: Boolean, default: false }, // drawn from the pool, until its owner's next turn
   locked: { type: Boolean, default: false },
   stands: { type: Object, default: null }, // { number, colour } for a wildcard
   interactive: { type: Boolean, default: true },
@@ -31,7 +32,7 @@ const label = computed(() => {
     :is="interactive ? 'button' : 'span'"
     :type="interactive ? 'button' : undefined"
     class="tile"
-    :class="[size, { selected, fresh, recent, locked, joker: tile.joker }]"
+    :class="[size, { selected, fresh, recent, drawn, locked, joker: tile.joker }]"
     :style="info ? { '--hue': info.hue } : undefined"
     :draggable="interactive && !locked"
     :aria-label="label"
@@ -122,6 +123,26 @@ span.tile {
 }
 .recent {
   box-shadow: 0 0 0 2px var(--moss), 0 1px 2px rgb(0 0 0 / 0.4);
+}
+/* The tile you drew: a warm glow and a "new" tag, so it can be found in the rack until your next turn. */
+.drawn {
+  box-shadow: 0 0 0 2px #fff7d6, 0 0 0.5rem 0.1rem var(--amber);
+}
+.drawn::after {
+  content: 'new';
+  position: absolute;
+  top: -0.5rem;
+  right: -0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 0.5rem;
+  background: var(--amber);
+  color: #2b2110;
+  font-family: var(--body, inherit);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 .selected {
   transform: translateY(-5px);
