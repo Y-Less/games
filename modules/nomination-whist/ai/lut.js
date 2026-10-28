@@ -5,6 +5,8 @@
 // file it plays as Standard does.
 import fs from 'node:fs';
 import { cellOf } from '../sim/bids-features.js';
+import { bestByValue, valueModel } from '../sim/value-model.js';
+import { lastChanceBoost } from './endgame.js';
 import { bestPlay, loadPlayModel } from '../sim/play-model.js';
 import { roundPoints } from './sharp.js';
 import { canTakeAllSeven, chooseCard, chooseNomination, estimateTricks } from './standard.js';
@@ -36,8 +38,8 @@ export function contextModel(jokers = false, reload = false) {
 }
 
 /** The chances of each number of tricks given the hand and the nominations so far, or null if the table has no such row. */
-export function contextChances(model, ctx) {
-  const { key, unclaimed, after } = cellOf(ctx);
+export function contextChances(model, ctx, boost = 0) {
+  const { key, unclaimed, after } = cellOf(ctx, boost);
   return model.players[ctx.players]?.[ctx.hand.length]?.[ctx.trump ?? 'N']?.[key]?.[unclaimed]?.[after] ?? null;
 }
 
@@ -61,8 +63,8 @@ export function biddingModel(reload = false) {
 }
 
 /** The chance of each number of tricks (index 0 to cards) for this hand, or null if the table has no row for it. */
-export function trickChances(model, { hand, trump, players }) {
-  const bucket = Math.round(estimateTricks(hand, trump, players) * model.estimateSteps);
+export function trickChances(model, { hand, trump, players, boost = 0 }) {
+  const bucket = Math.round(estimateTricks(hand, trump, players, boost) * model.estimateSteps);
   const rows = model.players[players]?.[hand.length]?.[trump ?? 'N'];
   return rows?.[Math.min(bucket, rows.length - 1)] ?? null;
 }
@@ -91,9 +93,32 @@ export const lutc = {
   nominate(ctx) {
     const { hand, trump, allowed, instantWin = false, missPoints = true, jokers = false } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
+    const boost = lastChanceBoost(ctx);
     const model = contextModel(jokers);
-    const chances = model && contextChances(model, ctx);
+    const chances = model && contextChances(model, ctx, boost);
     return chances ? bestNomination(chances, allowed, missPoints) : lut.nominate(ctx);
+  },
+  play: (ctx) => lut.play(ctx),
+};
+
+/**
+ * Nominates by what each nomination is actually worth: the bid-value table (sim/value-model.js) holds, for the exact cards of
+ * a small hand (or the estimate of a bigger one), the table position and what the players before nominated, how often each
+ * possible nomination was then hit and how many tricks were taken on a miss, with the player playing to the nomination. So
+ * it knows that a high nomination on a good hand, played for, can beat the low one the hand would "naturally" make.
+ * Where the table has nothing it falls back to `lutc`.
+ */
+export const lutv = {
+  id: 'lutv',
+  name: 'Lookup (bid values)',
+  description: 'Nominates the number that was worth most in simulated games from hands, positions and earlier nominations like this one.',
+  weight: 0,
+  nominate(ctx) {
+    const { hand, trump, allowed, instantWin = false, jokers = false } = ctx;
+    if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
+    const boost = lastChanceBoost(ctx);
+    const model = valueModel(jokers);
+    return (model && bestByValue(model, ctx, boost)) ?? lutc.nominate(ctx);
   },
   play: (ctx) => lut.play(ctx),
 };
@@ -106,8 +131,9 @@ export const lut = {
   nominate(ctx) {
     const { hand, trump, players, allowed, instantWin = false, missPoints = true } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
+    const boost = lastChanceBoost(ctx);
     const model = biddingModel();
-    const chances = model && trickChances(model, { hand, trump, players });
+    const chances = model && trickChances(model, { hand, trump, players, boost });
     return chances ? bestNomination(chances, allowed, missPoints) : chooseNomination(ctx);
   },
   play(ctx) {

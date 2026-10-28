@@ -2,6 +2,7 @@
 // that both to nominate and to decide when to win and when to duck.
 import { isJoker, rankValue, suitOf } from '../../../shared/cards.js';
 import { highest, lowest, nearestAllowed, strength, unseenCards, winningCard } from './cards.js';
+import { lastChanceBoost } from './endgame.js';
 import { canTakeAllSeven } from './standard.js';
 
 /**
@@ -29,11 +30,11 @@ export function winChance(card, { trump, unseen, others, held, after = others })
 }
 
 /** Expected tricks for a hand: the sum of each card's chance of winning. */
-export function countTricks(hand, trump, players, played = [], jokers = false) {
+export function countTricks(hand, trump, players, played = [], jokers = false, boost = 0) {
   const unseen = unseenCards(hand, played, jokers);
   const others = players - 1;
   let total = 0;
-  for (const card of hand) total += winChance(card, { trump, unseen, others, held: hand.length });
+  for (const card of hand) total += Math.min(1, winChance(card, { trump, unseen, others, held: hand.length }) + boost); // each card's weight turned up by `boost`
   return Math.min(total, hand.length);
 }
 
@@ -42,9 +43,10 @@ export const counter = {
   name: 'Counter',
   description: 'Counts the cards that are still out to judge its chance of winning each trick, and plays the cheapest card that does the job.',
   weight: 1,
-  nominate({ hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random }) {
+  nominate(ctx) {
+    const { hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
-    return nearestAllowed(allowed, countTricks(hand, trump, players, [], jokers) + (rng() - 0.5) * 0.2);
+    return nearestAllowed(allowed, countTricks(hand, trump, players, [], jokers, lastChanceBoost(ctx)) + (rng() - 0.5) * 0.2);
   },
   play({ hand, legal, trick, trump, played, need, players, jokers = false }) {
     if (legal.length === 1) return legal[0];

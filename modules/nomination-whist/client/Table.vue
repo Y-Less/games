@@ -110,7 +110,11 @@ const statusLines = computed(() => {
   const lines = [];
   if (hint.value) lines.push({ text: hint.value, tone: 'warn' });
   if (props.state.phase === 'nominating') {
-    if (myTurn.value && props.state.suggestion != null) lines.push({ text: `Suggested nomination for your hand: ${props.state.suggestion} (highlighted).`, tone: 'muted' });
+    if (myTurn.value && props.state.lastChance) {
+      lines.push({ text: `You can no longer win on points, so your only chance of winning is an instant win: nominate 7 and win all 7 tricks, with any hand, playing for every trick. There is nothing to lose, so the suggestion (${props.state.suggestion ?? 7}, highlighted) is set high.`, tone: 'warn' });
+    } else if (myTurn.value && props.state.suggestion != null) {
+      lines.push({ text: `Suggested nomination for your hand: ${props.state.suggestion} (highlighted).`, tone: 'muted' });
+    }
     if (myTurn.value && imDealer.value && props.state.forbidden !== null) {
       lines.push(`You are the dealer, so you cannot nominate ${props.state.forbidden}: the nominations would total ${round.value.cards}, the number of tricks, and somebody has to miss.`);
     } else if (myTurn.value && imDealer.value) {

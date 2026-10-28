@@ -24,10 +24,11 @@ export const unclaimedBuckets = (cards) => cards - UNCLAIMED_MIN + 1;
 /**
  * The cell of a nomination decision, from what an AI is told when it nominates: `hand`, `trump`, `players` and the
  * `nominations` so far (null or undefined for a seat that has not nominated, which includes the player themselves).
+ * `boost` turns every card's weight in the estimate up (ai/endgame.js); tables are always trained with none.
  */
-export function cellOf({ hand, trump, players, nominations = [] }) {
+export function cellOf({ hand, trump, players, nominations = [] }, boost = 0) {
   const cards = hand.length;
-  const key = cards === 1 ? CARD_INDEX.get(hand[0]) : Math.min(cards * ESTIMATE_STEPS, Math.round(estimateTricks(hand, trump, players) * ESTIMATE_STEPS));
+  const key = cards === 1 ? CARD_INDEX.get(hand[0]) : Math.min(cards * ESTIMATE_STEPS, Math.round(estimateTricks(hand, trump, players, boost) * ESTIMATE_STEPS));
   let claimed = 0;
   let waiting = 0;
   for (let seat = 0; seat < players; seat++) {

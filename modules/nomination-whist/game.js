@@ -7,6 +7,7 @@
 import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
+import { cannotWinOnPoints } from './ai/endgame.js';
 import { contextModel, lutc } from './ai/lut.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
@@ -501,6 +502,9 @@ export function nominateContext(room, seat, rng) {
     instantWin: instantWinOn(room.settings) && isInstantWinRound(room.settings, room.roundIndex),
     missPoints: room.settings.missPoints !== false,
     jokers: room.settings.jokers === true,
+    scores: [...room.scores],
+    round: room.roundIndex,
+    rounds: roundCount(room.settings),
     seat,
     dealer: room.dealer,
     cards: cardsThisRound(room),
@@ -640,6 +644,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.turn = room.turn;
     view.forbidden = forbiddenNow(room);
     view.suggestion = suggestedNomination(room, me);
+    view.lastChance = room.phase === 'nominating' && room.turn === me && cannotWinOnPoints(nominateContext(room, me, () => 0.5));
     const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
     view.legal = canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
   }

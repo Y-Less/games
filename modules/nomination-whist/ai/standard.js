@@ -2,6 +2,7 @@
 // sockets. game.js decides what is legal; everything here picks from a list it is given, so it can never cheat.
 import { isJoker, rankValue, suitOf, SUITS } from '../../../shared/cards.js';
 import { highest, isMaster, lowest, nearestAllowed, winningCard } from './cards.js';
+import { lastChanceBoost } from './endgame.js';
 
 const TRUMP_VALUE = { 14: 0.95, 13: 0.8, 12: 0.62, 11: 0.48, 10: 0.36, 9: 0.26 };
 const SIDE_ACE = { trumps: 0.72, none: 0.9 };
@@ -12,7 +13,7 @@ export const JOKER_VALUE = 0.85;
 const crowding = (players) => Math.max(0.55, 1 - 0.07 * (players - 3));
 
 /** How many tricks a hand is likely to win: high trumps, aces and kings elsewhere, and short suits to ruff with. */
-export function estimateTricks(hand, trump, players) {
+export function estimateTricks(hand, trump, players, boost = 0) {
   const trumps = trump ? hand.filter((c) => suitOf(c) === trump) : [];
   let total = trumps.reduce((sum, c) => sum + (TRUMP_VALUE[rankValue(c)] ?? 0.14), 0);
   const aceValue = trump ? SIDE_ACE.trumps : SIDE_ACE.none;
@@ -34,6 +35,7 @@ export function estimateTricks(hand, trump, players) {
     total += Math.min(low, ruffs) * 0.55;
   }
   total += hand.filter(isJoker).length * JOKER_VALUE;
+  total += hand.length * boost; // every card's weight turned up (see endgame.js)
   return Math.min(total, hand.length);
 }
 
@@ -54,9 +56,10 @@ export function canTakeAllSeven(hand, trump) {
  * The nomination a computer player makes: its estimate, or the nearest number it is allowed. When `instantWin` is true
  * (the round can be won outright by taking all 7 tricks), a hand that can realistically do so nominates 7.
  */
-export function chooseNomination({ hand, trump, players, allowed, instantWin = false, rng = Math.random }) {
+export function chooseNomination(ctx) {
+  const { hand, trump, players, allowed, instantWin = false, rng = Math.random } = ctx;
   const goForIt = instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump);
-  const estimate = goForIt ? 7 : estimateTricks(hand, trump, players) + (rng() - 0.5) * 0.3;
+  const estimate = goForIt ? 7 : estimateTricks(hand, trump, players, lastChanceBoost(ctx)) + (rng() - 0.5) * 0.3;
   return nearestAllowed(allowed, estimate);
 }
 

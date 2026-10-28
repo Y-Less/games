@@ -4,6 +4,7 @@
 import { suitOf } from '../../../shared/cards.js';
 import { ledSuit, legalCards } from '../trick.js';
 import { nearestAllowed, unseenCards, winningCard } from './cards.js';
+import { lastChanceBoost } from './endgame.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
 const NOMINATE_SAMPLES = 36;
@@ -111,10 +112,14 @@ export const sharp = {
   description: 'Simulates the rest of the round many times to pick the nomination and the card with the best expected score.',
   weight: 1.5,
 
-  nominate({ hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true }) {
+  nominate(ctx) {
+    const { hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
     const cards = hand.length;
-    const centre = estimateTricks(hand, trump, players);
+    const boost = lastChanceBoost(ctx);
+    const centre = estimateTricks(hand, trump, players, boost);
+    // nothing to lose and only an instant win can win: read the hand at its boosted weight, which is all there is to say
+    if (boost) return nearestAllowed(allowed, centre);
     const candidates = allowed.filter((n) => Math.abs(n - centre) <= 2.2 || n === 0);
     if (candidates.length <= 1) return candidates[0] ?? nearestAllowed(allowed, centre);
     const unseen = unseenCards(hand, [], jokers);
