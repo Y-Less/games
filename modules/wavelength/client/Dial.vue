@@ -33,6 +33,8 @@ const bandLabels = computed(() => {
     return { points: band.points, x: at.x, y: at.y + 2.5 };
   });
 });
+// The ends are big and bold, and grow with the dial (never with what they say, so nothing moves from turn to turn).
+const endSize = computed(() => Math.round(Math.min(24, Math.max(17, props.width / 18))));
 const needle = computed(() => (props.selected === null ? null : pointAt(props.selected, VIEW.radius - 4)));
 const pins = computed(() => props.guesses.map((g) => ({ ...g, tip: pointAt(g.position, VIEW.radius), base: pointAt(g.position, VIEW.radius - 22) })));
 
@@ -88,9 +90,9 @@ const up = (event) => {
       </g>
       <circle class="hub" :cx="VIEW.cx" :cy="VIEW.cy" r="7" />
     </svg>
-    <div class="ends">
-      <span class="end">{{ left }}</span>
-      <span class="end">{{ right }}</span>
+    <div class="ends" :style="{ fontSize: `${endSize}px` }">
+      <span class="end left">{{ left }}</span>
+      <span class="end right">{{ right }}</span>
     </div>
     <input
       v-if="interactive || reserveSlider"
@@ -171,17 +173,30 @@ const up = (event) => {
 .ends {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  font-family: var(--display);
-  font-size: 1.15rem;
-  line-height: 1.15;
+  align-items: stretch;
+  gap: 0.6em;
+  min-height: 2.75em; /* room for two lines, so a long label never changes the height */
+  line-height: 1.1;
 }
 .end {
+  display: flex;
+  align-items: center;
   max-width: 48%;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   overflow-wrap: anywhere;
+  color: #10200f;
 }
-.end:last-child {
+.end.left {
+  background: #5fc1e8;
+  text-align: left;
+}
+.end.right {
+  background: #ee8a5e;
   text-align: right;
+  margin-left: auto;
 }
 .slider {
   width: 100%;

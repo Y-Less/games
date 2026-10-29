@@ -3,7 +3,7 @@
 import { VIEW } from './dial.js';
 
 export const NARROW = 640; // below this the dial takes the whole width and the clue panel goes under it
-export const BELOW_DIAL = 96; // the two ends and the slider under the dial, and the gaps between them
+export const BELOW_DIAL = 118; // the two ends and the slider under the dial, and the gaps between them
 export const PANEL = 170; // the height the clue panel needs when it goes under the dial
 
 /** How many of the 12 frame columns the dial takes: the left 8, or all 12 on a narrow screen (see NARROW). */
