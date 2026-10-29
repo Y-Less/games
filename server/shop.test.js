@@ -110,11 +110,36 @@ test('players: anyone signed in can see names and name styles, and nothing more'
   const { data } = await register(other, 'watcher', 'password1');
   const { status, data: seen } = await other.get(`/api/players?ids=${user.id},${data.user.id},9999,abc,-1`);
   assert.equal(status, 200);
-  assert.deepEqual(seen.players[user.id], { displayName: 'shopper', nameStyle: { style: 'ruby' } });
-  assert.deepEqual(seen.players[data.user.id], { displayName: 'watcher', nameStyle: { style: 'plain' } });
+  assert.deepEqual({ ...seen.players[user.id], avatar: undefined }, { displayName: 'shopper', nameStyle: { style: 'ruby' }, avatar: undefined });
+  assert.deepEqual({ ...seen.players[data.user.id], avatar: undefined }, { displayName: 'watcher', nameStyle: { style: 'plain' }, avatar: undefined });
   assert.deepEqual(Object.keys(seen.players).sort(), [String(user.id), String(data.user.id)].sort());
   assert.deepEqual((await other.get('/api/players')).data, { players: {} });
   assert.equal((await client().get('/api/players?ids=1')).status, 401);
+});
+
+test('avatars: free parts belong to everyone, the rest are bought, and a bad avatar is refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 200 });
+  const first = (await c.get('/api/me')).data.user.avatar;
+  assert.equal(first.hair, 'short');
+  assert.equal((await c.patch('/api/me', { avatar: { ...first, skin: 'brown' } })).status, 200);
+  assert.equal((await c.patch('/api/me', { avatar: { ...first, hair: 'curly' } })).status, 403);
+  for (const avatar of [null, 'curly', [], { hair: 'nonsense' }, { hair: 7 }, { hair: '__proto__' }]) {
+    assert.equal((await c.patch('/api/me', { avatar })).status, 400, JSON.stringify(avatar));
+  }
+  assert.equal((await c.post('/api/shop/buy', { item: 'av:hair:curly' })).status, 200);
+  const changed = await c.patch('/api/me', { avatar: { hair: 'curly', skin: 'tan' } });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.user.avatar.hair, 'curly');
+  assert.equal(changed.data.user.avatar.eyes, first.eyes, 'a slot left out gets the default');
+});
+
+test('players: other players see the avatar', async (t) => {
+  const { c, user, client } = await shopSite(t);
+  await c.patch('/api/me', { avatar: { skin: 'deep' } });
+  const other = client();
+  await register(other, 'watcher', 'password1');
+  const { data } = await other.get(`/api/players?ids=${user.id}`);
+  assert.equal(data.players[user.id].avatar.skin, 'deep');
 });
 
 test('colours, gradients and uploads are separate unlocks', async (t) => {

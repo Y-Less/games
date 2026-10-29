@@ -1,11 +1,11 @@
-// What the site knows about other players' looks (their name style, later their avatar), fetched in batches from
+// What the site knows about other players' looks (their name style and avatar), fetched in batches from
 // /api/players and kept for a minute, so a score bar of six chips costs one request. Your own profile is read from the
 // session instead, so a change you make shows at once.
 import { reactive } from 'vue';
 import { api, session } from './session.js';
 
 const MAX_AGE = 60 * 1000;
-const profiles = reactive({}); // id -> { displayName, nameStyle }
+const profiles = reactive({}); // id -> { displayName, nameStyle, avatar }
 const asked = new Map(); // id -> when it was last requested
 let wanted = new Set();
 let timer = null;
@@ -23,7 +23,7 @@ async function fetchWanted() {
   }
 }
 
-/** The public profile of a user ({ displayName, nameStyle }), or null until it has arrived. Asks for it when missing or old. */
+/** The public profile of a user ({ displayName, nameStyle, avatar }), or null until it has arrived. Asks for it when missing or old. */
 export function profileOf(userId) {
   if (!Number.isInteger(userId)) return null;
   if (userId === session.user?.id) return session.user;

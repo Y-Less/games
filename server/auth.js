@@ -1,6 +1,7 @@
 // Accounts: registration, login, sessions (an opaque random cookie; only its hash is stored) and the profile.
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
+import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
 import { DEFAULT_NAME_STYLE, isNameStyle } from '../shared/nameStyles.js';
 
 const scrypt = promisify(crypto.scrypt);
@@ -92,8 +93,25 @@ function parseNameStyle(text) {
   }
 }
 
-/** What other players may see of someone: their name and how it is dressed. */
-const publicProfile = (row) => ({ displayName: row.display_name, nameStyle: parseNameStyle(row.name_style) });
+/** Checks an avatar: an object with, for each slot, the id of one of its options in shared/avatar.js (a missing slot gets the default). */
+export function cleanAvatar(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('That is not a valid avatar.');
+  for (const { slot } of AVATAR_SLOTS) {
+    if (input[slot] !== undefined && !isAvatarOption(slot, input[slot])) throw new AuthError('That is not a valid avatar.');
+  }
+  return normaliseAvatar(input);
+}
+
+function parseAvatar(text) {
+  try {
+    return normaliseAvatar(JSON.parse(text));
+  } catch {
+    return normaliseAvatar(null);
+  }
+}
+
+/** What other players may see of someone: their name, how it is dressed and their avatar. */
+const publicProfile = (row) => ({ displayName: row.display_name, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar) });
 
 function publicUser(row) {
   let background;
@@ -108,12 +126,12 @@ function publicUser(row) {
   } catch {
     cardBack = { type: 'preset', value: 'crimson' };
   }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style) };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar) };
 }
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object }) => void }} [options]
+ * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object }) => void }} [options]
  *   canUse throws when a profile change uses something the user has not bought (the shop supplies it; tests may omit it).
  */
 export function createAuth(db, { canUse = () => {} } = {}) {
@@ -192,10 +210,10 @@ export function createAuth(db, { canUse = () => {} } = {}) {
 
     userById: byId,
 
-    /** Up to 100 users' public profiles as { [id]: { displayName, nameStyle } }; unknown ids are left out. */
+    /** Up to 100 users' public profiles as { [id]: { displayName, nameStyle, avatar } }; unknown ids are left out. */
     publicProfiles(ids) {
       const out = {};
-      const select = db.prepare('SELECT display_name, name_style FROM users WHERE id = ?');
+      const select = db.prepare('SELECT display_name, name_style, avatar FROM users WHERE id = ?');
       for (const id of [...new Set(ids)].slice(0, 100)) {
         const row = Number.isInteger(id) ? select.get(id) : null;
         if (row) out[id] = publicProfile(row);
@@ -203,7 +221,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return out;
     },
 
-    updateProfile(userId, { displayName, background, cardBack, nameStyle }) {
+    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar }) {
       // Check everything first, so a refused change changes nothing.
       let name;
       if (displayName !== undefined) {
@@ -213,14 +231,16 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const cleanedBackground = background === undefined ? undefined : cleanBackground(background);
       const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
       const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
+      const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
       if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
-      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle });
+      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar });
       if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
       if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
       if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
+      if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
       return byId(userId);
     },
 

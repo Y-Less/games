@@ -2,6 +2,7 @@
 // player can choose on their profile (a background, a card back ...) is an item here, and the server refuses to save a
 // choice the player does not own.
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS } from './auth.js';
+import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
@@ -31,6 +32,7 @@ for (const key of Object.keys(CARD_BACK_PRESETS)) {
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
+for (const { id, name, price, slot, option } of avatarItems()) add({ id, type: 'avatar', name, price, slot, option });
 
 /** Another module adds its own items (name styles, avatar parts ...) here once, when the site starts. */
 export const registerItems = (items) => items.forEach(add);
@@ -82,8 +84,9 @@ export function grandfather(db) {
 export class ShopError extends AuthError {}
 
 /** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
-export function checkSettings(db, userId, { background, cardBack, nameStyle }) {
-  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), nameStyle && `ns:${nameStyle.style}`]) {
+export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar }) {
+  const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), nameStyle && `ns:${nameStyle.style}`, ...parts]) {
     if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
   }
 }

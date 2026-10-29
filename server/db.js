@@ -73,6 +73,9 @@ export function openDatabase(dataDir) {
   if (!columns.includes('name_style')) {
     db.exec(`ALTER TABLE users ADD COLUMN name_style TEXT NOT NULL DEFAULT '{"style":"plain"}'`);
   }
+  if (!columns.includes('avatar')) {
+    db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`); // empty: the default avatar
+  }
   return db;
 }
 

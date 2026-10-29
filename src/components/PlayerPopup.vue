@@ -7,6 +7,8 @@
 // Give it `player` ({ id, name, bot?, away?, isHost? }), `canRemove` (true for the host looking at someone else) and
 // `error` (the reason the last removal was refused, if any). It emits `remove` once the host has confirmed.
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { profileOf } from '../profiles.js';
+import AvatarFigure from './AvatarFigure.vue';
 import BotIcon from './BotIcon.vue';
 import StyledName from './StyledName.vue';
 
@@ -38,6 +40,9 @@ const confirming = ref(false);
 watch(() => props.player.id, () => (confirming.value = false));
 watch(() => props.error, (error) => error && (confirming.value = false));
 
+// A real player's avatar, once the site has told us what it is (nothing for computer players).
+const avatar = computed(() => profileOf(props.player.userId ?? null)?.avatar ?? null);
+
 const noun = computed(() => (props.player.bot ? 'computer player' : 'player'));
 function confirm() {
   confirming.value = false;
@@ -48,6 +53,7 @@ function confirm() {
 <template>
   <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="`${player.name}'s details`">
     <header class="head">
+      <AvatarFigure v-if="avatar" class="portrait" :avatar="avatar" size="3.2rem" />
       <strong class="who">
         <BotIcon v-if="player.bot" />
         <StyledName :name="player.name" :user-id="player.userId ?? null" />

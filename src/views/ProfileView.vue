@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import AvatarEditor from '../components/AvatarEditor.vue';
 import { cardBackCss, changePassword, owns, session, updateProfile, uploadBackground, uploadCardBack } from '../session.js';
 
 const displayName = ref(session.user.displayName);
@@ -63,6 +64,8 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
         <button :disabled="!displayName.trim() || displayName.trim() === session.user.displayName">Save</button>
       </div>
     </form>
+
+    <AvatarEditor />
 
     <div class="panel stack">
       <h2>Background</h2>

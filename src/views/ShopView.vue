@@ -1,7 +1,9 @@
 <script setup>
 // The shop: spend the coins you win (500, 200 and 100 for coming 1st, 2nd and 3rd in a game) on name styles,
-// backgrounds and card backs. Anything you own can be put on straight from here.
+// backgrounds, card backs and avatar parts. Anything you own can be put on straight from here.
 import { computed, onMounted, ref } from 'vue';
+import { normaliseAvatar } from '../../shared/avatar.js';
+import AvatarFigure from '../components/AvatarFigure.vue';
 import StyledName from '../components/StyledName.vue';
 import { backgroundCss, buy, cardBackCss, refreshShop, session, updateProfile } from '../session.js';
 
@@ -9,6 +11,7 @@ const TABS = [
   { type: 'name-style', label: 'Name styles', blurb: 'A border and background around your name, wherever other players see it.' },
   { type: 'background', label: 'Backgrounds', blurb: 'The picture behind the site and the game tables.' },
   { type: 'card-back', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.' },
+  { type: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.' },
   { type: 'unlock', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.' },
 ];
 const tab = ref('name-style');
@@ -26,6 +29,7 @@ const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
 function equipped(item) {
   const u = session.user;
   if (item.type === 'name-style') return u.nameStyle?.style === key(item);
+  if (item.type === 'avatar') return normaliseAvatar(u.avatar)[item.slot] === item.option;
   if (item.type === 'background') return u.background?.type === 'preset' && u.background.value === key(item);
   if (item.type === 'card-back') return u.cardBack?.type === 'preset' && u.cardBack.value === key(item);
   return false;
@@ -45,7 +49,8 @@ async function attempt(id, task, done) {
 }
 const purchase = (item) => attempt(item.id, () => buy(item.id), `You bought ${item.name}.`);
 function use(item) {
-  const change = { 'name-style': { nameStyle: { style: key(item) } }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } } }[item.type];
+  const avatar = { ...normaliseAvatar(session.user.avatar), [item.slot]: item.option };
+  const change = { avatar: { avatar }, 'name-style': { nameStyle: { style: key(item) } }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } } }[item.type];
   return attempt(item.id, () => updateProfile(change), `${item.name} is on.`);
 }
 </script>
@@ -70,6 +75,7 @@ function use(item) {
       <li v-for="item in items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
         <div class="preview">
           <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" />
+          <AvatarFigure v-else-if="item.type === 'avatar'" :avatar="{ ...normaliseAvatar(session.user.avatar), [item.slot]: item.option }" size="4rem" />
           <span v-else-if="item.type === 'background'" class="swatch" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }" />
           <span v-else-if="item.type === 'card-back'" class="back" :style="{ background: cardBackCss({ type: 'preset', value: key(item) }) }" />
           <span v-else class="unlock" aria-hidden="true">★</span>

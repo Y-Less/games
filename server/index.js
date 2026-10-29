@@ -102,8 +102,8 @@ export async function startSite(options = {}) {
   api.get('/me', (req, res) => res.json({ user: auth.userForToken(tokenOf(req)) }));
 
   api.patch('/me', requireUser, handler(async (req, res) => {
-    const { displayName, background, cardBack, nameStyle } = req.body ?? {};
-    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle });
+    const { displayName, background, cardBack, nameStyle, avatar } = req.body ?? {};
+    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar });
     if (background !== undefined && user.background.type !== 'image') removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') removeImages('cb', user.id);
     res.json({ user });
@@ -135,7 +135,7 @@ export async function startSite(options = {}) {
   imageUpload('/me/background-image', 'bg', 'background');
   imageUpload('/me/card-back-image', 'cb', 'cardBack');
 
-  // What other players see of people: GET /api/players?ids=1,2,3 -> { players: { 1: { displayName, nameStyle }, ... } }
+  // What other players see of people: GET /api/players?ids=1,2,3 -> { players: { 1: { displayName, nameStyle, avatar }, ... } }
   api.get('/players', requireUser, (req, res) => {
     const ids = String(req.query.ids ?? '').split(',').filter(Boolean).map(Number);
     res.json({ players: auth.publicProfiles(ids) });

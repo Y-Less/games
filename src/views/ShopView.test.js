@@ -11,6 +11,8 @@ const ITEMS = [
   { id: 'bg:night', type: 'background', name: 'Night', price: 0, owned: true },
   { id: 'bg:ocean', type: 'background', name: 'Ocean', price: 500, owned: false },
   { id: 'cb:crimson', type: 'card-back', name: 'Crimson', price: 0, owned: true },
+  { id: 'av:hair:curly', type: 'avatar', name: 'Hair: Curly', price: 150, owned: false, slot: 'hair', option: 'curly' },
+  { id: 'av:hair:short', type: 'avatar', name: 'Hair: Short', price: 0, owned: true, slot: 'hair', option: 'short' },
   { id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800, owned: false },
 ];
 
@@ -103,7 +105,20 @@ describe('ShopView', () => {
 
   it('lists the unlocks, which are bought but used on the Profile page', async () => {
     await make();
-    await wrapper.findAll('.tab')[3].trigger('click');
+    await wrapper.findAll('.tab').find((t) => t.text() === 'Unlocks').trigger('click');
     expect(card('bg-colour').find('button').text()).toBe('Buy for 800');
+  });
+  it('previews avatar parts on you and puts one on from the shop', async () => {
+    await make();
+    await wrapper.findAll('.tab').find((t) => t.text() === 'Avatar').trigger('click');
+    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['av:hair:curly', 'av:hair:short']);
+    expect(card('av:hair:curly').find('svg').exists()).toBe(true);
+    expect(card('av:hair:short').text()).toContain('In use');
+    await card('av:hair:curly').find('button').trigger('click');
+    await flushPromises();
+    expect(card('av:hair:curly').find('button').text()).toBe('Use');
+    await card('av:hair:curly').find('button').trigger('click');
+    await flushPromises();
+    expect(calls.at(-1)[2].avatar.hair).toBe('curly');
   });
 });
