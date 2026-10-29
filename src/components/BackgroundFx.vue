@@ -249,7 +249,7 @@ const style = computed(() => {
   filter: blur(6px);
 }
 /* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
-   lights at full strength as the head reaches it and then fades out in place (f1 ... f4: from a short trail to a long one).
+   lights bright white with a glow as the head reaches it (the lead letter) and then fades out in place (f1 ... f4: from a short trail to a long one).
    Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
    rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
 [data-fx='matrix'] {
@@ -284,6 +284,13 @@ const style = computed(() => {
 @keyframes fx-deposit-1 {
   0% {
     opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.5% {
+    opacity: 0.75;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
   }
   6%,
   100% {
@@ -293,6 +300,13 @@ const style = computed(() => {
 @keyframes fx-deposit-2 {
   0% {
     opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.5% {
+    opacity: 0.88;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
   }
   12%,
   100% {
@@ -302,6 +316,13 @@ const style = computed(() => {
 @keyframes fx-deposit-3 {
   0% {
     opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.5% {
+    opacity: 0.94;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
   }
   25%,
   100% {
@@ -311,6 +332,13 @@ const style = computed(() => {
 @keyframes fx-deposit-4 {
   0% {
     opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.5% {
+    opacity: 0.97;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
   }
   45%,
   100% {
