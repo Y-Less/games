@@ -121,3 +121,33 @@ test('the database refuses an outcome other than win, loss or draw', (t) => {
   assert.throws(() => db.prepare("INSERT INTO result_players (result_id, user_id, outcome) VALUES (1, 1, 'won')").run());
   db.prepare("INSERT INTO result_players (result_id, user_id, outcome) VALUES (1, 1, 'draw')").run();
 });
+
+test('the two Matrix backgrounds become one: the first keeps its owners and users under the new id, and the owners of the second have the one that is left', async (t) => {
+  const { dir, track } = workspace(t);
+  const first = track(openDatabase(dir));
+  const user = (id, animation) => first.prepare("INSERT INTO users (id, username, username_lower, password_hash, display_name, created_at, background_animation) VALUES (?, ?, ?, 'x', ?, 0, ?)").run(id, `u${id}`, `u${id}`, `U${id}`, animation);
+  user(1, 'matrix-a'); // chose the first Matrix
+  user(2, 'matrix'); // chose the second
+  user(3, 'sweep'); // chose something else
+  user(4, 'none'); // owns both, uses neither
+  const own = (id, item) => first.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, 5)').run(id, item);
+  own(1, 'ba:matrix-a');
+  own(2, 'ba:matrix');
+  own(3, 'ba:sweep');
+  own(4, 'ba:matrix-a');
+  own(4, 'ba:matrix');
+  first.close();
+
+  const db = track(openDatabase(dir));
+  const animations = db.prepare('SELECT id, background_animation AS a FROM users ORDER BY id').all().map((r) => r.a);
+  assert.deepEqual(animations, ['matrix', 'matrix', 'sweep', 'none']);
+  const items = db.prepare('SELECT user_id AS u, item_id AS i FROM owned_items ORDER BY user_id, item_id').all().map((r) => `${r.u}:${r.i}`);
+  assert.deepEqual(items, ['1:ba:matrix', '2:ba:matrix', '3:ba:sweep', '4:ba:matrix'], 'one item each, none left under the old id');
+  assert.equal(db.prepare("SELECT bought_at FROM owned_items WHERE user_id = 1").get().bought_at, 5, 'the purchase date is kept');
+  db.close();
+
+  // Opening it again changes nothing.
+  const again = track(openDatabase(dir));
+  assert.equal(again.prepare('SELECT COUNT(*) AS n FROM owned_items').get().n, 4);
+  assert.equal(again.prepare("SELECT COUNT(*) AS n FROM users WHERE background_animation = 'matrix'").get().n, 2);
+});
