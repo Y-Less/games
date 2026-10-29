@@ -25,6 +25,7 @@ function rain(count, demo) {
     const rows = Math.min(120, Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15)));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
+      alt: GLYPHS[Math.floor(next() * GLYPHS.length)], // shown first, while the head is still arriving at the row
       alpha: (0.1 + 0.9 * (k / (rows - 1)) ** 1.6).toFixed(2), // only seen when animations are off: a still, fading column
     }));
     const trail = Math.floor(next() * TRAIL.length);
@@ -69,7 +70,7 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-ch="letter.ch" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-ch="letter.ch" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
       <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
@@ -277,6 +278,7 @@ const style = computed(() => {
   opacity: var(--a, 0.5);
   animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
+.mx i::before,
 .mx i::after {
   content: attr(data-ch);
   position: absolute;
@@ -287,11 +289,21 @@ const style = computed(() => {
   opacity: 0;
   animation: fx-lead-1 calc(var(--c) / var(--fx-speed)) step-end calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
+.mx i::before {
+  content: attr(data-alt);
+  animation-name: fx-alt-1;
+}
 .mx.w2 i::after {
   animation-name: fx-lead-2;
 }
 .mx.w3 i::after {
   animation-name: fx-lead-3;
+}
+.mx.w2 i::before {
+  animation-name: fx-alt-2;
+}
+.mx.w3 i::before {
+  animation-name: fx-alt-3;
 }
 .mx.f1.w1 i {
   animation-name: fx-deposit-1-1;
@@ -331,7 +343,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-1-1 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   0.8% {
     opacity: 0.87;
@@ -343,7 +356,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-1-2 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   0.8% {
     opacity: 0.93;
@@ -355,7 +369,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-1-3 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   0.8% {
     opacity: 0.97;
@@ -367,7 +382,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-1-4 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   0.8% {
     opacity: 0.98;
@@ -379,7 +395,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-2-1 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   1.67% {
     opacity: 0.72;
@@ -391,7 +408,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-2-2 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   1.67% {
     opacity: 0.86;
@@ -403,7 +421,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-2-3 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   1.67% {
     opacity: 0.93;
@@ -415,7 +434,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-2-4 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   1.67% {
     opacity: 0.96;
@@ -427,7 +447,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-3-1 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   3.33% {
     opacity: 0.44;
@@ -439,7 +460,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-3-2 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   3.33% {
     opacity: 0.72;
@@ -451,7 +473,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-3-3 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   3.33% {
     opacity: 0.87;
@@ -463,7 +486,8 @@ const style = computed(() => {
 }
 @keyframes fx-deposit-3-4 {
   0% {
-    opacity: 1;
+    opacity: 0;
+    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
   }
   3.33% {
     opacity: 0.93;
@@ -473,30 +497,66 @@ const style = computed(() => {
     opacity: 0;
   }
 }
-@keyframes fx-lead-1 {
+@keyframes fx-alt-1 {
   0% {
     opacity: 1;
   }
-  0.8%,
+  0.4%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-lead-1 {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  0.4% {
+    opacity: 1;
+  }
+  0.8% {
+    opacity: 0;
+  }
+}
+@keyframes fx-alt-2 {
+  0% {
+    opacity: 1;
+  }
+  0.835%,
   100% {
     opacity: 0;
   }
 }
 @keyframes fx-lead-2 {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  0.835% {
+    opacity: 1;
+  }
+  1.67% {
+    opacity: 0;
+  }
+}
+@keyframes fx-alt-3 {
   0% {
     opacity: 1;
   }
-  1.67%,
+  1.665%,
   100% {
     opacity: 0;
   }
 }
 @keyframes fx-lead-3 {
-  0% {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  1.665% {
     opacity: 1;
   }
-  3.33%,
-  100% {
+  3.33% {
     opacity: 0;
   }
 }
