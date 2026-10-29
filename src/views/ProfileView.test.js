@@ -307,3 +307,40 @@ describe('ProfileView animations', () => {
   });
 });
 });
+
+describe('ProfileView marker colour', () => {
+  const swatch = (w, colour) => w.find(`button[aria-label="Marker colour ${colour}"]`);
+
+  it('saves a free colour as the default, marks the chosen one, and clears it again', async () => {
+    const w = make({ ...baseUser(), markerColour: null });
+    expect(w.findAll('button.dot')).toHaveLength(8);
+    expect(w.findAll('button.dot.chosen')).toHaveLength(0);
+    await swatch(w, '#ff2d95').trigger('click');
+    await flushPromises();
+    expect(lastCall()[0]).toBe('/api/me');
+    expect(lastBody()).toEqual({ markerColour: '#ff2d95' });
+    expect(status().text()).toBe('Marker colour saved.');
+    await w.setProps({});
+    expect(swatch(w, '#ff2d95').attributes('aria-pressed')).toBe('true');
+    const clear = w.findAll('button').find((b) => b.text() === 'No default');
+    await clear.trigger('click');
+    await flushPromises();
+    expect(lastBody()).toEqual({ markerColour: null });
+  });
+
+  it('keeps any colour locked until it is bought, then sends the picked colour', async () => {
+    currentUser = { ...baseUser(), markerColour: null };
+    Object.assign(session, { user: currentUser, presets: PRESETS, cardBacks: BACKS, shop: { balance: 0, items: [{ id: 'marker-colour', type: 'unlock', name: 'Any marker colour', price: 600, owned: false }] } });
+    const w = (wrapper = mount(ProfileView, { global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } }));
+    expect(w.find('input[aria-label="Marker colour"]').attributes('disabled')).toBeDefined();
+    expect(w.text()).toContain('Unlock this in the');
+    session.shop = { balance: 0, items: [{ id: 'marker-colour', type: 'unlock', name: 'Any marker colour', price: 600, owned: true }] };
+    await w.setProps({});
+    expect(w.find('input[aria-label="Marker colour"]').attributes('disabled')).toBeUndefined();
+    await w.find('input[aria-label="Marker colour"]').setValue('#123456');
+    await w.find('input[aria-label="Marker colour"]').element.parentElement.querySelector('button').click();
+    await flushPromises();
+    expect(lastBody()).toEqual({ markerColour: '#123456' });
+    session.shop = null;
+  });
+});

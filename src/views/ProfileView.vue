@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import AvatarEditor from '../components/AvatarEditor.vue';
+import { MARKER_COLOURS, CUSTOM_MARKER_ITEM } from '../../shared/markerColours.js';
 import { cardBackCss, changePassword, owns, session, updateProfile, uploadBackground, uploadCardBack } from '../session.js';
 
 const displayName = ref(session.user.displayName);
@@ -49,6 +50,9 @@ const uploadBack = (event) => {
   if (file) attempt(() => uploadCardBack(file), 'Card back saved.');
   event.target.value = '';
 };
+const marker = ref(session.user.markerColour ?? '#ff2d95');
+const chooseMarker = (markerColour) => attempt(() => updateProfile({ markerColour }), markerColour ? 'Marker colour saved.' : 'You no longer have a default marker colour.');
+const isMarker = (c) => session.user.markerColour === c;
 const isBackPreset = (key) => session.user.cardBack.type === 'preset' && session.user.cardBack.value === key;
 const isPreset = (key) => current.value.type === 'preset' && current.value.value === key;
 </script>
@@ -163,6 +167,32 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a card back picture" :disabled="!owns('cb-upload')" @change="uploadBack" />
     </div>
 
+    <div class="panel stack">
+      <h2>Marker colour</h2>
+      <p class="muted">The colour of your markers in games such as Tints and Hints and Wavelength. A game gives it to you when you join, if nobody there has it already; you can still change it in the lobby.</p>
+      <div class="swatches">
+        <button
+          v-for="c in MARKER_COLOURS"
+          :key="c"
+          class="dot"
+          :class="{ chosen: isMarker(c) }"
+          :style="{ background: c }"
+          :title="c"
+          :aria-label="`Marker colour ${c}`"
+          :aria-pressed="isMarker(c)"
+          @click="chooseMarker(c)"
+        />
+        <span v-if="session.user.markerColour && !MARKER_COLOURS.includes(session.user.markerColour)" class="dot chosen" :style="{ background: session.user.markerColour }" title="Your own colour" />
+      </div>
+      <h3>Any colour</h3>
+      <p v-if="!owns(CUSTOM_MARKER_ITEM)" class="muted">Unlock this in the <RouterLink to="/shop">shop</RouterLink>.</p>
+      <div class="row">
+        <input v-model="marker" type="color" class="colour" aria-label="Marker colour" :disabled="!owns(CUSTOM_MARKER_ITEM)" />
+        <button :disabled="!owns(CUSTOM_MARKER_ITEM)" @click="chooseMarker(marker)">Use this colour</button>
+        <button class="quiet" :disabled="!session.user.markerColour" @click="chooseMarker(null)">No default</button>
+      </div>
+    </div>
+
     <form class="panel stack" @submit.prevent="savePassword">
       <h2>Password</h2>
       <input v-model="oldPassword" type="password" autocomplete="current-password" placeholder="Current password" aria-label="Current password" />
@@ -234,6 +264,17 @@ h3 {
 }
 .back.chosen {
   box-shadow: 0 0 0 3px var(--amber);
+}
+.dot {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+}
+.dot.chosen {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
 }
 .colour {
   width: 3.2rem;

@@ -48,7 +48,7 @@ export async function startSite(options = {}) {
   const server = http.createServer(app);
   const io = new Server(server);
 
-  const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, dataDir, log });
+  const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, dataDir, owns: shop.owns, log });
   moduleList = modules.list();
 
   // ---- helpers ----
@@ -105,8 +105,8 @@ export async function startSite(options = {}) {
   api.get('/me', (req, res) => res.json({ user: auth.userForToken(tokenOf(req)) }));
 
   api.patch('/me', requireUser, handler(async (req, res) => {
-    const { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation, playAnimations, effectIntensity, effectSpeed } = req.body ?? {};
-    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation, playAnimations, effectIntensity, effectSpeed });
+    const { displayName, background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, playAnimations, effectIntensity, effectSpeed } = req.body ?? {};
+    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, playAnimations, effectIntensity, effectSpeed });
     if (background !== undefined && user.background.type !== 'image') removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') removeImages('cb', user.id);
     res.json({ user });

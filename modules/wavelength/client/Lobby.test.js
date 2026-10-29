@@ -45,3 +45,21 @@ describe('Wavelength lobby computer players', () => {
     expect(button(wrapper, 'Remove')).toBeUndefined();
   });
 });
+
+describe('lobby marker colours', () => {
+  it('offers any colour only to a player who has unlocked it, and shows a custom colour as chosen', async () => {
+    const people = [person(1, 'Ann'), person(2, 'Bob')];
+    const plain = make({ players: people });
+    expect(plain.wrapper.find('input[aria-label="Choose any marker colour"]').exists()).toBe(false);
+    expect(plain.wrapper.text()).toContain('Unlock any colour in the shop');
+
+    const send = vi.fn();
+    const state = { code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, turnsEach: 2, players: [{ ...people[0], colour: '#123456' }, people[1]], colours: ['#000001', '#aa0000'], canCustomColour: true, limits: { min: 2, max: 8, turns: { min: 1, max: 5 } } };
+    const wrapper = mount(Lobby, { props: { state, send } });
+    expect(wrapper.find('[title="Your own colour"]').exists()).toBe(true);
+    const picker = wrapper.find('input[aria-label="Choose any marker colour"]');
+    expect(picker.element.value).toBe('#123456');
+    await picker.setValue('#abcdef');
+    expect(send).toHaveBeenLastCalledWith('colour', { colour: '#abcdef' });
+  });
+});

@@ -5,6 +5,7 @@ import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, EFFECT_INTENSITY, EFF
 import { BACKGROUND_ANIMATIONS, NAME_ANIMATIONS } from '../shared/animations.js';
 import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
+import { CUSTOM_MARKER_ITEM, isPresetMarker } from '../shared/markerColours.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
@@ -32,6 +33,7 @@ for (const key of Object.keys(CARD_BACK_PRESETS)) {
 }
 add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity slider', price: 600 });
 add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
+add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 600 });
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
@@ -89,9 +91,9 @@ export function grandfather(db) {
 export class ShopError extends AuthError {}
 
 /** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
-export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, backgroundAnimation, effectIntensity, effectSpeed }) {
+export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, effectIntensity, effectSpeed }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
-  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
     if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
   }
 }

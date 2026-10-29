@@ -55,7 +55,13 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
             :aria-label="`Choose marker colour ${c}`"
             @click="send('colour', { colour: c })"
           />
+          <span v-if="mine && !state.colours.includes(mine.colour)" class="swatch-pick chosen" :style="{ background: mine.colour }" title="Your own colour" />
+          <label v-if="state.canCustomColour" class="custom muted">
+            Any colour
+            <input type="color" class="picker" :value="mine?.colour" aria-label="Choose any marker colour" @change="send('colour', { colour: $event.target.value })" />
+          </label>
         </div>
+        <span v-if="!state.canCustomColour" class="muted">Unlock any colour in the shop. Set your usual one under Profile.</span>
       </div>
     </section>
 
@@ -114,6 +120,16 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
   padding: 0;
   border-radius: 50%;
   border: 2px solid var(--line);
+}
+.custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.picker {
+  width: 2.8rem;
+  height: 2.4rem;
+  padding: 0.1rem;
 }
 .swatch-pick.chosen {
   outline: 3px solid var(--amber);

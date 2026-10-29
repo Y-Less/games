@@ -3,13 +3,14 @@
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
 import { placements, totalsFromRounds } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { AIS } from './ai/index.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 export const HINT_LENGTH = 80;
-export const COLOURS = ['#ffffff', '#000000', '#808080', '#ff2d95', '#00e5ff', '#ffd400', '#7cff3a', '#6a00ff'];
+export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClose: 1, hinterPerGuesser: 3 };
 
 /** Names for the computer players, in the order they are used. */
@@ -31,7 +32,8 @@ const newPlayer = (id, colour) => ({ id, colour, score: 0, exactGuesses: 0, clos
 export const humans = (room) => room.players.filter((p) => !p.bot);
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
 
-export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_EACH.default }) {
+/** `colour` is the host's default marker colour, already checked to be one they may use (ctx.markers.preferred). */
+export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_EACH.default, colour = null }) {
   return {
     code,
     hostId,
@@ -39,7 +41,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     turnsEach,
     turnsTotal: 0,
     turn: 0,
-    players: [newPlayer(hostId, COLOURS[0])],
+    players: [newPlayer(hostId, startingMarker(colour, [], true))],
     nextIdx: 0,
     grid: GRID_VERSION, // 5 = the 52 x 24 grid (4 was 48 x 24, 2 and 3 were 48 x 20); rooms without it were saved with the old 24 x 10 grid (see migrate)
     ready: [], // at the reveal: the people who have closed the scores pop-up
@@ -57,21 +59,23 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
   };
 }
 
-export function addPlayer(room, id) {
+/** `colour` is the player's default marker colour, already checked to be one they may use; it is used if it is free. */
+export function addPlayer(room, id, colour = null) {
   if (hasPlayer(room, id)) return ok();
   if (room.phase !== 'lobby') return fail('That game has already started.');
   if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  room.players.push(newPlayer(id, freeColour(room)));
+  room.players.push(newPlayer(id, startingMarker(colour, room.players.map((p) => p.colour), true)));
   return ok();
 }
 
-export function setColour(room, id, colour) {
+/** `canCustom`: this player has unlocked any marker colour (otherwise only the free palette is allowed). */
+export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
   if (!player) return fail('You are not in this game.');
   if (room.phase !== 'lobby') return fail('Colours can only be chosen before the game starts.');
-  if (!COLOURS.includes(colour)) return fail('That is not one of the colours.');
-  if (room.players.some((p) => p.id !== id && p.colour === colour)) return fail('Someone else has that colour.');
-  player.colour = colour;
+  const problem = markerProblem(colour, room.players.filter((p) => p.id !== id).map((p) => p.colour), canCustom);
+  if (problem) return fail(problem);
+  player.colour = normaliseMarker(colour);
   return ok();
 }
 
@@ -360,7 +364,7 @@ export function statsPlayers(room) {
  * What one person may see. Only the hinter knows the target until the reveal, and guesses made in the current round
  * stay hidden from the other guessers until the round is closed.
  */
-export function viewFor(room, userId, { nameOf = String, onlineOf = () => true } = {}) {
+export function viewFor(room, userId, { nameOf = String, onlineOf = () => true, canCustom = false } = {}) {
   nameOf = namer(room, nameOf);
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
@@ -404,6 +408,7 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
       lowIsBetter: false,
     },
     colours: COLOURS,
+    canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
   };
 }

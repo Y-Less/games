@@ -205,7 +205,7 @@ test("ctx gives a module its id, namespace, users, codes and a prefixed log", as
   assert.equal(reply.nobody, null);
   assert.match(reply.generated, /^[a-z]+-[a-z]+-[a-z]+$/);
   assert.equal(reply.normalised, 'boss-aware-you');
-  assert.deepEqual(reply.keys, ['codes', 'dataDir', 'id', 'io', 'log', 'mount', 'stats', 'users']);
+  assert.deepEqual(reply.keys, ['codes', 'dataDir', 'id', 'io', 'log', 'markers', 'mount', 'stats', 'users']);
 });
 
 test('socket users carry id, display name and bot flag, and a rename shows on the next connection', async (t) => {

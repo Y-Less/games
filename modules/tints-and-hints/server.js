@@ -75,7 +75,7 @@ export default function (ctx) {
   function push(room) {
     for (const player of room.players) {
       for (const socket of open(player.id, room.code)) {
-        socket.emit('state', game.viewFor(room, player.id, { nameOf, onlineOf: onlineOf(room.code) }));
+        socket.emit('state', game.viewFor(room, player.id, { nameOf, onlineOf: onlineOf(room.code), canCustom: ctx.markers.canCustom(player.id) }));
       }
     }
   }
@@ -166,7 +166,7 @@ export default function (ctx) {
       return { ok: false, error: 'No game has that code.' };
     }
     if (!game.hasPlayer(room, userId)) {
-      const added = game.addPlayer(room, userId);
+      const added = game.addPlayer(room, userId, ctx.markers.preferred(userId));
       if (!added.ok) {
         socket.emit('state', null);
         return added;
@@ -218,7 +218,7 @@ export default function (ctx) {
         attach(socket, mine);
         return { ok: false, error: `You are already in the game ${mine.code}. Leave it to start another.` };
       }
-      const room = game.createRoom({ code: ctx.codes.generate((c) => rooms.has(c)), hostId: userId });
+      const room = game.createRoom({ code: ctx.codes.generate((c) => rooms.has(c)), hostId: userId, colour: ctx.markers.preferred(userId) });
       if (turnsEach !== undefined) game.setTurnsEach(room, userId, turnsEach);
       rooms.set(room.code, room);
       attach(socket, room);
@@ -269,7 +269,7 @@ export default function (ctx) {
       return { ok: true };
     });
 
-    on('colour', ({ colour }) => act((room) => game.setColour(room, userId, colour)));
+    on('colour', ({ colour }) => act((room) => game.setColour(room, userId, colour, ctx.markers.canCustom(userId))));
     on('settings', ({ turnsEach }) => act((room) => game.setTurnsEach(room, userId, turnsEach)));
     on('start', () => act((room) => game.start(room, userId)));
     on('hint', ({ text }) => act((room) => game.setHint(room, userId, text)));

@@ -221,3 +221,16 @@ test('colours, gradients and uploads are separate unlocks', async (t) => {
   assert.equal((await c.raw('/api/me/background-image', png(), 'image/png')).status, 200);
   assert.equal((await c.raw('/api/me/card-back-image', png(), 'image/png')).status, 403, 'the card back picture is its own unlock');
 });
+
+test('marker colour: none by default, the free palette is free, any other colour is an unlock, and bad ones are refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 5000 });
+  assert.equal((await c.get('/api/me')).data.user.markerColour, null);
+  assert.equal((await c.patch('/api/me', { markerColour: '#FF2D95' })).data.user.markerColour, '#ff2d95', 'a free colour, kept in lower case');
+  assert.equal((await c.patch('/api/me', { markerColour: '#123456' })).status, 403, 'any other colour needs the unlock');
+  assert.equal((await c.get('/api/me')).data.user.markerColour, '#ff2d95', 'a refused change changes nothing');
+  for (const bad of ['red', '#12345', '#1234567', 7, {}, '']) assert.equal((await c.patch('/api/me', { markerColour: bad })).status, 400, JSON.stringify(bad));
+  assert.equal((await c.patch('/api/me', { markerColour: null })).data.user.markerColour, null, 'null clears it');
+  await c.post('/api/shop/buy', { item: 'marker-colour' });
+  assert.equal((await c.patch('/api/me', { markerColour: '#123456' })).data.user.markerColour, '#123456');
+  assert.equal((await c.patch('/api/me', { displayName: 'Ann' })).data.user.markerColour, '#123456', 'other changes leave it alone');
+});

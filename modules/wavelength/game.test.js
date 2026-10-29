@@ -287,3 +287,24 @@ test('a saved room comes back as it was', () => {
   delete copy.nextBot;
   assert.deepEqual(game.migrate(copy).used, [], 'rooms saved without a history of spectra still load');
 });
+
+test('marker colours: a default is used when free, any colour needs the unlock, and colours stay unique', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, colour: '#6a00ff' });
+  assert.equal(room.players[0].colour, '#6a00ff', 'the host gets their default');
+  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1 }).players[0].colour, game.COLOURS[0], 'no default: the first colour');
+  assert.ok(game.addPlayer(room, 2, '#6a00ff').ok);
+  assert.equal(room.players[1].colour, game.COLOURS[0], 'the default is taken: the first free colour');
+  assert.ok(game.addPlayer(room, 3, '#123456').ok);
+  assert.ok(game.addPlayer(room, 4, '#123456').ok);
+  assert.equal(room.players[3].colour, game.COLOURS[1], 'colours are unique, even custom ones');
+  assert.equal(game.setColour(room, 2, '#abcdef').ok, false, 'a custom colour needs the unlock');
+  assert.ok(game.setColour(room, 2, '#ABCDEF', true).ok);
+  assert.equal(room.players[1].colour, '#abcdef', 'kept in lower case');
+  assert.equal(game.setColour(room, 3, '#abcdef', true).ok, false, 'someone else has it');
+  assert.equal(game.setColour(room, 3, 'red', true).ok, false);
+  assert.ok(game.setColour(room, 2, game.COLOURS[2]).ok, 'back to a free one without the unlock');
+  assert.equal(game.viewFor(room, 1).canCustomColour, false);
+  assert.equal(game.viewFor(room, 1, { canCustom: true }).canCustomColour, true);
+  const bot = game.addBot(room, 1);
+  assert.ok(bot.ok && room.players.at(-1).colour, 'a computer player gets a free colour too');
+});

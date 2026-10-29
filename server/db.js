@@ -85,6 +85,9 @@ export function openDatabase(dataDir) {
   if (!columns.includes('effect_speed')) {
     db.exec('ALTER TABLE users ADD COLUMN effect_speed INTEGER'); // percent; NULL: normal (100)
   }
+  if (!columns.includes('marker_colour')) {
+    db.exec('ALTER TABLE users ADD COLUMN marker_colour TEXT'); // the default marker colour (#rrggbb); NULL: none chosen
+  }
   if (!columns.includes('animations_choice')) {
     db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
   }

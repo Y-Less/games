@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseCookies, SESSION_COOKIE } from './auth.js';
 import { codes } from './codes.js';
+import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/markerColours.js';
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
 
@@ -31,7 +32,7 @@ function readManifest(dir, folder) {
  * Loads every module and starts its server half.
  * @returns {Promise<{ list: () => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
  */
-export async function loadModules({ dir, io, app, auth, stats, dataDir, log = console.log }) {
+export async function loadModules({ dir, io, app, auth, stats, dataDir, owns = () => false, log = console.log }) {
   const modules = new Map(); // id -> { meta, dispose }
   const folders = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((d) => fs.statSync(path.join(dir, d.name), { throwIfNoEntry: false })?.isDirectory()) : [];
 
@@ -57,6 +58,15 @@ export async function loadModules({ dir, io, app, auth, stats, dataDir, log = co
         dataDir: moduleDataDir,
         stats: { record: (result) => stats.record(meta.id, result) },
         users: { get: (id) => auth.userById(id) },
+        /** Marker colours (shared/markerColours.js): what a player may use, and the default they saved. */
+        markers: {
+          canCustom: (id) => owns(id, CUSTOM_MARKER_ITEM),
+          /** The player's default colour if they may still use it (an unlock they own, or a free colour), else null. */
+          preferred(id) {
+            const colour = normaliseMarker(auth.userById(id)?.markerColour);
+            return colour && (isPresetMarker(colour) || owns(id, CUSTOM_MARKER_ITEM)) ? colour : null;
+          },
+        },
         codes,
         /** Serves a folder of the module's files (e.g. images) at /assets/<id>/<subpath>. */
         mount: (subpath, folderPath, options = {}) => app.use(`/assets/${meta.id}${subpath}`, express.static(folderPath, options)),

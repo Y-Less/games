@@ -125,3 +125,40 @@ test('the host can remove a person, who then has no game', async (t) => {
   await until(() => ann.state.players.length === 2, 'two players');
   assert.ok(stateOf(bob));
 });
+
+test('marker colours: a saved default is used when joining, and any colour needs the shop unlock', async (t) => {
+  const site = await launch(t);
+  const ann = await site.person('ann').open();
+  const bob = await site.person('bob').open();
+  const cat = await site.person('cat').open();
+  const patch = (p, body) => p.http('PATCH', '/api/me', body);
+  assert.equal((await patch(ann, { markerColour: '#6a00ff' })).status, 200);
+  assert.equal((await patch(bob, { markerColour: '#6a00ff' })).status, 200);
+  assert.equal((await patch(cat, { markerColour: '#123456' })).status, 403, 'any colour is an unlock');
+
+  const { code } = await ann.call('create');
+  await until(() => ann.state?.players[0].colour === '#6a00ff', 'the host default');
+  assert.equal(ann.state.canCustomColour, false);
+  assert.ok((await bob.call('join', { code })).ok);
+  await until(() => bob.state?.players.length === 2, 'bob joined');
+  assert.notEqual(bob.state.players[1].colour, '#6a00ff', 'the colour was taken');
+  assert.ok((await cat.call('join', { code })).ok);
+  assert.equal((await cat.call('colour', { colour: '#123456' })).ok, false, 'a custom colour is refused without the unlock');
+
+  // Cat buys (here: is given) the unlock, so a custom colour works, and is used as her default next time.
+  site.site.db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, 0)').run(cat.id, 'marker-colour');
+  assert.equal((await patch(cat, { markerColour: '#123456' })).status, 200);
+  assert.ok((await cat.call('colour', { colour: '#ABCDEF' })).ok);
+  await until(() => cat.state?.canCustomColour === true && cat.state.players.find((p) => p.id === cat.id).colour === '#abcdef', 'the custom colour');
+  assert.equal((await bob.call('colour', { colour: '#abcdef' })).ok, false, 'colours stay unique');
+  await cat.call('leave');
+  const second = await cat.call('create');
+  assert.ok(second.ok);
+  await until(() => cat.state?.players[0].colour === '#123456', 'the custom default is used');
+
+  // Without the unlock any more, the default is ignored rather than used.
+  await cat.call('leave');
+  site.site.db.prepare('DELETE FROM owned_items WHERE user_id = ? AND item_id = ?').run(cat.id, 'marker-colour');
+  assert.ok((await cat.call('create')).ok);
+  await until(() => cat.state?.players[0].colour === '#ffffff', 'the first free colour');
+});

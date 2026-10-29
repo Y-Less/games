@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
 import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE, isNameStyle } from '../shared/nameStyles.js';
+import { normaliseMarker } from '../shared/markerColours.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -114,6 +115,14 @@ export function cleanBackgroundAnimation(input) {
   throw new AuthError('That is not a valid background animation.');
 }
 
+/** Checks a default marker colour: a #rrggbb colour (kept in lower case), or null for none. */
+export function cleanMarkerColour(input) {
+  if (input === null) return null;
+  const colour = normaliseMarker(input);
+  if (!colour) throw new AuthError('A marker colour is six hex digits such as #ff2d95.');
+  return colour;
+}
+
 function parseNameStyle(text) {
   try {
     return cleanNameStyle(JSON.parse(text));
@@ -155,12 +164,12 @@ function publicUser(row) {
   } catch {
     cardBack = { type: 'preset', value: 'crimson' };
   }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
 }
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object, backgroundAnimation?: string }) => void }} [options]
+ * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object, markerColour?: string | null, backgroundAnimation?: string }) => void }} [options]
  *   canUse throws when a profile change uses something the user has not bought (the shop supplies it; tests may omit it).
  */
 export function createAuth(db, { canUse = () => {} } = {}) {
@@ -250,7 +259,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return out;
     },
 
-    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation, playAnimations, effectIntensity, effectSpeed }) {
+    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, playAnimations, effectIntensity, effectSpeed }) {
       // Check everything first, so a refused change changes nothing.
       let name;
       if (displayName !== undefined) {
@@ -261,6 +270,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
       const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
       const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
+      const cleanedMarker = markerColour === undefined ? undefined : cleanMarkerColour(markerColour);
       const cleanedPlay = playAnimations === undefined ? undefined : cleanPlayAnimations(playAnimations);
       const cleanedBackgroundAnimation = backgroundAnimation === undefined ? undefined : cleanBackgroundAnimation(backgroundAnimation);
       const cleanedIntensity = effectIntensity === undefined ? undefined : cleanEffectLevel(effectIntensity, EFFECT_INTENSITY, 'intensity');
@@ -268,12 +278,13 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
       if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
-      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, backgroundAnimation: cleanedBackgroundAnimation, effectIntensity: cleanedIntensity, effectSpeed: cleanedSpeed });
+      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, markerColour: cleanedMarker, backgroundAnimation: cleanedBackgroundAnimation, effectIntensity: cleanedIntensity, effectSpeed: cleanedSpeed });
       if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
       if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
       if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
       if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
+      if (cleanedMarker !== undefined) db.prepare('UPDATE users SET marker_colour = ? WHERE id = ?').run(cleanedMarker, userId);
       if (cleanedPlay !== undefined) db.prepare('UPDATE users SET animations_choice = ? WHERE id = ?').run(cleanedPlay === null ? null : cleanedPlay ? 1 : 0, userId);
       if (cleanedBackgroundAnimation !== undefined) db.prepare('UPDATE users SET background_animation = ? WHERE id = ?').run(cleanedBackgroundAnimation, userId);
       if (cleanedIntensity !== undefined) db.prepare('UPDATE users SET effect_intensity = ? WHERE id = ?').run(cleanedIntensity, userId);
