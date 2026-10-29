@@ -25,8 +25,8 @@ export const BACKGROUND_PRESETS = {
   ocean: 'linear-gradient(170deg, #0b1e36 0%, #12385c 55%, #1b5f84 100%)',
   ember: 'linear-gradient(165deg, #2a120e 0%, #522018 55%, #8a3a22 100%)',
   slate: 'linear-gradient(170deg, #1b1d22 0%, #2a2e36 100%)',
-  // What the Matrix rain used to sit on: the slate background under a faint (35%) green panel.
-  matrix: 'linear-gradient(170deg, #121918 0%, #1b2425 100%)',
+  // What the Matrix rain used to sit on: the slate background under a faint (60%) green panel.
+  matrix: 'linear-gradient(170deg, #0b1611 0%, #111d19 100%)',
 };
 
 /** Card-back designs (CSS backgrounds). Card games draw every face-down card with the signed-in user's choice. */
