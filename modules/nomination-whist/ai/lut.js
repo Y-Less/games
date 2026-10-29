@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { cellOf } from '../sim/bids-features.js';
 import { bestByValue, valueModel } from '../sim/value-model.js';
 import { withLastChance } from './endgame.js';
+import { bestByHandModel, handModel } from '../sim/hand-model.js';
 import { bestPlay, loadPlayModel } from '../sim/play-model.js';
 import { roundPoints } from './sharp.js';
 import { nearestAllowed } from './cards.js';
@@ -122,11 +123,11 @@ export const lutc = {
 };
 
 /**
- * Nominates by what each nomination is actually worth: the bid-value table (sim/value-model.js) holds, for the exact cards of
- * a small hand (or the estimate of a bigger one), the table position and what the players before nominated, how often each
- * possible nomination was then hit and how many tricks were taken on a miss, with the player playing to the nomination. So
- * it knows that a high nomination on a good hand, played for, can beat the low one the hand would "naturally" make.
- * Where the table has nothing it falls back to `lutc`.
+ * Nominates by what each nomination is actually worth: the hand model (sim/hand-model.js), a network learned from millions
+ * of simulated deals that is shown every card of the hand, the table position and what the players before nominated, and
+ * gives the chance of hitting each number and the tricks taken on a miss, with the player playing to the nomination. Where
+ * it has no model it uses `lutvTable`, the older bid-value table, which squeezes a hand of three or more cards into one
+ * estimate.
  */
 export const lutv = {
   id: 'lutv',
@@ -138,8 +139,37 @@ export const lutv = {
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
     return withLastChance(ctx, (boost) => {
       if (boost) return guess(ctx, boost);
-      const model = valueModel(jokers);
-      return (model && bestByValue(model, ctx)) ?? lutcChoice(ctx, 0);
+      const model = handModel(jokers);
+      return (model && bestByHandModel(model, ctx)) ?? valueChoice(ctx);
+    });
+  },
+  play: (ctx) => lut.play(ctx),
+};
+
+/** The bid-value table's best nomination, or the table-aware lookup's where the table has nothing. */
+function valueChoice(ctx) {
+  const model = valueModel(ctx.jokers === true);
+  return (model && bestByValue(model, ctx)) ?? lutcChoice(ctx, 0);
+}
+
+/**
+ * The older bid-value table's nomination: the table (sim/value-model.js) holds, for the exact cards of a hand of one or two
+ * cards (or the estimate of a bigger one), the table position and what the players before nominated, how often each
+ * possible nomination was then hit and how many tricks were taken on a miss, with the player playing to the nomination.
+ * Where the table has nothing it falls back to `lutc`. Kept as the fallback for `lutv`, and as the yardstick the hand model
+ * is measured against.
+ */
+export const lutvTable = {
+  id: 'lutv-table',
+  name: 'Statistician (bid-value table)',
+  description: 'Nominates the number that was worth most in simulated games from hands like its own, with a hand of three or more cards reduced to one estimate.',
+  weight: 0,
+  nominate(ctx) {
+    const { hand, trump, allowed, instantWin = false, jokers = false } = ctx;
+    if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
+    return withLastChance(ctx, (boost) => {
+      if (boost) return guess(ctx, boost);
+      return valueChoice(ctx);
     });
   },
   play: (ctx) => lut.play(ctx),

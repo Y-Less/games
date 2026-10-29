@@ -146,6 +146,48 @@ shuffled in): over 200,000 games per player count against `lutc` in Jokers games
 against 97.3 at 4, 104.1 against 101.6 at 5, 107.8 against 105.6 at 6 and 110.5 against 108.4 at 7. `lutv` reads whichever table
 matches the game's Jokers setting, and so does the suggested nomination.
 
+## The hand model: `train-hand.js` and `models/hand-values.json`
+
+```
+node modules/nomination-whist/sim/train-hand.js --players 3-7 --deals 10_000_000 --iterations 4 --fresh            # about 25 minutes
+node modules/nomination-whist/sim/train-hand.js --players 3-7 --deals 10_000_000 --iterations 1 --fresh --jokers   # hand-values-jokers.json
+```
+
+The bid-value table can only look a hand up by one number once it holds three or more cards, so a lone king of trumps with
+three small cards in other suits shared a row with every other hand worth "0.8 of a trick", most of which really do take
+nothing, and the table advised nominating 0 (the lone king takes a trick about 78% of the time; nominating 1 hits that often).
+Hands are too many to keep a row for each (133 million 7-card hands before counting the table position), so this learns a
+**model** instead: a small neural network (61 inputs, 64 hidden units, 16 outputs, about 10,000 weights, a 42 KB file) shown
+every card of the hand.
+
+- **What it sees** (`hand-features.js`): each rank of the trump suit held, each rank held in the other suits (they are
+  interchangeable, so the suit never matters, nor which suit is trumps), the Jokers, the shape of the trump suit and of the
+  other suits (voids, singletons, doubletons, the longest), kings with company, queens backed by a higher card, the number of
+  players and cards, tricks per player, the share of tricks already claimed, and how many players nominate after you.
+  The first layer is, in effect, a set of weights on every card value.
+- **What it says** (`hand-model.js`): for each nomination 0 to 7, the chance of hitting it exactly and the tricks taken on a
+  miss, so a nomination is worth `chance x (10 + n) + tricks on a miss`, as in the bid-value table. `lutv` nominates the allowed
+  number worth most, and the suggested nomination is the same number. Without a model file `lutv` uses the bid-value table
+  (`lutvTable`, AI id `lutv-table`), which it still falls back to.
+- **How it learns** (`hand-collect.js`, `train-hand.js`): every deal is played with the model's best nomination by all the seats
+  but one, which nominates a random allowed number, then everybody plays to what they nominated (Standard's card play). Every
+  nomination of every seat is an example (features, number, tricks taken), and the network is trained on them as they arrive
+  (a logistic loss on the hit, a squared loss on the tricks taken on a miss, Adam, a learning rate that decays within each
+  iteration). A nomination made by the model depends only on its features, and the others are random, so the example shows
+  what that nomination is worth for those features. The first iteration's opponents use the bid-value table.
+
+**Result:** on the same 50 million nominations the table's predicted points are off by 3.87 (root mean square) and the
+model's by 3.68, and over 60,000 games per player count against `lutv-table` the model scores 95.2 against 91.5 at 3 players,
+102.3 against 97.9 at 4, 106.6 against 102.1 at 5, 110.2 against 105.6 at 6 and 113.1 against 108.4 at 7. It was as good after
+the first iteration as after the fourth. For the lone king of hearts with three small cards (4 players, first to nominate) it
+values nominating 1 at 8.9 points and nominating 0 at 1.9.
+
+For games with the Jokers it is trained separately (`hand-values-jokers.json`, one iteration of 10 million deals with the Jokers shuffled
+in; a second was stopped when the machine ran short of memory, and the first is as good as the fourth was without Jokers): over
+60,000 games per player count against `lutv-table` in Jokers games it scores 96.6 against 92.7 at 3 players, 103.8 against 99.1 at 4,
+108.2 against 103.0 at 5, 112.1 against 106.5 at 6 and 114.5 against 109.0 at 7. `lutv` reads whichever model matches the game's
+Jokers setting, and so does the suggested nomination.
+
 ## The last chance (`ai/endgame.js`)
 
 In the last round with the instant win on, a player who cannot win on points (even 17, the most a round gives, leaves them behind

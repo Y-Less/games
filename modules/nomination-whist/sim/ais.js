@@ -5,7 +5,7 @@
 // as it gets. Sharp simulates inside every card it plays, so those are far slower than the rest.
 import { defineAIs } from '../../../shared/ai.js';
 import { AIS } from '../ai/index.js';
-import { lut, lutc, lutv } from '../ai/lut.js';
+import { lut, lutc, lutv, lutvTable } from '../ai/lut.js';
 import { sharp } from '../ai/sharp.js';
 
 const withSharpPlay = (ai) => ({ ...ai, id: `${ai.id}-sharp`, name: `${ai.name} + Sharp play`, play: sharp.play });
@@ -13,4 +13,4 @@ const withSharpPlay = (ai) => ({ ...ai, id: `${ai.id}-sharp`, name: `${ai.name} 
 /** `lutc` held to the table for games without Jokers even in a Jokers game: the baseline for the table learned for them. */
 const lutcPlain = { ...lutc, id: 'lutc-plain', name: 'Lookup (table-aware, no-Jokers table)', nominate: (ctx) => lutc.nominate({ ...ctx, jokers: false }) };
 
-export const SIM_AIS = defineAIs([...AIS, lut, lutc, lutcPlain, withSharpPlay(lut), withSharpPlay(lutc), withSharpPlay(lutv)]);
+export const SIM_AIS = defineAIs([...AIS, lut, lutc, lutcPlain, lutvTable, withSharpPlay(lut), withSharpPlay(lutc), withSharpPlay(lutv)]);

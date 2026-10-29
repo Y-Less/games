@@ -9,6 +9,7 @@ import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
 import { cannotWinOnPoints } from './ai/endgame.js';
 import { contextModel, lutv } from './ai/lut.js';
+import { handModel } from './sim/hand-model.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
@@ -551,7 +552,7 @@ export function botPlay(room, seat, rng = Math.random) {
  */
 export function suggestedNomination(room, seat) {
   if (room.phase !== 'nominating' || room.turn !== seat) return null;
-  if (room.settings.jokers && !contextModel(true)) return null; // no table has been learned for games with Jokers, and the plain one would mislead
+  if (room.settings.jokers && !handModel(true) && !contextModel(true)) return null; // nothing has been learned for games with Jokers, and the plain table would mislead
   const context = nominateContext(room, seat, () => 0.5);
   const number = lutv.nominate(context);
   return context.allowed.includes(number) ? number : null;
