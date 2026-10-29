@@ -253,3 +253,12 @@ test('every card back preset is in the shop: crimson free, the rest 300 coins, w
   for (const b of backs.filter((i) => i.id !== 'cb:crimson')) assert.equal(b.price, 300, b.id);
   assert.ok(backs.every((b) => /^[A-Z][a-z]+$/.test(b.name)), backs.map((b) => b.name).join());
 });
+
+test('wine, lagoon and violet are backgrounds for sale at the usual price', () => {
+  for (const key of ['wine', 'lagoon', 'violet']) {
+    const item = itemById(`bg:${key}`);
+    assert.ok(item, key);
+    assert.equal(item.price, 500, key);
+    assert.equal(item.type, 'background');
+  }
+});

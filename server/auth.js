@@ -26,6 +26,9 @@ export const BACKGROUND_PRESETS = {
   ocean: 'linear-gradient(170deg, #0b1e36 0%, #12385c 55%, #1b5f84 100%)',
   ember: 'linear-gradient(165deg, #2a120e 0%, #522018 55%, #8a3a22 100%)',
   slate: 'linear-gradient(170deg, #1b1d22 0%, #2a2e36 100%)',
+  wine: 'linear-gradient(165deg, #25101a 0%, #4a1a2e 55%, #7a2a44 100%)',
+  lagoon: 'linear-gradient(170deg, #0a2326 0%, #115055 55%, #1c8081 100%)',
+  violet: 'linear-gradient(165deg, #1d1433 0%, #37226a 55%, #5b3d99 100%)',
   // A very dark green-tinged slate: the slate background under a green panel (60%).
   pine: 'linear-gradient(170deg, #0b1611 0%, #111d19 100%)',
 };
