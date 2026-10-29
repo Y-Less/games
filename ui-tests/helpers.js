@@ -14,6 +14,7 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 import { startSite } from '../server/index.js';
+import { unlockEverything } from '../server/fixtures/testkit.js';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const VIEWPORT = { width: 1280, height: 900 }; // desktop only: the owner does not care about phones
@@ -322,13 +323,18 @@ export class User {
   }
 }
 
-/** Starts the site and Chrome. `env` adds or overrides environment variables read by the modules. */
-export async function createWorld({ suite = 'ui', env = {} } = {}) {
+/**
+ * Starts the site and Chrome. `env` adds or overrides environment variables read by the modules. Every account made in the
+ * world owns everything that is for sale (so tests that are not about the shop can choose any background, card back ...);
+ * pass `shopLocked: true` for a test of the shop itself, where new accounts own only the free things.
+ */
+export async function createWorld({ suite = 'ui', env = {}, shopLocked = false } = {}) {
   ensureBuilt();
   Object.assign(process.env, FAST_ENV, env);
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-hub-ui-'));
   const logs = [];
   const site = await startSite({ port: 0, dataDir, log: (line) => logs.push(line) });
+  if (!shopLocked) unlockEverything(site.db);
   const base = `http://127.0.0.1:${site.port}`;
   const browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, defaultViewport: VIEWPORT, args: ['--no-first-run', '--disable-extensions'] });
   const failuresDir = path.join(os.tmpdir(), 'game-hub-ui-failures', suite);

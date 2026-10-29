@@ -74,7 +74,7 @@ test('a colour and a gradient can be chosen as the background', { timeout: 60000
 
   await setInput('input[aria-label="Gradient start"]', '#112233');
   await setInput('input[aria-label="Gradient end"]', '#445566');
-  await setInput('input[type="range"]', '90');
+  await setInput('input[aria-label="Gradient angle"]', '90');
   await user.clickButton('Use this gradient', { exact: true });
   await user.waitForText('Background saved.');
   assert.equal((await user.vars()).siteBg, 'linear-gradient(90deg, #112233, #445566)');
