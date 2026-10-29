@@ -317,6 +317,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.87;
@@ -333,6 +334,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.93;
@@ -349,6 +351,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.97;
@@ -365,6 +368,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.98;
@@ -381,6 +385,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.72;
@@ -397,6 +402,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.86;
@@ -413,6 +419,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.93;
@@ -429,6 +436,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.96;
@@ -445,6 +453,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.44;
@@ -461,6 +470,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.72;
@@ -477,6 +487,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.87;
@@ -493,6 +504,7 @@ const style = computed(() => {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
+    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.93;
