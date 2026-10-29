@@ -87,8 +87,8 @@ const TOPS = {
 
 const HATS = {
   none: () => '',
-  cap: () => `<path d="M28 38 C26 12 74 12 72 38 Z" fill="#3f6fc4"/><path d="M26 37 Q50 29 74 37 Q50 45 26 37 Z" fill="#2e529a"/><circle cx="50" cy="15" r="2" fill="#2e529a"/>`,
-  beanie: () => `<path d="M28 37 C25 8 75 8 72 37 Z" fill="#c9473f"/><rect x="26" y="31" width="48" height="8" rx="4" fill="#a63a33"/><circle cx="50" cy="9" r="5" fill="#eee9dc"/>`,
+  cap: () => `<path d="M26 39 C21 -7 79 -7 74 39 Z" fill="#3f6fc4"/><path d="M26 37 Q50 29 74 37 Q50 45 26 37 Z" fill="#2e529a"/><circle cx="50" cy="6" r="2" fill="#2e529a"/>`,
+  beanie: () => `<path d="M26 38 C21 -5 79 -5 74 38 Z" fill="#c9473f"/><rect x="26" y="31" width="48" height="8" rx="4" fill="#a63a33"/><circle cx="50" cy="4" r="4.5" fill="#eee9dc"/>`,
   party: () => `<path d="M50 0 L67 33 Q50 38 33 33 Z" fill="#d8719c"/><circle cx="46" cy="22" r="2" fill="#fff"/><circle cx="55" cy="14" r="2" fill="#f2c94c"/><circle cx="58" cy="27" r="2" fill="#fff"/><circle cx="50" cy="3" r="3" fill="#f2c94c"/>`,
   tophat: () => `<ellipse cx="50" cy="30" rx="28" ry="5" fill="#17171c"/><rect x="34" y="2" width="32" height="28" rx="2" fill="#23232b"/><rect x="34" y="21" width="32" height="6" fill="#b83a46"/>`,
   crown: () => `<path d="M30 33 L32 11 L42 22 L50 6 L58 22 L68 11 L70 33 Z" fill="#e0b84a" stroke="#a37e1c" stroke-width="1.5" stroke-linejoin="round"/><circle cx="50" cy="26" r="2.6" fill="#d9506a"/><circle cx="38" cy="28" r="2" fill="#5a8fe0"/><circle cx="62" cy="28" r="2" fill="#4fc08a"/>`,
