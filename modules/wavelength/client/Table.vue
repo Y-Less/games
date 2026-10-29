@@ -44,7 +44,7 @@ const myGuess = computed(() => s.value.guesses.find((g) => g.id === s.value.you)
 const TEAM_MARKER = '#ffd400';
 // Solo: your own needle. Team: the shared marker, which the psychic does not see until the reveal.
 const needle = computed(() => {
-  if (!team.value) return canGuess.value ? picked.value : myGuess.value;
+  if (!team.value) return canGuess.value ? picked.value : guessing.value ? myGuess.value : null; // at the reveal your guess is a marker on the rim instead
   return canGuess.value ? picked.value ?? s.value.marker : null;
 });
 const teamPin = () => (s.value.marker === null ? [] : [{ id: 'team', position: s.value.marker, colour: TEAM_MARKER, name: 'Your team' }]);
