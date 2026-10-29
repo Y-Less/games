@@ -23,6 +23,8 @@ export const BACKGROUND_ANIMATIONS = [
   { id: 'snow', name: 'Snowfall', price: 800 },
   { id: 'embers', name: 'Rising embers', price: 1000 },
   { id: 'aurora', name: 'Aurora', price: 1500 },
+  { id: 'fireflies', name: 'Fireflies', price: 1000 },
+  { id: 'rain', name: 'Rain', price: 800 },
   { id: 'matrix-a', name: 'Matrix', price: 1500 }, // the rain that is sold: each column of letters slides down the screen
   // The other rain (the letters stay put: a head leaves them behind and they fade) is kept, but is no longer for sale: it is
   // not in the shop, and whoever owned it was given the one above (see server/db.js).

@@ -262,3 +262,13 @@ test('wine, lagoon and violet are backgrounds for sale at the usual price', () =
     assert.equal(item.type, 'background');
   }
 });
+
+test('Fireflies and Rain are background animations for sale, and a player can use them once bought', async (t) => {
+  assert.equal(itemById('ba:fireflies').price, 1000);
+  assert.equal(itemById('ba:rain').price, 800);
+  const { c } = await shopSite(t, { coins: 5000 });
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'rain' })).status, 403, 'not before buying');
+  for (const item of ['ba:fireflies', 'ba:rain']) assert.equal((await c.post('/api/shop/buy', { item })).status, 200);
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'fireflies' })).data.user.backgroundAnimation, 'fireflies');
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'rain' })).data.user.backgroundAnimation, 'rain');
+});

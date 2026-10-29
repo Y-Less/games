@@ -52,6 +52,16 @@ describe('BackgroundFx', () => {
     });
   });
 
+  it('draws the Fireflies and Rain effects as layers of their own, without any columns of letters', () => {
+    for (const effect of ['fireflies', 'rain']) {
+      const w = mount(BackgroundFx, { props: { effect, fixed: true } });
+      expect(w.attributes('data-fx')).toBe(effect);
+      expect(w.classes()).toContain('fixed');
+      expect(w.findAll('.mx, .maw').length).toBe(0);
+      expect(mount(BackgroundFx, { props: { effect, demo: true } }).classes()).toContain('demo');
+    }
+  });
+
   it("takes the player's intensity and speed, but not in a preview", () => {
     const w = mount(BackgroundFx, { props: { effect: 'snow', intensity: 40, speed: 250 } });
     expect(w.attributes('style')).toContain('--fx-speed: 2.5');

@@ -278,6 +278,95 @@ const style = computed(() => {
   }
 }
 
+/* Fireflies: soft yellow-green lights that drift slowly across the screen and blink, two layers at different speeds. The dots
+   sit in a tile that slides by exactly one tile, so the drift never jumps where it repeats. */
+[data-fx='fireflies']::before {
+  --tile: 210px;
+  background-image: radial-gradient(4px 4px at 14% 22%, #eaff80, transparent), radial-gradient(3.5px 3.5px at 58% 64%, #c8ff5a, transparent), radial-gradient(4px 4px at 82% 30%, #f3ff9a, transparent),
+    radial-gradient(3px 3px at 33% 88%, #d9ff6a, transparent);
+  background-size: var(--tile) var(--tile);
+  filter: drop-shadow(0 0 6px #d6ff5a);
+  animation:
+    fx-drift calc(48s / var(--fx-speed)) linear infinite,
+    fx-blink calc(3.4s / var(--fx-speed)) ease-in-out infinite alternate;
+}
+[data-fx='fireflies']::after {
+  --tile: 270px;
+  background-image: radial-gradient(3.5px 3.5px at 25% 40%, #f3ff9a, transparent), radial-gradient(4px 4px at 71% 12%, #d6ff5a, transparent), radial-gradient(3px 3px at 48% 76%, #eaff80, transparent),
+    radial-gradient(3.5px 3.5px at 90% 82%, #c8ff5a, transparent);
+  background-size: var(--tile) var(--tile);
+  filter: drop-shadow(0 0 6px #d6ff5a);
+  animation:
+    fx-drift-back calc(70s / var(--fx-speed)) linear infinite,
+    fx-blink calc(5.1s / var(--fx-speed)) ease-in-out calc(-2s / var(--fx-speed)) infinite alternate;
+}
+.bg-fx.demo[data-fx='fireflies']::before {
+  --tile: 60px;
+  background-image: radial-gradient(3.5px 3.5px at 14% 22%, #eaff80, transparent), radial-gradient(3px 3px at 58% 64%, #c8ff5a, transparent), radial-gradient(3.5px 3.5px at 82% 30%, #f3ff9a, transparent),
+    radial-gradient(2.5px 2.5px at 33% 88%, #d9ff6a, transparent);
+}
+.bg-fx.demo[data-fx='fireflies']::after {
+  --tile: 76px;
+  background-image: radial-gradient(3px 3px at 25% 40%, #f3ff9a, transparent), radial-gradient(3.5px 3.5px at 71% 12%, #d6ff5a, transparent), radial-gradient(2.5px 2.5px at 48% 76%, #eaff80, transparent),
+    radial-gradient(3px 3px at 90% 82%, #c8ff5a, transparent);
+}
+@keyframes fx-drift {
+  to {
+    background-position: var(--tile) calc(var(--tile) * -1);
+  }
+}
+@keyframes fx-drift-back {
+  to {
+    background-position: calc(var(--tile) * -1) var(--tile);
+  }
+}
+@keyframes fx-blink {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Rain: thin slanted drops falling fast, two layers at different speeds. The layer is turned a little and made larger than the
+   screen, so the drops lean and still reach every corner. */
+[data-fx='rain']::before,
+[data-fx='rain']::after {
+  inset: -25%;
+  transform: rotate(12deg);
+  background-repeat: repeat;
+}
+[data-fx='rain']::before {
+  --tile: 220px;
+  background-image: radial-gradient(1px 16px at 12% 20%, rgb(205 225 255 / 0.55), transparent), radial-gradient(1px 12px at 47% 68%, rgb(205 225 255 / 0.45), transparent),
+    radial-gradient(1px 18px at 83% 40%, rgb(205 225 255 / 0.5), transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-pour calc(1.1s / var(--fx-speed)) linear infinite;
+}
+[data-fx='rain']::after {
+  --tile: 160px;
+  background-image: radial-gradient(1px 10px at 30% 35%, rgb(205 225 255 / 0.35), transparent), radial-gradient(1px 14px at 72% 82%, rgb(205 225 255 / 0.4), transparent),
+    radial-gradient(1px 9px at 92% 12%, rgb(205 225 255 / 0.3), transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-pour calc(1.7s / var(--fx-speed)) linear calc(-0.6s / var(--fx-speed)) infinite;
+}
+.bg-fx.demo[data-fx='rain']::before {
+  --tile: 48px;
+  background-image: radial-gradient(1.5px 9px at 12% 20%, rgb(205 225 255 / 0.9), transparent), radial-gradient(1.5px 7px at 47% 68%, rgb(205 225 255 / 0.8), transparent),
+    radial-gradient(1.5px 10px at 83% 40%, rgb(205 225 255 / 0.85), transparent);
+}
+.bg-fx.demo[data-fx='rain']::after {
+  --tile: 36px;
+  background-image: radial-gradient(1.5px 6px at 30% 35%, rgb(205 225 255 / 0.7), transparent), radial-gradient(1.5px 8px at 72% 82%, rgb(205 225 255 / 0.75), transparent),
+    radial-gradient(1.5px 5px at 92% 12%, rgb(205 225 255 / 0.6), transparent);
+}
+@keyframes fx-pour {
+  to {
+    background-position: 0 var(--tile);
+  }
+}
+
 /* Slow ribbons of green, blue and pink light. */
 [data-fx='aurora']::before {
   inset: -25%;
