@@ -41,15 +41,15 @@ afterEach(() => {
 });
 
 describe('the Leave game button', () => {
-  it('leaves the game and goes back to the games homepage', async () => {
+  it('leaves the game and stays on the game, whose own lobby takes over, rather than going to the homepage', async () => {
     const leave = vi.fn(() => Promise.resolve());
     await startPlaying({ leave });
     expect(router.currentRoute.value.name).toBe('play');
     await button(w, 'Leave game').trigger('click');
     await flushPromises();
     expect(leave).toHaveBeenCalledOnce();
-    expect(router.currentRoute.value.name).toBe('games');
-    expect(router.currentRoute.value.path).toBe('/');
+    expect(router.currentRoute.value.name).toBe('play');
+    expect(router.currentRoute.value.params.game).toBe('nomination-whist');
   });
 
   it('asks first when the game wants confirmation, and stays put if you stay', async () => {
@@ -63,7 +63,7 @@ describe('the Leave game button', () => {
     await button(w, 'Yes, leave').trigger('click');
     await flushPromises();
     expect(leave).toHaveBeenCalledOnce();
-    expect(router.currentRoute.value.name).toBe('games');
+    expect(router.currentRoute.value.name).toBe('play');
   });
 });
 

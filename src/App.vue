@@ -24,8 +24,8 @@ function askLeave() {
 }
 async function doLeave() {
   confirming.value = false;
+  // The game's own screen takes over once you have left: its lobby, where you can start or join another game.
   await offer.value?.leave();
-  router.push({ name: 'games' });
 }
 
 async function leaveSite() {
