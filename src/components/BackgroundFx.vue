@@ -69,7 +69,7 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-ch="letter.ch" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
       <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
@@ -253,7 +253,7 @@ const style = computed(() => {
   filter: blur(6px);
 }
 /* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
-   lights bright white with a glow as the head reaches it (the lead letter) and then fades out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
+   fades in place; for the one head step it takes to reach the next row it is also covered by a bright white copy of itself (the lead letter, an ::after switched on and off by opacity alone, so it keeps exact time with the fade) out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
    Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
    rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
 [data-fx='matrix'] {
@@ -271,10 +271,27 @@ const style = computed(() => {
   color: #5dff8a;
 }
 .mx i {
+  position: relative;
   display: block;
   font-style: normal;
   opacity: var(--a, 0.5);
   animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
+}
+.mx i::after {
+  content: attr(data-ch);
+  position: absolute;
+  left: 0;
+  right: 0;
+  color: #eaffee;
+  text-shadow: 0 0 6px #3dff7a;
+  opacity: 0;
+  animation: fx-lead-1 calc(var(--c) / var(--fx-speed)) step-end calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
+}
+.mx.w2 i::after {
+  animation-name: fx-lead-2;
+}
+.mx.w3 i::after {
+  animation-name: fx-lead-3;
 }
 .mx.f1.w1 i {
   animation-name: fx-deposit-1-1;
@@ -315,14 +332,9 @@ const style = computed(() => {
 @keyframes fx-deposit-1-1 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.87;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   6%,
   100% {
@@ -332,14 +344,9 @@ const style = computed(() => {
 @keyframes fx-deposit-1-2 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.93;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   12%,
   100% {
@@ -349,14 +356,9 @@ const style = computed(() => {
 @keyframes fx-deposit-1-3 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.97;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   25%,
   100% {
@@ -366,14 +368,9 @@ const style = computed(() => {
 @keyframes fx-deposit-1-4 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   0.8% {
     opacity: 0.98;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   45%,
   100% {
@@ -383,14 +380,9 @@ const style = computed(() => {
 @keyframes fx-deposit-2-1 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.72;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   6%,
   100% {
@@ -400,14 +392,9 @@ const style = computed(() => {
 @keyframes fx-deposit-2-2 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.86;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   12%,
   100% {
@@ -417,14 +404,9 @@ const style = computed(() => {
 @keyframes fx-deposit-2-3 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.93;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   25%,
   100% {
@@ -434,14 +416,9 @@ const style = computed(() => {
 @keyframes fx-deposit-2-4 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   1.67% {
     opacity: 0.96;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   45%,
   100% {
@@ -451,14 +428,9 @@ const style = computed(() => {
 @keyframes fx-deposit-3-1 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.44;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   6%,
   100% {
@@ -468,14 +440,9 @@ const style = computed(() => {
 @keyframes fx-deposit-3-2 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.72;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   12%,
   100% {
@@ -485,14 +452,9 @@ const style = computed(() => {
 @keyframes fx-deposit-3-3 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.87;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   25%,
   100% {
@@ -502,16 +464,38 @@ const style = computed(() => {
 @keyframes fx-deposit-3-4 {
   0% {
     opacity: 1;
-    color: #eaffee;
-    text-shadow: 0 0 6px #3dff7a;
-    animation-timing-function: step-end; /* full brightness at once, held for one head step: no fading in */
   }
   3.33% {
     opacity: 0.93;
-    color: #5dff8a;
-    text-shadow: 0 0 0 transparent;
   }
   45%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-lead-1 {
+  0% {
+    opacity: 1;
+  }
+  0.8%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-lead-2 {
+  0% {
+    opacity: 1;
+  }
+  1.67%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-lead-3 {
+  0% {
+    opacity: 1;
+  }
+  3.33%,
   100% {
     opacity: 0;
   }
