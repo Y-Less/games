@@ -282,3 +282,20 @@ test('Neon flicker (border) and Northern lights (background) are name animations
   assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'neon' } })).data.user.nameStyle, { style: 'plain', animation: 'neon' });
   assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'aurora' } })).data.user.nameStyle, { style: 'plain', animation: 'aurora' });
 });
+
+test('Obsidian, Ocean, Ember and Toxic are name styles for sale, usable once bought, and all styles are well formed', async (t) => {
+  const { NAME_STYLES } = await import('../shared/nameStyles.js');
+  const expected = { obsidian: 1000, ocean: 1500, ember: 1500, toxic: 1000 };
+  for (const [id, price] of Object.entries(expected)) assert.equal(itemById(`ns:${id}`).price, price, id);
+  for (const style of NAME_STYLES) {
+    assert.ok(style.name && style.border && style.fill, style.id);
+    assert.ok(Number.isInteger(style.price) && style.price >= 0, style.id);
+  }
+  assert.equal(new Set(NAME_STYLES.map((s) => s.id)).size, NAME_STYLES.length);
+  const { c } = await shopSite(t, { coins: 9000 });
+  assert.equal((await c.patch('/api/me', { nameStyle: { style: 'ember' } })).status, 403, 'not before buying');
+  for (const id of Object.keys(expected)) {
+    assert.equal((await c.post('/api/shop/buy', { item: `ns:${id}` })).status, 200, id);
+    assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: id } })).data.user.nameStyle, { style: id });
+  }
+});

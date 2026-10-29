@@ -16,6 +16,10 @@ export const NAME_STYLES = [
   { id: 'midnight', name: 'Midnight', price: 1000, border: '#7fd0ff', fill: '#0c1830', text: '#dff3ff' },
   { id: 'sunset', name: 'Sunset', price: 1500, border: '#ffb36b', fill: 'linear-gradient(100deg, rgb(255 106 80 / 0.45), rgb(255 190 90 / 0.45))' },
   { id: 'royal', name: 'Royal', price: 2000, border: '#e0b84a', fill: 'linear-gradient(100deg, #3a1d6e, #6a2f8f)', text: '#fff3cf' },
+  { id: 'obsidian', name: 'Obsidian', price: 1000, border: '#8a8f99', fill: '#14161a', text: '#e6e8ec' },
+  { id: 'ocean', name: 'Ocean', price: 1500, border: '#4fd0d0', fill: 'linear-gradient(100deg, rgb(20 90 140 / 0.6), rgb(40 190 190 / 0.5))' },
+  { id: 'ember', name: 'Ember', price: 1500, border: '#ff7a3d', fill: 'linear-gradient(100deg, rgb(120 20 20 / 0.7), rgb(255 130 50 / 0.55))', text: '#fff1e6' },
+  { id: 'toxic', name: 'Toxic', price: 1000, border: '#39ff88', fill: '#07140d', text: '#b8ffd6' },
 ];
 
 export const DEFAULT_NAME_STYLE = { style: 'plain' };
