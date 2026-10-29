@@ -1,7 +1,8 @@
 <script setup>
 // An animation over the website background (see shared/animations.js): drifting light, stars, snow ... drawn in CSS only.
 // `fixed` puts it behind the whole site (App.vue); without it the effect fills its parent box, for the shop's previews.
-// It never takes clicks, and it stands still for anyone who has asked their device for less motion.
+// It never takes clicks, and it stands still for anyone who has asked their device for less motion, unless `play` is set
+// (the shop's "play previews anyway" button).
 // `gradient` (the moving fade) slides the gradient from the user's `background` setting; it does nothing for any other kind
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
@@ -11,6 +12,7 @@ const props = defineProps({
   fixed: { type: Boolean, default: false },
   background: { type: Object, default: null },
   demo: { type: Boolean, default: false },
+  play: { type: Boolean, default: false },
 });
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
@@ -19,7 +21,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 </script>
 
 <template>
-  <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true" />
+  <div v-if="shown" class="bg-fx" :class="{ fixed, demo, play }" :data-fx="effect" :style="style" aria-hidden="true" />
 </template>
 
 <style scoped>
@@ -29,13 +31,11 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   overflow: hidden;
   pointer-events: none;
   border-radius: inherit;
+  --fx-speed: 1;
 }
-/* In a shop preview the same effect runs faster and tighter, so a small box shows what it does. */
+/* In a shop preview the same effect runs faster and in smaller tiles, so a small box shows what it does. */
 .bg-fx.demo {
   --fx-speed: 4;
-}
-.bg-fx.demo[data-fx='gradient'] {
-  --fx-period: 100px;
 }
 .bg-fx.fixed {
   position: fixed;
@@ -57,7 +57,10 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 [data-fx='gradient'] {
   --fx-period: max(100vw, 100vh);
   background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) var(--fx-shift), var(--fx-b) calc(var(--fx-period) / 2 + var(--fx-shift)), var(--fx-a) calc(var(--fx-period) + var(--fx-shift)));
-  animation: fx-gradient calc(24s / var(--fx-speed, 1)) linear infinite;
+  animation: fx-gradient calc(24s / var(--fx-speed)) linear infinite;
+}
+.bg-fx.demo[data-fx='gradient'] {
+  --fx-period: 100px;
 }
 @keyframes fx-gradient {
   to {
@@ -70,7 +73,10 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   left: -100%;
   width: 300%;
   background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.1) 50%, transparent 58%);
-  animation: fx-sweep calc(12s / var(--fx-speed, 1)) linear infinite;
+  animation: fx-sweep calc(12s / var(--fx-speed)) linear infinite;
+}
+.bg-fx.demo[data-fx='sweep']::before {
+  background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.35) 50%, transparent 58%);
 }
 @keyframes fx-sweep {
   to {
@@ -78,21 +84,34 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   }
 }
 
+/* The dots of the stars, snow and embers are placed as percentages of a tile, so a preview can use smaller tiles. */
+
 /* Two layers of stars that fade in and out at different speeds. */
 [data-fx='stars']::before {
-  background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 90px 120px, #cfe6ff, transparent), radial-gradient(1.5px 1.5px at 160px 60px, #fff, transparent),
-    radial-gradient(1px 1px at 60px 180px, #fff4cf, transparent);
-  background-size: 200px 200px;
-  animation: fx-twinkle calc(4s / var(--fx-speed, 1)) ease-in-out infinite alternate;
+  --tile: 200px;
+  background-image: radial-gradient(1.5px 1.5px at 10% 15%, #fff, transparent), radial-gradient(1px 1px at 45% 60%, #cfe6ff, transparent), radial-gradient(1.5px 1.5px at 80% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 30% 90%, #fff4cf, transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-twinkle calc(4s / var(--fx-speed)) ease-in-out infinite alternate;
 }
 [data-fx='stars']::after {
-  background-image: radial-gradient(1px 1px at 40px 90px, #fff, transparent), radial-gradient(2px 2px at 130px 20px, #ffe9b0, transparent), radial-gradient(1px 1px at 180px 160px, #cfe6ff, transparent);
-  background-size: 230px 230px;
-  animation: fx-twinkle calc(6.5s / var(--fx-speed, 1)) ease-in-out calc(-2s / var(--fx-speed, 1)) infinite alternate;
+  --tile: 230px;
+  background-image: radial-gradient(1px 1px at 17% 39%, #fff, transparent), radial-gradient(2px 2px at 57% 9%, #ffe9b0, transparent), radial-gradient(1px 1px at 78% 70%, #cfe6ff, transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-twinkle calc(6.5s / var(--fx-speed)) ease-in-out calc(-2s / var(--fx-speed)) infinite alternate;
+}
+.bg-fx.demo[data-fx='stars']::before {
+  --tile: 48px;
+  background-image: radial-gradient(2px 2px at 10% 15%, #fff, transparent), radial-gradient(1.5px 1.5px at 45% 60%, #cfe6ff, transparent), radial-gradient(2px 2px at 80% 30%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 30% 90%, #fff4cf, transparent);
+}
+.bg-fx.demo[data-fx='stars']::after {
+  --tile: 56px;
+  background-image: radial-gradient(1.5px 1.5px at 17% 39%, #fff, transparent), radial-gradient(2.5px 2.5px at 57% 9%, #ffe9b0, transparent), radial-gradient(1.5px 1.5px at 78% 70%, #cfe6ff, transparent);
 }
 @keyframes fx-twinkle {
   from {
-    opacity: 0.25;
+    opacity: 0.1;
   }
   to {
     opacity: 1;
@@ -101,38 +120,59 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 
 /* Snow falling at two speeds. */
 [data-fx='snow']::before {
-  background-image: radial-gradient(3px 3px at 30px 40px, rgb(255 255 255 / 0.85), transparent), radial-gradient(2px 2px at 120px 110px, rgb(255 255 255 / 0.7), transparent),
-    radial-gradient(3px 3px at 200px 220px, rgb(255 255 255 / 0.8), transparent), radial-gradient(2px 2px at 70px 250px, rgb(255 255 255 / 0.7), transparent);
-  background-size: 260px 260px;
-  animation: fx-fall calc(16s / var(--fx-speed, 1)) linear infinite;
+  --tile: 260px;
+  background-image: radial-gradient(3px 3px at 12% 15%, rgb(255 255 255 / 0.85), transparent), radial-gradient(2px 2px at 46% 42%, rgb(255 255 255 / 0.7), transparent),
+    radial-gradient(3px 3px at 77% 85%, rgb(255 255 255 / 0.8), transparent), radial-gradient(2px 2px at 27% 96%, rgb(255 255 255 / 0.7), transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-fall calc(16s / var(--fx-speed)) linear infinite;
 }
 [data-fx='snow']::after {
-  background-image: radial-gradient(2px 2px at 60px 60px, rgb(255 255 255 / 0.6), transparent), radial-gradient(1.5px 1.5px at 170px 150px, rgb(255 255 255 / 0.6), transparent),
-    radial-gradient(2px 2px at 100px 210px, rgb(255 255 255 / 0.55), transparent);
-  background-size: 190px 190px;
-  animation: fx-fall calc(26s / var(--fx-speed, 1)) linear calc(-7s / var(--fx-speed, 1)) infinite;
+  --tile: 190px;
+  background-image: radial-gradient(2px 2px at 31% 32%, rgb(255 255 255 / 0.6), transparent), radial-gradient(1.5px 1.5px at 89% 79%, rgb(255 255 255 / 0.6), transparent),
+    radial-gradient(2px 2px at 53% 90%, rgb(255 255 255 / 0.55), transparent);
+  background-size: var(--tile) var(--tile);
+  animation: fx-fall calc(26s / var(--fx-speed)) linear calc(-7s / var(--fx-speed)) infinite;
+}
+.bg-fx.demo[data-fx='snow']::before {
+  --tile: 52px;
+  background-image: radial-gradient(2.5px 2.5px at 12% 15%, rgb(255 255 255 / 0.9), transparent), radial-gradient(2px 2px at 46% 42%, rgb(255 255 255 / 0.8), transparent),
+    radial-gradient(2.5px 2.5px at 77% 85%, rgb(255 255 255 / 0.9), transparent), radial-gradient(2px 2px at 27% 96%, rgb(255 255 255 / 0.8), transparent);
+}
+.bg-fx.demo[data-fx='snow']::after {
+  --tile: 38px;
+  background-image: radial-gradient(2px 2px at 31% 32%, rgb(255 255 255 / 0.7), transparent), radial-gradient(1.5px 1.5px at 89% 79%, rgb(255 255 255 / 0.7), transparent),
+    radial-gradient(2px 2px at 53% 90%, rgb(255 255 255 / 0.65), transparent);
 }
 @keyframes fx-fall {
   to {
-    background-position: 40px 260px;
+    background-position: calc(var(--tile) * 0.15) var(--tile);
   }
 }
 
 /* Embers drifting up from below. */
 [data-fx='embers']::before {
-  background-image: radial-gradient(2.5px 2.5px at 40px 60px, #ffb35a, transparent), radial-gradient(2px 2px at 140px 150px, #ff7a3d, transparent), radial-gradient(2px 2px at 90px 230px, #ffd07a, transparent),
-    radial-gradient(3px 3px at 210px 90px, #ff8f47, transparent);
-  background-size: 250px 250px;
+  --tile: 250px;
+  background-image: radial-gradient(2.5px 2.5px at 16% 24%, #ffb35a, transparent), radial-gradient(2px 2px at 56% 60%, #ff7a3d, transparent), radial-gradient(2px 2px at 36% 92%, #ffd07a, transparent),
+    radial-gradient(3px 3px at 84% 36%, #ff8f47, transparent);
+  background-size: var(--tile) var(--tile);
   animation:
-    fx-rise calc(14s / var(--fx-speed, 1)) linear infinite,
-    fx-flicker calc(2.2s / var(--fx-speed, 1)) ease-in-out infinite alternate;
+    fx-rise calc(14s / var(--fx-speed)) linear infinite,
+    fx-flicker calc(2.2s / var(--fx-speed)) ease-in-out infinite alternate;
 }
 [data-fx='embers']::after {
   background: linear-gradient(to top, rgb(255 110 40 / 0.12), transparent 35%);
 }
+.bg-fx.demo[data-fx='embers']::before {
+  --tile: 56px;
+  background-image: radial-gradient(3px 3px at 16% 24%, #ffb35a, transparent), radial-gradient(2.5px 2.5px at 56% 60%, #ff7a3d, transparent), radial-gradient(2.5px 2.5px at 36% 92%, #ffd07a, transparent),
+    radial-gradient(3.5px 3.5px at 84% 36%, #ff8f47, transparent);
+}
+.bg-fx.demo[data-fx='embers']::after {
+  background: linear-gradient(to top, rgb(255 110 40 / 0.3), transparent 50%);
+}
 @keyframes fx-rise {
   to {
-    background-position: -30px -250px;
+    background-position: calc(var(--tile) * -0.12) calc(var(--tile) * -1);
   }
 }
 @keyframes fx-flicker {
@@ -150,21 +190,27 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background: radial-gradient(40% 28% at 30% 22%, rgb(80 255 170 / 0.3), transparent), radial-gradient(36% 30% at 72% 30%, rgb(120 130 255 / 0.28), transparent),
     radial-gradient(30% 24% at 50% 10%, rgb(255 120 200 / 0.2), transparent);
   filter: blur(18px);
-  animation: fx-aurora calc(18s / var(--fx-speed, 1)) ease-in-out infinite alternate;
+  animation: fx-aurora calc(18s / var(--fx-speed)) ease-in-out infinite alternate;
+}
+.bg-fx.demo[data-fx='aurora']::before {
+  background: radial-gradient(40% 40% at 30% 30%, rgb(80 255 170 / 0.6), transparent), radial-gradient(36% 40% at 72% 40%, rgb(120 130 255 / 0.55), transparent),
+    radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
+  filter: blur(6px);
 }
 @keyframes fx-aurora {
   from {
-    transform: translateX(-7%) scale(1);
+    transform: translateX(-12%) scale(1);
   }
   to {
-    transform: translateX(7%) scale(1.15);
+    transform: translateX(12%) scale(1.15);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bg-fx::before,
-  .bg-fx::after {
-    animation: none !important;
+  .bg-fx:not(.play)::before,
+  .bg-fx:not(.play)[data-fx='gradient'],
+  .bg-fx:not(.play)::after {
+    animation: none;
   }
 }
 </style>

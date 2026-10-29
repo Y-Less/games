@@ -11,6 +11,7 @@ const props = defineProps({
   userId: { type: Number, default: null },
   styleId: { type: String, default: null }, // show this style whatever the player owns (the shop's previews)
   animationId: { type: String, default: null }, // and this animation
+  play: { type: Boolean, default: false }, // animate even when the device asks for less motion (the shop's "play previews anyway")
 });
 
 const style = computed(() => nameStyleById(props.styleId ?? profileOf(props.userId)?.nameStyle?.style));
@@ -24,7 +25,7 @@ const css = computed(() =>
 </script>
 
 <template>
-  <span class="styled-name" :class="{ styled }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}</span>
+  <span class="styled-name" :class="{ styled, play }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}</span>
 </template>
 
 <style scoped>
@@ -54,6 +55,7 @@ const css = computed(() =>
   animation: ns-shimmer 3.2s linear infinite;
 }
 .styled-name[data-animation='rainbow'] {
+  border-width: 2px;
   animation: ns-rainbow 6s linear infinite;
 }
 .styled-name[data-animation='flow'] {
@@ -72,9 +74,9 @@ const css = computed(() =>
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 65% 70%, #fff, transparent), radial-gradient(1px 1px at 85% 25%, #fff4cf, transparent),
-    radial-gradient(1px 1px at 40% 80%, #cfe6ff, transparent);
-  background-size: 3.2em 100%;
+  background-image: radial-gradient(1.5px 1.5px at 20% 30%, #fff, transparent), radial-gradient(2px 2px at 65% 70%, #fff, transparent), radial-gradient(1.5px 1.5px at 85% 25%, #fff4cf, transparent),
+    radial-gradient(1.5px 1.5px at 40% 80%, #cfe6ff, transparent);
+  background-size: 2.2em 100%;
   animation: ns-sparkle 1.6s ease-in-out infinite alternate;
 }
 @keyframes ns-flow {
@@ -138,9 +140,9 @@ const css = computed(() =>
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .styled-name,
-  .styled-name::before {
-    animation: none !important;
+  .styled-name:not(.play),
+  .styled-name:not(.play)::before {
+    animation: none;
   }
 }
 </style>

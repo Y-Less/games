@@ -26,6 +26,9 @@ const typesOf = (t) => t.types ?? [t.type];
 const message = ref('');
 const problem = ref('');
 const busy = ref('');
+// A device set to less motion pauses every animation, previews included, until the player asks to see them.
+const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const play = ref(false);
 
 onMounted(refreshShop);
 
@@ -76,6 +79,10 @@ function use(item) {
       <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> coins</p>
     </header>
     <p class="muted intro">Coins are won, never bought: 500 for coming 1st in a game, 200 for 2nd and 100 for 3rd.</p>
+    <p v-if="reducedMotion && !play" class="muted motion" role="status">
+      Your device is set to reduce motion, so the animations are paused.
+      <button class="quiet" @click="play = true">Play the previews anyway</button>
+    </p>
     <p v-if="message" class="ok" role="status">{{ message }}</p>
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
@@ -88,11 +95,11 @@ function use(item) {
     <ul v-else class="items">
       <li v-for="item in items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
         <div class="preview">
-          <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" :animation-id="session.user.nameStyle?.animation ?? 'none'" />
-          <StyledName v-else-if="item.type === 'name-animation'" :name="session.user.displayName" :style-id="session.user.nameStyle?.style ?? 'plain'" :animation-id="key(item)" />
-          <span v-else-if="item.type === 'background-animation'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss(session.user.background) }"><BackgroundFx :effect="key(item)" :background="session.user.background" demo /></span>
+          <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" :animation-id="session.user.nameStyle?.animation ?? 'none'" :play="play" />
+          <StyledName v-else-if="item.type === 'name-animation'" :name="session.user.displayName" :style-id="session.user.nameStyle?.style ?? 'plain'" :animation-id="key(item)" :play="play" />
+          <span v-else-if="item.type === 'background-animation'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss(session.user.background) }"><BackgroundFx :effect="key(item)" :background="session.user.background" demo :play="play" /></span>
           <AvatarFigure v-else-if="item.type === 'avatar'" :avatar="{ ...normaliseAvatar(session.user.avatar), [item.slot]: item.option }" size="4rem" />
-          <span v-else-if="item.type === 'background'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }"><BackgroundFx :effect="session.user.backgroundAnimation === 'gradient' ? 'none' : session.user.backgroundAnimation" demo /></span>
+          <span v-else-if="item.type === 'background'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }"><BackgroundFx :effect="session.user.backgroundAnimation === 'gradient' ? 'none' : session.user.backgroundAnimation" demo :play="play" /></span>
           <span v-else-if="item.type === 'card-back'" class="back" :style="{ background: cardBackCss({ type: 'preset', value: key(item) }) }" />
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
@@ -225,6 +232,16 @@ h1 {
 .unlock {
   font-size: 2rem;
   color: var(--amber);
+}
+.motion {
+  margin: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  background: rgb(14 26 32 / 0.88);
+}
+.preview :deep(.styled-name.styled) {
+  padding: 0.1em 0.8em;
+  font-size: 1.05rem;
 }
 .kind {
   margin-top: -0.35rem;
