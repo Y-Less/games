@@ -30,9 +30,11 @@ describe('BackgroundFx', () => {
       expect([...kinds].sort()).toEqual(['f1', 'f2', 'f3', 'f4']);
       const sizes = new Set(columns.map((c) => c.attributes('style').match(/--s: ([\d.]+)/)[1]));
       expect(sizes.size).toBeGreaterThan(20);
+      const heights = new Set(columns.map((c) => c.findAll('i').length));
+      expect(heights.size).toBeGreaterThan(20); // the heads stop at many different depths
       for (const c of columns) {
         const letters = c.findAll('i');
-        expect(letters.length).toBeGreaterThan(20);
+        expect(letters.length).toBeGreaterThan(3);
         expect(letters[5].attributes('style')).toContain('--k: 5');
       }
     });

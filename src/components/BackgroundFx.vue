@@ -21,8 +21,10 @@ function rain(count, demo) {
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, is dimmer overall.
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
-    // Enough rows to fill a tall screen at this size (what runs off the bottom is clipped).
-    const rows = Math.min(120, Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15)));
+    // How far down the screen the head gets before it stops and the column starts again at the top: anywhere from a tenth of a
+    // tall screen's rows (at this size) to all of them (what runs off the bottom is clipped).
+    const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
+    const rows = Math.min(120, Math.max(4, Math.round(fullRows * (0.1 + 0.9 * next()))));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
       alt: GLYPHS[Math.floor(next() * GLYPHS.length)], // shown first, while the head is still arriving at the row
