@@ -163,6 +163,22 @@ test('animations: the still choice is free, the rest are bought, and a bad one i
   assert.deepEqual(still.data.user.nameStyle, { style: 'plain' }, 'a still name is stored without an animation');
 });
 
+test('the intensity and speed sliders are unlocks: normal is free, other levels need them, and bad levels are refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 1500 });
+  const me = (await c.get('/api/me')).data.user;
+  assert.deepEqual([me.effectIntensity, me.effectSpeed], [100, 100]);
+  assert.equal((await c.patch('/api/me', { effectIntensity: 100, effectSpeed: 100 })).status, 200);
+  assert.equal((await c.patch('/api/me', { effectIntensity: 50 })).status, 403);
+  assert.equal((await c.patch('/api/me', { effectSpeed: 200 })).status, 403);
+  for (const effectIntensity of [0, 9, 101, 50.5, '50', null]) assert.equal((await c.patch('/api/me', { effectIntensity })).status, 400, JSON.stringify(effectIntensity));
+  for (const effectSpeed of [0, 24, 301, '100', null]) assert.equal((await c.patch('/api/me', { effectSpeed })).status, 400, JSON.stringify(effectSpeed));
+  assert.equal((await c.post('/api/shop/buy', { item: 'fx-intensity' })).status, 200);
+  assert.equal((await c.post('/api/shop/buy', { item: 'fx-speed' })).status, 200);
+  const set = (await c.patch('/api/me', { effectIntensity: 40, effectSpeed: 250 })).data.user;
+  assert.deepEqual([set.effectIntensity, set.effectSpeed], [40, 250]);
+  assert.equal((await c.get('/api/me')).data.user.effectSpeed, 250);
+});
+
 test('players: others see a name animation but not your background animation', async (t) => {
   const { c, user, client } = await shopSite(t, { coins: 3000 });
   await c.post('/api/shop/buy', { item: 'na:rainbow' });

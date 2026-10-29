@@ -149,7 +149,7 @@ describe('ProfileView background', () => {
     const w = make();
     await w.find('input[aria-label="Gradient start"]').setValue('#111111');
     await w.find('input[aria-label="Gradient end"]').setValue('#222222');
-    await w.find('input[type="range"]').setValue('90');
+    await w.find('input[aria-label="Gradient angle"]').setValue('90');
     await w.findAll('button').find((b) => b.text() === 'Use this gradient').trigger('click');
     await flushPromises();
     expect(lastBody()).toEqual({ background: { type: 'gradient', from: '#111111', to: '#222222', angle: 90 } });
@@ -159,7 +159,7 @@ describe('ProfileView background', () => {
     const w = make({ ...baseUser(), background: { type: 'gradient', from: '#0a0a0a', to: '#0b0b0b', angle: 33 } });
     expect(w.find('input[aria-label="Gradient start"]').element.value).toBe('#0a0a0a');
     expect(w.find('input[aria-label="Gradient end"]').element.value).toBe('#0b0b0b');
-    expect(w.find('input[type="range"]').element.value).toBe('33');
+    expect(w.find('input[aria-label="Gradient angle"]').element.value).toBe('33');
   });
 
   it('shows a background error', async () => {

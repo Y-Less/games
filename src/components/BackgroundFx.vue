@@ -28,11 +28,13 @@ function rain(count) {
     // and some only as they leave it.
     const roll = next();
     const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
+    // The lead letter keeps changing: a few glyphs share its place and take turns (see fx-flick below).
+    const flicker = Array.from({ length: 10 }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]);
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, a dimmer overall brightness.
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    return { letters, fade, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    return { letters, flicker, fade, style: { '--n': length, '--fl': `${(0.7 + 0.5 * next()).toFixed(2)}s`, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -41,17 +43,27 @@ const props = defineProps({
   fixed: { type: Boolean, default: false },
   background: { type: Object, default: null },
   demo: { type: Boolean, default: false },
+  intensity: { type: Number, default: 100 }, // percent: how strong the effect looks (the player's own slider; previews ignore it)
+  speed: { type: Number, default: 100 }, // percent: how fast it moves (likewise)
 });
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 90) : []));
-const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` } : undefined));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * props.intensity) / 100))) : []));
+const style = computed(() => {
+  const out = {};
+  if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });
+  if (!props.demo) {
+    if (props.speed !== 100) out['--fx-speed'] = (props.speed / 100).toFixed(2);
+    if (props.intensity < 100) out.opacity = (props.intensity / 100).toFixed(2);
+  }
+  return out;
+});
 </script>
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters.slice(0, -1)" :key="k" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i><i class="head"><b v-for="(ch, f) in column.flicker" :key="f" :style="{ '--f': f }">{{ ch }}</b></i>
     </span>
   </div>
 </template>
@@ -269,6 +281,29 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 .mx i {
   display: block;
   font-style: normal;
+}
+.mx i.head {
+  position: relative;
+}
+/* Ten glyphs take turns in the lead place, eight to fourteen changes a second, each column at its own pace: the first sets the size, the rest sit on top of it. */
+.mx i.head b {
+  font-weight: normal;
+  animation: fx-flick calc(var(--fl) / var(--fx-speed)) step-end calc(var(--f) * var(--fl) / 10 / var(--fx-speed)) infinite;
+}
+.mx i.head b:not(:first-child) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+}
+@keyframes fx-flick {
+  0% {
+    opacity: 1;
+  }
+  10%,
+  100% {
+    opacity: 0;
+  }
 }
 .mx i.head {
   color: #e6ffe9;

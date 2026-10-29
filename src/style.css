@@ -140,7 +140,7 @@ input::placeholder {
 /* The device's less-motion setting stops the interface's own motion. The shop animations (names, backgrounds) are left out:
    they follow the player's "Play animations" setting instead, which defaults to the device (see the end of this file). */
 @media (prefers-reduced-motion: reduce) {
-  *:not(.name-pill, .bg-fx, .mx) {
+  *:not(.name-pill, .bg-fx, .mx, .mx b) {
     transition: none !important;
     animation: none !important;
   }
@@ -166,7 +166,8 @@ html[data-animations='off'] .name-pill::before,
 html[data-animations='off'] .bg-fx,
 html[data-animations='off'] .bg-fx::before,
 html[data-animations='off'] .bg-fx::after,
-html[data-animations='off'] .bg-fx .mx {
+html[data-animations='off'] .bg-fx .mx,
+html[data-animations='off'] .bg-fx .mx b {
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -175,7 +176,8 @@ html[data-animations='off'] .bg-fx .mx {
   html[data-animations='auto'] .bg-fx,
   html[data-animations='auto'] .bg-fx::before,
   html[data-animations='auto'] .bg-fx::after,
-  html[data-animations='auto'] .bg-fx .mx {
+  html[data-animations='auto'] .bg-fx .mx,
+  html[data-animations='auto'] .bg-fx .mx b {
     animation: none !important;
   }
 }

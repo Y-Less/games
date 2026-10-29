@@ -37,7 +37,7 @@ async function leaveSite() {
 
 <template>
   <div class="site">
-    <BackgroundFx fixed :effect="session.user?.backgroundAnimation" :background="session.user?.background" />
+    <BackgroundFx fixed :effect="session.user?.backgroundAnimation" :background="session.user?.background" :intensity="session.user?.effectIntensity" :speed="session.user?.effectSpeed" />
     <header class="bar">
       <RouterLink to="/" class="brand">Game Hub</RouterLink>
       <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" aria-label="Main">

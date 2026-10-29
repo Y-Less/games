@@ -25,7 +25,7 @@ const TABS = [
   },
   { slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.', sections: [{ type: 'card-back' }] },
   { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: [{ type: 'avatar' }] },
-  { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.', sections: [{ type: 'unlock' }] },
+  { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture, and set how strong and how fast your background animation is, on the Profile page.', sections: [{ type: 'unlock' }] },
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).

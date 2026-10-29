@@ -79,6 +79,12 @@ export function openDatabase(dataDir) {
   if (!columns.includes('background_animation')) {
     db.exec(`ALTER TABLE users ADD COLUMN background_animation TEXT NOT NULL DEFAULT 'none'`);
   }
+  if (!columns.includes('effect_intensity')) {
+    db.exec('ALTER TABLE users ADD COLUMN effect_intensity INTEGER'); // percent; NULL: full (100)
+  }
+  if (!columns.includes('effect_speed')) {
+    db.exec('ALTER TABLE users ADD COLUMN effect_speed INTEGER'); // percent; NULL: normal (100)
+  }
   if (!columns.includes('animations_choice')) {
     db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
   }

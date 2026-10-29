@@ -30,6 +30,7 @@ async function attempt(task, done) {
 const saveName = () => attempt(() => updateProfile({ displayName: displayName.value }), 'Name saved.');
 const animationsChoice = computed(() => (session.user.playAnimations === true ? 'on' : session.user.playAnimations === false ? 'off' : 'auto'));
 const setAnimations = (value) => attempt(() => updateProfile({ playAnimations: value === 'on' ? true : value === 'off' ? false : null }), { on: 'Animations always play.', off: 'Animations never play.', auto: 'Animations now follow your device.' }[value]);
+const setLevel = (key, event) => attempt(() => updateProfile({ [key]: Number(event.target.value) }), 'Saved.');
 const choose = (background) => attempt(() => updateProfile({ background }), 'Background saved.');
 const upload = (event) => {
   const file = event.target.files?.[0];
@@ -80,6 +81,19 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       </label>
     </div>
 
+    <div class="panel stack">
+      <h2>Background animation</h2>
+      <p class="muted">How your animated website background looks. Each slider is an unlock in the shop (Unlocks tab).</p>
+      <label class="angle">
+        Intensity <span class="muted">{{ session.user.effectIntensity }}%</span>
+        <input type="range" min="10" max="100" step="5" :value="session.user.effectIntensity" aria-label="Background animation intensity" :disabled="!owns('fx-intensity')" @change="setLevel('effectIntensity', $event)" />
+      </label>
+      <label class="angle">
+        Speed <span class="muted">{{ session.user.effectSpeed }}%</span>
+        <input type="range" min="25" max="300" step="5" :value="session.user.effectSpeed" aria-label="Background animation speed" :disabled="!owns('fx-speed')" @change="setLevel('effectSpeed', $event)" />
+      </label>
+    </div>
+
     <AvatarEditor />
 
     <div class="panel stack">
@@ -114,7 +128,7 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       <div class="row">
         <input v-model="gradient.from" type="color" class="colour" aria-label="Gradient start" :disabled="!owns('bg-gradient')" />
         <input v-model="gradient.to" type="color" class="colour" aria-label="Gradient end" :disabled="!owns('bg-gradient')" />
-        <label class="angle">Angle <input v-model.number="gradient.angle" type="range" min="0" max="360" :disabled="!owns('bg-gradient')" /></label>
+        <label class="angle">Angle <input v-model.number="gradient.angle" type="range" aria-label="Gradient angle" min="0" max="360" :disabled="!owns('bg-gradient')" /></label>
         <span class="preview" :style="{ backgroundImage: `linear-gradient(${gradient.angle}deg, ${gradient.from}, ${gradient.to})` }" />
         <button :disabled="!owns('bg-gradient')" @click="choose({ type: 'gradient', ...gradient })">Use this gradient</button>
       </div>

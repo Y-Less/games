@@ -34,10 +34,28 @@ describe('BackgroundFx', () => {
       expect(new Set(lengths).size).toBeGreaterThan(12);
     });
 
+    it('gives every column a lead letter that cycles through several glyphs', () => {
+      const w = mount(BackgroundFx, { props: { effect: 'matrix' } });
+      for (const c of w.findAll('.mx')) expect(c.findAll('i.head b').length).toBeGreaterThan(1);
+    });
+
+    it('draws fewer columns at a lower intensity', () => {
+      const count = (intensity) => mount(BackgroundFx, { props: { effect: 'matrix', intensity } }).findAll('.mx').length;
+      expect(count(40)).toBeLessThan(count(100));
+    });
+
     it('draws fewer columns in a preview, and none for other effects', () => {
       expect(mount(BackgroundFx, { props: { effect: 'matrix', demo: true } }).findAll('.mx').length).toBeLessThan(12);
       expect(mount(BackgroundFx, { props: { effect: 'snow' } }).findAll('.mx').length).toBe(0);
     });
+  });
+
+  it("takes the player's intensity and speed, but not in a preview", () => {
+    const w = mount(BackgroundFx, { props: { effect: 'snow', intensity: 40, speed: 250 } });
+    expect(w.attributes('style')).toContain('--fx-speed: 2.5');
+    expect(w.attributes('style')).toContain('opacity: 0.4');
+    const demo = mount(BackgroundFx, { props: { effect: 'snow', intensity: 40, speed: 250, demo: true } });
+    expect(demo.attributes('style') ?? '').not.toContain('--fx-speed');
   });
 
   describe('the moving gradient', () => {

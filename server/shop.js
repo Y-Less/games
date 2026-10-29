@@ -1,7 +1,7 @@
 // The shop: what can be bought with coins, and who owns what. Free items (price 0) belong to everyone. Everything a
 // player can choose on their profile (a background, a card back ...) is an item here, and the server refuses to save a
 // choice the player does not own.
-import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS } from './auth.js';
+import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, EFFECT_INTENSITY, EFFECT_SPEED } from './auth.js';
 import { BACKGROUND_ANIMATIONS, NAME_ANIMATIONS } from '../shared/animations.js';
 import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
@@ -30,6 +30,8 @@ add({ id: 'bg-upload', type: 'unlock', name: 'Your own background picture', pric
 for (const key of Object.keys(CARD_BACK_PRESETS)) {
   add({ id: `cb:${key}`, type: 'card-back', name: titled(key), price: key === 'crimson' ? 0 : CARD_BACK_PRICE });
 }
+add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity slider', price: 600 });
+add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
@@ -87,9 +89,9 @@ export function grandfather(db) {
 export class ShopError extends AuthError {}
 
 /** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
-export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, backgroundAnimation }) {
+export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, backgroundAnimation, effectIntensity, effectSpeed }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
-  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, ...parts]) {
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
     if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
   }
 }
