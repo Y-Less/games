@@ -87,3 +87,14 @@ describe('StyledName', () => {
     expect(wrapper.attributes('data-animation')).toBe('none');
   });
 });
+
+describe('the newer name animations', () => {
+  it('wears Neon flicker and Northern lights as an animation, even on a plain name', () => {
+    for (const animationId of ['neon', 'aurora']) {
+      wrapper = mount(StyledName, { props: { name: 'Zed', animationId } });
+      expect(wrapper.attributes('data-animation')).toBe(animationId);
+      expect(wrapper.classes()).toContain('styled');
+      wrapper.unmount();
+    }
+  });
+});

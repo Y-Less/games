@@ -227,6 +227,41 @@ html[data-animations='off'] .bg-fx .ma b {
   background-size: 2.2em 100%;
   animation: ns-sparkle 1.6s ease-in-out infinite alternate;
 }
+/* Neon flicker: the border glows like a tube that is not quite right, with a short stutter now and then. */
+.name-pill[data-animation='neon'] {
+  animation: ns-neon 3.6s linear infinite;
+}
+/* Northern lights: soft green and violet colour drifting slowly to and fro behind the name. */
+.name-pill[data-animation='aurora'] {
+  background: radial-gradient(60% 140% at 20% 50%, rgb(80 255 170 / 0.55), transparent) 0 0 / 200% 100% no-repeat,
+    radial-gradient(60% 140% at 80% 50%, rgb(150 120 255 / 0.5), transparent) 0 0 / 200% 100% no-repeat, var(--ns-fill);
+  animation: ns-aurora 5s ease-in-out infinite alternate;
+}
+@keyframes ns-neon {
+  0%,
+  17%,
+  21%,
+  60%,
+  63%,
+  100% {
+    box-shadow: 0 0 8px 1px var(--ns-glow), inset 0 0 5px var(--ns-glow);
+  }
+  19%,
+  62% {
+    box-shadow: none;
+  }
+  80% {
+    box-shadow: 0 0 3px 0 var(--ns-glow), inset 0 0 2px var(--ns-glow);
+  }
+}
+@keyframes ns-aurora {
+  from {
+    background-position: 0 0, 100% 0, 0 0;
+  }
+  to {
+    background-position: 100% 0, 0 0, 0 0;
+  }
+}
 @keyframes ns-flow {
   to {
     background-position: -300% 0, 0 0;

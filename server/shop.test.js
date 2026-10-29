@@ -272,3 +272,13 @@ test('Fireflies and Rain are background animations for sale, and a player can us
   assert.equal((await c.patch('/api/me', { backgroundAnimation: 'fireflies' })).data.user.backgroundAnimation, 'fireflies');
   assert.equal((await c.patch('/api/me', { backgroundAnimation: 'rain' })).data.user.backgroundAnimation, 'rain');
 });
+
+test('Neon flicker (border) and Northern lights (background) are name animations for sale, usable once bought', async (t) => {
+  assert.deepEqual([itemById('na:neon').price, itemById('na:neon').part], [700, 'border']);
+  assert.deepEqual([itemById('na:aurora').price, itemById('na:aurora').part], [1200, 'background']);
+  const { c } = await shopSite(t, { coins: 5000 });
+  assert.equal((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'neon' } })).status, 403, 'not before buying');
+  for (const item of ['na:neon', 'na:aurora']) assert.equal((await c.post('/api/shop/buy', { item })).status, 200);
+  assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'neon' } })).data.user.nameStyle, { style: 'plain', animation: 'neon' });
+  assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'aurora' } })).data.user.nameStyle, { style: 'plain', animation: 'aurora' });
+});

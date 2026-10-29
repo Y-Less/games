@@ -13,6 +13,8 @@ export const NAME_ANIMATIONS = [
   { id: 'sparkle', name: 'Sparkle', price: 900, part: 'background' },
   { id: 'flow', name: 'Flowing colour', price: 1000, part: 'background' },
   { id: 'rainbow', name: 'Rainbow border', price: 1500, part: 'border' },
+  { id: 'neon', name: 'Neon flicker', price: 700, part: 'border' },
+  { id: 'aurora', name: 'Northern lights', price: 1200, part: 'background' },
 ];
 
 export const BACKGROUND_ANIMATIONS = [
