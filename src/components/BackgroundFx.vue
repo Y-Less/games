@@ -24,7 +24,8 @@ function rain(count, demo) {
     // How far down the screen the head gets before it stops and the column starts again at the top: anywhere from a tenth of a
     // tall screen's rows (at this size) to all of them (what runs off the bottom is clipped).
     const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
-    const rows = Math.min(120, Math.max(4, Math.round(fullRows * (0.1 + 0.9 * next()))));
+    const top = 0.7 * next() ** 1.3; // and where it starts: anywhere from the top to most of the way down the screen
+    const rows = Math.min(120, Math.max(4, Math.round(fullRows * Math.min(1 - top, 0.1 + 0.9 * next()))));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
       alt: GLYPHS[Math.floor(next() * GLYPHS.length)], // shown first, while the head is still arriving at the row
@@ -38,7 +39,7 @@ function rain(count, demo) {
     const steps = rows <= 27 ? 30 : rows <= 55 ? 60 : 125;
     const cycle = step * steps;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    const style = { '--s': size.toFixed(2), '--step': `${step.toFixed(3)}s`, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%` };
+    const style = { '--s': size.toFixed(2), '--step': `${step.toFixed(3)}s`, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%` };
     return { letters, fade: `f${trail + 1} w${steps === 125 ? 1 : steps === 60 ? 2 : 3}`, style };
   });
 }
@@ -68,7 +69,11 @@ function rainSliding(count) {
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    return { letters, fade, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    // A column runs only between its own start and end heights (a band of the screen with soft edges), not the whole height.
+    const top = 0.7 * next() ** 1.3;
+    const height = Math.min(1 - top, 0.3 + 0.7 * next());
+    const wrap = { left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%`, height: `${(height * 100).toFixed(1)}%` };
+    return { letters, fade, wrap, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -104,7 +109,7 @@ const style = computed(() => {
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
     <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }"><b>{{ letter.ch }}</b></i>
     </span>
-    <span v-for="(column, i) in slidingColumns" :key="i" class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i>
+    <span v-for="(column, i) in slidingColumns" :key="i" class="maw" :style="column.wrap"><span class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i></span>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
       <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
@@ -565,9 +570,21 @@ const style = computed(() => {
 [data-fx='matrix-a'] {
   background: rgb(0 18 6 / 0.35);
 }
+/* The band of screen a column runs in: it appears at the top of the band and slides out of the bottom, with soft edges. */
+.maw {
+  position: absolute;
+  width: 3rem;
+  margin-left: -1.5rem;
+  overflow: hidden;
+  container-type: size;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+}
 .ma {
   position: absolute;
   top: 0;
+  left: 0;
+  right: 0;
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
   font-size: calc(15px * var(--s, 1));
   text-align: center;
@@ -672,7 +689,7 @@ const style = computed(() => {
   font-size: calc(9px * var(--s, 1));
 }
 @media (max-width: 700px) {
-  .bg-fx:not(.demo) .ma:nth-child(even) {
+  .bg-fx:not(.demo) .maw:nth-child(even) {
     display: none;
   }
 }
