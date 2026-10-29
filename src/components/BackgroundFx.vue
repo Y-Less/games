@@ -19,7 +19,11 @@ function rain(count) {
     const duration = 6 + next() * 8;
     const length = 14 + Math.floor(next() * 12);
     const text = Array.from({ length }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]).join('\n');
-    return { text, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    // Some columns are rubbed out early, partway down the screen, others only as they leave it: how far along its fall a
+    // column starts to fade is its own, so the rain thins out unevenly.
+    const roll = next();
+    const fade = roll < 0.3 ? 'early' : roll < 0.55 ? 'mid' : 'late';
+    return { text, fade, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -38,7 +42,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :style="column.style">{{ column.text }}</span>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style">{{ column.text }}</span>
   </div>
 </template>
 
@@ -241,10 +245,36 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
     fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite,
     fx-erase calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
 }
+.mx.early {
+  animation-name: fx-matrix, fx-erase-early;
+}
+.mx.mid {
+  animation-name: fx-matrix, fx-erase-mid;
+}
 @property --fx-cut {
   syntax: '<percentage>';
   inherits: false;
   initial-value: -40%;
+}
+@keyframes fx-erase-early {
+  0%,
+  20% {
+    --fx-cut: -40%;
+  }
+  50%,
+  100% {
+    --fx-cut: 100%;
+  }
+}
+@keyframes fx-erase-mid {
+  0%,
+  35% {
+    --fx-cut: -40%;
+  }
+  70%,
+  100% {
+    --fx-cut: 100%;
+  }
 }
 @keyframes fx-erase {
   0%,
