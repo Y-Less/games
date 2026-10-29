@@ -254,7 +254,7 @@ const style = computed(() => {
   filter: blur(6px);
 }
 /* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
-   fades in place; for the one head step it takes to reach the next row it is also covered by a bright white copy of itself (the lead letter, an ::after switched on and off by opacity alone, so it keeps exact time with the fade) out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
+   fades in place; for the one head step it takes to reach the next row a bright white random glyph stands in for it (the lead letter, a ::before switched on and off by opacity alone, so it keeps exact time with the fade; the letter left behind is a different, random one) out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
    Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
    rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
 [data-fx='matrix'] {
@@ -278,26 +278,15 @@ const style = computed(() => {
   opacity: var(--a, 0.5);
   animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
-.mx i::before,
-.mx i::after {
-  content: attr(data-ch);
+.mx i::before {
+  content: attr(data-alt);
   position: absolute;
   left: 0;
   right: 0;
   color: #eaffee;
   text-shadow: 0 0 6px #3dff7a;
   opacity: 0;
-  animation: fx-lead-1 calc(var(--c) / var(--fx-speed)) step-end calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
-}
-.mx i::before {
-  content: attr(data-alt);
-  animation-name: fx-alt-1;
-}
-.mx.w2 i::after {
-  animation-name: fx-lead-2;
-}
-.mx.w3 i::after {
-  animation-name: fx-lead-3;
+  animation: fx-alt-1 calc(var(--c) / var(--fx-speed)) step-end calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
 .mx.w2 i::before {
   animation-name: fx-alt-2;
@@ -501,20 +490,8 @@ const style = computed(() => {
   0% {
     opacity: 1;
   }
-  0.4%,
+  0.8%,
   100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-lead-1 {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  0.4% {
-    opacity: 1;
-  }
-  0.8% {
     opacity: 0;
   }
 }
@@ -522,20 +499,8 @@ const style = computed(() => {
   0% {
     opacity: 1;
   }
-  0.835%,
+  1.67%,
   100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-lead-2 {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  0.835% {
-    opacity: 1;
-  }
-  1.67% {
     opacity: 0;
   }
 }
@@ -543,20 +508,8 @@ const style = computed(() => {
   0% {
     opacity: 1;
   }
-  1.665%,
+  3.33%,
   100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-lead-3 {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  1.665% {
-    opacity: 1;
-  }
-  3.33% {
     opacity: 0;
   }
 }
