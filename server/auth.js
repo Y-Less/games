@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
+import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE, isNameStyle } from '../shared/nameStyles.js';
 
 const scrypt = promisify(crypto.scrypt);
@@ -79,10 +80,21 @@ export function cleanCardBack(input) {
   throw new AuthError('That is not a valid card back.');
 }
 
-/** Checks a name style: the id of one of the styles in shared/nameStyles.js. */
+/**
+ * Checks a name style: the id of one of the styles in shared/nameStyles.js and, optionally, one of the animations in
+ * shared/animations.js ({ style, animation }; a still name is stored without `animation`).
+ */
 export function cleanNameStyle(input) {
-  if (isText(input?.style) && isNameStyle(input.style)) return { style: input.style };
-  throw new AuthError('That is not a valid name style.');
+  if (!(isText(input?.style) && isNameStyle(input.style))) throw new AuthError('That is not a valid name style.');
+  if (input.animation === undefined || input.animation === 'none') return { style: input.style };
+  if (!isNameAnimation(input.animation)) throw new AuthError('That is not a valid name animation.');
+  return { style: input.style, animation: input.animation };
+}
+
+/** Checks a background animation: one of the ids in shared/animations.js. */
+export function cleanBackgroundAnimation(input) {
+  if (isBackgroundAnimation(input)) return input;
+  throw new AuthError('That is not a valid background animation.');
 }
 
 function parseNameStyle(text) {
@@ -126,12 +138,12 @@ function publicUser(row) {
   } catch {
     cardBack = { type: 'preset', value: 'crimson' };
   }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar) };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none' };
 }
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object }) => void }} [options]
+ * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object, backgroundAnimation?: string }) => void }} [options]
  *   canUse throws when a profile change uses something the user has not bought (the shop supplies it; tests may omit it).
  */
 export function createAuth(db, { canUse = () => {} } = {}) {
@@ -221,7 +233,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return out;
     },
 
-    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar }) {
+    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation }) {
       // Check everything first, so a refused change changes nothing.
       let name;
       if (displayName !== undefined) {
@@ -232,15 +244,17 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
       const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
       const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
+      const cleanedBackgroundAnimation = backgroundAnimation === undefined ? undefined : cleanBackgroundAnimation(backgroundAnimation);
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
       if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
-      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar });
+      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, backgroundAnimation: cleanedBackgroundAnimation });
       if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
       if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
       if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
       if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
+      if (cleanedBackgroundAnimation !== undefined) db.prepare('UPDATE users SET background_animation = ? WHERE id = ?').run(cleanedBackgroundAnimation, userId);
       return byId(userId);
     },
 

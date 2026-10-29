@@ -6,6 +6,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { normaliseAvatar } from '../../shared/avatar.js';
 import AvatarFigure from '../components/AvatarFigure.vue';
+import BackgroundFx from '../components/BackgroundFx.vue';
 import StyledName from '../components/StyledName.vue';
 import { backgroundCss, buy, cardBackCss, refreshShop, session, updateProfile } from '../session.js';
 
@@ -14,12 +15,14 @@ const TABS = [
   { type: 'background', slug: 'backgrounds', label: 'Backgrounds', blurb: 'The picture behind the site and the game tables.' },
   { type: 'card-back', slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.' },
   { type: 'avatar', slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.' },
+  { type: 'name-animation', types: ['name-animation', 'background-animation'], slug: 'animations', label: 'Animations', blurb: 'Moving borders for your name (everyone sees them) and moving backgrounds behind the site (only you see those).' },
   { type: 'unlock', slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.' },
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
 const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
-const tab = computed(() => current.value.type);
+const tab = computed(() => current.value.slug);
+const typesOf = (t) => t.types ?? [t.type];
 const message = ref('');
 const problem = ref('');
 const busy = ref('');
@@ -27,12 +30,14 @@ const busy = ref('');
 onMounted(refreshShop);
 
 const balance = computed(() => session.shop?.balance ?? 0);
-const items = computed(() => (session.shop?.items ?? []).filter((item) => item.type === tab.value));
+const items = computed(() => (session.shop?.items ?? []).filter((item) => typesOf(current.value).includes(item.type)));
 
 const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
 function equipped(item) {
   const u = session.user;
   if (item.type === 'name-style') return u.nameStyle?.style === key(item);
+  if (item.type === 'name-animation') return (u.nameStyle?.animation ?? 'none') === key(item);
+  if (item.type === 'background-animation') return (u.backgroundAnimation ?? 'none') === key(item);
   if (item.type === 'avatar') return normaliseAvatar(u.avatar)[item.slot] === item.option;
   if (item.type === 'background') return u.background?.type === 'preset' && u.background.value === key(item);
   if (item.type === 'card-back') return u.cardBack?.type === 'preset' && u.cardBack.value === key(item);
@@ -52,9 +57,14 @@ async function attempt(id, task, done) {
   }
 }
 const purchase = (item) => attempt(item.id, () => buy(item.id), `You bought ${item.name}.`);
+const nameStyleWith = (style, animation) => (animation && animation !== 'none' ? { style, animation } : { style });
 function use(item) {
   const avatar = { ...normaliseAvatar(session.user.avatar), [item.slot]: item.option };
-  const change = { avatar: { avatar }, 'name-style': { nameStyle: { style: key(item) } }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } } }[item.type];
+  const change = {
+    avatar: { avatar },
+    'name-style': { nameStyle: nameStyleWith(key(item), session.user.nameStyle?.animation) },
+    'name-animation': { nameStyle: nameStyleWith(session.user.nameStyle?.style ?? 'plain', key(item)) },
+    'background-animation': { backgroundAnimation: key(item) }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } } }[item.type];
   return attempt(item.id, () => updateProfile(change), `${item.name} is on.`);
 }
 </script>
@@ -70,7 +80,7 @@ function use(item) {
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
     <div class="tabs" role="tablist" aria-label="What to browse">
-      <RouterLink v-for="t in TABS" :key="t.type" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.type }" :aria-selected="tab === t.type">{{ t.label }}</RouterLink>
+      <RouterLink v-for="t in TABS" :key="t.slug" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.slug }" :aria-selected="tab === t.slug">{{ t.label }}</RouterLink>
     </div>
     <p class="muted blurb">{{ current.blurb }}</p>
 
@@ -78,13 +88,17 @@ function use(item) {
     <ul v-else class="items">
       <li v-for="item in items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
         <div class="preview">
-          <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" />
+          <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" :animation-id="session.user.nameStyle?.animation ?? 'none'" />
+          <StyledName v-else-if="item.type === 'name-animation'" :name="session.user.displayName" :style-id="session.user.nameStyle?.style ?? 'plain'" :animation-id="key(item)" />
+          <span v-else-if="item.type === 'background-animation'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss(session.user.background) }"><BackgroundFx :effect="key(item)" /></span>
           <AvatarFigure v-else-if="item.type === 'avatar'" :avatar="{ ...normaliseAvatar(session.user.avatar), [item.slot]: item.option }" size="4rem" />
           <span v-else-if="item.type === 'background'" class="swatch" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }" />
           <span v-else-if="item.type === 'card-back'" class="back" :style="{ background: cardBackCss({ type: 'preset', value: key(item) }) }" />
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
         <strong class="name">{{ item.name }}</strong>
+        <span v-if="item.type === 'name-animation'" class="kind">Name border</span>
+        <span v-else-if="item.type === 'background-animation'" class="kind">Background</span>
         <span v-if="item.owned && equipped(item)" class="state">In use</span>
         <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
         <span v-else-if="item.owned" class="state">Unlocked</span>
@@ -211,6 +225,15 @@ h1 {
 .unlock {
   font-size: 2rem;
   color: var(--amber);
+}
+.kind {
+  margin-top: -0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.fx-box {
+  position: relative;
+  overflow: hidden;
 }
 .state {
   color: var(--muted);

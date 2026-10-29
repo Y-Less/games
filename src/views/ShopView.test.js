@@ -14,6 +14,8 @@ const ITEMS = [
   { id: 'cb:crimson', type: 'card-back', name: 'Crimson', price: 0, owned: true },
   { id: 'av:hair:curly', type: 'avatar', name: 'Hair: Curly', price: 150, owned: false, slot: 'hair', option: 'curly' },
   { id: 'av:hair:short', type: 'avatar', name: 'Hair: Short', price: 0, owned: true, slot: 'hair', option: 'short' },
+  { id: 'na:glow', type: 'name-animation', name: 'Glow', price: 500, owned: true },
+  { id: 'ba:stars', type: 'background-animation', name: 'Twinkling stars', price: 800, owned: false },
   { id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800, owned: false },
 ];
 
@@ -150,5 +152,15 @@ describe('ShopView', () => {
     await make('/shop/unlocks');
     expect(wrapper.find('.tab.on').text()).toBe('Unlocks');
     expect(card('bg-colour').exists()).toBe(true);
+  });
+  it('lists name and background animations together, and puts one on', async () => {
+    await make('/shop/animations');
+    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['na:glow', 'ba:stars']);
+    expect(card('na:glow').find('[data-animation="glow"]').exists()).toBe(true);
+    expect(card('ba:stars').find('[data-fx="stars"]').exists()).toBe(true);
+    expect(card('ba:stars').find('button').text()).toBe('Buy for 800');
+    await card('na:glow').find('button').trigger('click');
+    await flushPromises();
+    expect(calls.at(-1)).toEqual(['PATCH', '/api/me', { nameStyle: { style: 'plain', animation: 'glow' } }]);
   });
 });

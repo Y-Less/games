@@ -75,4 +75,15 @@ describe('StyledName', () => {
     wrapper = mount(StyledName, { props: { name: 'Me', userId: 1 } });
     expect(wrapper.classes()).not.toContain('styled');
   });
+  it('animates the border when the player has an animation, even on a plain name', async () => {
+    wrapper = mount(StyledName, { props: { name: 'Anim', styleId: 'plain', animationId: 'glow' } });
+    expect(wrapper.attributes('data-animation')).toBe('glow');
+    expect(wrapper.classes()).toContain('styled');
+    expect(wrapper.attributes('style')).toContain('--ns-glow');
+  });
+
+  it('is still by default', () => {
+    wrapper = mount(StyledName, { props: { name: 'Still', styleId: 'ruby' } });
+    expect(wrapper.attributes('data-animation')).toBe('none');
+  });
 });

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import BackgroundFx from './components/BackgroundFx.vue';
 import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
 
@@ -34,6 +35,7 @@ async function leaveSite() {
 
 <template>
   <div class="site">
+    <BackgroundFx fixed :effect="session.user?.backgroundAnimation" />
     <header class="bar">
       <RouterLink to="/" class="brand">Game Hub</RouterLink>
       <nav v-if="session.user" class="links" aria-label="Main">

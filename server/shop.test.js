@@ -142,6 +142,39 @@ test('players: other players see the avatar', async (t) => {
   assert.equal(data.players[user.id].avatar.skin, 'deep');
 });
 
+test('animations: the still choice is free, the rest are bought, and a bad one is refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 1300 });
+  assert.equal((await c.get('/api/me')).data.user.backgroundAnimation, 'none');
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'none' })).status, 200);
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'stars' })).status, 403);
+  assert.equal((await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'glow' } })).status, 403);
+  for (const backgroundAnimation of ['glow', '', 7, null, '__proto__']) {
+    assert.equal((await c.patch('/api/me', { backgroundAnimation })).status, 400, JSON.stringify(backgroundAnimation));
+  }
+  for (const nameStyle of [{ style: 'plain', animation: 'stars' }, { style: 'plain', animation: 7 }, { style: 'plain', animation: '__proto__' }]) {
+    assert.equal((await c.patch('/api/me', { nameStyle })).status, 400, JSON.stringify(nameStyle));
+  }
+  assert.equal((await c.post('/api/shop/buy', { item: 'ba:stars' })).status, 200);
+  assert.equal((await c.post('/api/shop/buy', { item: 'na:glow' })).status, 200);
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'stars' })).data.user.backgroundAnimation, 'stars');
+  const named = await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'glow' } });
+  assert.deepEqual(named.data.user.nameStyle, { style: 'plain', animation: 'glow' });
+  const still = await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'none' } });
+  assert.deepEqual(still.data.user.nameStyle, { style: 'plain' }, 'a still name is stored without an animation');
+});
+
+test('players: others see a name animation but not your background animation', async (t) => {
+  const { c, user, client } = await shopSite(t, { coins: 3000 });
+  await c.post('/api/shop/buy', { item: 'na:rainbow' });
+  await c.post('/api/shop/buy', { item: 'ba:aurora' });
+  await c.patch('/api/me', { nameStyle: { style: 'plain', animation: 'rainbow' }, backgroundAnimation: 'aurora' });
+  const other = client();
+  await register(other, 'watcher', 'password1');
+  const { data } = await other.get(`/api/players?ids=${user.id}`);
+  assert.deepEqual(data.players[user.id].nameStyle, { style: 'plain', animation: 'rainbow' });
+  assert.equal('backgroundAnimation' in data.players[user.id], false);
+});
+
 test('colours, gradients and uploads are separate unlocks', async (t) => {
   const { c, dataDir } = await shopSite(t, { coins: 5000 });
   const colour = { type: 'colour', value: '#112233' };

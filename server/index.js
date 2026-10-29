@@ -105,8 +105,8 @@ export async function startSite(options = {}) {
   api.get('/me', (req, res) => res.json({ user: auth.userForToken(tokenOf(req)) }));
 
   api.patch('/me', requireUser, handler(async (req, res) => {
-    const { displayName, background, cardBack, nameStyle, avatar } = req.body ?? {};
-    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar });
+    const { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation } = req.body ?? {};
+    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation });
     if (background !== undefined && user.background.type !== 'image') removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') removeImages('cb', user.id);
     res.json({ user });

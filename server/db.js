@@ -76,6 +76,9 @@ export function openDatabase(dataDir) {
   if (!columns.includes('avatar')) {
     db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`); // empty: the default avatar
   }
+  if (!columns.includes('background_animation')) {
+    db.exec(`ALTER TABLE users ADD COLUMN background_animation TEXT NOT NULL DEFAULT 'none'`);
+  }
   return db;
 }
 

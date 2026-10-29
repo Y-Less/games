@@ -6,7 +6,7 @@ const routes = [
   { path: '/login', name: 'login', component: () => import('./views/AuthView.vue'), meta: { public: true } },
   { path: '/play/:game', name: 'play', component: () => import('./views/PlayView.vue'), props: true },
   { path: '/profile', name: 'profile', component: () => import('./views/ProfileView.vue') },
-  { path: '/shop/:tab(names|backgrounds|card-backs|avatar|unlocks)?', name: 'shop', component: () => import('./views/ShopView.vue') },
+  { path: '/shop/:tab(names|backgrounds|card-backs|avatar|animations|unlocks)?', name: 'shop', component: () => import('./views/ShopView.vue') },
   { path: '/stats', name: 'stats', component: () => import('./views/StatsView.vue') },
   // Links sent out by earlier versions of the Dixnt game.
   { path: '/invite', redirect: (to) => ({ path: '/play/dixnt', query: to.query }) },
