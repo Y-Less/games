@@ -78,4 +78,15 @@ describe('the account menu', () => {
     expect(name.attributes('data-name-style')).toBe('ruby');
     expect(name.attributes('data-animation')).toBe('glow');
   });
+  it('shows your avatar, centred at the top of the menu when it is open', async () => {
+    session.ready = true;
+    session.user = { id: 1, displayName: 'Ann', avatar: { hair: 'curly' } };
+    await router.replace('/');
+    w = mount(App, { global: { plugins: [router] } });
+    expect(w.find('.dropdown').exists()).toBe(false);
+    await w.find('button.styled-name').trigger('click');
+    const menu = w.find('.dropdown');
+    expect(menu.element.firstElementChild.classList.contains('my-avatar')).toBe(true);
+    expect(menu.find('.my-avatar').element.tagName.toLowerCase()).toBe('svg');
+  });
 });

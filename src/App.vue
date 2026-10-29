@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import BackgroundFx from './components/BackgroundFx.vue';
+import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
 import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
@@ -66,6 +67,7 @@ async function leaveSite() {
       <div v-if="session.user" class="account">
         <StyledName as="button" class="quiet" :name="session.user.displayName" :user-id="session.user.id" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen"> ▾</StyledName>
         <div v-if="menuOpen" class="dropdown panel" @click="menuOpen = false">
+          <AvatarFigure class="my-avatar" :avatar="session.user.avatar" size="5rem" label="Your avatar" />
           <RouterLink to="/profile">Profile</RouterLink>
           <RouterLink to="/shop">Shop</RouterLink>
           <RouterLink to="/stats">My statistics</RouterLink>
@@ -226,6 +228,11 @@ async function leaveSite() {
 .account {
   margin-left: auto;
   position: relative;
+}
+/* Your avatar, centred at the top of the menu. */
+.my-avatar {
+  align-self: center;
+  margin: 0.2rem 0 0.3rem;
 }
 /* The whole menu button wears your name style and animation, border and all. */
 .account > .styled-name.styled {
