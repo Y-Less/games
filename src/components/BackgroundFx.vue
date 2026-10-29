@@ -62,13 +62,11 @@ function rainSliding(count) {
     // and some only as they leave it.
     const roll = next();
     const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
-    // The lead letter keeps changing: a few glyphs share its place and take turns (see fx-flick below).
-    const flicker = Array.from({ length: 10 }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]);
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, a dimmer overall brightness.
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    return { letters, flicker, fade, style: { '--n': length, '--fl': `${(0.7 + 0.5 * next()).toFixed(2)}s`, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    return { letters, fade, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -104,7 +102,7 @@ const style = computed(() => {
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
     <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }"><b>{{ letter.ch }}</b></i>
     </span>
-    <span v-for="(column, i) in slidingColumns" :key="i" class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters.slice(0, -1)" :key="k" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i><i class="head"><b v-for="(ch, f) in column.flicker" :key="f" :style="{ '--f': f }">{{ ch }}</b></i>
+    <span v-for="(column, i) in slidingColumns" :key="i" class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
       <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
@@ -597,29 +595,6 @@ const style = computed(() => {
 .ma i {
   display: block;
   font-style: normal;
-}
-.ma i.head {
-  position: relative;
-}
-/* Ten glyphs take turns in the lead place, eight to fourteen changes a second, each column at its own pace: the first sets the size, the rest sit on top of it. */
-.ma i.head b {
-  font-weight: normal;
-  animation: fx-ma-flick calc(var(--fl) / var(--fx-speed)) step-end calc(var(--f) * var(--fl) / 10 / var(--fx-speed)) infinite;
-}
-.ma i.head b:not(:first-child) {
-  position: absolute;
-  left: 0;
-  right: 0;
-  opacity: 0;
-}
-@keyframes fx-ma-flick {
-  0% {
-    opacity: 1;
-  }
-  10%,
-  100% {
-    opacity: 0;
-  }
 }
 .ma i.head {
   color: #e6ffe9;
