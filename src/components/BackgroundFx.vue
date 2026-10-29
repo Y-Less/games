@@ -22,17 +22,21 @@ function rain(count, demo) {
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
     // Enough rows to fill a tall screen at this size (what runs off the bottom is clipped).
-    const rows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
+    const rows = Math.min(120, Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15)));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
       alpha: (0.1 + 0.9 * (k / (rows - 1)) ** 1.6).toFixed(2), // only seen when animations are off: a still, fading column
     }));
     const trail = Math.floor(next() * TRAIL.length);
     const step = 0.06 + 0.1 * next(); // seconds the head takes per row
-    const cycle = ((rows * step) / (1 - TRAIL[trail])) * (1 + 0.5 * next()); // the head's whole trip, plus a rest before the next
+    // A cycle is 125, 60 or 30 steps long (w1, w2, w3: the shortest that fits the column's rows), so that the bright moment a
+    // letter has when the head reaches it (1 step in 125, 60 or 30, see the keyframes) lasts exactly one step and only the
+    // newest letter is bright. The head takes the rows' worth of the cycle's steps, and rests for the others.
+    const steps = rows <= 27 ? 30 : rows <= 55 ? 60 : 125;
+    const cycle = step * steps;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
     const style = { '--s': size.toFixed(2), '--step': `${step.toFixed(3)}s`, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%` };
-    return { letters, fade: `f${trail + 1}`, style };
+    return { letters, fade: `f${trail + 1} w${steps === 125 ? 1 : steps === 60 ? 2 : 3}`, style };
   });
 }
 
@@ -249,7 +253,7 @@ const style = computed(() => {
   filter: blur(6px);
 }
 /* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
-   lights bright white with a glow as the head reaches it (the lead letter) and then fades out in place (f1 ... f4: from a short trail to a long one).
+   lights bright white with a glow as the head reaches it (the lead letter) and then fades out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
    Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
    rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
 [data-fx='matrix'] {
@@ -270,25 +274,52 @@ const style = computed(() => {
   display: block;
   font-style: normal;
   opacity: var(--a, 0.5);
-  animation: fx-deposit-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
+  animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
-.mx.f1 i {
-  animation-name: fx-deposit-1;
+.mx.f1.w1 i {
+  animation-name: fx-deposit-1-1;
 }
-.mx.f3 i {
-  animation-name: fx-deposit-3;
+.mx.f2.w1 i {
+  animation-name: fx-deposit-1-2;
 }
-.mx.f4 i {
-  animation-name: fx-deposit-4;
+.mx.f3.w1 i {
+  animation-name: fx-deposit-1-3;
 }
-@keyframes fx-deposit-1 {
+.mx.f4.w1 i {
+  animation-name: fx-deposit-1-4;
+}
+.mx.f1.w2 i {
+  animation-name: fx-deposit-2-1;
+}
+.mx.f2.w2 i {
+  animation-name: fx-deposit-2-2;
+}
+.mx.f3.w2 i {
+  animation-name: fx-deposit-2-3;
+}
+.mx.f4.w2 i {
+  animation-name: fx-deposit-2-4;
+}
+.mx.f1.w3 i {
+  animation-name: fx-deposit-3-1;
+}
+.mx.f2.w3 i {
+  animation-name: fx-deposit-3-2;
+}
+.mx.f3.w3 i {
+  animation-name: fx-deposit-3-3;
+}
+.mx.f4.w3 i {
+  animation-name: fx-deposit-3-4;
+}
+@keyframes fx-deposit-1-1 {
   0% {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
   }
-  1.5% {
-    opacity: 0.75;
+  0.8% {
+    opacity: 0.87;
     color: #5dff8a;
     text-shadow: 0 0 0 transparent;
   }
@@ -297,14 +328,14 @@ const style = computed(() => {
     opacity: 0;
   }
 }
-@keyframes fx-deposit-2 {
+@keyframes fx-deposit-1-2 {
   0% {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
   }
-  1.5% {
-    opacity: 0.88;
+  0.8% {
+    opacity: 0.93;
     color: #5dff8a;
     text-shadow: 0 0 0 transparent;
   }
@@ -313,14 +344,14 @@ const style = computed(() => {
     opacity: 0;
   }
 }
-@keyframes fx-deposit-3 {
+@keyframes fx-deposit-1-3 {
   0% {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
   }
-  1.5% {
-    opacity: 0.94;
+  0.8% {
+    opacity: 0.97;
     color: #5dff8a;
     text-shadow: 0 0 0 transparent;
   }
@@ -329,14 +360,142 @@ const style = computed(() => {
     opacity: 0;
   }
 }
-@keyframes fx-deposit-4 {
+@keyframes fx-deposit-1-4 {
   0% {
     opacity: 1;
     color: #eaffee;
     text-shadow: 0 0 6px #3dff7a;
   }
-  1.5% {
-    opacity: 0.97;
+  0.8% {
+    opacity: 0.98;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  45%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-2-1 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.67% {
+    opacity: 0.72;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  6%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-2-2 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.67% {
+    opacity: 0.86;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  12%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-2-3 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.67% {
+    opacity: 0.93;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-2-4 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  1.67% {
+    opacity: 0.96;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  45%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-3-1 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  3.33% {
+    opacity: 0.44;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  6%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-3-2 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  3.33% {
+    opacity: 0.72;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  12%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-3-3 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  3.33% {
+    opacity: 0.87;
+    color: #5dff8a;
+    text-shadow: 0 0 0 transparent;
+  }
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fx-deposit-3-4 {
+  0% {
+    opacity: 1;
+    color: #eaffee;
+    text-shadow: 0 0 6px #3dff7a;
+  }
+  3.33% {
+    opacity: 0.93;
     color: #5dff8a;
     text-shadow: 0 0 0 transparent;
   }
