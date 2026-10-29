@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { createMemoryHistory, createRouter } from 'vue-router';
 import { session } from '../session.js';
 import ShopView from './ShopView.vue';
 
@@ -47,11 +48,19 @@ beforeEach(() => {
 });
 afterEach(() => wrapper?.unmount());
 
-async function make() {
-  wrapper = mount(ShopView, { global: { stubs: { RouterLink: true } } });
+let router;
+async function make(path = '/shop') {
+  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/shop/:tab?', name: 'shop', component: ShopView }, { path: '/:rest(.*)*', component: { template: '<i />' } }] });
+  router.push(path);
+  await router.isReady();
+  wrapper = mount(ShopView, { global: { plugins: [router] } });
   await flushPromises();
   return wrapper;
 }
+const openTab = async (label) => {
+  await wrapper.findAll('.tab').find((t) => t.text() === label).trigger('click');
+  await flushPromises();
+};
 const card = (id) => wrapper.find(`[data-item="${id}"]`);
 
 describe('ShopView', () => {
@@ -74,7 +83,7 @@ describe('ShopView', () => {
 
   it('buys an item, updates the balance and then offers to use it', async () => {
     await make();
-    await wrapper.findAll('.tab')[1].trigger('click');
+    await openTab('Backgrounds');
     expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['bg:night', 'bg:ocean']);
     await card('bg:ocean').find('button').trigger('click');
     await flushPromises();
@@ -105,12 +114,12 @@ describe('ShopView', () => {
 
   it('lists the unlocks, which are bought but used on the Profile page', async () => {
     await make();
-    await wrapper.findAll('.tab').find((t) => t.text() === 'Unlocks').trigger('click');
+    await openTab('Unlocks');
     expect(card('bg-colour').find('button').text()).toBe('Buy for 800');
   });
   it('previews avatar parts on you and puts one on from the shop', async () => {
     await make();
-    await wrapper.findAll('.tab').find((t) => t.text() === 'Avatar').trigger('click');
+    await openTab('Avatar');
     expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['av:hair:curly', 'av:hair:short']);
     expect(card('av:hair:curly').find('svg').exists()).toBe(true);
     expect(card('av:hair:short').text()).toContain('In use');
@@ -120,5 +129,26 @@ describe('ShopView', () => {
     await card('av:hair:curly').find('button').trigger('click');
     await flushPromises();
     expect(calls.at(-1)[2].avatar.hair).toBe('curly');
+  });
+  it('gives each tab its own address, so Back and Forward move between tabs', async () => {
+    await make();
+    await openTab('Avatar');
+    expect(router.currentRoute.value.path).toBe('/shop/avatar');
+    expect(wrapper.find('.tab.on').text()).toBe('Avatar');
+    await openTab('Backgrounds');
+    expect(router.currentRoute.value.path).toBe('/shop/backgrounds');
+    router.back();
+    await flushPromises();
+    expect(wrapper.find('.tab.on').text()).toBe('Avatar');
+    expect(wrapper.findAll('.item').every((i) => i.attributes('data-item').startsWith('av:'))).toBe(true);
+    router.forward();
+    await flushPromises();
+    expect(wrapper.find('.tab.on').text()).toBe('Backgrounds');
+  });
+
+  it('opens straight on the tab named in the address', async () => {
+    await make('/shop/unlocks');
+    expect(wrapper.find('.tab.on').text()).toBe('Unlocks');
+    expect(card('bg-colour').exists()).toBe(true);
   });
 });

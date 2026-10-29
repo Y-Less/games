@@ -1,20 +1,25 @@
 <script setup>
 // The shop: spend the coins you win (500, 200 and 100 for coming 1st, 2nd and 3rd in a game) on name styles,
-// backgrounds, card backs and avatar parts. Anything you own can be put on straight from here.
+// backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
+// address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
 import { computed, onMounted, ref } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 import { normaliseAvatar } from '../../shared/avatar.js';
 import AvatarFigure from '../components/AvatarFigure.vue';
 import StyledName from '../components/StyledName.vue';
 import { backgroundCss, buy, cardBackCss, refreshShop, session, updateProfile } from '../session.js';
 
 const TABS = [
-  { type: 'name-style', label: 'Name styles', blurb: 'A border and background around your name, wherever other players see it.' },
-  { type: 'background', label: 'Backgrounds', blurb: 'The picture behind the site and the game tables.' },
-  { type: 'card-back', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.' },
-  { type: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.' },
-  { type: 'unlock', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.' },
+  { type: 'name-style', slug: 'names', label: 'Name styles', blurb: 'A border and background around your name, wherever other players see it.' },
+  { type: 'background', slug: 'backgrounds', label: 'Backgrounds', blurb: 'The picture behind the site and the game tables.' },
+  { type: 'card-back', slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.' },
+  { type: 'avatar', slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.' },
+  { type: 'unlock', slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.' },
 ];
-const tab = ref('name-style');
+const route = useRoute();
+// The tab named in the address (the first one for /shop on its own).
+const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
+const tab = computed(() => current.value.type);
 const message = ref('');
 const problem = ref('');
 const busy = ref('');
@@ -23,7 +28,6 @@ onMounted(refreshShop);
 
 const balance = computed(() => session.shop?.balance ?? 0);
 const items = computed(() => (session.shop?.items ?? []).filter((item) => item.type === tab.value));
-const current = computed(() => TABS.find((t) => t.type === tab.value));
 
 const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
 function equipped(item) {
@@ -66,7 +70,7 @@ function use(item) {
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
     <div class="tabs" role="tablist" aria-label="What to browse">
-      <button v-for="t in TABS" :key="t.type" role="tab" class="tab" :class="{ on: tab === t.type }" :aria-selected="tab === t.type" @click="tab = t.type">{{ t.label }}</button>
+      <RouterLink v-for="t in TABS" :key="t.type" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.type }" :aria-selected="tab === t.type">{{ t.label }}</RouterLink>
     </div>
     <p class="muted blurb">{{ current.blurb }}</p>
 
@@ -151,6 +155,11 @@ h1 {
 }
 .tab {
   border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line);
+  background: rgb(14 26 32 / 0.88);
+  color: inherit;
+  text-decoration: none;
 }
 .tab.on {
   background: var(--amber);
