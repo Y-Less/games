@@ -231,7 +231,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background: linear-gradient(to bottom, transparent, #0b8a3a 55%, #3dff7a 92%, #e6ffe9);
   -webkit-background-clip: text;
   background-clip: text;
-  opacity: 0.6;
+  opacity: 0.75;
   transform: translateY(-100%);
   animation: fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
 }
