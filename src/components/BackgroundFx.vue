@@ -50,12 +50,12 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   pointer-events: none;
   border-radius: inherit;
   --fx-speed: 1;
-  --box: 100vh; /* the height the rain falls through */
+  container-type: size; /* so the rain can fall through exactly this box's height (100cqh), whatever the window or zoom */
+  --box: 100cqh;
 }
 /* In a shop preview the same effect runs faster and in smaller tiles, so a small box shows what it does. */
 .bg-fx.demo {
   --fx-speed: 4;
-  --box: 4rem;
 }
 .bg-fx.fixed {
   position: fixed;
@@ -233,7 +233,27 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background-clip: text;
   opacity: 0.75;
   transform: translateY(-100%);
-  animation: fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
+  /* Late in its fall a column is rubbed out from the top, one letter after another (--fx-cut moves down it), so it never
+     pops out of existence: by the time it starts again every letter has already faded. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  mask-image: linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  animation:
+    fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite,
+    fx-erase calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
+}
+@property --fx-cut {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: -40%;
+}
+@keyframes fx-erase {
+  0%,
+  55% {
+    --fx-cut: -40%;
+  }
+  100% {
+    --fx-cut: 100%;
+  }
 }
 .bg-fx.demo .mx {
   font-size: 9px;
