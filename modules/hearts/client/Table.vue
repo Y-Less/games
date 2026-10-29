@@ -267,7 +267,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
     </template>
 
     <template #status>
-      <GameStatus :headline="status" :mine="mine" :lines="statusLines">
+      <GameStatus :headline="status" :mine="mine" :popup="false" :lines="statusLines">
         <template #facts>
           <strong>Hand {{ state.handNumber }}</strong>
           <span v-if="playing || handEnd">Trick {{ state.trickNumber }} of {{ state.deal.tricks }}</span>

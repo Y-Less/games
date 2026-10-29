@@ -233,7 +233,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
     </template>
 
     <template #status>
-      <GameStatus :headline="status" :mine="mine" :lines="statusLines">
+      <GameStatus :headline="status" :mine="mine" :popup="false" :lines="statusLines">
         <template #facts>
           <strong>Hand {{ state.handNo }}</strong>
           <span class="dealer"><span class="badge" title="Dealer">D</span>{{ youDeal ? 'You deal' : `${dealer.name} deals` }}</span>

@@ -229,7 +229,7 @@ const roomFor = (area) => {
     </template>
 
     <template #status>
-      <GameStatus :headline="headline" :mine="mineNow" :lines="statusLines">
+      <GameStatus :headline="headline" :mine="mineNow" :popup="false" :lines="statusLines">
         <template #facts>
           <strong>Round {{ round.number }} of {{ round.total }}</strong>
           <span>{{ round.cards }} {{ round.cards === 1 ? 'card' : 'cards' }} each</span>

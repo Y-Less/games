@@ -370,3 +370,16 @@ describe('Claim all', () => {
     expect(advanceLog(log, at({ phase: 'handEnd', lastClaim: claim }), at({ phase: 'handEnd', lastClaim: claim })).filter((l) => /claims/.test(l.text))).toHaveLength(1);
   });
 });
+
+describe('Hearts turn pop-up', () => {
+  it('does not pop up when it is your turn to play, because the turns are too short for it', async () => {
+    document.body.innerHTML = '';
+    const state = view(playing());
+    const mine = { ...state, turn: state.you, legal: Object.fromEntries(state.hand.map((c) => [c, null])) };
+    const w = mount(Table, { props: { state: mine, send: makeSend() }, attachTo: document.body });
+    await flushPromises();
+    expect(w.find('.headline.mine').exists()).toBe(true); // it really is your turn
+    expect(document.body.querySelector('.your-turn')).toBeNull();
+    w.unmount();
+  });
+});

@@ -48,3 +48,17 @@ describe('the suggested nomination', () => {
     w.unmount();
   });
 });
+
+describe('no turn pop-up in a card game', () => {
+  window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+
+  it('does not pop up when it is your turn to nominate: turns are too short for it', async () => {
+    document.body.innerHTML = '';
+    const state = game.viewFor(annsTurn(), 1);
+    const w = mount(Table, { props: { state, send: send() }, attachTo: document.body });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(w.find('.headline.mine').exists()).toBe(true); // it really is your turn
+    expect(document.body.querySelector('.your-turn')).toBeNull();
+    w.unmount();
+  });
+});

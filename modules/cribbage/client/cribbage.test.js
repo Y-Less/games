@@ -177,3 +177,16 @@ describe('Cribbage shell', () => {
     expect(playBar.leave).toBeNull();
   });
 });
+
+describe('Cribbage turn pop-up', () => {
+  it('does not pop up when you must discard or when it is your turn to play a card, because the turns are too short', async () => {
+    for (const r of [room(), (() => { const p = pegging(); p.play.turn = 0; return p; })()]) {
+      document.body.innerHTML = '';
+      const w = mount(Table, { props: { state: view(r), send: makeSend() }, attachTo: document.body });
+      await flushPromises();
+      expect(w.find('.headline.mine').exists()).toBe(true); // it really is your move
+      expect(document.body.querySelector('.your-turn')).toBeNull();
+      w.unmount();
+    }
+  });
+});
