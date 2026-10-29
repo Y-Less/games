@@ -281,7 +281,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     </template>
 
     <template #status>
-      <GameStatus :headline="headline" :mine="mineNow" :lines="lines">
+      <GameStatus :headline="headline" :mine="mineNow" :turn="clueTime && isPsychic" :lines="lines">
         <template #facts>
           <strong v-if="!ended">Turn {{ state.turn }} of {{ state.turnsTotal }}</strong>
           <strong v-else>Game over</strong>

@@ -198,3 +198,36 @@ describe('Wavelength screen, one team', () => {
     expect(wrapper.text()).toContain('Your team scored 8 of 12 points.');
   });
 });
+
+describe('Wavelength turn pop-up', () => {
+  const popups = () => document.body.querySelectorAll('.your-turn').length;
+
+  it('tells the psychic it is their turn to give the clue', async () => {
+    document.body.innerHTML = '';
+    await mountGame(asPsychic({ phase: 'clue', clue: '' }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(popups()).toBe(1);
+  });
+
+  it('says nothing to the guessers, who all go together, when the clue arrives', async () => {
+    document.body.innerHTML = '';
+    const { show } = await mountGame(view({ phase: 'clue', clue: '' }));
+    expect(popups()).toBe(0);
+    await show(view());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(wrapper.text()).toContain('Your turn: read the clue');
+    expect(popups()).toBe(0);
+  });
+
+  it('says nothing to the psychic while the guessers guess, nor to a team that moves one marker together', async () => {
+    document.body.innerHTML = '';
+    await mountGame(asPsychic());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(popups()).toBe(0);
+    wrapper.unmount();
+    document.body.innerHTML = '';
+    await mountGame(view({ mode: 'team', marker: 30 }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(popups()).toBe(0);
+  });
+});

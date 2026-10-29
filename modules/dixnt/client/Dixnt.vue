@@ -124,7 +124,7 @@ useLeave({
     </template>
 
     <template #status>
-      <GameStatus :headline="status.headline" :mine="status.mine" :lines="status.lines">
+      <GameStatus :headline="status.headline" :mine="status.mine" :turn="status.mine && Boolean(state.me?.isChooser)" :lines="status.lines">
         <template #facts>
           <strong v-if="state.phase === 'finished'">Game over</strong>
           <strong v-else>Round {{ roundNumber(state) }} of {{ state.totalRounds }}</strong>

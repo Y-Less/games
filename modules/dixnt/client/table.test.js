@@ -307,3 +307,48 @@ describe('Dixnt screen', () => {
     wrapper.unmount();
   });
 });
+
+describe('Dixnt turn pop-up', () => {
+  const popups = () => document.body.querySelectorAll('.your-turn').length;
+  const show = async (state) => {
+    document.body.innerHTML = '';
+    const game = await mountGame(state);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return game;
+  };
+
+  it('tells the chooser it is their turn to choose the word, but nobody else while they wait', async () => {
+    let game = await show(view({ phase: 'word' }));
+    expect(popups()).toBe(1);
+    game.wrapper.unmount();
+    game = await show(asBob({ phase: 'word' }));
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+  });
+
+  it('gives no pop-up to the players who all play a card at the same time, even though it is their turn', async () => {
+    const game = await show(asBob({ phase: 'picking' }, { myPick: null }));
+    expect(game.wrapper.text()).toContain('Your turn: play the card that fits the word best.');
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+  });
+
+  it('gives none for the group vote either, but does for the chooser when they must pick or decide', async () => {
+    let game = await show(asBob({ phase: 'voting', judging: 'everyone' }, { myVote: null }));
+    expect(game.wrapper.text()).toContain('Your turn: vote');
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+    game = await show(view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: null }));
+    expect(popups()).toBe(1);
+    game.wrapper.unmount();
+    game = await show(view({ phase: 'voting', judging: 'chooser' }, { isChooser: true, myVote: null }));
+    expect(popups()).toBe(1);
+    game.wrapper.unmount();
+  });
+
+  it('does not tell the chooser again once they have chosen', async () => {
+    const game = await show(view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: 'bob' }));
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+  });
+});

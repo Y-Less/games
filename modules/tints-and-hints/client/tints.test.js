@@ -247,3 +247,39 @@ describe('Tints and Hints computer players at the table', () => {
     expect(socket.emit).toHaveBeenCalledWith('removeBot', { seat: 'bot:1' }, expect.any(Function));
   });
 });
+
+describe('Tints and Hints turn pop-up', () => {
+  const popups = () => document.body.querySelectorAll('.your-turn').length;
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it('tells the hinter it is their turn to hint, but not the guessers, who all guess together', async () => {
+    document.body.innerHTML = '';
+    let game = await mountGame(asHinter());
+    await settle();
+    expect(popups()).toBe(1);
+    game.wrapper.unmount();
+    document.body.innerHTML = '';
+    game = await mountGame(view({ hints: { first: 'a warm evening', second: '' } }));
+    await settle();
+    expect(game.wrapper.text()).toContain('Your turn: listen to the hint');
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+  });
+
+  it('does not nag a guesser who is still waiting for the first hint, or the hinter again when the second round starts', async () => {
+    document.body.innerHTML = '';
+    let game = await mountGame(view());
+    await settle();
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+    document.body.innerHTML = '';
+    game = await mountGame(asHinter());
+    await settle();
+    document.body.innerHTML = '';
+    game.socket.handlers.state(asHinter({ phase: 'guessing2', hints: { first: 'x', second: '' } }));
+    await flushPromises();
+    await settle();
+    expect(popups()).toBe(0);
+    game.wrapper.unmount();
+  });
+});

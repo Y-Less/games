@@ -78,7 +78,7 @@ const headline = computed(() => {
   if (mine.value?.guessed) return `Guess locked in. Waiting for the others (${guessedCount.value} of ${guessers.value.length}).`;
   return round.value === 1 ? 'Your turn: listen to the hint and guess the tint.' : 'Here is a second hint. Where would you guess now?';
 });
-const mineNow = computed(() => guessing.value && (isHinter.value || !mine.value?.guessed));
+const mineNow = computed(() => guessing.value && (isHinter.value || canGuess.value)); // a guesser's turn starts once the first hint is in
 const lines = computed(() => {
   if (phase.value === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
   if (phase.value === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];
@@ -235,7 +235,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     </template>
 
     <template #status>
-      <GameStatus :headline="headline" :mine="mineNow" :lines="lines">
+      <GameStatus :headline="headline" :mine="mineNow" :turn="guessing && isHinter" :lines="lines">
         <template #facts>
           <strong v-if="!ended">Turn {{ state.turn }} of {{ state.turnsTotal }}</strong>
           <strong v-else>Game over</strong>
