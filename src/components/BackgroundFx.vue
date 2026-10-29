@@ -79,22 +79,22 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 }
 
 /* The user's own gradient, slid along its angle: A to B to A to B, forever, with no jump where it repeats. */
-@property --fx-shift {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
 [data-fx='gradient'] {
   --fx-period: max(100vw, 100vh);
-  background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) var(--fx-shift), var(--fx-b) calc(var(--fx-period) / 2 + var(--fx-shift)), var(--fx-a) calc(var(--fx-period) + var(--fx-shift)));
-  animation: fx-gradient calc(24s / var(--fx-speed)) linear infinite;
 }
 .bg-fx.demo[data-fx='gradient'] {
   --fx-period: 100px;
 }
+/* The layer is one period larger on every side and the stripes repeat every period, so sliding it by exactly one period along
+   the gradient's angle ends where it began. Only a transform moves, which every browser animates. */
+[data-fx='gradient']::before {
+  inset: calc(var(--fx-period) * -1);
+  background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) 0, var(--fx-b) calc(var(--fx-period) / 2), var(--fx-a) var(--fx-period));
+  animation: fx-gradient calc(24s / var(--fx-speed)) linear infinite;
+}
 @keyframes fx-gradient {
   to {
-    --fx-shift: var(--fx-period);
+    transform: translate(calc(sin(var(--fx-angle)) * var(--fx-period)), calc(cos(var(--fx-angle)) * var(--fx-period) * -1));
   }
 }
 
