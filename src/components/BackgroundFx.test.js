@@ -63,6 +63,14 @@ describe('BackgroundFx', () => {
     expect(demo.attributes('style') ?? '').not.toContain('--fx-speed');
   });
 
+  it('has Matrix A, the first rain, whose columns of letters slide down the screen', () => {
+    const w = mount(BackgroundFx, { props: { effect: 'matrix-a', fixed: true } });
+    expect(w.attributes('data-fx')).toBe('matrix-a');
+    expect(w.findAll('.ma').length).toBeGreaterThan(20);
+    expect(w.findAll('.mx').length).toBe(0);
+    expect(mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } }).findAll('.ma').length).toBe(0);
+  });
+
   describe('the moving gradient', () => {
     const gradient = { type: 'gradient', from: '#112233', to: '#445566', angle: 45 };
 

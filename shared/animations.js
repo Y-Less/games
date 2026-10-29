@@ -23,7 +23,8 @@ export const BACKGROUND_ANIMATIONS = [
   { id: 'snow', name: 'Snowfall', price: 800 },
   { id: 'embers', name: 'Rising embers', price: 1000 },
   { id: 'aurora', name: 'Aurora', price: 1500 },
-  { id: 'matrix', name: 'Matrix', price: 1500 },
+  { id: 'matrix-a', name: 'Matrix A', price: 1500 }, // the first rain: each column of letters slides down the screen
+  { id: 'matrix', name: 'Matrix B', price: 1500 }, // the letters stay put: a head leaves them behind and they fade
 ];
 
 const nameIds = new Set(NAME_ANIMATIONS.map((a) => a.id));
