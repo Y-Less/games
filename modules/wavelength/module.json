@@ -1,0 +1,13 @@
+{
+  "id": "wavelength",
+  "name": "Wavelength",
+  "description": "Give a clue that points to a hidden spot between two opposites, then see how close your friends can turn the dial.",
+  "minPlayers": 2,
+  "maxPlayers": 8,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "bullseyes", "label": "Bullseyes", "agg": "sum" },
+    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
+  ]
+}
