@@ -35,6 +35,7 @@ const FAST_ENV = {
   DIXNT_BOT_DELAY: '0-5',
   TINTS_BOT_DELAY: '0-5',
   WAVELENGTH_BOT_DELAY: '0-5',
+  JUST_ONE_BOT_DELAY: '0-5',
 };
 
 function findChrome() {

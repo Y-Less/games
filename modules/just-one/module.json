@@ -1,0 +1,14 @@
+{
+  "id": "just-one",
+  "name": "Just One",
+  "description": "Everyone but the guesser writes a one-word clue for a secret word. Matching clues are cancelled. Can the guesser find the word, and which clue was best?",
+  "minPlayers": 3,
+  "maxPlayers": 7,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "correctGuesses", "label": "Words guessed", "agg": "sum" },
+    { "key": "bestHints", "label": "Best hints", "agg": "sum" },
+    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
+  ]
+}
