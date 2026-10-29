@@ -21,7 +21,7 @@ import { placements } from '../../shared/scores.js';
 import BotIcon from './BotIcon.vue';
 import GameModal from './GameModal.vue';
 import ScoreTable from './ScoreTable.vue';
-import StyledName from './StyledName.vue';
+import { nameLook } from '../nameLook.js';
 
 const props = defineProps({
   players: { type: Array, required: true }, // [{ id, name, score, userId?, isMe?, away?, note? }]; userId: the account, for the name style
@@ -40,6 +40,9 @@ const props = defineProps({
   openDetails: { type: [String, Number], default: null }, // the player whose details are open now, if any
 });
 const emit = defineEmits(['closed', 'continue', 'details', 'hover', 'unhover']);
+
+// The whole chip wears the player's chosen name style and animation (a computer player has none).
+const look = (p) => nameLook({ userId: p.userId ?? null });
 
 const clickable = (p) => Boolean(props.hasDetails?.(p.id));
 const isOpen = (p) => props.openDetails !== null && props.openDetails === p.id;
@@ -119,7 +122,16 @@ defineExpose({ show, close });
 <template>
   <section class="score-bar" :class="{ sticky }" aria-label="Scores">
     <ul class="chips">
-      <li v-for="p in players" :key="p.id" class="chip" :aria-current="p.current ? 'true' : undefined" :class="{ current: p.current, open: isOpen(p), me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away }">
+      <li
+        v-for="p in players"
+        :key="p.id"
+        class="chip name-pill"
+        :aria-current="p.current ? 'true' : undefined"
+        :class="{ current: p.current, open: isOpen(p), me: p.isMe, lead: places[p.id] === 1 && players.some((q) => q.score !== p.score), away: p.away, styled: look(p).styled }"
+        :data-name-style="look(p).id"
+        :data-animation="look(p).animation"
+        :style="look(p).css"
+      >
         <component
           :is="clickable(p) ? 'button' : 'span'"
           class="chip-body"
@@ -133,7 +145,7 @@ defineExpose({ show, close });
           @pointerleave="clickable(p) && emit('unhover')"
         >
           <span v-if="p.bot" class="bot"><BotIcon /></span>
-          <span class="name"><StyledName :name="p.name" :user-id="p.userId ?? null" /><span v-if="p.isMe" class="you"> (you)</span></span>
+          <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
           <strong class="points">{{ p.score }}</strong>
           <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
           <small v-if="p.note" class="muted">{{ p.note }}</small>
@@ -214,16 +226,22 @@ button.chip-button:focus-visible {
   outline-offset: 1px;
 }
 .chip.current {
+  outline: 2px solid var(--amber); /* outside the box: no change of size */
+  box-shadow: 0 0 14px 3px color-mix(in srgb, var(--amber) 70%, transparent);
+}
+.chip.current:not(.styled) {
   border-color: var(--amber);
   background: color-mix(in srgb, var(--amber) 22%, var(--bg-sunken));
-  box-shadow: 0 0 0 2px var(--amber), 0 0 14px 3px color-mix(in srgb, var(--amber) 70%, transparent); /* outside the box: no change of size */
 }
 .chip.current .name {
   font-weight: 650;
 }
-.chip.open {
+.chip.open:not(.styled) {
   border-color: var(--amber);
   background: color-mix(in srgb, var(--amber) 14%, var(--bg-sunken));
+}
+.chip.open {
+  outline: 2px solid color-mix(in srgb, var(--amber) 60%, transparent);
 }
 .bot {
   display: inline-flex;
@@ -231,7 +249,7 @@ button.chip-button:focus-visible {
   color: var(--muted);
   font-size: 1rem;
 }
-.chip.me {
+.chip.me:not(.styled) {
   border-color: var(--amber);
 }
 .chip.lead .points {

@@ -320,12 +320,18 @@ describe('ScoreBoard without round pop-ups', () => {
 });
 
 describe('ScoreBoard name styles', () => {
-  it("draws a player's name in their bought style when the game gives their account id", () => {
-    session.user = { id: 7, nameStyle: { style: 'emerald' } };
+  it("dresses a player's whole chip in their bought style and animation when the game gives their account id", () => {
+    session.user = { id: 7, nameStyle: { style: 'emerald', animation: 'glow' } };
     make({ players: [{ id: 0, name: 'Ann', userId: 7, score: 1, isMe: true }, { id: 1, name: 'Robo', score: 0, bot: true }] });
     const [ann, robo] = chips();
-    expect(ann.find('.styled-name').attributes('data-name-style')).toBe('emerald');
-    expect(robo.find('.styled-name').classes()).not.toContain('styled');
+    expect(ann.element.classList.contains('name-pill')).toBe(true);
+    expect(ann.classes()).toContain('styled');
+    expect(ann.attributes('data-name-style')).toBe('emerald');
+    expect(ann.attributes('data-animation')).toBe('glow');
+    expect(ann.attributes('style')).toContain('--ns-border');
+    expect(robo.classes()).not.toContain('styled');
+    expect(robo.attributes('style')).toBeUndefined();
     expect(ann.find('.name').text()).toBe('Ann (you)');
+    expect(ann.find('.styled-name').exists()).toBe(false); // the chip itself is the pill, not the name inside it
   });
 });
