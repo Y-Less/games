@@ -35,7 +35,7 @@ describe('BackgroundFx', () => {
       for (const c of columns) {
         const letters = c.findAll('i');
         expect(letters.length).toBeGreaterThan(3);
-        expect(letters[5].attributes('style')).toContain('--k: 5');
+        expect(letters[3].attributes('style')).toContain('--k: 3');
       }
     });
 
@@ -71,6 +71,16 @@ describe('BackgroundFx', () => {
     expect(w.findAll('.ma').length).toBeGreaterThan(20);
     expect(w.findAll('.mx').length).toBe(0);
     expect(mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } }).findAll('.ma').length).toBe(0);
+  });
+
+  it('starts about half the columns of either Matrix at the very top, and the rest lower down', () => {
+    for (const [effect, selector] of [['matrix', '.mx'], ['matrix-a', '.maw']]) {
+      const tops = mount(BackgroundFx, { props: { effect, fixed: true } }).findAll(selector).map((c) => c.attributes('style').match(/top: ([\d.]+)%/)[1]);
+      const atTop = tops.filter((t) => Number(t) === 0).length / tops.length;
+      expect(atTop, effect).toBeGreaterThan(0.35);
+      expect(atTop, effect).toBeLessThan(0.65);
+      expect(new Set(tops).size, effect).toBeGreaterThan(15);
+    }
   });
 
   describe('the moving gradient', () => {

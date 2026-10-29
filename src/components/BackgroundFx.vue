@@ -6,6 +6,9 @@
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
 
+// Half of the columns (in either Matrix) start at the very top of the screen; the rest start anywhere down it.
+const startsAtTop = (next) => next() < 0.5;
+
 // The Matrix rain, as in the film: the letters never move. A bright head steps down each column and leaves a letter in every
 // row it passes, and each of those letters then fades away where it stands. The columns are laid out from a fixed seed, so
 // the rain looks the same every time (and in tests); only the animation (CSS, below) changes anything.
@@ -24,7 +27,7 @@ function rain(count, demo) {
     // How far down the screen the head gets before it stops and the column starts again at the top: anywhere from a tenth of a
     // tall screen's rows (at this size) to all of them (what runs off the bottom is clipped).
     const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
-    const top = 0.7 * next() ** 1.3; // and where it starts: anywhere from the top to most of the way down the screen
+    const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3; // and where it starts: half start at the top, the rest anywhere down to most of the way down the screen
     const rows = Math.min(120, Math.max(4, Math.round(fullRows * Math.min(1 - top, 0.1 + 0.9 * next()))));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
@@ -70,7 +73,7 @@ function rainSliding(count) {
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
     // A column runs only between its own start and end heights (a band of the screen with soft edges), not the whole height.
-    const top = 0.7 * next() ** 1.3;
+    const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3;
     const height = Math.min(1 - top, 0.3 + 0.7 * next());
     const wrap = { left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%`, height: `${(height * 100).toFixed(1)}%` };
     return { letters, fade, wrap, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
