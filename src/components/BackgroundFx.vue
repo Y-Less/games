@@ -6,35 +6,33 @@
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
 
-// The Matrix rain: columns of characters, each falling at its own speed. The columns are laid out from a fixed seed, so the
-// rain looks the same every time (and in tests); only the animation moves them.
+// The Matrix rain, as in the film: the letters never move. A bright head steps down each column and leaves a letter in every
+// row it passes, and each of those letters then fades away where it stands. The columns are laid out from a fixed seed, so
+// the rain looks the same every time (and in tests); only the animation (CSS, below) changes anything.
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
-function rain(count) {
+const TRAIL = [0.06, 0.12, 0.25, 0.45]; // the part of a column's cycle a letter takes to fade: short trails to long ones
+function rain(count, demo) {
   let seed = 20240229;
   const next = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
   };
   return Array.from({ length: count }, (_, i) => {
-    const duration = 6 + next() * 8;
-    const length = 3 + Math.floor(37 * next() ** 1.5); // from a few letters to a long trail, with more short ones than long
-    // Every letter keeps its own brightness, dim at the back of the column and full at the head. The column is rubbed out
-    // from its bottom upwards (see the erase animations below), and where in its fall that happens is its own.
-    const letters = Array.from({ length }, (_, k) => ({
-      ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
-      alpha: (0.1 + 0.9 * (k / (length - 1)) ** 1.6).toFixed(2),
-    }));
-    // Where in its fall a column starts to vanish: a few go almost at once, near the top of the screen, others partway down,
-    // and some only as they leave it.
-    const roll = next();
-    const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
-    // The lead letter keeps changing: a few glyphs share its place and take turns (see fx-flick below).
-    const flicker = Array.from({ length: 10 }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]);
-    // Each column has its own text size (mostly small, a few large) and, for about a third of them, a dimmer overall brightness.
+    // Each column has its own text size (mostly small, a few large) and, for about a third of them, is dimmer overall.
     const size = 0.55 + 1.5 * next() ** 1.6;
     const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
+    // Enough rows to fill a tall screen at this size (what runs off the bottom is clipped).
+    const rows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
+    const letters = Array.from({ length: rows }, (_, k) => ({
+      ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
+      alpha: (0.1 + 0.9 * (k / (rows - 1)) ** 1.6).toFixed(2), // only seen when animations are off: a still, fading column
+    }));
+    const trail = Math.floor(next() * TRAIL.length);
+    const step = 0.06 + 0.1 * next(); // seconds the head takes per row
+    const cycle = ((rows * step) / (1 - TRAIL[trail])) * (1 + 0.5 * next()); // the head's whole trip, plus a rest before the next
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    return { letters, flicker, fade, style: { '--n': length, '--fl': `${(0.7 + 0.5 * next()).toFixed(2)}s`, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    const style = { '--s': size.toFixed(2), '--step': `${step.toFixed(3)}s`, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%` };
+    return { letters, fade: `f${trail + 1}`, style };
   });
 }
 
@@ -46,16 +44,20 @@ const props = defineProps({
   intensity: { type: Number, default: 100 }, // percent: how strong the effect looks (the player's own slider; previews ignore it)
   speed: { type: Number, default: 100 }, // percent: how fast it moves (likewise)
 });
+// Above 100% the effect cannot be more opaque, so the alpha of everything it draws is multiplied instead (an SVG filter).
+let gains = 0;
+const gainId = `fx-gain-${++gains}`;
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * props.intensity) / 100))) : []));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
 const style = computed(() => {
   const out = {};
   if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });
   if (!props.demo) {
     if (props.speed !== 100) out['--fx-speed'] = (props.speed / 100).toFixed(2);
     if (props.intensity < 100) out.opacity = (props.intensity / 100).toFixed(2);
+    if (props.intensity > 100) out.filter = `url(#${gainId})`;
   }
   return out;
 });
@@ -63,8 +65,11 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters.slice(0, -1)" :key="k" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i><i class="head"><b v-for="(ch, f) in column.flicker" :key="f" :style="{ '--f': f }">{{ ch }}</b></i>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
     </span>
+    <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
+      <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
+    </svg>
   </div>
 </template>
 
@@ -243,11 +248,15 @@ const style = computed(() => {
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
-/* Green characters falling in columns. Each letter has its own fixed brightness (dim at the back of the column, bright at the
-   head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
-   pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
+/* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
+   lights at full strength as the head reaches it and then fades out in place (f1 ... f4: from a short trail to a long one).
+   Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
+   rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
 [data-fx='matrix'] {
   background: rgb(0 18 6 / 0.35);
+}
+.gain {
+  position: absolute;
 }
 .mx {
   position: absolute;
@@ -255,124 +264,57 @@ const style = computed(() => {
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
   font-size: calc(15px * var(--s, 1));
   text-align: center;
-  color: #1fb853;
-  transform: translateY(-100%);
-  -webkit-mask-image: linear-gradient(to top, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
-  mask-image: linear-gradient(to top, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
-  animation:
-    fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite,
-    fx-erase calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
-}
-.mx.v1 {
-  animation-name: fx-matrix, fx-erase-1;
-}
-.mx.v2 {
-  animation-name: fx-matrix, fx-erase-2;
-}
-.mx.v3 {
-  animation-name: fx-matrix, fx-erase-3;
-}
-.mx.v4 {
-  animation-name: fx-matrix, fx-erase-4;
-}
-.mx.v5 {
-  animation-name: fx-matrix, fx-erase-5;
+  color: #5dff8a;
 }
 .mx i {
   display: block;
   font-style: normal;
+  opacity: var(--a, 0.5);
+  animation: fx-deposit-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
-.mx i.head {
-  position: relative;
+.mx.f1 i {
+  animation-name: fx-deposit-1;
 }
-/* Ten glyphs take turns in the lead place, eight to fourteen changes a second, each column at its own pace: the first sets the size, the rest sit on top of it. */
-.mx i.head b {
-  font-weight: normal;
-  animation: fx-flick calc(var(--fl) / var(--fx-speed)) step-end calc(var(--f) * var(--fl) / 10 / var(--fx-speed)) infinite;
+.mx.f3 i {
+  animation-name: fx-deposit-3;
 }
-.mx i.head b:not(:first-child) {
-  position: absolute;
-  left: 0;
-  right: 0;
-  opacity: 0;
+.mx.f4 i {
+  animation-name: fx-deposit-4;
 }
-@keyframes fx-flick {
+@keyframes fx-deposit-1 {
   0% {
     opacity: 1;
   }
-  10%,
+  6%,
   100% {
     opacity: 0;
   }
 }
-.mx i.head {
-  color: #e6ffe9;
-  text-shadow: 0 0 6px #3dff7a;
-}
-@property --fx-cut {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: -40%;
-}
-/* --fx-cut is how much of the column is already gone, counting up from its bottom. Each set of keyframes holds it at -40%
-   (nothing gone) until the column's vanishing point, then runs it to 100% (all gone) by the percentage given. */
-@keyframes fx-erase-1 {
-  0%,
-  4% {
-    --fx-cut: -40%;
+@keyframes fx-deposit-2 {
+  0% {
+    opacity: 1;
   }
-  16%,
+  12%,
   100% {
-    --fx-cut: 100%;
+    opacity: 0;
   }
 }
-@keyframes fx-erase-2 {
-  0%,
-  14% {
-    --fx-cut: -40%;
+@keyframes fx-deposit-3 {
+  0% {
+    opacity: 1;
   }
-  30%,
+  25%,
   100% {
-    --fx-cut: 100%;
+    opacity: 0;
   }
 }
-@keyframes fx-erase-3 {
-  0%,
-  28% {
-    --fx-cut: -40%;
+@keyframes fx-deposit-4 {
+  0% {
+    opacity: 1;
   }
-  48%,
+  45%,
   100% {
-    --fx-cut: 100%;
-  }
-}
-@keyframes fx-erase-4 {
-  0%,
-  42% {
-    --fx-cut: -40%;
-  }
-  66%,
-  100% {
-    --fx-cut: 100%;
-  }
-}
-@keyframes fx-erase-5 {
-  0%,
-  58% {
-    --fx-cut: -40%;
-  }
-  84%,
-  100% {
-    --fx-cut: 100%;
-  }
-}
-@keyframes fx-erase {
-  0%,
-  72% {
-    --fx-cut: -40%;
-  }
-  100% {
-    --fx-cut: 100%;
+    opacity: 0;
   }
 }
 .bg-fx.demo .mx {
@@ -381,11 +323,6 @@ const style = computed(() => {
 @media (max-width: 700px) {
   .bg-fx:not(.demo) .mx:nth-child(even) {
     display: none;
-  }
-}
-@keyframes fx-matrix {
-  to {
-    transform: translateY(var(--box));
   }
 }
 

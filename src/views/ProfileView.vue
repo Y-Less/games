@@ -86,7 +86,7 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       <p class="muted">How your animated website background looks. Each slider is an unlock in the shop (Unlocks tab).</p>
       <label class="angle">
         Intensity <span class="muted">{{ session.user.effectIntensity }}%</span>
-        <input type="range" min="10" max="100" step="5" :value="session.user.effectIntensity" aria-label="Background animation intensity" :disabled="!owns('fx-intensity')" @change="setLevel('effectIntensity', $event)" />
+        <input type="range" min="10" max="300" step="5" :value="session.user.effectIntensity" aria-label="Background animation intensity" :disabled="!owns('fx-intensity')" @change="setLevel('effectIntensity', $event)" />
       </label>
       <label class="angle">
         Speed <span class="muted">{{ session.user.effectSpeed }}%</span>

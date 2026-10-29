@@ -97,7 +97,7 @@ export function cleanPlayAnimations(input) {
   throw new AuthError('Play animations must be always, never or follow the device.');
 }
 
-export const EFFECT_INTENSITY = { min: 10, max: 100, normal: 100 };
+export const EFFECT_INTENSITY = { min: 10, max: 300, normal: 100 };
 export const EFFECT_SPEED = { min: 25, max: 300, normal: 100 };
 
 /** Checks a background animation level (a whole percentage within the given range). */
