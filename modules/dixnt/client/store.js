@@ -20,7 +20,7 @@ export function createStore({ socket, user, search, setSearch }) {
     code: tidyCode(search), // the game we are in, or the one an invite link points at
     codeExists: null, // for an invite link: does that game exist? (null until the server has said)
     toast: '',
-    wordPopup: null, // { word, key }: the word just chosen, shown large to everyone for a few seconds
+    wordPopup: null, // { word, key, hidden, at }: the word just chosen, shown large to everyone for a few seconds
     zoom: null, // { cardId, actions: [{ label, run, primary }] } for the card lightbox
   });
 
@@ -63,9 +63,15 @@ export function createStore({ socket, user, search, setSearch }) {
     store.log = !state || state.phase === 'lobby' ? [] : [...store.log, ...newEntries(store.state, state)].slice(-200);
     // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per round.
     if (state && store.state?.phase === 'word' && state.phase === 'picking') {
-      store.wordPopup = { word: state.wordHidden ? '???' : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden) };
+      store.wordPopup = { word: state.wordHidden ? '???' : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden), at: Date.now() };
     }
     store.state = state;
+    // Back in the lobby (a new game is about to start), nothing from the last game may be left to show: the word popup is
+    // replayed by the next game's popup component when it mounts, and a lightbox would still hold a card from before.
+    if (state?.phase === 'lobby') {
+      store.wordPopup = null;
+      store.zoom = null;
+    }
     if (state) {
       store.code = state.code;
       setSearch(state.code);

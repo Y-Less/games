@@ -162,6 +162,28 @@ describe('state updates', () => {
   });
 });
 
+describe('the word popup', () => {
+  const picking = { code: 'a-b-c', phase: 'picking', round: 1, completedRounds: 0, word: 'sunshine', wordHidden: false, me: { id: 1 }, players: [] };
+
+  it('is announced when the word is locked in', () => {
+    const { api, socket } = make();
+    socket.trigger('state', { ...picking, phase: 'word', word: null });
+    socket.trigger('state', picking);
+    expect(api.store.wordPopup).toMatchObject({ word: 'sunshine', key: '1:0', hidden: false });
+  });
+
+  it('does not outlive the game: back in the lobby it is gone, so the next game does not replay it', () => {
+    const { api, socket } = make();
+    socket.trigger('state', { ...picking, phase: 'word', word: null });
+    socket.trigger('state', picking);
+    api.store.zoom = { cardId: 3, actions: [] };
+    socket.trigger('state', { ...picking, phase: 'finished' });
+    socket.trigger('state', { ...picking, phase: 'lobby', word: null });
+    expect(api.store.wordPopup).toBeNull();
+    expect(api.store.zoom).toBeNull();
+  });
+});
+
 describe('actions', () => {
   it('createGame and join send the right events', async () => {
     const socket = fakeSocket({ replies: { create: { ok: true }, join: { ok: true } } });

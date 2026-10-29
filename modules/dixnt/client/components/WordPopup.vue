@@ -17,8 +17,10 @@ watch(
   () => store.wordPopup,
   (popup) => {
     clearTimeout(timer);
-    shown.value = popup;
-    if (popup) timer = setTimeout(hide, SHOWN_MS);
+    // A popup that was already shown (and has gone) is not shown again when this component is mounted later.
+    const age = popup?.at ? Date.now() - popup.at : 0;
+    shown.value = age < SHOWN_MS ? popup : null;
+    if (shown.value) timer = setTimeout(hide, SHOWN_MS - age);
   },
   { immediate: true },
 );
