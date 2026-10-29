@@ -23,6 +23,7 @@ export const BACKGROUND_ANIMATIONS = [
   { id: 'snow', name: 'Snowfall', price: 800 },
   { id: 'embers', name: 'Rising embers', price: 1000 },
   { id: 'aurora', name: 'Aurora', price: 1500 },
+  { id: 'matrix', name: 'Matrix', price: 1500 },
 ];
 
 const nameIds = new Set(NAME_ANIMATIONS.map((a) => a.id));

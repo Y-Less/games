@@ -14,6 +14,21 @@ describe('BackgroundFx', () => {
     expect(w.classes()).toContain('fixed');
   });
 
+  describe('the Matrix rain', () => {
+    it('draws columns of characters, the same ones every time', () => {
+      const a = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
+      const b = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
+      expect(a.findAll('.mx').length).toBeGreaterThan(20);
+      expect(a.find('.mx').text().length).toBeGreaterThan(10);
+      expect(a.html()).toBe(b.html());
+    });
+
+    it('draws fewer columns in a preview, and none for other effects', () => {
+      expect(mount(BackgroundFx, { props: { effect: 'matrix', demo: true } }).findAll('.mx').length).toBeLessThan(12);
+      expect(mount(BackgroundFx, { props: { effect: 'snow' } }).findAll('.mx').length).toBe(0);
+    });
+  });
+
   describe('the moving gradient', () => {
     const gradient = { type: 'gradient', from: '#112233', to: '#445566', angle: 45 };
 

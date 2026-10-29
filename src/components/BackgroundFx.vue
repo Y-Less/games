@@ -6,6 +6,23 @@
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
 
+// The Matrix rain: columns of characters, each falling at its own speed. The columns are laid out from a fixed seed, so the
+// rain looks the same every time (and in tests); only the animation moves them.
+const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
+function rain(count) {
+  let seed = 20240229;
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  return Array.from({ length: count }, (_, i) => {
+    const duration = 6 + next() * 8;
+    const length = 14 + Math.floor(next() * 12);
+    const text = Array.from({ length }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]).join('\n');
+    return { text, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+  });
+}
+
 const props = defineProps({
   effect: { type: String, default: 'none' },
   fixed: { type: Boolean, default: false },
@@ -15,11 +32,14 @@ const props = defineProps({
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 44) : []));
 const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` } : undefined));
 </script>
 
 <template>
-  <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true" />
+  <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
+    <span v-for="(column, i) in columns" :key="i" class="mx" :style="column.style">{{ column.text }}</span>
+  </div>
 </template>
 
 <style scoped>
@@ -30,10 +50,12 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   pointer-events: none;
   border-radius: inherit;
   --fx-speed: 1;
+  --box: 100vh; /* the height the rain falls through */
 }
 /* In a shop preview the same effect runs faster and in smaller tiles, so a small box shows what it does. */
 .bg-fx.demo {
   --fx-speed: 4;
+  --box: 4rem;
 }
 .bg-fx.fixed {
   position: fixed;
@@ -195,6 +217,39 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
+/* Green characters falling in columns, bright at the head and fading away behind it. */
+[data-fx='matrix'] {
+  background: rgb(0 18 6 / 0.35);
+}
+.mx {
+  position: absolute;
+  top: 0;
+  white-space: pre;
+  font: 15px/1.15 ui-monospace, 'Courier New', monospace;
+  text-align: center;
+  color: transparent;
+  background: linear-gradient(to bottom, transparent, #0b8a3a 55%, #3dff7a 92%, #e6ffe9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  opacity: 0.6;
+  transform: translateY(-100%);
+  animation: fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
+}
+.bg-fx.demo .mx {
+  font-size: 9px;
+  opacity: 1;
+}
+@media (max-width: 700px) {
+  .bg-fx:not(.demo) .mx:nth-child(even) {
+    display: none;
+  }
+}
+@keyframes fx-matrix {
+  to {
+    transform: translateY(var(--box));
+  }
+}
+
 @keyframes fx-aurora {
   from {
     transform: translateX(-12%) scale(1);
