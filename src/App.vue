@@ -39,10 +39,10 @@ async function leaveSite() {
     <BackgroundFx fixed :effect="session.user?.backgroundAnimation" :background="session.user?.background" />
     <header class="bar">
       <RouterLink to="/" class="brand">Game Hub</RouterLink>
-      <nav v-if="session.user" class="links" aria-label="Main">
+      <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" aria-label="Main">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">Games</RouterLink>
-        <RouterLink to="/stats" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
-        <RouterLink to="/shop" :class="{ on: route.name === 'shop' }">Shop</RouterLink>
+        <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
+        <RouterLink to="/shop" class="optional" :class="{ on: route.name === 'shop' }">Shop</RouterLink>
       </nav>
 
       <div v-if="playing && playBar.game" class="game-bar">
@@ -60,7 +60,7 @@ async function leaveSite() {
         <button v-if="playBar.game.hasRules" class="quiet" @click="playBar.game.openRules()">Rules</button>
       </div>
 
-      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :title="`${session.shop.balance} coins: spend them in the shop`" aria-label="Your coins">
+      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="`${session.shop.balance} coins: spend them in the shop`" aria-label="Your coins">
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
       </RouterLink>
       <div v-if="session.user" class="account">
@@ -177,17 +177,50 @@ async function leaveSite() {
     gap: 0.4rem;
     padding: 0.5rem 0.6rem;
   }
+  /* The Games link already goes home, so the name makes room. */
+  .brand {
+    display: none;
+  }
   .links a {
-    padding: 0.35rem 0.55rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.92rem;
   }
   .account > .styled-name.styled {
     padding: 0.4rem 0.7rem;
   }
   .account button {
-    max-width: 8rem;
+    max-width: 6.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+/* On the narrowest phones the menu has Statistics and Shop (and the coin count links to the shop), so the bar keeps just Games. */
+@media (max-width: 420px) {
+  .links .optional {
+    display: none;
+  }
+}
+/* On a phone, a game's title, Leave and Rules need the room more than the links and the coin count do (the account menu
+   still has them, and the title shortens with an ellipsis if it must). */
+@media (max-width: 640px) {
+  .links.in-game,
+  .coins.in-game {
+    display: none;
+  }
+  .game-bar {
+    flex: 1;
+    gap: 0.4rem;
+  }
+  .game-bar button {
+    padding: 0.3rem 0.6rem;
+  }
+  .game-title {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 1.05rem;
   }
 }
 .account {
