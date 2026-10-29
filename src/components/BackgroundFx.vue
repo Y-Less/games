@@ -6,15 +6,46 @@
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
 
-// Half of the columns start at the very top of the screen; the rest start anywhere down it.
+// Half of the columns (in either Matrix) start at the very top of the screen; the rest start anywhere down it.
 const startsAtTop = (next) => next() < 0.5;
 // Half of them run on to the bottom of the screen; the rest stop at a random height on the way (what fraction of the way from
 // their start to the bottom they cover).
 const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 
+// The Matrix rain, as in the film: the letters never move. A bright head steps down each column, one row at a time, and the
+// letters it has passed fade away where they stand. A column is one block of text; a mask slides down it in steps to show the
+// part the head has just passed (and a second mask shows the head's own, random, glyph), so there is one animation per column
+// and none per letter. The columns are laid out from a fixed seed, so the rain looks the same every time (and in tests).
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
-// The Matrix rain: each column of letters slides down the screen (and is rubbed out part-way). The columns are laid out
-// from a fixed seed, so the rain looks the same every time (and in tests).
+function rain(count, demo) {
+  let seed = 20240229;
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const glyph = () => GLYPHS[Math.floor(next() * GLYPHS.length)];
+  return Array.from({ length: count }, (_, i) => {
+    // Each column has its own text size (mostly small, a few large) and, for about a third of them, is dimmer overall.
+    const size = 0.55 + 1.5 * next() ** 1.6;
+    const dim = next() < 0.35 ? 0.4 + 0.4 * next() : 1;
+    // Where the column starts and how far down the screen its head gets (what runs off the bottom is clipped).
+    const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
+    const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3;
+    const rows = Math.min(120, Math.max(4, Math.round(fullRows * (1 - top) * reach(next))));
+    const trail = Math.min(rows, 3 + Math.floor(37 * next() ** 1.5)); // rows that are still lit behind the head: a few to a long trail
+    const step = 0.06 + 0.1 * next(); // seconds the head takes per row
+    const steps = rows + trail; // the head carries on until the last letter has faded
+    const cycle = steps * step / 0.7; // the head's trip is 70% of the cycle; the column rests for the rest
+    const text = Array.from({ length: rows }, glyph).join('\n');
+    const lead = Array.from({ length: rows }, glyph).join('\n'); // what the head shows as it passes: not the letter it leaves
+    const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
+    const style = { '--s': size.toFixed(2), '--n': rows, '--t': trail, '--steps': steps - 1, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%` };
+    return { text, lead, style };
+  });
+}
+
+// Matrix A: the first Matrix rain, in which each column of letters slides down the screen (and is rubbed out part-way). The
+// columns are laid out from a fixed seed, like the other Matrix's.
 function rainSliding(count) {
   let seed = 20240229;
   const next = () => {
@@ -60,7 +91,8 @@ const gainId = `fx-gain-${++gains}`;
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const slidingColumns = computed(() => (props.effect === 'matrix' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100))) : []));
+const slidingColumns = computed(() => (props.effect === 'matrix-a' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100))) : []));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
 const style = computed(() => {
   const out = {};
   if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });
@@ -75,6 +107,7 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
+    <span v-for="(column, i) in columns" :key="i" class="mx" :data-lead="column.lead" :style="column.style">{{ column.text }}</span>
     <span v-for="(column, i) in slidingColumns" :key="i" class="maw" :style="column.wrap"><span class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i></span>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
@@ -258,10 +291,80 @@ const style = computed(() => {
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
-/* The filter that makes the effect stronger than 100% (see `intensity`). */
+/* Green letters that stay where they are. A column is a block of text (one letter per row). A mask slides down it, one row
+   every --step, and shows only the part the head has just passed: bright for most of the trail and fading out over the oldest
+   third of it (so the letters look as strong as the intensity slider's 300%). The head's own glyph is a second copy of the
+   column, in white with a glow, masked to the single row the head is on. The column's head takes 70% of --c, then it rests. Nothing is drawn behind the letters, so the player's own background shows through. */
 .gain {
   position: absolute;
 }
+.mx {
+  position: absolute;
+  font: 15px/1.15 ui-monospace, 'Courier New', monospace;
+  font-size: calc(15px * var(--s, 1));
+  white-space: pre;
+  text-align: center;
+  color: #5dff8a;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 33%, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 33%, #000);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% calc(1.15em * var(--t));
+  mask-size: 100% calc(1.15em * var(--t));
+  /* Still (animations off): a lit band halfway down the column. */
+  -webkit-mask-position: 0 calc(1.15em * (var(--n) * 0.5 - var(--t)));
+  mask-position: 0 calc(1.15em * (var(--n) * 0.5 - var(--t)));
+  animation: fx-mx-trail calc(var(--c) / var(--fx-speed)) steps(var(--steps), end) calc(-1 * var(--ph) / var(--fx-speed)) infinite;
+}
+.mx::before {
+  content: attr(data-lead);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  color: #eaffee;
+  text-shadow: 0 0 6px #3dff7a;
+  -webkit-mask-image: linear-gradient(#000, #000);
+  mask-image: linear-gradient(#000, #000);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 1.15em;
+  mask-size: 100% 1.15em;
+  -webkit-mask-position: 0 -2em;
+  mask-position: 0 -2em;
+  animation: fx-mx-lead calc(var(--c) / var(--fx-speed)) steps(var(--steps), end) calc(-1 * var(--ph) / var(--fx-speed)) infinite;
+}
+@keyframes fx-mx-trail {
+  0% {
+    -webkit-mask-position: 0 calc(1.15em * (1 - var(--t)));
+    mask-position: 0 calc(1.15em * (1 - var(--t)));
+  }
+  70%,
+  100% {
+    -webkit-mask-position: 0 calc(1.15em * var(--n));
+    mask-position: 0 calc(1.15em * var(--n));
+  }
+}
+@keyframes fx-mx-lead {
+  0% {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  70%,
+  100% {
+    -webkit-mask-position: 0 calc(1.15em * (var(--n) + var(--t) - 1));
+    mask-position: 0 calc(1.15em * (var(--n) + var(--t) - 1));
+  }
+}
+.bg-fx.demo .mx {
+  font-size: calc(9px * var(--s, 1));
+}
+@media (max-width: 700px) {
+  .bg-fx:not(.demo) .mx:nth-child(even) {
+    display: none;
+  }
+}
+
 /* Green characters falling in columns. Each letter has its own fixed brightness (dim at the back of the column, bright at the
    head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
    pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */

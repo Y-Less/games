@@ -20,3 +20,11 @@ test('only listed ids are animations, and an animation of one kind is not the ot
     assert.equal(isBackgroundAnimation(bad), false);
   }
 });
+
+test('Matrix is for sale under its short name, and Matrix B is kept but hidden, so it can be drawn but not bought', () => {
+  assert.equal(BACKGROUND_ANIMATIONS.find((a) => a.id === 'matrix-a').name, 'Matrix');
+  const b = BACKGROUND_ANIMATIONS.find((a) => a.id === 'matrix');
+  assert.equal(b.hidden, true);
+  assert.equal(isBackgroundAnimation('matrix'), true, 'still a valid animation');
+  assert.equal(BACKGROUND_ANIMATIONS.filter((a) => a.hidden).length, 1, 'nothing else is hidden');
+});

@@ -122,32 +122,37 @@ test('the database refuses an outcome other than win, loss or draw', (t) => {
   db.prepare("INSERT INTO result_players (result_id, user_id, outcome) VALUES (1, 1, 'draw')").run();
 });
 
-test('the two Matrix backgrounds become one: the first keeps its owners and users under the new id, and the owners of the second have the one that is left', async (t) => {
+test('everyone who owned Matrix B is given Matrix (matrix-a), and users of B are moved to it', async (t) => {
   const { dir, track } = workspace(t);
   const first = track(openDatabase(dir));
   const user = (id, animation) => first.prepare("INSERT INTO users (id, username, username_lower, password_hash, display_name, created_at, background_animation) VALUES (?, ?, ?, 'x', ?, 0, ?)").run(id, `u${id}`, `u${id}`, `U${id}`, animation);
-  user(1, 'matrix-a'); // chose the first Matrix
-  user(2, 'matrix'); // chose the second
-  user(3, 'sweep'); // chose something else
-  user(4, 'none'); // owns both, uses neither
-  const own = (id, item) => first.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, 5)').run(id, item);
-  own(1, 'ba:matrix-a');
-  own(2, 'ba:matrix');
+  user(1, 'matrix-a'); // owns and uses Matrix
+  user(2, 'matrix'); // owns and uses B
+  user(3, 'sweep'); // owns B, uses something else
+  user(4, 'none'); // owns neither
+  user(5, 'none'); // owns both
+  const own = (id, item, at = 5) => first.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)').run(id, item, at);
+  own(1, 'ba:matrix-a', 7);
+  own(2, 'ba:matrix', 8);
+  own(3, 'ba:matrix', 9);
   own(3, 'ba:sweep');
-  own(4, 'ba:matrix-a');
-  own(4, 'ba:matrix');
+  own(5, 'ba:matrix-a', 10);
+  own(5, 'ba:matrix', 11);
   first.close();
 
   const db = track(openDatabase(dir));
-  const animations = db.prepare('SELECT id, background_animation AS a FROM users ORDER BY id').all().map((r) => r.a);
-  assert.deepEqual(animations, ['matrix', 'matrix', 'sweep', 'none']);
-  const items = db.prepare('SELECT user_id AS u, item_id AS i FROM owned_items ORDER BY user_id, item_id').all().map((r) => `${r.u}:${r.i}`);
-  assert.deepEqual(items, ['1:ba:matrix', '2:ba:matrix', '3:ba:sweep', '4:ba:matrix'], 'one item each, none left under the old id');
-  assert.equal(db.prepare("SELECT bought_at FROM owned_items WHERE user_id = 1").get().bought_at, 5, 'the purchase date is kept');
+  assert.deepEqual(db.prepare('SELECT background_animation AS a FROM users ORDER BY id').all().map((r) => r.a), ['matrix-a', 'matrix-a', 'sweep', 'none', 'none']);
+  const owned = (id) => db.prepare('SELECT item_id AS i FROM owned_items WHERE user_id = ? ORDER BY item_id').all(id).map((r) => r.i);
+  assert.deepEqual(owned(1), ['ba:matrix-a']);
+  assert.deepEqual(owned(2), ['ba:matrix', 'ba:matrix-a'], 'B owners are given Matrix (and keep the record of B)');
+  assert.deepEqual(owned(3), ['ba:matrix', 'ba:matrix-a', 'ba:sweep']);
+  assert.deepEqual(owned(4), [], 'someone who owned neither is given nothing');
+  assert.deepEqual(owned(5), ['ba:matrix', 'ba:matrix-a'], 'no duplicate for someone who had both');
+  assert.equal(db.prepare("SELECT bought_at AS b FROM owned_items WHERE user_id = 5 AND item_id = 'ba:matrix-a'").get().b, 10, 'their own purchase date stays');
+  assert.equal(db.prepare("SELECT bought_at AS b FROM owned_items WHERE user_id = 2 AND item_id = 'ba:matrix-a'").get().b, 8, 'the gift is dated as the purchase it replaces');
   db.close();
 
   // Opening it again changes nothing.
   const again = track(openDatabase(dir));
-  assert.equal(again.prepare('SELECT COUNT(*) AS n FROM owned_items').get().n, 4);
-  assert.equal(again.prepare("SELECT COUNT(*) AS n FROM users WHERE background_animation = 'matrix'").get().n, 2);
+  assert.equal(again.prepare('SELECT COUNT(*) AS n FROM owned_items').get().n, 8);
 });

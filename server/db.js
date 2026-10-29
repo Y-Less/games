@@ -91,11 +91,10 @@ export function openDatabase(dataDir) {
   if (!columns.includes('animations_choice')) {
     db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
   }
-  // The two Matrix backgrounds became one, 'matrix' (what was 'matrix-a'; the old 'matrix' is gone). Whoever chose or owned
-  // the first keeps it under the new id, and whoever chose or owned the second now has the one that is left.
-  db.exec("UPDATE users SET background_animation = 'matrix' WHERE background_animation = 'matrix-a'");
-  db.exec("INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) SELECT user_id, 'ba:matrix', bought_at FROM owned_items WHERE item_id = 'ba:matrix-a'");
-  db.exec("DELETE FROM owned_items WHERE item_id = 'ba:matrix-a'");
+  // Matrix B was taken off sale (its code is kept). Whoever owned it was given Matrix (the former Matrix A, 'matrix-a') in its
+  // place, and whoever was using it is moved to that one, so that their background does not just stop.
+  db.exec("INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) SELECT user_id, 'ba:matrix-a', bought_at FROM owned_items WHERE item_id = 'ba:matrix'");
+  db.exec("UPDATE users SET background_animation = 'matrix-a' WHERE background_animation = 'matrix'");
   return db;
 }
 

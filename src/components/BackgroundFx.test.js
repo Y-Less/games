@@ -15,53 +15,40 @@ describe('BackgroundFx', () => {
   });
 
   describe('the Matrix rain', () => {
-    const mount_ = (props = {}) => mount(BackgroundFx, { props: { effect: 'matrix', fixed: true, ...props } });
-    const band = (c) => {
-      const style = c.attributes('style');
-      return Number(style.match(/top: ([\d.]+)%/)[1]) + Number((style.match(/height: ([\d.]+)%/) ?? [0, 0])[1]);
-    };
-
-    it('draws columns of letters that slide down the screen, the same ones every time', () => {
-      const a = mount_();
-      expect(a.attributes('data-fx')).toBe('matrix');
-      expect(a.findAll('.ma').length).toBeGreaterThan(20);
-      expect(a.findAll('.ma').some((c) => c.findAll('i').length > 10)).toBe(true);
-      expect(a.html()).toBe(mount_().html());
+    it('draws columns of characters, the same ones every time', () => {
+      const a = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
+      const b = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
+      expect(a.findAll('.mx').length).toBeGreaterThan(20);
+      expect(a.findAll('.mx').some((c) => c.text().length > 10)).toBe(true);
+      expect(a.html()).toBe(b.html());
     });
 
-    it('has one letter per row with its own brightness, a bright head, and columns of many sizes', () => {
-      const columns = mount_().findAll('.ma');
+    it('is one block of text per column, with a different glyph for the head to show, and columns of many sizes and depths', () => {
+      const w = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
+      const columns = w.findAll('.mx');
       for (const c of columns) {
-        const letters = c.findAll('i');
-        expect(letters.length).toBeGreaterThanOrEqual(3);
-        expect(letters.at(-1).classes()).toContain('head');
-        expect(c.attributes('style')).toContain(`--n: ${letters.length}`);
+        const rows = c.text().split('\n');
+        expect(rows.length).toBeGreaterThanOrEqual(4);
+        expect(c.attributes('data-lead').split('\n').length).toBe(rows.length);
+        expect(c.attributes('data-lead')).not.toBe(c.text());
+        expect(c.attributes('style')).toContain(`--n: ${rows.length}`);
       }
       const sizes = new Set(columns.map((c) => c.attributes('style').match(/--s: ([\d.]+)/)[1]));
       expect(sizes.size).toBeGreaterThan(20);
-      const lengths = new Set(columns.map((c) => c.findAll('i').length));
-      expect(lengths.size).toBeGreaterThan(8);
+      const trails = new Set(columns.map((c) => c.attributes('style').match(/--t: (\d+)/)[1]));
+      expect(trails.size).toBeGreaterThan(8);
+      const depths = new Set(columns.map((c) => c.text().split('\n').length));
+      expect(depths.size).toBeGreaterThan(20); // the heads stop at many different depths
     });
 
-    it('draws fewer columns in a preview and at a lower intensity, and none for other effects', () => {
-      expect(mount_({ demo: true }).findAll('.ma').length).toBeLessThan(12);
-      expect(mount_({ intensity: 40 }).findAll('.ma').length).toBeLessThan(mount_().findAll('.ma').length);
-      expect(mount(BackgroundFx, { props: { effect: 'snow' } }).findAll('.ma').length).toBe(0);
+    it('draws fewer columns in a preview, and none for other effects', () => {
+      expect(mount(BackgroundFx, { props: { effect: 'matrix', demo: true } }).findAll('.mx').length).toBeLessThan(12);
+      expect(mount(BackgroundFx, { props: { effect: 'snow' } }).findAll('.mx').length).toBe(0);
     });
 
-    it('starts about half the columns at the very top, and the rest lower down', () => {
-      const tops = mount_().findAll('.maw').map((c) => c.attributes('style').match(/top: ([\d.]+)%/)[1]);
-      const atTop = tops.filter((t) => Number(t) === 0).length / tops.length;
-      expect(atTop).toBeGreaterThan(0.35);
-      expect(atTop).toBeLessThan(0.65);
-      expect(new Set(tops).size).toBeGreaterThan(15);
-    });
-
-    it('has about half the columns reach the bottom of the screen', () => {
-      const ends = mount_().findAll('.maw').map(band);
-      const toBottom = ends.filter((end) => end > 99.5).length / ends.length;
-      expect(toBottom).toBeGreaterThan(0.35);
-      expect(toBottom).toBeLessThan(0.65);
+    it('draws fewer columns at a lower intensity', () => {
+      const count = (intensity) => mount(BackgroundFx, { props: { effect: 'matrix', intensity } }).findAll('.mx').length;
+      expect(count(40)).toBeLessThan(count(100));
     });
   });
 
@@ -71,6 +58,35 @@ describe('BackgroundFx', () => {
     expect(w.attributes('style')).toContain('opacity: 0.4');
     const demo = mount(BackgroundFx, { props: { effect: 'snow', intensity: 40, speed: 250, demo: true } });
     expect(demo.attributes('style') ?? '').not.toContain('--fx-speed');
+  });
+
+  it('has Matrix A, the first rain, whose columns of letters slide down the screen', () => {
+    const w = mount(BackgroundFx, { props: { effect: 'matrix-a', fixed: true } });
+    expect(w.attributes('data-fx')).toBe('matrix-a');
+    expect(w.findAll('.ma').length).toBeGreaterThan(20);
+    expect(w.findAll('.mx').length).toBe(0);
+    expect(mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } }).findAll('.ma').length).toBe(0);
+  });
+
+  it('starts about half the columns of either Matrix at the very top, and the rest lower down', () => {
+    for (const [effect, selector] of [['matrix', '.mx'], ['matrix-a', '.maw']]) {
+      const tops = mount(BackgroundFx, { props: { effect, fixed: true } }).findAll(selector).map((c) => c.attributes('style').match(/top: ([\d.]+)%/)[1]);
+      const atTop = tops.filter((t) => Number(t) === 0).length / tops.length;
+      expect(atTop, effect).toBeGreaterThan(0.35);
+      expect(atTop, effect).toBeLessThan(0.65);
+      expect(new Set(tops).size, effect).toBeGreaterThan(15);
+    }
+  });
+
+  it('has about half the columns of either Matrix reach the bottom of the screen', () => {
+    const band = (c) => {
+      const style = c.attributes('style');
+      return Number(style.match(/top: ([\d.]+)%/)[1]) + Number((style.match(/height: ([\d.]+)%/) ?? [0, 0])[1]);
+    };
+    const a = mount(BackgroundFx, { props: { effect: 'matrix-a', fixed: true } }).findAll('.maw').map(band);
+    const toBottom = a.filter((end) => end > 99.5).length / a.length;
+    expect(toBottom).toBeGreaterThan(0.35);
+    expect(toBottom).toBeLessThan(0.65);
   });
 
   describe('the moving gradient', () => {

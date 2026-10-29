@@ -23,7 +23,10 @@ export const BACKGROUND_ANIMATIONS = [
   { id: 'snow', name: 'Snowfall', price: 800 },
   { id: 'embers', name: 'Rising embers', price: 1000 },
   { id: 'aurora', name: 'Aurora', price: 1500 },
-  { id: 'matrix', name: 'Matrix', price: 1500 }, // green rain: each column of letters slides down the screen
+  { id: 'matrix-a', name: 'Matrix', price: 1500 }, // the rain that is sold: each column of letters slides down the screen
+  // The other rain (the letters stay put: a head leaves them behind and they fade) is kept, but is no longer for sale: it is
+  // not in the shop, and whoever owned it was given the one above (see server/db.js).
+  { id: 'matrix', name: 'Matrix B', price: 1500, hidden: true },
 ];
 
 const nameIds = new Set(NAME_ANIMATIONS.map((a) => a.id));

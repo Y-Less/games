@@ -234,3 +234,14 @@ test('marker colour: none by default, the free palette is free, any other colour
   assert.equal((await c.patch('/api/me', { markerColour: '#123456' })).data.user.markerColour, '#123456');
   assert.equal((await c.patch('/api/me', { displayName: 'Ann' })).data.user.markerColour, '#123456', 'other changes leave it alone');
 });
+
+test('the shop sells Matrix (matrix-a) as "Matrix", and Matrix B is not for sale or choosable', async (t) => {
+  assert.equal(itemById('ba:matrix-a').name, 'Matrix');
+  assert.equal(itemById('ba:matrix'), null, 'Matrix B is not in the catalogue');
+  assert.ok(!allItems().some((i) => /Matrix B/.test(i.name)));
+  const { c } = await shopSite(t, { coins: 5000 });
+  assert.equal((await c.post('/api/shop/buy', { item: 'ba:matrix' })).status, 404, 'it cannot be bought');
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'matrix' })).status, 403, 'and cannot be chosen');
+  assert.equal((await c.post('/api/shop/buy', { item: 'ba:matrix-a' })).status, 200);
+  assert.equal((await c.patch('/api/me', { backgroundAnimation: 'matrix-a' })).data.user.backgroundAnimation, 'matrix-a');
+});
