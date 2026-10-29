@@ -245,3 +245,11 @@ test('the shop sells Matrix (matrix-a) as "Matrix", and Matrix B is not for sale
   assert.equal((await c.post('/api/shop/buy', { item: 'ba:matrix-a' })).status, 200);
   assert.equal((await c.patch('/api/me', { backgroundAnimation: 'matrix-a' })).data.user.backgroundAnimation, 'matrix-a');
 });
+
+test('every card back preset is in the shop: crimson free, the rest 300 coins, with a readable name', () => {
+  const backs = allItems().filter((i) => i.type === 'card-back');
+  assert.equal(backs.length, 20);
+  assert.equal(backs.filter((i) => i.price === 0).map((i) => i.id).join(), 'cb:crimson');
+  for (const b of backs.filter((i) => i.id !== 'cb:crimson')) assert.equal(b.price, 300, b.id);
+  assert.ok(backs.every((b) => /^[A-Z][a-z]+$/.test(b.name)), backs.map((b) => b.name).join());
+});

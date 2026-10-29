@@ -39,6 +39,20 @@ export const CARD_BACK_PRESETS = {
   gold: 'repeating-linear-gradient(135deg, #c79a3b 0 7px, #9c7425 7px 14px), #9c7425',
   teal: 'radial-gradient(circle at 50% 50%, #2e7d86 0 22%, #1d5058 23% 60%, #123b42 61%)',
   mono: 'repeating-linear-gradient(0deg, #2b2b2e 0 6px, #3a3a3e 6px 12px), #2b2b2e',
+  plum: 'repeating-linear-gradient(45deg, #5b2a6e 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, #7c3d92 0 6px, #4a2159 6px 12px), #4a2159',
+  ocean: 'repeating-radial-gradient(circle at 50% 120%, #1c6e9c 0 6px, #14527a 6px 12px), #14527a',
+  sunset: 'linear-gradient(160deg, #f6a04d 0%, #d6456b 50%, #4a2c6e 100%)',
+  emerald: 'linear-gradient(45deg, rgb(0 0 0 / 0.25) 25%, transparent 25% 75%, rgb(0 0 0 / 0.25) 75%) 0 0 / 14px 14px, linear-gradient(45deg, rgb(0 0 0 / 0.25) 25%, transparent 25% 75%, rgb(0 0 0 / 0.25) 75%) 7px 7px / 14px 14px, #1f8a5b',
+  rose: 'repeating-linear-gradient(90deg, #d99a8c 0 5px, #b9766a 5px 10px), #b9766a',
+  midnight: 'radial-gradient(circle at 20% 25%, #fff 0 1px, transparent 2px) 0 0 / 28px 28px, radial-gradient(circle at 70% 65%, #cfe6ff 0 1px, transparent 2px) 0 0 / 34px 34px, linear-gradient(180deg, #0c1233, #1c1a52)',
+  ruby: 'repeating-conic-gradient(#7a1020 0 25%, #a3172f 0 50%) 0 0 / 16px 16px',
+  chequer: 'repeating-conic-gradient(#f1ede2 0 25%, #1c1c1f 0 50%) 0 0 / 16px 16px',
+  lavender: 'radial-gradient(circle, #f2eaff 0 2px, transparent 3px) 0 0 / 12px 12px, #8f7ad1',
+  amber: 'repeating-radial-gradient(circle at 50% 50%, #e0922b 0 5px, #a8650f 5px 10px), #a8650f',
+  ice: 'repeating-linear-gradient(45deg, rgb(255 255 255 / 0.3) 0 2px, transparent 2px 9px), repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.3) 0 2px, transparent 2px 9px), #5a9fc9',
+  gingham: 'repeating-linear-gradient(0deg, rgb(255 255 255 / 0.16) 0 8px, transparent 8px 16px), repeating-linear-gradient(90deg, rgb(255 255 255 / 0.16) 0 8px, transparent 8px 16px), #3b4a63',
+  mint: 'repeating-linear-gradient(90deg, #a9e3cb 0 6px, #7ccaad 6px 12px), #7ccaad',
+  carbon: 'radial-gradient(#0d0d0f 40%, transparent 42%) 0 0 / 8px 8px, radial-gradient(#0d0d0f 40%, transparent 42%) 4px 4px / 8px 8px, #26272b',
 };
 
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
