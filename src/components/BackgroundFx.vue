@@ -8,6 +8,9 @@ import { computed } from 'vue';
 
 // Half of the columns (in either Matrix) start at the very top of the screen; the rest start anywhere down it.
 const startsAtTop = (next) => next() < 0.5;
+// Half of them run on to the bottom of the screen; the rest stop at a random height on the way (what fraction of the way from
+// their start to the bottom they cover).
+const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 
 // The Matrix rain, as in the film: the letters never move. A bright head steps down each column and leaves a letter in every
 // row it passes, and each of those letters then fades away where it stands. The columns are laid out from a fixed seed, so
@@ -28,7 +31,7 @@ function rain(count, demo) {
     // tall screen's rows (at this size) to all of them (what runs off the bottom is clipped).
     const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
     const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3; // and where it starts: half start at the top, the rest anywhere down to most of the way down the screen
-    const rows = Math.min(120, Math.max(4, Math.round(fullRows * Math.min(1 - top, 0.1 + 0.9 * next()))));
+    const rows = Math.min(120, Math.max(4, Math.round(fullRows * (1 - top) * reach(next))));
     const letters = Array.from({ length: rows }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
       alt: GLYPHS[Math.floor(next() * GLYPHS.length)], // shown first, while the head is still arriving at the row
@@ -74,7 +77,7 @@ function rainSliding(count) {
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
     // A column runs only between its own start and end heights (a band of the screen with soft edges), not the whole height.
     const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3;
-    const height = Math.min(1 - top, 0.3 + 0.7 * next());
+    const height = (1 - top) * reach(next);
     const wrap = { left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%`, height: `${(height * 100).toFixed(1)}%` };
     return { letters, fade, wrap, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });

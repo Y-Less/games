@@ -83,6 +83,17 @@ describe('BackgroundFx', () => {
     }
   });
 
+  it('has about half the columns of either Matrix reach the bottom of the screen', () => {
+    const band = (c) => {
+      const style = c.attributes('style');
+      return Number(style.match(/top: ([\d.]+)%/)[1]) + Number((style.match(/height: ([\d.]+)%/) ?? [0, 0])[1]);
+    };
+    const a = mount(BackgroundFx, { props: { effect: 'matrix-a', fixed: true } }).findAll('.maw').map(band);
+    const toBottom = a.filter((end) => end > 99.5).length / a.length;
+    expect(toBottom).toBeGreaterThan(0.35);
+    expect(toBottom).toBeLessThan(0.65);
+  });
+
   describe('the moving gradient', () => {
     const gradient = { type: 'gradient', from: '#112233', to: '#445566', angle: 45 };
 
