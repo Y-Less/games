@@ -28,7 +28,11 @@ function rain(count) {
     // and some only as they leave it.
     const roll = next();
     const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
-    return { letters, fade, style: { '--n': length, left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    // Each column has its own text size (mostly small, a few large) and, for about a third of them, a dimmer overall brightness.
+    const size = 0.55 + 1.5 * next() ** 1.6;
+    const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
+    const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
+    return { letters, fade, style: { '--n': length, '--s': size.toFixed(2), opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -41,7 +45,7 @@ const props = defineProps({
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 56) : []));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 90) : []));
 const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` } : undefined));
 </script>
 
@@ -237,6 +241,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   position: absolute;
   top: 0;
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
+  font-size: calc(15px * var(--s, 1));
   text-align: center;
   color: #1fb853;
   transform: translateY(-100%);
@@ -336,7 +341,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   }
 }
 .bg-fx.demo .mx {
-  font-size: 9px;
+  font-size: calc(9px * var(--s, 1));
 }
 @media (max-width: 700px) {
   .bg-fx:not(.demo) .mx:nth-child(even) {
