@@ -19,14 +19,19 @@ describe('BackgroundFx', () => {
       const a = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
       const b = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
       expect(a.findAll('.mx').length).toBeGreaterThan(20);
-      expect(a.find('.mx').text().length).toBeGreaterThan(10);
+      expect(a.findAll('.mx').some((c) => c.text().length > 10)).toBe(true);
       expect(a.html()).toBe(b.html());
     });
 
-    it('has columns that start to fade early, partway down, as well as ones that fade only as they leave', () => {
+    it('has columns that vanish at many different points of their fall, and trails of many different lengths', () => {
       const w = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
-      const kinds = new Set(w.findAll('.mx').flatMap((c) => c.classes().filter((k) => ['early', 'mid', 'late'].includes(k))));
-      expect([...kinds].sort()).toEqual(['early', 'late', 'mid']);
+      const columns = w.findAll('.mx');
+      const kinds = new Set(columns.flatMap((c) => c.classes().filter((k) => /^v[1-6]$/.test(k))));
+      expect([...kinds].sort()).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
+      const lengths = columns.map((c) => c.findAll('i').length);
+      expect(Math.min(...lengths)).toBeLessThanOrEqual(6);
+      expect(Math.max(...lengths)).toBeGreaterThanOrEqual(25);
+      expect(new Set(lengths).size).toBeGreaterThan(12);
     });
 
     it('draws fewer columns in a preview, and none for other effects', () => {

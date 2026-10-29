@@ -17,15 +17,18 @@ function rain(count) {
   };
   return Array.from({ length: count }, (_, i) => {
     const duration = 6 + next() * 8;
-    const length = 14 + Math.floor(next() * 12);
-    const letters = Array.from({ length }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]);
-    const head = letters.pop(); // the bright letter at the front of the column
-    const text = `${letters.join('\n')}\n`;
-    // Some columns are rubbed out early, partway down the screen, others only as they leave it: how far along its fall a
-    // column starts to fade is its own, so the rain thins out unevenly.
+    const length = 3 + Math.floor(37 * next() ** 1.5); // from a few letters to a long trail, with more short ones than long
+    // Every letter keeps its own brightness, dim at the back of the column and full at the head. The column is rubbed out
+    // from its bottom upwards (see the erase animations below), and where in its fall that happens is its own.
+    const letters = Array.from({ length }, (_, k) => ({
+      ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
+      alpha: (0.1 + 0.9 * (k / (length - 1)) ** 1.6).toFixed(2),
+    }));
+    // Where in its fall a column starts to vanish: a few go almost at once, near the top of the screen, others partway down,
+    // and some only as they leave it.
     const roll = next();
-    const fade = roll < 0.3 ? 'early' : roll < 0.55 ? 'mid' : 'late';
-    return { text, head, fade, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
+    return { letters, fade, style: { '--n': length, left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -38,13 +41,14 @@ const props = defineProps({
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 44) : []));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : 56) : []));
 const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` } : undefined));
 </script>
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style">{{ column.text }}<b>{{ column.head }}</b></span>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i>
+    </span>
   </div>
 </template>
 
@@ -223,39 +227,45 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
-/* Green characters falling in columns, bright at the head and fading away behind it. */
+/* Green characters falling in columns. Each letter has its own fixed brightness (dim at the back of the column, bright at the
+   head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
+   pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
 [data-fx='matrix'] {
   background: rgb(0 18 6 / 0.35);
 }
 .mx {
   position: absolute;
   top: 0;
-  white-space: pre;
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
   text-align: center;
   color: #1fb853;
-  opacity: 0.9;
   transform: translateY(-100%);
-  /* Late in its fall a column is rubbed out from the top, one letter after another (--fx-cut moves down it), so it never
-     pops out of existence: by the time it starts again every letter has already faded. */
-  /* Two masks, both of which must let a letter through: the fading trail (dim at the back, solid at the head), and the
-     erasing. (The trail is a mask, not a gradient clipped to the text: Firefox draws that wrongly on moving columns.) */
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 55%), linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
-  mask-image: linear-gradient(to bottom, transparent, #000 55%), linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to top, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  mask-image: linear-gradient(to top, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
   animation:
     fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite,
     fx-erase calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
 }
-.mx.early {
-  animation-name: fx-matrix, fx-erase-early;
+.mx.v1 {
+  animation-name: fx-matrix, fx-erase-1;
 }
-.mx.mid {
-  animation-name: fx-matrix, fx-erase-mid;
+.mx.v2 {
+  animation-name: fx-matrix, fx-erase-2;
 }
-.mx b {
-  font-weight: normal;
+.mx.v3 {
+  animation-name: fx-matrix, fx-erase-3;
+}
+.mx.v4 {
+  animation-name: fx-matrix, fx-erase-4;
+}
+.mx.v5 {
+  animation-name: fx-matrix, fx-erase-5;
+}
+.mx i {
+  display: block;
+  font-style: normal;
+}
+.mx i.head {
   color: #e6ffe9;
   text-shadow: 0 0 6px #3dff7a;
 }
@@ -264,29 +274,61 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   inherits: false;
   initial-value: -40%;
 }
-@keyframes fx-erase-early {
+/* --fx-cut is how much of the column is already gone, counting up from its bottom. Each set of keyframes holds it at -40%
+   (nothing gone) until the column's vanishing point, then runs it to 100% (all gone) by the percentage given. */
+@keyframes fx-erase-1 {
   0%,
-  20% {
+  4% {
     --fx-cut: -40%;
   }
-  50%,
+  16%,
   100% {
     --fx-cut: 100%;
   }
 }
-@keyframes fx-erase-mid {
+@keyframes fx-erase-2 {
   0%,
-  35% {
+  14% {
     --fx-cut: -40%;
   }
-  70%,
+  30%,
+  100% {
+    --fx-cut: 100%;
+  }
+}
+@keyframes fx-erase-3 {
+  0%,
+  28% {
+    --fx-cut: -40%;
+  }
+  48%,
+  100% {
+    --fx-cut: 100%;
+  }
+}
+@keyframes fx-erase-4 {
+  0%,
+  42% {
+    --fx-cut: -40%;
+  }
+  66%,
+  100% {
+    --fx-cut: 100%;
+  }
+}
+@keyframes fx-erase-5 {
+  0%,
+  58% {
+    --fx-cut: -40%;
+  }
+  84%,
   100% {
     --fx-cut: 100%;
   }
 }
 @keyframes fx-erase {
   0%,
-  55% {
+  72% {
     --fx-cut: -40%;
   }
   100% {
@@ -295,7 +337,6 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 }
 .bg-fx.demo .mx {
   font-size: 9px;
-  opacity: 1;
 }
 @media (max-width: 700px) {
   .bg-fx:not(.demo) .mx:nth-child(even) {
