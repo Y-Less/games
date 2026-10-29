@@ -81,7 +81,8 @@ test('everyone plays three turns: hints, guesses, the reveal, and the pop-ups', 
     }
     if (await u.page.evaluate(() => document.body.innerText.includes('a warm evening') && !!document.querySelector('.hint-text'))) hintSeen = true;
     const send = await u.buttonState('Send hint');
-    if (send.present && !send.disabled) {
+    if (send.present) {
+      // The first hint is required, so the button stays disabled until something is typed; the next pass then clicks it.
       await u.fill('form.hint input', 'a warm evening');
       return u.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send hint'));
     }
@@ -193,7 +194,8 @@ test('a host on their own fills the lobby with computer players and plays until 
     title = await solo.modalTitle();
     if (title) return false;
     const send = await solo.buttonState('Send hint');
-    if (send.present && !send.disabled) {
+    if (send.present) {
+      // The first hint is required, so the button stays disabled until something is typed; the next pass then clicks it.
       await solo.fill('form.hint input', 'a warm evening');
       return solo.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send hint'));
     }
