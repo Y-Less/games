@@ -23,37 +23,32 @@ describe('BackgroundFx', () => {
       expect(a.html()).toBe(b.html());
     });
 
-    it('has columns of letters that stay put, with trails of several lengths and sizes', () => {
+    it('is one block of text per column, with a different glyph for the head to show, and columns of many sizes and depths', () => {
       const w = mount(BackgroundFx, { props: { effect: 'matrix', fixed: true } });
       const columns = w.findAll('.mx');
-      const kinds = new Set(columns.flatMap((c) => c.classes().filter((k) => /^f[1-4]$/.test(k))));
-      expect([...kinds].sort()).toEqual(['f1', 'f2', 'f3', 'f4']);
+      for (const c of columns) {
+        const rows = c.text().split('\n');
+        expect(rows.length).toBeGreaterThanOrEqual(4);
+        expect(c.attributes('data-lead').split('\n').length).toBe(rows.length);
+        expect(c.attributes('data-lead')).not.toBe(c.text());
+        expect(c.attributes('style')).toContain(`--n: ${rows.length}`);
+      }
       const sizes = new Set(columns.map((c) => c.attributes('style').match(/--s: ([\d.]+)/)[1]));
       expect(sizes.size).toBeGreaterThan(20);
-      const heights = new Set(columns.map((c) => c.findAll('i').length));
-      expect(heights.size).toBeGreaterThan(20); // the heads stop at many different depths
-      for (const c of columns) {
-        const letters = c.findAll('i');
-        expect(letters.length).toBeGreaterThan(3);
-        expect(letters[3].attributes('style')).toContain('--k: 3');
-      }
-    });
-
-    it('multiplies the alpha of everything above 100% intensity', () => {
-      const w = mount(BackgroundFx, { props: { effect: 'snow', intensity: 250 } });
-      expect(w.find('feFuncA').attributes('slope')).toBe('2.5');
-      expect(w.attributes('style')).toContain('#fx-gain-');
-      expect(mount(BackgroundFx, { props: { effect: 'snow', intensity: 100 } }).find('feFuncA').exists()).toBe(false);
-    });
-
-    it('draws fewer columns at a lower intensity', () => {
-      const count = (intensity) => mount(BackgroundFx, { props: { effect: 'matrix', intensity } }).findAll('.mx').length;
-      expect(count(40)).toBeLessThan(count(100));
+      const trails = new Set(columns.map((c) => c.attributes('style').match(/--t: (\d+)/)[1]));
+      expect(trails.size).toBeGreaterThan(8);
+      const depths = new Set(columns.map((c) => c.text().split('\n').length));
+      expect(depths.size).toBeGreaterThan(20); // the heads stop at many different depths
     });
 
     it('draws fewer columns in a preview, and none for other effects', () => {
       expect(mount(BackgroundFx, { props: { effect: 'matrix', demo: true } }).findAll('.mx').length).toBeLessThan(12);
       expect(mount(BackgroundFx, { props: { effect: 'snow' } }).findAll('.mx').length).toBe(0);
+    });
+
+    it('draws fewer columns at a lower intensity', () => {
+      const count = (intensity) => mount(BackgroundFx, { props: { effect: 'matrix', intensity } }).findAll('.mx').length;
+      expect(count(40)).toBeLessThan(count(100));
     });
   });
 

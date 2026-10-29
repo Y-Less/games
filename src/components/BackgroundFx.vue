@@ -12,41 +12,35 @@ const startsAtTop = (next) => next() < 0.5;
 // their start to the bottom they cover).
 const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 
-// The Matrix rain, as in the film: the letters never move. A bright head steps down each column and leaves a letter in every
-// row it passes, and each of those letters then fades away where it stands. The columns are laid out from a fixed seed, so
-// the rain looks the same every time (and in tests); only the animation (CSS, below) changes anything.
+// The Matrix rain, as in the film: the letters never move. A bright head steps down each column, one row at a time, and the
+// letters it has passed fade away where they stand. A column is one block of text; a mask slides down it in steps to show the
+// part the head has just passed (and a second mask shows the head's own, random, glyph), so there is one animation per column
+// and none per letter. The columns are laid out from a fixed seed, so the rain looks the same every time (and in tests).
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
-const TRAIL = [0.06, 0.12, 0.25, 0.45]; // the part of a column's cycle a letter takes to fade: short trails to long ones
 function rain(count, demo) {
   let seed = 20240229;
   const next = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
   };
+  const glyph = () => GLYPHS[Math.floor(next() * GLYPHS.length)];
   return Array.from({ length: count }, (_, i) => {
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, is dimmer overall.
     const size = 0.55 + 1.5 * next() ** 1.6;
-    const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
-    // How far down the screen the head gets before it stops and the column starts again at the top: anywhere from a tenth of a
-    // tall screen's rows (at this size) to all of them (what runs off the bottom is clipped).
+    const dim = next() < 0.35 ? 0.4 + 0.4 * next() : 1;
+    // Where the column starts and how far down the screen its head gets (what runs off the bottom is clipped).
     const fullRows = Math.ceil((demo ? 150 : 1200) / (15 * size * 1.15));
-    const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3; // and where it starts: half start at the top, the rest anywhere down to most of the way down the screen
+    const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3;
     const rows = Math.min(120, Math.max(4, Math.round(fullRows * (1 - top) * reach(next))));
-    const letters = Array.from({ length: rows }, (_, k) => ({
-      ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
-      alt: GLYPHS[Math.floor(next() * GLYPHS.length)], // shown first, while the head is still arriving at the row
-      alpha: (0.1 + 0.9 * (k / (rows - 1)) ** 1.6).toFixed(2), // only seen when animations are off: a still, fading column
-    }));
-    const trail = Math.floor(next() * TRAIL.length);
+    const trail = Math.min(rows, 3 + Math.floor(37 * next() ** 1.5)); // rows that are still lit behind the head: a few to a long trail
     const step = 0.06 + 0.1 * next(); // seconds the head takes per row
-    // A cycle is 125, 60 or 30 steps long (w1, w2, w3: the shortest that fits the column's rows), so that the bright moment a
-    // letter has when the head reaches it (1 step in 125, 60 or 30, see the keyframes) lasts exactly one step and only the
-    // newest letter is bright. The head takes the rows' worth of the cycle's steps, and rests for the others.
-    const steps = rows <= 27 ? 30 : rows <= 55 ? 60 : 125;
-    const cycle = step * steps;
+    const steps = rows + trail; // the head carries on until the last letter has faded
+    const cycle = steps * step / 0.7; // the head's trip is 70% of the cycle; the column rests for the rest
+    const text = Array.from({ length: rows }, glyph).join('\n');
+    const lead = Array.from({ length: rows }, glyph).join('\n'); // what the head shows as it passes: not the letter it leaves
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
-    const style = { '--s': size.toFixed(2), '--step': `${step.toFixed(3)}s`, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%` };
-    return { letters, fade: `f${trail + 1} w${steps === 125 ? 1 : steps === 60 ? 2 : 3}`, style };
+    const style = { '--s': size.toFixed(2), '--n': rows, '--t': trail, '--steps': steps - 1, '--c': `${cycle.toFixed(2)}s`, '--ph': `${(next() * cycle).toFixed(2)}s`, opacity: dim.toFixed(2), left: `${left.toFixed(2)}%`, top: `${(top * 100).toFixed(1)}%` };
+    return { text, lead, style };
   });
 }
 
@@ -65,7 +59,7 @@ function rainSliding(count) {
     // from its bottom upwards (see the erase animations below), and where in its fall that happens is its own.
     const letters = Array.from({ length }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
-      alpha: (0.1 + 0.9 * (k / (length - 1)) ** 1.6).toFixed(2),
+      alpha: Math.min(1, 3 * (0.1 + 0.9 * (k / (length - 1)) ** 1.6)).toFixed(2), // three times as strong as it began: the look of the 300% intensity
     }));
     // Where in its fall a column starts to vanish: a few go almost at once, near the top of the screen, others partway down,
     // and some only as they leave it.
@@ -73,7 +67,7 @@ function rainSliding(count) {
     const fade = roll < 0.08 ? 'v1' : roll < 0.2 ? 'v2' : roll < 0.35 ? 'v3' : roll < 0.55 ? 'v4' : roll < 0.75 ? 'v5' : 'v6';
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, a dimmer overall brightness.
     const size = 0.55 + 1.5 * next() ** 1.6;
-    const dim = next() < 0.35 ? 0.25 + 0.4 * next() : 1;
+    const dim = next() < 0.35 ? 0.4 + 0.4 * next() : 1;
     const left = ((i + 0.1 + 0.8 * next()) / count) * 100;
     // A column runs only between its own start and end heights (a band of the screen with soft edges), not the whole height.
     const top = startsAtTop(next) ? 0 : 0.7 * next() ** 1.3;
@@ -113,8 +107,7 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }"><b>{{ letter.ch }}</b></i>
-    </span>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :data-lead="column.lead" :style="column.style">{{ column.text }}</span>
     <span v-for="(column, i) in slidingColumns" :key="i" class="maw" :style="column.wrap"><span class="ma" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :class="{ head: k === column.letters.length - 1 }" :style="{ opacity: letter.alpha }">{{ letter.ch }}</i></span>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
@@ -298,267 +291,72 @@ const style = computed(() => {
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
-/* Green letters that stay where they are. The head of a column steps down it, one row every --step, and each row's letter
-   fades in place; for the one head step it takes to reach the next row a bright white random glyph stands in for it (the lead letter, a ::before switched on and off by opacity alone, so it keeps exact time with the fade; the letter left behind is a different, random one) out in place (f1 ... f4: from a short trail to a long one; w1 ... w3: how many steps the whole cycle takes).
-   Every letter runs the same cycle (--c), started late by its row, so the head passes through them in turn; the column
-   rests for the rest of the cycle, and the columns are all out of step with each other (--ph). */
+/* Green letters that stay where they are. A column is a block of text (one letter per row). A mask slides down it, one row
+   every --step, and shows only the part the head has just passed: bright for most of the trail and fading out over the oldest
+   third of it (so the letters look as strong as the intensity slider's 300%). The head's own glyph is a second copy of the
+   column, in white with a glow, masked to the single row the head is on. The column's head takes 70% of --c, then it rests. */
 [data-fx='matrix'] {
-  background: rgb(0 18 6 / 0.35);
+  background: rgb(0 18 6 / 0.6);
 }
 .gain {
   position: absolute;
 }
 .mx {
   position: absolute;
-  top: 0;
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
   font-size: calc(15px * var(--s, 1));
+  white-space: pre;
   text-align: center;
   color: #5dff8a;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 33%, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 33%, #000);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% calc(1.15em * var(--t));
+  mask-size: 100% calc(1.15em * var(--t));
+  /* Still (animations off): a lit band halfway down the column. */
+  -webkit-mask-position: 0 calc(1.15em * (var(--n) * 0.5 - var(--t)));
+  mask-position: 0 calc(1.15em * (var(--n) * 0.5 - var(--t)));
+  animation: fx-mx-trail calc(var(--c) / var(--fx-speed)) steps(var(--steps), end) calc(-1 * var(--ph) / var(--fx-speed)) infinite;
 }
-.mx i {
-  position: relative;
-  display: block;
-  font-style: normal;
-}
-.mx i b {
-  font-weight: normal;
-  opacity: var(--a, 0.5);
-  animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
-}
-.mx i::before {
-  content: attr(data-alt);
+.mx::before {
+  content: attr(data-lead);
   position: absolute;
   left: 0;
   right: 0;
+  top: 0;
   color: #eaffee;
   text-shadow: 0 0 6px #3dff7a;
-  opacity: 0;
-  animation: fx-alt-1 calc(var(--c) / var(--fx-speed)) step-end calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
+  -webkit-mask-image: linear-gradient(#000, #000);
+  mask-image: linear-gradient(#000, #000);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 1.15em;
+  mask-size: 100% 1.15em;
+  -webkit-mask-position: 0 -2em;
+  mask-position: 0 -2em;
+  animation: fx-mx-lead calc(var(--c) / var(--fx-speed)) steps(var(--steps), end) calc(-1 * var(--ph) / var(--fx-speed)) infinite;
 }
-.mx.w2 i::before {
-  animation-name: fx-alt-2;
-}
-.mx.w3 i::before {
-  animation-name: fx-alt-3;
-}
-.mx.f1.w1 i b {
-  animation-name: fx-deposit-1-1;
-}
-.mx.f2.w1 i b {
-  animation-name: fx-deposit-1-2;
-}
-.mx.f3.w1 i b {
-  animation-name: fx-deposit-1-3;
-}
-.mx.f4.w1 i b {
-  animation-name: fx-deposit-1-4;
-}
-.mx.f1.w2 i b {
-  animation-name: fx-deposit-2-1;
-}
-.mx.f2.w2 i b {
-  animation-name: fx-deposit-2-2;
-}
-.mx.f3.w2 i b {
-  animation-name: fx-deposit-2-3;
-}
-.mx.f4.w2 i b {
-  animation-name: fx-deposit-2-4;
-}
-.mx.f1.w3 i b {
-  animation-name: fx-deposit-3-1;
-}
-.mx.f2.w3 i b {
-  animation-name: fx-deposit-3-2;
-}
-.mx.f3.w3 i b {
-  animation-name: fx-deposit-3-3;
-}
-.mx.f4.w3 i b {
-  animation-name: fx-deposit-3-4;
-}
-@keyframes fx-deposit-1-1 {
+@keyframes fx-mx-trail {
   0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
+    -webkit-mask-position: 0 calc(1.15em * (1 - var(--t)));
+    mask-position: 0 calc(1.15em * (1 - var(--t)));
   }
-  0.8% {
-    opacity: 0.87;
-  }
-  6%,
+  70%,
   100% {
-    opacity: 0;
+    -webkit-mask-position: 0 calc(1.15em * var(--n));
+    mask-position: 0 calc(1.15em * var(--n));
   }
 }
-@keyframes fx-deposit-1-2 {
+@keyframes fx-mx-lead {
   0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
   }
-  0.8% {
-    opacity: 0.93;
-  }
-  12%,
+  70%,
   100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-1-3 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  0.8% {
-    opacity: 0.97;
-  }
-  25%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-1-4 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  0.8% {
-    opacity: 0.98;
-  }
-  45%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-2-1 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  1.67% {
-    opacity: 0.72;
-  }
-  6%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-2-2 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  1.67% {
-    opacity: 0.86;
-  }
-  12%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-2-3 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  1.67% {
-    opacity: 0.93;
-  }
-  25%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-2-4 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  1.67% {
-    opacity: 0.96;
-  }
-  45%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-3-1 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  3.33% {
-    opacity: 0.44;
-  }
-  6%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-3-2 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  3.33% {
-    opacity: 0.72;
-  }
-  12%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-3-3 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  3.33% {
-    opacity: 0.87;
-  }
-  25%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-deposit-3-4 {
-  0% {
-    opacity: 0;
-    animation-timing-function: step-end; /* the lead copies stand in for it for the first step */
-  }
-  3.33% {
-    opacity: 0.93;
-  }
-  45%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-alt-1 {
-  0% {
-    opacity: 1;
-  }
-  0.8%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-alt-2 {
-  0% {
-    opacity: 1;
-  }
-  1.67%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes fx-alt-3 {
-  0% {
-    opacity: 1;
-  }
-  3.33%,
-  100% {
-    opacity: 0;
+    -webkit-mask-position: 0 calc(1.15em * (var(--n) + var(--t) - 1));
+    mask-position: 0 calc(1.15em * (var(--n) + var(--t) - 1));
   }
 }
 .bg-fx.demo .mx {
@@ -574,7 +372,7 @@ const style = computed(() => {
    head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
    pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
 [data-fx='matrix-a'] {
-  background: rgb(0 18 6 / 0.35);
+  background: rgb(0 18 6 / 0.6);
 }
 /* The band of screen a column runs in: it appears at the top of the band and slides out of the bottom, with soft edges. */
 .maw {
