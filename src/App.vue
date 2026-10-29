@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import BackgroundFx from './components/BackgroundFx.vue';
+import StyledName from './components/StyledName.vue';
 import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
 
@@ -63,7 +64,7 @@ async function leaveSite() {
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
       </RouterLink>
       <div v-if="session.user" class="account">
-        <button class="quiet" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">{{ session.user.displayName }} ▾</button>
+        <button class="quiet" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen"><StyledName :name="session.user.displayName" :user-id="session.user.id" /> ▾</button>
         <div v-if="menuOpen" class="dropdown panel" @click="menuOpen = false">
           <RouterLink to="/profile">Profile</RouterLink>
           <RouterLink to="/shop">Shop</RouterLink>

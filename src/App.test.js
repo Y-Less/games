@@ -66,3 +66,16 @@ describe('the Leave game button', () => {
     expect(router.currentRoute.value.name).toBe('games');
   });
 });
+
+describe('the account menu', () => {
+  it('shows your name in your own style and animation', async () => {
+    session.ready = true;
+    session.user = { id: 1, displayName: 'Ann', nameStyle: { style: 'ruby', animation: 'glow' } };
+    await router.replace('/');
+    w = mount(App, { global: { plugins: [router] } });
+    const name = w.find('.quiet .styled-name');
+    expect(name.text()).toBe('Ann');
+    expect(name.attributes('data-name-style')).toBe('ruby');
+    expect(name.attributes('data-animation')).toBe('glow');
+  });
+});
