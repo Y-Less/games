@@ -31,6 +31,34 @@ export function createCoins(db) {
       return Number(insert.run(userId, amount, 'placement', resultId, Date.now()).changes) ? amount : 0;
     },
 
+    /**
+     * The start-up step for a site that had games before coins: pays every person (not computer accounts) for the games
+     * already recorded that they were not paid for, dated when each game finished. Safe to run on every start: a game that
+     * has paid is skipped, so it only ever adds what is missing. Returns { games, coins }.
+     */
+    creditPastResults() {
+      const unpaid = db
+        .prepare(
+          `SELECT rp.result_id AS resultId, rp.user_id AS userId, rp.placement AS placement, rp.outcome AS outcome, r.finished_at AS finishedAt
+           FROM result_players rp
+           JOIN results r ON r.id = rp.result_id
+           JOIN users u ON u.id = rp.user_id
+           WHERE u.is_bot = 0
+             AND NOT EXISTS (SELECT 1 FROM coin_ledger l WHERE l.user_id = rp.user_id AND l.result_id = rp.result_id AND l.reason = 'placement')
+           ORDER BY r.finished_at, rp.result_id`,
+        )
+        .all();
+      const paid = { games: 0, coins: 0 };
+      for (const row of unpaid) {
+        const amount = prizeFor(row);
+        if (amount && Number(insert.run(row.userId, amount, 'placement', row.resultId, row.finishedAt).changes)) {
+          paid.games++;
+          paid.coins += amount;
+        }
+      }
+      return paid;
+    },
+
     /** Takes coins for a purchase. Throws when the balance would go below zero. */
     spend(userId, amount, reason) {
       if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of coins.');

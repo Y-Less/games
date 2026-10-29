@@ -85,3 +85,27 @@ test('spending takes coins, and refuses to go below zero', (t) => {
   assert.equal(coins.balance(a), 200);
   assert.deepEqual(coins.history(a).map((row) => row.amount), [-300, 500]);
 });
+
+test('the start-up step pays for games recorded before coins existed, once, and not for computer accounts', (t) => {
+  const { db, stats, coins, addUser } = setup(t);
+  const [a, b] = ['a', 'b'].map((name) => addUser(name));
+  const bot = addUser('bot', { bot: true });
+  stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }, { userId: b, outcome: 'loss', placement: 2 }, { userId: bot, outcome: 'loss', placement: 3 }] });
+  stats.record('g', { players: [{ userId: a, outcome: 'loss', placement: 4 }, { userId: b, outcome: 'win' }] });
+  const lastTime = db.prepare('SELECT MAX(finished_at) AS t FROM results').get().t;
+  db.exec('DELETE FROM coin_ledger'); // as if these games were played before coins were added
+  assert.equal(coins.balance(a), 0);
+  assert.deepEqual(coins.creditPastResults(), { games: 3, coins: 1200 });
+  assert.deepEqual([a, b, bot].map((id) => coins.balance(id)), [500, 700, 0]);
+  assert.equal(db.prepare('SELECT MAX(created_at) AS t FROM coin_ledger').get().t, lastTime, 'dated when the game finished');
+  assert.deepEqual(coins.creditPastResults(), { games: 0, coins: 0 }, 'a second run adds nothing');
+});
+
+test('the start-up step leaves games that have already paid alone', (t) => {
+  const { stats, coins, addUser } = setup(t);
+  const a = addUser('a');
+  stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }] });
+  coins.spend(a, 300, 'shop:test');
+  assert.deepEqual(coins.creditPastResults(), { games: 0, coins: 0 });
+  assert.equal(coins.balance(a), 200);
+});

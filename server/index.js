@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Server } from 'socket.io';
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, clearedCookie, parseCookies, SESSION_COOKIE, sessionCookie, createAuth } from './auth.js';
-import { openDatabase } from './db.js';
+import { createCoins } from './coins.js';
+import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
 import { checkSettings, createShop, grandfather } from './shop.js';
 import { createStats } from './stats.js';
@@ -35,6 +36,8 @@ export async function startSite(options = {}) {
 
   const db = openDatabase(options.memory ? ':memory:' : dataDir);
   grandfather(db); // whoever already uses something now sold in the shop keeps it
+  const backpaid = transaction(db, () => createCoins(db).creditPastResults()); // and whoever won before coins existed is paid for it
+  if (backpaid.games) log(`Paid ${backpaid.coins} coins for ${backpaid.games} earlier placings.`);
   const auth = createAuth(db, { canUse: (userId, settings) => checkSettings(db, userId, settings) });
   const shop = createShop(db);
   let moduleList = [];
