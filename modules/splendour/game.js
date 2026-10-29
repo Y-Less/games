@@ -569,8 +569,9 @@ export function statsPlayers(room) {
 // ---- what each player may see ----
 
 /**
- * Everything one account may know. The identity of a face-down reserved card is only sent to the player who holds
- * it (until it is bought), and the draw piles are sent as counts only.
+ * Everything one account may know. The identity of a reserved card is only sent to the player who holds it (until it is
+ * bought): to everyone else every reserved card is face down, whether it was taken from the table or blind from a pile.
+ * The draw piles are sent as counts only.
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -600,8 +601,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
         nobles: [...p.nobles],
         reserved: p.reserved.map((r) => ({
           level: CARD_BY_ID[r.card].level,
-          card: i === me || !r.blind ? r.card : null,
-          blind: r.blind,
+          card: i === me ? r.card : null,
+          blind: r.blind, // how it was reserved (everyone saw that), not whether you can see it
         })),
       };
     }),

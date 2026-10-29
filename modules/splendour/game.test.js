@@ -685,7 +685,7 @@ test('the history: a round per full turn of every seat, with prestige gained and
   assert.equal(view.scoreboard.players.find((p) => p.id === 0).score, 1);
 });
 
-test('views hide face-down reserves from everyone else and never include the decks', () => {
+test('views hide every reserved card from everyone but its owner (taken from the table or blind), and never include the decks', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1);
@@ -702,15 +702,18 @@ test('views hide face-down reserves from everyone else and never include the dec
   assert.equal(bobsView.seats[ann].reserved[0].card, null, 'bob cannot see the blind card');
   assert.equal(bobsView.seats[ann].reserved[0].level, 3);
   assert.equal(bobsView.seats[ann].reserved[0].blind, true);
-  assert.equal(bobsView.seats[bob].reserved[0].card, exposed);
+  assert.equal(bobsView.seats[bob].reserved[0].card, exposed, 'bob sees his own');
   assert.ok(!JSON.stringify(bobsView).includes(hidden));
   assert.equal(typeof bobsView.decks[1], 'number');
   assert.equal(game.viewFor(room, 1).seats[ann].reserved[0].card, hidden, 'ann sees her own');
-  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].card, exposed, 'a face-up reserve is public');
+  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].card, null, 'a card reserved from the table is face down to the others too');
+  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].blind, false, 'though everyone saw how it was taken');
+  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].level, 1, 'its level still shows on the back');
   const spectator = game.viewFor(room, 999);
   assert.equal(spectator.you, -1);
   assert.equal(spectator.afford, undefined);
   assert.ok(!JSON.stringify(spectator).includes(hidden));
+  assert.ok(spectator.seats.flatMap((s) => s?.reserved ?? []).every((r) => r.card === null), 'a spectator sees every reserve face down');
 });
 
 test('a blind-reserved card is revealed to everyone when it is bought', () => {

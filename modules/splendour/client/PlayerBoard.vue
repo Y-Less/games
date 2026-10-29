@@ -1,7 +1,6 @@
 <script setup>
 // One player's board: prestige, tokens, card bonuses, nobles and reserved cards.
-// Your own reserved cards are shown and can be picked; other players' are shown face down (or face up if they were
-// reserved from the table).
+// Your own reserved cards are shown and can be picked; other players' are always shown face down.
 import { computed } from 'vue';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import CardFace from './CardFace.vue';

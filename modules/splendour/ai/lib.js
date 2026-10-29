@@ -6,7 +6,7 @@
 //     supply: [6 counts], board: { 1: [card ids or null x4], 2: [...], 3: [...] }, decks: { 1: count, 2: count, 3: count },
 //     nobles: [noble ids still on the table],
 //     players: [{ seat, tokens: [6], bonuses: [5], prestige, bought, nobles, reservedCount,
-//                 reserved: [card ids this player may be known to hold: all of your own, only face-up ones for others] }],
+//                 reserved: [card ids this player is known to hold: all of your own, none of anyone else's, as theirs are face down] }],
 //     moves: [legal moves, as in game.legalMoves], returnCount (tokens to give back, when asked), options (nobles to pick from) }
 //
 // An AI provides chooseMove(situation, rng) -> one of situation.moves (or { type: 'pass' } when there are none),

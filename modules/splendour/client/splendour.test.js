@@ -574,3 +574,22 @@ describe('Splendour layout', () => {
     expect(fontSize(area(1334, 460))).toBe(fontSize({ ...area(1334, 460), unrelated: 5 }));
   });
 });
+
+describe('Splendour reserved cards in other players\' views', () => {
+  it('draws every reserved card of another player face down, whether it came from the table or a pile, and your own face up', async () => {
+    const { default: PlayerBoard } = await import('./PlayerBoard.vue');
+    const room = started(2);
+    room.turn = 0;
+    game.reserveCard(room, 0, { card: room.board[1][0] }); // from the table
+    room.turn = 0;
+    game.reserveCard(room, 0, { level: 2 }); // blind
+    const others = game.viewFor(room, 2).seats[0];
+    const board = (seat, isMe) => mount(PlayerBoard, { props: { seat, isMe } });
+    const theirs = board(others, false);
+    expect(theirs.findAll('.reserved .dev-card')).toHaveLength(2);
+    expect(theirs.findAll('.reserved .dev-card.back')).toHaveLength(2);
+    const mine = board(game.viewFor(room, 1).seats[0], true);
+    expect(mine.findAll('.reserved .dev-card')).toHaveLength(2);
+    expect(mine.findAll('.reserved .dev-card.back')).toHaveLength(0);
+  });
+});
