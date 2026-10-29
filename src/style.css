@@ -199,18 +199,20 @@ html[data-animations='off'] .bg-fx .ma b {
 .name-pill[data-animation='pulse'] {
   animation: ns-pulse 1.8s ease-in-out infinite alternate;
 }
-.name-pill[data-animation='shimmer'] {
+/* The animations that draw their own background name data-name-style too, so that they are as specific as the style's fill
+   rule above and (coming later) win over it. */
+.name-pill[data-name-style][data-animation='shimmer'] {
   background: linear-gradient(100deg, transparent 35%, rgb(255 255 255 / 0.5) 50%, transparent 65%) 150% 0 / 250% 100% no-repeat, var(--ns-fill);
   animation: ns-shimmer 3.2s linear infinite;
 }
 .name-pill[data-animation='rainbow'] {
   animation: ns-rainbow 6s linear infinite;
 }
-.name-pill[data-animation='flow'] {
+.name-pill[data-name-style][data-animation='flow'] {
   background: linear-gradient(110deg, rgb(255 90 120 / 0.55), rgb(255 190 80 / 0.55), rgb(80 200 160 / 0.55), rgb(90 140 255 / 0.55), rgb(255 90 120 / 0.55)) 0 0 / 300% 100%, var(--ns-fill);
   animation: ns-flow 7s linear infinite;
 }
-.name-pill[data-animation='stripes'] {
+.name-pill[data-name-style][data-animation='stripes'] {
   background: repeating-linear-gradient(120deg, rgb(255 255 255 / 0.2) 0 0.4em, transparent 0.4em 0.8em) 0 0 / 0.8em 100%, var(--ns-fill);
   animation: ns-stripes 1.4s linear infinite;
 }
@@ -232,7 +234,7 @@ html[data-animations='off'] .bg-fx .ma b {
   animation: ns-neon 3.6s linear infinite;
 }
 /* Northern lights: soft green and violet colour drifting slowly to and fro behind the name. */
-.name-pill[data-animation='aurora'] {
+.name-pill[data-name-style][data-animation='aurora'] {
   background: radial-gradient(60% 140% at 20% 50%, rgb(80 255 170 / 0.55), transparent) 0 0 / 200% 100% no-repeat,
     radial-gradient(60% 140% at 80% 50%, rgb(150 120 255 / 0.5), transparent) 0 0 / 200% 100% no-repeat, var(--ns-fill);
   animation: ns-aurora 5s ease-in-out infinite alternate;
