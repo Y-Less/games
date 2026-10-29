@@ -308,3 +308,113 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
   const bot = game.addBot(room, 1);
   assert.ok(bot.ok && room.players.at(-1).colour, 'a computer player gets a free colour too');
 });
+
+// ---------- team mode ----------
+
+function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
+  const room = game.createRoom({ code: 'a-b-c', hostId: ids[0] });
+  for (const id of ids.slice(1)) game.addPlayer(room, id);
+  assert.ok(game.setTurnsEach(room, ids[0], 1).ok);
+  assert.ok(game.setMode(room, ids[0], 'team').ok);
+  assert.ok(game.start(room, ids[0], seeded(seed)).ok);
+  return room;
+}
+
+test('the host chooses the mode in the lobby only', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  game.addPlayer(room, 2);
+  assert.equal(room.mode, 'solo');
+  assert.equal(game.setMode(room, 2, 'team').ok, false, 'only the host');
+  assert.equal(game.setMode(room, 1, 'chaos').ok, false);
+  assert.ok(game.setMode(room, 1, 'team').ok);
+  assert.equal(game.viewFor(room, 1).mode, 'team');
+  game.start(room, 1, seeded(1));
+  assert.equal(game.setMode(room, 1, 'solo').ok, false, 'not once it has started');
+});
+
+test('a team moves one marker together and anyone can lock it in; everyone scores the same', () => {
+  const room = teamRoom();
+  const psychic = room.psychic;
+  const [a, b, c] = guessersOf(room).map((p) => p.id);
+  assert.equal(game.setMarker(room, a, 50).ok, false, 'no moving before the clue');
+  game.setClue(room, psychic, 'a hot bath');
+  assert.equal(game.guess(room, a, 50).ok, false, 'a team does not guess alone');
+  assert.equal(game.setMarker(room, psychic, 50).ok, false, 'the psychic does not move it');
+  for (const bad of [-1, 101, NaN, '50', null]) assert.equal(game.setMarker(room, a, bad).ok, false, String(bad));
+  assert.equal(game.lockIn(room, a).ok, false, 'move it first');
+  assert.ok(game.setMarker(room, a, 20).ok);
+  assert.ok(game.setMarker(room, b, 31.26).ok, 'any guesser can move it');
+  assert.equal(room.marker, 31.3);
+  assert.equal(game.viewFor(room, c).marker, 31.3, 'the other guessers see it');
+  assert.equal(game.viewFor(room, psychic).marker, null, 'the psychic does not');
+  assert.equal(game.viewFor(room, psychic).target, room.target);
+  assert.equal(game.lockIn(room, psychic).ok, false);
+  game.setMarker(room, c, room.target + 1);
+  assert.ok(game.lockIn(room, b).ok);
+  assert.equal(room.phase, 'reveal');
+  assert.equal(room.result.team, true);
+  assert.equal(room.result.lockedBy, b);
+  assert.equal(room.result.entries.length, 3);
+  for (const p of room.players) assert.equal(p.score, 4, 'everyone, the psychic too, scores the team points');
+  assert.equal(game.viewFor(room, psychic).marker, room.marker, 'the marker is shown at the reveal');
+  assert.equal(game.setMarker(room, a, 10).ok, false, 'locked');
+  closeReveal(room);
+  assert.equal(room.phase, 'clue', 'the next turn');
+  assert.equal(room.marker, null);
+});
+
+test('a team game is won or lost together in the statistics', () => {
+  const play = (position) => {
+    const room = teamRoom([1, 2, 3]);
+    while (room.phase !== 'finished') {
+      if (room.phase === 'clue') game.setClue(room, room.psychic, 'x');
+      else if (room.phase === 'guessing') {
+        const g = guessersOf(room)[0].id;
+        game.setMarker(room, g, position(room));
+        game.lockIn(room, g);
+      } else closeReveal(room);
+    }
+    return game.statsPlayers(room);
+  };
+  const good = play((room) => room.target);
+  assert.deepEqual(good.map((s) => s.outcome), ['win', 'win', 'win']);
+  assert.equal(good[0].score, 12);
+  const bad = play((room) => (room.target > 50 ? 0 : 100));
+  assert.deepEqual(bad.map((s) => s.outcome), ['loss', 'loss', 'loss']);
+});
+
+test('a team of computer players moves and locks the marker by itself, but waits for people', () => {
+  const room = teamRoom([1, 2, 3]);
+  for (const p of room.players) p.bot = true;
+  for (const p of room.players) p.name = `B${p.id}`;
+  let moves = 0;
+  while (room.phase !== 'finished') {
+    if (room.phase === 'reveal') game.forceNext(room, seeded(9));
+    else assert.ok(game.runBotAction(room, seeded(moves)), `a move is pending in ${room.phase}`);
+    assert.ok(++moves < 100);
+  }
+  assert.equal(room.history.length, 3);
+
+  const mixed = teamRoom([1, 2, 3]);
+  mixed.players[1].bot = true;
+  mixed.players[2].bot = true;
+  game.setClue(mixed, mixed.psychic, 'x');
+  const person = guessersOf(mixed).some((p) => !p.bot);
+  if (person) assert.equal(game.pendingBotAction(mixed), null, 'a person among the guessers: the bots wait for them');
+  else assert.equal(game.pendingBotAction(mixed).type, 'marker', 'only bots guess: they place the marker');
+});
+
+test('a team game survives the psychic leaving, and a saved room keeps its mode and marker', () => {
+  const room = teamRoom();
+  game.setClue(room, room.psychic, 'x');
+  game.setMarker(room, guessersOf(room)[0].id, 42);
+  const copy = game.migrate(JSON.parse(JSON.stringify(room)));
+  assert.equal(copy.mode, 'team');
+  assert.equal(copy.marker, 42);
+  const gone = room.psychic;
+  game.removePlayer(room, gone);
+  assert.equal(room.phase, 'clue');
+  assert.equal(room.marker, null, 'a new turn starts with the marker unplaced');
+  const old = game.migrate({ ...JSON.parse(JSON.stringify(started())), mode: undefined, marker: undefined });
+  assert.equal(old.mode, 'solo', 'a room saved before team mode is a solo game');
+});

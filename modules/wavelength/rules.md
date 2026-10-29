@@ -29,6 +29,16 @@ The psychic scores the average of the guessers' points, rounded to the nearest w
 
 The player with the most points at the end wins. Tied leaders all win.
 
+## Playing as a team
+
+The host can choose **One team** in the lobby instead of everyone for themselves.
+
+- The guessers share one marker on the dial. Anyone can drag it, everybody sees it move as it moves, and they can keep adjusting it together, talking it over, for as long as they like.
+- When they agree, anyone presses **Lock in**. There is only one guess for the whole team.
+- The psychic cannot move the marker and does not see it until the reveal.
+- The team's points (4, 3, 2 or 0, by the same bands) go to **everyone**, the psychic included, so the whole table wins or loses together. At the end the team has won if it averaged at least 2 points a turn.
+- Computer players only move the marker themselves when the whole team is computer players.
+
 ## Leaving and coming back
 
 - If you lose your connection or close the page, just come back to the game's address. You will find your game where you left it.

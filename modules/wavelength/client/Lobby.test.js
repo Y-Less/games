@@ -63,3 +63,29 @@ describe('lobby marker colours', () => {
     expect(send).toHaveBeenLastCalledWith('colour', { colour: '#abcdef' });
   });
 });
+
+describe('lobby game mode', () => {
+  const make2 = (you, mode) => {
+    const send = vi.fn();
+    const players = [person(1, 'Ann'), person(2, 'Bob')];
+    const state = { code: 'a-b-c', phase: 'lobby', you, hostId: 1, mode, turnsEach: 2, players, colours: ['#000001'], limits: { min: 2, max: 8, turns: { min: 1, max: 5 } } };
+    return { wrapper: mount(Lobby, { props: { state, send } }), send };
+  };
+
+  it('lets the host choose between everyone for themselves and one team', async () => {
+    const { wrapper, send } = make2(1, 'solo');
+    const [solo, team] = wrapper.findAll('input[name="mode"]');
+    expect(solo.element.checked).toBe(true);
+    expect(team.element.checked).toBe(false);
+    await team.setValue();
+    expect(send).toHaveBeenLastCalledWith('mode', { mode: 'team' });
+  });
+
+  it('shows the choice to everyone else but does not let them change it', () => {
+    const { wrapper } = make2(2, 'team');
+    const [solo, team] = wrapper.findAll('input[name="mode"]');
+    expect(team.element.checked).toBe(true);
+    expect(solo.element.disabled && team.element.disabled).toBe(true);
+    expect(wrapper.text()).toContain('The host chooses');
+  });
+});

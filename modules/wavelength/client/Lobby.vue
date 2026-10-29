@@ -65,6 +65,20 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
     </section>
 
     <section class="panel stack">
+      <h3>How you play</h3>
+      <div class="row modes" role="radiogroup" aria-label="Game mode">
+        <label class="mode" :class="{ chosen: state.mode !== 'team' }">
+          <input type="radio" name="mode" value="solo" :checked="state.mode !== 'team'" :disabled="!isHost" @change="send('mode', { mode: 'solo' })" />
+          <strong>Everyone for themselves</strong>
+          <span class="muted">Each guesser turns their own dial. The closest guess scores the most.</span>
+        </label>
+        <label class="mode" :class="{ chosen: state.mode === 'team' }">
+          <input type="radio" name="mode" value="team" :checked="state.mode === 'team'" :disabled="!isHost" @change="send('mode', { mode: 'team' })" />
+          <strong>One team</strong>
+          <span class="muted">The guessers share one marker, move it together and anyone locks it in. Everyone scores the same.</span>
+        </label>
+      </div>
+      <p v-if="!isHost" class="muted">The host chooses.</p>
       <h3>Length of the game</h3>
       <div class="row">
         <button :disabled="!isHost || state.turnsEach <= turns.min" aria-label="Fewer turns" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
@@ -82,6 +96,28 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
 </template>
 
 <style scoped>
+.modes {
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.mode {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.mode.chosen {
+  border-color: var(--amber);
+}
+.mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
 .bots {
   flex-wrap: wrap;
 }

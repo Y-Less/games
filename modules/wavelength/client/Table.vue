@@ -2,7 +2,7 @@
 // The Wavelength table, for every phase of a game: the score bar, the dial (big), the clue and guess controls beside
 // it, slim bars for the other players, and the two standard boxes along the bottom. The psychic sees the hidden target
 // and gives a clue, everyone else turns the dial to where they think it is, then the target is revealed.
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
@@ -22,6 +22,7 @@ const picked = ref(null); // where this person has turned the dial, before locki
 const clueText = ref('');
 
 const s = computed(() => props.state);
+const team = computed(() => s.value.mode === 'team'); // the guessers share one marker, move it together and lock it in
 const phase = computed(() => s.value.phase);
 const isPsychic = computed(() => s.value.psychic === s.value.you);
 const clueTime = computed(() => phase.value === 'clue');
@@ -36,18 +37,25 @@ const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
-const canGuess = computed(() => guessing.value && !isPsychic.value && !mine.value?.guessed);
+const canGuess = computed(() => guessing.value && !isPsychic.value && (team.value || !mine.value?.guessed));
 const standings = computed(() => [...s.value.players].sort((a, b) => b.score - a.score));
 const winners = computed(() => standings.value.filter((p) => p.winner).map((p) => p.name));
 const myGuess = computed(() => s.value.guesses.find((g) => g.id === s.value.you)?.position ?? null);
-const needle = computed(() => (canGuess.value ? picked.value : myGuess.value));
+const TEAM_MARKER = '#ffd400';
+// Solo: your own needle. Team: the shared marker, which the psychic does not see until the reveal.
+const needle = computed(() => {
+  if (!team.value) return canGuess.value ? picked.value : myGuess.value;
+  return canGuess.value ? picked.value ?? s.value.marker : null;
+});
+const teamPin = () => (s.value.marker === null ? [] : [{ id: 'team', position: s.value.marker, colour: TEAM_MARKER, name: 'Your team' }]);
 const markers = computed(() =>
-  reveal.value || ended.value
+  team.value ? (reveal.value || ended.value ? teamPin() : []) : reveal.value || ended.value
     ? s.value.guesses.map((g) => ({ id: g.id, position: g.position, colour: colourOf(g.id), name: s.value.players.find((p) => p.id === g.id)?.name ?? 'Someone' }))
     : [],
 );
+const nameOf = (id) => s.value.players.find((p) => p.id === id)?.name ?? 'Someone';
 const colourOf = (id) => s.value.players.find((p) => p.id === id)?.colour ?? '#fff';
-const popupMarkers = computed(() => (s.value.result?.entries ?? []).map((e) => ({ id: e.id, position: e.position, name: e.name, colour: colourOf(e.id) })));
+const popupMarkers = computed(() => (team.value ? teamPin() : (s.value.result?.entries ?? [])).map((e) => ({ id: e.id, position: e.position, name: e.name, colour: colourOf(e.id) })));
 
 watch(
   () => `${s.value.turn}-${phase.value}`,
@@ -59,22 +67,62 @@ watch(
 );
 
 async function lockIn() {
+  if (team.value) {
+    flush();
+    await props.send('lock');
+    return;
+  }
   if (picked.value === null) return;
   const reply = await props.send('guess', { position: picked.value });
   if (reply.ok) picked.value = null;
 }
+
+// Team: every move of the marker goes to the server (at most about 15 a second) and comes back to the whole team.
+// Your own position shows at once while you are turning it, then the server's takes over.
+const SEND_EVERY = 60;
+let pending = null;
+let lastSent = 0;
+let sendTimer = null;
+let settleTimer = null;
+function flush() {
+  clearTimeout(sendTimer);
+  sendTimer = null;
+  if (pending === null) return;
+  lastSent = Date.now();
+  const position = pending;
+  pending = null;
+  props.send('marker', { position });
+}
+function turnTeamMarker(position) {
+  picked.value = position;
+  pending = position;
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => (picked.value = null), 700);
+  const wait = SEND_EVERY - (Date.now() - lastSent);
+  if (wait <= 0) flush();
+  else sendTimer ??= setTimeout(flush, wait);
+}
+const turn = (position) => (team.value ? turnTeamMarker(position) : (picked.value = position));
+onBeforeUnmount(() => {
+  clearTimeout(sendTimer);
+  clearTimeout(settleTimer);
+});
 const sendClue = () => props.send('clue', { text: clueText.value });
 
 // ---- the words in the Status box ----
 const headline = computed(() => {
   if (phase.value === 'abandoned') return 'The game was abandoned.';
+  if (phase.value === 'finished' && team.value) return `Your team scored ${standings.value[0].score} of ${s.value.turnsTotal * 4} points.`;
   if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
+  if (reveal.value && team.value) return `Your team scores ${s.value.result?.psychicPoints ?? 0} for this turn.`;
   if (reveal.value) return `${s.value.result?.psychicName ?? psychicName.value} scores ${s.value.result?.psychicPoints ?? 0} for the clue.`;
   if (clueTime.value) {
     return isPsychic.value
       ? 'You are the psychic: the target is shown on your dial. Type a clue that points to it, without numbers or the words on the dial.'
       : `Waiting for ${psychicName.value}'s clue.`;
   }
+  if (isPsychic.value && team.value) return 'Your clue is in. Your team is moving the marker together. You cannot see it until the reveal.';
+  if (team.value) return 'Move the marker together until you all agree, then anyone can lock it in.';
   if (isPsychic.value) return `Your clue is in. Waiting for everyone to guess (${guessedCount.value} of ${guessers.value.length}).`;
   if (mine.value?.guessed) return `Guess locked in. Waiting for the others (${guessedCount.value} of ${guessers.value.length}).`;
   return 'Your turn: read the clue and turn the dial to where you think the target is.';
@@ -91,6 +139,7 @@ const lines = computed(() => {
         : { text: 'Close the scores when you are ready to carry on.', tone: 'mine' },
     ];
   }
+  if (guessing.value && team.value) return [{ text: isPsychic.value ? 'Wait for your team to lock in.' : 'Drag on the dial, or use the slider. Everyone sees the marker move.', tone: 'muted' }];
   if (guessing.value && isPsychic.value) return [`${guessedCount.value} of ${guessers.value.length} have guessed.`];
   if (canGuess.value) return [{ text: picked.value === null ? 'Drag on the dial, or use the slider under it.' : 'Lock it in when you are ready.', tone: 'muted' }];
   return [];
@@ -130,7 +179,10 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <section v-if="state.result && state.spectrum" class="reveal stack" aria-label="This turn">
             <Dial :left="state.spectrum.left" :right="state.spectrum.right" :target="state.result.target" :bands="state.bands" :guesses="popupMarkers" :width="320" :reserve-slider="false" />
             <p class="muted clue-line">{{ state.result.psychicName }}'s clue: <strong>&ldquo;{{ state.clue }}&rdquo;</strong> &middot; {{ state.result.psychicName }} scores {{ state.result.psychicPoints }}.</p>
-            <ul class="entries">
+            <p v-if="state.result.team" class="muted clue-line">
+              {{ nameOf(state.result.lockedBy) }} locked it in for the team: <strong>+{{ state.result.psychicPoints }} for everyone</strong>.
+            </p>
+            <ul v-else class="entries">
               <li v-for="e in state.result.entries" :key="e.id" class="row">
                 <span class="dot" :style="{ background: colourOf(e.id) }" />
                 <span class="name">{{ e.name }}</span>
@@ -170,10 +222,10 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
             :bands="state.bands"
             :guesses="markers"
             :selected="needle"
-            :colour="mine?.colour ?? '#ffd400'"
+            :colour="team ? TEAM_MARKER : (mine?.colour ?? TEAM_MARKER)"
             :interactive="canGuess"
             :width="layout(area).width"
-            @pick="(position) => (picked = position)"
+            @pick="turn"
           />
         </div>
 
@@ -193,7 +245,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
               <input v-model="clueText" maxlength="80" placeholder="Type your clue" aria-label="Clue" />
               <button type="submit" class="primary" :disabled="!clueText.trim()">Send clue</button>
             </form>
-            <button v-else-if="canGuess" class="primary wide" :disabled="picked === null" @click="lockIn">Lock in guess</button>
+            <button v-else-if="canGuess" class="primary wide" :disabled="team ? needle === null : picked === null" @click="lockIn">{{ team ? 'Lock in' : 'Lock in guess' }}</button>
           </div>
 
           <ol v-if="state.phase === 'finished'" class="standings" aria-label="Final scores">
@@ -204,7 +256,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
             </li>
           </ol>
           <p class="legend muted">
-            The target has three bands: 4, 3 and 2 points.
+            <template v-if="team">One marker for the whole team. </template>The target has three bands: 4, 3 and 2 points.
             <span v-if="mine" class="mark"><span class="dot" :style="{ background: mine.colour }" />your colour</span>
           </p>
         </aside>
@@ -217,7 +269,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <span class="dot" :style="{ background: p.colour }" />
           <strong class="who">{{ p.name }}</strong>
           <span v-if="p.id === state.psychic && !ended" class="tag psychic-tag">psychic</span>
-          <span v-else-if="guessing && p.guessed" class="tag done">guessed</span>
+          <span v-else-if="guessing && !team && p.guessed" class="tag done">guessed</span>
           <span v-if="!p.online" class="tag away">away</span>
           <span class="score">{{ p.score }}</span>
         </li>

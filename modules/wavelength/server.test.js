@@ -162,3 +162,67 @@ test('marker colours: a saved default is used when joining, and any colour needs
   assert.ok((await cat.call('create')).ok);
   await until(() => cat.state?.players[0].colour === '#ffffff', 'the first free colour');
 });
+
+test('team mode: guessers share one marker over the sockets, the psychic never sees it, and anyone locks it in', async (t) => {
+  const site = await launch(t);
+  const people = [await site.person('ann').open(), await site.person('bob').open(), await site.person('cat').open()];
+  const [ann, bob, cat] = people;
+  const { code } = await ann.call('create', { turnsEach: 1, mode: 'team' });
+  await bob.call('join', { code });
+  await cat.call('join', { code });
+  await until(() => ann.state.players.length === 3, 'three players');
+  assert.equal(ann.state.mode, 'team');
+  assert.equal((await bob.call('mode', { mode: 'solo' })).ok, false, 'only the host picks the mode');
+  assert.ok((await ann.call('start')).ok);
+
+  for (let turn = 1; turn <= 3; turn++) {
+    await until(() => people.every((p) => p.state.phase === 'clue' && p.state.turn === turn), `turn ${turn}`);
+    const psychic = people.find((p) => p.state.target !== null);
+    const [a, b] = people.filter((p) => p !== psychic);
+    assert.ok((await psychic.call('clue', { text: 'warm' })).ok);
+    await until(() => a.state.phase === 'guessing' && b.state.phase === 'guessing', 'guessing');
+    assert.equal((await a.call('guess', { position: 50 })).ok, false, 'no guessing alone in a team');
+    assert.equal((await psychic.call('marker', { position: 50 })).ok, false);
+    assert.equal((await a.call('lock')).ok, false, 'nothing to lock in yet');
+    assert.ok((await a.call('marker', { position: 11 })).ok);
+    await until(() => b.state.marker === 11, 'the other guesser sees the marker');
+    assert.ok((await b.call('marker', { position: psychic.state.target })).ok);
+    await until(() => a.state.marker === psychic.state.target, 'and sees it move');
+    assert.equal(psychic.state.marker, null, 'the psychic cannot see the marker');
+    for (const s of psychic.states.filter((x) => x?.turn === turn && x.phase === 'guessing')) assert.equal(s.marker, null);
+    assert.ok((await (turn === 2 ? a : b).call('lock')).ok, 'either guesser can lock in');
+    await until(() => people.every((p) => p.state.phase === 'reveal'), 'the reveal');
+    for (const p of people) {
+      assert.equal(p.state.result.psychicPoints, 4);
+      assert.equal(p.state.marker, psychic.state.target);
+    }
+    for (const p of people) assert.ok((await p.call('ready')).ok);
+  }
+  await until(() => ann.state.phase === 'finished', 'the end');
+  assert.deepEqual(ann.state.players.map((p) => p.score), [12, 12, 12], 'the whole team scores the same');
+  const stats = JSON.stringify((await ann.http('GET', '/api/stats/me')).data);
+  assert.ok(stats.includes('wavelength'));
+});
+
+test('team mode with computer players: a team of computers plays itself, and a lone person leads their team', async (t) => {
+  process.env.WAVELENGTH_BOT_DELAY = '0-5';
+  const site = await launch(t);
+  const ann = await site.person('ann').open();
+  assert.ok((await ann.call('create', { turnsEach: 1, mode: 'team' })).ok);
+  await ann.call('fillBots', { count: 3 });
+  assert.ok((await ann.call('start')).ok);
+  for (let turn = 1; turn <= 3; turn++) {
+    await until(() => ann.state.turn === turn && ann.state.phase !== 'finished', `turn ${turn}`);
+    if (ann.state.psychic === ann.id) {
+      await until(() => ann.state.phase === 'clue', 'my clue');
+      assert.ok((await ann.call('clue', { text: 'warm' })).ok);
+    } else {
+      await until(() => ann.state.phase === 'guessing', 'the computer psychic\'s clue');
+      assert.ok((await ann.call('marker', { position: 40 })).ok);
+      assert.ok((await ann.call('lock')).ok);
+    }
+    await until(() => ann.state.phase === 'reveal', 'the reveal');
+    assert.ok((await ann.call('ready')).ok);
+  }
+  await until(() => ann.state.phase === 'finished', 'the end');
+});

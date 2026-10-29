@@ -19,7 +19,8 @@ export function newEntries(prev, next) {
 
   if (next.phase === 'reveal' && prev?.phase !== 'reveal' && next.result) {
     // The list is read newest first, so the guesses go in before the line that says how the psychic did.
-    for (const e of next.result.entries) out.push(`${e.name} ${e.bullseye ? 'hit the bullseye' : e.points ? 'landed in the target' : 'missed'} (+${e.points}).`);
+    if (next.result.team) out.push(`${name(next.result.lockedBy)} locked in the marker for the team (+${next.result.psychicPoints} for everyone).`);
+    else for (const e of next.result.entries) out.push(`${e.name} ${e.bullseye ? 'hit the bullseye' : e.points ? 'landed in the target' : 'missed'} (+${e.points}).`);
     out.push(`The target is revealed. ${next.result.psychicName} scores ${next.result.psychicPoints} for the clue.`);
   }
   if (next.phase === 'finished' && prev?.phase !== 'finished') {

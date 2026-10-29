@@ -212,7 +212,7 @@ export default function (ctx) {
     on('resume', ({ code }) => enter(socket, code));
     on('join', ({ code }) => (typeof code === 'string' && code.trim() ? enter(socket, code) : { ok: false, error: 'Type an invite code.' }));
 
-    on('create', ({ turnsEach }) => {
+    on('create', ({ turnsEach, mode }) => {
       const mine = activeRoomOf(userId);
       if (mine) {
         attach(socket, mine);
@@ -220,6 +220,7 @@ export default function (ctx) {
       }
       const room = game.createRoom({ code: ctx.codes.generate((c) => rooms.has(c)), hostId: userId, colour: ctx.markers.preferred(userId) });
       if (turnsEach !== undefined) game.setTurnsEach(room, userId, turnsEach);
+      if (mode !== undefined) game.setMode(room, userId, mode);
       rooms.set(room.code, room);
       attach(socket, room);
       save();
@@ -271,6 +272,9 @@ export default function (ctx) {
 
     on('colour', ({ colour }) => act((room) => game.setColour(room, userId, colour, ctx.markers.canCustom(userId))));
     on('settings', ({ turnsEach }) => act((room) => game.setTurnsEach(room, userId, turnsEach)));
+    on('mode', ({ mode }) => act((room) => game.setMode(room, userId, mode)));
+    on('marker', ({ position }) => act((room) => game.setMarker(room, userId, position)));
+    on('lock', () => act((room) => game.lockIn(room, userId, nameOf)));
     on('start', () => act((room) => game.start(room, userId)));
     on('clue', ({ text }) => act((room) => game.setClue(room, userId, text)));
     on('guess', ({ position }) => act((room) => game.guess(room, userId, position, nameOf)));

@@ -13,6 +13,8 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 export const CLUE_LENGTH = 80;
+/** `solo`: everyone guesses alone. `team`: the guessers share one marker, move it together and lock it in. */
+export const MODES = ['solo', 'team'];
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 /** The bands of the target, from the middle outwards: a guess within `within` of the target scores `points`. */
 export const BANDS = [
@@ -58,6 +60,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     turnsTotal: 0,
     turn: 0,
     players: [newPlayer(hostId, startingMarker(colour, [], true))],
+    mode: 'solo',
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
     nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
@@ -66,6 +69,7 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     used: [], // the spectra already played this game
     target: null,
     clue: '',
+    marker: null, // team mode: where the team's shared marker is
     guesses: [],
     result: null,
     history: [],
@@ -102,6 +106,15 @@ export function setTurnsEach(room, id, turnsEach) {
     return fail(`Choose between ${TURNS_EACH.min} and ${TURNS_EACH.max} turns each.`);
   }
   room.turnsEach = turnsEach;
+  return ok();
+}
+
+/** The host picks who guesses how: everyone alone (`solo`), or all together with one marker (`team`). */
+export function setMode(room, id, mode) {
+  if (id !== room.hostId) return fail('Only the host can change the settings.');
+  if (room.phase !== 'lobby') return fail('The game has already started.');
+  if (!MODES.includes(mode)) return fail('That is not a way to play.');
+  room.mode = mode;
   return ok();
 }
 
@@ -162,6 +175,8 @@ function startTurn(room, rng) {
   room.spectrum = { id: chosen.id, left: chosen.left, right: chosen.right };
   room.target = TARGET_RANGE.min + Math.floor(rng() * (TARGET_RANGE.max - TARGET_RANGE.min + 1));
   room.clue = '';
+  room.marker = null;
+  room.lockedBy = null;
   room.guesses = [];
   room.result = null;
   room.ready = [];
@@ -197,12 +212,43 @@ export function setClue(room, id, text) {
 export function guess(room, id, position, nameOf = String) {
   if (room.phase === 'clue') return fail('Wait for the clue.');
   if (room.phase !== 'guessing') return fail('It is not time to guess.');
+  if (room.mode === 'team') return fail('Your team has one marker: move it together, then lock it in.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (id === room.psychic) return fail('You are the psychic, so you cannot guess.');
   if (typeof position !== 'number' || !Number.isFinite(position) || position < 0 || position > 100) return fail('Turn the dial to a place between the two ends.');
   if (room.guesses.some((g) => g.id === id)) return fail('You have already guessed. Wait for the others.');
   room.guesses.push({ id, position: round1(position) });
   if (allGuessed(room)) scoreTurn(room, namer(room, nameOf));
+  return ok();
+}
+
+/** The guessers of a team game, who share the marker. Returns the player or a failure. */
+function teamGuesser(room, id) {
+  if (room.mode !== 'team') return fail('This game is not played in a team.');
+  if (room.phase === 'clue') return fail('Wait for the clue.');
+  if (room.phase !== 'guessing') return fail('It is not time to guess.');
+  if (!hasPlayer(room, id)) return fail('You are not in this game.');
+  if (id === room.psychic) return fail('You are the psychic: your team moves the marker.');
+  return null;
+}
+
+/** Team mode: any guesser moves the team's shared marker (everyone but the psychic sees it move). */
+export function setMarker(room, id, position) {
+  const refused = teamGuesser(room, id);
+  if (refused) return refused;
+  if (typeof position !== 'number' || !Number.isFinite(position) || position < 0 || position > 100) return fail('Move the marker to a place between the two ends.');
+  room.marker = round1(position);
+  return ok();
+}
+
+/** Team mode: any guesser locks the marker in where it is, which scores it for everyone. */
+export function lockIn(room, id, nameOf = String) {
+  const refused = teamGuesser(room, id);
+  if (refused) return refused;
+  if (room.marker === null) return fail('Move the marker first.');
+  room.guesses = guessers(room).map((p) => ({ id: p.id, position: room.marker }));
+  room.lockedBy = id;
+  scoreTurn(room, namer(room, nameOf));
   return ok();
 }
 
@@ -223,7 +269,7 @@ function scoreTurn(room, nameOf = String) {
     psychic.score += psychicPoints;
     psychic.cluesGiven++;
   }
-  room.result = { target: room.target, psychic: room.psychic, psychicPoints, entries };
+  room.result = { target: room.target, psychic: room.psychic, psychicPoints, entries, ...(room.mode === 'team' ? { team: true, lockedBy: room.lockedBy ?? null } : {}) };
   recordHistory(room, nameOf);
   room.ready = [];
   room.phase = 'reveal';
@@ -252,6 +298,8 @@ function recordHistory(room, nameOf) {
 export function migrate(room) {
   room.nextBot ??= 1;
   room.used ??= [];
+  room.mode ??= 'solo';
+  room.marker ??= null;
   if (!Array.isArray(room.history)) room.history = [];
   return room;
 }
@@ -322,9 +370,11 @@ export function standings(room) {
 
 /** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
 export function statsPlayers(room) {
+  // A team shares one score. It wins when it averaged at least the outer band (2 points) a turn, and loses otherwise.
+  const teamWon = (p) => p.score >= 2 * room.turnsTotal;
   return standings(room).filter((p) => !p.bot).map((p) => ({
     userId: p.id,
-    outcome: p.winner ? 'win' : 'loss',
+    outcome: (room.mode === 'team' ? teamWon(p) : p.winner) ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
     extras: { bullseyes: p.bullseyes, cluesGiven: p.cluesGiven },
@@ -346,12 +396,14 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true, 
     you: userId,
     hostId: room.hostId,
     turnsEach: room.turnsEach,
+    mode: room.mode ?? 'solo',
     turn: Math.min(room.turn + 1, room.turnsTotal),
     turnsTotal: room.turnsTotal,
     psychic: room.psychic,
     spectrum: room.spectrum && room.phase !== 'lobby' ? { left: room.spectrum.left, right: room.spectrum.right } : null,
     target: isPsychic || revealed ? room.target : null,
     clue: room.phase === 'lobby' ? '' : room.clue,
+    marker: revealed || (room.mode === 'team' && room.phase === 'guessing' && !isPsychic) ? room.marker ?? null : null,
     guesses: room.guesses.filter((g) => revealed || g.id === userId).map((g) => ({ id: g.id, position: g.position })),
     bands: BANDS,
     result: revealed && room.result
@@ -394,6 +446,12 @@ export function pendingBotAction(room) {
     return psychic?.bot ? { type: 'clue', id: psychic.id } : null;
   }
   if (room.phase !== 'guessing') return null;
+  if (room.mode === 'team') {
+    // A team of computer players only plays by itself when no person is in it: people agree on the marker themselves.
+    if (guessers(room).some((p) => !p.bot)) return null;
+    const bot = guessers(room)[0];
+    return { type: room.marker === null ? 'marker' : 'lock', id: bot.id };
+  }
   const guesser = guessers(room).find((p) => p.bot && !room.guesses.some((g) => g.id === p.id));
   return guesser ? { type: 'guess', id: guesser.id } : null;
 }
@@ -420,7 +478,8 @@ export function runBotAction(room, rng = Math.random, action = pendingBotAction(
     const clean = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
     return setClue(room, action.id, clean || 'something').ok;
   }
+  if (action.type === 'lock') return lockIn(room, action.id, nameOf).ok;
   const position = attempt(() => ai.guess({ clue: view.clue, anchors }, rng));
   const clamped = typeof position === 'number' && Number.isFinite(position) ? Math.min(100, Math.max(0, position)) : 15 + rng() * 70;
-  return guess(room, action.id, clamped, nameOf).ok;
+  return (action.type === 'marker' ? setMarker(room, action.id, clamped) : guess(room, action.id, clamped, nameOf)).ok;
 }

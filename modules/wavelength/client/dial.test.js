@@ -66,6 +66,12 @@ describe('recent moves', () => {
     expect(newEntries(guessed, revealed)).toEqual(['Bob hit the bullseye (+4).', 'The target is revealed. Ann scores 3 for the clue.']);
   });
 
+  it('describes a team lock-in as one line', () => {
+    const guessing = state({ phase: 'guessing', clue: 'x', mode: 'team' });
+    const revealed = { ...guessing, phase: 'reveal', result: { team: true, lockedBy: 2, psychicName: 'Ann', psychicPoints: 3, entries: [{ name: 'Bob', points: 3 }] } };
+    expect(newEntries(guessing, revealed)).toEqual(['Bob locked in the marker for the team (+3 for everyone).', 'The target is revealed. Ann scores 3 for the clue.']);
+  });
+
   it('says who won and notes an abandoned game', () => {
     const done = state({ phase: 'finished', players: players({ winner: true }) });
     expect(newEntries(state({ phase: 'reveal' }), done)).toEqual(['The game is over: Ann wins.']);

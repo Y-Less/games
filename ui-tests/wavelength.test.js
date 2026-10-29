@@ -97,3 +97,46 @@ test('three turns: clue, guess, reveal and the pop-ups, to a winner', { timeout:
   await host.closeModalWithEsc();
   assert.deepEqual(world.pageErrors, [], 'no page errors');
 }));
+
+test('team mode: the lobby setting, one shared marker, and a whole game to the end', { timeout: 150000 }, guarded('team', async () => {
+  const lone = await world.newUser('team-host');
+  await lone.signUp('wave', { displayName: 'Tess' });
+  await lone.goto('/play/wavelength');
+  await lone.clickButton('Start a new game');
+  await lone.waitForText('Waiting for players');
+  await lone.clickButton('Add a computer player');
+  await lone.clickButton('Add a computer player');
+  await lone.clickFound(() => document.querySelector('input[name="mode"][value="team"]')?.closest('label'));
+  await lone.waitForSelector('input[name="mode"][value="team"]:checked');
+  await lone.clickButton('Fewer turns');
+  await lone.waitForText('1 turn each');
+  await lone.clickButton('Start the game', { exact: true });
+  await lone.waitForSelector('.game-frame');
+
+  const titles = new Set();
+  let sawTeamText = false;
+  const step = async () => {
+    const title = await lone.modalTitle();
+    if (title) {
+      titles.add(title);
+      await lone.page.keyboard.press('Escape');
+      return true;
+    }
+    if (await lone.page.evaluate(() => /Your team|your team|Move the marker together/.test(document.body.innerText))) sawTeamText = true;
+    const send = await lone.buttonState('Send clue');
+    if (send.present) {
+      if (send.disabled) return lone.fill('form.clue-form input', 'a warm evening').then(() => true);
+      return lone.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send clue'));
+    }
+    const lock = await lone.buttonState('Lock in');
+    if (lock.present && lock.disabled) {
+      await turnDial(lone, 0.35);
+      return true;
+    }
+    if (lock.present) return lone.clickFound(() => [...document.querySelectorAll('button:not([disabled])')].find((b) => b.innerText.trim() === 'Lock in'));
+    return false;
+  };
+  await drive({ act: step, finished: async () => titles.has('Final scores'), timeout: 130000, what: 'a team game of Wavelength' });
+  assert.ok(sawTeamText, 'the team wording was shown');
+  assert.match(await lone.page.evaluate(() => document.body.innerText), /Your team scored \d+ of 12 points/);
+}));
