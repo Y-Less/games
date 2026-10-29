@@ -76,6 +76,8 @@ export const AVATAR_SLOTS = [
       { id: 'closed', name: 'Closed', price: 50 },
       { id: 'angry', name: 'Angry', price: 100 },
       { id: 'hearts', name: 'Lovestruck', price: 300 },
+      { id: 'scowl', name: 'Scowl', price: 100 },
+      { id: 'sad', name: 'Sad', price: 100 },
     ],
   },
   {
@@ -92,6 +94,8 @@ export const AVATAR_SLOTS = [
       { id: 'kiss', name: 'Kiss', price: 100 },
       { id: 'laugh', name: 'Laugh', price: 100 },
       { id: 'fangs', name: 'Fangs', price: 250 },
+      { id: 'scowl', name: 'Scowl', price: 50 },
+      { id: 'sad', name: 'Sad', price: 50 },
     ],
   },
   {

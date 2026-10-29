@@ -59,6 +59,9 @@ const wideEye = (x) => `<circle cx="${x}" cy="46" r="4.8" fill="#fff" stroke="${
 const heartEye = (x) => `<path d="M${x} 50 C${x - 7} 45 ${x - 4} 40 ${x} 43.5 C${x + 4} 40 ${x + 7} 45 ${x} 50 Z" fill="#e0506a" stroke="#a83348" stroke-width="0.8"/>`;
 const closedEye = (x) => `<path d="M${x - 4} 46 Q${x} 50.5 ${x + 4} 46" ${stroke}/><path d="M${x - 4} 46 L${x - 5.5} 44.5 M${x + 4} 46 L${x + 5.5} 44.5" ${stroke}/>`;
 const EYES = {
+  scowl: () => `<path d="M36 46 L44 46 A4 4 0 0 1 36 46 Z M56 46 L64 46 A4 4 0 0 1 56 46 Z" fill="${INK}"/><path d="M33 38 L46 45 M67 38 L54 45" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
+  sad: () =>
+    eye(40, 'round') + eye(60, 'round') + `<path d="M34 43 L45 39 M66 43 L55 39" ${stroke}/><path d="M37 51 Q34.2 55 37 57.5 Q39.8 55 37 51 Z" fill="#6cb4f0" stroke="#3c7fc0" stroke-width="0.8"/>`,
   wide: () => wideEye(40) + wideEye(60),
   closed: () => closedEye(40) + closedEye(60),
   hearts: () => heartEye(40) + heartEye(60),
@@ -71,6 +74,8 @@ const EYES = {
 };
 
 const MOUTHS = {
+  scowl: () => `<path d="M42 62 Q50 55 58 62 L57 64 Q50 59 43 64 Z" fill="#fff" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><path d="M47 58.5 L47 62 M50 58 L50 61.5 M53 58.5 L53 62" stroke="${INK}" stroke-width="0.9"/>`,
+  sad: () => `<path d="M43 63 Q45 59 47.5 61 Q50 63 52.5 61 Q55 59 57 63" ${stroke}/>`,
   smirk: () => `<path d="M43 60 Q51 61 58 55" ${stroke}/>`,
   frown: () => `<path d="M43 63 Q50 56 57 63" ${stroke}/>`,
   kiss: () => `<ellipse cx="50" cy="59.5" rx="3.6" ry="2.8" fill="#d9506a" stroke="${INK}" stroke-width="1.5"/>`,
