@@ -70,7 +70,7 @@ const style = computed(() => {
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-ch="letter.ch" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }">{{ letter.ch }}</i>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style"><i v-for="(letter, k) in column.letters" :key="k" :data-alt="letter.alt" :style="{ '--k': k, '--a': letter.alpha }"><b>{{ letter.ch }}</b></i>
     </span>
     <svg v-if="!demo && intensity > 100" class="gain" width="0" height="0" focusable="false">
       <filter :id="gainId" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="linear" :slope="intensity / 100" /></feComponentTransfer></filter>
@@ -275,6 +275,9 @@ const style = computed(() => {
   position: relative;
   display: block;
   font-style: normal;
+}
+.mx i b {
+  font-weight: normal;
   opacity: var(--a, 0.5);
   animation: fx-deposit-1-2 calc(var(--c) / var(--fx-speed)) linear calc((var(--k) * var(--step) + var(--ph) - 2 * var(--c)) / var(--fx-speed)) infinite;
 }
@@ -294,40 +297,40 @@ const style = computed(() => {
 .mx.w3 i::before {
   animation-name: fx-alt-3;
 }
-.mx.f1.w1 i {
+.mx.f1.w1 i b {
   animation-name: fx-deposit-1-1;
 }
-.mx.f2.w1 i {
+.mx.f2.w1 i b {
   animation-name: fx-deposit-1-2;
 }
-.mx.f3.w1 i {
+.mx.f3.w1 i b {
   animation-name: fx-deposit-1-3;
 }
-.mx.f4.w1 i {
+.mx.f4.w1 i b {
   animation-name: fx-deposit-1-4;
 }
-.mx.f1.w2 i {
+.mx.f1.w2 i b {
   animation-name: fx-deposit-2-1;
 }
-.mx.f2.w2 i {
+.mx.f2.w2 i b {
   animation-name: fx-deposit-2-2;
 }
-.mx.f3.w2 i {
+.mx.f3.w2 i b {
   animation-name: fx-deposit-2-3;
 }
-.mx.f4.w2 i {
+.mx.f4.w2 i b {
   animation-name: fx-deposit-2-4;
 }
-.mx.f1.w3 i {
+.mx.f1.w3 i b {
   animation-name: fx-deposit-3-1;
 }
-.mx.f2.w3 i {
+.mx.f2.w3 i b {
   animation-name: fx-deposit-3-2;
 }
-.mx.f3.w3 i {
+.mx.f3.w3 i b {
   animation-name: fx-deposit-3-3;
 }
-.mx.f4.w3 i {
+.mx.f4.w3 i b {
   animation-name: fx-deposit-3-4;
 }
 @keyframes fx-deposit-1-1 {
