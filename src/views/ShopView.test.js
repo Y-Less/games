@@ -163,23 +163,25 @@ describe('ShopView', () => {
     await flushPromises();
     expect(calls.at(-1)).toEqual(['PATCH', '/api/me', { nameStyle: { style: 'plain', animation: 'glow' } }]);
   });
-  it('says so when the device is set to reduce motion, and plays the previews on request', async () => {
+  it('says so when animations are paused, by the profile or by the device, and not when they play', async () => {
+    await make('/shop/animations');
+    expect(wrapper.find('.motion').exists()).toBe(false);
+    wrapper.unmount();
+    session.user = { ...session.user, playAnimations: false };
+    await make('/shop/animations');
+    expect(wrapper.find('.motion').text()).toContain('Animations are paused');
+    wrapper.unmount();
     globalThis.matchMedia = vi.fn(() => ({ matches: true }));
     try {
+      session.user = { ...session.user, playAnimations: null };
       await make('/shop/animations');
       expect(wrapper.find('.motion').exists()).toBe(true);
-      expect(card('ba:stars').find('.bg-fx').classes()).not.toContain('play');
-      await wrapper.find('.motion button').trigger('click');
+      wrapper.unmount();
+      session.user = { ...session.user, playAnimations: true };
+      await make('/shop/animations');
       expect(wrapper.find('.motion').exists()).toBe(false);
-      expect(card('ba:stars').find('.bg-fx').classes()).toContain('play');
-      expect(card('na:glow').find('.styled-name').classes()).toContain('play');
     } finally {
       delete globalThis.matchMedia;
     }
-  });
-
-  it('does not nag about motion when the device has no such setting', async () => {
-    await make('/shop/animations');
-    expect(wrapper.find('.motion').exists()).toBe(false);
   });
 });

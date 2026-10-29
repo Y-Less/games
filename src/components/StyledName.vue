@@ -11,7 +11,6 @@ const props = defineProps({
   userId: { type: Number, default: null },
   styleId: { type: String, default: null }, // show this style whatever the player owns (the shop's previews)
   animationId: { type: String, default: null }, // and this animation
-  play: { type: Boolean, default: false }, // animate even when the device asks for less motion (the shop's "play previews anyway")
 });
 
 const style = computed(() => nameStyleById(props.styleId ?? profileOf(props.userId)?.nameStyle?.style));
@@ -25,7 +24,7 @@ const css = computed(() =>
 </script>
 
 <template>
-  <span class="styled-name" :class="{ styled, play }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}</span>
+  <span class="styled-name" :class="{ styled }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}</span>
 </template>
 
 <style scoped>
@@ -138,11 +137,4 @@ const css = computed(() =>
   83% {
     border-color: #b86bff;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .styled-name:not(.play),
-  .styled-name:not(.play)::before {
-    animation: none;
-  }
-}
-</style>
+}</style>

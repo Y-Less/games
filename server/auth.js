@@ -91,6 +91,12 @@ export function cleanNameStyle(input) {
   return { style: input.style, animation: input.animation };
 }
 
+/** Checks the play-animations setting: true (always), false (never) or null (follow the device's own motion setting). */
+export function cleanPlayAnimations(input) {
+  if (typeof input === 'boolean' || input === null) return input;
+  throw new AuthError('Play animations must be always, never or follow the device.');
+}
+
 /** Checks a background animation: one of the ids in shared/animations.js. */
 export function cleanBackgroundAnimation(input) {
   if (isBackgroundAnimation(input)) return input;
@@ -138,7 +144,7 @@ function publicUser(row) {
   } catch {
     cardBack = { type: 'preset', value: 'crimson' };
   }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none' };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
 }
 
 /**
@@ -233,7 +239,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return out;
     },
 
-    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation }) {
+    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, backgroundAnimation, playAnimations }) {
       // Check everything first, so a refused change changes nothing.
       let name;
       if (displayName !== undefined) {
@@ -244,6 +250,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
       const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
       const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
+      const cleanedPlay = playAnimations === undefined ? undefined : cleanPlayAnimations(playAnimations);
       const cleanedBackgroundAnimation = backgroundAnimation === undefined ? undefined : cleanBackgroundAnimation(backgroundAnimation);
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
@@ -254,6 +261,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
       if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
       if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
+      if (cleanedPlay !== undefined) db.prepare('UPDATE users SET animations_choice = ? WHERE id = ?').run(cleanedPlay === null ? null : cleanedPlay ? 1 : 0, userId);
       if (cleanedBackgroundAnimation !== undefined) db.prepare('UPDATE users SET background_animation = ? WHERE id = ?').run(cleanedBackgroundAnimation, userId);
       return byId(userId);
     },

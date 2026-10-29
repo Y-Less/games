@@ -169,6 +169,14 @@ describe('account actions', () => {
     expect(root().getPropertyValue('--card-back')).toBe('navy-back');
   });
 
+  it('marks the page with the animations choice: on, off, or auto (follow the device) when none was made', async () => {
+    for (const [choice, mark] of [[false, 'off'], [true, 'on'], [null, 'auto'], [undefined, 'auto']]) {
+      fetchMock.mockResolvedValue(reply({ user: { ...USER, playAnimations: choice } }));
+      await signIn('ann', 'secret');
+      expect(document.documentElement.dataset.animations, String(choice)).toBe(mark);
+    }
+  });
+
   it('signIn leaves the user alone and rejects on a bad password', async () => {
     fetchMock.mockResolvedValue(reply({ error: 'Wrong password.' }, 401));
     await expect(signIn('ann', 'bad')).rejects.toThrow('Wrong password.');

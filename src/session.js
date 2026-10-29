@@ -53,10 +53,18 @@ export function applyBackground(background) {
   document.documentElement.style.setProperty('--site-bg', backgroundCss(background));
 }
 
+/** Whether animations are playing for this user: their own choice, or else the device's motion setting. */
+export function animationsPlaying(user = session.user) {
+  if (typeof user?.playAnimations === 'boolean') return user.playAnimations;
+  return !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
 function setUser(user) {
   session.user = user;
   if (!user) session.shop = null;
   applyBackground(user?.background);
+  // Animations follow the device's own motion setting unless the player has chosen always (on) or never (off) on their profile.
+  document.documentElement.dataset.animations = user?.playAnimations === true ? 'on' : user?.playAnimations === false ? 'off' : 'auto';
   document.documentElement.style.setProperty('--card-back', cardBackCss(user?.cardBack));
 }
 

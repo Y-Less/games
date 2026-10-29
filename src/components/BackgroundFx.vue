@@ -1,8 +1,7 @@
 <script setup>
 // An animation over the website background (see shared/animations.js): drifting light, stars, snow ... drawn in CSS only.
 // `fixed` puts it behind the whole site (App.vue); without it the effect fills its parent box, for the shop's previews.
-// It never takes clicks, and it stands still for anyone who has asked their device for less motion, unless `play` is set
-// (the shop's "play previews anyway" button).
+// It never takes clicks, and it stands still when the player has turned animations off (see style.css).
 // `gradient` (the moving fade) slides the gradient from the user's `background` setting; it does nothing for any other kind
 // of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
 import { computed } from 'vue';
@@ -12,7 +11,6 @@ const props = defineProps({
   fixed: { type: Boolean, default: false },
   background: { type: Object, default: null },
   demo: { type: Boolean, default: false },
-  play: { type: Boolean, default: false },
 });
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
@@ -21,7 +19,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 </script>
 
 <template>
-  <div v-if="shown" class="bg-fx" :class="{ fixed, demo, play }" :data-fx="effect" :style="style" aria-hidden="true" />
+  <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true" />
 </template>
 
 <style scoped>
@@ -203,14 +201,6 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   }
   to {
     transform: translateX(12%) scale(1.15);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bg-fx:not(.play)::before,
-  .bg-fx:not(.play)[data-fx='gradient'],
-  .bg-fx:not(.play)::after {
-    animation: none;
   }
 }
 </style>

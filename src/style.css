@@ -151,3 +151,22 @@ input::placeholder {
   background: var(--bg-raised);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
 }
+
+/* The player's "Play animations" setting (Profile page): never (off) stops every shop animation, on names and behind the site;
+   by default (auto) they stop only when the device asks for less motion; always (on) plays them whatever the device says. */
+html[data-animations='off'] .styled-name,
+html[data-animations='off'] .styled-name::before,
+html[data-animations='off'] .bg-fx,
+html[data-animations='off'] .bg-fx::before,
+html[data-animations='off'] .bg-fx::after {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-animations='auto'] .styled-name,
+  html[data-animations='auto'] .styled-name::before,
+  html[data-animations='auto'] .bg-fx,
+  html[data-animations='auto'] .bg-fx::before,
+  html[data-animations='auto'] .bg-fx::after {
+    animation: none !important;
+  }
+}

@@ -175,6 +175,18 @@ test('players: others see a name animation but not your background animation', a
   assert.equal('backgroundAnimation' in data.players[user.id], false);
 });
 
+test('the play-animations setting follows the device by default, and can be always, never or back to the device', async (t) => {
+  const { c } = await shopSite(t);
+  assert.equal((await c.get('/api/me')).data.user.playAnimations, null);
+  assert.equal((await c.patch('/api/me', { playAnimations: false })).data.user.playAnimations, false);
+  assert.equal((await c.get('/api/me')).data.user.playAnimations, false);
+  assert.equal((await c.patch('/api/me', { playAnimations: true })).data.user.playAnimations, true);
+  for (const playAnimations of ['no', 0, 1, {}, []]) {
+    assert.equal((await c.patch('/api/me', { playAnimations })).status, 400, JSON.stringify(playAnimations));
+  }
+  assert.equal((await c.patch('/api/me', { playAnimations: null })).data.user.playAnimations, null);
+});
+
 test('colours, gradients and uploads are separate unlocks', async (t) => {
   const { c, dataDir } = await shopSite(t, { coins: 5000 });
   const colour = { type: 'colour', value: '#112233' };

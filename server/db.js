@@ -79,6 +79,9 @@ export function openDatabase(dataDir) {
   if (!columns.includes('background_animation')) {
     db.exec(`ALTER TABLE users ADD COLUMN background_animation TEXT NOT NULL DEFAULT 'none'`);
   }
+  if (!columns.includes('animations_choice')) {
+    db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
+  }
   return db;
 }
 

@@ -285,4 +285,25 @@ describe('ProfileView password', () => {
     expect(alert().text()).toBe('Your current password is wrong.');
     expect(w.find('input[aria-label="Current password"]').element.value).toBe('wrong');
   });
+describe('ProfileView animations', () => {
+  it('follows the device by default, and saves always, never and back to the device', async () => {
+    const w = make();
+    const select = () => w.find('select[aria-label="Play animations"]');
+    expect(select().element.value).toBe('auto');
+    await select().setValue('off');
+    await flushPromises();
+    expect(lastBody()).toEqual({ playAnimations: false });
+    expect(status().text()).toBe('Animations never play.');
+    await select().setValue('on');
+    await flushPromises();
+    expect(lastBody()).toEqual({ playAnimations: true });
+    await select().setValue('auto');
+    await flushPromises();
+    expect(lastBody()).toEqual({ playAnimations: null });
+  });
+
+  it('shows the player\'s saved choice', () => {
+    expect(make({ ...baseUser(), playAnimations: false }).find('select[aria-label="Play animations"]').element.value).toBe('off');
+  });
+});
 });

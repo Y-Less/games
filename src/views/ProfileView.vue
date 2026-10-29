@@ -28,6 +28,8 @@ async function attempt(task, done) {
 }
 
 const saveName = () => attempt(() => updateProfile({ displayName: displayName.value }), 'Name saved.');
+const animationsChoice = computed(() => (session.user.playAnimations === true ? 'on' : session.user.playAnimations === false ? 'off' : 'auto'));
+const setAnimations = (value) => attempt(() => updateProfile({ playAnimations: value === 'on' ? true : value === 'off' ? false : null }), { on: 'Animations always play.', off: 'Animations never play.', auto: 'Animations now follow your device.' }[value]);
 const choose = (background) => attempt(() => updateProfile({ background }), 'Background saved.');
 const upload = (event) => {
   const file = event.target.files?.[0];
@@ -64,6 +66,19 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
         <button :disabled="!displayName.trim() || displayName.trim() === session.user.displayName">Save</button>
       </div>
     </form>
+
+    <div class="panel stack">
+      <h2>Animations</h2>
+      <p class="muted">The moving name borders and backgrounds from the shop, yours and other players'.</p>
+      <label class="choice">
+        Play animations
+        <select :value="animationsChoice" aria-label="Play animations" @change="setAnimations($event.target.value)">
+          <option value="auto">Follow my device's setting (default)</option>
+          <option value="on">Always play</option>
+          <option value="off">Never play</option>
+        </select>
+      </label>
+    </div>
 
     <AvatarEditor />
 
@@ -229,6 +244,16 @@ form .row > input:not([type]) {
   width: auto;
   flex: 1;
   min-width: 0;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.choice select {
+  width: auto;
+  max-width: 100%;
 }
 input[type='file'] {
   padding: 0.5rem;
