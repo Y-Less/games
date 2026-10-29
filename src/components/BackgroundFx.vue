@@ -294,10 +294,7 @@ const style = computed(() => {
 /* Green letters that stay where they are. A column is a block of text (one letter per row). A mask slides down it, one row
    every --step, and shows only the part the head has just passed: bright for most of the trail and fading out over the oldest
    third of it (so the letters look as strong as the intensity slider's 300%). The head's own glyph is a second copy of the
-   column, in white with a glow, masked to the single row the head is on. The column's head takes 70% of --c, then it rests. */
-[data-fx='matrix'] {
-  background: rgb(0 18 6 / 0.6);
-}
+   column, in white with a glow, masked to the single row the head is on. The column's head takes 70% of --c, then it rests. Nothing is drawn behind the letters, so the player's own background shows through. */
 .gain {
   position: absolute;
 }
@@ -371,9 +368,6 @@ const style = computed(() => {
 /* Green characters falling in columns. Each letter has its own fixed brightness (dim at the back of the column, bright at the
    head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
    pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
-[data-fx='matrix-a'] {
-  background: rgb(0 18 6 / 0.6);
-}
 /* The band of screen a column runs in: it appears at the top of the band and slides out of the bottom, with soft edges. */
 .maw {
   position: absolute;
