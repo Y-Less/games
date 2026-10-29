@@ -105,10 +105,10 @@ const css = computed(() =>
 }
 @keyframes ns-pulse {
   from {
-    filter: brightness(1);
+    box-shadow: inset 0 0 0 0 var(--ns-glow);
   }
   to {
-    filter: brightness(1.55);
+    box-shadow: inset 0 0 0.7em 0.1em var(--ns-glow);
   }
 }
 @keyframes ns-shimmer {

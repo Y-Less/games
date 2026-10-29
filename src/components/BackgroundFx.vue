@@ -19,7 +19,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 </script>
 
 <template>
-  <div v-if="shown" class="bg-fx" :class="{ fixed }" :data-fx="effect" :style="style" aria-hidden="true" />
+  <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true" />
 </template>
 
 <style scoped>
@@ -29,6 +29,13 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   overflow: hidden;
   pointer-events: none;
   border-radius: inherit;
+}
+/* In a shop preview the same effect runs faster and tighter, so a small box shows what it does. */
+.bg-fx.demo {
+  --fx-speed: 4;
+}
+.bg-fx.demo[data-fx='gradient'] {
+  --fx-period: 100px;
 }
 .bg-fx.fixed {
   position: fixed;
@@ -50,11 +57,11 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 [data-fx='gradient'] {
   --fx-period: max(100vw, 100vh);
   background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) var(--fx-shift), var(--fx-b) calc(var(--fx-period) / 2 + var(--fx-shift)), var(--fx-a) calc(var(--fx-period) + var(--fx-shift)));
-  animation: fx-gradient 24s linear infinite;
+  animation: fx-gradient calc(24s / var(--fx-speed, 1)) linear infinite;
 }
 @keyframes fx-gradient {
   to {
-    --fx-shift: max(100vw, 100vh);
+    --fx-shift: var(--fx-period);
   }
 }
 
@@ -63,7 +70,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   left: -100%;
   width: 300%;
   background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / 0.1) 50%, transparent 58%);
-  animation: fx-sweep 12s linear infinite;
+  animation: fx-sweep calc(12s / var(--fx-speed, 1)) linear infinite;
 }
 @keyframes fx-sweep {
   to {
@@ -76,12 +83,12 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 90px 120px, #cfe6ff, transparent), radial-gradient(1.5px 1.5px at 160px 60px, #fff, transparent),
     radial-gradient(1px 1px at 60px 180px, #fff4cf, transparent);
   background-size: 200px 200px;
-  animation: fx-twinkle 4s ease-in-out infinite alternate;
+  animation: fx-twinkle calc(4s / var(--fx-speed, 1)) ease-in-out infinite alternate;
 }
 [data-fx='stars']::after {
   background-image: radial-gradient(1px 1px at 40px 90px, #fff, transparent), radial-gradient(2px 2px at 130px 20px, #ffe9b0, transparent), radial-gradient(1px 1px at 180px 160px, #cfe6ff, transparent);
   background-size: 230px 230px;
-  animation: fx-twinkle 6.5s ease-in-out -2s infinite alternate;
+  animation: fx-twinkle calc(6.5s / var(--fx-speed, 1)) ease-in-out calc(-2s / var(--fx-speed, 1)) infinite alternate;
 }
 @keyframes fx-twinkle {
   from {
@@ -97,13 +104,13 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background-image: radial-gradient(3px 3px at 30px 40px, rgb(255 255 255 / 0.85), transparent), radial-gradient(2px 2px at 120px 110px, rgb(255 255 255 / 0.7), transparent),
     radial-gradient(3px 3px at 200px 220px, rgb(255 255 255 / 0.8), transparent), radial-gradient(2px 2px at 70px 250px, rgb(255 255 255 / 0.7), transparent);
   background-size: 260px 260px;
-  animation: fx-fall 16s linear infinite;
+  animation: fx-fall calc(16s / var(--fx-speed, 1)) linear infinite;
 }
 [data-fx='snow']::after {
   background-image: radial-gradient(2px 2px at 60px 60px, rgb(255 255 255 / 0.6), transparent), radial-gradient(1.5px 1.5px at 170px 150px, rgb(255 255 255 / 0.6), transparent),
     radial-gradient(2px 2px at 100px 210px, rgb(255 255 255 / 0.55), transparent);
   background-size: 190px 190px;
-  animation: fx-fall 26s linear -7s infinite;
+  animation: fx-fall calc(26s / var(--fx-speed, 1)) linear calc(-7s / var(--fx-speed, 1)) infinite;
 }
 @keyframes fx-fall {
   to {
@@ -117,8 +124,8 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
     radial-gradient(3px 3px at 210px 90px, #ff8f47, transparent);
   background-size: 250px 250px;
   animation:
-    fx-rise 14s linear infinite,
-    fx-flicker 2.2s ease-in-out infinite alternate;
+    fx-rise calc(14s / var(--fx-speed, 1)) linear infinite,
+    fx-flicker calc(2.2s / var(--fx-speed, 1)) ease-in-out infinite alternate;
 }
 [data-fx='embers']::after {
   background: linear-gradient(to top, rgb(255 110 40 / 0.12), transparent 35%);
@@ -143,7 +150,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   background: radial-gradient(40% 28% at 30% 22%, rgb(80 255 170 / 0.3), transparent), radial-gradient(36% 30% at 72% 30%, rgb(120 130 255 / 0.28), transparent),
     radial-gradient(30% 24% at 50% 10%, rgb(255 120 200 / 0.2), transparent);
   filter: blur(18px);
-  animation: fx-aurora 18s ease-in-out infinite alternate;
+  animation: fx-aurora calc(18s / var(--fx-speed, 1)) ease-in-out infinite alternate;
 }
 @keyframes fx-aurora {
   from {
