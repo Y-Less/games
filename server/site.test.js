@@ -68,7 +68,7 @@ test('the config lists the games, backgrounds and card backs', async (t) => {
   const { client } = await withSite(t);
   const config = (await client().get('/api/config')).data;
   assert.deepEqual(Object.keys(config).sort(), ['backgrounds', 'cardBacks', 'games']);
-  assert.deepEqual(Object.keys(config.backgrounds).sort(), ['dusk', 'ember', 'forest', 'night', 'ocean', 'slate']);
+  assert.deepEqual(Object.keys(config.backgrounds).sort(), ['dusk', 'ember', 'forest', 'matrix', 'night', 'ocean', 'slate']);
   assert.deepEqual(Object.keys(config.cardBacks).sort(), ['crimson', 'forest', 'gold', 'mono', 'navy', 'teal']);
 });
 
