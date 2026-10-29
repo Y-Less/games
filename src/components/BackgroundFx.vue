@@ -97,8 +97,8 @@ const gainId = `fx-gain-${++gains}`;
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
-const slidingColumns = computed(() => (props.effect === 'matrix-a' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100))) : []));
-const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
+const slidingColumns = computed(() => (props.effect === 'matrix-a' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100))) : []));
+const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
 const style = computed(() => {
   const out = {};
   if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });
