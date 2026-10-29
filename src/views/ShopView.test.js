@@ -69,7 +69,7 @@ describe('ShopView', () => {
   it('shows your coins and the name styles first, each with its price or state', async () => {
     await make();
     expect(wrapper.find('.coins').text()).toContain('700');
-    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['ns:plain', 'ns:gold', 'ns:ruby']);
+    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['ns:plain', 'ns:gold', 'ns:ruby', 'na:glow']);
     expect(card('ns:plain').text()).toContain('In use');
     expect(card('ns:gold').find('button').text()).toBe('Buy for 800');
     expect(card('ns:ruby').find('button').text()).toBe('Use');
@@ -86,7 +86,7 @@ describe('ShopView', () => {
   it('buys an item, updates the balance and then offers to use it', async () => {
     await make();
     await openTab('Backgrounds');
-    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['bg:night', 'bg:ocean']);
+    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['bg:night', 'bg:ocean', 'ba:stars']);
     await card('bg:ocean').find('button').trigger('click');
     await flushPromises();
     expect(calls).toContainEqual(['POST', '/api/shop/buy', { item: 'bg:ocean' }]);
@@ -153,32 +153,42 @@ describe('ShopView', () => {
     expect(wrapper.find('.tab.on').text()).toBe('Unlocks');
     expect(card('bg-colour').exists()).toBe(true);
   });
-  it('lists name and background animations together, and puts one on', async () => {
-    await make('/shop/animations');
-    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['na:glow', 'ba:stars']);
+  it('puts the name animations with the names, and the background animations with the backgrounds', async () => {
+    await make('/shop/names');
+    expect(wrapper.findAll('.group-title').map((h) => h.text())).toEqual(['Styles', 'Animations']);
     expect(card('na:glow').find('[data-animation="glow"]').exists()).toBe(true);
-    expect(card('ba:stars').find('[data-fx="stars"]').exists()).toBe(true);
-    expect(card('ba:stars').find('button').text()).toBe('Buy for 800');
+    expect(card('ba:stars').exists()).toBe(false);
     await card('na:glow').find('button').trigger('click');
     await flushPromises();
     expect(calls.at(-1)).toEqual(['PATCH', '/api/me', { nameStyle: { style: 'plain', animation: 'glow' } }]);
+    await openTab('Backgrounds');
+    expect(wrapper.findAll('.group-title').map((h) => h.text())).toEqual(['Pictures', 'Animations']);
+    expect(card('ba:stars').find('[data-fx="stars"]').exists()).toBe(true);
+    expect(card('ba:stars').find('button').text()).toBe('Buy for 800');
+    expect(card('na:glow').exists()).toBe(false);
   });
+
+  it('has no separate animations tab', async () => {
+    await make();
+    expect(wrapper.findAll('.tab').map((t) => t.text())).toEqual(['Names', 'Backgrounds', 'Card backs', 'Avatar', 'Unlocks']);
+  });
+
   it('says so when animations are paused, by the profile or by the device, and not when they play', async () => {
-    await make('/shop/animations');
+    await make('/shop/names');
     expect(wrapper.find('.motion').exists()).toBe(false);
     wrapper.unmount();
     session.user = { ...session.user, playAnimations: false };
-    await make('/shop/animations');
+    await make('/shop/names');
     expect(wrapper.find('.motion').text()).toContain('Animations are paused');
     wrapper.unmount();
     globalThis.matchMedia = vi.fn(() => ({ matches: true }));
     try {
       session.user = { ...session.user, playAnimations: null };
-      await make('/shop/animations');
+      await make('/shop/names');
       expect(wrapper.find('.motion').exists()).toBe(true);
       wrapper.unmount();
       session.user = { ...session.user, playAnimations: true };
-      await make('/shop/animations');
+      await make('/shop/names');
       expect(wrapper.find('.motion').exists()).toBe(false);
     } finally {
       delete globalThis.matchMedia;

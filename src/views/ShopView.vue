@@ -11,18 +11,26 @@ import StyledName from '../components/StyledName.vue';
 import { animationsPlaying, backgroundCss, buy, cardBackCss, refreshShop, session, updateProfile } from '../session.js';
 
 const TABS = [
-  { type: 'name-style', slug: 'names', label: 'Name styles', blurb: 'A border and background around your name, wherever other players see it.' },
-  { type: 'background', slug: 'backgrounds', label: 'Backgrounds', blurb: 'The picture behind the site and the game tables.' },
-  { type: 'card-back', slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.' },
-  { type: 'avatar', slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.' },
-  { type: 'name-animation', types: ['name-animation', 'background-animation'], slug: 'animations', label: 'Animations', blurb: 'Moving borders for your name (everyone sees them) and moving backgrounds behind the site (only you see those).' },
-  { type: 'unlock', slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.' },
+  {
+    slug: 'names',
+    label: 'Names',
+    blurb: 'A border and background around your name, and animations for it, wherever other players see it.',
+    sections: [{ type: 'name-style', title: 'Styles' }, { type: 'name-animation', title: 'Animations' }],
+  },
+  {
+    slug: 'backgrounds',
+    label: 'Backgrounds',
+    blurb: 'The picture behind the site and the game tables, and animations over it (only you see those).',
+    sections: [{ type: 'background', title: 'Pictures' }, { type: 'background-animation', title: 'Animations' }],
+  },
+  { slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.', sections: [{ type: 'card-back' }] },
+  { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: [{ type: 'avatar' }] },
+  { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture on the Profile page.', sections: [{ type: 'unlock' }] },
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
 const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
 const tab = computed(() => current.value.slug);
-const typesOf = (t) => t.types ?? [t.type];
 const message = ref('');
 const problem = ref('');
 const busy = ref('');
@@ -30,7 +38,8 @@ const busy = ref('');
 onMounted(refreshShop);
 
 const balance = computed(() => session.shop?.balance ?? 0);
-const items = computed(() => (session.shop?.items ?? []).filter((item) => typesOf(current.value).includes(item.type)));
+// The tab's items, one list for each kind of thing it sells.
+const sections = computed(() => current.value.sections.map((s) => ({ ...s, items: (session.shop?.items ?? []).filter((item) => item.type === s.type) })));
 
 const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
 function equipped(item) {
@@ -76,7 +85,7 @@ function use(item) {
       <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> coins</p>
     </header>
     <p class="muted intro">Coins are won, never bought: 500 for coming 1st in a game, 200 for 2nd and 100 for 3rd.</p>
-    <p v-if="!animationsPlaying()" class="muted motion" role="status">
+    <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
     <p v-if="message" class="ok" role="status">{{ message }}</p>
@@ -88,8 +97,11 @@ function use(item) {
     <p class="muted blurb">{{ current.blurb }}</p>
 
     <p v-if="!session.shop" class="panel">Loading…</p>
-    <ul v-else class="items">
-      <li v-for="item in items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
+    <template v-else>
+      <section v-for="section in sections" :key="section.type" class="group">
+        <h2 v-if="current.sections.length > 1" class="group-title">{{ section.title }}</h2>
+        <ul class="items">
+          <li v-for="item in section.items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
         <div class="preview">
           <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" :animation-id="session.user.nameStyle?.animation ?? 'none'" />
           <StyledName v-else-if="item.type === 'name-animation'" :name="session.user.displayName" :style-id="session.user.nameStyle?.style ?? 'plain'" :animation-id="key(item)" />
@@ -100,16 +112,18 @@ function use(item) {
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
         <strong class="name">{{ item.name }}</strong>
-        <span v-if="item.type === 'name-animation'" class="kind">{{ item.part === 'border' ? 'Name border' : item.part === 'background' ? 'Name background' : 'Name' }}</span>
-        <span v-else-if="item.type === 'background-animation'" class="kind">{{ key(item) === 'gradient' ? 'Background (your gradient)' : 'Background' }}</span>
+        <span v-if="item.type === 'name-animation' && item.part !== 'none'" class="kind">{{ item.part === 'border' ? 'Moves the border' : 'Moves the background' }}</span>
+        <span v-else-if="item.type === 'background-animation' && key(item) === 'gradient'" class="kind">Slides your gradient</span>
         <span v-if="item.owned && equipped(item)" class="state">In use</span>
         <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
         <span v-else-if="item.owned" class="state">Unlocked</span>
         <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more coins` : undefined" @click="purchase(item)">
           Buy for {{ item.price }}
         </button>
-      </li>
-    </ul>
+          </li>
+        </ul>
+      </section>
+    </template>
   </section>
 </template>
 
@@ -238,6 +252,17 @@ h1 {
 .preview :deep(.styled-name.styled) {
   padding: 0.1em 0.8em;
   font-size: 1.05rem;
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.group-title {
+  font-size: 1.1rem;
+  color: var(--amber);
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
 .kind {
   margin-top: -0.35rem;
