@@ -18,12 +18,14 @@ function rain(count) {
   return Array.from({ length: count }, (_, i) => {
     const duration = 6 + next() * 8;
     const length = 14 + Math.floor(next() * 12);
-    const text = Array.from({ length }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]).join('\n');
+    const letters = Array.from({ length }, () => GLYPHS[Math.floor(next() * GLYPHS.length)]);
+    const head = letters.pop(); // the bright letter at the front of the column
+    const text = `${letters.join('\n')}\n`;
     // Some columns are rubbed out early, partway down the screen, others only as they leave it: how far along its fall a
     // column starts to fade is its own, so the rain thins out unevenly.
     const roll = next();
     const fade = roll < 0.3 ? 'early' : roll < 0.55 ? 'mid' : 'late';
-    return { text, fade, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
+    return { text, head, fade, style: { left: `${(((i + 0.5) / count) * 100).toFixed(2)}%`, '--d': `${duration.toFixed(1)}s`, '--delay': `${(-next() * duration).toFixed(1)}s` } };
   });
 }
 
@@ -42,7 +44,7 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 
 <template>
   <div v-if="shown" class="bg-fx" :class="{ fixed, demo }" :data-fx="effect" :style="style" aria-hidden="true">
-    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style">{{ column.text }}</span>
+    <span v-for="(column, i) in columns" :key="i" class="mx" :class="column.fade" :style="column.style">{{ column.text }}<b>{{ column.head }}</b></span>
   </div>
 </template>
 
@@ -231,16 +233,17 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
   white-space: pre;
   font: 15px/1.15 ui-monospace, 'Courier New', monospace;
   text-align: center;
-  color: transparent;
-  background: linear-gradient(to bottom, transparent, #0b8a3a 55%, #3dff7a 92%, #e6ffe9);
-  -webkit-background-clip: text;
-  background-clip: text;
-  opacity: 0.75;
+  color: #1fb853;
+  opacity: 0.9;
   transform: translateY(-100%);
   /* Late in its fall a column is rubbed out from the top, one letter after another (--fx-cut moves down it), so it never
      pops out of existence: by the time it starts again every letter has already faded. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
-  mask-image: linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  /* Two masks, both of which must let a letter through: the fading trail (dim at the back, solid at the head), and the
+     erasing. (The trail is a mask, not a gradient clipped to the text: Firefox draws that wrongly on moving columns.) */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 55%), linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  mask-image: linear-gradient(to bottom, transparent, #000 55%), linear-gradient(to bottom, transparent var(--fx-cut), #000 calc(var(--fx-cut) + 40%));
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
   animation:
     fx-matrix calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite,
     fx-erase calc(var(--d) / var(--fx-speed)) linear calc(var(--delay) / var(--fx-speed)) infinite;
@@ -250,6 +253,11 @@ const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--f
 }
 .mx.mid {
   animation-name: fx-matrix, fx-erase-mid;
+}
+.mx b {
+  font-weight: normal;
+  color: #e6ffe9;
+  text-shadow: 0 0 6px #3dff7a;
 }
 @property --fx-cut {
   syntax: '<percentage>';
