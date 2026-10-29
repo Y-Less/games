@@ -11,6 +11,7 @@ const props = defineProps({
   userId: { type: Number, default: null },
   styleId: { type: String, default: null }, // show this style whatever the player owns (the shop's previews)
   animationId: { type: String, default: null }, // and this animation
+  as: { type: String, default: 'span' }, // the element to draw: a `button` makes the whole button wear the style (anything after the name goes in the slot)
 });
 
 const style = computed(() => nameStyleById(props.styleId ?? profileOf(props.userId)?.nameStyle?.style));
@@ -24,7 +25,7 @@ const css = computed(() =>
 </script>
 
 <template>
-  <span class="styled-name" :class="{ styled }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}</span>
+  <component :is="as" class="styled-name" :class="{ styled }" :data-name-style="style.id" :data-animation="animation" :style="css">{{ name }}<slot /></component>
 </template>
 
 <style scoped>

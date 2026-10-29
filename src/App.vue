@@ -64,7 +64,7 @@ async function leaveSite() {
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
       </RouterLink>
       <div v-if="session.user" class="account">
-        <button class="quiet" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen"><StyledName :name="session.user.displayName" :user-id="session.user.id" /> ▾</button>
+        <StyledName as="button" class="quiet" :name="session.user.displayName" :user-id="session.user.id" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen"> ▾</StyledName>
         <div v-if="menuOpen" class="dropdown panel" @click="menuOpen = false">
           <RouterLink to="/profile">Profile</RouterLink>
           <RouterLink to="/shop">Shop</RouterLink>
@@ -180,6 +180,9 @@ async function leaveSite() {
   .links a {
     padding: 0.35rem 0.55rem;
   }
+  .account > .styled-name.styled {
+    padding: 0.4rem 0.7rem;
+  }
   .account button {
     max-width: 8rem;
     overflow: hidden;
@@ -190,6 +193,13 @@ async function leaveSite() {
 .account {
   margin-left: auto;
   position: relative;
+}
+/* The whole menu button wears your name style and animation, border and all. */
+.account > .styled-name.styled {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  line-height: 1.3;
 }
 .dropdown {
   position: absolute;
