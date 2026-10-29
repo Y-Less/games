@@ -56,6 +56,45 @@ const css = computed(() =>
 .styled-name[data-animation='rainbow'] {
   animation: ns-rainbow 6s linear infinite;
 }
+.styled-name[data-animation='flow'] {
+  background: linear-gradient(110deg, rgb(255 90 120 / 0.55), rgb(255 190 80 / 0.55), rgb(80 200 160 / 0.55), rgb(90 140 255 / 0.55), rgb(255 90 120 / 0.55)) 0 0 / 300% 100%, var(--ns-fill);
+  animation: ns-flow 7s linear infinite;
+}
+.styled-name[data-animation='stripes'] {
+  background: repeating-linear-gradient(120deg, rgb(255 255 255 / 0.2) 0 0.4em, transparent 0.4em 0.8em) 0 0 / 0.8em 100%, var(--ns-fill);
+  animation: ns-stripes 1.4s linear infinite;
+}
+.styled-name[data-animation='sparkle'] {
+  position: relative;
+}
+.styled-name[data-animation='sparkle']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 65% 70%, #fff, transparent), radial-gradient(1px 1px at 85% 25%, #fff4cf, transparent),
+    radial-gradient(1px 1px at 40% 80%, #cfe6ff, transparent);
+  background-size: 3.2em 100%;
+  animation: ns-sparkle 1.6s ease-in-out infinite alternate;
+}
+@keyframes ns-flow {
+  to {
+    background-position: -300% 0, 0 0;
+  }
+}
+@keyframes ns-stripes {
+  to {
+    background-position: 0.8em 0, 0 0;
+  }
+}
+@keyframes ns-sparkle {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
 @keyframes ns-glow {
   from {
     box-shadow: 0 0 1px var(--ns-glow);
@@ -99,7 +138,8 @@ const css = computed(() =>
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .styled-name {
+  .styled-name,
+  .styled-name::before {
     animation: none !important;
   }
 }

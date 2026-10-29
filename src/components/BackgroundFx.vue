@@ -2,14 +2,24 @@
 // An animation over the website background (see shared/animations.js): drifting light, stars, snow ... drawn in CSS only.
 // `fixed` puts it behind the whole site (App.vue); without it the effect fills its parent box, for the shop's previews.
 // It never takes clicks, and it stands still for anyone who has asked their device for less motion.
-defineProps({
+// `gradient` (the moving fade) slides the gradient from the user's `background` setting; it does nothing for any other kind
+// of background, except in a `demo` (the shop's previews), which uses a sample gradient instead.
+import { computed } from 'vue';
+
+const props = defineProps({
   effect: { type: String, default: 'none' },
   fixed: { type: Boolean, default: false },
+  background: { type: Object, default: null },
+  demo: { type: Boolean, default: false },
 });
+const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
+const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
+const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
+const style = computed(() => (props.effect === 'gradient' && fade.value ? { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` } : undefined));
 </script>
 
 <template>
-  <div v-if="effect && effect !== 'none'" class="bg-fx" :class="{ fixed }" :data-fx="effect" aria-hidden="true" />
+  <div v-if="shown" class="bg-fx" :class="{ fixed }" :data-fx="effect" :style="style" aria-hidden="true" />
 </template>
 
 <style scoped>
@@ -29,6 +39,23 @@ defineProps({
   content: '';
   position: absolute;
   inset: 0;
+}
+
+/* The user's own gradient, slid along its angle: A to B to A to B, forever, with no jump where it repeats. */
+@property --fx-shift {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+[data-fx='gradient'] {
+  --fx-period: max(100vw, 100vh);
+  background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) var(--fx-shift), var(--fx-b) calc(var(--fx-period) / 2 + var(--fx-shift)), var(--fx-a) calc(var(--fx-period) + var(--fx-shift)));
+  animation: fx-gradient 24s linear infinite;
+}
+@keyframes fx-gradient {
+  to {
+    --fx-shift: max(100vw, 100vh);
+  }
 }
 
 /* A soft band of light that crosses the page now and then. */

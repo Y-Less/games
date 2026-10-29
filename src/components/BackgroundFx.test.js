@@ -13,4 +13,22 @@ describe('BackgroundFx', () => {
     expect(w.attributes('aria-hidden')).toBe('true');
     expect(w.classes()).toContain('fixed');
   });
+
+  describe('the moving gradient', () => {
+    const gradient = { type: 'gradient', from: '#112233', to: '#445566', angle: 45 };
+
+    it('slides the gradient you chose, along its own angle', () => {
+      const w = mount(BackgroundFx, { props: { effect: 'gradient', background: gradient } });
+      expect(w.attributes('data-fx')).toBe('gradient');
+      expect(w.attributes('style')).toContain('--fx-a: #112233');
+      expect(w.attributes('style')).toContain('--fx-b: #445566');
+      expect(w.attributes('style')).toContain('--fx-angle: 45deg');
+    });
+
+    it('does nothing when your background is not a gradient, except in a preview, which uses a sample', () => {
+      const preset = { type: 'preset', value: 'night' };
+      expect(mount(BackgroundFx, { props: { effect: 'gradient', background: preset } }).find('.bg-fx').exists()).toBe(false);
+      expect(mount(BackgroundFx, { props: { effect: 'gradient', background: preset, demo: true } }).find('.bg-fx').exists()).toBe(true);
+    });
+  });
 });

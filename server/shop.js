@@ -33,7 +33,7 @@ for (const key of Object.keys(CARD_BACK_PRESETS)) {
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
-for (const a of NAME_ANIMATIONS) add({ id: `na:${a.id}`, type: 'name-animation', name: a.name, price: a.price });
+for (const a of NAME_ANIMATIONS) add({ id: `na:${a.id}`, type: 'name-animation', name: a.name, price: a.price, part: a.part });
 for (const a of BACKGROUND_ANIMATIONS) add({ id: `ba:${a.id}`, type: 'background-animation', name: a.name, price: a.price });
 for (const { id, name, price, slot, option } of avatarItems()) add({ id, type: 'avatar', name, price, slot, option });
 

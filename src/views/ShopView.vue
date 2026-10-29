@@ -90,15 +90,15 @@ function use(item) {
         <div class="preview">
           <StyledName v-if="item.type === 'name-style'" :name="session.user.displayName" :style-id="key(item)" :animation-id="session.user.nameStyle?.animation ?? 'none'" />
           <StyledName v-else-if="item.type === 'name-animation'" :name="session.user.displayName" :style-id="session.user.nameStyle?.style ?? 'plain'" :animation-id="key(item)" />
-          <span v-else-if="item.type === 'background-animation'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss(session.user.background) }"><BackgroundFx :effect="key(item)" /></span>
+          <span v-else-if="item.type === 'background-animation'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss(session.user.background) }"><BackgroundFx :effect="key(item)" :background="session.user.background" demo /></span>
           <AvatarFigure v-else-if="item.type === 'avatar'" :avatar="{ ...normaliseAvatar(session.user.avatar), [item.slot]: item.option }" size="4rem" />
           <span v-else-if="item.type === 'background'" class="swatch" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }" />
           <span v-else-if="item.type === 'card-back'" class="back" :style="{ background: cardBackCss({ type: 'preset', value: key(item) }) }" />
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
         <strong class="name">{{ item.name }}</strong>
-        <span v-if="item.type === 'name-animation'" class="kind">Name border</span>
-        <span v-else-if="item.type === 'background-animation'" class="kind">Background</span>
+        <span v-if="item.type === 'name-animation'" class="kind">{{ item.part === 'border' ? 'Name border' : item.part === 'background' ? 'Name background' : 'Name' }}</span>
+        <span v-else-if="item.type === 'background-animation'" class="kind">{{ key(item) === 'gradient' ? 'Background (your gradient)' : 'Background' }}</span>
         <span v-if="item.owned && equipped(item)" class="state">In use</span>
         <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
         <span v-else-if="item.owned" class="state">Unlocked</span>
