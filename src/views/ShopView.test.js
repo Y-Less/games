@@ -132,11 +132,6 @@ describe('ShopView', () => {
     expect(card('sf:serif').find('button').text()).toBe('Buy for 300');
     expect(card('st:plum').find('.theme').exists()).toBe(true);
     expect(card('sf:serif').find('.font-sample').attributes('style')).toContain('Georgia');
-    for (const id of ['sf:sans', 'sf:serif']) {
-      expect(card(id).find('.name').attributes('style')).toContain('font-family');
-      expect(card(id).find('button, .state').attributes('style')).toContain('font-family');
-    }
-    expect(card('st:plum').find('.name').attributes('style')).toBeUndefined();
     await card('st:plum').find('button').trigger('click');
     await flushPromises();
     expect(calls.at(-1)[2]).toEqual({ siteTheme: 'plum' });

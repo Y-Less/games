@@ -35,8 +35,6 @@ const TABS = [
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
-/** A font's own card is written in that font (its name, its state and its button), so it can be judged before it is chosen. */
-const ownFont = (item) => (item.type === 'site-font' ? { fontFamily: item.body } : undefined);
 const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
 const tab = computed(() => current.value.slug);
 const message = ref('');
@@ -123,13 +121,13 @@ function use(item) {
           <span v-else-if="item.type === 'site-font'" class="font-sample" :style="{ fontFamily: item.display }">Aa</span>
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
-        <strong class="name" :style="ownFont(item)">{{ item.name }}</strong>
+        <strong class="name">{{ item.name }}</strong>
         <span v-if="item.type === 'name-animation' && item.part !== 'none'" class="kind">{{ item.part === 'border' ? 'Moves the border' : 'Moves the background' }}</span>
         <span v-else-if="item.type === 'background-animation' && key(item) === 'gradient'" class="kind">Slides your gradient</span>
-        <span v-if="item.owned && equipped(item)" class="state" :style="ownFont(item)">In use</span>
-        <button v-else-if="item.owned && item.type !== 'unlock'" :style="ownFont(item)" :disabled="busy === item.id" @click="use(item)">Use</button>
+        <span v-if="item.owned && equipped(item)" class="state">In use</span>
+        <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
         <span v-else-if="item.owned" class="state">Unlocked</span>
-        <button v-else class="primary" :style="ownFont(item)" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more coins` : undefined" @click="purchase(item)">
+        <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more coins` : undefined" @click="purchase(item)">
           Buy for {{ item.price }}
         </button>
           </li>
