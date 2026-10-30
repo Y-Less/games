@@ -30,27 +30,32 @@
     {
       "key": "jacksTaken",
       "label": "Jacks of Diamonds taken",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "perfectGames",
       "label": "Perfect games (no points at all)",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "queensAvoided",
       "label": "Hands without the Queen of Spades",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "zeroHands",
       "label": "Hands with no points taken",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "missedMoons",
       "label": "Hands with 25 points of cards",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [

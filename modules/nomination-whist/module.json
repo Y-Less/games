@@ -25,7 +25,8 @@
     {
       "key": "perfectGames",
       "label": "Perfect games (every nomination hit)",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "instantWins",
@@ -35,22 +36,26 @@
     {
       "key": "scoredOver100",
       "label": "Games scoring over 100",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "singledOut",
       "label": "Rounds you were right and everybody else was wrong",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "zeroBidsMade",
       "label": "Nominations of zero that you made",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "sevenMade",
       "label": "Nominations of seven that you made",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [

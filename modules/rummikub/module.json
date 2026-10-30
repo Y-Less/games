@@ -35,32 +35,38 @@
     {
       "key": "pointsPlayed",
       "label": "Points of tiles played",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "tilesMoved",
       "label": "Tiles moved between groups",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "jokersReplaced",
       "label": "Jokers swapped off the table",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "outInOne",
       "label": "Rounds won with a single turn",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     },
     {
       "key": "biggestRack",
       "label": "Most tiles on your rack",
-      "agg": "max"
+      "agg": "max",
+      "hidden": true
     },
     {
       "key": "bothJokers",
       "label": "Rounds you held both jokers",
-      "agg": "sum"
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [

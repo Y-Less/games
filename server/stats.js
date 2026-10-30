@@ -6,7 +6,7 @@ const OUTCOMES = ['win', 'loss', 'draw'];
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max' }> }>} listGames
+ * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max', hidden?: boolean }> }>} listGames
  * @param {{ onRecorded?: (userIds: number[]) => void }} [options] onRecorded is called after a game is recorded, with the players in it
  *   (the site works out their achievements then).
  */
@@ -44,7 +44,12 @@ export function createStats(db, listGames, { onRecorded } = {}) {
       }
       return Number(lastInsertRowid);
     });
-    onRecorded?.(players.map((p) => p.userId));
+    // The game is saved by now: whatever the site does with it next must not make recording it look like a failure.
+    try {
+      onRecorded?.(players.map((p) => p.userId));
+    } catch (error) {
+      console.error('After recording a result:', error);
+    }
     return resultId;
   }
 
@@ -79,7 +84,7 @@ export function createStats(db, listGames, { onRecorded } = {}) {
           if (!Number.isFinite(n)) continue;
           value = def.agg === 'max' ? Math.max(value, n) : value + n;
         }
-        extras.push({ key: def.key, label: def.label, value });
+        extras.push({ key: def.key, label: def.label, value, ...(def.hidden === true ? { hidden: true } : {}) });
       }
       return {
         game: row.game,

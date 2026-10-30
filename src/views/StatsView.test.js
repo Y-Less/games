@@ -86,6 +86,13 @@ describe('StatsView', () => {
     expect(rows(panels[1])).toEqual([['Played', '4'], ['Won / lost / drawn', '2 / 1 / 1'], ['Win rate', '50%']]);
   });
 
+  it('leaves out the statistics a game keeps behind the scenes', async () => {
+    serve({ summary, perGame: [{ ...perGame[0], extras: [{ key: 'moons', label: 'Times shot the moon', value: 2 }, { key: 'secret', label: 'Secret', value: 9, hidden: true }] }], recent: [] });
+    const w = await make();
+    expect(w.text()).toContain('Times shot the moon');
+    expect(w.text()).not.toContain('Secret');
+  });
+
   it('shows total score of zero (not null)', async () => {
     serve({ summary, perGame: [{ ...perGame[0], totalScore: 0, bestScore: 0, extras: [] }], recent: [] });
     const w = await make();

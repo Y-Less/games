@@ -32,7 +32,7 @@ modules/<id>/
 ```
 
 `category` groups the menu: `party`, `cards`, `word`, or anything else (shown as "More games").
-`stats` declares the game's own numbers (see Statistics below); `agg` is `sum` (default) or `max`.
+`stats` declares the game's own numbers (see Statistics below); `agg` is `sum` (default) or `max`; `"hidden": true` keeps a number out of the Statistics page while still recording it (for achievements, or just to have it).
 
 ## Server half: `server.js`
 

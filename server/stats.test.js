@@ -352,3 +352,24 @@ test('deleting a user removes their results from the lists (cascade)', (t) => {
   assert.equal(count('result_players'), 1);
   assert.deepEqual(stats.leaderboard('alpha').map((r) => r.name), ['bea']);
 });
+
+test('a stat marked hidden is still recorded and reported, flagged (only when hidden) so the page can leave it out', (t) => {
+  const { stats, addUser } = setup(t, [{ id: 'alpha', name: 'Alpha', stats: [{ key: 'shown', label: 'Shown' }, { key: 'secret', label: 'Secret', hidden: true }] }]);
+  const id = addUser('ann');
+  stats.record('alpha', one(id, 'win', { extras: { shown: 2, secret: 5 } }));
+  assert.deepEqual(stats.forUser(id).perGame[0].extras, [
+    { key: 'shown', label: 'Shown', value: 2 },
+    { key: 'secret', label: 'Secret', value: 5, hidden: true },
+  ]);
+});
+
+test('a failure in what follows a recorded game does not undo it or make record throw', (t) => {
+  const { db, addUser } = setup(t, []);
+  const quiet = console.error;
+  console.error = () => {};
+  t.after(() => (console.error = quiet));
+  const stats = createStats(db, () => [], { onRecorded: () => { throw new Error('boom'); } });
+  const id = addUser('ann');
+  assert.ok(Number.isInteger(stats.record('alpha', one(id, 'win'))));
+  assert.equal(stats.forUser(id).summary.played, 1);
+});

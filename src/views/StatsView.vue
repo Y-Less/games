@@ -49,7 +49,7 @@ const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
             <tr><th>Win rate</th><td>{{ percent(game.winRate) }}</td></tr>
             <tr v-if="game.totalScore !== null"><th>Total score</th><td>{{ game.totalScore }}</td></tr>
             <tr v-if="game.bestScore !== null"><th>Best score</th><td>{{ game.bestScore }}</td></tr>
-            <tr v-for="extra in game.extras" :key="extra.key"><th>{{ extra.label }}</th><td>{{ extra.value }}</td></tr>
+            <tr v-for="extra in game.extras.filter((e) => !e.hidden)" :key="extra.key"><th>{{ extra.label }}</th><td>{{ extra.value }}</td></tr>
           </tbody>
         </table>
         <template v-if="boards[game.game]?.length">
