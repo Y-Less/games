@@ -9,10 +9,10 @@ const luminance = (hex) => {
 };
 const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
 
-test('the first theme and font are free and are the defaults; serif is the default font', () => {
+test('the first theme and font are free and are the defaults; classic is the default font', () => {
   assert.equal(DEFAULT_THEME, SITE_THEMES[0].id);
   assert.equal(SITE_THEMES[0].price, 0);
-  assert.equal(DEFAULT_FONT, 'serif');
+  assert.equal(DEFAULT_FONT, 'classic');
   assert.equal(SITE_FONTS[0].price, 0);
 });
 
@@ -36,5 +36,5 @@ test('the variables for a theme and font; unknown ids fall back to the defaults'
   assert.match(vars['--display'], /monospace/);
   assert.deepEqual(siteVariables('nope', undefined), siteVariables(DEFAULT_THEME, DEFAULT_FONT));
   assert.ok(isSiteTheme('forest') && !isSiteTheme('x') && !isSiteTheme(null));
-  assert.ok(isSiteFont('serif') && !isSiteFont('x') && !isSiteFont(3));
+  assert.ok(isSiteFont('classic') && !isSiteFont('sans') && !isSiteFont('x') && !isSiteFont(3));
 });

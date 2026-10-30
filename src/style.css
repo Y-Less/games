@@ -15,8 +15,8 @@
   --danger: #e2735a;
   --radius: 14px;
   --hub-bar-height: 3.9rem; /* the site's header, so a game's sticky bars can sit just below it */
-  --display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; /* the default font; a player may choose another (shared/siteThemes.js) */
-  --body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --display: Georgia, 'Times New Roman', serif; /* the default font; a player may choose another (shared/siteThemes.js) */
+  --body: Georgia, 'Times New Roman', serif;
   color-scheme: dark;
 }
 

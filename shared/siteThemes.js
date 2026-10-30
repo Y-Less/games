@@ -12,18 +12,17 @@ export const SITE_THEMES = [
   { id: 'graphite', name: 'Graphite', price: 400, vars: { bg: '#1c1d20', raised: '#2a2c31', sunken: '#141518', line: '#46484f', muted: '#a9acb3', amber: '#e0a84a' } },
 ];
 
-const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-const SERIF = "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
+const GEORGIA = "Georgia, 'Times New Roman', serif";
+const PALATINO = "'Iowan Old Style', 'Palatino Linotype', Palatino, serif";
 const ROUNDED = "ui-rounded, 'SF Pro Rounded', 'Varela Round', Nunito, 'Segoe UI', sans-serif";
 const HUMANIST = "Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif";
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
 export const SITE_FONTS = [
-  { id: 'serif', name: 'Serif', price: 0, display: SERIF, body: SANS },
-  { id: 'sans', name: 'Sans-serif', price: 300, display: SANS, body: SANS },
+  { id: 'classic', name: 'Classic', price: 0, display: GEORGIA, body: GEORGIA },
+  { id: 'palatino', name: 'Palatino', price: 300, display: PALATINO, body: PALATINO },
   { id: 'rounded', name: 'Rounded', price: 300, display: ROUNDED, body: ROUNDED },
   { id: 'humanist', name: 'Humanist', price: 300, display: HUMANIST, body: HUMANIST },
   { id: 'mono', name: 'Monospace', price: 300, display: MONO, body: MONO },
-  { id: 'classic', name: 'Classic', price: 300, display: "Georgia, 'Times New Roman', serif", body: "Georgia, 'Times New Roman', serif" },
 ];
 
 export const DEFAULT_THEME = SITE_THEMES[0].id;

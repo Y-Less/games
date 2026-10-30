@@ -303,19 +303,19 @@ test('Obsidian, Ocean, Ember and Toxic are name styles for sale, usable once bou
 test('site themes and fonts: the first of each is free and the default, the rest are bought, and bad ones are refused', async (t) => {
   const { c } = await shopSite(t, { coins: 1000 });
   const me = (await c.get('/api/me')).data.user;
-  assert.deepEqual([me.siteTheme, me.siteFont], ['harbour', 'serif'], 'serif is the default font');
+  assert.deepEqual([me.siteTheme, me.siteFont], ['harbour', 'classic'], 'classic is the default font');
   assert.equal(itemById('st:harbour').price, 0);
-  assert.equal(itemById('sf:serif').price, 0);
-  assert.equal((await c.patch('/api/me', { siteTheme: 'harbour', siteFont: 'serif' })).status, 200);
+  assert.equal(itemById('sf:classic').price, 0);
+  assert.equal((await c.patch('/api/me', { siteTheme: 'harbour', siteFont: 'classic' })).status, 200);
   assert.equal((await c.patch('/api/me', { siteTheme: 'plum' })).status, 403, 'a theme has to be bought');
-  assert.equal((await c.patch('/api/me', { siteFont: 'sans' })).status, 403, 'and so does a font');
+  assert.equal((await c.patch('/api/me', { siteFont: 'palatino' })).status, 403, 'and so does a font');
   for (const bad of ['nope', 7, null, {}, '']) {
     assert.equal((await c.patch('/api/me', { siteTheme: bad })).status, 400, `theme ${JSON.stringify(bad)}`);
     assert.equal((await c.patch('/api/me', { siteFont: bad })).status, 400, `font ${JSON.stringify(bad)}`);
   }
   assert.equal((await c.post('/api/shop/buy', { item: 'st:plum' })).status, 200);
-  assert.equal((await c.post('/api/shop/buy', { item: 'sf:sans' })).status, 200);
-  const after = (await c.patch('/api/me', { siteTheme: 'plum', siteFont: 'sans' })).data.user;
-  assert.deepEqual([after.siteTheme, after.siteFont], ['plum', 'sans']);
+  assert.equal((await c.post('/api/shop/buy', { item: 'sf:palatino' })).status, 200);
+  const after = (await c.patch('/api/me', { siteTheme: 'plum', siteFont: 'palatino' })).data.user;
+  assert.deepEqual([after.siteTheme, after.siteFont], ['plum', 'palatino']);
   assert.equal((await c.patch('/api/me', { displayName: 'Ann' })).data.user.siteTheme, 'plum', 'other changes leave it alone');
 });
