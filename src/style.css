@@ -86,8 +86,8 @@ button.primary {
   font-weight: 650;
 }
 button.primary:hover:not(:disabled) {
-  background: #efbb5f;
-  border-color: #efbb5f;
+  background: color-mix(in srgb, var(--amber), white 15%);
+  border-color: color-mix(in srgb, var(--amber), white 15%);
 }
 button.quiet {
   background: transparent;
