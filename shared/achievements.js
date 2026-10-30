@@ -67,6 +67,7 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'spent', name: 'Big spender', text: 'Spend {n} coins in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
   { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', levels: [10, 50, 100, 500, 1000] },
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
+  { key: 'steve', name: "Steve's Achievement", text: "Claim Steve's reward", levels: GLOBAL_TIERS.unlock },
   { key: 'everygame', name: 'Won every game', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
 ];
 

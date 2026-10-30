@@ -67,6 +67,18 @@ test('what was unlocked is announced in a pop-up, and the coins are paid', { tim
   await user.page.waitForFunction(() => !document.querySelector('.notice.achievement'), { timeout: 5000 });
 }));
 
+test("typing claim_steves_achievement() in the console unlocks Steve's Achievement, and the pop-up announces it", { timeout: 60000 }, guarded('steve', async () => {
+  assert.equal(await user.page.evaluate(() => typeof window.claim_steves_achievement), 'function');
+  assert.match(await user.page.evaluate(() => window.claim_steves_achievement()), /is yours/);
+  await user.page.waitForFunction(() => [...document.querySelectorAll('.notice.achievement')].some((e) => e.innerText.includes("Steve's Achievement")), { timeout: 10000 });
+  await user.page.click('.notice.achievement button');
+  await user.page.goto(new URL('/achievements', user.url).href, { waitUntil: 'domcontentloaded' });
+  await user.waitForSelector('[data-achievement="global.steve"]');
+  const steve = await box('global.steve');
+  assert.equal(steve.complete, true);
+  assert.match(steve.text, /Steve's Achievement/);
+}));
+
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
   test(`at ${viewport.width}x${viewport.height} the boxes stay on the page without sideways scrolling`, { timeout: 60000 }, guarded(`layout ${viewport.width}`, async () => {
     await user.page.setViewport(viewport);

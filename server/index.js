@@ -172,6 +172,10 @@ export async function startSite(options = {}) {
     achievements.settle(req.user.id); // levels that were earned before achievements were paid, or that a changed definition now reaches
     res.json({ ...achievements.forUser(req.user.id), rewards: { perLevel: COINS_PER_LEVEL, single: SINGLE_LEVEL_COINS } });
   });
+  api.post('/achievements/steve', requireUser, (req, res) => {
+    achievements.raise('site', req.user.id, 'global.steve', 1); // a secret: the browser console prints how to ask for it
+    res.json({ ok: true });
+  });
   api.get('/achievements/pending', requireUser, (req, res) => {
     achievements.settle(req.user.id);
     res.json({ unlocks: achievements.pending(req.user.id) });
