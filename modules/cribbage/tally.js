@@ -6,7 +6,7 @@ import { bump, freshTally, peak } from '../../shared/tally.js';
 export const STAT_KEYS = ['handsPlayed', 'bestHand', 'pegPoints', 'zeroHands', 'nineteens', 'fiveFlushes', 'perfectHands', 'nobs', 'fivesGiven'];
 export const newTally = () => freshTally(STAT_KEYS);
 
-/** The most a hand can score. */
+/** The most a hand can score; with a Jack turned up the dealer can make it 30 with his heels. */
 export const PERFECT_HAND = 29;
 
 /** Counts the fives a player puts into somebody else's box. `forOwnBox` is whether they are the dealer. */
@@ -18,11 +18,12 @@ export function tallyDiscard(tally, cards, forOwnBox) {
  * Counts a hand or box once it is scored.
  *   kind   'hand' or 'crib'
  *   shown  { total, items } from scoreHand
+ *   heels  what the player scored for turning up a Jack this deal: 2 for the dealer, who can then reach 30 with a 28
  */
-export function tallyShown(tally, kind, { total, items }) {
+export function tallyShown(tally, kind, { total, items }, heels = 0) {
   if (kind === 'hand') peak(tally, 'bestHand', total);
   if (total === 0) bump(tally, 'zeroHands');
-  if (total >= PERFECT_HAND) bump(tally, 'perfectHands');
+  if (total >= PERFECT_HAND || total + heels > PERFECT_HAND) bump(tally, 'perfectHands');
   if (items.some((item) => item.kind === 'flush' && item.cards.length === 5)) bump(tally, 'fiveFlushes');
   if (items.some((item) => item.kind === 'nobs')) bump(tally, 'nobs');
 }

@@ -35,6 +35,9 @@ const isRun = (cards) => {
   return orders.every((order, i) => i === 0 || order === orders[i - 1] + 1);
 };
 
+/** What the dealer scores for turning up a Jack ("his heels"). */
+export const HEELS_POINTS = 2;
+
 /**
  * Scores a four-card hand (or crib) with the starter. Returns { total, items }, where each item is
  * { kind: 'fifteen' | 'pair' | 'run' | 'flush' | 'nobs', cards, points, label }.

@@ -6,7 +6,7 @@ import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements } from '../../shared/scores.js';
 import { bump, extrasOf } from '../../shared/tally.js';
-import { pipValue, scoreHand, scorePlay } from './scoring.js';
+import { HEELS_POINTS, pipValue, scoreHand, scorePlay } from './scoring.js';
 import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
 
 export const TARGETS = [61, 121];
@@ -294,7 +294,7 @@ function beginPlay(room, rng) {
   room.starter = room.deck.splice(Math.floor(rng() * room.deck.length), 1)[0];
   room.phase = 'play';
   room.play = { count: 0, sequence: [], turn: (room.dealer + 1) % room.seats.length, last: null, said: [], previous: [] };
-  if (rankOf(room.starter) === 'J') award(room, room.dealer, [{ label: 'His heels', points: 2 }]);
+  if (rankOf(room.starter) === 'J') award(room, room.dealer, [{ label: 'His heels', points: HEELS_POINTS }]);
 }
 
 // ---- the play (pegging) ----
@@ -370,7 +370,8 @@ function startShow(room) {
   for (const { kind, seat } of order) {
     const cards = kind === 'crib' ? room.crib : room.kept[seat];
     const { total, items } = scoreHand(cards, room.starter, { crib: kind === 'crib' });
-    tallyShown(room.seats[seat].stats, kind, { total, items });
+    const heels = seat === room.dealer && rankOf(room.starter) === 'J' ? HEELS_POINTS : 0; // the dealer's heels come with their hand and box
+    tallyShown(room.seats[seat].stats, kind, { total, items }, heels);
     award(room, seat, [{ label: kind, points: total }], { quiet: true });
     room.show.entries.push({ kind, seat, cards, items, total, after: room.seats[seat].score });
     if (room.phase === 'finished') return;

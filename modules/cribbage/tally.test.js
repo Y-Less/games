@@ -27,6 +27,16 @@ test('a hand scoring nothing, a perfect hand, a flush of five and his nobs are c
   assert.equal(tally.fiveFlushes, 1);
 });
 
+test('as dealer, 28 and his heels from a Jack make a perfect 30', () => {
+  const tally = newTally();
+  const shown = scoreHand(['5C', '5D', '5H', '5S'], 'JD');
+  assert.equal(shown.total, 28);
+  tallyShown(tally, 'hand', shown, 0);
+  assert.equal(tally.perfectHands, 0, 'without the heels it is only 28');
+  tallyShown(tally, 'hand', shown, 2);
+  assert.equal(tally.perfectHands, 1);
+});
+
 test('a deal with no points at all is a nineteen', () => {
   const tally = newTally();
   tallyDeal(tally, 0);
