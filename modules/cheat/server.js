@@ -193,11 +193,6 @@ export default function (ctx) {
       });
 
     /** Runs a rule on the room this socket is in, then tells everyone if it worked. */
-    /** Every card a person plays counts towards the global Played cards achievement. */
-    const countCards = (outcome, count) => {
-      if (outcome.ok) ctx.achievements.add(userId, 'global.cards', count);
-      return outcome;
-    };
     const act = (rule) => {
       const room = roomOfSocket();
       const seat = room ? game.seatOf(room, userId) : -1;
@@ -255,7 +250,7 @@ export default function (ctx) {
     on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
     on('fillBots', () => act((room) => game.fillWithBots(room, userId)));
     on('start', () => act((room) => game.start(room, userId)));
-    on('play', ({ cards }) => act((room, seat) => countCards(game.playCards(room, seat, cards), Array.isArray(cards) ? cards.length : 0)));
+    on('play', ({ cards }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCards(room, seat, cards), Array.isArray(cards) ? cards.length : 0)));
     on('call', () => act((room, seat) => game.callCheat(room, seat)));
     on('accept', () => act((room, seat) => game.accept(room, seat)));
     on('again', () => act((room) => game.playAgain(room, userId)));

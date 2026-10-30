@@ -2,8 +2,9 @@
 // a player's levels) and by the page (to draw them).
 //
 // A definition (in a game's module.json "achievements", or GLOBAL_ACHIEVEMENTS below) is
-//   { key, name, text, one?, levels: [10, 50, 100], stat? }
-// - `levels` are the values at which each level unlocks (ascending whole numbers); a one-level achievement has one entry.
+//   { key, name, text, one?, levels: [10, 50, 100] or a tier name such as "easy", stat? }
+// - `levels` are the values at which each level unlocks (ascending whole numbers), or the name of a tier (see TIERS); a
+//   one-level achievement has one entry, or is `"unlock"`.
 // - `text` says what a level asks for, with {n} replaced by that level's number ("Play {n} cards"); `one` is used instead
 //   when the number is 1 ("Shoot the moon").
 // - `stat` makes the value come from the game's recorded results, so it counts games played before the achievement
@@ -11,7 +12,7 @@
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
 
 /**
- * Levels by how often the thing happens; a definition may say `"levels": "easy"` instead of listing them. A game's own
+ * Levels by how often the thing happens, and one for a one-off; a definition may say `"levels": "easy"` instead of listing them. A game's own
  * achievements top out after 100 to 200 games of that game, and from medium up the first level is 1 so that the first time
  * always counts.
  *   veryEasy  something everyone does many times a game (playing cards, taking tokens)
@@ -19,6 +20,7 @@
  *   medium    about once a game (playing the game)
  *   hard      once every few games (winning)
  *   veryHard  once in a good many games (shooting the moon)
+ *   unlock    a one-off with a single level (finishing a game with no points)
  */
 export const TIERS = {
   veryEasy: [100, 500, 1000, 2500, 5000],
@@ -29,7 +31,7 @@ export const TIERS = {
   unlock: [1], // a one-off: you have it or you do not
 };
 
-/** The same five tiers for the global achievements, which add up every game: they top out after 500 to 1,000 games. */
+/** The same tiers for the global achievements, which add up every game: they top out after 500 to 1,000 games. */
 export const GLOBAL_TIERS = {
   veryEasy: [100, 1000, 5000, 15000, 25000],
   easy: [10, 100, 500, 1000, 2500],

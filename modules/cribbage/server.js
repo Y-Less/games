@@ -181,11 +181,6 @@ export default function (ctx) {
       });
 
     /** Runs a rule for this player in the room this socket is in, then tells everyone if it worked. */
-    /** Every card a person plays counts towards the global Played cards achievement. */
-    const countCards = (outcome, count) => {
-      if (outcome.ok) ctx.achievements.add(userId, 'global.cards', count);
-      return outcome;
-    };
     const act = (rule) => {
       const room = roomOfSocket();
       if (!room || !game.hasPlayer(room, userId)) return { ok: false, error: 'You are not in a game.' };
@@ -239,7 +234,7 @@ export default function (ctx) {
     on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
     on('start', () => act((room) => game.start(room, userId)));
     on('discard', ({ cards }) => act((room, seat) => game.discard(room, seat, cards)));
-    on('play', ({ card }) => act((room, seat) => countCards(game.playCard(room, seat, card), 1)));
+    on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
     on('ready', () => act((room, seat) => game.ready(room, seat)));
     on('rematch', () =>
       act((room) => game.returnToLobby(room, userId, (id) => open(id, room.code).length > 0)),

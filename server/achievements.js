@@ -176,6 +176,11 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
       add: (userId, key, amount) => add(game, userId, key, amount),
       raise: (userId, key, value) => raise(game, userId, key, value),
       get: (userId, key) => get(userId, key.startsWith(`${GLOBAL}.`) ? key : `${game}.${key}`),
+      /** Counts cards a person has just played towards the global Played cards achievement, if the move (`outcome`) was allowed. Returns the outcome. */
+      cardsPlayed: (userId, outcome, count) => {
+        if (outcome?.ok) add(game, userId, 'global.cards', count);
+        return outcome;
+      },
       /** The levels reached (0 for none) in one achievement. */
       level: (userId, key) => {
         const id = key.startsWith(`${GLOBAL}.`) ? key : `${game}.${key}`;

@@ -171,3 +171,14 @@ test('levels of an achievement a game has since dropped are not shown', () => {
   db.prepare("INSERT INTO achievement_awards (user_id, id, level, coins, awarded_at) VALUES (?, 'old.gone', 1, 1000, 0)").run(ann);
   assert.deepEqual(achievements.pending(ann), []);
 });
+
+test('cards played count towards the global achievement only when the move was allowed, and the outcome comes back', () => {
+  const { user, achievements } = setup();
+  const ann = user('ann');
+  const hearts = achievements.forGame('hearts');
+  const allowed = { ok: true };
+  const refused = { ok: false, error: 'No.' };
+  assert.equal(hearts.cardsPlayed(ann, allowed, 3), allowed);
+  assert.equal(hearts.cardsPlayed(ann, refused, 5), refused);
+  assert.equal(hearts.get(ann, 'global.cards'), 3);
+});

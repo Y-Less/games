@@ -197,11 +197,6 @@ export default function (ctx) {
       });
 
     /** Runs a rule on the room this socket is in, then tells everyone if it worked. */
-    /** Every card a person plays counts towards the global Played cards achievement. */
-    const countCards = (outcome, count) => {
-      if (outcome.ok) ctx.achievements.add(userId, 'global.cards', count);
-      return outcome;
-    };
     const act = (rule) => {
       const room = roomOfSocket();
       const seat = room ? game.seatOf(room, userId) : -1;
@@ -260,7 +255,7 @@ export default function (ctx) {
     on('fillBots', () => act((room) => game.fillWithBots(room, userId)));
     on('start', () => act((room) => game.start(room, userId)));
     on('pass', ({ cards }) => act((room, seat) => game.choosePass(room, seat, cards)));
-    on('play', ({ card }) => act((room, seat) => countCards(game.playCard(room, seat, card), 1)));
+    on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
     on('claim', () => act((room, seat) => game.claimAll(room, seat)));
     on('next', () => act((room) => game.nextHand(room, userId)));
     on('again', () => act((room) => game.playAgain(room, userId)));
