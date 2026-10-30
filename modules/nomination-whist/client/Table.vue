@@ -77,7 +77,6 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
 });
 const opened = computed(() => ordered.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
 
-const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
 const imDealer = computed(() => round.value.dealer === you.value);
 const MOST_CARDS = 7; // the most cards in a hand: the nomination zone always has room for 0 to this
@@ -238,7 +237,7 @@ const roomFor = (area) => {
             <template v-if="seats[you].bid !== null">You nominated <b>{{ seats[you].bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ seats[you].tricks }}</b></template></template>
             <template v-else>You have not nominated yet</template>
           </span>
-          <span class="trump" :class="trumpClass" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
+          <span class="trump" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
           <span v-if="state.phase === 'nominating'">{{ total }} of {{ round.cards }} {{ round.cards === 1 ? 'trick' : 'tricks' }} nominated</span>
         </template>
       </GameStatus>
@@ -296,10 +295,8 @@ const roomFor = (area) => {
   color: var(--muted);
   font-weight: 400;
 }
-.trump.red b {
-  color: #ef6a5b;
-}
 .trump b {
+  color: var(--trump); /* the same light blue for every suit */
   text-transform: capitalize;
 }
 
