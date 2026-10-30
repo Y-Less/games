@@ -46,6 +46,7 @@ async function launch(t, existingDir) {
       id: registered.user.id,
       name: registered.user.displayName,
       stats: () => call('GET', '/api/stats/me'),
+      achievements: async () => (await call('GET', '/api/achievements')).sections.flatMap((s) => s.achievements),
       /** A socket with the latest state it was sent, and helpers to act and to wait. */
       async open() {
         const socket = connect(`${base}/${ID}`, { forceNew: true, extraHeaders: { cookie } });
@@ -119,7 +120,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   assert.equal((await ann.send('start')).ok, false);
   assert.equal((await (await (await account('eve')).open()).send('join', { code: created.code })).ok, false, 'too late to join');
 
-  const expected = new Map(accounts.map((a) => [a.id, { score: 0, exact: 0, hints: 0 }]));
+  const expected = new Map(accounts.map((a) => [a.id, { score: 0, exact: 0, hints: 0, cells: new Set() }]));
   for (let turn = 1; turn <= 3; turn++) {
     for (const p of players) await p.until((s) => s.phase === 'guessing1' && s.turn === turn, `turn ${turn}`);
     const hinter = players.find((p) => p.state.tint);
@@ -139,6 +140,8 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
     expected.get(guessing[0].state.you).exact += 2;
     expected.get(hinter.state.you).score += 3;
     expected.get(hinter.state.you).hints += 1;
+    expected.get(guessing[0].state.you).cells.add(tint);
+    expected.get(guessing[1].state.you).cells.add(farFrom(tint));
 
     assert.equal((await guessing[0].send('advance')).ok, false, 'a guesser cannot continue');
     assert.equal((await hinter.send('guess', { cell: 'A1' })).ok, false, 'the hinter cannot guess');
@@ -216,6 +219,9 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
     assert.equal(extras.exactGuesses, expected.get(a.id).exact);
     assert.equal(extras.hintsGiven, 1);
     assert.equal(extras.closeGuesses ?? 0, 0);
+    const found = Object.fromEntries((await a.achievements()).map((x) => [x.id, x.value]));
+    assert.equal(found[`${ID}.palette`], expected.get(a.id).cells.size, 'the different squares they guessed');
+    assert.equal(found[`${ID}.corners`], [...expected.get(a.id).cells].filter((c) => ['A1', 'AZ24'].includes(c)).length, 'the corners they guessed');
     assert.equal(stats.recent[0].players, 3);
     assert.equal(stats.recent[0].placement, mine.placement);
   }

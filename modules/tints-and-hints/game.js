@@ -5,6 +5,7 @@ import { placements, totalsFromRounds } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { AIS } from './ai/index.js';
+import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
@@ -27,7 +28,7 @@ const playerOf = (room, id) => room.players.find((p) => p.id === id);
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const guessers = (room) => room.players.filter((p) => p.id !== room.hinter);
 const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.floor(rng() * ROWS.length)];
-const newPlayer = (id, colour) => ({ id, colour, score: 0, exactGuesses: 0, closeGuesses: 0, hintsGiven: 0 });
+const newPlayer = (id, colour) => ({ id, colour, score: 0, ...newCounters() });
 /** People (accounts), as opposed to computer players. */
 export const humans = (room) => room.players.filter((p) => !p.bot);
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
@@ -151,6 +152,7 @@ export function start(room, id, rng = Math.random) {
   if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
   room.turnsTotal = room.turnsEach * room.players.length;
   room.turn = 0;
+  room.collected = null;
   room.nextIdx = Math.floor(rng() * room.players.length);
   startTurn(room, rng);
   // Every computer player gets an AI for the whole game (after the deal, so seeded games deal as they always did).
@@ -198,12 +200,10 @@ function scoreTurn(room, nameOf = String) {
       if (cell === room.tint) {
         kind = 'exact';
         points = round === 1 ? POINTS.firstExact : POINTS.secondExact;
-        player.exactGuesses++;
         got.add(id);
       } else if (isClose(cell, room.tint)) {
         kind = 'close';
         points = round === 1 ? POINTS.firstClose : POINTS.secondClose;
-        player.closeGuesses++;
       }
       player.score += points;
       entries.push({ id, round, cell, kind, points });
@@ -213,8 +213,8 @@ function scoreTurn(room, nameOf = String) {
   const hinterPoints = hinter ? got.size * POINTS.hinterPerGuesser : 0;
   if (hinter) {
     hinter.score += hinterPoints;
-    hinter.hintsGiven++;
   }
+  tallyTurn({ entries, playerOf: (id) => playerOf(room, id), hinter, target: room.tint });
   room.result = { tint: room.tint, hinter: room.hinter, entries, hinterPoints };
   recordHistory(room, nameOf, got.size);
 }
@@ -356,7 +356,7 @@ export function statsPlayers(room) {
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
-    extras: { exactGuesses: p.exactGuesses, closeGuesses: p.closeGuesses, hintsGiven: p.hintsGiven },
+    extras: statsExtras(p),
   }));
 }
 

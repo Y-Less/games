@@ -7,6 +7,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import * as game from './game.js';
+import { COLS, CORNERS, cellNumber, parseCell } from './grid.js';
+import { ALEX } from './tally.js';
 
 const KEEP_FINISHED_MS = 24 * 60 * 60 * 1000;
 const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -116,11 +118,37 @@ export default function (ctx) {
         ctx.log('a computer move failed:', error);
         return;
       }
-      recordIfFinished(room);
+      afterRules(room);
       changed(room);
     }, action ? botMin + Math.random() * (botMax - botMin) : nextWait);
     timer.unref?.();
     timers.set(code, timer);
+  }
+
+  /** The squares and columns people have now met, for the collecting achievements (once for each scored turn). */
+  function collectSquares(room) {
+    if (room.phase !== 'reveal' || !room.result || room.collected === room.turn) return;
+    room.collected = room.turn;
+    const collect = (id, key, items) => {
+      if (typeof id !== 'number') return; // computer players are not accounts
+      try {
+        ctx.achievements?.collect(id, key, items);
+      } catch (error) {
+        ctx.log('could not collect squares:', error.message);
+      }
+    };
+    for (const { id, cell } of room.result.entries) {
+      collect(id, 'palette', [cellNumber(cell)]);
+      if (CORNERS.includes(cell)) collect(id, 'corners', [CORNERS.indexOf(cell)]);
+    }
+    const column = COLS[parseCell(room.result.tint).col];
+    if (ALEX.includes(column)) collect(room.result.hinter, 'alex', [ALEX.indexOf(column)]);
+  }
+
+  /** Everything to do after a rule has changed a room, before telling the players. */
+  function afterRules(room) {
+    collectSquares(room);
+    recordIfFinished(room);
   }
 
   function recordIfFinished(room) {
@@ -137,7 +165,7 @@ export default function (ctx) {
     detach(userId, room.code);
     if (outcome.empty) drop(room.code);
     else {
-      recordIfFinished(room);
+      afterRules(room);
       changed(room);
     }
     save();
@@ -203,7 +231,7 @@ export default function (ctx) {
       if (!room || !game.hasPlayer(room, userId)) return { ok: false, error: 'You are not in a game.' };
       const outcome = rule(room);
       if (outcome.ok) {
-        recordIfFinished(room);
+        afterRules(room);
         changed(room);
       }
       return outcome.ok ? { ok: true } : outcome;

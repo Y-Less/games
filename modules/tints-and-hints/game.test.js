@@ -207,7 +207,7 @@ test('ties: every tied leader wins and placements are shared', () => {
   Object.assign(room.players[3], { score: 7 });
   const stats = game.statsPlayers(room);
   assert.deepEqual(stats.map((s) => [s.userId, s.outcome, s.placement, s.score]), [[1, 'win', 1, 10], [2, 'win', 1, 10], [3, 'loss', 3, 7], [4, 'loss', 3, 7]]);
-  assert.deepEqual(Object.keys(stats[0].extras), ['exactGuesses', 'closeGuesses', 'hintsGiven']);
+  assert.deepEqual(Object.keys(stats[0].extras), ['exactGuesses', 'closeGuesses', 'hintsGiven', 'missGuesses', 'firstExact', 'leeks', 'distance']);
 });
 
 test('leaving: in the lobby, the host passes on; the last one out empties the room', () => {

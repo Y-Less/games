@@ -159,3 +159,19 @@ export function cellsDescribedBy(text) {
   for (let col = 0; col < DESCRIPTIONS.length; col++) for (let row = 0; row < DESCRIPTIONS[col].length; row++) if (describeGroup({ col, row }) === wanted) return groupCells({ col, row });
   return null;
 }
+
+/** A square's number, from 0, running down each column in turn: stable, so it can be remembered (see the collecting achievements). */
+export function cellNumber(cell) {
+  const p = parseCell(cell);
+  return p ? p.col * ROWS.length + p.row : -1;
+}
+
+/** How far apart two squares are, counting columns plus rows (straight lines, not diagonals). */
+export function distance(cell, target) {
+  const a = parseCell(cell);
+  const b = parseCell(target);
+  return a && b ? Math.abs(a.col - b.col) + Math.abs(a.row - b.row) : 0;
+}
+
+/** The four corners of the grid. */
+export const CORNERS = [cellName(0, 0), cellName(COLS.length - 1, 0), cellName(0, ROWS.length - 1), cellName(COLS.length - 1, ROWS.length - 1)];
