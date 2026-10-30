@@ -11,6 +11,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   selected: { type: Boolean, default: false },
   dimmed: { type: Boolean, default: false },
+  trump: { type: Boolean, default: false }, // a trump: the white of the face is the light trump blue
 });
 defineEmits(['pick']);
 
@@ -26,7 +27,7 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   <component
     :is="tag"
     class="playing-card"
-    :class="[size, { face: card, 'card-back': !card, red, joker, selected, dimmed, clickable }]"
+    :class="[size, { face: card, 'card-back': !card, red, joker, selected, dimmed, clickable, trump }]"
     :type="clickable ? 'button' : undefined"
     :disabled="clickable ? disabled : undefined"
     :aria-label="label"
@@ -67,6 +68,11 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
   border: 1px solid #b9b2a2;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
   font-family: var(--body);
+}
+.playing-card.face.trump,
+.playing-card.face.trump:hover:not(:disabled) {
+  background: var(--trump, #8fd3f0);
+  border-color: #5a9fbd;
 }
 .playing-card.face.red,
 .playing-card.face.red:hover:not(:disabled) {

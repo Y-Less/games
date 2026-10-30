@@ -114,3 +114,10 @@ describe('a Joker', () => {
     expect(ace.attributes('aria-label')).toBe('ace of spades');
   });
 });
+
+describe('PlayingCard trump', () => {
+  it('is marked as a trump only when asked', () => {
+    expect(make({ card: '7H', trump: true }).classes()).toContain('trump');
+    expect(make({ card: '7H' }).classes()).not.toContain('trump');
+  });
+});

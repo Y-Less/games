@@ -7,12 +7,14 @@
 // `seats` is [{ key, name }] viewer first; `plays` is [{ key, card }] in the order played; `winnerKey` outlines the
 // winning card. `labels` prints each player's name on their card. The default slot is laid over the middle (messages).
 import { computed } from 'vue';
+import { suitOf } from '../../shared/cards.js';
 import PlayingCard from './PlayingCard.vue';
 
 const props = defineProps({
   seats: { type: Array, required: true },
   plays: { type: Array, default: () => [] },
   winnerKey: { type: [String, Number], default: null },
+  trump: { type: String, default: '' }, // a suit letter: its cards are drawn on the trump blue
   size: { type: String, default: 'lg' }, // 'sm' | 'md' | 'lg', as PlayingCard
   labels: { type: Boolean, default: false },
 });
@@ -50,7 +52,7 @@ const slots = computed(() =>
       :class="{ won: slot.card && slot.seat.key === winnerKey, filled: slot.card }"
       :style="{ '--sx': slot.sx, '--sy': slot.sy, '--turn': `${slot.turn}deg`, zIndex: slot.order + 1 }"
     >
-      <PlayingCard v-if="slot.card" :card="slot.card" :size="size" />
+      <PlayingCard v-if="slot.card" :card="slot.card" :size="size" :trump="Boolean(trump) && suitOf(slot.card) === trump" />
       <span v-if="labels && slot.card" class="who">{{ slot.seat.name }}</span>
     </div>
     <div class="middle"><slot /></div>

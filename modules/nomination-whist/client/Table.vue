@@ -12,7 +12,7 @@ import CardFan from '../../../src/components/CardFan.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
-import { sortHand, SUIT_NAMES, SUIT_SYMBOLS } from '../../../shared/cards.js';
+import { sortHand, SUIT_NAMES, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Final from './Final.vue';
 import { movesBetween } from './log.js';
@@ -77,6 +77,7 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
 });
 const opened = computed(() => ordered.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
 
+const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
 const imDealer = computed(() => round.value.dealer === you.value);
 const MOST_CARDS = 7; // the most cards in a hand: the nomination zone always has room for 0 to this
@@ -193,7 +194,7 @@ const roomFor = (area) => {
         <template v-else>
           <div class="opponents"><OpponentHands :opponents="opponents" :max="MOST_CARDS" /></div>
           <div class="centre" :style="{ paddingTop: TOP_HANDS.includes(others.length) ? `${TOP_RESERVE}px` : undefined }" aria-live="polite">
-            <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" size="lg" labels />
+            <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" :trump="round.trump ?? ''" size="lg" labels />
           </div>
           <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
             <h3>Your nomination</h3>
@@ -215,7 +216,7 @@ const roomFor = (area) => {
           <CardFan class="hand" role="group" aria-label="Your hand" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" :straight="!roomFor(area).fanned">
             <template #default="{ item: card }">
               <div class="slot" :title="state.legal?.[card] ?? undefined">
-                <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" @pick="pick" />
+                <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" :trump="Boolean(round.trump) && suitOf(card) === round.trump" @pick="pick" />
               </div>
             </template>
           </CardFan>
@@ -237,7 +238,7 @@ const roomFor = (area) => {
             <template v-if="seats[you].bid !== null">You nominated <b>{{ seats[you].bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ seats[you].tricks }}</b></template></template>
             <template v-else>You have not nominated yet</template>
           </span>
-          <span class="trump" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
+          <span class="trump" :class="trumpClass" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
           <span v-if="state.phase === 'nominating'">{{ total }} of {{ round.cards }} {{ round.cards === 1 ? 'trick' : 'tricks' }} nominated</span>
         </template>
       </GameStatus>
@@ -295,8 +296,10 @@ const roomFor = (area) => {
   color: var(--muted);
   font-weight: 400;
 }
+.trump.red b {
+  color: #ef6a5b;
+}
 .trump b {
-  color: var(--trump); /* the same light blue for every suit */
   text-transform: capitalize;
 }
 
