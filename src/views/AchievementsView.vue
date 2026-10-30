@@ -21,6 +21,7 @@ onMounted(async () => {
 const number = (n) => n.toLocaleString('en-GB');
 const percent = (progress) => Math.floor(progress * 100);
 const done = (a) => a.level === a.maxLevel;
+const single = (a) => a.maxLevel === 1; // one level: you have it or you do not, so there is nothing to count
 const unlocked = (section) => section.achievements.reduce((sum, a) => sum + a.level, 0);
 const possible = (section) => section.achievements.reduce((sum, a) => sum + a.maxLevel, 0);
 </script>
@@ -42,17 +43,18 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
         <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a) }" :data-achievement="a.id">
           <div class="top">
             <h3>{{ a.name }}</h3>
-            <span class="level" :title="`${a.level} of ${a.maxLevel} levels`">{{ done(a) ? 'Complete' : a.level ? `Level ${a.level}` : 'Not started' }}</span>
+            <span class="level" :title="`${a.level} of ${a.maxLevel} levels`">{{ single(a) ? (done(a) ? 'Unlocked' : 'Locked') : done(a) ? 'Complete' : a.level ? `Level ${a.level}` : 'Not started' }}</span>
           </div>
-          <ol class="pips" aria-hidden="true">
+          <ol v-if="!single(a)" class="pips" aria-hidden="true">
             <li v-for="(l, i) in a.levels" :key="i" :class="{ on: l.done }" />
           </ol>
-          <p v-if="a.next" class="goal">Level {{ a.level + 1 }}: {{ a.next.text }}</p>
+          <p v-if="single(a)" class="goal">{{ a.levels[0].text }}</p>
+          <p v-else-if="a.next" class="goal">Level {{ a.level + 1 }}: {{ a.next.text }}</p>
           <p v-else class="goal">Level {{ a.maxLevel }}: {{ a.current.text }}</p>
-          <div class="bar" role="progressbar" :aria-valuenow="percent(a.progress)" aria-valuemin="0" aria-valuemax="100" :aria-label="`${a.name}: progress towards the next level`">
+          <div v-if="!single(a)" class="bar" role="progressbar" :aria-valuenow="percent(a.progress)" aria-valuemin="0" aria-valuemax="100" :aria-label="`${a.name}: progress towards the next level`">
             <i :style="{ width: `${percent(a.progress)}%` }" />
           </div>
-          <p class="count muted">
+          <p v-if="!single(a)" class="count muted">
             <template v-if="a.next">{{ number(a.value) }} / {{ number(a.next.n) }}</template>
             <template v-else>{{ number(a.value) }}</template>
           </p>

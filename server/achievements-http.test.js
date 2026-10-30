@@ -54,7 +54,7 @@ test('the page lists the global achievements, then the games that have some, and
   assert.deepEqual(list.map((s) => s.id), ['global', 'pad', 'quiet'], 'a game that defines none still has the two every game has');
   assert.deepEqual(list[1].achievements.map((a) => a.key), ['played', 'won', 'laps', 'best', 'jumper'], 'the played and won ones first; the one with no levels is dropped');
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
-  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [10, 50, 100, 500, 1000], 'played is medium');
+  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 50, 100, 500], 'played: 1, 10, 50, 100, 500');
   assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 50, 100], 'won is hard');
   assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards']);
 });
@@ -107,7 +107,7 @@ test('unlocking a level pays 1,000 coins, and the unlock is waiting until it has
   await ask(socket, 'lap', { n: 2 });
   assert.equal((await balanceOf(c)) - before, 1000, 'laps level 1');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks;
-  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 1000 }]);
+  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 1000 }]);
   assert.equal((await find('pad.laps')).level, 1);
   assert.equal((await c.get('/api/achievements/pending')).data.unlocks.length, 1, 'still waiting: it has not been shown');
   assert.equal((await c.post('/api/achievements/seen', { items: [{ id: 'pad.laps', level: 1 }] })).status, 200);

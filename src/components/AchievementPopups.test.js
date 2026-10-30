@@ -9,7 +9,7 @@ const { session } = await import('../session.js');
 const { feed, stopFeed } = await import('../achievementFeed.js');
 const { default: AchievementPopups } = await import('./AchievementPopups.vue');
 
-const unlock = (id, level, name = 'Played cards', text = 'Play 100 cards') => ({ id, level, game: 'Global', name, text, coins: 1000 });
+const unlock = (id, level, name = 'Played cards', text = 'Play 100 cards') => ({ id, level, levels: 5, game: 'Global', name, text, coins: 1000 });
 const popup = () => document.body.querySelector('.achievement');
 
 let wrapper;
@@ -57,6 +57,12 @@ describe('AchievementPopups', () => {
     expect(text).toContain('level 2: Play 500 cards');
     expect(text).toContain('+1,000 coins');
     expect(popup().getAttribute('role')).toBe('status');
+  });
+
+  it('leaves the level out for an achievement that has only one', async () => {
+    await arrive([{ ...unlock('hearts.perfect', 1, 'Perfect game', 'Finish a game with no points'), levels: 1, game: 'Hearts' }]);
+    expect(popup().textContent).toContain('Hearts: Finish a game with no points');
+    expect(popup().textContent).not.toContain('level 1');
   });
 
   it('closes by itself and tells the server it was shown', async () => {

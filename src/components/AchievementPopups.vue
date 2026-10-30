@@ -43,7 +43,7 @@ const number = (n) => n.toLocaleString('en-GB');
     </template>
     <template v-else>
       <strong class="title">Achievement unlocked: {{ current[0].name }}</strong>
-      <span class="line">{{ current[0].game }}, level {{ current[0].level }}: {{ current[0].text }}</span>
+      <span class="line">{{ current[0].game }}{{ current[0].levels > 1 ? `, level ${current[0].level}` : '' }}: {{ current[0].text }}</span>
       <span class="line reward">+{{ number(current[0].coins) }} coins</span>
     </template>
   </NoticePopup>

@@ -140,7 +140,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
       const section = sections().find((x) => x.id === game);
       const definition = section?.definitions.find((d) => `${section.id}.${d.key}` === row.id);
       if (!definition) return [];
-      return [{ id: row.id, level: row.level, game: section.name, name: definition.name, text: levelText(definition, definition.levels[row.level - 1]), coins: row.coins }];
+      return [{ id: row.id, level: row.level, levels: definition.levels.length, game: section.name, name: definition.name, text: levelText(definition, definition.levels[row.level - 1]), coins: row.coins }];
     });
   }
 

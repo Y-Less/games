@@ -102,7 +102,7 @@ far they are towards the next. An achievement is a number that grows, and the le
 ```
 
 - `levels` are the values at which each level unlocks (ascending, whole numbers), or the name of a tier: `"easy"` (100, 500, 1,000, 5,000, 10,000), `"medium"` (10, 50, 100, 500, 1,000) or `"hard"` (1, 5, 10, 50, 100). Use the tiers unless the achievement is a one-off (one level). Progress towards the next level is the value as a fraction of its number, so
-  600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry.
+  600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry, and is shown as just got or not (no levels or progress bar).
 - `text` says what a level asks for, with `{n}` replaced by that level's number; `one` is used instead when the number is 1.
 - `stat` makes the value come from the game's recorded results, so it also counts games played before it existed: one of the
   game's own `stats` keys (put what you need in `extras` when you call `ctx.stats.record`), or `played`, `wins`, `losses`,
@@ -115,7 +115,7 @@ far they are towards the next. An achievement is a number that grows, and the le
 | `ctx.achievements.get(userId, key)` | the current value of any achievement: your own, or a global one as `'global.games'`, `'global.wins'`, `'global.cards'` |
 | `ctx.achievements.level(userId, key)` | the level reached (0 for none) |
 
-Every game also gets two without asking: **Played the game** (medium) and **Won the game** (hard), from its recorded results
+Every game also gets two without asking: **Played the game** (1, 10, 50, 100, 500) and **Won the game** (hard), from its recorded results
 (a module may define its own `played` or `won` key to replace them).
 
 **Rewards.** Every level unlocked pays 1,000 coins, whichever level it is, once. The player sees a pop-up wherever they are on

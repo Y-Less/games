@@ -31,7 +31,7 @@ export const GLOBAL_ACHIEVEMENTS = [
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */
 export const GAME_ACHIEVEMENTS = [
-  { key: 'played', name: 'Played the game', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
+  { key: 'played', name: 'Played the game', text: 'Play {n} games', one: 'Play a game', levels: [1, 10, 50, 100, 500], stat: 'played' },
   { key: 'won', name: 'Won the game', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
 ];
 

@@ -17,7 +17,7 @@ after(async () => {
 });
 
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
-const box = (id) => user.page.$eval(`[data-achievement="${id}"]`, (e) => ({ text: e.innerText.replace(/\s+/g, ' '), complete: e.classList.contains('complete'), bar: e.querySelector('[role="progressbar"]').getAttribute('aria-valuenow') }));
+const box = (id) => user.page.$eval(`[data-achievement="${id}"]`, (e) => ({ text: e.innerText.replace(/\s+/g, ' '), complete: e.classList.contains('complete'), bar: e.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') ?? null }));
 
 test('the page is in the menu and lists the global achievements, then each game with some', { timeout: 60000 }, guarded('list', async () => {
   await user.clickButton('Achievements', { scope: 'header nav', exact: true });
@@ -51,6 +51,8 @@ test('progress shows the level reached and how far it is towards the next', { ti
   assert.match(moon.text, /Level 3: Shoot the moon 10 times/);
   const perfect = await box('hearts.perfect');
   assert.equal(perfect.complete, true);
+  assert.equal(perfect.bar, null, 'one level: got or not, so no progress bar');
+  assert.match(perfect.text, /Unlocked/);
   assert.equal((await box('global.games')).bar, '10', 'one game of ten');
 }));
 

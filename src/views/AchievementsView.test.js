@@ -88,9 +88,12 @@ describe('AchievementsView', () => {
     await make();
     const perfect = box('hearts.perfect');
     expect(perfect.classes()).toContain('complete');
-    expect(perfect.text()).toContain('Complete');
+    expect(perfect.text()).toContain('Unlocked');
     expect(perfect.text()).toContain('Finish a game with no points');
-    expect(perfect.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('100');
+    expect(perfect.text()).not.toContain('Level');
+    expect(perfect.find('.pips').exists()).toBe(false);
+    expect(perfect.find('[role="progressbar"]').exists()).toBe(false);
+    expect(perfect.find('.count').exists()).toBe(false);
     const moon = box('hearts.moon');
     expect(moon.text()).toContain('Not started');
     expect(moon.text()).toContain('Level 1: Do it 1 times');
