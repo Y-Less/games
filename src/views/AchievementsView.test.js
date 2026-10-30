@@ -95,10 +95,19 @@ describe('AchievementsView', () => {
     expect(perfect.find('[role="progressbar"]').exists()).toBe(false);
     expect(perfect.find('.count').exists()).toBe(false);
     const moon = box('hearts.moon');
-    expect(moon.text()).toContain('Not started');
-    expect(moon.text()).toContain('Level 1: Do it 1 times');
-    expect(moon.text()).toContain('0 / 1');
-    expect(moon.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('0');
+  });
+
+  it('keeps an achievement secret as ??? until a level is earned', async () => {
+    await make();
+    const moon = box('hearts.moon');
+    expect(moon.classes()).toContain('locked');
+    expect(moon.find('h3').text()).toBe('???');
+    expect(moon.text()).toContain('Locked');
+    expect(moon.text()).not.toContain('Shot the moon');
+    expect(moon.text()).not.toContain('Do it');
+    expect(moon.find('[role="progressbar"]').exists()).toBe(false);
+    expect(moon.find('.pips').exists()).toBe(false);
+    expect(box('global.cards').find('h3').text()).toBe('Played cards');
   });
 
   it('says what a level earns', async () => {

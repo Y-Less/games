@@ -21,6 +21,7 @@ onMounted(async () => {
 const number = (n) => n.toLocaleString('en-GB');
 const percent = (progress) => Math.floor(progress * 100);
 const done = (a) => a.level === a.maxLevel;
+const hidden = (a) => a.level === 0; // nothing earned yet: the name and goal stay secret
 const single = (a) => a.maxLevel === 1; // one level: you have it or you do not, so there is nothing to count
 const unlocked = (section) => section.achievements.reduce((sum, a) => sum + a.level, 0);
 const possible = (section) => section.achievements.reduce((sum, a) => sum + a.maxLevel, 0);
@@ -40,11 +41,13 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
         <span class="muted tally">{{ unlocked(section) }} of {{ possible(section) }} levels</span>
       </header>
       <ul class="boxes">
-        <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a) }" :data-achievement="a.id">
+        <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a), locked: hidden(a) }" :data-achievement="a.id">
           <div class="top">
-            <h3>{{ a.name }}</h3>
-            <span class="level" :title="`${a.level} of ${a.maxLevel} levels`">{{ single(a) ? (done(a) ? 'Unlocked' : 'Locked') : done(a) ? 'Complete' : a.level ? `Level ${a.level}` : 'Not started' }}</span>
+            <h3>{{ hidden(a) ? '???' : a.name }}</h3>
+            <span class="level" :title="`${a.level} of ${a.maxLevel} levels`">{{ hidden(a) ? 'Locked' : single(a) ? 'Unlocked' : done(a) ? 'Complete' : `Level ${a.level}` }}</span>
           </div>
+          <p v-if="hidden(a)" class="goal">???</p>
+          <template v-else>
           <ol v-if="!single(a)" class="pips" aria-hidden="true">
             <li v-for="(l, i) in a.levels" :key="i" :class="{ on: l.done }" />
           </ol>
@@ -58,6 +61,7 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
             <template v-if="a.next">{{ number(a.value) }} / {{ number(a.next.n) }}</template>
             <template v-else>{{ number(a.value) }}</template>
           </p>
+          </template>
         </li>
       </ul>
     </section>

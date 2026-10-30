@@ -29,11 +29,13 @@ test('the page is in the menu and lists the global achievements, then each game 
   assert.equal(sections[0], 'Global', 'the global ones come first');
   assert.equal(await user.page.$$eval('[data-section="cheat"] h3', (els) => els.length), 2, 'a game with none of its own has played and won');
   const wavelength = await user.page.$$eval('[data-section="wavelength"] h3', (els) => els.map((e) => e.textContent.trim()));
-  assert.ok(wavelength.includes('Guess exactly'));
+  assert.equal(wavelength.length, 9, 'every Wavelength achievement has a box');
+  assert.ok(wavelength.every((name) => name === '???'), "and none is named until it is earned");
   const first = await box('global.games');
-  assert.match(first.text, /Not started/);
-  assert.match(first.text, /Level 1: Play a game/);
-  assert.equal(first.bar, '0');
+  assert.match(first.text, /\?\?\?/);
+  assert.match(first.text, /Locked/);
+  assert.doesNotMatch(first.text, /Play a game/, 'the goal is a secret until it is reached');
+  assert.equal(first.bar, null);
 }));
 
 test('progress shows the level reached and how far it is towards the next', { timeout: 60000 }, guarded('progress', async () => {
