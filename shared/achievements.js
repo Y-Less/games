@@ -53,6 +53,7 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: GLOBAL_TIERS.medium, stat: 'played' },
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
   { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: GLOBAL_TIERS.veryEasy },
+  { key: 'slow', name: 'Take your time', text: 'Take over 10 minutes over a turn while online', levels: GLOBAL_TIERS.unlock },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */

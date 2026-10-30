@@ -57,7 +57,7 @@ test('the page lists the global achievements, then the games that have some, and
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
   assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 25, 50, 150], 'played is medium');
   assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 25, 50], 'won is hard');
-  assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards']);
+  assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards', 'slow']);
 });
 
 test('it needs a signed-in player', async (t) => {

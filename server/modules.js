@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseCookies, SESSION_COOKIE } from './auth.js';
 import { codes } from './codes.js';
+import { watchTurns } from './turnClock.js';
 import { cleanDefinition, GAME_ACHIEVEMENTS } from '../shared/achievements.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/markerColours.js';
 
@@ -54,8 +55,19 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
         const user = auth.userForToken(token);
         if (!user) return next(new Error('Please sign in.'));
         socket.data.user = { id: user.id, name: user.displayName, isBot: user.isBot };
+        watchSlowTurns(socket);
         next();
       });
+
+      // A player who keeps a game waiting for over ten minutes on their turn, while connected, earns the global "Take your time".
+      const watchSlowTurns = (socket) => {
+        const watch = watchTurns({ onSlow: () => achievements?.forGame(meta.id).raise(socket.data.user.id, 'global.slow', 1) });
+        const emit = socket.emit.bind(socket);
+        socket.emit = (event, ...args) => {
+          if (event === 'state') watch(args[0] ?? null);
+          return emit(event, ...args);
+        };
+      };
 
       const moduleDataDir = path.join(dataDir, 'modules', meta.id);
       fs.mkdirSync(moduleDataDir, { recursive: true });
