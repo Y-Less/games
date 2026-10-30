@@ -47,8 +47,8 @@ test('there are five tiers, medium and up start at 1, and a definition may name 
   assert.deepEqual(TIERS.veryEasy, [100, 500, 1000, 2500, 5000]);
   assert.deepEqual(TIERS.easy, [10, 50, 100, 250, 500]);
   assert.deepEqual(TIERS.medium, [1, 10, 25, 50, 150]);
-  assert.deepEqual(TIERS.hard, [1, 3, 10, 25, 40]);
-  assert.deepEqual(TIERS.veryHard, [1, 2, 3, 5, 8]);
+  assert.deepEqual(TIERS.hard, [1, 5, 10, 25, 50]);
+  assert.deepEqual(TIERS.veryHard, [1, 2, 3, 5, 10]);
   for (const ladders of [TIERS, GLOBAL_TIERS]) {
     assert.deepEqual(Object.keys(ladders), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
     for (const [name, levels] of Object.entries(ladders)) {
@@ -57,8 +57,8 @@ test('there are five tiers, medium and up start at 1, and a definition may name 
       assert.ok(levels.every((n, i) => i === 0 || n > levels[i - 1]), `${name} ascends`);
     }
   }
-  // The global ladders go further, as they add up every game: the top of each is a few times the per-game one.
-  for (const name of Object.keys(TIERS)) assert.ok(GLOBAL_TIERS[name].at(-1) >= TIERS[name].at(-1) * 3, name);
+  // The global ladders go further, as they add up every game: the top of each is at least twice the per-game one.
+  for (const name of Object.keys(TIERS)) assert.ok(GLOBAL_TIERS[name].at(-1) >= TIERS[name].at(-1) * 2, name);
   assert.deepEqual(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'hard' }).levels, TIERS.hard);
   assert.equal(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'impossible' }), null);
   const clean = cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'easy' });

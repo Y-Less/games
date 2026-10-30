@@ -24,8 +24,8 @@ export const TIERS = {
   veryEasy: [100, 500, 1000, 2500, 5000],
   easy: [10, 50, 100, 250, 500],
   medium: [1, 10, 25, 50, 150],
-  hard: [1, 3, 10, 25, 40],
-  veryHard: [1, 2, 3, 5, 8],
+  hard: [1, 5, 10, 25, 50],
+  veryHard: [1, 2, 3, 5, 10],
 };
 
 /** The same five tiers for the global achievements, which add up every game: they top out after 500 to 1,000 games. */
