@@ -296,11 +296,16 @@ const roomFor = (area) => {
   color: var(--muted);
   font-weight: 400;
 }
-.trump.red b {
-  color: #ef6a5b;
-}
+/* The trump suit drawn like one of its cards: the theme's trump face, and the suit's own ink (black or red) as on the cards. */
 .trump b {
   text-transform: capitalize;
+  padding: 0.05rem 0.45rem;
+  border-radius: 4px;
+  background: var(--trump, #8fd3f0);
+  color: #1c1c1f;
+}
+.trump.red b {
+  color: #b4281f;
 }
 
 /* Another player's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */

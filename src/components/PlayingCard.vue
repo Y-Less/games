@@ -72,7 +72,7 @@ const tag = computed(() => (props.clickable ? 'button' : 'div'));
 .playing-card.face.trump,
 .playing-card.face.trump:hover:not(:disabled) {
   background: var(--trump, #8fd3f0);
-  border-color: #5a9fbd;
+  border-color: color-mix(in srgb, var(--trump, #8fd3f0), black 35%);
 }
 .playing-card.face.red,
 .playing-card.face.red:hover:not(:disabled) {
