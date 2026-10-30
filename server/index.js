@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Server } from 'socket.io';
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, clearedCookie, parseCookies, SESSION_COOKIE, sessionCookie, createAuth } from './auth.js';
+import { createAchievements } from './achievements.js';
 import { createCoins } from './coins.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
@@ -42,14 +43,16 @@ export async function startSite(options = {}) {
   const shop = createShop(db);
   let moduleList = [];
   const stats = createStats(db, () => moduleList);
+  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: stats.forUser });
 
   const app = express();
   app.set('trust proxy', process.env.TRUST_PROXY ? 1 : false);
   const server = http.createServer(app);
   const io = new Server(server);
 
-  const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, dataDir, owns: shop.owns, log });
+  const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, achievements, dataDir, owns: shop.owns, log });
   moduleList = modules.list();
+  for (const meta of moduleList) for (const problem of achievements.problems(meta)) log(`Achievement problem: ${problem}`);
 
   // ---- helpers ----
   const tokenOf = (req) => parseCookies(req.headers.cookie)[SESSION_COOKIE];
@@ -148,6 +151,7 @@ export async function startSite(options = {}) {
   api.post('/shop/buy', requireUser, handler(async (req, res) => res.json(shop.buy(req.user.id, req.body?.item))));
 
   api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
+  api.get('/achievements', requireUser, (req, res) => res.json(achievements.forUser(req.user.id)));
   api.get('/stats/leaderboard/:game', requireUser, (req, res) => {
     if (!moduleList.some((g) => g.id === req.params.game)) return res.status(404).json({ error: 'No such game.' });
     res.json({ leaderboard: stats.leaderboard(req.params.game) });
@@ -192,6 +196,7 @@ export async function startSite(options = {}) {
     port: actualPort,
     db,
     stats,
+    achievements,
     async close() {
       clearInterval(sweep);
       await modules.dispose();

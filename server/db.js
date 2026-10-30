@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS owned_items (
   bought_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, item_id)
 );
+-- Progress a game saves towards an achievement (shared/achievements.js); the id is "<game>.<key>", or "global.<key>".
+CREATE TABLE IF NOT EXISTS achievement_progress (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  value REAL NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, id)
+);
 CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
 -- A game pays a player once, even if it were recorded twice.
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_once ON coin_ledger (user_id, result_id) WHERE reason = 'placement';

@@ -38,7 +38,7 @@ async function oldDatabase(dir) {
 test('a new database has every table, foreign keys on and WAL journalling', (t) => {
   const { dir, track } = workspace(t);
   const db = track(openDatabase(dir));
-  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users']);
+  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['achievement_progress', 'coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users']);
   assert.ok(columnsOf(db).includes('card_back'));
   assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
   assert.equal(db.prepare('PRAGMA journal_mode').get().journal_mode, 'wal');
@@ -79,7 +79,7 @@ test('a database created without the card_back column gets it on open, and keeps
   assert.equal(migrated.displayName, 'Old Timer');
   assert.deepEqual(migrated.background, { type: 'preset', value: 'forest' }, 'existing settings are untouched');
   assert.deepEqual(migrated.cardBack, { type: 'preset', value: 'crimson' }, 'the new column has its default');
-  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users'], 'the newer tables were added');
+  assert.deepEqual(tablesOf(db).filter((n) => !n.startsWith('sqlite_')).sort(), ['achievement_progress', 'coin_ledger', 'owned_items', 'result_players', 'results', 'sessions', 'users'], 'the newer tables were added');
   assert.equal(createAuth(db).updateProfile(user.id, { cardBack: { type: 'preset', value: 'gold' } }).cardBack.value, 'gold');
   const login = await createAuth(db).login({ username: 'veteran', password: 'old password' });
   assert.equal(login.user.id, user.id, 'the old password still works');

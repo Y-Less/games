@@ -43,6 +43,7 @@ async function leaveSite() {
       <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" aria-label="Main">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">Games</RouterLink>
         <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
+        <RouterLink to="/achievements" class="optional" :class="{ on: route.name === 'achievements' }">Achievements</RouterLink>
         <RouterLink to="/shop" class="optional" :class="{ on: route.name === 'shop' }">Shop</RouterLink>
       </nav>
 
@@ -71,6 +72,7 @@ async function leaveSite() {
           <RouterLink to="/profile">Profile</RouterLink>
           <RouterLink to="/shop">Shop</RouterLink>
           <RouterLink to="/stats">My statistics</RouterLink>
+          <RouterLink to="/achievements">Achievements</RouterLink>
           <button class="quiet" @click="leaveSite">Sign out</button>
         </div>
       </div>
@@ -197,7 +199,7 @@ async function leaveSite() {
     white-space: nowrap;
   }
 }
-/* On the narrowest phones the menu has Statistics and Shop (and the coin count links to the shop), so the bar keeps just Games. */
+/* On the narrowest phones the menu has Statistics, Achievements and Shop (and the coin count links to the shop), so the bar keeps just Games. */
 @media (max-width: 420px) {
   .links .optional {
     display: none;

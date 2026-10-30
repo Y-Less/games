@@ -473,7 +473,7 @@ export function statsPlayers(room) {
             outcome: room.winners.includes(i) ? 'win' : 'loss',
             placement: place[i],
             score: room.scores[i],
-            extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0 },
+            extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
           },
         ]
       : [],

@@ -11,6 +11,14 @@
     { "key": "bidsMade", "label": "Nominations hit exactly", "agg": "sum" },
     { "key": "tricksWon", "label": "Tricks won", "agg": "sum" },
     { "key": "perfectGames", "label": "Perfect games (every nomination hit)", "agg": "sum" },
-    { "key": "instantWins", "label": "Instant wins (7 nominated and won in the first or last round)", "agg": "sum" }
+    { "key": "instantWins", "label": "Instant wins (7 nominated and won in the first or last round)", "agg": "sum" },
+    { "key": "scoredOver100", "label": "Games scoring over 100", "agg": "sum" }
+  ],
+  "achievements": [
+    { "key": "perfect", "name": "Perfect game", "text": "Make every nomination in a game", "levels": [1], "stat": "perfectGames" },
+    { "key": "over100", "name": "Scored over 100", "text": "Score over 100 in a game {n} times", "one": "Score over 100 in a game", "levels": [1, 5, 10, 50, 100], "stat": "scoredOver100" },
+    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": [100, 500, 1000, 5000, 10000], "stat": "totalScore" },
+    { "key": "bids", "name": "Nominations hit", "text": "Hit your nomination exactly {n} times", "levels": [10, 50, 100, 500, 1000], "stat": "bidsMade" },
+    { "key": "wins", "name": "Won games", "text": "Win {n} games", "one": "Win a game", "levels": [1, 10, 50, 100, 500], "stat": "wins" }
   ]
 }

@@ -53,6 +53,7 @@ export default function (ctx) {
 | `ctx.id` | the module id |
 | `ctx.io` | a Socket.IO namespace (`/<id>`). Every connection is already authenticated: `socket.data.user` is `{ id, name, isBot }`. Unauthenticated clients are refused before `connection`. |
 | `ctx.stats.record(result)` | report a finished game (below) |
+| `ctx.achievements` | save progress towards achievements and read anyone's (see Achievements below) |
 | `ctx.users.get(userId)` | `{ id, username, displayName, isBot, background }` or `null` |
 | `ctx.codes` | `generate(isTaken)` makes a three-word room code such as `boss-aware-you`; `normalise(raw)` tidies a typed or pasted one (returns `''` if it is not a code) |
 | `ctx.dataDir` | a folder this module may save files in (the site creates it) |
@@ -86,6 +87,38 @@ ctx.stats.record({
 - `extras` holds numbers only. The profile page sums (or takes the maximum of) each key declared in `module.json`
   and shows it under the game's name, next to the standard games played, wins, losses, win rate, total and best
   score. Bots count as players, but the leaderboard leaves them out.
+
+## Achievements
+
+The Achievements page lists every achievement by game (the site's global ones first) and shows each player's level and how
+far they are towards the next. An achievement is a number that grows, and the levels it unlocks at:
+
+```json
+"achievements": [
+  { "key": "moon", "name": "Shot the moon", "text": "Shoot the moon {n} times", "one": "Shoot the moon",
+    "levels": [1, 5, 10, 50, 100], "stat": "moonsShot" },
+  { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": [1], "stat": "perfectGames" }
+]
+```
+
+- `levels` are the values at which each level unlocks (ascending, whole numbers). Progress towards the next level is the value as a fraction of its number, so
+  600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry.
+- `text` says what a level asks for, with `{n}` replaced by that level's number; `one` is used instead when the number is 1.
+- `stat` makes the value come from the game's recorded results, so it also counts games played before it existed: one of the
+  game's own `stats` keys (put what you need in `extras` when you call `ctx.stats.record`), or `played`, `wins`, `losses`,
+  `draws`, `totalScore` or `bestScore`. **Leave `stat` out** to keep the progress yourself, with `ctx.achievements`:
+
+| | |
+| --- | --- |
+| `ctx.achievements.add(userId, key, amount = 1)` | adds to your own saved achievement, or to a global one (`'global.cards'`). Returns `{ before, after, level, unlocked }` (`unlocked`: this call reached a new level), or `null` for a computer player |
+| `ctx.achievements.raise(userId, key, value)` | raises it to `value` if that is more than it is now (for "best ever" numbers) |
+| `ctx.achievements.get(userId, key)` | the current value of any achievement: your own, or a global one as `'global.games'`, `'global.wins'`, `'global.cards'` |
+| `ctx.achievements.level(userId, key)` | the level reached (0 for none) |
+
+Only accounts collect achievements (computer players are skipped), and a key that is not defined, or one that has a `stat`,
+throws, so a typo is found by the tests. The global ones are in `shared/achievements.js`: played games and won games (from
+the results) and played cards, which every card game adds to by calling `ctx.achievements.add(userId, 'global.cards')` for
+each card a person plays.
 
 ## Client half: `client/index.js`
 

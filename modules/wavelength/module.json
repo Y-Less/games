@@ -9,5 +9,12 @@
   "stats": [
     { "key": "bullseyes", "label": "Bullseyes", "agg": "sum" },
     { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
+  ],
+  "achievements": [
+    { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": [5, 10, 50, 100, 500], "stat": "bullseyes" },
+    { "key": "clues", "name": "Clues given", "text": "Give {n} clues", "one": "Give a clue", "levels": [10, 50, 100, 500, 1000], "stat": "cluesGiven" },
+    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": [50, 250, 500, 1000, 5000], "stat": "totalScore" },
+    { "key": "played", "name": "Games played", "text": "Play {n} games", "levels": [5, 10, 50, 100, 250], "stat": "played" },
+    { "key": "wins", "name": "Won games", "text": "Win {n} games", "one": "Win a game", "levels": [1, 10, 50, 100, 500], "stat": "wins" }
   ]
 }

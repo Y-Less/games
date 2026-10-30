@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseCookies, SESSION_COOKIE } from './auth.js';
 import { codes } from './codes.js';
+import { cleanDefinition } from '../shared/achievements.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/markerColours.js';
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
@@ -25,6 +26,7 @@ function readManifest(dir, folder) {
     category: String(manifest.category ?? 'other'),
     rules: manifest.rules ? String(manifest.rules) : null,
     stats: Array.isArray(manifest.stats) ? manifest.stats.filter((s) => s?.key && s?.label) : [],
+    achievements: Array.isArray(manifest.achievements) ? manifest.achievements.map(cleanDefinition).filter(Boolean) : [],
   };
 }
 
@@ -32,7 +34,7 @@ function readManifest(dir, folder) {
  * Loads every module and starts its server half.
  * @returns {Promise<{ list: () => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
  */
-export async function loadModules({ dir, io, app, auth, stats, dataDir, owns = () => false, log = console.log }) {
+export async function loadModules({ dir, io, app, auth, stats, achievements, dataDir, owns = () => false, log = console.log }) {
   const modules = new Map(); // id -> { meta, dispose }
   const folders = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((d) => fs.statSync(path.join(dir, d.name), { throwIfNoEntry: false })?.isDirectory()) : [];
 
@@ -57,6 +59,8 @@ export async function loadModules({ dir, io, app, auth, stats, dataDir, owns = (
         io: namespace,
         dataDir: moduleDataDir,
         stats: { record: (result) => stats.record(meta.id, result) },
+        /** Achievements (shared/achievements.js): add / raise saved progress, and read any player's (the global ones as "global.<key>"). */
+        achievements: achievements?.forGame(meta.id),
         users: { get: (id) => auth.userById(id) },
         /** Marker colours (shared/markerColours.js): what a player may use, and the default they saved. */
         markers: {

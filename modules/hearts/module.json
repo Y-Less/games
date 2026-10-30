@@ -10,6 +10,15 @@
     { "key": "handsPlayed", "label": "Hands played", "agg": "sum" },
     { "key": "moonsShot", "label": "Times you shot the moon", "agg": "sum" },
     { "key": "queensTaken", "label": "Queens of Spades taken", "agg": "sum" },
-    { "key": "heartsTaken", "label": "Hearts taken", "agg": "sum" }
+    { "key": "heartsTaken", "label": "Hearts taken", "agg": "sum" },
+    { "key": "jacksTaken", "label": "Jacks of Diamonds taken", "agg": "sum" },
+    { "key": "perfectGames", "label": "Perfect games (no points at all)", "agg": "sum" }
+  ],
+  "achievements": [
+    { "key": "moon", "name": "Shot the moon", "text": "Shoot the moon {n} times", "one": "Shoot the moon", "levels": [1, 5, 10, 50, 100], "stat": "moonsShot" },
+    { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": [1], "stat": "perfectGames" },
+    { "key": "jack", "name": "Got the jack", "text": "Take the Jack of Diamonds {n} times", "levels": [5, 10, 50, 100, 500], "stat": "jacksTaken" },
+    { "key": "hands", "name": "Hands played", "text": "Play {n} hands", "levels": [10, 50, 100, 500, 1000], "stat": "handsPlayed" },
+    { "key": "wins", "name": "Won games", "text": "Win {n} games", "one": "Win a game", "levels": [1, 10, 50, 100, 500], "stat": "wins" }
   ]
 }

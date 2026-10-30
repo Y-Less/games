@@ -519,7 +519,30 @@ test('statistics: winners win, ties share a placement, computer players and repl
   const players = g.statsPlayers(room);
   assert.deepEqual(players.map((p) => p.userId), [1, 2, 3]);
   assert.deepEqual(players.map((p) => [p.outcome, p.placement, p.score]), [['loss', 4, 104], ['win', 1, 30], ['win', 1, 30]]);
-  assert.deepEqual(players[1].extras, { handsPlayed: 6, moonsShot: 1, queensTaken: 2, heartsTaken: 11 });
+  assert.deepEqual(players[1].extras, { handsPlayed: 6, moonsShot: 1, queensTaken: 2, heartsTaken: 11, perfectGames: 0 });
+});
+
+test('statistics: a game that ends with no points is a perfect game', () => {
+  const room = started();
+  room.scores = [0, 40, 50, 20].slice(0, room.seats.length);
+  room.winners = g.winnersOf(room.scores);
+  room.phase = 'finished';
+  assert.equal(g.statsPlayers(room)[0].extras.perfectGames, 1);
+  room.scores[0] = 12;
+  assert.equal(g.statsPlayers(room)[0].extras.perfectGames, 0);
+});
+
+test('the Jack of Diamonds is tallied when it scores, and a room saved before it was counted still plays', () => {
+  const room = started({ target: 50, jackOfDiamonds: true }, seeded(2));
+  room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
+  for (const tally of room.tally) delete tally.jacksTaken; // an old saved room
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  assert.equal(room.tally.reduce((n, t) => n + (t.jacksTaken ?? 0), 0), 1, 'somebody took the Jack');
+  assert.ok(room.tally.every((t) => t.jacksTaken === undefined || Number.isInteger(t.jacksTaken)));
+  const off = started({ target: 50, jackOfDiamonds: false }, seeded(2));
+  off.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
+  for (let guard = 0; guard < 500 && (off.phase === 'passing' || off.phase === 'playing'); guard++) g.runPending(off, seeded(guard));
+  assert.equal(off.tally.reduce((n, t) => n + (t.jacksTaken ?? 0), 0), 0, 'worth nothing, so not counted');
 });
 
 // ---- views ----

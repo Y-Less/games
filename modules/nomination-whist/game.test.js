@@ -358,6 +358,9 @@ test('the game ends with ties shared, and the statistics use placements', () => 
   assert.equal(g.statsPlayers(room)[0].extras.perfectGames, 1);
   room.tally[0].bidsMade = 13;
   assert.equal(g.statsPlayers(room)[0].extras.perfectGames, 0);
+  // Scored over 100: strictly more than 100 in the game.
+  room.scores = [101, 100, 12, 40];
+  assert.deepEqual(g.statsPlayers(room).map((s) => s.extras.scoredOver100), [1, 0]);
 });
 
 test('leaving: a computer player takes the seat mid-game, the host passes on, an empty room is abandoned', () => {

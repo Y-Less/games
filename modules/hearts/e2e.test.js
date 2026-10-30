@@ -204,6 +204,14 @@ test('one person and three computer players play a whole game; the result is rec
   assert.ok(extras.heartsTaken >= 0 && extras.heartsTaken <= 13 * extras.handsPlayed);
   assert.ok(extras.queensTaken >= 0 && extras.queensTaken <= extras.handsPlayed);
   assert.ok(extras.moonsShot >= 0);
+  // Achievements: every card the person played counts (13 a hand), and the game's own ones follow its statistics.
+  const { sections } = (await ann.http('GET', '/api/achievements')).data;
+  const achievement = (id) => sections.flatMap((section) => section.achievements).find((a) => a.id === id);
+  assert.equal(achievement('global.cards').value, 13 * extras.handsPlayed);
+  assert.equal(achievement('global.games').value, 1);
+  assert.equal(achievement('hearts.moon').value, extras.moonsShot);
+  assert.equal(achievement('hearts.jack').value, extrasOf(stats).jacksTaken ?? 0);
+  assert.equal(achievement('hearts.perfect').value, mine.score <= 0 ? 1 : 0);
   assert.equal(stats.recent[0].players, 1);
   assert.equal(stats.recent[0].placement, 1 + final.scoreboard.players.filter((p) => p.score < mine.score).length);
 
