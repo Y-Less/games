@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import AchievementPopups from './components/AchievementPopups.vue';
 import BackgroundFx from './components/BackgroundFx.vue';
 import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
@@ -77,6 +78,8 @@ async function leaveSite() {
         </div>
       </div>
     </header>
+
+    <AchievementPopups />
 
     <main class="field">
       <RouterView :key="route.fullPath.split('?')[0]" />

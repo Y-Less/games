@@ -101,7 +101,7 @@ far they are towards the next. An achievement is a number that grows, and the le
 ]
 ```
 
-- `levels` are the values at which each level unlocks (ascending, whole numbers). Progress towards the next level is the value as a fraction of its number, so
+- `levels` are the values at which each level unlocks (ascending, whole numbers), or the name of a tier: `"easy"` (100, 500, 1,000, 5,000, 10,000), `"medium"` (10, 50, 100, 500, 1,000) or `"hard"` (1, 5, 10, 50, 100). Use the tiers unless the achievement is a one-off (one level). Progress towards the next level is the value as a fraction of its number, so
   600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry.
 - `text` says what a level asks for, with `{n}` replaced by that level's number; `one` is used instead when the number is 1.
 - `stat` makes the value come from the game's recorded results, so it also counts games played before it existed: one of the
@@ -114,6 +114,14 @@ far they are towards the next. An achievement is a number that grows, and the le
 | `ctx.achievements.raise(userId, key, value)` | raises it to `value` if that is more than it is now (for "best ever" numbers) |
 | `ctx.achievements.get(userId, key)` | the current value of any achievement: your own, or a global one as `'global.games'`, `'global.wins'`, `'global.cards'` |
 | `ctx.achievements.level(userId, key)` | the level reached (0 for none) |
+
+Every game also gets two without asking: **Played the game** (medium) and **Won the game** (hard), from its recorded results
+(a module may define its own `played` or `won` key to replace them).
+
+**Rewards.** Every level unlocked pays 1,000 coins, whichever level it is, once. The player sees a pop-up wherever they are on
+the site (`AchievementPopups`, built on the generic `NoticePopup`), and it is queued until they have seen it. Levels
+a player had already earned when achievements began paying out are paid the first time the site works them out (when they open the
+Achievements page, finish a game or are told of an unlock).
 
 Only accounts collect achievements (computer players are skipped), and a key that is not defined, or one that has a `stat`,
 throws, so a typo is found by the tests. The global ones are in `shared/achievements.js`: played games and won games (from
@@ -266,6 +274,7 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `InviteCode` | the code pill that copies the invite link |
 | `SeatLobby` | seats and computer players waiting room |
 | `GameFrame` | the standard screen: a 12-column grid sized to the window (`data-fits-window`, no page scroll). Slots `scorebar`, `main`, `others`, `log`, `status`; `main` and `others` receive `{ width, height, left, right, gap, mainSpan, columns }` (pixels) so a game can size its pieces. Props `mainSpan` (columns for the left part of the main row, default 7) and `logSpan` (columns for Recent moves, default 6) set each row's split on the shared grid, so outer edges and gutters line up while splits differ; a game's main content may use `grid-template-columns: subgrid` and `grid-column: span N` |
+| `NoticePopup` | the generic small pop-up over the top of the page: slot content, `active`, `duration`, OK button, `name` (extra class), `row` (stack two). `YourTurnPopup` and the achievement unlocks are built on it |
 | `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
 

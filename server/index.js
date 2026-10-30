@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Server } from 'socket.io';
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, clearedCookie, parseCookies, SESSION_COOKIE, sessionCookie, createAuth } from './auth.js';
 import { createAchievements } from './achievements.js';
+import { LEVEL_REWARD } from '../shared/achievements.js';
 import { createCoins } from './coins.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
@@ -42,13 +43,22 @@ export async function startSite(options = {}) {
   const auth = createAuth(db, { canUse: (userId, settings) => checkSettings(db, userId, settings) });
   const shop = createShop(db);
   let moduleList = [];
-  const stats = createStats(db, () => moduleList);
-  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: stats.forUser });
+  // (io is made below, before anything can be recorded or played)
+  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements') });
+  const stats = createStats(db, () => moduleList, { onRecorded: (userIds) => userIds.forEach((id) => achievements.settle(id)) });
 
   const app = express();
   app.set('trust proxy', process.env.TRUST_PROXY ? 1 : false);
   const server = http.createServer(app);
   const io = new Server(server);
+  // The site's own socket (the default namespace), for what is not part of one game: a person's pop-ups arrive here, wherever on the site they are.
+  io.use((socket, next) => {
+    const user = auth.userForToken(parseCookies(socket.handshake.headers.cookie)[SESSION_COOKIE]);
+    if (!user) return next(new Error('Please sign in.'));
+    socket.data.userId = user.id;
+    next();
+  });
+  io.on('connection', (socket) => socket.join(`user:${socket.data.userId}`));
 
   const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, achievements, dataDir, owns: shop.owns, log });
   moduleList = modules.list();
@@ -151,7 +161,18 @@ export async function startSite(options = {}) {
   api.post('/shop/buy', requireUser, handler(async (req, res) => res.json(shop.buy(req.user.id, req.body?.item))));
 
   api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
-  api.get('/achievements', requireUser, (req, res) => res.json(achievements.forUser(req.user.id)));
+  api.get('/achievements', requireUser, (req, res) => {
+    achievements.settle(req.user.id); // levels that were earned before achievements were paid, or that a changed definition now reaches
+    res.json({ ...achievements.forUser(req.user.id), reward: LEVEL_REWARD });
+  });
+  api.get('/achievements/pending', requireUser, (req, res) => {
+    achievements.settle(req.user.id);
+    res.json({ unlocks: achievements.pending(req.user.id) });
+  });
+  api.post('/achievements/seen', requireUser, (req, res) => {
+    achievements.seen(req.user.id, req.body?.items);
+    res.json({ ok: true });
+  });
   api.get('/stats/leaderboard/:game', requireUser, (req, res) => {
     if (!moduleList.some((g) => g.id === req.params.game)) return res.status(404).json({ error: 'No such game.' });
     res.json({ leaderboard: stats.leaderboard(req.params.game) });

@@ -56,7 +56,19 @@ CREATE TABLE IF NOT EXISTS achievement_progress (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, id)
 );
+-- Each level a player has unlocked, once: it pays its coins when it is added, and shown is 0 until the player has seen the pop-up.
+CREATE TABLE IF NOT EXISTS achievement_awards (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  level INTEGER NOT NULL,
+  coins INTEGER NOT NULL,
+  awarded_at INTEGER NOT NULL,
+  shown INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, id, level)
+);
 CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
+-- An achievement level pays once, even if it were settled twice.
+CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_achievement ON coin_ledger (user_id, reason) WHERE reason LIKE 'achievement:%';
 -- A game pays a player once, even if it were recorded twice.
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_once ON coin_ledger (user_id, result_id) WHERE reason = 'placement';
 CREATE INDEX IF NOT EXISTS result_players_user ON result_players (user_id);

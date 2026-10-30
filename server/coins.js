@@ -59,6 +59,12 @@ export function createCoins(db) {
       return paid;
     },
 
+    /** Pays coins for something that happens once (the reason is unique per user, so a repeat is ignored). Returns the coins paid. */
+    award(userId, amount, reason) {
+      if (!Number.isInteger(amount) || amount <= 0) return 0;
+      return Number(insert.run(userId, amount, reason, null, Date.now()).changes) ? amount : 0;
+    },
+
     /** Takes coins for a purchase. Throws when the balance would go below zero. */
     spend(userId, amount, reason) {
       if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of coins.');

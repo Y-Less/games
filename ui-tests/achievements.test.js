@@ -25,7 +25,9 @@ test('the page is in the menu and lists the global achievements, then each game 
   assert.equal(user.url.pathname, '/achievements');
   await user.waitForSelector('[data-section="hearts"]');
   const sections = await user.page.$$eval('[data-section] > header h2', (els) => els.map((e) => e.textContent.trim()));
-  assert.deepEqual(sections, ['Global', 'Hearts', 'Nomination Whist', 'Wavelength']);
+  assert.ok(['Global', 'Hearts', 'Nomination Whist', 'Wavelength', 'Cheat', 'Cribbage'].every((name) => sections.includes(name)));
+  assert.equal(sections[0], 'Global', 'the global ones come first');
+  assert.equal(await user.page.$$eval('[data-section="cheat"] h3', (els) => els.length), 2, 'a game with none of its own has played and won');
   const wavelength = await user.page.$$eval('[data-section="wavelength"] h3', (els) => els.map((e) => e.textContent.trim()));
   assert.ok(wavelength.includes('Guess exactly'));
   const first = await box('global.games');
@@ -50,6 +52,15 @@ test('progress shows the level reached and how far it is towards the next', { ti
   const perfect = await box('hearts.perfect');
   assert.equal(perfect.complete, true);
   assert.equal((await box('global.games')).bar, '10', 'one game of ten');
+}));
+
+test('what was unlocked is announced in a pop-up, and the coins are paid', { timeout: 60000 }, guarded('popup', async () => {
+  await user.waitForSelector('.notice.achievement');
+  const text = await user.page.$eval('.notice.achievement', (e) => e.innerText.replace(/\s+/g, ' '));
+  assert.match(text, /achievements? unlocked/i);
+  assert.match(text, /\+[\d,]+ coins/);
+  await user.page.click('.notice.achievement button');
+  await user.page.waitForFunction(() => !document.querySelector('.notice.achievement'), { timeout: 5000 });
 }));
 
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {

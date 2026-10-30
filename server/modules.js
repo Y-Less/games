@@ -9,10 +9,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseCookies, SESSION_COOKIE } from './auth.js';
 import { codes } from './codes.js';
-import { cleanDefinition } from '../shared/achievements.js';
+import { cleanDefinition, GAME_ACHIEVEMENTS } from '../shared/achievements.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/markerColours.js';
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
+
+/** The module's own achievements after the two every game has (played, won), unless it defines a key of that name itself. */
+function withStandardAchievements(own) {
+  return [...GAME_ACHIEVEMENTS.filter((a) => !own.some((o) => o.key === a.key)).map((a) => cleanDefinition(a)), ...own];
+}
 
 function readManifest(dir, folder) {
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, folder, 'module.json'), 'utf8'));
@@ -26,7 +31,7 @@ function readManifest(dir, folder) {
     category: String(manifest.category ?? 'other'),
     rules: manifest.rules ? String(manifest.rules) : null,
     stats: Array.isArray(manifest.stats) ? manifest.stats.filter((s) => s?.key && s?.label) : [],
-    achievements: Array.isArray(manifest.achievements) ? manifest.achievements.map(cleanDefinition).filter(Boolean) : [],
+    achievements: withStandardAchievements(Array.isArray(manifest.achievements) ? manifest.achievements.map(cleanDefinition).filter(Boolean) : []),
   };
 }
 

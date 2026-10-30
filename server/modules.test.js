@@ -99,7 +99,8 @@ test('manifest fields get sensible defaults and the list is sorted by name', asy
   const games = (await client().get('/api/config')).data.games;
   assert.deepEqual(games.map((g) => g.name), ['Aardvark', 'bare', 'Full Game', 'Zed']);
   const byId = Object.fromEntries(games.map((g) => [g.id, g]));
-  assert.deepEqual(byId.bare, { id: 'bare', name: 'bare', description: '', minPlayers: 1, maxPlayers: 1, category: 'other', rules: null, stats: [], achievements: [] });
+  assert.deepEqual({ ...byId.bare, achievements: undefined }, { id: 'bare', name: 'bare', description: '', minPlayers: 1, maxPlayers: 1, category: 'other', rules: null, stats: [], achievements: undefined });
+  assert.deepEqual(byId.bare.achievements.map((a) => a.key), ['played', 'won'], 'every game has played and won achievements');
   assert.equal(byId.onlymin.maxPlayers, 3, 'maxPlayers defaults to minPlayers');
   assert.deepEqual(byId.full.stats, [{ key: 'a', label: 'A' }], 'stat declarations need a key and a label');
   assert.equal(byId.full.rules, 'rules.md');

@@ -5,11 +5,14 @@ import { onMounted, ref } from 'vue';
 import { api, session } from '../session.js';
 
 const sections = ref(null);
+const reward = ref(0); // coins for every level unlocked
 const failed = ref('');
 
 onMounted(async () => {
   try {
-    sections.value = (await api('GET', '/api/achievements')).sections;
+    const data = await api('GET', '/api/achievements');
+    sections.value = data.sections;
+    reward.value = data.reward;
   } catch (e) {
     failed.value = e.message;
   }
@@ -29,6 +32,7 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
     <p v-else-if="!sections" class="muted">Loading…</p>
 
     <template v-else>
+    <p v-if="reward" class="muted note">Every level you unlock earns {{ reward.toLocaleString('en-GB') }} coins.</p>
     <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="`${section.name} achievements`">
       <header class="heading">
         <h2>{{ section.name }}</h2>
@@ -67,6 +71,9 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
 .achievements > h1 {
   color: var(--amber);
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
+}
+.note {
+  margin: 0;
 }
 .panel {
   background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);

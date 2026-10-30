@@ -16,9 +16,8 @@
   ],
   "achievements": [
     { "key": "perfect", "name": "Perfect game", "text": "Make every nomination in a game", "levels": [1], "stat": "perfectGames" },
-    { "key": "over100", "name": "Scored over 100", "text": "Score over 100 in a game {n} times", "one": "Score over 100 in a game", "levels": [1, 5, 10, 50, 100], "stat": "scoredOver100" },
-    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": [100, 500, 1000, 5000, 10000], "stat": "totalScore" },
-    { "key": "bids", "name": "Nominations hit", "text": "Hit your nomination exactly {n} times", "levels": [10, 50, 100, 500, 1000], "stat": "bidsMade" },
-    { "key": "wins", "name": "Won games", "text": "Win {n} games", "one": "Win a game", "levels": [1, 10, 50, 100, 500], "stat": "wins" }
+    { "key": "over100", "name": "Scored over 100", "text": "Score over 100 in a game {n} times", "one": "Score over 100 in a game", "levels": "hard", "stat": "scoredOver100" },
+    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": "easy", "stat": "totalScore" },
+    { "key": "bids", "name": "Nominations hit", "text": "Hit your nomination exactly {n} times", "levels": "medium", "stat": "bidsMade" }
   ]
 }

@@ -7,8 +7,10 @@ const OUTCOMES = ['win', 'loss', 'draw'];
 /**
  * @param {import('node:sqlite').DatabaseSync} db
  * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max' }> }>} listGames
+ * @param {{ onRecorded?: (userIds: number[]) => void }} [options] onRecorded is called after a game is recorded, with the players in it
+ *   (the site works out their achievements then).
  */
-export function createStats(db, listGames) {
+export function createStats(db, listGames, { onRecorded } = {}) {
   const knownUser = db.prepare('SELECT 1 FROM users WHERE id = ?');
   const isBot = db.prepare('SELECT is_bot FROM users WHERE id = ?');
   const coins = createCoins(db);
@@ -22,7 +24,7 @@ export function createStats(db, listGames) {
     const players = (result?.players ?? []).filter((p) => Number.isInteger(p?.userId) && knownUser.get(p.userId));
     if (!players.length) return null;
     for (const p of players) if (!OUTCOMES.includes(p.outcome)) throw new Error(`Unknown outcome "${p.outcome}"`);
-    return transaction(db, () => {
+    const resultId = transaction(db, () => {
       const { lastInsertRowid } = db
         .prepare('INSERT INTO results (game, code, finished_at) VALUES (?, ?, ?)')
         .run(game, result.code ?? null, Date.now());
@@ -42,6 +44,8 @@ export function createStats(db, listGames) {
       }
       return Number(lastInsertRowid);
     });
+    onRecorded?.(players.map((p) => p.userId));
+    return resultId;
   }
 
   function cleanExtras(extras) {

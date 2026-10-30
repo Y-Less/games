@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 async function make() {
-  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections })));
+  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections, reward: 1000 })));
   wrapper = mount(AchievementsView);
   await flushPromises();
   return wrapper;
@@ -96,6 +96,11 @@ describe('AchievementsView', () => {
     expect(moon.text()).toContain('Level 1: Do it 1 times');
     expect(moon.text()).toContain('0 / 1');
     expect(moon.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('0');
+  });
+
+  it('says what a level earns', async () => {
+    await make();
+    expect(wrapper.text()).toContain('Every level you unlock earns 1,000 coins.');
   });
 
   it('counts the levels unlocked in each section', async () => {

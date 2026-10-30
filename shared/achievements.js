@@ -10,13 +10,29 @@
 //   existed: a game's own stat key (declared in its module.json "stats"), or 'played', 'wins', 'losses', 'totalScore' or
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
 
+/** Levels by how hard an achievement is meant to be; a definition may say `"levels": "easy"` instead of listing them. */
+export const TIERS = {
+  easy: [100, 500, 1000, 5000, 10000],
+  medium: [10, 50, 100, 500, 1000],
+  hard: [1, 5, 10, 50, 100],
+};
+
+/** Coins paid for every level unlocked, whichever level it is. */
+export const LEVEL_REWARD = 1000;
+
 export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore', 'bestScore'];
 
 /** The achievements that belong to the site rather than to one game. */
 export const GLOBAL_ACHIEVEMENTS = [
-  { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: [10, 50, 100, 500, 1000], stat: 'played' },
-  { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: [1, 10, 50, 100, 500], stat: 'wins' },
-  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: [100, 500, 1000, 5000, 10000] },
+  { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
+  { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
+  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: TIERS.easy },
+];
+
+/** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */
+export const GAME_ACHIEVEMENTS = [
+  { key: 'played', name: 'Played the game', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
+  { key: 'won', name: 'Won the game', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
 ];
 
 const KEY = /^[a-zA-Z][a-zA-Z0-9]{0,30}$/;
@@ -25,7 +41,7 @@ const KEY = /^[a-zA-Z][a-zA-Z0-9]{0,30}$/;
 export function cleanDefinition(input) {
   if (!input || typeof input !== 'object') return null;
   const { key, name, text, one, stat } = input;
-  const levels = Array.isArray(input.levels) ? input.levels : [];
+  const levels = typeof input.levels === 'string' ? TIERS[input.levels] ?? [] : Array.isArray(input.levels) ? input.levels : [];
   if (typeof key !== 'string' || !KEY.test(key) || typeof name !== 'string' || !name || typeof text !== 'string' || !text) return null;
   if (!levels.length || levels.some((n, i) => !Number.isFinite(n) || n <= 0 || (i > 0 && n <= levels[i - 1]))) return null;
   return { key, name, text, one: typeof one === 'string' && one ? one : null, levels: [...levels], stat: typeof stat === 'string' && stat ? stat : null };

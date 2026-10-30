@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openDatabase } from './db.js';
 import { createAchievements } from './achievements.js';
+import { createCoins } from './coins.js';
 
 const GAMES = [
   {
@@ -22,8 +23,9 @@ function setup() {
     Number(db.prepare("INSERT INTO users (username, username_lower, password_hash, display_name, is_bot, created_at) VALUES (?, ?, 'x', ?, ?, 0)").run(name, name, name, bot).lastInsertRowid);
   const results = new Map();
   const statsFor = (id) => results.get(id) ?? { summary: { played: 0, wins: 0, losses: 0, draws: 0 }, perGame: [] };
-  const achievements = createAchievements(db, { listGames: () => GAMES, statsFor });
-  return { db, user, results, achievements };
+  const notified = [];
+  const achievements = createAchievements(db, { listGames: () => GAMES, statsFor, notify: (id) => notified.push(id) });
+  return { db, user, results, achievements, notified, coins: createCoins(db) };
 }
 
 test('saved progress adds up, can be raised, and reports unlocks', () => {
@@ -99,4 +101,63 @@ test('a definition whose stat the game does not declare is reported', () => {
   assert.deepEqual(achievements.problems(GAMES[0]), []);
   assert.equal(achievements.problems({ id: 'x', stats: [], achievements: [{ key: 'a', stat: 'missing' }] }).length, 1);
   assert.deepEqual(achievements.problems({ id: 'x', stats: [], achievements: [{ key: 'a', stat: 'wins' }] }), [], 'built-in stats are always there');
+});
+
+test('every level unlocked pays 1,000 coins, once, and is queued to be shown', () => {
+  const { user, achievements, coins, notified } = setup();
+  const ann = user('ann');
+  achievements.add('hearts', ann, 'global.cards', 99);
+  assert.equal(coins.balance(ann), 0);
+  assert.deepEqual(notified, []);
+  achievements.add('hearts', ann, 'global.cards', 1);
+  assert.equal(coins.balance(ann), 1000, 'level 1 (100 cards)');
+  assert.deepEqual(notified, [ann]);
+  achievements.add('hearts', ann, 'global.cards', 1);
+  assert.equal(coins.balance(ann), 1000, 'nothing more until the next level');
+  achievements.add('hearts', ann, 'global.cards', 5000);
+  assert.equal(coins.balance(ann), 4000, 'levels 2, 3 and 4 in one go: 1,000 each whichever level');
+  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.coins]), [['global.cards', 1, 1000], ['global.cards', 2, 1000], ['global.cards', 3, 1000], ['global.cards', 4, 1000]]);
+  assert.equal(achievements.pending(ann)[0].name, 'Played cards');
+  assert.equal(achievements.pending(ann)[0].text, 'Play 100 cards');
+  assert.equal(achievements.pending(ann)[0].game, 'Global');
+});
+
+test('settling works out what the results have unlocked, once, and does the same for everything already earned', () => {
+  const { user, results, achievements, coins, notified } = setup();
+  const ann = user('ann');
+  results.set(ann, {
+    summary: { played: 12, wins: 1, losses: 11, draws: 0 },
+    perGame: [{ game: 'hearts', played: 12, wins: 1, losses: 11, draws: 0, totalScore: 0, bestScore: 0, extras: [{ key: 'moonsShot', label: 'Moons', value: 5 }] }],
+  });
+  const fresh = achievements.settle(ann);
+  const ids = fresh.map((f) => `${f.id}:${f.level}`).sort();
+  assert.deepEqual(ids, ['global.games:1', 'global.wins:1', 'hearts.moon:1', 'hearts.moon:2']);
+  assert.equal(coins.balance(ann), 4000, 'four levels');
+  assert.deepEqual(achievements.settle(ann), [], 'a second settle pays nothing');
+  assert.equal(coins.balance(ann), 4000);
+  assert.equal(notified.length, 1);
+  results.get(ann).perGame[0].extras[0].value = 6;
+  assert.deepEqual(achievements.settle(ann), [], '6 moons is still level 2 (the next is at 10)');
+});
+
+test('a person is shown their unlocks until they have seen them, and computer players earn nothing', () => {
+  const { user, achievements, coins } = setup();
+  const ann = user('ann');
+  const bot = user('robot', 1);
+  achievements.add('hearts', ann, 'global.cards', 100);
+  assert.equal(achievements.pending(ann).length, 1);
+  achievements.seen(ann, [{ id: 'global.cards', level: 1 }]);
+  assert.deepEqual(achievements.pending(ann), []);
+  achievements.seen(ann, [null, { id: 5 }, { id: 'global.cards', level: 'x' }, 'junk']);
+  achievements.seen(ann, 'not a list');
+  assert.deepEqual(achievements.settle(bot), []);
+  assert.equal(coins.balance(bot), 0);
+  assert.deepEqual(achievements.pending(bot), []);
+});
+
+test('levels of an achievement a game has since dropped are not shown', () => {
+  const { user, db, achievements } = setup();
+  const ann = user('ann');
+  db.prepare("INSERT INTO achievement_awards (user_id, id, level, coins, awarded_at) VALUES (?, 'old.gone', 1, 1000, 0)").run(ann);
+  assert.deepEqual(achievements.pending(ann), []);
 });
