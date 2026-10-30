@@ -1,5 +1,6 @@
 // The site's client-side state: who is signed in, the list of games, and the user's chosen background.
 import { reactive } from 'vue';
+import { siteVariables } from '../shared/siteThemes.js';
 
 export const session = reactive({
   ready: false, // true once we know whether anyone is signed in
@@ -66,6 +67,7 @@ function setUser(user) {
   // Animations follow the device's own motion setting unless the player has chosen always (on) or never (off) on their profile.
   document.documentElement.dataset.animations = user?.playAnimations === true ? 'on' : user?.playAnimations === false ? 'off' : 'auto';
   document.documentElement.style.setProperty('--card-back', cardBackCss(user?.cardBack));
+  for (const [name, value] of Object.entries(siteVariables(user?.siteTheme, user?.siteFont))) document.documentElement.style.setProperty(name, value);
 }
 
 /** Fetches the shop's listing and your coin balance (call again after anything that can change them). */

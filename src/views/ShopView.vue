@@ -23,6 +23,12 @@ const TABS = [
     blurb: 'The picture behind the site and the game tables, and animations over it (only you see those).',
     sections: [{ type: 'background', title: 'Pictures' }, { type: 'background-animation', title: 'Animations' }],
   },
+  {
+    slug: 'themes',
+    label: 'Themes',
+    blurb: 'The colours of every page on the site, and the font it is written in. Each is chosen separately and only changes how you see the site.',
+    sections: [{ type: 'site-theme', title: 'Colours' }, { type: 'site-font', title: 'Fonts' }],
+  },
   { slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.', sections: [{ type: 'card-back' }] },
   { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: [{ type: 'avatar' }] },
   { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture, any marker colour for games, and set how strong and how fast your background animation is, on the Profile page.', sections: [{ type: 'unlock' }] },
@@ -50,6 +56,8 @@ function equipped(item) {
   if (item.type === 'avatar') return normaliseAvatar(u.avatar)[item.slot] === item.option;
   if (item.type === 'background') return u.background?.type === 'preset' && u.background.value === key(item);
   if (item.type === 'card-back') return u.cardBack?.type === 'preset' && u.cardBack.value === key(item);
+  if (item.type === 'site-theme') return u.siteTheme === key(item);
+  if (item.type === 'site-font') return u.siteFont === key(item);
   return false;
 }
 
@@ -73,7 +81,7 @@ function use(item) {
     avatar: { avatar },
     'name-style': { nameStyle: nameStyleWith(key(item), session.user.nameStyle?.animation) },
     'name-animation': { nameStyle: nameStyleWith(session.user.nameStyle?.style ?? 'plain', key(item)) },
-    'background-animation': { backgroundAnimation: key(item) }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } } }[item.type];
+    'background-animation': { backgroundAnimation: key(item) }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } }, 'site-theme': { siteTheme: key(item) }, 'site-font': { siteFont: key(item) } }[item.type];
   return attempt(item.id, () => updateProfile(change), `${item.name} is on.`);
 }
 </script>
@@ -109,6 +117,8 @@ function use(item) {
           <AvatarFigure v-else-if="item.type === 'avatar'" :avatar="{ ...normaliseAvatar(session.user.avatar), [item.slot]: item.option }" size="4rem" />
           <span v-else-if="item.type === 'background'" class="swatch fx-box" :style="{ backgroundImage: backgroundCss({ type: 'preset', value: key(item) }) }"><BackgroundFx :effect="session.user.backgroundAnimation === 'gradient' ? 'none' : session.user.backgroundAnimation" demo /></span>
           <span v-else-if="item.type === 'card-back'" class="back" :style="{ background: cardBackCss({ type: 'preset', value: key(item) }) }" />
+          <span v-else-if="item.type === 'site-theme'" class="theme" :style="{ background: item.colours.bg, borderColor: item.colours.line }"><i :style="{ background: item.colours.raised, borderColor: item.colours.line }"><b :style="{ background: item.colours.amber }" /><u :style="{ background: item.colours.muted }" /></i></span>
+          <span v-else-if="item.type === 'site-font'" class="font-sample" :style="{ fontFamily: item.display }">Aa</span>
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
         <strong class="name">{{ item.name }}</strong>
@@ -238,6 +248,37 @@ h1 {
   height: 3.9rem;
   border-radius: 6px;
   border: 3px solid #f4efe3;
+}
+.theme {
+  display: block;
+  width: 5.5rem;
+  height: 3.4rem;
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: 2px solid;
+}
+.theme i {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 0 0.4rem;
+  border-radius: 6px;
+  border: 1px solid;
+}
+.theme b {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+.theme u {
+  flex: 1;
+  height: 0.3rem;
+  border-radius: 2px;
+}
+.font-sample {
+  font-size: 2.2rem;
+  line-height: 1;
 }
 .unlock {
   font-size: 2rem;

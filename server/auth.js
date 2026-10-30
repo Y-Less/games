@@ -5,6 +5,7 @@ import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.
 import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE, isNameStyle } from '../shared/nameStyles.js';
 import { normaliseMarker } from '../shared/markerColours.js';
+import { DEFAULT_FONT, DEFAULT_THEME, isSiteFont, isSiteTheme } from '../shared/siteThemes.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -132,6 +133,12 @@ export function cleanBackgroundAnimation(input) {
   throw new AuthError('That is not a valid background animation.');
 }
 
+/** Checks a colour theme or font choice: the id of one that exists. */
+export function cleanChoice(input, isValid, what) {
+  if (!isValid(input)) throw new AuthError(`That is not a ${what}.`);
+  return input;
+}
+
 /** Checks a default marker colour: a #rrggbb colour (kept in lower case), or null for none. */
 export function cleanMarkerColour(input) {
   if (input === null) return null;
@@ -181,7 +188,7 @@ function publicUser(row) {
   } catch {
     cardBack = { type: 'preset', value: 'crimson' };
   }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
 }
 
 /**
@@ -276,7 +283,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return out;
     },
 
-    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, playAnimations, effectIntensity, effectSpeed }) {
+    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed }) {
       // Check everything first, so a refused change changes nothing.
       let name;
       if (displayName !== undefined) {
@@ -288,6 +295,8 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
       const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
       const cleanedMarker = markerColour === undefined ? undefined : cleanMarkerColour(markerColour);
+      const cleanedTheme = siteTheme === undefined ? undefined : cleanChoice(siteTheme, isSiteTheme, 'colour theme');
+      const cleanedFont = siteFont === undefined ? undefined : cleanChoice(siteFont, isSiteFont, 'font');
       const cleanedPlay = playAnimations === undefined ? undefined : cleanPlayAnimations(playAnimations);
       const cleanedBackgroundAnimation = backgroundAnimation === undefined ? undefined : cleanBackgroundAnimation(backgroundAnimation);
       const cleanedIntensity = effectIntensity === undefined ? undefined : cleanEffectLevel(effectIntensity, EFFECT_INTENSITY, 'intensity');
@@ -295,13 +304,15 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
       if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
       if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
-      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, markerColour: cleanedMarker, backgroundAnimation: cleanedBackgroundAnimation, effectIntensity: cleanedIntensity, effectSpeed: cleanedSpeed });
+      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, markerColour: cleanedMarker, siteTheme: cleanedTheme, siteFont: cleanedFont, backgroundAnimation: cleanedBackgroundAnimation, effectIntensity: cleanedIntensity, effectSpeed: cleanedSpeed });
       if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
       if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
       if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
       if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
       if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
       if (cleanedMarker !== undefined) db.prepare('UPDATE users SET marker_colour = ? WHERE id = ?').run(cleanedMarker, userId);
+      if (cleanedTheme !== undefined) db.prepare('UPDATE users SET site_theme = ? WHERE id = ?').run(cleanedTheme, userId);
+      if (cleanedFont !== undefined) db.prepare('UPDATE users SET site_font = ? WHERE id = ?').run(cleanedFont, userId);
       if (cleanedPlay !== undefined) db.prepare('UPDATE users SET animations_choice = ? WHERE id = ?').run(cleanedPlay === null ? null : cleanedPlay ? 1 : 0, userId);
       if (cleanedBackgroundAnimation !== undefined) db.prepare('UPDATE users SET background_animation = ? WHERE id = ?').run(cleanedBackgroundAnimation, userId);
       if (cleanedIntensity !== undefined) db.prepare('UPDATE users SET effect_intensity = ? WHERE id = ?').run(cleanedIntensity, userId);

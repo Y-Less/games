@@ -299,3 +299,23 @@ test('Obsidian, Ocean, Ember and Toxic are name styles for sale, usable once bou
     assert.deepEqual((await c.patch('/api/me', { nameStyle: { style: id } })).data.user.nameStyle, { style: id });
   }
 });
+
+test('site themes and fonts: the first of each is free and the default, the rest are bought, and bad ones are refused', async (t) => {
+  const { c } = await shopSite(t, { coins: 1000 });
+  const me = (await c.get('/api/me')).data.user;
+  assert.deepEqual([me.siteTheme, me.siteFont], ['harbour', 'sans'], 'sans-serif is the default font');
+  assert.equal(itemById('st:harbour').price, 0);
+  assert.equal(itemById('sf:sans').price, 0);
+  assert.equal((await c.patch('/api/me', { siteTheme: 'harbour', siteFont: 'sans' })).status, 200);
+  assert.equal((await c.patch('/api/me', { siteTheme: 'plum' })).status, 403, 'a theme has to be bought');
+  assert.equal((await c.patch('/api/me', { siteFont: 'serif' })).status, 403, 'and so does a font');
+  for (const bad of ['nope', 7, null, {}, '']) {
+    assert.equal((await c.patch('/api/me', { siteTheme: bad })).status, 400, `theme ${JSON.stringify(bad)}`);
+    assert.equal((await c.patch('/api/me', { siteFont: bad })).status, 400, `font ${JSON.stringify(bad)}`);
+  }
+  assert.equal((await c.post('/api/shop/buy', { item: 'st:plum' })).status, 200);
+  assert.equal((await c.post('/api/shop/buy', { item: 'sf:serif' })).status, 200);
+  const after = (await c.patch('/api/me', { siteTheme: 'plum', siteFont: 'serif' })).data.user;
+  assert.deepEqual([after.siteTheme, after.siteFont], ['plum', 'serif']);
+  assert.equal((await c.patch('/api/me', { displayName: 'Ann' })).data.user.siteTheme, 'plum', 'other changes leave it alone');
+});

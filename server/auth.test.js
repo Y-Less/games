@@ -105,7 +105,7 @@ test('registering gives the default background and card back, and bots can be fl
   assert.deepEqual(user.background, { type: 'preset', value: 'night' });
   assert.deepEqual(user.cardBack, { type: 'preset', value: 'crimson' });
   assert.equal(user.isBot, false);
-  assert.deepEqual(Object.keys(user).sort(), ['avatar', 'background', 'backgroundAnimation', 'cardBack', 'displayName', 'effectIntensity', 'effectSpeed', 'id', 'isBot', 'markerColour', 'nameStyle', 'playAnimations', 'username']);
+  assert.deepEqual(Object.keys(user).sort(), ['avatar', 'background', 'backgroundAnimation', 'cardBack', 'displayName', 'effectIntensity', 'effectSpeed', 'id', 'isBot', 'markerColour', 'nameStyle', 'playAnimations', 'siteFont', 'siteTheme', 'username']);
   assert.equal((await auth.register({ username: 'robot', password: 'password1', isBot: true })).user.isBot, true);
   assert.equal(auth.userById(user.id).username, 'human');
   assert.equal(auth.userById(9999), null);

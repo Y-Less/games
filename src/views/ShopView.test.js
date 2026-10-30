@@ -16,6 +16,10 @@ const ITEMS = [
   { id: 'av:hair:short', type: 'avatar', name: 'Hair: Short', price: 0, owned: true, slot: 'hair', option: 'short' },
   { id: 'na:glow', type: 'name-animation', name: 'Glow', price: 500, owned: true },
   { id: 'ba:stars', type: 'background-animation', name: 'Twinkling stars', price: 800, owned: false },
+  { id: 'st:harbour', type: 'site-theme', name: 'Harbour', price: 0, owned: true, colours: { bg: '#16252d', raised: '#1f3540', line: '#34505c', muted: '#9fb3b8', amber: '#e0a84a' } },
+  { id: 'st:plum', type: 'site-theme', name: 'Plum', price: 400, owned: true, colours: { bg: '#231a2c', raised: '#33263f', line: '#55406a', muted: '#bba8c8', amber: '#f0a868' } },
+  { id: 'sf:sans', type: 'site-font', name: 'Sans-serif', price: 0, owned: true, display: 'system-ui', body: 'system-ui' },
+  { id: 'sf:serif', type: 'site-font', name: 'Serif', price: 300, owned: false, display: 'Georgia', body: 'Georgia' },
   { id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800, owned: false },
 ];
 
@@ -26,7 +30,7 @@ beforeEach(() => {
   calls = [];
   listing = { balance: 700, items: structuredClone(ITEMS) };
   Object.assign(session, {
-    user: { id: 1, displayName: 'Ann', background: { type: 'preset', value: 'night' }, cardBack: { type: 'preset', value: 'crimson' }, nameStyle: { style: 'plain' } },
+    user: { id: 1, displayName: 'Ann', background: { type: 'preset', value: 'night' }, cardBack: { type: 'preset', value: 'crimson' }, nameStyle: { style: 'plain' }, siteTheme: 'harbour', siteFont: 'sans' },
     presets: { night: 'night-img', ocean: 'ocean-img' },
     cardBacks: { crimson: 'red' },
     shop: null,
@@ -119,6 +123,19 @@ describe('ShopView', () => {
     await openTab('Unlocks');
     expect(card('bg-colour').find('button').text()).toBe('Buy for 800');
   });
+  it('lists the colour themes and fonts, shows the ones in use and puts an owned one on', async () => {
+    await make();
+    await openTab('Themes');
+    expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['st:harbour', 'st:plum', 'sf:sans', 'sf:serif']);
+    expect(card('st:harbour').text()).toContain('In use');
+    expect(card('sf:sans').text()).toContain('In use');
+    expect(card('sf:serif').find('button').text()).toBe('Buy for 300');
+    expect(card('st:plum').find('.theme').exists()).toBe(true);
+    expect(card('sf:serif').find('.font-sample').attributes('style')).toContain('Georgia');
+    await card('st:plum').find('button').trigger('click');
+    await flushPromises();
+    expect(calls.at(-1)[2]).toEqual({ siteTheme: 'plum' });
+  });
   it('previews avatar parts on you and puts one on from the shop', async () => {
     await make();
     await openTab('Avatar');
@@ -170,7 +187,7 @@ describe('ShopView', () => {
 
   it('has no separate animations tab', async () => {
     await make();
-    expect(wrapper.findAll('.tab').map((t) => t.text())).toEqual(['Names', 'Backgrounds', 'Card backs', 'Avatar', 'Unlocks']);
+    expect(wrapper.findAll('.tab').map((t) => t.text())).toEqual(['Names', 'Backgrounds', 'Themes', 'Card backs', 'Avatar', 'Unlocks']);
   });
 
   it('says so when animations are paused, by the profile or by the device, and not when they play', async () => {

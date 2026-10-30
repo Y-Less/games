@@ -88,6 +88,12 @@ export function openDatabase(dataDir) {
   if (!columns.includes('marker_colour')) {
     db.exec('ALTER TABLE users ADD COLUMN marker_colour TEXT'); // the default marker colour (#rrggbb); NULL: none chosen
   }
+  if (!columns.includes('site_theme')) {
+    db.exec('ALTER TABLE users ADD COLUMN site_theme TEXT'); // the colour theme (shared/siteThemes.js); NULL: the first, free one
+  }
+  if (!columns.includes('site_font')) {
+    db.exec('ALTER TABLE users ADD COLUMN site_font TEXT'); // the font; NULL: the first, free one
+  }
   if (!columns.includes('animations_choice')) {
     db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
   }

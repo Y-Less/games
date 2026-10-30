@@ -203,14 +203,14 @@ test(`Cribbage at ${at}: the board, piles, play area, hand and bottom boxes keep
   await world.guard('cribbage layout', async () => {
     await user.signUp('clay', { displayName: 'Cribby' });
     await startGame(user, '/play/cribbage', 'Start a new game');
-    await user.waitForText('Send to the crib');
+    await user.waitForText('Send to the box');
     await sleep(300);
     // Exact boxes (the score bar no longer sticks, so it is held to a position too), and no scrolling at all.
     const areas = ['.game-frame', '.score-bar', '.arena', '.mine-col', '.right-col', '.zone', '.opponent-hands .opp', '.hand-area', '.board-box', '.board-box svg.board', '.piles', '.box.log', '.box.status', '.box.log .game-log'];
     await startRecording(user, areas);
     const finder = () => {
       const send = document.querySelector('.zone button.primary');
-      if (send && /Send to the crib/.test(send.innerText)) return send.disabled ? document.querySelector('.hand button.playing-card:not(.selected):not([disabled])') : send;
+      if (send && /Send to the box/.test(send.innerText)) return send.disabled ? document.querySelector('.hand button.playing-card:not(.selected):not([disabled])') : send;
       return document.querySelector('.hand button.playing-card:not([disabled])');
     };
     await drive({ act: () => user.clickFound(finder), finished: finishedModal(user), what: 'a hand of Cribbage', timeout: 120000 });

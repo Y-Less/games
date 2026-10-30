@@ -6,6 +6,7 @@ import { BACKGROUND_ANIMATIONS, NAME_ANIMATIONS } from '../shared/animations.js'
 import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker } from '../shared/markerColours.js';
+import { SITE_FONTS, SITE_THEMES } from '../shared/siteThemes.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
@@ -39,6 +40,8 @@ add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
 for (const a of NAME_ANIMATIONS) add({ id: `na:${a.id}`, type: 'name-animation', name: a.name, price: a.price, part: a.part });
 for (const a of BACKGROUND_ANIMATIONS) if (!a.hidden) add({ id: `ba:${a.id}`, type: 'background-animation', name: a.name, price: a.price });
+for (const t of SITE_THEMES) add({ id: `st:${t.id}`, type: 'site-theme', name: t.name, price: t.price, colours: t.vars });
+for (const f of SITE_FONTS) add({ id: `sf:${f.id}`, type: 'site-font', name: f.name, price: f.price, display: f.display, body: f.body });
 for (const { id, name, price, slot, option } of avatarItems()) add({ id, type: 'avatar', name, price, slot, option });
 
 /** Another module adds its own items (name styles, avatar parts ...) here once, when the site starts. */
@@ -91,9 +94,9 @@ export function grandfather(db) {
 export class ShopError extends AuthError {}
 
 /** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
-export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, backgroundAnimation, effectIntensity, effectSpeed }) {
+export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, effectIntensity, effectSpeed }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
-  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, siteTheme && `st:${siteTheme}`, siteFont && `sf:${siteFont}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
     if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
   }
 }
