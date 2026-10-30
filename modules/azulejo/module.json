@@ -16,6 +16,7 @@
     { "key": "tilesTaken", "label": "Tiles taken", "agg": "sum", "hidden": true },
     { "key": "tilesDropped", "label": "Tiles dropped on the floor (with the first-player marker)", "agg": "sum", "hidden": true },
     { "key": "floorsFilled", "label": "Times you filled your floor", "agg": "sum", "hidden": true },
+    { "key": "wallTiles", "label": "Tiles placed on your wall", "agg": "sum", "hidden": true },
     { "key": "gridsFilled", "label": "Games ending with every space of your wall filled", "agg": "sum", "hidden": true }
   ],
   "achievements": [

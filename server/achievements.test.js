@@ -195,3 +195,18 @@ test('a collection saves how many different things a player has had, and unlocks
   assert.equal(achievements.collect('hearts', user('robot', 1), 'streak', [1]), null, 'computer players collect nothing');
   assert.throws(() => achievements.collect('hearts', ann, 'moon', [1]), /cannot be set/);
 });
+
+test('played pieces add up the building games own counts, and won every game is 1 only once each game has been won', () => {
+  const { user, results, achievements } = setup();
+  const ann = user('ann');
+  const summary = { played: 3, wins: 1, losses: 2, draws: 0 };
+  const game = (id, wins, extras) => ({ game: id, played: 1, wins, losses: 1 - wins, draws: 0, totalScore: 0, bestScore: 0, extras: Object.entries(extras).map(([key, value]) => ({ key, value })) });
+  results.set(ann, { summary, perGame: [game('azulejo', 0, { wallTiles: 12 }), game('gaudi', 0, { dicePlaced: 20 }), game('rummikub', 0, { tilesPlayed: 31 }), game('splendour', 0, { cardsBought: 15 }), game('hearts', 1, {})] });
+  assert.equal(achievements.get(ann, 'global.pieces'), 12 + 20 + 31 + 15);
+  assert.equal(achievements.get(ann, 'global.everygame'), 0, 'plain has not been won');
+  results.set(ann, { summary, perGame: [game('hearts', 1, {}), game('plain', 2, {})] });
+  assert.equal(achievements.get(ann, 'global.everygame'), 1);
+  assert.equal(achievements.get(ann, 'global.pieces'), 0, 'none of those games played');
+  assert.throws(() => achievements.add('hearts', ann, 'global.pieces'), /cannot be set/);
+  assert.throws(() => achievements.add('hearts', ann, 'global.everygame'), /cannot be set/);
+});

@@ -133,6 +133,10 @@ throws, so a typo is found by the tests. The global ones are in `shared/achievem
 the results) and played cards, which every card game adds to by calling `ctx.achievements.add(userId, 'global.cards')` for
 each card a person plays.
 
+Two more global ones are worked out from the games' recorded stats with no help from a game: "Played pieces" adds up Azulejo's
+`wallTiles`, Gaudi's `dicePlaced`, Rummikub's `tilesPlayed` and Splendour's `cardsBought` (a global definition says
+`sum: [[game, stat], ...]`), and "Won every game" (`wonEvery: true`) is 1 once every game on the site has been won at least once.
+
 The site also awards the global `global.slow` ("Take your time") by itself: `server/turnClock.js` watches the `state` views a
 game sends to each connection and, when the scoreboard says it was that player's turn (`isMe` and `current`) for over ten
 minutes and the turn then ends with them still connected, raises it. A game needs to do nothing beyond keeping the

@@ -10,6 +10,8 @@
 // - `stat` makes the value come from the game's recorded results, so it counts games played before the achievement
 //   existed: a game's own stat key (declared in its module.json "stats"), or 'played', 'wins', 'losses', 'totalScore' or
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
+// - A global definition may instead add up stats from several games: `sum: [[game, stat], ...]`, or be 1 once every game has
+//   been won at least once: `wonEvery: true`.
 
 /**
  * Levels by how often the thing happens, and one for a one-off; a definition may say `"levels": "easy"` instead of listing them. A game's own
@@ -54,6 +56,15 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
   { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: GLOBAL_TIERS.veryEasy },
   { key: 'slow', name: 'Take your time', text: 'Take over 10 minutes for a turn', levels: GLOBAL_TIERS.unlock },
+  {
+    key: 'pieces',
+    name: 'Played pieces',
+    text: 'Place {n} pieces in the building games',
+    one: 'Place a piece in a building game',
+    levels: GLOBAL_TIERS.easy,
+    sum: [['azulejo', 'wallTiles'], ['gaudi', 'dicePlaced'], ['rummikub', 'tilesPlayed'], ['splendour', 'cardsBought']],
+  },
+  { key: 'everygame', name: 'Won every game', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */

@@ -29,6 +29,8 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   const unseen = db.prepare('SELECT id, level, coins FROM achievement_awards WHERE user_id = ? AND shown = 0 ORDER BY awarded_at, id, level');
   const markSeen = db.prepare('UPDATE achievement_awards SET shown = 1 WHERE user_id = ? AND id = ? AND level = ?');
 
+  /** Whether the value is worked out from the recorded results, rather than being progress a game saves. */
+  const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery);
   const savedValue = (userId, id) => read.get(userId, id)?.value ?? 0;
   const isPerson = (userId) => Number.isInteger(userId) && isBot.get(userId)?.is_bot === 0;
 
@@ -48,7 +50,10 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   function valuesFor(userId) {
     const { global, games } = statValues(userId);
     const saved = new Map(readAll.all(userId).map((row) => [row.id, row.value]));
+    const statOf = (gameId, stat) => games.get(gameId)?.[stat] ?? 0;
     return (sectionId, definition) => {
+      if (definition.sum) return definition.sum.reduce((total, [gameId, stat]) => total + statOf(gameId, stat), 0);
+      if (definition.wonEvery) return listGames().every((game) => statOf(game.id, 'wins') >= 1) ? 1 : 0;
       if (!definition.stat) return saved.get(`${sectionId}.${definition.key}`) ?? 0;
       return (sectionId === GLOBAL ? global : games.get(sectionId) ?? {})[definition.stat] ?? 0;
     };
@@ -58,7 +63,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   function get(userId, id) {
     const found = find(id);
     if (!found) return 0;
-    if (!found.definition.stat) return savedValue(userId, id);
+    if (!isDerived(found.definition)) return savedValue(userId, id);
     return valuesFor(userId)(found.section.id, found.definition);
   }
 
@@ -69,7 +74,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
     const id = fullId(game, key);
     const found = find(id);
     if (!found) throw new Error(`Unknown achievement "${key}"`);
-    if (found.definition.stat) throw new Error(`"${key}" is worked out from the recorded results, so it cannot be set`);
+    if (isDerived(found.definition)) throw new Error(`"${key}" is worked out from the recorded results, so it cannot be set`);
     return { id, definition: found.definition };
   }
 

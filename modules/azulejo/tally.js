@@ -3,7 +3,7 @@
 import { bump, freshTally } from '../../shared/tally.js';
 import { FLOOR_SLOTS } from './rules.js';
 
-export const STAT_KEYS = ['rowsCompleted', 'columnsCompleted', 'colourSetsCompleted', 'floorPenalties', 'roundsPlayed', 'bottomRows', 'tilesTaken', 'tilesDropped', 'floorsFilled', 'gridsFilled'];
+export const STAT_KEYS = ['rowsCompleted', 'columnsCompleted', 'colourSetsCompleted', 'floorPenalties', 'roundsPlayed', 'bottomRows', 'tilesTaken', 'tilesDropped', 'floorsFilled', 'gridsFilled', 'wallTiles'];
 export const newTally = () => freshTally(STAT_KEYS);
 
 /**

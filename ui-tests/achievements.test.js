@@ -27,7 +27,7 @@ test('the page is in the menu and lists the global achievements, then each game 
   const sections = await user.page.$$eval('[data-section] > header h2', (els) => els.map((e) => e.textContent.trim()));
   assert.ok(['Global', 'Hearts', 'Nomination Whist', 'Wavelength', 'Cheat', 'Cribbage'].every((name) => sections.includes(name)));
   assert.equal(sections[0], 'Global', 'the global ones come first');
-  assert.equal(await user.page.$$eval('[data-section="cheat"] h3', (els) => els.length), 2, 'a game with none of its own has played and won');
+  assert.equal(await user.page.$$eval('[data-section="cheat"] h3', (els) => els.length), 9, 'played and won, then the seven of its own');
   const wavelength = await user.page.$$eval('[data-section="wavelength"] h3', (els) => els.map((e) => e.textContent.trim()));
   assert.equal(wavelength.length, 9, 'every Wavelength achievement has a box');
   assert.ok(wavelength.every((name) => name === '???'), "and none is named until it is earned");

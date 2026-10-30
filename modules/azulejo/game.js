@@ -546,6 +546,7 @@ export function statsPlayers(room) {
               colourSetsCompleted: completeSets(room.walls[i]),
               bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
               gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // every row done in the same round
+              wallTiles: room.walls[i].flat().filter((tile) => tile !== null).length,
               roundsPlayed: room.playedRounds,
             },
           },

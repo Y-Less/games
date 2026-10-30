@@ -802,5 +802,6 @@ test('statistics: a game that ends with the whole wall filled counts the bottom 
   finishRound(room, rng, { source: 0, colour: 0, line: 'floor' });
   const [full, other] = game.statsPlayers(room);
   assert.deepEqual([full.extras.gridsFilled, full.extras.bottomRows], [1, 1]);
+  assert.deepEqual([full.extras.wallTiles, other.extras.wallTiles], [25, 0], 'tiles placed on the wall at the end');
   assert.deepEqual([other.extras.gridsFilled, other.extras.bottomRows], [0, 0]);
 });
