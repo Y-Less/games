@@ -92,7 +92,7 @@ function use(item) {
       <h1>Shop</h1>
       <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> coins</p>
     </header>
-    <p class="muted intro">Coins are won, never bought: 500 for coming 1st in a game, 200 for 2nd and 100 for 3rd.</p>
+    <p class="muted intro">Coins are won, but I'm open to bribes: 500 for coming 1st in a game, 200 for 2nd and 100 for 3rd.</p>
     <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
@@ -166,7 +166,7 @@ h1 {
   font-size: 1.15rem;
   padding: 0.25rem 0.8rem;
   border-radius: 999px;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   border: 1px solid var(--amber);
 }
 .coin {
@@ -181,7 +181,7 @@ h1 {
   margin: 0;
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .ok {
   color: var(--moss);
@@ -198,7 +198,7 @@ h1 {
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--line);
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   color: inherit;
   text-decoration: none;
 }
@@ -221,7 +221,7 @@ h1 {
   align-items: center;
   gap: 0.5rem;
   text-align: center;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .item.on {
   border-color: var(--amber);
@@ -288,7 +288,7 @@ h1 {
   margin: 0;
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .preview :deep(.styled-name.styled) {
   padding: 0.1em 0.8em;

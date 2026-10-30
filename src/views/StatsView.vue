@@ -89,7 +89,7 @@ const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
 .panel {
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .totals {
   display: grid;

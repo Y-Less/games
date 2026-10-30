@@ -97,7 +97,7 @@ async function leaveSite() {
   align-items: center;
   gap: 1rem;
   padding: 0.55rem 1rem;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
@@ -262,7 +262,7 @@ async function leaveSite() {
 }
 .dropdown a:hover,
 .dropdown button:hover {
-  background: #28434f;
+  background: color-mix(in srgb, var(--bg-raised), var(--line) 50%);
 }
 .field {
   flex: 1;

@@ -64,7 +64,7 @@ button {
   transition: transform 0.12s, background 0.12s, border-color 0.12s;
 }
 button:hover:not(:disabled) {
-  background: #28434f;
+  background: color-mix(in srgb, var(--bg-raised), var(--line) 50%);
   border-color: #4d7080;
 }
 button:active:not(:disabled) {

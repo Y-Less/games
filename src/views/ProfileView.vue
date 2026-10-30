@@ -212,7 +212,7 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
 .panel {
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 h3 {
   font-size: 1rem;
@@ -221,14 +221,14 @@ h3 {
 .ok {
   color: var(--moss);
   margin: 0;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
 }
 .bad {
   color: var(--danger);
   margin: 0;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
 }

@@ -77,7 +77,7 @@ const reset = () => (draft.value = { ...saved.value });
 
 <style scoped>
 .panel {
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .ok,
 .bad {

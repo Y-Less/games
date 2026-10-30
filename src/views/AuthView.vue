@@ -74,7 +74,7 @@ h1 {
 }
 form {
   text-align: left;
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
 }
 .tabs {
   display: flex;

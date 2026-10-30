@@ -56,7 +56,7 @@ h1 {
   gap: 0.4rem;
   text-decoration: none;
   color: var(--parchment);
-  background: rgb(14 26 32 / 0.88);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   transition: transform 0.12s, border-color 0.12s;
 }
 .game:hover {
