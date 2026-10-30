@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, levelInfo, levelReward, levelText, TIERS } from './achievements.js';
+import { cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, GLOBAL_TIERS, levelInfo, levelReward, levelText, TIERS } from './achievements.js';
 
 const cards = { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: [500, 1000, 5000] };
 
@@ -38,21 +38,27 @@ test('definitions from a module.json are checked', () => {
 });
 
 test('the global achievements are the ones asked for', () => {
-  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'games').levels, TIERS.medium);
-  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'cards').levels, TIERS.veryEasy, 'played cards is something everyone does many times a game');
+  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'games').levels, GLOBAL_TIERS.medium);
+  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'cards').levels, GLOBAL_TIERS.veryEasy, 'played cards is something everyone does many times a game');
 });
 
 test('there are five tiers, medium and up start at 1, and a definition may name one', () => {
   assert.deepEqual(Object.keys(TIERS), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
-  assert.deepEqual(TIERS.veryEasy, [100, 500, 2000, 5000, 15000]);
-  assert.deepEqual(TIERS.easy, [10, 100, 500, 1000, 1500]);
-  assert.deepEqual(TIERS.medium, [1, 10, 50, 100, 500]);
-  assert.deepEqual(TIERS.hard, [1, 5, 10, 50, 100]);
-  assert.deepEqual(TIERS.veryHard, [1, 3, 5, 10, 20]);
-  for (const [name, levels] of Object.entries(TIERS)) {
-    assert.equal(levels.length, 5, name);
-    if (['medium', 'hard', 'veryHard'].includes(name)) assert.equal(levels[0], 1, `${name}: the first time always counts`);
+  assert.deepEqual(TIERS.veryEasy, [100, 500, 1000, 2500, 5000]);
+  assert.deepEqual(TIERS.easy, [10, 50, 100, 250, 500]);
+  assert.deepEqual(TIERS.medium, [1, 10, 25, 50, 150]);
+  assert.deepEqual(TIERS.hard, [1, 3, 10, 25, 40]);
+  assert.deepEqual(TIERS.veryHard, [1, 2, 3, 5, 8]);
+  for (const ladders of [TIERS, GLOBAL_TIERS]) {
+    assert.deepEqual(Object.keys(ladders), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
+    for (const [name, levels] of Object.entries(ladders)) {
+      assert.equal(levels.length, 5, name);
+      if (['medium', 'hard', 'veryHard'].includes(name)) assert.equal(levels[0], 1, `${name}: the first time always counts`);
+      assert.ok(levels.every((n, i) => i === 0 || n > levels[i - 1]), `${name} ascends`);
+    }
   }
+  // The global ladders go further, as they add up every game: the top of each is a few times the per-game one.
+  for (const name of Object.keys(TIERS)) assert.ok(GLOBAL_TIERS[name].at(-1) >= TIERS[name].at(-1) * 3, name);
   assert.deepEqual(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'hard' }).levels, TIERS.hard);
   assert.equal(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'impossible' }), null);
   const clean = cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'easy' });
@@ -70,5 +76,5 @@ test('every game has a medium played and a hard won achievement', () => {
   const [played, won] = GAME_ACHIEVEMENTS;
   assert.deepEqual([played.key, played.levels, played.stat], ['played', TIERS.medium, 'played']);
   assert.deepEqual([won.key, won.levels, won.stat], ['won', TIERS.hard, 'wins']);
-  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'wins').levels, TIERS.hard);
+  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'wins').levels, GLOBAL_TIERS.hard);
 });

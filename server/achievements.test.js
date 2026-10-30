@@ -65,12 +65,13 @@ test('forUser lists the global achievements first, then each game that has any, 
   const { sections } = achievements.forUser(ann);
   assert.deepEqual(sections.map((s) => s.id), ['global', 'hearts'], 'a game without achievements has no section');
   const byId = Object.fromEntries(sections.flatMap((s) => s.achievements).map((a) => [a.id, a]));
-  assert.equal(byId['global.games'].level, 3, '60 games: levels at 1, 10 and 50 reached');
+  assert.equal(byId['global.games'].level, 2, '60 games: levels at 1 and 10 reached; the next is at 100');
   assert.equal(byId['global.games'].next.n, 100);
   assert.equal(byId['global.games'].progress, 0.6);
   assert.equal(byId['global.wins'].value, 12);
-  assert.equal(byId['global.cards'].level, 2, '600 cards: level 2 (100, 500)');
-  assert.equal(byId['global.cards'].progress, 0.3, '600 of 2,000');
+  assert.equal(byId['global.wins'].level, 2, '12 wins: levels at 1 and 10');
+  assert.equal(byId['global.cards'].level, 1, '600 cards: level 1 (100); the next is at 1,000');
+  assert.equal(byId['global.cards'].progress, 0.6);
   assert.equal(byId['hearts.moon'].value, 6);
   assert.equal(byId['hearts.moon'].level, 2);
   assert.equal(byId['hearts.streak'].level, 1);
@@ -116,8 +117,8 @@ test('every level unlocked pays 200 times its number, once, and is queued to be 
   achievements.add('hearts', ann, 'global.cards', 1);
   assert.equal(coins.balance(ann), 200, 'nothing more until the next level');
   achievements.add('hearts', ann, 'global.cards', 5000);
-  assert.equal(coins.balance(ann), 200 + 400 + 600 + 800, 'levels 2, 3 and 4 in one go: 200 times each level');
-  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.coins]), [['global.cards', 1, 200], ['global.cards', 2, 400], ['global.cards', 3, 600], ['global.cards', 4, 800]]);
+  assert.equal(coins.balance(ann), 200 + 400 + 600, 'levels 2 and 3 in one go: 200 times each level');
+  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.coins]), [['global.cards', 1, 200], ['global.cards', 2, 400], ['global.cards', 3, 600]]);
   assert.equal(achievements.pending(ann)[0].name, 'Played cards');
   assert.equal(achievements.pending(ann)[0].text, 'Play 100 cards');
   assert.equal(achievements.pending(ann)[0].game, 'Global');

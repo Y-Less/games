@@ -55,8 +55,8 @@ test('the page lists the global achievements, then the games that have some, and
   assert.deepEqual(list.map((s) => s.id), ['global', 'pad', 'quiet'], 'a game that defines none still has the two every game has');
   assert.deepEqual(list[1].achievements.map((a) => a.key), ['played', 'won', 'laps', 'best', 'tiered', 'jumper'], 'the played and won ones first; the one with no levels is dropped');
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
-  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 50, 100, 500], 'played is medium: 1, 10, 50, 100, 500');
-  assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 50, 100], 'won is hard');
+  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 25, 50, 150], 'played is medium');
+  assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 3, 10, 25, 40], 'won is hard');
   assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards']);
 });
 
@@ -94,7 +94,7 @@ test('a module can add to the global played cards and look at the global achieve
   const { socket, find } = await setup(t);
   await ask(socket, 'cards', { n: 150 });
   const cards = await find('global.cards');
-  assert.deepEqual([cards.value, cards.level, cards.next.n], [150, 1, 500]);
+  assert.deepEqual([cards.value, cards.level, cards.next.n], [150, 1, 1000]);
   await ask(socket, 'win');
   assert.deepEqual(await ask(socket, 'look'), { games: 1, level: 1 }, 'one game: the first level of played games (1)');
   assert.match((await ask(socket, 'bad', { key: 'nope' })).error, /Unknown achievement/);

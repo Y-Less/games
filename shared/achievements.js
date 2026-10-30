@@ -11,8 +11,9 @@
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
 
 /**
- * Levels by how often the thing happens; a definition may say `"levels": "easy"` instead of listing them. Each ladder tops out
- * at around 500 games' worth of play, and from medium up the first level is 1 so that the first time always counts.
+ * Levels by how often the thing happens; a definition may say `"levels": "easy"` instead of listing them. A game's own
+ * achievements top out after 100 to 200 games of that game, and from medium up the first level is 1 so that the first time
+ * always counts.
  *   veryEasy  something everyone does many times a game (playing cards, taking tokens)
  *   easy      a few times a game (getting the jack)
  *   medium    about once a game (playing the game)
@@ -20,11 +21,20 @@
  *   veryHard  once in a good many games (shooting the moon)
  */
 export const TIERS = {
-  veryEasy: [100, 500, 2000, 5000, 15000],
-  easy: [10, 100, 500, 1000, 1500],
-  medium: [1, 10, 50, 100, 500],
-  hard: [1, 5, 10, 50, 100],
-  veryHard: [1, 3, 5, 10, 20],
+  veryEasy: [100, 500, 1000, 2500, 5000],
+  easy: [10, 50, 100, 250, 500],
+  medium: [1, 10, 25, 50, 150],
+  hard: [1, 3, 10, 25, 40],
+  veryHard: [1, 2, 3, 5, 8],
+};
+
+/** The same five tiers for the global achievements, which add up every game: they top out after 500 to 1,000 games. */
+export const GLOBAL_TIERS = {
+  veryEasy: [100, 1000, 5000, 15000, 25000],
+  easy: [10, 100, 500, 1000, 2500],
+  medium: [1, 10, 100, 250, 750],
+  hard: [1, 10, 25, 100, 200],
+  veryHard: [1, 3, 5, 10, 25],
 };
 
 /** Coins for each level a player unlocks: 200 times the level number, or a flat 500 for an achievement with only one level. */
@@ -36,9 +46,9 @@ export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore',
 
 /** The achievements that belong to the site rather than to one game. */
 export const GLOBAL_ACHIEVEMENTS = [
-  { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
-  { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
-  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: TIERS.veryEasy },
+  { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: GLOBAL_TIERS.medium, stat: 'played' },
+  { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
+  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: GLOBAL_TIERS.veryEasy },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */
