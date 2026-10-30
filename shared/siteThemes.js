@@ -6,7 +6,7 @@ export const SITE_THEMES = [
   { id: 'arctic', name: 'Arctic', price: 400, vars: { bg: '#1a2b3a', raised: '#243b4f', sunken: '#121f2b', line: '#3f6180', muted: '#a4b9cc', amber: '#8fd3f0' } },
   { id: 'midnight', name: 'Midnight', price: 400, vars: { bg: '#121526', raised: '#1c2038', sunken: '#0d0f1d', line: '#353b63', muted: '#a3a8c8', amber: '#e0a84a' } },
   { id: 'forest', name: 'Forest', price: 400, vars: { bg: '#14241c', raised: '#1d3428', sunken: '#0f1b15', line: '#35543f', muted: '#a3bdaa', amber: '#d9b44a' } },
-  { id: 'plum', name: 'Plum', price: 400, vars: { bg: '#231a2c', raised: '#33263f', sunken: '#1a1222', line: '#55406a', muted: '#bba8c8', amber: '#e0a6f2' } },
+  { id: 'plum', name: 'Plum', price: 400, vars: { bg: '#231a2c', raised: '#33263f', sunken: '#1a1222', line: '#55406a', muted: '#bba8c8', amber: '#ff8fc8' } },
   { id: 'wine', name: 'Wine', price: 400, vars: { bg: '#2a171b', raised: '#3d2328', sunken: '#1f1013', line: '#63393f', muted: '#c9a8ad', amber: '#e0a84a' } },
   { id: 'copper', name: 'Copper', price: 400, vars: { bg: '#261c14', raised: '#37281c', sunken: '#1b130d', line: '#5c452f', muted: '#c4b09a', amber: '#ea8a3c' } },
   { id: 'graphite', name: 'Graphite', price: 400, vars: { bg: '#1c1d20', raised: '#2a2c31', sunken: '#141518', line: '#46484f', muted: '#a9acb3', amber: '#e0a84a' } },
