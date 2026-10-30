@@ -313,6 +313,17 @@ test('a round is scored from the nominations and the tricks actually taken', () 
   assert.equal(view.rounds[0].label, 'Round 6: 2 cards, hearts');
 });
 
+test('the tally counts a nomination of zero that was made, and a round where only you were right', () => {
+  const both = scriptedRound({ missPoints: true }, [1, 2, 0], [1, 1, 0]);
+  assert.deepEqual(both.tally.map((t) => t.zeroBidsMade), [0, 0, 1], 'seat 2 nominated nothing and took nothing');
+  assert.deepEqual(both.tally.map((t) => t.singledOut), [0, 0, 0], 'two people were right, so nobody was singled out');
+  const alone = scriptedRound({ missPoints: true }, [0, 1, 2], [1, 1, 0]);
+  assert.deepEqual(alone.tally.map((t) => t.singledOut), [0, 1, 0], 'only seat 1 was right');
+  assert.deepEqual(alone.tally.map((t) => t.zeroBidsMade), [0, 0, 0], 'seat 0 nominated nothing but took a trick');
+  const stats = g.statsPlayers({ ...alone, seats: alone.seats.map((seat, i) => ({ kind: 'human', id: i + 1, name: String(i) })), winners: [1] });
+  assert.equal(stats[1].extras.singledOut, 1);
+});
+
 test('whole games: the history sums to the scores, the game ends after the last round, with legal computer play', () => {
   for (const [seats, length, missPoints] of [[3, 'full', true], [4, 'short', false], [5, 'full', false], [7, 'full', true], [7, 'short', true], [6, 'short', true]]) {
     const room = fullRoom(seats, { length, missPoints });

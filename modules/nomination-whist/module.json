@@ -12,12 +12,14 @@
     { "key": "tricksWon", "label": "Tricks won", "agg": "sum" },
     { "key": "perfectGames", "label": "Perfect games (every nomination hit)", "agg": "sum" },
     { "key": "instantWins", "label": "Instant wins (7 nominated and won in the first or last round)", "agg": "sum" },
-    { "key": "scoredOver100", "label": "Games scoring over 100", "agg": "sum" }
+    { "key": "scoredOver100", "label": "Games scoring over 100", "agg": "sum" },
+    { "key": "singledOut", "label": "Rounds you were right and everybody else was wrong", "agg": "sum" },
+    { "key": "zeroBidsMade", "label": "Nominations of zero that you made", "agg": "sum" }
   ],
   "achievements": [
     { "key": "perfect", "name": "Perfect game", "text": "Make every nomination in a game", "levels": [1], "stat": "perfectGames" },
     { "key": "over100", "name": "Scored over 100", "text": "Score over 100 in a game {n} times", "one": "Score over 100 in a game", "levels": "hard", "stat": "scoredOver100" },
-    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": "veryEasy", "stat": "totalScore" },
-    { "key": "bids", "name": "Nominations hit", "text": "Hit your nomination exactly {n} times", "levels": "easy", "stat": "bidsMade" }
+    { "key": "single", "name": "Singled out", "text": "Make your nomination when nobody else does, {n} times", "one": "Make your nomination when nobody else does", "levels": "medium", "stat": "singledOut" },
+    { "key": "zero", "name": "Nothing to it", "text": "Nominate zero and make it {n} times", "one": "Nominate zero and make it", "levels": "easy", "stat": "zeroBidsMade" }
   ]
 }

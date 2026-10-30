@@ -532,6 +532,24 @@ test('statistics: a game that ends with no points is a perfect game', () => {
   assert.equal(g.statsPlayers(room)[0].extras.perfectGames, 0);
 });
 
+test('the tally counts hands without the Queen of Spades and hands with no points taken', () => {
+  const room = started({ target: 50 }, seeded(4));
+  room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
+  for (const tally of room.tally) {
+    delete tally.queensAvoided; // an old saved room has neither key
+    delete tally.zeroHands;
+  }
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  assert.ok(['handEnd', 'finished'].includes(room.phase));
+  room.tally.forEach((t, seat) => {
+    const d = room.lastHand.details[seat];
+    assert.equal(t.queensAvoided ?? 0, d.queen ? 0 : 1, `seat ${seat}`);
+    assert.equal(t.zeroHands ?? 0, !d.queen && d.hearts === 0 ? 1 : 0, `seat ${seat}`);
+    assert.equal((t.queensAvoided ?? 0) + t.queensTaken, 1);
+  });
+  assert.equal(room.tally.reduce((n, t) => n + (t.queensAvoided ?? 0), 0), room.seats.length - 1, 'one person took the Queen');
+});
+
 test('the Jack of Diamonds is tallied when it scores, and a room saved before it was counted still plays', () => {
   const room = started({ target: 50, jackOfDiamonds: true }, seeded(2));
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
