@@ -11,7 +11,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements, winnersOf } from '../../shared/scores.js';
 import { extrasOf } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
-import { newTally, STAT_KEYS, tallyLines, tallyTake } from './tally.js';
+import { newTally, STAT_KEYS, tallyTake } from './tally.js';
 import {
   COLOUR_NAMES,
   COLOURS,
@@ -390,7 +390,6 @@ function startTiling(room, rng) {
   room.turn = null;
   room.tiling = room.seats.map(() => ({ cursor: 0, placed: [], gained: 0, newRows: 0, dropped: [] }));
   room.pending = room.seats.map(() => null);
-  room.tally.forEach((tally, seat) => tallyLines(tally, room.lines[seat]));
   for (let seat = 0; seat < room.size; seat++) advanceTiling(room, seat);
   settleTiling(room, rng);
 }
@@ -546,6 +545,7 @@ export function statsPlayers(room) {
               columnsCompleted: completeColumns(room.walls[i]),
               colourSetsCompleted: completeSets(room.walls[i]),
               bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
+              gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // every row done in the same round
               roundsPlayed: room.playedRounds,
             },
           },

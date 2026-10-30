@@ -795,3 +795,12 @@ test('the room survives being saved as JSON in every phase', () => {
     game.takeTiles(room, room.turn, moves[Math.floor(rng() * moves.length)], rng);
   }
 });
+
+test('statistics: a game that ends with the whole wall filled counts the bottom row and the full grid', () => {
+  const { room, rng } = endgame(2);
+  setWall(room, 0, ['XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX']);
+  finishRound(room, rng, { source: 0, colour: 0, line: 'floor' });
+  const [full, other] = game.statsPlayers(room);
+  assert.deepEqual([full.extras.gridsFilled, full.extras.bottomRows], [1, 1]);
+  assert.deepEqual([other.extras.gridsFilled, other.extras.bottomRows], [0, 0]);
+});

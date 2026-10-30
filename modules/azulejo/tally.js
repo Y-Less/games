@@ -1,7 +1,7 @@
 // What Azulejo counts about each player for the statistics and achievements (see module.json "stats"). The game calls
-// tallyTake after each take of tiles and tallyLines as the tiling phase begins; nothing here changes the game.
+// tallyTake after each take of tiles; nothing here changes the game.
 import { bump, freshTally } from '../../shared/tally.js';
-import { FLOOR_SLOTS, lineCapacity } from './rules.js';
+import { FLOOR_SLOTS } from './rules.js';
 
 export const STAT_KEYS = ['rowsCompleted', 'columnsCompleted', 'colourSetsCompleted', 'floorPenalties', 'roundsPlayed', 'bottomRows', 'tilesTaken', 'tilesDropped', 'floorsFilled', 'gridsFilled'];
 export const newTally = () => freshTally(STAT_KEYS);
@@ -16,9 +16,4 @@ export function tallyTake(tally, { taken, dropped, floorBefore, floorAfter }) {
   bump(tally, 'tilesTaken', taken);
   bump(tally, 'tilesDropped', dropped);
   if (floorBefore < FLOOR_SLOTS && floorAfter === FLOOR_SLOTS) bump(tally, 'floorsFilled');
-}
-
-/** Counts a player whose five pattern lines are all full when the tiling begins. */
-export function tallyLines(tally, lines) {
-  if (lines.every((line, index) => line.count === lineCapacity(index))) bump(tally, 'gridsFilled');
 }
