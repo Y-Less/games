@@ -88,11 +88,11 @@ test('shared top scores produce several winners', () => {
   const { game, host } = setup(['Ann', 'Bob', 'Cat'], 1);
   game.start(host.id);
   for (let i = 0; i < 3; i++) {
-    playRound(game, { guessRight: true }); // the chooser scores 100 each time
+    playRound(game, { guessRight: true }); // the chooser scores a point each time
     game.nextRound(host.id);
   }
   const view = game.viewFor(host.id);
-  assert.equal(view.winners.length, 3, 'everyone scored 100 once');
+  assert.equal(view.winners.length, 3, 'everyone scored once');
 });
 
 test('a skipped round does not count as anyone\'s turn', () => {

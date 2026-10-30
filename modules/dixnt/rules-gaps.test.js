@@ -250,10 +250,10 @@ test('"chooser" and "favourite" judging allow only the chooser to vote and score
     assert.equal(s.results.judging, judging);
     if (judging === 'favourite') {
       assert.equal(s.imposterId, null);
-      assert.equal(s.results.deltas[first.id], 200);
+      assert.equal(s.results.deltas[first.id], 2);
       assert.equal(s.results.groupCorrect, null);
     } else {
-      assert.equal(s.results.deltas[first.id === s.imposterId ? s.chooserId : s.imposterId], first.id === s.imposterId ? 100 : 500);
+      assert.equal(s.results.deltas[first.id === s.imposterId ? s.chooserId : s.imposterId], first.id === s.imposterId ? 1 : 5);
     }
   }
 });

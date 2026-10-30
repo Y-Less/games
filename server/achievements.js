@@ -3,6 +3,7 @@
 // the coins for levels reached and builds what the Achievements page shows; which achievements exist is in achievementRegistry.js.
 import { BUILTIN_STATS, describe, levelInfo, levelReward, levelText } from '../shared/achievements.js';
 import { createRegistry, fullId, GLOBAL } from './achievementRegistry.js';
+import { createCollections } from './collections.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
@@ -14,6 +15,7 @@ import { transaction } from './db.js';
  */
 export function createAchievements(db, { listGames, statsFor, notify = () => {} }) {
   const coins = createCoins(db);
+  const collections = createCollections(db);
   const { sections, find } = createRegistry(listGames);
   const read = db.prepare('SELECT value FROM achievement_progress WHERE user_id = ? AND id = ?');
   const readAll = db.prepare('SELECT id, value FROM achievement_progress WHERE user_id = ?');
@@ -89,6 +91,16 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   const add = (game, userId, key, amount = 1) => change(game, userId, key, (value) => (Number.isFinite(amount) && amount > 0 ? value + amount : value));
   /** Raises a saved achievement to `value` if that is more than it is now (for "best ever" numbers). */
   const raise = (game, userId, key, value) => change(game, userId, key, (current) => (Number.isFinite(value) ? Math.max(current, value) : current));
+
+  /**
+   * Adds numbered things (cards, say) to what a player has collected for an achievement, and saves how many different ones
+   * that is as its value. Returns { before, after, level, unlocked } like add(), or null for a computer player.
+   */
+  function collect(game, userId, key, items) {
+    const { id } = resolve(game, key);
+    if (!isPerson(userId)) return null;
+    return change(game, userId, key, () => collections.add(userId, id, items));
+  }
 
   // ---- paying for levels ----
 
@@ -168,6 +180,8 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
     return {
       add: (userId, key, amount) => add(game, userId, key, amount),
       raise: (userId, key, value) => raise(game, userId, key, value),
+      /** Adds numbered things to a player's collection for `key`; its value is how many different ones they have had. */
+      collect: (userId, key, items) => collect(game, userId, key, items),
       get: (userId, key) => get(userId, fullId(game, key)),
       /** Counts cards a person has just played towards the global Played cards achievement, if the move (`outcome`) was allowed. Returns the outcome. */
       cardsPlayed: (userId, outcome, count) => {
@@ -189,5 +203,5 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
     return (meta.achievements ?? []).filter((a) => a.stat && !declared.has(a.stat)).map((a) => `${meta.id}: "${a.key}" uses the stat "${a.stat}", which the game does not declare`);
   }
 
-  return { add, raise, get, forUser, forGame, problems, settle, pending, seen };
+  return { add, raise, collect, get, forUser, forGame, problems, settle, pending, seen };
 }

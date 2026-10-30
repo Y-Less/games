@@ -35,7 +35,7 @@ function toVoting(game, host) {
   return { imposter, chooser, others };
 }
 
-test('chooser-only judging: spotting the imposter scores the chooser 100 and nobody else', () => {
+test('chooser-only judging: spotting the imposter scores the chooser a point and nobody else', () => {
   const { game, host } = lobby();
   game.setJudging(host.id, 'chooser');
   const { imposter, chooser, others } = toVoting(game, host);
@@ -46,12 +46,12 @@ test('chooser-only judging: spotting the imposter scores the chooser 100 and nob
   assert.equal(r.judging, 'chooser');
   assert.equal(r.groupCorrect, true);
   assert.equal(r.deltas[chooser.id], CHOOSER_CORRECT_POINTS);
-  assert.equal(CHOOSER_CORRECT_POINTS, 100);
+  assert.equal(CHOOSER_CORRECT_POINTS, 1);
   assert.equal(r.deltas[imposter.id], 0);
   for (const p of others) assert.equal(r.deltas[p.id], 0);
 });
 
-test('chooser-only judging: fooling the chooser scores the imposter 500', () => {
+test('chooser-only judging: fooling the chooser scores the imposter 5', () => {
   const { game, host } = lobby();
   game.setJudging(host.id, 'chooser');
   const { imposter, chooser, others } = toVoting(game, host);
@@ -60,8 +60,8 @@ test('chooser-only judging: fooling the chooser scores the imposter 500', () => 
   const r = game.s.results;
   assert.equal(r.groupCorrect, false);
   assert.equal(r.deltas[imposter.id], CHOOSER_FOOLED_POINTS);
-  assert.equal(CHOOSER_FOOLED_POINTS, 500);
-  assert.equal(game.player(imposter.id).score, 500);
+  assert.equal(CHOOSER_FOOLED_POINTS, 5);
+  assert.equal(game.player(imposter.id).score, 5);
   assert.equal(game.player(chooser.id).score, 0);
 });
 

@@ -22,20 +22,20 @@ The host picks one of three styles in the lobby.
 
 - Every player votes for whoever they think was in the dark. You cannot vote for yourself or for the chooser's card (the chooser plays none). You can change your vote until the last one is in.
 - The group is right only if the imposter has strictly the most votes. A tie counts as wrong.
-- If the group is right, each player who voted for the imposter scores 100.
-- If the group is wrong, the imposter scores 100 for every other player who did not vote for them.
+- If the group is right, each player who voted for the imposter scores 1 point.
+- If the group is wrong, the imposter scores 1 point for every other player who did not vote for them.
 
 ### Only the chooser decides
 
 - Only the chooser guesses who was in the dark, and that guess ends the round at once.
-- If the chooser is right, they score 100.
-- If the chooser is fooled, the imposter scores 500.
+- If the chooser is right, they score 1 point.
+- If the chooser is fooled, the imposter scores 5 points.
 
 ### Favourite card
 
 - Nobody is kept in the dark: everyone sees the word.
 - The chooser picks the card they like best, which ends the round.
-- The player who played that card scores 200.
+- The player who played that card scores 2 points.
 
 ## Length of the game
 

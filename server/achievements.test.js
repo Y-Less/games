@@ -182,3 +182,16 @@ test('cards played count towards the global achievement only when the move was a
   assert.equal(hearts.cardsPlayed(ann, refused, 5), refused);
   assert.equal(hearts.get(ann, 'global.cards'), 3);
 });
+
+test('a collection saves how many different things a player has had, and unlocks levels on the way', () => {
+  const { user, achievements, notified } = setup();
+  const ann = user('ann');
+  assert.deepEqual(achievements.collect('hearts', ann, 'streak', [5, 6, 5]), { before: 0, after: 2, level: 1, unlocked: true });
+  assert.equal(achievements.collect('hearts', ann, 'streak', [6, 7]).after, 3, 'only new ones count');
+  assert.equal(achievements.collect('hearts', ann, 'streak', [6]).unlocked, false);
+  assert.equal(achievements.get(ann, 'hearts.streak'), 3);
+  assert.equal(achievements.collect('hearts', ann, 'streak', [8]).level, 2);
+  assert.ok(notified.includes(ann));
+  assert.equal(achievements.collect('hearts', user('robot', 1), 'streak', [1]), null, 'computer players collect nothing');
+  assert.throws(() => achievements.collect('hearts', ann, 'moon', [1]), /cannot be set/);
+});

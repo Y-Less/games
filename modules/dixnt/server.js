@@ -7,12 +7,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { placements } from '../../shared/scores.js';
 import { Game, GameError, MAX_NAME_LENGTH } from './game.js';
+import { newTally, statsExtras, tallyRound } from './tally.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MAX_GAMES = 500;
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // games nobody has touched for two weeks are forgotten
 const DEFAULT_BOT_DELAY = [600, 1400];
-const TALLY_KEYS = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed'];
 
 const tokenFor = (user) => `user:${user.id}`;
 const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) : null);
@@ -181,32 +181,17 @@ export default function (ctx) {
 
   // ---- statistics ----
   function tallyOf(entry, token) {
-    return (entry.tally[token] ??= Object.fromEntries(TALLY_KEYS.map((key) => [key, 0])));
+    return (entry.tally[token] ??= newTally());
   }
 
-  /** Counts a completed round towards each player's statistics (once per round). */
-  function tallyRound(entry) {
+  /** Counts a completed round towards each person's statistics (once per round). */
+  function countRound(entry) {
     const { game } = entry;
-    const s = game.s;
-    const results = s.results;
-    const tokenOfPlayer = (id) => {
+    const tallyFor = (id) => {
       const player = game.player(id);
-      return player && !player.bot ? player.token : null; // computer players are not accounts and are not counted
+      return player && !player.bot ? tallyOf(entry, player.token) : null; // computer players are not accounts and are not counted
     };
-    for (const id of Object.keys(s.picks)) {
-      const token = tokenOfPlayer(id);
-      if (token) tallyOf(entry, token).cardsPlayed++;
-    }
-    if (!results.imposterId) return;
-    const imposter = tokenOfPlayer(results.imposterId);
-    if (imposter) {
-      tallyOf(entry, imposter).roundsAsImposter++;
-      if (!results.groupCorrect) tallyOf(entry, imposter).timesFooledGroup++;
-    }
-    for (const [voterId, targetId] of Object.entries(results.votes)) {
-      const voter = tokenOfPlayer(voterId);
-      if (voter && targetId === results.imposterId && voterId !== results.imposterId) tallyOf(entry, voter).correctGuesses++;
-    }
+    tallyRound(tallyFor, { pickers: Object.keys(game.s.picks), results: game.s.results });
   }
 
   function recordFinished(entry, code) {
@@ -222,7 +207,7 @@ export default function (ctx) {
         outcome: winners.has(p.id) ? 'win' : 'loss',
         placement: places[p.id],
         score: p.score,
-        extras: { ...Object.fromEntries(TALLY_KEYS.map((key) => [key, 0])), ...(entry.tally[p.token] ?? {}) },
+        extras: statsExtras(entry.tally[p.token] ?? newTally()),
       });
     }
     try {
@@ -232,16 +217,30 @@ export default function (ctx) {
     }
   }
 
+  /** Adds the cards each person holds to the ones they have been dealt (the "Art lover" achievement). */
+  function collectCards(entry) {
+    for (const p of entry.game.s.players) {
+      const userId = userIdOf(p.token);
+      if (userId === null || !p.hand?.length) continue;
+      try {
+        ctx.achievements?.collect(userId, 'art', p.hand);
+      } catch (error) {
+        ctx.log('could not collect cards:', error.message);
+      }
+    }
+  }
+
   /** Keeps the statistics in step with the game after every change. */
   function track(code, entry) {
     const s = entry.game.s;
+    collectCards(entry);
     if (s.phase === 'lobby') {
       entry.tally = freshTally();
       entry.tallied = 0;
       entry.recorded = false;
       return;
     }
-    if (s.completed > entry.tallied && s.phase === 'results' && s.results) tallyRound(entry);
+    if (s.completed > entry.tallied && s.phase === 'results' && s.results) countRound(entry);
     entry.tallied = s.completed;
     if (s.phase === 'finished' && !entry.recorded) {
       entry.recorded = true;

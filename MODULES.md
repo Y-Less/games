@@ -116,6 +116,7 @@ far they are towards the next. An achievement is a number that grows, and the le
 | --- | --- |
 | `ctx.achievements.add(userId, key, amount = 1)` | adds to your own saved achievement, or to a global one (`'global.cards'`). Returns `{ before, after, level, unlocked }` (`unlocked`: this call reached a new level), or `null` for a computer player |
 | `ctx.achievements.raise(userId, key, value)` | raises it to `value` if that is more than it is now (for "best ever" numbers) |
+| `ctx.achievements.collect(userId, key, items)` | for "have had N different ..." achievements: `items` are whole numbers (card ids, say) the player has just had; each different one counts once, ever, across all games, and the achievement's value is how many different ones that is. Kept as a bit for each number (`server/collections.js`), so thousands of cards cost a few kilobytes. Needs a definition without a `stat`; returns like `add`, or `null` for a computer player |
 | `ctx.achievements.get(userId, key)` | the current value of any achievement: your own, or a global one as `'global.games'`, `'global.wins'`, `'global.cards'` |
 | `ctx.achievements.level(userId, key)` | the level reached (0 for none) |
 

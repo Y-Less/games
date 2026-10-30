@@ -111,7 +111,7 @@ test('cannot vote for yourself, the chooser, or when it is not voting time', () 
   assert.throws(() => game.vote(others[0].id, chooser.id), GameError);
 });
 
-test('group correct: only those who found the imposter score 100', () => {
+test('group correct: only those who found the imposter score a point', () => {
   const { game } = makeGame(['Ann', 'Bob', 'Cat', 'Dan', 'Eve']);
   const { imposter, others, chooser } = toVoting(game);
   game.vote(chooser.id, imposter.id);
@@ -130,7 +130,7 @@ test('group correct: only those who found the imposter score 100', () => {
   assert.equal(game.viewFor(imposter.id).results.imposterId, imposter.id);
 });
 
-test('group wrong: the imposter scores 100 per voter who missed them', () => {
+test('group wrong: the imposter scores a point per voter who missed them', () => {
   const { game } = makeGame(['Ann', 'Bob', 'Cat', 'Dan', 'Eve']);
   const { imposter, others, chooser } = toVoting(game);
   game.vote(chooser.id, others[0].id);
@@ -142,7 +142,7 @@ test('group wrong: the imposter scores 100 per voter who missed them', () => {
   assert.equal(r.groupCorrect, false);
   // 4 non-imposter voters, none chose the imposter
   assert.equal(r.deltas[imposter.id], 4 * POINTS_PER_VOTE);
-  assert.equal(game.player(imposter.id).score, 400);
+  assert.equal(game.player(imposter.id).score, 4);
 });
 
 test('a tie for most votes counts as the group being wrong', () => {

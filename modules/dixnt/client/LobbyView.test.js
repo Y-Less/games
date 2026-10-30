@@ -21,10 +21,10 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
     availableCards: 400,
     handSize: 8,
     roundsEach: 2,
-    pointsPerVote: 100,
-    pointsChooserCorrect: 100,
-    pointsFooledChooser: 500,
-    pointsFavourite: 200,
+    pointsPerVote: 1,
+    pointsChooserCorrect: 1,
+    pointsFooledChooser: 5,
+    pointsFavourite: 2,
   };
   const store = reactive({ state });
   const send = vi.fn();

@@ -10,6 +10,63 @@
     { "key": "roundsAsImposter", "label": "Rounds as the imposter", "agg": "sum" },
     { "key": "timesFooledGroup", "label": "Times you fooled the group", "agg": "sum" },
     { "key": "correctGuesses", "label": "Imposters correctly spotted", "agg": "sum" },
-    { "key": "cardsPlayed", "label": "Cards played", "agg": "sum" }
+    { "key": "cardsPlayed", "label": "Cards played", "agg": "sum" },
+    { "key": "soleCorrect", "label": "Times you alone spotted an imposter nobody found", "agg": "sum", "hidden": true },
+    { "key": "favouritePicks", "label": "Times your card was picked as the favourite", "agg": "sum", "hidden": true },
+    { "key": "mostFooled", "label": "Most times you fooled the group in one game", "agg": "max", "hidden": true },
+    { "key": "spymaster", "label": "Games you spotted the imposter every round", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "imposter",
+      "name": "Imposter",
+      "text": "Fool the group {n} times",
+      "one": "Fool the group",
+      "levels": "hard",
+      "stat": "timesFooledGroup"
+    },
+    {
+      "key": "dontfool",
+      "name": "You don't fool me",
+      "text": "Be the only one to vote for an imposter nobody found {n} times",
+      "one": "Be the only one to vote for an imposter nobody found",
+      "levels": "hard",
+      "stat": "soleCorrect"
+    },
+    {
+      "key": "favourite",
+      "name": "Favourite child",
+      "text": "Have your card picked as the best {n} times",
+      "one": "Have your card picked as the best",
+      "levels": "medium",
+      "stat": "favouritePicks"
+    },
+    {
+      "key": "art",
+      "name": "Art lover",
+      "text": "Be dealt {n} different cards",
+      "levels": [128, 256, 512, 1024, 2048]
+    },
+    {
+      "key": "invisible",
+      "name": "Invisible",
+      "text": "Fool the group as the imposter 5 times in one game",
+      "levels": [5],
+      "stat": "mostFooled"
+    },
+    {
+      "key": "spymaster",
+      "name": "Spymaster",
+      "text": "Vote for the imposter correctly in every round of a game",
+      "levels": "unlock",
+      "stat": "spymaster"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "easy",
+      "stat": "totalScore"
+    }
   ]
 }

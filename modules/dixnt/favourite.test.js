@@ -42,7 +42,7 @@ test('favourite style: the word is shown to everyone and there is no imposter', 
   }
 });
 
-test('favourite style: the chooser picks a card, the round ends at once and that player scores 200', () => {
+test('favourite style: the chooser picks a card, the round ends at once and that player scores 2', () => {
   const { game } = setup();
   const { chooser, cardPlayers } = toVoting(game);
   const winner = cardPlayers[1];
@@ -54,9 +54,9 @@ test('favourite style: the chooser picks a card, the round ends at once and that
   assert.equal(r.winnerId, winner.id);
   assert.equal(r.imposterId, null);
   assert.equal(r.deltas[winner.id], FAVOURITE_POINTS);
-  assert.equal(FAVOURITE_POINTS, 200);
+  assert.equal(FAVOURITE_POINTS, 2);
   for (const p of game.s.players.filter((x) => x.id !== winner.id)) assert.equal(r.deltas[p.id], 0);
-  assert.equal(game.player(winner.id).score, 200);
+  assert.equal(game.player(winner.id).score, 2);
   assert.equal(game.player(chooser.id).score, 0, 'the chooser does not score');
 });
 
@@ -101,7 +101,7 @@ test('favourite style: works with rounds, so everyone is judged in turn and the 
   }
   assert.equal(choosers.length, 6, 'three players, two turns each by default');
   const total = game.s.players.reduce((sum, p) => sum + p.score, 0);
-  assert.equal(total, 6 * FAVOURITE_POINTS, 'exactly one 200-point award per round');
+  assert.equal(total, 6 * FAVOURITE_POINTS, 'exactly one 2-point award per round');
 });
 
 test('the play style can be switched between all three in the lobby', () => {
@@ -111,6 +111,6 @@ test('the play style can be switched between all three in the lobby', () => {
     game.setJudging(players[0].id, mode);
     assert.equal(game.viewFor(players[1].id).judging, mode);
   }
-  assert.equal(game.viewFor(players[1].id).pointsFavourite, 200);
+  assert.equal(game.viewFor(players[1].id).pointsFavourite, 2);
   assert.throws(() => game.setJudging(players[0].id, 'tournament'), GameError);
 });

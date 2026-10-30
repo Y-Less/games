@@ -51,9 +51,9 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
       filter: (source) => !['cards', 'node_modules', '.bot-tokens.json'].includes(path.basename(source)),
     });
   }
-  // The module imports ../../shared/scores.js and ai.js, so the copy needs a shared folder beside its modules folder.
+  // The module imports ../../shared/scores.js, ai.js and tally.js, so the copy needs a shared folder beside its modules folder.
   fs.mkdirSync(path.join(dataDir, 'shared'), { recursive: true });
-  for (const file of ['scores.js', 'ai.js']) fs.copyFileSync(path.join(here, '..', '..', 'shared', file), path.join(dataDir, 'shared', file));
+  for (const file of ['scores.js', 'ai.js', 'tally.js']) fs.copyFileSync(path.join(here, '..', '..', 'shared', file), path.join(dataDir, 'shared', file));
   process.env.DIXNT_CARDS_DIR = cardsDir;
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;
@@ -210,7 +210,9 @@ function expectedExtras(rounds) {
   return extras;
 }
 
-const extrasOf = (stats) => Object.fromEntries(stats.perGame[0].extras.map((e) => [e.key, e.value]));
+/** The first four statistics (the others, which are hidden, have their own checks in tally.test.js). */
+const COUNTED = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed'];
+const extrasOf = (stats) => Object.fromEntries(stats.perGame[0].extras.filter((e) => COUNTED.includes(e.key)).map((e) => [e.key, e.value]));
 
 async function assertRecorded(person, finalState, rounds, { players = finalState.players.length } = {}) {
   const stats = await person.stats();
@@ -337,7 +339,7 @@ test('a tied game counts as a win for every tied winner, with a shared placement
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
 
-  // ann picks bob, bob picks cat, cat picks ann: everyone scores 200.
+  // ann picks bob, bob picks cat, cat picks ann: everyone scores a point.
   const next = { ann: 'bob', bob: 'cat', cat: 'ann' };
   const rounds = await playToEnd(players, {
     vote: (p) => p.state.players.find((q) => q.name === next[p.name]).id,
@@ -348,7 +350,7 @@ test('a tied game counts as a win for every tied winner, with a shared placement
   for (const p of players) {
     const stats = await p.stats();
     assert.equal(stats.perGame[0].wins, 1);
-    assert.equal(stats.perGame[0].totalScore, 200);
+    assert.equal(stats.perGame[0].totalScore, 2);
     assert.equal(stats.recent[0].placement, 1);
     assert.deepEqual(extrasOf(stats), { roundsAsImposter: 0, timesFooledGroup: 0, correctGuesses: 0, cardsPlayed: 2 }, 'no imposter in this style');
   }
@@ -531,7 +533,7 @@ async function playBotGame(t, { judging, categories }) {
   assert.match(log, /played card \d+/);
   if (judging === 'everyone') assert.match(log, /voted for /);
   else {
-    const allowed = judging === 'favourite' ? [200] : [100, 500];
+    const allowed = judging === 'favourite' ? [2] : [1, 5];
     for (const { results } of rounds) {
       const gained = Object.values(results.deltas).filter(Boolean);
       assert.equal(gained.length <= 1, true, 'only one player scores in the chooser-decides styles');
@@ -560,7 +562,7 @@ test('external bot processes play whole games using only the API (everyone votes
 test('external bot processes play a whole game in chooser-only judging, with one category', (t) =>
   playBotGame(t, { judging: 'chooser', categories: ['beta'] }));
 
-test('external bot processes play the favourite style: everyone sees the word, the chosen card scores 200', (t) =>
+test('external bot processes play the favourite style: everyone sees the word, the chosen card scores 2', (t) =>
   playBotGame(t, { judging: 'favourite', categories: ['alpha'] }));
 
 test('bots can only join an existing game, and they sign back in as the same account', async (t) => {

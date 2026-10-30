@@ -25,10 +25,10 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { winnersOf } from '../../shared/scores.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 
-export const POINTS_PER_VOTE = 100;
-export const CHOOSER_CORRECT_POINTS = 100;
-export const CHOOSER_FOOLED_POINTS = 500;
-export const FAVOURITE_POINTS = 200;
+export const POINTS_PER_VOTE = 1;
+export const CHOOSER_CORRECT_POINTS = 1;
+export const CHOOSER_FOOLED_POINTS = 5;
+export const FAVOURITE_POINTS = 2;
 export const JUDGING_MODES = ['everyone', 'chooser', 'favourite'];
 export const MIN_ROUNDS_EACH = 1;
 export const MAX_ROUNDS_EACH = 10;
@@ -78,6 +78,7 @@ export class Game {
     this.rng = rng;
     this.hintPool = [];
     this.s = { ...Game.blankState(), ...(saved ?? {}) };
+    this.rescaleOldPoints(saved);
     this.normaliseHistory(saved);
     if (this.s.phase === 'discussion') this.s.phase = 'voting'; // saved by an older version that had a separate step
     delete this.s.ready;
@@ -103,6 +104,7 @@ export class Game {
       // Shown to everyone as the standard scoreboard. A player who leaves is removed from every entry, so the
       // table always adds up to the scores of the players still in the game.
       history: [],
+      pointScale: 1, // 1 when points are the small numbers of today; a game saved with hundreds has none and is scaled down
       round: 0,
       nextChooserIdx: 0,
       chooserId: null,
@@ -115,6 +117,14 @@ export class Game {
       votes: {}, // playerId -> playerId
       results: null,
     };
+  }
+
+  /** A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today. */
+  rescaleOldPoints(saved) {
+    if (!saved || saved.pointScale !== undefined || saved.phase === 'lobby') return;
+    const scale = (points) => Math.round(points / 100);
+    for (const p of this.s.players) p.score = scale(p.score);
+    for (const entry of this.s.history ?? []) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
   }
 
   /** Older saved games have no history: if they already have scores, show them as one "Earlier rounds" row. */

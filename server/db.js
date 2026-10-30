@@ -56,6 +56,13 @@ CREATE TABLE IF NOT EXISTS achievement_progress (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, id)
 );
+-- The numbered things a player has had so far for an achievement that collects them (server/collections.js): a bit for each number.
+CREATE TABLE IF NOT EXISTS achievement_sets (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  bits BLOB NOT NULL,
+  PRIMARY KEY (user_id, id)
+);
 -- Each level a player has unlocked, once: it pays its coins when it is added, and shown is 0 until the player has seen the pop-up.
 CREATE TABLE IF NOT EXISTS achievement_awards (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
