@@ -55,7 +55,7 @@ describe('AchievementPopups', () => {
     const text = popup().textContent;
     expect(text).toContain('Achievement unlocked: Played cards');
     expect(text).toContain('level 2: Play 500 cards');
-    expect(text).toContain('+1,000 coins');
+    expect(text).toContain('+1,000 gold');
     expect(popup().getAttribute('role')).toBe('status');
   });
 
@@ -97,7 +97,7 @@ describe('AchievementPopups', () => {
   it('shows many that arrive together as one pop-up with the total', async () => {
     await arrive([1, 2, 3, 4, 5].map((n) => unlock('global.cards', n)));
     expect(popup().textContent).toContain('5 achievements unlocked!');
-    expect(popup().textContent).toContain('+5,000 coins');
+    expect(popup().textContent).toContain('+5,000 gold');
     popup().querySelector('button').click();
     await vi.advanceTimersByTimeAsync(0);
     expect(seenPosts()[0].items).toHaveLength(5);

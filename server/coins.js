@@ -71,9 +71,9 @@ export function createCoins(db) {
 
     /** Takes coins for a purchase. Throws when the balance would go below zero. */
     spend(userId, amount, reason) {
-      if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of coins.');
+      if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of gold.');
       if (amount === 0) return;
-      if (sum.get(userId).balance < amount) throw new Error('Not enough coins.');
+      if (sum.get(userId).balance < amount) throw new Error('Not enough gold.');
       insert.run(userId, -amount, reason, null, Date.now());
     },
   };

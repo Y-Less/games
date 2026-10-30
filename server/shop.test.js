@@ -1,4 +1,4 @@
-// The shop: the catalogue, buying with coins, and the server refusing profile choices the player has not bought.
+// The shop: the catalogue, buying with gold, and the server refusing profile choices the player has not bought.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -247,7 +247,7 @@ test('the shop sells Matrix (matrix-a) as "Matrix", and Matrix B is not for sale
   assert.equal((await c.patch('/api/me', { backgroundAnimation: 'matrix-a' })).data.user.backgroundAnimation, 'matrix-a');
 });
 
-test('every card back preset is in the shop: crimson free, the rest 300 coins, with a readable name', () => {
+test('every card back preset is in the shop: crimson free, the rest 300 gold, with a readable name', () => {
   const backs = allItems().filter((i) => i.type === 'card-back');
   assert.equal(backs.length, 20);
   assert.equal(backs.filter((i) => i.price === 0).map((i) => i.id).join(), 'cb:crimson');

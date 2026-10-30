@@ -43,9 +43,9 @@ export const GLOBAL_TIERS = {
   unlock: [1],
 };
 
-/** Coins for each level a player unlocks: 200 times the level number, or a flat 500 for an achievement with only one level. */
-export const COINS_PER_LEVEL = 200;
-export const SINGLE_LEVEL_COINS = 500;
+/** Gold for each level a player unlocks: 100 times the level number, or a flat 250 for an achievement with only one level. */
+export const COINS_PER_LEVEL = 100;
+export const SINGLE_LEVEL_COINS = 250;
 export const levelReward = (level, levelCount) => (levelCount === 1 ? SINGLE_LEVEL_COINS : COINS_PER_LEVEL * level);
 
 export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore', 'bestScore'];
@@ -66,7 +66,7 @@ export const GLOBAL_ACHIEVEMENTS = [
     levels: GLOBAL_TIERS.easy,
     sum: [['azulejo', 'wallTiles'], ['gaudi', 'dicePlaced'], ['rummikub', 'tilesPlayed'], ['splendour', 'cardsBought']],
   },
-  { key: 'spent', name: 'Big spender', text: 'Spend {n} coins in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
+  { key: 'spent', name: 'Big spender', text: 'Spend {n} gold in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
   { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', levels: [10, 50, 100, 500, 1000] },
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
   { key: 'steve', name: "Steve's Achievement", text: "Claim Steve's reward", levels: GLOBAL_TIERS.unlock },

@@ -107,18 +107,18 @@ test('a module can add to the global played cards and look at the global achieve
 
 const balanceOf = async (c) => (await c.get('/api/shop')).data.balance;
 
-test('unlocking a level pays 200 times its number, and the unlock is waiting until it has been shown', async (t) => {
+test('unlocking a level pays 100 times its number, and the unlock is waiting until it has been shown', async (t) => {
   const { c, socket, find } = await setup(t);
   const before = await balanceOf(c);
   await ask(socket, 'lap', { n: 2 });
-  assert.equal((await balanceOf(c)) - before, 200, 'laps level 1 of 2');
+  assert.equal((await balanceOf(c)) - before, 100, 'laps level 1 of 2');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks;
-  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 200 }]);
+  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 100 }]);
   assert.equal((await find('pad.laps')).level, 1);
   assert.equal((await c.get('/api/achievements/pending')).data.unlocks.length, 1, 'still waiting: it has not been shown');
   assert.equal((await c.post('/api/achievements/seen', { items: [{ id: 'pad.laps', level: 1 }] })).status, 200);
   assert.deepEqual((await c.get('/api/achievements/pending')).data.unlocks, []);
-  assert.equal((await balanceOf(c)) - before, 200, 'seeing it pays nothing more');
+  assert.equal((await balanceOf(c)) - before, 100, 'seeing it pays nothing more');
 });
 
 test('a finished game pays what it unlocked, and the page and the pending list settle levels that were earned earlier', async (t) => {
@@ -154,7 +154,7 @@ test("Steve's Achievement is unlocked by asking the server, once, and only when 
   const steve = await find('global.steve');
   assert.deepEqual([steve.value, steve.level], [1, 1], 'asking again changes nothing');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks.filter((u) => u.id === 'global.steve');
-  assert.deepEqual(pending.map((u) => [u.level, u.coins]), [[1, 500]], 'one pop-up, worth the single-level 500');
+  assert.deepEqual(pending.map((u) => [u.level, u.coins]), [[1, 250]], 'one pop-up, worth the single-level 250');
 });
 
 test('Welcome is unlocked, and paid, the moment an account is made', async (t) => {
@@ -162,8 +162,8 @@ test('Welcome is unlocked, and paid, the moment an account is made', async (t) =
   const c = client();
   await register(c, 'newcomer', 'password1');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks;
-  assert.deepEqual(pending.map((u) => [u.id, u.level, u.coins, u.text]), [['global.welcome', 1, 500, 'Sign up']]);
-  assert.equal(await balanceOf(c), 500);
+  assert.deepEqual(pending.map((u) => [u.id, u.level, u.coins, u.text]), [['global.welcome', 1, 250, 'Sign up']]);
+  assert.equal(await balanceOf(c), 250);
 });
 
 test('Persistent counts lost games, with its own wording', async (t) => {

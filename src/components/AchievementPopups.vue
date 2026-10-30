@@ -39,12 +39,12 @@ const number = (n) => n.toLocaleString('en-GB');
   <NoticePopup v-if="current" :key="current.map((u) => `${u.id}:${u.level}`).join()" :active="true" :auto-hide="false" :row="1" name="achievement" @close="closed">
     <template v-if="many">
       <strong class="title">{{ current.length }} achievements unlocked!</strong>
-      <span class="line">+{{ number(coins) }} coins. See them on the Achievements page.</span>
+      <span class="line">+{{ number(coins) }} gold. See them on the Achievements page.</span>
     </template>
     <template v-else>
       <strong class="title">Achievement unlocked: {{ current[0].name }}</strong>
       <span class="line">{{ current[0].game }}{{ current[0].levels > 1 ? `, level ${current[0].level}` : '' }}: {{ current[0].text }}</span>
-      <span class="line reward">+{{ number(current[0].coins) }} coins</span>
+      <span class="line reward">+{{ number(current[0].coins) }} gold</span>
     </template>
   </NoticePopup>
 </template>

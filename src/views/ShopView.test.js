@@ -40,7 +40,7 @@ beforeEach(() => {
     if (url === '/api/shop') return reply(listing);
     if (url === '/api/shop/buy') {
       const item = listing.items.find((i) => i.id === JSON.parse(options.body).item);
-      if (listing.balance < item.price) return reply({ error: 'You do not have enough coins for that.' }, 402);
+      if (listing.balance < item.price) return reply({ error: 'You do not have enough gold for that.' }, 402);
       listing.balance -= item.price;
       item.owned = true;
       return reply({ item, balance: listing.balance });
@@ -84,7 +84,7 @@ describe('ShopView', () => {
     await make();
     const gold = card('ns:gold').find('button');
     expect(gold.element.disabled).toBe(true);
-    expect(gold.attributes('title')).toBe('You need 100 more coins');
+    expect(gold.attributes('title')).toBe('You need 100 more gold');
   });
 
   it('buys an item, updates the balance and then offers to use it', async () => {
@@ -115,7 +115,7 @@ describe('ShopView', () => {
     await flushPromises();
     await card('ns:gold').find('button').trigger('click');
     await flushPromises();
-    expect(wrapper.find('.bad').text()).toBe('You do not have enough coins for that.');
+    expect(wrapper.find('.bad').text()).toBe('You do not have enough gold for that.');
   });
 
   it('lists the unlocks, which are bought but used on the Profile page', async () => {

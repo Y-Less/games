@@ -61,7 +61,7 @@ const reset = () => (draft.value = { ...saved.value });
               :class="{ chosen: draft[s.slot] === o.id, locked: locked(s.slot, o), colour: o.colour }"
               :style="o.colour ? { '--swatch': o.gradient ? `linear-gradient(${o.gradient.join(', ')})` : o.colour } : undefined"
               :disabled="locked(s.slot, o)"
-              :title="locked(s.slot, o) ? `${o.name}: buy it in the shop (${o.price} coins)` : o.name"
+              :title="locked(s.slot, o) ? `${o.name}: buy it in the shop (${o.price} gold)` : o.name"
               :aria-label="`${s.label}: ${o.name}`"
               :aria-pressed="draft[s.slot] === o.id"
               @click="draft[s.slot] = o.id"

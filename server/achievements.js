@@ -111,8 +111,8 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
   // ---- paying for levels ----
 
   /**
-   * Pays for every level of `definition` that `value` has reached and that has not been paid yet (levelReward coins: 200 a level, or
-   * 500 for a one-level achievement), and records it to be shown. `done` is the set of "id:level" already paid. Returns the new levels.
+   * Pays for every level of `definition` that `value` has reached and that has not been paid yet (levelReward coins: 100 a level, or
+   * 250 for a one-level achievement), and records it to be shown. `done` is the set of "id:level" already paid. Returns the new levels.
    */
   function payLevels(userId, id, definition, value, done) {
     const fresh = [];

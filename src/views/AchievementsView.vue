@@ -34,7 +34,7 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
     <p v-else-if="!sections" class="muted">Loading…</p>
 
     <template v-else>
-    <p v-if="rewards" class="muted note">Unlocking a level earns {{ rewards.perLevel }} coins times its level number, so {{ rewards.perLevel }} for level 1 and {{ rewards.perLevel * 5 }} for level 5. An achievement with just one level earns {{ rewards.single }}.</p>
+    <p v-if="rewards" class="muted note">Unlocking a level earns {{ rewards.perLevel }} gold times its level number, so {{ rewards.perLevel }} for level 1 and {{ rewards.perLevel * 5 }} for level 5. An achievement with just one level earns {{ rewards.single }}.</p>
     <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="`${section.name} achievements`">
       <header class="heading">
         <h2>{{ section.name }}</h2>

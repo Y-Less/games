@@ -63,7 +63,7 @@ async function leaveSite() {
         <button v-if="playBar.game.hasRules" class="quiet" @click="playBar.game.openRules()">Rules</button>
       </div>
 
-      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="`${session.shop.balance} coins: spend them in the shop`" aria-label="Your coins">
+      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="`${session.shop.balance} gold: spend it in the shop`" aria-label="Your gold">
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
       </RouterLink>
       <div v-if="session.user" class="account">

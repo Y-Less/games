@@ -39,7 +39,7 @@ export async function startSite(options = {}) {
   const db = openDatabase(options.memory ? ':memory:' : dataDir);
   grandfather(db); // whoever already uses something now sold in the shop keeps it
   const backpaid = transaction(db, () => createCoins(db).creditPastResults()); // and whoever won before coins existed is paid for it
-  if (backpaid.games) log(`Paid ${backpaid.coins} coins for ${backpaid.games} earlier placings.`);
+  if (backpaid.games) log(`Paid ${backpaid.coins} gold for ${backpaid.games} earlier placings.`);
   const auth = createAuth(db, { canUse: (userId, settings) => checkSettings(db, userId, settings) });
   const shop = createShop(db);
   const coins = createCoins(db);

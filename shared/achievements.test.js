@@ -69,10 +69,10 @@ test('there are five ladders and an unlock tier, medium and up start at 1, and a
   assert.equal(TIERS.easy.length, 5, 'a definition has its own copy');
 });
 
-test('a level pays 200 times its number, and an achievement with one level pays 500', () => {
-  assert.deepEqual([1, 2, 3, 4, 5].map((level) => levelReward(level, 5)), [200, 400, 600, 800, 1000]);
-  assert.equal(levelReward(1, 1), 500);
-  assert.equal(levelReward(1, 2), 200);
+test('a level pays 100 times its number, and an achievement with one level pays 250', () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map((level) => levelReward(level, 5)), [100, 200, 300, 400, 500]);
+  assert.equal(levelReward(1, 1), 250);
+  assert.equal(levelReward(1, 2), 100);
 });
 
 test('every game has a medium played and a hard won achievement', () => {

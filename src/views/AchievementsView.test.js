@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 async function make() {
-  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections, rewards: { perLevel: 200, single: 500 } })));
+  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections, rewards: { perLevel: 100, single: 250 } })));
   wrapper = mount(AchievementsView);
   await flushPromises();
   return wrapper;
@@ -112,9 +112,9 @@ describe('AchievementsView', () => {
 
   it('says what a level earns', async () => {
     await make();
-    expect(wrapper.text()).toContain('200 coins times its level number');
-    expect(wrapper.text()).toContain('1000 for level 5');
-    expect(wrapper.text()).toContain('just one level earns 500');
+    expect(wrapper.text()).toContain('100 gold times its level number');
+    expect(wrapper.text()).toContain('500 for level 5');
+    expect(wrapper.text()).toContain('just one level earns 250');
   });
 
   it('counts the levels unlocked in each section', async () => {

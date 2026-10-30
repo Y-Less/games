@@ -1,5 +1,5 @@
 <script setup>
-// The shop: spend the coins you win (100, 50 and 20 for coming 1st, 2nd and 3rd in a game) on name styles,
+// The shop: spend the gold you win (100, 50 and 20 for coming 1st, 2nd and 3rd in a game) on name styles,
 // backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
 import { computed, onMounted, ref } from 'vue';
@@ -88,9 +88,9 @@ function use(item) {
   <section class="stack shop">
     <header class="top">
       <h1>Shop</h1>
-      <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> coins</p>
+      <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> gold</p>
     </header>
-    <p class="muted intro">Coins are won, but I'm open to bribes: 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd.</p>
+    <p class="muted intro">Gold is won, but I'm open to bribes: 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd.</p>
     <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
@@ -124,7 +124,7 @@ function use(item) {
         <span v-if="item.owned && equipped(item)" class="state">In use</span>
         <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
         <span v-else-if="item.owned" class="state">Unlocked</span>
-        <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more coins` : undefined" @click="purchase(item)">
+        <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more gold` : undefined" @click="purchase(item)">
           Buy for {{ item.price }}
         </button>
           </li>

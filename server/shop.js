@@ -153,7 +153,7 @@ export function createShop(db) {
       if (!item) throw new ShopError('There is no such item.', 404);
       return transaction(db, () => {
         if (owns(db, userId, itemId)) throw new ShopError('You already have that.', 409);
-        if (coins.balance(userId) < item.price) throw new ShopError('You do not have enough coins for that.', 402);
+        if (coins.balance(userId) < item.price) throw new ShopError('You do not have enough gold for that.', 402);
         coins.spend(userId, item.price, `shop:${item.id}`);
         db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)').run(userId, item.id, Date.now());
         return { item, balance: coins.balance(userId) };

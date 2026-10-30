@@ -105,31 +105,31 @@ test('a definition whose stat the game does not declare is reported', () => {
   assert.deepEqual(achievements.problems({ id: 'x', stats: [], achievements: [{ key: 'a', stat: 'wins' }] }), [], 'built-in stats are always there');
 });
 
-test('every level unlocked pays 200 times its number, once, and is queued to be shown', () => {
+test('every level unlocked pays 100 times its number, once, and is queued to be shown', () => {
   const { user, achievements, coins, notified } = setup();
   const ann = user('ann');
   achievements.add('hearts', ann, 'global.cards', 99);
   assert.equal(coins.balance(ann), 0);
   assert.deepEqual(notified, []);
   achievements.add('hearts', ann, 'global.cards', 1);
-  assert.equal(coins.balance(ann), 200, 'level 1 (100 cards)');
+  assert.equal(coins.balance(ann), 100, 'level 1 (100 cards)');
   assert.deepEqual(notified, [ann]);
   achievements.add('hearts', ann, 'global.cards', 1);
-  assert.equal(coins.balance(ann), 200, 'nothing more until the next level');
+  assert.equal(coins.balance(ann), 100, 'nothing more until the next level');
   achievements.add('hearts', ann, 'global.cards', 5000);
-  assert.equal(coins.balance(ann), 200 + 400 + 600, 'levels 2 and 3 in one go: 200 times each level');
-  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.coins]), [['global.cards', 1, 200], ['global.cards', 2, 400], ['global.cards', 3, 600]]);
+  assert.equal(coins.balance(ann), 100 + 200 + 300, 'levels 2 and 3 in one go: 100 times each level');
+  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.coins]), [['global.cards', 1, 100], ['global.cards', 2, 200], ['global.cards', 3, 300]]);
   assert.equal(achievements.pending(ann)[0].name, 'Played cards');
   assert.equal(achievements.pending(ann)[0].text, 'Play 100 cards');
   assert.equal(achievements.pending(ann)[0].game, 'Global');
 });
 
-test('an achievement with only one level pays a flat 500', () => {
+test('an achievement with only one level pays a flat 250', () => {
   const { user, achievements, coins } = setup();
   const ann = user('ann');
   achievements.add('hearts', ann, 'once');
-  assert.equal(coins.balance(ann), 500);
-  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.levels, u.coins]), [['hearts.once', 1, 1, 500]]);
+  assert.equal(coins.balance(ann), 250);
+  assert.deepEqual(achievements.pending(ann).map((u) => [u.id, u.level, u.levels, u.coins]), [['hearts.once', 1, 1, 250]]);
 });
 
 test('settling works out what the results have unlocked, once, and does the same for everything already earned', () => {
@@ -142,9 +142,9 @@ test('settling works out what the results have unlocked, once, and does the same
   const fresh = achievements.settle(ann);
   const ids = fresh.map((f) => `${f.id}:${f.level}`).sort();
   assert.deepEqual(ids, ['global.games:1', 'global.games:2', 'global.persistent:1', 'global.persistent:2', 'global.wins:1', 'hearts.moon:1', 'hearts.moon:2']);
-  assert.equal(coins.balance(ann), 200 + 400 + 200 + 400 + 200 + 200 + 400, 'seven levels (11 games lost: two levels of Persistent)');
+  assert.equal(coins.balance(ann), 100 + 200 + 100 + 200 + 100 + 100 + 200, 'seven levels (11 games lost: two levels of Persistent)');
   assert.deepEqual(achievements.settle(ann), [], 'a second settle pays nothing');
-  assert.equal(coins.balance(ann), 2000);
+  assert.equal(coins.balance(ann), 1000);
   assert.equal(notified.length, 1);
   results.get(ann).perGame[0].extras[0].value = 6;
   assert.deepEqual(achievements.settle(ann), [], '6 moons is still level 2 (the next is at 10)');
