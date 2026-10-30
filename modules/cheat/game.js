@@ -14,7 +14,7 @@ import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.j
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
 import { extrasOf } from '../../shared/tally.js';
-import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyLieStood, tallyPlay } from './tally.js';
+import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyHand, tallyLieStood, tallyPlay } from './tally.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -237,7 +237,9 @@ export function callCheat(room, seat) {
   const { seat: accused, rank, count, cards, lie } = room.last;
   const picker = lie ? accused : seat;
   const pileSize = room.pile.length;
-  room.hands[picker] = sortHand([...room.hands[picker], ...room.pile]);
+  const held = room.hands[picker];
+  room.hands[picker] = sortHand([...held, ...room.pile]);
+  tallyHand(room.tally[picker], held, room.hands[picker]);
   room.pile = [];
   room.lastCall = { caller: seat, accused, rank, count, cards: [...cards], lie, picker, pileSize };
   tallyCall(room.tally[seat], room.tally[accused], lie);

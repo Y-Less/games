@@ -1,13 +1,13 @@
 // What Tints and Hints counts about each player for the statistics and achievements (see module.json "stats"). The counters
 // live on the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
-import { distance } from './grid.js';
+import { COLS, distance, parseCell } from './grid.js';
 
-export const STAT_KEYS = ['exactGuesses', 'closeGuesses', 'hintsGiven', 'missGuesses', 'firstExact', 'leeks', 'distance'];
+export const STAT_KEYS = ['exactGuesses', 'closeGuesses', 'hintsGiven', 'missGuesses', 'firstExact', 'leeks', 'distance', 'alexTurns'];
 export const newCounters = () => freshTally(STAT_KEYS);
 export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
 
-/** The columns a hinter spells out by giving a clue for a square in each, in order (the "Alex" achievement). */
+/** The columns that spell a name: a turn with a secret square in one of them is counted for its hinter (the "Alex" achievement). */
 export const ALEX = [...'ALEX'];
 
 /**
@@ -31,6 +31,7 @@ export function tallyTurn({ entries, playerOf, hinter, target }) {
   }
   if (!hinter) return;
   bump(hinter, 'hintsGiven');
+  if (ALEX.includes(COLS[parseCell(target)?.col])) bump(hinter, 'alexTurns');
   const first = entries.filter((e) => e.round === 1);
   const foundLate = entries.some((e) => e.round === 2 && e.kind === 'exact');
   if (first.length && first.every((e) => e.kind === 'miss') && foundLate) bump(hinter, 'leeks');

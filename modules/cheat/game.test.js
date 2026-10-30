@@ -257,3 +257,17 @@ test('going out with a lie that is believed is a clean getaway; winning without 
   assert.deepEqual([truthful.extras.cleanGetaways, truthful.extras.honestWins], [0, 1]);
   assert.equal(g.viewFor(honest, 1).seats[0].stats.honestWins, undefined, 'the table only shows the four public counters');
 });
+
+test('picking up the pile that completes a suit is counted, once, and only when the suit was not already whole', () => {
+  const clubs = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'].map((rank) => `${rank}C`);
+  const room = started();
+  stage(room, [['AH', '8S'], [...clubs.filter((c) => c !== 'KC'), 'KD'], ['3H', '4D'], ['6H', '7D']], { pile: ['KC', '9H'] });
+  g.playCards(room, 0, ['AH']);
+  g.callCheat(room, 1); // wrong: the ace was true, so seat 1 picks up the pile, with the King of Clubs
+  assert.equal(room.tally[1].fullSuits, 1);
+  assert.equal(g.statsPlayers(room).length, 1);
+  stage(room, [['AH', '8S'], room.hands[1], ['3H', '4D'], ['6H', '7D']], { turn: 0, pile: ['5H'] });
+  g.playCards(room, 0, ['AH']);
+  g.callCheat(room, 1);
+  assert.equal(room.tally[1].fullSuits, 1, 'they already held the whole suit');
+});

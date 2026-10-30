@@ -44,7 +44,7 @@
       "name": "Great minds",
       "text": "Have your clue cancelled by writing the same word as somebody else {n} times",
       "one": "Have your clue cancelled by writing the same word as somebody else",
-      "levels": "easy",
+      "levels": "medium",
       "stat": "cancelledClues"
     },
     {

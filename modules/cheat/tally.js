@@ -1,8 +1,9 @@
 // What Cheat counts about each player for the statistics and achievements (see module.json "stats"). The game calls these as
 // plays and calls are made; nothing here changes the game.
+import { RANKS, SUITS } from '../../shared/cards.js';
 import { bump, freshTally } from '../../shared/tally.js';
 
-export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect', 'liesGotAway', 'badCalls', 'brazenLies', 'cleanGetaways'];
+export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect', 'liesGotAway', 'badCalls', 'brazenLies', 'cleanGetaways', 'fullSuits'];
 export const newTally = () => freshTally(STAT_KEYS);
 
 /** The counters the table shows to everybody (the others are for the player's own statistics only). */
@@ -32,3 +33,10 @@ export const tallyLieStood = (tally) => bump(tally, 'liesGotAway');
 
 /** Counts going out with a lie that nobody called, and so winning. */
 export const tallyCleanGetaway = (tally) => bump(tally, 'cleanGetaways');
+
+const holdsSuit = (hand, suit) => RANKS.every((rank) => hand.includes(rank + suit));
+
+/** Counts each suit a player now holds all thirteen of (one of each rank) that they did not hold before, e.g. after picking up the pile. */
+export function tallyHand(tally, before, after) {
+  for (const suit of SUITS) if (holdsSuit(after, suit) && !holdsSuit(before, suit)) bump(tally, 'fullSuits');
+}

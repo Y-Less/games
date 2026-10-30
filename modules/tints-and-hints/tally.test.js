@@ -43,7 +43,15 @@ test('a leek: nobody scores on the first hint and somebody finds the square on t
   assert.equal(never.cat.leeks, 0, 'nobody found it');
 });
 
-test('the Alex columns and what is recorded', () => {
+test('a turn with the secret square in column A, L, E or X counts once for the hinter, however many hints', () => {
   assert.deepEqual(ALEX, ['A', 'L', 'E', 'X']);
-  assert.deepEqual(Object.keys(statsExtras(newCounters())).sort(), ['closeGuesses', 'distance', 'exactGuesses', 'firstExact', 'hintsGiven', 'leeks', 'missGuesses']);
+  for (const [target, expected] of [['A5', 1], ['L1', 1], ['E24', 1], ['X9', 1], ['AL3', 0], ['B5', 0], ['M9', 0]]) {
+    const p = people();
+    turn(p, [entry('ann', 1, target, 'exact'), entry('bob', 2, target, 'exact')], target);
+    assert.equal(p.cat.alexTurns, expected, target);
+  }
+});
+
+test('what is recorded', () => {
+  assert.deepEqual(Object.keys(statsExtras(newCounters())).sort(), ['alexTurns', 'closeGuesses', 'distance', 'exactGuesses', 'firstExact', 'hintsGiven', 'leeks', 'missGuesses']);
 });

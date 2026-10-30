@@ -13,6 +13,7 @@
     { "key": "missGuesses", "label": "Guesses that scored nothing", "agg": "sum", "hidden": true },
     { "key": "firstExact", "label": "Exact guesses on your first try", "agg": "sum", "hidden": true },
     { "key": "leeks", "label": "Turns where nobody scored on your first hint and somebody found the square on your second", "agg": "sum", "hidden": true },
+    { "key": "alexTurns", "label": "Turns where your secret square was in column A, L, E or X", "agg": "sum", "hidden": true },
     { "key": "distance", "label": "Total distance of your guesses from the secret square", "agg": "sum", "hidden": true }
   ],
   "achievements": [
@@ -61,9 +62,10 @@
     {
       "key": "alex",
       "name": "Alex",
-      "text": "Give hints for squares in {n} of the columns A, L, E and X",
-      "one": "Give hints for a square in one of the columns A, L, E and X",
-      "levels": [1, 2, 3, 4]
+      "text": "Give hints for a square in column A, L, E or X {n} times",
+      "one": "Give hints for a square in column A, L, E or X",
+      "levels": "medium",
+      "stat": "alexTurns"
     }
   ]
 }

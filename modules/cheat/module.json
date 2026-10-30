@@ -11,6 +11,7 @@
     { "key": "liesCaught", "label": "Times you were caught lying", "agg": "sum" },
     { "key": "callsMade", "label": "Times you called Cheat", "agg": "sum" },
     { "key": "callsCorrect", "label": "Correct calls", "agg": "sum" },
+    { "key": "fullSuits", "label": "Times you held a whole suit", "agg": "sum", "hidden": true },
     { "key": "liesGotAway", "label": "Lies nobody called", "agg": "sum", "hidden": true },
     { "key": "badCalls", "label": "Calls on somebody telling the truth", "agg": "sum", "hidden": true },
     { "key": "brazenLies", "label": "Lies told with four cards", "agg": "sum", "hidden": true },
@@ -35,12 +36,12 @@
       "stat": "liesGotAway"
     },
     {
-      "key": "sharpeyes",
-      "name": "Sharp eyes",
-      "text": "Call Cheat correctly {n} times",
-      "one": "Call Cheat correctly",
-      "levels": "easy",
-      "stat": "callsCorrect"
+      "key": "suited",
+      "name": "Suited and booted",
+      "text": "Gather all thirteen cards of one suit in your hand {n} times",
+      "one": "Gather all thirteen cards of one suit in your hand",
+      "levels": "medium",
+      "stat": "fullSuits"
     },
     {
       "key": "badcall",

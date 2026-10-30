@@ -7,8 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import * as game from './game.js';
-import { COLS, CORNERS, cellNumber, parseCell } from './grid.js';
-import { ALEX } from './tally.js';
+import { CORNERS, cellNumber } from './grid.js';
 
 const KEEP_FINISHED_MS = 24 * 60 * 60 * 1000;
 const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -125,7 +124,7 @@ export default function (ctx) {
     timers.set(code, timer);
   }
 
-  /** The squares and columns people have now met, for the collecting achievements (once for each scored turn). */
+  /** The squares people have now guessed, for the collecting achievements (once for each scored turn). */
   function collectSquares(room) {
     if (room.phase !== 'reveal' || !room.result || room.collected === room.turn) return;
     room.collected = room.turn;
@@ -141,8 +140,6 @@ export default function (ctx) {
       collect(id, 'palette', [cellNumber(cell)]);
       if (CORNERS.includes(cell)) collect(id, 'corners', [CORNERS.indexOf(cell)]);
     }
-    const column = COLS[parseCell(room.result.tint).col];
-    if (ALEX.includes(column)) collect(room.result.hinter, 'alex', [ALEX.indexOf(column)]);
   }
 
   /** Everything to do after a rule has changed a room, before telling the players. */
