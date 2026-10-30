@@ -225,3 +225,35 @@ test('what a player is sent: their own hand, never the others, the pile only as 
   assert.equal(after.last.cards, undefined, 'the cards of the last play are not sent');
   assert.equal(after.last.lie, undefined);
 });
+
+test('the tally counts brazen lies, bad calls, and lies that nobody called before the next play', () => {
+  const room = started();
+  stage(room, [['5C', '5D', '8S', '9S', 'KH'], ['2C', '2D', '9D'], ['3C', '4D'], ['6C', '7D']]);
+  g.playCards(room, 0, ['5C', '5D', '8S', '9S']); // four cards claimed as aces: brazen
+  assert.deepEqual([room.tally[0].liesTold, room.tally[0].brazenLies, room.tally[0].liesGotAway], [1, 1, 0]);
+  g.playCards(room, 1, ['2C', '2D']); // the next play stands: nobody called the lie
+  assert.equal(room.tally[0].liesGotAway, 1);
+  assert.equal(room.tally[1].brazenLies, 0, 'two cards, and true');
+  g.callCheat(room, 3); // the 2s were true
+  assert.deepEqual([room.tally[3].callsMade, room.tally[3].badCalls, room.tally[3].callsCorrect], [1, 1, 0]);
+  assert.equal(room.tally[0].liesGotAway, 1, 'a lie that was called did not get away');
+});
+
+test('going out with a lie that is believed is a clean getaway; winning without lying is an honest win', () => {
+  const liar = started(3);
+  stage(liar, [['5C'], ['2C', '3C'], ['3D']]);
+  g.playCards(liar, 0, ['5C']);
+  g.accept(liar, 1);
+  g.accept(liar, 2);
+  const [won] = g.statsPlayers(liar);
+  assert.deepEqual([won.extras.cleanGetaways, won.extras.liesGotAway, won.extras.honestWins], [1, 1, 0]);
+
+  const honest = started(3);
+  stage(honest, [['AS'], ['2C', '3C'], ['3D']]);
+  g.playCards(honest, 0, ['AS']);
+  g.accept(honest, 1);
+  g.accept(honest, 2);
+  const [truthful] = g.statsPlayers(honest);
+  assert.deepEqual([truthful.extras.cleanGetaways, truthful.extras.honestWins], [0, 1]);
+  assert.equal(g.viewFor(honest, 1).seats[0].stats.honestWins, undefined, 'the table only shows the four public counters');
+});

@@ -13,6 +13,8 @@ import { placements } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
+import { extrasOf } from '../../shared/tally.js';
+import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyLieStood, tallyPlay } from './tally.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -20,7 +22,7 @@ export const DEFAULT_SEATS = 4;
 export const MAX_PLAY = 4;
 /** The ranks in the order they are claimed: the Ace first. */
 export const SEQUENCE = ['A', ...RANKS.filter((rank) => rank !== 'A')];
-export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect'];
+export { STAT_KEYS };
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 const LIVE = ['lobby', 'playing', 'check'];
@@ -40,7 +42,6 @@ export const rankFor = (plays) => SEQUENCE[plays % SEQUENCE.length];
 export const decksFor = (seats) => (seats >= 6 ? 2 : 1);
 export const deckFor = (seats) => Array.from({ length: decksFor(seats) }, () => fullDeck()).flat();
 const emptySeats = (n) => Array.from({ length: n }, () => null);
-const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 const nextSeat = (room, seat) => (seat + 1) % room.seats.length;
 
@@ -72,7 +73,7 @@ function resetGame(room) {
     decided: [], // computer seats that have decided about the last play (and, in the final check, everyone who has accepted it)
     winner: null,
     cardsLeft: null,
-    tally: Array.from({ length: n }, freshTally),
+    tally: Array.from({ length: n }, newTally),
     recorded: false,
   });
 }
@@ -215,11 +216,12 @@ export function playCards(room, seat, cards) {
   const lie = cards.some((card) => rankOf(card) !== rank);
   room.hands[seat] = hand;
   room.pile.push(...cards);
+  if (room.last?.lie) tallyLieStood(room.tally[room.last.seat]); // nobody called the play before this one
   room.last = { seat, count: cards.length, rank, cards: [...cards], lie };
   room.plays++;
   room.decided = [];
   room.lastCall = null;
-  if (lie) room.tally[seat].liesTold++;
+  tallyPlay(room.tally[seat], { count: cards.length, lie });
   if (hand.length === 0) {
     room.phase = 'check'; // out of cards: they win unless this last play is caught out
     room.turn = null;
@@ -238,11 +240,7 @@ export function callCheat(room, seat) {
   room.hands[picker] = sortHand([...room.hands[picker], ...room.pile]);
   room.pile = [];
   room.lastCall = { caller: seat, accused, rank, count, cards: [...cards], lie, picker, pileSize };
-  room.tally[seat].callsMade++;
-  if (lie) {
-    room.tally[seat].callsCorrect++;
-    room.tally[accused].liesCaught++;
-  }
+  tallyCall(room.tally[seat], room.tally[accused], lie);
   room.last = null;
   room.decided = [];
   if (room.phase === 'check') {
@@ -268,7 +266,12 @@ export function accept(room, seat) {
 function settleCheck(room) {
   if (room.phase !== 'check' || !room.last) return;
   const others = room.seats.map((_, i) => i).filter((i) => i !== room.last.seat);
-  if (others.every((i) => room.decided.includes(i))) finish(room, room.last.seat);
+  if (!others.every((i) => room.decided.includes(i))) return;
+  if (room.last.lie) {
+    tallyLieStood(room.tally[room.last.seat]);
+    tallyCleanGetaway(room.tally[room.last.seat]);
+  }
+  finish(room, room.last.seat);
 }
 
 function finish(room, winner) {
@@ -294,7 +297,7 @@ export function statsPlayers(room) {
   const places = placements(Object.fromEntries(left.map((count, seat) => [seat, count])), { lowIsBetter: true });
   return room.seats.flatMap((seat, i) =>
     isHuman(seat)
-      ? [{ userId: seat.id, outcome: room.winner === i ? 'win' : 'loss', placement: places[i], score: left[i], extras: { ...room.tally[i] } }]
+      ? [{ userId: seat.id, outcome: room.winner === i ? 'win' : 'loss', placement: places[i], score: left[i], extras: { ...extrasOf(room.tally[i], STAT_KEYS), honestWins: room.winner === i && !room.tally[i].liesTold ? 1 : 0 } }]
       : [],
   );
 }
@@ -403,7 +406,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
             ...(isBot(seat) && started ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
             online: isBot(seat) || online(seat.id),
             cards: room.hands[i].length,
-            ...(started ? { stats: { ...room.tally[i] } } : {}),
+            ...(started ? { stats: extrasOf(room.tally[i], PUBLIC_KEYS) } : {}),
           }
         : null,
     ),

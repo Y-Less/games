@@ -10,6 +10,67 @@
     { "key": "liesTold", "label": "Lies told", "agg": "sum" },
     { "key": "liesCaught", "label": "Times you were caught lying", "agg": "sum" },
     { "key": "callsMade", "label": "Times you called Cheat", "agg": "sum" },
-    { "key": "callsCorrect", "label": "Correct calls", "agg": "sum" }
+    { "key": "callsCorrect", "label": "Correct calls", "agg": "sum" },
+    { "key": "liesGotAway", "label": "Lies nobody called", "agg": "sum", "hidden": true },
+    { "key": "badCalls", "label": "Calls on somebody telling the truth", "agg": "sum", "hidden": true },
+    { "key": "brazenLies", "label": "Lies told with four cards", "agg": "sum", "hidden": true },
+    { "key": "cleanGetaways", "label": "Games won by going out with a lie nobody called", "agg": "sum", "hidden": true },
+    { "key": "honestWins", "label": "Games won without telling a single lie", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "fibber",
+      "name": "Fibber",
+      "text": "Tell {n} lies",
+      "one": "Tell a lie",
+      "levels": "veryEasy",
+      "stat": "liesTold"
+    },
+    {
+      "key": "pokerface",
+      "name": "Poker face",
+      "text": "Get away with {n} lies that nobody called",
+      "one": "Get away with a lie that nobody called",
+      "levels": "easy",
+      "stat": "liesGotAway"
+    },
+    {
+      "key": "sharpeyes",
+      "name": "Sharp eyes",
+      "text": "Call Cheat correctly {n} times",
+      "one": "Call Cheat correctly",
+      "levels": "easy",
+      "stat": "callsCorrect"
+    },
+    {
+      "key": "badcall",
+      "name": "Bad call",
+      "text": "Call Cheat on somebody telling the truth {n} times",
+      "one": "Call Cheat on somebody telling the truth",
+      "levels": "easy",
+      "stat": "badCalls"
+    },
+    {
+      "key": "brazen",
+      "name": "Brazen",
+      "text": "Tell a lie with four cards {n} times",
+      "one": "Tell a lie with four cards",
+      "levels": "hard",
+      "stat": "brazenLies"
+    },
+    {
+      "key": "honest",
+      "name": "Honest Abe",
+      "text": "Win a game without telling a single lie",
+      "levels": "unlock",
+      "stat": "honestWins"
+    },
+    {
+      "key": "getaway",
+      "name": "Clean getaway",
+      "text": "Win by going out with a lie that nobody called",
+      "levels": "unlock",
+      "stat": "cleanGetaways"
+    }
   ]
 }
