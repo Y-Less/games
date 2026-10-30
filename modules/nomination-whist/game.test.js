@@ -750,3 +750,20 @@ test('whole computer games with the rule on and off stay consistent, and any ins
     }
   }
 });
+
+test('the tally counts a nomination of seven that was made', () => {
+  const room = fullRoom(3, {});
+  g.start(room, 1, seeded(1));
+  room.roundIndex = 0;
+  room.dealer = 0;
+  g.dealRound(room, seeded(2));
+  assert.equal(g.cardsThisRound(room), 7);
+  room.nominations = [7, 0, 0];
+  room.taken = [6, 0, 0];
+  room.tricksPlayed = 6;
+  room.trick = [{ seat: 0, card: 'AH' }, { seat: 1, card: '2H' }, { seat: 2, card: '3H' }];
+  room.phase = 'playing';
+  assert.equal(g.resolveTrick(room).roundOver, true);
+  assert.deepEqual(room.tally.map((t) => t.sevenMade), [1, 0, 0]);
+  assert.equal(g.statsPlayers(room)[0].extras.sevenMade, 1);
+});
