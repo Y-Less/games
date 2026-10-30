@@ -37,7 +37,6 @@ const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
 const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
 const tab = computed(() => current.value.slug);
-const message = ref('');
 const problem = ref('');
 const busy = ref('');
 
@@ -61,19 +60,18 @@ function equipped(item) {
   return false;
 }
 
-async function attempt(id, task, done) {
-  message.value = problem.value = '';
+async function attempt(id, task) {
+  problem.value = '';
   busy.value = id;
   try {
     await task();
-    message.value = done;
   } catch (e) {
     problem.value = e.message;
   } finally {
     busy.value = '';
   }
 }
-const purchase = (item) => attempt(item.id, () => buy(item.id), `You bought ${item.name}.`);
+const purchase = (item) => attempt(item.id, () => buy(item.id));
 const nameStyleWith = (style, animation) => (animation && animation !== 'none' ? { style, animation } : { style });
 function use(item) {
   const avatar = { ...normaliseAvatar(session.user.avatar), [item.slot]: item.option };
@@ -82,7 +80,7 @@ function use(item) {
     'name-style': { nameStyle: nameStyleWith(key(item), session.user.nameStyle?.animation) },
     'name-animation': { nameStyle: nameStyleWith(session.user.nameStyle?.style ?? 'plain', key(item)) },
     'background-animation': { backgroundAnimation: key(item) }, background: { background: { type: 'preset', value: key(item) } }, 'card-back': { cardBack: { type: 'preset', value: key(item) } }, 'site-theme': { siteTheme: key(item) }, 'site-font': { siteFont: key(item) } }[item.type];
-  return attempt(item.id, () => updateProfile(change), `${item.name} is on.`);
+  return attempt(item.id, () => updateProfile(change));
 }
 </script>
 
@@ -96,7 +94,6 @@ function use(item) {
     <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
-    <p v-if="message" class="ok" role="status">{{ message }}</p>
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
     <div class="tabs" role="tablist" aria-label="What to browse">
@@ -176,15 +173,11 @@ h1 {
   background: radial-gradient(circle at 35% 35%, #ffe08a, #c79a3b 70%);
   box-shadow: inset 0 0 0 2px #9c7425;
 }
-.ok,
 .bad {
   margin: 0;
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
-}
-.ok {
-  color: var(--moss);
 }
 .bad {
   color: var(--danger);

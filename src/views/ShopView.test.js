@@ -94,7 +94,7 @@ describe('ShopView', () => {
     await card('bg:ocean').find('button').trigger('click');
     await flushPromises();
     expect(calls).toContainEqual(['POST', '/api/shop/buy', { item: 'bg:ocean' }]);
-    expect(wrapper.find('.ok').text()).toBe('You bought Ocean.');
+    expect(wrapper.find('.ok').exists()).toBe(false); // no message: the item simply offers "Use" now
     expect(wrapper.find('.coins').text()).toContain('200');
     expect(card('bg:ocean').find('button').text()).toBe('Use');
   });
