@@ -405,6 +405,7 @@ test('reserving can also push a player over ten tokens', () => {
   assert.equal(game.returnTokens(room, 0, T(0, 0, 0, 0, 0, 1)).ok, true);
   assert.equal(room.players[0].tokens[G], 0);
   assert.equal(room.turn, 1);
+  assert.equal(room.players[0].tally.tokenReturns, 1, 'putting tokens back is counted');
 });
 
 /** Gives seat 0 enough bonuses for exactly one noble. */
@@ -448,6 +449,7 @@ test('several qualifying nobles: the player chooses, and only one visits', () =>
   assert.equal(game.chooseNoble(room, 1, 'n1').ok, false, 'not your turn');
   assert.equal(game.chooseNoble(room, 0, 'n2').ok, true);
   assert.deepEqual(room.players[0].nobles, ['n2']);
+  assert.equal(room.players[0].tally.nobleChoices, 1, 'having to choose between nobles is counted');
   assert.deepEqual(room.nobles, ['n1', 'n6', 'n9']);
   assert.equal(room.turn, 1);
   assert.equal(room.pending, null);
@@ -658,7 +660,7 @@ test('statistics: placements, outcomes, score = prestige and the four extras', (
   const [mine] = game.statsPlayers(room);
   assert.equal(mine.userId, 1);
   assert.equal(mine.score, 15);
-  assert.deepEqual(Object.keys(mine.extras).sort(), ['cardsBought', 'noblesVisited', 'reservedCards', 'turnsTaken']);
+  assert.deepEqual(Object.keys(mine.extras).sort(), [...game.STAT_KEYS, 'pipped'].sort());
   assert.equal(mine.extras.turnsTaken, 1);
   assert.ok(mine.extras.cardsBought >= 1);
   assert.deepEqual(game.statsPlayers(room).map((p) => p.userId), [1].filter(() => game.isHuman(room.seats[0])).concat([]));
@@ -818,4 +820,31 @@ test('a shared win is a win for each, and a beaten player is recorded as a loss'
   assert.equal(stat.placement, 1);
   room.winners = [0];
   assert.equal(game.statsPlayers(room)[0].outcome, 'loss');
+});
+
+test('statistics: being first to the target and still losing is "pipped"; winning or someone else triggering is not', () => {
+  const room = nearlyThere(3, 0, { points: 14 });
+  const one = cardWith((c) => c.points === 1 && c.level === 1 && room.decks[1].includes(c.id));
+  place(room, one.id);
+  setTokens(room, 0, T(...one.cost));
+  game.buyCard(room, 0, one.id);
+  game.takeGems(room, 1, [D, S, E]);
+  game.reserveCard(room, 2, { level: 1 });
+  assert.equal(room.triggeredBy, 0);
+  assert.equal(game.statsPlayers(room).find((p) => p.userId === 1).extras.pipped, 0, 'they won');
+  room.winners = [1];
+  assert.equal(game.statsPlayers(room).find((p) => p.userId === 1).extras.pipped, 1);
+  room.triggeredBy = 1;
+  assert.equal(game.statsPlayers(room).find((p) => p.userId === 1).extras.pipped, 0, 'somebody else reached it first');
+});
+
+test('buying a level 3 card is counted on its own as well as a card bought', () => {
+  const room = fresh(2);
+  const card = cardWith((c) => c.level === 3 && room.decks[3].includes(c.id));
+  place(room, card.id);
+  setTokens(room, 0, T(...card.cost));
+  giveBonuses(room, 0, { [D]: 5, [S]: 5, [E]: 5, [R]: 5, [O]: 5 });
+  const before = room.players[0].tally.cardsBought; // giving the bonuses counted some
+  game.buyCard(room, 0, card.id);
+  assert.deepEqual([room.players[0].tally.cardsBought - before, room.players[0].tally.level3Bought], [1, 1]);
 });

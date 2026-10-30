@@ -10,6 +10,66 @@
     { "key": "cardsBought", "label": "Development cards bought", "agg": "sum" },
     { "key": "noblesVisited", "label": "Nobles who visited you", "agg": "sum" },
     { "key": "reservedCards", "label": "Cards reserved", "agg": "sum" },
-    { "key": "turnsTaken", "label": "Turns taken", "agg": "sum" }
+    { "key": "turnsTaken", "label": "Turns taken", "agg": "sum" },
+    { "key": "level3Bought", "label": "Level 3 development cards bought", "agg": "sum", "hidden": true },
+    { "key": "nobleChoices", "label": "Turns two nobles came to visit and you chose", "agg": "sum", "hidden": true },
+    { "key": "tokenReturns", "label": "Times you put tokens back after going over ten", "agg": "sum", "hidden": true },
+    { "key": "pipped", "label": "Games where you were first to the target and still lost", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "nobles",
+      "name": "Noble company",
+      "text": "Have {n} nobles visit you",
+      "one": "Have a noble visit you",
+      "levels": "medium",
+      "stat": "noblesVisited"
+    },
+    {
+      "key": "reserved",
+      "name": "Put aside",
+      "text": "Reserve {n} cards",
+      "one": "Reserve a card",
+      "levels": "easy",
+      "stat": "reservedCards"
+    },
+    {
+      "key": "pipped",
+      "name": "Pipped",
+      "text": "Be the first to reach the target, then lose",
+      "levels": "unlock",
+      "stat": "pipped"
+    },
+    {
+      "key": "bought",
+      "name": "Shopper",
+      "text": "Buy {n} development cards",
+      "one": "Buy a development card",
+      "levels": "veryEasy",
+      "stat": "cardsBought"
+    },
+    {
+      "key": "level3",
+      "name": "High end",
+      "text": "Buy {n} level 3 cards",
+      "one": "Buy a level 3 card",
+      "levels": "easy",
+      "stat": "level3Bought"
+    },
+    {
+      "key": "choice",
+      "name": "Splendour's Choice",
+      "text": "Qualify for two nobles in one turn, and pick one",
+      "levels": "unlock",
+      "stat": "nobleChoices"
+    },
+    {
+      "key": "greed",
+      "name": "Greed",
+      "text": "Put tokens back after going over ten {n} times",
+      "one": "Put tokens back after going over ten",
+      "levels": "easy",
+      "stat": "tokenReturns"
+    }
   ]
 }

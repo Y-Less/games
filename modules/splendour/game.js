@@ -7,6 +7,8 @@
 import { placements } from '../../shared/scores.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
+import { extrasOf } from '../../shared/tally.js';
+import { newTally, STAT_KEYS, tallyBuy, tallyNoble, tallyNobleChoice, tallyReserve, tallyReturn, tallyTurn } from './tally.js';
 import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, GOLD, cardsOfLevel, isCardId, isNobleId } from './cards.js';
 
 export const SEAT_COUNTS = [2, 3, 4];
@@ -17,7 +19,7 @@ export const MAX_RESERVED = 3;
 export const BOARD_SLOTS = 4;
 export const GOLD_SUPPLY = 5;
 export const MAX_ROUNDS = 100; // a safety net: a game nobody can win ends after this many rounds
-export const STAT_KEYS = ['cardsBought', 'noblesVisited', 'reservedCards', 'turnsTaken'];
+export { STAT_KEYS };
 export const BOT_NAMES = ['Aurelia', 'Cormac', 'Thessaly', 'Ludo', 'Perpetua', 'Ansel', 'Odile', 'Marcus', 'Wren', 'Isidore'];
 
 const LIVE = ['lobby', 'playing'];
@@ -34,7 +36,6 @@ export const supplyPerColour = (players) => ({ 2: 4, 3: 5, 4: 7 })[players];
 
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 export const emptyTokens = () => [0, 0, 0, 0, 0, 0];
-const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
 const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= 1000;
 const isTokenArray = (a) => Array.isArray(a) && a.length === 6 && a.every(isCount);
 
@@ -237,7 +238,7 @@ export function start(room, userId, rng = Math.random) {
   resetGame(room);
   room.seats = shuffle(room.seats, rng); // so that the first player is not always the host
   const n = room.seats.length;
-  room.players = room.seats.map(() => ({ tokens: emptyTokens(), reserved: [], bought: [], nobles: [], tally: freshTally() }));
+  room.players = room.seats.map(() => ({ tokens: emptyTokens(), reserved: [], bought: [], nobles: [], tally: newTally() }));
   room.supply = [...Array(5).fill(supplyPerColour(n)), GOLD_SUPPLY];
   for (const level of LEVELS) {
     room.decks[level] = shuffle(cardsOfLevel(level).map((c) => c.id), rng);
@@ -290,6 +291,7 @@ export function qualifyingNobles(room, seat) {
 function visitNobles(room, seat) {
   const options = qualifyingNobles(room, seat);
   if (options.length > 1) {
+    tallyNobleChoice(room.players[seat].tally);
     room.pending = { type: 'noble', seat, options };
     return;
   }
@@ -301,7 +303,7 @@ function takeNoble(room, seat, id) {
   room.nobles = room.nobles.filter((n) => n !== id);
   const player = room.players[seat];
   player.nobles.push(id);
-  player.tally.noblesVisited++;
+  tallyNoble(player.tally);
   givePoints(room, seat, NOBLE_BY_ID[id].points);
   note(room, seat, 'noble visited');
   logEntry(room, seat, { kind: 'noble', noble: id });
@@ -310,7 +312,7 @@ function takeNoble(room, seat, id) {
 function endTurn(room, seat) {
   const n = room.seats.length;
   room.pending = null;
-  room.players[seat].tally.turnsTaken++;
+  tallyTurn(room.players[seat].tally);
   if (!room.finalRound && prestigeOf(room.players[seat]) >= room.settings.target) {
     room.finalRound = true;
     room.triggeredBy = seat;
@@ -407,7 +409,7 @@ export function reserveCard(room, seat, target) {
     entry = { card: room.decks[level].pop(), blind: true };
   }
   player.reserved.push(entry);
-  player.tally.reservedCards++;
+  tallyReserve(player.tally);
   const gold = room.supply[GOLD] > 0;
   if (gold) {
     room.supply[GOLD]--;
@@ -447,7 +449,7 @@ export function buyCard(room, seat, id, pay) {
   if (reservedAt !== -1) player.reserved.splice(reservedAt, 1);
   else room.board[card.level][slot] = room.decks[card.level].pop() ?? null;
   player.bought.push(id);
-  player.tally.cardsBought++;
+  tallyBuy(player.tally, card);
   givePoints(room, seat, card.points);
   room.passStreak = 0;
   note(room, seat, `bought a level ${card.level} card${card.points ? ` (${card.points} ${card.points === 1 ? 'point' : 'points'})` : ''}`);
@@ -470,6 +472,7 @@ export function returnTokens(room, seat, give) {
     room.supply[c] += give[c];
   }
   room.pending = null;
+  tallyReturn(player.tally);
   logEntry(room, seat, { kind: 'return', give: [...give] });
   visitNobles(room, seat);
   return ok();
@@ -559,7 +562,7 @@ export function statsPlayers(room) {
             outcome: room.winners.includes(i) ? 'win' : 'loss',
             placement: places[i],
             score: prestigeOf(room.players[i]),
-            extras: { ...room.players[i].tally },
+            extras: { ...extrasOf(room.players[i].tally, STAT_KEYS), pipped: room.triggeredBy === i && !room.winners.includes(i) ? 1 : 0 },
           },
         ]
       : [],
