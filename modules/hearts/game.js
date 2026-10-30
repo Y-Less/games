@@ -21,7 +21,7 @@ export const QUEEN = 'QS';
 export const JACK = 'JD';
 export const MOON_POINTS = HAND_POINTS;
 export const JACK_POINTS = -5;
-export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands'];
+export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons'];
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 const LIVE = ['lobby', 'passing', 'playing', 'handEnd'];
@@ -426,6 +426,7 @@ function endHand(room) {
     if (!d.queen && d.hearts === 0) tally.zeroHands = (tally.zeroHands ?? 0) + 1; // a hand with no hearts and no Queen of Spades
     if (d.jack && room.settings.jackOfDiamonds) tally.jacksTaken = (tally.jacksTaken ?? 0) + 1; // (rooms saved before this was counted have no such key)
     if (result.moon === seat) tally.moonsShot++;
+    if (result.moon === null && result.points[seat] === 25) tally.missedMoons = (tally.missedMoons ?? 0) + 1; // exactly 25 points: one heart short of the moon
   });
   room.lastHand = { hand: room.handNumber + 1, ...result, totals: [...room.scores] };
   room.history.push({

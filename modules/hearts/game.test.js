@@ -796,3 +796,24 @@ test('there is nothing to claim on the last trick', () => {
   assert.equal(g.canClaim(room, 0), false);
   assert.equal(g.viewFor(room, 1).canClaim, false);
 });
+
+test('taking the Queen and twelve hearts (25 points, one short of the moon) is counted as a missed moon', () => {
+  const taken = [[], [...allHearts.slice(0, 12), 'QS', '3C'], [allHearts[12]], []];
+  const room = midHand([[], [], [], []], { tricksPlayed: 12, turn: 0, trick: [{ seat: 0, card: '2D' }, { seat: 1, card: 'AD' }, { seat: 2, card: '4D' }, { seat: 3, card: '5D' }], taken });
+  g.resolveTrick(room);
+  assert.equal(room.lastHand.moon, null);
+  assert.deepEqual(room.lastHand.points, [0, 25, 1, 0]);
+  assert.deepEqual(room.tally.map((t) => t.missedMoons ?? 0), [0, 1, 0, 0]);
+});
+
+test('a missed moon is exactly 25 points: 24 is not one, nor is 25 cards that include a scoring Jack of Diamonds', () => {
+  const play = (settings, taken) => {
+    const room = midHand([[], [], [], []], { tricksPlayed: 12, turn: 0, trick: [{ seat: 0, card: '2D' }, { seat: 1, card: 'AD' }, { seat: 2, card: '4D' }, { seat: 3, card: '5D' }], taken });
+    Object.assign(room.settings, settings);
+    g.resolveTrick(room);
+    return room.tally[1].missedMoons ?? 0;
+  };
+  assert.equal(play({}, [[], [...allHearts.slice(0, 11), 'QS'], [allHearts[11], allHearts[12]], []]), 0, '24 points');
+  assert.equal(play({ jackOfDiamonds: true }, [[], [...allHearts.slice(0, 12), 'QS', 'JD'], [allHearts[12]], []]), 0, 'the Jack takes it to 15');
+  assert.equal(play({ jackOfDiamonds: true }, [[], [...allHearts.slice(0, 12), 'QS'], [allHearts[12], 'JD'], []]), 1, 'someone else has the Jack');
+});
