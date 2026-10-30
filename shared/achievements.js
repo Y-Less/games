@@ -64,7 +64,8 @@ export const GLOBAL_ACHIEVEMENTS = [
     levels: GLOBAL_TIERS.easy,
     sum: [['azulejo', 'wallTiles'], ['gaudi', 'dicePlaced'], ['rummikub', 'tilesPlayed'], ['splendour', 'cardsBought']],
   },
-  { key: 'spent', name: 'Big spender', text: 'Spend {n} coins in the shop', one: 'Spend a coin in the shop', levels: GLOBAL_TIERS.veryEasy, measure: 'coinsSpent' },
+  { key: 'spent', name: 'Big spender', text: 'Spend {n} coins in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
+  { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', levels: [10, 50, 100, 500, 1000] },
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
   { key: 'everygame', name: 'Won every game', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
 ];

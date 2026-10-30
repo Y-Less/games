@@ -12,7 +12,7 @@ import { COINS_PER_LEVEL, SINGLE_LEVEL_COINS } from '../shared/achievements.js';
 import { createCoins } from './coins.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
-import { checkSettings, createShop, grandfather } from './shop.js';
+import { checkSettings, choicesChanged, createShop, grandfather } from './shop.js';
 import { createStats } from './stats.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -123,6 +123,8 @@ export async function startSite(options = {}) {
     const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed });
     if (background !== undefined && user.background.type !== 'image') removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') removeImages('cb', user.id);
+    const changed = choicesChanged(req.user, user);
+    if (changed) achievements.add('site', user.id, 'global.indecisive', changed); // "Indecisive": every shop item put on, from the shop or the profile
     res.json({ user });
   }));
 

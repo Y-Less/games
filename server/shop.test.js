@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { allItems, categoryOf, itemById, paidCategories } from './shop.js';
+import { allItems, categoryOf, choicesChanged, itemById, paidCategories } from './shop.js';
 import { png, register, withSite } from './fixtures/testkit.js';
 
 async function shopSite(t, { coins = 0 } = {}) {
@@ -48,7 +48,7 @@ test('buying takes the price, and the item can then be used', async (t) => {
   assert.equal((await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } })).status, 403);
   const bought = await c.post('/api/shop/buy', { item: 'bg:ocean' });
   assert.equal(bought.status, 200);
-  assert.equal(bought.data.balance, 200 + 200, 'what is left, and the 200 for spending the first 100 coins (the "Big spender" achievement)');
+  assert.equal(bought.data.balance, 200);
   assert.equal((await c.get('/api/shop')).data.items.find((i) => i.id === 'bg:ocean').owned, true);
   const changed = await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } });
   assert.equal(changed.status, 200);
@@ -62,7 +62,7 @@ test('buying is refused when it cannot be afforded, is already owned, or is not 
   assert.equal((await c.post('/api/shop/buy', { item: 'bg:night' })).status, 409, 'a free item is already yours');
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 200);
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 409);
-  assert.equal((await c.get('/api/shop')).data.balance, 199 + 200, 'an item is only paid for once (the 200 is the "Big spender" reward)');
+  assert.equal((await c.get('/api/shop')).data.balance, 199, 'an item is only paid for once');
   for (const item of ['nothing', '', null, 7, { id: 'bg:ocean' }, undefined]) {
     assert.equal((await c.post('/api/shop/buy', { item })).status, 404, JSON.stringify(item));
   }
@@ -355,4 +355,26 @@ test('customised: 1 only once something paid for is owned from every part of the
   assert.equal(achievements.find((a) => a.id === 'global.customised').level, 1);
   assert.ok(bought.data.balance > before - last.price, 'the reward for the achievement was paid and is in the balance shown');
   assert.ok(achievements.find((a) => a.id === 'global.spent').value > 0);
+});
+
+test('choices changed counts each shop item swapped for another, and nothing else', () => {
+  const user = { displayName: 'A', background: { type: 'preset', value: 'night' }, cardBack: { type: 'preset', value: 'crimson' }, nameStyle: { style: 'plain', animation: 'none' }, avatar: { skin: 'pale', hair: 'short' }, siteTheme: 'dark', siteFont: 'plain', backgroundAnimation: 'none', markerColour: null };
+  assert.equal(choicesChanged(user, { ...user }), 0);
+  assert.equal(choicesChanged(user, { ...user, displayName: 'B', markerColour: '#fff' }), 0, 'a name or a marker colour is not from the shop');
+  assert.equal(choicesChanged(user, { ...user, background: { type: 'preset', value: 'ocean' } }), 1);
+  assert.equal(choicesChanged(user, { ...user, avatar: { skin: 'tan', hair: 'curly' }, nameStyle: { style: 'gold', animation: 'none' } }), 3, 'two avatar parts and a name style');
+});
+
+test('changing what you have on, from the shop or the profile, counts towards Indecisive', async (t) => {
+  const { c } = await shopSite(t);
+  const value = async () => (await c.get('/api/achievements')).data.sections.flatMap((s) => s.achievements).find((a) => a.id === 'global.indecisive').value;
+  assert.equal(await value(), 0);
+  assert.equal((await c.patch('/api/me', { avatar: { skin: 'tan' } })).status, 200);
+  assert.equal(await value(), 1);
+  assert.equal((await c.patch('/api/me', { avatar: { skin: 'tan' } })).status, 200);
+  assert.equal(await value(), 1, 'putting on what you already have is not a change');
+  assert.equal((await c.patch('/api/me', { avatar: { skin: 'deep' } })).status, 200);
+  assert.equal(await value(), 2);
+  assert.equal((await c.patch('/api/me', { displayName: 'Renamed' })).status, 200);
+  assert.equal(await value(), 2);
 });

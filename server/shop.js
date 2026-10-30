@@ -102,6 +102,18 @@ export function grandfather(db) {
 /** A refused shop request; an AuthError, so the site turns it into a JSON reply with its status. */
 export class ShopError extends AuthError {}
 
+/**
+ * How many of the things you can put on from the shop a profile change swapped for something else (a background, a card
+ * back, a name style, a name animation, each avatar part, a site colour, a font, a background animation). `before` and
+ * `after` are users as the site shows them.
+ */
+export function choicesChanged(before, after) {
+  const differs = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+  const choices = (user) => [user.background, user.cardBack, user.nameStyle?.style, user.nameStyle?.animation, user.siteTheme, user.siteFont, user.backgroundAnimation, ...AVATAR_SLOTS.map(({ slot }) => user.avatar?.[slot])];
+  const was = choices(before);
+  return choices(after).filter((choice, i) => differs(choice, was[i])).length;
+}
+
 /** Refuses a profile change that uses something the user has not bought (given to createAuth as its `canUse`). */
 export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, effectIntensity, effectSpeed }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
