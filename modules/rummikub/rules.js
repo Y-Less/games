@@ -297,3 +297,34 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
   }
   return { ok: true, sets: sets.map((r) => r.items.map((i) => i.id)), added, points };
 }
+
+// ---- what a turn did to the table (for the achievements) ----
+
+/**
+ * How many jokers a turn took off the table: those that were on it, stood for a tile, and no longer can in the layout
+ * the player made, so a tile that fits has replaced them. Call it with a layout checkPlay has accepted.
+ */
+export function jokersReplaced(s, before, proposed) {
+  const pinned = pinnedJokers(s, before);
+  const setOf = new Map();
+  proposed.forEach((set, i) => set.forEach((id) => setOf.set(id, i)));
+  let count = 0;
+  for (const [id, options] of pinned) {
+    const stays = jokerOptions(s, proposed[setOf.get(id)], id).some((now) => options.some((was) => sameTile(now, was)));
+    if (!stays) count++;
+  }
+  return count;
+}
+
+/**
+ * How many tiles already on the table a turn moved from one group to another. Each old set is taken to carry on as the
+ * new set that holds most of its tiles; the tiles that ended up anywhere else were moved.
+ */
+export function tilesMoved(before, proposed) {
+  let moved = 0;
+  for (const set of before) {
+    const best = Math.max(0, ...proposed.map((next) => set.filter((id) => next.includes(id)).length));
+    moved += set.length - best;
+  }
+  return moved;
+}

@@ -7,10 +7,124 @@
   "category": "strategy",
   "rules": "rules.md",
   "stats": [
-    { "key": "roundsWon", "label": "Rounds won", "agg": "sum" },
-    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" },
-    { "key": "tilesPlayed", "label": "Tiles played", "agg": "sum" },
-    { "key": "jokersPlayed", "label": "Jokers played", "agg": "sum" },
-    { "key": "biggestTurn", "label": "Most tiles in one turn", "agg": "max" }
+    {
+      "key": "roundsWon",
+      "label": "Rounds won",
+      "agg": "sum"
+    },
+    {
+      "key": "roundsPlayed",
+      "label": "Rounds played",
+      "agg": "sum"
+    },
+    {
+      "key": "tilesPlayed",
+      "label": "Tiles played",
+      "agg": "sum"
+    },
+    {
+      "key": "jokersPlayed",
+      "label": "Jokers played",
+      "agg": "sum"
+    },
+    {
+      "key": "biggestTurn",
+      "label": "Most tiles in one turn",
+      "agg": "max"
+    },
+    {
+      "key": "pointsPlayed",
+      "label": "Points of tiles played",
+      "agg": "sum"
+    },
+    {
+      "key": "tilesMoved",
+      "label": "Tiles moved between groups",
+      "agg": "sum"
+    },
+    {
+      "key": "jokersReplaced",
+      "label": "Jokers swapped off the table",
+      "agg": "sum"
+    },
+    {
+      "key": "outInOne",
+      "label": "Rounds won with a single turn",
+      "agg": "sum"
+    },
+    {
+      "key": "biggestRack",
+      "label": "Most tiles on your rack",
+      "agg": "max"
+    },
+    {
+      "key": "bothJokers",
+      "label": "Rounds you held both jokers",
+      "agg": "sum"
+    }
+  ],
+  "achievements": [
+    {
+      "key": "points",
+      "name": "Points played",
+      "text": "Play {n} points of tiles",
+      "levels": [
+        1000,
+        5000,
+        10000,
+        25000,
+        50000
+      ],
+      "stat": "pointsPlayed"
+    },
+    {
+      "key": "tiles",
+      "name": "Tiles played",
+      "text": "Play {n} tiles",
+      "one": "Play a tile",
+      "levels": "veryEasy",
+      "stat": "tilesPlayed"
+    },
+    {
+      "key": "shuffler",
+      "name": "Shuffler",
+      "text": "Move {n} tiles from one group to another",
+      "levels": "veryEasy",
+      "stat": "tilesMoved"
+    },
+    {
+      "key": "swap",
+      "name": "Joker swap",
+      "text": "Swap a joker off the table, {n} times",
+      "one": "Swap a joker off the table",
+      "levels": "medium",
+      "stat": "jokersReplaced"
+    },
+    {
+      "key": "outinone",
+      "name": "Out in one",
+      "text": "Go out in a single turn, putting down your whole rack at once",
+      "levels": [
+        1
+      ],
+      "stat": "outInOne"
+    },
+    {
+      "key": "hoarder",
+      "name": "Hoarder",
+      "text": "Have 30 tiles on your rack",
+      "levels": [
+        30
+      ],
+      "stat": "biggestRack"
+    },
+    {
+      "key": "pair",
+      "name": "Pair of jokers",
+      "text": "Hold both jokers at once, {n} times",
+      "one": "Hold both jokers at once",
+      "levels": "veryHard",
+      "stat": "bothJokers"
+    }
   ]
 }

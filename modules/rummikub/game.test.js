@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { rackValue, totalTiles } from './rules.js';
+import { jokersReplaced, rackValue, tilesMoved, totalTiles } from './rules.js';
 import { STD, assertInvariants, joker, playingRoom, seeded, tile } from './testing.js';
 
 const t = (c, n, copy = 0) => tile(STD, c, n, copy);
@@ -374,4 +374,54 @@ test('a game saved before drawn tiles were marked can still be viewed, drawn in 
   assert.equal(room.turn, (seat + 1) % 3, 'the turn passed');
   assert.equal(game.viewFor(room, seat + 1).drawn, next);
   assertInvariants(room);
+});
+
+test('the achievement tallies: points and tiles played, tiles moved, jokers swapped, and going out in one turn', () => {
+  const { room } = playingRoom(2, { seed: 5 });
+  const j = joker(STD);
+  setPosition(room, {
+    racks: [[t(0, 6), t(1, 3), t(1, 4), t(2, 9)], [t(3, 1), t(3, 5)]],
+    table: [[t(0, 5), j, t(0, 7)]],
+    turn: 0,
+    melded: [true, true],
+  });
+  assert.equal(game.play(room, 0, { table: [[t(0, 5), t(0, 6), t(0, 7)], [j, t(1, 3), t(1, 4)]] }).ok, true);
+  const tally = room.tally[0];
+  assert.equal(tally.jokersReplaced, 1);
+  assert.equal(tally.tilesPlayed, 3);
+  assert.equal(tally.pointsPlayed, 6 + 3 + 4);
+  assert.equal(tally.tilesMoved, 1, 'the joker went to another group');
+  assert.equal(tally.outInOne, 0, 'a tile is left on the rack');
+
+  const { room: other } = playingRoom(2, { seed: 6 });
+  setPosition(other, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(3, 1)]], turn: 0 });
+  assert.equal(game.play(other, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }).ok, true);
+  assert.equal(other.tally[0].outInOne, 1, 'out with the first meld');
+  assert.equal(game.statsPlayers(other)[0].extras.outInOne, 1);
+});
+
+test('moving tiles is counted for those that leave their group, not those added to one', () => {
+  assert.equal(tilesMoved([[1, 2, 3, 4, 5, 6]], [[1, 2, 3], [4, 5, 6, 9]]), 3);
+  assert.equal(tilesMoved([[1, 2, 3]], [[1, 2, 3, 4]]), 0);
+  assert.equal(tilesMoved([], [[1, 2, 3]]), 0);
+  const s = STD;
+  assert.equal(jokersReplaced(s, [[t(0, 5), joker(s), t(0, 7)]], [[t(0, 5), joker(s), t(0, 7), t(0, 8)]]), 0, 'a joker that stays is not swapped');
+});
+
+test('the biggest rack and holding both jokers (once a round) are noted', () => {
+  const { room } = playingRoom(2, { seed: 7 });
+  const [a, b] = [joker(STD, 0), joker(STD, 1)];
+  room.tally[0].bothJokers = 0;
+  room.pairSeen = [false, false];
+  setPosition(room, { racks: [[t(0, 1), t(1, 4), a, t(2, 9)], [t(3, 1)]], turn: 0 });
+  room.pool.push(b);
+  game.draw(room, 0);
+  const tally = room.tally[0];
+  assert.deepEqual(room.racks[0].filter((id) => id === a || id === b).length, 2, 'the second joker was drawn');
+  assert.equal(tally.bothJokers, 1);
+  assert.ok(tally.biggestRack >= 5);
+  room.turn = 0;
+  room.pool.push(t(1, 9));
+  game.draw(room, 0);
+  assert.equal(tally.bothJokers, 1, 'once a round');
 });
