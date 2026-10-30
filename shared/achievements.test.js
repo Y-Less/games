@@ -42,23 +42,26 @@ test('the global achievements are the ones asked for', () => {
   assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'cards').levels, GLOBAL_TIERS.veryEasy, 'played cards is something everyone does many times a game');
 });
 
-test('there are five tiers, medium and up start at 1, and a definition may name one', () => {
-  assert.deepEqual(Object.keys(TIERS), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
+test('there are five ladders and an unlock tier, medium and up start at 1, and a definition may name one', () => {
+  assert.deepEqual(Object.keys(TIERS), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard', 'unlock']);
+  assert.deepEqual(TIERS.unlock, [1]);
+  assert.equal(cleanDefinition({ key: 'a', name: 'A', text: 'Do it', levels: 'unlock' }).levels.length, 1, 'a tier name works for a one-off');
   assert.deepEqual(TIERS.veryEasy, [100, 500, 1000, 2500, 5000]);
   assert.deepEqual(TIERS.easy, [10, 50, 100, 250, 500]);
   assert.deepEqual(TIERS.medium, [1, 10, 25, 50, 150]);
   assert.deepEqual(TIERS.hard, [1, 5, 10, 25, 50]);
   assert.deepEqual(TIERS.veryHard, [1, 2, 3, 5, 10]);
   for (const ladders of [TIERS, GLOBAL_TIERS]) {
-    assert.deepEqual(Object.keys(ladders), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
-    for (const [name, levels] of Object.entries(ladders)) {
+    assert.deepEqual(Object.keys(ladders), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard', 'unlock']);
+    assert.deepEqual(ladders.unlock, [1]);
+    for (const [name, levels] of Object.entries(ladders).filter(([name]) => name !== 'unlock')) {
       assert.equal(levels.length, 5, name);
       if (['medium', 'hard', 'veryHard'].includes(name)) assert.equal(levels[0], 1, `${name}: the first time always counts`);
       assert.ok(levels.every((n, i) => i === 0 || n > levels[i - 1]), `${name} ascends`);
     }
   }
   // The global ladders go further, as they add up every game: the top of each is at least twice the per-game one.
-  for (const name of Object.keys(TIERS)) assert.ok(GLOBAL_TIERS[name].at(-1) >= TIERS[name].at(-1) * 2, name);
+  for (const name of Object.keys(TIERS).filter((name) => name !== 'unlock')) assert.ok(GLOBAL_TIERS[name].at(-1) >= TIERS[name].at(-1) * 2, name);
   assert.deepEqual(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'hard' }).levels, TIERS.hard);
   assert.equal(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'impossible' }), null);
   const clean = cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'easy' });

@@ -26,6 +26,7 @@ export const TIERS = {
   medium: [1, 10, 25, 50, 150],
   hard: [1, 5, 10, 25, 50],
   veryHard: [1, 2, 3, 5, 10],
+  unlock: [1], // a one-off: you have it or you do not
 };
 
 /** The same five tiers for the global achievements, which add up every game: they top out after 500 to 1,000 games. */
@@ -35,6 +36,7 @@ export const GLOBAL_TIERS = {
   medium: [1, 10, 100, 250, 750],
   hard: [1, 10, 25, 100, 200],
   veryHard: [1, 3, 5, 10, 25],
+  unlock: [1],
 };
 
 /** Coins for each level a player unlocks: 200 times the level number, or a flat 500 for an achievement with only one level. */

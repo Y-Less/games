@@ -58,9 +58,7 @@
       "key": "perfect",
       "name": "Perfect game",
       "text": "Make every nomination in a game",
-      "levels": [
-        1
-      ],
+      "levels": "unlock",
       "stat": "perfectGames"
     },
     {
@@ -105,9 +103,7 @@
       "key": "seven",
       "name": "Seven up",
       "text": "Nominate seven and make it",
-      "levels": [
-        1
-      ],
+      "levels": "unlock",
       "stat": "sevenMade"
     }
   ]

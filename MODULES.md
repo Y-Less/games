@@ -97,15 +97,15 @@ far they are towards the next. An achievement is a number that grows, and the le
 "achievements": [
   { "key": "moon", "name": "Shot the moon", "text": "Shoot the moon {n} times", "one": "Shoot the moon",
     "levels": [1, 5, 10, 50, 100], "stat": "moonsShot" },
-  { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": [1], "stat": "perfectGames" }
+  { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": "unlock", "stat": "perfectGames" }
 ]
 ```
 
 - `levels` are the values at which each level unlocks (ascending, whole numbers), or the name of a tier, by how often the thing happens: `"veryEasy"` (many times a game: 100, 500, 1,000, 2,500, 5,000),
   `"easy"` (a few times a game: 10, 50, 100, 250, 500), `"medium"` (about once a game: 1, 10, 25, 50, 150), `"hard"`
-  (once every few games: 1, 5, 10, 25, 50) or `"veryHard"` (once in many games: 1, 2, 3, 5, 10). A game's own achievements top out after 100 to 200 games
+  (once every few games: 1, 5, 10, 25, 50), `"veryHard"` (once in many games: 1, 2, 3, 5, 10) or `"unlock"` (a one-off with a single level: 1). A game's own achievements top out after 100 to 200 games
   of that game, and from medium up the first level is 1, so the first time always counts. (The site's global achievements use the same tiers
-  scaled to 500 to 1,000 games in `GLOBAL_TIERS`.) Use the tiers unless the achievement is a one-off (one level). Progress towards the next level is the value as a fraction of its number, so
+  scaled to 500 to 1,000 games in `GLOBAL_TIERS`.) Use the tiers unless the levels are special (like "have 30 tiles on your rack"). Progress towards the next level is the value as a fraction of its number, so
   600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry, and is shown as just got or not (no levels or progress bar).
 - `text` says what a level asks for, with `{n}` replaced by that level's number; `one` is used instead when the number is 1.
 - `stat` makes the value come from the game's recorded results, so it also counts games played before it existed: one of the

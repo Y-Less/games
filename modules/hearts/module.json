@@ -66,9 +66,7 @@
       "key": "perfect",
       "name": "Perfect game",
       "text": "Finish a game with no points",
-      "levels": [
-        1
-      ],
+      "levels": "unlock",
       "stat": "perfectGames"
     },
     {
@@ -104,9 +102,7 @@
       "key": "missed",
       "name": "Missed the moon",
       "text": "Take 25 points in a hand",
-      "levels": [
-        1
-      ],
+      "levels": "unlock",
       "stat": "missedMoons"
     }
   ]
