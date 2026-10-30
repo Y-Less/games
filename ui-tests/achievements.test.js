@@ -32,7 +32,7 @@ test('the page is in the menu and lists the global achievements, then each game 
   assert.ok(wavelength.includes('Guess exactly'));
   const first = await box('global.games');
   assert.match(first.text, /Not started/);
-  assert.match(first.text, /Level 1: Play 10 games/);
+  assert.match(first.text, /Level 1: Play a game/);
   assert.equal(first.bar, '0');
 }));
 
@@ -43,17 +43,17 @@ test('progress shows the level reached and how far it is towards the next', { ti
   await user.waitForSelector('[data-achievement="global.cards"]');
   const cards = await box('global.cards');
   assert.match(cards.text, /Level 2/);
-  assert.match(cards.text, /Level 3: Play 1,000 cards/);
-  assert.match(cards.text, /600 \/ 1,000/);
-  assert.equal(cards.bar, '60');
+  assert.match(cards.text, /Level 3: Play 2,000 cards/);
+  assert.match(cards.text, /600 \/ 2,000/);
+  assert.equal(cards.bar, '30');
   const moon = await box('hearts.moon');
-  assert.match(moon.text, /Level 3/, '6 moons: levels 1 and 5 reached, working to 10');
-  assert.match(moon.text, /Level 3: Shoot the moon 10 times/);
+  assert.match(moon.text, /Level 3/, '6 moons: levels at 1, 3 and 5 reached, working to 10');
+  assert.match(moon.text, /Level 4: Shoot the moon 10 times/);
   const perfect = await box('hearts.perfect');
   assert.equal(perfect.complete, true);
   assert.equal(perfect.bar, null, 'one level: got or not, so no progress bar');
   assert.match(perfect.text, /Unlocked/);
-  assert.equal((await box('global.games')).bar, '10', 'one game of ten');
+  assert.equal((await box('global.games')).bar, '10', 'one game of ten for the next level');
 }));
 
 test('what was unlocked is announced in a pop-up, and the coins are paid', { timeout: 60000 }, guarded('popup', async () => {

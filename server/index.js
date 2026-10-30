@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Server } from 'socket.io';
 import { AuthError, BACKGROUND_PRESETS, CARD_BACK_PRESETS, clearedCookie, parseCookies, SESSION_COOKIE, sessionCookie, createAuth } from './auth.js';
 import { createAchievements } from './achievements.js';
-import { LEVEL_REWARD } from '../shared/achievements.js';
+import { COINS_PER_LEVEL, SINGLE_LEVEL_COINS } from '../shared/achievements.js';
 import { createCoins } from './coins.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
@@ -163,7 +163,7 @@ export async function startSite(options = {}) {
   api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
   api.get('/achievements', requireUser, (req, res) => {
     achievements.settle(req.user.id); // levels that were earned before achievements were paid, or that a changed definition now reaches
-    res.json({ ...achievements.forUser(req.user.id), reward: LEVEL_REWARD });
+    res.json({ ...achievements.forUser(req.user.id), rewards: { perLevel: COINS_PER_LEVEL, single: SINGLE_LEVEL_COINS } });
   });
   api.get('/achievements/pending', requireUser, (req, res) => {
     achievements.settle(req.user.id);

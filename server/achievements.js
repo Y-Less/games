@@ -1,7 +1,7 @@
 // Achievements (see shared/achievements.js). A player's value for each one is either worked out from their recorded results
 // (an achievement with a `stat`) or is progress a game saves with add() / raise(). This file keeps the saved progress and
 // builds what the Achievements page shows.
-import { BUILTIN_STATS, describe, GLOBAL_ACHIEVEMENTS, LEVEL_REWARD, levelInfo, levelText } from '../shared/achievements.js';
+import { BUILTIN_STATS, describe, GLOBAL_ACHIEVEMENTS, levelInfo, levelReward, levelText } from '../shared/achievements.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
@@ -47,15 +47,16 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   const isPerson = (userId) => Number.isInteger(userId) && isBot.get(userId)?.is_bot === 0;
 
   /**
-   * Pays for every level of `definition` that `value` has reached and that has not been paid yet (LEVEL_REWARD coins each,
-   * whichever level), and records it to be shown. `done` is the set of "id:level" already paid. Returns the new levels.
+   * Pays for every level of `definition` that `value` has reached and that has not been paid yet (levelReward coins: 200 a level, or
+   * 500 for a one-level achievement), and records it to be shown. `done` is the set of "id:level" already paid. Returns the new levels.
    */
   function payLevels(userId, id, definition, value, done) {
     const fresh = [];
     for (let level = 1; level <= levelInfo(definition.levels, value).level; level++) {
       if (done.has(`${id}:${level}`)) continue;
-      award.run(userId, id, level, LEVEL_REWARD, Date.now());
-      coins.award(userId, LEVEL_REWARD, `achievement:${id}:${level}`);
+      const amount = levelReward(level, definition.levels.length);
+      award.run(userId, id, level, amount, Date.now());
+      coins.award(userId, amount, `achievement:${id}:${level}`);
       fresh.push({ id, level });
     }
     return fresh;

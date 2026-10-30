@@ -10,15 +10,27 @@
 //   existed: a game's own stat key (declared in its module.json "stats"), or 'played', 'wins', 'losses', 'totalScore' or
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
 
-/** Levels by how hard an achievement is meant to be; a definition may say `"levels": "easy"` instead of listing them. */
+/**
+ * Levels by how often the thing happens; a definition may say `"levels": "easy"` instead of listing them. Each ladder tops out
+ * at around 500 games' worth of play, and from medium up the first level is 1 so that the first time always counts.
+ *   veryEasy  something everyone does many times a game (playing cards, taking tokens)
+ *   easy      a few times a game (getting the jack)
+ *   medium    about once a game (playing the game)
+ *   hard      once every few games (winning)
+ *   veryHard  once in a good many games (shooting the moon)
+ */
 export const TIERS = {
-  easy: [100, 500, 1000, 5000, 10000],
-  medium: [10, 50, 100, 500, 1000],
+  veryEasy: [100, 500, 2000, 5000, 15000],
+  easy: [10, 100, 500, 1000, 1500],
+  medium: [1, 10, 50, 100, 500],
   hard: [1, 5, 10, 50, 100],
+  veryHard: [1, 3, 5, 10, 20],
 };
 
-/** Coins paid for every level unlocked, whichever level it is. */
-export const LEVEL_REWARD = 1000;
+/** Coins for each level a player unlocks: 200 times the level number, or a flat 500 for an achievement with only one level. */
+export const COINS_PER_LEVEL = 200;
+export const SINGLE_LEVEL_COINS = 500;
+export const levelReward = (level, levelCount) => (levelCount === 1 ? SINGLE_LEVEL_COINS : COINS_PER_LEVEL * level);
 
 export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore', 'bestScore'];
 
@@ -26,12 +38,12 @@ export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore',
 export const GLOBAL_ACHIEVEMENTS = [
   { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
-  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: TIERS.easy },
+  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: TIERS.veryEasy },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */
 export const GAME_ACHIEVEMENTS = [
-  { key: 'played', name: 'Played the game', text: 'Play {n} games', one: 'Play a game', levels: [1, 10, 50, 100, 500], stat: 'played' },
+  { key: 'played', name: 'Played the game', text: 'Play {n} games', one: 'Play a game', levels: TIERS.medium, stat: 'played' },
   { key: 'won', name: 'Won the game', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
 ];
 

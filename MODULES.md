@@ -101,7 +101,10 @@ far they are towards the next. An achievement is a number that grows, and the le
 ]
 ```
 
-- `levels` are the values at which each level unlocks (ascending, whole numbers), or the name of a tier: `"easy"` (100, 500, 1,000, 5,000, 10,000), `"medium"` (10, 50, 100, 500, 1,000) or `"hard"` (1, 5, 10, 50, 100). Use the tiers unless the achievement is a one-off (one level). Progress towards the next level is the value as a fraction of its number, so
+- `levels` are the values at which each level unlocks (ascending, whole numbers), or the name of a tier, by how often the thing happens: `"veryEasy"` (many times a game: 100, 500, 2,000, 5,000, 15,000),
+  `"easy"` (a few times a game: 10, 100, 500, 1,000, 1,500), `"medium"` (about once a game: 1, 10, 50, 100, 500), `"hard"`
+  (once every few games: 1, 5, 10, 50, 100) or `"veryHard"` (once in many games: 1, 3, 5, 10, 20). The top of each ladder is around 500
+  games of play, and from medium up the first level is 1, so the first time always counts. Use the tiers unless the achievement is a one-off (one level). Progress towards the next level is the value as a fraction of its number, so
   600 cards with levels at 500 and 1,000 is level 1 and 60% of the way to level 2. A one-level achievement has one entry, and is shown as just got or not (no levels or progress bar).
 - `text` says what a level asks for, with `{n}` replaced by that level's number; `one` is used instead when the number is 1.
 - `stat` makes the value come from the game's recorded results, so it also counts games played before it existed: one of the
@@ -115,10 +118,10 @@ far they are towards the next. An achievement is a number that grows, and the le
 | `ctx.achievements.get(userId, key)` | the current value of any achievement: your own, or a global one as `'global.games'`, `'global.wins'`, `'global.cards'` |
 | `ctx.achievements.level(userId, key)` | the level reached (0 for none) |
 
-Every game also gets two without asking: **Played the game** (1, 10, 50, 100, 500) and **Won the game** (hard), from its recorded results
+Every game also gets two without asking: **Played the game** (medium) and **Won the game** (hard), from its recorded results
 (a module may define its own `played` or `won` key to replace them).
 
-**Rewards.** Every level unlocked pays 1,000 coins, whichever level it is, once. The player sees a pop-up wherever they are on
+**Rewards.** Every level unlocked pays 200 coins times its level number (200 for level 1, up to 1,000 for level 5), once; an achievement with only one level pays a flat 500. The player sees a pop-up wherever they are on
 the site (`AchievementPopups`, built on the generic `NoticePopup`), and it is queued until they have seen it. Levels
 a player had already earned when achievements began paying out are paid the first time the site works them out (when they open the
 Achievements page, finish a game or are told of an unlock).

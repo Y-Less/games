@@ -31,6 +31,7 @@ const PAD = manifest('pad', {
   achievements: [
     { key: 'laps', name: 'Laps', text: 'Run {n} laps', levels: [2, 4] },
     { key: 'best', name: 'Best run', text: 'Run {n} metres in one go', levels: [10] },
+    { key: 'tiered', name: 'Tiered', text: 'Do {n}', levels: 'veryHard' },
     { key: 'jumper', name: 'Jumper', text: 'Jump {n} times', levels: [3, 30], stat: 'jumps' },
     { key: 'broken', name: 'Broken', text: 'No levels', levels: [] },
   ],
@@ -52,9 +53,9 @@ test('the page lists the global achievements, then the games that have some, and
   const { sections } = await setup(t);
   const list = await sections();
   assert.deepEqual(list.map((s) => s.id), ['global', 'pad', 'quiet'], 'a game that defines none still has the two every game has');
-  assert.deepEqual(list[1].achievements.map((a) => a.key), ['played', 'won', 'laps', 'best', 'jumper'], 'the played and won ones first; the one with no levels is dropped');
+  assert.deepEqual(list[1].achievements.map((a) => a.key), ['played', 'won', 'laps', 'best', 'tiered', 'jumper'], 'the played and won ones first; the one with no levels is dropped');
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
-  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 50, 100, 500], 'played: 1, 10, 50, 100, 500');
+  assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 50, 100, 500], 'played is medium: 1, 10, 50, 100, 500');
   assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 50, 100], 'won is hard');
   assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards']);
 });
@@ -95,33 +96,34 @@ test('a module can add to the global played cards and look at the global achieve
   const cards = await find('global.cards');
   assert.deepEqual([cards.value, cards.level, cards.next.n], [150, 1, 500]);
   await ask(socket, 'win');
-  assert.deepEqual(await ask(socket, 'look'), { games: 1, level: 0 });
+  assert.deepEqual(await ask(socket, 'look'), { games: 1, level: 1 }, 'one game: the first level of played games (1)');
   assert.match((await ask(socket, 'bad', { key: 'nope' })).error, /Unknown achievement/);
 });
 
 const balanceOf = async (c) => (await c.get('/api/shop')).data.balance;
 
-test('unlocking a level pays 1,000 coins, and the unlock is waiting until it has been shown', async (t) => {
+test('unlocking a level pays 200 times its number, and the unlock is waiting until it has been shown', async (t) => {
   const { c, socket, find } = await setup(t);
   const before = await balanceOf(c);
   await ask(socket, 'lap', { n: 2 });
-  assert.equal((await balanceOf(c)) - before, 1000, 'laps level 1');
+  assert.equal((await balanceOf(c)) - before, 200, 'laps level 1 of 2');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks;
-  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 1000 }]);
+  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 200 }]);
   assert.equal((await find('pad.laps')).level, 1);
   assert.equal((await c.get('/api/achievements/pending')).data.unlocks.length, 1, 'still waiting: it has not been shown');
   assert.equal((await c.post('/api/achievements/seen', { items: [{ id: 'pad.laps', level: 1 }] })).status, 200);
   assert.deepEqual((await c.get('/api/achievements/pending')).data.unlocks, []);
-  assert.equal((await balanceOf(c)) - before, 1000, 'seeing it pays nothing more');
+  assert.equal((await balanceOf(c)) - before, 200, 'seeing it pays nothing more');
 });
 
 test('a finished game pays what it unlocked, and the page and the pending list settle levels that were earned earlier', async (t) => {
   const { c, socket } = await setup(t);
   const before = await balanceOf(c);
-  await ask(socket, 'win'); // won level 1 (hard), global wins level 1, jumper level 1 (3 jumps) and the placement prize; played needs 10 games
+  await ask(socket, 'win'); // played and won level 1, global games and wins level 1, jumper level 1 (3 jumps) and the placement prize; played and global games start at 1 now
   const unlocks = (await c.get('/api/achievements/pending')).data.unlocks.map((u) => `${u.id}:${u.level}`).sort();
-  for (const id of ['pad.won:1', 'global.wins:1', 'pad.jumper:1']) assert.ok(unlocks.includes(id), id);
-  assert.equal((await balanceOf(c)) - before, 500 + unlocks.length * 1000, 'the first-place prize and 1,000 for each level');
+  for (const id of ['pad.played:1', 'pad.won:1', 'global.games:1', 'global.wins:1', 'pad.jumper:1']) assert.ok(unlocks.includes(id), id);
+  const coins = (await c.get('/api/achievements/pending')).data.unlocks.reduce((sum, u) => sum + u.coins, 0);
+  assert.equal((await balanceOf(c)) - before, 500 + coins, 'the first-place prize and each unlocked level');
 });
 
 test('the site socket tells a player when there is something to show, and refuses a stranger', async (t) => {

@@ -5,14 +5,14 @@ import { onMounted, ref } from 'vue';
 import { api, session } from '../session.js';
 
 const sections = ref(null);
-const reward = ref(0); // coins for every level unlocked
+const rewards = ref(null); // { perLevel, single }: the coins a level earns
 const failed = ref('');
 
 onMounted(async () => {
   try {
     const data = await api('GET', '/api/achievements');
     sections.value = data.sections;
-    reward.value = data.reward;
+    rewards.value = data.rewards;
   } catch (e) {
     failed.value = e.message;
   }
@@ -33,7 +33,7 @@ const possible = (section) => section.achievements.reduce((sum, a) => sum + a.ma
     <p v-else-if="!sections" class="muted">Loading…</p>
 
     <template v-else>
-    <p v-if="reward" class="muted note">Every level you unlock earns {{ reward.toLocaleString('en-GB') }} coins.</p>
+    <p v-if="rewards" class="muted note">Unlocking a level earns {{ rewards.perLevel }} coins times its level number, so {{ rewards.perLevel }} for level 1 and {{ rewards.perLevel * 5 }} for level 5. An achievement with just one level earns {{ rewards.single }}.</p>
     <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="`${section.name} achievements`">
       <header class="heading">
         <h2>{{ section.name }}</h2>

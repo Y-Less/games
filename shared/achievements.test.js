@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, LEVEL_REWARD, levelInfo, levelText, TIERS } from './achievements.js';
+import { cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, levelInfo, levelReward, levelText, TIERS } from './achievements.js';
 
 const cards = { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: [500, 1000, 5000] };
 
@@ -38,14 +38,21 @@ test('definitions from a module.json are checked', () => {
 });
 
 test('the global achievements are the ones asked for', () => {
-  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'games').levels, [10, 50, 100, 500, 1000]);
-  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'cards').levels, [100, 500, 1000, 5000, 10000]);
+  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'games').levels, TIERS.medium);
+  assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'cards').levels, TIERS.veryEasy, 'played cards is something everyone does many times a game');
 });
 
-test('the tiers are easy, medium and hard, and a definition may name one', () => {
-  assert.deepEqual(TIERS.easy, [100, 500, 1000, 5000, 10000]);
-  assert.deepEqual(TIERS.medium, [10, 50, 100, 500, 1000]);
+test('there are five tiers, medium and up start at 1, and a definition may name one', () => {
+  assert.deepEqual(Object.keys(TIERS), ['veryEasy', 'easy', 'medium', 'hard', 'veryHard']);
+  assert.deepEqual(TIERS.veryEasy, [100, 500, 2000, 5000, 15000]);
+  assert.deepEqual(TIERS.easy, [10, 100, 500, 1000, 1500]);
+  assert.deepEqual(TIERS.medium, [1, 10, 50, 100, 500]);
   assert.deepEqual(TIERS.hard, [1, 5, 10, 50, 100]);
+  assert.deepEqual(TIERS.veryHard, [1, 3, 5, 10, 20]);
+  for (const [name, levels] of Object.entries(TIERS)) {
+    assert.equal(levels.length, 5, name);
+    if (['medium', 'hard', 'veryHard'].includes(name)) assert.equal(levels[0], 1, `${name}: the first time always counts`);
+  }
   assert.deepEqual(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'hard' }).levels, TIERS.hard);
   assert.equal(cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'impossible' }), null);
   const clean = cleanDefinition({ key: 'a', name: 'A', text: 'Do {n}', levels: 'easy' });
@@ -53,10 +60,15 @@ test('the tiers are easy, medium and hard, and a definition may name one', () =>
   assert.equal(TIERS.easy.length, 5, 'a definition has its own copy');
 });
 
-test('every level pays the same, and every game has a played (1 to 500) and a hard won achievement', () => {
-  assert.equal(LEVEL_REWARD, 1000);
+test('a level pays 200 times its number, and an achievement with one level pays 500', () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map((level) => levelReward(level, 5)), [200, 400, 600, 800, 1000]);
+  assert.equal(levelReward(1, 1), 500);
+  assert.equal(levelReward(1, 2), 200);
+});
+
+test('every game has a medium played and a hard won achievement', () => {
   const [played, won] = GAME_ACHIEVEMENTS;
-  assert.deepEqual([played.key, played.levels, played.stat], ['played', [1, 10, 50, 100, 500], 'played']);
+  assert.deepEqual([played.key, played.levels, played.stat], ['played', TIERS.medium, 'played']);
   assert.deepEqual([won.key, won.levels, won.stat], ['won', TIERS.hard, 'wins']);
   assert.deepEqual(GLOBAL_ACHIEVEMENTS.find((a) => a.key === 'wins').levels, TIERS.hard);
 });

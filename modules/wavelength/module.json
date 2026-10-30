@@ -11,8 +11,8 @@
     { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
   ],
   "achievements": [
-    { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": "medium", "stat": "bullseyes" },
-    { "key": "clues", "name": "Clues given", "text": "Give {n} clues", "one": "Give a clue", "levels": "medium", "stat": "cluesGiven" },
+    { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": "easy", "stat": "bullseyes" },
+    { "key": "clues", "name": "Clues given", "text": "Give {n} clues", "one": "Give a clue", "levels": "easy", "stat": "cluesGiven" },
     { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": "easy", "stat": "totalScore" }
   ]
 }

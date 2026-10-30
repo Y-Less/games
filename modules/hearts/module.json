@@ -15,9 +15,9 @@
     { "key": "perfectGames", "label": "Perfect games (no points at all)", "agg": "sum" }
   ],
   "achievements": [
-    { "key": "moon", "name": "Shot the moon", "text": "Shoot the moon {n} times", "one": "Shoot the moon", "levels": "hard", "stat": "moonsShot" },
+    { "key": "moon", "name": "Shot the moon", "text": "Shoot the moon {n} times", "one": "Shoot the moon", "levels": "veryHard", "stat": "moonsShot" },
     { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": [1], "stat": "perfectGames" },
-    { "key": "jack", "name": "Got the jack", "text": "Take the Jack of Diamonds {n} times", "levels": "medium", "stat": "jacksTaken" },
-    { "key": "hands", "name": "Hands played", "text": "Play {n} hands", "levels": "medium", "stat": "handsPlayed" }
+    { "key": "jack", "name": "Got the jack", "text": "Take the Jack of Diamonds {n} times", "levels": "easy", "stat": "jacksTaken" },
+    { "key": "hands", "name": "Hands played", "text": "Play {n} hands", "levels": "easy", "stat": "handsPlayed" }
   ]
 }
