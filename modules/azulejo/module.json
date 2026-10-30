@@ -39,7 +39,7 @@
       "name": "Butterfingers",
       "text": "Drop {n} tiles on the floor",
       "one": "Drop a tile on the floor",
-      "levels": "veryEasy",
+      "levels": "easy",
       "stat": "tilesDropped"
     },
     {
