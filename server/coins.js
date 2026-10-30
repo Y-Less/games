@@ -3,7 +3,7 @@
 // user's rows, so there is always a record of where each coin came from.
 
 /** Coins for a finished game, by placement (1 = best). Tied players share a placement, so they share its prize. */
-export const PLACEMENT_PRIZES = { 1: 500, 2: 200, 3: 100 };
+export const PLACEMENT_PRIZES = { 1: 100, 2: 50, 3: 20 };
 
 /** What a recorded player earns: by placement, or as 1st when the game reports a win without a placement. */
 export function prizeFor({ placement, outcome }) {

@@ -128,7 +128,7 @@ test('a finished game pays what it unlocked, and the page and the pending list s
   const unlocks = (await c.get('/api/achievements/pending')).data.unlocks.map((u) => `${u.id}:${u.level}`).sort();
   for (const id of ['pad.played:1', 'pad.won:1', 'global.games:1', 'global.wins:1', 'pad.jumper:1']) assert.ok(unlocks.includes(id), id);
   const coins = (await c.get('/api/achievements/pending')).data.unlocks.reduce((sum, u) => sum + u.coins, 0);
-  assert.equal((await balanceOf(c)) - before, 500 + coins, 'the first-place prize and each unlocked level');
+  assert.equal((await balanceOf(c)) - before, 100 + coins, 'the first-place prize and each unlocked level');
 });
 
 test('the site socket tells a player when there is something to show, and refuses a stranger', async (t) => {

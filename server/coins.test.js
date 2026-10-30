@@ -16,12 +16,12 @@ function setup(t) {
   return { db, stats, coins, addUser };
 }
 
-test('prizes: 500, 200 and 100 for 1st, 2nd and 3rd, and nothing below that', () => {
-  assert.deepEqual([1, 2, 3, 4, 5].map((placement) => prizeFor({ placement, outcome: 'loss' })), [500, 200, 100, 0, 0]);
+test('prizes: 100, 50 and 20 for 1st, 2nd and 3rd, and nothing below that', () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map((placement) => prizeFor({ placement, outcome: 'loss' })), [100, 50, 20, 0, 0]);
 });
 
 test('a win with no placement counts as 1st; a loss with none earns nothing', () => {
-  assert.equal(prizeFor({ outcome: 'win' }), 500);
+  assert.equal(prizeFor({ outcome: 'win' }), 100);
   assert.equal(prizeFor({ outcome: 'loss' }), 0);
   assert.equal(prizeFor({ outcome: 'draw' }), 0);
 });
@@ -30,23 +30,23 @@ test('record pays each person by placement, and the balance is the sum', (t) => 
   const { stats, coins, addUser } = setup(t);
   const [a, b, c, d] = ['a', 'b', 'c', 'd'].map((name) => addUser(name));
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }, { userId: b, outcome: 'loss', placement: 2 }, { userId: c, outcome: 'loss', placement: 3 }, { userId: d, outcome: 'loss', placement: 4 }] });
-  assert.deepEqual([a, b, c, d].map((id) => coins.balance(id)), [500, 200, 100, 0]);
+  assert.deepEqual([a, b, c, d].map((id) => coins.balance(id)), [100, 50, 20, 0]);
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }] });
-  assert.equal(coins.balance(a), 1000);
+  assert.equal(coins.balance(a), 200);
 });
 
 test('beating computer players pays the same: one person alone at the table still earns coins', (t) => {
   const { stats, coins, addUser } = setup(t);
   const solo = addUser('solo');
   stats.record('g', { players: [{ userId: solo, outcome: 'win', placement: 1 }] });
-  assert.equal(coins.balance(solo), 500);
+  assert.equal(coins.balance(solo), 100);
 });
 
 test('tied players share the prize of their placement', (t) => {
   const { stats, coins, addUser } = setup(t);
   const [a, b] = [addUser('a'), addUser('b')];
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }, { userId: b, outcome: 'win', placement: 1 }] });
-  assert.deepEqual([coins.balance(a), coins.balance(b)], [500, 500]);
+  assert.deepEqual([coins.balance(a), coins.balance(b)], [100, 100]);
 });
 
 test('bot accounts earn nothing', (t) => {
@@ -68,22 +68,22 @@ test('a game cannot pay the same person twice', (t) => {
   const { db, coins, addUser } = setup(t);
   const a = addUser('a');
   db.prepare("INSERT INTO results (id, game, finished_at) VALUES (1, 'g', 0)").run();
-  assert.equal(coins.awardPlacement(a, 1, { placement: 1 }), 500);
+  assert.equal(coins.awardPlacement(a, 1, { placement: 1 }), 100);
   assert.equal(coins.awardPlacement(a, 1, { placement: 1 }), 0);
-  assert.equal(coins.balance(a), 500);
+  assert.equal(coins.balance(a), 100);
 });
 
 test('spending takes coins, and refuses to go below zero', (t) => {
   const { stats, coins, addUser } = setup(t);
   const a = addUser('a');
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }] });
-  coins.spend(a, 300, 'shop:test');
-  assert.equal(coins.balance(a), 200);
-  assert.throws(() => coins.spend(a, 201, 'shop:test'), /Not enough coins/);
+  coins.spend(a, 60, 'shop:test');
+  assert.equal(coins.balance(a), 40);
+  assert.throws(() => coins.spend(a, 41, 'shop:test'), /Not enough coins/);
   assert.throws(() => coins.spend(a, -5, 'shop:test'));
   assert.throws(() => coins.spend(a, 1.5, 'shop:test'));
-  assert.equal(coins.balance(a), 200);
-  assert.deepEqual(coins.history(a).map((row) => row.amount), [-300, 500]);
+  assert.equal(coins.balance(a), 40);
+  assert.deepEqual(coins.history(a).map((row) => row.amount), [-60, 100]);
 });
 
 test('the start-up step pays for games recorded before coins existed, once, and not for computer accounts', (t) => {
@@ -95,8 +95,8 @@ test('the start-up step pays for games recorded before coins existed, once, and 
   const lastTime = db.prepare('SELECT MAX(finished_at) AS t FROM results').get().t;
   db.exec('DELETE FROM coin_ledger'); // as if these games were played before coins were added
   assert.equal(coins.balance(a), 0);
-  assert.deepEqual(coins.creditPastResults(), { games: 3, coins: 1200 });
-  assert.deepEqual([a, b, bot].map((id) => coins.balance(id)), [500, 700, 0]);
+  assert.deepEqual(coins.creditPastResults(), { games: 3, coins: 250 });
+  assert.deepEqual([a, b, bot].map((id) => coins.balance(id)), [100, 150, 0]);
   assert.equal(db.prepare('SELECT MAX(created_at) AS t FROM coin_ledger').get().t, lastTime, 'dated when the game finished');
   assert.deepEqual(coins.creditPastResults(), { games: 0, coins: 0 }, 'a second run adds nothing');
 });
@@ -105,9 +105,9 @@ test('the start-up step leaves games that have already paid alone', (t) => {
   const { stats, coins, addUser } = setup(t);
   const a = addUser('a');
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }] });
-  coins.spend(a, 300, 'shop:test');
+  coins.spend(a, 60, 'shop:test');
   assert.deepEqual(coins.creditPastResults(), { games: 0, coins: 0 });
-  assert.equal(coins.balance(a), 200);
+  assert.equal(coins.balance(a), 40);
 });
 
 test('spent adds up everything taken from the balance, and nothing earned', (t) => {

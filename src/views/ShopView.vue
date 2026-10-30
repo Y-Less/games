@@ -1,5 +1,5 @@
 <script setup>
-// The shop: spend the coins you win (500, 200 and 100 for coming 1st, 2nd and 3rd in a game) on name styles,
+// The shop: spend the coins you win (100, 50 and 20 for coming 1st, 2nd and 3rd in a game) on name styles,
 // backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
 import { computed, onMounted, ref } from 'vue';
