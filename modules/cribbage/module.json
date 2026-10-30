@@ -61,7 +61,7 @@
       "name": "Kind",
       "text": "Put a 5 in somebody else's box {n} times",
       "one": "Put a 5 in somebody else's box",
-      "levels": "hard",
+      "levels": "medium",
       "stat": "fivesGiven"
     },
     {
