@@ -9,7 +9,9 @@
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements, winnersOf } from '../../shared/scores.js';
+import { extrasOf } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
+import { newTally, STAT_KEYS, tallyLines, tallyTake } from './tally.js';
 import {
   COLOUR_NAMES,
   COLOURS,
@@ -41,7 +43,7 @@ export { MAX_PLAYERS, MIN_PLAYERS, factoryCount };
 export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 export const DEFAULT_SETTINGS = { freeWall: false };
-export const STAT_KEYS = ['rowsCompleted', 'columnsCompleted', 'colourSetsCompleted', 'floorPenalties', 'roundsPlayed'];
+export { STAT_KEYS };
 export const BOT_NAMES = ['Isabel', 'Tomas', 'Beatriz', 'Duarte', 'Ines', 'Rui', 'Carmo', 'Vasco', 'Leonor', 'Nuno'];
 
 const LIVE = ['lobby', 'playing', 'tiling'];
@@ -126,7 +128,7 @@ function resetGame(room) {
     lastTiling: null,
     history: [],
     log: [],
-    tally: Array.from({ length: n }, () => ({ floorPenalties: 0 })),
+    tally: Array.from({ length: n }, newTally),
     final: null,
     winners: null,
     recorded: false,
@@ -354,6 +356,7 @@ export function takeTiles(room, seat, args, rng = Math.random) {
     room.factories[source] = [];
   }
   const floor = room.floors[seat];
+  const floorBefore = floor.length;
   const marker = takesMarker(room, source);
   if (marker) {
     room.markerInCentre = false;
@@ -371,6 +374,7 @@ export function takeTiles(room, seat, args, rng = Math.random) {
     else room.lid.push(colour);
   }
   const placed = count - overflow;
+  tallyTake(room.tally[seat], { taken: count, dropped: overflow + (marker ? 1 : 0), floorBefore, floorAfter: floor.length });
   const result = line === 'floor' ? 'all to the floor' : `${placed} on line ${line + 1}${overflow ? `, ${overflow} to the floor` : ''}`;
   addLog(room, seat, `${seatName(room, seat)} took ${tilesText(count, colour)} from ${sourceName(source)}${marker ? ' and the first-player marker' : ''}: ${result}`);
 
@@ -386,6 +390,7 @@ function startTiling(room, rng) {
   room.turn = null;
   room.tiling = room.seats.map(() => ({ cursor: 0, placed: [], gained: 0, newRows: 0, dropped: [] }));
   room.pending = room.seats.map(() => null);
+  room.tally.forEach((tally, seat) => tallyLines(tally, room.lines[seat]));
   for (let seat = 0; seat < room.size; seat++) advanceTiling(room, seat);
   settleTiling(room, rng);
 }
@@ -536,10 +541,11 @@ export function statsPlayers(room) {
             placement: room.final.players[i].placement,
             score: room.final.players[i].total,
             extras: {
+              ...extrasOf(room.tally[i], STAT_KEYS),
               rowsCompleted: completeRows(room.walls[i]),
               columnsCompleted: completeColumns(room.walls[i]),
               colourSetsCompleted: completeSets(room.walls[i]),
-              floorPenalties: room.tally[i].floorPenalties,
+              bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
               roundsPlayed: room.playedRounds,
             },
           },

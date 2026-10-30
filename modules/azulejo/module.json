@@ -11,6 +11,66 @@
     { "key": "columnsCompleted", "label": "Wall columns completed", "agg": "sum" },
     { "key": "colourSetsCompleted", "label": "Colour sets completed", "agg": "sum" },
     { "key": "floorPenalties", "label": "Points lost to the floor", "agg": "sum" },
-    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" }
+    { "key": "roundsPlayed", "label": "Rounds played", "agg": "sum" },
+    { "key": "bottomRows", "label": "Games ending with the bottom row of your wall filled", "agg": "sum", "hidden": true },
+    { "key": "tilesTaken", "label": "Tiles taken", "agg": "sum", "hidden": true },
+    { "key": "tilesDropped", "label": "Tiles dropped on the floor (with the first-player marker)", "agg": "sum", "hidden": true },
+    { "key": "floorsFilled", "label": "Times you filled your floor", "agg": "sum", "hidden": true },
+    { "key": "gridsFilled", "label": "Rounds with all five pattern lines full", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "veryEasy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "taken",
+      "name": "Tile collector",
+      "text": "Take {n} tiles",
+      "one": "Take a tile",
+      "levels": "veryEasy",
+      "stat": "tilesTaken"
+    },
+    {
+      "key": "dropped",
+      "name": "Butterfingers",
+      "text": "Drop {n} tiles on the floor",
+      "one": "Drop a tile on the floor",
+      "levels": "veryEasy",
+      "stat": "tilesDropped"
+    },
+    {
+      "key": "sets",
+      "name": "Colour set",
+      "text": "Complete {n} colour sets",
+      "one": "Complete a colour set",
+      "levels": "hard",
+      "stat": "colourSetsCompleted"
+    },
+    {
+      "key": "bottom",
+      "name": "Solid foundations",
+      "text": "Finish a game with your bottom row filled {n} times",
+      "one": "Finish a game with your bottom row filled",
+      "levels": "hard",
+      "stat": "bottomRows"
+    },
+    {
+      "key": "floor",
+      "name": "Floored",
+      "text": "Fill your floor",
+      "levels": "unlock",
+      "stat": "floorsFilled"
+    },
+    {
+      "key": "grid",
+      "name": "Neat and tidy",
+      "text": "Fill all five of your pattern lines in one round",
+      "levels": "unlock",
+      "stat": "gridsFilled"
+    }
   ]
 }
