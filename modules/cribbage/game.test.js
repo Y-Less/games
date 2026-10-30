@@ -491,3 +491,15 @@ test('computer players: plays are always legal and prefer points', () => {
   assert.equal(choosePlay(['KD'], { count: 25, sequence: [] }), null);
   assert.equal(choosePlay(['9H', '4S'], { count: 9, sequence: ['9D'] }), '9H', 'a pair beats a quiet card');
 });
+
+test('the tally counts each completed deal in which a seat scored nothing, matching the history', () => {
+  for (const seed of [1, 2, 3]) {
+    const room = playWholeGame(3, seed, 121);
+    const completed = room.history.slice(0, -1); // the last deal ended the game part-way through
+    room.seats.forEach((s, seat) => {
+      const empty = completed.filter((h) => !h.deltas[seat]).length;
+      assert.ok(s.stats.nineteens >= empty && s.stats.nineteens <= empty + 1, `seat ${seat}: ${s.stats.nineteens} against ${empty}`);
+      assert.ok(s.stats.zeroHands >= 0 && s.stats.nobs >= 0);
+    });
+  }
+});

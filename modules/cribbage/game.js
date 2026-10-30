@@ -5,7 +5,9 @@ import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements } from '../../shared/scores.js';
+import { bump, extrasOf } from '../../shared/tally.js';
 import { pipValue, scoreHand, scorePlay } from './scoring.js';
+import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
 
 export const TARGETS = [61, 121];
 export const MIN_SEATS = 2;
@@ -78,8 +80,7 @@ function uniqueName(room, raw) {
   return base;
 }
 
-const freshStats = () => ({ handsPlayed: 0, bestHand: 0, pegPoints: 0 });
-const newSeat = (fields) => ({ userId: null, bot: false, name: '', score: 0, back: 0, ready: false, discarded: false, stats: freshStats(), ...fields });
+const newSeat = (fields) => ({ userId: null, bot: false, name: '', score: 0, back: 0, ready: false, discarded: false, stats: newTally(), ...fields });
 
 export function addHuman(room, userId, name) {
   if (room.phase !== 'lobby') return fail('That game has already started.');
@@ -204,7 +205,7 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
     const before = s.score;
     s.score = Math.min(room.target, s.score + entry.points);
     room.handDeltas[seat] = (room.handDeltas[seat] ?? 0) + s.score - before;
-    if (pegging) s.stats.pegPoints += entry.points;
+    if (pegging) bump(s.stats, 'pegPoints', entry.points);
     if (!quiet) log(room, seat, `${s.name}: ${entry.label.toLowerCase()} for ${entry.points}`, entry.points);
     if (s.score >= room.target) finish(room, seat);
   }
@@ -228,7 +229,7 @@ function deal(room, rng) {
   for (const s of room.seats) {
     s.ready = false;
     s.discarded = dealRules(room.seats.length, room.seats.indexOf(s) === room.dealer).discards === 0; // nothing to discard
-    s.stats.handsPlayed++;
+    bump(s.stats, 'handsPlayed');
   }
 }
 
@@ -265,7 +266,7 @@ export function returnToLobby(room, userId, present = () => true) {
   if (room.phase !== 'finished') return fail('The game is not over yet.');
   room.seats = room.seats.filter((s) => s.bot || (!s.left && present(s.userId)));
   for (const s of room.seats) {
-    Object.assign(s, { score: 0, back: 0, ready: false, discarded: false, stats: freshStats() });
+    Object.assign(s, { score: 0, back: 0, ready: false, discarded: false, stats: newTally() });
     delete s.ai;
   }
   Object.assign(room, { phase: 'lobby', winner: null, recorded: false, hands: [], kept: [], crib: [], deck: [], starter: null, play: null, show: null, log: [], history: [], handDeltas: {}, handNo: 0 });
@@ -281,6 +282,7 @@ export function discard(room, seat, cards, rng = Math.random) {
   if (!cards.every(isCard) || new Set(cards).size !== cards.length || !cards.every((c) => room.hands[seat].includes(c))) return fail('Those cards are not in your hand.');
   room.hands[seat] = room.hands[seat].filter((c) => !cards.includes(c));
   room.crib.push(...cards);
+  tallyDiscard(s.stats, cards, seat === room.dealer);
   s.discarded = true;
   if (room.seats.every((x) => x.discarded)) beginPlay(room, rng);
   return ok();
@@ -368,11 +370,12 @@ function startShow(room) {
   for (const { kind, seat } of order) {
     const cards = kind === 'crib' ? room.crib : room.kept[seat];
     const { total, items } = scoreHand(cards, room.starter, { crib: kind === 'crib' });
-    if (kind === 'hand') room.seats[seat].stats.bestHand = Math.max(room.seats[seat].stats.bestHand, total);
+    tallyShown(room.seats[seat].stats, kind, { total, items });
     award(room, seat, [{ label: kind, points: total }], { quiet: true });
     room.show.entries.push({ kind, seat, cards, items, total, after: room.seats[seat].score });
     if (room.phase === 'finished') return;
   }
+  room.seats.forEach((s, seat) => tallyDeal(s.stats, room.handDeltas[seat] ?? 0));
   commitHand(room);
 }
 
@@ -517,7 +520,7 @@ export function statsPlayers(room) {
             outcome: i === room.winner ? 'win' : 'loss',
             placement: seatPlacements(room)[i],
             score: Math.min(s.score, room.target),
-            extras: { handsPlayed: s.stats.handsPlayed, bestHand: s.stats.bestHand, pegPoints: s.stats.pegPoints, skunks: i === room.winner && skunked ? 1 : 0 },
+            extras: { ...extrasOf(s.stats, STAT_KEYS), skunks: i === room.winner && skunked ? 1 : 0 },
           },
         ],
   );

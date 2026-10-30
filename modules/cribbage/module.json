@@ -10,6 +10,67 @@
     { "key": "handsPlayed", "label": "Hands played", "agg": "sum" },
     { "key": "bestHand", "label": "Best hand", "agg": "max" },
     { "key": "pegPoints", "label": "Points pegged in the play", "agg": "sum" },
-    { "key": "skunks", "label": "Skunks", "agg": "sum" }
+    { "key": "skunks", "label": "Skunks", "agg": "sum" },
+    { "key": "zeroHands", "label": "Hands and boxes that scored nothing", "agg": "sum", "hidden": true },
+    { "key": "nineteens", "label": "Deals where you scored nothing at all", "agg": "sum", "hidden": true },
+    { "key": "fiveFlushes", "label": "Flushes of five", "agg": "sum", "hidden": true },
+    { "key": "perfectHands", "label": "Perfect hands and boxes (29)", "agg": "sum", "hidden": true },
+    { "key": "nobs", "label": "Times you scored his nobs", "agg": "sum", "hidden": true },
+    { "key": "fivesGiven", "label": "Fives you put in somebody else's box", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "nineteen",
+      "name": "Nineteen",
+      "text": "Score nothing at all in a deal: no points in your hand, your box or the play",
+      "levels": "unlock",
+      "stat": "nineteens"
+    },
+    {
+      "key": "nothing",
+      "name": "Nothing to show",
+      "text": "Score nothing in your hand or box {n} times",
+      "one": "Score nothing in your hand or box",
+      "levels": "easy",
+      "stat": "zeroHands"
+    },
+    {
+      "key": "flush",
+      "name": "Flush",
+      "text": "Score a flush of five {n} times",
+      "one": "Score a flush of five",
+      "levels": "hard",
+      "stat": "fiveFlushes"
+    },
+    {
+      "key": "perfect",
+      "name": "Perfect hand",
+      "text": "Score 29 in your hand or box",
+      "levels": "unlock",
+      "stat": "perfectHands"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "veryEasy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "kind",
+      "name": "Kind",
+      "text": "Put a 5 in somebody else's box {n} times",
+      "one": "Put a 5 in somebody else's box",
+      "levels": "hard",
+      "stat": "fivesGiven"
+    },
+    {
+      "key": "nobhead",
+      "name": "Nobhead",
+      "text": "Score one for his nobs {n} times",
+      "one": "Score one for his nobs",
+      "levels": "easy",
+      "stat": "nobs"
+    }
   ]
 }
