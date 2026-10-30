@@ -181,6 +181,67 @@ test('leaving: a guesser who was holding up the reveal, the psychic, and too few
   assert.equal(host.hostId, 2, 'the host passes on');
 });
 
+/** Plays one turn: the psychic gives a clue and every guesser guesses `where(player, target)`. */
+function playTurn(room, where) {
+  game.setClue(room, room.psychic, 'x');
+  for (const p of guessersOf(room)) assert.ok(game.guess(room, p.id, where(p, room.target)).ok);
+  assert.equal(room.phase, 'reveal');
+}
+const countOf = (room, id, key) => room.players.find((p) => p.id === id)[key] ?? 0;
+
+test('being the only guesser to score, with three or more people', () => {
+  const room = started([1, 2, 3, 4]);
+  const [a, b, c] = guessersOf(room).map((p) => p.id);
+  const psychic = room.psychic;
+  const far = (t) => (t > 50 ? t - 40 : t + 40);
+  playTurn(room, (p, t) => (p.id === a ? t : far(t)));
+  assert.equal(countOf(room, a, 'onlyScorer'), 1);
+  assert.equal(countOf(room, b, 'onlyScorer') + countOf(room, c, 'onlyScorer'), 0);
+  assert.equal(countOf(room, psychic, 'blankClues'), 0, 'somebody scored');
+  closeReveal(room);
+  playTurn(room, (p, t) => t);
+  const total = room.players.reduce((n, p) => n + countOf(room, p.id, 'onlyScorer'), 0);
+  assert.equal(total, 1, 'when everybody scores, nobody was the only one');
+});
+
+test('a clue that nobody scores on, and guesses at the very top and bottom of the dial', () => {
+  const room = started([1, 2, 3]);
+  const [a, b] = guessersOf(room).map((p) => p.id);
+  const psychic = room.psychic;
+  const far = (t) => (t > 50 ? t - 40 : t + 40);
+  playTurn(room, (p, t) => (p.id === a ? 100 : far(t)));
+  assert.equal(countOf(room, psychic, 'blankClues'), 1, 'both guessers scored nothing');
+  assert.equal(countOf(room, a, 'highGuesses'), 1);
+  assert.equal(countOf(room, a, 'lowGuesses'), 0);
+  assert.equal(countOf(room, a, 'onlyScorer') + countOf(room, b, 'onlyScorer'), 0, 'nobody scored');
+  closeReveal(room);
+  const [x, y] = guessersOf(room).map((p) => p.id);
+  const highsBefore = countOf(room, y, 'highGuesses');
+  playTurn(room, (p) => (p.id === x ? 0 : 100));
+  assert.equal(countOf(room, x, 'lowGuesses'), 1);
+  assert.equal(countOf(room, y, 'highGuesses'), highsBefore + 1);
+  const stats = game.statsPlayers(Object.assign(room, { phase: 'finished' }));
+  for (const s of stats) for (const key of ['onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues']) assert.equal(typeof s.extras[key], 'number', key);
+});
+
+test('with only two people a clue nobody scores on, or the only scorer, does not count', () => {
+  const room = started([1, 2]);
+  const far = (t) => (t > 50 ? t - 40 : t + 40);
+  playTurn(room, (p, t) => far(t));
+  assert.equal(countOf(room, room.psychic, 'blankClues'), 0, 'one guesser: not a group');
+  closeReveal(room);
+  playTurn(room, (p, t) => t);
+  for (const p of room.players) assert.equal(countOf(room, p.id, 'onlyScorer'), 0, 'one guesser is not the only one of several');
+});
+
+test('rooms saved before these were counted keep working', () => {
+  const room = started([1, 2, 3]);
+  for (const p of room.players) for (const key of ['onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues']) delete p[key];
+  playTurn(room, (p) => 100);
+  assert.equal(guessersOf(room).every((p) => p.highGuesses === 1), true);
+  assert.equal(room.players.find((p) => p.id === room.psychic).blankClues, 1);
+});
+
 test('statistics list the people, with their bullseyes and clues', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
   game.addPlayer(room, 2);

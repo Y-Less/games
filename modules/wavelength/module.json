@@ -8,11 +8,19 @@
   "rules": "rules.md",
   "stats": [
     { "key": "bullseyes", "label": "Bullseyes", "agg": "sum" },
-    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
+    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" },
+    { "key": "onlyScorer", "label": "Turns you were the only guesser to score", "agg": "sum" },
+    { "key": "highGuesses", "label": "Guesses at the very top of the dial", "agg": "sum" },
+    { "key": "lowGuesses", "label": "Guesses at the very bottom of the dial", "agg": "sum" },
+    { "key": "blankClues", "label": "Clues that nobody scored on", "agg": "sum" }
   ],
   "achievements": [
     { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": "easy", "stat": "bullseyes" },
     { "key": "clues", "name": "Clues given", "text": "Give {n} clues", "one": "Give a clue", "levels": "easy", "stat": "cluesGiven" },
-    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": "easy", "stat": "totalScore" }
+    { "key": "score", "name": "Total score", "text": "Score {n} points in total", "levels": "easy", "stat": "totalScore" },
+    { "key": "insync", "name": "In sync", "text": "Be the only guesser to score, {n} times (3+ players)", "one": "Be the only guesser to score (3+ players)", "levels": "medium", "stat": "onlyScorer" },
+    { "key": "optimist", "name": "Optimist", "text": "Guess the highest value", "levels": [1], "stat": "highGuesses" },
+    { "key": "pessimist", "name": "Pessimist", "text": "Guess the lowest value", "levels": [1], "stat": "lowGuesses" },
+    { "key": "blank", "name": "Wrong wavelength", "text": "Give a clue that nobody scores on, {n} times (3+ players)", "one": "Give a clue that nobody scores on (3+ players)", "levels": "hard", "stat": "blankClues" }
   ]
 }

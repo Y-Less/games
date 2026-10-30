@@ -37,7 +37,8 @@ export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const guessers = (room) => room.players.filter((p) => p.id !== room.psychic);
-const newPlayer = (id, colour) => ({ id, colour, score: 0, bullseyes: 0, cluesGiven: 0 });
+const newPlayer = (id, colour) => ({ id, colour, score: 0, bullseyes: 0, cluesGiven: 0, onlyScorer: 0, highGuesses: 0, lowGuesses: 0, blankClues: 0 });
+const bump = (player, key) => (player[key] = (player[key] ?? 0) + 1); // (rooms saved before these were counted have no such keys)
 /** People (accounts), as opposed to computer players. */
 export const humans = (room) => room.players.filter((p) => !p.bot);
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
@@ -263,7 +264,15 @@ function scoreTurn(room, nameOf = String) {
     if (points === BANDS[0].points) player.bullseyes++;
     entries.push({ id, position, points, bullseye: points === BANDS[0].points });
   }
+  // With three or more people: the one guesser who scored, and a clue nobody scored on.
+  const scorers = entries.filter((e) => e.points > 0);
+  if (entries.length >= 2 && scorers.length === 1) bump(playerOf(room, scorers[0].id), 'onlyScorer');
+  for (const e of entries) {
+    if (e.position === 100) bump(playerOf(room, e.id), 'highGuesses'); // the very top of the dial
+    if (e.position === 0) bump(playerOf(room, e.id), 'lowGuesses'); // and the very bottom
+  }
   const psychic = playerOf(room, room.psychic);
+  if (psychic && entries.length >= 2 && !scorers.length) bump(psychic, 'blankClues');
   const psychicPoints = entries.length ? Math.round(entries.reduce((sum, e) => sum + e.points, 0) / entries.length) : 0;
   if (psychic) {
     psychic.score += psychicPoints;
@@ -377,7 +386,7 @@ export function statsPlayers(room) {
     outcome: (room.mode === 'team' ? teamWon(p) : p.winner) ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
-    extras: { bullseyes: p.bullseyes, cluesGiven: p.cluesGiven },
+    extras: { bullseyes: p.bullseyes, cluesGiven: p.cluesGiven, onlyScorer: p.onlyScorer ?? 0, highGuesses: p.highGuesses ?? 0, lowGuesses: p.lowGuesses ?? 0, blankClues: p.blankClues ?? 0 },
   }));
 }
 
