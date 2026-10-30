@@ -45,7 +45,7 @@ export async function startSite(options = {}) {
   const coins = createCoins(db);
   let moduleList = [];
   // (io is made below, before anything can be recorded or played)
-  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements'), measures: { coinsSpent: coins.spent, customised: shop.customised } });
+  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements'), measures: { member: () => 1, coinsSpent: coins.spent, customised: shop.customised } });
   const stats = createStats(db, () => moduleList, { onRecorded: (userIds) => userIds.forEach((id) => achievements.settle(id)) });
 
   const app = express();
@@ -106,7 +106,9 @@ export async function startSite(options = {}) {
 
   api.post('/auth/register', handler(async (req, res) => {
     const { username, password, displayName } = req.body ?? {}; // isBot is deliberately not accepted from clients
-    signedIn(req, res, await auth.register({ username, password, displayName }));
+    const registered = await auth.register({ username, password, displayName });
+    achievements.settle(registered.user.id); // "Welcome" is waiting from the first moment
+    signedIn(req, res, registered);
   }));
   api.post('/auth/login', handler(async (req, res) => signedIn(req, res, await auth.login({ ...(req.body ?? {}), ip: req.ip }))));
   api.post('/auth/logout', (req, res) => {

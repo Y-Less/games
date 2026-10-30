@@ -11,6 +11,7 @@ async function shopSite(t, { coins = 0 } = {}) {
   const c = env.client();
   const { data } = await register(c, 'shopper', 'password1');
   const user = data.user;
+  env.site.db.prepare("DELETE FROM coin_ledger WHERE user_id = ? AND reason LIKE 'achievement:global.welcome%'").run(user.id); // start with an empty purse: the welcome gift is tested with the achievements
   if (coins) env.site.db.prepare("INSERT INTO coin_ledger (user_id, amount, reason, created_at) VALUES (?, ?, 'test', 0)").run(user.id, coins);
   return { ...env, c, user };
 }

@@ -141,10 +141,10 @@ test('settling works out what the results have unlocked, once, and does the same
   });
   const fresh = achievements.settle(ann);
   const ids = fresh.map((f) => `${f.id}:${f.level}`).sort();
-  assert.deepEqual(ids, ['global.games:1', 'global.games:2', 'global.wins:1', 'hearts.moon:1', 'hearts.moon:2']);
-  assert.equal(coins.balance(ann), 200 + 400 + 200 + 200 + 400, 'five levels');
+  assert.deepEqual(ids, ['global.games:1', 'global.games:2', 'global.persistent:1', 'global.persistent:2', 'global.wins:1', 'hearts.moon:1', 'hearts.moon:2']);
+  assert.equal(coins.balance(ann), 200 + 400 + 200 + 400 + 200 + 200 + 400, 'seven levels (11 games lost: two levels of Persistent)');
   assert.deepEqual(achievements.settle(ann), [], 'a second settle pays nothing');
-  assert.equal(coins.balance(ann), 1400);
+  assert.equal(coins.balance(ann), 2000);
   assert.equal(notified.length, 1);
   results.get(ann).perGame[0].extras[0].value = 6;
   assert.deepEqual(achievements.settle(ann), [], '6 moons is still level 2 (the next is at 10)');

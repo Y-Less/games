@@ -141,6 +141,8 @@ and hats are parts of their own, and a part with only free items is not asked fo
 gives `createAchievements`; buying in the shop settles them straight away.
 "Indecisive" counts every shop item put on (a background, card back, name style or animation, avatar part, site colour, font or background
 animation swapped for another), whether from the shop or the profile page; the server adds to it when a profile change is saved.
+"Welcome" (`measure: 'member'`) is 1 for every account and is paid the moment one is made (existing accounts get it the next time their achievements are
+settled); "Persistent" counts games lost.
 
 The site also awards the global `global.slow` ("Take your time") by itself: `server/turnClock.js` watches the `state` views a
 game sends to each connection and, when the scoreboard says it was that player's turn (`isMe` and `current`) for over ten

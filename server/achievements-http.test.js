@@ -13,6 +13,10 @@ const SERVER = `export default function (ctx) {
       ctx.stats.record({ players: [{ userId: id, outcome: 'win', score: 7, extras: { jumps: 3 } }] });
       ack({ ok: true });
     });
+    socket.on('lose', (payload, ack) => {
+      ctx.stats.record({ players: [{ userId: id, outcome: 'loss', score: 1 }] });
+      ack({ ok: true });
+    });
     socket.on('cards', (payload, ack) => ack(ctx.achievements.add(id, 'global.cards', payload.n)));
     socket.on('look', (payload, ack) => ack({ games: ctx.achievements.get(id, 'global.games'), level: ctx.achievements.level(id, 'global.games') }));
     socket.on('bad', (payload, ack) => {
@@ -42,6 +46,7 @@ async function setup(t) {
   const { client, base } = await withSite(t, { modulesDir, shopLocked: true }); // (an account that owns the whole shop has already unlocked "Customised")
   const c = client();
   await register(c, 'runner', 'password1');
+  await c.post('/api/achievements/seen', { items: [{ id: 'global.welcome', level: 1 }] }); // the welcome pop-up has been dealt with: the tests below count what they cause
   const socket = c.socket('/pad');
   await connected(socket);
   const sections = async () => (await c.get('/api/achievements')).data.sections;
@@ -57,7 +62,7 @@ test('the page lists the global achievements, then the games that have some, and
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
   assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 25, 50, 150], 'played is medium');
   assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 25, 50], 'won is hard');
-  assert.deepEqual(list[0].achievements.map((a) => a.key), ['games', 'wins', 'cards', 'slow', 'pieces', 'spent', 'indecisive', 'customised', 'steve', 'everygame']);
+  assert.deepEqual(list[0].achievements.map((a) => a.key), ['welcome', 'games', 'wins', 'persistent', 'cards', 'slow', 'pieces', 'spent', 'indecisive', 'customised', 'steve', 'everygame']);
 });
 
 test('it needs a signed-in player', async (t) => {
@@ -150,4 +155,24 @@ test("Steve's Achievement is unlocked by asking the server, once, and only when 
   assert.deepEqual([steve.value, steve.level], [1, 1], 'asking again changes nothing');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks.filter((u) => u.id === 'global.steve');
   assert.deepEqual(pending.map((u) => [u.level, u.coins]), [[1, 500]], 'one pop-up, worth the single-level 500');
+});
+
+test('Welcome is unlocked, and paid, the moment an account is made', async (t) => {
+  const { client } = await withSite(t, { shopLocked: true });
+  const c = client();
+  await register(c, 'newcomer', 'password1');
+  const pending = (await c.get('/api/achievements/pending')).data.unlocks;
+  assert.deepEqual(pending.map((u) => [u.id, u.level, u.coins, u.text]), [['global.welcome', 1, 500, 'Sign up']]);
+  assert.equal(await balanceOf(c), 500);
+});
+
+test('Persistent counts lost games, with its own wording', async (t) => {
+  const { c, socket, find } = await setup(t);
+  assert.equal((await find('global.persistent')).level, 0);
+  await ask(socket, 'lose');
+  const persistent = await find('global.persistent');
+  assert.deepEqual([persistent.value, persistent.level], [1, 1]);
+  assert.equal(persistent.levels[0].text, 'You just lost the game (1 time)');
+  assert.equal(persistent.levels[1].text, 'You just lost the game (10 times)');
+  assert.equal((await find('global.games')).value, 1);
 });
