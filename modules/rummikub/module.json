@@ -139,7 +139,7 @@
       "name": "Pair of jokers",
       "text": "Hold both jokers at once, {n} times",
       "one": "Hold both jokers at once",
-      "levels": "veryHard",
+      "levels": "hard",
       "stat": "bothJokers"
     }
   ]
