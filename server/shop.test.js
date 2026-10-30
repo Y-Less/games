@@ -165,7 +165,7 @@ test('animations: the still choice is free, the rest are bought, and a bad one i
 });
 
 test('the intensity and speed sliders are unlocks: normal is free, other levels need them, and bad levels are refused', async (t) => {
-  const { c } = await shopSite(t, { coins: 1500 });
+  const { c } = await shopSite(t, { coins: 3000 });
   const me = (await c.get('/api/me')).data.user;
   assert.deepEqual([me.effectIntensity, me.effectSpeed], [100, 100]);
   assert.equal((await c.patch('/api/me', { effectIntensity: 100, effectSpeed: 100 })).status, 200);
@@ -205,7 +205,7 @@ test('the play-animations setting follows the device by default, and can be alwa
 });
 
 test('colours, gradients and uploads are separate unlocks', async (t) => {
-  const { c, dataDir } = await shopSite(t, { coins: 5000 });
+  const { c, dataDir } = await shopSite(t, { coins: 10000 });
   const colour = { type: 'colour', value: '#112233' };
   const gradient = { type: 'gradient', from: '#112233', to: '#445566', angle: 90 };
   assert.equal((await c.patch('/api/me', { background: colour })).status, 403);
