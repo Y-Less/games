@@ -1,6 +1,6 @@
 <script setup>
-// The pop-ups for achievement unlocks (see achievementFeed.js), one after another near the top of the page; they close
-// themselves, or at once with OK. When many arrive together (the first visit after achievements began paying out, say) they
+// The pop-ups for achievement unlocks (see achievementFeed.js), one after another near the top of the page. They stay
+// until OK is clicked (they do not hide themselves). When many arrive together (the first visit after achievements began paying out, say) they
 // are shown as one pop-up with the total, so nobody has to click through a long line of them.
 import { computed, ref, watch } from 'vue';
 import { feed, shown, startFeed, stopFeed } from '../achievementFeed.js';
@@ -36,7 +36,7 @@ const number = (n) => n.toLocaleString('en-GB');
 </script>
 
 <template>
-  <NoticePopup v-if="current" :key="current.map((u) => `${u.id}:${u.level}`).join()" :active="true" :duration="many ? 7000 : 6000" :row="1" name="achievement" @close="closed">
+  <NoticePopup v-if="current" :key="current.map((u) => `${u.id}:${u.level}`).join()" :active="true" :auto-hide="false" :row="1" name="achievement" @close="closed">
     <template v-if="many">
       <strong class="title">{{ current.length }} achievements unlocked!</strong>
       <span class="line">+{{ number(coins) }} coins. See them on the Achievements page.</span>

@@ -1,8 +1,9 @@
 <script setup>
 // A small pop-up over the top of the page: the generic one behind "It's your turn" (YourTurnPopup) and the achievement
 // unlocks. It appears the moment `active` becomes true (or when it is already true as the component first appears), and
-// goes away by itself after `duration` milliseconds, or at once when the player clicks OK, or when `active` goes false
-// again. It takes no focus and blocks nothing, so play can carry straight on. The content is the default slot.
+// goes away by itself after `duration` milliseconds (unless `autoHide` is false, and then it stays until the player clicks
+// OK), or at once when the player clicks OK, or when `active` goes false again. It takes no focus and blocks nothing, so play can carry straight on. The content is the default slot.
+//   autoHide  false to keep it open until OK (default true: it closes after `duration`)
 //   name      an extra class for the pop-up's box (styling hooks such as "your-turn")
 //   row       0 for the top of the page; 1, 2 ... place it lower so that two pop-ups can show together
 //   close     emitted when it closes by itself or by OK (not when `active` goes false)
@@ -11,6 +12,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 const props = defineProps({
   active: { type: Boolean, default: false },
   duration: { type: Number, default: 3000 }, // milliseconds before it closes itself
+  autoHide: { type: Boolean, default: true },
   name: { type: String, default: '' },
   row: { type: Number, default: 0 },
 });
@@ -31,7 +33,7 @@ function dismiss() {
 function show() {
   open.value = true;
   clearTimeout(timer);
-  timer = setTimeout(dismiss, props.duration);
+  if (props.autoHide) timer = setTimeout(dismiss, props.duration);
 }
 watch(() => props.active, (on) => (on ? show() : stop()), { immediate: true });
 onBeforeUnmount(() => clearTimeout(timer));

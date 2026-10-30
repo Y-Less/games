@@ -42,6 +42,18 @@ describe('NoticePopup', () => {
     expect(wrapper.emitted('close')).toHaveLength(2);
   });
 
+  it('stays open until OK when autoHide is off', async () => {
+    make({ active: true, duration: 1000, autoHide: false });
+    await settle();
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(box()).not.toBeNull();
+    expect(wrapper.emitted('close')).toBeUndefined();
+    box().querySelector('button').click();
+    await settle();
+    expect(box()).toBeNull();
+    expect(wrapper.emitted('close')).toHaveLength(1);
+  });
+
   it('does not announce a close that the parent asked for by turning active off', async () => {
     make({ active: true });
     await settle();

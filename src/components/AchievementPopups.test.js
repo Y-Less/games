@@ -65,11 +65,13 @@ describe('AchievementPopups', () => {
     expect(popup().textContent).not.toContain('level 1');
   });
 
-  it('closes by itself and tells the server it was shown', async () => {
+  it('stays until OK is clicked, however long that takes, and then tells the server it was shown', async () => {
     await arrive([unlock('global.cards', 1)]);
-    await vi.advanceTimersByTimeAsync(5900);
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
     expect(popup()).not.toBeNull();
-    await vi.advanceTimersByTimeAsync(200);
+    expect(seenPosts()).toEqual([]);
+    popup().querySelector('button').click();
+    await vi.advanceTimersByTimeAsync(0);
     expect(popup()).toBeNull();
     expect(seenPosts()).toEqual([{ items: [{ id: 'global.cards', level: 1 }] }]);
     expect(feed.queue).toHaveLength(0);
@@ -86,7 +88,8 @@ describe('AchievementPopups', () => {
   it('shows two or three one after another, not together', async () => {
     await arrive([unlock('global.cards', 1), unlock('hearts.moon', 1, 'Shot the moon', 'Shoot the moon')]);
     expect(popup().textContent).toContain('Played cards');
-    await vi.advanceTimersByTimeAsync(6300);
+    popup().querySelector('button').click();
+    await vi.advanceTimersByTimeAsync(0);
     expect(popup().textContent).toContain('Shot the moon');
     expect(document.body.querySelectorAll('.achievement')).toHaveLength(1);
   });
