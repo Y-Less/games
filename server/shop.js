@@ -48,6 +48,15 @@ for (const { id, name, price, slot, option } of avatarItems()) add({ id, type: '
 export const registerItems = (items) => items.forEach(add);
 
 export const itemById = (id) => byId.get(id) ?? null;
+
+/**
+ * The part of the shop an item belongs to: its type, except that avatar parts are split by slot ("avatar:hair"), so
+ * each kind of part has its own place in the shop.
+ */
+export const categoryOf = (item) => (item.type === 'avatar' ? `avatar:${item.slot}` : item.type);
+
+/** The parts of the shop that sell something: those with at least one item that costs coins. */
+export const paidCategories = () => [...new Set(catalogue.filter((item) => item.price > 0).map(categoryOf))];
 export const allItems = () => catalogue.slice();
 
 /** The item that a saved background setting needs, or null when it needs nothing. */
@@ -106,12 +115,23 @@ export function createShop(db) {
   return {
     owns: (userId, itemId) => owns(db, userId, itemId),
 
+    /** 1 once the user owns something that cost coins from every part of the shop (see paidCategories), else 0. */
+    customised(userId) {
+      const bought = new Set(
+        db
+          .prepare('SELECT item_id FROM owned_items WHERE user_id = ?')
+          .all(userId)
+          .flatMap((row) => (byId.get(row.item_id)?.price > 0 ? [categoryOf(byId.get(row.item_id))] : [])),
+      );
+      return paidCategories().every((category) => bought.has(category)) ? 1 : 0;
+    },
+
     /** Everything on sale, with whether this user owns each item, and their balance. */
     listing(userId) {
       const owned = new Set(db.prepare('SELECT item_id FROM owned_items WHERE user_id = ?').all(userId).map((r) => r.item_id));
       return {
         balance: coins.balance(userId),
-        items: catalogue.map((item) => ({ ...item, owned: item.price === 0 || owned.has(item.id) })),
+        items: catalogue.map((item) => ({ ...item, category: categoryOf(item), owned: item.price === 0 || owned.has(item.id) })),
       };
     },
 

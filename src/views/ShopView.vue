@@ -4,7 +4,7 @@
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { normaliseAvatar } from '../../shared/avatar.js';
+import { AVATAR_SLOTS, normaliseAvatar } from '../../shared/avatar.js';
 import AvatarFigure from '../components/AvatarFigure.vue';
 import BackgroundFx from '../components/BackgroundFx.vue';
 import StyledName from '../components/StyledName.vue';
@@ -30,7 +30,7 @@ const TABS = [
     sections: [{ type: 'site-theme', title: 'Colours' }, { type: 'site-font', title: 'Fonts' }],
   },
   { slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.', sections: [{ type: 'card-back' }] },
-  { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: [{ type: 'avatar' }] },
+  { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: AVATAR_SLOTS.map(({ slot, label }) => ({ type: 'avatar', slot, title: label })) },
   { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture, any marker colour for games, and set how strong and how fast your background animation is, on the Profile page.', sections: [{ type: 'unlock' }] },
 ];
 const route = useRoute();
@@ -44,8 +44,8 @@ const busy = ref('');
 onMounted(refreshShop);
 
 const balance = computed(() => session.shop?.balance ?? 0);
-// The tab's items, one list for each kind of thing it sells.
-const sections = computed(() => current.value.sections.map((s) => ({ ...s, items: (session.shop?.items ?? []).filter((item) => item.type === s.type) })));
+// The tab's items, one list for each kind of thing it sells (avatar parts have a list for each slot: hair, eyes, hats ...).
+const sections = computed(() => current.value.sections.map((s) => ({ ...s, items: (session.shop?.items ?? []).filter((item) => item.type === s.type && (!s.slot || item.slot === s.slot)) })));
 
 const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
 function equipped(item) {
@@ -106,7 +106,7 @@ function use(item) {
 
     <p v-if="!session.shop" class="panel">Loading…</p>
     <template v-else>
-      <section v-for="section in sections" :key="section.type" class="group">
+      <section v-for="section in sections" :key="section.slot ?? section.type" class="group">
         <h2 v-if="current.sections.length > 1" class="group-title">{{ section.title }}</h2>
         <ul class="items">
           <li v-for="item in section.items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">

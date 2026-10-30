@@ -42,9 +42,10 @@ export async function startSite(options = {}) {
   if (backpaid.games) log(`Paid ${backpaid.coins} coins for ${backpaid.games} earlier placings.`);
   const auth = createAuth(db, { canUse: (userId, settings) => checkSettings(db, userId, settings) });
   const shop = createShop(db);
+  const coins = createCoins(db);
   let moduleList = [];
   // (io is made below, before anything can be recorded or played)
-  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements') });
+  const achievements = createAchievements(db, { listGames: () => moduleList, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements'), measures: { coinsSpent: coins.spent, customised: shop.customised } });
   const stats = createStats(db, () => moduleList, { onRecorded: (userIds) => userIds.forEach((id) => achievements.settle(id)) });
 
   const app = express();
@@ -158,7 +159,11 @@ export async function startSite(options = {}) {
   });
 
   api.get('/shop',requireUser, (req, res) => res.json(shop.listing(req.user.id)));
-  api.post('/shop/buy', requireUser, handler(async (req, res) => res.json(shop.buy(req.user.id, req.body?.item))));
+  api.post('/shop/buy', requireUser, handler(async (req, res) => {
+    const bought = shop.buy(req.user.id, req.body?.item);
+    achievements.settle(req.user.id); // spending, and having bought from every part of the shop, can unlock achievements that pay coins
+    res.json({ ...bought, balance: coins.balance(req.user.id) });
+  }));
 
   api.get('/stats/me',requireUser, (req, res) => res.json(stats.forUser(req.user.id)));
   api.get('/achievements', requireUser, (req, res) => {

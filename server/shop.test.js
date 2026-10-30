@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { allItems, itemById } from './shop.js';
+import { allItems, categoryOf, itemById, paidCategories } from './shop.js';
 import { png, register, withSite } from './fixtures/testkit.js';
 
 async function shopSite(t, { coins = 0 } = {}) {
@@ -48,7 +48,7 @@ test('buying takes the price, and the item can then be used', async (t) => {
   assert.equal((await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } })).status, 403);
   const bought = await c.post('/api/shop/buy', { item: 'bg:ocean' });
   assert.equal(bought.status, 200);
-  assert.equal(bought.data.balance, 200);
+  assert.equal(bought.data.balance, 200 + 200, 'what is left, and the 200 for spending the first 100 coins (the "Big spender" achievement)');
   assert.equal((await c.get('/api/shop')).data.items.find((i) => i.id === 'bg:ocean').owned, true);
   const changed = await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } });
   assert.equal(changed.status, 200);
@@ -62,7 +62,7 @@ test('buying is refused when it cannot be afforded, is already owned, or is not 
   assert.equal((await c.post('/api/shop/buy', { item: 'bg:night' })).status, 409, 'a free item is already yours');
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 200);
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 409);
-  assert.equal((await c.get('/api/shop')).data.balance, 199, 'an item is only paid for once');
+  assert.equal((await c.get('/api/shop')).data.balance, 199 + 200, 'an item is only paid for once (the 200 is the "Big spender" reward)');
   for (const item of ['nothing', '', null, 7, { id: 'bg:ocean' }, undefined]) {
     assert.equal((await c.post('/api/shop/buy', { item })).status, 404, JSON.stringify(item));
   }
@@ -318,4 +318,41 @@ test('site themes and fonts: the first of each is free and the default, the rest
   const after = (await c.patch('/api/me', { siteTheme: 'plum', siteFont: 'palatino' })).data.user;
   assert.deepEqual([after.siteTheme, after.siteFont], ['plum', 'palatino']);
   assert.equal((await c.patch('/api/me', { displayName: 'Ann' })).data.user.siteTheme, 'plum', 'other changes leave it alone');
+});
+
+test('the parts of the shop: avatar parts are split by slot, and only parts that sell something are counted', () => {
+  assert.equal(categoryOf(itemById('bg:ocean')), 'background');
+  assert.equal(categoryOf(itemById('av:hair:short')), 'avatar:hair');
+  const categories = paidCategories();
+  for (const wanted of ['background', 'card-back', 'name-style', 'name-animation', 'background-animation', 'site-theme', 'site-font', 'unlock', 'avatar:hair', 'avatar:hat']) assert.ok(categories.includes(wanted), wanted);
+  assert.ok(!categories.includes('avatar:skin'), 'every skin is free');
+  assert.ok(!categories.includes('avatar'), 'avatar is never one part');
+  assert.equal(new Set(categories).size, categories.length);
+  for (const category of categories) assert.ok(allItems().some((item) => item.price > 0 && categoryOf(item) === category), category);
+});
+
+test('the listing names the part of the shop each item is in', async (t) => {
+  const { c } = await shopSite(t);
+  const { data } = await c.get('/api/shop');
+  assert.equal(data.items.find((i) => i.id === 'bg:ocean').category, 'background');
+  assert.equal(data.items.find((i) => i.id === 'av:hat:top-hat')?.category ?? 'avatar:hat', 'avatar:hat');
+});
+
+test('customised: 1 only once something paid for is owned from every part of the shop, and buying then pays the achievement', async (t) => {
+  const { site, c, user } = await shopSite(t, { coins: 1_000_000 });
+  const shop = (await import('./shop.js')).createShop(site.db);
+  assert.equal(shop.customised(user.id), 0);
+  const cheapest = (category) => allItems().filter((item) => item.price > 0 && categoryOf(item) === category).sort((a, b) => a.price - b.price)[0];
+  const categories = paidCategories();
+  for (const category of categories.slice(0, -1)) assert.equal((await c.post('/api/shop/buy', { item: cheapest(category).id })).status, 200);
+  assert.equal(shop.customised(user.id), 0, 'one part is still missing');
+  const before = (await c.get('/api/shop')).data.balance;
+  const last = cheapest(categories.at(-1));
+  const bought = await c.post('/api/shop/buy', { item: last.id });
+  assert.equal(bought.status, 200);
+  assert.equal(shop.customised(user.id), 1);
+  const achievements = (await c.get('/api/achievements')).data.sections.flatMap((s) => s.achievements);
+  assert.equal(achievements.find((a) => a.id === 'global.customised').level, 1);
+  assert.ok(bought.data.balance > before - last.price, 'the reward for the achievement was paid and is in the balance shown');
+  assert.ok(achievements.find((a) => a.id === 'global.spent').value > 0);
 });

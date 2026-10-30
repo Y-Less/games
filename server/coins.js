@@ -15,11 +15,15 @@ export function prizeFor({ placement, outcome }) {
 export function createCoins(db) {
   const insert = db.prepare('INSERT OR IGNORE INTO coin_ledger (user_id, amount, reason, result_id, created_at) VALUES (?, ?, ?, ?, ?)');
   const sum = db.prepare('SELECT COALESCE(SUM(amount), 0) AS balance FROM coin_ledger WHERE user_id = ?');
+  const spentSum = db.prepare('SELECT COALESCE(-SUM(amount), 0) AS spent FROM coin_ledger WHERE user_id = ? AND amount < 0');
   const history = db.prepare('SELECT amount, reason, result_id AS resultId, created_at AS createdAt FROM coin_ledger WHERE user_id = ? ORDER BY id DESC LIMIT ?');
 
   return {
     /** The user's current number of coins. */
     balance: (userId) => sum.get(userId).balance,
+
+    /** The total number of coins the user has ever spent. */
+    spent: (userId) => spentSum.get(userId).spent,
 
     /** Their latest ledger rows, newest first. */
     history: (userId, limit = 20) => history.all(userId, limit),

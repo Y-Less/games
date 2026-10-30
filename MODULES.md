@@ -136,6 +136,9 @@ each card a person plays.
 Two more global ones are worked out from the games' recorded stats with no help from a game: "Played pieces" adds up Azulejo's
 `wallTiles`, Gaudi's `dicePlaced`, Rummikub's `tilesPlayed` and Splendour's `cardsBought` (a global definition says
 `sum: [[game, stat], ...]`), and "Won every game" (`wonEvery: true`) is 1 once every game on the site has been won at least once.
+"Big spender" (coins spent) and "Customised" (something paid for from every part of the shop; avatar parts count slot by slot, so hair, eyes
+and hats are parts of their own, and a part with only free items is not asked for) take their values from `measure` functions the site
+gives `createAchievements`; buying in the shop settles them straight away.
 
 The site also awards the global `global.slow` ("Take your time") by itself: `server/turnClock.js` watches the `state` views a
 game sends to each connection and, when the scoreboard says it was that player's turn (`isMe` and `current`) for over ten

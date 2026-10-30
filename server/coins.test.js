@@ -109,3 +109,16 @@ test('the start-up step leaves games that have already paid alone', (t) => {
   assert.deepEqual(coins.creditPastResults(), { games: 0, coins: 0 });
   assert.equal(coins.balance(a), 200);
 });
+
+test('spent adds up everything taken from the balance, and nothing earned', (t) => {
+  const { coins, addUser } = setup(t);
+  const ann = addUser('ann');
+  assert.equal(coins.spent(ann), 0);
+  coins.award(ann, 1000, 'a');
+  coins.spend(ann, 300, 'shop:x');
+  coins.spend(ann, 150, 'shop:y');
+  coins.award(ann, 500, 'b');
+  assert.equal(coins.spent(ann), 450);
+  assert.equal(coins.balance(ann), 1050);
+  assert.equal(coins.spent(addUser('bob')), 0, 'it is counted for each player separately');
+});

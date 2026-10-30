@@ -140,6 +140,7 @@ describe('ShopView', () => {
     await make();
     await openTab('Avatar');
     expect(wrapper.findAll('.item').map((i) => i.attributes('data-item'))).toEqual(['av:hair:curly', 'av:hair:short']);
+    expect(wrapper.findAll('.group-title').map((h) => h.text())).toContain('Hair'); // each kind of part has its own heading
     expect(card('av:hair:curly').find('svg').exists()).toBe(true);
     expect(card('av:hair:short').text()).toContain('In use');
     await card('av:hair:curly').find('button').trigger('click');

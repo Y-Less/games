@@ -13,7 +13,7 @@ import { transaction } from './db.js';
  *   statsFor is stats.forUser: the results the stat-based achievements are worked out from. notify is told when a player has
  *   new unlocks to be shown.
  */
-export function createAchievements(db, { listGames, statsFor, notify = () => {} }) {
+export function createAchievements(db, { listGames, statsFor, notify = () => {}, measures = {} }) {
   const coins = createCoins(db);
   const collections = createCollections(db);
   const { sections, find } = createRegistry(listGames);
@@ -30,7 +30,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
   const markSeen = db.prepare('UPDATE achievement_awards SET shown = 1 WHERE user_id = ? AND id = ? AND level = ?');
 
   /** Whether the value is worked out from the recorded results, rather than being progress a game saves. */
-  const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery);
+  const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery || definition.measure);
   const savedValue = (userId, id) => read.get(userId, id)?.value ?? 0;
   const isPerson = (userId) => Number.isInteger(userId) && isBot.get(userId)?.is_bot === 0;
 
@@ -53,6 +53,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {} 
     const statOf = (gameId, stat) => games.get(gameId)?.[stat] ?? 0;
     return (sectionId, definition) => {
       if (definition.sum) return definition.sum.reduce((total, [gameId, stat]) => total + statOf(gameId, stat), 0);
+      if (definition.measure) return measures[definition.measure]?.(userId) ?? 0;
       if (definition.wonEvery) return listGames().every((game) => statOf(game.id, 'wins') >= 1) ? 1 : 0;
       if (!definition.stat) return saved.get(`${sectionId}.${definition.key}`) ?? 0;
       return (sectionId === GLOBAL ? global : games.get(sectionId) ?? {})[definition.stat] ?? 0;
