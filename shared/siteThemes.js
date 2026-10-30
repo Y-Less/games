@@ -16,6 +16,11 @@ const GEORGIA = "Georgia, 'Times New Roman', serif";
 const PALATINO = "'Iowan Old Style', 'Palatino Linotype', Palatino, serif";
 const ROUNDED = "ui-rounded, 'SF Pro Rounded', 'Varela Round', Nunito, 'Segoe UI', sans-serif";
 const HUMANIST = "Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif";
+const GARAMOND = "Garamond, 'EB Garamond', Baskerville, 'Baskerville Old Face', 'Times New Roman', serif";
+const COMIC = "'Comic Sans MS', 'Comic Neue', 'Chalkboard SE', 'Comic Sans', cursive";
+const WINGDINGS = "Wingdings, 'Wingdings 2', Webdings, fantasy";
+const CALLIGRAPHY = "'Lucida Calligraphy', 'Edwardian Script ITC', 'Apple Chancery', 'Monotype Corsiva', 'Zapfino', cursive";
+const JOKERMAN = "Jokerman, 'Curlz MT', Chiller, Papyrus, fantasy";
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
 export const SITE_FONTS = [
   { id: 'classic', name: 'Classic', price: 0, display: GEORGIA, body: GEORGIA },
@@ -23,6 +28,11 @@ export const SITE_FONTS = [
   { id: 'rounded', name: 'Rounded', price: 300, display: ROUNDED, body: ROUNDED },
   { id: 'humanist', name: 'Humanist', price: 300, display: HUMANIST, body: HUMANIST },
   { id: 'mono', name: 'Monospace', price: 300, display: MONO, body: MONO },
+  { id: 'garamond', name: 'Garamond', price: 300, display: GARAMOND, body: GARAMOND },
+  { id: 'comic', name: 'Comic Sans', price: 300, display: COMIC, body: COMIC },
+  { id: 'calligraphy', name: 'Calligraphy', price: 300, display: CALLIGRAPHY, body: CALLIGRAPHY },
+  { id: 'jokerman', name: 'Jokerman', price: 300, display: JOKERMAN, body: JOKERMAN },
+  { id: 'wingdings', name: 'Wingdings', price: 300, display: WINGDINGS, body: WINGDINGS },
 ];
 
 export const DEFAULT_THEME = SITE_THEMES[0].id;
