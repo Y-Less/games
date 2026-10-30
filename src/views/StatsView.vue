@@ -42,7 +42,7 @@ const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
 
       <div v-for="game in stats.perGame" :key="game.game" class="panel stack">
         <h2>{{ game.name }}</h2>
-        <table>
+        <table class="figures">
           <tbody>
             <tr><th>Played</th><td>{{ game.played }}</td></tr>
             <tr><th>Won / lost<span v-if="game.draws"> / drawn</span></th><td>{{ game.wins }} / {{ game.losses }}<span v-if="game.draws"> / {{ game.draws }}</span></td></tr>
@@ -109,6 +109,13 @@ const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
 table {
   width: 100%;
   border-collapse: collapse;
+}
+/* Every game's figures share the same two columns, whatever the labels and numbers are. */
+.figures {
+  table-layout: fixed;
+}
+.figures th {
+  width: 65%;
 }
 th {
   text-align: left;
