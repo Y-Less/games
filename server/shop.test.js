@@ -302,7 +302,7 @@ test('Obsidian, Ocean, Ember and Toxic are name styles for sale, usable once bou
 });
 
 test('site themes and fonts: the first of each is free and the default, the rest are bought, and bad ones are refused', async (t) => {
-  const { c } = await shopSite(t, { coins: 1000 });
+  const { c } = await shopSite(t, { coins: 10000 });
   const me = (await c.get('/api/me')).data.user;
   assert.deepEqual([me.siteTheme, me.siteFont], ['harbour', 'classic'], 'classic is the default font');
   assert.equal(itemById('st:harbour').price, 0);
