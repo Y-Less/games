@@ -9,7 +9,7 @@ import { placements } from '../../shared/scores.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
-import { newTally, STAT_KEYS, tallyHand } from './tally.js';
+import { newTally, STAT_KEYS, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
 import { DEFAULT_SEATS, HAND_POINTS, MAX_SEATS, MIN_SEATS, deckFor, dealFor, describePass, directionName, isSeatCount, offsetFor, offsetOfDirection, openingCard, passCountFor, tricksFor } from './deals.js';
 
@@ -282,6 +282,7 @@ function exchange(room) {
     room.received[seat] = [...received];
     hands[seat] = sortHand([...hands[seat], ...received]);
   }
+  tallyExchange(room.tally, room.passes, (seat) => passTarget(seat, room.passDirection, n), openingCard(n));
   room.hands = hands;
   beginPlay(room);
 }
@@ -371,6 +372,7 @@ export function resolveTrick(room) {
   const winner = trickWinner(room.trick);
   const cards = room.trick.map((p) => p.card);
   room.taken[winner].push(...cards);
+  tallyTrick(room.tally[winner]);
   room.lastTrick = { plays: room.trick, winner };
   if (cards.some(isPointCard) && winner !== room.moonBid) room.moonBid = null;
   room.trickLog ??= [];

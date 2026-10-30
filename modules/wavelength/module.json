@@ -12,7 +12,9 @@
     { "key": "onlyScorer", "label": "Turns you were the only guesser to score", "agg": "sum", "hidden": true },
     { "key": "highGuesses", "label": "Guesses at the very top of the dial", "agg": "sum", "hidden": true },
     { "key": "lowGuesses", "label": "Guesses at the very bottom of the dial", "agg": "sum", "hidden": true },
-    { "key": "blankClues", "label": "Clues that nobody scored on", "agg": "sum", "hidden": true }
+    { "key": "blankClues", "label": "Clues that nobody scored on", "agg": "sum", "hidden": true },
+    { "key": "guesses", "label": "Guesses made", "agg": "sum", "hidden": true },
+    { "key": "missDistance", "label": "Total distance of your guesses from the target", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": "easy", "stat": "bullseyes" },

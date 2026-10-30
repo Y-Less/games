@@ -3,7 +3,7 @@
 import { bump, freshTally } from '../../shared/tally.js';
 import { HAND_POINTS } from './deals.js';
 
-export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons'];
+export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons', 'openingPassed', 'openingReceived', 'tricksWon'];
 export const newTally = () => freshTally(STAT_KEYS);
 
 /** A hand that scores exactly this was one heart short of shooting the moon. */
@@ -25,3 +25,21 @@ export function tallyHand(tally, cards, { points, shotMoon, moonShot, jackScores
   if (shotMoon) bump(tally, 'moonsShot');
   if (!moonShot && points === MISSED_MOON_POINTS) bump(tally, 'missedMoons');
 }
+
+/**
+ * Counts the opening card (the one that leads the first trick) being passed: who passed it on and who it was passed to.
+ *   tallies   every seat's tally
+ *   passes    the cards each seat passed
+ *   targetOf  the seat a seat passed to
+ *   opening   the opening card
+ */
+export function tallyExchange(tallies, passes, targetOf, opening) {
+  passes.forEach((cards, seat) => {
+    if (!cards.includes(opening)) return;
+    bump(tallies[seat], 'openingPassed');
+    bump(tallies[targetOf(seat)], 'openingReceived');
+  });
+}
+
+/** Counts a trick won. */
+export const tallyTrick = (tally) => bump(tally, 'tricksWon');

@@ -261,7 +261,7 @@ function scoreTurn(room, nameOf = String) {
     if (!player) continue;
     const points = pointsFor(position, room.target);
     player.score += points;
-    entries.push({ id, position, points, bullseye: points === BANDS[0].points });
+    entries.push({ id, position, distance: Math.abs(position - room.target), points, bullseye: points === BANDS[0].points });
   }
   const psychic = playerOf(room, room.psychic);
   tallyTurn(entries, (id) => playerOf(room, id), psychic);

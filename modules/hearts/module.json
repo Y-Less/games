@@ -56,6 +56,24 @@
       "label": "Hands with 25 points of cards",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "openingPassed",
+      "label": "Times you passed on the opening card",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "openingReceived",
+      "label": "Times the opening card was passed to you",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "tricksWon",
+      "label": "Tricks won",
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [

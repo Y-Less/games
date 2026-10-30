@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import * as g from './game.js';
+import { newTally, tallyExchange } from './tally.js';
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -816,4 +817,14 @@ test('a missed moon is exactly 25 points: 24 is not one, nor is 25 cards that in
   assert.equal(play({}, [[], [...allHearts.slice(0, 11), 'QS'], [allHearts[11], allHearts[12]], []]), 0, '24 points');
   assert.equal(play({ jackOfDiamonds: true }, [[], [...allHearts.slice(0, 12), 'QS', 'JD'], [allHearts[12]], []]), 0, 'the Jack takes it to 15');
   assert.equal(play({ jackOfDiamonds: true }, [[], [...allHearts.slice(0, 12), 'QS'], [allHearts[12], 'JD'], []]), 1, 'someone else has the Jack');
+});
+
+test('the tally counts the opening card being passed on and being passed to you, and tricks won', () => {
+  const tallies = [newTally(), newTally(), newTally()];
+  tallyExchange(tallies, [['AH', '2C'], ['3D'], ['4S']], (seat) => (seat + 1) % 3, '2C');
+  assert.deepEqual(tallies.map((t) => [t.openingPassed, t.openingReceived]), [[1, 0], [0, 1], [0, 0]]);
+  const room = started({ target: 50 }, seeded(4));
+  room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  assert.equal(room.tally.reduce((n, t) => n + t.tricksWon, 0), 13, 'every trick has a winner');
 });

@@ -2,7 +2,7 @@
 // on the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
-export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues'];
+export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues', 'guesses', 'missDistance'];
 export const newCounters = () => freshTally(STAT_KEYS);
 export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
 
@@ -12,7 +12,7 @@ export const DIAL_MAX = 100;
 
 /**
  * Counts a scored turn.
- *   entries   one per guess: { id, position, points, bullseye }
+ *   entries   one per guess: { id, position, distance, points, bullseye }
  *   playerOf  the player (the object that holds the counters) for an id
  *   psychic   the player who gave the clue, or undefined if they have left
  * "Only scorer" and "blank clue" need at least two guessers, so three or more people.
@@ -21,6 +21,8 @@ export function tallyTurn(entries, playerOf, psychic) {
   const scorers = entries.filter((e) => e.points > 0);
   for (const e of entries) {
     const player = playerOf(e.id);
+    bump(player, 'guesses');
+    bump(player, 'missDistance', e.distance);
     if (e.bullseye) bump(player, 'bullseyes');
     if (e.position === DIAL_MAX) bump(player, 'highGuesses');
     if (e.position === DIAL_MIN) bump(player, 'lowGuesses');

@@ -67,6 +67,18 @@
       "label": "Rounds you held both jokers",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "turnsDrawn",
+      "label": "Turns spent drawing a tile",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "longestSet",
+      "label": "Most tiles in a set you left on the table",
+      "agg": "max",
+      "hidden": true
     }
   ],
   "achievements": [

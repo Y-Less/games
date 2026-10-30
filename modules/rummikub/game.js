@@ -28,7 +28,7 @@ import {
   totalTiles,
 } from './rules.js';
 import { extrasOf } from '../../shared/tally.js';
-import { newTally, STAT_KEYS, tallyPlay, tallyRack } from './tally.js';
+import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
 
 export { DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS };
 export const SIZES = [2, 3, 4, 5, 6];
@@ -335,6 +335,7 @@ export function draw(room, seat, now = Date.now(), reason = '') {
     room.drawn[seat] = tile;
     room.racks[seat].sort((a, b) => a - b);
     noteRack(room, seat);
+    tallyDraw(room.tally[seat]);
     room.idle = 0;
     addLog(room, seat, `${seatName(room, seat)} drew a tile${reason}`);
   } else {

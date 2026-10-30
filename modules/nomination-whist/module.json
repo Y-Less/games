@@ -56,6 +56,18 @@
       "label": "Nominations of seven that you made",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "missedByOne",
+      "label": "Rounds you missed your nomination by one",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "biggestBidMade",
+      "label": "Biggest nomination you made",
+      "agg": "max",
+      "hidden": true
     }
   ],
   "achievements": [

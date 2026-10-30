@@ -3,7 +3,7 @@
 import { bump, freshTally, peak } from '../../shared/tally.js';
 import { isJoker, jokersReplaced, rackValue, tilesMoved } from './rules.js';
 
-export const STAT_KEYS = ['roundsWon', 'roundsPlayed', 'tilesPlayed', 'jokersPlayed', 'biggestTurn', 'pointsPlayed', 'tilesMoved', 'jokersReplaced', 'outInOne', 'biggestRack', 'bothJokers'];
+export const STAT_KEYS = ['roundsWon', 'roundsPlayed', 'tilesPlayed', 'jokersPlayed', 'biggestTurn', 'pointsPlayed', 'tilesMoved', 'jokersReplaced', 'outInOne', 'biggestRack', 'bothJokers', 'turnsDrawn', 'longestSet'];
 export const newTally = () => freshTally(STAT_KEYS);
 
 /**
@@ -20,6 +20,7 @@ export function tallyPlay(tally, settings, { added, before, after, firstMeld, we
   bump(tally, 'tilesMoved', tilesMoved(before, after));
   bump(tally, 'jokersReplaced', jokersReplaced(settings, before, after));
   peak(tally, 'biggestTurn', added.length);
+  peak(tally, 'longestSet', Math.max(...after.map((set) => set.length)));
   if (firstMeld && wentOut) bump(tally, 'outInOne');
 }
 
@@ -33,3 +34,6 @@ export function tallyRack(tally, settings, rack, alreadyHadBoth) {
   if (both && !alreadyHadBoth) bump(tally, 'bothJokers');
   return alreadyHadBoth || both;
 }
+
+/** Counts a turn spent drawing a tile. */
+export const tallyDraw = (tally) => bump(tally, 'turnsDrawn');
