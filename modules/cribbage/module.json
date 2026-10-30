@@ -12,7 +12,7 @@
     { "key": "pegPoints", "label": "Points pegged in the play", "agg": "sum" },
     { "key": "skunks", "label": "Skunks", "agg": "sum" },
     { "key": "zeroHands", "label": "Hands and boxes that scored nothing", "agg": "sum", "hidden": true },
-    { "key": "nineteens", "label": "Deals where you scored nothing at all", "agg": "sum", "hidden": true },
+    { "key": "nineteens", "label": "Deals you dealt where you scored nothing at all", "agg": "sum", "hidden": true },
     { "key": "fiveFlushes", "label": "Flushes of five", "agg": "sum", "hidden": true },
     { "key": "perfectHands", "label": "Perfect hands and boxes (29)", "agg": "sum", "hidden": true },
     { "key": "nobs", "label": "Times you scored his nobs", "agg": "sum", "hidden": true },
@@ -22,7 +22,7 @@
     {
       "key": "nineteen",
       "name": "Nineteen",
-      "text": "Score nothing at all in a deal: no points in your hand, your box or the play",
+      "text": "As dealer, score nothing at all in a deal: no points in your hand, your box or the play",
       "levels": "unlock",
       "stat": "nineteens"
     },

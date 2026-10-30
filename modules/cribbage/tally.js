@@ -27,7 +27,7 @@ export function tallyShown(tally, kind, { total, items }) {
   if (items.some((item) => item.kind === 'nobs')) bump(tally, 'nobs');
 }
 
-/** Counts a deal in which a player scored nothing at all: from the play, the heels, their hand or (as dealer) their box. */
-export function tallyDeal(tally, pointsScored) {
-  if (pointsScored === 0) bump(tally, 'nineteens');
+/** Counts a deal in which the dealer scored nothing at all: from the play, the heels, their hand or their box. */
+export function tallyDeal(tally, dealerPoints) {
+  if (dealerPoints === 0) bump(tally, 'nineteens');
 }

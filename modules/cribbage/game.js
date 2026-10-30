@@ -375,7 +375,7 @@ function startShow(room) {
     room.show.entries.push({ kind, seat, cards, items, total, after: room.seats[seat].score });
     if (room.phase === 'finished') return;
   }
-  room.seats.forEach((s, seat) => tallyDeal(s.stats, room.handDeltas[seat] ?? 0));
+  tallyDeal(room.seats[room.dealer].stats, room.handDeltas[room.dealer] ?? 0); // only the dealer has a box to score nothing in
   commitHand(room);
 }
 
