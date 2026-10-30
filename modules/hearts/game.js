@@ -9,6 +9,7 @@ import { placements } from '../../shared/scores.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
+import { newTally, STAT_KEYS, tallyHand } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
 import { DEFAULT_SEATS, HAND_POINTS, MAX_SEATS, MIN_SEATS, deckFor, dealFor, describePass, directionName, isSeatCount, offsetFor, offsetOfDirection, openingCard, passCountFor, tricksFor } from './deals.js';
 
@@ -21,7 +22,7 @@ export const QUEEN = 'QS';
 export const JACK = 'JD';
 export const MOON_POINTS = HAND_POINTS;
 export const JACK_POINTS = -5;
-export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons'];
+export { STAT_KEYS };
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 const LIVE = ['lobby', 'passing', 'playing', 'handEnd'];
@@ -41,7 +42,6 @@ export const passTarget = (seat, direction, seats = DEFAULT_SEATS) => (seat + of
 export const passSource = (seat, direction, seats = DEFAULT_SEATS) => (seat + seats - offsetOfDirection(seats, direction)) % seats;
 const emptySeats = (n) => Array.from({ length: n }, () => null);
 
-const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
 const emptyHands = (n) => Array.from({ length: n }, () => []);
 
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
@@ -86,7 +86,7 @@ function resetGame(room) {
   const n = room.seats.length;
   Object.assign(room, {
     scores: Array(n).fill(0),
-    tally: Array.from({ length: n }, freshTally),
+    tally: Array.from({ length: n }, newTally),
     history: [],
     lastHand: null,
     winners: null,
@@ -418,15 +418,7 @@ function endHand(room) {
   const result = scoreHand(room.taken, room.settings);
   room.scores = room.scores.map((score, seat) => score + result.points[seat]);
   result.details.forEach((d, seat) => {
-    const tally = room.tally[seat];
-    tally.handsPlayed++;
-    tally.heartsTaken += d.hearts;
-    if (d.queen) tally.queensTaken++;
-    else tally.queensAvoided = (tally.queensAvoided ?? 0) + 1; // (rooms saved before these were counted have no such keys)
-    if (!d.queen && d.hearts === 0) tally.zeroHands = (tally.zeroHands ?? 0) + 1; // a hand with no hearts and no Queen of Spades
-    if (d.jack && room.settings.jackOfDiamonds) tally.jacksTaken = (tally.jacksTaken ?? 0) + 1; // (rooms saved before this was counted have no such key)
-    if (result.moon === seat) tally.moonsShot++;
-    if (result.moon === null && result.points[seat] === 25) tally.missedMoons = (tally.missedMoons ?? 0) + 1; // exactly 25 points: one heart short of the moon
+    tallyHand(room.tally[seat], d, { points: result.points[seat], shotMoon: result.moon === seat, moonShot: result.moon !== null, jackScores: room.settings.jackOfDiamonds });
   });
   room.lastHand = { hand: room.handNumber + 1, ...result, totals: [...room.scores] };
   room.history.push({

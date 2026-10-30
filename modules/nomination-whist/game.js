@@ -10,6 +10,7 @@ import { AIS } from './ai/index.js';
 import { cannotWinOnPoints } from './ai/endgame.js';
 import { contextModel, lutv } from './ai/lut.js';
 import { handModel } from './sim/hand-model.js';
+import { FULL_HAND, newTally, STAT_KEYS, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 
@@ -22,8 +23,8 @@ export const SHORT_SCHEDULE = [7, 6, 5, 4, 3, 2, 1];
 export const TRUMP_ORDER = ['H', 'C', 'D', 'S', null];
 export const HIT_BONUS = 10;
 /** Nominating this many (a full 7-card hand) and winning every trick in the first or last round wins the game. */
-export const INSTANT_WIN_TRICKS = 7;
-export const STAT_KEYS = ['roundsPlayed', 'bidsMade', 'tricksWon', 'singledOut', 'zeroBidsMade', 'sevenMade'];
+export const INSTANT_WIN_TRICKS = FULL_HAND;
+export { STAT_KEYS };
 /** Games saved before the option existed have it on. */
 export const instantWinOn = (settings) => settings.instantWin !== false;
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
@@ -70,8 +71,6 @@ export const isInstantWinRound = (settings, round) =>
   handSize(settings, round) === INSTANT_WIN_TRICKS && (round === 0 || round === roundCount(settings) - 1);
 
 export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === Math.max(...scores) ? [seat] : []));
-
-const freshTally = () => Object.fromEntries(STAT_KEYS.map((key) => [key, 0]));
 
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
@@ -121,7 +120,7 @@ function resetGame(room) {
     roundIndex: 0,
     dealer: 0,
     scores: Array(n).fill(0),
-    tally: Array.from({ length: n }, freshTally),
+    tally: Array.from({ length: n }, newTally),
     history: [],
     winners: null,
     instantWin: null,
@@ -377,17 +376,8 @@ export function resolveTrick(room) {
 function endRound(room) {
   const points = room.nominations.map((bid, seat) => scoreRound(bid, room.taken[seat], room.settings));
   room.scores = room.scores.map((score, seat) => score + points[seat]);
-  const hit = room.nominations.map((bid, seat) => bid === room.taken[seat]);
-  room.nominations.forEach((bid, seat) => {
-    const tally = room.tally[seat];
-    tally.roundsPlayed++;
-    tally.tricksWon += room.taken[seat];
-    if (hit[seat]) tally.bidsMade++;
-    // (rooms saved before these were counted have no such keys)
-    if (hit[seat] && bid === 7) tally.sevenMade = (tally.sevenMade ?? 0) + 1;
-    if (hit[seat] && bid === 0) tally.zeroBidsMade = (tally.zeroBidsMade ?? 0) + 1;
-    if (hit[seat] && hit.filter(Boolean).length === 1) tally.singledOut = (tally.singledOut ?? 0) + 1; // right while everybody else was wrong
-  });
+  const onlyOneMadeIt = room.nominations.filter((bid, seat) => bid === room.taken[seat]).length === 1;
+  room.nominations.forEach((bid, seat) => tallyRound(room.tally[seat], { bid, taken: room.taken[seat], onlyOneMadeIt }));
   room.history.push({
     round: room.roundIndex + 1,
     cards: cardsThisRound(room),

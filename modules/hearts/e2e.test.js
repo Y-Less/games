@@ -35,10 +35,10 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
   const modulesDir = path.join(dataDir, 'copy', 'modules');
   if (!fs.existsSync(modulesDir)) {
     fs.mkdirSync(path.join(modulesDir, 'hearts'), { recursive: true });
-    for (const file of ['server.js', 'game.js', 'deals.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
+    for (const file of ['server.js', 'game.js', 'deals.js', 'tally.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
     fs.cpSync(path.join(here, 'ai'), path.join(modulesDir, 'hearts', 'ai'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'copy', 'shared'), { recursive: true });
-    for (const file of ['ai.js', 'cards.js', 'scores.js']) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
+    for (const file of ['ai.js', 'cards.js', 'scores.js', 'tally.js']) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
   }
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;

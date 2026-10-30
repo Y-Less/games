@@ -203,6 +203,9 @@ export function pinnedJokers(s, table) {
 /** Whether this tile is one a joker with these options could be swapped for. */
 export const fitsJoker = (s, id, options) => !isJoker(s, id) && options.some((option) => sameTile(option, tileOf(s, id)));
 
+/** Whether a joker, in the set it is in now, can still stand for something it stood for (`was`: the options it had). */
+const jokerStays = (s, set, jokerId, was) => jokerOptions(s, set, jokerId).some((now) => was.some((option) => sameTile(now, option)));
+
 const JOKER_TAKEN = 'A joker on the table cannot just be moved: swap in the tile it stands for first.';
 
 /**
@@ -220,8 +223,7 @@ function jokerProblem(s, before, proposed, oldSet) {
   const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id));
   const spare = proposed.flat().filter((id) => !isJoker(s, id) && (!oldSet.has(id) || !sameIds(proposed[setOf.get(id)], before[startSetOf.get(id)])));
   for (const [id, options] of pinned) {
-    const stays = jokerOptions(s, proposed[setOf.get(id)], id).some((now) => options.some((was) => sameTile(now, was)));
-    if (stays) continue;
+    if (jokerStays(s, proposed[setOf.get(id)], id, options)) continue;
     const at = spare.findIndex((tile) => fitsJoker(s, tile, options));
     if (at === -1) return JOKER_TAKEN;
     spare.splice(at, 1);
@@ -310,8 +312,7 @@ export function jokersReplaced(s, before, proposed) {
   proposed.forEach((set, i) => set.forEach((id) => setOf.set(id, i)));
   let count = 0;
   for (const [id, options] of pinned) {
-    const stays = jokerOptions(s, proposed[setOf.get(id)], id).some((now) => options.some((was) => sameTile(now, was)));
-    if (!stays) count++;
+    if (!jokerStays(s, proposed[setOf.get(id)], id, options)) count++;
   }
   return count;
 }

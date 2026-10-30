@@ -21,20 +21,19 @@ import {
   LIMITS,
   checkPlay,
   dealSize,
-  isJoker,
-  jokersReplaced,
   normaliseSettings as normaliseRuleSettings,
   rackValue,
   startProblem,
   tileName,
-  tilesMoved,
   totalTiles,
 } from './rules.js';
+import { extrasOf } from '../../shared/tally.js';
+import { newTally, STAT_KEYS, tallyPlay, tallyRack } from './tally.js';
 
 export { DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS };
 export const SIZES = [2, 3, 4, 5, 6];
 export const DEFAULT_SIZE = 4;
-export const STAT_KEYS = ['roundsWon', 'roundsPlayed', 'tilesPlayed', 'jokersPlayed', 'biggestTurn', 'pointsPlayed', 'tilesMoved', 'jokersReplaced', 'outInOne', 'biggestRack', 'bothJokers'];
+export { STAT_KEYS };
 export const BOT_NAMES = ['Mabel', 'Hugo', 'Ivy', 'Otto', 'Nell', 'Felix', 'Dora', 'Ezra'];
 
 const LIVE = ['lobby', 'playing', 'between'];
@@ -104,7 +103,7 @@ function resetGame(room) {
     history: [],
     lastRound: null,
     log: [],
-    tally: Array.from({ length: n }, () => ({ roundsWon: 0, tilesPlayed: 0, jokersPlayed: 0, biggestTurn: 0, pointsPlayed: 0, tilesMoved: 0, jokersReplaced: 0, outInOne: 0, biggestRack: 0, bothJokers: 0 })),
+    tally: Array.from({ length: n }, newTally),
     final: null,
     winners: null,
     recorded: false,
@@ -280,17 +279,10 @@ function startRound(room, rng, now) {
 
 // ---- playing ----
 
-/** What a rack shows for the achievements: the biggest it has been, and (once a round) holding every joker at once. */
+/** Notes what a rack shows for the statistics (see tally.js); `pairSeen` remembers, for the round, who has held both jokers. */
 function noteRack(room, seat) {
-  const tally = room.tally[seat];
-  const rack = room.racks[seat];
-  tally.biggestRack = Math.max(tally.biggestRack ?? 0, rack.length);
   room.pairSeen ??= Array(room.size).fill(false);
-  const jokers = rack.filter((id) => isJoker(room.settings, id)).length;
-  if (jokers >= 2 && !room.pairSeen[seat]) {
-    room.pairSeen[seat] = true;
-    tally.bothJokers = (tally.bothJokers ?? 0) + 1;
-  }
+  room.pairSeen[seat] = tallyRack(room.tally[seat], room.settings, room.racks[seat], room.pairSeen[seat]);
 }
 
 /** The marks of drawn tiles: games saved before they existed have none yet. */
@@ -321,16 +313,8 @@ export function play(room, seat, args, now = Date.now()) {
   const oldTable = room.table;
   room.table = result.sets;
   room.racks[seat] = room.racks[seat].filter((id) => !added.has(id));
-  const jokers = result.added.filter((id) => isJoker(room.settings, id)).length;
-  const tally = room.tally[seat];
-  tally.tilesPlayed += result.added.length;
-  tally.jokersPlayed += jokers;
-  tally.biggestTurn = Math.max(tally.biggestTurn, result.added.length);
-  tally.pointsPlayed = (tally.pointsPlayed ?? 0) + rackValue(room.settings, result.added);
-  tally.tilesMoved = (tally.tilesMoved ?? 0) + tilesMoved(oldTable, result.sets);
-  tally.jokersReplaced = (tally.jokersReplaced ?? 0) + jokersReplaced(room.settings, oldTable, result.sets);
   const first = !room.melded[seat];
-  if (first && !room.racks[seat].length) tally.outInOne = (tally.outInOne ?? 0) + 1;
+  tallyPlay(room.tally[seat], room.settings, { added: result.added, before: oldTable, after: result.sets, firstMeld: first, wentOut: !room.racks[seat].length });
   room.melded[seat] = true;
   room.idle = 0;
   room.lastPlay = { seat, ids: [...result.added] };
@@ -470,12 +454,8 @@ export function statsPlayers(room) {
             placement: room.final.players[i].placement,
             score: room.scores[i],
             extras: {
-              roundsWon: room.tally[i].roundsWon,
+              ...extrasOf(room.tally[i], STAT_KEYS),
               roundsPlayed: room.round,
-              tilesPlayed: room.tally[i].tilesPlayed,
-              jokersPlayed: room.tally[i].jokersPlayed,
-              biggestTurn: room.tally[i].biggestTurn,
-              ...Object.fromEntries(STAT_KEYS.slice(5).map((key) => [key, room.tally[i][key] ?? 0])),
             },
           },
         ]

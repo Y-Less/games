@@ -8,6 +8,7 @@ import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { AIS } from './ai/index.js';
 import { SPECTRA, spectrumById } from './spectra.js';
+import { DIAL_MAX, DIAL_MIN, newCounters, statsExtras, tallyTurn } from './tally.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
@@ -37,8 +38,7 @@ export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const guessers = (room) => room.players.filter((p) => p.id !== room.psychic);
-const newPlayer = (id, colour) => ({ id, colour, score: 0, bullseyes: 0, cluesGiven: 0, onlyScorer: 0, highGuesses: 0, lowGuesses: 0, blankClues: 0 });
-const bump = (player, key) => (player[key] = (player[key] ?? 0) + 1); // (rooms saved before these were counted have no such keys)
+const newPlayer = (id, colour) => ({ id, colour, score: 0, ...newCounters() });
 /** People (accounts), as opposed to computer players. */
 export const humans = (room) => room.players.filter((p) => !p.bot);
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
@@ -216,7 +216,7 @@ export function guess(room, id, position, nameOf = String) {
   if (room.mode === 'team') return fail('Your team has one marker: move it together, then lock it in.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (id === room.psychic) return fail('You are the psychic, so you cannot guess.');
-  if (typeof position !== 'number' || !Number.isFinite(position) || position < 0 || position > 100) return fail('Turn the dial to a place between the two ends.');
+  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('Turn the dial to a place between the two ends.');
   if (room.guesses.some((g) => g.id === id)) return fail('You have already guessed. Wait for the others.');
   room.guesses.push({ id, position: round1(position) });
   if (allGuessed(room)) scoreTurn(room, namer(room, nameOf));
@@ -237,7 +237,7 @@ function teamGuesser(room, id) {
 export function setMarker(room, id, position) {
   const refused = teamGuesser(room, id);
   if (refused) return refused;
-  if (typeof position !== 'number' || !Number.isFinite(position) || position < 0 || position > 100) return fail('Move the marker to a place between the two ends.');
+  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('Move the marker to a place between the two ends.');
   room.marker = round1(position);
   return ok();
 }
@@ -261,22 +261,13 @@ function scoreTurn(room, nameOf = String) {
     if (!player) continue;
     const points = pointsFor(position, room.target);
     player.score += points;
-    if (points === BANDS[0].points) player.bullseyes++;
     entries.push({ id, position, points, bullseye: points === BANDS[0].points });
   }
-  // With three or more people: the one guesser who scored, and a clue nobody scored on.
-  const scorers = entries.filter((e) => e.points > 0);
-  if (entries.length >= 2 && scorers.length === 1) bump(playerOf(room, scorers[0].id), 'onlyScorer');
-  for (const e of entries) {
-    if (e.position === 100) bump(playerOf(room, e.id), 'highGuesses'); // the very top of the dial
-    if (e.position === 0) bump(playerOf(room, e.id), 'lowGuesses'); // and the very bottom
-  }
   const psychic = playerOf(room, room.psychic);
-  if (psychic && entries.length >= 2 && !scorers.length) bump(psychic, 'blankClues');
+  tallyTurn(entries, (id) => playerOf(room, id), psychic);
   const psychicPoints = entries.length ? Math.round(entries.reduce((sum, e) => sum + e.points, 0) / entries.length) : 0;
   if (psychic) {
     psychic.score += psychicPoints;
-    psychic.cluesGiven++;
   }
   room.result = { target: room.target, psychic: room.psychic, psychicPoints, entries, ...(room.mode === 'team' ? { team: true, lockedBy: room.lockedBy ?? null } : {}) };
   recordHistory(room, nameOf);
@@ -386,7 +377,7 @@ export function statsPlayers(room) {
     outcome: (room.mode === 'team' ? teamWon(p) : p.winner) ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
-    extras: { bullseyes: p.bullseyes, cluesGiven: p.cluesGiven, onlyScorer: p.onlyScorer ?? 0, highGuesses: p.highGuesses ?? 0, lowGuesses: p.lowGuesses ?? 0, blankClues: p.blankClues ?? 0 },
+    extras: statsExtras(p),
   }));
 }
 
@@ -489,6 +480,6 @@ export function runBotAction(room, rng = Math.random, action = pendingBotAction(
   }
   if (action.type === 'lock') return lockIn(room, action.id, nameOf).ok;
   const position = attempt(() => ai.guess({ clue: view.clue, anchors }, rng));
-  const clamped = typeof position === 'number' && Number.isFinite(position) ? Math.min(100, Math.max(0, position)) : 15 + rng() * 70;
+  const clamped = typeof position === 'number' && Number.isFinite(position) ? Math.min(DIAL_MAX, Math.max(DIAL_MIN, position)) : 15 + rng() * 70;
   return (action.type === 'marker' ? setMarker(room, action.id, clamped) : guess(room, action.id, clamped, nameOf)).ok;
 }
