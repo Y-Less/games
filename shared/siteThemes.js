@@ -19,8 +19,8 @@ const HUMANIST = "Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif";
 const GARAMOND = "Garamond, 'EB Garamond', Baskerville, 'Baskerville Old Face', 'Times New Roman', serif";
 const COMIC = "'Comic Sans MS', 'Comic Neue', 'Chalkboard SE', 'Comic Sans', cursive";
 const WINGDINGS = "Wingdings, 'Wingdings 2', Webdings, fantasy";
-const CALLIGRAPHY = "'Lucida Calligraphy', 'Edwardian Script ITC', 'Apple Chancery', 'Monotype Corsiva', 'Zapfino', cursive";
-const JOKERMAN = "Jokerman, 'Curlz MT', Chiller, Papyrus, fantasy";
+const GREAT_VIBES = "'Great Vibes', cursive"; // bundled (src/main.js): a flowing, swashed script
+const EMILYS_CANDY = "'Emilys Candy', fantasy"; // bundled: letters decorated with scallops and dots
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
 export const SITE_FONTS = [
   { id: 'classic', name: 'Classic', price: 0, display: GEORGIA, body: GEORGIA },
@@ -30,8 +30,8 @@ export const SITE_FONTS = [
   { id: 'mono', name: 'Monospace', price: 300, display: MONO, body: MONO },
   { id: 'garamond', name: 'Garamond', price: 300, display: GARAMOND, body: GARAMOND },
   { id: 'comic', name: 'Comic Sans', price: 300, display: COMIC, body: COMIC },
-  { id: 'calligraphy', name: 'Calligraphy', price: 300, display: CALLIGRAPHY, body: CALLIGRAPHY },
-  { id: 'jokerman', name: 'Jokerman', price: 300, display: JOKERMAN, body: JOKERMAN },
+  { id: 'great-vibes', name: 'Great Vibes', price: 300, display: GREAT_VIBES, body: GREAT_VIBES },
+  { id: 'emilys-candy', name: 'Emilys Candy', price: 300, display: EMILYS_CANDY, body: EMILYS_CANDY },
   { id: 'wingdings', name: 'Wingdings', price: 300, display: WINGDINGS, body: WINGDINGS },
 ];
 
