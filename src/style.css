@@ -5,7 +5,7 @@
   --bg-raised: #1f3540;
   --bg-sunken: #112027;
   --line: #34505c;
-  --trump: #8fd3f0; /* the trump suit in card games: the site's blue, much lighter */
+  --trump: color-mix(in srgb, var(--line) 30%, #bfeaff); /* trump cards: a light tint of the theme's line colour (the light blue in the default theme) */
   --parchment: #f1e7d2;
   --muted: #9fb3b8;
   --amber: #e0a84a;

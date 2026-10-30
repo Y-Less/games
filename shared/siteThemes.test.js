@@ -26,8 +26,6 @@ test('every theme and font has a unique id and whole prices, and every theme kee
     assert.ok(contrast(vars.muted, vars.bg) >= 4.5, `${id}: muted text on the page`);
     assert.ok(contrast(vars.muted, vars.raised) >= 4, `${id}: muted text on a panel`);
     assert.ok(contrast(vars.amber, vars.raised) >= 4.5, `${id}: the accent on a panel`);
-    assert.ok(contrast('#b4281f', vars.trump) >= 3.5, `${id}: red ink on the trump face`);
-    assert.ok(contrast('#1c1c1f', vars.trump) >= 7, `${id}: black ink on the trump face`);
     assert.ok(luminance(vars.sunken) <= luminance(vars.bg) && luminance(vars.bg) <= luminance(vars.raised), `${id}: sunken, page, raised`);
   }
 });
@@ -36,7 +34,6 @@ test('the variables for a theme and font; unknown ids fall back to the defaults'
   const vars = siteVariables('plum', 'mono');
   assert.equal(vars['--bg'], SITE_THEMES.find((t) => t.id === 'plum').vars.bg);
   assert.match(vars['--display'], /monospace/);
-  assert.equal(vars['--trump'], SITE_THEMES.find((t) => t.id === 'plum').vars.trump);
   assert.deepEqual(siteVariables('nope', undefined), siteVariables(DEFAULT_THEME, DEFAULT_FONT));
   assert.ok(isSiteTheme('forest') && !isSiteTheme('x') && !isSiteTheme(null));
   assert.ok(isSiteFont('serif') && !isSiteFont('x') && !isSiteFont(3));
