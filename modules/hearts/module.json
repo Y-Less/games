@@ -21,6 +21,7 @@
     { "key": "perfect", "name": "Perfect game", "text": "Finish a game with no points", "levels": [1], "stat": "perfectGames" },
     { "key": "jack", "name": "Got the jack", "text": "Take the Jack of Diamonds {n} times", "levels": "easy", "stat": "jacksTaken" },
     { "key": "zero", "name": "Zilch", "text": "Take no hearts or Queen in {n} hands", "levels": "easy", "stat": "zeroHands", "one": "Take no hearts or Queen in a hand" },
-    { "key": "queen", "name": "Dodged the Queen", "text": "Avoid the Queen of Spades in {n} hands", "levels": "easy", "stat": "queensAvoided" }
+    { "key": "queen", "name": "Dodged the Queen", "text": "Avoid the Queen of Spades in {n} hands", "levels": "easy", "stat": "queensAvoided" },
+    { "key": "hands", "name": "Hands played", "text": "Play {n} hands", "levels": "easy", "stat": "handsPlayed" }
   ]
 }
