@@ -90,7 +90,7 @@ function use(item) {
       <h1>Shop</h1>
       <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> coins</p>
     </header>
-    <p class="muted intro">Coins are won, but I'm open to bribes: 500 for coming 1st in a game, 200 for 2nd and 100 for 3rd.</p>
+    <p class="muted intro">Coins are won, but I'm open to bribes: 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd.</p>
     <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
