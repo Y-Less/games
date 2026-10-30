@@ -207,26 +207,33 @@ const allDifferent = (grid, cells, key) => {
 const countWhere = (grid, test) => diceIn(grid).filter(test).length;
 const shadePair = (a, b) => (grid) => Math.min(countWhere(grid, (d) => d.v === a), countWhere(grid, (d) => d.v === b));
 
-/** Ten public objectives. `sets(grid)` is how many times it is completed; each is worth `points`. */
+/**
+ * Ten public objectives. `sets(grid)` is how many times it is completed; each is worth `points`. `max` is the most times a window can
+ * complete it: a window holds only CELLS dice, so a set of all six shades can be made at most CELLS / 6 times.
+ */
 export const OBJECTIVES = [
-  { id: 'rainbow-rows', name: 'Rainbow rows', points: 6, unit: 'row', text: 'Rows with no colour repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'c')).length },
-  { id: 'rainbow-columns', name: 'Rainbow columns', points: 5, unit: 'column', text: 'Columns with no colour repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'c')).length },
-  { id: 'tonal-rows', name: 'Tonal rows', points: 5, unit: 'row', text: 'Rows with no shade repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'v')).length },
-  { id: 'tonal-columns', name: 'Tonal columns', points: 4, unit: 'column', text: 'Columns with no shade repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'v')).length },
-  { id: 'pale-pairs', name: 'Pale pairs', points: 2, unit: 'pair', text: 'Pairs of a 1 and a 2, anywhere in the window.', sets: shadePair(1, 2) },
-  { id: 'middle-pairs', name: 'Middle pairs', points: 2, unit: 'pair', text: 'Pairs of a 3 and a 4, anywhere in the window.', sets: shadePair(3, 4) },
-  { id: 'deep-pairs', name: 'Deep pairs', points: 2, unit: 'pair', text: 'Pairs of a 5 and a 6, anywhere in the window.', sets: shadePair(5, 6) },
-  { id: 'full-spectrum', name: 'Full spectrum', points: 5, unit: 'set', text: 'Sets of all six shades, anywhere in the window.', sets: (g) => Math.min(...SHADES.map((s) => countWhere(g, (d) => d.v === s))) },
-  { id: 'full-palette', name: 'Full palette', points: 4, unit: 'set', text: 'Sets of all five colours, anywhere in the window.', sets: (g) => Math.min(...COLOURS.map((c) => countWhere(g, (d) => d.c === c))) },
+  { id: 'rainbow-rows', name: 'Rainbow rows', points: 6, unit: 'row', max: ROWS, text: 'Rows with no colour repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'c')).length },
+  { id: 'rainbow-columns', name: 'Rainbow columns', points: 5, unit: 'column', max: COLS, text: 'Columns with no colour repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'c')).length },
+  { id: 'tonal-rows', name: 'Tonal rows', points: 5, unit: 'row', max: ROWS, text: 'Rows with no shade repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'v')).length },
+  { id: 'tonal-columns', name: 'Tonal columns', points: 4, unit: 'column', max: COLS, text: 'Columns with no shade repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'v')).length },
+  { id: 'pale-pairs', name: 'Pale pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 1 and a 2, anywhere in the window.', sets: shadePair(1, 2) },
+  { id: 'middle-pairs', name: 'Middle pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 3 and a 4, anywhere in the window.', sets: shadePair(3, 4) },
+  { id: 'deep-pairs', name: 'Deep pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 5 and a 6, anywhere in the window.', sets: shadePair(5, 6) },
+  { id: 'full-spectrum', name: 'Full spectrum', points: 5, unit: 'set', max: Math.floor(CELLS / SHADES.length), text: 'Sets of all six shades, anywhere in the window.', sets: (g) => Math.min(...SHADES.map((s) => countWhere(g, (d) => d.v === s))) },
+  { id: 'full-palette', name: 'Full palette', points: 4, unit: 'set', max: Math.floor(CELLS / COLOURS.length), text: 'Sets of all five colours, anywhere in the window.', sets: (g) => Math.min(...COLOURS.map((c) => countWhere(g, (d) => d.c === c))) },
   {
     id: 'colour-chains',
     name: 'Colour chains',
     points: 1,
     unit: 'die',
+    max: CELLS,
     text: 'Each die that touches a die of its own colour diagonally.',
     sets: (g) => g.filter((d, i) => d && SURROUNDING[i].some((n) => !ORTHOGONAL[i].includes(n) && g[n]?.c === d.c)).length,
   },
 ];
+/** Whether a window is full and has completed every one of these public objectives as many times as it possibly can. */
+export const isPerfect = (grid, objectiveIds) => emptySpaces(grid) === 0 && objectiveIds.every((id) => objectivePoints(id, grid).sets >= objectiveOf(id).max);
+
 export const OBJECTIVE_IDS = OBJECTIVES.map((o) => o.id);
 export const objectiveOf = (id) => OBJECTIVES.find((o) => o.id === id) ?? null;
 

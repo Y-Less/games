@@ -729,6 +729,10 @@ test('stats: wins, placements, scores and the declared extras', () => {
   assert.equal(a.extras.toolsUsed, 2);
   assert.equal(a.extras.perfectWindows, 0);
   assert.equal(c.extras.perfectWindows, 1);
+  assert.equal(a.extras.emptySpaces, 19, 'one die placed in a window of twenty');
+  assert.equal(c.extras.emptySpaces, 0);
+  assert.equal(a.extras.privateTotal, table.rows[0].privatePoints);
+  assert.equal(a.extras.perfectBoards, 0);
   assert.equal(a.score, table.rows[0].total);
   assert.equal(a.outcome, table.winners.includes(0) ? 'win' : 'loss');
   assert.ok(Object.values(a.extras).every(Number.isFinite));

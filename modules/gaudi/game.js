@@ -27,6 +27,7 @@ import {
   emptyGrid,
   emptySpaces,
   moveProblem,
+  isPerfect,
   objectiveOf,
   objectivePoints,
   patternOf,
@@ -40,7 +41,7 @@ export { MAX_PLAYERS, MIN_PLAYERS, ROUNDS, bagSize, dicePerColour, poolSize };
 export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 export const DEFAULT_SETTINGS = { badPrivate: false };
-export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective'];
+export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective', 'perfectBoards', 'privateTotal', 'emptySpaces'];
 export const BOT_NAMES = ['Gaudi', 'Jujol', 'Lluis', 'Pau', 'Mercè', 'Rosa', 'Enric', 'Núria', 'Joan', 'Elena'];
 export const TOOL_COUNT = 3;
 export const PUBLIC_COUNT = 3;
@@ -748,6 +749,9 @@ export function statsPlayers(room) {
               toolsUsed: room.tally[i].toolsUsed,
               perfectWindows: emptySpaces(room.grids[i]) === 0 ? 1 : 0,
               bestPublicObjective: Math.max(0, ...rows[i].publics.map((p) => p.points)),
+              perfectBoards: isPerfect(room.grids[i], room.publicIds) ? 1 : 0,
+              privateTotal: rows[i].privatePoints,
+              emptySpaces: rows[i].empty,
             },
           },
         ]

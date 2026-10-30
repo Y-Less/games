@@ -7,6 +7,7 @@ import {
   COLOURS,
   COLS,
   OBJECTIVES,
+  isPerfect,
   PATTERNS,
   PATTERN_CARDS,
   PATTERN_IDS,
@@ -331,4 +332,26 @@ test('provisional score: public objectives + favour tokens - empty spaces', () =
   assert.equal(provisionalScore(grid, ['rainbow-rows'], 4), 6 + 4 - 15);
   assert.equal(provisionalScore(grid, ['rainbow-rows', 'tonal-rows'], 4), 6 + 5 + 4 - 15);
   assert.equal(provisionalScore(emptyGrid(), ['rainbow-rows'], 5), 5 - 20);
+});
+
+test('each objective has a most it can be completed in a window, and a perfect window reaches it for every public objective', () => {
+  assert.deepEqual(Object.fromEntries(OBJECTIVES.map((o) => [o.id, o.max])), {
+    'rainbow-rows': 4,
+    'rainbow-columns': 5,
+    'tonal-rows': 4,
+    'tonal-columns': 5,
+    'pale-pairs': 10,
+    'middle-pairs': 10,
+    'deep-pairs': 10,
+    'full-spectrum': 3,
+    'full-palette': 4,
+    'colour-chains': 20,
+  });
+  const ruby = Array.from({ length: CELLS }, (_, i) => ({ c: 'ruby', v: (i % 6) + 1 })); // full, one colour: every die has a diagonal neighbour of its colour
+  assert.equal(objectivePoints('colour-chains', ruby).sets, 20);
+  assert.equal(isPerfect(ruby, ['colour-chains', 'full-spectrum']), true, 'the shades come round three or more times');
+  assert.equal(isPerfect(ruby, ['colour-chains', 'full-palette']), false, 'only one colour');
+  const gap = ruby.slice();
+  gap[3] = null;
+  assert.equal(isPerfect(gap, ['full-spectrum']), false, 'an empty space is never perfect');
 });

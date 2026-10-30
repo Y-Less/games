@@ -10,6 +10,63 @@
     { "key": "dicePlaced", "label": "Dice placed", "agg": "sum" },
     { "key": "toolsUsed", "label": "Tools used", "agg": "sum" },
     { "key": "perfectWindows", "label": "Perfect windows (no empty space)", "agg": "sum" },
-    { "key": "bestPublicObjective", "label": "Best single public objective", "agg": "max" }
+    { "key": "bestPublicObjective", "label": "Best single public objective", "agg": "max" },
+    { "key": "perfectBoards", "label": "Perfect windows (every public objective at its most)", "agg": "sum", "hidden": true },
+    { "key": "privateTotal", "label": "Points from your private objective", "agg": "sum", "hidden": true },
+    { "key": "emptySpaces", "label": "Empty spaces left in your window at the end", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "fill",
+      "name": "Fill your board",
+      "text": "Fill every space of your window {n} times",
+      "one": "Fill every space of your window",
+      "levels": "hard",
+      "stat": "perfectWindows"
+    },
+    {
+      "key": "points",
+      "name": "Running score",
+      "text": "Score {n} points",
+      "levels": "veryEasy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "perfect",
+      "name": "Perfect board",
+      "text": "Fill your window and complete every public objective as many times as it can be",
+      "levels": "unlock",
+      "stat": "perfectBoards"
+    },
+    {
+      "key": "craftsman",
+      "name": "Craftsman",
+      "text": "Use a tool card {n} times",
+      "one": "Use a tool card",
+      "levels": "easy",
+      "stat": "toolsUsed"
+    },
+    {
+      "key": "private",
+      "name": "Private collection",
+      "text": "Score {n} points from your private objective",
+      "levels": "veryEasy",
+      "stat": "privateTotal"
+    },
+    {
+      "key": "tower",
+      "name": "The Jesus tower",
+      "text": "Score 75 or more in one game",
+      "levels": [75],
+      "stat": "bestScore"
+    },
+    {
+      "key": "holey",
+      "name": "Holy holey",
+      "text": "Leave {n} spaces empty at the end of a game",
+      "one": "Leave a space empty at the end of a game",
+      "levels": "easy",
+      "stat": "emptySpaces"
+    }
   ]
 }
