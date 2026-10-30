@@ -3,15 +3,15 @@
 // only sets the CSS variables in `vars` (see src/style.css), and a font sets --display (titles) and --body (everything else).
 export const SITE_THEMES = [
   { id: 'harbour', name: 'Harbour', price: 0, vars: { bg: '#16252d', raised: '#1f3540', sunken: '#112027', line: '#34505c', muted: '#9fb3b8', amber: '#e0a84a' } },
-  { id: 'arctic', name: 'Arctic', price: 4000, vars: { bg: '#1a2b3a', raised: '#243b4f', sunken: '#121f2b', line: '#3f6180', muted: '#a4b9cc', amber: '#8fd3f0' } },
-  { id: 'midnight', name: 'Midnight', price: 4000, vars: { bg: '#121526', raised: '#1c2038', sunken: '#0d0f1d', line: '#353b63', muted: '#a3a8c8', amber: '#e0a84a' } },
-  { id: 'forest', name: 'Forest', price: 4000, vars: { bg: '#14241c', raised: '#1d3428', sunken: '#0f1b15', line: '#35543f', muted: '#a3bdaa', amber: '#d9b44a' } },
-  { id: 'plum', name: 'Plum', price: 4000, vars: { bg: '#231a2c', raised: '#33263f', sunken: '#1a1222', line: '#55406a', muted: '#bba8c8', amber: '#ff8fc8' } },
-  { id: 'wine', name: 'Wine', price: 4000, vars: { bg: '#2a171b', raised: '#3d2328', sunken: '#1f1013', line: '#63393f', muted: '#c9a8ad', amber: '#e0a84a' } },
-  { id: 'copper', name: 'Copper', price: 4000, vars: { bg: '#261c14', raised: '#37281c', sunken: '#1b130d', line: '#5c452f', muted: '#c4b09a', amber: '#ea8a3c' } },
-  { id: 'lagoon', name: 'Lagoon', price: 4000, vars: { bg: '#0f2a2e', raised: '#173a40', sunken: '#0a1f22', line: '#2c5f66', muted: '#a0c4c8', amber: '#ff8a73' } },
-  { id: 'noir', name: 'Noir', price: 4000, vars: { bg: '#0c0c0e', raised: '#1a1a1f', sunken: '#060607', line: '#3a3a44', muted: '#b4b4be', amber: '#b6f23a' } },
-  { id: 'graphite', name: 'Graphite', price: 4000, vars: { bg: '#1c1d20', raised: '#2a2c31', sunken: '#141518', line: '#46484f', muted: '#a9acb3', amber: '#e0a84a' } },
+  { id: 'arctic', name: 'Arctic', price: 2000, vars: { bg: '#1a2b3a', raised: '#243b4f', sunken: '#121f2b', line: '#3f6180', muted: '#a4b9cc', amber: '#8fd3f0' } },
+  { id: 'midnight', name: 'Midnight', price: 2000, vars: { bg: '#121526', raised: '#1c2038', sunken: '#0d0f1d', line: '#353b63', muted: '#a3a8c8', amber: '#e0a84a' } },
+  { id: 'forest', name: 'Forest', price: 2000, vars: { bg: '#14241c', raised: '#1d3428', sunken: '#0f1b15', line: '#35543f', muted: '#a3bdaa', amber: '#d9b44a' } },
+  { id: 'plum', name: 'Plum', price: 2000, vars: { bg: '#231a2c', raised: '#33263f', sunken: '#1a1222', line: '#55406a', muted: '#bba8c8', amber: '#ff8fc8' } },
+  { id: 'wine', name: 'Wine', price: 2000, vars: { bg: '#2a171b', raised: '#3d2328', sunken: '#1f1013', line: '#63393f', muted: '#c9a8ad', amber: '#e0a84a' } },
+  { id: 'copper', name: 'Copper', price: 2000, vars: { bg: '#261c14', raised: '#37281c', sunken: '#1b130d', line: '#5c452f', muted: '#c4b09a', amber: '#ea8a3c' } },
+  { id: 'lagoon', name: 'Lagoon', price: 2000, vars: { bg: '#0f2a2e', raised: '#173a40', sunken: '#0a1f22', line: '#2c5f66', muted: '#a0c4c8', amber: '#ff8a73' } },
+  { id: 'noir', name: 'Noir', price: 2000, vars: { bg: '#0c0c0e', raised: '#1a1a1f', sunken: '#060607', line: '#3a3a44', muted: '#b4b4be', amber: '#b6f23a' } },
+  { id: 'graphite', name: 'Graphite', price: 2000, vars: { bg: '#1c1d20', raised: '#2a2c31', sunken: '#141518', line: '#46484f', muted: '#a9acb3', amber: '#e0a84a' } },
 ];
 
 const GEORGIA = "Georgia, 'Times New Roman', serif";
@@ -26,15 +26,15 @@ const EMILYS_CANDY = "'Emilys Candy', fantasy"; // bundled: letters decorated wi
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
 export const SITE_FONTS = [
   { id: 'classic', name: 'Classic', price: 0, display: GEORGIA, body: GEORGIA },
-  { id: 'palatino', name: 'Palatino', price: 3000, display: PALATINO, body: PALATINO },
-  { id: 'rounded', name: 'Rounded', price: 3000, display: ROUNDED, body: ROUNDED },
-  { id: 'humanist', name: 'Humanist', price: 3000, display: HUMANIST, body: HUMANIST },
-  { id: 'mono', name: 'Monospace', price: 3000, display: MONO, body: MONO },
-  { id: 'garamond', name: 'Garamond', price: 3000, display: GARAMOND, body: GARAMOND },
-  { id: 'comic', name: 'Comic Sans', price: 3000, display: COMIC, body: COMIC },
-  { id: 'great-vibes', name: 'Great Vibes', price: 3000, display: GREAT_VIBES, body: GREAT_VIBES },
-  { id: 'emilys-candy', name: 'Emilys Candy', price: 3000, display: EMILYS_CANDY, body: EMILYS_CANDY },
-  { id: 'wingdings', name: 'Wingdings', price: 3000, display: WINGDINGS, body: WINGDINGS },
+  { id: 'palatino', name: 'Palatino', price: 1500, display: PALATINO, body: PALATINO },
+  { id: 'rounded', name: 'Rounded', price: 1500, display: ROUNDED, body: ROUNDED },
+  { id: 'humanist', name: 'Humanist', price: 1500, display: HUMANIST, body: HUMANIST },
+  { id: 'mono', name: 'Monospace', price: 1500, display: MONO, body: MONO },
+  { id: 'garamond', name: 'Garamond', price: 1500, display: GARAMOND, body: GARAMOND },
+  { id: 'comic', name: 'Comic Sans', price: 1500, display: COMIC, body: COMIC },
+  { id: 'great-vibes', name: 'Great Vibes', price: 1500, display: GREAT_VIBES, body: GREAT_VIBES },
+  { id: 'emilys-candy', name: 'Emilys Candy', price: 1500, display: EMILYS_CANDY, body: EMILYS_CANDY },
+  { id: 'wingdings', name: 'Wingdings', price: 1500, display: WINGDINGS, body: WINGDINGS },
 ];
 
 export const DEFAULT_THEME = SITE_THEMES[0].id;

@@ -26,16 +26,16 @@ const CARD_BACK_PRICE = 300;
 for (const key of Object.keys(BACKGROUND_PRESETS)) {
   add({ id: `bg:${key}`, type: 'background', name: titled(key), price: BACKGROUND_PRICES[key] ?? 500 });
 }
-add({ id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 1600 });
-add({ id: 'bg-gradient', type: 'unlock', name: 'Your own gradient', price: 2000 });
-add({ id: 'bg-upload', type: 'unlock', name: 'Your own background picture', price: 4000 });
+add({ id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800 });
+add({ id: 'bg-gradient', type: 'unlock', name: 'Your own gradient', price: 1000 });
+add({ id: 'bg-upload', type: 'unlock', name: 'Your own background picture', price: 2000 });
 for (const key of Object.keys(CARD_BACK_PRESETS)) {
   add({ id: `cb:${key}`, type: 'card-back', name: titled(key), price: key === 'crimson' ? 0 : CARD_BACK_PRICE });
 }
-add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity slider', price: 1200 });
-add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 1200 });
-add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 1200 });
-add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 4000 });
+add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity slider', price: 600 });
+add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
+add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 600 });
+add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
 for (const a of NAME_ANIMATIONS) add({ id: `na:${a.id}`, type: 'name-animation', name: a.name, price: a.price, part: a.part });
