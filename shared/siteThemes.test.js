@@ -9,12 +9,11 @@ const luminance = (hex) => {
 };
 const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
 
-test('the first theme and font are free and are the defaults; sans-serif is the default font', () => {
+test('the first theme and font are free and are the defaults; serif is the default font', () => {
   assert.equal(DEFAULT_THEME, SITE_THEMES[0].id);
   assert.equal(SITE_THEMES[0].price, 0);
-  assert.equal(DEFAULT_FONT, 'sans');
+  assert.equal(DEFAULT_FONT, 'serif');
   assert.equal(SITE_FONTS[0].price, 0);
-  assert.ok(!/serif/.test(SITE_FONTS[0].display.replace(/sans-serif/g, '')), 'the default font has no serif face in it');
 });
 
 test('every theme and font has a unique id and whole prices, and every theme keeps text readable', () => {

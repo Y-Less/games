@@ -18,12 +18,12 @@ const ROUNDED = "ui-rounded, 'SF Pro Rounded', 'Varela Round', Nunito, 'Segoe UI
 const HUMANIST = "Optima, Candara, 'Gill Sans', 'Trebuchet MS', sans-serif";
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
 export const SITE_FONTS = [
-  { id: 'sans', name: 'Sans-serif', price: 0, display: SANS, body: SANS },
-  { id: 'serif', name: 'Serif', price: 300, display: SERIF, body: SERIF },
+  { id: 'serif', name: 'Serif', price: 0, display: SERIF, body: SANS },
+  { id: 'sans', name: 'Sans-serif', price: 300, display: SANS, body: SANS },
   { id: 'rounded', name: 'Rounded', price: 300, display: ROUNDED, body: ROUNDED },
   { id: 'humanist', name: 'Humanist', price: 300, display: HUMANIST, body: HUMANIST },
   { id: 'mono', name: 'Monospace', price: 300, display: MONO, body: MONO },
-  { id: 'classic', name: 'Classic', price: 300, display: "Georgia, 'Times New Roman', serif", body: SANS },
+  { id: 'classic', name: 'Classic', price: 300, display: "Georgia, 'Times New Roman', serif", body: "Georgia, 'Times New Roman', serif" },
 ];
 
 export const DEFAULT_THEME = SITE_THEMES[0].id;
