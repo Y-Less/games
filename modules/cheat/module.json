@@ -1,0 +1,15 @@
+{
+  "id": "cheat",
+  "name": "Cheat",
+  "description": "The bluffing card game for three to seven players: get rid of your cards by playing them face down and claiming they are the right rank. Tell the truth or lie, and call out anyone you think is cheating. Play with friends or computer players.",
+  "minPlayers": 1,
+  "maxPlayers": 7,
+  "category": "cards",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "liesTold", "label": "Lies told", "agg": "sum" },
+    { "key": "liesCaught", "label": "Times you were caught lying", "agg": "sum" },
+    { "key": "callsMade", "label": "Times you called Cheat", "agg": "sum" },
+    { "key": "callsCorrect", "label": "Correct calls", "agg": "sum" }
+  ]
+}
