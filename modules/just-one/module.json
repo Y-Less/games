@@ -9,6 +9,64 @@
   "stats": [
     { "key": "correctGuesses", "label": "Words guessed", "agg": "sum" },
     { "key": "bestHints", "label": "Best hints", "agg": "sum" },
-    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" }
+    { "key": "cluesGiven", "label": "Clues given", "agg": "sum" },
+    { "key": "cancelledClues", "label": "Clues cancelled by matching somebody else's", "agg": "sum", "hidden": true },
+    { "key": "hiveMinds", "label": "Turns where every clue was cancelled", "agg": "sum", "hidden": true },
+    { "key": "perfectGuesser", "label": "Games where you guessed the word on every one of your turns", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "mindreader",
+      "name": "Mind reader",
+      "text": "Guess {n} words",
+      "one": "Guess a word",
+      "levels": "easy",
+      "stat": "correctGuesses"
+    },
+    {
+      "key": "besthint",
+      "name": "Best hint",
+      "text": "Have your clue picked as the best {n} times",
+      "one": "Have your clue picked as the best",
+      "levels": "easy",
+      "stat": "bestHints"
+    },
+    {
+      "key": "wordsmith",
+      "name": "Wordsmith",
+      "text": "Write {n} clues",
+      "one": "Write a clue",
+      "levels": "veryEasy",
+      "stat": "cluesGiven"
+    },
+    {
+      "key": "greatminds",
+      "name": "Great minds",
+      "text": "Have your clue cancelled by writing the same word as somebody else {n} times",
+      "one": "Have your clue cancelled by writing the same word as somebody else",
+      "levels": "easy",
+      "stat": "cancelledClues"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "easy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "perfect",
+      "name": "Perfect guesser",
+      "text": "Guess the word on every one of your turns in a game",
+      "levels": "unlock",
+      "stat": "perfectGuesser"
+    },
+    {
+      "key": "hive",
+      "name": "Hive mind",
+      "text": "Have every clue in a turn cancelled",
+      "levels": "unlock",
+      "stat": "hiveMinds"
+    }
   ]
 }

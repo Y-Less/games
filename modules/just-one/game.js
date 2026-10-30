@@ -7,6 +7,7 @@
 import { placements } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
+import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
 
 export const MIN_PLAYERS = 3;
@@ -28,7 +29,7 @@ export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const writers = (room) => room.players.filter((p) => p.id !== room.guesser);
-const newPlayer = (id) => ({ id, score: 0, correctGuesses: 0, bestHints: 0, cluesGiven: 0 });
+const newPlayer = (id) => ({ id, score: 0, ...newCounters() });
 /** People (accounts), as opposed to computer players. */
 export const humans = (room) => room.players.filter((p) => !p.bot);
 const clueOf = (room, id) => room.clues.find((c) => c.id === id);
@@ -244,21 +245,16 @@ function scoreTurn(room, nameOf = String) {
   if (guesser) {
     if (correct) {
       guesser.score += POINTS.guesser;
-      guesser.correctGuesses++;
       deltas[guesser.id] = POINTS.guesser;
     } else deltas[guesser.id] = 0;
     notes[guesser.id] = correct ? 'guessed it' : room.guess?.passed ? 'passed' : 'missed';
   }
   if (best) {
     best.score += POINTS.bestHint;
-    best.bestHints++;
     deltas[best.id] = POINTS.bestHint;
     notes[best.id] = 'best hint';
   }
-  for (const c of room.clues) {
-    const writer = playerOf(room, c.id);
-    if (writer) writer.cluesGiven++;
-  }
+  tallyTurn({ guesser, best, correct, clues: room.clues.map((c) => ({ writer: playerOf(room, c.id), cancelled: room.cancelled.includes(c.id) })) });
   room.result = {
     word: room.word,
     guesser: room.guesser,
@@ -358,7 +354,7 @@ export function statsPlayers(room) {
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
-    extras: { correctGuesses: p.correctGuesses, bestHints: p.bestHints, cluesGiven: p.cluesGiven },
+    extras: statsExtras(p),
   }));
 }
 
