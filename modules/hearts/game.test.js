@@ -761,9 +761,11 @@ test('a player who leads with the highest of every suit they hold can claim, and
   const room = lateHand([['AS', 'AH'], ['2C', '3C'], ['4C', '5C'], ['6C', '7C']]);
   assert.equal(g.canClaim(room, 0), true);
   assert.equal(g.viewFor(room, 1).canClaim, true);
+  const handSize = room.hands[0].length;
   const result = g.claimAll(room, 0);
   assert.equal(result.ok, true);
   assert.equal(result.tricks, 2);
+  assert.equal(result.tricks, handSize, 'the claimer plays one card a trick (the server counts these towards Played cards)');
   assert.equal(room.taken[0].length, 8); // both tricks, all eight cards
   assert.ok(['handEnd', 'finished'].includes(room.phase));
   assert.deepEqual(room.lastClaim, { seat: 0, tricks: 2, hand: 1 });

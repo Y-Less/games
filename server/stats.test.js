@@ -373,3 +373,13 @@ test('a failure in what follows a recorded game does not undo it or make record 
   assert.ok(Number.isInteger(stats.record('alpha', one(id, 'win'))));
   assert.equal(stats.forUser(id).summary.played, 1);
 });
+
+test('record: the same account listed twice counts once, with its first entry', (t) => {
+  const { stats, addUser, db, count } = setup(t);
+  const a = addUser('ann');
+  const b = addUser('bea');
+  const id = stats.record('alpha', { players: [{ userId: a, outcome: 'win', score: 5 }, { userId: b, outcome: 'loss' }, { userId: a, outcome: 'loss', score: 99 }] });
+  assert.equal(count('result_players'), 2);
+  assert.equal(db.prepare('SELECT score FROM result_players WHERE result_id = ? AND user_id = ?').get(id, a).score, 5);
+  assert.equal(stats.forUser(a).perGame[0].played, 1);
+});

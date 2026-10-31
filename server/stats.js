@@ -17,11 +17,19 @@ export function createStats(db, listGames, { onRecorded } = {}) {
 
   /**
    * Records one finished game.
+   * @returns {number | null} the new result id, or null when no known player was in it
+   * Side effects: writes the result, its players and any coin awards in one transaction, then calls `onRecorded`.
+   * An account listed more than once is counted once (the first entry); unknown accounts are ignored.
    * @param {string} game module id
    * @param {{ code?: string, players: Array<{ userId: number, outcome: 'win'|'loss'|'draw', placement?: number, score?: number, extras?: Record<string, number> }> }} result
    */
   function record(game, result) {
-    const players = (result?.players ?? []).filter((p) => Number.isInteger(p?.userId) && knownUser.get(p.userId));
+    const seen = new Set(); // the same account listed twice counts once (the first entry wins)
+    const players = (result?.players ?? []).filter((p) => {
+      if (!Number.isInteger(p?.userId) || seen.has(p.userId) || !knownUser.get(p.userId)) return false;
+      seen.add(p.userId);
+      return true;
+    });
     if (!players.length) return null;
     for (const p of players) if (!OUTCOMES.includes(p.outcome)) throw new Error(`Unknown outcome "${p.outcome}"`);
     const resultId = transaction(db, () => {

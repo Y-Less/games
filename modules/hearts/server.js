@@ -48,7 +48,12 @@ export default function (ctx) {
     registerEvents({ act, on, userId }) {
       on('pass', ({ cards }) => act((room, seat) => game.choosePass(room, seat, cards)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
-      on('claim', () => act((room, seat) => game.claimAll(room, seat)));
+      // The claimer plays one card in every remaining trick, so a claim counts `tricks` cards towards Played cards.
+      on('claim', () => act((room, seat) => {
+        const handSize = room.hands[seat]?.length ?? 0;
+        const outcome = game.claimAll(room, seat);
+        return ctx.achievements.cardsPlayed(userId, outcome, outcome.ok ? handSize : 0);
+      }));
       on('next', () => act((room) => game.nextHand(room, userId)));
     },
   });

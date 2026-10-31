@@ -11,7 +11,10 @@ installSteve();
 
 // Find out who is signed in before the first page is chosen, so there is no flash of the sign-in page.
 loadSession()
-  .catch(() => {})
+  .catch((error) => {
+    // Start up regardless (the sign-in page is shown), but leave a trace of why the session could not be read.
+    console.error('Could not load the session:', error);
+  })
   .finally(() => {
     createApp(App).use(router).mount('#app');
   });

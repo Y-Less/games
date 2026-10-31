@@ -5,6 +5,7 @@ import AchievementPopups from './components/AchievementPopups.vue';
 import BackgroundFx from './components/BackgroundFx.vue';
 import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
+import { clearProfiles } from './profiles.js';
 import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
 import HelpDialog from './components/HelpDialog.vue';
@@ -41,9 +42,16 @@ async function doLeave() {
   await offer.value?.leave();
 }
 
+/**
+ * Signs out and goes to the sign-in page.
+ * @returns {Promise<void>}
+ * Side effects: ends the session, forgets the other players' cached looks (so the next account does not see them),
+ * closes the menu and navigates.
+ */
 async function leaveSite() {
   menuOpen.value = false;
   await signOut();
+  clearProfiles();
   router.push({ name: 'login' });
 }
 </script>

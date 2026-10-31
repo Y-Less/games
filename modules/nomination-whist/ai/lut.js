@@ -91,16 +91,29 @@ function guess({ hand, trump, players, allowed, rng = Math.random }, boost) {
   return nearestAllowed(allowed, estimateTricks(hand, trump, players, boost) + (rng() - 0.5) * 0.3);
 }
 
-/** The plain bidding table's nomination (or, when `boost` is set, the hand read straight from its boosted weights). */
+/**
+ * The plain bidding table's nomination (or, when `boost` is set, the hand read straight from its boosted weights).
+ * @param {object} ctx  the nomination context
+ * @param {number} boost  extra weight for every card, 0 for none
+ * @returns {number} the nomination
+ * Side effects: may load the table from disk once. The plain table was learned without Jokers, so a Jokers game is
+ * never read from it: Standard's estimate is used instead.
+ */
 function lutPlain(ctx, boost) {
   const { hand, trump, players, allowed, missPoints = true } = ctx;
-  if (boost) return guess(ctx, boost); // nothing to lose: the boosted hand is read straight from its weights, not for points
+  if (boost || ctx.jokers === true) return guess(ctx, boost); // nothing to lose: the boosted hand is read straight from its weights, not for points
   const model = biddingModel();
   const chances = model && trickChances(model, { hand, trump, players });
   return chances ? bestNomination(chances, allowed, missPoints) : guess(ctx, 0);
 }
 
-/** The table-aware table's nomination (or the boosted reading), falling back to the plain table. */
+/**
+ * The table-aware table's nomination (or the boosted reading), falling back to the plain table.
+ * @param {object} ctx  the nomination context
+ * @param {number} boost  extra weight for every card, 0 for none
+ * @returns {number} the nomination
+ * Side effects: may load the table for the game's Jokers setting from disk once.
+ */
 function lutcChoice(ctx, boost) {
   if (boost) return guess(ctx, boost);
   const model = contextModel(ctx.jokers);

@@ -74,6 +74,7 @@ const frame = ref(null);
 const MIN_SCALE = 0.55;
 let natural = 0;
 let observer = null;
+let waiting = null; // the MutationObserver waiting for the game's first element to appear, if any
 function fit() {
   const el = frame.value;
   const inner = el?.firstElementChild;
@@ -106,13 +107,33 @@ onMounted(() => {
   window.addEventListener('resize', refit);
   observer = new ResizeObserver(fit);
 });
+/**
+ * Watches the game's frame: measures its first element, or waits for one to appear.
+ * @param {HTMLElement | null} el  the new frame element
+ * @param {HTMLElement | null} old  the previous one
+ * @returns {void}
+ * Side effects: moves the ResizeObserver; replaces any pending MutationObserver (disconnecting the old one).
+ */
 watch(frame, (el, old) => {
+  waiting?.disconnect();
+  waiting = null;
   if (old) observer?.unobserve(old.firstElementChild ?? old);
   if (el?.firstElementChild) observer?.observe(el.firstElementChild);
-  else if (el) new MutationObserver((_, self) => el.firstElementChild && (observer.observe(el.firstElementChild), self.disconnect())).observe(el, { childList: true });
+  else if (el) {
+    waiting = new MutationObserver(() => {
+      if (!el.firstElementChild) return;
+      observer?.observe(el.firstElementChild);
+      waiting?.disconnect();
+      waiting = null;
+    });
+    waiting.observe(el, { childList: true });
+  }
 });
+/** Stops listening when the page goes away. Side effects: removes the resize listener, disconnects both observers. */
 onBeforeUnmount(() => {
   window.removeEventListener('resize', refit);
+  waiting?.disconnect();
+  waiting = null;
   observer?.disconnect();
 });
 </script>

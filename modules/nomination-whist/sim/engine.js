@@ -9,6 +9,7 @@ import { pickAI } from '../../../shared/ai.js';
 import { AIS } from '../ai/index.js';
 import { estimateTricks } from '../ai/standard.js';
 import { forbiddenNomination, trickWinner } from '../game.js';
+import { legalCards } from '../trick.js';
 import { CARD_INDEX, DECK, ESTIMATE_BUCKETS, ESTIMATE_STEPS, MIN_PLAYERS, TRUMPS } from './tables.js';
 
 const standard = AIS.find((ai) => ai.id === 'standard');
@@ -36,12 +37,14 @@ export function seatAIs(policy, players, rng) {
 
 const trumpKey = (trump) => TRUMPS.indexOf(trump ?? 'N');
 
-function legalOf(hand, trick) {
-  if (!trick.length) return hand;
-  const led = suitOf(trick[0].card);
-  const follow = hand.filter((card) => suitOf(card) === led);
-  return follow.length ? follow : hand;
-}
+/**
+ * The cards of `hand` that may be played to the trick so far, by the game's own rule (Jokers included).
+ * @param {string[]} hand  the seat's cards
+ * @param {{ seat: number, card: string }[]} trick  the plays so far, in order
+ * @returns {string[]} the legal cards
+ * Side effects: none.
+ */
+export const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card));
 
 /**
  * Plays one deal and adds what it saw to `stats`.

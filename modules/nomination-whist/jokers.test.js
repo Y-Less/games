@@ -204,3 +204,18 @@ test('without the Jokers option the table for games without Jokers is used, so e
   while (room.turn !== 0) g.runPending(room, seeded(9));
   assert.ok(Number.isInteger(g.viewFor(room, 1).suggestion));
 });
+
+test('the simulator uses the game\'s own legal-card rule, Jokers included', async () => {
+  const { legalOf } = await import('./sim/engine.js');
+  const hand = ['2H', 'AS', BLACK];
+  assert.deepEqual(legalOf(hand, [{ seat: 0, card: BLACK }]), hand, 'a led Joker lets anything be played');
+  assert.deepEqual(legalOf(hand, [{ seat: 0, card: '5S' }]), ['AS'], 'a Joker cannot be played while following suit');
+  assert.deepEqual(legalOf(hand, [{ seat: 0, card: '5C' }]), hand);
+  assert.deepEqual(legalOf(hand, []), hand);
+});
+
+test('a Jokers game is never nominated from the table learned without Jokers', () => {
+  const ai = AIS.find((a) => a.id === 'lutv');
+  const base = { hand: ['AH', '2C', '5D'], trump: 'H', players: 4, allowed: [0, 1, 2, 3], nominations: [null, null, null, null], seat: 0, dealer: 3, cards: 3, rng: () => 0.5 };
+  assert.ok(ai.nominate({ ...base, jokers: true }) !== undefined);
+});

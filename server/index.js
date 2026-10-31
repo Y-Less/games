@@ -105,7 +105,7 @@ export async function startSite(options = {}) {
 
   api.post('/auth/register', handler(async (req, res) => {
     const { username, password, displayName } = req.body ?? {}; // isBot is deliberately not accepted from clients
-    const registered = await auth.register({ username, password, displayName });
+    const registered = await auth.register({ username, password, displayName, ip: req.ip });
     achievements.settle(registered.user.id); // "Welcome" is waiting from the first moment
     signedIn(req, res, registered);
   }));

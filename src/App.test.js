@@ -4,6 +4,11 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { session } from './session.js';
 import { playBar, useLeave } from './playBar.js';
 
+vi.mock('./profiles.js', async (importOriginal) => {
+  const real = await importOriginal();
+  return { ...real, clearProfiles: vi.fn(real.clearProfiles) };
+});
+
 // The real views are heavy and irrelevant to the header.
 vi.mock('./views/GamesView.vue', () => ({ default: { render: () => null } }));
 vi.mock('./views/AuthView.vue', () => ({ default: { render: () => null } }));
@@ -113,5 +118,21 @@ describe('the account menu', () => {
     const menu = w.find('.dropdown');
     expect(menu.element.firstElementChild.classList.contains('my-avatar')).toBe(true);
     expect(menu.find('.my-avatar').element.tagName.toLowerCase()).toBe('svg');
+  });
+});
+
+describe('signing out', () => {
+  it('forgets the cached profiles of other players', async () => {
+    const { clearProfiles } = await import('./profiles.js');
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, text: async () => '{}', json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
+    session.user = { id: 1, displayName: 'Ann' };
+    await router.replace('/');
+    w = mount(App, { global: { plugins: [router] } });
+    await w.find('.account button').trigger('click'); // open the account menu
+    await button(w, 'Sign out').trigger('click');
+    await flushPromises();
+    expect(clearProfiles).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 });

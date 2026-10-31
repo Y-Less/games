@@ -47,6 +47,11 @@ export function situation(room, seat, extra = {}) {
       bought: p.bought.length,
       nobles: p.nobles.length,
       reservedCount: p.reserved.length,
+      // DECISION NEEDED (not changed): a bot is told the identity of every other player's reserved card that was taken
+      // face up from the table (`!r.blind`), because everyone saw it taken. But the human view (game.js `viewFor`) shows
+      // every other player's reserved cards face down, blind or not, so a human cannot see what the bot can. Either the
+      // humans should be shown those cards too, or this filter should hide them (`i === seat` only) so the bots play
+      // from the same information as people. Left as it is until the owner decides which.
       reserved: p.reserved.filter((r) => i === seat || !r.blind).map((r) => r.card),
     })),
     moves: [],

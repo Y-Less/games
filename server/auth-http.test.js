@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ask, connected, refused, register, withSite } from './fixtures/testkit.js';
+import { REGISTER_LIMIT } from './auth.js';
 
 const setCookie = (res) => res.headers.get('set-cookie') ?? '';
 
@@ -396,4 +397,15 @@ test('a socket whose session was logged out cannot reconnect, but a fresh login 
   const ok = fresh.socket('/coin');
   await connected(ok);
   assert.equal((await ask(ok, 'whoami')).user.name, 'alice');
+});
+
+test('registration is limited per address over HTTP, and another address is unaffected', async (t) => {
+  const { client } = await withSite(t, { env: { TRUST_PROXY: '1' } });
+  const c = client();
+  const make = (name, ip) => c.call('POST', '/api/auth/register', { username: name, password: 'password1' }, { 'x-forwarded-for': ip });
+  for (let i = 0; i < REGISTER_LIMIT; i++) assert.equal((await make(`spam-${i}`, '203.0.113.9')).status, 200);
+  const blocked = await make('spam-over', '203.0.113.9');
+  assert.equal(blocked.status, 429);
+  assert.match(blocked.data.error, /too many/i);
+  assert.equal((await make('other-address', '203.0.113.10')).status, 200);
 });
