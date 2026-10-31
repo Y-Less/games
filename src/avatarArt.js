@@ -169,34 +169,42 @@ export function avatarMarkup(input) {
   ].join('');
 }
 
-const METAL = '#858a91';
-const METAL_DARK = '#5f646b';
-const LED = '#8b0016';
+const STEEL_LIGHT = '#c3cad3';
+const STEEL = '#8f97a2';
+const STEEL_DARK = '#5a616b';
+const OUTLINE = '#3d434b';
+const SCREEN = '#1d232b';
+const GLOW = '#5fe3ff';
+
+let robotCounter = 0;
 
 /**
- * The SVG contents for the computer players' avatar: a classic square robot, grey, with a red-ringed pair of eyes and an
- * aerial at each side of its head. It is fixed art, so there is nothing to choose and nothing to escape.
+ * The SVG contents for the computer players' avatar: a classic square tin robot, head and shoulders like the people, with an
+ * aerial, a dark screen of glowing eyes, a grille mouth, bolts and a panel of lights on its chest. It is fixed art, so there
+ * is nothing to choose and nothing to escape; only the gradient ids are made fresh so that several on a page never share one.
  */
 export function robotMarkup() {
-  const aerial = (side) => {
-    const x = side === 'left' ? 17 : 83;
-    const joint = side === 'left' ? 31 : 69;
-    return `<path d="M${x + (side === 'left' ? 3 : -3)} 33 L${joint} 30.5 M${x + (side === 'left' ? 3 : -3)} 33 L${joint} 36" stroke="${METAL}" stroke-width="1.6" stroke-linecap="round" fill="none"/><ellipse cx="${x}" cy="33" rx="3.1" ry="4.2" fill="#fff" stroke="${LED}" stroke-width="1.6"/>`;
-  };
+  const id = robotCounter++;
+  const steel = `robot-steel-${id}`;
+  const sky = `robot-sky-${id}`;
   return [
-    '<rect width="100" height="100" fill="#dfe6ee"/>',
-    // arms, each joined to the body by a short block
-    `<rect x="12" y="60" width="9" height="40" fill="${METAL}"/><rect x="21" y="65" width="7" height="7" fill="${METAL}"/>`,
-    `<rect x="79" y="60" width="9" height="40" fill="${METAL}"/><rect x="72" y="67" width="7" height="7" fill="${METAL}"/>`,
-    // body, neck, head
-    `<rect x="28" y="57" width="44" height="43" fill="${METAL}"/>`,
-    `<rect x="44" y="49" width="10" height="9" fill="${METAL_DARK}"/>`,
-    `<rect x="32" y="22" width="36" height="28" fill="${METAL}"/>`,
-    aerial('left'),
-    aerial('right'),
-    `<ellipse cx="42" cy="34" rx="4.2" ry="2.8" fill="#fff" stroke="${LED}" stroke-width="1.5"/><ellipse cx="58.5" cy="35" rx="4.2" ry="2.5" fill="#fff" stroke="${LED}" stroke-width="1.5"/>`,
-    `<path d="M42 43.5 H58" stroke="${METAL_DARK}" stroke-width="2" stroke-linecap="round"/>`,
-    // a few lights on the chest
-    `<circle cx="40" cy="70" r="2.4" fill="${LED}"/><circle cx="50" cy="70" r="2.4" fill="${METAL_DARK}"/><circle cx="60" cy="70" r="2.4" fill="${METAL_DARK}"/>`,
+    `<defs><linearGradient id="${steel}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${STEEL_LIGHT}"/><stop offset="1" stop-color="${STEEL}"/></linearGradient><linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6edf5"/><stop offset="1" stop-color="#c4d2e2"/></linearGradient></defs>`,
+    `<rect width="100" height="100" fill="url(#${sky})"/>`,
+    // aerial
+    `<path d="M50 15 V7" stroke="${STEEL_DARK}" stroke-width="2.4" stroke-linecap="round"/><circle cx="50" cy="6" r="3.6" fill="#d8313f" stroke="${OUTLINE}" stroke-width="1.2"/>`,
+    // shoulders and chest, then the neck, so that the head sits on top
+    `<rect x="14" y="62" width="72" height="44" rx="7" fill="url(#${steel})" stroke="${OUTLINE}" stroke-width="1.6"/>`,
+    `<circle cx="22" cy="70" r="2.6" fill="${STEEL_DARK}"/><circle cx="78" cy="70" r="2.6" fill="${STEEL_DARK}"/>`,
+    `<rect x="31" y="69" width="38" height="28" rx="3" fill="${STEEL_DARK}" stroke="${OUTLINE}" stroke-width="1.2"/>`,
+    `<circle cx="42" cy="78" r="4.6" fill="${SCREEN}" stroke="${STEEL_LIGHT}" stroke-width="1.2"/><path d="M42 78 L44.6 75.4" stroke="${GLOW}" stroke-width="1.4" stroke-linecap="round"/>`,
+    `<rect x="53" y="74" width="12" height="3.2" rx="1.2" fill="${SCREEN}"/><rect x="53" y="74" width="7" height="3.2" rx="1.2" fill="${GLOW}"/>`,
+    `<circle cx="39" cy="90" r="2.3" fill="#d8313f"/><circle cx="48" cy="90" r="2.3" fill="#f2b632"/><circle cx="57" cy="90" r="2.3" fill="#58c26a"/>`,
+    `<rect x="43" y="53" width="14" height="10" fill="${STEEL_DARK}" stroke="${OUTLINE}" stroke-width="1.2"/><path d="M43 57 H57 M43 60 H57" stroke="${OUTLINE}" stroke-width="0.9"/>`,
+    // head: ear bolts, the box, a dark screen with two square eyes, and a grille
+    `<rect x="19" y="27" width="8" height="14" rx="2.4" fill="${STEEL_DARK}" stroke="${OUTLINE}" stroke-width="1.2"/><rect x="73" y="27" width="8" height="14" rx="2.4" fill="${STEEL_DARK}" stroke="${OUTLINE}" stroke-width="1.2"/>`,
+    `<rect x="25" y="15" width="50" height="39" rx="6" fill="url(#${steel})" stroke="${OUTLINE}" stroke-width="1.6"/>`,
+    `<rect x="31" y="21" width="38" height="19" rx="3.5" fill="${SCREEN}"/>`,
+    `<rect x="36" y="26" width="10" height="9" rx="1.8" fill="${GLOW}"/><rect x="54" y="26" width="10" height="9" rx="1.8" fill="${GLOW}"/><rect x="38" y="27.5" width="3" height="2.6" rx="0.8" fill="#fff" opacity="0.8"/><rect x="56" y="27.5" width="3" height="2.6" rx="0.8" fill="#fff" opacity="0.8"/>`,
+    `<rect x="37" y="44" width="26" height="7" rx="2" fill="${SCREEN}"/><path d="M41 44 V51 M45.5 44 V51 M50 44 V51 M54.5 44 V51 M59 44 V51" stroke="${STEEL}" stroke-width="1.1"/>`,
   ].join('');
 }
