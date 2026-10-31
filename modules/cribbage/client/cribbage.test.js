@@ -17,8 +17,8 @@ function seeded(seed = 1) {
 }
 /** A real room: seat 0 is the person (user 1), the others computer players. */
 function room({ seats = 2, started = true } = {}) {
-  const r = game.createRoom({ code: 'one-two-three', hostId: 1, name: 'Alex', target: 121, seats });
-  expect(game.fillBots(r, 1).ok).toBe(true);
+  const r = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'Alex', settings: { target: 121, seats } });
+  expect(game.fillWithBots(r, 1).ok).toBe(true);
   if (started) expect(game.start(r, 1, seeded(5)).ok).toBe(true);
   return r;
 }
@@ -112,7 +112,7 @@ describe('Cribbage table in the standard frame', () => {
     expect(status.text()).toMatch(/1\. Alex \(you\): 121/);
     expect(status.findAll('.body button').map((b) => b.text())).toEqual(['Play again (back to the lobby)', 'See the scores']);
     await status.findAll('.body button')[0].trigger('click');
-    expect(send).toHaveBeenCalledWith('rematch');
+    expect(send).toHaveBeenCalledWith('again');
     expect(noLeave(w)).toBe(true);
   });
 });

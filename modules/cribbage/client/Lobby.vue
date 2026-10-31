@@ -5,18 +5,16 @@ import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
-// Seated players come first (in seat order), then the empty seats up to the chosen seat count.
-const seats = computed(() => [
-  ...props.state.seats.map((s) => ({
-    id: s.seat,
-    name: s.name,
-    kind: s.bot ? 'bot' : 'human',
-    isHost: Boolean(s.host),
-    isMe: s.seat === props.state.you,
-    away: !s.bot && !s.online,
-  })),
-  ...Array.from({ length: Math.max(0, props.state.seatCount - props.state.seats.length) }, () => ({ id: null, name: '', kind: 'empty' })),
-]);
+// Every seat in order: a person or computer player, or an empty seat (null in the view) waiting to be filled.
+const seats = computed(() =>
+  props.state.seats.map((s, i) =>
+    s
+      ? { id: s.seat, name: s.name, kind: s.bot ? 'bot' : 'human', isHost: Boolean(s.host), isMe: s.seat === props.state.you, away: !s.bot && !s.online }
+      : { id: null, name: '', kind: 'empty', index: i },
+  ),
+);
+// How many seats are taken: the seat-count buttons below that number are disabled.
+const taken = computed(() => props.state.seats.filter(Boolean).length);
 const targets = computed(() => props.state.limits.targets);
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
 const dealing = computed(() => {
@@ -47,7 +45,7 @@ const dealing = computed(() => {
         <h3>Game</h3>
         <div class="row">
           <span class="muted label">Seats</span>
-          <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="!state.isHost || n < state.seats.length" :aria-pressed="state.seatCount === n" @click="send('settings', { seats: n })">{{ n }}</button>
+          <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="!state.isHost || n < taken" :aria-pressed="state.seatCount === n" @click="send('settings', { seats: n })">{{ n }}</button>
         </div>
         <div class="row">
           <span class="muted label">Play to</span>

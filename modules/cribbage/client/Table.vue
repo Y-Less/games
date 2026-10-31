@@ -242,7 +242,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
           <span>{{ youDeal ? 'Your' : `${dealer.name}'s` }} box: {{ state.cribCount }}</span>
         </template>
         <div v-if="finished" class="row">
-          <button v-if="state.isHost" class="primary" @click="send('rematch')">Play again (back to the lobby)</button>
+          <button v-if="state.isHost" class="primary" @click="send('again')">Play again (back to the lobby)</button>
           <button @click="scoreboard.show()">See the scores</button>
         </div>
       </GameStatus>

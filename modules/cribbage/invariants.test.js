@@ -14,10 +14,10 @@ const pick = (rng, list) => list[Math.floor(rng() * list.length)];
 
 function newRoom(rng) {
   const seats = 2 + Math.floor(rng() * 4);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 101, name: 'h101', target: pick(rng, game.TARGETS), seats, now: 1 });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 101, hostName: 'h101', now: 1, settings: { target: pick(rng, game.TARGETS), seats } });
   const humans = 1 + Math.floor(rng() * Math.min(3, seats));
   for (let i = 1; i < humans; i++) assert.equal(game.addHuman(room, 101 + i, `h${101 + i}`).ok, true);
-  assert.equal(game.fillBots(room, 101).ok, true);
+  assert.equal(game.fillWithBots(room, 101).ok, true);
   return room;
 }
 
@@ -62,7 +62,7 @@ function checkRoom(room, label, handsSeen) {
     assert.equal(room.seats[room.winner].score, room.target);
     assert.equal(room.history.length, room.handNo);
   } else if (room.phase !== 'lobby') assert.equal(atTarget, 0, `${label}: nobody at the target in a live game`);
-  assert.ok(room.seats.some((s) => !s.bot && !s.left), `${label}: a person is still seated`);
+  assert.ok(room.seats.some((s) => s.kind === 'human'), `${label}: a person is still seated`);
   assert.equal(room.handNo, handsSeen, `${label}: hand numbers go up by one`);
   assert.equal(new Set(room.seats.map((s) => s.name.toLowerCase())).size, n, `${label}: unique names`);
 }
@@ -87,7 +87,7 @@ function playGame(seed, { leaves = true } = {}) {
   const room = newRoom(rng);
   const label = `seed ${seed}`;
   assert.equal(game.start(room, 101, rng).ok, true);
-  const humanIds = () => room.seats.filter((s) => !s.bot && !s.left).map((s) => s.userId);
+  const humanIds = () => room.seats.filter((s) => s.kind === 'human').map((s) => s.id);
   let handsSeen = 1;
   let steps = 0;
   while (room.phase !== 'finished') {
@@ -109,7 +109,7 @@ function playGame(seed, { leaves = true } = {}) {
       continue;
     }
     if (room.phase === 'discard') {
-      const waiting = room.seats.flatMap((s, i) => (!s.bot && !s.discarded ? [i] : []));
+      const waiting = room.seats.flatMap((s, i) => (s.kind === 'human' && !s.discarded ? [i] : []));
       const seat = pick(rng, waiting);
       const { discards } = game.dealRules(room.seats.length, seat === room.dealer);
       const hand = room.hands[seat];
@@ -125,7 +125,7 @@ function playGame(seed, { leaves = true } = {}) {
       assert.equal(game.discard(room, seat, chosen, rng).ok, false, 'a second discard is refused');
     } else if (room.phase === 'play') {
       const seat = room.play.turn;
-      assert.ok(!room.seats[seat].bot);
+      assert.equal(room.seats[seat].kind, 'human');
       const playable = game.playableCards(room, seat);
       const unplayable = room.hands[seat].filter((c) => !playable.includes(c));
       if (rng() < 0.4) {
@@ -137,7 +137,7 @@ function playGame(seed, { leaves = true } = {}) {
       }
       assert.equal(game.playCard(room, seat, pick(rng, playable)).ok, true);
     } else if (room.phase === 'show') {
-      const waiting = room.seats.flatMap((s, i) => (!s.bot && !s.ready ? [i] : []));
+      const waiting = room.seats.flatMap((s, i) => (s.kind === 'human' && !s.ready ? [i] : []));
       assert.ok(waiting.length, `${label}: the show waits only for people`);
       assert.equal(game.ready(room, pick(rng, waiting), rng).ok, true);
     } else assert.fail(`${label}: unexpected phase ${room.phase}`);
@@ -178,12 +178,12 @@ test('the show entries of every hand add up to what the board says', () => {
     while (room.phase !== 'finished' && hands < 12) {
       if (game.pendingBot(room)) game.botMove(room, rng);
       else if (room.phase === 'discard') {
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
+        for (const [i, s] of room.seats.entries()) if (s.kind === 'human' && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
       } else if (room.phase === 'play') {
         const seat = room.play.turn;
         game.playCard(room, seat, game.playableCards(room, seat)[0]);
       } else if (room.phase === 'show') {
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.ready) game.ready(room, i, rng);
+        for (const [i, s] of room.seats.entries()) if (s.kind === 'human' && !s.ready) game.ready(room, i, rng);
         hands++;
       }
       if (room.phase === 'show') {
@@ -202,14 +202,14 @@ test('the crib always has four cards and the starter is never a card anybody hol
     while (room.phase !== 'finished' && guard++ < 3000) {
       if (game.pendingBot(room)) game.botMove(room, rng);
       else if (room.phase === 'discard') {
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
+        for (const [i, s] of room.seats.entries()) if (s.kind === 'human' && !s.discarded) game.discard(room, i, room.hands[i].slice(0, game.dealRules(room.seats.length, i === room.dealer).discards), rng);
       } else if (room.phase === 'play') {
         const seat = room.play.turn;
         assert.ok(!room.hands.flat().includes(room.starter));
         game.playCard(room, seat, game.playableCards(room, seat)[0]);
       } else if (room.phase === 'show') {
         assert.equal(room.crib.length, 4);
-        for (const [i, s] of room.seats.entries()) if (!s.bot && !s.ready) game.ready(room, i, rng);
+        for (const [i, s] of room.seats.entries()) if (s.kind === 'human' && !s.ready) game.ready(room, i, rng);
       }
     }
     assert.equal(room.phase, 'finished');

@@ -15,7 +15,7 @@ The rules players see are in `rules.md`; the module contract is in `../../MODULE
 
 ## Decisions
 
-- Seats are numbered clockwise; a player's public id is the seat number. Seat order is the order of joining; the first dealer is random.
+- Seats are numbered clockwise; a player's public id is the seat number. A seat is `null` (empty, lobby only), `{ kind: 'human', id, name }`, `{ kind: 'bot', id: 'bot:n', name, ai }` or, after a finished game, `{ kind: 'gone' }`, plus the seat's own pegs and tally; rooms saved in the older shape (`userId` / `bot` / `left`) are converted on load by `migrate`. Seat order is the order of joining; the first dealer is random.
 - The starter is cut automatically at random once everyone has discarded.
 - An account can be in one unfinished game at a time.
 - Each hand is one entry in `history` (`{ label, deltas }`, sent as the standard `scoreboard` shape): pegging, heels, hands and box; the entries add up to the final scores.
@@ -28,6 +28,6 @@ The rules players see are in `rules.md`; the module contract is in `../../MODULE
 
 ## Socket protocol
 
-Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {target?, seats?}`, `leave`, `kick {seat}`, `settings {target?, seats?}`, `addBot`, `fillBots`, `removeBot {seat}`, `start`, `discard {cards}`, `play {card}`, `ready`, `rematch`.
+Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {target?, seats?}`, `leave`, `kick {seat}`, `settings {target?, seats?}`, `addBot`, `fillBots`, `removeBot {seat}`, `start`, `discard {cards}`, `play {card}`, `ready`, `again` (play again: back to the lobby).
 
 Server to client: `state`, a view personalised for that account (or `null`). Only your own hand is included; opponents' cards are counts, and discards stay hidden until the show.

@@ -41,11 +41,11 @@ const playCtx = (hand, sequence = [], extra = {}) => ({
 
 /** Every seat is a computer player; `ais` names each seat's AI. Returns the finished room. */
 function allBotGame(ais, { seed = 1, target = 61 } = {}) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'Alex', target, seats: ais.length });
-  game.fillBots(room, 1);
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target, seats: ais.length } });
+  game.fillWithBots(room, 1);
   const rng = seeded(seed);
   assert.ok(game.start(room, 1, rng).ok);
-  room.seats[0].bot = true;
+  room.seats[0].kind = 'bot';
   ais.forEach((id, i) => (room.seats[i].ai = id));
   for (let steps = 0; room.phase !== 'finished'; steps++) {
     assert.ok(steps < 20000, 'the game must end');
@@ -232,15 +232,15 @@ test('tournament: sharp beats standard, and standard beats random', () => {
 // ---- assignment, persistence and the view ----
 
 function newRoom(seats = 4, seed = 4) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'Alex', seats });
-  game.fillBots(room, 1);
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats } });
+  game.fillWithBots(room, 1);
   game.start(room, 1, seeded(seed));
   return room;
 }
 
 test('each computer player picks an AI when the game starts; people and lobbies have none', () => {
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'Alex', seats: 3 });
-  game.fillBots(lobby, 1);
+  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats: 3 } });
+  game.fillWithBots(lobby, 1);
   assert.ok(lobby.seats.every((s) => s.ai === undefined));
   assert.ok(game.viewFor(lobby, 1).seats.every((s) => s.ai === null));
   const room = newRoom(4);
@@ -306,17 +306,17 @@ test('the view names the AI of computer players only', () => {
 });
 
 test('a person who leaves is replaced by a computer player that picks an AI at that moment', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'A', seats: 3 });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 3 } });
   game.addHuman(room, 2, 'B');
   game.addBot(room, 1);
   game.start(room, 1, seeded(9));
   assert.equal(room.seats[1].ai, undefined);
   game.removeHuman(room, 2, seeded(12));
-  assert.equal(room.seats[1].bot, true);
+  assert.equal(room.seats[1].kind, 'bot');
   assert.ok(IDS.includes(room.seats[1].ai));
   const picks = new Set();
   for (let seed = 1; seed <= 60; seed++) {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, name: 'A', seats: 2 });
+    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 2 } });
     game.addHuman(r, 2, 'B');
     game.start(r, 1, seeded(1));
     game.removeHuman(r, 2, seeded(seed));
@@ -328,7 +328,7 @@ test('a person who leaves is replaced by a computer player that picks an AI at t
 test('going back to the lobby clears the AIs, and the next game picks again', () => {
   const room = newRoom(2);
   room.phase = 'finished';
-  assert.ok(game.returnToLobby(room, 1).ok);
+  assert.ok(game.playAgain(room, 1).ok);
   assert.ok(room.seats.every((s) => s.ai === undefined));
   assert.ok(game.start(room, 1, seeded(2)).ok);
   assert.ok(IDS.includes(room.seats[1].ai));

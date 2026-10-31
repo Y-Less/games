@@ -64,7 +64,7 @@ test('five people racing for the last seat: exactly one gets it and everybody ag
   const replies = await Promise.all(racers.map((p) => p.call('join', { code })));
   assert.equal(oks(replies), 1, JSON.stringify(replies));
   const winner = racers[replies.findIndex((r) => r.ok)];
-  await until(() => ann.state.seats.length === 2, 'full');
+  await until(() => ann.state.seats.filter(Boolean).length === 2, 'full');
   assert.equal(ann.state.seats[1].name, winner.name);
   await sleep(30);
   for (const p of racers) assert.equal(p.state?.seats?.[1]?.name ?? null, p === winner ? winner.name : null);
@@ -182,7 +182,7 @@ test('the host leaving hands the host role to another person', async (t) => {
   await until(() => bob.state.isHost === true, 'bob is host');
   assert.ok(bob.state.seats[0].bot && bob.state.seats[0].replaced, 'a computer took ann\'s seat');
   await playOn([bob], () => bob.state.phase === 'finished');
-  assert.equal((await bob.call('rematch', {})).ok, true, 'the new host can go back to the lobby');
+  assert.equal((await bob.call('again', {})).ok, true, 'the new host can go back to the lobby');
   await until(() => bob.state.phase === 'lobby', 'the lobby');
   await sleep(100);
   assert.equal((await ann.stats()).perGame.length, 0, 'the leaver is not recorded');
@@ -197,7 +197,7 @@ test('a room that disappears under connected sockets leaves them cleanly out', a
   await until(() => twin.state?.code === code, 'twin attached');
   assert.equal((await ann.call('leave', {})).ok, true);
   await until(() => ann.state === null && twin.state === null, 'both sockets out');
-  for (const event of ['start', 'addBot', 'fillBots', 'settings', 'kick', 'play', 'discard', 'ready', 'rematch', 'removeBot']) {
+  for (const event of ['start', 'addBot', 'fillBots', 'settings', 'kick', 'play', 'discard', 'ready', 'again', 'removeBot']) {
     const reply = await twin.call(event, { seat: 1, card: 'AS', cards: ['AS', 'KS'], target: 61 });
     assert.equal(reply.ok, false, event);
     assert.match(reply.error, /not in a game/, event);
@@ -221,14 +221,14 @@ test('one live game per account: a second create or join is refused, and leaving
   assert.match(hop.error, /already in the game/);
   assert.equal((await ann.call('resume', { code: second })).ok, false);
   assert.equal(ann.state.code, first);
-  assert.equal(cat.state.seats.length, 1);
+  assert.equal(cat.state.seats.filter(Boolean).length, 1);
   assert.equal((await ann.call('join', { code: first })).ok, true);
   assert.equal((await bob.call('join', { code: first })).ok, true);
   assert.equal((await bob.call('join', { code: second })).ok, false);
   await ann.call('leave', {});
   await until(() => ann.state === null, 'ann out');
   assert.equal((await ann.call('join', { code: second })).ok, true);
-  await until(() => cat.state.seats.length === 2, 'ann in cat\'s game');
+  await until(() => cat.state.seats.filter(Boolean).length === 2, 'ann in cat\'s game');
 });
 
 test('a finished game does not block joining another one', async (t) => {

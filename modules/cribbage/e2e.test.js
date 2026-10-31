@@ -377,10 +377,10 @@ test('a finished game goes back to the lobby for another round', async (t) => {
   await startGame([host, guest], { seats: 3, target: 61 });
   await host.until((s) => s.phase === 'finished', 'the first game');
   await guest.until((s) => s.phase === 'finished', 'the first game');
-  assert.equal((await guest.call('rematch')).ok, false, 'host only');
+  assert.equal((await guest.call('again')).ok, false, 'host only');
   host.autoplay = false;
   guest.autoplay = false;
-  assert.ok((await host.call('rematch')).ok);
+  assert.ok((await host.call('again')).ok);
   await guest.until((s) => s.phase === 'lobby', 'the lobby');
   assert.equal(guest.state.seats.length, 3);
   assert.ok(guest.state.seats.every((s) => s.score === 0));

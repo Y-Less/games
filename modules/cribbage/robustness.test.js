@@ -3,10 +3,9 @@
 // structured failure or a harmless success, keep the game state valid, never leak hidden cards and finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertNoPollution, cardsIn, fuzzEvent, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { assertNoPollution, cardsIn, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.CRIBBAGE_BOT_DELAY = '0-2';
@@ -25,13 +24,11 @@ const EVENTS = {
   discard: ['cards'],
   play: ['card'],
   ready: [],
-  rematch: [],
+  again: [],
 };
 
 test('this test knows every socket event the server handles', () => {
-  const source = fs.readFileSync(path.join(here, 'server.js'), 'utf8');
-  const handled = [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
-  assert.deepEqual(handled, Object.keys(EVENTS).sort());
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
 });
 
 function validateView(s, who) {
@@ -42,6 +39,7 @@ function validateView(s, who) {
   assert.ok(s.seatCount >= 2 && s.seatCount <= 4 && s.seats.length <= s.seatCount, `${label}: seats within limits`);
   assert.ok(s.you === -1 || (s.you < s.seats.length && !s.seats[s.you].bot), `${label}: seated where it says`);
   for (const [i, seat] of s.seats.entries()) {
+    if (!seat) continue; // an empty seat in the lobby
     assert.ok(seat.score >= 0 && seat.score <= s.target, `${label}: a sensible score`);
     const history = s.scoreboard.rounds.reduce((sum, r) => sum + (r.deltas[i] ?? 0), 0);
     assert.ok(history <= seat.score, `${label}: the history never exceeds the score`);
@@ -103,7 +101,7 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
     const code = created.code;
     assert.equal((await bob.call('join', { code })).ok, true);
     assert.equal((await annTwo.call('resume', { code })).ok, true);
-    await until(() => ann.state?.seats.length === 2 && annTwo.state?.you === 0, 'the lobby');
+    await until(() => ann.state?.seats.filter(Boolean).length === 2 && annTwo.state?.you === 0, 'the lobby');
     if (phase === 'lobby') return code;
     assert.equal((await ann.call('addBot', {})).ok, true);
     assert.equal((await ann.call('start', {})).ok, true);
@@ -185,7 +183,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'discard', { cards: ['AS', 'KS'] }, /not time to discard/);
   await refused(ann, 'play', { card: 'AS' }, /not time to play/);
   await refused(ann, 'ready', {}, /nothing to be ready/);
-  await refused(ann, 'rematch', {}, /not over/);
+  await refused(ann, 'again', {}, /not over/);
   assert.equal((await ann.call('settings', { seats: 2, target: 61 })).ok, true);
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state.phase === 'discard' && bob.state.phase === 'discard', 'discard');
@@ -201,11 +199,11 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'discard', { cards: 'AS,KS' }, /Choose 2/);
   await refused(eve, 'discard', { cards: annHand.slice(0, 2) }, /not in a game/);
   await refused(ann, 'play', { card: annHand[0] }, /not time to play/);
-  await refused(ann, 'start', {}, /already started/);
-  await refused(ann, 'settings', { target: 121 }, /already started/);
-  await refused(ann, 'addBot', {}, /already started/);
-  await refused(ann, 'kick', { seat: 0 }, /yourself/);
-  await refused(ann, 'kick', { seat: 'x' }, /not in the game/);
+  await refused(ann, 'start', {}, /before the game starts/);
+  await refused(ann, 'settings', { target: 121 }, /before the game starts/);
+  await refused(ann, 'addBot', {}, /before the game starts/);
+  await refused(ann, 'kick', { seat: 0 }, /no one else/);
+  await refused(ann, 'kick', { seat: 'x' }, /no one else/);
   await refused(bob, 'kick', { seat: 0 }, /host/);
   await refused(ann, 'join', { code: 'boss-aware-you' }, /already in the game/);
   await refused(ann, 'create', {}, /already in the game/);
