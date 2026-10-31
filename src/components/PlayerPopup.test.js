@@ -28,6 +28,7 @@ describe('PlayerPopup', () => {
     expect(wrapper.text()).toContain('host');
     await wrapper.setProps({ player: { ...person, bot: true } });
     expect(wrapper.find('.bot-icon').exists()).toBe(true);
+    expect(wrapper.find('.portrait').attributes('aria-label')).toBe('Computer player');
     expect(wrapper.text()).toContain('computer');
   });
 

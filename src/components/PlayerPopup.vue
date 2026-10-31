@@ -40,7 +40,7 @@ const confirming = ref(false);
 watch(() => props.player.id, () => (confirming.value = false));
 watch(() => props.error, (error) => error && (confirming.value = false));
 
-// A real player's avatar, once the site has told us what it is (nothing for computer players).
+// A real player's avatar, once the site has told us what it is (computer players have the robot).
 const avatar = computed(() => profileOf(props.player.userId ?? null)?.avatar ?? null);
 
 const noun = computed(() => (props.player.bot ? 'computer player' : 'player'));
@@ -53,7 +53,8 @@ function confirm() {
 <template>
   <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="`${player.name}'s details`">
     <header class="head">
-      <AvatarFigure v-if="avatar" class="portrait" :avatar="avatar" size="3.2rem" />
+      <AvatarFigure v-if="player.bot" class="portrait" robot size="3.2rem" label="Computer player" />
+      <AvatarFigure v-else-if="avatar" class="portrait" :avatar="avatar" size="3.2rem" />
       <strong class="who">
         <BotIcon v-if="player.bot" />
         <StyledName :name="player.name" :user-id="player.userId ?? null" />

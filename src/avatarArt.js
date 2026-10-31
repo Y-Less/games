@@ -168,3 +168,35 @@ export function avatarMarkup(input) {
     HATS[a.hat](),
   ].join('');
 }
+
+const METAL = '#858a91';
+const METAL_DARK = '#5f646b';
+const LED = '#8b0016';
+
+/**
+ * The SVG contents for the computer players' avatar: a classic square robot, grey, with a red-ringed pair of eyes and an
+ * aerial at each side of its head. It is fixed art, so there is nothing to choose and nothing to escape.
+ */
+export function robotMarkup() {
+  const aerial = (side) => {
+    const x = side === 'left' ? 17 : 83;
+    const joint = side === 'left' ? 31 : 69;
+    return `<path d="M${x + (side === 'left' ? 3 : -3)} 33 L${joint} 30.5 M${x + (side === 'left' ? 3 : -3)} 33 L${joint} 36" stroke="${METAL}" stroke-width="1.6" stroke-linecap="round" fill="none"/><ellipse cx="${x}" cy="33" rx="3.1" ry="4.2" fill="#fff" stroke="${LED}" stroke-width="1.6"/>`;
+  };
+  return [
+    '<rect width="100" height="100" fill="#dfe6ee"/>',
+    // arms, each joined to the body by a short block
+    `<rect x="12" y="60" width="9" height="40" fill="${METAL}"/><rect x="21" y="65" width="7" height="7" fill="${METAL}"/>`,
+    `<rect x="79" y="60" width="9" height="40" fill="${METAL}"/><rect x="72" y="67" width="7" height="7" fill="${METAL}"/>`,
+    // body, neck, head
+    `<rect x="28" y="57" width="44" height="43" fill="${METAL}"/>`,
+    `<rect x="44" y="49" width="10" height="9" fill="${METAL_DARK}"/>`,
+    `<rect x="32" y="22" width="36" height="28" fill="${METAL}"/>`,
+    aerial('left'),
+    aerial('right'),
+    `<ellipse cx="42" cy="34" rx="4.2" ry="2.8" fill="#fff" stroke="${LED}" stroke-width="1.5"/><ellipse cx="58.5" cy="35" rx="4.2" ry="2.5" fill="#fff" stroke="${LED}" stroke-width="1.5"/>`,
+    `<path d="M42 43.5 H58" stroke="${METAL_DARK}" stroke-width="2" stroke-linecap="round"/>`,
+    // a few lights on the chest
+    `<circle cx="40" cy="70" r="2.4" fill="${LED}"/><circle cx="50" cy="70" r="2.4" fill="${METAL_DARK}"/><circle cx="60" cy="70" r="2.4" fill="${METAL_DARK}"/>`,
+  ].join('');
+}

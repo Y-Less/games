@@ -1,16 +1,17 @@
 <script setup>
 // A player's avatar (see shared/avatar.js): a square figure of layered parts. Give it the `avatar` (an object of chosen
-// options, or nothing for the default one) and a `size` in CSS units. It is decoration, so it is hidden from screen readers
+// options, or nothing for the default one) and a `size` in CSS units. With `robot` it is the computer players' square robot instead. It is decoration, so it is hidden from screen readers
 // unless a `label` is given.
 import { computed } from 'vue';
-import { avatarMarkup } from '../avatarArt.js';
+import { avatarMarkup, robotMarkup } from '../avatarArt.js';
 
 const props = defineProps({
   avatar: { type: Object, default: null },
+  robot: { type: Boolean, default: false },
   size: { type: String, default: '4rem' },
   label: { type: String, default: '' },
 });
-const markup = computed(() => avatarMarkup(props.avatar));
+const markup = computed(() => (props.robot ? robotMarkup() : avatarMarkup(props.avatar)));
 </script>
 
 <template>
