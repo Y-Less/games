@@ -33,6 +33,12 @@ describe('robotMarkup', () => {
     expect(robotMarkup()).not.toContain('<script');
   });
 
+  it('gives each robot its own background colour, and the same robot the same one every time', () => {
+    const colour = (seed) => robotMarkup(seed).match(/hsl\((\d+) 60%/)[1];
+    expect(colour('3:Hazel')).toBe(colour('3:Hazel'));
+    expect(new Set(['1:Hazel', '2:Otis', '3:Mabel', '4:Felix', '5:Ivy'].map(colour)).size).toBeGreaterThan(2);
+  });
+
   it('gives every robot its own gradient ids, so two on a page cannot share them', () => {
     expect(robotMarkup().match(/id="(robot-steel-\d+)"/)[1]).not.toBe(robotMarkup().match(/id="(robot-steel-\d+)"/)[1]);
   });

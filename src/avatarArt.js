@@ -182,13 +182,16 @@ let robotCounter = 0;
  * The SVG contents for the computer players' avatar: a classic square tin robot, head and shoulders like the people, with an
  * aerial, a dark screen of glowing eyes, a grille mouth, bolts and a panel of lights on its chest. It is fixed art, so there
  * is nothing to choose and nothing to escape; only the gradient ids are made fresh so that several on a page never share one.
+ * The background colour comes from `seed` (any text, such as the computer player's id and name): every robot has its own,
+ * and the same one always has the same.
  */
-export function robotMarkup() {
+export function robotMarkup(seed = '') {
+  const hue = [...String(seed)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const id = robotCounter++;
   const steel = `robot-steel-${id}`;
   const sky = `robot-sky-${id}`;
   return [
-    `<defs><linearGradient id="${steel}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${STEEL_LIGHT}"/><stop offset="1" stop-color="${STEEL}"/></linearGradient><linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6edf5"/><stop offset="1" stop-color="#c4d2e2"/></linearGradient></defs>`,
+    `<defs><linearGradient id="${steel}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${STEEL_LIGHT}"/><stop offset="1" stop-color="${STEEL}"/></linearGradient><linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(${hue} 60% 90%)"/><stop offset="1" stop-color="hsl(${hue} 50% 74%)"/></linearGradient></defs>`,
     `<rect width="100" height="100" fill="url(#${sky})"/>`,
     // aerial
     `<path d="M50 15 V7" stroke="${STEEL_DARK}" stroke-width="2.4" stroke-linecap="round"/><circle cx="50" cy="6" r="3.6" fill="#d8313f" stroke="${OUTLINE}" stroke-width="1.2"/>`,

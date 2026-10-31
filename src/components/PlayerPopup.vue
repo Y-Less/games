@@ -53,7 +53,7 @@ function confirm() {
 <template>
   <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="`${player.name}'s details`">
     <header class="head">
-      <AvatarFigure v-if="player.bot" class="portrait" robot size="3.2rem" label="Computer player" />
+      <AvatarFigure v-if="player.bot" class="portrait" robot :seed="`${player.id}:${player.name}`" size="3.2rem" label="Computer player" />
       <AvatarFigure v-else-if="avatar" class="portrait" :avatar="avatar" size="3.2rem" />
       <strong class="who">
         <BotIcon v-if="player.bot" />
