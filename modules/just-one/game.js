@@ -6,6 +6,8 @@
 // the best hint from them, and only the guesser and the writer of that hint score.
 import { placements } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { fail, hostInLobby, ok } from '../../shared/seats.js';
+import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
@@ -21,32 +23,59 @@ export const POINTS = { guesser: 2, bestHint: 1 };
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus'];
 const LIVE = ['lobby', 'clues', 'guessing', 'choosing', 'reveal'];
 const PLAYING = ['clues', 'guessing', 'choosing'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
 
+// The player-list vocabulary (who is in the room, and who is a person) is shared with Wavelength and Tints and Hints.
+export { hasPlayer, humans, isHuman, seatOf };
+
+/**
+ * Is the game still going (or still in the lobby)?
+ *
+ * @param {object} room
+ * @returns {boolean} false once it has finished or been abandoned
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
+/** The player with this id, or undefined. */
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
+/** A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names). */
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
+/** Everybody but the guesser. */
 const writers = (room) => room.players.filter((p) => p.id !== room.guesser);
-const newPlayer = (id) => ({ id, score: 0, ...newCounters() });
-/** People (accounts), as opposed to computer players. */
-export const humans = (room) => room.players.filter((p) => !p.bot);
+
+/**
+ * Gives a bare player ({ kind, id, name }) the fields Just One keeps for everybody: the score and the statistics counters.
+ *
+ * @param {object} room   unused here (Wavelength needs it to pick a free colour); part of the shared makePlayer contract
+ * @param {object} base   { kind: 'human' | 'bot', id, name? }
+ * @returns {object} the player
+ */
+const makePlayer = (room, base) => ({ ...base, score: 0, ...newCounters() });
 const clueOf = (room, id) => room.clues.find((c) => c.id === id);
 const allWritten = (room) => writers(room).every((p) => clueOf(room, p.id));
 
-export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_EACH.default }) {
-  return {
+/**
+ * Makes a new room with the host in it.
+ *
+ * @param {object} args
+ * @param {string} args.code        the invite code
+ * @param {number} args.hostId      the host's account id
+ * @param {string} [args.hostName]  the host's display name
+ * @param {object} [args.settings]  settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
+ * @param {number} [args.turnsEach] turns each (default 2); `settings.turnsEach` wins if both are given
+ * @param {number} [args.now]       the time to stamp it with
+ * @returns {object} the room, in the lobby
+ */
+export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now(), turnsEach = TURNS_EACH.default }) {
+  const room = {
     code,
     hostId,
     phase: 'lobby',
     turnsEach,
     turnsTotal: 0,
     turn: 0,
-    players: [newPlayer(hostId)],
+    players: [],
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
-    nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name and (once started) an ai id
     guesser: null,
     word: null,
     used: [], // the words already played this game
@@ -61,16 +90,55 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     createdAt: now,
     updatedAt: now,
   };
+  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+  setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
+  return room;
 }
 
-export function addPlayer(room, id) {
-  if (hasPlayer(room, id)) return ok();
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  room.players.push(newPlayer(id));
-  return ok();
+/**
+ * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Just One somebody who leaves mid-game is
+ * not replaced: the game carries on with one fewer (see afterRemoval).
+ */
+const roster = createRosterRules({
+  isLive,
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  botNames: BOT_NAMES,
+  makePlayer,
+  afterRemoval: (room, left, rng) => afterRemoval(room, left.id, left.index, rng),
+});
+export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
+
+/**
+ * The host changes the settings. Only the settings that are given are changed.
+ *
+ * @param {object} room
+ * @param {number} id        who is asking (must be the host)
+ * @param {object} settings  { turnsEach? }
+ * @returns {{ ok: boolean, error?: string }}
+ */
+export function setSettings(room, id, settings = {}) {
+  if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
+  return setTurnsEach(room, id, settings.turnsEach);
 }
 
+/**
+ * Just One has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
+ *
+ * @returns {{ ok: false, error: string }}
+ */
+export function playAgain() {
+  return fail('Start a new game from the menu.');
+}
+
+/**
+ * The host changes how many turns each player gets.
+ *
+ * @param {object} room
+ * @param {number} id          who is asking (must be the host)
+ * @param {number} turnsEach   a whole number from TURNS_EACH.min to TURNS_EACH.max
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setTurnsEach(room, id, turnsEach) {
   if (id !== room.hostId) return fail('Only the host can change the settings.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
@@ -78,49 +146,6 @@ export function setTurnsEach(room, id, turnsEach) {
     return fail(`Choose between ${TURNS_EACH.min} and ${TURNS_EACH.max} turns each.`);
   }
   room.turnsEach = turnsEach;
-  return ok();
-}
-
-function newBot(room) {
-  const used = new Set(room.players.filter((p) => p.bot).map((p) => p.name));
-  let name = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  for (let n = 2; used.has(name); n++) name = `Computer ${n}`;
-  room.nextBot ??= 1;
-  return { ...newPlayer(`bot:${room.nextBot++}`), bot: true, name };
-}
-
-function hostOnlyInLobby(room, id, what) {
-  if (id !== room.hostId) return fail(`Only the host can ${what} computer players.`);
-  if (room.phase !== 'lobby') return fail(`Computer players can only be ${what === 'add' ? 'added' : 'removed'} in the lobby.`);
-  return null;
-}
-
-/** The host adds one computer player to the lobby. */
-export function addBot(room, id) {
-  const refused = hostOnlyInLobby(room, id, 'add');
-  if (refused) return refused;
-  if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  const bot = newBot(room);
-  room.players.push(bot);
-  return ok({ id: bot.id });
-}
-
-/** The host fills the lobby with computer players until there are `target` players (default: enough to start). */
-export function fillBots(room, id, target = MIN_PLAYERS) {
-  const refused = hostOnlyInLobby(room, id, 'add');
-  if (refused) return refused;
-  const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(Number(target)) || MIN_PLAYERS));
-  while (room.players.length < wanted) room.players.push(newBot(room));
-  return ok();
-}
-
-/** The host removes a computer player from the lobby (in a game, see removePlayer). */
-export function removeBot(room, id, botId) {
-  const refused = hostOnlyInLobby(room, id, 'remove');
-  if (refused) return refused;
-  const index = room.players.findIndex((p) => p.id === botId && p.bot);
-  if (index === -1) return fail('That is not a computer player.');
-  room.players.splice(index, 1);
   return ok();
 }
 
@@ -146,6 +171,17 @@ function startTurn(room, rng) {
   room.phase = 'clues';
 }
 
+/**
+ * The host starts the game: works out how many turns there will be, picks the first guesser and the first word, and gives
+ * every computer player an AI for the whole game.
+ *
+ * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the word and the AIs.
+ *
+ * @param {object} room
+ * @param {number} id            who is asking (must be the host)
+ * @param {() => number} [rng]
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, id, rng = Math.random) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
@@ -156,7 +192,7 @@ export function start(room, id, rng = Math.random) {
   room.nextIdx = Math.floor(rng() * room.players.length);
   startTurn(room, rng);
   // Every computer player gets an AI for the whole game.
-  const bots = room.players.filter((p) => p.bot);
+  const bots = room.players.filter(isBot);
   const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
   for (const p of bots) p.ai = picks[p.id];
   return ok();
@@ -270,9 +306,18 @@ function scoreTurn(room, nameOf = String) {
   room.phase = 'reveal';
 }
 
-/** Brings a saved room up to date (nothing has changed shape yet; here for the day something does). */
-export function migrate(room) {
-  room.nextBot ??= 1;
+/**
+ * Brings a saved room up to date: players saved with `bot: true` become `kind: 'bot'` (and people saved without a name get
+ * one from `nameOf`), and fields added since are filled in.
+ *
+ * Side effect: mutates the room. Running it twice changes nothing more.
+ *
+ * @param {object} room
+ * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
+ * @returns {object} the same room
+ */
+export function migrate(room, nameOf) {
+  migratePlayers(room, nameOf);
   room.used ??= [];
   room.order ??= [];
   room.cancelled ??= [];
@@ -311,12 +356,22 @@ export function forceNext(room, rng = Math.random) {
 /** True while the reveal waits for people to close the scores (the server times this out). */
 export const waitingForReady = (room) => room.phase === 'reveal';
 
-/** Someone leaves (or is removed by the host). Returns { empty, abandoned, finished }. */
-export function removePlayer(room, id, rng = Math.random, nameOf = String) {
-  const index = room.players.findIndex((p) => p.id === id);
-  if (index === -1 || !isLive(room)) return ok({ empty: false, abandoned: false, finished: false });
+/**
+ * Just One's part of somebody leaving a game that is under way (the roster has already taken them out of the list and, if
+ * they were the host, handed the host on): their clue and their place in the guesser's list go, the guesser's turn is
+ * skipped if the guesser left, and the game moves on if it was only waiting for them. Fewer than two players left means
+ * the game is abandoned (it needs three to start, but two can finish).
+ *
+ * Side effects: mutates the room (clues, order, ready, nextIdx, phase) and may score the turn or start the next one.
+ *
+ * @param {object} room
+ * @param {number | string} id  who left
+ * @param {number} index        where they were in the player list
+ * @param {() => number} rng
+ * @returns {{ abandoned: boolean, finished: boolean }}
+ */
+function afterRemoval(room, id, index, rng) {
   const wasGuesser = room.guesser === id && PLAYING.includes(room.phase);
-  room.players.splice(index, 1);
   if (index < room.nextIdx) room.nextIdx--;
   if (room.players.length) room.nextIdx %= room.players.length;
   room.clues = room.clues.filter((c) => c.id !== id);
@@ -325,20 +380,17 @@ export function removePlayer(room, id, rng = Math.random, nameOf = String) {
   room.order = room.order.filter((x) => x !== id);
   if (room.best === id) room.best = null;
   room.ready = (room.ready ?? []).filter((x) => x !== id);
-  if (room.hostId === id && room.players.length) room.hostId = (humans(room)[0] ?? room.players[0]).id;
-  if (!humans(room).length) return ok({ empty: true, abandoned: false, finished: false });
-  if (room.phase === 'lobby') return ok({ empty: false, abandoned: false, finished: false });
   if (room.players.length < 2) {
     room.phase = 'abandoned';
     room.ready = [];
-    return ok({ empty: false, abandoned: true, finished: false });
+    return { abandoned: true, finished: false };
   }
-  if (room.phase === 'reveal') return ok({ empty: false, abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
-  if (wasGuesser) return ok({ empty: false, abandoned: false, finished: finishTurn(room, rng) });
+  if (room.phase === 'reveal') return { abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false };
+  if (wasGuesser) return { abandoned: false, finished: finishTurn(room, rng) };
   // A writer has gone: the clues are in once everybody who is left has written one; and a hint the guesser could pick is gone.
   if (room.phase === 'clues' && allWritten(room)) openGuessing(room, rng);
-  else if (room.phase === 'choosing' && !room.order.length && orderBefore) scoreTurn(room, namer(room, nameOf));
-  return ok({ empty: false, abandoned: false, finished: false });
+  else if (room.phase === 'choosing' && !room.order.length && orderBefore) scoreTurn(room, namer(room, String));
+  return { abandoned: false, finished: false };
 }
 
 /** Players best first; tied scores share a placement and every tied leader wins. */
@@ -349,7 +401,7 @@ export function standings(room) {
 
 /** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
 export function statsPlayers(room) {
-  return standings(room).filter((p) => !p.bot).map((p) => ({
+  return standings(room).filter((p) => isHuman(p)).map((p) => ({
     userId: p.id,
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
@@ -363,7 +415,7 @@ export function statsPlayers(room) {
  * (without their writers). Everyone else sees the word, and, once all the clues are in, every clue with its writer and
  * whether it was cancelled. While the clues are being written nobody sees anybody else's.
  */
-export function viewFor(room, userId, { nameOf = String, onlineOf = () => true } = {}) {
+export function viewFor(room, userId, { nameOf = String, online = () => true } = {}) {
   nameOf = namer(room, nameOf);
   const member = hasPlayer(room, userId);
   const isGuesser = room.guesser === userId;
@@ -396,16 +448,16 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
       id: p.id,
       name: nameOf(p.id),
       score: p.score,
-      online: p.bot || onlineOf(p.id),
-      bot: Boolean(p.bot),
-      ai: p.bot && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
+      online: isBot(p) || online(p.id),
+      bot: isBot(p), // the client's name for "is a computer player"
+      ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
       written: room.phase === 'clues' && p.id !== room.guesser ? Boolean(clueOf(room, p.id)) : false,
-      ready: room.phase === 'reveal' ? Boolean(p.bot) || room.ready.includes(p.id) : false,
+      ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
       placement: final.get(p.id)?.placement ?? null,
       winner: final.get(p.id)?.winner ?? false,
     })),
     scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: p.bot ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: Boolean(p.bot), current: (playing || room.phase === 'reveal') && p.id === room.guesser, away: !p.bot && !onlineOf(p.id), ...(room.phase === 'reveal' ? { ready: Boolean(p.bot) || room.ready.includes(p.id) } : {}) })),
+      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: isBot(p), current: (playing || room.phase === 'reveal') && p.id === room.guesser, away: isHuman(p) && !online(p.id), ...(room.phase === 'reveal' ? { ready: isBot(p) || room.ready.includes(p.id) } : {}) })),
       rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,
     },
@@ -421,11 +473,11 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true }
  */
 export function pendingBotAction(room) {
   if (room.phase === 'clues') {
-    const writer = writers(room).find((p) => p.bot && !clueOf(room, p.id));
+    const writer = writers(room).find((p) => isBot(p) && !clueOf(room, p.id));
     return writer ? { type: 'clue', id: writer.id } : null;
   }
   const guesser = playerOf(room, room.guesser);
-  if (!guesser?.bot) return null;
+  if (!isBot(guesser)) return null;
   if (room.phase === 'guessing') return { type: 'guess', id: guesser.id };
   if (room.phase === 'choosing') return { type: 'best', id: guesser.id };
   return null;

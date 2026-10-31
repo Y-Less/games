@@ -57,12 +57,12 @@ function playRandom(seed) {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
   const label = (n) => `seed ${seed}, step ${n}`;
   const people = [1, 2, 3, 4, 5];
-  for (const id of people.slice(1)) if (rng() < 0.7) game.addPlayer(room, id);
-  for (const id of people) if (room.players.length < 3) game.addPlayer(room, id); // at least three, whoever joined
+  for (const id of people.slice(1)) if (rng() < 0.7) game.addHuman(room, id);
+  for (const id of people) if (room.players.length < 3) game.addHuman(room, id); // at least three, whoever joined
   const actions = [
     (id) => game.setTurnsEach(room, id, pick(rng, [1, 2, 0, 9, '2'])),
     (id) => game.addBot(room, id),
-    (id) => game.fillBots(room, id, pick(rng, [3, 5, 99, 'x'])),
+    (id) => game.fillWithBots(room, id, pick(rng, [3, 5, 99, 'x'])),
     (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id])),
     (id) => game.start(room, id, rng),
     (id) => game.submitClue(room, id, pick(rng, CLUES), rng),
@@ -70,8 +70,8 @@ function playRandom(seed) {
     (id) => game.pass(room, id),
     (id) => game.chooseBest(room, id, pick(rng, [0, 1, 2, -1, 9, '0', 0.5, null]), String),
     (id) => game.ready(room, id, rng),
-    (id) => game.removePlayer(room, id, rng),
-    (id) => game.addPlayer(room, id),
+    (id) => game.removeHuman(room, id, rng),
+    (id) => game.addHuman(room, id),
     () => game.pendingBotAction(room) && game.runBotAction(room, rng),
     () => room.phase === 'reveal' && rng() < 0.2 && game.forceNext(room, rng),
   ];
@@ -104,8 +104,8 @@ test('whatever the order of play, a finished game has a history that adds up and
   for (let seed = 1000; seed < 1300; seed++) {
     const rng = seeded(seed);
     const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-    game.addPlayer(room, 2);
-    game.addPlayer(room, 3);
+    game.addHuman(room, 2);
+    game.addHuman(room, 3);
     if (rng() < 0.5) game.addBot(room, 1);
     game.setTurnsEach(room, 1, 1 + Math.floor(rng() * 2));
     game.start(room, 1, rng);
@@ -120,7 +120,7 @@ test('whatever the order of play, a finished game has a history that adds up and
     assert.equal(room.phase, 'finished', `seed ${seed} finishes`);
     for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score, `seed ${seed}: the history adds up for ${p.id}`);
     const stats = game.statsPlayers(room);
-    assert.deepEqual(stats.map((s) => s.userId).sort(), room.players.filter((p) => !p.bot).map((p) => p.id).sort(), 'only people are recorded');
+    assert.deepEqual(stats.map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
     for (const s of stats) assert.ok(Number.isInteger(s.extras.correctGuesses) && Number.isInteger(s.extras.bestHints) && Number.isInteger(s.extras.cluesGiven));
     const total = room.players.reduce((n, p) => n + p.score, 0);
     const rights = room.players.reduce((n, p) => n + p.correctGuesses, 0);

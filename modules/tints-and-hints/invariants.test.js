@@ -44,8 +44,8 @@ function playRandomGame(seed) {
 
   // The lobby: people come and go, choose colours, change the turns.
   const wanted = 2 + Math.floor(rng() * 7);
-  for (let i = 1; i < wanted; i++) assert.equal(game.addPlayer(room, nextId++).ok, true);
-  if (room.players.length === game.MAX_PLAYERS) illegal('a ninth player', () => game.addPlayer(room, 999));
+  for (let i = 1; i < wanted; i++) assert.equal(game.addHuman(room, nextId++).ok, true);
+  if (room.players.length === game.MAX_PLAYERS) illegal('a ninth player', () => game.addHuman(room, 999));
   check('joined');
   for (let i = 0; i < 6; i++) {
     const p = pick(rng, room.players);
@@ -59,7 +59,7 @@ function playRandomGame(seed) {
   assert.equal(game.setTurnsEach(room, room.hostId, 1 + Math.floor(rng() * 5)).ok, true);
   if (rng() < 0.3 && room.players.length > 2) {
     const leaver = pick(rng, room.players.filter((p) => p.id !== room.hostId));
-    assert.equal(game.removePlayer(room, leaver.id, rng).ok, true);
+    assert.equal(game.removeHuman(room, leaver.id, rng).ok, true);
     check('lobby leave');
   }
   illegal('a stranger starting', () => game.start(room, 999, rng));
@@ -67,7 +67,7 @@ function playRandomGame(seed) {
   assert.equal(game.start(room, room.hostId, rng).ok, true);
   check('start');
   illegal('a second start', () => game.start(room, room.hostId, rng));
-  illegal('joining a started game', () => game.addPlayer(room, 1000));
+  illegal('joining a started game', () => game.addHuman(room, 1000));
   illegal('changing a colour in play', () => game.setColour(room, room.hostId, game.COLOURS[7]));
 
   let previous = room.phase;
@@ -80,13 +80,13 @@ function playRandomGame(seed) {
     const guessers = room.players.filter((p) => p.id !== room.hinter);
     if (roll < 0.004 && phase !== 'reveal') {
       const leaver = pick(rng, room.players);
-      const result = game.removePlayer(room, leaver.id, rng);
+      const result = game.removeHuman(room, leaver.id, rng);
       assert.equal(result.ok, true);
       log.push('leave');
       check('leave');
     } else if (roll < 0.01 && phase === 'reveal') {
       const leaver = pick(rng, room.players);
-      assert.equal(game.removePlayer(room, leaver.id, rng).ok, true);
+      assert.equal(game.removeHuman(room, leaver.id, rng).ok, true);
       check('leave at the reveal');
     } else if (roll < 0.2) {
       // A refused action of some kind.
@@ -101,7 +101,7 @@ function playRandomGame(seed) {
         () => game.start(room, room.hostId, rng),
         () => game.setColour(room, any.id, game.COLOURS[0]),
         () => game.setTurnsEach(room, room.hostId, 3),
-        () => game.addPlayer(room, 6000 + steps),
+        () => game.addHuman(room, 6000 + steps),
       ];
       const before = snapshot(room);
       const result = pick(rng, choices)();
@@ -176,7 +176,7 @@ test('random games without leavers always finish with exactly turnsEach turns pe
     const rng = seeded(seed);
     const room = game.createRoom({ code: 'a-b-c', hostId: 1, turnsEach: 1 + Math.floor(rng() * 5) });
     const n = 2 + Math.floor(rng() * 7);
-    for (let i = 2; i <= n; i++) game.addPlayer(room, i);
+    for (let i = 2; i <= n; i++) game.addHuman(room, i);
     game.start(room, 1, rng);
     const hinters = [];
     while (room.phase !== 'finished') {
@@ -201,7 +201,7 @@ test('random games without leavers always finish with exactly turnsEach turns pe
 test('the tint is always a real square, whatever the random generator returns', () => {
   for (const value of [0, 0.5, 0.999999999, 1 - Number.EPSILON]) {
     const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-    game.addPlayer(room, 2);
+    game.addHuman(room, 2);
     game.start(room, 1, () => value);
     assert.ok(isCell(room.tint), `${value} gave ${room.tint}`);
   }

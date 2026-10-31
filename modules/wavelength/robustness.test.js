@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launchModule, fuzzEvent, assertNoPollution, prototypeNames, until, sleep } from '../../shared/testkit.js';
+import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,7 +27,12 @@ const EVENTS = {
   marker: ['position'],
   lock: [],
   ready: [],
+  again: [],
 };
+
+test('this test knows every socket event the server handles', () => {
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
+});
 const SCENES = [
   ['solo', 'lobby'],
   ['solo', 'clue'],

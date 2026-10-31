@@ -83,28 +83,28 @@ test('the random AI: describes the 4 x 4 block of its square, and guesses inside
 
 test('the host adds, fills and removes computer players in the lobby, up to the maximum', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  game.addPlayer(room, 2);
+  game.addHuman(room, 2);
   assert.equal(game.addBot(room, 2).ok, false, 'only the host');
-  assert.equal(game.fillBots(room, 2).ok, false);
+  assert.equal(game.fillWithBots(room, 2).ok, false);
   const added = game.addBot(room, 1);
   assert.ok(added.ok && /^bot:\d+$/.test(added.id));
   const bot = room.players.find((p) => p.id === added.id);
-  assert.ok(bot.bot && bot.name && !('ai' in bot), 'named, and no AI until the game starts');
+  assert.ok(bot.kind === 'bot' && bot.name && !('ai' in bot), 'named, and no AI until the game starts');
   assert.equal(game.removeBot(room, 2, added.id).ok, false, 'only the host removes');
   assert.equal(game.removeBot(room, 1, 2).ok, false, 'a person is not a computer player');
   assert.equal(game.removeBot(room, 1, added.id).ok, true);
   assert.equal(room.players.length, 2);
-  assert.ok(game.fillBots(room, 1, 5).ok);
+  assert.ok(game.fillWithBots(room, 1, 5).ok);
   assert.equal(room.players.length, 5);
-  assert.equal(game.fillBots(room, 1, 99).ok, true);
+  assert.equal(game.fillWithBots(room, 1, 99).ok, true);
   assert.equal(room.players.length, game.MAX_PLAYERS, 'never over the maximum');
   assert.match(game.addBot(room, 1).error, /full/);
   assert.equal(new Set(room.players.map((p) => p.name ?? p.id)).size, room.players.length, 'every seat has its own name');
   checkRoom(room);
-  assert.equal(game.addPlayer(room, 3).ok, false, 'a full table of computers still turns people away');
+  assert.equal(game.addHuman(room, 3).ok, false, 'a full table of computers still turns people away');
   game.start(room, 1);
   assert.equal(game.addBot(room, 1).ok, false, 'not once the game has started');
-  assert.equal(game.fillBots(room, 1).ok, false);
+  assert.equal(game.fillWithBots(room, 1).ok, false);
   assert.equal(game.removeBot(room, 1, 'bot:1').ok, false, 'in a game it is removePlayer');
 });
 
@@ -112,7 +112,7 @@ test('starting deals each computer player an AI, shown as { id, name } on bot se
   const room = lobbyWith(3);
   assert.ok(game.viewFor(room, 1).players.every((p) => p.ai === null), 'no AI before the start');
   assert.equal(game.start(room, 1, seededRng(9)).ok, true);
-  const bots = room.players.filter((p) => p.bot);
+  const bots = room.players.filter((p) => p.kind === 'bot');
   assert.ok(bots.every((p) => p.ai === 'random'));
   const view = game.viewFor(room, 1);
   assert.deepEqual(view.players.find((p) => p.id === 1).ai, null);
@@ -146,7 +146,7 @@ test('computer hints and guesses are legal on every pending action, in both roun
   for (let i = 0; i < 400 && room.phase !== 'finished'; i++) {
     const action = game.pendingBotAction(room);
     if (action) {
-      assert.ok(room.players.find((p) => p.id === action.id).bot, 'only computers are asked to act');
+      assert.ok(room.players.find((p) => p.id === action.id).kind === 'bot', 'only computers are asked to act');
       if (action.type !== 'hint') assert.equal(action.type === 'guess' ? room.hinter !== action.id : room.hinter === action.id, true);
       assert.equal(game.runBotAction(room, rng, action), true);
       log.push(action.type);
@@ -218,19 +218,19 @@ test('removing a computer player: from the lobby, and in a game (the game carrie
   const room = lobbyWith(3);
   game.start(room, 1, seededRng(8));
   const rng = seededRng(8);
-  const botOf = () => room.players.find((p) => p.bot && p.id !== room.hinter);
-  const out = game.removePlayer(room, botOf().id, rng);
+  const botOf = () => room.players.find((p) => p.kind === 'bot' && p.id !== room.hinter);
+  const out = game.removeBot(room, room.hostId, botOf().id, rng);
   assert.deepEqual(out, { ok: true, empty: false, abandoned: false, finished: false });
   assert.equal(room.players.length, 3);
   checkRoom(room);
-  game.removePlayer(room, botOf().id, rng);
+  game.removeBot(room, room.hostId, botOf().id, rng);
   assert.equal(room.players.length, 2);
   playOut(room, rng);
   assert.equal(room.phase, 'finished');
 
   const two = lobbyWith(1);
   game.start(two, 1, rng);
-  const dropped = game.removePlayer(two, two.players.find((p) => p.bot).id, rng);
+  const dropped = game.removeBot(two, two.hostId, two.players.find((p) => p.kind === 'bot').id, rng);
   assert.equal(dropped.abandoned, true, 'a person alone is not a game');
   assert.equal(two.phase, 'abandoned');
 });
@@ -238,15 +238,15 @@ test('removing a computer player: from the lobby, and in a game (the game carrie
 test('when the last person leaves, the computer players alone do not keep the game', () => {
   const room = lobbyWith(2);
   game.start(room, 1, seededRng(8));
-  const out = game.removePlayer(room, 1, seededRng(8));
+  const out = game.removeHuman(room, 1, seededRng(8));
   assert.equal(out.empty, true);
   const second = game.createRoom({ code: 'x-y-z', hostId: 1 });
-  game.addPlayer(second, 2);
+  game.addHuman(second, 2);
   game.addBot(second, 1);
   game.start(second, 1, seededRng(1));
-  game.removePlayer(second, 1, seededRng(1));
+  game.removeHuman(second, 1, seededRng(1));
   assert.equal(second.hostId, 2, 'the host passes to a person, never a computer');
-  assert.equal(game.removePlayer(second, 2, seededRng(1)).empty, true);
+  assert.equal(game.removeHuman(second, 2, seededRng(1)).empty, true);
 });
 
 test('old saved rooms still load: migrate gives them a bot counter', () => {

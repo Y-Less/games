@@ -10,7 +10,7 @@
 //   - reports a finished game to the statistics once.
 //
 // Nothing here knows any rules. The game's rules module (`game`) must provide the seat vocabulary described under
-// `options.game` below; seats.js (also shared) implements most of it.
+// `options.game` below; seats.js (also shared) implements most of it for games with numbered seats, and roster.js for games that keep a list of players (set options.members and options.kickKey for those).
 //
 // Randomness and the clock are injected (`options.rng`, `options.now`) so a test can make a server deterministic;
 // the defaults are Math.random and Date.now.
@@ -100,15 +100,25 @@ export function pickKeys(payload, keys) {
  *   with { on, act, userId, socket }: `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
  *   error handling; `act(rule)` runs rule(room, seat) on the room this socket is in and tells everybody if it worked.
  * @param {(payload: object) => object} [options.createArgs]  extra arguments for game.createRoom beyond the settings
- * @param {(room: object) => object} [options.viewOptions]  extra options for game.viewFor (such as the current time)
+ * @param {(userId: number) => object} [options.playerExtras]  what the server knows about a person that the rules need when they
+ *   take a place (for example their preferred marker colour). It is merged into the game.createRoom arguments for the host
+ *   and handed to game.addHuman as a fourth argument for everybody who joins.
+ * @param {(room: object, userId: number) => object} [options.viewOptions]  extra options for game.viewFor (such as the current
+ *   time, or something that depends on who is looking)
+ * @param {(room: object) => object[]} [options.members]  the people and computer players of a room, each with `kind` and `id`
+ *   (default: room.seats, which has null for an empty seat; the player-list games of shared/roster.js use room.players)
+ * @param {string} [options.kickKey]  the field of the 'kick' message that names who to remove (default 'seat'; the
+ *   player-list games send the account id as 'userId')
  * @param {(room: object, userId: number) => object} [options.startRule]  replaces game.start for the 'start' event
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
+ * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
+ *   anybody (for something the game does once per change, such as handing out achievements). A throw is logged and ignored.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now)
  * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
  */
 export function createRoomServer(ctx, options) {
-  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), startRule, migrate, rng = Math.random, now = Date.now } = options;
+  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, kickKey = 'seat', startRule, migrate, rng = Math.random, now = Date.now } = options;
   const file = path.join(ctx.dataDir, 'rooms.json');
   const rooms = new Map();
   const sockets = new Map(); // user id -> the sockets that user has open
@@ -183,9 +193,9 @@ export function createRoomServer(ctx, options) {
 
   /** Sends every connected person in the room their own view of it. */
   function push(room) {
-    for (const seat of room.seats) {
+    for (const seat of members(room)) {
       if (!game.isHuman(seat)) continue;
-      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room) }));
+      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room, seat.id) }));
     }
   }
 
@@ -207,9 +217,18 @@ export function createRoomServer(ctx, options) {
    * Works out what the server has to do by itself next for this room and sets the timer for it, replacing any earlier
    * timer (unless the action says its key is unchanged). If the action throws, the failure is logged and it is tried
    * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts.
+   * The same goes if working out the next action throws, or if telling everybody afterwards does: a bug in one game's
+   * rules must not escape from a timer (where nothing would catch it) or leave the room waiting for ever.
    */
   function schedule(room) {
-    const action = nextAction(room);
+    let action;
+    try {
+      action = nextAction(room);
+    } catch (error) {
+      cancelTimer(room.code);
+      failedMove(room, 'could not work out the next move', error);
+      return;
+    }
     const waiting = timers.get(room.code);
     if (!action) {
       cancelTimer(room.code);
@@ -223,17 +242,30 @@ export function createRoomServer(ctx, options) {
       try {
         action.run();
         failures.delete(room.code);
+        changed(room);
       } catch (error) {
-        const count = (failures.get(room.code) ?? 0) + 1;
-        failures.set(room.code, count);
-        ctx.log('a scheduled move failed:', error);
-        if (count <= MAX_RETRIES) retryLater(room, RETRY_BASE_MS * 2 ** (count - 1));
-        return;
+        failedMove(room, 'a scheduled move failed', error);
       }
-      changed(room);
     }, action.wait);
     timer.unref?.();
     timers.set(room.code, { timer, key: action.key });
+  }
+
+  /**
+   * Notes that a scheduled move (or the work of finding it) threw: logs it and, for the first MAX_RETRIES failures in a row,
+   * tries again after a pause that doubles each time.
+   *
+   * Side effects: logs, counts the failure for this room and may set a retry timer.
+   *
+   * @param {object} room
+   * @param {string} what   what failed, for the log
+   * @param {Error} error
+   */
+  function failedMove(room, what, error) {
+    const count = (failures.get(room.code) ?? 0) + 1;
+    failures.set(room.code, count);
+    ctx.log(`${what}:`, error);
+    if (count <= MAX_RETRIES) retryLater(room, RETRY_BASE_MS * 2 ** (count - 1));
   }
 
   /** Tries scheduling again after a pause (used after a scheduled move threw). */
@@ -257,9 +289,14 @@ export function createRoomServer(ctx, options) {
     }
   }
 
-  /** Call after any change to a room: stamps it, records a finished game, saves, tells everyone and reschedules. */
+  /** Call after any change to a room: stamps it, runs the game's afterChange, records a finished game, saves, tells everyone and reschedules. */
   function changed(room) {
     room.updatedAt = now();
+    try {
+      afterChange?.(room);
+    } catch (error) {
+      ctx.log('afterChange failed:', error);
+    }
     recordIfFinished(room);
     save();
     push(room);
@@ -314,7 +351,7 @@ export function createRoomServer(ctx, options) {
       attach(socket, room);
       return { ok: true, code };
     }
-    const added = game.addHuman(room, userId, socket.data.user.name);
+    const added = game.addHuman(room, userId, socket.data.user.name, playerExtras(userId));
     if (!added.ok) {
       socket.emit('state', null);
       return room.phase === 'finished' ? { ok: false, error: 'That game has finished.' } : added;
@@ -378,6 +415,7 @@ export function createRoomServer(ctx, options) {
           hostId: userId,
           hostName: socket.data.user.name,
           settings: pickSettings(payload),
+          ...playerExtras(userId),
           ...createArgs(payload),
         });
       } catch (error) {
@@ -403,10 +441,10 @@ export function createRoomServer(ctx, options) {
     });
 
     // The host removes someone: the rules refuse a finished game, a missing seat and the host themselves.
-    on('kick', ({ seat }) => {
+    on('kick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'You are not in a game.' };
-      const outcome = game.kick(room, userId, seat, rng);
+      const outcome = game.kick(room, userId, payload[kickKey], rng);
       if (!outcome.ok) return { ok: false, error: outcome.error };
       detach(outcome.userId, room.code);
       changed(room);
@@ -416,7 +454,7 @@ export function createRoomServer(ctx, options) {
     on('settings', (payload) => act((room) => game.setSettings(room, userId, pickSettings(payload))));
     on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
     on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
-    on('fillBots', () => act((room) => game.fillWithBots(room, userId)));
+    on('fillBots', (payload) => act((room) => game.fillWithBots(room, userId, payload.count)));
     on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng)));
     on('again', () => act((room) => game.playAgain(room, userId)));
 

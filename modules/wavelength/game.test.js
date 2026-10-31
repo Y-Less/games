@@ -9,7 +9,7 @@ import { seeded } from '../../shared/testkit.js';
 /** A room of the given user ids, started with the first player as the first psychic. */
 function started(ids = [1, 2, 3], { turnsEach = 2, seed = 7 } = {}) {
   const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
-  for (const id of ids.slice(1)) assert.ok(game.addPlayer(room, id).ok);
+  for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
   const rng = seeded(seed);
   assert.ok(game.start(room, ids[0], rng).ok);
@@ -44,22 +44,22 @@ test('every spectrum is well formed and its examples lie on the dial', () => {
 
 test('a lobby: players, colours, settings and computer players', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  assert.ok(game.addPlayer(room, 2).ok);
-  assert.ok(game.addPlayer(room, 2).ok, 'joining twice is harmless');
+  assert.ok(game.addHuman(room, 2).ok);
+  assert.ok(game.addHuman(room, 2).ok, 'joining twice is harmless');
   assert.equal(game.setColour(room, 2, room.players[0].colour).ok, false, 'colours are unique');
   assert.equal(game.setColour(room, 2, '#123456').ok, false);
   assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
   assert.equal(game.setTurnsEach(room, 1, 9).ok, false);
   assert.ok(game.setTurnsEach(room, 1, 3).ok);
   assert.equal(game.addBot(room, 2).ok, false, 'only the host adds computers');
-  assert.ok(game.fillBots(room, 1, 4).ok);
+  assert.ok(game.fillWithBots(room, 1, 4).ok);
   assert.equal(room.players.length, 4);
-  assert.ok(room.players.slice(2).every((p) => p.bot && p.id.startsWith('bot:')));
+  assert.ok(room.players.slice(2).every((p) => p.kind === 'bot' && p.id.startsWith('bot:')));
   assert.equal(game.start(room, 2).ok, false, 'only the host starts');
   assert.ok(game.start(room, 1, seeded(1)).ok);
   assert.equal(room.turnsTotal, 12);
-  assert.ok(room.players.filter((p) => p.bot).every((p) => AIS.some((ai) => ai.id === p.ai)), 'every bot has an AI');
-  assert.equal(game.addPlayer(room, 9).ok, false, 'too late to join');
+  assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => AIS.some((ai) => ai.id === p.ai)), 'every bot has an AI');
+  assert.equal(game.addHuman(room, 9).ok, false, 'too late to join');
   assert.equal(game.addBot(room, 1).ok, false);
 });
 
@@ -158,7 +158,7 @@ test('leaving: a guesser who was holding up the reveal, the psychic, and too few
   game.setClue(room, psychic, 'warm');
   game.guess(room, a, 50);
   game.guess(room, b, 50);
-  const outcome = game.removePlayer(room, c);
+  const outcome = game.removeHuman(room, c);
   assert.ok(outcome.ok && !outcome.abandoned);
   assert.equal(room.phase, 'reveal', 'the missing guess is no longer waited for');
   assert.equal(room.history.length, 1);
@@ -166,18 +166,18 @@ test('leaving: a guesser who was holding up the reveal, the psychic, and too few
   const second = started([1, 2, 3, 4]);
   game.setClue(second, second.psychic, 'warm');
   const gone = second.psychic;
-  game.removePlayer(second, gone);
+  game.removeHuman(second, gone);
   assert.equal(second.phase, 'clue', 'the turn is skipped and the next one starts');
   assert.notEqual(second.psychic, gone);
   assert.equal(second.history.length, 0, 'a skipped turn scores nothing');
   assert.equal(second.players.length, 3);
 
   const pair = started([1, 2]);
-  game.removePlayer(pair, 2);
+  game.removeHuman(pair, 2);
   assert.equal(pair.phase, 'abandoned');
-  assert.equal(game.removePlayer(game.createRoom({ code: 'a-b-c', hostId: 1 }), 1).empty, true);
+  assert.equal(game.removeHuman(game.createRoom({ code: 'a-b-c', hostId: 1 }), 1).empty, true);
   const host = started([1, 2, 3]);
-  game.removePlayer(host, 1);
+  game.removeHuman(host, 1);
   assert.equal(host.hostId, 2, 'the host passes on');
 });
 
@@ -244,7 +244,7 @@ test('rooms saved before these were counted keep working', () => {
 
 test('statistics list the people, with their bullseyes and clues', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  game.addPlayer(room, 2);
+  game.addHuman(room, 2);
   game.addBot(room, 1);
   game.start(room, 1, seeded(3));
   while (room.phase !== 'finished') {
@@ -268,7 +268,7 @@ function playBots(seed, { turnsEach = 2, count = 4 } = {}) {
   const room = game.createRoom({ code: 'a-b-c', hostId: 'bot:0' });
   room.players.length = 0;
   room.hostId = null;
-  for (let i = 0; i < count; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, bot: true, name: `B${i}` });
+  for (let i = 0; i < count; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}` });
   room.nextBot = count + 1;
   room.turnsEach = turnsEach;
   room.turnsTotal = turnsEach * count;
@@ -302,7 +302,7 @@ test('a good computer player beats a random one, and every AI is legal on its ow
     const rng = seeded(seed);
     const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
     room.players.length = 0;
-    for (let i = 0; i < 4; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, bot: true, name: `B${i}`, ai: i < 2 ? 'standard' : 'random' });
+    for (let i = 0; i < 4; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}`, ai: i < 2 ? 'standard' : 'random' });
     room.hostId = 'bot:1';
     room.turnsEach = 2;
     game.start(room, 'bot:1', rng);
@@ -318,9 +318,9 @@ test('a good computer player beats a random one, and every AI is legal on its ow
 
 test('a computer player never sees the target, and a broken AI cannot stop the game', () => {
   const room = started([1, 2, 3]);
-  room.players[1].bot = true;
+  room.players[1].kind = 'bot';
   room.players[1].name = 'Ada';
-  room.players[2].bot = true;
+  room.players[2].kind = 'bot';
   room.players[2].name = 'Bram';
   room.players[1].ai = room.players[2].ai = 'standard';
   const seen = [];
@@ -353,10 +353,10 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, colour: '#6a00ff' });
   assert.equal(room.players[0].colour, '#6a00ff', 'the host gets their default');
   assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1 }).players[0].colour, game.COLOURS[0], 'no default: the first colour');
-  assert.ok(game.addPlayer(room, 2, '#6a00ff').ok);
+  assert.ok(game.addHuman(room, 2, 'P2', { colour: '#6a00ff' }).ok);
   assert.equal(room.players[1].colour, game.COLOURS[0], 'the default is taken: the first free colour');
-  assert.ok(game.addPlayer(room, 3, '#123456').ok);
-  assert.ok(game.addPlayer(room, 4, '#123456').ok);
+  assert.ok(game.addHuman(room, 3, 'P3', { colour: '#123456' }).ok);
+  assert.ok(game.addHuman(room, 4, 'P4', { colour: '#123456' }).ok);
   assert.equal(room.players[3].colour, game.COLOURS[1], 'colours are unique, even custom ones');
   assert.equal(game.setColour(room, 2, '#abcdef').ok, false, 'a custom colour needs the unlock');
   assert.ok(game.setColour(room, 2, '#ABCDEF', true).ok);
@@ -374,7 +374,7 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
 
 function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
   const room = game.createRoom({ code: 'a-b-c', hostId: ids[0] });
-  for (const id of ids.slice(1)) game.addPlayer(room, id);
+  for (const id of ids.slice(1)) game.addHuman(room, id);
   assert.ok(game.setTurnsEach(room, ids[0], 1).ok);
   assert.ok(game.setMode(room, ids[0], 'team').ok);
   assert.ok(game.start(room, ids[0], seeded(seed)).ok);
@@ -383,7 +383,7 @@ function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
 
 test('the host chooses the mode in the lobby only', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  game.addPlayer(room, 2);
+  game.addHuman(room, 2);
   assert.equal(room.mode, 'solo');
   assert.equal(game.setMode(room, 2, 'team').ok, false, 'only the host');
   assert.equal(game.setMode(room, 1, 'chaos').ok, false);
@@ -446,7 +446,7 @@ test('a team game is won or lost together in the statistics', () => {
 
 test('a team of computer players moves and locks the marker by itself, but waits for people', () => {
   const room = teamRoom([1, 2, 3]);
-  for (const p of room.players) p.bot = true;
+  for (const p of room.players) p.kind = 'bot';
   for (const p of room.players) p.name = `B${p.id}`;
   let moves = 0;
   while (room.phase !== 'finished') {
@@ -457,10 +457,10 @@ test('a team of computer players moves and locks the marker by itself, but waits
   assert.equal(room.history.length, 3);
 
   const mixed = teamRoom([1, 2, 3]);
-  mixed.players[1].bot = true;
-  mixed.players[2].bot = true;
+  mixed.players[1].kind = 'bot';
+  mixed.players[2].kind = 'bot';
   game.setClue(mixed, mixed.psychic, 'x');
-  const person = guessersOf(mixed).some((p) => !p.bot);
+  const person = guessersOf(mixed).some((p) => p.kind !== 'bot');
   if (person) assert.equal(game.pendingBotAction(mixed), null, 'a person among the guessers: the bots wait for them');
   else assert.equal(game.pendingBotAction(mixed).type, 'marker', 'only bots guess: they place the marker');
 });
@@ -473,9 +473,58 @@ test('a team game survives the psychic leaving, and a saved room keeps its mode 
   assert.equal(copy.mode, 'team');
   assert.equal(copy.marker, 42);
   const gone = room.psychic;
-  game.removePlayer(room, gone);
+  game.removeHuman(room, gone);
   assert.equal(room.phase, 'clue');
   assert.equal(room.marker, null, 'a new turn starts with the marker unplaced');
   const old = game.migrate({ ...JSON.parse(JSON.stringify(started())), mode: undefined, marker: undefined });
   assert.equal(old.mode, 'solo', 'a room saved before team mode is a solo game');
+});
+
+test('kick refuses a finished game and removes nobody', () => {
+  const room = (() => {
+    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    game.addHuman(r, 2, 'Bob');
+    game.addBot(r, 1);
+    game.start(r, 1, seeded(3));
+    return r;
+  })();
+  room.phase = 'finished';
+  const before = JSON.stringify(room);
+  assert.deepEqual(game.kick(room, 1, 2), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.equal(JSON.stringify(room), before, 'nothing changed');
+});
+
+test('a room saved before players had a kind still loads: bot: true becomes kind: bot, and people are named from their account', () => {
+  const room = (() => {
+    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    game.addHuman(r, 2, 'Bob');
+    game.addBot(r, 1);
+    game.start(r, 1, seeded(3));
+    return r;
+  })();
+  const bots = room.players.filter((p) => p.kind === 'bot').map((p) => p.id);
+  assert.ok(bots.length >= 1);
+  // Rewrite the room into the shape it was saved in before: bot: true, and no names for people.
+  for (const p of room.players) {
+    if (p.kind === 'bot') p.bot = true;
+    else delete p.name;
+    delete p.kind;
+  }
+  game.migrate(room, (id) => `Account ${id}`);
+  assert.deepEqual(room.players.filter((p) => p.kind === 'bot').map((p) => p.id), bots);
+  assert.ok(room.players.every((p) => !('bot' in p)), 'bot: true is gone');
+  assert.ok(room.players.filter((p) => p.kind === 'human').every((p) => p.name === `Account ${p.id}`));
+  const view = game.viewFor(room, 1);
+  assert.deepEqual(view.players.filter((p) => p.bot).map((p) => p.id), bots, 'the view still says which are computer players');
+  assert.deepEqual(game.statsPlayers({ ...room, phase: 'finished' }).map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
+  assert.equal(game.humans(room).length, room.players.length - bots.length);
+});
+
+test('the most a game can score and the score a team needs both come from the bands (the client imports the same file)', () => {
+  assert.equal(game.MAX_TURN_POINTS, game.BANDS[0].points);
+  assert.equal(game.TEAM_WIN_TURN_POINTS, game.BANDS.at(-1).points);
+  assert.equal(game.maxScore(3), 12);
+  assert.equal(game.teamWinScore(3), 6);
+  const room = teamRoom([1, 2, 3]);
+  assert.equal(game.teamWinScore(room.turnsTotal), 2 * room.turnsTotal, 'a team must average the outer band a turn');
 });

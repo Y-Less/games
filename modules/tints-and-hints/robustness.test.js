@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launchModule, fuzzEvent, assertNoPollution, prototypeNames, until, sleep } from '../../shared/testkit.js';
+import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 import { checkRun } from './checks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +23,15 @@ const EVENTS = {
   guess: ['cell'],
   advance: [],
   ready: [],
+  addBot: [],
+  fillBots: ['count'],
+  removeBot: ['seat'],
+  again: [],
 };
+
+test('this test knows every socket event the server handles', () => {
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
+});
 const PHASES = ['lobby', 'guessing1', 'guessing2', 'reveal', 'finished'];
 
 test('garbage payloads on every event, in every phase, from members and strangers', async (t) => {
@@ -99,7 +107,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
         acks += await fuzzEvent(who, event, fields, { secrets: hiddenTint, extra: extra ?? [] });
         // The server is still answering after every battery.
         assert.equal((await eve.call('resume', {})).ok !== 'timeout', true);
-        if (['create', 'leave', 'start', 'advance', 'kick', 'join', 'resume'].includes(event)) await arrange(phase);
+        if (['create', 'leave', 'start', 'advance', 'kick', 'join', 'resume', 'addBot', 'fillBots', 'removeBot'].includes(event)) await arrange(phase);
       }
     }
   }
@@ -135,7 +143,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   }
   for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { userId: bob.id }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
     const reply = await eve.call(event, payload);
-    assert.deepEqual(reply, { ok: false, error: event === 'kick' ? 'Only the host can remove players.' : 'You are not in a game.' }, event);
+    assert.deepEqual(reply, { ok: false, error: 'You are not in a game.' }, event);
   }
   assert.equal((await bob.call('start', {})).ok, false, 'only the host starts');
   assert.equal((await bob.call('settings', { turnsEach: 3 })).ok, false, 'only the host changes the settings');

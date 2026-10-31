@@ -4,6 +4,8 @@ import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell }
 import { placements, totalsFromRounds } from '../../shared/scores.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { fail, hostInLobby, ok } from '../../shared/seats.js';
+import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
@@ -19,34 +21,70 @@ const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana'];
 /** Version of the colour grid the squares of a room are named in (1, with no marker, was the 24 x 10 grid). */
 const GRID_VERSION = 5;
 const LIVE = ['lobby', 'guessing1', 'guessing2', 'reveal'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
 
+// The player-list vocabulary (who is in the room, and who is a person) is shared with Just One and Wavelength.
+export { hasPlayer, humans, isHuman, seatOf };
+
+/**
+ * Is the game still going (or still in the lobby)?
+ *
+ * @param {object} room
+ * @returns {boolean} false once it has finished or been abandoned
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const hasPlayer = (room, id) => room.players.some((p) => p.id === id);
+/** The player with this id, or undefined. */
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
+/** A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names). */
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
+/** Everybody but the hinter. */
 const guessers = (room) => room.players.filter((p) => p.id !== room.hinter);
+/** A random square of the grid, such as 'M4'. */
 const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.floor(rng() * ROWS.length)];
-const newPlayer = (id, colour) => ({ id, colour, score: 0, ...newCounters() });
-/** People (accounts), as opposed to computer players. */
-export const humans = (room) => room.players.filter((p) => !p.bot);
+
+/**
+ * Gives a bare player ({ kind, id, name }) the fields Tints and Hints keeps for everybody: the score, the statistics counters
+ * and a marker colour. A computer player gets the first colour nobody has; a person gets the colour they prefer (`extras.colour`,
+ * already checked to be one they may use) if it is free, otherwise the first free one.
+ *
+ * @param {object} room     the room the player is about to join (read for the colours already taken; not changed)
+ * @param {object} base     { kind: 'human' | 'bot', id, name? }
+ * @param {{ colour?: string | null }} [extras]  what the server knows about a person joining
+ * @returns {object} the player
+ */
+const makePlayer = (room, base, extras = {}) => ({
+  ...base,
+  colour: isBot(base) ? freeColour(room) : startingMarker(extras.colour ?? null, room.players.map((p) => p.colour), true),
+  score: 0,
+  ...newCounters(),
+});
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
 
-/** `colour` is the host's default marker colour, already checked to be one they may use (ctx.markers.preferred). */
-export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_EACH.default, colour = null }) {
-  return {
+/**
+ * Makes a new room with the host in it.
+ *
+ * @param {object} args
+ * @param {string} args.code         the invite code
+ * @param {number} args.hostId       the host's account id
+ * @param {string} [args.hostName]   the host's display name
+ * @param {object} [args.settings]   settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
+ * @param {number} [args.turnsEach]  turns each (default 2); `settings.turnsEach` wins if both are given
+ * @param {string | null} [args.colour]  the host's default marker colour, already checked to be one they may use (ctx.markers.preferred)
+ * @param {number} [args.now]        the time to stamp it with
+ * @returns {object} the room, in the lobby
+ */
+export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now(), turnsEach = TURNS_EACH.default, colour = null }) {
+  const room = {
     code,
     hostId,
     phase: 'lobby',
     turnsEach,
     turnsTotal: 0,
     turn: 0,
-    players: [newPlayer(hostId, startingMarker(colour, [], true))],
+    players: [],
     nextIdx: 0,
     grid: GRID_VERSION, // 5 = the 52 x 24 grid (4 was 48 x 24, 2 and 3 were 48 x 20); rooms without it were saved with the old 24 x 10 grid (see migrate)
     ready: [], // at the reveal: the people who have closed the scores pop-up
-    nextBot: 1, // computer players are seats named 'bot:<n>' with bot: true, a name and (once started) an ai id
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name and (once started) an ai id
     hinter: null,
     tint: null,
     hints: { first: '', second: '' },
@@ -58,18 +96,60 @@ export function createRoom({ code, hostId, now = Date.now(), turnsEach = TURNS_E
     createdAt: now,
     updatedAt: now,
   };
+  room.ready ??= [];
+  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour }));
+  setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
+  return room;
 }
 
-/** `colour` is the player's default marker colour, already checked to be one they may use; it is used if it is free. */
-export function addPlayer(room, id, colour = null) {
-  if (hasPlayer(room, id)) return ok();
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  room.players.push(newPlayer(id, startingMarker(colour, room.players.map((p) => p.colour), true)));
-  return ok();
+/**
+ * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Tints and Hints somebody who leaves
+ * mid-game is not replaced: the game carries on with one fewer (see afterRemoval).
+ */
+const roster = createRosterRules({
+  isLive,
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  botNames: BOT_NAMES,
+  makePlayer,
+  afterRemoval: (room, left, rng) => afterRemoval(room, left.id, left.index, rng),
+});
+/** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
+export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
+
+/**
+ * The host changes the settings. Only the settings that are given are changed.
+ *
+ * @param {object} room
+ * @param {number} id        who is asking (must be the host)
+ * @param {object} settings  { turnsEach? }
+ * @returns {{ ok: boolean, error?: string }}
+ */
+export function setSettings(room, id, settings = {}) {
+  if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
+  return setTurnsEach(room, id, settings.turnsEach);
 }
 
-/** `canCustom`: this player has unlocked any marker colour (otherwise only the free palette is allowed). */
+/**
+ * Tints and Hints has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
+ *
+ * @returns {{ ok: false, error: string }}
+ */
+export function playAgain() {
+  return fail('Start a new game from the menu.');
+}
+
+/**
+ * A player picks their marker colour in the lobby.
+ *
+ * Side effect: changes the player's colour.
+ *
+ * @param {object} room
+ * @param {number} id
+ * @param {string} colour
+ * @param {boolean} [canCustom]  this player has unlocked any marker colour (otherwise only the free palette is allowed)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
   if (!player) return fail('You are not in this game.');
@@ -90,50 +170,6 @@ export function setTurnsEach(room, id, turnsEach) {
   return ok();
 }
 
-function newBot(room) {
-  const used = new Set(room.players.filter((p) => p.bot).map((p) => p.name));
-  let name = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  for (let n = 2; used.has(name); n++) name = `Computer ${n}`;
-  room.nextBot ??= 1;
-  room.ready ??= [];
-  return { ...newPlayer(`bot:${room.nextBot++}`, freeColour(room)), bot: true, name };
-}
-
-function hostOnlyInLobby(room, id, what) {
-  if (id !== room.hostId) return fail(`Only the host can ${what} computer players.`);
-  if (room.phase !== 'lobby') return fail(`Computer players can only be ${what === 'add' ? 'added' : 'removed'} in the lobby.`);
-  return null;
-}
-
-/** The host adds one computer player to the lobby. */
-export function addBot(room, id) {
-  const refused = hostOnlyInLobby(room, id, 'add');
-  if (refused) return refused;
-  if (room.players.length >= MAX_PLAYERS) return fail('That game is full.');
-  const bot = newBot(room);
-  room.players.push(bot);
-  return ok({ id: bot.id });
-}
-
-/** The host fills the lobby with computer players until there are `target` players (default: enough to start). */
-export function fillBots(room, id, target = MIN_PLAYERS) {
-  const refused = hostOnlyInLobby(room, id, 'add');
-  if (refused) return refused;
-  const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(Number(target)) || MIN_PLAYERS));
-  while (room.players.length < wanted) room.players.push(newBot(room));
-  return ok();
-}
-
-/** The host removes a computer player from the lobby (in a game, see removePlayer). */
-export function removeBot(room, id, botId) {
-  const refused = hostOnlyInLobby(room, id, 'remove');
-  if (refused) return refused;
-  const index = room.players.findIndex((p) => p.id === botId && p.bot);
-  if (index === -1) return fail('That is not a computer player.');
-  room.players.splice(index, 1);
-  return ok();
-}
-
 function startTurn(room, rng) {
   room.hinter = room.players[room.nextIdx].id;
   room.nextIdx = (room.nextIdx + 1) % room.players.length;
@@ -146,6 +182,17 @@ function startTurn(room, rng) {
   room.phase = 'guessing1';
 }
 
+/**
+ * The host starts the game: works out how many turns there will be, picks the first hinter and the first tint, and gives
+ * every computer player an AI for the whole game.
+ *
+ * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the tint and the AIs.
+ *
+ * @param {object} room
+ * @param {number} id            who is asking (must be the host)
+ * @param {() => number} [rng]
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, id, rng = Math.random) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
@@ -156,12 +203,28 @@ export function start(room, id, rng = Math.random) {
   room.nextIdx = Math.floor(rng() * room.players.length);
   startTurn(room, rng);
   // Every computer player gets an AI for the whole game (after the deal, so seeded games deal as they always did).
-  const bots = room.players.filter((p) => p.bot);
+  const bots = room.players.filter(isBot);
   const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
   for (const p of bots) p.ai = picks[p.id];
   return ok();
 }
 
+/**
+ * The hinter writes a hint for the round that is being played (the first hint in round one, the second in round two).
+ *
+ * The first hint is required (nobody can guess before it is in), but a second hint is optional. Writing the second hint is
+ * allowed as soon as round two has begun, which is to say after every first guess is in and the hinter has pressed
+ * "continue". That is INTENTIONAL, not a loophole: the second hint exists precisely so that the hinter can steer people
+ * after seeing where the first round's guesses fell. (The hint of the round being played can also be rewritten until the
+ * round is closed.) Do not "fix" this by locking the second hint away.
+ *
+ * Side effect: replaces room.hints.first or room.hints.second.
+ *
+ * @param {object} room
+ * @param {number} id      who is asking (must be the hinter, while guessing is open)
+ * @param {string} text    the hint; whitespace is tidied and it is cut to HINT_LENGTH letters
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setHint(room, id, text) {
   if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('You cannot give a hint now.');
   const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
@@ -244,11 +307,20 @@ function recordHistory(room, nameOf, found) {
 }
 
 /**
- * Brings a room saved by an older version up to date: its squares are renamed for the finer grid, it gets a history, and if the scores are more than the
- * history adds up to (turns scored before the history was kept) the difference becomes one "Earlier turns" entry,
- * so the totals always equal the scores.
+ * Brings a room saved by an older version up to date: its players are given a `kind` (saved `bot: true` becomes
+ * `kind: 'bot'`; people saved without a name get one from `nameOf`), its squares are renamed for the finer grid, it gets a
+ * history, and if the scores are more than the history adds up to (turns scored before the history was kept) the difference
+ * becomes one "Earlier turns" entry, so the totals always equal the scores.
+ *
+ * Side effect: mutates the room. Running it twice changes nothing more.
+ *
+ * @param {object} room
+ * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
+ * @returns {object} the same room
  */
-export function migrate(room) {
+export function migrate(room, nameOf) {
+  migratePlayers(room, nameOf);
+  room.ready ??= [];
   if (room.grid !== GRID_VERSION) {
     // A room saved with the old 24 x 10 grid: every square is renamed to the same colour in the finer grid.
     // An older room has its squares renamed to the nearest square of the same colour: first to the 48 x 24 grid (version 4), then to this one.
@@ -262,7 +334,6 @@ export function migrate(room) {
     }
     room.grid = GRID_VERSION;
   }
-  room.nextBot ??= 1;
   if (!Array.isArray(room.history)) room.history = [];
   const totals = totalsFromRounds(room.history, room.players.map((p) => p.id));
   const missing = Object.fromEntries(room.players.map((p) => [p.id, p.score - totals[p.id]]).filter(([, diff]) => diff !== 0));
@@ -320,27 +391,33 @@ export function forceNext(room, rng = Math.random) {
 /** True while the reveal waits for people to close the scores (the server times this out). */
 export const waitingForReady = (room) => room.phase === 'reveal';
 
-/** Someone leaves (or is removed by the host). Returns { empty, abandoned, finished }. */
-export function removePlayer(room, id, rng = Math.random) {
-  const index = room.players.findIndex((p) => p.id === id);
-  if (index === -1 || !isLive(room)) return ok({ empty: false, abandoned: false, finished: false });
+/**
+ * Tints and Hints' part of somebody leaving a game that is under way (the roster has already taken them out of the list and,
+ * if they were the host, handed the host on): their guesses go and the hinter's turn is skipped if the hinter left. Fewer
+ * than MIN_PLAYERS left means the game is abandoned.
+ *
+ * Side effects: mutates the room (guesses, ready, nextIdx, phase) and may start the next turn.
+ *
+ * @param {object} room
+ * @param {number | string} id  who left
+ * @param {number} index        where they were in the player list
+ * @param {() => number} rng
+ * @returns {{ abandoned: boolean, finished: boolean }}
+ */
+function afterRemoval(room, id, index, rng) {
   const wasHinter = room.hinter === id && ['guessing1', 'guessing2'].includes(room.phase);
-  room.players.splice(index, 1);
   if (index < room.nextIdx) room.nextIdx--;
   if (room.players.length) room.nextIdx %= room.players.length;
   room.first = room.first.filter((g) => g.id !== id);
   room.second = room.second.filter((g) => g.id !== id);
   room.ready = (room.ready ?? []).filter((x) => x !== id);
-  if (room.hostId === id && room.players.length) room.hostId = (humans(room)[0] ?? room.players[0]).id;
-  if (!humans(room).length) return ok({ empty: true, abandoned: false, finished: false });
-  if (room.phase === 'lobby') return ok({ empty: false, abandoned: false, finished: false });
   if (room.players.length < MIN_PLAYERS) {
     room.phase = 'abandoned';
     room.ready = [];
-    return ok({ empty: false, abandoned: true, finished: false });
+    return { abandoned: true, finished: false };
   }
-  if (room.phase === 'reveal') return ok({ empty: false, abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
-  return ok({ empty: false, abandoned: false, finished: wasHinter ? finishTurn(room, rng) : false });
+  if (room.phase === 'reveal') return { abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false };
+  return { abandoned: false, finished: wasHinter ? finishTurn(room, rng) : false };
 }
 
 /** Players best first; tied scores share a placement and every tied leader wins. */
@@ -351,7 +428,7 @@ export function standings(room) {
 
 /** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
 export function statsPlayers(room) {
-  return standings(room).filter((p) => !p.bot).map((p) => ({
+  return standings(room).filter((p) => isHuman(p)).map((p) => ({
     userId: p.id,
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
@@ -364,7 +441,7 @@ export function statsPlayers(room) {
  * What one person may see. Only the hinter knows the target until the reveal, and guesses made in the current round
  * stay hidden from the other guessers until the round is closed.
  */
-export function viewFor(room, userId, { nameOf = String, onlineOf = () => true, canCustom = false } = {}) {
+export function viewFor(room, userId, { nameOf = String, online = () => true, canCustom = false } = {}) {
   nameOf = namer(room, nameOf);
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
@@ -394,16 +471,16 @@ export function viewFor(room, userId, { nameOf = String, onlineOf = () => true, 
       name: nameOf(p.id),
       colour: p.colour,
       score: p.score,
-      online: p.bot || onlineOf(p.id),
-      bot: Boolean(p.bot),
-      ai: p.bot && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
+      online: isBot(p) || online(p.id),
+      bot: isBot(p), // the client's name for "is a computer player"
+      ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
       guessed: current.some((g) => g.id === p.id),
-      ready: room.phase === 'reveal' ? Boolean(p.bot) || room.ready.includes(p.id) : false,
+      ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
       placement: final.get(p.id)?.placement ?? null,
       winner: final.get(p.id)?.winner ?? false,
     })),
     scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: p.bot ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: Boolean(p.bot), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: !p.bot && !onlineOf(p.id), ...(room.phase === 'reveal' ? { ready: Boolean(p.bot) || room.ready.includes(p.id) } : {}) })),
+      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: isBot(p), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: isHuman(p) && !online(p.id), ...(room.phase === 'reveal' ? { ready: isBot(p) || room.ready.includes(p.id) } : {}) })),
       rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
       lowIsBetter: false,
     },
@@ -424,11 +501,11 @@ export function pendingBotAction(room) {
   if (!['guessing1', 'guessing2'].includes(room.phase)) return null;
   const hinter = playerOf(room, room.hinter);
   const key = room.phase === 'guessing1' ? 'first' : 'second';
-  if (hinter?.bot && !room.hints[key]) return { type: 'hint', id: hinter.id };
+  if (isBot(hinter) && !room.hints[key]) return { type: 'hint', id: hinter.id };
   const list = room[key];
-  const guesser = key === 'first' && !room.hints.first ? null : guessers(room).find((p) => p.bot && !list.some((g) => g.id === p.id)); // nobody guesses before the first hint
+  const guesser = key === 'first' && !room.hints.first ? null : guessers(room).find((p) => isBot(p) && !list.some((g) => g.id === p.id)); // nobody guesses before the first hint
   if (guesser) return { type: 'guess', id: guesser.id };
-  if (hinter?.bot && allGuessed(room)) return { type: 'advance', id: hinter.id };
+  if (isBot(hinter) && allGuessed(room)) return { type: 'advance', id: hinter.id };
   return null;
 }
 

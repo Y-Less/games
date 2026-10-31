@@ -12,7 +12,7 @@ const sequence = (...values) => {
 /** A room of the given user ids, started with the first player as the first hinter and "M4" as the tint. */
 function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
   const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
-  for (const id of ids.slice(1)) assert.ok(game.addPlayer(room, id).ok);
+  for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
   // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4, the fourth).
   assert.ok(game.start(room, ids[0], sequence(0, 12.5 / 52, 3.5 / 24)).ok);
@@ -62,7 +62,7 @@ test('the grid has 52 columns and 24 rows, and close means within one square', (
 test('a lobby: colours are unique, the host sets the turns and the game needs two players', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
   assert.equal(game.start(room, 1).ok, false, 'one player is not enough');
-  game.addPlayer(room, 2);
+  game.addHuman(room, 2);
   assert.notEqual(room.players[0].colour, room.players[1].colour);
   assert.equal(game.setColour(room, 2, room.players[0].colour).ok, false);
   assert.equal(game.setColour(room, 2, '#123456').ok, false);
@@ -75,14 +75,14 @@ test('a lobby: colours are unique, the host sets the turns and the game needs tw
   assert.equal(game.start(room, 2).ok, false, 'only the host starts');
   assert.ok(game.start(room, 1).ok);
   assert.equal(room.turnsTotal, 10);
-  assert.equal(game.addPlayer(room, 3).ok, false, 'no joining once started');
-  assert.ok(game.addPlayer(room, 2).ok, 'but a member is still a member');
+  assert.equal(game.addHuman(room, 3).ok, false, 'no joining once started');
+  assert.ok(game.addHuman(room, 2).ok, 'but a member is still a member');
 });
 
 test('a game holds at most eight players', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  for (let id = 2; id <= 8; id++) assert.ok(game.addPlayer(room, id).ok);
-  assert.equal(game.addPlayer(room, 9).ok, false);
+  for (let id = 2; id <= 8; id++) assert.ok(game.addHuman(room, id).ok);
+  assert.equal(game.addHuman(room, 9).ok, false);
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8);
 });
 
@@ -172,7 +172,7 @@ test('the reveal waits for every person to be ready; computer players always are
   game.ready(room, 1);
   game.ready(room, 3);
   assert.equal(room.phase, 'reveal');
-  assert.equal(game.removePlayer(room, 4).ok, true, 'the one who has not closed the scores leaves');
+  assert.equal(game.removeHuman(room, 4).ok, true, 'the one who has not closed the scores leaves');
   assert.equal(room.phase, 'guessing1', 'so the others were all ready and the next turn starts');
   assert.deepEqual(room.ready, []);
   assert.equal(game.ready(room, 2).ok, false, 'not at the reveal any more');
@@ -212,17 +212,17 @@ test('ties: every tied leader wins and placements are shared', () => {
 
 test('leaving: in the lobby, the host passes on; the last one out empties the room', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  game.addPlayer(room, 2);
-  assert.deepEqual(game.removePlayer(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
+  game.addHuman(room, 2);
+  assert.deepEqual(game.removeHuman(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
   assert.equal(room.hostId, 2);
-  assert.equal(game.removePlayer(room, 2).empty, true);
+  assert.equal(game.removeHuman(room, 2).empty, true);
 });
 
 test('leaving mid-game: the hinter leaving skips the turn, and too few players abandons the game', () => {
   const room = started([1, 2, 3, 4]);
   hint(room);
   game.guess(room, 2, 'M4');
-  const left = game.removePlayer(room, 1);
+  const left = game.removeHuman(room, 1);
   assert.equal(left.abandoned, false);
   assert.equal(room.hostId, 2, 'the host passes on');
   assert.equal(room.hinter, 2, 'the next player in order becomes the hinter');
@@ -230,29 +230,29 @@ test('leaving mid-game: the hinter leaving skips the turn, and too few players a
   assert.equal(room.first.length, 0, 'a fresh turn');
   assert.equal(room.turn, 1, 'the cancelled turn still counts');
 
-  game.removePlayer(room, 4); // a guesser: no one is waiting for them now
+  game.removeHuman(room, 4); // a guesser: no one is waiting for them now
   hint(room);
   game.guess(room, 3, 'A1');
   assert.ok(game.advance(room, 2).ok);
   assert.equal(room.players.length, 2);
-  assert.equal(game.removePlayer(room, 3).abandoned, true);
+  assert.equal(game.removeHuman(room, 3).abandoned, true);
   assert.equal(room.phase, 'abandoned');
   assert.equal(game.advance(room, 2).ok, false);
 });
 
 test('rotation carries on in order when someone before the next hinter leaves', () => {
   const room = started([1, 2, 3, 4]);
-  game.removePlayer(room, 1);
+  game.removeHuman(room, 1);
   assert.equal(room.hinter, 2);
   assert.equal(room.players[room.nextIdx].id, 3);
-  game.removePlayer(room, 4);
+  game.removeHuman(room, 4);
   assert.equal(room.players[room.nextIdx].id, 3);
 });
 
 test('a game that runs out of turns because the hinter left finishes', () => {
   const room = started([1, 2, 3], { turnsEach: 1 });
   room.turn = 2;
-  assert.equal(game.removePlayer(room, 1).finished, true);
+  assert.equal(game.removeHuman(room, 1).finished, true);
   assert.equal(room.phase, 'finished');
 });
 
@@ -345,7 +345,7 @@ test('history: a turn skipped because its hinter left adds nothing, and totals s
   game.guess(room, 4, 'M4');
   game.advance(room, 1);
   closeReveal(room);
-  game.removePlayer(room, room.hinter);
+  game.removeHuman(room, room.hinter);
   assert.equal(room.history.length, 1);
   assert.equal(room.phase, 'guessing1');
   const v = game.viewFor(room, 3);
@@ -411,7 +411,7 @@ test('the second hint stays optional', () => {
 
 test('a computer guesser waits for a human hinter to give the first hint', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  assert.ok(game.addPlayer(room, 2).ok);
+  assert.ok(game.addHuman(room, 2).ok);
   assert.ok(game.addBot(room, 1).ok);
   assert.ok(game.start(room, 1, sequence(0, 12.5 / 52, 3.5 / 24)).ok);
   assert.equal(room.hinter, 1);
@@ -424,10 +424,10 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, colour: '#6a00ff' });
   assert.equal(room.players[0].colour, '#6a00ff', 'the host gets their default');
   assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1 }).players[0].colour, game.COLOURS[0], 'no default: the first colour');
-  assert.ok(game.addPlayer(room, 2, '#6a00ff').ok);
+  assert.ok(game.addHuman(room, 2, 'P2', { colour: '#6a00ff' }).ok);
   assert.equal(room.players[1].colour, game.COLOURS[0], 'the default is taken: the first free colour');
-  assert.ok(game.addPlayer(room, 3, '#123456').ok);
-  assert.ok(game.addPlayer(room, 4, '#123456').ok);
+  assert.ok(game.addHuman(room, 3, 'P3', { colour: '#123456' }).ok);
+  assert.ok(game.addHuman(room, 4, 'P4', { colour: '#123456' }).ok);
   assert.equal(room.players[3].colour, game.COLOURS[1], 'colours are unique, even custom ones');
   assert.equal(game.setColour(room, 2, '#abcdef').ok, false, 'a custom colour needs the unlock');
   assert.ok(game.setColour(room, 2, '#ABCDEF', true).ok);
@@ -439,4 +439,59 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
   assert.equal(game.viewFor(room, 1, { canCustom: true }).canCustomColour, true);
   const bot = game.addBot(room, 1);
   assert.ok(bot.ok && room.players.at(-1).colour, 'a computer player gets a free colour too');
+});
+
+test('kick refuses a finished game and removes nobody', () => {
+  const room = (() => {
+    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    game.addHuman(r, 2, 'Bob');
+    game.addBot(r, 1);
+    game.start(r, 1, sequence(0, 0.3, 0.3));
+    return r;
+  })();
+  room.phase = 'finished';
+  const before = JSON.stringify(room);
+  assert.deepEqual(game.kick(room, 1, 2), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.equal(JSON.stringify(room), before, 'nothing changed');
+});
+
+test('a room saved before players had a kind still loads: bot: true becomes kind: bot, and people are named from their account', () => {
+  const room = (() => {
+    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    game.addHuman(r, 2, 'Bob');
+    game.addBot(r, 1);
+    game.start(r, 1, sequence(0, 0.3, 0.3));
+    return r;
+  })();
+  const bots = room.players.filter((p) => p.kind === 'bot').map((p) => p.id);
+  assert.ok(bots.length >= 1);
+  // Rewrite the room into the shape it was saved in before: bot: true, and no names for people.
+  for (const p of room.players) {
+    if (p.kind === 'bot') p.bot = true;
+    else delete p.name;
+    delete p.kind;
+  }
+  game.migrate(room, (id) => `Account ${id}`);
+  assert.deepEqual(room.players.filter((p) => p.kind === 'bot').map((p) => p.id), bots);
+  assert.ok(room.players.every((p) => !('bot' in p)), 'bot: true is gone');
+  assert.ok(room.players.filter((p) => p.kind === 'human').every((p) => p.name === `Account ${p.id}`));
+  const view = game.viewFor(room, 1);
+  assert.deepEqual(view.players.filter((p) => p.bot).map((p) => p.id), bots, 'the view still says which are computer players');
+  assert.deepEqual(game.statsPlayers({ ...room, phase: 'finished' }).map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
+  assert.equal(game.humans(room).length, room.players.length - bots.length);
+});
+
+test('the second hint may be written (or left empty) once every first guess is in: that is allowed on purpose', () => {
+  const room = started([1, 2, 3]);
+  assert.equal(game.setHint(room, 1, '   ').ok, false, 'the first hint is required');
+  hint(room);
+  game.guess(room, 2, 'B1');
+  assert.ok(game.advance(room, 1).ok === false, 'the hinter cannot continue until everybody has guessed');
+  game.guess(room, 3, 'C2');
+  assert.ok(game.advance(room, 1).ok);
+  assert.equal(room.phase, 'guessing2');
+  assert.ok(game.setHint(room, 1, 'a bit warmer').ok, 'the second hint can be given now that the first guesses are in');
+  assert.equal(room.hints.second, 'a bit warmer');
+  assert.ok(game.setHint(room, 1, '').ok, 'and it is optional: it can be emptied again');
+  assert.equal(game.setHint(room, 2, 'nope').ok, false, 'only the hinter writes hints');
 });

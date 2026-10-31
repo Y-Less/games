@@ -9,6 +9,7 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { maxScore } from '../scoring.js';
 import Dial from './Dial.vue';
 import { dialWidth, dialSpan, barSpan } from './layout.js';
 
@@ -112,7 +113,7 @@ const sendClue = () => props.send('clue', { text: clueText.value });
 // ---- the words in the Status box ----
 const headline = computed(() => {
   if (phase.value === 'abandoned') return 'The game was abandoned.';
-  if (phase.value === 'finished' && team.value) return `Your team scored ${standings.value[0].score} of ${s.value.turnsTotal * 4} points.`;
+  if (phase.value === 'finished' && team.value) return `Your team scored ${standings.value[0].score} of ${maxScore(s.value.turnsTotal)} points.`;
   if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
   if (reveal.value && team.value) return `Your team scores ${s.value.result?.psychicPoints ?? 0} for this turn.`;
   if (reveal.value) return `${s.value.result?.psychicName ?? psychicName.value} scores ${s.value.result?.psychicPoints ?? 0} for the clue.`;

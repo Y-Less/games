@@ -12,7 +12,7 @@ const first = () => 0;
 
 function started(n = 3, turnsEach = 2) {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, turnsEach });
-  for (let i = 2; i <= n; i++) game.addPlayer(room, i);
+  for (let i = 2; i <= n; i++) game.addHuman(room, i);
   game.start(room, 1, first);
   return room;
 }
@@ -32,8 +32,8 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   readyAll(game, room, first);
   assert.equal(room.phase, 'finished');
   const before = JSON.stringify(room);
-  assert.deepEqual(game.removePlayer(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
-  assert.deepEqual(game.removePlayer(room, 999), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(game.removeHuman(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(game.removeHuman(room, 999), { ok: false, error: 'You are not in this game.' }, 'a stranger is told so, and nothing changes');
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.isLive(room), false);
 });
@@ -59,13 +59,13 @@ test('hints: whitespace is collapsed, the second hint is separate, and an object
 
 test('colours: taking someone else\'s is refused, keeping your own is fine, and the lobby gives each newcomer a free one', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  for (let i = 2; i <= 8; i++) game.addPlayer(room, i);
+  for (let i = 2; i <= 8; i++) game.addHuman(room, i);
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8);
   assert.equal(game.setColour(room, 1, room.players[1].colour).ok, false);
   assert.equal(game.setColour(room, 1, room.players[0].colour).ok, true);
   assert.equal(game.setColour(room, 99, game.COLOURS[0]).ok, false);
-  game.removePlayer(room, 3);
-  game.addPlayer(room, 20);
+  game.removeHuman(room, 3);
+  game.addHuman(room, 20);
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8, 'the freed colour is reused');
 });
 
@@ -75,7 +75,7 @@ test('a hinter who leaves at the reveal does not hold the others up; at the seco
   closeRound(room);
   assert.equal(room.phase, 'reveal');
   const gone = room.hinter;
-  game.removePlayer(room, gone, first);
+  game.removeHuman(room, gone, first);
   assert.equal(room.phase, 'reveal');
   assert.equal(game.advance(room, room.hostId, first).ok, false, 'the reveal is closed by being ready');
   assert.equal(readyAll(game, room, first).ok, true);
@@ -84,33 +84,33 @@ test('a hinter who leaves at the reveal does not hold the others up; at the seco
   closeRound(room);
   assert.equal(room.phase, 'guessing2');
   const hinter = room.hinter;
-  const out = game.removePlayer(room, hinter, first);
+  const out = game.removeHuman(room, hinter, first);
   assert.equal(out.abandoned, true, 'two players cannot go on once one leaves');
   assert.equal(room.phase, 'abandoned');
 });
 
 test('advancing from the lobby, or from a phase with a stranger, is refused with a reason', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
-  game.addPlayer(room, 2);
+  game.addHuman(room, 2);
   assert.match(game.advance(room, 1).error, /nothing to continue/);
   assert.equal(game.guess(room, 2, 'A1').ok, false);
   assert.equal(game.setHint(room, 1, 'x').ok, false);
   game.start(room, 1, first);
-  assert.equal(game.addPlayer(room, 2).ok, true, 'a player already in is told ok');
-  assert.match(game.addPlayer(room, 3).error, /already started/);
+  assert.equal(game.addHuman(room, 2).ok, true, 'a player already in is told ok');
+  assert.match(game.addHuman(room, 3).error, /already started/);
   assert.match(game.guess(room, 3, 'A1').error, /not in this game/);
 });
 
 test('viewFor an abandoned or finished game gives placements and shows the tint', () => {
   const room = started(2, 1);
-  game.removePlayer(room, room.players.find((p) => p.id !== room.hinter).id, first);
+  game.removeHuman(room, room.players.find((p) => p.id !== room.hinter).id, first);
   const view = game.viewFor(room, room.players[0].id);
   assert.equal(view.phase, 'abandoned');
   assert.equal(view.players[0].placement, 1);
   assert.equal(view.players[0].winner, true);
 });
 
-test('sockets: the host can send away an absent person after the game ended; the result keeps them and is recorded once', async (t) => {
+test('sockets: the host cannot send anyone away once the game has ended; the result keeps everybody and is recorded once', async (t) => {
   const site = await launchModule(t, { id: 'tints-and-hints', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
   const { code } = await ann.call('create', { turnsEach: 1 });
@@ -134,7 +134,7 @@ test('sockets: the host can send away an absent person after the game ended; the
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
   const reply = await ann.call('kick', { userId: bob.id });
-  assert.equal(reply.ok, true);
+  assert.deepEqual(reply, { ok: false, error: 'The game is over: there is nobody to remove.' });
   await sleep(50);
   assert.equal(ann.state.players.length, 2, 'the final standings still list both');
   assert.equal(ann.state.phase, 'finished');
