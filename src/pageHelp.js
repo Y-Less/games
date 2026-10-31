@@ -1,5 +1,5 @@
 // The Help button's text for every page except a game (a game's own rules.md is shown there). Each is Markdown for
-// renderMarkdown. `pageHelp(route)` picks the page by route name, and on the shop by tab as well.
+// renderMarkdown. `pageHelp(route)` picks the page by route name, 
 import { COINS_PER_LEVEL, SINGLE_LEVEL_COINS } from '../shared/achievements.js';
 
 const SHOP_TABS = {
@@ -11,18 +11,15 @@ const SHOP_TABS = {
   unlocks: ['Unlocks', 'Choose your own colour, gradient or picture, any marker colour for games, and set how strong and how fast your background animation is, on the Profile page.'],
 };
 
-const shopHelp = (tab) => {
-  const [label, text] = SHOP_TABS[tab] ?? SHOP_TABS.names;
-  return `# Shop
+const SHOP_SECTIONS = Object.values(SHOP_TABS).map(([label, text]) => `## ${label}\n\n${text}`).join('\n\n');
+
+const shopHelp = () => `# Shop
 
 Spend the gold you win on ways to make the site your own. You get 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd, and more for unlocking achievements.
 
 Anything you own can be put on straight from here with **Use**. Animations are paused for people who have chosen to pause them in their profile, so those previews stand still.
 
-## ${label}
-
-${text}`;
-};
+${SHOP_SECTIONS}`;
 
 const PAGES = {
   games: `# Games
@@ -60,6 +57,6 @@ Achievements you have not unlocked yet are hidden as ???, so there are surprises
 /** { title, markdown } for the page at `route`, or null when it has none. */
 export function pageHelp(route) {
   const name = route.name;
-  if (name === 'shop') return { title: 'Shop help', markdown: shopHelp(route.params.tab ?? 'names') };
+  if (name === 'shop') return { title: 'Help', markdown: shopHelp() };
   return PAGES[name] ? { title: 'Help', markdown: PAGES[name] } : null;
 }

@@ -12,14 +12,14 @@ describe('page help', () => {
     expect(pageHelp({ name: 'play', params: { game: 'hearts' } })).toBeNull();
   });
 
-  it('explains the shop tab you are on, and what the gold is for', () => {
+  it('explains every part of the shop on whichever tab you are on, and what the gold is for', () => {
     const names = pageHelp({ name: 'shop', params: { tab: 'names' } }).markdown;
-    const avatar = pageHelp({ name: 'shop', params: { tab: 'avatar' } }).markdown;
+    expect(pageHelp({ name: 'shop', params: { tab: 'avatar' } }).markdown).toBe(names);
+    expect(pageHelp({ name: 'shop', params: {} }).markdown).toBe(names);
+    for (const label of ['Names', 'Backgrounds', 'Themes', 'Card backs', 'Avatar', 'Unlocks']) expect(names).toContain(`## ${label}`);
     expect(names).toContain('border and a background around your name');
-    expect(avatar).toContain('Hair, clothes, hats');
-    expect(avatar).not.toContain('border and a background');
+    expect(names).toContain('Hair, clothes, hats');
     expect(names).toContain('100 for coming 1st');
-    expect(pageHelp({ name: 'shop', params: {} }).markdown).toContain('## Names');
   });
 
   it('says what achievements pay, from the real amounts', () => {
