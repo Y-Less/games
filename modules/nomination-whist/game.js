@@ -7,7 +7,6 @@
 import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
-import { cannotWinOnPoints } from './ai/endgame.js';
 import { contextModel, lutv } from './ai/lut.js';
 import { handModel } from './sim/hand-model.js';
 import { FULL_HAND, newTally, STAT_KEYS, tallyRound } from './tally.js';
@@ -17,7 +16,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
 export const LENGTHS = ['full', 'short'];
-export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false };
+export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false, hints: true };
 export const FULL_SCHEDULE = [7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7];
 export const SHORT_SCHEDULE = [7, 6, 5, 4, 3, 2, 1];
 export const TRUMP_ORDER = ['H', 'C', 'D', 'S', null];
@@ -27,6 +26,8 @@ export const INSTANT_WIN_TRICKS = FULL_HAND;
 export { STAT_KEYS };
 /** Games saved before the option existed have it on. */
 export const instantWinOn = (settings) => settings.instantWin !== false;
+/** Games saved before the option existed have hints on. */
+export const hintsOn = (settings) => settings.hints !== false;
 export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 const LIVE = ['lobby', 'nominating', 'playing', 'roundEnd'];
@@ -93,6 +94,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   if (input?.jokers !== undefined) {
     if (typeof input.jokers !== 'boolean') return fail('The Jokers option must be on or off.');
     next.jokers = input.jokers;
+  }
+  if (input?.hints !== undefined) {
+    if (typeof input.hints !== 'boolean') return fail('The hints option must be on or off.');
+    next.hints = input.hints;
   }
   return ok({ settings: next });
 }
@@ -543,12 +548,14 @@ export function botPlay(room, seat, rng = Math.random) {
  * The nomination the bid-value table suggests to the person whose turn it is to nominate: the allowed number (so never the
  * dealer's forbidden one) that was worth most in simulated games from their own cards, their table position and what the
  * players before them have nominated, with the player then playing to it. From the table learned for games with or without
- * the Jokers (falling back to the table-aware one where it has nothing). Null at any other time, so nobody is told it early.
+ * the Jokers (falling back to the table-aware one where it has nothing). Null at any other time, so nobody is told it early,
+ * and always null when the host has turned hints off.
  */
 export function suggestedNomination(room, seat) {
-  if (room.phase !== 'nominating' || room.turn !== seat) return null;
+  if (!hintsOn(room.settings) || room.phase !== 'nominating' || room.turn !== seat) return null;
   if (room.settings.jokers && !handModel(true) && !contextModel(true)) return null; // nothing has been learned for games with Jokers, and the plain table would mislead
-  const context = nominateContext(room, seat, () => 0.5);
+  // Without the scores the table's own opinion is given: the computer players' last-chance push towards 7 is never suggested.
+  const context = { ...nominateContext(room, seat, () => 0.5), scores: undefined };
   const number = lutv.nominate(context);
   return context.allowed.includes(number) ? number : null;
 }
@@ -642,8 +649,6 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     view.turn = room.turn;
     view.forbidden = forbiddenNow(room);
     view.suggestion = suggestedNomination(room, me);
-    // told only when it really is the one way to win: they cannot win on points and the suggestion is 7 (the dealer may be forbidden it)
-    view.lastChance = view.suggestion === 7 && cannotWinOnPoints(nominateContext(room, me, () => 0.5));
     const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
     view.legal = canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
   }

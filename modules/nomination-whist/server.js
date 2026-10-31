@@ -282,6 +282,6 @@ export default function (ctx) {
 
 /** Only the game's settings, whatever else a client sends. */
 function pickSettings(payload) {
-  const { seats, length, missPoints, instantWin, jokers } = payload ?? {};
-  return Object.fromEntries(Object.entries({ seats, length, missPoints, instantWin, jokers }).filter(([, value]) => value !== undefined));
+  const { seats, length, missPoints, instantWin, jokers, hints } = payload ?? {};
+  return Object.fromEntries(Object.entries({ seats, length, missPoints, instantWin, jokers, hints }).filter(([, value]) => value !== undefined));
 }

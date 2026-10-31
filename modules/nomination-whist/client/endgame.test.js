@@ -1,4 +1,4 @@
-// The last chance as the player sees it: the status says an instant win is their only way to win, and 7 is highlighted.
+// A player who cannot win on points is not nudged towards 7: no notice, and the usual suggestion for their hand.
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import * as game from '../game.js';
@@ -20,27 +20,15 @@ function lastRound(scores) {
   return game.viewFor(room, 1);
 }
 
-describe('the last chance', () => {
+describe('a player who cannot win on points', () => {
   window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 
-  it('tells a player who cannot win on points to go for 7, and highlights 7', () => {
+  it('is told nothing about nominating 7, and gets the ordinary suggestion', () => {
     const state = lastRound([0, 100, 90]);
-    const w = mount(Table, { props: { state, send: send() }, attachTo: document.body });
-    const marked = w.findAll('button.number').filter((b) => b.classes('suggested'));
-    expect(state.suggestion).toBe(7);
-    expect(marked.map((b) => b.text())).toEqual(['7']);
-    expect(document.body.textContent).toContain('You can no longer win on points');
-    expect(document.body.textContent).toContain('nominate 7');
-    expect(document.body.textContent).not.toContain('Suggested nomination for your hand');
-    w.unmount();
-  });
-
-  it('says nothing of it to a player who can still win', () => {
-    const state = lastRound([90, 100, 90]);
-    expect(state.lastChance).toBe(false);
     const w = mount(Table, { props: { state, send: send() }, attachTo: document.body });
     expect(document.body.textContent).not.toContain('You can no longer win on points');
     expect(document.body.textContent).toContain('Suggested nomination for your hand');
+    expect(state.suggestion).toBe(lastRound([90, 100, 90]).suggestion);
     w.unmount();
   });
 });

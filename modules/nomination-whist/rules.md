@@ -34,6 +34,7 @@ The host can turn on **Jokers** in the lobby (off by default). The two Jokers, o
 - If **both Jokers are played in the same trick, both lose**: they cancel out, and the trick is won by the rest of the cards as usual (the highest trump, or the highest card of the suit led).
 - If you **lead a Joker**, there is no suit to follow, so everyone else may play any card. The Joker wins the trick unless the other Joker is played on top of it, and then the **second Joker wins** instead.
 - The suggested nomination is not offered in games with Jokers.
+- The host can turn off **Hints** in the lobby (on by default): nobody is then shown a suggested nomination.
 
 ## Scoring
 

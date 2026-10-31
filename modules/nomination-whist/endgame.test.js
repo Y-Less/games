@@ -113,45 +113,22 @@ function lastRoundFor(scores, { seats = 3, seed = 5, settings = {} } = {}) {
   return room;
 }
 
-test('the person is told, and 7 is suggested, when they can no longer win on points', () => {
-  for (let seed = 1; seed <= 40; seed++) {
-    const room = lastRoundFor([0, 100, 90], { seed });
-    const view = g.viewFor(room, 1);
-    assert.equal(view.lastChance, true);
-    assert.equal(view.suggestion, 7, `seed ${seed}`);
-  }
-  const room = lastRoundFor([0, 100, 90]);
-  assert.ok(g.nominate(room, 0, g.viewFor(room, 1).suggestion).ok);
-  assert.equal(g.viewFor(room, 1).lastChance, false, 'only while it is their turn to nominate');
-});
-
-test('nobody is told it when they can still win, in an earlier round, with the option off, or off their turn', () => {
-  const canWin = lastRoundFor([90, 100, 90]);
+test('a person who cannot win on points is not told to go for 7, and is suggested what the table says for their hand', () => {
   const cannot = lastRoundFor([0, 100, 90]);
-  canWin.hands[0] = [...WEAK];
   cannot.hands[0] = [...WEAK];
-  const can = g.viewFor(canWin, 1);
-  assert.equal(can.lastChance, false);
-  assert.ok(can.suggestion <= 3, `an ordinary suggestion for a weak hand (${can.suggestion})`);
-  assert.equal(g.viewFor(cannot, 1).suggestion, 7, 'the same weak hand, with nothing to lose, is suggested 7');
-  const early = lastRoundFor([0, 100, 90]);
-  early.roundIndex = 9;
-  g.dealRound(early, seeded(2));
-  assert.equal(g.viewFor(early, 1).lastChance, false, 'round 10');
-  assert.equal(g.viewFor(lastRoundFor([0, 100, 90], { settings: { instantWin: false } }), 1).lastChance, false);
-  assert.equal(g.viewFor(lastRoundFor([0, 100, 90]), 2).lastChance, false, 'a person whose turn it is not');
+  const view = g.viewFor(cannot, 1);
+  assert.equal('lastChance' in view, false, 'nothing is said about it');
+  assert.ok(view.suggestion <= 3, `the ordinary suggestion for a weak hand (${view.suggestion}), never 7`);
+  const canWin = lastRoundFor([90, 100, 90]);
+  canWin.hands[0] = [...WEAK];
+  assert.equal(g.viewFor(canWin, 1).suggestion, view.suggestion, 'the same as for a player who can still win');
+  assert.ok(g.nominate(cannot, 0, view.suggestion).ok);
 });
 
-test('a dealer who may not nominate 7 is suggested the usual nomination, and not told it is their last chance', () => {
+test('7 is still suggested when it is a real bid: a hand that can take all seven tricks', () => {
   const room = lastRoundFor([0, 100, 90]);
-  room.dealer = 0;
-  g.dealRound(room, seeded(3));
-  while (room.turn !== 0) assert.ok(g.nominate(room, room.turn, 0).ok);
-  room.hands[0] = [...WEAK];
-  const view = g.viewFor(room, 1);
-  assert.equal(view.forbidden, 7);
-  assert.equal(view.lastChance, false, '7 is not a number they may nominate');
-  assert.ok(view.suggestion <= 3, `suggested ${view.suggestion} for a weak hand`);
+  room.hands[0] = ['AS', 'KS', 'QS', 'JS', '10S', '9S', '8S'];
+  assert.equal(g.viewFor(room, 1).suggestion, 7);
 });
 
 test('computer players in the last round nominate 7 when they cannot win on points, whatever their hands', () => {
@@ -196,4 +173,14 @@ test('in whole simulated games, every AI that cannot win on points nominates 7 w
   }
   assert.ok(situations > 50, `the situation comes up (${situations})`);
   assert.ok(sevens > 40, `most of them could nominate 7 (${sevens} of ${situations}, ${forbidden} forbidden it)`);
+});
+
+test('with hints turned off nobody is suggested a nomination, and a room saved before the option has them on', () => {
+  const off = lastRoundFor([90, 100, 90], { settings: { hints: false } });
+  assert.equal(g.viewFor(off, 1).suggestion, null);
+  const on = lastRoundFor([90, 100, 90]);
+  assert.notEqual(g.viewFor(on, 1).suggestion, null);
+  delete on.settings.hints;
+  assert.notEqual(g.viewFor(on, 1).suggestion, null, 'an old room has hints');
+  assert.equal(g.normaliseSettings({ hints: 'no' }).ok, false);
 });
