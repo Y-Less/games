@@ -8,6 +8,7 @@
 import { placements } from '../../shared/scores.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
@@ -23,25 +24,16 @@ export const JACK = 'JD';
 export const MOON_POINTS = HAND_POINTS;
 export const JACK_POINTS = -5;
 export { STAT_KEYS };
-export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
+export const BOT_NAMES = DEFAULT_BOT_NAMES;
 
 const LIVE = ['lobby', 'passing', 'playing', 'handEnd'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
 
 export const isHeart = (card) => suitOf(card) === 'H';
 export const isPointCard = (card) => isHeart(card) || card === QUEEN;
 export const isLive = (room) => LIVE.includes(room.phase);
-export const isHuman = (seat) => seat?.kind === 'human';
-export const isBot = (seat) => seat?.kind === 'bot';
-export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
-export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
-export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
-export const seatCountOf = (room) => room.seats.length;
+export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 export const passTarget = (seat, direction, seats = DEFAULT_SEATS) => (seat + offsetOfDirection(seats, direction)) % seats;
 export const passSource = (seat, direction, seats = DEFAULT_SEATS) => (seat + seats - offsetOfDirection(seats, direction)) % seats;
-const emptySeats = (n) => Array.from({ length: n }, () => null);
-
 const emptyHands = (n) => Array.from({ length: n }, () => []);
 
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
@@ -111,46 +103,21 @@ function resetGame(room) {
 
 // ---- seats and settings ----
 
-const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
-
-export function addHuman(room, userId, name) {
-  if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  const seat = firstEmpty(room);
-  if (seat === -1) return fail('That game is full.');
-  room.seats[seat] = { kind: 'human', id: userId, name };
-  return ok({ seat });
-}
-
-function newBot(room) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  let name = base;
-  for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  return { kind: 'bot', id: `bot:${room.nextBot++}`, name };
-}
-
 /**
- * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
- * it over. `empty` is true when no human is left, so the room should be discarded.
+ * The seat rules (join, leave, kick, computer players) are the shared ones. In Hearts a person who leaves mid-hand is
+ * replaced by a computer player that gets its own AI, and if they were the only one the hand-end pop-up was waiting for,
+ * the game moves on.
  */
-export function removeHuman(room, userId, rng = Math.random) {
-  const seat = seatOf(room, userId);
-  if (seat === -1) return fail('You are not in this game.');
-  const midGame = ['passing', 'playing', 'handEnd'].includes(room.phase);
-  room.seats[seat] = midGame ? { ...newBot(room), ai: pickAI(AIS, rng).id } : null;
-  const humans = humanSeats(room);
-  if (!humans.length) return ok({ empty: true, seat });
-  if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-  advanceIfReady(room); // the person who left may have been the only one still to close the pop-up
-  return ok({ empty: false, seat, replaced: midGame });
-}
-
-const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
+const seats = createSeatRules({
+  isMidGame: (room) => ['passing', 'playing', 'handEnd'].includes(room.phase),
+  botNames: BOT_NAMES,
+  takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
+  afterRemoval: (room) => advanceIfReady(room),
+});
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 export function setSettings(room, userId, input) {
-  const problem = asHost(room, userId) ?? inLobby(room);
+  const problem = hostInLobby(room, userId);
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
@@ -169,47 +136,6 @@ function resizeSeats(room, count) {
   if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
   room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
   resetGame(room);
-}
-
-export function addBot(room, userId, seat) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  const index = seat === undefined ? firstEmpty(room) : seat;
-  if (index === -1) return fail('Every seat is taken.');
-  if (!Number.isInteger(index) || index < 0 || index >= room.seats.length) return fail('There is no such seat.');
-  if (room.seats[index]) return fail('That seat is taken.');
-  room.seats[index] = newBot(room);
-  return ok({ seat: index });
-}
-
-/**
- * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
- * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
- * them home.
- */
-export function kick(room, hostId, seat, rng = Math.random) {
-  const problem = asHost(room, hostId);
-  if (problem) return problem;
-  const target = Number.isInteger(seat) ? room.seats[seat] : null;
-  if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-  const removed = removeHuman(room, target.id, rng);
-  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
-}
-
-export function removeBot(room, userId, seat) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  if (!Number.isInteger(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
-  room.seats[seat] = null;
-  return ok();
-}
-
-export function fillWithBots(room, userId) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  for (let i = 0; i < room.seats.length; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
-  return ok();
 }
 
 // ---- dealing and passing ----
@@ -249,16 +175,16 @@ function setMoonBid(room) {
 }
 
 export function start(room, userId, rng = Math.random) {
-  const problem = asHost(room, userId) ?? inLobby(room);
+  const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
   if (!humanSeats(room).length) return fail('At least one person has to play.');
   resetGame(room);
   deal(room, rng);
   // Every computer player picks its AI for the whole game (after the deal, so the deal itself is unchanged).
-  const botSeats = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
-  const picks = assignAIs(AIS, botSeats, rng);
-  for (const i of botSeats) room.seats[i].ai = picks[i];
+  const bots = botSeats(room);
+  const picks = assignAIs(AIS, bots, rng);
+  for (const i of bots) room.seats[i].ai = picks[i];
   if (room.phase === 'playing') setMoonBid(room);
   return ok();
 }

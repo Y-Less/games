@@ -1,0 +1,445 @@
+// The socket layer every seated game shares. A game's server.js used to be a ~280 line copy of this file with a few
+// words changed; now it states only what is different about the game (its settings, its own socket events, what the
+// server has to do by itself next) and createRoomServer() does the rest:
+//
+//   - keeps the rooms in memory and saves them under ctx.dataDir (debounced, written atomically);
+//   - throws away old rooms every hour;
+//   - remembers which sockets each account has open and sends every person their own view of the room;
+//   - joins, resumes, creates, leaves and kicks, and the lobby events (settings, addBot, removeBot, fillBots, start, again);
+//   - runs the game's "next thing the server does by itself" (a computer move, a pause between tricks...) on a timer;
+//   - reports a finished game to the statistics once.
+//
+// Nothing here knows any rules. The game's rules module (`game`) must provide the seat vocabulary described under
+// `options.game` below; seats.js (also shared) implements most of it.
+//
+// Randomness and the clock are injected (`options.rng`, `options.now`) so a test can make a server deterministic;
+// the defaults are Math.random and Date.now.
+import fs from 'node:fs';
+import path from 'node:path';
+
+const KEEP_FINISHED_MS = 24 * 60 * 60 * 1000;
+const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
+const SWEEP_EVERY_MS = 60 * 60 * 1000;
+const SAVE_DEBOUNCE_MS = 100;
+
+/** How many times in a row a scheduled move may throw before the server stops retrying it, and how long it waits (doubling). */
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1000;
+
+/**
+ * Reads a "min-max" milliseconds range from the environment (the tests make computer players fast this way).
+ *
+ * @param {string} name       the environment variable, e.g. 'HEARTS_BOT_DELAY'
+ * @param {string} fallback   the range used when it is unset or malformed, e.g. '600-1400'
+ * @returns {{ min: number, max: number }} min is never negative and max is never below min
+ */
+export function readDelayRange(name, fallback) {
+  const parse = (text) => String(text).split('-').map(Number);
+  let [min, max] = parse(process.env[name] ?? fallback);
+  const [fallbackMin, fallbackMax] = parse(fallback);
+  if (!Number.isFinite(min) || min < 0) min = fallbackMin;
+  if (!Number.isFinite(max)) max = Math.max(fallbackMax, min);
+  return { min, max: Math.max(max, min) };
+}
+
+/**
+ * Reads a single number of milliseconds from the environment.
+ *
+ * @param {string} name      the environment variable, e.g. 'HEARTS_TRICK_PAUSE'
+ * @param {number} fallback  used when it is unset, not a number or negative
+ * @returns {number}
+ */
+export function readDelayMs(name, fallback) {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+/**
+ * Picks how long a computer player should wait before acting.
+ *
+ * @param {{ min: number, max: number }} range  from readDelayRange
+ * @param {() => number} rng                    a random number generator returning [0, 1)
+ * @returns {number} milliseconds
+ */
+export function botWait(range, rng = Math.random) {
+  return range.min + rng() * (range.max - range.min);
+}
+
+/**
+ * Keeps only the named keys of a payload that a client actually sent (a "settings" or "create" message).
+ *
+ * @param {object | undefined} payload  whatever the client sent
+ * @param {string[]} keys               the settings the game accepts
+ * @returns {object} a new object with just those keys, leaving out the undefined ones
+ */
+export function pickKeys(payload, keys) {
+  const picked = {};
+  for (const key of keys) if (payload && Object.hasOwn(payload, key) && payload[key] !== undefined) picked[key] = payload[key];
+  return picked;
+}
+
+/**
+ * Builds the server half of a seated game.
+ *
+ * Side effects: reads the saved rooms from disk now, starts an hourly sweep timer, registers a 'connection' handler on
+ * ctx.io, and later writes the rooms to disk and sets timers for computer moves. dispose() undoes the timers.
+ *
+ * @param {object} ctx  the module context the site gives server.js (io, dataDir, log, codes, stats, ...)
+ * @param {object} options
+ * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra }),
+ *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
+ *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng) (returns { ok, empty, ... }),
+ *   kick(room, hostId, seat, rng), setSettings(room, userId, settings), addBot(room, userId, seat),
+ *   removeBot(room, userId, seat), fillWithBots(room, userId), start(room, userId), playAgain(room, userId).
+ *   Every rule returns { ok: true, ... } or { ok: false, error }.
+ * @param {(payload: object) => object} options.pickSettings  keeps only the settings the game accepts from a client message
+ * @param {(room: object) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
+ *   must do by itself next, if anything: `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
+ *   pause...). If `key` is given and the same key is already waiting, the existing timer is kept instead of restarted.
+ * @param {(h: object) => void} options.registerEvents  adds the game's own socket events. It is called for every connection
+ *   with { on, act, userId, socket }: `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
+ *   error handling; `act(rule)` runs rule(room, seat) on the room this socket is in and tells everybody if it worked.
+ * @param {(payload: object) => object} [options.createArgs]  extra arguments for game.createRoom beyond the settings
+ * @param {(room: object) => object} [options.viewOptions]  extra options for game.viewFor (such as the current time)
+ * @param {(room: object, userId: number) => object} [options.startRule]  replaces game.start for the 'start' event
+ * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
+ * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random)
+ * @param {() => number} [options.now]  the clock in milliseconds (default Date.now)
+ * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
+ */
+export function createRoomServer(ctx, options) {
+  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), startRule, migrate, rng = Math.random, now = Date.now } = options;
+  const file = path.join(ctx.dataDir, 'rooms.json');
+  const rooms = new Map();
+  const sockets = new Map(); // user id -> the sockets that user has open
+  const timers = new Map(); // room code -> { timer, key } for the next thing the server does by itself
+  const failures = new Map(); // room code -> how many scheduled moves have thrown in a row
+
+  loadRooms();
+
+  let saveTimer = null;
+
+  /** Reads the saved rooms, if any. A missing file is normal; anything else is logged and the rooms start empty. */
+  function loadRooms() {
+    try {
+      for (const saved of JSON.parse(fs.readFileSync(file, 'utf8'))) {
+        const room = migrate ? migrate(saved) ?? saved : saved;
+        rooms.set(room.code, room);
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') ctx.log('could not read the saved games:', error.message);
+    }
+  }
+
+  /** Writes every room to disk straight away (to a temporary file first, so a crash cannot leave half a file). */
+  function saveNow() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    try {
+      fs.writeFileSync(`${file}.tmp`, JSON.stringify([...rooms.values()]));
+      fs.renameSync(`${file}.tmp`, file);
+    } catch (error) {
+      ctx.log('could not save the games:', error.message);
+    }
+  }
+
+  /** Asks for a save soon; many changes in a short time cost one write. */
+  function save() {
+    saveTimer ??= setTimeout(saveNow, SAVE_DEBOUNCE_MS);
+    saveTimer.unref?.();
+  }
+
+  /** Stops any pending timer for a room. */
+  function cancelTimer(code) {
+    clearTimeout(timers.get(code)?.timer);
+    timers.delete(code);
+  }
+
+  /** Forgets a room completely (its timer, its saved copy). */
+  function discard(room) {
+    cancelTimer(room.code);
+    failures.delete(room.code);
+    rooms.delete(room.code);
+    save();
+  }
+
+  /** Drops rooms nobody has touched for a day (finished) or a week (still going). */
+  function sweep() {
+    const current = now();
+    for (const room of [...rooms.values()]) {
+      if (current - room.updatedAt > (game.isLive(room) ? KEEP_OTHER_MS : KEEP_FINISHED_MS)) discard(room);
+    }
+  }
+  sweep();
+  const sweeper = setInterval(sweep, SWEEP_EVERY_MS);
+  sweeper.unref();
+
+  /** The sockets a person has open that are currently looking at the room with this code. */
+  const open = (id, code) => [...(sockets.get(id) ?? [])].filter((s) => s.data.code === code);
+  /** A predicate "is this person connected to the room?", handed to the rules so the view can show who is away. */
+  const online = (code) => (id) => open(id, code).length > 0;
+  /** The unfinished room a person is in, if any: a person can be in only one at a time. */
+  const liveRoomOf = (userId) => [...rooms.values()].find((r) => game.isLive(r) && game.hasPlayer(r, userId));
+
+  /** Sends every connected person in the room their own view of it. */
+  function push(room) {
+    for (const seat of room.seats) {
+      if (!game.isHuman(seat)) continue;
+      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room) }));
+    }
+  }
+
+  /** Points a socket at a room and gives it the current view. */
+  function attach(socket, room) {
+    socket.data.code = room.code;
+    push(room);
+  }
+
+  /** Sends a person's sockets back to the menu (they were removed from the room). */
+  function detach(userId, code) {
+    for (const socket of open(userId, code)) {
+      socket.data.code = null;
+      socket.emit('state', null);
+    }
+  }
+
+  /**
+   * Works out what the server has to do by itself next for this room and sets the timer for it, replacing any earlier
+   * timer (unless the action says its key is unchanged). If the action throws, the failure is logged and it is tried
+   * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts.
+   */
+  function schedule(room) {
+    const action = nextAction(room);
+    const waiting = timers.get(room.code);
+    if (!action) {
+      cancelTimer(room.code);
+      return;
+    }
+    if (action.key !== undefined && waiting?.key === action.key) return;
+    cancelTimer(room.code);
+    const timer = setTimeout(() => {
+      timers.delete(room.code);
+      if (rooms.get(room.code) !== room) return;
+      try {
+        action.run();
+        failures.delete(room.code);
+      } catch (error) {
+        const count = (failures.get(room.code) ?? 0) + 1;
+        failures.set(room.code, count);
+        ctx.log('a scheduled move failed:', error);
+        if (count <= MAX_RETRIES) retryLater(room, RETRY_BASE_MS * 2 ** (count - 1));
+        return;
+      }
+      changed(room);
+    }, action.wait);
+    timer.unref?.();
+    timers.set(room.code, { timer, key: action.key });
+  }
+
+  /** Tries scheduling again after a pause (used after a scheduled move threw). */
+  function retryLater(room, wait) {
+    const timer = setTimeout(() => {
+      timers.delete(room.code);
+      if (rooms.get(room.code) === room) schedule(room);
+    }, wait);
+    timer.unref?.();
+    timers.set(room.code, { timer, key: undefined });
+  }
+
+  /** Tells the statistics about a finished game, once. */
+  function recordIfFinished(room) {
+    if (room.phase !== 'finished' || room.recorded) return;
+    room.recorded = true;
+    try {
+      ctx.stats.record({ code: room.code, players: game.statsPlayers(room) });
+    } catch (error) {
+      ctx.log('could not record the statistics:', error.message);
+    }
+  }
+
+  /** Call after any change to a room: stamps it, records a finished game, saves, tells everyone and reschedules. */
+  function changed(room) {
+    room.updatedAt = now();
+    recordIfFinished(room);
+    save();
+    push(room);
+    schedule(room);
+  }
+
+  /** Takes a person out of a room (a computer player replaces them mid-game) and tells everyone. */
+  function leaveRoom(room, userId) {
+    const outcome = game.removeHuman(room, userId, rng);
+    if (!outcome.ok) return outcome;
+    detach(userId, room.code);
+    if (outcome.empty) discard(room);
+    else changed(room);
+    return outcome;
+  }
+
+  /** Takes a person out of every room they are in (before they join or create another). */
+  function leaveAllRooms(userId, except = null) {
+    for (const old of [...rooms.values()]) if (old !== except && game.hasPlayer(old, userId)) leaveRoom(old, userId);
+  }
+
+  /**
+   * Puts a socket into a room: resumes the person's own live game, or joins the room with the given code. With no code,
+   * a person without a live game is shown the menu.
+   *
+   * @returns {{ ok: boolean, code?: string | null, error?: string }}
+   */
+  function enter(socket, rawCode) {
+    const userId = socket.data.user.id;
+    const mine = liveRoomOf(userId);
+    const code = ctx.codes.normalise(rawCode);
+    if (rawCode && !code) return { ok: false, error: 'That is not an invite code. It looks like boss-aware-you.' };
+    if (mine && code && mine.code !== code) {
+      attach(socket, mine);
+      return { ok: false, error: `You are already in the game ${mine.code}. Leave it to join another.` };
+    }
+    if (mine) {
+      attach(socket, mine);
+      return { ok: true, code: mine.code };
+    }
+    if (!code) {
+      // A finished game is not resumed without its invite code: coming back from the menu starts afresh.
+      socket.emit('state', null);
+      return { ok: true, code: null };
+    }
+    const room = rooms.get(code);
+    if (!room) {
+      socket.emit('state', null);
+      return { ok: false, error: 'No game has that code.' };
+    }
+    if (game.hasPlayer(room, userId)) {
+      attach(socket, room);
+      return { ok: true, code };
+    }
+    const added = game.addHuman(room, userId, socket.data.user.name);
+    if (!added.ok) {
+      socket.emit('state', null);
+      return room.phase === 'finished' ? { ok: false, error: 'That game has finished.' } : added;
+    }
+    leaveAllRooms(userId, room);
+    attach(socket, room);
+    changed(room);
+    return { ok: true, code };
+  }
+
+  ctx.io.on('connection', (socket) => {
+    const userId = socket.data.user.id;
+    socket.data.code = null;
+    if (!sockets.has(userId)) sockets.set(userId, new Set());
+    sockets.get(userId).add(socket);
+
+    /** The room this socket is looking at. */
+    const roomOfSocket = () => rooms.get(socket.data.code);
+
+    /**
+     * Registers a socket event. The handler gets the payload (always a plain object, never an array or null) and returns
+     * the ack object ({ ok: true } if it returns nothing); a throw is logged and the client gets a generic error.
+     */
+    const on = (event, handler) =>
+      socket.on(event, (payload, ack) => {
+        const reply = typeof ack === 'function' ? ack : () => {};
+        try {
+          reply(handler(payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {}) ?? { ok: true });
+        } catch (error) {
+          ctx.log(`${event} failed:`, error);
+          reply({ ok: false, error: 'Something went wrong on the server.' });
+        }
+      });
+
+    /**
+     * Runs a rule on the room this socket is in, then tells everyone if it worked.
+     * The rule gets (room, seat); the client only ever sees { ok } or { ok: false, error }.
+     */
+    const act = (rule) => {
+      const room = roomOfSocket();
+      const seat = room ? game.seatOf(room, userId) : -1;
+      if (seat === -1) return { ok: false, error: 'You are not in a game.' };
+      const outcome = rule(room, seat);
+      if (outcome.ok) changed(room);
+      return outcome.ok ? { ok: true } : { ok: false, error: outcome.error };
+    };
+
+    on('resume', ({ code }) => enter(socket, code));
+    on('join', ({ code }) => (typeof code === 'string' && code.trim() ? enter(socket, code) : { ok: false, error: 'Type an invite code.' }));
+
+    on('create', (payload) => {
+      const mine = liveRoomOf(userId);
+      if (mine) {
+        attach(socket, mine);
+        return { ok: false, error: `You are already in the game ${mine.code}. Leave it to start another.` };
+      }
+      let room;
+      try {
+        room = game.createRoom({
+          code: ctx.codes.generate((c) => rooms.has(c)),
+          hostId: userId,
+          hostName: socket.data.user.name,
+          settings: pickSettings(payload),
+          ...createArgs(payload),
+        });
+      } catch (error) {
+        return { ok: false, error: error.message };
+      }
+      leaveAllRooms(userId);
+      rooms.set(room.code, room);
+      attach(socket, room);
+      save();
+      return { ok: true, code: room.code };
+    });
+
+    on('leave', () => {
+      const room = roomOfSocket();
+      if (!room) return { ok: true };
+      if (!game.hasPlayer(room, userId)) {
+        socket.data.code = null;
+        socket.emit('state', null);
+        return { ok: true };
+      }
+      leaveRoom(room, userId);
+      return { ok: true };
+    });
+
+    // The host removes someone: the rules refuse a finished game, a missing seat and the host themselves.
+    on('kick', ({ seat }) => {
+      const room = roomOfSocket();
+      if (!room) return { ok: false, error: 'You are not in a game.' };
+      const outcome = game.kick(room, userId, seat, rng);
+      if (!outcome.ok) return { ok: false, error: outcome.error };
+      detach(outcome.userId, room.code);
+      changed(room);
+      return { ok: true };
+    });
+
+    on('settings', (payload) => act((room) => game.setSettings(room, userId, pickSettings(payload))));
+    on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
+    on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
+    on('fillBots', () => act((room) => game.fillWithBots(room, userId)));
+    on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng)));
+    on('again', () => act((room) => game.playAgain(room, userId)));
+
+    registerEvents({ on, act, userId, socket, rng });
+
+    socket.on('disconnect', () => {
+      const set = sockets.get(userId);
+      set?.delete(socket);
+      if (set && !set.size) sockets.delete(userId);
+      const room = roomOfSocket();
+      if (room) push(room);
+    });
+  });
+
+  for (const room of rooms.values()) schedule(room);
+
+  return {
+    rooms,
+    dispose() {
+      clearInterval(sweeper);
+      for (const { timer } of timers.values()) clearTimeout(timer);
+      timers.clear();
+      saveNow();
+    },
+  };
+}

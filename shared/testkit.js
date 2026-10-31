@@ -19,16 +19,21 @@ const platform = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
 
-/** A small seeded random number generator (mulberry32), so a failing run can be repeated. */
-export function seeded(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+export { seeded } from './random.js';
+
+/**
+ * Every socket event a module's server handles, sorted: those the module registers in its own server.js plus, if it is
+ * built on the shared room server, the standard ones registered in shared/roomServer.js. The robustness tests compare
+ * this with the list of events they know how to attack, so a new event cannot go untested.
+ *
+ * @param {string} moduleDir  the module's folder (the test's own directory)
+ * @returns {string[]}
+ */
+export function handledSocketEvents(moduleDir) {
+  const read = (file) => fs.readFileSync(file, 'utf8');
+  let source = read(path.join(moduleDir, 'server.js'));
+  if (source.includes('createRoomServer')) source += read(path.join(platform, 'shared', 'roomServer.js'));
+  return [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
 }
 
 export async function until(condition, what, { timeout = 20000, step = 5 } = {}) {
