@@ -67,6 +67,31 @@ describe('the Leave game button', () => {
   });
 });
 
+describe('the Help button', () => {
+  it('is always in the bar, and opens help for the page you are on', async () => {
+    session.ready = true;
+    session.user = { id: 1, displayName: 'Ann' };
+    await router.replace('/stats');
+    w = mount(App, { global: { plugins: [router] } });
+    await button(w, 'Help').trigger('click');
+    expect(w.find('[role="dialog"]').text()).toContain('Your results across every game');
+    await button(w, 'Close').trigger('click');
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    await router.replace('/profile');
+    await flushPromises();
+    expect(button(w, 'Help')).toBeTruthy();
+  });
+
+  it('opens the game rules instead while playing', async () => {
+    const openRules = vi.fn();
+    await startPlaying({ leave: vi.fn() });
+    playBar.game = { name: 'Nomination Whist', hasRules: true, openRules };
+    await button(w, 'Help').trigger('click');
+    expect(openRules).toHaveBeenCalledOnce();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+  });
+});
+
 describe('the account menu', () => {
   it('shows your name in your own style and animation', async () => {
     session.ready = true;

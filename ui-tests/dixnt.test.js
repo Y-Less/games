@@ -190,10 +190,10 @@ const rect = (user, selector) =>
     return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
   }, selector);
 
-test('the site header has the title, Rules and Leave game, and neither the lobby nor the play area has a Leave button', { timeout: 60000 }, guarded('header', async () => {
+test('the site header has the title, Help and Leave game, and neither the lobby nor the play area has a Leave button', { timeout: 60000 }, guarded('header', async () => {
   assert.equal(await solo.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Dixnt');
   const names = await solo.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
-  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.ok(names.includes('Help') && names.includes('Leave game'), `header buttons: ${names}`);
   const inPlay = await solo.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
   assert.deepEqual(inPlay, [], 'no Leave button in the play area');
   assert.ok(await solo.page.$('.game-frame'), 'the game is drawn in the standard frame');

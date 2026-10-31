@@ -162,7 +162,7 @@ test('after the game ends, a reload still shows the result and Play again starts
   assert.equal(await user.page.$('.table-view'), null);
 }));
 
-test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+test('the site header shows the title, Help and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
   await user.goto('/play/splendour');
   await user.clickButton('Start a new game');
   await user.clickButton('2 players', { exact: true });
@@ -175,7 +175,7 @@ test('the site header shows the title, Rules and Leave game, and the play area h
   assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Splendour');
   assert.equal(await user.page.$('.play h1'), null);
   const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
-  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.ok(names.includes('Help') && names.includes('Leave game'), `header buttons: ${names}`);
   const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
   assert.deepEqual(inPlay, [], 'no Leave button in the play area');
 }));

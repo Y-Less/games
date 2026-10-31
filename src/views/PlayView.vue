@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
 import { api, session } from '../session.js';
 import { renderMarkdown } from '../markdown.js';
 import { playBar } from '../playBar.js';
+import HelpDialog from '../components/HelpDialog.vue';
 
 const props = defineProps({ game: { type: String, required: true } });
 const router = useRouter();
@@ -20,7 +21,7 @@ const socket = shallowRef(null);
 const connected = ref(false);
 const problem = ref('');
 const rules = ref(null); // rendered HTML once loaded
-const showRules = ref(false);
+const showRules = ref(false); // the Help pop-up, which shows the game's rules
 
 onMounted(() => {
   if (!meta.value || !GameComponent) {
@@ -43,15 +44,12 @@ onMounted(() => {
   });
   socket.value = s;
 });
-const closeRulesOnEsc = (event) => event.key === 'Escape' && (showRules.value = false);
-onMounted(() => window.addEventListener('keydown', closeRulesOnEsc));
-// The title and Rules button live in the site header (App.vue), which reads them from playBar.
+// The title and Help button live in the site header (App.vue), which reads them from playBar.
 watchEffect(() => {
   playBar.game = meta.value ? { name: meta.value.name, hasRules: Boolean(meta.value.rules), openRules } : null;
 });
 onBeforeUnmount(() => {
   playBar.game = null;
-  window.removeEventListener('keydown', closeRulesOnEsc);
   socket.value?.close();
 });
 
@@ -128,13 +126,7 @@ onBeforeUnmount(() => {
       <GameComponent :socket="socket" :user="session.user" :search="search" :set-search="setSearch" />
     </div>
 
-    <div v-if="showRules" class="backdrop" @click.self="showRules = false">
-      <div class="dialog panel" role="dialog" aria-label="Rules">
-        <button class="quiet close" @click="showRules = false">Close</button>
-        <h2>{{ meta.name }}: rules</h2>
-        <div class="rules" v-html="rules ?? 'Loading…'" />
-      </div>
-    </div>
+    <HelpDialog v-if="showRules" :html="rules" @close="showRules = false" />
   </section>
 </template>
 
@@ -142,36 +134,5 @@ onBeforeUnmount(() => {
 /* The game is played directly on the user's chosen background: no panel, scrim or frame behind it. */
 .field-frame {
   min-height: 0;
-}
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgb(0 0 0 / 0.6);
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-}
-.dialog {
-  position: relative;
-  max-width: 640px;
-  max-height: 85vh;
-  overflow: auto;
-  background: var(--bg-raised);
-}
-.close {
-  position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-}
-.rules :deep(h2),
-.rules :deep(h3),
-.rules :deep(h4) {
-  margin: 1rem 0 0.3rem;
-  color: var(--amber);
-}
-.rules :deep(p),
-.rules :deep(li) {
-  line-height: 1.5;
 }
 </style>

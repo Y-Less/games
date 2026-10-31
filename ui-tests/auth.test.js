@@ -22,8 +22,8 @@ test('a signed-out visit to a game redirects to the sign-in page, and registerin
   await user.waitForText('Hearts'); // the game page's heading
   assert.equal(user.url.pathname, '/play/hearts');
   await user.waitForText('Auth Person ▾');
-  await user.clickButton('Rules', { exact: true });
-  await user.waitForSelector('[role="dialog"][aria-label="Rules"]');
+  await user.clickButton('Help', { exact: true });
+  await user.waitForSelector('[role="dialog"][aria-label="Help"]');
 }));
 
 test('the wrong password is refused with a message', { timeout: 60000 }, world_guard('wrong password', async () => {

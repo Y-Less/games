@@ -14,24 +14,21 @@ const TABS = [
   {
     slug: 'names',
     label: 'Names',
-    blurb: 'A border and background around your name, and animations for it, wherever other players see it.',
     sections: [{ type: 'name-style', title: 'Styles' }, { type: 'name-animation', title: 'Animations' }],
   },
   {
     slug: 'backgrounds',
     label: 'Backgrounds',
-    blurb: 'The picture behind the site and the game tables, and animations over it (only you see those).',
     sections: [{ type: 'background', title: 'Pictures' }, { type: 'background-animation', title: 'Animations' }],
   },
   {
     slug: 'themes',
     label: 'Themes',
-    blurb: 'The colours of every page on the site, and the font it is written in. Each is chosen separately and only changes how you see the site.',
     sections: [{ type: 'site-theme', title: 'Colours' }, { type: 'site-font', title: 'Fonts' }],
   },
-  { slug: 'card-backs', label: 'Card backs', blurb: 'What the face-down cards look like to you in every card game.', sections: [{ type: 'card-back' }] },
-  { slug: 'avatar', label: 'Avatar', blurb: 'Hair, clothes, hats and more for your avatar, shown in your details pop-up in games. Each part is shown on you.', sections: AVATAR_SLOTS.map(({ slot, label }) => ({ type: 'avatar', slot, title: label })) },
-  { slug: 'unlocks', label: 'Unlocks', blurb: 'Choose your own colour, gradient or picture, any marker colour for games, and set how strong and how fast your background animation is, on the Profile page.', sections: [{ type: 'unlock' }] },
+  { slug: 'card-backs', label: 'Card backs', sections: [{ type: 'card-back' }] },
+  { slug: 'avatar', label: 'Avatar', sections: AVATAR_SLOTS.map(({ slot, label }) => ({ type: 'avatar', slot, title: label })) },
+  { slug: 'unlocks', label: 'Unlocks', sections: [{ type: 'unlock' }] },
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
@@ -90,7 +87,6 @@ function use(item) {
       <h1>Shop</h1>
       <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> gold</p>
     </header>
-    <p class="muted intro">Gold is won, but I'm open to bribes: 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd.</p>
     <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
       Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
     </p>
@@ -99,7 +95,6 @@ function use(item) {
     <div class="tabs" role="tablist" aria-label="What to browse">
       <RouterLink v-for="t in TABS" :key="t.slug" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.slug }" :aria-selected="tab === t.slug">{{ t.label }}</RouterLink>
     </div>
-    <p class="muted blurb">{{ current.blurb }}</p>
 
     <p v-if="!session.shop" class="panel">Loading…</p>
     <template v-else>
@@ -148,11 +143,6 @@ function use(item) {
 }
 h1 {
   color: var(--amber);
-  text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
-}
-.intro,
-.blurb {
-  margin: 0;
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
 .coins {

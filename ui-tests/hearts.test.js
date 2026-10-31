@@ -127,11 +127,11 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
   await user.closeModalWithEsc();
 }));
 
-test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+test('the site header shows the title, Help and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
   assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Hearts');
   assert.equal(await user.page.$('.play h1'), null);
   const names = await headerButtons();
-  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.ok(names.includes('Help') && names.includes('Leave game'), `header buttons: ${names}`);
   assert.deepEqual(await playAreaLeaveButtons(), [], 'no Leave button in the play area');
 }));
 

@@ -44,10 +44,10 @@ test('the lobby fills with computer players, has no Leave button of its own, and
   await user.waitForSelector('[data-rack] .tile');
 }));
 
-test('the site header shows the title, Rules and Leave game, and the play area has no Leave button', { timeout: 60000 }, guarded('header', async () => {
+test('the site header shows the title, Help and Leave game, and the play area has no Leave button', { timeout: 60000 }, guarded('header', async () => {
   assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Rummikub');
   const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
-  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.ok(names.includes('Help') && names.includes('Leave game'), `header buttons: ${names}`);
   const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
   assert.deepEqual(inPlay, [], 'no Leave button in the play area');
 }));

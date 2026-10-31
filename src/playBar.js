@@ -1,4 +1,4 @@
-// What the site header shows while a game is being played: the game's title and Rules button (put there by the play
+// What the site header shows while a game is being played: the game's title and Help button (which opens its rules) (put there by the play
 // view), and a "Leave game" button that the game itself switches on and describes. A game client calls `useLeave`
 // once from its top component; the header does the rest. Nothing here knows about any particular game.
 import { onBeforeUnmount, shallowReactive, unref } from 'vue';

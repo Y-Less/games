@@ -1,4 +1,4 @@
-// The game menu, the game page shell and the Rules dialog.
+// The game menu, the game page shell and the Help dialog.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -54,13 +54,13 @@ test('the menu lists the five original games (and any newer ones) with their pla
 }));
 
 for (const game of GAMES) {
-  test(`${game.name}: the card opens the game page, and the Rules dialog works`, { timeout: 60000 }, guarded(`rules ${game.id}`, async () => {
+  test(`${game.name}: the card opens the game page, and the Help dialog works`, { timeout: 60000 }, guarded(`rules ${game.id}`, async () => {
     await user.goto('/');
     await user.waitForText('Choose a game.');
     await user.clickButton(game.name, { scope: 'main' });
     await user.waitForSelector('header.bar h1');
     assert.equal(user.url.pathname, `/play/${game.id}`);
-    // The title and the Rules button live in the site header, not in the play area.
+    // The title and the Help button live in the site header, not in the play area.
     assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), game.name);
     assert.equal(await user.page.$('.play h1'), null, 'no second title in the play area');
 
@@ -69,12 +69,11 @@ for (const game of GAMES) {
     const headings = rules.split(/\r?\n/).filter((l) => /^#{2,3} /.test(l)).map((l) => l.replace(/^#+\s*/, '').trim());
     assert.ok(headings.length >= 2, 'the rules have headings to look for');
 
-    await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
-    const dialog = '[role="dialog"][aria-label="Rules"]';
+    await user.clickButton('Help', { exact: true, scope: 'header.bar' });
+    const dialog = '[role="dialog"][aria-label="Help"]';
     await user.waitForSelector(dialog);
     await user.waitForNoText('Loading…');
     const shown = await user.page.$eval(dialog, (e) => e.innerText);
-    assert.match(shown, new RegExp(`${game.name}: rules`));
     for (const heading of headings.slice(0, 3)) assert.ok(shown.includes(heading), `the rules dialog shows "${heading}"`);
 
     // Esc closes it.
@@ -82,7 +81,7 @@ for (const game of GAMES) {
     await user.waitForSelector(dialog, { hidden: true, timeout: 3000 });
 
     // So does the Close button.
-    await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
+    await user.clickButton('Help', { exact: true, scope: 'header.bar' });
     await user.waitForSelector(dialog);
     await user.clickButton('Close', { exact: true, scope: dialog });
     await user.waitForSelector(dialog, { hidden: true, timeout: 3000 });

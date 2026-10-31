@@ -7,6 +7,9 @@ import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
 import { refreshShop, session, signOut } from './session.js';
 import { leaveOffer, playBar } from './playBar.js';
+import HelpDialog from './components/HelpDialog.vue';
+import { renderMarkdown } from './markdown.js';
+import { pageHelp } from './pageHelp.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,6 +25,15 @@ watch(offer, (now) => {
 function askLeave() {
   if (offer.value?.confirmText) confirming.value = true;
   else doLeave();
+}
+// The Help button: a game's own rules while playing (the play view opens them), otherwise the page's help.
+const helpOpen = ref(false);
+const help = computed(() => pageHelp(route));
+const helpHtml = computed(() => (help.value ? renderMarkdown(help.value.markdown) : '<p>There is no help for this page.</p>'));
+watch(() => route.fullPath, () => (helpOpen.value = false));
+function openHelp() {
+  if (playing.value && playBar.game) playBar.game.openRules();
+  else helpOpen.value = true;
 }
 async function doLeave() {
   confirming.value = false;
@@ -60,8 +72,9 @@ async function leaveSite() {
           </div>
         </div>
         <h1 class="game-title">{{ playBar.game.name }}</h1>
-        <button v-if="playBar.game.hasRules" class="quiet" @click="playBar.game.openRules()">Rules</button>
       </div>
+
+      <button class="quiet help-button" :class="{ first: !playing }" @click="openHelp">Help</button>
 
       <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="`${session.shop.balance} gold: spend it in the shop`" aria-label="Your gold">
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
@@ -79,6 +92,7 @@ async function leaveSite() {
       </div>
     </header>
 
+    <HelpDialog v-if="helpOpen" :html="helpHtml" @close="helpOpen = false" />
     <AchievementPopups />
 
     <main class="field">
@@ -139,14 +153,18 @@ async function leaveSite() {
   font-size: 1.35rem;
   white-space: nowrap;
 }
-.game-bar button {
+.game-bar button,
+.help-button {
   padding: 0.3rem 0.9rem;
+}
+/* Outside a game nothing else pushes the right-hand items across. */
+.help-button.first {
+  margin-left: auto;
 }
 .coins {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-left: auto;
   color: var(--amber);
   text-decoration: none;
   font-variant-numeric: tabular-nums;
@@ -157,13 +175,6 @@ async function leaveSite() {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #ffe08a, #c79a3b 70%);
   box-shadow: inset 0 0 0 2px #9c7425;
-}
-.coins + .account,
-.game-bar + .coins {
-  margin-left: 0;
-}
-.game-bar + .account {
-  margin-left: 0;
 }
 .leave {
   position: relative;
@@ -219,7 +230,8 @@ async function leaveSite() {
     flex: 1;
     gap: 0.4rem;
   }
-  .game-bar button {
+  .game-bar button,
+  .help-button {
     padding: 0.3rem 0.6rem;
   }
   .game-title {
@@ -231,7 +243,6 @@ async function leaveSite() {
   }
 }
 .account {
-  margin-left: auto;
   position: relative;
 }
 /* Your avatar, centred at the top of the menu. */

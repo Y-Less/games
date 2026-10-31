@@ -116,15 +116,15 @@ const rect = (selector) =>
     return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
   }, selector);
 
-test('the site header shows the title, Rules and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
+test('the site header shows the title, Help and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
   assert.equal(await user.page.$eval('header.bar h1', (e) => e.textContent.trim()), 'Azulejo');
   assert.equal(await user.page.$('.play h1'), null);
   const names = await user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
-  assert.ok(names.includes('Rules') && names.includes('Leave game'), `header buttons: ${names}`);
+  assert.ok(names.includes('Help') && names.includes('Leave game'), `header buttons: ${names}`);
   const inPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
   assert.deepEqual(inPlay, [], 'no Leave button in the play area');
-  await user.clickButton('Rules', { exact: true, scope: 'header.bar' });
-  await user.waitForSelector('[role="dialog"][aria-label="Rules"]');
+  await user.clickButton('Help', { exact: true, scope: 'header.bar' });
+  await user.waitForSelector('[role="dialog"][aria-label="Help"]');
   await user.page.keyboard.press('Escape');
 }));
 

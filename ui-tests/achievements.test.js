@@ -7,7 +7,7 @@ let world;
 let user;
 let me;
 before(async () => {
-  world = await createWorld({ suite: 'achievements' });
+  world = await createWorld({ suite: 'achievements', achievementPopups: true });
   user = await world.newUser('achiever');
   await user.signUp('achiever', { displayName: 'Ace Achiever' });
   me = (await user.api('GET', '/api/me')).user;
@@ -62,7 +62,7 @@ test('what was unlocked is announced in a pop-up, and the coins are paid', { tim
   await user.waitForSelector('.notice.achievement');
   const text = await user.page.$eval('.notice.achievement', (e) => e.innerText.replace(/\s+/g, ' '));
   assert.match(text, /achievements? unlocked/i);
-  assert.match(text, /\+[\d,]+ coins/);
+  assert.match(text, /\+[\d,]+ gold/);
   await user.page.click('.notice.achievement button');
   await user.page.waitForFunction(() => !document.querySelector('.notice.achievement'), { timeout: 5000 });
 }));

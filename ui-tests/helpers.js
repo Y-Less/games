@@ -327,15 +327,18 @@ export class User {
 /**
  * Starts the site and Chrome. `env` adds or overrides environment variables read by the modules. Every account made in the
  * world owns everything that is for sale (so tests that are not about the shop can choose any background, card back ...);
- * pass `shopLocked: true` for a test of the shop itself, where new accounts own only the free things.
+ * pass `shopLocked: true` for a test of the shop itself, where new accounts own only the free things, and
+ * `achievementPopups: true` for a test that wants the unlock pop-ups to show.
  */
-export async function createWorld({ suite = 'ui', env = {}, shopLocked = false } = {}) {
+export async function createWorld({ suite = 'ui', env = {}, shopLocked = false, achievementPopups = false } = {}) {
   ensureBuilt();
   Object.assign(process.env, FAST_ENV, env);
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-hub-ui-'));
   const logs = [];
   const site = await startSite({ port: 0, dataDir, log: (line) => logs.push(line) });
   if (!shopLocked) unlockEverything(site.db);
+  // An unlock pop-up sits over the page and hides whatever the test wants to click, so awards count as already seen.
+  if (!achievementPopups) site.db.exec('CREATE TRIGGER IF NOT EXISTS test_quiet_achievements AFTER INSERT ON achievement_awards BEGIN UPDATE achievement_awards SET shown = 1 WHERE user_id = NEW.user_id AND id = NEW.id AND level = NEW.level; END;');
   const base = `http://127.0.0.1:${site.port}`;
   const browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, defaultViewport: VIEWPORT, args: ['--no-first-run', '--disable-extensions'] });
   const failuresDir = path.join(os.tmpdir(), 'game-hub-ui-failures', suite);

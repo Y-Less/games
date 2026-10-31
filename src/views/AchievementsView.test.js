@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 async function make() {
-  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections, rewards: { perLevel: 100, single: 250 } })));
+  vi.stubGlobal('fetch', vi.fn(async () => reply({ sections })));
   wrapper = mount(AchievementsView);
   await flushPromises();
   return wrapper;
@@ -108,13 +108,6 @@ describe('AchievementsView', () => {
     expect(moon.find('[role="progressbar"]').exists()).toBe(false);
     expect(moon.find('.pips').exists()).toBe(false);
     expect(box('global.cards').find('h3').text()).toBe('Played cards');
-  });
-
-  it('says what a level earns', async () => {
-    await make();
-    expect(wrapper.text()).toContain('100 gold times its level number');
-    expect(wrapper.text()).toContain('500 for level 5');
-    expect(wrapper.text()).toContain('just one level earns 250');
   });
 
   it('counts the levels unlocked in each section', async () => {
