@@ -44,6 +44,24 @@ simulation AI list (`ais.js`) but not in the live game's (`ai/index.js`) yet.
 `tourney.js --ai lut,standard,lut,standard` compares it with Standard; with the 20 million deals it beats Standard at every
 player count, by more as players are added (7 players, 100,000 games: 110 against 101 mean score).
 
+### With the Jokers
+
+A Joker is worth most of a trick and shifts what every hand is worth, so games with Jokers have their own plain table,
+`models/bidding-jokers.json`, trained separately and never mixed with the other (`train-bids.js` refuses counts played with the
+other setting):
+
+```
+node modules/nomination-whist/sim/run.js --deals 20_000_000 --players 3-7 --jokers --out sim-out/whist-jokers      # about 4 minutes
+node modules/nomination-whist/sim/train-bids.js --jokers --players 3-7 --in sim-out/whist-jokers                  # writes models/bidding-jokers.json
+```
+
+`run.js --jokers` shuffles the two Jokers in, gives the AIs `jokers: true` in their contexts, and uses the game's own
+Joker-aware trick winner and legal cards. The `hand` and `bids` tables (what the bidding table is trained from) count every hand,
+Jokers included; the per-card tables (`card`, `cardSuit`, `cardTrumps`, `play`) are keyed by the 52 cards, so the Jokers are left
+out of them, and `--dump` writes a Joker as byte 254. `--jokers` is part of the run's saved options, so `--resume` needs it again
+and a run without it is untouched. `lut` reads `bidding-jokers.json` when the game has Jokers and `bidding.json` otherwise; if
+the Jokers file is missing, a Jokers game falls back to Standard's estimate (never to the table trained without Jokers).
+
 ## The play table: `train-play.js` (experimental, no table shipped)
 
 ```

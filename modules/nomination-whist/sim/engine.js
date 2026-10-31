@@ -4,16 +4,18 @@
 //
 // A deal is any combination of players, cards each and trump suit, not just the ones the 14-round schedule produces,
 // so the tables cover every case.
-import { shuffle, sortHand, suitOf, rankValue, SUITS } from '../../../shared/cards.js';
+import { deckFor, shuffle, sortHand, suitOf, rankValue, SUITS } from '../../../shared/cards.js';
 import { pickAI } from '../../../shared/ai.js';
 import { AIS } from '../ai/index.js';
 import { estimateTricks } from '../ai/standard.js';
 import { forbiddenNomination, trickWinner } from '../game.js';
 import { legalCards } from '../trick.js';
-import { CARD_INDEX, DECK, ESTIMATE_BUCKETS, ESTIMATE_STEPS, MIN_PLAYERS, TRUMPS } from './tables.js';
+import { CARD_INDEX, ESTIMATE_BUCKETS, ESTIMATE_STEPS, MIN_PLAYERS, TRUMPS } from './tables.js';
 
 const standard = AIS.find((ai) => ai.id === 'standard');
 const byId = new Map(AIS.map((ai) => [ai.id, ai]));
+/** The byte a Joker has in the hands dump (empty places are 255). */
+export const JOKER_BYTE = 254;
 const MAX_ROW = 7; // cards in a row of the hands file
 
 /** Policies besides the AI ids: `contest` nominates like Standard but then every seat tries to win every trick. */
@@ -48,16 +50,19 @@ export const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card
 
 /**
  * Plays one deal and adds what it saw to `stats`.
- * @param {{ players: number, cards: number, trump: 'H'|'C'|'D'|'S'|'N', policy: string, instantWin?: boolean, missPoints?: boolean }} deal
+ * With `jokers` on, the two Jokers are shuffled in and the AIs' contexts say so (the rules are those of ../trick.js). The per-card
+ * tables (`card`, `cardSuit`, `cardTrumps`, `play`) are keyed by the 52 cards, so Jokers are left out of them; the `hand` and
+ * `bids` tables count every hand, Jokers or not. In the hands dump a Joker is written as `JOKER_BYTE`.
+ * @param {{ players: number, cards: number, trump: 'H'|'C'|'D'|'S'|'N', policy: string, instantWin?: boolean, missPoints?: boolean, jokers?: boolean }} deal
  * @param {() => number} rng
  * @param {import('./tables.js').Stats} stats
  * @param {number[] | null} dump  when given, one row per hand is pushed to it (see README, "The hands file")
  */
-export function playDeal({ players, cards, trump: trumpName, policy, instantWin = false, missPoints = true }, rng, stats, dump = null) {
+export function playDeal({ players, cards, trump: trumpName, policy, instantWin = false, missPoints = true, jokers = false }, rng, stats, dump = null) {
   const trump = trumpName === 'N' ? null : trumpName;
   const ais = seatAIs(policy, players, rng);
   const dealer = Math.floor(rng() * players);
-  const deck = shuffle(DECK, rng);
+  const deck = shuffle(deckFor(jokers), rng);
   const hands = Array.from({ length: players }, (_, seat) => sortHand(deck.slice(seat * cards, (seat + 1) * cards)));
   const start = hands.map((hand) => [...hand]);
   const roundInstant = instantWin && cards === 7;
@@ -68,7 +73,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
     const seat = (dealer + i) % players;
     const forbidden = seat === dealer ? forbiddenNomination(cards, nominations.reduce((sum, bid, s) => sum + (s === dealer ? 0 : bid ?? 0), 0)) : null;
     const allowed = Array.from({ length: cards + 1 }, (_, n) => n).filter((n) => n !== forbidden);
-    const context = { hand: hands[seat], trump, players, allowed, instantWin: roundInstant, missPoints, seat, dealer, cards, nominations: [...nominations], rng };
+    const context = { hand: hands[seat], trump, players, allowed, instantWin: roundInstant, missPoints, jokers, seat, dealer, cards, nominations: [...nominations], rng };
     const number = ais[seat].nominate(context);
     nominations[seat] = allowed.includes(number) ? number : standard.nominate(context);
   }
@@ -101,6 +106,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
         cards,
         instantWin: roundInstant,
         missPoints,
+        jokers,
         rng,
       };
       let card = ais[seat].play(context);
@@ -116,7 +122,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
     taken[winner]++;
     for (const e of events) {
       if (e.seat === winner) winners.add(e.card);
-      stats.add('play', [players - MIN_PLAYERS, trumpKey(trump), e.cardsLeft - 1, e.position, e.kind, CARD_INDEX.get(e.card)], e.seat === winner ? 1 : 0);
+      if (CARD_INDEX.has(e.card)) stats.add('play', [players - MIN_PLAYERS, trumpKey(trump), e.cardsLeft - 1, e.position, e.kind, CARD_INDEX.get(e.card)], e.seat === winner ? 1 : 0);
     }
     leader = winner;
   }
@@ -131,8 +137,9 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
     const voids = SUITS.filter((suit) => suitCount[suit] === 0).length;
     const trumpsHeld = trump ? suitCount[trump] : 0;
     for (const card of hand) {
-      const won = winners.has(card) ? 1 : 0;
       const k = CARD_INDEX.get(card);
+      if (k === undefined) continue; // a Joker: the card tables have no row for it
+      const won = winners.has(card) ? 1 : 0;
       const suit = suitOf(card);
       const higherHeld = hand.filter((o) => suitOf(o) === suit && rankValue(o) > rankValue(card)).length;
       stats.add('card', [p, c, tk, k], won);
@@ -145,7 +152,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
     stats.add('bids', [p, c, tk, estimate, nominations[seat]], nominations[seat] === taken[seat] ? 1 : 0);
     if (dump) {
       dump.push(players, cards, tk, seatOrder, nominations[seat], taken[seat]);
-      for (let i = 0; i < MAX_ROW; i++) dump.push(i < hand.length ? CARD_INDEX.get(hand[i]) : 255);
+      for (let i = 0; i < MAX_ROW; i++) dump.push(i < hand.length ? CARD_INDEX.get(hand[i]) ?? JOKER_BYTE : 255);
     }
   }
   stats.deals++;

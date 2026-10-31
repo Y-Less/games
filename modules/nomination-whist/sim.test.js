@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { fullDeck, isJoker, rankValue, shuffle, suitOf } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
-import { bestNomination, biddingModel, contextChances, contextModel, lut, lutc, playModel, trickChances } from './ai/lut.js';
+import { bestNomination, biddingModel, contextChances, contextModel, lut, lutc, playModel, trickChances, useBiddingModel } from './ai/lut.js';
 import { FULL_SCHEDULE, SHORT_SCHEDULE, forbiddenNomination, isInstantWinRound as liveInstantWinRound, scoreRound, trumpOf } from './game.js';
 import { SIM_AIS } from './sim/ais.js';
 import { isInstantWinRound, playGame } from './sim/game.js';
@@ -15,6 +15,9 @@ import { cellOf } from './sim/bids-features.js';
 import { COARSE_CELLS, FINE_CELLS, coarseOfFine, keysFor } from './sim/play-features.js';
 import { emptyPlayModel, loadPlayModel, savePlayModel } from './sim/play-model.js';
 import { mulberry32 } from './sim/rng.js';
+import { runChunk } from './sim/worker.js';
+import { ESTIMATE_BUCKETS, ESTIMATE_STEPS, SPEC } from './sim/tables.js';
+import { estimateTricks } from './ai/standard.js';
 import { playGames } from './sim/tournament.js';
 
 const ai = (id) => AIS.find((a) => a.id === id);
@@ -291,4 +294,50 @@ test('with the Jokers every hand is dealt from the 54 cards, and the tournament 
   const withJokers = playGames({ ...base, from: 0, to: 40, jokers: true });
   assert.notDeepEqual(plain, withJokers, 'the Jokers change the games');
   assert.deepEqual(playGames({ ...base, from: 0, to: 40, jokers: true }), withJokers, 'and are repeatable');
+});
+
+const tinyRun = (jokers) => ({ players: [3, 4], cards: [1, 7], trumps: ['H', 'N'], ai: 'standard', seed: 3, chunkSize: 400, dump: false, instantWin: false, missPoints: true, ...(jokers ? { jokers: true } : {}) });
+const total = (stats, table) => stats.tables[table].n.reduce((a, b) => a + b, 0);
+
+test('a tiny run with the Jokers is repeatable, counts every hand, and leaves the Jokers out of the per-card tables', () => {
+  const first = runChunk(tinyRun(true), 0).stats;
+  const again = runChunk(tinyRun(true), 0).stats;
+  assert.deepEqual(first.toFloats(), again.toFloats(), 'the same seed gives the same counts');
+  const plain = runChunk(tinyRun(false), 0).stats;
+  assert.notDeepEqual(first.toFloats(), plain.toFloats(), 'the Jokers change the counts');
+  assert.equal(total(first, 'hand'), total(plain, 'hand'), 'the hand table counts every hand either way');
+  assert.equal(total(first, 'bids'), total(plain, 'bids'));
+  assert.ok(total(first, 'card') < total(plain, 'card'), 'Jokers have no row in the card tables');
+  assert.equal(SPEC.card.keys.at(-1)[1], 52, 'whose size has not changed');
+  assert.ok(total(first, 'play') < total(plain, 'play'));
+});
+
+test('hand estimates with Jokers stay within the estimate buckets, up to the clamp', () => {
+  const seven = ['AH', 'KH', 'QH', 'JH', '10H', 'JK1', 'JK2'];
+  const bucket = (hand, trump = 'H') => Math.min(ESTIMATE_BUCKETS - 1, Math.round(estimateTricks(hand, trump, 4) * ESTIMATE_STEPS));
+  const top = bucket(seven);
+  assert.ok(top > bucket(['AH', 'KH', 'QH', 'JH', '10H', '2S', '3S']) && top <= ESTIMATE_BUCKETS - 1, 'both Jokers raise a hand of top trumps, within the buckets');
+  assert.equal(Math.min(ESTIMATE_BUCKETS - 1, Math.round(estimateTricks(['JK1', 'JK2', 'AH', 'AS', 'AC', 'AD', 'KH'], 'H', 3, 5) * ESTIMATE_STEPS)), ESTIMATE_BUCKETS - 1, 'a boosted hand reaches the clamp');
+  assert.ok(bucket(['JK1', '2C', '3D'], null) > bucket(['2S', '2C', '3D'], null), 'a Joker adds to the estimate');
+  const stats = runChunk(tinyRun(true), 1).stats;
+  const hand = stats.tables.hand.n;
+  assert.equal(hand.length, SPEC.hand.keys.reduce((p, [, size]) => p * size, 1), 'table dimensions are unchanged');
+  assert.ok(total(stats, 'hand') > 0);
+});
+
+test('lut reads the Jokers bidding table in a Jokers game, and the plain one otherwise', () => {
+  const fake = (value) => ({ estimateSteps: ESTIMATE_STEPS, players: { 4: { 3: { H: Array.from({ length: ESTIMATE_BUCKETS }, () => [0, 0, 0, 1].map((_, t) => (t === value ? 1 : 0))) } } } });
+  const base = { hand: ['AH', 'KH', 'QH'], trump: 'H', players: 4, allowed: [0, 1, 2, 3], rng: () => 0.5 };
+  try {
+    useBiddingModel(true, fake(3)); // a Jokers table that is sure of three tricks
+    useBiddingModel(false, fake(0)); // and a plain one sure of none
+    assert.equal(lut.nominate({ ...base, jokers: true }), 3);
+    assert.equal(lut.nominate({ ...base, jokers: false }), 0);
+    useBiddingModel(true, null); // no Jokers table: Standard's estimate, as before
+    assert.equal(lut.nominate({ ...base, jokers: true }), Math.round(estimateTricks(base.hand, 'H', 4)), "Standard's estimate");
+    assert.equal(lut.nominate({ ...base, hand: ['2S', '3C', '4D'], jokers: true }), 0);
+  } finally {
+    useBiddingModel(true);
+    useBiddingModel(false);
+  }
 });

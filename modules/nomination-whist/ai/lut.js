@@ -13,8 +13,11 @@ import { roundPoints } from './sharp.js';
 import { nearestAllowed } from './cards.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
-const BIDDING_FILE = new URL('../sim/models/bidding.json', import.meta.url);
-let bidding; // undefined until first needed, then the table or null if there is none
+const BIDDING_FILES = {
+  false: new URL('../sim/models/bidding.json', import.meta.url),
+  true: new URL('../sim/models/bidding-jokers.json', import.meta.url),
+};
+const bidding = {}; // per Jokers setting: undefined until first needed, then the table or null if there is none
 let playing; // the same for the play table
 const contextual = {}; // and for the bidding tables with table state: one for games without Jokers, one with
 const CONTEXT_FILES = {
@@ -51,17 +54,31 @@ export function playModel(set) {
   return playing;
 }
 
-/** Loads (once) the bidding table; `reload` clears what was loaded, for tests and for use after retraining. */
-export function biddingModel(reload = false) {
-  if (reload) bidding = undefined;
-  if (bidding === undefined) {
+/**
+ * Loads (once) the plain bidding table for games with or without the Jokers, or null if there is none. They are separate
+ * tables, trained apart, because a Joker is worth most of a trick and changes what every other hand is worth.
+ * `reload` clears what was loaded (both), for tests and for use after retraining.
+ */
+export function biddingModel(jokers = false, reload = false) {
+  const key = jokers === true;
+  if (reload) for (const k of ['false', 'true']) delete bidding[k];
+  if (bidding[key] === undefined) {
     try {
-      bidding = JSON.parse(fs.readFileSync(BIDDING_FILE, 'utf8'));
+      bidding[key] = JSON.parse(fs.readFileSync(BIDDING_FILES[key], 'utf8'));
     } catch {
-      bidding = null;
+      bidding[key] = null;
     }
   }
-  return bidding;
+  return bidding[key];
+}
+
+/**
+ * Replaces what `biddingModel` has loaded for games with (`jokers` true) or without the Jokers: a table to use, null for none,
+ * or undefined to read the file again. For tests.
+ */
+export function useBiddingModel(jokers, model) {
+  if (model === undefined) delete bidding[jokers === true];
+  else bidding[jokers === true] = model;
 }
 
 /** The chance of each number of tricks (index 0 to cards) for this hand, or null if the table has no row for it. */
@@ -96,13 +113,13 @@ function guess({ hand, trump, players, allowed, rng }, boost) {
  * @param {object} ctx  the nomination context
  * @param {number} boost  extra weight for every card, 0 for none
  * @returns {number} the nomination
- * Side effects: may load the table from disk once. The plain table was learned without Jokers, so a Jokers game is
- * never read from it: Standard's estimate is used instead.
+ * Side effects: may load the table from disk once. A Jokers game reads bidding-jokers.json, never the jokerless table (a
+ * Joker changes what every hand is worth); if that file is missing Standard's estimate is used instead.
  */
 function lutPlain(ctx, boost) {
   const { hand, trump, players, allowed, missPoints = true } = ctx;
-  if (boost || ctx.jokers === true) return guess(ctx, boost); // nothing to lose: the boosted hand is read straight from its weights, not for points
-  const model = biddingModel();
+  if (boost) return guess(ctx, boost); // nothing to lose: the boosted hand is read straight from its weights, not for points
+  const model = biddingModel(ctx.jokers === true);
   const chances = model && trickChances(model, { hand, trump, players });
   return chances ? bestNomination(chances, allowed, missPoints) : guess(ctx, 0);
 }

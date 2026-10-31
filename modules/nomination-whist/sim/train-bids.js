@@ -4,6 +4,7 @@
 // nomination with the best expected score from that row (ai/lut.js), so the dealer's forbidden number and the scoring
 // options are applied at play time and are not baked in. Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids.js --players 3-7 --in sim-out/whist --out modules/nomination-whist/sim/models/bidding.json
+// With --jokers it reads a run.js --jokers run and writes models/bidding-jokers.json (the table for games with the two Jokers).
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -14,13 +15,15 @@ const { values: opts } = parseArgs({
   options: {
     players: { type: 'string', default: '3-7' },
     in: { type: 'string', default: 'sim-out/whist' },
-    out: { type: 'string', default: 'modules/nomination-whist/sim/models/bidding.json' },
+    out: { type: 'string' },
+    jokers: { type: 'boolean', default: false },
     'min-n': { type: 'string', default: '400' },
     help: { type: 'boolean', default: false },
   },
 });
 if (opts.help) {
-  console.log(`Usage: node modules/nomination-whist/sim/train-bids.js [--players 3-7] [--in sim-out/whist] [--out FILE] [--min-n 400]
+  console.log(`Usage: node modules/nomination-whist/sim/train-bids.js [--players 3-7] [--in sim-out/whist] [--out FILE] [--min-n 400] [--jokers]
+  --jokers    train from a run.js --jokers run; --out then defaults to models/bidding-jokers.json
   --min-n N   a row is smoothed over neighbouring estimates until it rests on at least N hands`);
   process.exit(0);
 }
@@ -37,9 +40,11 @@ function listOf(text, min, max) {
 }
 
 const players = listOf(opts.players, MIN_PLAYERS, MAX_PLAYERS);
+const outFile = opts.out ?? `modules/nomination-whist/sim/models/bidding${opts.jokers ? '-jokers' : ''}.json`;
 const minN = Number(opts['min-n']);
 const saved = loadCounts(path.resolve(opts.in));
 if (!saved) throw new Error(`No counts in ${opts.in}: run sim/run.js first`);
+if ((saved.meta.config.jokers === true) !== opts.jokers) throw new Error(`${opts.in} was played ${saved.meta.config.jokers ? 'with' : 'without'} the Jokers: ${opts.jokers ? 'run.js needs --jokers' : 'pass --jokers to train from it'}`);
 const hand = saved.stats.tables.hand.n;
 
 /** Counts of tricks taken by estimate bucket, for one players x cards x trump (every seat order added together). */
@@ -70,6 +75,7 @@ function row(rows, e, cards) {
 const model = {
   kind: 'bidding',
   version: 1,
+  ...(opts.jokers ? { jokers: true } : {}),
   estimateSteps: ESTIMATE_STEPS,
   trainedOn: { deals: saved.meta.deals, ai: saved.meta.config.ai, instantWin: saved.meta.config.instantWin },
   players: {},
@@ -89,6 +95,6 @@ for (const count of players) {
   }
   model.players[count] = byCards;
 }
-fs.mkdirSync(path.dirname(path.resolve(opts.out)), { recursive: true });
-fs.writeFileSync(path.resolve(opts.out), JSON.stringify(model));
-console.log(`Wrote ${opts.out}: players ${players.join(',')}, ${rowsMade} rows (${rowsMissing} too rare to fill, the AI falls back there), ${(fs.statSync(opts.out).size / 1024).toFixed(0)} KB, from ${saved.meta.deals.toLocaleString()} deals.`);
+fs.mkdirSync(path.dirname(path.resolve(outFile)), { recursive: true });
+fs.writeFileSync(path.resolve(outFile), JSON.stringify(model));
+console.log(`Wrote ${outFile}: players ${players.join(',')}, ${rowsMade} rows (${rowsMissing} too rare to fill, the AI falls back there), ${(fs.statSync(outFile).size / 1024).toFixed(0)} KB, from ${saved.meta.deals.toLocaleString()} deals.`);

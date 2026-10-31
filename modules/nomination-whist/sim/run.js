@@ -30,6 +30,7 @@ const HELP = `Usage: node modules/nomination-whist/sim/run.js [options]
   --resume           carry on from the counts already in --out (needs the same options)
   --dump             also write hands.bin, one row per hand dealt (large: about 13 bytes a hand)
   --instant-win      let AIs go for the 7-card instant win (default off)
+  --jokers           shuffle the two Jokers in (for bidding-jokers.json; see README). Never mixed with a run without them
   --no-miss-points   a miss scores nothing (default: misses score the tricks taken)
   --csv-every N      rewrite the CSV files every N chunks (default 50; they are also written at the end)
   --help
@@ -49,6 +50,7 @@ const { values: opts } = parseArgs({
     resume: { type: 'boolean', default: false },
     dump: { type: 'boolean', default: false },
     'instant-win': { type: 'boolean', default: false },
+    jokers: { type: 'boolean', default: false },
     'no-miss-points': { type: 'boolean', default: false },
     'csv-every': { type: 'string', default: '50' },
     help: { type: 'boolean', default: false },
@@ -85,6 +87,7 @@ const config = {
   dump: opts.dump,
   instantWin: opts['instant-win'],
   missPoints: !opts['no-miss-points'],
+  ...(opts.jokers ? { jokers: true } : {}), // only present when on, so --resume still accepts the counts of runs saved before the option existed
 };
 for (const t of config.trumps) if (!TRUMPS.includes(t)) throw new Error(`--trumps: "${t}" is not one of ${TRUMPS.join(', ')}`);
 seatAIs(config.ai, 3, Math.random); // fails early on an unknown AI

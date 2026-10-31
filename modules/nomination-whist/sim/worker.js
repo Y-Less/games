@@ -10,7 +10,7 @@ export function scenariosOf(config) {
   return config.players.flatMap((players) => config.cards.flatMap((cards) => config.trumps.map((trump) => ({ players, cards, trump }))));
 }
 
-/** Plays the deals of one chunk; returns { stats, dump }. */
+/** Plays the deals of one chunk (with the two Jokers shuffled in when `config.jokers` is true); returns { stats, dump }. */
 export function runChunk(config, chunk) {
   const scenarios = scenariosOf(config);
   const rng = mulberry32(mixSeed(config.seed, chunk));
@@ -19,7 +19,7 @@ export function runChunk(config, chunk) {
   const first = chunk * config.chunkSize;
   for (let i = 0; i < config.chunkSize; i++) {
     const scenario = scenarios[(first + i) % scenarios.length]; // every scenario gets the same number of deals, give or take one
-    playDeal({ ...scenario, policy: config.ai, instantWin: config.instantWin, missPoints: config.missPoints }, rng, stats, dump);
+    playDeal({ ...scenario, policy: config.ai, instantWin: config.instantWin, missPoints: config.missPoints, jokers: config.jokers === true }, rng, stats, dump);
   }
   return { stats, dump: dump ? Uint8Array.from(dump) : null };
 }
