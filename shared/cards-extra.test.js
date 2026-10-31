@@ -3,13 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RANKS, SUITS, cardName, fullDeck, isCard, isRed, rankOf, rankValue, shuffle, sortHand, suitOf } from './cards.js';
 
-test('sortHand: the whole deck comes out grouped C, D, S, H and low to high within each suit', () => {
+test('sortHand: the whole deck comes out grouped C, D, S, H and high to low within each suit', () => {
   const sorted = sortHand(fullDeck());
   assert.equal(sorted.length, 52);
   assert.deepEqual(sorted.map(suitOf), ['C', 'D', 'S', 'H'].flatMap((s) => Array(13).fill(s)));
   for (let i = 0; i < 52; i += 13) {
     const values = sorted.slice(i, i + 13).map(rankValue);
-    assert.deepEqual(values, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    assert.deepEqual(values, [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
   }
 });
 

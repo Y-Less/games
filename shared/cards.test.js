@@ -34,6 +34,6 @@ test('shuffle keeps every card, leaves the input alone, and is repeatable with a
   assert.notDeepEqual(a, deck);
 });
 
-test('sortHand groups suits and orders ranks low to high', () => {
-  assert.deepEqual(sortHand(['AH', '2C', 'KS', '9C', 'JD']), ['2C', '9C', 'JD', 'KS', 'AH']);
+test('sortHand groups suits and orders ranks high to low', () => {
+  assert.deepEqual(sortHand(['AH', '2C', 'KS', '9C', 'JD']), ['9C', '2C', 'JD', 'KS', 'AH']);
 });

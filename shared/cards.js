@@ -37,8 +37,8 @@ export function shuffle(cards, rng = Math.random) {
   return deck;
 }
 
-/** Orders cards for a hand: suits grouped (clubs, diamonds, spades, hearts alternate colours), high to low. */
+/** Orders cards for a hand: suits grouped (clubs, diamonds, spades, hearts alternate colours), high to low, so the highest is at the left, at the back of the fan. */
 const DISPLAY_SUITS = ['C', 'D', 'S', 'H', 'J']; // Jokers last
 export function sortHand(cards) {
-  return [...cards].sort((a, b) => DISPLAY_SUITS.indexOf(suitOf(a)) - DISPLAY_SUITS.indexOf(suitOf(b)) || rankValue(a) - rankValue(b) || a.localeCompare(b)); // only the Jokers tie
+  return [...cards].sort((a, b) => DISPLAY_SUITS.indexOf(suitOf(a)) - DISPLAY_SUITS.indexOf(suitOf(b)) || rankValue(b) - rankValue(a) || a.localeCompare(b)); // only the Jokers tie
 }
