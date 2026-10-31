@@ -16,10 +16,19 @@ const props = defineProps({
 
 const state = ref(null);
 const loaded = ref(false);
-const notice = ref('');
+const notice = ref(''); // the latest error from the server, shown as a toast over the table
 let invite = props.search.replace(/^\?/, '');
 const initialCode = invite;
 
+/**
+ * Sends a request to the server and waits for its answer. A refusal is shown as the notice.
+ *
+ * Side effects: clears and may set `notice`; emits a socket event.
+ *
+ * @param {string} event  the socket event name
+ * @param {object} payload
+ * @returns {Promise<{ ok: boolean, error?: string }>} the server's reply (a failure if it did not answer)
+ */
 function send(event, payload = {}) {
   notice.value = '';
   return new Promise((resolve) => {
@@ -37,12 +46,23 @@ useLeave({
   confirmText: computed(() => (state.value?.phase === 'playing' ? 'A computer player takes your seat if you leave.' : '')),
 });
 
+/**
+ * Asks the server to put this socket back into its game (or into the one the invite link names). Runs on every
+ * (re)connection.
+ */
 async function resume() {
   const code = state.value?.code ?? invite;
   invite = '';
   await send('resume', { code });
 }
 
+/**
+ * The server sent a new view of the game (or null when not in one).
+ *
+ * Side effects: replaces `state` and updates the address bar through setSearch.
+ *
+ * @param {object | null} next
+ */
 function onState(next) {
   state.value = next;
   loaded.value = true;
@@ -82,10 +102,20 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .notice {
+  /* A toast over the top of the game rather than a line in it: an error must not push the whole table down. */
+  position: fixed;
+  top: calc((var(--hub-bar-height, 3.4rem) + 0.5rem) / var(--fit-zoom, 1)); /* the game may be scaled down to fit the window */
+  left: calc(50vw / var(--fit-zoom, 1)); /* the middle of the window, however much the game is scaled */
+  transform: translateX(-50%);
+  z-index: 30;
+  width: max-content;
+  max-width: 40rem;
   margin: 0;
   padding: 0.6rem 0.9rem;
   border: 1px solid var(--danger);
   border-radius: 12px;
+  background: var(--bg-raised);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.5);
   color: var(--danger);
 }
 </style>

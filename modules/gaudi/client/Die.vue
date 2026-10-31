@@ -2,16 +2,18 @@
 // One die: a coloured glass square with its pips, and a shape behind them that is different for every colour so the
 // colours can be told apart without seeing them.
 import { computed } from 'vue';
-import { COLOUR_HEX, COLOUR_INK, COLOUR_LABEL, PIPS, SHAPES, SHAPE_OF } from './glyphs.js';
+import { COLOUR_HEX, COLOUR_INK, PIPS, SHAPES } from './glyphs.js';
+import { COLOUR_NAMES, COLOUR_SHAPES } from '../rules.js';
 
 const props = defineProps({
   die: { type: Object, required: true }, // { c, v }
   size: { type: Number, default: 44 },
 });
+// The glass colour, the ink for the pips, the outline of the colour's shape and the words read out for the die.
 const hex = computed(() => COLOUR_HEX[props.die.c] ?? '#888');
 const ink = computed(() => COLOUR_INK[props.die.c] ?? '#fff');
-const shape = computed(() => SHAPES[SHAPE_OF[props.die.c]]);
-const label = computed(() => `${COLOUR_LABEL[props.die.c]} ${props.die.v}`);
+const shape = computed(() => SHAPES[COLOUR_SHAPES[props.die.c]]);
+const label = computed(() => `${COLOUR_NAMES[props.die.c]} ${props.die.v}`);
 </script>
 
 <template>

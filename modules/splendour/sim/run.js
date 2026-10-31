@@ -18,12 +18,25 @@ import { engine, rush } from './strategies.js';
 import { playGame } from './play.js';
 import { seeded } from '../../../shared/testkit.js';
 
+/** The targets the game offers, which the experiments try in turn. */
 const TARGETS = [10, 15, 20];
+/** A fraction as a percentage with one decimal place. */
 const pct = (x) => `${(x * 100).toFixed(1)}%`;
+/** The mean of a running total, or 0 when there is nothing to average. */
 const mean = (sum, n) => (n ? sum / n : 0);
 
+/** An empty set of counters for one side of a head-to-head. */
 const blank = () => ({ games: 0, wins: 0, prestige: 0, cards: 0, zero: 0, l1: 0, l2: 0, l3: 0, nobles: 0, reserved: 0, reachedSum: 0, reachedN: 0, firstToTarget: 0 });
 
+/**
+ * Adds one finished game to a side's counters.
+ *
+ * Side effect: mutates `side`.
+ *
+ * @param {object} side  counters from blank()
+ * @param {number} seat  the seat this side played
+ * @param {object} res   the result of playGame
+ */
 function record(side, seat, res) {
   const player = res.seats[seat];
   side.games++;
@@ -42,7 +55,17 @@ function record(side, seat, res) {
   }
 }
 
-/** A against B on `deals` deals, each played in both seat orders. */
+/**
+ * A against B on `deals` deals, each played in both seat orders.
+ *
+ * @param {object} A  a strategy
+ * @param {object} B  a strategy
+ * @param {number} target  prestige that ends the game
+ * @param {number} deals   how many deals (so twice as many games)
+ * @param {number} seed    makes the run repeatable
+ * @returns {{ a: object, b: object, games: number, rate: number, error: number, seatZero: number, rounds: number }}
+ *   A's win rate with its 95% margin, how often seat 0 won, and the average number of rounds
+ */
 export function headToHead(A, B, target, deals, seed = 1) {
   const a = blank();
   const b = blank();
@@ -64,9 +87,11 @@ export function headToHead(A, B, target, deals, seed = 1) {
   return { a, b, games, rate, error: 1.96 * Math.sqrt((rate * (1 - rate)) / games), seatZero: seatZero / games, rounds: rounds / games };
 }
 
+/** One line describing a side's average game (points, cards by level, nobles). */
 const describe = (side) =>
   `${mean(side.prestige, side.games).toFixed(1)} pts, ${mean(side.cards, side.games).toFixed(1)} cards (${mean(side.l1, side.games).toFixed(1)}/${mean(side.l2, side.games).toFixed(1)}/${mean(side.l3, side.games).toFixed(1)} by level, ${mean(side.zero, side.games).toFixed(1)} worth nothing), ${mean(side.nobles, side.games).toFixed(2)} nobles`;
 
+/** Experiment "head": Engine against Rush at each target. Prints a table. @param {number} deals */
 function head(deals) {
   console.log(`\n## Engine (8 cards first) against Rush (only cards worth points), ${deals * 2} games at each target\n`);
   console.log('| target | Engine wins | ±95% | rounds | Engine, average game | Rush, average game |');
@@ -77,6 +102,7 @@ function head(deals) {
   }
 }
 
+/** Experiment "sizes": how many cards the Engine should build first. Prints a table. @param {number} deals */
 function sizes(deals) {
   const list = [0, 2, 4, 6, 8, 10, 12];
   console.log(`\n## How many cheap cards should the Engine build first? Win rate against Rush (1+ point cards only), ${deals * 2} games per cell\n`);
@@ -96,6 +122,7 @@ function sizes(deals) {
   console.log(`\nBest size: ${TARGETS.map((t) => `${t} points: ${best[t].size}`).join(', ')}.`);
 }
 
+/** Experiment "rushes": the Engine against each kind of Rush. Prints a table. @param {number} deals */
 function rushes(deals) {
   console.log(`\n## Engine (8) against each kind of Rush, ${deals * 2} games per cell\n`);
   console.log(`| Rush buys only cards worth | ${TARGETS.map((t) => `${t} points`).join(' | ')} |`);
@@ -105,6 +132,7 @@ function rushes(deals) {
   }
 }
 
+/** Experiment "mirror": each strategy against itself, to measure the value of going first. Prints a table. @param {number} deals */
 function mirror(deals) {
   console.log(`\n## Each strategy against itself: how often does the player who goes first win? (${deals * 2} games per cell)\n`);
   console.log(`| strategy | ${TARGETS.map((t) => `${t} points`).join(' | ')} |`);
@@ -115,6 +143,7 @@ function mirror(deals) {
   }
 }
 
+/** Experiment "tables": Engine and Rush sharing a table of three or four. Prints a table. @param {number} deals */
 function tables(deals) {
   console.log(`\n## Engine and Rush at one table (each deal played in every seating), ${deals} deals\n`);
   console.log('| table | target | Engine wins (per player) | Rush wins (per player) | rounds |');
@@ -145,6 +174,7 @@ function tables(deals) {
   }
 }
 
+/** Experiment "strength": both strategies against the module's strongest AI. Prints a table. @param {number} deals */
 function strength(deals) {
   console.log(`\n## A sanity check: the two strategies against the module's strongest computer player ("sharp"), ${deals * 2} games per cell\n`);
   const sharp = AIS.find((ai) => ai.id === 'sharp');
@@ -155,6 +185,7 @@ function strength(deals) {
   }
 }
 
+/** Experiment "scan": Engine against Rush at every target from 10 to 20. Prints a table. @param {number} deals */
 function scan(deals) {
   console.log(`
 ## Engine (8) and the best-sized Engine against Rush at every target from 10 to 20 points, ${deals * 2} games per cell (two players)
@@ -166,6 +197,7 @@ function scan(deals) {
   }
 }
 
+/** The experiments that can be named on the command line. */
 const experiments = { head, sizes, rushes, mirror, tables, strength, scan };
 const [name, count] = process.argv.slice(2);
 if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` || process.argv[1]?.endsWith('run.js')) {

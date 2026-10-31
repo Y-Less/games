@@ -2,10 +2,17 @@
 // buy (especially point cards that would put them on the target), buys those cards itself when it can, and keeps nobles
 // out of reach by taking the cards an opponent needs to complete one.
 import { CARD_BY_ID } from '../cards.js';
+import { NOBLE_POINTS } from '../rules.js';
 import { me, nobleGap, nobleList, opponents, payment, peakNeeds, returnByNeeds, targetsOf } from './lib.js';
 import { scoreMoves } from './standard.js';
 
-/** How much an opponent would gain from this card: 0 if they cannot get it soon. */
+/**
+ * How much an opponent would gain from this card: 0 if they cannot get it soon.
+ *
+ * @param {object} s     the situation
+ * @param {object} card  a card object
+ * @returns {number} the worst case over all opponents
+ */
 function threat(s, card) {
   let worst = 0;
   for (const p of opponents(s)) {
@@ -15,9 +22,9 @@ function threat(s, card) {
     if (!soon) continue;
     let value = card.points * 1.1;
     if (p.prestige + card.points >= s.target) value += 4;
-    // Finishing a noble for them is worth three points too.
+    // Finishing a noble for them is worth the noble's points too.
     for (const noble of nobleList(s)) {
-      if (nobleGap(p.bonuses, noble) === 1 && noble.requires[card.bonus] && p.bonuses[card.bonus] < noble.requires[card.bonus]) value += 3;
+      if (nobleGap(p.bonuses, noble) === 1 && noble.requires[card.bonus] && p.bonuses[card.bonus] < noble.requires[card.bonus]) value += NOBLE_POINTS;
     }
     worst = Math.max(worst, value * soon);
   }
@@ -29,6 +36,13 @@ export default {
   name: 'Blocker',
   description: 'Watches the other players: reserves the cards they are about to buy and keeps nobles out of their reach.',
   weight: 2,
+  /**
+   * Plays like the standard player, with a bonus for buying or reserving the cards an opponent is about to get.
+   *
+   * @param {object} s  the situation (see lib.js)
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {object} one of s.moves, or { type: 'pass' } when there are none
+   */
   chooseMove(s, rng) {
     if (!s.moves.length) return { type: 'pass' };
     let best = null;
@@ -45,12 +59,24 @@ export default {
     }
     return best;
   },
+  /**
+   * Which tokens to give back: keeps the colours the best three cards need.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts summing to s.returnCount
+   */
   chooseReturn(s) {
     return returnByNeeds(s, peakNeeds(targetsOf(s).slice(0, 3)));
   },
-  /** Of several nobles, the one an opponent is closest to getting. */
+  /**
+   * Of several nobles, the one an opponent is closest to getting.
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
     const rivals = opponents(s);
+    /** How close the nearest opponent is to this noble (higher is closer). */
     const closeness = (id) => Math.max(0, ...rivals.map((p) => 6 - nobleGap(p.bonuses, nobleList({ nobles: [id] })[0])));
     return [...s.options].sort((a, b) => closeness(b) - closeness(a))[0];
   },

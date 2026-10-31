@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertNoPollution, fuzzEvent, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
-import { bestPlay } from './bot.js';
+import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { bestPlay } from './testing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const launch = (t, options = {}) => launchModule(t, { id: 'rummikub', moduleDir: here, ...options });
@@ -119,9 +119,7 @@ const EVENTS = {
 };
 
 test('this test knows every socket event the server handles', () => {
-  const source = fs.readFileSync(path.join(here, 'server.js'), 'utf8');
-  const handled = [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
-  assert.deepEqual(handled, Object.keys(EVENTS).sort());
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
 });
 
 function validateView(s, who) {

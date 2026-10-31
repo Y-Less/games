@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import * as bot from './bot.js';
+import { bestPlacement, chooseWindow } from './ai/standard.js';
 import { CELLS, patternOf, restrictionOf } from './rules.js';
 import { assertInvariants, driveStep, playingRoom, seeded, viewLeaks } from './testing.js';
 
@@ -75,7 +76,7 @@ test('computer players choose a legal move in thousands of random positions', ()
             : game.endTurn(copy, seat);
       assert.equal(result.ok, true, `${JSON.stringify(choice)}: ${result.error}`);
       if (choice.type === 'tool') tools++;
-      if (choice.type === 'end') assert.ok(room.turn.placements >= 1 || bot.bestPlacement(room, seat, rng) === null, 'ends the turn only when it has nothing to place');
+      if (choice.type === 'end') assert.ok(room.turn.placements >= 1 || bestPlacement(bot.botSnapshot(room, seat), seat, rng) === null, 'ends the turn only when it has nothing to place');
       positions++;
       // Random progress, not the computer's: random legal placements, random tools, random ends of turn.
       const roll = rng();
@@ -130,7 +131,7 @@ test('computer window choice always picks one of the options and likes harder wi
     game.fillWithBots(room, 1);
     game.start(room, 1, rng);
     for (const options of room.options) {
-      const pid = bot.botWindow(options, rng);
+      const pid = chooseWindow(options, rng);
       assert.ok(options.includes(pid));
       total += patternOf(pid).difficulty;
       count++;

@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { numberedCount, pinnedJokers } from '../rules.js';
 import { TILE_COLOURS, SHAPES } from './colours.js';
-import { canMove, moveTiles, placedThisTurn, releaseJokers, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './layout.js';
+import { canMove, moveTiles, placedThisTurn, releaseJokers, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './arrangement.js';
 import Lobby from './Lobby.vue';
 import Rummikub from './Rummikub.vue';
 import Table from './Table.vue';
@@ -51,7 +51,7 @@ describe('colours', () => {
   });
 });
 
-describe('layout helpers', () => {
+describe('arrangement helpers', () => {
   const table = [[t(0, 3), t(0, 4), t(0, 5)]];
   const rack = [t(1, 9), t(2, 9), t(3, 9), t(0, 6)];
 

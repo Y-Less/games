@@ -12,9 +12,9 @@ import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Die from './Die.vue';
 import WindowGrid from './WindowGrid.vue';
-import { COLOUR_HEX, COLOUR_LABEL, SHAPES, SHAPE_OF } from './glyphs.js';
+import { COLOUR_HEX, SHAPES } from './glyphs.js';
 import { startMode } from './toolkit.js';
-import { cellProblem, moveProblem } from '../rules.js';
+import { CELLS, COLOUR_NAMES, COLOUR_SHAPES, cellProblem, moveProblem } from '../rules.js';
 import { tableSizes } from './layout.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
@@ -30,20 +30,25 @@ const s = computed(() => props.state);
 const windows = computed(() => s.value.phase === 'windows');
 const finished = computed(() => s.value.phase === 'finished');
 const me = computed(() => s.value.seats[s.value.you] ?? null);
+/** The name of a seat for the Status box ("Someone" if it is empty). */
 const nameOf = (seat) => s.value.seats[seat]?.name ?? 'Someone';
 const myTurn = computed(() => s.value.phase === 'playing' && s.value.turn?.seat === s.value.you);
 const canPlace = computed(() => myTurn.value && s.value.turn.placements < s.value.turn.allowed);
 const toolFree = computed(() => myTurn.value && !s.value.turn.toolUsed);
 const pattern = computed(() => (me.value?.window ? { cells: me.value.window.rows.join('').split('') } : null));
-const myGrid = computed(() => mode.value?.grid ?? me.value?.window?.grid ?? Array(20).fill(null));
+const myGrid = computed(() => mode.value?.grid ?? me.value?.window?.grid ?? Array(CELLS).fill(null));
+/** The die in the pool with this id, or null (it may have been placed or changed since the player clicked it). */
 const poolDie = (id) => (s.value.pool ?? []).find((d) => d.id === id) ?? null;
 const waitingFor = computed(() => s.value.seats.filter((seat) => seat && !seat.picked).map((seat) => seat.name));
 const turnNumber = computed(() => (s.value.turn?.number === 2 ? 'second' : 'first'));
-const colourName = (c) => COLOUR_LABEL[c] ?? c;
+/** A colour's name for people ("Ruby"); an unknown colour is shown as it is. */
+const colourName = (c) => COLOUR_NAMES[c] ?? c;
 
 // ---- guided choices reset whenever the turn moves on ----
+// The key names the turn. Swift Hand starts an extra turn for the same player without changing turnIndex, so whether the
+// turn is the extra one is part of the key too (otherwise a die or tool chosen in the first turn would still be selected).
 watch(
-  () => `${s.value.round}:${s.value.turnIndex}:${s.value.phase}`,
+  () => `${s.value.round}:${s.value.turnIndex}:${s.value.phase}:${s.value.turn?.extra ? 'extra' : 'normal'}`,
   () => {
     selected.value = null;
     mode.value = null;
@@ -59,6 +64,10 @@ watch(
 );
 
 // ---- window choice ----
+/**
+ * Sends the window picked in the options (the first step of the game). The pick is kept if the server refuses it, and
+ * cleared once it is accepted.
+ */
 async function chooseWindow() {
   if (!picked.value) return;
   const reply = await props.send('window', { pid: picked.value });
@@ -66,6 +75,11 @@ async function chooseWindow() {
 }
 
 // ---- explanations for the spaces ----
+/**
+ * Which spaces of your window to mark for what you are doing now: spaces a chosen die may go on (with the reason on the
+ * others as a hover title), dice a slide tool can pick up, and where a picked-up die may go.
+ * @returns {{ legal: number[], pick: number[], chosen: number[], titles: Record<number, string> }}
+ */
 const highlight = computed(() => {
   const out = { legal: [], pick: [], chosen: [], titles: {} };
   if (!myTurn.value || !pattern.value) return out;
@@ -79,7 +93,7 @@ const highlight = computed(() => {
       });
     } else {
       out.chosen.push(m.from);
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < CELLS; i++) {
         const problem = moveProblem(grid, pattern.value, m.from, i, m.options);
         if (problem === null) out.legal.push(i);
         else out.titles[i] = problem;
@@ -90,7 +104,7 @@ const highlight = computed(() => {
   const dieId = m?.kind === 'free' ? m.die : m ? null : selected.value;
   const die = dieId == null ? null : poolDie(dieId);
   if (die && (m?.kind === 'free' || canPlace.value)) {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < CELLS; i++) {
       const problem = cellProblem(grid, pattern.value, i, die, m?.options ?? {});
       if (problem === null) out.legal.push(i);
       else out.titles[i] = problem;
@@ -100,6 +114,11 @@ const highlight = computed(() => {
 });
 
 // ---- clicking dice and spaces ----
+/**
+ * A die in the pool was clicked: it is chosen for the tool being used, or selected for placing (clicking it again clears it).
+ * Writes a reason in the Status box when it cannot be used now.
+ * @param {{ id: number }} die
+ */
 function clickPool(die) {
   message.value = '';
   const m = mode.value;
@@ -113,11 +132,17 @@ function clickPool(die) {
   selected.value = selected.value === die.id ? null : die.id;
 }
 
+/** A die on the round track was clicked: only Exchange uses it (clicking it again clears it). */
 function clickTrack(die) {
   if (mode.value?.kind !== 'exchange') return;
   mode.value.trackDie = mode.value.trackDie === die.id ? null : die.id;
 }
 
+/**
+ * A space of your window was clicked: it is part of a slide tool, or the place for the selected pool die (a plain placement,
+ * or Free Pane). Checks the rule on the screen first so that the player is told why, then asks the server.
+ * @param {number} index  the space, 0 to CELLS - 1
+ */
 async function clickCell(index) {
   message.value = '';
   if (!myTurn.value) return void (message.value = `It is ${nameOf(s.value.turn?.seat)}'s turn.`);
@@ -136,6 +161,12 @@ async function clickCell(index) {
   } else message.value = reply.error;
 }
 
+/**
+ * A space was clicked while a slide tool is in use: first the die to move, then where it goes. When the tool has all the
+ * moves it needs, the request is sent.
+ * @param {object} m      the tool state from startMode (mutated: from, moves, grid)
+ * @param {number} index  the space
+ */
 function clickMoveCell(m, index) {
   const grid = m.grid;
   if (m.from === null) {
@@ -162,6 +193,11 @@ function clickMoveCell(m, index) {
 }
 
 // ---- tools ----
+/**
+ * Why a tool cannot be used right now, or '' if it can (not your turn, one already used, not enough favour tokens...).
+ * @param {{ cost: number }} tool  a tool card from the view
+ * @returns {string}
+ */
 const toolBlock = (tool) => {
   if (s.value.phase !== 'playing') return 'The game is not being played.';
   if (!myTurn.value) return 'Not your turn.';
@@ -170,6 +206,10 @@ const toolBlock = (tool) => {
   return '';
 };
 
+/**
+ * A tool card was clicked: begins guided use of it (clicking the same card again cancels). The server checks everything again.
+ * @param {object} tool  a tool card from the view
+ */
 function startTool(tool) {
   message.value = '';
   const reason = toolBlock(tool);
@@ -179,6 +219,7 @@ function startTool(tool) {
   mode.value = startMode(tool, me.value.window.grid);
 }
 
+/** The request parameters the guided choices add up to so far, or null while something is still to be chosen. */
 const toolParams = computed(() => {
   const m = mode.value;
   if (!m) return null;
@@ -189,6 +230,10 @@ const toolParams = computed(() => {
   return null;
 });
 
+/**
+ * Sends the tool being used. A failed slide resets the moves the player made, since the window on screen was only a preview.
+ * @param {object} [extra]  parameters added by the button pressed (such as delta for Lathe)
+ */
 async function applyTool(extra = {}) {
   const m = mode.value;
   if (!m) return;
@@ -205,7 +250,9 @@ async function applyTool(extra = {}) {
   }
 }
 
+/** The pool die chosen for the tool being used, if any. */
 const modeDie = computed(() => (mode.value?.die == null ? null : poolDie(mode.value.die)));
+/** A sentence saying how far the guided use of the tool has got (shown in Status). */
 const modeSummary = computed(() => {
   const m = mode.value;
   if (!m) return '';
@@ -217,6 +264,7 @@ const modeSummary = computed(() => {
 });
 
 // ---- the words in the Status box ----
+/** The headline in the Status box: what is happening and what you may do. */
 const status = computed(() => {
   if (finished.value) return 'The game is over.';
   if (windows.value) return s.value.chosen ? `You have chosen. Waiting for ${waitingFor.value.join(', ') || 'the others'}…` : 'Choose your window.';
@@ -226,10 +274,13 @@ const status = computed(() => {
   const tool = t.toolUsed ? 'your tool is used' : 'you may use a tool';
   return `Your ${t.extra ? 'extra' : turnNumber.value} turn: ${die}; ${tool}. Click End turn when you are happy.`;
 });
+/** A reminder when you are about to end your turn without having placed a die. */
 const endHint = computed(() => (myTurn.value && s.value.turn.placements === 0 && s.value.pool.length ? 'You have not placed a die yet.' : ''));
+/** How your private colour is scored in this game (it depends on the bad private scoring setting). */
 const myPrivateRule = computed(() =>
   s.value.badPrivate ? 'Bad private scoring is on: each of your private-colour dice is worth a flat 3, whatever it shows.' : 'Each die of this colour in your window scores its shade (pips).',
 );
+/** Every line of the Status box, with its tone, for the phase the game is in. */
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
@@ -256,9 +307,12 @@ const statusLines = computed(() => {
   }
   return lines;
 });
+/** What a tool card does, shown in Status while the pointer is on it. */
 const toolHint = (tool) => `${tool.name}: ${tool.text} How: ${tool.how}`;
+/** What an objective card asks for and what you have of it so far, shown in Status while the pointer is on it. */
 const objectiveHint = (o) => `${o.name}: ${o.text} ${o.points} per ${o.unit}.${o.mine ? ` You have ${o.mine.sets}: ${o.mine.points} points.` : ''}`;
 
+/** Takes the whole turn back (server side) and clears any half-made choice on the screen. */
 async function undoTurn() {
   const reply = await props.send('undo');
   selected.value = null;
@@ -266,15 +320,18 @@ async function undoTurn() {
   message.value = reply.ok ? '' : reply.error;
 }
 
+/** Ends your turn; shows the server's reason if it refuses. */
 async function endTurn() {
   const reply = await props.send('end');
   if (!reply.ok) message.value = reply.error;
 }
 
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));
+/** The place in the final table in words ("Winner", "2nd", "3rd", "4th"). */
 const rank = (row) => (row.placement === 1 ? 'Winner' : `${row.placement}th`.replace(/^2th/, '2nd').replace(/^3th/, '3rd'));
 const trackSlots = computed(() => Array.from({ length: s.value.limits.rounds }, (_, i) => s.value.track?.[i] ?? null));
-const shapeOf = (c) => SHAPES[SHAPE_OF[c]];
+/** The outline (SVG path) of the shape that marks a colour. */
+const shapeOf = (c) => SHAPES[COLOUR_SHAPES[c]];
 const poolMax = computed(() => 2 * (s.value.size ?? s.value.seats.length) + 1);
 
 // ---- other players' windows: hidden until you click their name in the score bar, one at a time, over the main area
@@ -290,6 +347,11 @@ const openedSeat = computed(() => (openedPlayer.value?.window ? openedPlayer.val
 const openedIsMe = computed(() => openedPlayer.value !== null && openedPlayer.value.seat === s.value.you);
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
+/**
+ * Works out every size on the table from the area the frame gives it (see layout.js).
+ * @param {object} area  { width, height, left, columns, gap, mainSpan }
+ * @returns {object} cell, die, perRow, poolHeight, trackDie, option and popup sizes in pixels
+ */
 const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: finished.value, options: s.value.options?.length ?? 4 });
 </script>
 

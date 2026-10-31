@@ -28,12 +28,27 @@ export default {
   name: 'Sharp',
   description: 'Weighs expected points: its secret colour, the shared objectives, and the cost of every space it might leave empty. Uses a tool only when it beats a favour token.',
   weight: 3,
+  /**
+   * Chooses this computer player's window from the four it is offered.
+   *
+   * @param {string[]} options  pattern ids
+   * @param {() => number} rng
+   * @returns {string} one of the options
+   */
   chooseWindow(options, rng) {
     return options.reduce((best, pid) => {
       const score = patternOf(pid).difficulty - EMPTY_RISK * 1.6 * expectedEmpty(pid) + rng() * 0.3;
       return !best || score > best.score ? { pid, score } : best;
     }, null).pid;
   },
+  /**
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   *
+   * @param {object} state  the read-only snapshot described in common.js
+   * @param {number} seat   the seat deciding
+   * @param {() => number} rng
+   * @returns {{ type: 'place', die: number, cell: number } | { type: 'tool', tool: string, params: object } | { type: 'end' }}
+   */
   chooseStep(state, seat, rng) {
     return chooseStep(state, seat, rng, {
       tools: 'eager',
@@ -41,11 +56,28 @@ export default {
       margin: 0.6,
       reserve: 0,
       noise: 0.15,
+      /**
+       * Works out once per decision whatever the scores share (before-values and fill chances).
+       *
+       * @param {object} s    the snapshot
+       * @param {number} who  the seat deciding
+       * @returns {object} handed to score() as its last argument
+       */
       context(s, who) {
         const grid = s.grids[who];
         const pattern = patternOf(s.patterns[who]);
         return { pattern, publicBefore: publicPotential(s, grid), privateBefore: privateOf(s, grid), chance: grid.map((_, i) => fillChance(grid, pattern, i)) };
       },
+      /**
+       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * file header for what it values.
+       *
+       * @param {object} s     the snapshot
+       * @param {number} who   the seat deciding
+       * @param {object} die   { id, c, v } (as it would be after a tool, if one is being considered)
+       * @param {number} cell  the space
+       * @returns {number}
+       */
       score(s, who, die, cell, options, context) {
         const grid = s.grids[who];
         const { pattern } = context;

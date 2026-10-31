@@ -466,7 +466,17 @@ test('the score never goes below 0, and the history records the change actually 
   finishRound(room, rng);
   assert.deepEqual(room.scores, [0, 0]);
   assert.deepEqual(room.history[0].deltas, { 0: -2, 1: 0 });
-  assert.deepEqual(room.history[0].notes, { 0: 'floor -2', 1: 'floor -0' });
+  assert.deepEqual(room.history[0].notes, { 0: 'floor -2' });
+});
+
+test('a room saved before the floor-penalty counter existed does not end up with NaN', () => {
+  const { room, rng } = endgame(2);
+  for (const t of room.tally) delete t.floorPenalties;
+  room.scores = [5, 5];
+  room.floors[0] = [0, 0];
+  finishRound(room, rng);
+  assert.equal(room.tally[0].floorPenalties, 2);
+  assert.equal(room.tally[1].floorPenalties, 0);
 });
 
 test('wall-tiling with several lines gives each its place by colour on the fixed wall', () => {

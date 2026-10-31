@@ -1232,3 +1232,60 @@ test('undo: a person who plays, undoes and replays many times in a whole game ke
   }
   assert.equal(room.phase, 'finished');
 });
+
+// ---- undo cannot be used to look at random results for free ----
+
+test('undo: Re-fire after an undo gives the same face again, whichever random numbers are offered', () => {
+  const { room } = playingRoom(2, { seed: 31 });
+  room.tools = ['refire', 'lathe', 'mirror'];
+  room.spent = [0, 0, 0];
+  const seat = room.turn.seat;
+  const [first, second] = room.pool;
+  const faceOf = (id) => room.pool.find((d) => d.id === id).v;
+  assert.equal(game.useTool(room, seat, { tool: 'refire', params: { die: first.id } }, seeded(1)).ok, true);
+  const rolled = faceOf(first.id);
+  const tokensAfter = room.tokens[seat];
+  for (let attempt = 0; attempt < 6; attempt++) {
+    assert.equal(game.undoTurn(room, seat).ok, true);
+    assert.equal(room.tokens[seat], tokensAfter + 1, 'the token is refunded');
+    assert.equal(game.useTool(room, seat, { tool: 'refire', params: { die: first.id } }, seeded(100 + attempt)).ok, true);
+    assert.equal(faceOf(first.id), rolled, `attempt ${attempt}: the same die comes out the same`);
+  }
+  // The roll belongs to the turn, not to the die: re-firing the other die after an undo reads the same face back.
+  assert.equal(game.undoTurn(room, seat).ok, true);
+  assert.equal(game.useTool(room, seat, { tool: 'refire', params: { die: second.id } }, seeded(777)).ok, true);
+  assert.equal(faceOf(second.id), rolled, 'a different die reads the same roll');
+  assertInvariants(room, 'refire and undo');
+});
+
+test('undo: Great Kiln after an undo rolls the same faces again, and a new turn starts a new roll list', () => {
+  const { room, rng } = playingRoom(2, { seed: 8 });
+  room.tools = ['kiln', 'lathe', 'mirror'];
+  room.spent = [0, 0, 0];
+  for (let i = 0; i < 400 && !(room.turn.number === 2 && room.turn.placements === 0 && !room.turn.toolUsed); i++) driveStep(room, rng);
+  assert.equal(room.turn.number, 2, 'reached a second turn');
+  assert.deepEqual(room.rolls, [], 'nothing has been rolled at the start of a turn');
+  const seat = room.turn.seat;
+  room.tokens[seat] = room.undo.tokens[seat] = 5; // tokens do not matter here; the saved start of the turn must afford it too
+  assert.equal(game.useTool(room, seat, { tool: 'kiln', params: {} }, seeded(5)).ok, true);
+  const rolled = room.pool.map((d) => `${d.id}:${d.v}`).join();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    assert.equal(game.undoTurn(room, seat).ok, true);
+    assert.equal(game.useTool(room, seat, { tool: 'kiln', params: {} }, seeded(50 + attempt)).ok, true);
+    assert.equal(room.pool.map((d) => `${d.id}:${d.v}`).join(), rolled, `attempt ${attempt}`);
+  }
+  assert.equal(room.rolls.length, room.pool.length, 'one face remembered per die rolled');
+  assert.equal(game.endTurn(room, seat, rng).ok, true);
+  assert.deepEqual(room.rolls, [], 'the next turn starts a fresh roll list');
+  assert.equal(/rolls/.test(JSON.stringify(game.viewFor(room, 1))), false, 'the roll list is never sent to anybody');
+});
+
+test('undo: a room saved before the roll list existed still lets a tool roll', () => {
+  const { room, rng } = playingRoom(2, { seed: 31 });
+  room.tools = ['refire', 'lathe', 'mirror'];
+  room.spent = [0, 0, 0];
+  delete room.rolls;
+  delete room.rollsUsed;
+  assert.equal(game.useTool(room, room.turn.seat, { tool: 'refire', params: { die: room.pool[0].id } }, rng).ok, true);
+  assert.equal(game.undoTurn(room, room.turn.seat).ok, true);
+});

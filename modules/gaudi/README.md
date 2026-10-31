@@ -26,10 +26,9 @@ the sum of the shades of the dice of your secret colour. On: each such die is wo
 
 - `rules.js` pure rules shared with the client: window patterns (12 double-sided cards, 24 windows), placement rules,
   the ten public objectives, scoring.
-- `game.js` the room, seats, windows phase, rounds and turns, the twelve tools, final scoring, views and statistics. A turn never ends by itself: the server keeps a snapshot of the table as the turn began (saved with the room, never sent) so that `undo` can take the whole turn back until End turn.
+- `game.js` the room, seats, windows phase, rounds and turns, the twelve tools, final scoring, views and statistics. A turn never ends by itself: the server keeps a snapshot of the table as the turn began (saved with the room, never sent) so that `undo` can take the whole turn back until End turn. Faces rolled by Re-fire and the Great Kiln go on a per-turn roll list (`room.rolls`) that undo does not clear, so undoing and using the tool again gives the same result (no free re-rolls).
 - `bot.js` the computer players (window choice, placement scoring, rare tool use).
-- `server.js` the thin socket layer: rooms and invite codes, persistence in `ctx.dataDir`, timers for the computers,
-  statistics. `GAUDI_BOT_DELAY=min-max` (milliseconds, default `600-1400`) changes how long computers wait.
+- `server.js` the thin socket layer on the shared room server (`shared/roomServer.js`): it adds the `size`, `window`, `place`, `tool`, `end` and `undo` events and the computer timer; rooms, invite codes, persistence and statistics are shared. `GAUDI_BOT_DELAY=min-max` (milliseconds, default `600-1400`) changes how long computers wait.
 - `client/` the Vue screens: `Gaudi.vue` (connection), `Lobby.vue`, `Table.vue` (the game), `WindowGrid.vue`,
   `Die.vue` (a die with pips and a per-colour shape), `toolkit.js` (how each tool is guided), `glyphs.js`.
 - `testing.js`, `e2e-support.js` helpers for the tests.

@@ -60,8 +60,53 @@ export function lineProblem(lines, wall, line, colour, free = false) {
   return null;
 }
 
-/** The penalty for the first `slots` floor slots (an array of any length: slots beyond the seventh cost nothing). */
+/**
+ * The penalty for a floor line. Pure: reads only `floor.length`, so a `{ length }` stand-in works too.
+ *
+ * @param {{ length: number }} floor  the floor slots (slots beyond the seventh cost nothing)
+ * @returns {number} the points lost, never negative
+ */
 export const floorPenalty = (floor) => FLOOR_PENALTIES.slice(0, floor.length).reduce((a, b) => a + b, 0);
+
+/**
+ * The whole floor penalty once the overflow of a previewed take has landed on a floor that already holds
+ * `floorLength` slots. The slot count is capped at FLOOR_SLOTS (tiles past the seventh go to the lid, not the floor).
+ * Used by the computer players and by the client's hint text so both price the floor the same way.
+ *
+ * @param {number} floorLength  how many slots of the floor are filled before the take
+ * @param {{ onFloor: number, markerOnFloor: boolean }} preview  the result of previewTake
+ * @returns {number} the total penalty the floor would then show
+ */
+export const floorPenaltyAfter = (floorLength, preview) =>
+  floorPenalty({ length: Math.min(FLOOR_SLOTS, floorLength + preview.onFloor + (preview.markerOnFloor ? 1 : 0)) });
+
+/**
+ * How many tiles of one colour are in a list of tiles.
+ *
+ * @param {number[]} tiles   colour numbers
+ * @param {number} colour    the colour to count
+ * @returns {number}
+ */
+export const countOf = (tiles, colour) => tiles.reduce((n, c) => n + (c === colour ? 1 : 0), 0);
+
+/**
+ * The tiles in a source on the table: the centre, or one factory display. Works on a room or on an AI's snapshot (both
+ * have `centre` and `factories`).
+ *
+ * @param {{ centre: number[], factories: number[][] }} table
+ * @param {'centre' | number} source  'centre' or a factory index
+ * @returns {number[]} the live array (do not mutate it unless you own the table)
+ */
+export const sourceTiles = (table, source) => (source === 'centre' ? table.centre : table.factories[source]);
+
+/**
+ * True when taking from this source would also take the first-player marker (it is still in the centre).
+ *
+ * @param {{ markerInCentre: boolean }} table  a room or an AI's snapshot
+ * @param {'centre' | number} source
+ * @returns {boolean}
+ */
+export const takesMarker = (table, source) => source === 'centre' && table.markerInCentre;
 
 /**
  * What happens when `count` tiles of one colour are taken: how many fit on `line` (or 'floor' for none), how many go

@@ -5,7 +5,9 @@ import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+/** Is this player the host? Only the host may change the rules and the seats. */
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+/** The seats in the shape the shared seat list shows: name, kind, whether host, you, or away. */
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,8 +18,11 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+/** The first empty seat, where a computer player is added (-1 if the table is full). */
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+/** How many seats are taken (the table cannot shrink below this). */
 const seated = computed(() => props.state.seats.filter(Boolean).length);
+/** A line saying how many dice the bag holds for this many seats. */
 const diceLine = computed(() => `${10 * (2 * props.state.size + 1)} dice in the bag, ${2 * (2 * props.state.size + 1)} of each colour`);
 </script>
 

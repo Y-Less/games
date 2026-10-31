@@ -5,11 +5,24 @@ import { GOLD, boardCards, me, overflowOf, payment, peakNeeds, pickBest, returnB
 
 const ENGINE_SIZE = 9; // cards bought before it switches from building to scoring
 
+/**
+ * Is the engine still being built? True until nine cards are bought or the player has 8 prestige.
+ *
+ * @param {object} s  the situation
+ * @returns {boolean}
+ */
 function building(s) {
   const player = me(s);
   return player.bought < ENGINE_SIZE && player.prestige < 8;
 }
 
+/**
+ * Chooses a move: cheap cards that spread the discounts while building, big point cards afterwards.
+ *
+ * @param {object} s  the situation (see lib.js)
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {object} one of s.moves, or { type: 'pass' } when there are none
+ */
 function chooseMove(s, rng) {
   if (!s.moves.length) return { type: 'pass' };
   const player = me(s);
@@ -25,6 +38,7 @@ function chooseMove(s, rng) {
   ranked.slice(0, 2).forEach((t, rank) => t.missing.forEach((m, c) => (wants[c] = Math.max(wants[c], rank === 0 ? m : Math.min(m, 1)))));
   const lowest = Math.min(...player.bonuses); // the colours it has the fewest cards of are the most useful to add
   const onTable = boardCards(s);
+  /** Scores one legal move (higher is better). */
   const score = (move) => {
     if (move.type === 'buy') {
       const card = CARD_BY_ID[move.card];
@@ -55,10 +69,22 @@ export default {
   description: 'Plays the long game: cheap cards first to build up discounts in every colour, then big point cards.',
   weight: 2,
   chooseMove,
+  /**
+   * Which tokens to give back: keeps what the three cheapest cards need.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts summing to s.returnCount
+   */
   chooseReturn(s) {
     const cheap = targetsOf(s).sort((a, b) => sum(a.need) - sum(b.need)).slice(0, 3);
     return returnByNeeds(s, peakNeeds(cheap));
   },
+  /**
+   * Which noble to take when several visit at once: simply the first offered.
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
     return s.options[0];
   },

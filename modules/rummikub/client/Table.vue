@@ -15,7 +15,7 @@ import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { dealSize, pinnedJokers } from '../rules.js';
-import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './layout.js';
+import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './arrangement.js';
 import RoundSummary from './RoundSummary.vue';
 import Tile from './Tile.vue';
 

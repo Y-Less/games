@@ -8,6 +8,15 @@ export default {
   name: 'Row finisher',
   description: 'Rushes to complete a row and end the game early, feeding the fullest rows first and tolerating some floor penalties.',
   weight: 1.5,
+  /**
+   * Picks the move with the highest value by this AI's measure (see the file header), with a little noise.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat moving
+   * @param {object[]} moves  the legal { source, colour, line } moves
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   */
   chooseMove(state, seat, moves, rng) {
     const free = state.settings.freeWall;
     const wall = state.walls[seat];
@@ -29,6 +38,15 @@ export default {
     }
     return best ? { source: best.source, colour: best.colour, line: best.line } : null;
   },
+  /**
+   * Picks the column by wall score, favouring fuller rows.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat choosing
+   * @param {{ row: number, colour: number, columns: number[] }} pending  the choice to make
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {number} the chosen column
+   */
   chooseColumn: (state, seat, pending, rng) =>
     chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col) + 1.5 * wall[pending.row].filter((c) => c !== null).length),
 };

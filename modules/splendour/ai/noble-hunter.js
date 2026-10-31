@@ -4,7 +4,12 @@ import { CARD_BY_ID } from '../cards.js';
 import { GOLD, me, nobleGap, nobleList, opponents, overflowOf, payment, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 import standard, { scoreMoves } from './standard.js';
 
-/** The nearest noble and how many more cards of each colour it needs, or null if none is left. */
+/**
+ * The nearest noble and how many more cards of each colour it needs, or null if none is left.
+ *
+ * @param {object} s  the situation
+ * @returns {{ noble: object, gap: number, missing: number[] } | null}
+ */
 function goal(s) {
   const bonuses = me(s).bonuses;
   const best = nobleList(s)
@@ -16,6 +21,13 @@ function goal(s) {
   return { ...best, missing };
 }
 
+/**
+ * Chases the nearest noble; once none is left to chase it plays like the standard player.
+ *
+ * @param {object} s  the situation (see lib.js)
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {object} one of s.moves, or { type: 'pass' } when there are none
+ */
 function chooseMove(s, rng) {
   if (!s.moves.length) return { type: 'pass' };
   const aim = goal(s);
@@ -27,6 +39,7 @@ function chooseMove(s, rng) {
     if (aim.missing[t.card.bonus] > 0) t.missing.forEach((m, c) => (wants[c] = Math.max(wants[c], Math.min(m, 2))));
   }
   const fallback = new Map(scoreMoves(s).map(({ move, score }) => [move, score]));
+  /** Scores one legal move (higher is better). */
   const score = (move) => {
     if (move.type === 'buy') {
       const card = CARD_BY_ID[move.card];
@@ -49,15 +62,27 @@ export default {
   description: 'Chases the nearest noble: buys the cards of the colours it needs and gets the three bonus points for free.',
   weight: 2,
   chooseMove,
+  /**
+   * Which tokens to give back: keeps what the cards of the noble's colours need.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts summing to s.returnCount
+   */
   chooseReturn(s) {
     const aim = goal(s);
     const needs = [0, 0, 0, 0, 0];
     for (const t of targetsOf(s)) if (aim && aim.missing[t.card.bonus] > 0) t.need.forEach((n, c) => (needs[c] = Math.max(needs[c], n)));
     return returnByNeeds(s, needs);
   },
-  /** When several nobles visit at once: the one an opponent is closest to (so they cannot have it next). */
+  /**
+   * When several nobles visit at once: the one an opponent is closest to (so they cannot have it next).
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
     const rivals = opponents(s);
+    /** How close the nearest opponent is to this noble (higher is closer). */
     const closeness = (id) => Math.max(0, ...rivals.map((p) => 6 - nobleGap(p.bonuses, nobleList({ nobles: [id] })[0])));
     return [...s.options].sort((a, b) => closeness(b) - closeness(a))[0];
   },

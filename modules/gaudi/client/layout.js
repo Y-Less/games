@@ -1,8 +1,11 @@
 // Sizes for the Gaudi table, worked out from the room the frame gives it (never from the game, so nothing moves while
 // playing). All numbers are pixels. The constants are the parts of a window that do not scale with its space size.
-const WINDOW_FIXED = 26; // padding, border and the gaps between five spaces
-const WINDOW_FIXED_H = 23; // the same, down four rows
+import { COLS, ROWS } from '../rules.js';
+
+const WINDOW_FIXED = 26; // padding, border and the gaps between the spaces of a row
+const WINDOW_FIXED_H = 23; // the same, down the rows
 const HEAD = 24; // the line above your window
+/** Keeps a number between a lowest and a highest value. */
 const clamp = (low, value, high) => Math.max(low, Math.min(high, value));
 
 /** The pixel width of `n` of the frame's 12 columns. */
@@ -13,7 +16,7 @@ export const spanWidth = (area, n) => {
 
 /** The window size (px) for a window that must fit `width` x `height`. */
 export const windowCell = (width, height, { min = 24, max = 140 } = {}) =>
-  clamp(min, Math.floor(Math.min((width - WINDOW_FIXED) / 5, (height - WINDOW_FIXED_H) / 4)), max);
+  clamp(min, Math.floor(Math.min((width - WINDOW_FIXED) / COLS, (height - WINDOW_FIXED_H) / ROWS)), max);
 
 /**
  * Everything the table needs, from the main area ({ width, height, left, columns, gap, mainSpan }):
@@ -31,7 +34,7 @@ export function tableSizes(area, { poolMax = 11, finished = false, options = 4 }
   const perRow = Math.max(3, Math.floor((poolWidth + 6) / (die + 10 + 6)));
   const poolHeight = Math.ceil(poolMax / perRow) * (die + 10) + (Math.ceil(poolMax / perRow) - 1) * 4;
   const optionWidth = (area.width - 16 * (options - 1)) / options - 26;
-  const option = clamp(24, Math.floor(Math.min((area.height - 235 - WINDOW_FIXED_H) / 4, (optionWidth - WINDOW_FIXED) / 5)), 56);
-  const popup = clamp(22, Math.floor((area.height * 0.93 - 96 - WINDOW_FIXED_H) / 4), 60);
+  const option = clamp(24, Math.floor(Math.min((area.height - 235 - WINDOW_FIXED_H) / ROWS, (optionWidth - WINDOW_FIXED) / COLS)), 56);
+  const popup = clamp(22, Math.floor((area.height * 0.93 - 96 - WINDOW_FIXED_H) / ROWS), 60);
   return { cell, die, perRow, poolHeight, trackDie: 20, option, popup };
 }

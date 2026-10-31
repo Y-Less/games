@@ -41,7 +41,7 @@ function lab({ pid = 'ai.blank', pool = [], tokens = 5, tools = ['lathe', 'mirro
   room.turn = { seat: 0, number: 1, placements: 0, toolUsed: false, extra: false };
   return room;
 }
-const step = (id, room, seed = 1) => byId(id).chooseStep(bot.snapshot(room, 0), 0, seeded(seed));
+const step = (id, room, seed = 1) => byId(id).chooseStep(bot.botSnapshot(room, 0), 0, seeded(seed));
 const steps = (id, room, n = 30) => Array.from({ length: n }, (_, i) => step(id, room, i));
 /** The step really is legal: apply it to a copy. */
 const legal = (room, choice) => {
@@ -68,7 +68,7 @@ test('the registry: standard first, a random AI, sharp, and at least three more;
 
 test('the state an AI sees holds no bag and nobody else’s secret colour', () => {
   const { room } = playingRoom(3, { seed: 4 });
-  const state = bot.snapshot(room, 1);
+  const state = bot.botSnapshot(room, 1);
   const text = JSON.stringify(state);
   assert.ok(!('bag' in state) && !('options' in state) && !('picked' in state));
   assert.equal(state.privateColour, room.privateColours[1]);
@@ -136,7 +136,7 @@ test('random: any legal placement in even shares, and it never uses a tool, even
   const ai = byId('random');
   const rng = seeded(5);
   for (let i = 0; i < 3000; i++) {
-    const s = ai.chooseStep(bot.snapshot(room, 0), 0, rng);
+    const s = ai.chooseStep(bot.botSnapshot(room, 0), 0, rng);
     assert.equal(s.type, 'place');
     const key = `${s.die}:${s.cell}`;
     seen.set(key, (seen.get(key) ?? 0) + 1);
@@ -199,7 +199,7 @@ test('tidy never boxes in a space that needs a ruby, and takes the easiest windo
   const easiest = Math.min(...options.map((p) => patternOf(p).difficulty));
   for (let i = 0; i < 30; i++) assert.equal(patternOf(byId('tidy').chooseWindow(options, seeded(i))).difficulty, easiest);
   // Random is not so careful about it.
-  const careless = Array.from({ length: 80 }, (_, i) => byId('random').chooseStep(bot.snapshot(room, 0), 0, seeded(i)).cell);
+  const careless = Array.from({ length: 80 }, (_, i) => byId('random').chooseStep(bot.botSnapshot(room, 0), 0, seeded(i)).cell);
   assert.ok(careless.includes(at(1, 3)), 'random does sometimes make a dead space');
 });
 

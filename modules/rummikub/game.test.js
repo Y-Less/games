@@ -425,3 +425,12 @@ test('the biggest rack and holding both jokers (once a round) are noted', () => 
   game.draw(room, 0);
   assert.equal(tally.bothJokers, 1, 'once a round');
 });
+
+test('a room saved before roundsWon existed still counts a won round (no NaN)', () => {
+  const { room } = playingRoom(2, { seed: 3 });
+  delete room.tally[0].roundsWon; // as in a room saved by an older version
+  setPosition(room, { racks: [[t(0, 1), t(0, 2), t(0, 3)], [t(3, 1)]], table: [], turn: 0, melded: [true, true] });
+  const result = game.play(room, 0, { table: [[t(0, 1), t(0, 2), t(0, 3)]] });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(room.tally[0].roundsWon, 1, 'the key is created and counted from zero');
+});

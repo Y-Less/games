@@ -10,8 +10,8 @@
 // It also decides when the game should end. A row completed this round ends the game, so if finishing one leaves it
 // ahead after the bonuses it goes for it; if it would be behind it declines and builds columns and sets instead, which
 // is why games between sharp players are not all five rounds long.
-import { COLOURS, COLUMN_BONUS, FLOOR_SLOTS, ROW_BONUS, SET_BONUS, SIZE, bonuses, columnsFor, floorPenalty, lineCapacity, rowComplete, tileScore } from '../rules.js';
-import { bestColumnBy, chooseColumnBy, copyWall, countOf, takeOf, tilesLeft } from './common.js';
+import { COLOURS, COLUMN_BONUS, FLOOR_SLOTS, ROW_BONUS, SET_BONUS, SIZE, bonuses, columnsFor, countOf, floorPenalty, lineCapacity, rowComplete, tileScore } from '../rules.js';
+import { bestColumnBy, chooseColumnBy, copyWall, takeOf, tilesLeft } from './common.js';
 
 const LONG_GAME = 0.55; // how much of an unfinished bonus is worth counting while the game may still go on
 const MARGIN_PAYS = 0.35;
@@ -19,7 +19,15 @@ const CANDIDATES = 6; // moves played out to the end of the round
 const PLAYOUTS = 2;
 const RIVAL_SHARE = 0.5; // how much an opponent's gain counts against us
 
-/** Applies every full pattern line to a copy of the wall in row order, as the tiling phase does. */
+/**
+ * Applies every full pattern line to a copy of the wall in row order, as the tiling phase does.
+ * (The column is chosen with a fixed tie-break, `() => 0`, so the projection is deterministic.)
+ *
+ * @param {(number | null)[][]} wall  the wall now (not changed)
+ * @param {{ colour: number | null, count: number }[]} lines  the pattern lines to tile
+ * @param {boolean} free  true on a free wall
+ * @returns {{ wall: (number | null)[][], gain: number }} the projected wall and the points the tiling would score
+ */
 function project(wall, lines, free) {
   const next = copyWall(wall);
   let gain = 0;
@@ -34,7 +42,12 @@ function project(wall, lines, free) {
   return { wall: next, gain };
 }
 
-/** Progress towards the bonuses that are not yet earned: a cubic ramp, so nearly-done units count for most. */
+/**
+ * Progress towards the bonuses that are not yet earned: a cubic ramp, so nearly-done units count for most.
+ *
+ * @param {(number | null)[][]} wall
+ * @returns {number} the summed share of the row, column and colour-set bonuses still to win
+ */
 function potential(wall) {
   let p = 0;
   for (let r = 0; r < SIZE; r++) {
@@ -52,12 +65,17 @@ function potential(wall) {
   return p;
 }
 
+/** Is any row of this wall complete (which ends the game at the end of the round)? */
 const anyRow = (wall) => wall.some((_, r) => rowComplete(wall, r));
 
 /**
- * The value of everyone's boards if the round ended now. `boards[p]` is { lines, floor } (floor a slot count).
- * `chance(colour, need)` says how likely a part-built line is to be finished. Returns each seat's value and whether the
- * game would end: [mine, mean of the others].
+ * The value of everyone's boards if the round ended now.
+ *
+ * @param {object} state  the AI snapshot
+ * @param {number} seat   the seat doing the evaluating
+ * @param {{ lines: object[], floor: number }[]} boards  one per seat; `floor` is a slot count
+ * @param {(colour: number, need: number) => number} chance  how likely a part-built line is to be finished
+ * @returns {{ mine: number, others: number }} the value for `seat` and the mean value of the other seats
  */
 function evaluate(state, seat, boards, chance) {
   const free = state.settings.freeWall;
@@ -91,9 +109,15 @@ function evaluate(state, seat, boards, chance) {
   return { mine: values[seat], others: others.reduce((a, b) => a + b, 0) / others.length };
 }
 
+/** The boards ({ lines, floor slot count }) of every seat in a snapshot, for evaluate(). */
 const boardsOf = (state) => state.lines.map((lines, p) => ({ lines, floor: state.floors[p].length }));
 
-/** A fast copy of the table for playing a round out. */
+/**
+ * A fast copy of the table for playing a round out.
+ *
+ * @param {object} state  the AI snapshot (not changed)
+ * @returns {{ factories: number[][], centre: number[], marker: boolean, boards: object[] }} the sandbox, which take() mutates
+ */
 function sandbox(state) {
   return {
     factories: state.factories.map((f) => f.slice()),
@@ -103,6 +127,14 @@ function sandbox(state) {
   };
 }
 
+/**
+ * Plays a move on a sandbox (the same take as the rules, on the cheap copy).
+ * Side effects: mutates `box` (the sources, the marker and seat `p`'s board).
+ *
+ * @param {object} box  from sandbox()
+ * @param {number} p    the seat taking
+ * @param {{ source: 'centre' | number, colour: number, line: number | 'floor' }} move
+ */
 function take(box, p, move) {
   const tiles = move.source === 'centre' ? box.centre : box.factories[move.source];
   const count = countOf(tiles, move.colour);
@@ -125,7 +157,12 @@ function take(box, p, move) {
   board.floor = Math.min(FLOOR_SLOTS, board.floor + over + (marker ? 1 : 0));
 }
 
-/** Every distinct (source, colour) on a table: { source, colour, count, marker }. */
+/**
+ * Every distinct (source, colour) on a sandbox table.
+ *
+ * @param {object} box  from sandbox()
+ * @returns {{ source: 'centre' | number, colour: number, count: number, marker: boolean }[]}
+ */
 function offers(box) {
   const out = [];
   for (const source of ['centre', ...box.factories.keys()]) {
@@ -135,7 +172,12 @@ function offers(box) {
   return out;
 }
 
-/** For each seat, row and colour: the wall score of the tile that colour would make in that row, or -1 if it cannot go there. */
+/**
+ * For each seat, row and colour: the wall score of the tile that colour would make in that row, or -1 if it cannot go there.
+ *
+ * @param {object} state  the AI snapshot
+ * @returns {number[][][]} table[seat][row][colour]
+ */
 function tileTable(state) {
   const free = state.settings.freeWall;
   return state.walls.map((wall) =>
@@ -148,7 +190,15 @@ function tileTable(state) {
   );
 }
 
-/** The quick policy everyone follows in a play-out: finish lines for points, avoid the floor, a little noise. */
+/**
+ * The quick policy everyone follows in a play-out: finish lines for points, avoid the floor, a little noise.
+ *
+ * @param {object} box    from sandbox()
+ * @param {number} p      the seat to move
+ * @param {number[][][]} table  from tileTable()
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor', value: number } | null} null if nothing is on the table
+ */
 function quickMove(box, p, table, rng) {
   const board = box.boards[p];
   let best = null;
@@ -171,7 +221,16 @@ function quickMove(box, p, table, rng) {
   return best;
 }
 
-/** Plays the rest of the round after `move` and values the boards at the end of it. */
+/**
+ * Plays the rest of the round after `move` and values the boards at the end of it.
+ *
+ * @param {object} state  the AI snapshot (not changed)
+ * @param {number} seat   the seat making `move`
+ * @param {object} move   the candidate move
+ * @param {number[][][]} table  from tileTable()
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {{ mine: number, others: number }} from evaluate()
+ */
 function playOut(state, seat, move, table, rng) {
   const box = sandbox(state);
   take(box, seat, move);
@@ -188,7 +247,15 @@ function playOut(state, seat, move, table, rng) {
   return evaluate(state, seat, box.boards, () => 0.5);
 }
 
-/** The one-move value, used to choose which moves deserve a play-out. */
+/**
+ * The one-move value, used to choose which moves deserve a play-out.
+ *
+ * @param {object} state  the AI snapshot
+ * @param {number} seat   the seat moving
+ * @param {object} move   the candidate move
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {number} higher is better
+ */
 function quickValue(state, seat, move, rng) {
   const { marker, preview } = takeOf(state, seat, move);
   const boards = boardsOf(state).map((b) => ({ lines: b.lines, floor: b.floor }));
@@ -208,6 +275,15 @@ export default {
   name: 'Sharp',
   description: 'Looks ahead: plays the best few moves out to the end of the round, pricing the floor exactly and what it leaves opponents. Ends the game early only when it is ahead, and plays on when it is not.',
   weight: 3,
+  /**
+   * Ranks every move by quickValue, then plays the best few out to the end of the round and picks the best of those.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat moving
+   * @param {object[]} moves  the legal moves
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   */
   chooseMove(state, seat, moves, rng) {
     if (!moves.length) return null;
     const ranked = moves.map((move) => ({ move, value: quickValue(state, seat, move, rng) })).sort((a, b) => b.value - a.value);
@@ -224,6 +300,15 @@ export default {
     }
     return { source: best.source, colour: best.colour, line: best.line };
   },
+  /**
+   * Picks a column by the tile's score plus how much it advances the end-of-game bonuses.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat choosing
+   * @param {{ row: number, colour: number, columns: number[] }} pending
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {number} the chosen column
+   */
   chooseColumn(state, seat, pending, rng) {
     return chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col) + LONG_GAME * (potential(wall) - potential(state.walls[seat])));
   },

@@ -11,34 +11,57 @@
 //
 // An AI provides chooseMove(situation, rng) -> one of situation.moves (or { type: 'pass' } when there are none),
 // chooseReturn(situation, rng) -> six counts summing to situation.returnCount, and chooseNoble(situation, rng) -> an id.
-import { CARD_BY_ID, GOLD, LEVELS, NOBLE_BY_ID } from '../cards.js';
+import { CARD_BY_ID, LEVELS, NOBLE_BY_ID } from '../cards.js';
+import { GOLD, MAX_TOKENS, needOf, quoteFor } from '../rules.js';
 
-export { GOLD };
-export const MAX_TOKENS = 10;
+// The shared numbers and the cost calculation live in ../rules.js; they are re-exported so the AIs keep importing from here.
+export { GOLD, MAX_TOKENS, needOf };
+
+/**
+ * Adds up a list of numbers.
+ *
+ * @param {number[]} list
+ * @returns {number}
+ */
 export const sum = (list) => list.reduce((a, b) => a + b, 0);
 
+/** Every face-up card on the table, as card objects (empty slots left out). */
 export const boardCards = (s) => LEVELS.flatMap((l) => s.board[l]).filter(Boolean).map((id) => CARD_BY_ID[id]);
+/** The situation's own player (the one choosing). */
 export const me = (s) => s.players[s.seat];
+/** Every other player in the situation. */
 export const opponents = (s) => s.players.filter((p) => p.seat !== s.seat);
+/** The nobles still on the table, as noble objects. */
 export const nobleList = (s) => s.nobles.map((id) => NOBLE_BY_ID[id]);
-export const needOf = (card, bonuses) => card.cost.map((c, i) => Math.max(0, c - bonuses[i]));
+/**
+ * How many more card bonuses a player needs before a noble would visit them.
+ *
+ * @param {number[]} bonuses  the player's five discounts
+ * @param {{ requires: Record<string, number> }} noble
+ * @returns {number} 0 when the noble would already visit
+ */
 export const nobleGap = (bonuses, noble) => sum(Object.entries(noble.requires).map(([c, n]) => Math.max(0, n - bonuses[c])));
 
-/** What a player would pay for a card (coloured tokens first, Gold for the rest), or null if they cannot afford it. */
+/**
+ * What a player would pay for a card (coloured tokens first, Gold for the rest), or null if they cannot afford it.
+ *
+ * @param {{ tokens: number[], bonuses: number[] }} player  a player of the situation
+ * @param {{ cost: number[] }} card
+ * @returns {{ need: number[], pay: number[] } | null}
+ */
 export function payment(player, card) {
-  const need = needOf(card, player.bonuses);
-  const pay = [0, 0, 0, 0, 0, 0];
-  let short = 0;
-  for (let c = 0; c < 5; c++) {
-    pay[c] = Math.min(need[c], player.tokens[c]);
-    short += need[c] - pay[c];
-  }
-  if (short > player.tokens[GOLD]) return null;
-  pay[GOLD] = short;
-  return { need, pay };
+  return quoteFor(player.tokens, player.bonuses, card);
 }
 
-/** The cards a player could aim for (the table, plus their own reserve), each with what is still missing. */
+/**
+ * The cards a player could aim for (the table, plus their own reserve), each with what is still missing.
+ *
+ * @param {object} s       the situation
+ * @param {object} player  whose point of view (default: the AI itself)
+ * @param {object} extra   extra fields copied onto every target
+ * @returns {{ id: string, card: object, need: number[], missing: number[], short: number, reserved: boolean }[]}
+ *   `missing` is what is still lacking per colour; `short` is how many tokens are lacking after Gold has been counted
+ */
 export function targetsOf(s, player = me(s), extra = {}) {
   const ids = [...LEVELS.flatMap((l) => s.board[l]).filter(Boolean), ...player.reserved];
   return ids.map((id) => {
@@ -50,7 +73,15 @@ export function targetsOf(s, player = me(s), extra = {}) {
   });
 }
 
-/** The move with the best score (ties go to the first). `jitter` adds that much randomness, one draw per move. */
+/**
+ * The move with the best score (ties go to the first). `jitter` adds that much randomness, one draw per move.
+ *
+ * @param {object[]} moves
+ * @param {(move: object) => number} score
+ * @param {() => number} rng
+ * @param {number} jitter
+ * @returns {object | null} null only when there are no moves
+ */
 export function pickBest(moves, score, rng, jitter = 0.35) {
   let best = null;
   let bestScore = -Infinity;
@@ -64,7 +95,13 @@ export function pickBest(moves, score, rng, jitter = 0.35) {
   return best;
 }
 
-/** Tokens to give back: surplus colours first, colours that are still needed (`needs`, per colour) next, Gold last. */
+/**
+ * Tokens to give back: surplus colours first, colours that are still needed (`needs`, per colour) next, Gold last.
+ *
+ * @param {object} s        the situation (uses returnCount and the player's tokens)
+ * @param {number[]} needs  the most of each colour any wanted card needs
+ * @returns {number[]} six counts summing to s.returnCount
+ */
 export function returnByNeeds(s, needs) {
   const tokens = [...me(s).tokens];
   const give = [0, 0, 0, 0, 0, 0];
@@ -85,13 +122,25 @@ export function returnByNeeds(s, needs) {
   return give;
 }
 
-/** The most of each colour that any of the given cards needs. */
+/**
+ * The most of each colour that any of the given cards needs.
+ *
+ * @param {{ need: number[] }[]} targets  entries from targetsOf
+ * @returns {number[]} five counts
+ */
 export function peakNeeds(targets) {
   const needs = [0, 0, 0, 0, 0];
   for (const t of targets) t.need.forEach((n, c) => (needs[c] = Math.max(needs[c], n)));
   return needs;
 }
 
+/**
+ * Tokens to give back chosen at random (used by the Random AI).
+ *
+ * @param {object} s    the situation (uses returnCount and the player's tokens)
+ * @param {() => number} rng
+ * @returns {number[]} six counts summing to s.returnCount
+ */
 export function randomReturn(s, rng) {
   const have = [...me(s).tokens];
   const give = [0, 0, 0, 0, 0, 0];
@@ -104,7 +153,12 @@ export function randomReturn(s, rng) {
   return give;
 }
 
-/** Colours (a 0/1 flag per colour) of the tokens a `take` or `takeTwo` move would gain, as counts. */
+/**
+ * The gems a `take` or `takeTwo` move would gain, as counts per colour.
+ *
+ * @param {object} move
+ * @returns {number[]} five counts (all zero for any other kind of move)
+ */
 export function gainOf(move) {
   const gain = [0, 0, 0, 0, 0];
   if (move.type === 'take') for (const c of move.colours) gain[c]++;
@@ -112,5 +166,12 @@ export function gainOf(move) {
   return gain;
 }
 
-/** The overflow penalty for ending a turn over the token limit. */
+/**
+ * The overflow penalty for ending a turn over the token limit.
+ *
+ * @param {object} s        the situation
+ * @param {number} gain     how many tokens the move would add
+ * @param {number} rate     penalty per token over the limit
+ * @returns {number} 0 when the player stays within MAX_TOKENS
+ */
 export const overflowOf = (s, gain, rate = 1.2) => Math.max(0, sum(me(s).tokens) + gain - MAX_TOKENS) * rate;

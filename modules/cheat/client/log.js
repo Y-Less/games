@@ -2,12 +2,20 @@
 // state that arrives is compared with the one before it, and what changed (a play, a call, a pick-up) is added as a line.
 // The list starts when the page does. It lives outside the table component so that every state is looked at.
 import { rankWord } from './rank.js';
+import { callSentence, cardCount } from './text.js';
 
 const LIMIT = 120;
+/** The name shown for a seat in a state ("Someone" if the seat is gone). */
 const nameOf = (state, seat) => state.seats[seat]?.name ?? 'Someone';
-const cards = (n) => `${n} ${n === 1 ? 'card' : 'cards'}`;
 
-/** The log after `next` arrives, given the log so far and the previous state (null when there was none). */
+/**
+ * Works out the "Recent moves" list after a new state arrives.
+ *
+ * @param {{ text: string }[]} log  the lines so far (not changed)
+ * @param {object | null} prev  the previous state, or null if there was none
+ * @param {object | null} next  the state that has just arrived (null when the player left the game)
+ * @returns {{ text: string }[]} a new list: empty for a lobby or a different game, otherwise the old lines plus any new ones (at most LIMIT)
+ */
 export function advanceLog(log, prev, next) {
   if (!next || next.phase === 'lobby') return [];
   if (!prev || prev.code !== next.code) return [];
@@ -15,10 +23,10 @@ export function advanceLog(log, prev, next) {
   const out = [...log];
   const add = (text) => out.push({ text });
 
-  if (next.plays > prev.plays && next.last) add(`${nameOf(next, next.last.seat)} plays ${cards(next.last.count)}, claiming ${rankWord(next.last.rank, next.last.count)}.`);
+  if (next.plays > prev.plays && next.last) add(`${nameOf(next, next.last.seat)} plays ${cardCount(next.last.count)}, claiming ${rankWord(next.last.rank, next.last.count)}.`);
   const call = next.lastCall;
   if (call && JSON.stringify(call) !== JSON.stringify(prev.lastCall)) {
-    add(`${nameOf(next, call.caller)} calls Cheat on ${nameOf(next, call.accused)}: it was ${call.lie ? 'a lie' : 'true'}, so ${nameOf(next, call.picker)} picks up ${cards(call.pileSize)}.`);
+    add(callSentence(call, (seat) => nameOf(next, seat)));
   }
   if (next.phase === 'finished' && prev.phase !== 'finished') add(`${nameOf(next, next.winner)} gets rid of every card and wins.`);
   return out.length > LIMIT ? out.slice(-LIMIT) : out;

@@ -8,6 +8,15 @@ export default {
   name: 'Greedy',
   description: 'Takes whatever scores the most wall points straight away, and avoids the floor. No plans beyond the current round.',
   weight: 2,
+  /**
+   * Picks the move with the highest value by this AI's measure (see the file header), with a little noise.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat moving
+   * @param {object[]} moves  the legal { source, colour, line } moves
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   */
   chooseMove(state, seat, moves, rng) {
     let best = null;
     const free = state.settings.freeWall;
@@ -25,5 +34,14 @@ export default {
     }
     return best ? { source: best.source, colour: best.colour, line: best.line } : null;
   },
+  /**
+   * Picks the column where the tile scores most on the wall.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat choosing
+   * @param {{ row: number, colour: number, columns: number[] }} pending  the choice to make
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {number} the chosen column
+   */
   chooseColumn: (state, seat, pending, rng) => chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col)),
 };

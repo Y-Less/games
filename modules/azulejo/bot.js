@@ -1,15 +1,20 @@
 // The computer players of Azulejo. They only ever make moves the rules allow (game.legalMoves lists them and the same
 // game functions check them). How a computer chooses is up to its AI (see ai/): each bot seat has one, picked when the
 // game starts and stored on the seat (`seat.ai`). A seat with no AI, or an unknown one, plays as the first ("standard").
+//
+// Randomness is always passed in as `rng` (the server and the tests inject it); the default is Math.random.
 import * as game from './game.js';
 import { COLOURS } from './rules.js';
-import { moveValue, bestColumn } from './ai/standard.js';
-
-export { moveValue, bestColumn };
 
 const isBot = game.isBot;
 
-/** The next thing a computer has to do, or null when the game waits for a person. */
+/**
+ * The next thing a computer has to do.
+ *
+ * @param {object} room  the room (not changed)
+ * @returns {{ type: 'column' | 'move', seat: number } | null} null when the game is waiting for a person (or is not
+ *   being played). While tiling, a computer with a pending column choice goes first; while playing, it is whoever's turn it is.
+ */
 export function pendingAction(room) {
   if (room.phase === 'tiling') {
     const seat = room.seats.findIndex((s, i) => isBot(s) && room.pending[i]);
@@ -19,7 +24,12 @@ export function pendingAction(room) {
   return isBot(room.seats[room.turn]) ? { type: 'move', seat: room.turn } : null;
 }
 
-/** What an AI may see: the whole table (it is all public) but never the bag's contents or order. */
+/**
+ * What an AI may see: the whole table (it is all public) but never the bag's contents or order.
+ *
+ * @param {object} room  the room (not changed)
+ * @returns {object} a snapshot whose arrays are the room's own (AIs must only read them); the lid is reduced to counts
+ */
 export function snapshot(room) {
   return {
     size: room.size,
@@ -38,18 +48,40 @@ export function snapshot(room) {
   };
 }
 
-/** The best legal move for the seat whose turn it is, by that seat's AI. */
+/**
+ * The best legal move for the seat whose turn it is, by that seat's AI.
+ *
+ * @param {object} room  the room (not changed)
+ * @param {number} seat  the computer seat
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no legal move
+ */
 export function chooseMove(room, seat, rng = Math.random) {
   return game.aiOf(room, seat).chooseMove(snapshot(room), seat, game.legalMoves(room, seat), rng);
 }
 
-/** The column a computer picks for the tile its line has just completed (free wall). */
+/**
+ * The column a computer picks for the tile its line has just completed (free wall).
+ *
+ * @param {object} room  the room (not changed); `room.pending[seat]` must be set
+ * @param {number} seat  the computer seat
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {number} one of the offered columns
+ */
 export function chooseColumnFor(room, seat, rng = Math.random) {
   const { row, colour, columns } = room.pending[seat];
   return game.aiOf(room, seat).chooseColumn(snapshot(room), seat, { row, colour, columns: columns.slice() }, rng);
 }
 
-/** Performs a pending action. Returns the action, or null if there was nothing to do. */
+/**
+ * Performs a pending action.
+ * Side effects: mutates the room (the move or column choice is made through the game rules).
+ *
+ * @param {object} room  the room
+ * @param {() => number} [rng]  random numbers in [0, 1) (also used for the refill when a round ends)
+ * @returns {{ type: string, seat: number, move?: object } | null} the action done, or null if there was nothing to do
+ * @throws {Error} if the AI chose an illegal move (a bug, so the server logs it and retries)
+ */
 export function runPending(room, rng = Math.random) {
   const action = pendingAction(room);
   if (!action) return null;

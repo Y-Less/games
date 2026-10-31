@@ -8,6 +8,7 @@ import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
+import { MAX_RESERVED, MAX_TOKENS, NOBLE_POINTS, needOf as costAfterBonuses } from '../rules.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
 import { GEM_NAMES } from './gems.js';
@@ -35,7 +36,13 @@ const myTurn = computed(() => turnIsMine.value && !s.value.pending);
 const bonuses = computed(() => me.value?.bonuses ?? [0, 0, 0, 0, 0]);
 const tokens = computed(() => me.value?.tokens ?? [0, 0, 0, 0, 0, 0]);
 const supply = computed(() => s.value.supply);
-const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - bonuses.value[i]));
+/**
+ * What a card costs this player after their discounts (the shared calculation in rules.js).
+ *
+ * @param {string} id  a card id
+ * @returns {number[]} five counts
+ */
+const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], bonuses.value);
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 const seatOrder = computed(() => {
   const n = s.value.seats.length;
@@ -47,7 +54,7 @@ const seatOrder = computed(() => {
 const banner = computed(() => {
   if (finished.value) return winners.value.length === 1 ? `${winners.value[0].name}${winners.value[0].seat === s.value.you ? ' (you)' : ''} wins with ${winners.value[0].prestige} prestige!` : winners.value.length ? `A shared win: ${winners.value.map((w) => w.name).join(' and ')} with ${winners.value[0].prestige} prestige.` : 'The game is over.';
   const pending = s.value.pending;
-  if (pending && pending.seat === s.value.you) return pending.type === 'return' ? `You have more than 10 tokens: return ${pending.count}.` : 'Choose a noble: click the one you want in the market.';
+  if (pending && pending.seat === s.value.you) return pending.type === 'return' ? `You have more than ${MAX_TOKENS} tokens: return ${pending.count}.` : 'Choose a noble: click the one you want in the market.';
   if (pending) return `${nameOf(pending.seat)} is ${pending.type === 'return' ? 'returning tokens' : 'choosing a noble'}.`;
   if (myTurn.value) return 'Your turn: take gems, reserve a card or buy a card.';
   return `Waiting for ${nameOf(s.value.turn)}…`;
@@ -129,10 +136,10 @@ const missing = computed(() => {
   const left = needOf(selectedCard.value).map((n, c) => Math.max(0, n - tokens.value[c]));
   return { left, gold: Math.max(0, sum(left) - tokens.value[5]), total: sum(left) };
 });
-const canReserve = computed(() => myTurn.value && me.value && me.value.reserved.length < 3);
+const canReserve = computed(() => myTurn.value && me.value && me.value.reserved.length < MAX_RESERVED);
 const reserveWhy = computed(() => {
   if (!myTurn.value) return s.value.pending ? 'Finish your current choice first.' : 'It is not your turn.';
-  if (me.value.reserved.length >= 3) return 'You already have three reserved cards.';
+  if (me.value.reserved.length >= MAX_RESERVED) return 'You already have three reserved cards.';
   return '';
 });
 const goldLeft = computed(() => supply.value[5] > 0);
@@ -249,8 +256,8 @@ const statusLines = computed(() => {
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
   if (lastRound.value) lines.push({ text: lastRound.value, tone: 'mine' });
   const pending = pendingMine.value;
-  if (pending?.type === 'return') lines.push({ text: `You may hold only 10 tokens. Click your own tokens to mark the ${pending.count} you want to give back, then press Return.`, tone: 'muted' });
-  else if (pending?.type === 'noble') lines.push({ text: 'Several nobles would like to visit you, but only one can. Click the highlighted noble you choose in the market (each is worth 3 prestige).', tone: 'muted' });
+  if (pending?.type === 'return') lines.push({ text: `You may hold only ${MAX_TOKENS} tokens. Click your own tokens to mark the ${pending.count} you want to give back, then press Return.`, tone: 'muted' });
+  else if (pending?.type === 'noble') lines.push({ text: `Several nobles would like to visit you, but only one can. Click the highlighted noble you choose in the market (each is worth ${NOBLE_POINTS} prestige).`, tone: 'muted' });
   else if (finished.value) {
     if (tieNote.value) lines.push({ text: tieNote.value, tone: 'muted' });
     if (endNote.value) lines.push({ text: endNote.value, tone: 'muted' });
@@ -420,7 +427,7 @@ const levels = [3, 2, 1];
             bought a level {{ e.level }} card <Gem :colour="CARD_BY_ID[e.card].bonus" :size="13" /><template v-if="CARD_BY_ID[e.card].points"> (+{{ CARD_BY_ID[e.card].points }})</template>
           </template>
           <template v-else-if="e.kind === 'return'">returned {{ e.give.reduce((a, b) => a + b, 0) }} tokens</template>
-          <template v-else-if="e.kind === 'noble'">was visited by {{ NOBLE_BY_ID[e.noble].name }} (+3)</template>
+          <template v-else-if="e.kind === 'noble'">was visited by {{ NOBLE_BY_ID[e.noble].name }} (+{{ NOBLE_POINTS }})</template>
           <template v-else-if="e.kind === 'pass'">passed</template>
         </span>
       </GameLog>

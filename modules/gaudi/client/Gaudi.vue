@@ -20,6 +20,13 @@ const notice = ref('');
 let invite = props.search.replace(/^\?/, '');
 const initialCode = invite;
 
+/**
+ * Sends one request to the server and waits for its answer. A refusal is shown as the notice at the top.
+ *
+ * @param {string} event      the socket event ('create', 'join', 'place'...)
+ * @param {object} [payload]  what the event needs
+ * @returns {Promise<{ ok: boolean, error?: string }>} the server's reply (a failure if it did not answer)
+ */
 function send(event, payload = {}) {
   notice.value = '';
   return new Promise((resolve) => {
@@ -37,12 +44,20 @@ useLeave({
   confirmText: computed(() => (state.value?.phase === 'windows' || state.value?.phase === 'playing' ? 'A computer player takes your seat if you leave.' : '')),
 });
 
+/**
+ * Asks the server for the game this account is in (or the one the invite link names). Done on arrival and after every
+ * reconnection, so a dropped connection puts the player straight back at the table. The invite is used once.
+ */
 async function resume() {
   const code = state.value?.code ?? invite;
   invite = '';
   await send('resume', { code });
 }
 
+/**
+ * The server sent a new view of the game (null when not in one): show it and keep the address bar's invite code in step.
+ * @param {object | null} next
+ */
 function onState(next) {
   state.value = next;
   loaded.value = true;

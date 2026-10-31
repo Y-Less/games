@@ -93,9 +93,20 @@ export const PATTERN_CARDS = CARD_DATA.map((faces, card) => ({
 }));
 export const PATTERN_IDS = Object.keys(PATTERNS);
 
+/**
+ * The window pattern with this id.
+ *
+ * @param {unknown} pid  an id such as '3.1' (card 3, face 1); anything else is allowed and gives null
+ * @returns {object | null} { pid, card, face, name, difficulty, rows, cells }, or null if there is no such pattern
+ */
 export const patternOf = (pid) => (typeof pid === 'string' && Object.hasOwn(PATTERNS, pid) ? PATTERNS[pid] : null);
 
-/** What a pattern character asks of a die: { colour } | { shade } | null. */
+/**
+ * What a pattern character asks of a die.
+ *
+ * @param {string} char  '.', a colour letter (R T J S A) or a shade digit (1-6)
+ * @returns {{ colour: string } | { shade: number } | null} the colour name, the shade, or null for a blank space
+ */
 export function restrictionOf(char) {
   if (Object.hasOwn(COLOUR_LETTERS, char)) return { colour: COLOUR_LETTERS[char] };
   if (/^[1-6]$/.test(char)) return { shade: Number(char) };
@@ -104,10 +115,20 @@ export function restrictionOf(char) {
 
 // ---- the grid ----
 
+/** The row (0-3) of a space of a window. */
 export const rowOf = (index) => Math.floor(index / COLS);
+/** The column (0-4) of a space of a window. */
 export const colOf = (index) => index % COLS;
+/** Is this space on the edge of the window (including the corners)? The first die must go on one. */
 export const isEdge = (index) => rowOf(index) === 0 || rowOf(index) === ROWS - 1 || colOf(index) === 0 || colOf(index) === COLS - 1;
 
+/**
+ * The spaces next to a space.
+ *
+ * @param {number} index      the space
+ * @param {boolean} diagonal  also include the four diagonal neighbours
+ * @returns {number[]} the spaces that exist (fewer at the edges)
+ */
 function neighbours(index, diagonal) {
   const out = [];
   for (let dr = -1; dr <= 1; dr++) {
@@ -123,8 +144,11 @@ function neighbours(index, diagonal) {
 }
 export const ORTHOGONAL = Array.from({ length: CELLS }, (_, i) => neighbours(i, false));
 export const SURROUNDING = Array.from({ length: CELLS }, (_, i) => neighbours(i, true));
+/** A window with no dice in it: CELLS nulls. */
 export const emptyGrid = () => Array.from({ length: CELLS }, () => null);
+/** The dice in a window, without the empty spaces. */
 export const diceIn = (grid) => grid.filter(Boolean);
+/** How many spaces of a window hold no die (each costs a point at the end). */
 export const emptySpaces = (grid) => grid.filter((d) => !d).length;
 
 /**
@@ -162,6 +186,15 @@ export function moveProblem(grid, pattern, from, to, options = {}) {
   return cellProblem(lifted, pattern, to, grid[from], options);
 }
 
+/**
+ * Every space a die could be placed on.
+ *
+ * @param {(object | null)[]} grid
+ * @param {object} pattern
+ * @param {object} die       { c, v }
+ * @param {object} [options]  placement rules to relax (see cellProblem)
+ * @returns {number[]}
+ */
 export const legalCells = (grid, pattern, die, options) => grid.flatMap((_, i) => (cellProblem(grid, pattern, i, die, options) === null ? [i] : []));
 
 /** True if no die at all could ever go on this space (ignoring touching and the first-die rule). */
@@ -197,14 +230,26 @@ export function solvePattern(pattern) {
 
 // ---- objectives ----
 
+/** The spaces of one row of a window. */
 const rowCells = (r) => Array.from({ length: COLS }, (_, c) => r * COLS + c);
+/** The spaces of one column of a window. */
 const colCells = (c) => Array.from({ length: ROWS }, (_, r) => r * COLS + c);
+/** All the rows (or all the columns) as lists of spaces: cellsOf(i) for i = 0 to count - 1. */
 const lines = (cellsOf, count) => Array.from({ length: count }, (_, i) => cellsOf(i));
+/**
+ * Are these spaces all filled with dice that differ in colour ('c') or shade ('v')?
+ * @param {(object | null)[]} grid
+ * @param {number[]} cells
+ * @param {'c' | 'v'} key
+ * @returns {boolean}
+ */
 const allDifferent = (grid, cells, key) => {
   if (cells.some((i) => !grid[i])) return false;
   return new Set(cells.map((i) => grid[i][key])).size === cells.length;
 };
+/** How many dice in a window satisfy a test. */
 const countWhere = (grid, test) => diceIn(grid).filter(test).length;
+/** Builds the `sets` function of a pairs objective: how many pairs of a die showing a and a die showing b the window holds. */
 const shadePair = (a, b) => (grid) => Math.min(countWhere(grid, (d) => d.v === a), countWhere(grid, (d) => d.v === b));
 
 /**
@@ -235,8 +280,20 @@ export const OBJECTIVES = [
 export const isPerfect = (grid, objectiveIds) => emptySpaces(grid) === 0 && objectiveIds.every((id) => objectivePoints(id, grid).sets >= objectiveOf(id).max);
 
 export const OBJECTIVE_IDS = OBJECTIVES.map((o) => o.id);
+/**
+ * A public objective's definition.
+ * @param {string} id  one of OBJECTIVE_IDS
+ * @returns {object | null}
+ */
 export const objectiveOf = (id) => OBJECTIVES.find((o) => o.id === id) ?? null;
 
+/**
+ * What a window scores for one public objective.
+ *
+ * @param {string} id  one of OBJECTIVE_IDS
+ * @param {(object | null)[]} grid
+ * @returns {{ sets: number, points: number }} how many times it is completed and the points that earns
+ */
 export function objectivePoints(id, grid) {
   const objective = objectiveOf(id);
   const sets = objective.sets(grid);

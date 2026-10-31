@@ -7,33 +7,49 @@
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
 import { aiById } from '../../shared/ai.js';
-import { SEARCH_BUDGET, solve } from './search.js';
-import { totalTiles } from './rules.js';
 
-export { SEARCH_BUDGET, solve, totalTiles };
-
-/** The AI of a seat (the first, 'standard', for a seat without one: rooms saved before there were several). */
+/**
+ * The AI of a seat (the first, 'standard', for a seat without one: rooms saved before there were several).
+ *
+ * @param {object} room  not changed
+ * @param {number} seat
+ * @returns {object} an AI object from ai/index.js
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.seats?.[seat]?.ai);
 
-/** The next thing a computer has to do, or null when the game waits for a person. */
+/**
+ * The next thing a computer has to do, or null when the game waits for a person.
+ *
+ * @param {object} room  not changed
+ * @returns {{ type: 'turn', seat: number } | null}
+ */
 export function pendingAction(room) {
   if (room.phase !== 'playing' || room.turn === null || room.turn === undefined) return null;
   return game.isBot(room.seats[room.turn]) ? { type: 'turn', seat: room.turn } : null;
 }
 
-/** The best play of the classic AI (or of options.ai, an AI object): { table, added } or null. */
-export function bestPlay(room, seat, options = {}) {
-  const ai = options.ai ?? AIS[0];
-  return ai.plan(room, seat, options);
-}
-
-/** { type: 'play', table } or { type: 'draw' }, by the seat's own AI. */
+/**
+ * What the seat's own AI would do now: play a whole proposed table, or draw. Does not change the room.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {object} [options]  passed to the AI (rng, budget...)
+ * @returns {{ type: 'play', table: number[][] } | { type: 'draw' }}
+ */
 export function chooseTurn(room, seat, options = {}) {
   const play = aiOf(room, seat).plan(room, seat, options);
   return play ? { type: 'play', table: play.table } : { type: 'draw' };
 }
 
-/** Does what pendingAction says. Returns the game's result. */
+/**
+ * Does what pendingAction says: plays the AI's choice, or draws if there is none or the server's check refuses it (so a
+ * game always goes on). Side effect: mutates the room.
+ *
+ * @param {object} room
+ * @param {() => number} [rng]  random numbers for the AI
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {{ ok: boolean, error?: string }} the game's result
+ */
 export function runPending(room, rng = Math.random, now = Date.now()) {
   const action = pendingAction(room);
   if (!action) return { ok: false, error: 'Nothing to do.' };

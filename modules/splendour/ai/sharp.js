@@ -8,45 +8,70 @@
 // It works on the plain situation described in lib.js, so it knows nothing about the draw piles. When it buys or
 // reserves a card in its imagination the gap on the table is left empty rather than guessed at.
 import { CARD_BY_ID, LEVELS, NOBLE_BY_ID } from '../cards.js';
-import { GOLD, MAX_TOKENS, nobleList, nobleGap, needOf, sum } from './lib.js';
+import { GOLD, MAX_TOKENS, nobleList, nobleGap, needOf, payment, sum } from './lib.js';
 
+/** How much each part of a position is worth, in roughly "points". */
 const W = { bonus: 1.8, token: 0.2, gold: 0.5, noble: 1.0, ready: 0.3, rival: 0.75 };
 
+/**
+ * A copy of a situation player that can be changed safely (its token, bonus and reserve lists are copied).
+ *
+ * @param {object} p  a player of the situation
+ * @returns {object}
+ */
 const clonePlayer = (p) => ({ ...p, tokens: [...p.tokens], bonuses: [...p.bonuses], reserved: [...p.reserved] });
 
-/** A copy of the situation in which any one seat can be changed (the rest is shared and never written to). */
+/**
+ * A copy of the situation in which any one seat can be changed (the rest is shared and never written to).
+ *
+ * @param {object} s  the situation
+ * @returns {object} a new situation; the players array is new but the players in it are the originals until replaced
+ */
 function fork(s) {
   return { ...s, supply: [...s.supply], board: { 1: [...s.board[1]], 2: [...s.board[2]], 3: [...s.board[3]] }, nobles: [...s.nobles], players: [...s.players] };
 }
 
+/** The ids of every face-up card in a situation (empty slots left out). */
 const boardIds = (s) => LEVELS.flatMap((l) => s.board[l]).filter(Boolean);
 
-function payFor(p, card) {
-  const need = needOf(card, p.bonuses);
-  const pay = [0, 0, 0, 0, 0, 0];
-  let short = 0;
-  for (let c = 0; c < 5; c++) {
-    pay[c] = Math.min(need[c], p.tokens[c]);
-    short += need[c] - pay[c];
-  }
-  if (short > p.tokens[GOLD]) return null;
-  pay[GOLD] = short;
-  return pay;
-}
+/**
+ * The default payment a player would make for a card (the shared calculation in rules.js, via lib.js).
+ *
+ * @param {object} p     a situation player
+ * @param {object} card
+ * @returns {number[] | null} six counts, or null if the player cannot afford the card
+ */
+const payFor = (p, card) => payment(p, card)?.pay ?? null;
 
 // ---- judging a position ----
 
+/**
+ * The facts about the whole game that colour how every seat is judged: how far the game has got and whether the leader
+ * is close enough to the target for points to matter more.
+ *
+ * @param {object} s  the situation
+ * @returns {{ phase: number, pointWeight: number }} `phase` falls from 1 towards 0.25 as the leader nears the target
+ */
 function context(s) {
   const top = Math.max(...s.players.map((p) => p.prestige));
   return { phase: Math.max(0.25, 1 - top / s.target), pointWeight: 1 + (top >= s.target - 4 ? 0.5 : 0) };
 }
 
-/** What a seat's position is worth, in roughly "points". */
+/**
+ * What a seat's position is worth, in roughly "points": prestige, the next cards it could buy, tokens that will be
+ * spent, discounts, Gold and progress towards nobles.
+ *
+ * @param {object} s    the situation
+ * @param {number} i    the seat being judged
+ * @param {object} ctx  from context()
+ * @returns {number}
+ */
 function evalSeat(s, i, ctx) {
   const p = s.players[i];
   const need = [0, 0, 0, 0, 0];
   let first = 0;
   let second = 0;
+  /** Folds one card into the seat's colour needs and its two most ready-to-buy cards (updates need, first and second). */
   const consider = (id) => {
     const card = CARD_BY_ID[id];
     const needed = needOf(card, p.bonuses);
@@ -83,7 +108,14 @@ function evalSeat(s, i, ctx) {
   return value;
 }
 
-/** My position against the strongest opponent (and, a little, the rest). */
+/**
+ * My position against the strongest opponent (and, a little, the rest).
+ *
+ * @param {object} s    the situation
+ * @param {number} seat my seat
+ * @param {object} ctx  from context()
+ * @returns {number} higher is better for me
+ */
 function judge(s, seat, ctx) {
   const rivals = s.players.map((_, i) => i).filter((i) => i !== seat).map((i) => evalSeat(s, i, ctx));
   const top = Math.max(...rivals);
@@ -92,6 +124,15 @@ function judge(s, seat, ctx) {
 
 // ---- imagining a move ----
 
+/**
+ * Makes a seat give back `count` tokens, one at a time, always the one whose loss hurts its position least.
+ *
+ * Side effects: mutates the seat's player in `s` (the caller must pass a forked copy) and puts the tokens in s.supply.
+ *
+ * @param {object} s      a forked situation
+ * @param {number} i      the seat
+ * @param {number} count  how many tokens to drop
+ */
 function dropTokens(s, i, count) {
   const ctx = context(s);
   const p = s.players[i];
@@ -113,7 +154,15 @@ function dropTokens(s, i, count) {
   }
 }
 
-/** The table after a seat plays a move (tokens above ten are given back in the best way, and a noble visits). */
+/**
+ * The table after a seat plays a move (tokens above the limit are given back in the best way, and a noble visits).
+ * The situation passed in is left alone.
+ *
+ * @param {object} s     the situation
+ * @param {number} i     the seat playing
+ * @param {object} move  a take, takeTwo, reserve or buy move
+ * @returns {object} a new situation
+ */
 function apply(s, i, move) {
   const t = fork(s);
   const p = (t.players[i] = clonePlayer(s.players[i]));
@@ -161,12 +210,19 @@ function apply(s, i, move) {
   return t;
 }
 
-/** The moves an opponent could plausibly make: every card they can buy and every way of taking gems. */
+/**
+ * The moves an opponent could plausibly make: every card they can buy and every way of taking gems.
+ *
+ * @param {object} s  the situation
+ * @param {number} i  the opponent's seat
+ * @returns {object[]} moves (never reserves or passes)
+ */
 function replies(s, i) {
   const p = s.players[i];
   const moves = [];
   for (const id of [...boardIds(s), ...p.reserved]) if (payFor(p, CARD_BY_ID[id])) moves.push({ type: 'buy', card: id });
   const open = [0, 1, 2, 3, 4].filter((c) => s.supply[c] > 0);
+  /** Every way of choosing k items from the list. */
   const combos = (list, k) => (k === 0 ? [[]] : list.flatMap((x, n) => combos(list.slice(n + 1), k - 1).map((rest) => [x, ...rest])));
   if (open.length >= 3) for (const colours of combos(open, 3)) moves.push({ type: 'take', colours });
   else for (let k = 1; k <= open.length; k++) for (const colours of combos(open, k)) moves.push({ type: 'take', colours });
@@ -174,7 +230,16 @@ function replies(s, i) {
   return moves;
 }
 
-/** What an opponent does in reply: whatever suits them best (and me least), or, in the last round, whatever scores most. */
+/**
+ * What an opponent does in reply: whatever suits them best (and me least), or, in the last round, whatever scores most.
+ *
+ * @param {object} s       the situation
+ * @param {number} i       the replying opponent's seat
+ * @param {number} seat    my seat
+ * @param {boolean} ending true once the game is in its last round
+ * @param {object} ctx     from context()
+ * @returns {object} the situation after the reply (unchanged if they have no useful move)
+ */
 function reply(s, i, seat, ending, ctx) {
   let best = null;
   let bestValue = -Infinity;
@@ -191,7 +256,13 @@ function reply(s, i, seat, ending, ctx) {
   return best ?? s;
 }
 
-/** Once the final round is under way: win or lose, and by how much. */
+/**
+ * Once the final round is under way: win or lose, and by how much.
+ *
+ * @param {object} s    the situation
+ * @param {number} seat my seat
+ * @returns {number} about +60 for a win and -60 for a loss, nudged by the margin
+ */
 function outcome(s, seat) {
   const key = (p) => p.prestige * 1000 - p.bought;
   const mine = key(s.players[seat]);
@@ -200,6 +271,14 @@ function outcome(s, seat) {
   return (margin > 0 ? 60 : -60) + margin * 6;
 }
 
+/**
+ * Chooses a move by playing each legal move on a copy of the table, letting every opponent reply, and keeping the move
+ * that leaves this seat best placed.
+ *
+ * @param {object} s     the situation
+ * @param {() => number} rng  breaks near-ties
+ * @returns {object} one of s.moves, or { type: 'pass' } if there are none
+ */
 function chooseMove(s, rng) {
   if (!s.moves.length) return { type: 'pass' };
   const ctx = context(s);
@@ -228,6 +307,12 @@ export default {
   description: 'The strongest: weighs prestige, discounts, gems and nobles, looks one move ahead at what each opponent could do, and plays the end of the game carefully.',
   weight: 3,
   chooseMove,
+  /**
+   * Which tokens to give back: the ones whose loss costs the position least.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts
+   */
   chooseReturn(s) {
     const t = fork(s);
     const p = (t.players[s.seat] = clonePlayer(s.players[s.seat]));
@@ -235,8 +320,14 @@ export default {
     dropTokens(t, s.seat, s.returnCount);
     return before.map((n, c) => n - p.tokens[c]);
   },
-  /** When several nobles visit at once: take the one an opponent is closest to getting. */
+  /**
+   * When several nobles visit at once: take the one an opponent is closest to getting.
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
+    /** How close the best-placed opponent is to this noble, from 0 to 1. */
     const closeness = (id) => Math.max(0, ...s.players.filter((p) => p.seat !== s.seat).map((p) => 1 - nobleGap(p.bonuses, NOBLE_BY_ID[id]) / sum(Object.values(NOBLE_BY_ID[id].requires))));
     return [...s.options].sort((a, b) => closeness(b) - closeness(a))[0];
   },

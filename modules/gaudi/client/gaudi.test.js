@@ -526,6 +526,16 @@ describe('Gaudi table: playing', () => {
     await w.setProps({ state: { ...view, pool: view.pool.slice(1) } });
     expect(w.find('.pool-die.chosen').exists()).toBe(false);
   });
+
+  it('drops a selection and a tool in use when a Swift Hand extra turn begins (the turn index does not change)', async () => {
+    const { view } = playView({ tools: ['swift-hand', 'lathe', 'mirror'] });
+    const { w } = mountTable(view);
+    await poolDice(w)[0].trigger('click');
+    expect(w.find('.pool-die.chosen').exists()).toBe(true);
+    // The same round, turn index, phase and pool; only the turn is now the extra one.
+    await w.setProps({ state: { ...view, turn: { ...view.turn, extra: true } } });
+    expect(w.find('.pool-die.chosen').exists()).toBe(false);
+  });
 });
 
 describe('Gaudi table: finished', () => {

@@ -2,14 +2,28 @@
 import assert from 'node:assert/strict';
 import { ID } from './kit.js';
 import { sleep } from '../../shared/testkit.js';
+import { GOLD_SUPPLY, MAX_RESERVED, supplyPerColour } from './rules.js';
 
+/**
+ * Makes the computer players quick for the rest of this process (sets SPLENDOUR_BOT_DELAY).
+ *
+ * @param {string} delay  a "min-max" range in milliseconds
+ */
 export const fast = (delay = '0-2') => {
   process.env.SPLENDOUR_BOT_DELAY = delay;
 };
 
+/** Adds up a list of numbers. */
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 
-/** Does whatever this person has to do right now (a simple, always legal strategy). Returns true if it acted. */
+/**
+ * Does whatever this person has to do right now (a simple, always legal strategy).
+ *
+ * Side effect: sends socket events through `p.call`.
+ *
+ * @param {object} p  a test person with `state` (the latest view) and `call(event, payload)`
+ * @returns {Promise<boolean>} true if it acted
+ */
 export async function step(p) {
   const s = p.state;
   if (!s || s.phase !== 'playing' || s.turn !== s.you) return false;
@@ -45,7 +59,14 @@ export async function step(p) {
   return true;
 }
 
-/** Plays every person's turns until the condition holds. */
+/**
+ * Plays every person's turns until the condition holds.
+ *
+ * @param {object[]} people  test persons (see step)
+ * @param {() => boolean} done  checked between rounds of play
+ * @param {{ timeout?: number }} options  milliseconds before the test fails as stuck
+ * @returns {Promise<void>}
+ */
 export async function playOn(people, done, { timeout = 60000 } = {}) {
   const started = Date.now();
   while (!done()) {
@@ -56,9 +77,15 @@ export async function playOn(people, done, { timeout = 60000 } = {}) {
   }
 }
 
+/** Plays on until every person has seen the game finish. */
 export const playToEnd = (people, options) => playOn(people, () => people.every((p) => p.state?.phase === 'finished'), options);
 
-/** Every card named in a view is one that viewer may see. */
+/**
+ * Every card named in a view is one that viewer may see. Throws if one is not.
+ *
+ * @param {object | null} view  what the server sent
+ * @param {string} who         shown in the message
+ */
 export function assertNoLeaks(view, who = '') {
   if (!view || view.phase === 'lobby') return;
   const allowed = new Set();
@@ -72,7 +99,13 @@ export function assertNoLeaks(view, who = '') {
   for (const l of [1, 2, 3]) assert.equal(typeof view.decks[l], 'number', `${who}: the piles are counts`);
 }
 
-/** A view must make sense, whatever has been thrown at the server. */
+/**
+ * A view must make sense, whatever has been thrown at the server: a known phase, valid settings, tokens and nobles
+ * conserved, and no card leaked. Throws if not.
+ *
+ * @param {object | null | undefined} s  what the server sent
+ * @param {string} who  shown in the message
+ */
 export function validateView(s, who) {
   if (s === null || s === undefined) return;
   const label = `${who} (${s.phase})`;
@@ -85,15 +118,15 @@ export function validateView(s, who) {
   if (s.phase === 'lobby') return;
   if (s.seats.some((seat) => !seat)) return assertNoLeaks(s, who); // a seat was freed after the game ended
   const n = s.seats.length;
-  const each = { 2: 4, 3: 5, 4: 7 }[n];
+  const each = supplyPerColour(n);
   for (let c = 0; c < 6; c++) {
-    assert.equal(s.supply[c] + sum(s.seats.map((seat) => seat?.tokens[c] ?? 0)), c === 5 ? 5 : each, `${label}: token colour ${c} conserved`);
+    assert.equal(s.supply[c] + sum(s.seats.map((seat) => seat?.tokens[c] ?? 0)), c === 5 ? GOLD_SUPPLY : each, `${label}: token colour ${c} conserved`);
   }
   assert.equal(s.nobles.length + sum(s.seats.map((seat) => seat?.nobles.length ?? 0)), n + 1, `${label}: nobles conserved`);
   for (const seat of s.seats) {
     if (!seat) continue;
     assert.ok(seat.prestige >= s.scoreboard.rounds.reduce((total, r) => total + (r.deltas[seat.seat] ?? 0), 0), `${label}: prestige covers the history`);
-    assert.ok(seat.reserved.length <= 3, `${label}: at most three reserved`);
+    assert.ok(seat.reserved.length <= MAX_RESERVED, `${label}: at most three reserved`);
   }
   if (s.phase === 'finished') {
     for (const seat of s.seats) if (seat) assert.equal(seat.prestige, s.scoreboard.rounds.reduce((total, r) => total + r.deltas[seat.seat], 0), `${label}: history sums to prestige`);

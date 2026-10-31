@@ -9,10 +9,10 @@ import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
-import { aiOf, bestPlay, chooseTurn, pendingAction, runPending } from './bot.js';
+import { aiOf, chooseTurn, pendingAction, runPending } from './bot.js';
 import { checkPlay, totalTiles } from './rules.js';
 import { shuffleAttempts } from './search.js';
-import { STD, assertInvariants, joker, playingRoom, seeded, tile } from './testing.js';
+import { STD, assertInvariants, bestPlay, joker, playingRoom, seeded, tile } from './testing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const t = (c, n, copy = 0) => tile(STD, c, n, copy);

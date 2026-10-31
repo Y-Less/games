@@ -4,10 +4,9 @@
 // normal game afterwards.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertNoPollution, fuzzEvent, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 import { ID } from './kit.js';
 import { fast, playOn, playToEnd, validateView } from './playkit.js';
 
@@ -36,9 +35,7 @@ const EVENTS = {
 };
 
 test('this test knows every socket event the server handles', () => {
-  const source = fs.readFileSync(path.join(here, 'server.js'), 'utf8');
-  const handled = [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
-  assert.deepEqual(handled, Object.keys(EVENTS).sort());
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
 });
 
 test('garbage in every phase: the server stays up, replies sensibly, keeps the game valid, leaks nothing, and a normal game still completes', async (t) => {

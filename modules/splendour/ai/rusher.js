@@ -3,6 +3,12 @@
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, me, opponents, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 
+/**
+ * Ranks the cards by points per turn still needed and works out which gems to collect.
+ *
+ * @param {object} s  the situation
+ * @returns {{ ranked: object[], wants: number[] }} the targets best first and the gems wanted per colour
+ */
 function plan(s) {
   const ranked = targetsOf(s)
     .map((t) => ({ ...t, aim: (t.card.points + 0.2) / (t.short + 1) ** 1.2 }))
@@ -12,7 +18,13 @@ function plan(s) {
   return { ranked, wants };
 }
 
-/** How much it would hurt to let an opponent have this card: its points, and more still if it would put them on the target. */
+/**
+ * How much it would hurt to let an opponent have this card: its points, and more still if it would put them on the target.
+ *
+ * @param {object} s     the situation
+ * @param {object} card  a card object
+ * @returns {number} 0 if no opponent can afford it yet
+ */
 function denial(s, card) {
   let worst = 0;
   for (const p of opponents(s)) {
@@ -22,10 +34,18 @@ function denial(s, card) {
   return worst;
 }
 
+/**
+ * Buys any card worth points at once and reserves cards to deny opponents.
+ *
+ * @param {object} s  the situation (see lib.js)
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {object} one of s.moves, or { type: 'pass' } when there are none
+ */
 function chooseMove(s, rng) {
   if (!s.moves.length) return { type: 'pass' };
   const player = me(s);
   const { ranked, wants } = plan(s);
+  /** Scores one legal move (higher is better). */
   const score = (move) => {
     if (move.type === 'buy') {
       const card = CARD_BY_ID[move.card];
@@ -56,9 +76,21 @@ export default {
   description: 'All about prestige: buys any card worth points the moment it can, and reserves cards to deny opponents.',
   weight: 2,
   chooseMove,
+  /**
+   * Which tokens to give back: keeps what the two best targets need.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts summing to s.returnCount
+   */
   chooseReturn(s) {
     return returnByNeeds(s, peakNeeds(plan(s).ranked.slice(0, 2)));
   },
+  /**
+   * Which noble to take when several visit at once: simply the first offered.
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
     return s.options[0];
   },

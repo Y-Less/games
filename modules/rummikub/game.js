@@ -21,13 +21,14 @@ import {
   LIMITS,
   checkPlay,
   dealSize,
-  normaliseSettings as normaliseRuleSettings,
+  normaliseSettings,
   rackValue,
   startProblem,
   tileName,
   totalTiles,
 } from './rules.js';
-import { extrasOf } from '../../shared/tally.js';
+import { bump, extrasOf } from '../../shared/tally.js';
+import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
 
 export { DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS };
@@ -37,21 +38,23 @@ export { STAT_KEYS };
 export const BOT_NAMES = ['Mabel', 'Hugo', 'Ivy', 'Otto', 'Nell', 'Felix', 'Dora', 'Ezra'];
 
 const LIVE = ['lobby', 'playing', 'between'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-const isInt = Number.isInteger;
 
+/** Is the game still going (lobby, a round, or between rounds)? A finished game is not live, so people may leave it. */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const isHuman = (seat) => seat?.kind === 'human';
-export const isBot = (seat) => seat?.kind === 'bot';
-export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
-export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
-export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
+export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
+/** The name at a seat for the log ("Someone" if the seat is empty). */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
+/** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)? */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
-/** In-place Fisher-Yates shuffle. */
+/**
+ * Shuffles a list in place (Fisher-Yates).
+ *
+ * @param {any[]} items  the list; it is reordered, not copied
+ * @param {() => number} [rng]  random numbers in [0, 1) (inject a seeded one in tests)
+ * @returns {any[]} the same list, for chaining
+ */
 export function shuffle(items, rng = Math.random) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -62,8 +65,22 @@ export function shuffle(items, rng = Math.random) {
 
 // ---- creating a room ----
 
-export const normaliseSettings = (input, current = DEFAULT_SETTINGS) => normaliseRuleSettings(input, current);
+// The setting limits are checked by rules.js; it is re-exported so callers need only this module.
+export { normaliseSettings };
 
+/**
+ * Makes a new room in the lobby with the host in seat 0 and every other seat empty.
+ *
+ * @param {object} args
+ * @param {string} args.code  the invite code
+ * @param {number} args.hostId  the host's account id
+ * @param {string} args.hostName  the host's display name
+ * @param {number} [args.size]  how many seats (one of SIZES)
+ * @param {object} [args.settings]  the host's rule choices (checked by normaliseSettings)
+ * @param {number} [args.now]  the clock, in milliseconds
+ * @returns {object} the room
+ * @throws {Error} if the size or a setting is not allowed (the message is safe to show)
+ */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
@@ -83,6 +100,12 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
   return room;
 }
 
+/**
+ * Puts every per-game field back to its starting value (deck, racks, scores, tallies, log...), keeping the seats, host,
+ * settings and size. Used when a room is created, resized and played again. Side effect: mutates the room.
+ *
+ * @param {object} room
+ */
 function resetGame(room) {
   const n = room.size;
   Object.assign(room, {
@@ -110,6 +133,13 @@ function resetGame(room) {
   });
 }
 
+/**
+ * Adds a line to the room's log, keeping only the latest 60. Side effect: mutates room.log.
+ *
+ * @param {object} room
+ * @param {number | null} seat  the seat the line is about, or null for the table as a whole
+ * @param {string} text
+ */
 const addLog = (room, seat, text) => {
   room.log.push({ seat, text });
   if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
@@ -117,55 +147,36 @@ const addLog = (room, seat, text) => {
 
 // ---- seats and settings ----
 
-const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
-
-/** A name nobody at the table has: "Ann", then "Ann (2)", "Ann (3)". */
-export function uniqueName(room, name) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  if (!used.has(name)) return name;
-  for (let n = 2; ; n++) if (!used.has(`${name} (${n})`)) return `${name} (${n})`;
-}
-
-export function addHuman(room, userId, name) {
-  if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  const seat = firstEmpty(room);
-  if (seat === -1) return fail('That game is full.');
-  room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
-  return ok({ seat });
-}
-
-function newBot(room, rng) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  let name = base;
-  for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  const bot = { kind: 'bot', id: `bot:${room.nextBot++}`, name };
-  if (rng) bot.ai = pickAI(AIS, rng).id; // a computer joining mid-game picks its logic now; lobby ones pick when the game starts
-  return bot;
-}
+/**
+ * The seat rules (join, leave, kick, computer players) are the shared ones (shared/seats.js). In Rummikub a person who
+ * leaves during a round is replaced by a computer player that picks its AI straight away (a computer added in the lobby
+ * picks when the game starts) and keeps the rack; a line in the log says so. If they were the only person the between-
+ * rounds screen was waiting for, the next round starts.
+ */
+const seats = createSeatRules({
+  isMidGame: inRound,
+  botNames: BOT_NAMES,
+  /** Gives the replacement computer player its AI and tells the table (mutates the room's log). */
+  takeOver(room, bot, seat, rng) {
+    const taken = { ...bot, ai: pickAI(AIS, rng).id };
+    addLog(room, seat, `${taken.name} takes over from a player who left`);
+    return taken;
+  },
+  /** If the person who left was the last one the between-rounds screen was waiting for, the next round starts. */
+  afterRemoval(room, rng) {
+    if (room.phase === 'between') advanceIfReady(room, rng);
+  },
+});
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 /**
- * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
- * it over, keeping the rack. `empty` is true when no human is left, so the room should be discarded.
+ * The host changes the rule options. Lobby only.
+ *
+ * @param {object} room  mutated: room.settings is replaced on success
+ * @param {number} userId  who is asking (must be the host)
+ * @param {object} input  the options to change (the rest are kept)
+ * @returns {{ ok: boolean, error?: string }}
  */
-export function removeHuman(room, userId, rng = Math.random) {
-  const seat = seatOf(room, userId);
-  if (seat === -1) return fail('You are not in this game.');
-  const midGame = inRound(room);
-  room.seats[seat] = midGame ? newBot(room, rng) : null;
-  if (midGame) addLog(room, seat, `${room.seats[seat].name} takes over from a player who left`);
-  const humans = humanSeats(room);
-  if (!humans.length) return ok({ empty: true, seat });
-  if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-  if (room.phase === 'between') advanceIfReady(room, rng);
-  return ok({ empty: false, seat, replaced: midGame });
-}
-
-const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
-const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
-
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -175,7 +186,14 @@ export function setSettings(room, userId, input) {
   return ok();
 }
 
-/** The host chooses how many seats there are (2-6). People and computer players are kept, in order. */
+/**
+ * The host chooses how many seats there are (2-6). People and computer players are kept, in order. Lobby only.
+ *
+ * @param {object} room  mutated: seats and size change and the game is reset
+ * @param {number} userId  who is asking (must be the host)
+ * @param {number} size  the new number of seats
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -188,49 +206,17 @@ export function setSize(room, userId, size) {
   return ok();
 }
 
-export function addBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  const index = seat === undefined ? firstEmpty(room) : seat;
-  if (index === -1) return fail('Every seat is taken.');
-  if (!isInt(index) || index < 0 || index >= room.size) return fail('There is no such seat.');
-  if (room.seats[index]) return fail('That seat is taken.');
-  room.seats[index] = newBot(room);
-  return ok({ seat: index });
-}
-
-/**
- * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
- * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
- * them home.
- */
-export function kick(room, hostId, seat, rng = Math.random) {
-  const problem = asHost(room, hostId);
-  if (problem) return problem;
-  const target = isInt(seat) ? room.seats[seat] : null;
-  if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-  const removed = removeHuman(room, target.id, rng);
-  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
-}
-
-export function removeBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!isInt(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
-  room.seats[seat] = null;
-  return ok();
-}
-
-export function fillWithBots(room, userId) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  for (let i = 0; i < room.size; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
-  return ok();
-}
-
 // ---- starting ----
 
+/**
+ * The host starts the game: resets it, deals the first round and lets every computer player choose its AI.
+ *
+ * @param {object} room  mutated
+ * @param {number} userId  who is asking (must be the host)
+ * @param {() => number} [rng]  random numbers for the first player, the deal and the AI choices
+ * @param {number} [now]  the clock, in milliseconds (for the turn timer)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, userId, rng = Math.random, now = Date.now()) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -251,10 +237,24 @@ export function start(room, userId, rng = Math.random, now = Date.now()) {
   return ok();
 }
 
+/**
+ * Sets when the current turn runs out (null when the game has no turn timer). Side effect: mutates room.deadline.
+ *
+ * @param {object} room
+ * @param {number} now  the clock, in milliseconds
+ */
 function setDeadline(room, now) {
   room.deadline = room.settings.timer > 0 ? now + room.settings.timer * 1000 : null;
 }
 
+/**
+ * Deals a new round: shuffles, gives everybody their rack, clears the table and starts the first player's turn. Side
+ * effect: mutates the room (including its log and move counter).
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers for the shuffle
+ * @param {number} now  the clock, in milliseconds
+ */
 function startRound(room, rng, now) {
   const s = room.settings;
   const tiles = shuffle(Array.from({ length: totalTiles(s) }, (_, i) => i), rng);
@@ -285,9 +285,21 @@ function noteRack(room, seat) {
   room.pairSeen[seat] = tallyRack(room.tally[seat], room.settings, room.racks[seat], room.pairSeen[seat]);
 }
 
-/** The marks of drawn tiles: games saved before they existed have none yet. */
+/**
+ * The marks of drawn tiles (which tile each seat has just drawn): games saved before they existed have none yet.
+ *
+ * @param {object} room
+ * @returns {(number | null)[]} one entry per seat
+ */
 const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
 
+/**
+ * Passes the turn to the next seat, clears that seat's "just drawn" mark and restarts the turn timer. Side effect:
+ * mutates the room.
+ *
+ * @param {object} room
+ * @param {number} now  the clock, in milliseconds
+ */
 function nextTurn(room, now) {
   room.turn = (room.turn + 1) % room.size;
   room.drawn = withDrawn(room);
@@ -296,7 +308,16 @@ function nextTurn(room, now) {
   setDeadline(room, now);
 }
 
-/** The whole turn in one request: `table` is every set as the player wants the table to be. */
+/**
+ * The whole turn in one request: `args.table` is every set as the player wants the table to be. The proposal is judged
+ * by rules.checkPlay; if it is refused nothing changes.
+ *
+ * @param {object} room  mutated on success (table, rack, tally, log, turn)
+ * @param {number} seat  who is playing (must hold the turn)
+ * @param {{ table: number[][] }} args  the proposed table
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {{ ok: boolean, added?: number, roundOver?: boolean, gameOver?: boolean, error?: string }}
+ */
 export function play(room, seat, args, now = Date.now()) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
@@ -324,7 +345,16 @@ export function play(room, seat, args, now = Date.now()) {
   return ok({ added: result.added.length });
 }
 
-/** Draws one tile and ends the turn. With the pool empty it is a pass. */
+/**
+ * Draws one tile and ends the turn. With the pool empty it is a pass. If every player has passed in a row with the pool
+ * empty, the round ends as blocked.
+ *
+ * @param {object} room  mutated
+ * @param {number} seat  who is drawing (must hold the turn)
+ * @param {number} [now]  the clock, in milliseconds
+ * @param {string} [reason]  text added to the log line, such as " (out of time)"
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function draw(room, seat, now = Date.now(), reason = '') {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
@@ -348,7 +378,13 @@ export function draw(room, seat, now = Date.now(), reason = '') {
   return ok();
 }
 
-/** The turn timer ran out: the player draws (or passes). Does nothing before the deadline. */
+/**
+ * The turn timer ran out: the player draws (or passes). Refused (nothing changes) before the deadline.
+ *
+ * @param {object} room  mutated on success
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function timeout(room, now = Date.now()) {
   if (room.phase !== 'playing' || room.deadline === null || now < room.deadline) return fail('There is no time limit to enforce.');
   return draw(room, room.turn, now, ' (out of time)');
@@ -361,6 +397,14 @@ export function timeout(room, now = Date.now()) {
  * out, with 0, always wins). Every other player loses what their rack is worth beyond the winner's; the winner collects
  * all of that. Tied winners (a blocked game) share it, rounded down. When someone goes out this is exactly "the winner
  * gains the total of the other racks, each other player loses their own".
+ *
+ * Side effects: mutates the room (scores, history, tally, log, phase); the game ends after the last round.
+ *
+ * @param {object} room
+ * @param {'out' | 'blocked'} reason  how the round ended
+ * @param {number[] | null} winnersIn  the seat that went out, or null to find the lowest racks
+ * @param {number} now  the clock, in milliseconds
+ * @returns {{ ok: boolean, roundOver: boolean, gameOver?: boolean }}
  */
 function finishRound(room, reason, winnersIn, now) {
   const s = room.settings;
@@ -381,7 +425,7 @@ function finishRound(room, reason, winnersIn, now) {
   for (const w of winners) {
     deltas[w] = share;
     notes[w] = reason === 'out' ? 'went out' : `lowest rack (${totals[w]})`;
-    room.tally[w].roundsWon++;
+    bump(room.tally[w], 'roundsWon'); // not `++`: a room saved before this counter existed has no such key
   }
   for (let i = 0; i < room.size; i++) room.scores[i] += deltas[i];
   room.history.push({ label: `Round ${room.round}`, deltas, notes });
@@ -397,6 +441,13 @@ function finishRound(room, reason, winnersIn, now) {
   return ok({ roundOver: true });
 }
 
+/**
+ * Ends the game after the last round: works out the winners and placements. Side effect: mutates the room (phase becomes
+ * 'finished').
+ *
+ * @param {object} room
+ * @returns {{ ok: boolean, roundOver: boolean, gameOver: boolean }}
+ */
 function finishGame(room) {
   const scores = Object.fromEntries(room.scores.map((score, i) => [i, score]));
   const place = placements(scores);
@@ -407,7 +458,15 @@ function finishGame(room) {
   return ok({ roundOver: true, gameOver: true });
 }
 
-/** A person is ready for the next round; it starts when every person is. */
+/**
+ * A person is ready for the next round; it starts when every person is.
+ *
+ * @param {object} room  mutated
+ * @param {number} seat  the person who pressed Continue
+ * @param {() => number} [rng]  random numbers for the deal, if the round starts
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function next(room, seat, rng = Math.random, now = Date.now()) {
   if (room.phase !== 'between') return fail('There is no round to start.');
   if (!isHuman(room.seats[seat])) return fail('You are not in this game.');
@@ -416,6 +475,14 @@ export function next(room, seat, rng = Math.random, now = Date.now()) {
   return ok();
 }
 
+/**
+ * Starts the next round if every person is ready for it. Side effect: mutates the room when it starts one.
+ *
+ * @param {object} room
+ * @param {() => number} [rng]  random numbers for the deal
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {boolean} whether a round was started
+ */
 function advanceIfReady(room, rng = Math.random, now = Date.now()) {
   if (room.phase !== 'between') return false;
   if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
@@ -423,18 +490,40 @@ function advanceIfReady(room, rng = Math.random, now = Date.now()) {
   return true;
 }
 
+/**
+ * Moves the first player on by one seat and deals the next round. Side effect: mutates the room.
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers for the deal
+ * @param {number} now  the clock, in milliseconds
+ */
 function startNextRound(room, rng, now) {
   room.first = (room.first + 1) % room.size;
   startRound(room, rng, now);
 }
 
-/** Starts the next round whether or not everyone has said they are ready (the server does this after a wait). */
+/**
+ * Starts the next round whether or not everyone has said they are ready (the server does this after a wait).
+ *
+ * @param {object} room  mutated
+ * @param {() => number} [rng]  random numbers for the deal
+ * @param {number} [now]  the clock, in milliseconds
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function forceNext(room, rng = Math.random, now = Date.now()) {
   if (room.phase !== 'between') return fail('There is no round to start.');
   startNextRound(room, rng, now);
   return ok();
 }
 
+/**
+ * The host starts a new game in the same room once one has finished: everything is reset and the room goes back to the
+ * lobby with the same people.
+ *
+ * @param {object} room  mutated
+ * @param {number} userId  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
@@ -444,7 +533,12 @@ export function playAgain(room, userId) {
   return ok();
 }
 
-/** What the statistics should record for a finished game: one entry per human still seated. */
+/**
+ * What the statistics should record for a finished game: one entry per human still seated.
+ *
+ * @param {object} room  a finished room
+ * @returns {object[]} entries for ctx.stats.record
+ */
 export function statsPlayers(room) {
   return room.seats.flatMap((seat, i) =>
     isHuman(seat)
@@ -466,14 +560,29 @@ export function statsPlayers(room) {
 
 // ---- what each player may see ----
 
-/** Every tile in every place: used by the tests (tile conservation) and the bots. */
+/**
+ * Every tile in every place: used by the tests (tile conservation) and the bots.
+ *
+ * @param {object} room
+ * @returns {number[]} the pool, then every rack, then every table set, flattened
+ */
 export function allTiles(room) {
   return [...room.pool, ...room.racks.flat(), ...room.table.flat()];
 }
 
+/** How many tiles there are in the room altogether (always totalTiles once a round has been dealt). */
 export const tileCount = (room) => allTiles(room).length;
 
-/** Everything one account may know: the table, the counts, its own rack - never the pool's order or another rack. */
+/**
+ * Everything one account may know: the table, the counts, its own rack - never the pool's order or another rack.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  whose view this is (a spectator or stranger sees no rack)
+ * @param {object} [options]
+ * @param {(id: number) => boolean} [options.online]  is this person connected? (to show who is away)
+ * @param {number} [options.now]  the clock, in milliseconds (for the time left on the turn timer)
+ * @returns {object} the view sent to that person's client
+ */
 export function viewFor(room, userId, { online = () => true, now = Date.now() } = {}) {
   const me = seatOf(room, userId);
   const started = room.phase === 'playing' || room.phase === 'between' || room.phase === 'finished';

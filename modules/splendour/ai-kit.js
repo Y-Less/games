@@ -4,7 +4,14 @@ import * as bot from './bot.js';
 import { botsOnly, checkInvariants } from './kit.js';
 import { seeded } from '../../shared/testkit.js';
 
-/** Plays one all-bot game to the end; `ids` is the AI for each seat in turn order. Returns the finished room. */
+/**
+ * Plays one all-bot game to the end.
+ *
+ * @param {string[]} ids  the AI for each seat in turn order
+ * @param {() => number} rng
+ * @param {{ target?: number, check?: boolean }} options  `check` runs the invariants after every step
+ * @returns {object} the finished room
+ */
 export function playWith(ids, rng, { target = 15, check = false } = {}) {
   const room = botsOnly(ids.length, rng, { target });
   room.ais = Object.fromEntries(ids.map((id, i) => [`bot:x${i}`, id]));
@@ -19,7 +26,13 @@ export function playWith(ids, rng, { target = 15, check = false } = {}) {
 
 /**
  * Plays `games` games between the AIs in `lineup` (each game a fresh deal, with the seats rotated so that nobody
- * always goes first). Returns { [id]: { games, wins (shared wins count as a fraction), rate } }.
+ * always goes first).
+ *
+ * @param {string[]} lineup  AI ids, one per seat
+ * @param {number} games
+ * @param {number} seed  makes the run repeatable
+ * @param {object} options  as for playWith
+ * @returns {Record<string, { games: number, wins: number, rate: number }>} wins (shared wins count as a fraction)
  */
 export function tournament(lineup, games, seed, options) {
   const rng = seeded(seed);
@@ -37,4 +50,5 @@ export function tournament(lineup, games, seed, options) {
   return tally;
 }
 
+/** One line of win rates, e.g. "sharp 62.5%, random 12.5%". */
 export const summary = (tally) => Object.entries(tally).map(([id, r]) => `${id} ${(r.rate * 100).toFixed(1)}%`).join(', ');

@@ -7,7 +7,12 @@
 // Dice: { id, c: colour, v: 1-6 }. The bag holds { id, c } only (a die has no face until it is rolled). Every die is in
 // exactly one place: the bag, the pool, a round-track entry or a window. There is no discard pile: every tool keeps
 // every die in play, so bag + pool + track + windows is always 10 x (2n + 1).
+//
+// The seat and lobby rules (joining, leaving, kicking, computer players) are the shared ones from shared/seats.js; this
+// file adds what is particular to Gaudi.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { shuffle } from '../../shared/cards.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import {
   BAD_PRIVATE_POINTS,
@@ -38,47 +43,98 @@ import {
 } from './rules.js';
 
 export { MAX_PLAYERS, MIN_PLAYERS, ROUNDS, bagSize, dicePerColour, poolSize };
+// The seat vocabulary the shared room server and the tests import from this module (the rules themselves live in
+// shared/seats.js).
+export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
 export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 export const DEFAULT_SETTINGS = { badPrivate: false };
 export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective', 'perfectBoards', 'privateTotal', 'emptySpaces'];
+/** The names computer players are given, in order (Gaudi uses the architect and his circle, not the shared default list). */
 export const BOT_NAMES = ['Gaudi', 'Jujol', 'Lluis', 'Pau', 'Mercè', 'Rosa', 'Enric', 'Núria', 'Joan', 'Elena'];
 export const TOOL_COUNT = 3;
 export const PUBLIC_COUNT = 3;
 export const WINDOW_OPTIONS = 4;
 
+/** The phases in which a game is still going; a finished game is only kept so that its result can be looked at. */
 const LIVE = ['lobby', 'windows', 'playing'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
-const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isInt = Number.isInteger;
 
+/**
+ * Is this a plain object (not null, not an array)? Used to validate the payloads clients send.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Is the game still going (lobby, choosing windows or playing)? The server keeps live rooms longer and lets a person be
+ * in only one of them at a time.
+ *
+ * @param {object} room
+ * @returns {boolean}
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const isHuman = (seat) => seat?.kind === 'human';
-export const isBot = (seat) => seat?.kind === 'bot';
-export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
-export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
-export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
+
+/**
+ * The name to show for a seat in the log: the player's name, or "Someone" for an empty or unknown seat.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {string}
+ */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
 
-/** A seat order for one round: clockwise from the first player, then back again (A B C C B A). */
+/**
+ * A seat order for one round: clockwise from the first player, then back again (A B C C B A).
+ *
+ * @param {number} first    the seat that goes first this round
+ * @param {number} players  how many seats there are
+ * @returns {number[]} 2 x players seat numbers, one per turn of the round
+ */
 export function snakeOrder(first, players) {
   const forward = Array.from({ length: players }, (_, i) => (first + i) % players);
   return [...forward, ...forward.slice().reverse()];
 }
 
-/** In-place Fisher-Yates shuffle. */
-export function shuffle(items, rng = Math.random) {
-  for (let i = items.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [items[i], items[j]] = [items[j], items[i]];
-  }
-  return items;
-}
-const pickOne = (items, rng) => items[Math.floor(rng() * items.length)];
+/**
+ * Rolls one die.
+ *
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {number} a face from 1 to 6
+ */
 const rollFace = (rng) => 1 + Math.floor(rng() * 6);
 
-/** A new bag for this many players: dicePerColour of each colour, in a random order. */
+/**
+ * The next face of this turn's roll list, for a tool that rolls dice (Re-fire, Great Kiln).
+ *
+ * Why a list: Undo turn puts the dice back as they were before the roll and refunds the favour tokens, so without this a
+ * player could use Re-fire, look at the result, undo and try again for free until they liked it. Every face a turn rolls
+ * is therefore remembered in `room.rolls`, in order, and Undo only rewinds `room.rollsUsed` to 0: when the same tools are
+ * used again after an undo they read the same faces back, so undoing never produces a different outcome. Only faces beyond
+ * the ones already seen are rolled afresh (the first time that roll is made).
+ *
+ * Side effects: may push a new face onto room.rolls, and always advances room.rollsUsed.
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers, used only when the list has no face left to repeat
+ * @returns {number} a face from 1 to 6
+ */
+function nextFace(room, rng) {
+  room.rolls ??= []; // rooms saved before the roll list existed
+  room.rollsUsed ??= 0;
+  if (room.rollsUsed >= room.rolls.length) room.rolls.push(rollFace(rng));
+  return room.rolls[room.rollsUsed++];
+}
+
+/**
+ * A new bag for this many players: dicePerColour of each colour, in a random order.
+ *
+ * @param {number} players  2 to 5
+ * @param {() => number} rng
+ * @returns {{ id: number, c: string }[]} the dice, shuffled; a die has no face until it is rolled
+ */
 export function makeBag(players, rng = Math.random) {
   const dice = [];
   for (const c of COLOURS) for (let n = 0; n < dicePerColour(players); n++) dice.push({ id: dice.length, c });
@@ -89,9 +145,23 @@ export function makeBag(players, rng = Math.random) {
 // Each tool's prepare() checks everything and changes nothing: it returns { error } or { commit(), note }. useTool()
 // charges the favour tokens and calls commit() only when the whole request is valid, so a tool is atomic.
 
+/**
+ * Where a die is in the pool.
+ *
+ * @param {object} room
+ * @param {unknown} id  a die id from a client (may be anything)
+ * @returns {number} the index in room.pool, or -1 if the id is not a whole number or no such die is in the pool
+ */
 const poolIndex = (room, id) => (isInt(id) ? room.pool.findIndex((d) => d.id === id) : -1);
 const NO_POOL_DIE = 'Choose a die from the pool.';
 
+/**
+ * Finds a die on the round track.
+ *
+ * @param {object} room
+ * @param {unknown} id  a die id from a client (may be anything)
+ * @returns {{ dice: object[], index: number } | null} the round's entry holding it and its place there, or null
+ */
 function trackEntry(room, id) {
   if (!isInt(id)) return null;
   for (const dice of room.track) {
@@ -101,7 +171,19 @@ function trackEntry(room, id) {
   return null;
 }
 
-/** Applies a list of { from, to } moves to a copy of the window; every step must obey the placement rules. */
+/**
+ * Applies a list of { from, to } moves to a copy of the window; every step must obey the placement rules.
+ *
+ * @param {(object | null)[]} grid  the window now (not changed)
+ * @param {object} pattern          the window's pattern
+ * @param {unknown} moves           the moves a client asked for
+ * @param {object} limits
+ * @param {number} limits.min        fewest moves allowed
+ * @param {number} limits.max        most moves allowed
+ * @param {object} [limits.options]  placement rules to relax (see cellProblem)
+ * @param {boolean} [limits.sameColour]  every moved die must be the same colour
+ * @returns {{ grid: (object | null)[] } | { error: string }} the window after the moves, or why they are not allowed
+ */
 function planMoves(grid, pattern, moves, { min, max, options = {}, sameColour = false }) {
   if (!Array.isArray(moves) || moves.length < min || moves.length > max) return { error: min === max ? `Move exactly ${min === 1 ? 'one die' : `${min} dice`}.` : `Move ${min} to ${max} dice.` };
   const next = grid.slice();
@@ -125,6 +207,7 @@ export const TOOLS = [
     name: 'Lathe',
     text: 'Change a die in the pool by one shade, up or down. A 6 cannot become a 1, nor a 1 a 6.',
     how: 'Choose a pool die, then raise or lower it.',
+    /** Checks a Lathe request (params: die, delta of +1 or -1); changes nothing until commit() is called. */
     prepare(room, seat, params) {
       const at = poolIndex(room, params.die);
       if (at === -1) return { error: NO_POOL_DIE };
@@ -139,6 +222,7 @@ export const TOOLS = [
     name: 'Exchange',
     text: 'Swap a die from the pool with a die on the round track.',
     how: 'Choose a pool die, then a die on the round track.',
+    /** Checks an Exchange request (params: die from the pool, trackDie from the track); commit() swaps them. */
     prepare(room, seat, params) {
       const at = poolIndex(room, params.die);
       if (at === -1) return { error: NO_POOL_DIE };
@@ -157,10 +241,11 @@ export const TOOLS = [
     name: 'Re-fire',
     text: 'Roll one die in the pool again.',
     how: 'Choose a pool die.',
+    /** Checks a Re-fire request (params: die); commit() gives the die the next face of this turn's roll list (see nextFace). */
     prepare(room, seat, params, rng) {
       const at = poolIndex(room, params.die);
       if (at === -1) return { error: NO_POOL_DIE };
-      return { commit: () => (room.pool[at].v = rollFace(rng)), note: `re-fired a ${COLOUR_NAMES[room.pool[at].c]} die` };
+      return { commit: () => (room.pool[at].v = nextFace(room, rng)), note: `re-fired a ${COLOUR_NAMES[room.pool[at].c]} die` };
     },
   },
   {
@@ -168,11 +253,12 @@ export const TOOLS = [
     name: 'Great Kiln',
     text: 'Roll every die in the pool again. Only on your second turn of the round, before you place a die.',
     how: 'Just confirm.',
+    /** Checks a Great Kiln request (no params); commit() gives every pool die the next face of this turn's roll list. */
     prepare(room, seat, params, rng) {
       if (room.turn.number !== 2) return { error: 'The Great Kiln can only be used on your second turn of a round.' };
       if (room.turn.placements > 0) return { error: 'The Great Kiln has to be used before you place a die.' };
       if (!room.pool.length) return { error: 'There are no dice in the pool.' };
-      return { commit: () => room.pool.forEach((d) => (d.v = rollFace(rng))), note: 're-fired every die in the pool' };
+      return { commit: () => room.pool.forEach((d) => (d.v = nextFace(room, rng))), note: 're-fired every die in the pool' };
     },
   },
   {
@@ -180,6 +266,7 @@ export const TOOLS = [
     name: 'Mirror',
     text: 'Turn a die in the pool over to its opposite face (1 and 6, 2 and 5, 3 and 4).',
     how: 'Choose a pool die.',
+    /** Checks a Mirror request (params: die); commit() turns the die to the opposite face. */
     prepare(room, seat, params) {
       const at = poolIndex(room, params.die);
       if (at === -1) return { error: NO_POOL_DIE };
@@ -191,6 +278,7 @@ export const TOOLS = [
     name: 'Slide Rule',
     text: 'Move one die in your window to another space, obeying every placement rule.',
     how: 'Click the die to move, then the space to move it to.',
+    /** Checks a Slide Rule request (params: from, to); commit() replaces the seat's window with the moved one. */
     prepare(room, seat, params) {
       const plan = planMoves(room.grids[seat], patternOf(room.patterns[seat]), [{ from: params.from, to: params.to }], { min: 1, max: 1 });
       return plan.error ? plan : { commit: () => (room.grids[seat] = plan.grid), note: 'slid a die in their window' };
@@ -201,6 +289,7 @@ export const TOOLS = [
     name: 'Twin Slide',
     text: 'Move exactly two dice in your window, one after the other, obeying every placement rule.',
     how: 'Click a die and its new space, then a second die and its space.',
+    /** Checks a Twin Slide request (params: moves, exactly two { from, to }); commit() replaces the window. */
     prepare(room, seat, params) {
       const plan = planMoves(room.grids[seat], patternOf(room.patterns[seat]), params.moves, { min: 2, max: 2 });
       return plan.error ? plan : { commit: () => (room.grids[seat] = plan.grid), note: 'slid two dice in their window' };
@@ -211,6 +300,7 @@ export const TOOLS = [
     name: 'Tint Shifter',
     text: 'Move one die in your window, ignoring the colour of the space it moves to (shades and neighbours still count).',
     how: 'Click the die to move, then the space to move it to.',
+    /** Checks a Tint Shifter request (params: from, to), ignoring the colour restriction of the target space. */
     prepare(room, seat, params) {
       const plan = planMoves(room.grids[seat], patternOf(room.patterns[seat]), [{ from: params.from, to: params.to }], { min: 1, max: 1, options: { ignoreColour: true } });
       return plan.error ? plan : { commit: () => (room.grids[seat] = plan.grid), note: 'shifted a die, ignoring colour' };
@@ -221,6 +311,7 @@ export const TOOLS = [
     name: 'Gauge Breaker',
     text: 'Move one die in your window, ignoring the shade of the space it moves to (colours and neighbours still count).',
     how: 'Click the die to move, then the space to move it to.',
+    /** Checks a Gauge Breaker request (params: from, to), ignoring the shade restriction of the target space. */
     prepare(room, seat, params) {
       const plan = planMoves(room.grids[seat], patternOf(room.patterns[seat]), [{ from: params.from, to: params.to }], { min: 1, max: 1, options: { ignoreShade: true } });
       return plan.error ? plan : { commit: () => (room.grids[seat] = plan.grid), note: 'shifted a die, ignoring shade' };
@@ -231,6 +322,7 @@ export const TOOLS = [
     name: 'Track Echo',
     text: 'Move one or two dice in your window, all of one colour that also appears on the round track, obeying every placement rule.',
     how: 'Click a die and its new space (and a second die of the same colour and its space).',
+    /** Checks a Track Echo request (params: moves, one or two { from, to } of one colour that is on the round track). */
     prepare(room, seat, params) {
       const grid = room.grids[seat];
       const plan = planMoves(grid, patternOf(room.patterns[seat]), params.moves, { min: 1, max: 2, sameColour: true });
@@ -245,6 +337,7 @@ export const TOOLS = [
     name: 'Free Pane',
     text: 'Place a die from the pool on any space that accepts it, even one that touches nothing (neighbours of the same colour or shade still count). This is your die for the turn.',
     how: 'Choose a pool die, then the space.',
+    /** Checks a Free Pane request (params: die, cell); commit() places the die like a normal placement but without the touching rule. */
     prepare(room, seat, params) {
       if (room.turn.placements >= allowedPlacements(room)) return { error: 'You have already placed a die this turn.' };
       const at = poolIndex(room, params.die);
@@ -259,6 +352,7 @@ export const TOOLS = [
     name: 'Swift Hand',
     text: 'On your first turn of a round, take a second full turn straight after this one (choose another die, use more favour tokens if you wish). You then skip your second turn of the round.',
     how: 'Just confirm, then finish this turn as usual: your extra turn starts at once.',
+    /** Checks a Swift Hand request (no params); commit() marks the turn so that advanceTurn gives the same player another. */
     prepare(room, seat) {
       if (room.turn.number !== 1) return { error: 'Swift Hand can only be used on your first turn of a round.' };
       if (room.turn.extra) return { error: 'You are already taking an extra turn.' };
@@ -273,10 +367,24 @@ export const TOOLS = [
   },
 ];
 export const TOOL_IDS = TOOLS.map((t) => t.id);
+
+/**
+ * The definition of a tool.
+ *
+ * @param {string} id  one of TOOL_IDS
+ * @returns {object | null} the tool (id, name, text, how, prepare), or null if there is no such tool
+ */
 export const toolOf = (id) => TOOLS.find((t) => t.id === id) ?? null;
 
 // ---- creating a room ----
 
+/**
+ * Checks the game's settings (there is only one: bad private scoring) and fills in the ones not given.
+ *
+ * @param {unknown} input     what a client sent (anything; non-objects are ignored)
+ * @param {object} [current]  the settings to start from
+ * @returns {{ ok: true, settings: object } | { ok: false, error: string }} a new settings object; `current` is not changed
+ */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (isObject(input) && input.badPrivate !== undefined) {
@@ -286,6 +394,19 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
+/**
+ * Makes a new room in the lobby, with the host in the first seat.
+ *
+ * @param {object} args
+ * @param {string} args.code      the invite code
+ * @param {number} args.hostId    the host's account id
+ * @param {string} args.hostName  the host's name
+ * @param {number} [args.size]    how many seats (one of SIZES)
+ * @param {object} [args.settings]  settings from the client (checked here)
+ * @param {number} [args.now]     the creation time in milliseconds
+ * @returns {object} the room
+ * @throws {Error} when the size or the settings are not allowed (the message is fit to show to a person)
+ */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
@@ -305,6 +426,14 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
   return room;
 }
 
+/**
+ * Puts everything about a game in progress back to "nothing dealt yet" (used when a room is made, when the seats change
+ * size, when a game starts and for "play again"). The seats, settings and host are kept.
+ *
+ * Side effect: mutates room.
+ *
+ * @param {object} room
+ */
 function resetGame(room) {
   Object.assign(room, {
     options: [],
@@ -326,6 +455,8 @@ function resetGame(room) {
     turnIndex: 0,
     turn: null,
     undo: null,
+    rolls: [],
+    rollsUsed: 0,
     skip: [],
     history: [],
     snapshot: [],
@@ -337,65 +468,65 @@ function resetGame(room) {
   });
 }
 
-const addLog = (room, seat, text) => {
+/**
+ * Adds a line to the game log (only the newest 60 lines are kept).
+ *
+ * Side effect: mutates room.log.
+ *
+ * @param {object} room
+ * @param {number | null} seat  whose move it was, or null for something that happened to the table
+ * @param {string} text         the line, which must not reveal anything hidden
+ */
+function addLog(room, seat, text) {
   room.log.push({ seat, text });
   if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
-};
+}
 
 // ---- seats and settings ----
 
-const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
+/**
+ * The seat rules (join, leave, kick, computer players) are the shared ones. In Gaudi a person who leaves while windows are
+ * being chosen or the game is being played is replaced by a computer player that picks its own AI at once (lobby bots get
+ * theirs when the game starts), and the log says so. Nothing else needs doing when somebody leaves: the next computer move
+ * is found by the server from the room itself.
+ */
+const seats = createSeatRules({
+  isMidGame: (room) => room.phase === 'windows' || room.phase === 'playing',
+  botNames: BOT_NAMES,
+  /**
+   * Called with the computer player about to replace a person who left. Writes the log line and chooses its AI.
+   *
+   * Side effect: mutates room.log (and uses the rng, after the bot's name was chosen, as before).
+   *
+   * @returns {object} the bot, with its `ai` id, to put in the seat
+   */
+  takeOver(room, bot, seat, rng) {
+    const taken = { ...bot, ai: pickAI(AIS, rng).id };
+    addLog(room, seat, `${taken.name} takes over from a player who left`);
+    return taken;
+  },
+});
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
-/** A name nobody at the table has: "Ann", then "Ann (2)", "Ann (3)". */
-export function uniqueName(room, name) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  if (!used.has(name)) return name;
-  for (let n = 2; ; n++) if (!used.has(`${name} (${n})`)) return `${name} (${n})`;
-}
-
-export function addHuman(room, userId, name) {
-  if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  const seat = firstEmpty(room);
-  if (seat === -1) return fail('That game is full.');
-  room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
-  return ok({ seat });
-}
-
-/** A new computer player. A replacement joining mid-game passes the rng and picks its AI now; lobby bots get one at the start. */
-function newBot(room, rng = null) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  let name = base;
-  for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  const seat = { kind: 'bot', id: `bot:${room.nextBot++}`, name };
-  if (rng) seat.ai = pickAI(AIS, rng).id;
-  return seat;
-}
-
-/** The AI a computer seat plays with (rooms saved before AIs existed fall back to the first). */
+/**
+ * The AI a computer seat plays with (rooms saved before AIs existed fall back to the first).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {object} an entry of AIS
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /**
- * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
- * it over. `empty` is true when no human is left, so the room should be discarded.
+ * The host changes the game's settings. Lobby only.
+ *
+ * Side effect: mutates room.settings.
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @param {unknown} input  the settings from the client
+ * @returns {{ ok: boolean, error?: string }}
  */
-export function removeHuman(room, userId, rng = Math.random) {
-  const seat = seatOf(room, userId);
-  if (seat === -1) return fail('You are not in this game.');
-  const midGame = room.phase === 'windows' || room.phase === 'playing';
-  room.seats[seat] = midGame ? newBot(room, rng) : null;
-  if (midGame) addLog(room, seat, `${room.seats[seat].name} takes over from a player who left`);
-  const humans = humanSeats(room);
-  if (!humans.length) return ok({ empty: true, seat });
-  if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-  return ok({ empty: false, seat, replaced: midGame });
-}
-
-const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
-const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
-
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -405,7 +536,16 @@ export function setSettings(room, userId, input) {
   return ok();
 }
 
-/** The host chooses how many seats there are (2-5). People and computer players are kept, in order. */
+/**
+ * The host chooses how many seats there are (2-5). People and computer players are kept, in order. Lobby only.
+ *
+ * Side effects: mutates room (the seats and size) and resets the game state.
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @param {unknown} size   one of SIZES
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -418,49 +558,20 @@ export function setSize(room, userId, size) {
   return ok();
 }
 
-export function addBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  const index = seat === undefined ? firstEmpty(room) : seat;
-  if (index === -1) return fail('Every seat is taken.');
-  if (!isInt(index) || index < 0 || index >= room.size) return fail('There is no such seat.');
-  if (room.seats[index]) return fail('That seat is taken.');
-  room.seats[index] = newBot(room);
-  return ok({ seat: index });
-}
-
-/**
- * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
- * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
- * them home.
- */
-export function kick(room, hostId, seat, rng = Math.random) {
-  const problem = asHost(room, hostId);
-  if (problem) return problem;
-  const target = isInt(seat) ? room.seats[seat] : null;
-  if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-  const removed = removeHuman(room, target.id, rng);
-  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
-}
-
-export function removeBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!isInt(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
-  room.seats[seat] = null;
-  return ok();
-}
-
-export function fillWithBots(room, userId) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  for (let i = 0; i < room.size; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
-  return ok();
-}
-
 // ---- starting: choosing windows ----
 
+/**
+ * The host starts the game: every seat must be filled and at least one must be a person. This deals the window cards, the
+ * three tools, the three public objectives and each player's private colour, and gives every computer player its AI.
+ * Everyone then chooses a window at the same time.
+ *
+ * Side effects: mutates room (resets the game, deals, moves to the 'windows' phase).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @param {() => number} [rng]
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, userId, rng = Math.random) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -468,23 +579,34 @@ export function start(room, userId, rng = Math.random) {
   if (!humanSeats(room).length) return fail('At least one person has to play.');
   resetGame(room);
   // Two double-sided cards (four windows) each, no card dealt twice.
-  const cards = shuffle(PATTERN_CARDS.slice(), rng);
+  const cards = shuffle(PATTERN_CARDS, rng);
   room.options = room.seats.map((_, seat) => cards.slice(seat * 2, seat * 2 + 2).flatMap((card) => card.faces.map((f) => f.pid)));
   // As in Sagrada, the tools, the public objectives and each player's private objective are dealt before the windows
   // are chosen, so that the choice can take them into account.
-  room.tools = shuffle(TOOL_IDS.slice(), rng).slice(0, TOOL_COUNT);
+  room.tools = shuffle(TOOL_IDS, rng).slice(0, TOOL_COUNT);
   room.spent = room.tools.map(() => 0);
-  room.publicIds = shuffle(OBJECTIVE_IDS.slice(), rng).slice(0, PUBLIC_COUNT);
-  room.privateColours = shuffle(COLOURS.slice(), rng).slice(0, room.size);
+  room.publicIds = shuffle(OBJECTIVE_IDS, rng).slice(0, PUBLIC_COUNT);
+  room.privateColours = shuffle(COLOURS, rng).slice(0, room.size);
   room.picked = room.seats.map(() => null);
   room.phase = 'windows';
   // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
-  const botSeats = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
-  const picked = assignAIs(AIS, botSeats, rng);
-  for (const i of botSeats) room.seats[i].ai = picked[i];
+  const bots = botSeats(room);
+  const picked = assignAIs(AIS, bots, rng);
+  for (const i of bots) room.seats[i].ai = picked[i];
   return ok();
 }
 
+/**
+ * A player chooses one of their four windows. When everybody has chosen, the game begins.
+ *
+ * Side effects: mutates room.picked; may start the game (see beginGame).
+ *
+ * @param {object} room
+ * @param {number} seat  who is choosing
+ * @param {unknown} pid  the pattern id from the client
+ * @param {() => number} [rng]  used for the first round's dice if this was the last choice
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function chooseWindow(room, seat, pid, rng = Math.random) {
   if (room.phase !== 'windows') return fail('It is not time to choose a window.');
   if (room.picked[seat]) return fail('You have already chosen your window.');
@@ -494,6 +616,15 @@ export function chooseWindow(room, seat, pid, rng = Math.random) {
   return ok();
 }
 
+/**
+ * Starts play once every window is chosen: empty windows, favour tokens from the windows' difficulty, a shuffled bag,
+ * and round one.
+ *
+ * Side effects: mutates room (moves to the 'playing' phase, writes the log, starts the first round).
+ *
+ * @param {object} room
+ * @param {() => number} rng
+ */
 function beginGame(room, rng) {
   const n = room.size;
   room.patterns = room.picked.slice();
@@ -513,6 +644,14 @@ function beginGame(room, rng) {
 
 // ---- rounds and turns ----
 
+/**
+ * Begins the next round: works out the turn order, draws the pool from the bag (rolling each die) and starts the first turn.
+ *
+ * Side effects: mutates room (round, order, skip, pool, bag, turn).
+ *
+ * @param {object} room
+ * @param {() => number} rng
+ */
 function startRound(room, rng) {
   room.round++;
   room.order = snakeOrder(room.first, room.size);
@@ -530,7 +669,13 @@ function startRound(room, rng) {
  * Remembers how the table was when the current turn began, so that the player can take the whole turn back until they
  * press End turn. It holds everything a turn can change (the window, the pool, the round track, the bag, the favour tokens,
  * the tool markers and the tallies, and the Swift Hand skip), including the dice values already rolled, so that undoing
- * is exact and never rolls anything again. It is saved with the room and never sent to anyone.
+ * is exact. It is saved with the room and never sent to anyone.
+ *
+ * Also starts this turn's roll list empty (see nextFace): faces rolled by tools are remembered for the length of one turn.
+ *
+ * Side effects: mutates room.undo, room.rolls and room.rollsUsed.
+ *
+ * @param {object} room  a room with a current turn
  */
 function saveTurnStart(room) {
   const seat = room.turn.seat;
@@ -548,11 +693,29 @@ function saveTurnStart(room) {
     skip: room.skip,
   };
   room.undo = JSON.parse(JSON.stringify(room.undo));
+  room.rolls = [];
+  room.rollsUsed = 0;
 }
 
+/**
+ * Has the current turn changed anything yet (so that there is something to undo)?
+ *
+ * @param {object} room
+ * @returns {boolean}
+ */
 const turnChanged = (room) => Boolean(room.turn) && (room.turn.placements > 0 || room.turn.toolUsed);
 
-/** Takes the whole of the current turn back to its start (the player's own turn only; never across End turn). */
+/**
+ * Takes the whole of the current turn back to its start (the player's own turn only; never across End turn). The dice go
+ * back as they were, favour tokens are refunded and the log is cut back. The faces the turn has rolled stay on the turn's
+ * roll list, so doing the same again gives the same result (see nextFace).
+ *
+ * Side effects: mutates room (window, pool, track, bag, tokens, tally, skip, turn, log, rollsUsed).
+ *
+ * @param {object} room
+ * @param {number} seat  who is asking (must be the player whose turn it is)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function undoTurn(room, seat) {
   const problem = myTurn(room, seat);
   if (problem) return problem;
@@ -569,9 +732,19 @@ export function undoTurn(room, seat) {
   room.skip = copy.skip;
   room.turn = copy.turn;
   room.log.length = copy.logLength;
+  room.rollsUsed = 0; // the faces already rolled this turn are read back again, not rolled afresh
   return ok();
 }
 
+/**
+ * Moves on to the next turn: an extra turn for the same player after Swift Hand, otherwise the next entry of the round's
+ * order (skipping a second turn that Swift Hand gave up), or the end of the round when the order is used up.
+ *
+ * Side effects: mutates room (turn, turnIndex, log, undo, rolls) and may end the round or the game.
+ *
+ * @param {object} room
+ * @param {() => number} rng  used if a new round has to be started
+ */
 function advanceTurn(room, rng) {
   if (room.turn?.swift && room.phase === 'playing') {
     // Swift Hand: a fresh full turn for the same player, before anyone else moves.
@@ -596,11 +769,33 @@ function advanceTurn(room, rng) {
   }
 }
 
-/** The current provisional score of a seat: public objectives + favour tokens - empty spaces. */
+/**
+ * The current provisional score of a seat: public objectives + favour tokens - empty spaces.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {number}
+ */
 export const provisionalOf = (room, seat) => provisionalScore(room.grids[seat], room.publicIds, room.tokens[seat]);
-export const privateOf = (room, seat) => privatePoints(room.grids[seat], room.privateColours[seat], room.settings.badPrivate);
-const publicTotal = (room, seat) => room.publicIds.reduce((sum, id) => sum + objectivePoints(id, room.grids[seat]).points, 0);
 
+/**
+ * A seat's private objective points so far (known only to that player until the end).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {number}
+ */
+export const privateOf = (room, seat) => privatePoints(room.grids[seat], room.privateColours[seat], room.settings.badPrivate);
+
+/**
+ * Ends the round: the pool goes onto the round track, the round's score changes are recorded, and either the game ends
+ * after the last round or the next round starts with the first player moved on by one seat.
+ *
+ * Side effects: mutates room (track, pool, turn, undo, history, snapshot, log, first) and may finish the game.
+ *
+ * @param {object} room
+ * @param {() => number} rng
+ */
 function endRound(room, rng) {
   room.track.push(room.pool);
   room.pool = [];
@@ -619,7 +814,12 @@ function endRound(room, rng) {
   startRound(room, rng);
 }
 
-/** Orders the players for the tie-break rules; lower rank is better. Everything is read from the finished windows. */
+/**
+ * Orders the players for the tie-break rules; lower rank is better. Everything is read from the finished windows.
+ *
+ * @param {object} room
+ * @returns {{ rows: object[], winners: number[] }} one row per seat (scores, objectives, placement) and the winning seats
+ */
 export function finalTable(room) {
   const last = room.order.length ? room.order : snakeOrder(room.first, room.size);
   const rows = room.seats.map((seat, i) => {
@@ -651,6 +851,13 @@ export function finalTable(room) {
   return { rows, winners: ranked.filter((r) => compare(r, ranked[0]) === 0).map((r) => r.seat) };
 }
 
+/**
+ * Finishes the game: works out the final table, records the winners and the private-objective round, and logs the result.
+ *
+ * Side effects: mutates room (phase, winners, final, history, log).
+ *
+ * @param {object} room
+ */
 function finishGame(room) {
   const { rows, winners } = finalTable(room);
   room.phase = 'finished';
@@ -664,14 +871,36 @@ function finishGame(room) {
   addLog(room, null, `The game is over. ${winners.map((s) => rows[s].name).join(' and ')} ${winners.length > 1 ? 'share the win' : 'wins'}.`);
 }
 
-const allowedPlacements = () => 1; // one die per turn; Swift Hand gives a whole extra turn instead
+/**
+ * How many dice a player may place in one turn. One: Swift Hand gives a whole extra turn instead of a second die.
+ *
+ * @returns {number}
+ */
+const allowedPlacements = () => 1;
 
+/**
+ * Checks that it is this seat's turn in a game being played.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {{ ok: false, error: string } | null} the failure to return, or null if the seat may act
+ */
 function myTurn(room, seat) {
   if (room.phase !== 'playing' || !room.turn) return fail('The game is not being played.');
   if (room.turn.seat !== seat) return fail('It is not your turn.');
   return null;
 }
 
+/**
+ * Moves a die from the pool into a space of a window and counts it. The caller has checked that this is legal.
+ *
+ * Side effects: mutates room (pool, the seat's window, turn.placements, tally, log).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {number} poolAt  the die's index in room.pool
+ * @param {number} cell    the space, 0-19
+ */
 function putDie(room, seat, poolAt, cell) {
   const [die] = room.pool.splice(poolAt, 1);
   room.grids[seat][cell] = die;
@@ -680,6 +909,17 @@ function putDie(room, seat, poolAt, cell) {
   addLog(room, seat, `${seatName(room, seat)} placed a ${COLOUR_NAMES[die.c]} ${die.v} at row ${rowOf(cell) + 1}, column ${colOf(cell) + 1}`);
 }
 
+/**
+ * The player places a die from the pool in their window (one per turn).
+ *
+ * Side effects: on success, see putDie.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {{ die: number, cell: number }} args  the pool die's id and the space, as sent by the client
+ * @param {() => number} [rng]  not used; accepted so that every action has the same signature
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function placeDie(room, seat, args, rng = Math.random) {
   const { die, cell } = isObject(args) ? args : {};
   const problem = myTurn(room, seat);
@@ -693,8 +933,27 @@ export function placeDie(room, seat, args, rng = Math.random) {
   return ok();
 }
 
+/**
+ * What using a tool costs now: one favour token, or two once somebody has already used that tool.
+ *
+ * @param {object} room
+ * @param {number} index  the tool's place among the game's three tools
+ * @returns {number}
+ */
 export const toolCost = (room, index) => (room.spent[index] > 0 ? 2 : 1);
 
+/**
+ * The player uses a tool card (one per turn). The request is checked as a whole first and nothing changes unless all of it
+ * is valid; then the favour tokens are paid and the tool takes effect.
+ *
+ * Side effects: on success mutates room (tokens, spent, turn.toolUsed, tally, log, and whatever the tool changes).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {{ tool: string, params: object }} args  the tool id and its parameters, as sent by the client
+ * @param {() => number} [rng]  random numbers for a roll that has not been made yet this turn (see nextFace)
+ * @returns {{ ok: boolean, cost?: number, error?: string }}
+ */
 export function useTool(room, seat, args, rng = Math.random) {
   const { tool, params } = isObject(args) ? args : {};
   const problem = myTurn(room, seat);
@@ -716,6 +975,17 @@ export function useTool(room, seat, args, rng = Math.random) {
   return ok({ cost });
 }
 
+/**
+ * The player ends their turn (they may end it without placing a die). The turn passes on; after the last turn of the round
+ * the round ends, and after the last round the game does.
+ *
+ * Side effects: see advanceTurn.
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {() => number} [rng]  used if a new round starts
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function endTurn(room, seat, rng = Math.random) {
   const problem = myTurn(room, seat);
   if (problem) return problem;
@@ -723,6 +993,15 @@ export function endTurn(room, seat, rng = Math.random) {
   return ok();
 }
 
+/**
+ * The host sends everyone back to the lobby after a finished game. The seats stay; computer players will pick new AIs.
+ *
+ * Side effects: mutates room (resets the game, removes the bots' AIs, back to the 'lobby' phase).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
@@ -733,7 +1012,12 @@ export function playAgain(room, userId) {
   return ok();
 }
 
-/** What the statistics should record for a finished game: one entry per human still seated. */
+/**
+ * What the statistics should record for a finished game: one entry per human still seated.
+ *
+ * @param {object} room  a finished room
+ * @returns {object[]} { userId, outcome, placement, score, extras } for each person
+ */
 export function statsPlayers(room) {
   const rows = room.final.players;
   return room.seats.flatMap((seat, i) =>
@@ -761,21 +1045,49 @@ export function statsPlayers(room) {
 
 // ---- what each player may see ----
 
+/**
+ * One seat's window as shown to everybody: its pattern and the dice placed so far.
+ *
+ * @param {object} room  a room that has started
+ * @param {number} seat
+ * @returns {{ pid: string, name: string, difficulty: number, rows: string[], grid: (object | null)[] }}
+ */
 function windowView(room, seat) {
   const pattern = patternOf(room.patterns[seat]);
   return { pid: pattern.pid, name: pattern.name, difficulty: pattern.difficulty, rows: pattern.rows, grid: room.grids[seat] };
 }
 
+/**
+ * The words on a tool card.
+ *
+ * @param {string} id  a tool id
+ * @returns {{ name: string, text: string, how: string }}
+ */
 const pickToolText = (id) => {
   const { name, text, how } = toolOf(id);
   return { name, text, how };
 };
+
+/**
+ * The words on a public objective card (before the game starts there is no score to show).
+ *
+ * @param {string} id  an objective id
+ * @returns {{ id: string, name: string, text: string, points: number, unit: string }}
+ */
 const publicText = (id) => {
   const { name, text, points, unit } = objectiveOf(id);
   return { id, name, text, points, unit };
 };
 
-/** Everything one account may know: the public table and its own secrets, never anybody else's. */
+/**
+ * Everything one account may know: the public table and its own secrets, never anybody else's.
+ *
+ * @param {object} room
+ * @param {number} userId  the viewer (a spectator or somebody not seated gets seat -1 and no secrets)
+ * @param {object} [options]
+ * @param {(id: number) => boolean} [options.online]  whether a person is connected, to show who is away
+ * @returns {object} the view the client draws; it never contains the bag, the undo state or the roll list
+ */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
   const started = room.phase === 'playing' || room.phase === 'finished';

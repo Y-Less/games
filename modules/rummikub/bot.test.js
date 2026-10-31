@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { bestPlay, chooseTurn, pendingAction, runPending } from './bot.js';
+import { chooseTurn, pendingAction, runPending } from './bot.js';
 import { checkPlay, totalTiles } from './rules.js';
-import { STD, assertInvariants, driveStep, joker, playingRoom, seeded, tile } from './testing.js';
+import { STD, assertInvariants, bestPlay, driveStep, joker, playingRoom, seeded, tile } from './testing.js';
 
 const t = (c, n, copy = 0) => tile(STD, c, n, copy);
 const J = (i = 0) => joker(STD, i);

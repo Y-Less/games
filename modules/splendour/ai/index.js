@@ -9,4 +9,5 @@ import rusher from './rusher.js';
 import blocker from './blocker.js';
 import sharp from './sharp.js';
 
+/** Every Splendour AI, in the order of the list above (index 0 is the fallback). */
 export const AIS = defineAIs([standard, sharp, nobleHunter, engineBuilder, rusher, blocker, random]);

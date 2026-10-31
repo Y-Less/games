@@ -2,7 +2,8 @@
 // One player's board: prestige, tokens, card bonuses, nobles and reserved cards.
 // Your own reserved cards are shown and can be picked; other players' are always shown face down.
 import { computed } from 'vue';
-import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
+import { NOBLE_BY_ID, CARD_BY_ID } from '../cards.js';
+import { MAX_RESERVED, MAX_TOKENS, NOBLE_POINTS, needOf as costAfterBonuses } from '../rules.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
 import { GEM_NAMES } from './gems.js';
@@ -22,7 +23,13 @@ const props = defineProps({
 defineEmits(['pick', 'token']);
 
 const total = computed(() => props.seat.tokens.reduce((a, b) => a + b, 0));
-const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.seat.bonuses[i]));
+/**
+ * What a reserved card costs this player after their discounts (the shared calculation in rules.js).
+ *
+ * @param {string} id  a card id
+ * @returns {number[]} five counts
+ */
+const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
 </script>
 
 <template>
@@ -35,8 +42,8 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
         <span v-else-if="!seat.online" class="tag away">away</span>
         <span class="prestige" :title="`${seat.prestige} prestige`"><b>{{ seat.prestige }}</b><small>pts</small></span>
       </header>
-      <div class="row-block" :title="`Tokens (${total}/10)`">
-        <span class="label">Tokens <small>{{ total }}/10</small></span>
+      <div class="row-block" :title="`Tokens (${total}/${MAX_TOKENS})`">
+        <span class="label">Tokens <small>{{ total }}/{{ MAX_TOKENS }}</small></span>
         <span class="gems">
           <template v-for="(n, c) in seat.tokens" :key="c">
             <button
@@ -59,11 +66,11 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
         <span class="label">Cards <small>{{ seat.bought }}</small></span>
         <span class="gems">
           <span v-for="(n, c) in seat.bonuses" :key="c" class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
-          <span v-for="n in seat.nobles" :key="n" class="noble-badge" :title="NOBLE_BY_ID[n].name" :aria-label="`Noble: ${NOBLE_BY_ID[n].name}`">&#9819;3</span>
+          <span v-for="n in seat.nobles" :key="n" class="noble-badge" :title="NOBLE_BY_ID[n].name" :aria-label="`Noble: ${NOBLE_BY_ID[n].name}`">&#9819;{{ NOBLE_POINTS }}</span>
         </span>
       </div>
     </div>
-    <div class="reserved" :aria-label="`Reserved cards (${seat.reserved.length}/3)`" :title="`Reserved (${seat.reserved.length}/3)`">
+    <div class="reserved" :aria-label="`Reserved cards (${seat.reserved.length}/${MAX_RESERVED})`" :title="`Reserved (${seat.reserved.length}/${MAX_RESERVED})`">
       <template v-for="(r, i) in seat.reserved" :key="r.card ?? `hidden-${i}`">
         <CardFace
           v-if="r.card"
@@ -77,7 +84,7 @@ const needOf = (id) => CARD_BY_ID[id].cost.map((c, i) => Math.max(0, c - props.s
         />
         <CardFace v-else :small="!large" :level="r.level" />
       </template>
-      <span v-for="i in 3 - seat.reserved.length" :key="`free-${i}`" class="free-slot" aria-hidden="true" />
+      <span v-for="i in MAX_RESERVED - seat.reserved.length" :key="`free-${i}`" class="free-slot" aria-hidden="true" />
     </div>
     <div v-if="large" class="actions"><slot name="actions" /></div>
   </section>

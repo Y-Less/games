@@ -1,21 +1,22 @@
 // Helpers shared by the Gaudi tests (not used by the game itself).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
-import { botStep, botWindow } from './bot.js';
+import { seeded } from '../../shared/random.js';
+import { botStep } from './bot.js';
+import { chooseWindow as standardChooseWindow } from './ai/standard.js';
 import { CELLS, COLOURS, ORTHOGONAL, bagSize, patternOf, poolSize } from './rules.js';
 
-/** A small seeded random number generator (mulberry32), so a failing run can be repeated. */
-export function seeded(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// The seeded random number generator the tests use is the shared one; it is re-exported so the Gaudi tests import it from here.
+export { seeded };
 
+/**
+ * A die for a hand-built position.
+ *
+ * @param {string} c   a colour
+ * @param {number} v   its face, 1-6
+ * @param {number} [id]  its id (a random one if not given, so that it never clashes with a real die)
+ * @returns {{ id: number, c: string, v: number }}
+ */
 export const die = (c, v, id = 1000 + Math.floor(Math.random() * 1e6)) => ({ id, c, v });
 
 /** A started game of n people (ids 1..n, host 1) with every window chosen: the first of each player's four. */
@@ -39,6 +40,12 @@ export function setWindow(room, seat, pid) {
   room.tokenTotal = room.tokens.reduce((a, b) => a + b, 0) + room.spent.reduce((a, b) => a + b, 0);
 }
 
+/**
+ * Every die in the game, wherever it is: bag, pool, round track and windows.
+ *
+ * @param {object} room
+ * @returns {object[]}
+ */
 export function allDice(room) {
   return [...room.bag, ...room.pool, ...room.track.flat(), ...room.grids.flat().filter(Boolean)];
 }
@@ -80,7 +87,7 @@ export function assertInvariants(room, label = '') {
 export function driveStep(room, rng) {
   if (room.phase === 'windows') {
     const seat = room.picked.findIndex((p) => !p);
-    const result = game.chooseWindow(room, seat, botWindow(room.options[seat], rng), rng);
+    const result = game.chooseWindow(room, seat, standardChooseWindow(room.options[seat], rng), rng);
     assert.equal(result.ok, true, result.error);
     return { type: 'window' };
   }

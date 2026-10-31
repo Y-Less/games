@@ -9,10 +9,24 @@ import { LEVELS } from './cards.js';
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
 
-/** The AI a seat plays with. Rooms saved before AIs existed have none recorded, and fall back to the first (standard). */
+/**
+ * The AI a seat plays with. Rooms saved before AIs existed have none recorded, and fall back to the first (standard).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {object} an AI from ai/index.js
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.ais?.[room.seats[seat]?.id]);
 
-/** What an AI may know: the table, every player's tokens and discounts, its own reserve and others' face-up reserves. */
+/**
+ * What an AI may know: the table, every player's tokens and discounts, its own reserve and others' face-up reserves.
+ * Never the order of the draw piles or anyone else's face-down reserve.
+ *
+ * @param {object} room
+ * @param {number} seat   the seat that is choosing
+ * @param {object} extra  fields to add or override (moves, returnCount, options)
+ * @returns {object} plain data (see the description at the top of ai/lib.js)
+ */
 export function situation(room, seat, extra = {}) {
   return {
     seat,
@@ -42,8 +56,17 @@ export function situation(room, seat, extra = {}) {
   };
 }
 
+/** The standard AI, which every other AI falls back on when it gives an answer that is not legal. */
 const standard = () => AIS[0];
 
+/**
+ * Asks the seat's AI for a move and checks that it is one of the legal moves (otherwise the standard AI chooses).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {() => number} rng
+ * @returns {object} one of game.legalMoves, or { type: 'pass' } when there are none
+ */
 export function chooseMove(room, seat, rng = Math.random) {
   const moves = game.legalMoves(room, seat);
   if (!moves.length) return { type: 'pass' };
@@ -53,7 +76,14 @@ export function chooseMove(room, seat, rng = Math.random) {
   return moves.find((m) => JSON.stringify(m) === key) ?? standard().chooseMove(s, rng);
 }
 
-/** Which tokens to give back (exactly as many as the seat is over by). */
+/**
+ * Which tokens to give back (exactly as many as the seat is over by).
+ *
+ * @param {object} room  with a pending return
+ * @param {number} seat
+ * @param {() => number} rng
+ * @returns {number[]} six counts; a valid choice, falling back on the standard AI's if the seat's AI gives an invalid one
+ */
 export function chooseReturn(room, seat, rng = Math.random) {
   const s = situation(room, seat, { returnCount: room.pending.count });
   const give = aiOf(room, seat).chooseReturn(s, rng);
@@ -62,21 +92,43 @@ export function chooseReturn(room, seat, rng = Math.random) {
   return valid ? give : standard().chooseReturn(s, rng);
 }
 
+/**
+ * Which of several visiting nobles to take.
+ *
+ * @param {object} room  with a pending noble choice
+ * @param {number} seat
+ * @param {() => number} rng
+ * @returns {string} a noble id from the pending options (the first if the AI names a different one)
+ */
 export function chooseNoble(room, seat, rng = Math.random) {
   const s = situation(room, seat, { options: [...room.pending.options] });
   const id = aiOf(room, seat).chooseNoble(s, rng);
   return room.pending.options.includes(id) ? id : room.pending.options[0];
 }
 
-/** The seat (if a computer player's) that has something to do, or null while the game waits for a person. */
+/**
+ * The seat (if a computer player's) that has something to do, or null while the game waits for a person.
+ *
+ * @param {object} room
+ * @returns {{ type: 'turn', seat: number } | null}
+ */
 export function pendingAction(room) {
   if (room.phase !== 'playing') return null;
   const seat = room.pending?.seat ?? room.turn;
   return game.isBot(room.seats[seat]) ? { type: 'turn', seat } : null;
 }
 
-/** A computer player finishes its turn: the move, then any tokens to return and any noble to choose. */
+/**
+ * A computer player finishes its turn: the move, then any tokens to return and any noble to choose.
+ *
+ * Side effect: mutates `room`. Throws if the AI's choice is refused (which would be a bug).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {() => number} rng
+ */
 export function playTurn(room, seat, rng = Math.random) {
+  /** Throws if a rule refused the computer player's choice. */
   const expect = (result) => {
     if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
   };
@@ -85,7 +137,47 @@ export function playTurn(room, seat, rng = Math.random) {
   if (room.phase === 'playing' && room.pending?.seat === seat && room.pending.type === 'noble') expect(game.chooseNoble(room, seat, chooseNoble(room, seat, rng)));
 }
 
-/** Performs a pending action. Returns the action, or null if there was nothing to do. */
+// ---- test and benchmark hook ----
+// This is NOT part of the game. The tests and the simulations set the environment variable SPLENDOUR_AI so that every
+// computer player uses the same AI for the whole game, which makes runs repeatable. A real server never sets it.
+
+/**
+ * Reads the SPLENDOUR_AI test/benchmark hook.
+ *
+ * @param {string | undefined} wanted  the variable's value (default: the real environment variable)
+ * @returns {string | null} the AI id if it names a real AI, otherwise null (no forcing)
+ */
+export function forcedAIFromEnv(wanted = process.env.SPLENDOUR_AI) {
+  return aiById(AIS, wanted).id === wanted ? wanted : null;
+}
+
+/**
+ * Starts a game and then makes every computer player use one AI. Test/benchmark hook only (see above); it replaces
+ * game.start for the 'start' event when SPLENDOUR_AI is set.
+ *
+ * Side effect: mutates `room` (as game.start does, then overwrites room.ais).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @param {() => number} rng
+ * @param {string} forcedAI  an AI id from ai/index.js
+ * @returns {{ ok: boolean, error?: string }} game.start's result
+ */
+export function startWithForcedAI(room, userId, rng, forcedAI) {
+  const outcome = game.start(room, userId, rng);
+  if (outcome.ok) for (const id of Object.keys(room.ais)) room.ais[id] = forcedAI;
+  return outcome;
+}
+
+/**
+ * Performs a pending action.
+ *
+ * Side effect: mutates `room` (a whole computer turn).
+ *
+ * @param {object} room
+ * @param {() => number} rng
+ * @returns {{ type: 'turn', seat: number } | null} the action, or null if there was nothing to do
+ */
 export function runPending(room, rng = Math.random) {
   const action = pendingAction(room);
   if (!action) return null;

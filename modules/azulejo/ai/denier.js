@@ -4,7 +4,15 @@
 import { lineCapacity, tileScore } from '../rules.js';
 import { bestColumnBy, chooseColumnBy, takeOf, tilesLeft } from './common.js';
 
-/** How much taking `count` tiles of a colour from a source hurts the other players' unfinished lines. */
+/**
+ * How much taking `count` tiles of a colour from a source hurts the other players' unfinished lines.
+ *
+ * @param {object} state  the AI snapshot
+ * @param {number} seat   the seat taking (its own lines do not count)
+ * @param {{ source: 'centre' | number, colour: number }} move
+ * @param {number} count  how many tiles the move takes
+ * @returns {number} higher means more harm done to the opponents
+ */
 function denial(state, seat, move, count) {
   const left = tilesLeft(state, move.colour, move.source);
   let hurt = 0;
@@ -26,6 +34,15 @@ export default {
   name: 'Denier',
   description: 'Takes the tiles its opponents are waiting for, so their lines go unfinished and their leftovers fall on the floor.',
   weight: 1.5,
+  /**
+   * Picks the move with the highest value by this AI's measure (see the file header), with a little noise.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat moving
+   * @param {object[]} moves  the legal { source, colour, line } moves
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   */
   chooseMove(state, seat, moves, rng) {
     const free = state.settings.freeWall;
     const wall = state.walls[seat];
@@ -44,5 +61,14 @@ export default {
     }
     return best ? { source: best.source, colour: best.colour, line: best.line } : null;
   },
+  /**
+   * Picks the column where the tile scores most on the wall.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat choosing
+   * @param {{ row: number, colour: number, columns: number[] }} pending  the choice to make
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {number} the chosen column
+   */
   chooseColumn: (state, seat, pending, rng) => chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col)),
 };

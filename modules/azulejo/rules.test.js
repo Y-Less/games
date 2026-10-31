@@ -14,6 +14,7 @@ import {
   emptyWall,
   factoryCount,
   floorPenalty,
+  floorPenaltyAfter,
   isDeadCell,
   lineProblem,
   previewTake,
@@ -171,4 +172,11 @@ test('previewTake: what fits, the floor, the marker and the penalty', () => {
   withPartial[3] = partial;
   assert.equal(previewTake({ lines: withPartial, floor }, { count: 2, line: 3 }).completes, true);
   assert.equal(previewTake({ lines: withPartial, floor }, { count: 1, line: 3 }).completes, false);
+});
+
+test('floorPenaltyAfter: the whole penalty once a previewed take has landed, capped at the seventh slot', () => {
+  const preview = previewTake({ lines: emptyLines(), floor: [0, 0] }, { count: 3, line: 'floor', marker: true });
+  assert.equal(floorPenaltyAfter(2, preview), floorPenalty({ length: 6 }));
+  const full = previewTake({ lines: emptyLines(), floor: [0, 0, 0, 0, 0, 0] }, { count: 4, line: 'floor', marker: true });
+  assert.equal(floorPenaltyAfter(6, full), floorPenalty({ length: 7 }));
 });

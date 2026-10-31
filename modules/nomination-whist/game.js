@@ -12,6 +12,7 @@ import { handModel } from './sim/hand-model.js';
 import { FULL_HAND, newTally, STAT_KEYS, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -28,19 +29,16 @@ export { STAT_KEYS };
 export const instantWinOn = (settings) => settings.instantWin !== false;
 /** Games saved before the option existed have hints on. */
 export const hintsOn = (settings) => settings.hints !== false;
-export const BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
+/** The names computer players are given (the shared list). */
+export const BOT_NAMES = DEFAULT_BOT_NAMES;
 
 const LIVE = ['lobby', 'nominating', 'playing', 'roundEnd'];
 const MID_GAME = ['nominating', 'playing', 'roundEnd'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
 
+/** Is the game still going (not finished)? Finished rooms are kept for a day, live ones for a week. */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const isHuman = (seat) => seat?.kind === 'human';
-export const isBot = (seat) => seat?.kind === 'bot';
-export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
-export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
-export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
+// The seat vocabulary is shared (shared/seats.js); it is re-exported because the server, the AIs and the tests import it from here.
+export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 
 // ---- the shape of a game ----
 
@@ -143,52 +141,31 @@ function resetGame(room) {
 
 // ---- seats and settings ----
 
-const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
-const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
-
-function uniqueName(room, wanted) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name.toLowerCase()));
-  let name = wanted;
-  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${wanted} (${n})`;
-  return name;
-}
-
-export function addHuman(room, userId, name) {
-  if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  const seat = firstEmpty(room);
-  if (seat === -1) return fail('That game is full.');
-  room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
-  return ok({ seat });
-}
-
-function newBot(room) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  let name = base;
-  for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  return { kind: 'bot', id: `bot:${room.nextBot++}`, name };
-}
+/**
+ * The seat rules (joining, leaving, kicking and the computer players) are the shared ones from shared/seats.js. What is
+ * particular to Nomination Whist:
+ *   - "mid-game" is any phase from nominating to the round-end pop-up;
+ *   - a person who leaves mid-game is replaced by a computer player that picks its own AI (takeOver);
+ *   - if they were the only person the round-end pop-up was waiting for, the next round is dealt (afterRemoval);
+ *   - a person who leaves a finished game leaves a { kind: 'gone', name } marker so the final scores still make sense.
+ * The shared kick refuses a finished game, so the host cannot eject anybody once the game is over.
+ */
+const seats = createSeatRules({
+  isMidGame: (room) => MID_GAME.includes(room.phase),
+  botNames: BOT_NAMES,
+  takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
+  afterRemoval: (room, rng) => advanceIfReady(room, rng),
+  finishedSeat: (leaving) => ({ kind: 'gone', name: leaving.name }),
+});
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 /**
- * Removes a human. Before the game starts the seat is freed; mid-game a computer player takes it over; after the end
- * the seat is kept (so the final scores still make sense). `empty` is true when no human is left: discard the room.
+ * Changes the number of seats: the people and computer players keep their order, and surplus computer players go.
+ *
+ * @param {object} room   the room (lobby only); mutates room.seats
+ * @param {number} count  the new number of seats
+ * @returns {{ ok: boolean, error?: string }} fails, changing nothing, when there are more people than seats
  */
-export function removeHuman(room, userId, rng = Math.random) {
-  const seat = seatOf(room, userId);
-  if (seat === -1) return fail('You are not in this game.');
-  const name = room.seats[seat].name;
-  if (MID_GAME.includes(room.phase)) room.seats[seat] = { ...newBot(room), ai: pickAI(AIS, rng).id };
-  else room.seats[seat] = room.phase === 'finished' ? { kind: 'gone', name } : null;
-  const humans = humanSeats(room);
-  if (!humans.length) return ok({ empty: true, seat });
-  if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-  advanceIfReady(room); // the person who left may have been the only one still to close the pop-up
-  return ok({ empty: false, seat, replaced: MID_GAME.includes(room.phase) });
-}
-
-/** Changes the number of seats: the people and computer players keep their order, and surplus computer players go. */
 function resizeSeats(room, count) {
   const occupants = room.seats.filter(Boolean);
   while (occupants.length > count) {
@@ -200,8 +177,16 @@ function resizeSeats(room, count) {
   return ok();
 }
 
+/**
+ * The host changes the game's settings (lobby only). Changing the number of seats resizes the table and resets the game.
+ *
+ * @param {object} room    mutates room.settings, and room.seats and the scores if the seat count changes
+ * @param {*} userId       the account asking; must be the host
+ * @param {object} input   the settings to change (see normaliseSettings)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setSettings(room, userId, input) {
-  const problem = asHost(room, userId) ?? inLobby(room);
+  const problem = hostInLobby(room, userId);
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
@@ -214,51 +199,18 @@ export function setSettings(room, userId, input) {
   return ok();
 }
 
-export function addBot(room, userId, seat) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  const index = seat === undefined ? firstEmpty(room) : seat;
-  if (index === -1) return fail('Every seat is taken.');
-  if (!Number.isInteger(index) || index < 0 || index >= room.seats.length) return fail('There is no such seat.');
-  if (room.seats[index]) return fail('That seat is taken.');
-  room.seats[index] = newBot(room);
-  return ok({ seat: index });
-}
-
-/**
- * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
- * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
- * them home.
- */
-export function kick(room, hostId, seat, rng = Math.random) {
-  const problem = asHost(room, hostId);
-  if (problem) return problem;
-  const target = Number.isInteger(seat) ? room.seats[seat] : null;
-  if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-  const removed = removeHuman(room, target.id, rng);
-  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
-}
-
-export function removeBot(room, userId, seat) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  if (!Number.isInteger(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
-  room.seats[seat] = null;
-  return ok();
-}
-
-export function fillWithBots(room, userId) {
-  const problem = asHost(room, userId) ?? inLobby(room);
-  if (problem) return problem;
-  for (let i = 0; i < room.seats.length; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
-  return ok();
-}
-
 // ---- rounds ----
 
+/**
+ * The host starts the game: picks the first dealer, deals round one and gives every computer player its AI.
+ *
+ * @param {object} room  mutates the whole room (resets it, deals, sets the phase to 'nominating')
+ * @param {*} userId     the account asking; must be the host
+ * @param {() => number} [rng]  random numbers for the dealer, the deal and the AIs
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, userId, rng = Math.random) {
-  const problem = asHost(room, userId) ?? inLobby(room);
+  const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
   if (!humanSeats(room).length) return fail('At least one person has to play.');
@@ -269,9 +221,14 @@ export function start(room, userId, rng = Math.random) {
   return ok();
 }
 
-/** Every computer player picks the AI it will play this game with (kept on the seat, so it survives a restart). */
+/**
+ * Every computer player picks the AI it will play this game with (kept on the seat, so it survives a restart).
+ *
+ * @param {object} room  mutates `ai` on every computer player's seat
+ * @param {() => number} rng
+ */
 function assignBotAIs(room, rng) {
-  const bots = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
+  const bots = botSeats(room);
   const chosen = assignAIs(AIS, bots, rng);
   room.seats.forEach((s, i) => {
     if (isBot(s)) s.ai = chosen[i];
@@ -421,6 +378,13 @@ export function nextRound(room, userId, rng = Math.random) {
   return ok();
 }
 
+/**
+ * Deals the next round if the game is at the round-end pop-up and every person has closed it.
+ *
+ * @param {object} room  mutates the room (deals) when everybody is ready
+ * @param {() => number} [rng]  random numbers for the deal
+ * @returns {boolean} whether a new round was dealt
+ */
 function advanceIfReady(room, rng = Math.random) {
   if (room.phase !== 'roundEnd') return false;
   room.ready ??= [];
@@ -445,6 +409,13 @@ export function forceNextRound(room, rng = Math.random) {
 
 export const waitingForReady = (room) => room.phase === 'roundEnd';
 
+/**
+ * The host takes everybody back to the lobby after the game: markers for people who left are cleared and the game reset.
+ *
+ * @param {object} room  mutates seats, scores and phase
+ * @param {*} userId     the account asking; must be the host
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;

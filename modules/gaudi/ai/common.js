@@ -6,39 +6,102 @@
 //     pool, track, tools (ids), spent, tokens, grids, patterns (ids), publicIds, privateColour }
 // An AI's decisions are `chooseWindow(options, rng)` -> a pattern id, and `chooseStep(state, seat, rng)` ->
 // { type: 'place', die, cell } | { type: 'tool', tool, params } | { type: 'end' }.
+import { pickOne } from '../../../shared/random.js';
 import { CELLS, COLOURS, COLS, ORTHOGONAL, ROWS, SHADES, isDeadSpace, legalCells, objectivePoints, objectiveOf, patternOf, privatePoints, restrictionOf } from '../rules.js';
 
-export const pickOne = (items, rng) => items[Math.floor(rng() * items.length)];
-export const allowedPlacements = () => 1; // Swift Hand gives a whole extra turn, never two dice in one
+// The AIs pick from lists with the shared pickOne; it is re-exported here so that they need only import from this file.
+export { pickOne };
+
+/**
+ * How many dice a seat may place in one turn: one (Swift Hand gives a whole extra turn, never two dice in one).
+ *
+ * @returns {number}
+ */
+export const allowedPlacements = () => 1;
+
+/**
+ * What a tool costs in favour tokens now: one, or two once somebody has used it.
+ *
+ * @param {object} state  the AI's snapshot (see the top of this file)
+ * @param {number} index  the tool's place among the game's three tools
+ * @returns {number}
+ */
 export const toolCost = (state, index) => (state.spent[index] > 0 ? 2 : 1);
 
-/** The cost of a tool in this game if the seat can pay for it right now, otherwise 0. */
+/**
+ * The cost of a tool in this game if the seat can pay for it right now, otherwise 0.
+ *
+ * @param {object} state  the AI's snapshot
+ * @param {number} seat   the seat deciding
+ * @param {string} id     a tool id, such as 'lathe'
+ * @returns {number} 1 or 2 favour tokens, or 0 when the tool is not in this game or the seat cannot afford it
+ */
 export function affordable(state, seat, id) {
   const index = state.tools.indexOf(id);
   return index !== -1 && state.tokens[seat] >= toolCost(state, index) ? toolCost(state, index) : 0;
 }
 
+/**
+ * Points a window scores from the three public objectives on the table.
+ *
+ * @param {object} state  the AI's snapshot (its publicIds are used)
+ * @param {(object | null)[]} grid  a window, as it is or as it might become
+ * @returns {number}
+ */
 export const publicPoints = (state, grid) => state.publicIds.reduce((sum, id) => sum + objectivePoints(id, grid).points, 0);
+/**
+ * Points a window scores from the deciding seat's own private colour (flat points on "bad private scoring").
+ *
+ * @param {object} state  the AI's snapshot
+ * @param {(object | null)[]} grid  a window, as it is or as it might become
+ * @returns {number}
+ */
 export const privateOf = (state, grid) => privatePoints(grid, state.privateColour, state.settings.badPrivate);
+/**
+ * A copy of a window with a die put on one space (the original is not changed), to try a placement out.
+ *
+ * @param {(object | null)[]} grid
+ * @param {number} cell  the space
+ * @param {object} die   { id, c, v }
+ * @returns {(object | null)[]}
+ */
 export const withDie = (grid, cell, die) => {
   const next = grid.slice();
   next[cell] = die;
   return next;
 };
 
-/** How many empty spaces newly become spaces that nothing could ever fill. */
+/**
+ * How many empty spaces newly become spaces that nothing could ever fill.
+ *
+ * @param {(object | null)[]} grid   the window before
+ * @param {(object | null)[]} after  the window after the move being considered
+ * @param {object} pattern           the window's pattern
+ * @returns {number}
+ */
 export function newDeadSpaces(grid, after, pattern) {
   let dead = 0;
   for (let i = 0; i < CELLS; i++) if (isDeadSpace(after, pattern, i) && !isDeadSpace(grid, pattern, i)) dead++;
   return dead;
 }
 
+/** The space numbers of one row of a window. */
 const rowCells = (r) => Array.from({ length: COLS }, (_, c) => r * COLS + c);
+/** The space numbers of one column of a window. */
 const colCells = (c) => Array.from({ length: ROWS }, (_, r) => r * COLS + c);
 const ROW_LINES = Array.from({ length: ROWS }, (_, r) => rowCells(r));
 const COL_LINES = Array.from({ length: COLS }, (_, c) => colCells(c));
 
-/** Progress on a line objective: all-different dice so far (n of len) count as (n/len)^2 of its points; a repeat is worth nothing. */
+/**
+ * Progress on a line objective: all-different dice so far (n of len) count as (n/len)^2 of its points; a repeat is worth
+ * nothing.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {number[][]} lines        the rows or the columns, as lists of space numbers
+ * @param {'c' | 'v'} key           what must differ along a line: colour or shade
+ * @param {number} points           what a finished line is worth
+ * @returns {number}
+ */
 function lineProgress(grid, lines, key, points) {
   let total = 0;
   for (const cells of lines) {
@@ -49,9 +112,16 @@ function lineProgress(grid, lines, key, points) {
   return total;
 }
 
-/** How close a window is to each public objective, in points: whole sets exactly, unfinished ones by their progress. */
+/**
+ * How close a window is to each public objective, in points: whole sets exactly, unfinished ones by their progress.
+ *
+ * @param {object} state  the AI's snapshot
+ * @param {(object | null)[]} grid
+ * @returns {number}
+ */
 export function publicPotential(state, grid) {
   let total = 0;
+  /** How many dice in the window satisfy a test. */
   const count = (test) => grid.filter((d) => d && test(d)).length;
   for (const id of state.publicIds) {
     const points = objectiveOf(id).points;
@@ -77,6 +147,12 @@ export function publicPotential(state, grid) {
 /**
  * How likely an empty space is to be filled by some die over the rest of the game: the dice its neighbours and its own
  * restriction still allow (out of 30 colour-and-shade faces), seen over about six chances.
+ *
+ * @param {(object | null)[]} grid
+ * @param {object} pattern
+ * @param {number} index    the space
+ * @param {number} [chances]  how many more dice are expected to be tried on it
+ * @returns {number} a probability from 0 to 1 (1 for a space that already holds a die)
  */
 export function fillChance(grid, pattern, index, chances = 6) {
   if (grid[index]) return 1;
@@ -90,7 +166,14 @@ export function fillChance(grid, pattern, index, chances = 6) {
   return 1 - (1 - allowed / (COLOURS.length * SHADES.length)) ** chances;
 }
 
-/** Every legal (die, cell) among the pool. */
+/**
+ * Every legal (die, cell) among the pool.
+ *
+ * @param {object} state  the AI's snapshot
+ * @param {number} seat
+ * @param {object} [options]  placement rules to relax (see cellProblem in rules.js)
+ * @returns {{ die: number, cell: number, dice: object }[]}
+ */
 export function placementsOf(state, seat, options) {
   const grid = state.grids[seat];
   const pattern = patternOf(state.patterns[seat]);
@@ -105,6 +188,12 @@ export function placementsOf(state, seat, options) {
  *   tokenValue, margin, reserve                       - for 'eager': a tool must beat the best plain placement by
  *                                                       (cost x tokenValue + margin) and leave `reserve` tokens
  *   noise                                             - random jitter added to every score (default 0.3)
+ *
+ * @param {object} state  the AI's snapshot
+ * @param {number} seat   the seat deciding
+ * @param {() => number} rng
+ * @param {object} policy  as described above
+ * @returns {{ type: 'place', die: number, cell: number } | { type: 'tool', tool: string, params: object } | { type: 'end' }}
  */
 export function chooseStep(state, seat, rng, policy) {
   const { turn } = state;
@@ -113,6 +202,7 @@ export function chooseStep(state, seat, rng, policy) {
   const pattern = patternOf(state.patterns[seat]);
   const context = policy.context?.(state, seat) ?? null;
   const noise = policy.noise ?? 0.3;
+  /** The policy's score for a placement, plus a little random jitter so equal choices are not always broken the same way. */
   const scoreOf = (die, cell, options) => policy.score(state, seat, die, cell, options ?? null, context) + rng() * noise;
 
   let best = null;
@@ -124,6 +214,7 @@ export function chooseStep(state, seat, rng, policy) {
       if (!bestPerDie.has(die.id) || score > bestPerDie.get(die.id)) bestPerDie.set(die.id, score);
     }
   }
+  /** The plain placement chosen so far (or ending the turn when nothing fits). */
   const place = () => (best ? { type: 'place', die: best.die, cell: best.cell } : { type: 'end' });
   if (turn.toolUsed || policy.tools === 'never' || !state.tools.length) return place();
   const stuck = !best;
@@ -131,6 +222,10 @@ export function chooseStep(state, seat, rng, policy) {
 
   const tokenValue = policy.tokenValue ?? 3;
   const candidates = [];
+  /**
+   * Adds every placement a tool would make possible as a candidate, charged for its cost.
+   * Side effect: pushes onto candidates.
+   */
   const consider = (die, cost, make, options) => {
     for (const cell of legalCells(grid, pattern, die, options)) candidates.push({ ...make, score: scoreOf(die, cell, options) - tokenValue * cost });
   };

@@ -13,6 +13,7 @@ import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { rankWord } from './rank.js';
+import { callSentence, cardCount, copiesUpTo } from './text.js';
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -44,7 +45,7 @@ const opponents = computed(() =>
   Array.from({ length: count.value - 1 }, (_, i) => i + 1).map((rel) => {
     const seat = (s.value.you + rel) % count.value;
     const other = s.value.seats[seat];
-    return { key: seat, name: other.name, cards: Math.min(other.cards, MAX_SHOWN), note: `${other.cards} ${other.cards === 1 ? 'card' : 'cards'}`, away: !other.online, current: s.value.turn === seat };
+    return { key: seat, name: other.name, cards: Math.min(other.cards, MAX_SHOWN), note: cardCount(other.cards), away: !other.online, current: s.value.turn === seat };
   }),
 );
 
@@ -68,15 +69,16 @@ const status = computed(() => {
   return s.value.turn === null ? '' : `Waiting for ${nameOf(s.value.turn)} to play ${rankWord(rank.value, 2)}.`;
 });
 const mine = computed(() => !finished.value && (myTurn.value || mustRespond.value));
+// What the last call of Cheat turned up, in the past tense (empty until a call has been made).
 const callMessage = computed(() => {
   const call = s.value.lastCall;
   if (!call) return '';
-  return `${nameOf(call.caller)} called Cheat on ${nameOf(call.accused)}: it was ${call.lie ? 'a lie' : 'true'}, so ${nameOf(call.picker)} picked up ${call.pileSize} ${call.pileSize === 1 ? 'card' : 'cards'}.`;
+  return callSentence(call, nameOf, true);
 });
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
-  if (myTurn.value) lines.push({ text: picks.value.length ? `Playing ${picks.value.length} ${picks.value.length === 1 ? 'card' : 'cards'} as ${claimText.value}.` : 'Click the cards to play, then press the button on the table. They need not really be the rank you claim.', tone: 'muted' });
+  if (myTurn.value) lines.push({ text: picks.value.length ? `Playing ${cardCount(picks.value.length)} as ${claimText.value}.` : 'Click the cards to play, then press the button on the table. They need not really be the rank you claim.', tone: 'muted' });
   if (callMessage.value) lines.push({ text: callMessage.value, tone: 'muted' });
   if (finished.value) lines.push({ text: isHost.value ? 'You can start another game.' : 'The host can start another game.', tone: 'muted' });
   return lines;
@@ -96,14 +98,16 @@ watch(
 );
 
 // A hand can hold two copies of a card (two packs), so a card is picked by position among equal ones.
+/** Is the copy of `card` at this position in the hand one of the picked cards? */
 const chosen = (card, index) => {
-  const copies = s.value.hand.slice(0, index + 1).filter((c) => c === card).length;
+  const copies = copiesUpTo(s.value.hand, card, index);
   return picks.value.filter((c) => c === card).length >= copies;
 };
+/** Picks or unpicks the copy of `card` at this position (your turn only), keeping to the most cards one play may hold. Mutates picks and message. */
 function pickAt(card, index) {
   if (!myTurn.value) return;
   message.value = '';
-  const copies = s.value.hand.slice(0, index + 1).filter((c) => c === card).length;
+  const copies = copiesUpTo(s.value.hand, card, index);
   const have = picks.value.filter((c) => c === card).length;
   if (have >= copies) {
     // Deselect one copy of it.
@@ -125,7 +129,7 @@ async function submit(event, payload) {
 }
 
 const reveal = computed(() => s.value.lastCall?.cards ?? []);
-const lastText = computed(() => (s.value.last ? `${nameOf(s.value.last.seat)} played ${s.value.last.count} ${s.value.last.count === 1 ? 'card' : 'cards'} as ${rankWord(s.value.last.rank, s.value.last.count)}.` : ''));
+const lastText = computed(() => (s.value.last ? `${nameOf(s.value.last.seat)} played ${cardCount(s.value.last.count)} as ${rankWord(s.value.last.rank, s.value.last.count)}.` : ''));
 
 // ---- fitting the room ----
 const DESIGN_H = 34;

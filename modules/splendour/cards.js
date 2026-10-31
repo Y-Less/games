@@ -3,10 +3,11 @@
 // colours: every pattern is used once for each bonus colour (rotated round the colour wheel, and mirrored on odd
 // patterns so that neighbouring colours are not always paired in the same way).
 
+import { GOLD, NOBLE_POINTS, TOKEN_KINDS } from './rules.js';
+
 export const COLOURS = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx'];
 export const COLOUR_NAMES = ['Diamond', 'Sapphire', 'Emerald', 'Ruby', 'Onyx'];
-export const GOLD = 5; // the index of Gold in a token array (five colours, then gold)
-export const TOKEN_KINDS = 6;
+export { GOLD, TOKEN_KINDS };
 
 // Each pattern: [prestige, [cost by distance from the card's own colour: 0 = own colour, 1.. = following colours]].
 const PATTERNS = {
@@ -39,6 +40,12 @@ const PATTERNS = {
 export const LEVELS = [1, 2, 3];
 export const CARDS_PER_LEVEL = { 1: 40, 2: 30, 3: 20 };
 
+/**
+ * Generates all 90 development cards from PATTERNS: every pattern is used once for each bonus colour, rotated round the
+ * colour wheel (and mirrored on odd patterns). Card ids (c01, c02...) follow the order of generation, so they never change.
+ *
+ * @returns {{ id: string, level: number, bonus: number, points: number, cost: number[] }[]} fresh, unfrozen card objects
+ */
 function build() {
   const cards = [];
   let n = 1;
@@ -59,11 +66,29 @@ function build() {
 
 export const CARDS = Object.freeze(build().map((c) => Object.freeze(c)));
 export const CARD_BY_ID = Object.freeze(Object.fromEntries(CARDS.map((c) => [c.id, c])));
+/**
+ * The cards of one level.
+ *
+ * @param {number} level  1, 2 or 3
+ * @returns {object[]} the frozen cards, in id order
+ */
 export const cardsOfLevel = (level) => CARDS.filter((c) => c.level === level);
+/**
+ * Is this a real card id? (Used to validate whatever a client sends; inherited names such as "toString" are refused.)
+ *
+ * @param {unknown} id
+ * @returns {boolean}
+ */
 export const isCardId = (id) => typeof id === 'string' && Object.hasOwn(CARD_BY_ID, id);
 
 // Noble tiles: each needs a number of card bonuses in two or three colours.
 const [D, S, E, R, O] = [0, 1, 2, 3, 4];
+/**
+ * Builds a noble tile's requirements from a { colour: count } spec (a plain copy, so each tile owns its object).
+ *
+ * @param {Record<number, number>} spec  how many bonuses of each colour index the noble asks for
+ * @returns {Record<string, number>}
+ */
 const need = (spec) => Object.fromEntries(Object.entries(spec).map(([k, v]) => [k, v]));
 export const NOBLES = Object.freeze(
   [
@@ -77,7 +102,13 @@ export const NOBLES = Object.freeze(
     ['n8', 'The Alchemist', need({ [E]: 3, [R]: 3, [O]: 3 })],
     ['n9', 'The Lamplighter', need({ [R]: 3, [O]: 3, [D]: 3 })],
     ['n10', 'The Weigher of Stones', need({ [O]: 3, [D]: 3, [S]: 3 })],
-  ].map(([id, name, requires]) => Object.freeze({ id, name, points: 3, requires: Object.freeze(requires) })),
+  ].map(([id, name, requires]) => Object.freeze({ id, name, points: NOBLE_POINTS, requires: Object.freeze(requires) })),
 );
 export const NOBLE_BY_ID = Object.freeze(Object.fromEntries(NOBLES.map((n) => [n.id, n])));
+/**
+ * Is this a real noble id? (Validates what a client sends.)
+ *
+ * @param {unknown} id
+ * @returns {boolean}
+ */
 export const isNobleId = (id) => typeof id === 'string' && Object.hasOwn(NOBLE_BY_ID, id);

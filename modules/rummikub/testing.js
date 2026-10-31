@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { chooseTurn } from './bot.js';
+import { AIS } from './ai/index.js';
 import { numberedCount, totalTiles } from './rules.js';
 import { seeded } from '../../shared/testkit.js';
 
@@ -21,6 +22,19 @@ export function playingRoom(n, { seed = 1, settings = {}, bots = false } = {}) {
   const result = game.start(room, 1, rng);
   assert.equal(result.ok, true, result.error);
   return { room, rng };
+}
+
+/**
+ * The best play of the classic AI (or of options.ai, an AI object), without going through a seat's own AI choice.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to play from
+ * @param {object} [options]  passed to the AI's plan (budget, rng...); options.ai picks a different AI
+ * @returns {{ table: number[][], added: number } | null} the play, or null when there is none
+ */
+export function bestPlay(room, seat, options = {}) {
+  const ai = options.ai ?? AIS[0];
+  return ai.plan(room, seat, options);
 }
 
 /** Everything that must hold after every single action. */

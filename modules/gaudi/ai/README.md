@@ -102,7 +102,7 @@ rate, and standard beats tidy on mean score, because tidy gives up the objective
    `{ type: 'tool', tool, params }` or `{ type: 'end' }`, and must end the turn once `state.turn.placements` reaches its
    limit (one, or two when `state.turn.extra`). Every step must be a legal move: the game rejects an illegal one and the bot
    throws.
-4. `state` is the snapshot built by `snapshot()` in `bot.js` (described at the top of `ai/common.js`): `seat`, `size`,
+4. `state` is the snapshot built by `botSnapshot()` in `bot.js` (a deep copy) (described at the top of `ai/common.js`): `seat`, `size`,
    `settings`, `round`, `order`, `turnIndex`, `turn`, `pool`, `track`, `tools`, `spent`, `tokens`, `grids`, `patterns`,
    `publicIds` and `privateColour`. It holds no bag, no other seat's secret colour or window choices, and the tests check
    this. Use plain data only; do not reach for the room.

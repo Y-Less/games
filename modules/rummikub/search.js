@@ -22,8 +22,17 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
   let nodes = 0;
   let aborted = false;
   const memo = new Map();
+  /** How many copies of a kind are left to use, whether they must be used (on the table) or may be (in the rack). */
   const avail = (k) => need[k] + opt[k];
 
+  /**
+   * Uses up one copy of a kind for a set being built, preferring a copy that has to be used (a table tile) over one that
+   * may be (a rack tile). Side effect: lowers need[k] or opt[k]; undo it with give().
+   *
+   * @param {number} k  the kind (colour * numbers + number - 1)
+   * @returns {{ k: number, was: 'need' | 'opt', value: number }} what was taken, and what it adds to the table's value
+   *   (nothing for a table tile; the weight, or the plain number, for a rack tile)
+   */
   function takeKind(k) {
     if (need[k] > 0) {
       need[k]--;
@@ -32,6 +41,12 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     opt[k]--;
     return { k, was: 'opt', value: weights ? weights[k] : (k % N) + 1 };
   }
+  /**
+   * Uses up one joker, preferring one that has to be used (on the table) over one from the rack. Side effect: lowers jn or
+   * jo; undo it with give().
+   *
+   * @returns {{ k: -1, was: 'need' | 'opt', value: number }} what was taken (k is -1 for a joker) and its value
+   */
   function takeJoker() {
     if (jn > 0) {
       jn--;
@@ -40,6 +55,11 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     jo--;
     return { k: -1, was: 'opt', value: jokerWeight };
   }
+  /**
+   * Puts back what takeKind and takeJoker took, so the search can try another choice. Side effect: raises the counts again.
+   *
+   * @param {{ k: number, was: 'need' | 'opt' }[]} taken  the results of those calls
+   */
   function give(taken) {
     for (const t of taken) {
       if (t.k === -1) t.was === 'need' ? jn++ : jo++;
@@ -47,6 +67,15 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     }
   }
 
+  /**
+   * Every set that could start at kind p, being the lowest kind still unused: runs that begin at p (with up to two jokers in
+   * front, and jokers filling gaps or extending the end) and groups of one number in different colours whose lowest colour
+   * is p's. Biggest sets first, and fewer jokers first among equals, so the best-looking choices are tried early.
+   *
+   * @param {number} p  the kind the next set must contain
+   * @returns {{ parts: ({ k: number } | { j: number })[], rep: number }[]} each set as its parts (a tile of a kind, or a
+   *   joker standing for a number) and what its tiles add up to as numbers (for the first-meld rule)
+   */
   function candidates(p) {
     const list = [];
     const c = Math.floor(p / N);
@@ -87,6 +116,15 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     return list.sort((a, b) => b.parts.length - a.parts.length || a.parts.filter((x) => x.j).length - b.parts.filter((x) => x.j).length);
   }
 
+  /**
+   * The depth-first search itself: finds the best way to arrange everything that is left, from kind `start` upwards. Results
+   * are remembered (memo) by position and what remains. Stops, and marks the whole solve as aborted, when the node budget is
+   * spent. Side effects: borrows and returns tiles through takeKind/give; counts nodes.
+   *
+   * @param {number} start  the lowest kind that might still have copies left
+   * @returns {{ value: number, chain: object | null } | null} the best value and the chain of sets giving it, or null when
+   *   no arrangement uses every table tile
+   */
   function search(start) {
     let p = start;
     while (p < K && need[p] + opt[p] === 0) p++;
@@ -124,7 +162,16 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
   return { value: found.value, sets, aborted };
 }
 
-/** Counts per kind, and the ids behind them (table ids first, so the rack ones are the ones played). */
+/**
+ * Counts the tiles per kind, and remembers which tile ids are behind each count (table ids first, so the rack ones are the
+ * ones played).
+ *
+ * @param {object} s  the room's settings
+ * @param {number[]} tableIds  tiles that must stay on the table
+ * @param {number[]} rackIds  tiles that may be played
+ * @returns {{ need: Int8Array, opt: Int8Array, jn: number, jo: number, ids: object[], jokers: object }} the counts for solve()
+ *   and the ids to turn its answer back into tiles
+ */
 export function inventory(s, tableIds, rackIds) {
   const K = s.numbers * s.colours;
   const need = new Int8Array(K);
@@ -147,7 +194,13 @@ export function inventory(s, tableIds, rackIds) {
   return { need, opt, jn: jokers.table.length, jo: jokers.rack.length, ids, jokers };
 }
 
-/** Turns the search's sets (kinds) back into sets of real tile ids. */
+/**
+ * Turns the search's sets (kinds) back into sets of real tile ids. Does not change `inv`.
+ *
+ * @param {object} inv  what inventory() returned
+ * @param {object[][]} sets  the sets solve() found
+ * @returns {number[][]} the same sets as tile ids
+ */
 export function realise(inv, sets) {
   const queues = inv.ids.map((q) => [...q.table, ...q.rack]);
   const jokerQueue = [...inv.jokers.table, ...inv.jokers.rack];
@@ -155,7 +208,15 @@ export function realise(inv, sets) {
 }
 
 
-/** The first attempt (best first) that the server's own check accepts, as { table, added, value }, or null. */
+/**
+ * The first attempt (best first) that the server's own check accepts, as { table, added, value }, or null.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack the attempts play from
+ * @param {{ value: number, table: number[][] }[]} attempts  candidate tables
+ * @param {number} [limit]  how many of the best attempts to check
+ * @returns {{ table: number[][], added: number, value: number } | null}
+ */
 export function firstLegal(room, seat, attempts, limit = 6) {
   const s = room.settings;
   const rack = room.racks[seat];
@@ -168,7 +229,14 @@ export function firstLegal(room, seat, attempts, limit = 6) {
   return null;
 }
 
-/** The first meld: new sets from the rack alone, worth the threshold. Returns attempts ({ value, table }). */
+/**
+ * The first meld: new sets from the rack alone, worth the threshold.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to use
+ * @param {object} [options]  budget, rackIds (default the whole rack), weights and jokerWeight for solve()
+ * @returns {{ value: number, table: number[][] }[]} zero or one attempts
+ */
 export function meldAttempts(room, seat, { budget = SEARCH_BUDGET, rackIds = room.racks[seat], weights = null, jokerWeight } = {}) {
   const s = room.settings;
   const inv = inventory(s, [], rackIds);
@@ -180,6 +248,11 @@ export function meldAttempts(room, seat, { budget = SEARCH_BUDGET, rackIds = roo
 /**
  * The search with no limit on how much of the table may be rearranged: either the whole table is taken apart and rebuilt, or
  * only new sets are made from the rack. This is what the 'standard' AI has always done.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to use
+ * @param {object} [options]  budget, weights and jokerWeight for solve()
+ * @returns {{ value: number, table: number[][] }[]} candidate tables, in no particular order
  */
 export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights = null, jokerWeight } = {}) {
   const s = room.settings;
@@ -189,6 +262,7 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
   const attempts = [];
   // A joker on the table cannot just be moved: it stands for a tile until that tile is swapped in. So a set with a joker is only
   // taken apart if the rack has a tile that fits (the server judges whether the swap was made); otherwise it stays as it is.
+  /** Can a set with a joker be taken apart because the rack has a tile the joker could be swapped for? */
   const swappable = (ids) => ids.filter((id) => isJoker(s, id)).some((j) => rack.some((r) => fitsJoker(s, r, jokerOptions(s, ids, j))));
   const stays = table.filter((ids) => ids.some((id) => isJoker(s, id)) && !swappable(ids));
   const loose = table.filter((ids) => !stays.includes(ids));
@@ -208,6 +282,14 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
   return attempts;
 }
 
+/**
+ * The play of the 'standard' AI: the best of the attempts of standardAttempts that the server's own check accepts.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to play from
+ * @param {object} [options]  passed to standardAttempts (budget, weights, jokerWeight)
+ * @returns {{ table: number[][], added: number, value: number } | null} the play, or null when there is none
+ */
 export function standardPlay(room, seat, options = {}) {
   return firstLegal(room, seat, standardAttempts(room, seat, options), 3);
 }
@@ -233,6 +315,12 @@ function setOptions(s, ids, rack = []) {
     return swap ? [{ cost: 0, freed: [], kept: [ids] }, { cost: L, freed: ids, kept: [] }] : [{ cost: 0, freed: [], kept: [ids] }];
   }
   const opts = [{ cost: 0, freed: [], kept: [ids] }, { cost: L, freed: ids, kept: [] }];
+  /**
+   * Records one way of splitting this set if every piece left over is still a legal set.
+   *
+   * @param {number[]} freedIdx  positions in `ids` of the tiles taken out
+   * @param {number[][]} pieces  what is left of the set, as pieces that stay put
+   */
   const add = (freedIdx, pieces) => {
     const freed = freedIdx.map((i) => ids[i]);
     if (pieces.some((p) => p.length < 3 || !resolveSet(s, p).ok)) return;
@@ -254,6 +342,14 @@ function setOptions(s, ids, rack = []) {
   return opts;
 }
 
+/**
+ * Could two tiles end up in the same set? True for a joker, the same number, or the same colour within two numbers. Used to
+ * skip table tiles that cannot possibly be of use to the rack.
+ *
+ * @param {object} a  a tile as returned by tileOf
+ * @param {object} b  another tile
+ * @returns {boolean}
+ */
 const touches = (a, b) => {
   if (a.joker || b.joker) return true;
   return a.number === b.number || (a.colour === b.colour && Math.abs(a.number - b.number) <= 2);
@@ -298,7 +394,15 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   const rackHasJoker = rackTiles.some((t) => t.joker);
   // A freed tile is only worth trying if it fits with a rack tile, or with a table tile of another set that does.
   const tableTiles1 = room.table.map((ids) => ids.map((id) => tileOf(s, id)));
+  // direct[j][k]: could table tile k of set j go with a rack tile (or is a joker about)?
   const direct = tableTiles1.map((tiles) => tiles.map((x) => rackHasJoker || x.joker || rackTiles.some((r) => touches(x, r))));
+  /**
+   * Is it worth freeing these tiles? Only if one fits with a rack tile, or with a tile of another set that does.
+   *
+   * @param {number[]} ids  the tiles that would be freed
+   * @param {number} setIndex  the index of the set they come from
+   * @returns {boolean}
+   */
   const relevant = (ids, setIndex) => ids.some((id) => {
     const x = tileOf(s, id);
     if (rackHasJoker || x.joker || rackTiles.some((r) => touches(x, r))) return true;
@@ -311,22 +415,45 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   const stats = { nodes: 0 };
   const attempts = [];
   let evaluated = 0;
+  /** Has the search used up its budget of combinations or solver nodes? */
   const done = () => evaluated >= limits.combos || stats.nodes >= limits.totalNodes;
 
+  /**
+   * What a table is worth to this player: the rack tiles it uses, by points or by the AI's own weights.
+   *
+   * @param {number[][]} table  the proposed table
+   * @returns {number}
+   */
   const valueOf = (table) => {
     const played = table.flat().filter((id) => rackSet.has(id));
     if (!weights) return rackValue(s, played);
     return played.reduce((sum, id) => sum + (isJoker(s, id) ? jokerWeight : weights[kindOf(id)]), 0);
   };
+  /** The kind (colour * numbers + number - 1) of a numbered tile id. */
   const kindOf = (id) => {
     const t = tileOf(s, id);
     return t.colour * s.numbers + t.number - 1;
   };
+  /**
+   * Solves for a set of freed table tiles plus the rack tiles still free to use, within the per-solve node limit.
+   *
+   * @param {number[]} freed  table tiles that must all end up in sets
+   * @param {number[]} rackLeft  rack tiles that may be used
+   * @returns {number[][] | null} the new sets as tile ids, or null if no arrangement exists
+   */
   const solveWith = (freed, rackLeft) => {
     const inv = inventory(s, freed, rackLeft);
     const found = solve(s, { need: inv.need, opt: inv.opt, jn: inv.jn, jo: inv.jo, mode: 'rack', budget: limits.solveNodes, stats, weights, jokerWeight });
     return found ? realise(inv, found.sets) : null;
   };
+  /**
+   * Turns one choice of freed tiles into attempts: tries three orders of building (build then extend locked pieces, extend
+   * then build, extend with plain tiles then build then add jokers) and keeps each result that plays something. Side
+   * effects: adds to `attempts` and counts one evaluation.
+   *
+   * @param {{ freed: number[], kept: number[][] }[]} chosen  the option picked for each table set
+   * @param {number} cost  how many table tiles this choice moves
+   */
   const evaluate = (chosen, cost) => {
     evaluated++;
     const freed = chosen.flatMap((o) => o.freed);
@@ -364,6 +491,13 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
 
   const maxCost = Math.min(tableTiles, maxFrom[0]);
   for (let cost = 0; cost <= maxCost && !done(); cost++) {
+    /**
+     * Visits every combination of per-set options that moves exactly `cost` tiles, calling evaluate() on each.
+     *
+     * @param {number} i  the index of the table set being decided
+     * @param {number} remaining  how many tiles may still be moved
+     * @param {object[]} chosen  the options picked so far (pushed and popped as the walk goes)
+     */
     const walk = (i, remaining, chosen) => {
       if (done()) return;
       if (i === perSet.length) {
@@ -383,6 +517,14 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   return attempts;
 }
 
+/**
+ * The play of an AI that may move a limited number of table tiles: the best legal attempt of shuffleAttempts.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to play from
+ * @param {object} [options]  passed to shuffleAttempts (tableTiles, node limits, weights...)
+ * @returns {{ table: number[][], added: number, value: number } | null} the play, or null when there is none
+ */
 export function shufflePlay(room, seat, options) {
   return firstLegal(room, seat, shuffleAttempts(room, seat, options));
 }

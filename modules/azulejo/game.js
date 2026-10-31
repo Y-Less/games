@@ -9,7 +9,8 @@
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { placements, winnersOf } from '../../shared/scores.js';
-import { extrasOf } from '../../shared/tally.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { bump, extrasOf } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyTake } from './tally.js';
 import {
@@ -28,6 +29,7 @@ import {
   completeColumns,
   completeRows,
   completeSets,
+  countOf,
   emptyLines,
   emptyWall,
   factoryCount,
@@ -35,11 +37,15 @@ import {
   lineCapacity,
   lineProblem,
   rowComplete,
+  sourceTiles,
+  takesMarker,
   tileScore,
   tilesText,
 } from './rules.js';
 
-export { MAX_PLAYERS, MIN_PLAYERS, factoryCount };
+export { MAX_PLAYERS, MIN_PLAYERS, factoryCount, takesMarker };
+// The seat vocabulary the server, the AIs and the tests import from here: it is the shared one (shared/seats.js).
+export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 export const DEFAULT_SETTINGS = { freeWall: false };
@@ -47,20 +53,22 @@ export { STAT_KEYS };
 export const BOT_NAMES = ['Isabel', 'Tomas', 'Beatriz', 'Duarte', 'Ines', 'Rui', 'Carmo', 'Vasco', 'Leonor', 'Nuno'];
 
 const LIVE = ['lobby', 'playing', 'tiling'];
-const fail = (error) => ({ ok: false, error });
-const ok = (extra = {}) => ({ ok: true, ...extra });
+/** Is this a plain object (not null, not an array)? Payloads from clients are checked with it. */
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isInt = Number.isInteger;
 
+/** Is the game still going (in the lobby, being played or being tiled)? Finished games are kept for less time. */
 export const isLive = (room) => LIVE.includes(room.phase);
-export const isHuman = (seat) => seat?.kind === 'human';
-export const isBot = (seat) => seat?.kind === 'bot';
-export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
-export const hasPlayer = (room, userId) => seatOf(room, userId) !== -1;
-export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [i] : []));
+/** The name to show for a seat in the log ("Someone" for an empty seat). */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
 
-/** In-place Fisher-Yates shuffle. */
+/**
+ * In-place Fisher-Yates shuffle.
+ *
+ * @param {any[]} items  the list to shuffle (mutated and returned)
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {any[]} the same list
+ */
 export function shuffle(items, rng = Math.random) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -69,7 +77,12 @@ export function shuffle(items, rng = Math.random) {
   return items;
 }
 
-/** A new bag: 20 tiles of each colour, in a random order. */
+/**
+ * A new bag: 20 tiles of each colour, in a random order.
+ *
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {number[]} the 100 colour numbers
+ */
 export function makeBag(rng = Math.random) {
   const tiles = [];
   for (const colour of COLOURS) for (let n = 0; n < PER_COLOUR; n++) tiles.push(colour);
@@ -78,6 +91,13 @@ export function makeBag(rng = Math.random) {
 
 // ---- creating a room ----
 
+/**
+ * Checks a settings message and merges it into the current settings.
+ *
+ * @param {any} input  what the client sent (anything; only a boolean `freeWall` is read)
+ * @param {{ freeWall: boolean }} [current]  the settings to start from
+ * @returns {{ ok: true, settings: object } | { ok: false, error: string }} a new settings object; `current` is not changed
+ */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (isObject(input) && input.freeWall !== undefined) {
@@ -87,6 +107,19 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
+/**
+ * Makes a new room in the lobby with the host in seat 0.
+ *
+ * @param {object} args
+ * @param {string} args.code  the invite code
+ * @param {number} args.hostId  the host's account id
+ * @param {string} args.hostName  the host's display name
+ * @param {number} [args.size]  seats at the table (one of SIZES)
+ * @param {object} [args.settings]  settings to validate (see normaliseSettings)
+ * @param {number} [args.now]  the creation time in milliseconds
+ * @returns {object} the room
+ * @throws {Error} if the size or the settings are invalid (the message is shown to the player)
+ */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
@@ -106,6 +139,12 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
   return room;
 }
 
+/**
+ * Puts every game-related field back to its starting value (an empty table, no scores, no log), keeping the seats.
+ * Side effects: mutates `room` (the lid, bag, boards, scores, tally...).
+ *
+ * @param {object} room
+ */
 function resetGame(room) {
   const n = room.size;
   Object.assign(room, {
@@ -135,6 +174,14 @@ function resetGame(room) {
   });
 }
 
+/**
+ * Adds a line to the game log (the newest 60 are kept).
+ * Side effects: mutates `room.log`.
+ *
+ * @param {object} room
+ * @param {number | null} seat  the seat the line is about, or null for the table as a whole
+ * @param {string} text
+ */
 const addLog = (room, seat, text) => {
   room.log.push({ seat, text });
   if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
@@ -142,58 +189,49 @@ const addLog = (room, seat, text) => {
 
 // ---- seats and settings ----
 
-const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
-
-/** A name nobody at the table has: "Ann", then "Ann (2)", "Ann (3)". */
-export function uniqueName(room, name) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  if (!used.has(name)) return name;
-  for (let n = 2; ; n++) if (!used.has(`${name} (${n})`)) return `${name} (${n})`;
-}
-
-export function addHuman(room, userId, name) {
-  if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-  if (room.phase !== 'lobby') return fail('That game has already started.');
-  const seat = firstEmpty(room);
-  if (seat === -1) return fail('That game is full.');
-  room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
-  return ok({ seat });
-}
-
-/** A new computer player. A replacement joining mid-game passes the rng and picks its AI now; lobby bots get one at the start. */
-function newBot(room, rng = null) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-  const base = BOT_NAMES.find((n) => !used.has(n)) ?? 'Computer';
-  let name = base;
-  for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-  const seat = { kind: 'bot', id: `bot:${room.nextBot++}`, name };
-  if (rng) seat.ai = pickAI(AIS, rng).id;
-  return seat;
-}
-
-/** The AI a computer seat plays with (rooms saved before AIs existed fall back to the first). */
+/**
+ * The AI a computer seat plays with (rooms saved before AIs existed fall back to the first).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @returns {object} an AI from ./ai/index.js
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /**
- * Removes a human. Before the game starts (or after it ends) the seat is freed; mid-game a computer player takes
- * it over. `empty` is true when no human is left, so the room should be discarded.
+ * The seat rules (join, leave, kick, computer players) are the shared ones. In Azulejo a person who leaves while the game
+ * is being played (or tiled) is replaced by a computer player that picks its AI straight away (lobby computer players get
+ * theirs when the game starts), and the log says so. Nothing else has to happen after somebody leaves.
  */
-export function removeHuman(room, userId, rng = Math.random) {
-  const seat = seatOf(room, userId);
-  if (seat === -1) return fail('You are not in this game.');
-  const midGame = room.phase === 'playing' || room.phase === 'tiling';
-  room.seats[seat] = midGame ? newBot(room, rng) : null;
-  if (midGame) addLog(room, seat, `${room.seats[seat].name} takes over from a player who left`);
-  const humans = humanSeats(room);
-  if (!humans.length) return ok({ empty: true, seat });
-  if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-  return ok({ empty: false, seat, replaced: midGame });
-}
+const seats = createSeatRules({
+  isMidGame: (room) => room.phase === 'playing' || room.phase === 'tiling',
+  botNames: BOT_NAMES,
+  /**
+   * Turns the shared computer player into the one that replaces a person who left.
+   * Side effects: mutates `room` (adds a log line); uses `rng` once to pick the AI.
+   *
+   * @param {object} room
+   * @param {object} bot  the new computer player from the shared newBot (not yet seated)
+   * @param {number} seat  the seat it will take
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {object} the seat object to store
+   */
+  takeOver: (room, bot, seat, rng) => {
+    addLog(room, seat, `${bot.name} takes over from a player who left`);
+    return { ...bot, ai: pickAI(AIS, rng).id };
+  },
+});
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
-const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
-const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
-
+/**
+ * The host changes the settings (lobby only).
+ * Side effects: mutates `room.settings`.
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @param {any} input  the settings message (see normaliseSettings)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -203,7 +241,15 @@ export function setSettings(room, userId, input) {
   return ok();
 }
 
-/** The host chooses how many seats there are (2-5). People and computer players are kept, in order. */
+/**
+ * The host chooses how many seats there are (2-5). People and computer players are kept, in order.
+ * Side effects: mutates `room` (the seats and the whole game state are reset).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host, in the lobby)
+ * @param {number} size  one of SIZES
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -216,49 +262,18 @@ export function setSize(room, userId, size) {
   return ok();
 }
 
-export function addBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  const index = seat === undefined ? firstEmpty(room) : seat;
-  if (index === -1) return fail('Every seat is taken.');
-  if (!isInt(index) || index < 0 || index >= room.size) return fail('There is no such seat.');
-  if (room.seats[index]) return fail('That seat is taken.');
-  room.seats[index] = newBot(room);
-  return ok({ seat: index });
-}
-
-/**
- * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
- * game a computer player takes it over (as when someone leaves). The result names the person so the server can send
- * them home.
- */
-export function kick(room, hostId, seat, rng = Math.random) {
-  const problem = asHost(room, hostId);
-  if (problem) return problem;
-  const target = isInt(seat) ? room.seats[seat] : null;
-  if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-  if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-  const removed = removeHuman(room, target.id, rng);
-  return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
-}
-
-export function removeBot(room, userId, seat) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!isInt(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
-  room.seats[seat] = null;
-  return ok();
-}
-
-export function fillWithBots(room, userId) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  for (let i = 0; i < room.size; i++) if (!room.seats[i]) room.seats[i] = newBot(room);
-  return ok();
-}
-
 // ---- starting ----
 
+/**
+ * The host starts the game: shuffles the bag, picks who goes first, deals the first round and gives each computer
+ * player its AI. Needs every seat filled and at least one person.
+ * Side effects: mutates `room` (phase, bag, factories, log, the computer seats' `ai`).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host, in the lobby)
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function start(room, userId, rng = Math.random) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -271,14 +286,22 @@ export function start(room, userId, rng = Math.random) {
   addLog(room, null, `The game begins. ${seatName(room, room.first)} goes first.`);
   startRound(room, rng);
   // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
-  const botSeats = room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
-  const picked = assignAIs(AIS, botSeats, rng);
-  for (const i of botSeats) room.seats[i].ai = picked[i];
+  const bots = botSeats(room);
+  const picked = assignAIs(AIS, bots, rng);
+  for (const i of bots) room.seats[i].ai = picked[i];
   return ok();
 }
 
-/** Draws one tile blindly; when the bag is empty the lid is shuffled into it. Undefined when both are empty. */
-function draw(room, rng) {
+/**
+ * Draws one tile blindly from the bag; when the bag is empty the lid is shuffled into it. (Named for the bag because a
+ * "draw" elsewhere in the platform, such as Rummikub's, is a public action.)
+ * Side effects: mutates `room.bag` and, when it refills, `room.lid`.
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {number | undefined} a colour, or undefined when both bag and lid are empty
+ */
+function drawFromBag(room, rng) {
   if (!room.bag.length && room.lid.length) {
     room.bag = shuffle(room.lid, rng);
     room.lid = [];
@@ -286,12 +309,20 @@ function draw(room, rng) {
   return room.bag.pop();
 }
 
+/**
+ * Starts a round: fills every factory display from the bag and makes the first player's turn. If there are no tiles at all
+ * (every one is on a board) the game ends instead.
+ * Side effects: mutates `room` (round, factories, centre, marker, turn, log; may finish the game).
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers in [0, 1) (for refilling the bag from the lid)
+ */
 function startRound(room, rng) {
   const factories = [];
   for (let f = 0; f < factoryCount(room.size); f++) {
     const tiles = [];
     for (let i = 0; i < FACTORY_TILES; i++) {
-      const tile = draw(room, rng);
+      const tile = drawFromBag(room, rng);
       if (tile !== undefined) tiles.push(tile);
     }
     factories.push(tiles);
@@ -309,15 +340,18 @@ function startRound(room, rng) {
 
 // ---- taking and placing ----
 
-const countOf = (tiles, colour) => tiles.reduce((n, c) => n + (c === colour ? 1 : 0), 0);
-const sourceTiles = (room, source) => (source === 'centre' ? room.centre : room.factories[source]);
+/** Is this a source a player may take from: the centre, or the index of a factory that exists? */
 const validSource = (room, source) => source === 'centre' || (isInt(source) && source >= 0 && source < room.factories.length);
+/** The name of a source for the log and for error messages. */
 const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${source + 1}`);
 
-/** True when the take from this source would also take the first-player marker. */
-export const takesMarker = (room, source) => source === 'centre' && room.markerInCentre;
-
-/** Every move the seat could make: { source, colour, line } with line 0..4 or 'floor'. */
+/**
+ * Every move the seat could make.
+ *
+ * @param {object} room  (not changed)
+ * @param {number} seat
+ * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' }[]} empty unless it is this seat's turn
+ */
 export function legalMoves(room, seat) {
   const moves = [];
   if (room.phase !== 'playing' || room.turn !== seat) return moves;
@@ -333,8 +367,22 @@ export function legalMoves(room, seat) {
   return moves;
 }
 
+/** Has every tile been taken from the factories and the centre? Then the round is over and the walls are tiled. */
 const roundOver = (room) => room.centre.length === 0 && room.factories.every((f) => f.length === 0);
 
+/**
+ * A player takes every tile of one colour from a factory display or the centre and puts them on a pattern line (or the
+ * floor). The rest of a factory slides into the centre; taking from the centre first also takes the first-player marker.
+ * Tiles that do not fit on the line fall to the floor, and past the floor's seventh slot go to the lid. When the last tile
+ * is taken, the walls are tiled (see startTiling); otherwise the turn passes clockwise.
+ * Side effects: mutates `room` (sources, lines, floor, lid, tally, log, turn; may start tiling and the next round).
+ *
+ * @param {object} room
+ * @param {number} seat  the seat taking
+ * @param {{ source: 'centre' | number, colour: number, line: number | 'floor' }} args  the move, from the client (checked here)
+ * @param {() => number} [rng]  random numbers in [0, 1) (used if the round ends and the bag has to be refilled)
+ * @returns {{ ok: boolean, error?: string }} an error never names hidden information
+ */
 export function takeTiles(room, seat, args, rng = Math.random) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
@@ -385,6 +433,14 @@ export function takeTiles(room, seat, args, rng = Math.random) {
 
 // ---- the wall-tiling phase ----
 
+/**
+ * Begins the wall-tiling phase after the last take of a round: every seat's full lines are tiled as far as they can be
+ * without a choice, then the phase finishes unless somebody has to pick a column (free wall).
+ * Side effects: mutates `room` (phase, turn, tiling and pending state, boards).
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers in [0, 1) (for the next round, if tiling finishes at once)
+ */
 function startTiling(room, rng) {
   room.phase = 'tiling';
   room.turn = null;
@@ -394,7 +450,15 @@ function startTiling(room, rng) {
   settleTiling(room, rng);
 }
 
-/** Puts the rightmost tile of a full line on the wall, scores it, and discards the rest of the line. */
+/**
+ * Puts the rightmost tile of a full line on the wall, scores it, and discards the rest of the line.
+ * Side effects: mutates `room` (the wall, the seat's tiling record, the lid, the pattern line).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {number} row  the pattern line (and wall row) being tiled
+ * @param {number} col  the wall column the tile goes in
+ */
 function placeOnWall(room, seat, row, col) {
   const { colour, count } = room.lines[seat][row];
   const wall = room.walls[seat];
@@ -408,7 +472,13 @@ function placeOnWall(room, seat, row, col) {
   room.lines[seat][row] = { colour: null, count: 0 };
 }
 
-/** Works down a player's pattern lines; stops at a line that needs the player to choose a column (free wall). */
+/**
+ * Works down a player's pattern lines from their cursor; stops at a line that needs the player to choose a column (free wall).
+ * Side effects: mutates `room` (boards, lid, the seat's tiling record, `room.pending[seat]` when a choice is needed).
+ *
+ * @param {object} room
+ * @param {number} seat
+ */
 function advanceTiling(room, seat) {
   const t = room.tiling[seat];
   const free = room.settings.freeWall;
@@ -432,7 +502,16 @@ function advanceTiling(room, seat) {
   }
 }
 
-/** A player picks the column for the tile their line has just completed (free wall only). */
+/**
+ * A player picks the column for the tile their line has just completed (free wall only), then tiling carries on.
+ * Side effects: mutates `room` (the wall, pending choices; may finish the round and start the next).
+ *
+ * @param {object} room
+ * @param {number} seat  the seat choosing
+ * @param {{ col: number }} args  from the client (checked here: it must be one of the highlighted columns)
+ * @param {() => number} [rng]  random numbers in [0, 1)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function chooseColumn(room, seat, args, rng = Math.random) {
   if (room.phase !== 'tiling') return fail('It is not time to place a tile on the wall.');
   const pending = room.pending[seat];
@@ -447,11 +526,27 @@ export function chooseColumn(room, seat, args, rng = Math.random) {
   return ok();
 }
 
+/**
+ * Finishes the tiling phase once nobody has a column left to choose; until then does nothing.
+ * Side effects: see finishTiling.
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers in [0, 1)
+ */
 function settleTiling(room, rng) {
   if (room.pending.some(Boolean)) return;
   finishTiling(room, rng);
 }
 
+/**
+ * Ends the tiling phase: applies each seat's floor penalty (the score never drops below 0), empties the floors into the
+ * lid, records the round in the history and log, then either ends the game (somebody completed a row) or starts the next
+ * round with the player who took the marker first.
+ * Side effects: mutates `room` (scores, tally, floors, lid, history, lastTiling, phase, log; may finish the game).
+ *
+ * @param {object} room
+ * @param {() => number} rng  random numbers in [0, 1) (for refilling the bag at the start of the next round)
+ */
 function finishTiling(room, rng) {
   const deltas = {};
   const notes = {};
@@ -466,10 +561,10 @@ function finishTiling(room, rng) {
     for (const slot of floor) if (slot !== MARKER) room.lid.push(slot);
     room.floors[seat] = [];
     room.scores[seat] = after;
-    room.tally[seat].floorPenalties += lost;
+    bump(room.tally[seat], 'floorPenalties', lost); // bump, not +=: a room saved before this counter existed has no key
     deltas[seat] = after - before;
     const parts = [];
-    if (penalty) parts.push(`floor -${lost}`);
+    if (lost) parts.push(`floor -${lost}`); // only when points were really lost: a score already at 0 loses nothing
     if (t.newRows) parts.push(t.newRows > 1 ? `${t.newRows} rows complete` : 'row complete');
     if (t.dropped.length) parts.push('no room on the wall for a full line');
     if (parts.length) notes[seat] = parts.join(', ');
@@ -492,6 +587,13 @@ function finishTiling(room, rng) {
 
 // ---- the end ----
 
+/**
+ * Ends the game: adds each wall's end-of-game bonuses (rows, columns, colour sets), ranks the players (score, then complete
+ * rows) and records the winners.
+ * Side effects: mutates `room` (scores, history, final, winners, phase, turn, log).
+ *
+ * @param {object} room
+ */
 function finishGame(room) {
   const deltas = {};
   const notes = {};
@@ -519,6 +621,15 @@ function finishGame(room) {
   addLog(room, null, `The game is over. ${room.winners.map((s) => rows[s].name).join(' and ')} ${room.winners.length > 1 ? 'share the win' : 'wins'}.`);
 }
 
+/**
+ * The host starts a new game with the same people: the table is reset, the computer players lose their AIs (a new game
+ * picks new ones) and the room goes back to the lobby.
+ * Side effects: mutates `room` (everything resetGame resets, the seats' `ai`, the phase).
+ *
+ * @param {object} room
+ * @param {number} userId  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
@@ -529,7 +640,12 @@ export function playAgain(room, userId) {
   return ok();
 }
 
-/** What the statistics should record for a finished game: one entry per human still seated. */
+/**
+ * What the statistics should record for a finished game: one entry per human still seated.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: 'win' | 'loss', placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
   return room.seats.flatMap((seat, i) =>
     isHuman(seat)
@@ -545,7 +661,7 @@ export function statsPlayers(room) {
               columnsCompleted: completeColumns(room.walls[i]),
               colourSetsCompleted: completeSets(room.walls[i]),
               bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
-              gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // every row done in the same round
+              gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // the whole wall filled: all five rows complete
               wallTiles: room.walls[i].flat().filter((tile) => tile !== null).length,
               roundsPlayed: room.playedRounds,
             },
@@ -557,7 +673,13 @@ export function statsPlayers(room) {
 
 // ---- what each player may see ----
 
-/** Every tile in every place, by colour: used by the tests (tile conservation) and nothing else. */
+/**
+ * The number of tiles in every place (bag, lid, factories, centre, lines, walls, floors; not the marker). Always 100 in a
+ * correct game: used by the tests (tile conservation) and nothing else.
+ *
+ * @param {object} room  (not changed)
+ * @returns {number}
+ */
 export function tileCount(room) {
   const lines = room.lines.flat().reduce((n, l) => n + l.count, 0);
   const walls = room.walls.flat(2).filter((c) => c !== null).length;
@@ -565,9 +687,17 @@ export function tileCount(room) {
   return room.bag.length + room.lid.length + room.factories.flat().length + room.centre.length + lines + walls + floors;
 }
 
+/** How many tiles of each colour are in the lid (shown to everyone; the lid's order is not). */
 const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
 
-/** Everything one account may know: the whole table (all of it is public) but never the bag's contents or order. */
+/**
+ * Everything one account may know: the whole table (all of it is public) but never the bag's contents or order.
+ *
+ * @param {object} room  (not changed)
+ * @param {number} userId  the account the view is for (may be a spectator: `you` is then -1)
+ * @param {{ online?: (id: number) => boolean }} [options]  says whether a person is connected, to show who is away
+ * @returns {object} plain data for the client
+ */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
   const started = room.phase === 'playing' || room.phase === 'tiling' || room.phase === 'finished';

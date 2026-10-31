@@ -4,8 +4,18 @@ import { situation } from '../bot.js';
 import { botsOnly } from '../kit.js';
 import { CARD_BY_ID } from '../cards.js';
 
-/** One computer turn for `seat`, by its own strategy: the move, then any tokens to give back and any noble to choose. */
+/**
+ * One computer turn for `seat`, by its own strategy: the move, then any tokens to give back and any noble to choose.
+ *
+ * Side effects: mutates `room` (plays the turn); throws if the strategy makes an illegal move.
+ *
+ * @param {object} room  a started room
+ * @param {number} seat  the seat whose turn (or pending choice) it is
+ * @param {object} ai    a strategy with chooseMove, chooseReturn and chooseNoble
+ * @param {() => number} rng
+ */
 function takeTurn(room, seat, ai, rng) {
+  /** Throws if a rule refused the strategy's choice. */
   const check = (result) => {
     if (!result.ok) throw new Error(`illegal move by ${ai.id}: ${result.error}`);
   };
@@ -30,6 +40,12 @@ function takeTurn(room, seat, ai, rng) {
  * Plays one game. `players` is the strategy for each seat, seat 0 going first. `rng` decides the players' choices and `dealRng`
  * the shuffle (they are the same unless a game is to be replayed on the same deal). Returns what happened:
  * { winners, rounds, endReason, seats: [{ prestige, cards, byLevel, nobles, reached }] }.
+ *
+ * @param {object[]} players  one strategy per seat
+ * @param {number} target     the prestige that ends the game (any number; the game itself only offers 10, 15 and 20)
+ * @param {() => number} rng
+ * @param {() => number} dealRng
+ * @returns {object} the summary described above
  */
 export function playGame(players, target, rng, dealRng = rng) {
   const room = botsOnly(players.length, dealRng, { target: 15 }); // the deal comes from dealRng, so that two games can share one
@@ -39,6 +55,7 @@ export function playGame(players, target, rng, dealRng = rng) {
   while (room.phase === 'playing') {
     const seat = room.pending?.seat ?? room.turn;
     takeTurn(room, seat, players[seat], rng);
+    // Note the round in which each seat first reaches the target.
     room.players.forEach((p, i) => {
       if (reached[i] === null && game.prestigeOf(p) >= target) reached[i] = room.round;
     });

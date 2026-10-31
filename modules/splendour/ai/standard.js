@@ -3,7 +3,13 @@
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import { GOLD, boardCards, me, opponents, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 
-/** How much a card is worth having: points, a discount, and progress towards a noble. */
+/**
+ * How much a card is worth having: points, a discount, and progress towards a noble.
+ *
+ * @param {object} s     the situation
+ * @param {object} card  a card object
+ * @returns {number}
+ */
 function cardValue(s, card) {
   const bonuses = me(s).bonuses;
   let value = card.points * 3 + 1;
@@ -17,8 +23,16 @@ function cardValue(s, card) {
   return value;
 }
 
+/** Could any opponent buy this card right now? */
 const threatened = (s, card) => opponents(s).some((p) => payment(p, card));
 
+/**
+ * Ranks every card the player could aim for and works out which gems they should collect.
+ *
+ * @param {object} s  the situation
+ * @returns {{ list: object[], best: object, wants: number[] }} the targets best first, the top one, and how many gems of
+ *   each colour are wanted
+ */
 function plan(s) {
   const list = targetsOf(s)
     .map((t) => ({ ...t, score: cardValue(s, t.card) / (t.short + 1) ** 1.3 }))
@@ -28,8 +42,17 @@ function plan(s) {
   return { list, best: list[0], wants };
 }
 
+/**
+ * Scores one legal move (higher is better); no randomness.
+ *
+ * @param {object} s     the situation
+ * @param {object} move  one of s.moves
+ * @param {object} p     from plan()
+ * @returns {number}
+ */
 function scoreMove(s, move, p) {
   const player = me(s);
+  /** The penalty for ending the turn over the token limit after gaining this many tokens. */
   const overflow = (gain) => overflowOf(s, gain);
   const wants = p.wants;
   if (move.type === 'buy') {
@@ -56,7 +79,12 @@ function scoreMove(s, move, p) {
   return -100;
 }
 
-/** Every legal move with its score (no randomness), for the AIs that build on this one. */
+/**
+ * Every legal move with its score (no randomness), for the AIs that build on this one.
+ *
+ * @param {object} s  the situation
+ * @returns {{ move: object, score: number }[]}
+ */
 export function scoreMoves(s) {
   const p = plan(s);
   return s.moves.map((move) => ({ move, score: scoreMove(s, move, p) }));
@@ -67,15 +95,33 @@ export default {
   name: 'Standard',
   description: 'A sensible all-rounder: buys good cards, collects the gems it needs and reserves what it is about to afford.',
   weight: 3,
+  /**
+   * Chooses the best-scoring move, with a little randomness to break ties.
+   *
+   * @param {object} s  the situation (see lib.js)
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {object} one of s.moves, or { type: 'pass' } when there are none
+   */
   chooseMove(s, rng) {
     if (!s.moves.length) return { type: 'pass' };
     const p = plan(s);
     return pickBest(s.moves, (move) => scoreMove(s, move, p), rng);
   },
-  /** Which tokens to give back: surplus colours first, the colours the best cards need next, Gold last. */
+  /**
+   * Which tokens to give back: surplus colours first, the colours the best cards need next, Gold last.
+   *
+   * @param {object} s  the situation (uses returnCount)
+   * @returns {number[]} six counts summing to s.returnCount
+   */
   chooseReturn(s) {
     return returnByNeeds(s, peakNeeds(plan(s).list.slice(0, 3)));
   },
+  /**
+   * Which noble to take when several visit at once: simply the first offered.
+   *
+   * @param {object} s  the situation (uses options)
+   * @returns {string} a noble id from s.options
+   */
   chooseNoble(s) {
     return s.options[0];
   },

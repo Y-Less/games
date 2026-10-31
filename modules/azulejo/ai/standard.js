@@ -4,7 +4,16 @@
 import { SIZE, columnsFor, isDeadCell, lineCapacity, rowComplete, tileScore } from '../rules.js';
 import { copyWall, takeOf, tilesLeft } from './common.js';
 
-/** How good it is to put a tile of this colour at (row, col) of this wall. Higher is better. */
+/**
+ * How good it is to put a tile of this colour at (row, col) of this wall. Higher is better.
+ *
+ * @param {(number | null)[][]} wall  the wall (not changed)
+ * @param {number} row     where the tile goes
+ * @param {number} col
+ * @param {number} colour  the tile's colour
+ * @param {boolean} free   true on a free wall (then places the tile would kill are penalised)
+ * @returns {number}
+ */
 export function columnValue(wall, row, col, colour, free) {
   const next = copyWall(wall);
   next[row][col] = colour;
@@ -22,8 +31,17 @@ export function columnValue(wall, row, col, colour, free) {
   return value;
 }
 
-/** The best column for a tile of this colour in this row, or null when there is none. */
-export function bestColumn(wall, row, colour, free, rng = Math.random) {
+/**
+ * The best column for a tile of this colour in this row.
+ *
+ * @param {(number | null)[][]} wall  the wall (not changed)
+ * @param {number} row
+ * @param {number} colour
+ * @param {boolean} free  true on a free wall
+ * @param {() => number} rng  random numbers in [0, 1) (required: AIs never use Math.random)
+ * @returns {{ col: number, value: number } | null} null when there is none
+ */
+export function bestColumn(wall, row, colour, free, rng) {
   let best = null;
   for (const col of columnsFor(wall, row, colour, free)) {
     const value = columnValue(wall, row, col, colour, free) + rng() * 0.2;
@@ -32,8 +50,16 @@ export function bestColumn(wall, row, colour, free, rng = Math.random) {
   return best;
 }
 
-/** The value of one legal move for a seat. */
-export function moveValue(state, seat, move, rng = Math.random) {
+/**
+ * The value of one legal move for a seat.
+ *
+ * @param {object} state  the AI snapshot
+ * @param {number} seat   the seat moving
+ * @param {{ source: 'centre' | number, colour: number, line: number | 'floor' }} move
+ * @param {() => number} rng  random numbers in [0, 1) (required: AIs never use Math.random)
+ * @returns {number} higher is better
+ */
+export function moveValue(state, seat, move, rng) {
   const { source, colour, line } = move;
   const free = state.settings.freeWall;
   const { count, marker, preview } = takeOf(state, seat, move);
@@ -67,6 +93,15 @@ export default {
   name: 'Standard',
   description: 'The classic computer player: scores each move by the wall points it will earn, the floor it risks and the tiles it keeps from opponents.',
   weight: 4,
+  /**
+   * The legal move with the highest moveValue.
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat moving
+   * @param {object[]} moves  the legal moves
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   */
   chooseMove(state, seat, moves, rng) {
     let best = null;
     for (const move of moves) {
@@ -75,6 +110,15 @@ export default {
     }
     return best ? { source: best.source, colour: best.colour, line: best.line } : null;
   },
+  /**
+   * The offered column with the highest columnValue (counted as on a free wall, which is the only time there is a choice).
+   *
+   * @param {object} state  the AI snapshot
+   * @param {number} seat   the seat choosing
+   * @param {{ row: number, colour: number, columns: number[] }} pending
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {number} the chosen column
+   */
   chooseColumn(state, seat, pending, rng) {
     const options = pending.columns.map((col) => ({ col, value: columnValue(state.walls[seat], pending.row, col, pending.colour, true) + rng() * 0.2 }));
     return options.reduce((best, o) => (o.value > best.value ? o : best)).col;

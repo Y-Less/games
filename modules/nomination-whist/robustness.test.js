@@ -3,10 +3,9 @@
 // structured failure or a harmless success, keep the game state valid, never leak cards and finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertNoPollution, cardsIn, fuzzEvent, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { assertNoPollution, cardsIn, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 import { LENGTHS, MIN_SEATS, MAX_SEATS } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -34,9 +33,7 @@ const EVENTS = {
 };
 
 test('this test knows every socket event the server handles', () => {
-  const source = fs.readFileSync(path.join(here, 'server.js'), 'utf8');
-  const handled = [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
-  assert.deepEqual(handled, Object.keys(EVENTS).sort());
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
 });
 
 /** Everything a client is shown must make sense, whatever has been thrown at the server. */

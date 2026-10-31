@@ -9,7 +9,7 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
-import { COLOUR_NAMES, COLOURS, floorPenalty, lineProblem, previewTake } from '../rules.js';
+import { COLOUR_NAMES, COLOURS, floorPenaltyAfter, lineProblem, previewTake } from '../rules.js';
 import Board from './Board.vue';
 import { boardCell, plateLayout } from './layout.js';
 import Tile from './Tile.vue';
@@ -57,7 +57,7 @@ function describe(line) {
   }
   if (takesMarker.value) parts.push('you also take the first-player marker');
   const cost = preview.extraPenalty;
-  parts.push(cost ? `the floor will cost you ${cost} more (${floorPenalty({ length: Math.min(7, me.value.floor.length + preview.onFloor + (preview.markerOnFloor ? 1 : 0)) })} in all)` : 'no new floor penalty');
+  parts.push(cost ? `the floor will cost you ${cost} more (${floorPenaltyAfter(me.value.floor.length, preview)} in all)` : 'no new floor penalty');
   return `${parts.join('; ')}.`;
 }
 
