@@ -1,17 +1,9 @@
 // A test bench for the Hearts AIs: plays whole games of computers against computers with chosen AIs in each seat.
 // Used by ai.test.js; handy from a script too.
 import * as g from './game.js';
+import { seeded } from '../../shared/random.js';
 
-export function seeded(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { seeded };
 
 /**
  * Plays one whole game. `ais` is the AI id for each seat (3 to 7 of them, 4 by default in versus). Every move is checked for legality by the rules

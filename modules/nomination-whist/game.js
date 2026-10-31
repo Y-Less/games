@@ -6,6 +6,8 @@
 // name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
 import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
 import { placements } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
+import { nextSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { AIS } from './ai/index.js';
 import { contextModel, lutv } from './ai/lut.js';
 import { handModel } from './sim/hand-model.js';
@@ -277,16 +279,24 @@ export function nominate(room, seat, number) {
   room.nominations[seat] = number;
   if (seat === room.dealer) {
     room.phase = 'playing';
-    room.turn = (room.dealer + 1) % room.seats.length;
+    room.turn = nextSeat(room.dealer, room.seats.length);
   } else {
-    room.turn = (seat + 1) % room.seats.length;
+    room.turn = nextSeat(seat, room.seats.length);
   }
   return ok();
 }
 
 // ---- playing ----
 
-/** Why this card cannot be played now, or null when it can. */
+/**
+ * Why this card cannot be played now, or null when it can: it must be in the hand, follow the suit led when it can, and a Joker
+ * only goes down when the player cannot follow (see trick.js).
+ *
+ * @param {object} room  not changed
+ * @param {number} seat
+ * @param {string} card
+ * @returns {string | null} the reason, or null when the card is legal
+ */
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return 'That card is not in your hand.';
@@ -298,6 +308,15 @@ export function illegalReason(room, seat, card) {
 
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
 
+/**
+ * Plays a card to the trick, if the seat may.
+ * Side effects: takes the card from the hand, adds it to the trick and the played pile, and moves the turn on (to nobody once the trick is full).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {string} card
+ * @returns {{ ok: boolean, error?: string, complete?: boolean }} `complete` says the trick is now full
+ */
 export function playCard(room, seat, card) {
   if (room.phase !== 'playing') return fail('The cards are not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
@@ -308,11 +327,17 @@ export function playCard(room, seat, card) {
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
   room.played.push(card);
-  room.turn = room.trick.length === n ? null : (seat + 1) % n;
+  room.turn = turnAfterPlay(seat, room.trick.length, n);
   return ok({ complete: room.trick.length === n });
 }
 
-/** The seat winning a (possibly unfinished) trick: see trick.js for the rules, including the Jokers. */
+/**
+ * The seat winning a (possibly unfinished) trick: see trick.js for the rules, including the Jokers.
+ *
+ * @param {{ seat: number, card: string }[]} trick  in the order played; not empty
+ * @param {string | null} trump  the round's trump suit, or null for none
+ * @returns {number} the seat
+ */
 export function trickWinner(trick, trump) {
   const best = winningCard(trick.map((p) => p.card), trump);
   return trick.find((p) => p.card === best).seat;
@@ -427,7 +452,13 @@ export function playAgain(room, userId) {
   return ok();
 }
 
-/** What the statistics should record for a finished game: one entry per human still seated. */
+/**
+ * What the statistics should record for a finished game: one entry per human still seated. An instant winner is placed first
+ * whatever the totals.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
   const place = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])));
   if (room.instantWin !== null && room.instantWin !== undefined) {
@@ -436,19 +467,12 @@ export function statsPlayers(room) {
     for (const seat of Object.keys(others)) place[seat] = others[seat] + 1;
     place[room.instantWin] = 1;
   }
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: place[i],
-            score: room.scores[i],
-            extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: place[i],
+    score: room.scores[i],
+    extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
+  }));
 }
 
 // ---- computer players ----
@@ -570,9 +594,87 @@ export function roundsView(room) {
   }));
 }
 
+/**
+ * An AI as the table shows it: its id and name.
+ *
+ * @param {{ id: string, name: string }} ai
+ * @returns {{ id: string, name: string }}
+ */
 const aiSummary = ({ id, name }) => ({ id, name });
 
-/** Everything one account may know: its own hand and the public table, never anybody else's cards. */
+/**
+ * One occupied seat as the table shows it to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  return {
+    seat: i,
+    name: seat.name,
+    userId: isHuman(seat) ? seat.id : undefined,
+    bot: isBot(seat),
+    ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
+    away: seat.kind === 'gone' || (isHuman(seat) && !online(seat.id)),
+    cards: room.hands[i].length,
+    bid: room.nominations[i],
+    tricks: room.taken[i],
+    score: room.scores[i],
+    ready: room.phase === 'roundEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
+  };
+}
+
+/**
+ * The round being played: its number, size, trump and dealer.
+ *
+ * @param {object} room  not changed
+ * @returns {object}
+ */
+function roundView(room) {
+  const round = room.roundIndex;
+  return {
+    number: round + 1,
+    total: roundCount(room.settings),
+    cards: handSize(room.settings, round),
+    trump: trumpOf(round),
+    dealer: room.dealer,
+    label: roundLabel(room.settings, round),
+  };
+}
+
+/**
+ * The viewer's hand, the trick in progress and what they may play: what a viewer may see once the game has started.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me) {
+  const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
+  return {
+    round: roundView(room),
+    hand: room.hands[me] ?? [],
+    trick: room.trick,
+    trickWinner: room.trick.length === room.seats.length ? trickWinner(room.trick, trumpOf(room.roundIndex)) : null,
+    lastTrick: room.lastTrick,
+    turn: room.turn,
+    forbidden: forbiddenNow(room),
+    suggestion: suggestedNomination(room, me),
+    legal: canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null,
+  };
+}
+
+/**
+ * Everything one account may know: its own hand and the public table, never anybody else's cards.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the account looking (it may be a spectator with no seat)
+ * @param {{ online?: (id: number) => boolean }} [options]  says who is connected, so the view can show who is away
+ * @returns {object} the view sent to that person
+ */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
   const view = {
@@ -581,47 +683,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     settings: room.settings,
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            userId: isHuman(seat) ? seat.id : undefined,
-            bot: isBot(seat),
-            ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
-            away: seat.kind === 'gone' || (isHuman(seat) && !online(seat.id)),
-            cards: room.hands[i].length,
-            bid: room.nominations[i],
-            tricks: room.taken[i],
-            score: room.scores[i],
-            ready: room.phase === 'roundEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
-          }
-        : null,
-    ),
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     rounds: roundsView(room),
     winners: room.winners,
     instantWin: room.instantWin ?? null,
     limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
-  if (room.phase !== 'lobby') {
-    const round = room.roundIndex;
-    view.round = {
-      number: round + 1,
-      total: roundCount(room.settings),
-      cards: handSize(room.settings, round),
-      trump: trumpOf(round),
-      dealer: room.dealer,
-      label: roundLabel(room.settings, round),
-    };
-    view.hand = room.hands[me] ?? [];
-    view.trick = room.trick;
-    view.trickWinner = room.trick.length === room.seats.length ? trickWinner(room.trick, trumpOf(round)) : null;
-    view.lastTrick = room.lastTrick;
-    view.turn = room.turn;
-    view.forbidden = forbiddenNow(room);
-    view.suggestion = suggestedNomination(room, me);
-    const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
-    view.legal = canPlay ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
-  }
+  if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
   return view;
 }

@@ -1,6 +1,7 @@
 // Helpers for the AI tests: play a whole game of computer players, and run a seeded tournament. Not used by the game.
 import * as game from './game.js';
 import * as bot from './bot.js';
+import { roundRobin } from '../../shared/arena.js';
 import { seeded } from '../../shared/testkit.js';
 
 /**
@@ -26,24 +27,18 @@ export function playBotGame(ais, { seed = 1, badPrivate = false, onStep = null, 
 
 /**
  * A seeded round-robin: every game seats the given AIs at one table, rotating who sits where, and tallies each AI's mean
- * score and win share (a shared win counts as a fraction). Returns { [id]: { games, mean, wins, winRate } }.
+ * score and win share (a shared win counts as a fraction). Every fourth game uses the unlucky private objectives.
+ * Returns { [id]: { games, mean, wins, winRate } }.
+ *
+ * @param {string[]} ais  AI ids, one per seat
+ * @param {{ games?: number, seed?: number }} [options]
+ * @returns {object} the tally
  */
 export function tournament(ais, { games = 100, seed = 1 } = {}) {
-  const tally = Object.fromEntries([...new Set(ais)].map((id) => [id, { games: 0, total: 0, wins: 0 }]));
-  for (let g = 0; g < games; g++) {
-    const shift = g % ais.length;
-    const table = ais.map((_, i) => ais[(i + shift) % ais.length]);
-    const { room } = playBotGame(table, { seed: seed * 100000 + g, badPrivate: g % 4 === 3 });
-    table.forEach((id, seat) => {
-      const t = tally[id];
-      t.games++;
-      t.total += room.final.players[seat].total;
-      if (room.winners.includes(seat)) t.wins += 1 / room.winners.length;
-    });
-  }
-  for (const t of Object.values(tally)) {
-    t.mean = t.total / t.games;
-    t.winRate = t.wins / t.games;
-  }
-  return tally;
+  return roundRobin(ais, {
+    games,
+    seed,
+    play: (table, gameSeed, g) => playBotGame(table, { seed: gameSeed, badPrivate: g % 4 === 3 }).room,
+    totalOf: (room, seat) => room.final.players[seat].total,
+  });
 }

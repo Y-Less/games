@@ -9,12 +9,13 @@
 //
 // Seats 0..n-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
 // ({ kind: 'bot', id: 'bot:<n>', name, ai }) or null (empty, lobby only).
-import { placements } from '../../shared/scores.js';
+import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
-import { extrasOf } from '../../shared/tally.js';
+import { extrasOf, statsRows } from '../../shared/tally.js';
+import { nextSeat as seatAfter } from '../../shared/tricks.js';
 import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyHand, tallyLieStood, tallyPlay } from './tally.js';
 
 export const MIN_SEATS = 3;
@@ -42,8 +43,14 @@ export const decksFor = (seats) => (seats >= 6 ? 2 : 1);
 export const deckFor = (seats) => Array.from({ length: decksFor(seats) }, () => fullDeck()).flat();
 /** The message for a table size that is not allowed. */
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
-/** The seat after this one, clockwise (wrapping round the table). */
-const nextSeat = (room, seat) => (seat + 1) % room.seats.length;
+/**
+ * The seat after this one, clockwise (wrapping round the table).
+ *
+ * @param {object} room  not changed
+ * @param {number} seat
+ * @returns {number}
+ */
+const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
 
 /**
  * Makes a new room in the lobby with the host in seat 0 and the other seats empty.
@@ -323,11 +330,12 @@ export function playAgain(room, userId) {
 export function statsPlayers(room) {
   const left = room.cardsLeft ?? room.hands.map((hand) => hand.length);
   const places = placements(Object.fromEntries(left.map((count, seat) => [seat, count])), { lowIsBetter: true });
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [{ userId: seat.id, outcome: room.winner === i ? 'win' : 'loss', placement: places[i], score: left[i], extras: { ...extrasOf(room.tally[i], STAT_KEYS), honestWins: room.winner === i && !room.tally[i].liesTold ? 1 : 0 } }]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winner === i ? 'win' : 'loss',
+    placement: places[i],
+    score: left[i],
+    extras: { ...extrasOf(room.tally[i], STAT_KEYS), honestWins: room.winner === i && !room.tally[i].liesTold ? 1 : 0 },
+  }));
 }
 
 // ---- computer players ----
@@ -455,6 +463,64 @@ export function runPending(room, rng) {
 // ---- what each player may see ----
 
 /**
+ * One occupied seat as the table shows it to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  const started = room.phase !== 'lobby';
+  return {
+    seat: i,
+    name: seat.name,
+    bot: isBot(seat),
+    ...(isBot(seat) && started ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
+    online: isBot(seat) || online(seat.id),
+    cards: room.hands[i].length,
+    ...(started ? { stats: extrasOf(room.tally[i], PUBLIC_KEYS) } : {}),
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): cards left are the score, so fewer is better, and there are no rounds.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const player = (seat, i) => seatScoreboardEntry(seat, i, { score: room.hands[i].length, me, current: room.phase === 'playing' && room.turn === i, online });
+  return { players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])), rounds: [], lowIsBetter: true };
+}
+
+/**
+ * The viewer's hand, the pile (only its size) and the last play and call: what a viewer may see once the game has started.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me) {
+  const live = ['playing', 'check'].includes(room.phase);
+  return {
+    hand: me === -1 ? [] : [...room.hands[me]],
+    pile: room.pile.length,
+    turn: room.turn,
+    plays: room.plays,
+    rank: live ? rankFor(room.plays) : null,
+    last: room.last ? { seat: room.last.seat, count: room.last.count, rank: room.last.rank } : null,
+    lastCall: room.lastCall ? { ...room.lastCall, cards: [...room.lastCall.cards] } : null,
+    canPlay: room.phase === 'playing' && room.turn === me && me !== -1,
+    canCall: live && Boolean(room.last) && me !== -1 && room.last.seat !== me,
+    mustRespond: room.phase === 'check' && Boolean(room.last) && me !== -1 && room.last.seat !== me && !room.decided.includes(me),
+  };
+}
+
+/**
  * Everything one account may know: its own hand and the table as everybody sees it, never anybody else's cards.
  *
  * @param {object} room
@@ -464,8 +530,6 @@ export function runPending(room, rng) {
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const live = ['playing', 'check'].includes(room.phase);
-  const started = room.phase !== 'lobby';
   const view = {
     code: room.code,
     phase: room.phase,
@@ -473,40 +537,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     hostSeat: seatOf(room, room.hostId),
     seatCount: room.seats.length,
     decks: decksFor(room.seats.length),
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            bot: isBot(seat),
-            ...(isBot(seat) && started ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
-            online: isBot(seat) || online(seat.id),
-            cards: room.hands[i].length,
-            ...(started ? { stats: extrasOf(room.tally[i], PUBLIC_KEYS) } : {}),
-          }
-        : null,
-    ),
-    scoreboard: {
-      // Cards left are the score: fewer is better.
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: room.hands[i].length, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [])),
-      rounds: [],
-      lowIsBetter: true,
-    },
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
+    scoreboard: scoreboardView(room, me, online),
     winner: room.winner,
     limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS, maxPlay: MAX_PLAY },
   };
-  if (started) {
-    view.hand = me === -1 ? [] : [...room.hands[me]];
-    view.pile = room.pile.length;
-    view.turn = room.turn;
-    view.plays = room.plays;
-    view.rank = live ? rankFor(room.plays) : null;
-    view.last = room.last ? { seat: room.last.seat, count: room.last.count, rank: room.last.rank } : null;
-    view.lastCall = room.lastCall ? { ...room.lastCall, cards: [...room.lastCall.cards] } : null;
-    view.canPlay = room.phase === 'playing' && room.turn === me && me !== -1;
-    view.canCall = live && Boolean(room.last) && me !== -1 && room.last.seat !== me;
-    view.mustRespond = room.phase === 'check' && Boolean(room.last) && me !== -1 && room.last.seat !== me && !room.decided.includes(me);
-  }
+  if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
   return view;
 }
 

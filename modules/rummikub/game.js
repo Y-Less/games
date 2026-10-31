@@ -11,7 +11,7 @@
 // is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty). The round ends when someone empties
 // their rack, or when the pool is empty and everyone has passed in a row. A game is `settings.rounds` rounds.
 import { assignAIs, describeAI, pickAI, aiById } from '../../shared/ai.js';
-import { placements, winnersOf } from '../../shared/scores.js';
+import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
 import {
   DEFAULT_SETTINGS,
@@ -27,7 +27,8 @@ import {
   tileName,
   totalTiles,
 } from './rules.js';
-import { bump, extrasOf } from '../../shared/tally.js';
+import { addMove, recentMoves } from '../../shared/moveLog.js';
+import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
 
@@ -140,10 +141,7 @@ function resetGame(room) {
  * @param {number | null} seat  the seat the line is about, or null for the table as a whole
  * @param {string} text
  */
-const addLog = (room, seat, text) => {
-  room.log.push({ seat, text });
-  if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
-};
+const addLog = (room, seat, text) => addMove(room, { seat, text });
 
 // ---- seats and settings ----
 
@@ -540,22 +538,12 @@ export function playAgain(room, userId) {
  * @returns {object[]} entries for ctx.stats.record
  */
 export function statsPlayers(room) {
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: room.final.players[i].placement,
-            score: room.scores[i],
-            extras: {
-              ...extrasOf(room.tally[i], STAT_KEYS),
-              roundsPlayed: room.round,
-            },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: room.final.players[i].placement,
+    score: room.scores[i],
+    extras: { ...extrasOf(room.tally[i], STAT_KEYS), roundsPlayed: room.round },
+  }));
 }
 
 // ---- what each player may see ----
@@ -574,6 +562,81 @@ export function allTiles(room) {
 export const tileCount = (room) => allTiles(room).length;
 
 /**
+ * Has a round been dealt in this phase (so that racks and scores mean something)?
+ *
+ * @param {object} room  not changed
+ * @returns {boolean}
+ */
+const hasStarted = (room) => room.phase === 'playing' || room.phase === 'between' || room.phase === 'finished';
+
+/**
+ * One occupied seat as the table shows it to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  const started = hasStarted(room);
+  return {
+    seat: i,
+    name: seat.name,
+    bot: isBot(seat),
+    ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAI(aiById(AIS, seat.ai)) } : {}),
+    online: isBot(seat) || online(seat.id),
+    score: started ? room.scores[i] : 0,
+    count: started ? room.racks[i].length : 0,
+    melded: started ? room.melded[i] : false,
+    ready: room.phase === 'between' && room.ready.includes(i),
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the players and the rounds scored so far.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const started = hasStarted(room);
+  const player = (seat, i) => seatScoreboardEntry(seat, i, { score: started ? room.scores[i] : 0, me, current: room.phase === 'playing' && room.turn === i, online });
+  return {
+    players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
+    rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+  };
+}
+
+/**
+ * The table, the counts and the viewer's own rack: what a viewer may see once a round has been dealt.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {number} [now]  the clock, in milliseconds (for the time left on the turn timer)
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me, now) {
+  return {
+    round: room.round,
+    first: room.first,
+    turn: room.turn,
+    version: room.moves,
+    table: room.table,
+    poolCount: room.pool.length,
+    rack: me === -1 ? [] : room.racks[me],
+    drawn: me === -1 ? null : room.drawn?.[me] ?? null,
+    lastPlay: room.lastPlay,
+    remaining: room.deadline === null || room.phase !== 'playing' ? null : Math.max(0, room.deadline - now),
+    lastRound: room.lastRound,
+    final: room.phase === 'finished' ? room.final : null,
+  };
+}
+
+/**
  * Everything one account may know: the table, the counts, its own rack - never the pool's order or another rack.
  *
  * @param {object} room  not changed
@@ -585,8 +648,6 @@ export const tileCount = (room) => allTiles(room).length;
  */
 export function viewFor(room, userId, { online = () => true, now } = {}) {
   const me = seatOf(room, userId);
-  const started = room.phase === 'playing' || room.phase === 'between' || room.phase === 'finished';
-  const finished = room.phase === 'finished';
   const view = {
     code: room.code,
     phase: room.phase,
@@ -594,45 +655,14 @@ export function viewFor(room, userId, { online = () => true, now } = {}) {
     hostSeat: seatOf(room, room.hostId),
     size: room.size,
     settings: room.settings,
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            bot: isBot(seat),
-            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAI(aiById(AIS, seat.ai)) } : {}),
-            online: isBot(seat) || online(seat.id),
-            score: started ? room.scores[i] : 0,
-            count: started ? room.racks[i].length : 0,
-            melded: started ? room.melded[i] : false,
-            ready: room.phase === 'between' && room.ready.includes(i),
-          }
-        : null,
-    ),
-    scoreboard: {
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: started ? room.scores[i] : 0, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [])),
-      rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-    },
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
+    scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     limits: { sizes: SIZES, ...LIMITS },
     deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, room.size), jokerValue: JOKER_VALUE },
-    log: room.log.slice(-14),
+    log: recentMoves(room, 14),
   };
-  if (started) {
-    view.round = room.round;
-    view.first = room.first;
-    view.turn = room.turn;
-    view.version = room.moves;
-    view.table = room.table;
-    view.poolCount = room.pool.length;
-    view.rack = me === -1 ? [] : room.racks[me];
-    view.drawn = me === -1 ? null : room.drawn?.[me] ?? null;
-    view.lastPlay = room.lastPlay;
-    view.remaining = room.deadline === null || room.phase !== 'playing' ? null : Math.max(0, room.deadline - now);
-    view.lastRound = room.lastRound;
-    view.final = finished ? room.final : null;
-  }
+  if (hasStarted(room)) Object.assign(view, playView(room, me, now));
   return view;
 }
 

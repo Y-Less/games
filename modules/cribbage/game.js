@@ -10,9 +10,10 @@
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { placements } from '../../shared/scores.js';
+import { addMove, recentMoves } from '../../shared/moveLog.js';
+import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, asHost } from '../../shared/seats.js';
-import { bump, extrasOf } from '../../shared/tally.js';
+import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { HEELS_POINTS, pipValue, scoreHand, scorePlay } from './scoring.js';
 import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
 
@@ -270,8 +271,7 @@ export function setSettings(room, userId, { target, seats: count } = {}) {
  * @param {number} [points]  points scored by it (0 for none)
  */
 function log(room, seat, text, points = 0) {
-  room.log.push({ seat, text, points });
-  if (room.log.length > LOG_LIMIT) room.log.splice(0, room.log.length - LOG_LIMIT);
+  addMove(room, { seat, text, points }, LOG_LIMIT);
 }
 
 /**
@@ -747,8 +747,81 @@ export function botMove(room, rng) {
  */
 const seatPlacements = (room) => Object.values(placements(Object.fromEntries(room.seats.map((s, i) => [i, s.score]))));
 
-/** The only things about an AI a player may be shown. */
+/**
+ * The only things about an AI a player may be shown.
+ *
+ * @param {{ id: string, name: string }} ai
+ * @returns {{ id: string, name: string }}
+ */
 const aiSummary = ({ id, name }) => ({ id, name });
+
+/**
+ * One occupied seat as the table shows it to everybody (hands stay hidden, so only how many cards).
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const s = room.seats[i];
+  const live = room.phase === 'discard' || room.phase === 'play';
+  return {
+    seat: i,
+    name: s.name,
+    bot: isBot(s),
+    replaced: Boolean(s.replaced),
+    ai: isBot(s) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
+    host: isHuman(s) && s.id === room.hostId,
+    online: isBot(s) || (isHuman(s) && online(s.id)),
+    left: s.kind === 'gone',
+    score: s.score,
+    back: s.back,
+    cards: live ? room.hands[i].length : 0,
+    discarded: room.phase === 'discard' ? s.discarded : false,
+    ready: room.phase === 'show' ? !isHuman(s) || s.ready : false,
+  };
+}
+
+/**
+ * The viewer's hand and the cards on the table: the crib and deck sizes (never their contents), the starter, the play so far
+ * and the scoring being shown.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} `hand`, `need`, `cribCount`, `deckCount`, `starter`, `play` and `show`
+ */
+function handView(room, me) {
+  const live = room.phase === 'discard' || room.phase === 'play';
+  const p = room.play;
+  return {
+    hand: live && me !== -1 ? room.hands[me] : [],
+    need: room.phase === 'discard' && me !== -1 && !room.seats[me].discarded ? dealRules(room.seats.length, me === room.dealer).discards : 0,
+    cribCount: live || room.phase === 'show' ? room.crib.length : 0,
+    deckCount: live ? room.deck.length : 0,
+    starter: room.starter,
+    play: p ? { count: p.count, sequence: p.sequence, previous: p.previous, turn: p.turn, playable: p.turn === me ? playableCards(room, me) : [] } : null,
+    show: room.show,
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the players, the deals scored so far and the target.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const player = (s, i) => seatScoreboardEntry(s, i, { score: s.score, me, current: room.phase === 'play' && room.play?.turn === i, online });
+  return {
+    players: room.seats.flatMap((s, i) => (s ? [player(s, i)] : [])),
+    rounds: room.history,
+    lowIsBetter: false,
+    target: room.target,
+  };
+}
 
 /**
  * What one person may see. Other players' hands and discards stay hidden until the show. In the lobby an empty seat is
@@ -761,8 +834,6 @@ const aiSummary = ({ id, name }) => ({ id, name });
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const live = room.phase === 'discard' || room.phase === 'play';
-  const p = room.play;
   return {
     code: room.code,
     phase: room.phase,
@@ -774,41 +845,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     dealer: room.phase === 'lobby' ? null : room.dealer,
     limits: { targets: TARGETS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
     skunkLine: SKUNK_LINE[room.target],
-    seats: room.seats.map((s, i) =>
-      s
-        ? {
-            seat: i,
-            name: s.name,
-            bot: isBot(s),
-            replaced: Boolean(s.replaced),
-            ai: isBot(s) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
-            host: isHuman(s) && s.id === room.hostId,
-            online: isBot(s) || (isHuman(s) && online(s.id)),
-            left: s.kind === 'gone',
-            score: s.score,
-            back: s.back,
-            cards: live ? room.hands[i].length : 0,
-            discarded: room.phase === 'discard' ? s.discarded : false,
-            ready: room.phase === 'show' ? !isHuman(s) || s.ready : false,
-          }
-        : null,
-    ),
-    hand: live && me !== -1 ? room.hands[me] : [],
-    need: room.phase === 'discard' && me !== -1 && !room.seats[me].discarded ? dealRules(room.seats.length, me === room.dealer).discards : 0,
-    cribCount: live || room.phase === 'show' ? room.crib.length : 0,
-    deckCount: live ? room.deck.length : 0,
-    starter: room.starter,
-    play: p ? { count: p.count, sequence: p.sequence, previous: p.previous, turn: p.turn, playable: p.turn === me ? playableCards(room, me) : [] } : null,
-    show: room.show,
-    log: room.log.slice(-40),
+    seats: room.seats.map((s, i) => (s ? seatView(room, i, online) : null)),
+    ...handView(room, me),
+    log: recentMoves(room, 40),
     winner: room.winner,
     placements: room.phase === 'finished' ? seatPlacements(room) : null,
-    scoreboard: {
-      players: room.seats.flatMap((s, i) => (s ? [{ id: i, name: s.name, userId: isHuman(s) ? s.id : undefined, score: s.score, isMe: i === me, bot: isBot(s), current: room.phase === 'play' && room.play?.turn === i, away: isHuman(s) && !online(s.id) }] : [])),
-      rounds: room.history,
-      lowIsBetter: false,
-      target: room.target,
-    },
+    scoreboard: scoreboardView(room, me, online),
   };
 }
 
@@ -822,17 +864,10 @@ export function viewFor(room, userId, { online = () => true } = {}) {
 export function statsPlayers(room) {
   const skunked = room.seats.some((s, i) => i !== room.winner && s.score < SKUNK_LINE[room.target]);
   const places = seatPlacements(room);
-  return room.seats.flatMap((s, i) =>
-    isHuman(s)
-      ? [
-          {
-            userId: s.id,
-            outcome: i === room.winner ? 'win' : 'loss',
-            placement: places[i],
-            score: Math.min(s.score, room.target),
-            extras: { ...extrasOf(s.stats, STAT_KEYS), skunks: i === room.winner && skunked ? 1 : 0 },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (s, i) => ({
+    outcome: i === room.winner ? 'win' : 'loss',
+    placement: places[i],
+    score: Math.min(s.score, room.target),
+    extras: { ...extrasOf(s.stats, STAT_KEYS), skunks: i === room.winner && skunked ? 1 : 0 },
+  }));
 }

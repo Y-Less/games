@@ -7,10 +7,10 @@
 //
 // The numbers every part of Splendour agrees on (the token limit, the supply, the cost calculation...) are in rules.js;
 // the seat and lobby rules (joining, leaving, kicking, computer players) are the shared ones in shared/seats.js.
-import { placements } from '../../shared/scores.js';
+import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
-import { extrasOf } from '../../shared/tally.js';
+import { extrasOf, statsRows } from '../../shared/tally.js';
 import { newTally, STAT_KEYS, tallyBuy, tallyNoble, tallyNobleChoice, tallyReserve, tallyReturn, tallyTurn } from './tally.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, cardsOfLevel, isCardId, isNobleId } from './cards.js';
@@ -760,22 +760,110 @@ export function playAgain(room, userId) {
 export function statsPlayers(room) {
   const keys = Object.fromEntries(room.players.map((p, i) => [i, rankKey(p)]));
   const places = placements(keys);
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: places[i],
-            score: prestigeOf(room.players[i]),
-            extras: { ...extrasOf(room.players[i].tally, STAT_KEYS), pipped: room.triggeredBy === i && !room.winners.includes(i) ? 1 : 0 },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: places[i],
+    score: prestigeOf(room.players[i]),
+    extras: { ...extrasOf(room.players[i].tally, STAT_KEYS), pipped: room.triggeredBy === i && !room.winners.includes(i) ? 1 : 0 },
+  }));
 }
 
 // ---- what each player may see ----
+
+/**
+ * One occupied seat as the table shows it. Before the game starts that is just who is sitting there; afterwards it includes
+ * tokens, bonuses, nobles and reserved cards (a card reserved blind is face down to everybody but its owner).
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, me, online) {
+  const seat = room.seats[i];
+  const base = { seat: i, name: seat.name, bot: isBot(seat), online: isBot(seat) || online(seat.id) };
+  if (room.phase === 'lobby') return base;
+  const p = room.players[i];
+  if (isBot(seat)) {
+    const ai = aiById(AIS, room.ais?.[seat.id]);
+    base.ai = { id: ai.id, name: ai.name };
+  }
+  return {
+    ...base,
+    tokens: [...p.tokens],
+    bonuses: bonusesOf(p),
+    prestige: prestigeOf(p),
+    bought: p.bought.length,
+    nobles: [...p.nobles],
+    reserved: p.reserved.map((r) => ({
+      level: CARD_BY_ID[r.card].level,
+      card: i === me || !r.blind ? r.card : null, // a card taken face up from the table was seen by everyone
+      blind: r.blind, // how it was reserved (everyone saw that), not whether you can see it
+    })),
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): prestige is the score.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const started = room.phase !== 'lobby';
+  const player = (seat, i) => seatScoreboardEntry(seat, i, { score: started ? prestigeOf(room.players[i]) : 0, me, current: room.phase === 'playing' && room.turn === i, online });
+  return {
+    players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
+    rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+    target: room.settings.target,
+  };
+}
+
+/**
+ * The public table once the game has started: tokens, the cards on show, the sizes of the draw piles (never their order),
+ * nobles, the turn, the log and the standings.
+ *
+ * @param {object} room  not changed
+ * @returns {object} fields to add to the view when the game has started
+ */
+function tableView(room) {
+  return {
+    supply: [...room.supply],
+    board: { 1: [...room.board[1]], 2: [...room.board[2]], 3: [...room.board[3]] },
+    decks: { 1: room.decks[1].length, 2: room.decks[2].length, 3: room.decks[3].length },
+    nobles: [...room.nobles],
+    turn: room.turn,
+    round: room.round,
+    pending: room.pending ? { ...room.pending } : null,
+    finalRound: room.finalRound,
+    triggeredBy: room.triggeredBy,
+    maxRounds: MAX_ROUNDS,
+    log: room.log.map((e) => ({ ...e })),
+    standings: room.players.map((p, i) => ({ seat: i, prestige: prestigeOf(p), cards: p.bought.length, nobles: p.nobles.length })),
+  };
+}
+
+/**
+ * What a seated viewer can afford and whether they must pass.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat (not -1)
+ * @returns {object} `afford` (what each affordable card costs, by card id) and `canPass`
+ */
+function affordView(room, me) {
+  const player = room.players[me];
+  const afford = {};
+  const candidates = [...[1, 2, 3].flatMap((l) => room.board[l]).filter(Boolean), ...player.reserved.map((r) => r.card)];
+  for (const id of candidates) {
+    const quote = payment(player, CARD_BY_ID[id]);
+    if (quote) afford[id] = { pay: quote.pay, minGold: quote.minGold, maxGold: quote.maxGold };
+  }
+  return { afford, canPass: room.phase === 'playing' && room.turn === me && !room.pending && legalMoves(room, me).length === 0 };
+}
 
 /**
  * Everything one account may know. A reserved card taken face up from the table is shown to everyone (they all saw it
@@ -790,7 +878,6 @@ export function statsPlayers(room) {
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const started = room.phase !== 'lobby';
   const view = {
     code: room.code,
     phase: room.phase,
@@ -798,63 +885,13 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     hostSeat: seatOf(room, room.hostId),
     settings: room.settings,
     limits: { targets: TARGETS, seatCounts: SEAT_COUNTS },
-    seats: room.seats.map((seat, i) => {
-      if (!seat) return null;
-      const base = { seat: i, name: seat.name, bot: isBot(seat), online: isBot(seat) || online(seat.id) };
-      if (!started) return base;
-      const p = room.players[i];
-      if (isBot(seat)) {
-        const ai = aiById(AIS, room.ais?.[seat.id]);
-        base.ai = { id: ai.id, name: ai.name };
-      }
-      return {
-        ...base,
-        tokens: [...p.tokens],
-        bonuses: bonusesOf(p),
-        prestige: prestigeOf(p),
-        bought: p.bought.length,
-        nobles: [...p.nobles],
-        reserved: p.reserved.map((r) => ({
-          level: CARD_BY_ID[r.card].level,
-          card: i === me || !r.blind ? r.card : null, // a card taken face up from the table was seen by everyone
-          blind: r.blind, // how it was reserved (everyone saw that), not whether you can see it
-        })),
-      };
-    }),
-    scoreboard: {
-      players: room.seats.flatMap((seat, i) =>
-        seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: started ? prestigeOf(room.players[i]) : 0, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [],
-      ),
-      rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-      target: room.settings.target,
-    },
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, me, online) : null)),
+    scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     endReason: room.endReason,
   };
-  if (!started) return view;
-  view.supply = [...room.supply];
-  view.board = { 1: [...room.board[1]], 2: [...room.board[2]], 3: [...room.board[3]] };
-  view.decks = { 1: room.decks[1].length, 2: room.decks[2].length, 3: room.decks[3].length };
-  view.nobles = [...room.nobles];
-  view.turn = room.turn;
-  view.round = room.round;
-  view.pending = room.pending ? { ...room.pending } : null;
-  view.finalRound = room.finalRound;
-  view.triggeredBy = room.triggeredBy;
-  view.maxRounds = MAX_ROUNDS;
-  view.log = room.log.map((e) => ({ ...e }));
-  view.standings = room.players.map((p, i) => ({ seat: i, prestige: prestigeOf(p), cards: p.bought.length, nobles: p.nobles.length }));
-  if (me !== -1) {
-    const player = room.players[me];
-    const afford = {};
-    const candidates = [...[1, 2, 3].flatMap((l) => room.board[l]).filter(Boolean), ...player.reserved.map((r) => r.card)];
-    for (const id of candidates) {
-      const quote = payment(player, CARD_BY_ID[id]);
-      if (quote) afford[id] = { pay: quote.pay, minGold: quote.minGold, maxGold: quote.maxGold };
-    }
-    view.afford = afford;
-    view.canPass = room.phase === 'playing' && room.turn === me && !room.pending && legalMoves(room, me).length === 0;
-  }
+  if (room.phase === 'lobby') return view;
+  Object.assign(view, tableView(room));
+  if (me !== -1) Object.assign(view, affordView(room, me));
   return view;
 }

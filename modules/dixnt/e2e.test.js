@@ -53,7 +53,10 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
   }
   // The module imports ../../shared/scores.js, ai.js and tally.js, so the copy needs a shared folder beside its modules folder.
   fs.mkdirSync(path.join(dataDir, 'shared'), { recursive: true });
-  for (const file of ['scores.js', 'ai.js', 'tally.js']) fs.copyFileSync(path.join(here, '..', '..', 'shared', file), path.join(dataDir, 'shared', file));
+  // (every non-test shared file: they import one another, so a short list breaks whenever a shared file gains an import)
+  for (const file of fs.readdirSync(path.join(here, '..', '..', 'shared'))) {
+    if (file.endsWith('.js') && !file.endsWith('.test.js')) fs.copyFileSync(path.join(here, '..', '..', 'shared', file), path.join(dataDir, 'shared', file));
+  }
   process.env.DIXNT_CARDS_DIR = cardsDir;
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;

@@ -4,7 +4,8 @@
 // A turn: one player, the guesser, does not see the secret word. Everybody else sees it and secretly writes a one-word clue.
 // Clues that match are cancelled. The guesser sees the clues that are left and makes one guess. If it is right they pick
 // the best hint from them, and only the guesser and the writer of that hint score.
-import { placements } from '../../shared/scores.js';
+import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
@@ -393,16 +394,24 @@ function afterRemoval(room, id, index, rng) {
   return { abandoned: false, finished: false };
 }
 
-/** Players best first; tied scores share a placement and every tied leader wins. */
+/**
+ * Players best first; tied scores share a placement and every tied leader wins.
+ *
+ * @param {object} room  not changed
+ * @returns {object[]} copies of the players with `placement` and `winner`
+ */
 export function standings(room) {
-  const places = placements(Object.fromEntries(room.players.map((p) => [p.id, p.score])));
-  return [...room.players].sort((a, b) => b.score - a.score).map((p) => ({ ...p, placement: places[p.id], winner: places[p.id] === 1 }));
+  return standingsOf(room.players);
 }
 
-/** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
+/**
+ * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
-  return standings(room).filter((p) => isHuman(p)).map((p) => ({
-    userId: p.id,
+  return statsRows(standings(room), (p) => ({
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
@@ -411,25 +420,101 @@ export function statsPlayers(room) {
 }
 
 /**
+ * The clues a viewer may see. While the clues are being written a writer sees only their own; the guesser sees the clues that
+ * were not cancelled, without their writers; everybody else sees every clue with its writer and whether it was cancelled (the
+ * cancelled ones too); after the reveal everybody sees the lot.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the viewer
+ * @param {(id: number) => string} nameOf  a player's name
+ * @returns {object[]}
+ */
+function cluesView(room, userId, nameOf) {
+  const member = hasPlayer(room, userId);
+  const isGuesser = room.guesser === userId;
+  const revealed = ['reveal', 'finished'].includes(room.phase);
+  const textOf = (id) => clueOf(room, id)?.text ?? '';
+  if (room.phase === 'clues' && member && !isGuesser && clueOf(room, userId)) return [{ id: userId, name: nameOf(userId), text: textOf(userId), own: true }];
+  if (['guessing', 'choosing'].includes(room.phase) && isGuesser) return room.order.map((id, n) => ({ n, text: textOf(id) }));
+  if (['guessing', 'choosing'].includes(room.phase) && member) {
+    const left = room.order.map((id) => ({ id, name: nameOf(id), text: textOf(id), cancelled: false }));
+    return [...left, ...room.cancelled.map((id) => ({ id, name: nameOf(id), text: textOf(id), cancelled: true }))];
+  }
+  if (revealed && room.result) return room.result.clues.map((c) => ({ ...c, name: nameOf(c.id) }));
+  return [];
+}
+
+/**
+ * The result of the turn just scored, with the names filled in (only once it is revealed).
+ *
+ * @param {object} room  not changed
+ * @param {(id: number) => string} nameOf  a player's name
+ * @returns {object | null}
+ */
+function resultView(room, nameOf) {
+  const revealed = ['reveal', 'finished'].includes(room.phase);
+  if (!(revealed && room.result)) return null;
+  return { ...room.result, guesserName: nameOf(room.result.guesser), bestName: room.result.best === null ? null : nameOf(room.result.best) };
+}
+
+/**
+ * One player as the table shows them to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {object} p  the player
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean, final: Map<number, object> }} context
+ * @returns {object}
+ */
+function playerView(room, p, { nameOf, online, final }) {
+  return {
+    id: p.id,
+    name: nameOf(p.id),
+    score: p.score,
+    online: isBot(p) || online(p.id),
+    bot: isBot(p), // the client's name for "is a computer player"
+    ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
+    written: room.phase === 'clues' && p.id !== room.guesser ? Boolean(clueOf(room, p.id)) : false,
+    ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
+    placement: final.get(p.id)?.placement ?? null,
+    winner: final.get(p.id)?.winner ?? false,
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the guesser has the turn, and while the results are up each player shows whether
+ * they are ready to go on.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the viewer
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean }} context
+ * @returns {object}
+ */
+function scoreboardView(room, userId, { nameOf, online }) {
+  const playing = PLAYING.includes(room.phase);
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: (playing || room.phase === 'reveal') && p.id === room.guesser, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  return {
+    players: room.players.map(player),
+    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+  };
+}
+
+/**
  * What one person may see. The guesser never sees the word until the reveal, and sees only the clues that were not cancelled
  * (without their writers). Everyone else sees the word, and, once all the clues are in, every clue with its writer and
  * whether it was cancelled. While the clues are being written nobody sees anybody else's.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the account looking
+ * @param {{ nameOf?: (id: number) => string, online?: (id: number) => boolean }} [options]  names for players who have left, and who is connected
+ * @returns {object} the view sent to that person
  */
 export function viewFor(room, userId, { nameOf = String, online = () => true } = {}) {
   nameOf = namer(room, nameOf);
-  const member = hasPlayer(room, userId);
   const isGuesser = room.guesser === userId;
   const playing = PLAYING.includes(room.phase);
   const revealed = ['reveal', 'finished'].includes(room.phase);
-  const final = ['finished', 'abandoned'].includes(room.phase) ? new Map(standings(room).map((p) => [p.id, p])) : new Map();
-  const textOf = (id) => clueOf(room, id)?.text ?? '';
-  let clues = [];
-  if (room.phase === 'clues' && member && !isGuesser && clueOf(room, userId)) clues = [{ id: userId, name: nameOf(userId), text: textOf(userId), own: true }];
-  else if (['guessing', 'choosing'].includes(room.phase) && isGuesser) clues = room.order.map((id, n) => ({ n, text: textOf(id) }));
-  else if (['guessing', 'choosing'].includes(room.phase) && member) {
-    const left = room.order.map((id) => ({ id, name: nameOf(id), text: textOf(id), cancelled: false }));
-    clues = [...left, ...room.cancelled.map((id) => ({ id, name: nameOf(id), text: textOf(id), cancelled: true }))];
-  } else if (revealed && room.result) clues = room.result.clues.map((c) => ({ ...c, name: nameOf(c.id) }));
+  const final = finalStandings(room.players, ['finished', 'abandoned'].includes(room.phase));
   return {
     code: room.code,
     phase: room.phase,
@@ -439,28 +524,13 @@ export function viewFor(room, userId, { nameOf = String, online = () => true } =
     turn: Math.min(room.turn + 1, room.turnsTotal),
     turnsTotal: room.turnsTotal,
     guesser: room.guesser,
-    word: revealed || (playing && member && !isGuesser) ? room.word : null,
-    clues,
+    word: revealed || (playing && hasPlayer(room, userId) && !isGuesser) ? room.word : null,
+    clues: cluesView(room, userId, nameOf),
     guess: room.guess,
-    result: revealed && room.result ? { ...room.result, guesserName: nameOf(room.result.guesser), bestName: room.result.best === null ? null : nameOf(room.result.best) } : null,
+    result: resultView(room, nameOf),
     points: POINTS,
-    players: room.players.map((p) => ({
-      id: p.id,
-      name: nameOf(p.id),
-      score: p.score,
-      online: isBot(p) || online(p.id),
-      bot: isBot(p), // the client's name for "is a computer player"
-      ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
-      written: room.phase === 'clues' && p.id !== room.guesser ? Boolean(clueOf(room, p.id)) : false,
-      ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
-      placement: final.get(p.id)?.placement ?? null,
-      winner: final.get(p.id)?.winner ?? false,
-    })),
-    scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: isBot(p), current: (playing || room.phase === 'reveal') && p.id === room.guesser, away: isHuman(p) && !online(p.id), ...(room.phase === 'reveal' ? { ready: isBot(p) || room.ready.includes(p.id) } : {}) })),
-      rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-    },
+    players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
+    scoreboard: scoreboardView(room, userId, { nameOf, online }),
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
   };
 }

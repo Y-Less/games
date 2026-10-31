@@ -8,9 +8,10 @@
 // (the discards), a factory display, the centre, a pattern line, a wall or a floor line. The bag's contents and order
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { placements, winnersOf } from '../../shared/scores.js';
+import { addMove, recentMoves } from '../../shared/moveLog.js';
+import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
-import { bump, extrasOf } from '../../shared/tally.js';
+import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyTake } from './tally.js';
 import {
@@ -182,10 +183,7 @@ function resetGame(room) {
  * @param {number | null} seat  the seat the line is about, or null for the table as a whole
  * @param {string} text
  */
-const addLog = (room, seat, text) => {
-  room.log.push({ seat, text });
-  if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
-};
+const addLog = (room, seat, text) => addMove(room, { seat, text });
 
 // ---- seats and settings ----
 
@@ -647,28 +645,21 @@ export function playAgain(room, userId) {
  * @returns {{ userId: number, outcome: 'win' | 'loss', placement: number, score: number, extras: object }[]}
  */
 export function statsPlayers(room) {
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: room.final.players[i].placement,
-            score: room.final.players[i].total,
-            extras: {
-              ...extrasOf(room.tally[i], STAT_KEYS),
-              rowsCompleted: completeRows(room.walls[i]),
-              columnsCompleted: completeColumns(room.walls[i]),
-              colourSetsCompleted: completeSets(room.walls[i]),
-              bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
-              gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // the whole wall filled: all five rows complete
-              wallTiles: room.walls[i].flat().filter((tile) => tile !== null).length,
-              roundsPlayed: room.playedRounds,
-            },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: room.final.players[i].placement,
+    score: room.final.players[i].total,
+    extras: {
+      ...extrasOf(room.tally[i], STAT_KEYS),
+      rowsCompleted: completeRows(room.walls[i]),
+      columnsCompleted: completeColumns(room.walls[i]),
+      colourSetsCompleted: completeSets(room.walls[i]),
+      bottomRows: rowComplete(room.walls[i], SIZE - 1) ? 1 : 0,
+      gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // the whole wall filled: all five rows complete
+      wallTiles: room.walls[i].flat().filter((tile) => tile !== null).length,
+      roundsPlayed: room.playedRounds,
+    },
+  }));
 }
 
 // ---- what each player may see ----
@@ -691,6 +682,82 @@ export function tileCount(room) {
 const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
 
 /**
+ * Has the game been dealt in this phase (so that scores, walls and floors mean something)?
+ *
+ * @param {object} room  not changed
+ * @returns {boolean}
+ */
+const hasStarted = (room) => room.phase === 'playing' || room.phase === 'tiling' || room.phase === 'finished';
+
+/**
+ * One occupied seat as the table shows it to everybody (the walls and floors are public).
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  const started = hasStarted(room);
+  return {
+    seat: i,
+    name: seat.name,
+    bot: isBot(seat),
+    ...(isBot(seat) && started ? { ai: { id: aiOf(room, i).id, name: aiOf(room, i).name } } : {}),
+    online: isBot(seat) || online(seat.id),
+    score: started ? room.scores[i] : 0,
+    lines: started ? room.lines[i] : null,
+    wall: started ? room.walls[i] : null,
+    floor: started ? room.floors[i] : null,
+    penalty: started ? floorPenalty(room.floors[i]) : 0,
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the players and the rounds scored so far.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const started = hasStarted(room);
+  const player = (seat, i) => seatScoreboardEntry(seat, i, { score: started ? room.scores[i] : 0, me, current: room.phase === 'playing' && room.turn === i, online });
+  return {
+    players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
+    rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+  };
+}
+
+/**
+ * The factories, the centre and the bag's size, and what the viewer is choosing: what a viewer may see once the game has started.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me) {
+  const tiling = room.phase === 'tiling';
+  return {
+    round: room.round,
+    first: room.first,
+    turn: room.turn,
+    factories: room.factories,
+    centre: room.centre,
+    markerInCentre: room.markerInCentre,
+    bagCount: room.bag.length,
+    lid: lidCounts(room),
+    lastTiling: room.lastTiling,
+    choosing: tiling ? room.pending.flatMap((p, i) => (p ? [i] : [])) : [],
+    choice: tiling && me !== -1 ? room.pending[me] : null,
+    final: room.phase === 'finished' ? room.final : null,
+  };
+}
+
+/**
  * Everything one account may know: the whole table (all of it is public) but never the bag's contents or order.
  *
  * @param {object} room  (not changed)
@@ -700,8 +767,6 @@ const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const started = room.phase === 'playing' || room.phase === 'tiling' || room.phase === 'finished';
-  const finished = room.phase === 'finished';
   const view = {
     code: room.code,
     phase: room.phase,
@@ -709,44 +774,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     hostSeat: seatOf(room, room.hostId),
     size: room.size,
     settings: room.settings,
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            bot: isBot(seat),
-            ...(isBot(seat) && started ? { ai: { id: aiOf(room, i).id, name: aiOf(room, i).name } } : {}),
-            online: isBot(seat) || online(seat.id),
-            score: started ? room.scores[i] : 0,
-            lines: started ? room.lines[i] : null,
-            wall: started ? room.walls[i] : null,
-            floor: started ? room.floors[i] : null,
-            penalty: started ? floorPenalty(room.floors[i]) : 0,
-          }
-        : null,
-    ),
-    scoreboard: {
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: started ? room.scores[i] : 0, isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id) }] : [])),
-      rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-    },
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
+    scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     limits: { sizes: SIZES, tiles: TILES },
-    log: room.log.slice(-14),
+    log: recentMoves(room, 14),
   };
-  if (started) {
-    view.round = room.round;
-    view.first = room.first;
-    view.turn = room.turn;
-    view.factories = room.factories;
-    view.centre = room.centre;
-    view.markerInCentre = room.markerInCentre;
-    view.bagCount = room.bag.length;
-    view.lid = lidCounts(room);
-    view.lastTiling = room.lastTiling;
-    view.choosing = room.phase === 'tiling' ? room.pending.flatMap((p, i) => (p ? [i] : [])) : [];
-    view.choice = room.phase === 'tiling' && me !== -1 ? room.pending[me] : null;
-    view.final = finished ? room.final : null;
-  }
+  if (hasStarted(room)) Object.assign(view, playView(room, me));
   return view;
 }

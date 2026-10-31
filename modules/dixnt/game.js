@@ -1177,6 +1177,111 @@ export class Game {
   // ---------- what each player is allowed to see ----------
 
   /**
+   * The word as one player may see it: everybody but the imposter sees it while cards are being played, and everybody sees it
+   * once the voting starts.
+   *
+   * @param {string} id  the seat id of the viewer
+   * @returns {string | null} the word, or null when this player may not know it (yet)
+   */
+  wordView(id) {
+    const s = this.s;
+    const wordRevealed = ['voting', 'results'].includes(s.phase);
+    return s.word !== null && (wordRevealed || (s.phase === 'picking' && id !== s.imposterId)) ? s.word : null;
+  }
+
+  /**
+   * The categories the host can pick from, with how many cards each holds and whether it is selected.
+   *
+   * @returns {{ key: string, label: string, description: string, count: number, selected: boolean }[]}
+   */
+  categoriesView() {
+    const s = this.s;
+    return this.getCategories().map((c) => ({
+      key: c.key,
+      label: c.label,
+      description: c.description ?? '',
+      count: c.ids.length,
+      selected: s.categories.includes(c.key),
+    }));
+  }
+
+  /**
+   * The viewer's own seat: their hand, pick and vote, and whether they were the imposter (only once that is revealed).
+   *
+   * @param {object} me  the viewer's player
+   * @returns {object}
+   */
+  meView(me) {
+    const s = this.s;
+    return {
+      id: me.id,
+      waiting: me.waiting,
+      isChooser: me.id === s.chooserId,
+      hand: me.waiting || ['lobby', 'finished'].includes(s.phase) ? [] : me.hand,
+      myPick: s.picks[me.id] ?? null,
+      myVote: s.votes[me.id] ?? null,
+      isImposter: s.phase === 'results' && me.id === s.imposterId,
+    };
+  }
+
+  /**
+   * Every player as the table shows them to everybody.
+   *
+   * @param {Set<string>} connectedIds  the seat ids that currently have a connection
+   * @returns {object[]}
+   */
+  playersView(connectedIds) {
+    const s = this.s;
+    const inPlay = ['picking', 'voting', 'results'].includes(s.phase);
+    return s.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+      turns: p.turns ?? 0,
+      waiting: p.waiting,
+      connected: isBot(p) || connectedIds.has(p.id),
+      bot: isBot(p), // the client's word for it; the seat itself says kind: 'bot'
+      ai: p.ai ? this.aiView(p.ai) : null, // bot seats only
+      isChooser: p.id === s.chooserId,
+      hasPlayed: inPlay && p.id in s.picks,
+      hasVoted: s.phase === 'voting' ? p.id in s.votes : false,
+    }));
+  }
+
+  /**
+   * The standard scoreboard (shared/scores.js): the chooser has the turn.
+   *
+   * @param {string} id  the seat id of the viewer
+   * @param {Set<string>} connectedIds  the seat ids that currently have a connection
+   * @returns {object}
+   */
+  scoreboardView(id, connectedIds) {
+    const s = this.s;
+    return {
+      players: s.players.map((p) => ({ id: p.id, name: p.name, userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
+      rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
+      lowIsBetter: false,
+    };
+  }
+
+  /**
+   * The cards face up on the table (none while the cards are still being picked) and who this player may vote for.
+   *
+   * @param {string} id  the seat id of the viewer
+   * @returns {{ table: object[], voteTargets: string[] }}
+   */
+  tableView(id) {
+    const s = this.s;
+    return {
+      table: s.phase === 'picking' ? [] : s.tableOrder.map((pid) => ({ playerId: pid, cardId: s.picks[pid] })),
+      voteTargets:
+        s.phase === 'voting' && this.voters().some((v) => v.id === id)
+          ? this.cardPlayers().filter((p) => p.id !== id).map((p) => p.id)
+          : [],
+    };
+  }
+
+  /**
    * What one player is allowed to see of the game: their own hand, the word (unless they are the imposter while cards
    * are being played), and only the public parts of everything else.
    *
@@ -1188,15 +1293,7 @@ export class Game {
     const s = this.s;
     const me = this.player(id);
     if (!me) return null;
-    const inPlay = ['picking', 'voting', 'results'].includes(s.phase);
-    const iAmImposter = id === s.imposterId;
-    const wordRevealed = ['voting', 'results'].includes(s.phase);
-
-    let word = null;
-    if (s.word !== null && (wordRevealed || (s.phase === 'picking' && !iAmImposter))) word = s.word;
-
-    const cardsOnTable = s.phase === 'picking' ? [] : s.tableOrder.map((pid) => ({ playerId: pid, cardId: s.picks[pid] }));
-
+    const { table, voteTargets } = this.tableView(id);
     return {
       phase: s.phase,
       round: s.round,
@@ -1214,50 +1311,17 @@ export class Game {
       pointsFooledChooser: CHOOSER_FOOLED_POINTS,
       pointsFavourite: FAVOURITE_POINTS,
       judging: s.judging,
-      categories: this.getCategories().map((c) => ({
-        key: c.key,
-        label: c.label,
-        description: c.description ?? '',
-        count: c.ids.length,
-        selected: s.categories.includes(c.key),
-      })),
+      categories: this.categoriesView(),
       availableCards: this.availableIds().length,
       drawCount: s.draw.length,
       discardCount: s.discard.length,
-      word,
-      wordHidden: s.phase === 'picking' && iAmImposter,
-      me: {
-        id: me.id,
-        waiting: me.waiting,
-        isChooser: id === s.chooserId,
-        hand: me.waiting || ['lobby', 'finished'].includes(s.phase) ? [] : me.hand,
-        myPick: s.picks[id] ?? null,
-        myVote: s.votes[id] ?? null,
-        isImposter: s.phase === 'results' && iAmImposter,
-      },
-      players: s.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        score: p.score,
-        turns: p.turns ?? 0,
-        waiting: p.waiting,
-        connected: isBot(p) || connectedIds.has(p.id),
-        bot: isBot(p), // the client's word for it; the seat itself says kind: 'bot'
-        ai: p.ai ? this.aiView(p.ai) : null, // bot seats only
-        isChooser: p.id === s.chooserId,
-        hasPlayed: inPlay && p.id in s.picks,
-        hasVoted: s.phase === 'voting' ? p.id in s.votes : false,
-      })),
-      scoreboard: {
-        players: s.players.map((p) => ({ id: p.id, name: p.name, userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
-        rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
-        lowIsBetter: false,
-      },
-      table: cardsOnTable,
-      voteTargets:
-        s.phase === 'voting' && this.voters().some((v) => v.id === id)
-          ? this.cardPlayers().filter((p) => p.id !== id).map((p) => p.id)
-          : [],
+      word: this.wordView(id),
+      wordHidden: s.phase === 'picking' && id === s.imposterId,
+      me: this.meView(me),
+      players: this.playersView(connectedIds),
+      scoreboard: this.scoreboardView(id, connectedIds),
+      table,
+      voteTargets,
       results: s.phase === 'results' ? s.results : null,
     };
   }

@@ -8,20 +8,38 @@
 //   - ... unless the other Joker is played in the same trick: then they cancel and both lose, and the rest of the trick
 //     is decided as usual. The exception is a trick that a Joker led: the second Joker played on top wins it instead.
 //   - A Joker that is led leaves no suit to follow: every other card is allowed.
-import { isJoker, rankValue, suitOf } from '../../shared/cards.js';
+import { isJoker, suitOf } from '../../shared/cards.js';
+import { bestCard, followCards } from '../../shared/tricks.js';
 
-/** The suit that must be followed, or null if nothing has been led or a Joker was. `cards` are the cards played so far, in order. */
+/**
+ * The suit that must be followed.
+ *
+ * @param {string[]} cards  the cards played so far, in order
+ * @returns {string | null} the suit led, or null if nothing has been led or a Joker was
+ */
 export const ledSuit = (cards) => (cards.length && !isJoker(cards[0]) ? suitOf(cards[0]) : null);
 
-/** The cards of `hand` that may be played to a trick whose cards so far are `trick` (card strings, in order). */
+/**
+ * The cards that may be played to a trick: the suit led if the hand has any (a Joker cannot be played then), otherwise anything.
+ *
+ * @param {string[]} hand
+ * @param {string[]} trick  the cards played so far, in order
+ * @returns {string[]} the legal cards
+ */
 export function legalCards(hand, trick) {
   const led = ledSuit(trick);
   if (led === null) return hand; // leading, or a Joker was led: anything goes
-  const follow = hand.filter((card) => suitOf(card) === led); // a Joker is never "of the suit", so it cannot be played while following
+  const follow = followCards(hand, led); // a Joker is never "of the suit", so it cannot be played while following
   return follow.length ? follow : hand;
 }
 
-/** The card that wins a set of cards played in order (also for a trick still in progress). */
+/**
+ * The card that wins a set of cards played in order (also for a trick still in progress), Jokers included.
+ *
+ * @param {string[]} cards  in the order played; not empty
+ * @param {string | null} trump  the trump suit, or null for none
+ * @returns {string} the winning card
+ */
 export function winningCard(cards, trump) {
   const jokers = cards.filter(isJoker);
   let rest = cards;
@@ -30,8 +48,5 @@ export function winningCard(cards, trump) {
     if (isJoker(cards[0])) return jokers[1]; // the second Joker beats a Joker that led
     rest = cards.filter((card) => !isJoker(card)); // otherwise they cancel each other out
   }
-  const led = suitOf(rest[0]);
-  const trumps = trump ? rest.filter((card) => suitOf(card) === trump) : [];
-  const pool = trumps.length ? trumps : rest.filter((card) => suitOf(card) === led);
-  return pool.reduce((best, card) => (rankValue(card) > rankValue(best) ? card : best));
+  return bestCard(rest, trump);
 }

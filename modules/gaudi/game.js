@@ -12,6 +12,9 @@
 // file adds what is particular to Gaudi.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { shuffle } from '../../shared/cards.js';
+import { addMove, recentMoves } from '../../shared/moveLog.js';
+import { seatScoreboardEntry } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import {
@@ -478,8 +481,7 @@ function resetGame(room) {
  * @param {string} text         the line, which must not reveal anything hidden
  */
 function addLog(room, seat, text) {
-  room.log.push({ seat, text });
-  if (room.log.length > 60) room.log.splice(0, room.log.length - 60);
+  addMove(room, { seat, text });
 }
 
 // ---- seats and settings ----
@@ -1020,27 +1022,20 @@ export function playAgain(room, userId) {
  */
 export function statsPlayers(room) {
   const rows = room.final.players;
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: rows[i].placement,
-            score: rows[i].total,
-            extras: {
-              dicePlaced: room.tally[i].dicePlaced,
-              toolsUsed: room.tally[i].toolsUsed,
-              perfectWindows: emptySpaces(room.grids[i]) === 0 ? 1 : 0,
-              bestPublicObjective: Math.max(0, ...rows[i].publics.map((p) => p.points)),
-              perfectBoards: isPerfect(room.grids[i], room.publicIds) ? 1 : 0,
-              privateTotal: rows[i].privatePoints,
-              emptySpaces: rows[i].empty,
-            },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: rows[i].placement,
+    score: rows[i].total,
+    extras: {
+      dicePlaced: room.tally[i].dicePlaced,
+      toolsUsed: room.tally[i].toolsUsed,
+      perfectWindows: emptySpaces(room.grids[i]) === 0 ? 1 : 0,
+      bestPublicObjective: Math.max(0, ...rows[i].publics.map((p) => p.points)),
+      perfectBoards: isPerfect(room.grids[i], room.publicIds) ? 1 : 0,
+      privateTotal: rows[i].privatePoints,
+      emptySpaces: rows[i].empty,
+    },
+  }));
 }
 
 // ---- what each player may see ----
@@ -1080,6 +1075,132 @@ const publicText = (id) => {
 };
 
 /**
+ * Has the game been dealt in this phase (so that windows, scores and dice mean something)?
+ *
+ * @param {object} room  not changed
+ * @returns {boolean}
+ */
+const hasStarted = (room) => room.phase === 'playing' || room.phase === 'finished';
+
+/**
+ * One occupied seat as the table shows it to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  const started = hasStarted(room);
+  return {
+    seat: i,
+    name: seat.name,
+    bot: isBot(seat),
+    ...(isBot(seat) && room.phase !== 'lobby' ? { ai: { id: aiOf(room, i).id, name: aiOf(room, i).name } } : {}),
+    online: isBot(seat) || online(seat.id),
+    picked: room.phase === 'windows' ? Boolean(room.picked[i]) : started,
+    window: started ? windowView(room, i) : null,
+    tokens: started ? room.tokens[i] : 0,
+    score: started ? provisionalOf(room, i) : 0,
+    empty: started ? emptySpaces(room.grids[i]) : 0,
+    skipping: started && Boolean(room.skip[i]),
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js). While the game is on, the scores are provisional and the viewer sees a note of
+ * their own secret points.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const started = hasStarted(room);
+  const finished = room.phase === 'finished';
+  const player = (seat, i) => {
+    const score = !started ? 0 : finished ? room.final.players[i].total : provisionalOf(room, i);
+    const entry = seatScoreboardEntry(seat, i, { score, me, current: room.turn?.seat === i, online });
+    if (started && !finished && i === me) entry.note = `+${privateOf(room, i)} secret`;
+    return entry;
+  };
+  return {
+    players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
+    rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+    provisional: !finished,
+  };
+}
+
+/**
+ * The window patterns the viewer may choose from while the windows are being picked (nobody else's choices).
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {{ options: object[], chosen: string | null }}
+ */
+function windowChoiceView(room, me) {
+  return {
+    options: me === -1 ? [] : room.options[me].map((pid) => {
+      const { name, difficulty, rows } = patternOf(pid);
+      return { pid, name, difficulty, rows };
+    }),
+    chosen: me === -1 ? null : room.picked[me],
+  };
+}
+
+/**
+ * What is dealt before the windows are picked: the tools, the public objectives and the viewer's own private objective (nobody
+ * else's).
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object}
+ */
+function dealtView(room, me) {
+  return {
+    tools: room.tools.map((id, i) => ({ id, ...pickToolText(id), spent: room.spent[i], cost: toolCost(room, i) })),
+    publicObjectives: room.publicIds.map((id) => ({ ...publicText(id), mine: null })),
+    privateObjective: me === -1 ? null : { colour: room.privateColours[me], points: 0 },
+    badPrivate: room.settings.badPrivate,
+  };
+}
+
+/**
+ * The dice pool, the round track, the tools and objectives and the turn: what a viewer may see once the game has started.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me) {
+  const finished = room.phase === 'finished';
+  return {
+    round: room.round,
+    first: room.first,
+    order: room.order,
+    turnIndex: room.turnIndex,
+    turn: room.turn ? { ...room.turn, allowed: allowedPlacements(room), canUndo: Boolean(room.undo) && room.undo.seat === room.turn.seat && turnChanged(room) } : null,
+    pool: room.pool,
+    track: room.track,
+    bagCount: room.bag.length,
+    tools: room.tools.map((id, i) => {
+      const { name, text, how } = toolOf(id);
+      return { id, name, text, how, spent: room.spent[i], cost: toolCost(room, i) };
+    }),
+    publicObjectives: room.publicIds.map((id) => {
+      const { name, text, points, unit } = objectiveOf(id);
+      return { id, name, text, points, unit, mine: me === -1 ? null : objectivePoints(id, room.grids[me]) };
+    }),
+    privateObjective: me === -1 || finished ? null : { colour: room.privateColours[me], points: privateOf(room, me) },
+    badPrivate: room.settings.badPrivate,
+    final: finished ? room.final : null,
+  };
+}
+
+/**
  * Everything one account may know: the public table and its own secrets, never anybody else's.
  *
  * @param {object} room
@@ -1090,8 +1211,6 @@ const publicText = (id) => {
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const started = room.phase === 'playing' || room.phase === 'finished';
-  const finished = room.phase === 'finished';
   const view = {
     code: room.code,
     phase: room.phase,
@@ -1099,74 +1218,15 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     hostSeat: seatOf(room, room.hostId),
     size: room.size,
     settings: room.settings,
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            bot: isBot(seat),
-            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: { id: aiOf(room, i).id, name: aiOf(room, i).name } } : {}),
-            online: isBot(seat) || online(seat.id),
-            picked: room.phase === 'windows' ? Boolean(room.picked[i]) : started,
-            window: started ? windowView(room, i) : null,
-            tokens: started ? room.tokens[i] : 0,
-            score: started ? provisionalOf(room, i) : 0,
-            empty: started ? emptySpaces(room.grids[i]) : 0,
-            skipping: started && Boolean(room.skip[i]),
-          }
-        : null,
-    ),
-    scoreboard: {
-      players: room.seats.flatMap((seat, i) => {
-        if (!seat) return [];
-        const score = !started ? 0 : finished ? room.final.players[i].total : provisionalOf(room, i);
-        const player = { id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: i === me, bot: isBot(seat), current: room.turn?.seat === i, away: isHuman(seat) && !online(seat.id) };
-        if (started && !finished && i === me) player.note = `+${privateOf(room, i)} secret`;
-        return [player];
-      }),
-      rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-      provisional: !finished,
-    },
+    seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
+    scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     limits: { sizes: SIZES, rounds: ROUNDS },
-    log: room.log.slice(-14),
+    log: recentMoves(room, 14),
   };
-  if (room.phase === 'windows') {
-    view.options = me === -1 ? [] : room.options[me].map((pid) => {
-      const { name, difficulty, rows } = patternOf(pid);
-      return { pid, name, difficulty, rows };
-    });
-    view.chosen = me === -1 ? null : room.picked[me];
-  }
-  if (room.phase === 'windows' && room.privateColours.length) {
-    // Dealt before the windows: the viewer's own private objective (nobody else's) and the table's public cards.
-    view.tools = room.tools.map((id, i) => ({ id, ...pickToolText(id), spent: room.spent[i], cost: toolCost(room, i) }));
-    view.publicObjectives = room.publicIds.map((id) => ({ ...publicText(id), mine: null }));
-    view.privateObjective = me === -1 ? null : { colour: room.privateColours[me], points: 0 };
-    view.badPrivate = room.settings.badPrivate;
-  }
-  if (started) {
-    view.round = room.round;
-    view.first = room.first;
-    view.order = room.order;
-    view.turnIndex = room.turnIndex;
-    view.turn = room.turn ? { ...room.turn, allowed: allowedPlacements(room), canUndo: Boolean(room.undo) && room.undo.seat === room.turn.seat && turnChanged(room) } : null;
-    view.pool = room.pool;
-    view.track = room.track;
-    view.bagCount = room.bag.length;
-    view.tools = room.tools.map((id, i) => {
-      const { name, text, how } = toolOf(id);
-      return { id, name, text, how, spent: room.spent[i], cost: toolCost(room, i) };
-    });
-    view.publicObjectives = room.publicIds.map((id) => {
-      const { name, text, points, unit } = objectiveOf(id);
-      return { id, name, text, points, unit, mine: me === -1 ? null : objectivePoints(id, room.grids[me]) };
-    });
-    view.privateObjective = me === -1 || finished ? null : { colour: room.privateColours[me], points: privateOf(room, me) };
-    view.badPrivate = room.settings.badPrivate;
-    view.final = finished ? room.final : null;
-  }
+  if (room.phase === 'windows') Object.assign(view, windowChoiceView(room, me));
+  if (room.phase === 'windows' && room.privateColours.length) Object.assign(view, dealtView(room, me)); // dealt before the windows
+  if (hasStarted(room)) Object.assign(view, playView(room, me));
   return view;
 }
 

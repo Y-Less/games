@@ -1,6 +1,7 @@
 // Helpers for the AI tests: play a whole game of computer players, and run a seeded tournament. Not used by the game.
 import * as game from './game.js';
 import * as bot from './bot.js';
+import { roundRobin } from '../../shared/arena.js';
 import { seeded } from '../../shared/testkit.js';
 
 /**
@@ -30,27 +31,25 @@ function assert(condition, message) {
 
 /**
  * A seeded round-robin: every game seats the given AIs at one table, rotating who sits where, and tallies each AI's mean
- * score and win share (a shared win counts as a fraction). Returns { [id]: { games, mean, wins, winRate } }.
+ * score and win share (a shared win counts as a fraction). Returns { [id]: { games, mean, wins, winRate } }, and `rounds`:
+ * how many rounds each game lasted.
+ *
+ * @param {string[]} ais  AI ids, one per seat
+ * @param {{ games?: number, seed?: number, free?: boolean }} [options]  `free` makes every second game a free-wall one
+ * @returns {object} the tally
  */
 export function tournament(ais, { games = 100, seed = 1, free = false } = {}) {
-  const tally = Object.fromEntries([...new Set(ais)].map((id) => [id, { games: 0, total: 0, wins: 0 }]));
   const rounds = [];
-  for (let g = 0; g < games; g++) {
-    const shift = g % ais.length;
-    const table = ais.map((_, i) => ais[(i + shift) % ais.length]);
-    const { room } = playBotGame(table, { seed: seed * 100000 + g, free: free && g % 2 === 1 });
-    rounds.push(room.playedRounds);
-    table.forEach((id, seat) => {
-      const t = tally[id];
-      t.games++;
-      t.total += room.final.players[seat].total;
-      if (room.winners.includes(seat)) t.wins += 1 / room.winners.length;
-    });
-  }
-  for (const t of Object.values(tally)) {
-    t.mean = t.total / t.games;
-    t.winRate = t.wins / t.games;
-  }
+  const tally = roundRobin(ais, {
+    games,
+    seed,
+    play: (table, gameSeed, g) => {
+      const { room } = playBotGame(table, { seed: gameSeed, free: free && g % 2 === 1 });
+      rounds.push(room.playedRounds);
+      return room;
+    },
+    totalOf: (room, seat) => room.final.players[seat].total,
+  });
   tally.rounds = rounds;
   return tally;
 }

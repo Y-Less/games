@@ -3,7 +3,8 @@
 //
 // A turn: the psychic sees a hidden target on a dial (0 is the left end, 100 the right) and gives a clue; everyone else
 // turns the dial to where they think it is. Once every guesser has locked in a guess the target is revealed and scored.
-import { placements } from '../../shared/scores.js';
+import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
@@ -425,18 +426,26 @@ function afterRemoval(room, id, index, rng) {
   return { abandoned: false, finished: false };
 }
 
-/** Players best first; tied scores share a placement and every tied leader wins. */
+/**
+ * Players best first; tied scores share a placement and every tied leader wins.
+ *
+ * @param {object} room  not changed
+ * @returns {object[]} copies of the players with `placement` and `winner`
+ */
 export function standings(room) {
-  const places = placements(Object.fromEntries(room.players.map((p) => [p.id, p.score])));
-  return [...room.players].sort((a, b) => b.score - a.score).map((p) => ({ ...p, placement: places[p.id], winner: places[p.id] === 1 }));
+  return standingsOf(room.players);
 }
 
-/** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
+/**
+ * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. A team
+ * shares one score: it wins when it averaged at least the outer band a turn (see scoring.js), and loses otherwise.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
-  // A team shares one score. It wins when it averaged at least the outer band a turn (see scoring.js), and loses otherwise.
   const teamWon = (p) => p.score >= teamWinScore(room.turnsTotal);
-  return standings(room).filter((p) => isHuman(p)).map((p) => ({
-    userId: p.id,
+  return statsRows(standings(room), (p) => ({
     outcome: (room.mode === 'team' ? teamWon(p) : p.winner) ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
@@ -445,14 +454,77 @@ export function statsPlayers(room) {
 }
 
 /**
+ * The result of the turn just scored, with the names filled in (only once it is revealed).
+ *
+ * @param {object} room  not changed
+ * @param {(id: number) => string} nameOf  a player's name
+ * @returns {object | null}
+ */
+function resultView(room, nameOf) {
+  const revealed = ['reveal', 'finished'].includes(room.phase);
+  if (!(revealed && room.result)) return null;
+  return { ...room.result, psychicName: nameOf(room.result.psychic), entries: room.result.entries.map((e) => ({ ...e, name: nameOf(e.id) })) };
+}
+
+/**
+ * One player as the table shows them to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {object} p  the player
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean, final: Map<number, object> }} context
+ * @returns {object}
+ */
+function playerView(room, p, { nameOf, online, final }) {
+  return {
+    id: p.id,
+    name: nameOf(p.id),
+    colour: p.colour,
+    score: p.score,
+    online: isBot(p) || online(p.id),
+    bot: isBot(p), // the client's name for "is a computer player"
+    ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
+    guessed: room.guesses.some((g) => g.id === p.id),
+    ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
+    placement: final.get(p.id)?.placement ?? null,
+    winner: final.get(p.id)?.winner ?? false,
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the psychic has the turn, and while the results are up each player shows whether
+ * they are ready to go on.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the viewer
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean }} context
+ * @returns {object}
+ */
+function scoreboardView(room, userId, { nameOf, online }) {
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: (PLAYING.includes(room.phase) || room.phase === 'reveal') && p.id === room.psychic, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  return {
+    players: room.players.map(player),
+    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+  };
+}
+
+/**
  * What one person may see. Only the psychic knows the target until the reveal, and nobody sees anyone else's guess
  * until then either.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the account looking
+ * @param {object} [options]
+ * @param {(id: number) => string} [options.nameOf]  names for players who have left
+ * @param {(id: number) => boolean} [options.online]  who is connected
+ * @param {boolean} [options.canCustom]  whether this player may pick any colour (a shop unlock)
+ * @returns {object} the view sent to that person
  */
 export function viewFor(room, userId, { nameOf = String, online = () => true, canCustom = false } = {}) {
   nameOf = namer(room, nameOf);
   const isPsychic = room.psychic === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
-  const final = ['finished', 'abandoned'].includes(room.phase) ? new Map(standings(room).map((p) => [p.id, p])) : new Map();
+  const final = finalStandings(room.players, ['finished', 'abandoned'].includes(room.phase));
   return {
     code: room.code,
     phase: room.phase,
@@ -469,27 +541,9 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     marker: revealed || (room.mode === 'team' && room.phase === 'guessing' && !isPsychic) ? room.marker ?? null : null,
     guesses: room.guesses.filter((g) => revealed || g.id === userId).map((g) => ({ id: g.id, position: g.position })),
     bands: BANDS,
-    result: revealed && room.result
-      ? { ...room.result, psychicName: nameOf(room.result.psychic), entries: room.result.entries.map((e) => ({ ...e, name: nameOf(e.id) })) }
-      : null,
-    players: room.players.map((p) => ({
-      id: p.id,
-      name: nameOf(p.id),
-      colour: p.colour,
-      score: p.score,
-      online: isBot(p) || online(p.id),
-      bot: isBot(p), // the client's name for "is a computer player"
-      ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
-      guessed: room.guesses.some((g) => g.id === p.id),
-      ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
-      placement: final.get(p.id)?.placement ?? null,
-      winner: final.get(p.id)?.winner ?? false,
-    })),
-    scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: isBot(p), current: PLAYING.includes(room.phase) || room.phase === 'reveal' ? p.id === room.psychic : false, away: isHuman(p) && !online(p.id), ...(room.phase === 'reveal' ? { ready: isBot(p) || room.ready.includes(p.id) } : {}) })),
-      rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-    },
+    result: resultView(room, nameOf),
+    players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
+    scoreboard: scoreboardView(room, userId, { nameOf, online }),
     colours: COLOURS,
     canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },

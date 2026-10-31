@@ -5,7 +5,9 @@
 // Seats 0..n-1 run clockwise: the player to your left is seat + 1, so passing "left" sends cards to seat + 1 and play
 // goes round in increasing seat order. The number of seats is room.seats.length. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer
 // player ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
-import { placements } from '../../shared/scores.js';
+import { placements, seatScoreboardEntry } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
+import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
@@ -215,7 +217,15 @@ function exchange(room) {
 
 // ---- playing ----
 
-/** Why this card cannot be played now, or null when it can. */
+/**
+ * Why this card cannot be played now, or null when it can: it must be in the hand, the first trick opens with the opening
+ * card and carries no points, suit must be followed, and hearts cannot lead until broken.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat
+ * @param {string} card
+ * @returns {string | null} the reason, or null when the card is legal
+ */
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return 'That card is not in your hand.';
@@ -229,13 +239,22 @@ export function illegalReason(room, seat, card) {
   }
   const led = suitOf(room.trick[0].card);
   if (suitOf(card) === led) return null;
-  if (hand.some((c) => suitOf(c) === led)) return `You must follow suit (${SUIT_NAMES[led]}).`;
+  if (followCards(hand, led).length) return `You must follow suit (${SUIT_NAMES[led]}).`;
   if (room.tricksPlayed === 0 && isPointCard(card) && hand.some((c) => !isPointCard(c))) return 'No points on the first trick.';
   return null;
 }
 
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
 
+/**
+ * Plays a card to the trick, if the seat may.
+ * Side effects: takes the card from the hand, adds it to the trick, may break hearts and moves the turn on (to nobody once the trick is full).
+ *
+ * @param {object} room
+ * @param {number} seat
+ * @param {string} card
+ * @returns {{ ok: boolean, error?: string, complete?: boolean }} `complete` says the trick is now full
+ */
 export function playCard(room, seat, card) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
@@ -246,14 +265,18 @@ export function playCard(room, seat, card) {
   room.trick.push({ seat, card });
   if (isHeart(card) || card === QUEEN) room.heartsBroken = true; // the queen breaks hearts too
   const n = room.seats.length;
-  room.turn = room.trick.length === n ? null : (seat + 1) % n;
+  room.turn = turnAfterPlay(seat, room.trick.length, n);
   return ok({ complete: room.trick.length === n });
 }
 
-/** The seat that is winning a (possibly unfinished) trick: the highest card of the suit led. */
+/**
+ * The seat that is winning a (possibly unfinished) trick: the highest card of the suit led (there is no trump).
+ *
+ * @param {{ seat: number, card: string }[]} trick  in the order played; not empty
+ * @returns {number} the seat
+ */
 export function trickWinner(trick) {
-  const led = suitOf(trick[0].card);
-  return trick.reduce((best, play) => (suitOf(play.card) === led && rankValue(play.card) > rankValue(best.card) ? play : best), trick[0]).seat;
+  return trickWinnerSeat(trick);
 }
 
 /**
@@ -406,22 +429,20 @@ export function playAgain(room, userId) {
   return ok();
 }
 
-/** What the statistics should record for a finished game: one entry per human still seated. */
+/**
+ * What the statistics should record for a finished game: one entry per human still seated.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
   const places = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])), { lowIsBetter: true });
-  return room.seats.flatMap((seat, i) =>
-    isHuman(seat)
-      ? [
-          {
-            userId: seat.id,
-            outcome: room.winners.includes(i) ? 'win' : 'loss',
-            placement: places[i],
-            score: room.scores[i],
-            extras: { ...room.tally[i], perfectGames: room.scores[i] <= 0 ? 1 : 0 },
-          },
-        ]
-      : [],
-  );
+  return statsRows(room.seats, (seat, i) => ({
+    outcome: room.winners.includes(i) ? 'win' : 'loss',
+    placement: places[i],
+    score: room.scores[i],
+    extras: { ...room.tally[i], perfectGames: room.scores[i] <= 0 ? 1 : 0 },
+  }));
 }
 
 // ---- computer players ----
@@ -511,48 +532,144 @@ export function runPending(room, rng) {
 
 // ---- what each player may see ----
 
+/**
+ * What the points taken so far this hand are worth to a seat.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat
+ * @returns {number} hearts, plus 13 for the Queen of Spades, plus the Jack of Diamonds' bonus when that counts
+ */
 function handPoints(room, seat) {
   const { hearts, queen, jack } = scoreHand(room.taken, { ...room.settings, moon: 'others' }).details[seat];
   return hearts + (queen ? 13 : 0) + (room.settings.jackOfDiamonds && jack ? JACK_POINTS : 0);
 }
 
-/** Everything one account may know: its own hand and the public table, never anybody else's cards. */
+/**
+ * One occupied seat as the table shows it to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {number} i  the seat's index
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object}
+ */
+function seatView(room, i, online) {
+  const seat = room.seats[i];
+  return {
+    seat: i,
+    name: seat.name,
+    bot: isBot(seat),
+    ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
+    online: isBot(seat) || online(seat.id),
+    cards: room.hands[i].length,
+    tricks: room.taken[i].length / room.seats.length,
+    hearts: room.taken[i].filter(isHeart).length,
+    queen: room.taken[i].includes(QUEEN),
+    jack: room.taken[i].includes(JACK),
+    points: handPoints(room, i),
+    passed: Boolean(room.passes[i]),
+    ready: room.phase === 'handEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
+    score: room.scores[i],
+  };
+}
+
+/**
+ * Every seat as the table shows it (null for an empty one).
+ *
+ * @param {object} room  not changed
+ * @param {(id: number) => boolean} online
+ * @returns {(object | null)[]}
+ */
+const seatsView = (room, online) => room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null));
+
+/**
+ * The standard scoreboard (shared/scores.js): the players, the hands scored so far, and that low scores win.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ */
+function scoreboardView(room, me, online) {
+  const player = (seat, i) => ({
+    ...seatScoreboardEntry(seat, i, { score: room.scores[i], me, current: room.phase === 'playing' && room.turn === i, online }),
+    ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}),
+  });
+  return {
+    players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
+    rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: true,
+    target: room.settings.target,
+  };
+}
+
+/**
+ * The viewer's hand and the trick in progress: only what a seat at the table may see once the hand is dealt.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object} fields to add to the view when the game has started
+ */
+function playView(room, me) {
+  const myTurn = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
+  const hand = room.hands[me] ?? [];
+  return {
+    hand,
+    received: (room.received[me] ?? []).filter((c) => hand.includes(c)),
+    trick: room.trick,
+    trickWinner: room.trick.length === room.seats.length ? trickWinner(room.trick) : null,
+    lastTrick: room.lastTrick,
+    turn: room.turn,
+    canClaim: canClaim(room, me),
+    lastClaim: room.lastClaim ?? null,
+    heartsBroken: room.heartsBroken,
+    trickNumber: Math.min(room.tricksPlayed + 1, tricksFor(room.seats.length)),
+    legal: myTurn ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null,
+  };
+}
+
+/**
+ * The passing step as the viewer sees it: who they pass to and receive from (only while choosing), what they chose, and who
+ * passes to whom this hand (public once dealt, for drawing the arrows).
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @returns {object}
+ */
+function passView(room, me) {
+  const n = room.seats.length;
+  const offset = room.passOffset ?? offsetOfDirection(n, room.passDirection);
+  const name = (seat) => (seat === null || seat === undefined || !room.seats[seat] ? null : room.seats[seat].name);
+  const base = { ...describePass(n, offset), cards: passCountFor(n) };
+  let pass;
+  if (room.phase === 'passing' && me !== -1 && offset !== 0) {
+    const to = passTarget(me, room.passDirection, n);
+    const from = passSource(me, room.passDirection, n);
+    pass = { ...base, to, from, toName: name(to), fromName: name(from), chosen: room.passes[me], incomingReady: Boolean(room.passes[from]) };
+  } else {
+    pass = { ...base, to: null, from: null, toName: null, fromName: null, chosen: null, incomingReady: false };
+  }
+  pass.targets = room.phase === 'lobby' || offset === 0 ? [] : room.seats.map((_, seat) => passTarget(seat, room.passDirection, n));
+  return pass;
+}
+
+/**
+ * Everything one account may know: its own hand and the public table, never anybody else's cards.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the account looking (it may be a spectator with no seat)
+ * @param {{ online?: (id: number) => boolean }} [options]  says who is connected, so the view can show who is away
+ * @returns {object} the view sent to that person
+ */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
-  const playing = room.phase === 'playing';
-  const myTurn = playing && room.turn === me && room.trick.length < room.seats.length;
   const view = {
     code: room.code,
     phase: room.phase,
     you: me,
     hostSeat: seatOf(room, room.hostId),
     settings: room.settings,
-    seats: room.seats.map((seat, i) =>
-      seat
-        ? {
-            seat: i,
-            name: seat.name,
-            bot: isBot(seat),
-            ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
-            online: isBot(seat) || online(seat.id),
-            cards: room.hands[i].length,
-            tricks: room.taken[i].length / room.seats.length,
-            hearts: room.taken[i].filter(isHeart).length,
-            queen: room.taken[i].includes(QUEEN),
-            jack: room.taken[i].includes(JACK),
-            points: handPoints(room, i),
-            passed: Boolean(room.passes[i]),
-            ready: room.phase === 'handEnd' ? isBot(seat) || Boolean(room.ready?.includes(i)) : false,
-            score: room.scores[i],
-          }
-        : null,
-    ),
-    scoreboard: {
-      players: room.seats.flatMap((seat, i) => (seat ? [{ id: i, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score: room.scores[i], isMe: i === me, bot: isBot(seat), current: room.phase === 'playing' && room.turn === i, away: isHuman(seat) && !online(seat.id), ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}) }] : [])),
-      rounds: room.history.map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: true,
-      target: room.settings.target,
-    },
+    seats: seatsView(room, online),
+    scoreboard: scoreboardView(room, me, online),
     handNumber: room.handNumber + 1,
     lastHand: room.lastHand,
     winners: room.winners,
@@ -560,32 +677,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     deal: dealView(room.seats.length),
     limits: { targets: TARGETS, moonModes: MOON_MODES, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
-  if (room.phase !== 'lobby') {
-    view.hand = room.hands[me] ?? [];
-    view.received = (room.received[me] ?? []).filter((c) => view.hand.includes(c));
-    view.trick = room.trick;
-    view.trickWinner = room.trick.length === room.seats.length ? trickWinner(room.trick) : null;
-    view.lastTrick = room.lastTrick;
-    view.turn = room.turn;
-    view.canClaim = canClaim(room, me);
-    view.lastClaim = room.lastClaim ?? null;
-    view.heartsBroken = room.heartsBroken;
-    view.trickNumber = Math.min(room.tricksPlayed + 1, tricksFor(room.seats.length));
-    view.legal = myTurn ? Object.fromEntries(room.hands[me].map((card) => [card, illegalReason(room, me, card)])) : null;
-  }
-  const n = room.seats.length;
-  const offset = room.passOffset ?? offsetOfDirection(n, room.passDirection);
-  const name = (seat) => (seat === null || seat === undefined || !room.seats[seat] ? null : room.seats[seat].name);
-  const base = { ...describePass(n, offset), cards: passCountFor(n) };
-  if (room.phase === 'passing' && me !== -1 && offset !== 0) {
-    const to = passTarget(me, room.passDirection, n);
-    const from = passSource(me, room.passDirection, n);
-    view.pass = { ...base, to, from, toName: name(to), fromName: name(from), chosen: room.passes[me], incomingReady: Boolean(room.passes[from]) };
-  } else {
-    view.pass = { ...base, to: null, from: null, toName: null, fromName: null, chosen: null, incomingReady: false };
-  }
-  // Who passes to whom this hand (public once the hand is dealt), for drawing the arrows.
-  view.pass.targets = room.phase === 'lobby' || offset === 0 ? [] : room.seats.map((_, seat) => passTarget(seat, room.passDirection, n));
+  if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
+  view.pass = passView(room, me);
   return view;
 }
 

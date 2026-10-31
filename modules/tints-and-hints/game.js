@@ -1,7 +1,8 @@
 // The rules of Tints and Hints, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
-import { placements, totalsFromRounds } from '../../shared/scores.js';
+import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
+import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
@@ -420,16 +421,24 @@ function afterRemoval(room, id, index, rng) {
   return { abandoned: false, finished: wasHinter ? finishTurn(room, rng) : false };
 }
 
-/** Players best first; tied scores share a placement and every tied leader wins. */
+/**
+ * Players best first; tied scores share a placement and every tied leader wins.
+ *
+ * @param {object} room  not changed
+ * @returns {object[]} copies of the players with `placement` and `winner`
+ */
 export function standings(room) {
-  const places = placements(Object.fromEntries(room.players.map((p) => [p.id, p.score])));
-  return [...room.players].sort((a, b) => b.score - a.score).map((p) => ({ ...p, placement: places[p.id], winner: places[p.id] === 1 }));
+  return standingsOf(room.players);
 }
 
-/** The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. */
+/**
+ * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ */
 export function statsPlayers(room) {
-  return standings(room).filter((p) => isHuman(p)).map((p) => ({
-    userId: p.id,
+  return statsRows(standings(room), (p) => ({
     outcome: p.winner ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
@@ -438,19 +447,96 @@ export function statsPlayers(room) {
 }
 
 /**
- * What one person may see. Only the hinter knows the target until the reveal, and guesses made in the current round
- * stay hidden from the other guessers until the round is closed.
+ * The guesses a viewer may see: the hinter and everybody after the reveal see all of them; before that a guesser sees their own,
+ * and the first round's guesses are shown once the second hint is out.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the viewer
+ * @returns {{ id: number, cell: string, round: number }[]} both rounds' guesses, first round first
  */
-export function viewFor(room, userId, { nameOf = String, online = () => true, canCustom = false } = {}) {
-  nameOf = namer(room, nameOf);
+function guessesView(room, userId) {
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
   const list = (guesses, round) => {
     const open = isHinter || revealed || (round === 1 && room.phase !== 'guessing1') || (round === 2 && room.phase !== 'guessing2');
     return guesses.filter((g) => open || g.id === userId).map((g) => ({ id: g.id, cell: g.cell, round }));
   };
+  return [...list(room.first, 1), ...list(room.second, 2)];
+}
+
+/**
+ * The result of the turn just scored, with the names filled in (only once it is revealed).
+ *
+ * @param {object} room  not changed
+ * @param {(id: number) => string} nameOf  a player's name
+ * @returns {object | null}
+ */
+function resultView(room, nameOf) {
+  const revealed = ['reveal', 'finished'].includes(room.phase);
+  if (!(revealed && room.result)) return null;
+  return { ...room.result, hinterName: nameOf(room.result.hinter), entries: room.result.entries.map((e) => ({ ...e, name: nameOf(e.id) })) };
+}
+
+/**
+ * One player as the table shows them to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {object} p  the player
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean, final: Map<number, object> }} context
+ * @returns {object}
+ */
+function playerView(room, p, { nameOf, online, final }) {
   const current = room.phase === 'guessing1' ? room.first : room.phase === 'guessing2' ? room.second : [];
-  const final = ['finished', 'abandoned'].includes(room.phase) ? new Map(standings(room).map((p) => [p.id, p])) : new Map();
+  return {
+    id: p.id,
+    name: nameOf(p.id),
+    colour: p.colour,
+    score: p.score,
+    online: isBot(p) || online(p.id),
+    bot: isBot(p), // the client's name for "is a computer player"
+    ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
+    guessed: current.some((g) => g.id === p.id),
+    ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
+    placement: final.get(p.id)?.placement ?? null,
+    winner: final.get(p.id)?.winner ?? false,
+  };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the hinter has the turn, and while the results are up each player shows whether
+ * they are ready to go on.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the viewer
+ * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean }} context
+ * @returns {object}
+ */
+function scoreboardView(room, userId, { nameOf, online }) {
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  return {
+    players: room.players.map(player),
+    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    lowIsBetter: false,
+  };
+}
+
+/**
+ * What one person may see. Only the hinter knows the target until the reveal, and guesses made in the current round
+ * stay hidden from the other guessers until the round is closed.
+ *
+ * @param {object} room  not changed
+ * @param {number} userId  the account looking
+ * @param {object} [options]
+ * @param {(id: number) => string} [options.nameOf]  names for players who have left
+ * @param {(id: number) => boolean} [options.online]  who is connected
+ * @param {boolean} [options.canCustom]  whether this player may pick any colour (a shop unlock)
+ * @returns {object} the view sent to that person
+ */
+export function viewFor(room, userId, { nameOf = String, online = () => true, canCustom = false } = {}) {
+  nameOf = namer(room, nameOf);
+  const isHinter = room.hinter === userId;
+  const revealed = ['reveal', 'finished'].includes(room.phase);
+  const final = finalStandings(room.players, ['finished', 'abandoned'].includes(room.phase));
   return {
     code: room.code,
     phase: room.phase,
@@ -462,28 +548,10 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     hinter: room.hinter,
     tint: isHinter || revealed ? room.tint : null,
     hints: room.phase === 'lobby' ? { first: '', second: '' } : { first: room.hints.first, second: room.phase === 'guessing1' ? '' : room.hints.second },
-    guesses: [...list(room.first, 1), ...list(room.second, 2)],
-    result: revealed && room.result
-      ? { ...room.result, hinterName: nameOf(room.result.hinter), entries: room.result.entries.map((e) => ({ ...e, name: nameOf(e.id) })) }
-      : null,
-    players: room.players.map((p) => ({
-      id: p.id,
-      name: nameOf(p.id),
-      colour: p.colour,
-      score: p.score,
-      online: isBot(p) || online(p.id),
-      bot: isBot(p), // the client's name for "is a computer player"
-      ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
-      guessed: current.some((g) => g.id === p.id),
-      ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
-      placement: final.get(p.id)?.placement ?? null,
-      winner: final.get(p.id)?.winner ?? false,
-    })),
-    scoreboard: {
-      players: room.players.map((p) => ({ id: p.id, name: nameOf(p.id), userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === userId, bot: isBot(p), current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, away: isHuman(p) && !online(p.id), ...(room.phase === 'reveal' ? { ready: isBot(p) || room.ready.includes(p.id) } : {}) })),
-      rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
-      lowIsBetter: false,
-    },
+    guesses: guessesView(room, userId),
+    result: resultView(room, nameOf),
+    players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
+    scoreboard: scoreboardView(room, userId, { nameOf, online }),
     colours: COLOURS,
     canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
