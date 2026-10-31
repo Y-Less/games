@@ -1,7 +1,8 @@
 <script setup>
+// The waiting room: the invite code, the player list (PlayerListPanel) and the host's game options.
 import { computed } from 'vue';
-import BotIcon from '../../../src/components/BotIcon.vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
+import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
@@ -9,8 +10,6 @@ const isHost = computed(() => props.state.hostId === props.state.you);
 const turns = computed(() => props.state.limits.turns);
 const total = computed(() => props.state.turnsEach * props.state.players.length);
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
-const full = computed(() => props.state.players.length >= props.state.limits.max);
-const missing = computed(() => Math.max(0, props.state.limits.min - props.state.players.length));
 </script>
 
 <template>
@@ -21,24 +20,18 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
-    <section class="panel stack">
-      <h3>Players ({{ state.players.length }} of {{ state.limits.max }})</h3>
-      <ul class="players">
-        <li v-for="p in state.players" :key="p.id" class="row">
-          <span class="name">{{ p.name }}<span v-if="p.id === state.you" class="muted"> (you)</span></span>
-          <span v-if="p.bot" class="muted bot-tag"><BotIcon :size="16" /> computer</span>
-          <span v-if="p.id === state.hostId" class="muted">host</span>
-          <span v-if="!p.online" class="muted">away</span>
-          <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { seat: p.id })">Remove</button>
-          <button v-else-if="isHost && p.id !== state.you" class="quiet" @click="send('kick', { userId: p.id })">Remove</button>
-        </li>
-      </ul>
-      <div v-if="isHost" class="row bots">
-        <button :disabled="full" @click="send('addBot')">Add a computer player</button>
-        <button v-if="missing > 0" @click="send('fillBots', { count: state.limits.min })">Fill up to {{ state.limits.min }} players with computer players</button>
-        <span v-if="full" class="muted">The table is full ({{ state.limits.max }} players).</span>
-      </div>
-    </section>
+    <PlayerListPanel
+      :players="state.players"
+      :you="state.you"
+      :host-id="state.hostId"
+      :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      @add-bot="send('addBot')"
+      @remove-bot="(id) => send('removeBot', { seat: id })"
+      @kick="(id) => send('kick', { userId: id })"
+      @fill-bots="(count) => send('fillBots', { count })"
+    />
 
     <section class="panel stack">
       <h3>Length of the game</h3>
@@ -58,25 +51,4 @@ const missing = computed(() => Math.max(0, props.state.limits.min - props.state.
 </template>
 
 <style scoped>
-.bots {
-  flex-wrap: wrap;
-}
-.bot-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-.players {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
 </style>
