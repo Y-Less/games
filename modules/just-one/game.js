@@ -61,10 +61,10 @@ const allWritten = (room) => writers(room).every((p) => clueOf(room, p.id));
  * @param {string} [args.hostName]  the host's display name
  * @param {object} [args.settings]  settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
  * @param {number} [args.turnsEach] turns each (default 2); `settings.turnsEach` wins if both are given
- * @param {number} [args.now]       the time to stamp it with
+ * @param {number} args.now       the time to stamp it with
  * @returns {object} the room, in the lobby
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now(), turnsEach = TURNS_EACH.default }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default }) {
   const room = {
     code,
     hostId,
@@ -179,10 +179,10 @@ function startTurn(room, rng) {
  *
  * @param {object} room
  * @param {number} id            who is asking (must be the host)
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, id, rng = Math.random) {
+export function start(room, id, rng) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
   if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
@@ -208,7 +208,7 @@ export function clueProblem(text, word) {
 }
 
 /** The writer's clue: one word. Once everybody has written theirs, matching clues are cancelled and the guessing begins. */
-export function submitClue(room, id, text, rng = Math.random) {
+export function submitClue(room, id, text, rng) {
   if (room.phase !== 'clues') return fail('The clues are in.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (id === room.guesser) return fail('You are guessing, so you do not write a clue.');
@@ -340,7 +340,7 @@ function finishTurn(room, rng) {
 const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
 
 /** At the reveal, a person has closed the scores pop-up and is ready for the next turn. */
-export function ready(room, id, rng = Math.random) {
+export function ready(room, id, rng) {
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (room.phase !== 'reveal') return fail('There are no scores to close.');
   if (!room.ready.includes(id)) room.ready.push(id);
@@ -348,7 +348,7 @@ export function ready(room, id, rng = Math.random) {
 }
 
 /** Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait). */
-export function forceNext(room, rng = Math.random) {
+export function forceNext(room, rng) {
   if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
   return ok({ finished: finishTurn(room, rng) });
 }
@@ -487,7 +487,7 @@ export function pendingBotAction(room) {
  * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser never sees
  * the word. An AI that throws or answers with something illegal is replaced by a legal choice.
  */
-export function runBotAction(room, rng = Math.random, action = pendingBotAction(room), nameOf = String) {
+export function runBotAction(room, rng, action = pendingBotAction(room), nameOf = String) {
   if (!action) return false;
   const player = playerOf(room, action.id);
   const ai = aiById(AIS, player.ai);

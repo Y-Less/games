@@ -98,11 +98,11 @@ function fitName(room, raw) {
  * @param {number} args.hostId      the host's account id
  * @param {string} args.hostName    the host's display name
  * @param {{ target?: number, seats?: number }} [args.settings]  how far to play (61 or 121) and how many seats (2 to 5)
- * @param {number} [args.now]       the clock, in milliseconds
+ * @param {number} args.now       the clock, in milliseconds
  * @returns {object} the new room
  * @throws {Error} with a message for the person if a setting is not allowed
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const { target = 121, seats: count = DEFAULT_SEATS } = settings;
   if (!TARGETS.includes(target)) throw new Error('Play to 61 or 121.');
   if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(seatsProblem);
@@ -365,10 +365,10 @@ function deal(room, rng) {
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Fill every seat first (add computer players if you like).');
@@ -432,10 +432,10 @@ export function playAgain(room, userId) {
  * @param {object} room
  * @param {number} seat      who is discarding
  * @param {string[]} cards   the cards to give to the box
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function discard(room, seat, cards, rng = Math.random) {
+export function discard(room, seat, cards, rng) {
   if (room.phase !== 'discard') return fail('It is not time to discard.');
   const s = room.seats[seat];
   const { discards } = dealRules(room.seats.length, seat === room.dealer);
@@ -611,10 +611,10 @@ function advanceIfReady(room, rng) {
  *
  * @param {object} room
  * @param {number} seat  who is ready
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function ready(room, seat, rng = Math.random) {
+export function ready(room, seat, rng) {
   if (room.phase !== 'show') return fail('There is nothing to be ready for.');
   room.seats[seat].ready = true;
   advanceIfReady(room, rng);
@@ -719,10 +719,10 @@ function chooseSafely(room, seat, choose, isValid, lastResort) {
  * Side effects: plays or discards for the computer player (see discard and playCard).
  *
  * @param {object} room
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function botMove(room, rng = Math.random) {
+export function botMove(room, rng) {
   const pending = pendingBot(room);
   if (!pending) return fail('No computer player has a move.');
   const { seat, kind } = pending;

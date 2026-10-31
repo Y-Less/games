@@ -179,7 +179,7 @@ test('standard is exactly the original computer player', () => {
   // The original bot.test.js positions still pass unchanged; here, a whole game with no AI on the seats matches "standard".
   const a = playBotGame(['standard', 'standard', 'standard'], { seed: 77 }).room;
   const rng = seeded(77);
-  const b = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: 3 });
+  const b = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: 3 });
   game.fillWithBots(b, 1);
   b.seats[0] = { kind: 'human', id: 1, name: 'p1' };
   game.start(b, 1, rng);
@@ -220,7 +220,7 @@ test('seeded tournament: sharp beats standard beats random', () => {
 // ---- assignment, saving, viewing ----
 
 const lobby = (n, bots) => {
-  const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
+  const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
   for (let i = 0; i < bots; i++) game.addBot(room, 1);
   for (let i = 2; i <= n - bots; i++) game.addHuman(room, i, `p${i}`);
   return room;
@@ -291,7 +291,7 @@ test('a room saved before AIs existed falls back to standard, as does an unknown
   room.seats[1].ai = 'retired-ai';
   assert.equal(game.aiOf(room, 1), aiById(AIS, 'retired-ai'));
   assert.equal(game.aiOf(room, 1).id, 'standard');
-  assert.ok(bot.chooseMove(Object.assign(room, { turn: 1 }), 1), 'and it still plays');
+  assert.ok(bot.chooseMove(Object.assign(room, { turn: 1 }), 1, Math.random), 'and it still plays');
 });
 
 test('a person who leaves mid-game is replaced by a computer player that picks an AI then', () => {
@@ -310,7 +310,7 @@ test('a person who leaves mid-game is replaced by a computer player that picks a
   assert.equal(other.seats[seat].ai, room.seats[seat].ai, 'the rng decides it');
   // In the lobby nothing is assigned: the seat is simply freed.
   const waiting = lobby(3, 1);
-  game.removeHuman(waiting, 2);
+  game.removeHuman(waiting, 2, Math.random);
   assert.equal(waiting.seats[2], null);
 });
 

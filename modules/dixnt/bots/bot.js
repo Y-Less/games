@@ -133,7 +133,7 @@ let imposterRound = null; // the round in which this bot could not see the word,
 
 /** Chooses an AI for a new game and tells the server (and so the other players) which one it is. */
 async function chooseAI() {
-  ai = options.ai ? aiById(AIS, options.ai) : pickAI(AIS);
+  ai = options.ai ? aiById(AIS, options.ai) : pickAI(AIS, Math.random);
   const reply = await call('declareAI', { id: ai.id });
   log(`playing as the "${ai.name}" AI${reply.ok ? '' : ` (the server did not accept it: ${reply.error})`}`);
 }

@@ -9,7 +9,7 @@ export const optimist = {
   description: 'Nominates more tricks than its hand is probably worth, and goes all out to win them.',
   weight: 1,
   nominate(ctx) {
-    const { hand, trump, players, allowed, instantWin = false, rng = Math.random } = ctx;
+    const { hand, trump, players, allowed, instantWin = false, rng } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
     return withLastChance(ctx, (boost) => nearestAllowed(allowed, Math.min(hand.length, estimateTricks(hand, trump, players, boost) * 1.1 + 0.45 + (rng() - 0.5) * 0.3)));
   },

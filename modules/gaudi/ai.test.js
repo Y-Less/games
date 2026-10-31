@@ -46,7 +46,7 @@ const steps = (id, room, n = 30) => Array.from({ length: n }, (_, i) => step(id,
 /** The step really is legal: apply it to a copy. */
 const legal = (room, choice) => {
   const copy = structuredClone(room);
-  const result = choice.type === 'place' ? game.placeDie(copy, 0, choice) : choice.type === 'tool' ? game.useTool(copy, 0, { tool: choice.tool, params: choice.params }) : game.endTurn(copy, 0);
+  const result = choice.type === 'place' ? game.placeDie(copy, 0, choice, Math.random) : choice.type === 'tool' ? game.useTool(copy, 0, { tool: choice.tool, params: choice.params }, Math.random) : game.endTurn(copy, 0, Math.random);
   assert.equal(result.ok, true, `${JSON.stringify(choice)}: ${result.error}`);
 };
 
@@ -118,7 +118,7 @@ test('every AI turn, in thousands of positions, is a legal step', () => {
         }
         const choice = bot.botStep(structuredClone(room), seat, seeded(k));
         const copy = structuredClone(room);
-        const result = choice.type === 'place' ? game.placeDie(copy, seat, choice) : choice.type === 'tool' ? game.useTool(copy, seat, { tool: choice.tool, params: choice.params }) : game.endTurn(copy, seat);
+        const result = choice.type === 'place' ? game.placeDie(copy, seat, choice, Math.random) : choice.type === 'tool' ? game.useTool(copy, seat, { tool: choice.tool, params: choice.params }, Math.random) : game.endTurn(copy, seat, Math.random);
         assert.equal(result.ok, true, `${id}: ${JSON.stringify(choice)}: ${result.error}`);
         positions++;
         bot.runPending(room, rng);
@@ -228,7 +228,7 @@ test('sharp keeps a row of different colours going rather than repeating a colou
 test('standard is exactly the original computer player', () => {
   const a = playBotGame(['standard', 'standard', 'standard'], { seed: 77 }).room;
   const rng = seeded(77);
-  const b = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: 3 });
+  const b = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: 3 });
   game.fillWithBots(b, 1);
   b.seats[0] = { kind: 'human', id: 1, name: 'p1' };
   game.start(b, 1, rng);
@@ -259,7 +259,7 @@ test('seeded tournament: sharp beats standard beats random', () => {
 // ---- assignment, saving, viewing ----
 
 const lobby = (n, bots) => {
-  const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
+  const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
   for (let i = 0; i < bots; i++) game.addBot(room, 1);
   for (let i = 2; i <= n - bots; i++) game.addHuman(room, i, `p${i}`);
   return room;
@@ -345,7 +345,7 @@ test('a person who leaves mid-game is replaced by a computer player that picks a
   game.removeHuman(other, 2, seeded(4));
   assert.equal(other.seats[seat].ai, room.seats[seat].ai, 'the rng decides it');
   const waiting = lobby(3, 1);
-  game.removeHuman(waiting, 2);
+  game.removeHuman(waiting, 2, Math.random);
   assert.equal(waiting.seats[2], null, 'in the lobby the seat is just freed');
 });
 

@@ -6,7 +6,7 @@ import * as g from './game.js';
 
 /** A started game with one person (account 1) in seat 0 and computers elsewhere. */
 function started(n = 4, seed = 1) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } });
   assert.equal(g.fillWithBots(room, 1).ok, true);
   assert.equal(g.start(room, 1, seeded(seed)).ok, true);
   return room;
@@ -50,7 +50,7 @@ test('the holder of the Ace of Spades starts', () => {
 });
 
 test('settings: the host picks 3 to 7 seats, and not fewer than are filled', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(room.seats.length, g.DEFAULT_SEATS);
   assert.equal(g.setSettings(room, 2, { seats: 5 }).ok, false, 'only the host');
   assert.equal(g.setSettings(room, 1, { seats: 2 }).ok, false);
@@ -60,16 +60,16 @@ test('settings: the host picks 3 to 7 seats, and not fewer than are filled', () 
   assert.equal(room.seats.length, 7);
   g.fillWithBots(room, 1);
   assert.equal(g.setSettings(room, 1, { seats: 3 }).ok, false, 'someone would lose their seat');
-  assert.throws(() => g.createRoom({ code: 'x', hostId: 1, hostName: 'Ann', settings: { seats: 2 } }));
+  assert.throws(() => g.createRoom({ now: 0, code: 'x', hostId: 1, hostName: 'Ann', settings: { seats: 2 } }));
 });
 
 test('starting needs every seat filled and only the host may start', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(g.start(room, 1).ok, false, 'empty seats');
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  assert.equal(g.start(room, 1, Math.random).ok, false, 'empty seats');
   g.fillWithBots(room, 1);
-  assert.equal(g.start(room, 2).ok, false);
-  assert.equal(g.start(room, 1).ok, true);
-  assert.equal(g.start(room, 1).ok, false, 'already started');
+  assert.equal(g.start(room, 2, Math.random).ok, false);
+  assert.equal(g.start(room, 1, Math.random).ok, true);
+  assert.equal(g.start(room, 1, Math.random).ok, false, 'already started');
 });
 
 test('an honest play: the cards go to the pile, the turn passes on and the next rank is claimed', () => {
@@ -195,8 +195,8 @@ test('leaving mid-game hands the seat to a computer player; the room is empty wh
   const room = started();
   assert.equal(g.addHuman(room, 5, 'Bob').ok, false, 'the game has started');
   assert.equal(g.seatOf(room, 5), -1);
-  assert.equal(g.removeHuman(room, 99).ok, false);
-  const out = g.removeHuman(room, 1);
+  assert.equal(g.removeHuman(room, 99, Math.random).ok, false);
+  const out = g.removeHuman(room, 1, Math.random);
   assert.equal(out.ok && out.empty, true, 'the only person has left');
 });
 

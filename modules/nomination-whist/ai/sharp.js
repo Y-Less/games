@@ -107,7 +107,7 @@ function knownVoids(trickPlays) {
 const bestIndex = (values) => values.reduce((best, value, i) => (value > values[best] ? i : best), 0);
 
 /** The nomination with the best average score over many deals of the unseen cards, among those near the hand's estimate (`centre`). */
-function sampledNomination({ hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random, seat = 0, dealer = 0, nominations = [], missPoints = true }, centre) {
+function sampledNomination({ hand, trump, players, allowed, instantWin = false, jokers = false, rng, seat = 0, dealer = 0, nominations = [], missPoints = true }, centre) {
   const cards = hand.length;
   const candidates = allowed.filter((n) => Math.abs(n - centre) <= 2.2 || n === 0);
   if (candidates.length <= 1) return candidates[0] ?? nearestAllowed(allowed, centre);
@@ -143,7 +143,7 @@ export const sharp = {
   },
 
   play(ctx) {
-    const { hand, legal, trump, played, players, rng = Math.random, seat = 0, nominations, taken, handSizes, trickPlays = [], missPoints = true, instantWin = false, jokers = false, cards } = ctx;
+    const { hand, legal, trump, played, players, rng, seat = 0, nominations, taken, handSizes, trickPlays = [], missPoints = true, instantWin = false, jokers = false, cards } = ctx;
     if (legal.length === 1) return legal[0];
     const bids = nominations;
     const unseen = unseenCards(hand, played, jokers);

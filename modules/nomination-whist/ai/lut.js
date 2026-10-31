@@ -87,7 +87,7 @@ export function bestNomination(chances, allowed, missPoints = true) {
 }
 
 /** Standard's guess at a nomination, with every card's weight turned up by `boost`: what the tables fall back to where they have no row. */
-function guess({ hand, trump, players, allowed, rng = Math.random }, boost) {
+function guess({ hand, trump, players, allowed, rng }, boost) {
   return nearestAllowed(allowed, estimateTricks(hand, trump, players, boost) + (rng() - 0.5) * 0.3);
 }
 

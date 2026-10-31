@@ -55,7 +55,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
   if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
   const normalised = normaliseSettings(settings);
@@ -112,7 +112,7 @@ const seats = createSeatRules({
   isMidGame: (room) => ['passing', 'playing', 'handEnd'].includes(room.phase),
   botNames: BOT_NAMES,
   takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
-  afterRemoval: (room) => advanceIfReady(room),
+  afterRemoval: (room, rng) => advanceIfReady(room, rng),
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
@@ -140,7 +140,7 @@ function resizeSeats(room, count) {
 
 // ---- dealing and passing ----
 
-export function deal(room, rng = Math.random) {
+export function deal(room, rng) {
   const n = room.seats.length;
   const each = tricksFor(n);
   const deck = shuffle(deckFor(n), rng);
@@ -174,7 +174,7 @@ function setMoonBid(room) {
   room.moonBid = bidder === -1 ? null : bidder;
 }
 
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
@@ -366,7 +366,7 @@ function endHand(room) {
 }
 
 /** A person is ready for the next hand (they closed the score pop-up); it is dealt once every person is. */
-export function nextHand(room, userId, rng = Math.random) {
+export function nextHand(room, userId, rng) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'handEnd') return fail('The hand is not over.');
   room.ready ??= [];
@@ -376,7 +376,7 @@ export function nextHand(room, userId, rng = Math.random) {
   return ok();
 }
 
-function advanceIfReady(room, rng = Math.random) {
+function advanceIfReady(room, rng) {
   if (room.phase !== 'handEnd') return false;
   room.ready ??= [];
   if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
@@ -391,7 +391,7 @@ function dealNext(room, rng) {
 }
 
 /** Deals the next hand whether or not everyone has closed the pop-up (the server does this after a wait). */
-export function forceNextHand(room, rng = Math.random) {
+export function forceNextHand(room, rng) {
   if (room.phase !== 'handEnd') return fail('The hand is not over.');
   dealNext(room, rng);
   return ok();
@@ -437,7 +437,7 @@ export function botPass(hand, settings = DEFAULT_SETTINGS, count = 3) {
 }
 
 /** The plain data an AI decides from: its own hand and the public history of the hand, never other hands. */
-export function aiContext(room, seat, rng = Math.random) {
+export function aiContext(room, seat, rng) {
   return {
     seat,
     hand: [...room.hands[seat]],
@@ -464,7 +464,7 @@ export function aiContext(room, seat, rng = Math.random) {
 }
 
 /** The cards a computer seat passes, chosen by its own AI (always the right number of different cards from its hand). */
-export function botPassFor(room, seat, rng = Math.random) {
+export function botPassFor(room, seat, rng) {
   const hand = room.hands[seat];
   const count = passCountFor(room.seats.length);
   const valid = (cards) => Array.isArray(cards) && cards.length === count && new Set(cards).size === count && cards.every((c) => hand.includes(c));
@@ -474,7 +474,7 @@ export function botPassFor(room, seat, rng = Math.random) {
 }
 
 /** The card a computer player plays: always one of its legal cards, chosen by its own AI. */
-export function botPlay(room, seat, rng = Math.random) {
+export function botPlay(room, seat, rng) {
   const legal = legalCards(room, seat);
   if (legal.length === 1) return legal[0];
   const card = aiOf(room, seat).choosePlay(aiContext(room, seat, rng));
@@ -496,7 +496,7 @@ export function pendingAction(room) {
 }
 
 /** Performs a pending action. Returns the action, or null if there was nothing to do. */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   const result =

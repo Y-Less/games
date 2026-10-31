@@ -6,6 +6,6 @@ export const random = {
   name: 'Random',
   description: 'Discards and plays any legal card at random.',
   weight: 0.5,
-  discard: ({ hand, discardCount, rng = Math.random }) => sample(splits(hand, discardCount), rng).discards,
-  play: ({ hand, count, rng = Math.random }) => sample(legalPlays(hand, count), rng) ?? null,
+  discard: ({ hand, discardCount, rng }) => sample(splits(hand, discardCount), rng).discards,
+  play: ({ hand, count, rng }) => sample(legalPlays(hand, count), rng) ?? null,
 };

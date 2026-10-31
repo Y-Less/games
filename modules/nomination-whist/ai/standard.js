@@ -57,7 +57,7 @@ export function canTakeAllSeven(hand, trump) {
  * (the round can be won outright by taking all 7 tricks), a hand that can realistically do so nominates 7.
  */
 export function chooseNomination(ctx) {
-  const { hand, trump, players, allowed, instantWin = false, rng = Math.random } = ctx;
+  const { hand, trump, players, allowed, instantWin = false, rng } = ctx;
   const goForIt = instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump);
   return withLastChance(ctx, (boost) => nearestAllowed(allowed, goForIt ? 7 : estimateTricks(hand, trump, players, boost) + (rng() - 0.5) * 0.3));
 }

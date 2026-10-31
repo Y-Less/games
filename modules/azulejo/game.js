@@ -66,10 +66,10 @@ export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
  * In-place Fisher-Yates shuffle.
  *
  * @param {any[]} items  the list to shuffle (mutated and returned)
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {any[]} the same list
  */
-export function shuffle(items, rng = Math.random) {
+export function shuffle(items, rng) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [items[i], items[j]] = [items[j], items[i]];
@@ -80,10 +80,10 @@ export function shuffle(items, rng = Math.random) {
 /**
  * A new bag: 20 tiles of each colour, in a random order.
  *
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {number[]} the 100 colour numbers
  */
-export function makeBag(rng = Math.random) {
+export function makeBag(rng) {
   const tiles = [];
   for (const colour of COLOURS) for (let n = 0; n < PER_COLOUR; n++) tiles.push(colour);
   return shuffle(tiles, rng);
@@ -116,11 +116,11 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {string} args.hostName  the host's display name
  * @param {number} [args.size]  seats at the table (one of SIZES)
  * @param {object} [args.settings]  settings to validate (see normaliseSettings)
- * @param {number} [args.now]  the creation time in milliseconds
+ * @param {number} args.now  the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} if the size or the settings are invalid (the message is shown to the player)
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
@@ -271,10 +271,10 @@ export function setSize(room, userId, size) {
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host, in the lobby)
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
@@ -380,10 +380,10 @@ const roundOver = (room) => room.centre.length === 0 && room.factories.every((f)
  * @param {object} room
  * @param {number} seat  the seat taking
  * @param {{ source: 'centre' | number, colour: number, line: number | 'floor' }} args  the move, from the client (checked here)
- * @param {() => number} [rng]  random numbers in [0, 1) (used if the round ends and the bag has to be refilled)
+ * @param {() => number} rng  random numbers in [0, 1) (used if the round ends and the bag has to be refilled)
  * @returns {{ ok: boolean, error?: string }} an error never names hidden information
  */
-export function takeTiles(room, seat, args, rng = Math.random) {
+export function takeTiles(room, seat, args, rng) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
   const { source, colour, line } = isObject(args) ? args : {};
@@ -509,10 +509,10 @@ function advanceTiling(room, seat) {
  * @param {object} room
  * @param {number} seat  the seat choosing
  * @param {{ col: number }} args  from the client (checked here: it must be one of the highlighted columns)
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ ok: boolean, error?: string }}
  */
-export function chooseColumn(room, seat, args, rng = Math.random) {
+export function chooseColumn(room, seat, args, rng) {
   if (room.phase !== 'tiling') return fail('It is not time to place a tile on the wall.');
   const pending = room.pending[seat];
   if (!pending) return fail('You have nothing to place on the wall.');

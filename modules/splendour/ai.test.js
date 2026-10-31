@@ -325,7 +325,7 @@ test('every AI beats random head to head', { timeout: 300000 }, () => {
 // ---- choosing, storing and showing an AI ----
 
 const lobby = (seats = 4) => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats } });
   game.fillWithBots(room, 1);
   return room;
 };
@@ -402,7 +402,7 @@ test('a person who leaves mid-game is replaced by a bot that picks an AI then; i
   game.addHuman(room, 2, 'bob');
   room.seats[room.seats.findIndex(game.isBot)] = null;
   game.addHuman(room, 3, 'cat');
-  assert.equal(game.removeHuman(room, 3).ok, true);
+  assert.equal(game.removeHuman(room, 3, Math.random).ok, true);
   assert.deepEqual(room.ais, {}, 'lobby: nothing recorded');
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(1));

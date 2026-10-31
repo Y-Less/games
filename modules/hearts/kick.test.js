@@ -10,7 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const snapshot = (room) => JSON.stringify(room);
 
 function lobby() {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
   game.addHuman(room, 2, 'bob');
   game.addHuman(room, 3, 'cat');
   return room;
@@ -18,7 +18,7 @@ function lobby() {
 
 test('rules: the host removes a person from a lobby seat and the seat becomes empty', () => {
   const room = lobby();
-  const result = game.kick(room, 1, 1);
+  const result = game.kick(room, 1, 1, Math.random);
   assert.deepEqual(result, { ok: true, userId: 2, replaced: false });
   assert.equal(room.seats[1], null);
   assert.equal(game.hasPlayer(room, 2), false);
@@ -33,11 +33,11 @@ test('rules: only the host can kick, and never themselves', () => {
   const room = lobby();
   const before = snapshot(room);
   for (const [by, seat] of [[2, 2], [3, 1], [2, 0], [99, 1], [null, 1], [undefined, 1]]) {
-    const result = game.kick(room, by, seat);
+    const result = game.kick(room, by, seat, Math.random);
     assert.equal(result.ok, false, `${by} kicking seat ${seat}`);
     assert.match(result.error, /host/i);
   }
-  const self = game.kick(room, 1, 0);
+  const self = game.kick(room, 1, 0, Math.random);
   assert.equal(self.ok, false);
   assert.ok(self.error);
   assert.equal(snapshot(room), before, 'nothing changed');
@@ -47,10 +47,10 @@ test('rules: the host can remove a person in any phase but the last: a computer 
   for (const phase of ['passing', 'playing', 'handEnd', 'finished']) {
     const room = lobby();
     game.fillWithBots(room, 1);
-    assert.equal(game.start(room, 1).ok, true);
+    assert.equal(game.start(room, 1, Math.random).ok, true);
     room.phase = phase;
     const before = snapshot(room);
-    const result = game.kick(room, 1, 1);
+    const result = game.kick(room, 1, 1, Math.random);
     if (phase === 'finished') {
       assert.equal(result.ok, false, phase);
       assert.match(result.error, /over/);
@@ -66,12 +66,12 @@ test('rules: the host can remove a person in any phase but the last: a computer 
 });
 
 test('rules: a computer player, an empty seat or a nonsense seat cannot be kicked', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1, 2);
   const before = snapshot(room);
   for (const seat of [2, 3, -1, 4, 99, 1.5, NaN, Infinity, '1', '0', undefined, null, {}, [], [1], true, 'bot:1', 2 ** 40]) {
-    const result = game.kick(room, 1, seat);
+    const result = game.kick(room, 1, seat, Math.random);
     assert.equal(result.ok, false, `seat ${String(seat)}`);
     assert.equal(typeof result.error, 'string');
   }
@@ -81,8 +81,8 @@ test('rules: a computer player, an empty seat or a nonsense seat cannot be kicke
 
 test('rules: the kick result names the person so the server can send them home', () => {
   const room = lobby();
-  assert.equal(game.kick(room, 1, 2).userId, 3);
-  assert.equal(game.kick(room, 1, 2).ok, false, 'the seat is already empty');
+  assert.equal(game.kick(room, 1, 2, Math.random).userId, 3);
+  assert.equal(game.kick(room, 1, 2, Math.random).ok, false, 'the seat is already empty');
   assert.equal(game.humanSeats(room).length, 2);
 });
 

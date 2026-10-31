@@ -44,7 +44,7 @@ export const counter = {
   description: 'Counts the cards that are still out to judge its chance of winning each trick, and plays the cheapest card that does the job.',
   weight: 1,
   nominate(ctx) {
-    const { hand, trump, players, allowed, instantWin = false, jokers = false, rng = Math.random } = ctx;
+    const { hand, trump, players, allowed, instantWin = false, jokers = false, rng } = ctx;
     if (instantWin && allowed.includes(7) && canTakeAllSeven(hand, trump)) return 7;
     return withLastChance(ctx, (boost) => nearestAllowed(allowed, countTricks(hand, trump, players, [], jokers, boost) + (rng() - 0.5) * 0.2));
   },

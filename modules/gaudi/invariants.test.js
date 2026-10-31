@@ -15,7 +15,7 @@ test('computer-only games always terminate, with every invariant true after EVER
   for (const n of SIZES) {
     for (let g = 0; g < 70; g++) {
       const rng = seeded(n * 100000 + g);
-      const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: n, settings: { badPrivate: g % 5 === 0 } });
+      const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: n, settings: { badPrivate: g % 5 === 0 } });
       for (let i = 2; i <= n; i++) game.addHuman(room, i, `P${i}`);
       assert.equal(game.start(room, 1, rng).ok, true);
       let steps = 0;
@@ -70,10 +70,10 @@ test('computer players choose a legal move in thousands of random positions', ()
       const copy = structuredClone(room);
       const result =
         choice.type === 'place'
-          ? game.placeDie(copy, seat, choice)
+          ? game.placeDie(copy, seat, choice, Math.random)
           : choice.type === 'tool'
-            ? game.useTool(copy, seat, { tool: choice.tool, params: choice.params })
-            : game.endTurn(copy, seat);
+            ? game.useTool(copy, seat, { tool: choice.tool, params: choice.params }, Math.random)
+            : game.endTurn(copy, seat, Math.random);
       assert.equal(result.ok, true, `${JSON.stringify(choice)}: ${result.error}`);
       if (choice.type === 'tool') tools++;
       if (choice.type === 'end') assert.ok(room.turn.placements >= 1 || bestPlacement(bot.botSnapshot(room, seat), seat, rng) === null, 'ends the turn only when it has nothing to place');
@@ -82,7 +82,7 @@ test('computer players choose a legal move in thousands of random positions', ()
       const roll = rng();
       if (roll < 0.55 && room.pool.length) {
         const d = room.pool[Math.floor(rng() * room.pool.length)];
-        const cells = [...Array(CELLS).keys()].filter((c) => game.placeDie(structuredClone(room), seat, { die: d.id, cell: c }).ok);
+        const cells = [...Array(CELLS).keys()].filter((c) => game.placeDie(structuredClone(room), seat, { die: d.id, cell: c }, Math.random).ok);
         if (cells.length) game.placeDie(room, seat, { die: d.id, cell: cells[Math.floor(rng() * cells.length)] }, rng);
         else game.endTurn(room, seat, rng);
       } else if (roll < 0.7) {
@@ -111,7 +111,7 @@ test('a computer with nothing to place ends its turn, and nothing is pending for
 
 test('pending actions: bots choose windows when the phase is windows, and only then', () => {
   const rng = seeded(1);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
   game.fillWithBots(room, 1);
   game.start(room, 1, rng);
   assert.deepEqual(bot.pendingAction(room), { type: 'window', seat: 1 });
@@ -127,7 +127,7 @@ test('computer window choice always picks one of the options and likes harder wi
   let total = 0;
   let count = 0;
   for (let i = 0; i < 300; i++) {
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
     game.fillWithBots(room, 1);
     game.start(room, 1, rng);
     for (const options of room.options) {

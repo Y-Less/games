@@ -87,14 +87,14 @@ test('it draws when it cannot play, and never plays an invalid table', () => {
   position(room, { racks: [[], [t(0, 1), t(1, 4), t(2, 8)]], table: [[t(0, 4), t(0, 5), t(0, 6)]], turn: 1, melded: [false, true] });
   assert.deepEqual(chooseTurn(room, 1), { type: 'draw' });
   const before = room.racks[1].length;
-  runPending(room);
+  runPending(room, Math.random, Date.now());
   assert.equal(room.racks[1].length, before + 1);
 });
 
 test('the search stops: a big table and a big rack are answered quickly', () => {
   const { room } = playingRoom(2, { seed: 21, bots: true, settings: { colours: 8, numbers: 20, wildcards: 8 } });
   const started = Date.now();
-  for (let i = 0; i < 30 && room.phase === 'playing'; i++) driveStep(room);
+  for (let i = 0; i < 30 && room.phase === 'playing'; i++) driveStep(room, Date.now());
   assert.ok(Date.now() - started < 20000);
   assertInvariants(room);
 });
@@ -116,9 +116,9 @@ for (const players of [2, 3, 4, 5, 6]) {
     let skipped = 0;
     SETTINGS.forEach((settings, index) => {
       const rng = seeded(players * 100 + index);
-      const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'h', size: players, settings: { rounds: 1, ...settings } });
+      const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: players, settings: { rounds: 1, ...settings } });
       game.fillWithBots(room, 1);
-      const started = game.start(room, 1, rng);
+      const started = game.start(room, 1, rng, Date.now());
       if (!started.ok) {
         skipped++;
         assert.match(started.error, /too few|no run or group/);
@@ -127,10 +127,10 @@ for (const players of [2, 3, 4, 5, 6]) {
       let turns = 0;
       while (room.phase !== 'finished') {
         if (room.phase === 'between') {
-          assert.equal(game.forceNext(room, rng).ok, true);
+          assert.equal(game.forceNext(room, rng, Date.now()).ok, true);
           continue;
         }
-        driveStep(room);
+        driveStep(room, Date.now());
         assertInvariants(room, `${players}p settings ${index} turn ${turns}`);
         assert.ok(++turns < 6000, 'the game must end');
       }
@@ -147,7 +147,7 @@ test('computer players with the pool exhausted still end the round', () => {
     const { room } = playingRoom(3, { seed, bots: true, settings: { numbers: 6, colours: 3, wildcards: 0, meld: 60 } });
     let turns = 0;
     while (room.phase === 'playing') {
-      driveStep(room);
+      driveStep(room, Date.now());
       assert.ok(++turns < 3000);
     }
     assert.equal(room.lastRound.reason, 'blocked', 'an unreachable first meld ends by everyone passing');

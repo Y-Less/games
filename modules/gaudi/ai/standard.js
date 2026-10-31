@@ -8,10 +8,10 @@ import { affordable, newDeadSpaces, pickOne, publicPoints } from './common.js';
  * Windows with more restrictions give more favour tokens: the computer likes difficulty 5 and 6, with some variety.
  *
  * @param {string[]} options  the pattern ids on offer
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {string} one of the options
  */
-export function chooseWindow(options, rng = Math.random) {
+export function chooseWindow(options, rng) {
   return options.reduce((best, pid) => {
     const score = patternOf(pid).difficulty + rng() * 1.8;
     return !best || score > best.score ? { pid, score } : best;

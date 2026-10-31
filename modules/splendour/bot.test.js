@@ -67,10 +67,10 @@ test('the computer player picks a legal move in thousands of random positions', 
       else assert.equal(legal.length, 0);
       assert.equal(game.applyMove(clone, seat, move).ok, true);
       if (clone.pending?.type === 'return') {
-        const give = bot.chooseReturn(clone, seat);
+        const give = bot.chooseReturn(clone, seat, Math.random);
         assert.equal(game.returnTokens(clone, seat, give).ok, true);
       }
-      if (clone.pending?.type === 'noble') assert.equal(game.chooseNoble(clone, seat, bot.chooseNoble(clone, seat)).ok, true);
+      if (clone.pending?.type === 'noble') assert.equal(game.chooseNoble(clone, seat, bot.chooseNoble(clone, seat, Math.random)).ok, true);
       checkInvariants(clone, 'after the computer move');
       checked++;
     }
@@ -85,7 +85,7 @@ test('the computer player returns exactly the excess and prefers to keep what it
   room.players[0].tokens = [2, 2, 2, 2, 1, 2];
   room.supply = [2, 2, 2, 2, 3, 3];
   room.pending = { type: 'return', seat: 0, count: 1 };
-  const give = bot.chooseReturn(room, 0);
+  const give = bot.chooseReturn(room, 0, Math.random);
   assert.equal(give.reduce((a, b) => a + b, 0), 1);
   assert.equal(give[5], 0, 'gold is the last to go');
   assert.equal(game.returnTokens(room, 0, give).ok, true);

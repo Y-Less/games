@@ -58,10 +58,10 @@ export function botSnapshot(room, seat) {
  *
  * @param {object} room
  * @param {number} seat
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ type: 'place', die: number, cell: number } | { type: 'tool', tool: string, params: object } | { type: 'end' }}
  */
-export function botStep(room, seat, rng = Math.random) {
+export function botStep(room, seat, rng) {
   return game.aiOf(room, seat).chooseStep(botSnapshot(room, seat), seat, rng);
 }
 
@@ -72,11 +72,11 @@ export function botStep(room, seat, rng = Math.random) {
  * Side effects: mutates room (through the game functions).
  *
  * @param {object} room
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {object | null} the action (with `step` set for a turn), or null if there was nothing to do
  * @throws {Error} if the AI chose a move the rules refuse (a bug in the AI; the server logs it and tries again later)
  */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   let result;

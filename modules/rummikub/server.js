@@ -40,29 +40,29 @@ export default function (ctx) {
     /** The extra argument for a new room: the number of seats the host asked for (the default size if none). */
     createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
     /** The view needs the clock, to show how long is left on the turn timer. */
-    viewOptions: () => ({ now: Date.now() }),
+    viewOptions: (room, userId, now) => ({ now: now() }),
     /**
      * The next thing the server does by itself, in this order of priority: a computer move; a turn timer running out; the
      * wait between rounds. Returns null when the game is waiting for a person.
      */
-    nextAction(room) {
-      if (bot.pendingAction(room)) return { wait: botWait(delays.bot), run: () => bot.runPending(room) };
+    nextAction(room, rng, now) {
+      if (bot.pendingAction(room)) return { wait: botWait(delays.bot, rng), run: () => bot.runPending(room, rng, now()) };
       if (room.phase === 'playing' && room.deadline !== null && room.deadline !== undefined) {
         return {
-          wait: Math.max(0, room.deadline - Date.now()),
-          run: () => game.timeout(room, Math.max(Date.now(), room.deadline)),
+          wait: Math.max(0, room.deadline - now()),
+          run: () => game.timeout(room, Math.max(now(), room.deadline)),
         };
       }
       // The wait is not restarted when somebody presses Continue: the same round's timer keeps running.
-      if (room.phase === 'between') return { key: `between:${room.round}`, wait: delays.roundWait, run: () => game.forceNext(room) };
+      if (room.phase === 'between') return { key: `between:${room.round}`, wait: delays.roundWait, run: () => game.forceNext(room, rng, now()) };
       return null;
     },
     /** Rummikub's own events: a whole turn (play), a draw, Continue between rounds, and the number of seats. */
-    registerEvents({ act, on, userId }) {
+    registerEvents({ act, on, userId, rng, now }) {
       on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
-      on('play', ({ table }) => act((room, seat) => game.play(room, seat, { table })));
-      on('draw', () => act((room, seat) => game.draw(room, seat)));
-      on('next', () => act((room, seat) => game.next(room, seat)));
+      on('play', ({ table }) => act((room, seat) => game.play(room, seat, { table }, now())));
+      on('draw', () => act((room, seat) => game.draw(room, seat, now())));
+      on('next', () => act((room, seat) => game.next(room, seat, rng, now())));
     },
   });
 }

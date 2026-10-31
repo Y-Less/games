@@ -52,7 +52,7 @@ function playCtx({ hand, plays = [], trump = 'H', players = 3, seat = 2, bids, t
 }
 
 function fullRoom(seats, settings = {}) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, ...settings } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, ...settings } });
   assert.ok(g.fillWithBots(room, 1).ok);
   return room;
 }
@@ -329,11 +329,11 @@ test('an AI that answers illegally is overruled rather than breaking the game', 
   random.play = () => 'XX';
   try {
     while (room.phase === 'nominating') {
-      assert.ok(g.allowedNominations(room, room.turn).includes(g.botNominate(room, room.turn === 0 ? 1 : room.turn)));
+      assert.ok(g.allowedNominations(room, room.turn).includes(g.botNominate(room, room.turn === 0 ? 1 : room.turn, Math.random)));
       g.nominate(room, room.turn, g.allowedNominations(room, room.turn)[0]);
     }
     const seat = room.turn;
-    assert.ok(g.legalCards(room, seat).includes(g.botPlay(room, seat)));
+    assert.ok(g.legalCards(room, seat).includes(g.botPlay(room, seat, Math.random)));
   } finally {
     [random.nominate, random.play] = original;
   }
@@ -359,7 +359,7 @@ test('the view names the AI of computer players only', () => {
 test('a person who leaves is replaced by a computer player that picks an AI at that moment', () => {
   const picks = new Set();
   for (let seed = 1; seed <= 60; seed++) {
-    const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
     g.addHuman(room, 2, 'Bob');
     g.fillWithBots(room, 1);
     g.start(room, 1, seeded(1));

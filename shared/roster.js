@@ -170,10 +170,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    *
    * @param {object} room
    * @param {number} userId
-   * @param {() => number} [rng]
+   * @param {() => number} rng
    * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }}
    */
-  function removeHuman(room, userId, rng = Math.random) {
+  function removeHuman(room, userId, rng) {
     if (!isHuman(room.players[seatOf(room, userId)])) return fail('You are not in this game.');
     return takeOut(room, userId, rng);
   }
@@ -235,10 +235,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {object} room
    * @param {number} userId
    * @param {string} botId  the computer player's id ('bot:<n>')
-   * @param {() => number} [rng]
+   * @param {() => number} rng
    * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }}
    */
-  function removeBot(room, userId, botId, rng = Math.random) {
+  function removeBot(room, userId, botId, rng) {
     const problem = asHost(room, userId);
     if (problem) return fail('Only the host can remove computer players.');
     if (!isBot(room.players[seatOf(room, botId)])) return fail('That is not a computer player.');
@@ -254,10 +254,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {object} room
    * @param {number} hostId
    * @param {number} targetId  the account id of the person to remove
-   * @param {() => number} [rng]
+   * @param {() => number} rng
    * @returns {{ ok: boolean, userId?: number, abandoned?: boolean, finished?: boolean, error?: string }}
    */
-  function kick(room, hostId, targetId, rng = Math.random) {
+  function kick(room, hostId, targetId, rng) {
     if (hostId !== room.hostId) return fail('Only the host can remove players.');
     const target = room.players.find((p) => p.id === targetId);
     if (!isHuman(target) || target.id === hostId) return fail('That player is not in the game.');

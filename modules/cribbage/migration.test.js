@@ -42,7 +42,7 @@ function asOldRoom(room) {
  * @returns {object} the room
  */
 function startedRoom(seed = 4, seats = 2) {
-  const room = game.createRoom({ code: 'old-room-code', hostId: 1, hostName: 'Ann', settings: { seats } });
+  const room = game.createRoom({ now: 0, code: 'old-room-code', hostId: 1, hostName: 'Ann', settings: { seats } });
   game.fillWithBots(room, 1);
   assert.ok(game.start(room, 1, seeded(seed)).ok);
   return room;
@@ -81,7 +81,7 @@ test('migrate: an old-shape room becomes a current one and plays on to the end',
 });
 
 test('migrate: lobby rooms are padded with empty seats, people who left stay as markers, and current rooms are untouched', () => {
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
   const padded = game.migrate(asOldRoom(lobby));
   assert.equal(padded.seats.length, 4);
   assert.deepEqual(padded.seats.map((s) => s?.kind ?? null), ['human', null, null, null]);
@@ -101,7 +101,7 @@ test('migrate: lobby rooms are padded with empty seats, people who left stay as 
 });
 
 test('migrate: the next computer player does not reuse an id, and a replaced person keeps their name', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 } });
   game.addHuman(room, 2, 'Bob');
   game.addBot(room, 1);
   game.start(room, 1, seeded(3));
@@ -153,12 +153,12 @@ test('a computer player whose AI throws or answers nonsense still moves', () => 
 });
 
 test('kick: refused once the game is over, and nothing changes', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 2 } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 2 } });
   game.addHuman(room, 2, 'Bob');
   game.start(room, 1, seeded(5));
   room.phase = 'finished';
   room.winner = 0;
-  const refused = game.kick(room, 1, 1);
+  const refused = game.kick(room, 1, 1, Math.random);
   assert.equal(refused.ok, false);
   assert.match(refused.error, /over/);
   assert.equal(room.seats[1].kind, 'human', 'nothing changed');

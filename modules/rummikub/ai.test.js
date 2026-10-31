@@ -32,9 +32,9 @@ function position(room, { racks, table = [], turn = 0, melded = [], pool }) {
 /** A bot-only room whose seats use the given AIs (by id), started with a seeded generator. */
 function botRoom(ais, { seed = 1, settings = {} } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'h', size: ais.length, settings });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: ais.length, settings });
   game.fillWithBots(room, 1);
-  const started = game.start(room, 1, rng);
+  const started = game.start(room, 1, rng, Date.now());
   if (!started.ok) return { room, rng, error: started.error };
   room.seats[0] = { kind: 'bot', id: 'bot:0', name: 'Zed' }; // the host's seat plays too
   room.seats.forEach((seat, i) => (seat.ai = ais[i]));
@@ -45,12 +45,12 @@ function playOut(room, rng, label = '') {
   let turns = 0;
   while (room.phase !== 'finished') {
     if (room.phase === 'between') {
-      assert.equal(game.forceNext(room, rng).ok, true);
+      assert.equal(game.forceNext(room, rng, Date.now()).ok, true);
       continue;
     }
     const seat = room.turn;
     const choice = chooseTurn(room, seat, { rng });
-    const result = choice.type === 'play' ? game.play(room, seat, { table: choice.table }) : game.draw(room, seat);
+    const result = choice.type === 'play' ? game.play(room, seat, { table: choice.table }, Date.now()) : game.draw(room, seat, Date.now());
     assert.equal(result.ok, true, `${label}: a computer move must be legal (${choice.type}): ${result.error}`);
     assertInvariants(room, `${label} turn ${turns}`);
     assert.ok(++turns < 6000, `${label}: the game must end`);
@@ -73,9 +73,9 @@ test('Rummikub has the six AIs, the classic one first, each with a name, descrip
 
 test('starting a game gives every computer seat an AI (repeatably, with the game\'s generator) and no person one', () => {
   const run = (seed) => {
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'h', size: 6 });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: 6 });
     game.fillWithBots(room, 1);
-    assert.equal(game.start(room, 1, seeded(seed)).ok, true);
+    assert.equal(game.start(room, 1, seeded(seed), Date.now()).ok, true);
     return room;
   };
   const a = run(5);
@@ -96,7 +96,7 @@ test('the view names a computer seat\'s AI once the game has started, and never 
     assert.equal(view.seats[seat].ai.id, room.seats[seat].ai);
     assert.equal(typeof view.seats[seat].ai.plan, 'undefined');
   }
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'h', size: 3 });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: 3 });
   game.fillWithBots(lobby, 1);
   assert.equal(game.viewFor(lobby, 1).seats[1].ai, undefined, 'nothing is chosen in the lobby');
 });
@@ -112,12 +112,12 @@ test('a person who leaves mid-game is replaced by a computer that picks an AI th
     picks.push(copy.seats[1].ai);
   }
   assert.deepEqual(picks, ['standard', 'random'], 'the generator chooses: first and last of the pool');
-  const outcome = game.removeHuman(room, 2);
+  const outcome = game.removeHuman(room, 2, Math.random);
   assert.equal(outcome.ok, true);
   assert.ok(IDS.includes(room.seats[1].ai));
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'h', size: 3 });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: 3 });
   game.addHuman(lobby, 2, 'two');
-  game.removeHuman(lobby, 2);
+  game.removeHuman(lobby, 2, Math.random);
   assert.equal(lobby.seats[1], null);
 });
 
@@ -129,12 +129,12 @@ test('a room saved before AIs existed (no ai on its bots) plays with the classic
   assert.equal(aiOf(room, 1).id, 'standard');
   room.turn = 1;
   assert.ok(pendingAction(room));
-  assert.equal(runPending(room).ok, true);
+  assert.equal(runPending(room, Math.random, Date.now()).ok, true);
 });
 
 test('the room, with each seat\'s AI, survives being saved as JSON and carries on', () => {
   const { room, rng } = botRoom(['sharp', 'shuffler-10', 'random', 'standard']);
-  for (let i = 0; i < 30 && room.phase === 'playing'; i++) runPending(room, rng);
+  for (let i = 0; i < 30 && room.phase === 'playing'; i++) runPending(room, rng, Date.now());
   const restored = JSON.parse(JSON.stringify(room));
   assert.deepEqual(restored.seats.map((s) => s.ai), ['sharp', 'shuffler-10', 'random', 'standard']);
   assert.deepEqual(game.viewFor(restored, 1).seats.map((s) => s.ai.id), ['sharp', 'shuffler-10', 'random', 'standard']);
@@ -227,7 +227,7 @@ function samplePositions(games = 4) {
     while (room.phase === 'playing' && turns++ < 400) {
       const seat = room.turn;
       if (room.melded[seat] && room.table.length >= 2) out.push({ room: structuredClone(room), seat });
-      runPending(room, rng);
+      runPending(room, rng, Date.now());
     }
   }
   return out;
@@ -253,7 +253,7 @@ test('higher budgets are never worse: whatever 5 finds, 10 finds at least as goo
 test('a turn is quick even on a huge table', () => {
   const { room, rng } = botRoom(['shuffler-20', 'sharp', 'standard'], { seed: 21, settings: { colours: 8, numbers: 20, wildcards: 8 } });
   const started = Date.now();
-  for (let i = 0; i < 25 && room.phase === 'playing'; i++) runPending(room, rng);
+  for (let i = 0; i < 25 && room.phase === 'playing'; i++) runPending(room, rng, Date.now());
   assert.ok(Date.now() - started < 30000, `${Date.now() - started}ms`);
   assertInvariants(room);
 });

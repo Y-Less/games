@@ -140,10 +140,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {number} args.hostId    the host's account id
  * @param {string} args.hostName
  * @param {object} [args.settings]  { target, seats }; invalid settings throw
- * @param {number} [args.now]     the creation time in milliseconds
+ * @param {number} args.now     the creation time in milliseconds
  * @returns {object} the room
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
   const room = {
@@ -242,7 +242,7 @@ export function setSettings(room, userId, input) {
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {unknown[]}
  */
-export function shuffle(list, rng = Math.random) {
+export function shuffle(list, rng) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -262,7 +262,7 @@ export function shuffle(list, rng = Math.random) {
  * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
@@ -778,8 +778,9 @@ export function statsPlayers(room) {
 // ---- what each player may see ----
 
 /**
- * Everything one account may know. The identity of a reserved card is only sent to the player who holds it (until it is
- * bought): to everyone else every reserved card is face down, whether it was taken from the table or blind from a pile.
+ * Everything one account may know. A reserved card taken face up from the table is shown to everyone (they all saw it
+ * taken, and people remember); one reserved blind from a draw pile is only ever sent to the player who holds it (until it is
+ * bought): to everyone else a blind reserve is face down, showing only its level.
  * The draw piles are sent as counts only.
  *
  * @param {object} room
@@ -815,7 +816,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
         nobles: [...p.nobles],
         reserved: p.reserved.map((r) => ({
           level: CARD_BY_ID[r.card].level,
-          card: i === me ? r.card : null,
+          card: i === me || !r.blind ? r.card : null, // a card taken face up from the table was seen by everyone
           blind: r.blind, // how it was reserved (everyone saw that), not whether you can see it
         })),
       };

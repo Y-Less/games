@@ -8,7 +8,7 @@ import { seeded } from '../../shared/testkit.js';
 
 /** A room of the given user ids, started with the first player as the first psychic. */
 function started(ids = [1, 2, 3], { turnsEach = 2, seed = 7 } = {}) {
-  const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
+  const room = game.createRoom({ now: 0, code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
   const rng = seeded(seed);
@@ -17,7 +17,7 @@ function started(ids = [1, 2, 3], { turnsEach = 2, seed = 7 } = {}) {
 }
 const guessersOf = (room) => room.players.filter((p) => p.id !== room.psychic);
 const score = (room, id) => room.players.find((p) => p.id === id).score;
-const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id));
+const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id, Math.random));
 
 test('the bands score 4, 3, 2 and 0 by distance from the target', () => {
   assert.equal(game.pointsFor(50, 50), 4);
@@ -43,7 +43,7 @@ test('every spectrum is well formed and its examples lie on the dial', () => {
 });
 
 test('a lobby: players, colours, settings and computer players', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   assert.ok(game.addHuman(room, 2).ok);
   assert.ok(game.addHuman(room, 2).ok, 'joining twice is harmless');
   assert.equal(game.setColour(room, 2, room.players[0].colour).ok, false, 'colours are unique');
@@ -55,7 +55,7 @@ test('a lobby: players, colours, settings and computer players', () => {
   assert.ok(game.fillWithBots(room, 1, 4).ok);
   assert.equal(room.players.length, 4);
   assert.ok(room.players.slice(2).every((p) => p.kind === 'bot' && p.id.startsWith('bot:')));
-  assert.equal(game.start(room, 2).ok, false, 'only the host starts');
+  assert.equal(game.start(room, 2, Math.random).ok, false, 'only the host starts');
   assert.ok(game.start(room, 1, seeded(1)).ok);
   assert.equal(room.turnsTotal, 12);
   assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => AIS.some((ai) => ai.id === p.ai)), 'every bot has an AI');
@@ -95,11 +95,11 @@ test('a turn: clue, guesses, reveal and ready', () => {
   assert.equal(room.players.find((p) => p.id === a).bullseyes, 1);
   assert.equal(room.players.find((p) => p.id === psychic).cluesGiven, 1);
 
-  assert.ok(game.ready(room, 1).ok);
+  assert.ok(game.ready(room, 1, Math.random).ok);
   assert.equal(room.phase, 'reveal', 'waits for the others');
-  assert.equal(game.ready(room, 99).ok, false);
-  assert.ok(game.ready(room, 2).ok);
-  assert.ok(game.ready(room, 3).ok);
+  assert.equal(game.ready(room, 99, Math.random).ok, false);
+  assert.ok(game.ready(room, 2, Math.random).ok);
+  assert.ok(game.ready(room, 3, Math.random).ok);
   assert.equal(room.phase, 'clue');
   assert.equal(room.turn, 1);
   assert.notEqual(room.psychic, psychic, 'the next player is the psychic');
@@ -148,7 +148,7 @@ test('the view hides the target from guessers and every guess until the reveal',
   assert.equal(view(a).result.entries.length, 2);
   assert.equal(view(a).scoreboard.players.filter((p) => p.current).length, 1, 'the psychic is the current player');
   assert.equal(room.players.every((p) => view(p.id).spectrum.left), true);
-  assert.deepEqual(game.viewFor(game.createRoom({ code: 'x-y-z', hostId: 1 }), 1).spectrum, null, 'no spectrum in the lobby');
+  assert.deepEqual(game.viewFor(game.createRoom({ now: 0, code: 'x-y-z', hostId: 1 }), 1).spectrum, null, 'no spectrum in the lobby');
 });
 
 test('leaving: a guesser who was holding up the reveal, the psychic, and too few players', () => {
@@ -158,7 +158,7 @@ test('leaving: a guesser who was holding up the reveal, the psychic, and too few
   game.setClue(room, psychic, 'warm');
   game.guess(room, a, 50);
   game.guess(room, b, 50);
-  const outcome = game.removeHuman(room, c);
+  const outcome = game.removeHuman(room, c, Math.random);
   assert.ok(outcome.ok && !outcome.abandoned);
   assert.equal(room.phase, 'reveal', 'the missing guess is no longer waited for');
   assert.equal(room.history.length, 1);
@@ -166,18 +166,18 @@ test('leaving: a guesser who was holding up the reveal, the psychic, and too few
   const second = started([1, 2, 3, 4]);
   game.setClue(second, second.psychic, 'warm');
   const gone = second.psychic;
-  game.removeHuman(second, gone);
+  game.removeHuman(second, gone, Math.random);
   assert.equal(second.phase, 'clue', 'the turn is skipped and the next one starts');
   assert.notEqual(second.psychic, gone);
   assert.equal(second.history.length, 0, 'a skipped turn scores nothing');
   assert.equal(second.players.length, 3);
 
   const pair = started([1, 2]);
-  game.removeHuman(pair, 2);
+  game.removeHuman(pair, 2, Math.random);
   assert.equal(pair.phase, 'abandoned');
-  assert.equal(game.removeHuman(game.createRoom({ code: 'a-b-c', hostId: 1 }), 1).empty, true);
+  assert.equal(game.removeHuman(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 }), 1, Math.random).empty, true);
   const host = started([1, 2, 3]);
-  game.removeHuman(host, 1);
+  game.removeHuman(host, 1, Math.random);
   assert.equal(host.hostId, 2, 'the host passes on');
 });
 
@@ -243,7 +243,7 @@ test('rooms saved before these were counted keep working', () => {
 });
 
 test('statistics list the people, with their bullseyes and clues', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
   game.addBot(room, 1);
   game.start(room, 1, seeded(3));
@@ -265,7 +265,7 @@ test('statistics list the people, with their bullseyes and clues', () => {
 
 function playBots(seed, { turnsEach = 2, count = 4 } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 'bot:0' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 'bot:0' });
   room.players.length = 0;
   room.hostId = null;
   for (let i = 0; i < count; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}` });
@@ -300,7 +300,7 @@ test('a good computer player beats a random one, and every AI is legal on its ow
   const totals = { standard: 0, random: 0 };
   for (let seed = 1; seed <= 60; seed++) {
     const rng = seeded(seed);
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
     room.players.length = 0;
     for (let i = 0; i < 4; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}`, ai: i < 2 ? 'standard' : 'random' });
     room.hostId = 'bot:1';
@@ -350,9 +350,9 @@ test('a saved room comes back as it was', () => {
 });
 
 test('marker colours: a default is used when free, any colour needs the unlock, and colours stay unique', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, colour: '#6a00ff' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, colour: '#6a00ff' });
   assert.equal(room.players[0].colour, '#6a00ff', 'the host gets their default');
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1 }).players[0].colour, game.COLOURS[0], 'no default: the first colour');
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 }).players[0].colour, game.COLOURS[0], 'no default: the first colour');
   assert.ok(game.addHuman(room, 2, 'P2', { colour: '#6a00ff' }).ok);
   assert.equal(room.players[1].colour, game.COLOURS[0], 'the default is taken: the first free colour');
   assert.ok(game.addHuman(room, 3, 'P3', { colour: '#123456' }).ok);
@@ -373,7 +373,7 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
 // ---------- team mode ----------
 
 function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: ids[0] });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: ids[0] });
   for (const id of ids.slice(1)) game.addHuman(room, id);
   assert.ok(game.setTurnsEach(room, ids[0], 1).ok);
   assert.ok(game.setMode(room, ids[0], 'team').ok);
@@ -382,7 +382,7 @@ function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
 }
 
 test('the host chooses the mode in the lobby only', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
   assert.equal(room.mode, 'solo');
   assert.equal(game.setMode(room, 2, 'team').ok, false, 'only the host');
@@ -473,7 +473,7 @@ test('a team game survives the psychic leaving, and a saved room keeps its mode 
   assert.equal(copy.mode, 'team');
   assert.equal(copy.marker, 42);
   const gone = room.psychic;
-  game.removeHuman(room, gone);
+  game.removeHuman(room, gone, Math.random);
   assert.equal(room.phase, 'clue');
   assert.equal(room.marker, null, 'a new turn starts with the marker unplaced');
   const old = game.migrate({ ...JSON.parse(JSON.stringify(started())), mode: undefined, marker: undefined });
@@ -482,7 +482,7 @@ test('a team game survives the psychic leaving, and a saved room keeps its mode 
 
 test('kick refuses a finished game and removes nobody', () => {
   const room = (() => {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const r = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
     game.addHuman(r, 2, 'Bob');
     game.addBot(r, 1);
     game.start(r, 1, seeded(3));
@@ -490,13 +490,13 @@ test('kick refuses a finished game and removes nobody', () => {
   })();
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.deepEqual(game.kick(room, 1, 2), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'The game is over: there is nobody to remove.' });
   assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 
 test('a room saved before players had a kind still loads: bot: true becomes kind: bot, and people are named from their account', () => {
   const room = (() => {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const r = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
     game.addHuman(r, 2, 'Bob');
     game.addBot(r, 1);
     game.start(r, 1, seeded(3));

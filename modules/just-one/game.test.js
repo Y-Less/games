@@ -8,7 +8,7 @@ import { seeded } from '../../shared/testkit.js';
 
 /** A started room of the given user ids; the first player is the first guesser when the seed says so (see `guesserOf`). */
 function started(ids = [1, 2, 3, 4], { turnsEach = 1, seed = 4 } = {}) {
-  const room = game.createRoom({ code: 'boss-aware-you', hostId: ids[0] });
+  const room = game.createRoom({ now: 0, code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
   assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
   assert.ok(game.start(room, ids[0], seeded(seed)).ok);
@@ -16,7 +16,7 @@ function started(ids = [1, 2, 3, 4], { turnsEach = 1, seed = 4 } = {}) {
 }
 const writersOf = (room) => room.players.filter((p) => p.id !== room.guesser).map((p) => p.id);
 const score = (room, id) => room.players.find((p) => p.id === id).score;
-const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id));
+const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id, Math.random));
 /** Everybody but the guesser sends a clue: the given words in turn. */
 function writeClues(room, words, rng = seeded(1)) {
   writersOf(room).forEach((id, i) => assert.ok(game.submitClue(room, id, words[i], rng).ok, `${words[i]}`));
@@ -44,13 +44,13 @@ test('a clue is one word, and not the secret word or part of it', () => {
 });
 
 test('a lobby: players, settings and computer players', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   assert.ok(game.addHuman(room, 2).ok);
   assert.ok(game.addHuman(room, 2).ok, 'joining twice is harmless');
   assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
   assert.equal(game.setTurnsEach(room, 1, 9).ok, false);
   assert.ok(game.setTurnsEach(room, 1, 3).ok);
-  assert.equal(game.start(room, 1).ok, false, 'three players are needed');
+  assert.equal(game.start(room, 1, Math.random).ok, false, 'three players are needed');
   assert.equal(game.addBot(room, 2).ok, false, 'only the host adds computers');
   assert.ok(game.fillWithBots(room, 1, 5).ok);
   assert.equal(room.players.length, 5);
@@ -58,7 +58,7 @@ test('a lobby: players, settings and computer players', () => {
   while (room.players.length < game.MAX_PLAYERS) assert.ok(game.addBot(room, 1).ok);
   assert.equal(game.addBot(room, 1).ok, false, 'the table is full');
   assert.equal(game.addHuman(room, 99).ok, false, 'full');
-  assert.equal(game.start(room, 2).ok, false, 'only the host starts');
+  assert.equal(game.start(room, 2, Math.random).ok, false, 'only the host starts');
   assert.ok(game.start(room, 1, seeded(1)).ok);
   assert.equal(room.turnsTotal, 21);
   assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => AIS.some((ai) => ai.id === p.ai)), 'every bot has an AI');
@@ -71,17 +71,17 @@ test('a turn: clues, the guess, the best hint, the reveal and ready', () => {
   const [a, b, c] = writersOf(room);
   const word = room.word;
   assert.equal(room.phase, 'clues');
-  assert.equal(game.submitClue(room, guesser, 'hello').ok, false, 'the guesser does not write one');
-  assert.equal(game.submitClue(room, 99, 'hello').ok, false);
-  assert.equal(game.submitClue(room, a, word).ok, false, 'not the word itself');
-  assert.equal(game.submitClue(room, a, 'two words').ok, false);
-  assert.equal(game.submitClue(room, a, 'x'.repeat(40)).ok, false);
-  assert.ok(game.submitClue(room, a, 'alpha').ok);
-  assert.equal(game.submitClue(room, a, 'beta').ok, false, 'one clue each');
+  assert.equal(game.submitClue(room, guesser, 'hello', Math.random).ok, false, 'the guesser does not write one');
+  assert.equal(game.submitClue(room, 99, 'hello', Math.random).ok, false);
+  assert.equal(game.submitClue(room, a, word, Math.random).ok, false, 'not the word itself');
+  assert.equal(game.submitClue(room, a, 'two words', Math.random).ok, false);
+  assert.equal(game.submitClue(room, a, 'x'.repeat(40), Math.random).ok, false);
+  assert.ok(game.submitClue(room, a, 'alpha', Math.random).ok);
+  assert.equal(game.submitClue(room, a, 'beta', Math.random).ok, false, 'one clue each');
   assert.equal(game.guess(room, guesser, word).ok, false, 'no guessing before the clues are in');
-  assert.ok(game.submitClue(room, b, 'Alphas').ok, 'a plural of the same clue');
+  assert.ok(game.submitClue(room, b, 'Alphas', Math.random).ok, 'a plural of the same clue');
   assert.equal(room.phase, 'clues');
-  assert.ok(game.submitClue(room, c, 'gamma').ok);
+  assert.ok(game.submitClue(room, c, 'gamma', Math.random).ok);
   assert.equal(room.phase, 'guessing', 'the last clue opens the guessing');
   assert.deepEqual([...room.cancelled].sort(), [a, b].sort(), 'matching clues are both cancelled');
   assert.deepEqual(room.order, [c], 'one clue is left');
@@ -104,10 +104,10 @@ test('a turn: clues, the guess, the best hint, the reveal and ready', () => {
   assert.deepEqual(room.history[0].deltas, { [guesser]: 2, [c]: 1 });
   assert.equal(game.chooseBest(room, guesser, 0).ok, false, 'once');
 
-  assert.ok(game.ready(room, 1).ok);
-  assert.equal(game.ready(room, 99).ok, false);
+  assert.ok(game.ready(room, 1, Math.random).ok);
+  assert.equal(game.ready(room, 99, Math.random).ok, false);
   assert.equal(room.phase, 'reveal', 'waits for the others');
-  for (const id of [2, 3, 4]) game.ready(room, id);
+  for (const id of [2, 3, 4]) game.ready(room, id, Math.random);
   assert.equal(room.phase, 'clues', 'the next turn');
   assert.equal(room.turn, 1);
   assert.notEqual(room.guesser, guesser);
@@ -149,15 +149,15 @@ test('the guesser sees neither the word nor the cancelled clues nor who wrote wh
   assert.equal(view(guesser).word, null);
   assert.equal(view(a).word, room.word);
   assert.equal(game.viewFor(room, 99).word, null, 'a stranger sees nothing');
-  game.submitClue(room, a, 'alpha');
+  game.submitClue(room, a, 'alpha', Math.random);
   assert.deepEqual(view(a).clues.map((x) => x.text), ['alpha'], 'you see your own clue');
   assert.deepEqual(view(b).clues, [], 'not anyone else\'s');
   assert.deepEqual(view(guesser).clues, []);
   assert.equal(view(b).players.find((p) => p.id === a).written, true, 'but they see who has written');
   assert.equal(view(a).players.find((p) => p.id === b).written, false);
   assert.ok(!JSON.stringify(view(b)).includes('alpha'));
-  game.submitClue(room, b, 'alpha');
-  game.submitClue(room, c, 'gamma');
+  game.submitClue(room, b, 'alpha', Math.random);
+  game.submitClue(room, c, 'gamma', Math.random);
   const g = view(guesser);
   assert.deepEqual(g.clues, [{ n: 0, text: 'gamma' }], 'the guesser sees only what is left, with no writer');
   assert.ok(!JSON.stringify(g).includes('alpha'));
@@ -201,9 +201,9 @@ test('everyone is the guesser turnsEach times, words do not repeat, and the game
 test('leaving: a writer, the guesser, and too few players', () => {
   const room = started([1, 2, 3, 4]);
   const [a, b, c] = writersOf(room);
-  game.submitClue(room, a, 'alpha');
-  game.submitClue(room, b, 'beta');
-  assert.ok(game.removeHuman(room, c).ok);
+  game.submitClue(room, a, 'alpha', Math.random);
+  game.submitClue(room, b, 'beta', Math.random);
+  assert.ok(game.removeHuman(room, c, Math.random).ok);
   assert.equal(room.phase, 'guessing', 'the clues are in once the missing writer has gone');
   assert.deepEqual([...room.order].sort(), [a, b].sort());
 
@@ -212,25 +212,25 @@ test('leaving: a writer, the guesser, and too few players', () => {
   game.guess(choosing, choosing.guesser, choosing.word);
   assert.equal(choosing.phase, 'choosing');
   assert.equal(choosing.order.length, 1);
-  for (const id of [...choosing.order]) game.removeHuman(choosing, id); // the writer of the only hint left goes
+  for (const id of [...choosing.order]) game.removeHuman(choosing, id, Math.random); // the writer of the only hint left goes
   assert.equal(choosing.phase, 'reveal', 'with no hint left to pick the turn is scored');
   assert.equal(score(choosing, choosing.guesser), 2);
 
   const second = started([1, 2, 3, 4]);
   const gone = second.guesser;
-  game.removeHuman(second, gone);
+  game.removeHuman(second, gone, Math.random);
   assert.equal(second.phase, 'clues', 'the turn is skipped and the next one starts');
   assert.notEqual(second.guesser, gone);
   assert.equal(second.history.length, 0, 'a skipped turn scores nothing');
 
   const pair = started([1, 2, 3]);
-  game.removeHuman(pair, 2);
+  game.removeHuman(pair, 2, Math.random);
   assert.equal(pair.phase, 'clues', 'two players can still play');
-  game.removeHuman(pair, 3);
+  game.removeHuman(pair, 3, Math.random);
   assert.equal(pair.phase, 'abandoned');
-  assert.equal(game.removeHuman(game.createRoom({ code: 'a-b-c', hostId: 1 }), 1).empty, true);
+  assert.equal(game.removeHuman(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 }), 1, Math.random).empty, true);
   const host = started([1, 2, 3]);
-  game.removeHuman(host, 1);
+  game.removeHuman(host, 1, Math.random);
   assert.equal(host.hostId, 2, 'the host passes on');
 });
 
@@ -248,7 +248,7 @@ test('a saved room comes back as it was', () => {
 
 function botGame(seed, { turnsEach = 2, count = 4 } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.fillWithBots(room, 1, count);
   room.players[0].kind = 'bot'; // every seat is a computer, so the whole game plays itself
   room.players[0].name = 'Host';
@@ -301,7 +301,7 @@ test('a computer guesser never sees the word, and a broken AI cannot stop the ga
 
 test('kick refuses a finished game and removes nobody', () => {
   const room = (() => {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const r = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
     game.addHuman(r, 2, 'Bob');
     game.addBot(r, 1);
     game.start(r, 1, seeded(3));
@@ -309,13 +309,13 @@ test('kick refuses a finished game and removes nobody', () => {
   })();
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.deepEqual(game.kick(room, 1, 2), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'The game is over: there is nobody to remove.' });
   assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 
 test('a room saved before players had a kind still loads: bot: true becomes kind: bot, and people are named from their account', () => {
   const room = (() => {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const r = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
     game.addHuman(r, 2, 'Bob');
     game.addBot(r, 1);
     game.start(r, 1, seeded(3));

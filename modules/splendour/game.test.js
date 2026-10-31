@@ -61,24 +61,24 @@ test('supply sizes depend on the player count: 4, 5, 7 gems of each colour and 5
 });
 
 test('starting needs every seat filled and a human, and only the host can start', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
-  assert.equal(game.start(room, 1).ok, false);
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
+  assert.equal(game.start(room, 1, Math.random).ok, false);
   game.addHuman(room, 2, 'bob');
-  assert.match(game.start(room, 2).error, /host/);
-  assert.equal(game.start(room, 1).ok, false);
+  assert.match(game.start(room, 2, Math.random).error, /host/);
+  assert.equal(game.start(room, 1, Math.random).ok, false);
   game.addBot(room, 1);
-  assert.equal(game.start(room, 1).ok, true);
+  assert.equal(game.start(room, 1, Math.random).ok, true);
   assert.equal(room.phase, 'playing');
   assert.ok(game.viewFor(room, 1).scoreboard.players.some((p) => p.bot), 'the scoreboard marks computer players');
-  assert.equal(game.start(room, 1).ok, false, 'cannot start twice');
-  const bots = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 2 } });
+  assert.equal(game.start(room, 1, Math.random).ok, false, 'cannot start twice');
+  const bots = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 2 } });
   game.fillWithBots(bots, 1);
-  game.removeHuman(bots, 1);
+  game.removeHuman(bots, 1, Math.random);
   assert.equal(bots.seats.some((s) => game.isHuman(s)), false);
 });
 
 test('settings: target 10, 15 or 20 and 2 to 4 seats, host only, lobby only', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
   assert.deepEqual(room.settings, { target: 15, seats: 4 });
   assert.equal(room.seats.length, 4);
   for (const target of [10, 15, 20]) assert.equal(game.setSettings(room, 1, { target }).ok, true);
@@ -94,12 +94,12 @@ test('settings: target 10, 15 or 20 and 2 to 4 seats, host only, lobby only', ()
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, false, 'three people are seated');
   assert.match(game.setSettings(room, 2, { target: 10 }).error, /host/);
   game.fillWithBots(room, 1);
-  game.start(room, 1);
+  game.start(room, 1, Math.random);
   assert.equal(game.setSettings(room, 1, { target: 10 }).ok, false);
 });
 
 test('duplicate display names get a (2) suffix', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
   game.addHuman(room, 2, 'ann');
   game.addHuman(room, 3, 'ann');
   assert.deepEqual(room.seats.slice(0, 3).map((s) => s.name), ['ann', 'ann (2)', 'ann (3)']);
@@ -626,26 +626,26 @@ test('play again returns to the lobby with the seats and settings kept', () => {
   assert.equal(room.history.length, 0);
   assert.equal(room.seats.filter(Boolean).length, 2);
   assert.equal(game.playAgain(room, host).ok, false);
-  assert.equal(game.start(room, host).ok, true);
+  assert.equal(game.start(room, host, Math.random).ok, true);
 });
 
 test('leaving: before the start the seat is freed; mid-game a computer player takes over; the host passes on', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1);
-  assert.deepEqual(game.removeHuman(room, 2), { ok: true, seat: 1, empty: false, replaced: false });
+  assert.deepEqual(game.removeHuman(room, 2, Math.random), { ok: true, seat: 1, empty: false, replaced: false });
   assert.equal(room.seats[1], null);
   game.addHuman(room, 2, 'bob');
-  game.start(room, 1);
+  game.start(room, 1, Math.random);
   const seat = game.seatOf(room, 2);
-  const outcome = game.removeHuman(room, 1);
+  const outcome = game.removeHuman(room, 1, Math.random);
   assert.equal(outcome.replaced, true);
   assert.equal(room.hostId, 2);
   assert.equal(game.isBot(room.seats[outcome.seat]), true);
   assert.equal(game.hasPlayer(room, 2), true);
-  assert.equal(game.removeHuman(room, 2).empty, true);
+  assert.equal(game.removeHuman(room, 2, Math.random).empty, true);
   assert.equal(seat >= 0, true);
-  assert.equal(game.removeHuman(room, 99).ok, false);
+  assert.equal(game.removeHuman(room, 99, Math.random).ok, false);
 });
 
 test('statistics: placements, outcomes, score = prestige and the four extras', () => {
@@ -687,8 +687,8 @@ test('the history: a round per full turn of every seat, with prestige gained and
   assert.equal(view.scoreboard.players.find((p) => p.id === 0).score, 1);
 });
 
-test('views hide every reserved card from everyone but its owner (taken from the table or blind), and never include the decks', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
+test('views hide a blind reserve from everyone but its owner, show a card reserved face up to everyone, and never include the decks', () => {
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1);
   game.start(room, 1, () => 0.5);
@@ -708,14 +708,14 @@ test('views hide every reserved card from everyone but its owner (taken from the
   assert.ok(!JSON.stringify(bobsView).includes(hidden));
   assert.equal(typeof bobsView.decks[1], 'number');
   assert.equal(game.viewFor(room, 1).seats[ann].reserved[0].card, hidden, 'ann sees her own');
-  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].card, null, 'a card reserved from the table is face down to the others too');
+  assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].card, exposed, 'a card reserved from the table is face up to the others: they saw it taken');
   assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].blind, false, 'though everyone saw how it was taken');
   assert.equal(game.viewFor(room, 1).seats[bob].reserved[0].level, 1, 'its level still shows on the back');
   const spectator = game.viewFor(room, 999);
   assert.equal(spectator.you, -1);
   assert.equal(spectator.afford, undefined);
   assert.ok(!JSON.stringify(spectator).includes(hidden));
-  assert.ok(spectator.seats.flatMap((s) => s?.reserved ?? []).every((r) => r.card === null), 'a spectator sees every reserve face down');
+  assert.ok(spectator.seats.flatMap((s) => s?.reserved ?? []).every((r) => (r.blind ? r.card === null : r.card !== null)), 'a spectator sees face-up reserves and not blind ones');
 });
 
 test('a blind-reserved card is revealed to everyone when it is bought', () => {

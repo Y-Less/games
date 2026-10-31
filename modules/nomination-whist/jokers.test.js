@@ -82,7 +82,7 @@ test('trickWinner gives the seat of the winning card', () => {
 
 test('the option is a setting, off by default, and only a boolean is accepted', () => {
   assert.equal(g.DEFAULT_SETTINGS.jokers, false);
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(room.settings.jokers, false);
   assert.ok(g.setSettings(room, 1, { jokers: true }).ok);
   assert.equal(room.settings.jokers, true);
@@ -94,7 +94,7 @@ test('the option is a setting, off by default, and only a boolean is accepted', 
 
 /** A started game with Ann (user 1) as the only person and computer players elsewhere. */
 function started(seats, jokers, seed) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, jokers } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, jokers } });
   assert.ok(g.fillWithBots(room, 1).ok);
   assert.ok(g.start(room, 1, seeded(seed)).ok);
   return room;
@@ -164,7 +164,7 @@ test('with Jokers the suggested nomination comes from the table learned for them
   const rng = seeded(3);
   let offered = 0;
   for (let seed = 1; seed <= 60; seed++) {
-    const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 + (seed % 5), jokers: true } });
+    const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 + (seed % 5), jokers: true } });
     g.fillWithBots(room, 1);
     g.start(room, 1, rng);
     while (room.phase === 'nominating' && room.turn !== 0) g.runPending(room, rng);
@@ -197,7 +197,7 @@ test('a Joker makes a hand worth more tricks in the Jokers table', { skip: !cont
 });
 
 test('without the Jokers option the table for games without Jokers is used, so existing games are unchanged', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(9));
   assert.equal(room.settings.jokers, false);

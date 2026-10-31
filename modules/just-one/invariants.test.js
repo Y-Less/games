@@ -54,7 +54,7 @@ function checkViews(room, label, strangers = [99]) {
 
 function playRandom(seed) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   const label = (n) => `seed ${seed}, step ${n}`;
   const people = [1, 2, 3, 4, 5];
   for (const id of people.slice(1)) if (rng() < 0.7) game.addHuman(room, id);
@@ -63,7 +63,7 @@ function playRandom(seed) {
     (id) => game.setTurnsEach(room, id, pick(rng, [1, 2, 0, 9, '2'])),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [3, 5, 99, 'x'])),
-    (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id])),
+    (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id]), Math.random),
     (id) => game.start(room, id, rng),
     (id) => game.submitClue(room, id, pick(rng, CLUES), rng),
     (id) => game.guess(room, id, pick(rng, [...GUESSES, room.word]), String),
@@ -103,7 +103,7 @@ test('random legal and illegal play keeps every room and view sound', () => {
 test('whatever the order of play, a finished game has a history that adds up and statistics for the people only', () => {
   for (let seed = 1000; seed < 1300; seed++) {
     const rng = seeded(seed);
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
     game.addHuman(room, 2);
     game.addHuman(room, 3);
     if (rng() < 0.5) game.addBot(room, 1);

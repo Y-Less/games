@@ -35,7 +35,7 @@ export function passStandard(ctx) {
 export function playStandard(ctx) {
   const { legal, trick, seat, hand } = ctx;
   if (legal.length === 1) return legal[0];
-  const rng = ctx.rng ?? Math.random;
+  const rng = ctx.rng;
   const jackOfDiamonds = ctx.settings.jackOfDiamonds;
   const chasing = ctx.moonBid === seat;
   const notJack = (cards) => (jackOfDiamonds ? avoiding(cards, (c) => c === JACK) : cards);

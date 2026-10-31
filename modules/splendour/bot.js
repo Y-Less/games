@@ -47,11 +47,8 @@ export function situation(room, seat, extra = {}) {
       bought: p.bought.length,
       nobles: p.nobles.length,
       reservedCount: p.reserved.length,
-      // DECISION NEEDED (not changed): a bot is told the identity of every other player's reserved card that was taken
-      // face up from the table (`!r.blind`), because everyone saw it taken. But the human view (game.js `viewFor`) shows
-      // every other player's reserved cards face down, blind or not, so a human cannot see what the bot can. Either the
-      // humans should be shown those cards too, or this filter should hide them (`i === seat` only) so the bots play
-      // from the same information as people. Left as it is until the owner decides which.
+      // A bot knows its own reserves and every other player's reserve that was taken face up from the table (`!r.blind`),
+      // exactly as a person does (game.js `viewFor` shows those cards to everyone). Blind reserves stay secret.
       reserved: p.reserved.filter((r) => i === seat || !r.blind).map((r) => r.card),
     })),
     moves: [],
@@ -72,7 +69,7 @@ const standard = () => AIS[0];
  * @param {() => number} rng
  * @returns {object} one of game.legalMoves, or { type: 'pass' } when there are none
  */
-export function chooseMove(room, seat, rng = Math.random) {
+export function chooseMove(room, seat, rng) {
   const moves = game.legalMoves(room, seat);
   if (!moves.length) return { type: 'pass' };
   const s = situation(room, seat, { moves });
@@ -89,7 +86,7 @@ export function chooseMove(room, seat, rng = Math.random) {
  * @param {() => number} rng
  * @returns {number[]} six counts; a valid choice, falling back on the standard AI's if the seat's AI gives an invalid one
  */
-export function chooseReturn(room, seat, rng = Math.random) {
+export function chooseReturn(room, seat, rng) {
   const s = situation(room, seat, { returnCount: room.pending.count });
   const give = aiOf(room, seat).chooseReturn(s, rng);
   const have = room.players[seat].tokens;
@@ -105,7 +102,7 @@ export function chooseReturn(room, seat, rng = Math.random) {
  * @param {() => number} rng
  * @returns {string} a noble id from the pending options (the first if the AI names a different one)
  */
-export function chooseNoble(room, seat, rng = Math.random) {
+export function chooseNoble(room, seat, rng) {
   const s = situation(room, seat, { options: [...room.pending.options] });
   const id = aiOf(room, seat).chooseNoble(s, rng);
   return room.pending.options.includes(id) ? id : room.pending.options[0];
@@ -132,7 +129,7 @@ export function pendingAction(room) {
  * @param {number} seat
  * @param {() => number} rng
  */
-export function playTurn(room, seat, rng = Math.random) {
+export function playTurn(room, seat, rng) {
   /** Throws if a rule refused the computer player's choice. */
   const expect = (result) => {
     if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
@@ -183,7 +180,7 @@ export function startWithForcedAI(room, userId, rng, forcedAI) {
  * @param {() => number} rng
  * @returns {{ type: 'turn', seat: number } | null} the action, or null if there was nothing to do
  */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   playTurn(room, action.seat, rng);

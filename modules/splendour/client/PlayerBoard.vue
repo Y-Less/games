@@ -1,6 +1,7 @@
 <script setup>
 // One player's board: prestige, tokens, card bonuses, nobles and reserved cards.
-// Your own reserved cards are shown and can be picked; other players' are always shown face down.
+// Your own reserved cards are shown and can be picked; other players' are shown face up if they were taken from the table
+// (everyone saw that) and face down if they were reserved blind from a pile.
 import { computed } from 'vue';
 import { NOBLE_BY_ID, CARD_BY_ID } from '../cards.js';
 import { MAX_RESERVED, MAX_TOKENS, NOBLE_POINTS, needOf as costAfterBonuses } from '../rules.js';

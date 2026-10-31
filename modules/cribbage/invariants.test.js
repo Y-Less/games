@@ -147,9 +147,9 @@ function playGame(seed, { leaves = true } = {}) {
   checkRoom(room, label, handsSeen);
   for (const id of [101, 102, 999]) checkView(room, id, label);
   assert.equal(game.playCard(room, 0, 'AS').ok, false);
-  assert.equal(game.discard(room, 0, ['AS', 'KS']).ok, false);
-  assert.equal(game.ready(room, 0).ok, false);
-  assert.equal(game.start(room, room.hostId).ok, false);
+  assert.equal(game.discard(room, 0, ['AS', 'KS'], Math.random).ok, false);
+  assert.equal(game.ready(room, 0, Math.random).ok, false);
+  assert.equal(game.start(room, room.hostId, Math.random).ok, false);
   const stats = game.statsPlayers(room);
   assert.equal(stats.length, humanIds().length);
   assert.ok(stats.every((p) => p.score <= room.target));

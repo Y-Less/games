@@ -26,14 +26,14 @@ export default function (ctx) {
     /** The number of seats is chosen when a game is created (the settings are only the free-wall option). */
     createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
     /** A computer move or column choice, if one is due. */
-    nextAction(room) {
+    nextAction(room, rng) {
       if (!bot.pendingAction(room)) return null;
-      return { wait: botWait(botDelay), run: () => bot.runPending(room) };
+      return { wait: botWait(botDelay, rng), run: () => bot.runPending(room, rng) };
     },
-    registerEvents({ act, on, userId }) {
+    registerEvents({ act, on, userId, rng }) {
       on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
-      on('move', ({ source, colour, line }) => act((room, seat) => game.takeTiles(room, seat, { source, colour, line })));
-      on('column', ({ col }) => act((room, seat) => game.chooseColumn(room, seat, { col })));
+      on('move', ({ source, colour, line }) => act((room, seat) => game.takeTiles(room, seat, { source, colour, line }, rng)));
+      on('column', ({ col }) => act((room, seat) => game.chooseColumn(room, seat, { col }, rng)));
     },
   });
 }

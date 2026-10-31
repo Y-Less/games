@@ -21,7 +21,7 @@ const rate = (count, total) => count / total;
  */
 function position({ seat, hand, trick = [], taken = [[], [], [], []], tricksPlayed, unseen = [], settings = {}, direction = 'none', heartsBroken = true, rng = seeded(1) }) {
   assert.equal(hand.length, 13 - tricksPlayed, 'the hand matches the number of tricks played');
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
   g.fillWithBots(room, 1);
   g.start(room, 1, rng);
   const used = new Set([...hand, ...trick.map((p) => p.card), ...taken.flat()]);
@@ -82,7 +82,7 @@ for (const id of ids) {
   test(`${id} always passes three different cards from its hand and plays one of its legal cards`, () => {
     const rng = seeded(40);
     for (let n = 0; n < 60; n++) {
-      const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: n % 2 === 0 } });
+      const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: n % 2 === 0 } });
       g.fillWithBots(room, 1);
       g.start(room, 1, rng);
       for (const seat of room.seats) seat.ai = id;
@@ -104,7 +104,7 @@ for (const id of ids) {
 }
 
 test('an AI is only ever given what its own seat may know', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(3));
   const ctx = g.aiContext(room, 1, seeded(1));
@@ -199,7 +199,7 @@ test('jack collects the Jack of Diamonds far more often than standard, and is ex
   const rng = seeded(21);
   let compared = 0;
   for (let n = 0; n < 6; n++) {
-    const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false } });
+    const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false } });
     g.fillWithBots(room, 1);
     g.start(room, 1, rng);
     room.seats.forEach((seat, i) => (seat.ai = i % 2 ? 'jack' : 'standard'));
@@ -326,7 +326,7 @@ function allBots(room, ai) {
 }
 const botSeats = (room) => room.seats.flatMap((seat, i) => (g.isBot(seat) ? [i] : []));
 function lobbyWithBots() {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   g.fillWithBots(room, 1);
   return room;
 }

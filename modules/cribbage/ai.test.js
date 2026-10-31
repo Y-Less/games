@@ -41,7 +41,7 @@ const playCtx = (hand, sequence = [], extra = {}) => ({
 
 /** Every seat is a computer player; `ais` names each seat's AI. Returns the finished room. */
 function allBotGame(ais, { seed = 1, target = 61 } = {}) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target, seats: ais.length } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target, seats: ais.length } });
   game.fillWithBots(room, 1);
   const rng = seeded(seed);
   assert.ok(game.start(room, 1, rng).ok);
@@ -232,14 +232,14 @@ test('tournament: sharp beats standard, and standard beats random', () => {
 // ---- assignment, persistence and the view ----
 
 function newRoom(seats = 4, seed = 4) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats } });
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(seed));
   return room;
 }
 
 test('each computer player picks an AI when the game starts; people and lobbies have none', () => {
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats: 3 } });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats: 3 } });
   game.fillWithBots(lobby, 1);
   assert.ok(lobby.seats.every((s) => s.ai === undefined));
   assert.ok(game.viewFor(lobby, 1).seats.every((s) => s.ai === null));
@@ -262,8 +262,8 @@ test('the AI choice survives a save and reload, and drives the bot\'s moves', ()
   target.discard = (ctx) => (used++, original(ctx));
   try {
     reloaded.seats[1].ai = 'sharp';
-    game.discard(reloaded, 0, [reloaded.hands[0][0], reloaded.hands[0][1]]);
-    assert.ok(game.botMove(reloaded).ok);
+    game.discard(reloaded, 0, [reloaded.hands[0][0], reloaded.hands[0][1]], Math.random);
+    assert.ok(game.botMove(reloaded, Math.random).ok);
     assert.equal(used, 1);
     assert.equal(game.aiOf(reloaded, 1).id, 'sharp');
   } finally {
@@ -279,11 +279,11 @@ test('an AI that answers illegally is overruled rather than breaking the game', 
   target.discard = () => ['XX', 'YY'];
   target.play = () => 'XX';
   try {
-    game.discard(room, 0, [room.hands[0][0], room.hands[0][1]]);
-    assert.ok(game.botMove(room).ok);
+    game.discard(room, 0, [room.hands[0][0], room.hands[0][1]], Math.random);
+    assert.ok(game.botMove(room, Math.random).ok);
     assert.equal(room.phase, 'play');
     room.play.turn = 1;
-    assert.ok(game.botMove(room).ok);
+    assert.ok(game.botMove(room, Math.random).ok);
   } finally {
     [target.discard, target.play] = original;
   }
@@ -294,7 +294,7 @@ test('rooms saved before AIs existed fall back to the standard AI', () => {
   for (const s of room.seats) delete s.ai;
   assert.equal(game.aiOf(room, 1).id, 'standard');
   assert.deepEqual(game.viewFor(room, 1).seats[1].ai, { id: 'standard', name: 'Standard' });
-  assert.ok(game.botMove(room).ok);
+  assert.ok(game.botMove(room, Math.random).ok);
 });
 
 test('the view names the AI of computer players only', () => {
@@ -306,7 +306,7 @@ test('the view names the AI of computer players only', () => {
 });
 
 test('a person who leaves is replaced by a computer player that picks an AI at that moment', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 3 } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 3 } });
   game.addHuman(room, 2, 'B');
   game.addBot(room, 1);
   game.start(room, 1, seeded(9));
@@ -316,7 +316,7 @@ test('a person who leaves is replaced by a computer player that picks an AI at t
   assert.ok(IDS.includes(room.seats[1].ai));
   const picks = new Set();
   for (let seed = 1; seed <= 60; seed++) {
-    const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 2 } });
+    const r = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 2 } });
     game.addHuman(r, 2, 'B');
     game.start(r, 1, seeded(1));
     game.removeHuman(r, 2, seeded(seed));

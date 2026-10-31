@@ -6,7 +6,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { createRoomServer } from './roomServer.js';
+import * as game from '../modules/hearts/game.js';
+import { seeded } from './random.js';
+import { botWait, createRoomServer } from './roomServer.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -61,4 +63,56 @@ test('after too many failures in a row the room is left alone rather than retrie
   assert.equal(calls, 1);
   await sleep(3500); // retries come after 1 s, then 2 s: there is no tight loop
   assert.ok(calls <= 3, `retried only a few times (${calls})`);
+});
+
+/**
+ * Plays computer moves of a real Hearts room through createRoomServer's nextAction path, using only the `rng` the server
+ * hands to nextAction, and returns what happened: the wait chosen for each move and the hands afterwards.
+ */
+async function botMovesWith(seed, moves = 25) {
+  const code = 'a-b-c';
+  const room = game.createRoom({ code, hostId: 1, hostName: 'Ann', now: 0 });
+  game.fillWithBots(room, 1);
+  game.start(room, 1, seeded(99)); // the same deal every time: only the bots' own choices come from the server's rng
+  room.seats[0] = { ...room.seats[1], id: 'bot:zero', name: 'Zero' }; // nobody is human, so every move is the server's
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
+  fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([room]));
+  const waits = [];
+  let done = null;
+  const finished = new Promise((resolve) => { done = resolve; });
+  const ctx = { io: new EventEmitter(), dataDir, log() {}, codes: {}, stats: { record() {} } };
+  const server = createRoomServer(ctx, {
+    game,
+    pickSettings: () => ({}),
+    registerEvents() {},
+    rng: seeded(seed),
+    now: () => 0,
+    nextAction(live, rng) {
+      if (waits.length >= moves) {
+        done();
+        return null;
+      }
+      const action = game.pendingAction(live);
+      if (!action || action.type === 'resolve') return action ? { wait: 0, run: () => game.runPending(live, rng) } : null;
+      const wait = botWait({ min: 0, max: 1 }, rng);
+      waits.push(wait);
+      return { wait, run: () => game.runPending(live, rng) };
+    },
+  });
+  const keepAlive = setInterval(() => {}, 1000); // the server's timers are unref'd, so something must keep the test alive
+  await finished;
+  clearInterval(keepAlive);
+  const hands = JSON.stringify(server.rooms.get(code).hands);
+  server.dispose();
+  fs.rmSync(dataDir, { recursive: true, force: true });
+  return { waits, hands };
+}
+
+test('the same seed gives the same computer moves through nextAction, and another seed gives different ones', async () => {
+  const first = await botMovesWith(5);
+  const again = await botMovesWith(5);
+  const other = await botMovesWith(6);
+  assert.equal(first.waits.length, 25);
+  assert.deepEqual(again, first);
+  assert.notDeepEqual(other.waits, first.waits);
 });

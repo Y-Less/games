@@ -105,7 +105,7 @@ function playGame(seed, { leaves = true } = {}) {
     checkView(room, pick(rng, [101, 102, 103, 999, 'bot:1']), label);
     if (leaves && rng() < 0.003 && humanIds().length > 1) {
       const leaver = pick(rng, humanIds());
-      const outcome = game.removeHuman(room, leaver);
+      const outcome = game.removeHuman(room, leaver, Math.random);
       assert.equal(outcome.ok, true);
       assert.equal(outcome.replaced, true);
       assert.ok(game.isBot(room.seats[outcome.seat]));
@@ -158,8 +158,8 @@ function playGame(seed, { leaves = true } = {}) {
   for (const id of [101, 102, 999]) checkView(room, id, label);
   assert.equal(game.playCard(room, 0, 'AS').ok, false);
   assert.equal(game.nominate(room, 0, 0).ok, false);
-  assert.equal(game.nextRound(room, humanIds()[0]).ok, false);
-  assert.equal(game.start(room, room.hostId).ok, false);
+  assert.equal(game.nextRound(room, humanIds()[0], Math.random).ok, false);
+  assert.equal(game.start(room, room.hostId, Math.random).ok, false);
   assert.equal(game.statsPlayers(room).length, humanIds().length);
   return room;
 }

@@ -16,10 +16,10 @@ export const STD = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30,
 /** A started game of n people (ids 1..n, host 1) with the given settings, or with computer players in the other seats. */
 export function playingRoom(n, { seed = 1, settings = {}, bots = false } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings });
+  const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings });
   if (bots) game.fillWithBots(room, 1);
   else for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
-  const result = game.start(room, 1, rng);
+  const result = game.start(room, 1, rng, Date.now());
   assert.equal(result.ok, true, result.error);
   return { room, rng };
 }
@@ -60,7 +60,7 @@ export function assertInvariants(room, label = '') {
 }
 
 /** One decision for whoever is to move, whatever kind of seat it is. Returns the action taken, or false when none. */
-export function driveStep(room, now = Date.now()) {
+export function driveStep(room, now) {
   if (room.phase !== 'playing') return false;
   const seat = room.turn;
   const choice = chooseTurn(room, seat);

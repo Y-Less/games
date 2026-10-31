@@ -16,7 +16,7 @@ const failsAtomically = (room, action, pattern) => {
   assert.equal(snapshot(room), before, 'a failed action changes nothing');
   return result;
 };
-const mk = (size = 4, extra = {}) => game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size, ...extra });
+const mk = (size = 4, extra = {}) => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size, ...extra });
 
 /**
  * A started game of n people where seat 0 is to move and only one tile (colour `last`) is left, on factory 0. Taking it
@@ -48,7 +48,7 @@ test('creating a room: sizes 2 to 5 only, the host in seat 0, free wall off by d
     assert.equal(room.phase, 'lobby');
     assert.deepEqual(room.settings, { freeWall: false });
   }
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
   for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) assert.throws(() => mk(bad));
   assert.throws(() => mk(3, { settings: { freeWall: 'yes' } }));
   assert.equal(mk(3, { settings: { freeWall: true } }).settings.freeWall, true);
@@ -75,9 +75,9 @@ test('seat count and the free wall option: only the host, only in the lobby, kee
   game.addBot(room, 1);
   assert.equal(game.setSize(room, 1, 5).ok, true);
   assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), room.seats.filter(Boolean).map((s) => s.kind === 'bot'), 'the scoreboard marks computer players');
-  assert.equal(game.start(room, 1).ok, false, 'empty seats');
+  assert.equal(game.start(room, 1, Math.random).ok, false, 'empty seats');
   game.fillWithBots(room, 1);
-  assert.equal(game.start(room, 1).ok, true);
+  assert.equal(game.start(room, 1, Math.random).ok, true);
   assert.equal(game.setSize(room, 1, 3).ok, false, 'after the start');
   assert.equal(game.setSettings(room, 1, { freeWall: false }).ok, false, 'after the start');
 });
@@ -97,11 +97,11 @@ test('computer players: add, remove, fill; the game needs one person', () => {
   assert.equal(game.fillWithBots(room, 1).ok, true);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3, 'distinct names');
   assert.equal(game.addBot(room, 1).ok, false, 'every seat is taken');
-  const bots = game.createRoom({ code: 'x-y-z', hostId: 1, hostName: 'A', size: 2 });
+  const bots = game.createRoom({ now: 0, code: 'x-y-z', hostId: 1, hostName: 'A', size: 2 });
   game.addBot(bots, 1);
   bots.seats[0] = bots.seats[1];
   bots.seats[1] = { kind: 'bot', id: 'bot:9', name: 'B' };
-  assert.equal(game.start(bots, 1).ok, false, 'no person seated');
+  assert.equal(game.start(bots, 1, Math.random).ok, false, 'no person seated');
 });
 
 test('names: duplicates become Sam, Sam (2), Sam (3)', () => {
@@ -116,46 +116,46 @@ test('kick: host only, a person other than yourself; mid-game a computer player 
   const room = mk(3);
   game.addHuman(room, 2, 'B');
   game.addBot(room, 1);
-  assert.equal(game.kick(room, 2, 0).ok, false);
-  assert.equal(game.kick(room, 1, 0).ok, false, 'not yourself');
-  assert.equal(game.kick(room, 1, 2).ok, false, 'a computer player is removed, not kicked');
-  assert.equal(game.kick(room, 1, 7).ok, false);
-  assert.equal(game.kick(room, 1, 'x').ok, false);
-  const done = game.kick(room, 1, 1);
+  assert.equal(game.kick(room, 2, 0, Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'not yourself');
+  assert.equal(game.kick(room, 1, 2, Math.random).ok, false, 'a computer player is removed, not kicked');
+  assert.equal(game.kick(room, 1, 7, Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 'x', Math.random).ok, false);
+  const done = game.kick(room, 1, 1, Math.random);
   assert.equal(done.ok, true);
   assert.equal(done.userId, 2);
   assert.equal(room.seats[1], null);
   game.addHuman(room, 2, 'B');
   game.fillWithBots(room, 1);
-  game.start(room, 1);
+  game.start(room, 1, Math.random);
   const at = room.seats.findIndex((s) => s.id === 2); // the seats are shuffled when the game starts
-  assert.equal(game.kick(room, 2, at).ok, false, 'still only the host');
-  const mid = game.kick(room, 1, at);
+  assert.equal(game.kick(room, 2, at, Math.random).ok, false, 'still only the host');
+  const mid = game.kick(room, 1, at, Math.random);
   assert.deepEqual([mid.ok, mid.userId, mid.replaced], [true, 2, true]);
   assert.equal(room.seats[at].kind, 'bot', 'a computer player took the seat');
   assert.equal(room.seats.every(Boolean), true);
-  assert.equal(game.kick(room, 1, at).ok, false, 'and it is not a person to kick');
+  assert.equal(game.kick(room, 1, at, Math.random).ok, false, 'and it is not a person to kick');
   assert.equal(game.removeBot(room, 1, at).ok, false, 'nor can it be removed from a game that has started');
   room.phase = 'finished';
-  assert.equal(game.kick(room, 1, room.seats.findIndex((s) => s.kind === 'human' && s.id !== 1)).ok, false, 'nobody to remove once it is over');
+  assert.equal(game.kick(room, 1, room.seats.findIndex((s) => s.kind === 'human' && s.id !== 1), Math.random).ok, false, 'nobody to remove once it is over');
 });
 
 test('removing a human: the seat is freed in the lobby, a computer takes over mid-game, the host passes on', () => {
   const room = mk(3);
   game.addHuman(room, 2, 'B');
   game.addHuman(room, 3, 'C');
-  assert.equal(game.removeHuman(room, 99).ok, false);
-  assert.equal(game.removeHuman(room, 2).replaced, false);
+  assert.equal(game.removeHuman(room, 99, Math.random).ok, false);
+  assert.equal(game.removeHuman(room, 2, Math.random).replaced, false);
   assert.equal(room.seats[1], null);
   game.addHuman(room, 2, 'B');
-  game.start(room, 1);
-  const left = game.removeHuman(room, 1);
+  game.start(room, 1, Math.random);
+  const left = game.removeHuman(room, 1, Math.random);
   assert.equal(left.ok, true);
   assert.equal(left.replaced, true);
   assert.equal(room.seats[0].kind, 'bot');
   assert.equal(room.hostId, 2, 'the next person hosts');
-  assert.equal(game.removeHuman(room, 2).empty, false);
-  assert.equal(game.removeHuman(room, 3).empty, true, 'nobody left');
+  assert.equal(game.removeHuman(room, 2, Math.random).empty, false);
+  assert.equal(game.removeHuman(room, 3, Math.random).empty, true, 'nobody left');
 });
 
 // ---- the start of a round ----
@@ -174,7 +174,7 @@ test('factory displays: 2n + 1 of them, four tiles each, drawn from a bag of 100
     assert.equal(room.turn, room.first);
     assertInvariants(room, `n=${n}`);
   }
-  const bag = game.makeBag();
+  const bag = game.makeBag(Math.random);
   assert.equal(bag.length, 100);
   for (const c of [0, 1, 2, 3, 4]) assert.equal(bag.filter((x) => x === c).length, 20);
   assert.notDeepEqual(game.makeBag(seeded(1)), game.makeBag(seeded(2)), 'a random order');
@@ -225,7 +225,7 @@ test('when the bag runs out the lid is shuffled back in; if both run out play go
 test('every illegal take is refused, atomically, with a sentence that gives nothing away', () => {
   const { room } = playingRoom(3, { seed: 4 });
   setTable(room, { factories: [[0, 0, 1, 2], [3, 3, 3, 4], [1, 1, 2, 2]], centre: [4, 4], turn: 0 });
-  const take = (seat, args) => () => game.takeTiles(room, seat, args);
+  const take = (seat, args) => () => game.takeTiles(room, seat, args, Math.random);
   failsAtomically(room, take(1, { source: 0, colour: 0, line: 0 }), /not your turn/);
   failsAtomically(room, take(0, { source: 9, colour: 0, line: 0 }), /factory display or the centre/);
   failsAtomically(room, take(0, { source: -1, colour: 0, line: 0 }), /factory display or the centre/);
@@ -239,9 +239,9 @@ test('every illegal take is refused, atomically, with a sentence that gives noth
   failsAtomically(room, take(0, { source: 0, colour: 0, line: -1 }), /no such pattern line/);
   failsAtomically(room, take(0, { source: 0, colour: 0, line: 'floors' }), /no such pattern line/);
   failsAtomically(room, take(0, { source: 0, colour: 0 }), /no such pattern line/);
-  failsAtomically(room, () => game.takeTiles(room, 0, null), /factory display or the centre/);
-  failsAtomically(room, () => game.takeTiles(room, 0, 'x'), /factory display or the centre/);
-  failsAtomically(room, () => game.takeTiles(room, 7, { source: 0, colour: 0, line: 0 }), /not your turn/);
+  failsAtomically(room, () => game.takeTiles(room, 0, null, Math.random), /factory display or the centre/);
+  failsAtomically(room, () => game.takeTiles(room, 0, 'x', Math.random), /factory display or the centre/);
+  failsAtomically(room, () => game.takeTiles(room, 7, { source: 0, colour: 0, line: 0 }, Math.random), /not your turn/);
   room.phase = 'finished';
   failsAtomically(room, take(0, { source: 0, colour: 0, line: 0 }), /not being played/);
   room.phase = 'lobby';
@@ -254,14 +254,14 @@ test('placing: empty or same colour only, not on a full line, not where the wall
   room.lines[0][1] = { colour: 1, count: 1 };
   room.lines[0][2] = { colour: 0, count: 3 };
   room.walls[0][3][wallColumn(3, 2)] = 2; // colour 2 already in wall row 4 (index 3)
-  const take = (args) => () => game.takeTiles(room, 0, args);
+  const take = (args) => () => game.takeTiles(room, 0, args, Math.random);
   failsAtomically(room, take({ source: 0, colour: 0, line: 1 }), /Line 2 already holds Saffron/);
   failsAtomically(room, take({ source: 0, colour: 1, line: 2 }), /Line 3 is already full|Line 3 already holds Cobalt/);
   failsAtomically(room, take({ source: 0, colour: 0, line: 2 }), /already full/);
   failsAtomically(room, take({ source: 1, colour: 2, line: 3 }), /Row 4 of your wall already has Terracotta/);
   assert.equal(game.legalMoves(room, 0).some((m) => m.source === 1 && m.colour === 2 && m.line === 3), false);
   assert.equal(game.legalMoves(room, 0).some((m) => m.source === 1 && m.colour === 2 && m.line === 'floor'), true, 'the floor is always legal');
-  assert.equal(game.takeTiles(room, 0, { source: 1, colour: 2, line: 4 }).ok, true, 'but another line is fine');
+  assert.equal(game.takeTiles(room, 0, { source: 1, colour: 2, line: 4 }, Math.random).ok, true, 'but another line is fine');
   assert.deepEqual(room.lines[0][4], { colour: 2, count: 4 });
 });
 
@@ -281,15 +281,15 @@ function snapshotApply(room, move) {
 test('taking from a factory slides the rest to the centre; taking from the centre takes one colour only', () => {
   const { room } = playingRoom(2, { seed: 4 });
   setTable(room, { factories: [[0, 0, 1, 2], [3, 3, 3, 4]], centre: [], turn: 0 });
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 1 }).ok, true);
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 1 }, Math.random).ok, true);
   assert.deepEqual(room.factories[0], []);
   assert.deepEqual(room.centre, [1, 2], 'the rest slide to the centre');
   assert.deepEqual(room.lines[0][1], { colour: 0, count: 2 });
   assert.equal(room.turn, 1);
-  assert.equal(game.takeTiles(room, 1, { source: 1, colour: 3, line: 2 }).ok, true);
+  assert.equal(game.takeTiles(room, 1, { source: 1, colour: 3, line: 2 }, Math.random).ok, true);
   assert.deepEqual(room.centre, [1, 2, 4]);
   assert.deepEqual(room.factories[1], []);
-  assert.equal(game.takeTiles(room, 0, { source: 'centre', colour: 2, line: 0 }).ok, true);
+  assert.equal(game.takeTiles(room, 0, { source: 'centre', colour: 2, line: 0 }, Math.random).ok, true);
   assert.deepEqual(room.centre, [1, 4], 'only the Terracotta left the centre');
   assert.equal(room.turn, 1);
 });
@@ -297,18 +297,18 @@ test('taking from a factory slides the rest to the centre; taking from the centr
 test('overflow: tiles that do not fit go to the floor, in slot order, past the seventh to the lid', () => {
   const { room } = playingRoom(2, { seed: 4 });
   setTable(room, { factories: [[2, 2, 2, 2], [1, 1, 1, 1], [4]], centre: [], turn: 0, lid: [] });
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 2, line: 1 }).ok, true, 'two fit on line 2');
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 2, line: 1 }, Math.random).ok, true, 'two fit on line 2');
   assert.deepEqual(room.lines[0][1], { colour: 2, count: 2 });
   assert.deepEqual(room.floors[0], [2, 2]);
   assert.equal(floorPenalty(room.floors[0]), 2);
-  assert.equal(game.takeTiles(room, 1, { source: 1, colour: 1, line: 'floor' }).ok, true, 'all to the floor, by choice');
+  assert.equal(game.takeTiles(room, 1, { source: 1, colour: 1, line: 'floor' }, Math.random).ok, true, 'all to the floor, by choice');
   assert.deepEqual(room.floors[1], [1, 1, 1, 1]);
   assert.deepEqual(room.lines[1].map((l) => l.count), [0, 0, 0, 0, 0]);
   // Seven slots, then the lid.
   const full = playingRoom(2, { seed: 4 });
   setTable(full.room, { factories: [[3, 3, 3, 3], [3, 3, 3, 3], [4]], centre: [], turn: 0, lid: [] });
   full.room.floors[0] = [0, 0, 0, 0, 0];
-  assert.equal(game.takeTiles(full.room, 0, { source: 0, colour: 3, line: 'floor' }).ok, true);
+  assert.equal(game.takeTiles(full.room, 0, { source: 0, colour: 3, line: 'floor' }, Math.random).ok, true);
   assert.equal(full.room.floors[0].length, 7, 'seven slots at most');
   assert.deepEqual(full.room.lid, [3, 3], 'the other two went to the lid');
   assert.equal(floorPenalty(full.room.floors[0]), 14, 'and cost nothing more');
@@ -318,8 +318,8 @@ test('a full pattern line takes no more tiles, even of its own colour', () => {
   const { room } = playingRoom(2, { seed: 4 });
   setTable(room, { factories: [[1, 1, 0, 0]], centre: [], turn: 0 });
   room.lines[0][1] = { colour: 1, count: 2 };
-  failsAtomically(room, () => game.takeTiles(room, 0, { source: 0, colour: 1, line: 1 }), /already full/);
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 1, line: 'floor' }).ok, true);
+  failsAtomically(room, () => game.takeTiles(room, 0, { source: 0, colour: 1, line: 1 }, Math.random), /already full/);
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 1, line: 'floor' }, Math.random).ok, true);
 });
 
 // ---- the first-player marker ----
@@ -330,16 +330,16 @@ test('the marker: the first take from the centre takes it onto the floor line, a
   room.markerInCentre = true;
   room.first = 0;
   room.turn = 0;
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 1 }).ok, true);
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 1 }, Math.random).ok, true);
   assert.equal(room.markerInCentre, true, 'taking from a factory does not take the marker');
   assert.deepEqual(room.floors[0], []);
-  const taken = game.takeTiles(room, 1, { source: 'centre', colour: 1, line: 1 });
+  const taken = game.takeTiles(room, 1, { source: 'centre', colour: 1, line: 1 }, Math.random);
   assert.equal(taken.ok, true);
   assert.equal(room.markerInCentre, false);
   assert.deepEqual(room.floors[1], [MARKER], 'the marker is a penalty tile on the floor');
   assert.equal(room.nextFirst, 1);
   assert.equal(room.turn, 2);
-  assert.equal(game.takeTiles(room, 2, { source: 1, colour: 4, line: 'floor' }).ok, true);
+  assert.equal(game.takeTiles(room, 2, { source: 1, colour: 4, line: 'floor' }, Math.random).ok, true);
   assert.equal(room.phase, 'playing');
   assert.equal(room.round, 2);
   assert.equal(room.first, 1, 'seat 1 starts round 2');
@@ -354,9 +354,9 @@ test('the marker: the first take from the centre takes it onto the floor line, a
 test('only the first player to take from the centre gets the marker', () => {
   const { room } = playingRoom(3, { seed: 2 });
   setTable(room, { factories: [[0, 1, 1, 1]], centre: [2, 2, 3, 3], turn: 0 });
-  assert.equal(game.takeTiles(room, 0, { source: 'centre', colour: 2, line: 'floor' }).ok, true);
+  assert.equal(game.takeTiles(room, 0, { source: 'centre', colour: 2, line: 'floor' }, Math.random).ok, true);
   assert.deepEqual(room.floors[0], [MARKER, 2, 2]);
-  assert.equal(game.takeTiles(room, 1, { source: 'centre', colour: 3, line: 'floor' }).ok, true);
+  assert.equal(game.takeTiles(room, 1, { source: 'centre', colour: 3, line: 'floor' }, Math.random).ok, true);
   assert.deepEqual(room.floors[1], [3, 3], 'no marker for the second');
   assert.equal(room.nextFirst, 0);
 });
@@ -368,7 +368,7 @@ test('the marker with a full floor line costs nothing but still makes the taker 
   room.markerInCentre = true;
   room.turn = 1;
   room.floors[1] = [2, 2, 2, 2, 2, 2, 2];
-  assert.equal(game.takeTiles(room, 1, { source: 'centre', colour: 0, line: 'floor' }).ok, true);
+  assert.equal(game.takeTiles(room, 1, { source: 'centre', colour: 0, line: 'floor' }, Math.random).ok, true);
   assert.equal(room.round, 2, 'the round ended and the next began');
   assert.equal(room.first, 1);
   assert.deepEqual(room.history[0].deltas[1], 0, 'floor penalties on a score of zero change nothing');
@@ -515,7 +515,7 @@ test('the game does not end while no row is complete, and ends after the round i
   assert.equal(done.room.history[1].notes[1], 'no bonuses');
   assert.deepEqual(done.room.winners, [0]);
   assert.equal(done.room.turn, null);
-  assert.equal(game.takeTiles(done.room, 0, { source: 0, colour: 0, line: 0 }).ok, false, 'no moves after the end');
+  assert.equal(game.takeTiles(done.room, 0, { source: 0, colour: 0, line: 0 }, Math.random).ok, false, 'no moves after the end');
 });
 
 test('the game ends when two players complete rows in the same round, and a row already complete counts', () => {
@@ -627,17 +627,17 @@ test('free wall: the rules for a line use rows and columns, not fixed places', (
   room.walls[0] = emptyWall();
   assert.equal(room.walls.every((w) => w.flat().every((c) => c === null)), true, 'a blank wall');
   room.walls[0][2] = [0, 2, null, null, null];
-  const take = (args) => () => game.takeTiles(room, 0, args);
+  const take = (args) => () => game.takeTiles(room, 0, args, Math.random);
   failsAtomically(room, take({ source: 0, colour: 2, line: 2 }), /Row 3 of your wall already has Terracotta/);
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 2, line: 1 }).ok, true, 'a free wall allows it in another row');
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 2, line: 1 }, Math.random).ok, true, 'a free wall allows it in another row');
   // A colour that has no free column left in the row: row 4 full of other colours except one column holding colour 1 above.
   const blocked = playingRoom(2, { seed: 4, free: true });
   setTable(blocked.room, { factories: [[1, 1, 0, 0]], centre: [], turn: 0 });
   blocked.room.walls[0][3] = [0, 2, 3, 4, null];
   blocked.room.walls[0][0][4] = 1;
-  failsAtomically(blocked.room, () => game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 3 }), /Saffron has no free column left in row 4/);
-  assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 0, line: 3 }).ok, false, 'colour 0 is in that row');
-  assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 2 }).ok, true);
+  failsAtomically(blocked.room, () => game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 3 }, Math.random), /Saffron has no free column left in row 4/);
+  assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 0, line: 3 }, Math.random).ok, false, 'colour 0 is in that row');
+  assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 2 }, Math.random).ok, true);
 });
 
 test('free wall: a player with a choice waits, others are scored, and the choice is validated', () => {
@@ -651,18 +651,18 @@ test('free wall: a player with a choice waits, others are scored, and the choice
   assert.equal(room.round, 1, 'waiting for the choices');
   assert.deepEqual(room.pending[0], { row: 0, colour: 2, columns: [0, 1, 2, 3, 4] });
   assert.deepEqual(room.pending[1], { row: 0, colour: 4, columns: [0, 2, 3, 4] });
-  assert.equal(game.chooseColumn(room, 0, { col: 9 }).ok, false);
-  assert.equal(game.chooseColumn(room, 0, { col: '2' }).ok, false);
-  assert.equal(game.chooseColumn(room, 0, { col: -1 }).ok, false);
-  assert.equal(game.chooseColumn(room, 0, null).ok, false);
-  assert.equal(game.chooseColumn(room, 1, { col: 1 }).ok, false, 'column 1 is taken in that row');
-  assert.equal(game.chooseColumn(room, 0, { col: 3 }).ok, true);
+  assert.equal(game.chooseColumn(room, 0, { col: 9 }, Math.random).ok, false);
+  assert.equal(game.chooseColumn(room, 0, { col: '2' }, Math.random).ok, false);
+  assert.equal(game.chooseColumn(room, 0, { col: -1 }, Math.random).ok, false);
+  assert.equal(game.chooseColumn(room, 0, null, Math.random).ok, false);
+  assert.equal(game.chooseColumn(room, 1, { col: 1 }, Math.random).ok, false, 'column 1 is taken in that row');
+  assert.equal(game.chooseColumn(room, 0, { col: 3 }, Math.random).ok, true);
   assert.equal(room.walls[0][0][3], 2);
   assert.equal(room.phase, 'tiling', 'seat 1 has still to choose');
-  assert.equal(game.chooseColumn(room, 0, { col: 3 }).ok, false, 'only once');
+  assert.equal(game.chooseColumn(room, 0, { col: 3 }, Math.random).ok, false, 'only once');
   assert.deepEqual(game.legalMoves(room, 0), [], 'no moves during the tiling');
-  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 0 }).ok, false);
-  const done = game.chooseColumn(room, 1, { col: 4 });
+  assert.equal(game.takeTiles(room, 0, { source: 0, colour: 0, line: 0 }, Math.random).ok, false);
+  const done = game.chooseColumn(room, 1, { col: 4 }, Math.random);
   assert.equal(done.ok, true);
   assert.equal(room.phase, 'playing');
   assert.equal(room.round, 2);
@@ -703,7 +703,7 @@ test('free wall: an earlier tile of the same phase can use up the last place of 
   finishRound(room, rng);
   assert.equal(room.phase, 'tiling', 'row 1 is waiting on the choice in row 0');
   assert.deepEqual(room.pending[0].row, 0);
-  assert.equal(game.chooseColumn(room, 0, { col: 4 }).ok, true);
+  assert.equal(game.chooseColumn(room, 0, { col: 4 }, Math.random).ok, true);
   assert.equal(room.walls[0][0][4], 1);
   assert.equal(room.phase, 'playing');
   assert.equal(room.walls[0][1][4], null, 'the second tile found no place');

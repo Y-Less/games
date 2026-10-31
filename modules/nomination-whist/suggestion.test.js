@@ -14,7 +14,7 @@ const seeded = (seed) => {
 /** A started game of `seats` with one person (user 1, Ann) and computer players, up to the point where Ann must nominate. */
 function toAnnsTurn(seed, seats = 4) {
   const rng = seeded(seed);
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats } });
   assert.ok(g.fillWithBots(room, 1).ok);
   assert.ok(g.start(room, 1, rng).ok);
   while (room.phase === 'nominating' && room.turn !== 0) g.runPending(room, rng);
@@ -47,7 +47,7 @@ test('the dealer is never suggested the forbidden number', () => {
 
 test('nobody is suggested anything off their turn, and the suggestion is not in anyone else\'s view', () => {
   const rng = seeded(5);
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 } });
   g.addHuman(room, 2, 'Bob');
   g.fillWithBots(room, 1);
   assert.equal(g.viewFor(room, 1).suggestion, undefined, 'none in the lobby');

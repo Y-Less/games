@@ -69,10 +69,10 @@ const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.col
  * @param {object} [args.settings]   settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
  * @param {number} [args.turnsEach]  turns each (default 2); `settings.turnsEach` wins if both are given
  * @param {string | null} [args.colour]  the host's default marker colour, already checked to be one they may use (ctx.markers.preferred)
- * @param {number} [args.now]        the time to stamp it with
+ * @param {number} args.now        the time to stamp it with
  * @returns {object} the room, in the lobby
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now(), turnsEach = TURNS_EACH.default, colour = null }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default, colour = null }) {
   const room = {
     code,
     hostId,
@@ -190,10 +190,10 @@ function startTurn(room, rng) {
  *
  * @param {object} room
  * @param {number} id            who is asking (must be the host)
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, id, rng = Math.random) {
+export function start(room, id, rng) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
   if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
@@ -353,7 +353,7 @@ function finishTurn(room, rng) {
 }
 
 /** Moves on: the hinter closes each round of guessing. (The reveal is closed by everyone, see `ready`.) */
-export function advance(room, id, rng = Math.random, nameOf = String) {
+export function advance(room, id, rng, nameOf = String) {
   nameOf = namer(room, nameOf);
   if (room.phase === 'reveal') return fail('Close the scores to carry on.');
   if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('There is nothing to continue.');
@@ -375,7 +375,7 @@ const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id))
  * At the reveal, a person has closed the scores pop-up and is ready for the next turn. Once every person is ready
  * (computer players always are) the next turn starts, or the game finishes after the last one.
  */
-export function ready(room, id, rng = Math.random) {
+export function ready(room, id, rng) {
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (room.phase !== 'reveal') return fail('There are no scores to close.');
   if (!room.ready.includes(id)) room.ready.push(id);
@@ -383,7 +383,7 @@ export function ready(room, id, rng = Math.random) {
 }
 
 /** Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait). */
-export function forceNext(room, rng = Math.random) {
+export function forceNext(room, rng) {
   if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
   return ok({ finished: finishTurn(room, rng) });
 }
@@ -515,7 +515,7 @@ const ALL_CELLS = COLS.flatMap((c) => ROWS.map((r) => c + r));
  * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser
  * never sees the secret tint. An AI that throws or answers with something illegal is replaced by a random legal choice.
  */
-export function runBotAction(room, rng = Math.random, action = pendingBotAction(room), nameOf = String) {
+export function runBotAction(room, rng, action = pendingBotAction(room), nameOf = String) {
   if (!action) return false;
   const player = playerOf(room, action.id);
   const ai = aiById(AIS, player.ai);

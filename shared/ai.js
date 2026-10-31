@@ -30,7 +30,7 @@ export function aiById(list, id) {
  * Picks one AI at random (by weight). `rng` is a () => number in [0, 1).
  * @param {Array<{ id: string, weight?: number }>} list
  */
-export function pickAI(list, rng = Math.random) {
+export function pickAI(list, rng) {
   const pool = list.filter((ai) => (ai.weight ?? 1) > 0);
   if (!pool.length) return list[0];
   const total = pool.reduce((sum, ai) => sum + (ai.weight ?? 1), 0);
@@ -43,7 +43,7 @@ export function pickAI(list, rng = Math.random) {
 }
 
 /** Gives each bot seat an AI id; call when a game starts. Returns { [seatKey]: aiId }. */
-export function assignAIs(list, seatKeys, rng = Math.random) {
+export function assignAIs(list, seatKeys, rng) {
   return Object.fromEntries(seatKeys.map((key) => [key, pickAI(list, rng).id]));
 }
 

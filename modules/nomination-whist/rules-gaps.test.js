@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { seeded } from '../../shared/testkit.js';
 
-const make = (settings = {}) => game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings });
+const make = (settings = {}) => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings });
 
 test('settings: bad values are refused and change nothing; valid ones resize the table', () => {
   const room = make();
@@ -59,7 +59,7 @@ test('after the end: a person who leaves keeps a "gone" seat; play again clears 
     else if (room.phase === 'nominating') game.nominate(room, room.turn, game.allowedNominations(room, room.turn)[0]);
     else game.playCard(room, room.turn, game.legalCards(room, room.turn)[0]);
   }
-  assert.equal(game.removeHuman(room, 2).replaced, false);
+  assert.equal(game.removeHuman(room, 2, Math.random).replaced, false);
   assert.equal(room.seats[1].kind, 'gone');
   assert.equal(game.viewFor(room, 1).seats[1].away, true);
   assert.equal(game.playAgain(room, 2).ok, false);

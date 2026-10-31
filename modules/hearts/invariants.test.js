@@ -114,7 +114,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
     checkView(room, viewer, label);
     if (leaves && rng() < 0.004 && humanIds().length > 1 && room.phase !== 'lobby') {
       const leaver = pick(rng, humanIds());
-      const outcome = game.removeHuman(room, leaver);
+      const outcome = game.removeHuman(room, leaver, Math.random);
       assert.equal(outcome.ok, true);
       assert.equal(outcome.replaced, true);
       assert.ok(game.isBot(room.seats[outcome.seat]), `${label}: a computer player took the seat`);
@@ -178,8 +178,8 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
   // After the end nothing can be played, and the host can go back to the lobby for a fresh game.
   assert.equal(game.playCard(room, 0, room.hands[0][0] ?? '2C').ok, false);
   assert.equal(game.choosePass(room, 0, ['2C', '3C', '4C']).ok, false);
-  assert.equal(game.nextHand(room, humanIds()[0]).ok, false);
-  assert.equal(game.start(room, room.hostId).ok, false, `${label}: no restart without going back to the lobby`);
+  assert.equal(game.nextHand(room, humanIds()[0], Math.random).ok, false);
+  assert.equal(game.start(room, room.hostId, Math.random).ok, false, `${label}: no restart without going back to the lobby`);
   const stats = game.statsPlayers(room);
   assert.equal(stats.length, humanIds().length, `${label}: one statistics entry per person`);
   assert.ok(stats.every((p) => p.outcome === (room.winners.includes(game.seatOf(room, p.userId)) ? 'win' : 'loss')));

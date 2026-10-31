@@ -21,7 +21,7 @@ const snapshot = (room) => JSON.stringify(room);
 function playRandomGame(seed) {
   const rng = seeded(seed);
   let nextId = 1;
-  const room = game.createRoom({ code: `game-${seed}-x`, hostId: nextId++, turnsEach: 1 + Math.floor(rng() * 5) });
+  const room = game.createRoom({ now: 0, code: `game-${seed}-x`, hostId: nextId++, turnsEach: 1 + Math.floor(rng() * 5) });
   const log = [];
   let steps = 0;
   const check = (what) => {
@@ -174,7 +174,7 @@ test('300 seeded random games with illegal actions, leavers and views: invariant
 test('random games without leavers always finish with exactly turnsEach turns per player, in joining order', () => {
   for (let seed = 1000; seed < 1100; seed++) {
     const rng = seeded(seed);
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, turnsEach: 1 + Math.floor(rng() * 5) });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, turnsEach: 1 + Math.floor(rng() * 5) });
     const n = 2 + Math.floor(rng() * 7);
     for (let i = 2; i <= n; i++) game.addHuman(room, i);
     game.start(room, 1, rng);
@@ -200,7 +200,7 @@ test('random games without leavers always finish with exactly turnsEach turns pe
 
 test('the tint is always a real square, whatever the random generator returns', () => {
   for (const value of [0, 0.5, 0.999999999, 1 - Number.EPSILON]) {
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
     game.addHuman(room, 2);
     game.start(room, 1, () => value);
     assert.ok(isCell(room.tint), `${value} gave ${room.tint}`);

@@ -27,7 +27,7 @@ export function seeded(seed) {
  * @param {() => number} rng
  * @returns {T}
  */
-export function pickOne(list, rng = Math.random) {
+export function pickOne(list, rng) {
   return list[Math.floor(rng() * list.length)];
 }
 
@@ -43,7 +43,7 @@ export function pickOne(list, rng = Math.random) {
  * @param {() => number} rng
  * @returns {T}
  */
-export function drawUnused(list, used, rng = Math.random) {
+export function drawUnused(list, used, rng) {
   let fresh = list.filter((item) => !used.includes(item));
   if (!fresh.length) {
     used.length = 0;

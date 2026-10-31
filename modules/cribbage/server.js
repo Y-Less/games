@@ -28,12 +28,12 @@ export default function (ctx) {
      * never trusts an AI (a throwing or illegal AI is overruled), and a move that still fails is thrown so the shared
      * server logs it and tries again a little later instead of leaving the game stuck.
      */
-    nextAction(room) {
+    nextAction(room, rng) {
       if (!game.pendingBot(room)) return null;
       return {
-        wait: botWait(thinkTime),
+        wait: botWait(thinkTime, rng),
         run() {
-          const outcome = game.botMove(room);
+          const outcome = game.botMove(room, rng);
           if (!outcome.ok) throw new Error(`a computer player could not move: ${outcome.error}`);
         },
       };

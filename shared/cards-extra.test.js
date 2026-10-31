@@ -83,14 +83,14 @@ test('shuffle accepts any iterable, returns a new array and keeps duplicates', (
   assert.ok(Array.isArray(out));
   assert.deepEqual([...out].sort(), ['AS', 'KS', 'QS']);
   const dupes = ['2C', '2C', '3D'];
-  assert.deepEqual([...shuffle(dupes)].sort(), ['2C', '2C', '3D']);
+  assert.deepEqual([...shuffle(dupes, Math.random)].sort(), ['2C', '2C', '3D']);
   const original = [1, 2, 3];
-  assert.notEqual(shuffle(original), original);
+  assert.notEqual(shuffle(original, Math.random), original);
 });
 
 test('the default shuffle really shuffles: every position sees many different cards', () => {
   const firsts = new Set();
-  for (let i = 0; i < 200; i++) firsts.add(shuffle(fullDeck())[0]);
+  for (let i = 0; i < 200; i++) firsts.add(shuffle(fullDeck(), Math.random)[0]);
   assert.ok(firsts.size > 30, `only ${firsts.size} different top cards in 200 shuffles`);
 });
 

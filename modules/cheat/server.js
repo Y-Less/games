@@ -23,11 +23,12 @@ function readDelays() {
  * want to. The wait is `min * 0.6 + random * (max - min) * 0.5`, which is a botWait over a scaled range.
  *
  * @param {{ min: number, max: number }} range  the computer-player range from readDelays
+ * @param {() => number} rng  the server's random numbers
  * @returns {number} milliseconds
  */
-function decideWait({ min, max }) {
+function decideWait({ min, max }, rng) {
   const low = min * 0.6;
-  return botWait({ min: low, max: low + (max - min) * 0.5 });
+  return botWait({ min: low, max: low + (max - min) * 0.5 }, rng);
 }
 
 /**
@@ -44,11 +45,11 @@ export default function (ctx) {
     game,
     pickSettings,
     /** The computer player's next play or decision, if the game is waiting for one. */
-    nextAction(room) {
+    nextAction(room, rng) {
       const action = game.pendingAction(room);
       if (!action) return null;
-      const wait = action.type === 'decide' ? decideWait(delays.bot) : botWait(delays.bot);
-      return { wait, run: () => game.runPending(room) };
+      const wait = action.type === 'decide' ? decideWait(delays.bot, rng) : botWait(delays.bot, rng);
+      return { wait, run: () => game.runPending(room, rng) };
     },
     /** Cheat's own socket events: play cards, call "Cheat!" and accept the last play. */
     registerEvents({ act, on, userId }) {

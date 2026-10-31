@@ -36,16 +36,16 @@ export default function (ctx) {
     game,
     pickSettings,
     /** A computer move, the end of a trick, or the wait for the score pop-up: whichever the room is in now. */
-    nextAction(room) {
+    nextAction(room, rng) {
       const action = game.pendingAction(room);
       if (action) {
-        return { wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot), run: () => game.runPending(room) };
+        return { wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => game.runPending(room, rng) };
       }
       // The wait is not restarted when somebody closes the pop-up: the same hand's timer keeps running.
-      if (game.waitingForReady(room)) return { key: `next:${room.handNumber}`, wait: delays.nextWait, run: () => game.forceNextHand(room) };
+      if (game.waitingForReady(room)) return { key: `next:${room.handNumber}`, wait: delays.nextWait, run: () => game.forceNextHand(room, rng) };
       return null;
     },
-    registerEvents({ act, on, userId }) {
+    registerEvents({ act, on, userId, rng }) {
       on('pass', ({ cards }) => act((room, seat) => game.choosePass(room, seat, cards)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
       // The claimer plays one card in every remaining trick, so a claim counts `tricks` cards towards Played cards.
@@ -54,7 +54,7 @@ export default function (ctx) {
         const outcome = game.claimAll(room, seat);
         return ctx.achievements.cardsPlayed(userId, outcome, outcome.ok ? handSize : 0);
       }));
-      on('next', () => act((room) => game.nextHand(room, userId)));
+      on('next', () => act((room) => game.nextHand(room, userId, rng)));
     },
   });
 }

@@ -27,9 +27,9 @@ export default function (ctx) {
     game,
     pickSettings,
     /** The next computer move, if a computer player has something to do: it waits a moment, then plays its whole turn. */
-    nextAction(room) {
+    nextAction(room, rng) {
       if (!bot.pendingAction(room)) return null;
-      return { wait: botWait(botDelay), run: () => bot.runPending(room) };
+      return { wait: botWait(botDelay, rng), run: () => bot.runPending(room, rng) };
     },
     // Only when the test hook is set: the same AI for every computer player. Otherwise the shared default (game.start) is used.
     startRule: forcedAI ? (room, userId, rng) => bot.startWithForcedAI(room, userId, rng, forcedAI) : undefined,

@@ -34,16 +34,16 @@ export default function (ctx) {
     /** A new room is made with the number of seats the client asked for (the rules refuse a size that is not allowed). */
     createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
     /** The next computer move (choosing a window or taking a turn), if the game is waiting for a computer player. */
-    nextAction(room) {
-      return bot.pendingAction(room) ? { wait: botWait(delays.bot), run: () => bot.runPending(room) } : null;
+    nextAction(room, rng) {
+      return bot.pendingAction(room) ? { wait: botWait(delays.bot, rng), run: () => bot.runPending(room, rng) } : null;
     },
     /** The events only Gaudi has; the lobby events (settings, addBot, start, again...) come from the shared server. */
-    registerEvents({ act, on, userId }) {
+    registerEvents({ act, on, userId, rng }) {
       on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
-      on('window', ({ pid }) => act((room, seat) => game.chooseWindow(room, seat, pid)));
-      on('place', ({ die, cell }) => act((room, seat) => game.placeDie(room, seat, { die, cell })));
-      on('tool', ({ tool, params }) => act((room, seat) => game.useTool(room, seat, { tool, params })));
-      on('end', () => act((room, seat) => game.endTurn(room, seat)));
+      on('window', ({ pid }) => act((room, seat) => game.chooseWindow(room, seat, pid, rng)));
+      on('place', ({ die, cell }) => act((room, seat) => game.placeDie(room, seat, { die, cell }, rng)));
+      on('tool', ({ tool, params }) => act((room, seat) => game.useTool(room, seat, { tool, params }, rng)));
+      on('end', () => act((room, seat) => game.endTurn(room, seat, rng)));
       on('undo', () => act((room, seat) => game.undoTurn(room, seat)));
     },
   });

@@ -9,7 +9,7 @@ export const cautious = {
   description: 'Nominates fewer tricks than its hand is probably worth, and ducks the moment it has enough.',
   weight: 1,
   nominate(ctx) {
-    const { hand, trump, players, allowed, rng = Math.random } = ctx;
+    const { hand, trump, players, allowed, rng } = ctx;
     return withLastChance(ctx, (boost) => {
       // with nothing to lose there is no point in being cautious: the hand is simply read at its boosted weight
       const estimate = boost ? estimateTricks(hand, trump, players, boost) : estimateTricks(hand, trump, players) * 0.7 - 0.25 + (rng() - 0.5) * 0.3;

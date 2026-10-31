@@ -43,20 +43,20 @@ export default function (ctx) {
      * @param {object} room
      * @returns {{ key?: string, wait: number, run: () => void } | null} null when the game is waiting for a person
      */
-    nextAction(room) {
+    nextAction(room, rng) {
       const action = game.pendingAction(room);
       if (action) {
-        return { wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot), run: () => game.runPending(room) };
+        return { wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => game.runPending(room, rng) };
       }
       // The wait is not restarted when somebody closes the pop-up: the same round's timer keeps running.
-      if (game.waitingForReady(room)) return { key: `next:${room.roundIndex}`, wait: delays.nextWait, run: () => game.forceNextRound(room) };
+      if (game.waitingForReady(room)) return { key: `next:${room.roundIndex}`, wait: delays.nextWait, run: () => game.forceNextRound(room, rng) };
       return null;
     },
     /** The game's own socket events: nominating, playing a card and closing the round-end pop-up. */
-    registerEvents({ act, on, userId }) {
+    registerEvents({ act, on, userId, rng }) {
       on('nominate', ({ number }) => act((room, seat) => game.nominate(room, seat, number)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
-      on('next', () => act((room) => game.nextRound(room, userId)));
+      on('next', () => act((room) => game.nextRound(room, userId, rng)));
     },
   });
 }

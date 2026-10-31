@@ -13,7 +13,9 @@
 // `options.game` below; seats.js (also shared) implements most of it for games with numbered seats, and roster.js for games that keep a list of players (set options.members and options.kickKey for those).
 //
 // Randomness and the clock are injected (`options.rng`, `options.now`) so a test can make a server deterministic;
-// the defaults are Math.random and Date.now.
+// the defaults (Math.random and Date.now) are chosen once, here, and nowhere else in the shared code or the rules. The same
+// `rng` and `now` reach the rules (start, removeHuman, kick), the game's own socket events (registerEvents gets `rng`),
+// `nextAction(room, rng, now)` and so the computer players, so one seed replays a whole game.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -58,10 +60,10 @@ export function readDelayMs(name, fallback) {
  * Picks how long a computer player should wait before acting.
  *
  * @param {{ min: number, max: number }} range  from readDelayRange
- * @param {() => number} rng                    a random number generator returning [0, 1)
+ * @param {() => number} rng                    a random number generator returning [0, 1) (required: pass the server's)
  * @returns {number} milliseconds
  */
-export function botWait(range, rng = Math.random) {
+export function botWait(range, rng) {
   return range.min + rng() * (range.max - range.min);
 }
 
@@ -88,22 +90,22 @@ export function pickKeys(payload, keys) {
  * @param {object} options
  * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra }),
  *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
- *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng) (returns { ok, empty, ... }),
- *   kick(room, hostId, seat, rng), setSettings(room, userId, settings), addBot(room, userId, seat),
- *   removeBot(room, userId, seat), fillWithBots(room, userId), start(room, userId), playAgain(room, userId).
+ *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng, now) (returns { ok, empty, ... }),
+ *   kick(room, hostId, seat, rng, now), setSettings(room, userId, settings), addBot(room, userId, seat),
+ *   removeBot(room, userId, seat, rng), fillWithBots(room, userId), start(room, userId, rng, now), playAgain(room, userId).
  *   Every rule returns { ok: true, ... } or { ok: false, error }.
  * @param {(payload: object) => object} options.pickSettings  keeps only the settings the game accepts from a client message
- * @param {(room: object) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
- *   must do by itself next, if anything: `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
+ * @param {(room: object, rng: () => number, now: () => number) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
+ *   must do by itself next, if anything (given the server's `rng` and `now`, to hand to botWait and the computer players): `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
  *   pause...). If `key` is given and the same key is already waiting, the existing timer is kept instead of restarted.
  * @param {(h: object) => void} options.registerEvents  adds the game's own socket events. It is called for every connection
- *   with { on, act, userId, socket }: `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
+ *   with { on, act, userId, socket, rng, now } (the server's random numbers and clock, for rules that need them): `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
  *   error handling; `act(rule)` runs rule(room, seat) on the room this socket is in and tells everybody if it worked.
  * @param {(payload: object) => object} [options.createArgs]  extra arguments for game.createRoom beyond the settings
  * @param {(userId: number) => object} [options.playerExtras]  what the server knows about a person that the rules need when they
  *   take a place (for example their preferred marker colour). It is merged into the game.createRoom arguments for the host
  *   and handed to game.addHuman as a fourth argument for everybody who joins.
- * @param {(room: object, userId: number) => object} [options.viewOptions]  extra options for game.viewFor (such as the current
+ * @param {(room: object, userId: number, now: () => number) => object} [options.viewOptions]  extra options for game.viewFor (such as the current
  *   time, or something that depends on who is looking)
  * @param {(room: object) => object[]} [options.members]  the people and computer players of a room, each with `kind` and `id`
  *   (default: room.seats, which has null for an empty seat; the player-list games of shared/roster.js use room.players)
@@ -113,8 +115,8 @@ export function pickKeys(payload, keys) {
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
  * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
  *   anybody (for something the game does once per change, such as handing out achievements). A throw is logged and ignored.
- * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random)
- * @param {() => number} [options.now]  the clock in milliseconds (default Date.now)
+ * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
+ * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
  * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
  */
 export function createRoomServer(ctx, options) {
@@ -195,7 +197,7 @@ export function createRoomServer(ctx, options) {
   function push(room) {
     for (const seat of members(room)) {
       if (!game.isHuman(seat)) continue;
-      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room, seat.id) }));
+      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room, seat.id, now) }));
     }
   }
 
@@ -223,7 +225,7 @@ export function createRoomServer(ctx, options) {
   function schedule(room) {
     let action;
     try {
-      action = nextAction(room);
+      action = nextAction(room, rng, now);
     } catch (error) {
       cancelTimer(room.code);
       failedMove(room, 'could not work out the next move', error);
@@ -305,7 +307,7 @@ export function createRoomServer(ctx, options) {
 
   /** Takes a person out of a room (a computer player replaces them mid-game) and tells everyone. */
   function leaveRoom(room, userId) {
-    const outcome = game.removeHuman(room, userId, rng);
+    const outcome = game.removeHuman(room, userId, rng, now());
     if (!outcome.ok) return outcome;
     detach(userId, room.code);
     if (outcome.empty) discard(room);
@@ -415,6 +417,7 @@ export function createRoomServer(ctx, options) {
           hostId: userId,
           hostName: socket.data.user.name,
           settings: pickSettings(payload),
+          now: now(),
           ...playerExtras(userId),
           ...createArgs(payload),
         });
@@ -444,7 +447,7 @@ export function createRoomServer(ctx, options) {
     on('kick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'You are not in a game.' };
-      const outcome = game.kick(room, userId, payload[kickKey], rng);
+      const outcome = game.kick(room, userId, payload[kickKey], rng, now());
       if (!outcome.ok) return { ok: false, error: outcome.error };
       detach(outcome.userId, room.code);
       changed(room);
@@ -453,12 +456,12 @@ export function createRoomServer(ctx, options) {
 
     on('settings', (payload) => act((room) => game.setSettings(room, userId, pickSettings(payload))));
     on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
-    on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat)));
+    on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat, rng)));
     on('fillBots', (payload) => act((room) => game.fillWithBots(room, userId, payload.count)));
-    on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng)));
+    on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng, now())));
     on('again', () => act((room) => game.playAgain(room, userId)));
 
-    registerEvents({ on, act, userId, socket, rng });
+    registerEvents({ on, act, userId, socket, rng, now });
 
     socket.on('disconnect', () => {
       const set = sockets.get(userId);

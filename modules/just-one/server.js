@@ -46,13 +46,13 @@ export default function (ctx) {
      * A computer move, or moving on from the reveal: whichever the room is in now. A move that does nothing is reported as a
      * failure (it would otherwise be repeated for ever), so the room server's retry-with-a-pause takes over.
      */
-    nextAction(room) {
+    nextAction(room, rng) {
       const action = game.pendingBotAction(room);
       if (action) {
         return {
-          wait: botWait(delays.bot),
+          wait: botWait(delays.bot, rng),
           run() {
-            if (!game.runBotAction(room, Math.random, action)) throw new Error(`the computer move ${action.type} for ${action.id} was refused`);
+            if (!game.runBotAction(room, rng, action)) throw new Error(`the computer move ${action.type} for ${action.id} was refused`);
           },
         };
       }
@@ -63,19 +63,19 @@ export default function (ctx) {
           key: `next:${room.turn}`,
           wait: delays.nextWait,
           run() {
-            const outcome = game.forceNext(room);
+            const outcome = game.forceNext(room, rng);
             if (!outcome.ok) throw new Error(outcome.error);
           },
         };
       }
       return null;
     },
-    registerEvents({ act, on, userId }) {
-      on('clue', ({ text }) => act((room) => game.submitClue(room, userId, text)));
+    registerEvents({ act, on, userId, rng }) {
+      on('clue', ({ text }) => act((room) => game.submitClue(room, userId, text, rng)));
       on('guess', ({ text }) => act((room) => game.guess(room, userId, text)));
       on('pass', () => act((room) => game.pass(room, userId)));
       on('best', ({ n }) => act((room) => game.chooseBest(room, userId, n)));
-      on('ready', () => act((room) => game.ready(room, userId)));
+      on('ready', () => act((room) => game.ready(room, userId, rng)));
     },
   });
 }

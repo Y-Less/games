@@ -53,11 +53,11 @@ const nextSeat = (room, seat) => (seat + 1) % room.seats.length;
  * @param {number} args.hostId    the host's account id
  * @param {string} args.hostName  the host's name
  * @param {{ seats?: number }} [args.settings]  the number of seats (default DEFAULT_SEATS)
- * @param {number} [args.now]     the creation time in milliseconds
+ * @param {number} args.now     the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} if the number of seats is not allowed
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
   if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
   const room = {
@@ -153,10 +153,10 @@ function resizeSeats(room, count) {
  *
  * @param {object} room
  * @param {number} userId  the account asking; must be the host
- * @param {() => number} [rng]  random numbers for the shuffle and the AI picks
+ * @param {() => number} rng  random numbers for the shuffle and the AI picks
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
@@ -345,10 +345,10 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
  *
  * @param {object} room
  * @param {number} seat  the computer seat deciding
- * @param {() => number} [rng]  random numbers for the AI
+ * @param {() => number} rng  random numbers for the AI
  * @returns {object} a fresh object, so an AI cannot change the room
  */
-export function aiContext(room, seat, rng = Math.random) {
+export function aiContext(room, seat, rng) {
   return {
     seat,
     hand: [...room.hands[seat]],
@@ -370,10 +370,10 @@ export function aiContext(room, seat, rng = Math.random) {
  *
  * @param {object} room
  * @param {number} seat
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {string[]}
  */
-export function botPlay(room, seat, rng = Math.random) {
+export function botPlay(room, seat, rng) {
   const hand = room.hands[seat];
   const valid = (cards) => {
     if (!Array.isArray(cards) || cards.length < 1 || cards.length > MAX_PLAY) return false;
@@ -399,10 +399,10 @@ export function botPlay(room, seat, rng = Math.random) {
  *
  * @param {object} room
  * @param {number} seat
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {boolean}
  */
-export function botCalls(room, seat, rng = Math.random) {
+export function botCalls(room, seat, rng) {
   try {
     return aiOf(room, seat).call(aiContext(room, seat, rng)) === true;
   } catch {
@@ -432,11 +432,11 @@ export function pendingAction(room) {
  * Side effects: mutates room (a call, a decision or a play).
  *
  * @param {object} room
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ type: string, seat: number } | null} the action done, or null if there was nothing to do
  * @throws {Error} if a computer player's move turns out to be illegal
  */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   let result;

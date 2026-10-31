@@ -287,7 +287,7 @@ export function lookAhead(ctx, { jackValue = 5 } = {}) {
   const { legal, seat, settings } = ctx;
   const n = seatsIn(ctx);
   const know = observe(ctx);
-  const rng = ctx.rng ?? Math.random;
+  const rng = ctx.rng;
 
   // Moon watch: who owns every point so far?
   const takers = pointTakers(ctx);

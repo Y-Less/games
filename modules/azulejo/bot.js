@@ -2,7 +2,7 @@
 // game functions check them). How a computer chooses is up to its AI (see ai/): each bot seat has one, picked when the
 // game starts and stored on the seat (`seat.ai`). A seat with no AI, or an unknown one, plays as the first ("standard").
 //
-// Randomness is always passed in as `rng` (the server and the tests inject it); the default is Math.random.
+// Randomness is always passed in as `rng` (the server and the tests inject it); there is no default.
 import * as game from './game.js';
 import { COLOURS } from './rules.js';
 
@@ -53,10 +53,10 @@ export function snapshot(room) {
  *
  * @param {object} room  the room (not changed)
  * @param {number} seat  the computer seat
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no legal move
  */
-export function chooseMove(room, seat, rng = Math.random) {
+export function chooseMove(room, seat, rng) {
   return game.aiOf(room, seat).chooseMove(snapshot(room), seat, game.legalMoves(room, seat), rng);
 }
 
@@ -65,10 +65,10 @@ export function chooseMove(room, seat, rng = Math.random) {
  *
  * @param {object} room  the room (not changed); `room.pending[seat]` must be set
  * @param {number} seat  the computer seat
- * @param {() => number} [rng]  random numbers in [0, 1)
+ * @param {() => number} rng  random numbers in [0, 1)
  * @returns {number} one of the offered columns
  */
-export function chooseColumnFor(room, seat, rng = Math.random) {
+export function chooseColumnFor(room, seat, rng) {
   const { row, colour, columns } = room.pending[seat];
   return game.aiOf(room, seat).chooseColumn(snapshot(room), seat, { row, colour, columns: columns.slice() }, rng);
 }
@@ -78,11 +78,11 @@ export function chooseColumnFor(room, seat, rng = Math.random) {
  * Side effects: mutates the room (the move or column choice is made through the game rules).
  *
  * @param {object} room  the room
- * @param {() => number} [rng]  random numbers in [0, 1) (also used for the refill when a round ends)
+ * @param {() => number} rng  random numbers in [0, 1) (also used for the refill when a round ends)
  * @returns {{ type: string, seat: number, move?: object } | null} the action done, or null if there was nothing to do
  * @throws {Error} if the AI chose an illegal move (a bug, so the server logs it and retries)
  */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   let result;

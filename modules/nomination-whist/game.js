@@ -100,7 +100,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
-export function createRoom({ code, hostId, hostName, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
   const room = {
@@ -206,10 +206,10 @@ export function setSettings(room, userId, input) {
  *
  * @param {object} room  mutates the whole room (resets it, deals, sets the phase to 'nominating')
  * @param {*} userId     the account asking; must be the host
- * @param {() => number} [rng]  random numbers for the dealer, the deal and the AIs
+ * @param {() => number} rng  random numbers for the dealer, the deal and the AIs
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
@@ -235,7 +235,7 @@ function assignBotAIs(room, rng) {
   });
 }
 
-export function dealRound(room, rng = Math.random) {
+export function dealRound(room, rng) {
   const n = room.seats.length;
   const cards = handSize(room.settings, room.roundIndex);
   const deck = shuffle(deckFor(room.settings.jokers === true), rng);
@@ -368,7 +368,7 @@ function endRound(room) {
 }
 
 /** A person is ready for the next round (they closed the score pop-up); it is dealt once every person is. */
-export function nextRound(room, userId, rng = Math.random) {
+export function nextRound(room, userId, rng) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'roundEnd') return fail('The round is not over.');
   room.ready ??= [];
@@ -382,10 +382,10 @@ export function nextRound(room, userId, rng = Math.random) {
  * Deals the next round if the game is at the round-end pop-up and every person has closed it.
  *
  * @param {object} room  mutates the room (deals) when everybody is ready
- * @param {() => number} [rng]  random numbers for the deal
+ * @param {() => number} rng  random numbers for the deal
  * @returns {boolean} whether a new round was dealt
  */
-function advanceIfReady(room, rng = Math.random) {
+function advanceIfReady(room, rng) {
   if (room.phase !== 'roundEnd') return false;
   room.ready ??= [];
   if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
@@ -401,7 +401,7 @@ function dealNext(room, rng) {
 }
 
 /** Deals the next round whether or not everyone has closed the pop-up (the server does this after a wait). */
-export function forceNextRound(room, rng = Math.random) {
+export function forceNextRound(room, rng) {
   if (room.phase !== 'roundEnd') return fail('The round is not over.');
   dealNext(room, rng);
   return ok();
@@ -509,7 +509,7 @@ export function playContext(room, seat, rng) {
 }
 
 /** The card a computer player would play: always one of its legal cards (an AI that answers illegally is overruled). */
-export function botPlay(room, seat, rng = Math.random) {
+export function botPlay(room, seat, rng) {
   const context = playContext(room, seat, rng);
   const card = aiOf(room, seat).play(context);
   return context.legal.includes(card) ? card : AIS[0].play(context);
@@ -532,14 +532,14 @@ export function suggestedNomination(room, seat) {
 }
 
 /** The number a computer player would nominate: always an allowed one. */
-export function botNominate(room, seat, rng = Math.random) {
+export function botNominate(room, seat, rng) {
   const context = nominateContext(room, seat, rng);
   const number = aiOf(room, seat).nominate(context);
   return context.allowed.includes(number) ? number : AIS[0].nominate(context);
 }
 
 /** Performs a pending action. Returns the action, or null if there was nothing to do. */
-export function runPending(room, rng = Math.random) {
+export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
   const result =

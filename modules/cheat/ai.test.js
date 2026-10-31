@@ -11,7 +11,7 @@ const context = (extra) => ({ seat: 1, hand: ['2C', '2D', '9S'], rank: '2', play
 
 /** A game of computers only: the first seat is a computer too (the host is replaced when they leave). */
 function botGame(n, seed, ais) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } });
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(seed));
   g.removeHuman(room, 1, seeded(seed)); // seat 0 becomes a computer

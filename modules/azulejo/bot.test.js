@@ -59,7 +59,7 @@ test('a computer player puts everything on the floor when no pattern line is leg
   setTable(room, { factories: [[1, 1, 1, 1]], centre: [], marker: false, turn: 0 });
   for (let row = 0; row < 5; row++) room.walls[0][row][(1 + row) % 5] = 1; // colour 1 is on every row of the wall
   assert.deepEqual(game.legalMoves(room, 0), [{ source: 0, colour: 1, line: 'floor' }]);
-  assert.deepEqual(bot.chooseMove(room, 0), { source: 0, colour: 1, line: 'floor' });
+  assert.deepEqual(bot.chooseMove(room, 0, Math.random), { source: 0, colour: 1, line: 'floor' });
 });
 
 test('a computer player takes tiles an opponent needs to finish a line when it costs it nothing', () => {
@@ -82,7 +82,7 @@ test('the free wall column: the computer chooses the place that scores most', ()
   // Column 4 joins (1,3) in the row and (0,4) above: the best score.
   for (let i = 0; i < 30; i++) assert.equal(bot.chooseColumnFor(room, 0, seeded(i)), 4);
   room.pending[0].columns = [0, 1];
-  assert.ok([0, 1].includes(bot.chooseColumnFor(room, 0)));
+  assert.ok([0, 1].includes(bot.chooseColumnFor(room, 0, Math.random)));
 });
 
 test('the computer avoids creating a place on a free wall where nothing can ever go', () => {

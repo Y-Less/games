@@ -14,7 +14,7 @@ const sorted = (cards) => [...cards].sort();
 
 /** A lobby for `n` seats with one person (account 1) and computers in every other seat. */
 function lobby(n, settings = {}) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n, ...settings } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n, ...settings } });
   assert.equal(g.fillWithBots(room, 1).ok, true);
   return room;
 }
@@ -78,7 +78,7 @@ test('the first lead is the lowest club still in the deck, must be led, and the 
     }
   }
   const four = startedRoom(4);
-  while (four.phase === 'passing') g.runPending(four) ?? g.choosePass(four, 0, four.hands[0].slice(0, 3));
+  while (four.phase === 'passing') g.runPending(four, Math.random) ?? g.choosePass(four, 0, four.hands[0].slice(0, 3));
   assert.match(g.playCard(four, four.turn, four.hands[four.turn].find((c) => c !== '2C')).error, /2 of clubs/);
   assert.equal(g.playCard(four, four.turn, '2C').ok, true);
 });
@@ -176,7 +176,7 @@ test('scoring: a hand is 26 points for every count; a moon scores 26 for each ot
 });
 
 test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody seated is lost', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(room.seats.length, 4, 'four seats by default');
   assert.equal(g.viewFor(room, 1).seatCount, 4);
   assert.deepEqual([g.viewFor(room, 1).limits.minSeats, g.viewFor(room, 1).limits.maxSeats], [3, 7]);
@@ -217,8 +217,8 @@ test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody
   assert.equal(g.addBot(room, 1, 6).ok, true);
   assert.equal(g.addBot(room, 1, 7).ok, false);
   assert.equal(g.removeBot(room, 1, 6).ok, true);
-  assert.equal(g.start(room, 1).ok, false);
-  assert.match(g.start(room, 1).error, /All 7 seats/);
+  assert.equal(g.start(room, 1, Math.random).ok, false);
+  assert.match(g.start(room, 1, Math.random).error, /All 7 seats/);
   g.fillWithBots(room, 1);
   assert.equal(room.seats.every(Boolean), true);
   assert.equal(g.start(room, 1, seeded(3)).ok, true);
@@ -228,8 +228,8 @@ test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody
 });
 
 test('creating a room with a seat count, and refusing a bad one', () => {
-  for (const n of COUNTS) assert.equal(g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } }).seats.length, n);
-  for (const bad of [2, 8, 'x']) assert.throws(() => g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: bad } }));
+  for (const n of COUNTS) assert.equal(g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } }).seats.length, n);
+  for (const bad of [2, 8, 'x']) assert.throws(() => g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: bad } }));
 });
 
 test('the view: seat count, deal, who passes to whom (with names), and nothing hidden', () => {
@@ -270,7 +270,7 @@ test('whole seeded games for every count: cards conserved, every hand 26 points,
     for (let seed = 1; seed <= 4; seed++) {
       const rng = seeded(seed * 100 + n);
       const settings = { seats: n, target: 50, jackOfDiamonds: seed % 2 === 0, moon: seed === 3 ? 'self' : 'others' };
-      const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
+      const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
       g.fillWithBots(room, 1);
       g.start(room, 1, rng);
       room.seats[0] = { kind: 'bot', id: 'bot:90', name: 'Zed', ai: 'standard' };

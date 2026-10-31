@@ -46,11 +46,11 @@ export function chooseTurn(room, seat, options = {}) {
  * game always goes on). Side effect: mutates the room.
  *
  * @param {object} room
- * @param {() => number} [rng]  random numbers for the AI
- * @param {number} [now]  the clock, in milliseconds
+ * @param {() => number} rng  random numbers for the AI
+ * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }} the game's result
  */
-export function runPending(room, rng = Math.random, now = Date.now()) {
+export function runPending(room, rng, now) {
   const action = pendingAction(room);
   if (!action) return { ok: false, error: 'Nothing to do.' };
   const choice = chooseTurn(room, action.seat, { rng });

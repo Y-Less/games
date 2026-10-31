@@ -18,7 +18,7 @@ function seeded(seed) {
 
 /** A started game: seat 0 is the human (account 1), the rest are computers. */
 function started(settings = {}, rng = seeded(1)) {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false, ...settings } });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false, ...settings } });
   g.fillWithBots(room, 1);
   assert.equal(g.start(room, 1, rng).ok, true);
   return room;
@@ -48,7 +48,7 @@ const botsOnly = (settings, rng) => {
 /** Turns every seat into a computer and plays the whole game, checking every move. Returns the finished room. */
 function simulate(settings, seed) {
   const rng = seeded(seed);
-  const room = g.createRoom({ code: 'x-y-z', hostId: 1, hostName: 'Ann', settings });
+  const room = g.createRoom({ now: 0, code: 'x-y-z', hostId: 1, hostName: 'Ann', settings });
   g.fillWithBots(room, 1);
   g.start(room, 1, rng);
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
@@ -72,7 +72,7 @@ function simulate(settings, seed) {
 // ---- settings and seats ----
 
 test('a new room has the default settings and the host in the first seat', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 7, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 7, hostName: 'Ann' });
   assert.deepEqual(room.settings, { target: 100, jackOfDiamonds: true, moon: 'others' }, 'the Jack of Diamonds is on by default');
   assert.equal(room.phase, 'lobby');
   assert.deepEqual(room.seats[0], { kind: 'human', id: 7, name: 'Ann' });
@@ -80,7 +80,7 @@ test('a new room has the default settings and the host in the first seat', () =>
 });
 
 test('settings are validated and only the host can change them, before the game starts', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(g.setSettings(room, 1, { target: 50, jackOfDiamonds: true, moon: 'self' }).ok, true);
   assert.deepEqual(room.settings, { target: 50, jackOfDiamonds: true, moon: 'self' });
   assert.equal(g.setSettings(room, 1, { target: 75 }).ok, false);
@@ -89,13 +89,13 @@ test('settings are validated and only the host can change them, before the game 
   assert.deepEqual(room.settings, { target: 50, jackOfDiamonds: true, moon: 'self' }, 'a bad change changes nothing');
   assert.equal(g.setSettings(room, 2, { target: 100 }).ok, false);
   g.fillWithBots(room, 1);
-  g.start(room, 1);
+  g.start(room, 1, Math.random);
   assert.equal(g.setSettings(room, 1, { target: 100 }).ok, false);
-  assert.throws(() => g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 3 } }));
+  assert.throws(() => g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 3 } }));
 });
 
 test('humans take the first empty seat, and a full room is refused', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(g.addHuman(room, 2, 'Bob').seat, 1);
   assert.equal(g.addHuman(room, 2, 'Bob').seat, 1, 'joining twice is harmless');
   assert.equal(g.addHuman(room, 3, 'Cat').seat, 2);
@@ -104,8 +104,8 @@ test('humans take the first empty seat, and a full room is refused', () => {
 });
 
 test('the host adds, removes and fills computer players; the game needs four seats and a person', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(g.start(room, 1).ok, false, 'three seats are empty');
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  assert.equal(g.start(room, 1, Math.random).ok, false, 'three seats are empty');
   assert.equal(g.addBot(room, 2).ok, false, 'not the host');
   const added = g.addBot(room, 1);
   assert.equal(added.seat, 1);
@@ -122,21 +122,21 @@ test('the host adds, removes and fills computer players; the game needs four sea
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 4, 'names are distinct');
   assert.equal(new Set(room.seats.map((s) => s.id)).size, 4);
   assert.equal(g.addBot(room, 1).ok, false, 'every seat is taken');
-  assert.equal(g.start(room, 2).ok, false, 'only the host starts');
+  assert.equal(g.start(room, 2, Math.random).ok, false, 'only the host starts');
 
   room.seats[0] = { kind: 'bot', id: 'bot:7', name: 'Nobody' };
-  assert.equal(g.start(room, 1).ok, false, 'at least one person must play');
+  assert.equal(g.start(room, 1, Math.random).ok, false, 'at least one person must play');
 });
 
 test('leaving the lobby frees the seat and passes on hosting; the last person out closes the room', () => {
-  const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   g.addHuman(room, 2, 'Bob');
   g.addBot(room, 1);
-  assert.deepEqual(g.removeHuman(room, 1), { ok: true, empty: false, seat: 0, replaced: false });
+  assert.deepEqual(g.removeHuman(room, 1, Math.random), { ok: true, empty: false, seat: 0, replaced: false });
   assert.equal(room.seats[0], null);
   assert.equal(room.hostId, 2);
-  assert.equal(g.removeHuman(room, 1).ok, false);
-  assert.equal(g.removeHuman(room, 2).empty, true, 'only a computer player is left');
+  assert.equal(g.removeHuman(room, 1, Math.random).ok, false);
+  assert.equal(g.removeHuman(room, 2, Math.random).empty, true, 'only a computer player is left');
 });
 
 // ---- dealing and passing ----
@@ -382,10 +382,10 @@ test('after the thirteenth trick the hand is scored, tallied and the game goes o
 
 test('the next hand cannot start until the hand is over, and only by a player', () => {
   const room = started();
-  assert.equal(g.nextHand(room, 1).ok, false);
+  assert.equal(g.nextHand(room, 1, Math.random).ok, false);
   room.phase = 'handEnd';
-  assert.equal(g.nextHand(room, 99).ok, false);
-  assert.equal(g.nextHand(room, 1).ok, true);
+  assert.equal(g.nextHand(room, 99, Math.random).ok, false);
+  assert.equal(g.nextHand(room, 1, Math.random).ok, true);
   assert.equal(room.handNumber, 1);
   assert.equal(room.passDirection, 'right');
 });
@@ -395,12 +395,12 @@ test('the next hand is dealt once every person has closed the score pop-up, and 
   room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
   room.phase = 'handEnd';
   room.ready = [];
-  assert.equal(g.nextHand(room, 1).ok, true);
+  assert.equal(g.nextHand(room, 1, Math.random).ok, true);
   assert.equal(room.phase, 'handEnd', 'one of two people is not enough');
   assert.deepEqual(room.ready, [0]);
-  assert.equal(g.nextHand(room, 1).ok, true, 'closing it twice is harmless');
+  assert.equal(g.nextHand(room, 1, Math.random).ok, true, 'closing it twice is harmless');
   assert.equal(room.handNumber, 0);
-  assert.equal(g.nextHand(room, 2).ok, true);
+  assert.equal(g.nextHand(room, 2, Math.random).ok, true);
   assert.notEqual(room.phase, 'handEnd');
   assert.equal(room.handNumber, 1);
   assert.deepEqual(room.ready, []);
@@ -411,14 +411,14 @@ test('a person leaving at the end of a hand does not hold the others up, and the
   room.seats[1] = { kind: 'human', id: 2, name: 'Bea' };
   room.phase = 'handEnd';
   room.ready = [];
-  g.nextHand(room, 1);
-  assert.equal(g.removeHuman(room, 2).ok, true);
+  g.nextHand(room, 1, Math.random);
+  assert.equal(g.removeHuman(room, 2, Math.random).ok, true);
   assert.notEqual(room.phase, 'handEnd');
   room.phase = 'handEnd';
   room.ready = [];
-  assert.equal(g.forceNextHand(room).ok, true);
+  assert.equal(g.forceNextHand(room, Math.random).ok, true);
   assert.notEqual(room.phase, 'handEnd');
-  assert.equal(g.forceNextHand(room).ok, false);
+  assert.equal(g.forceNextHand(room, Math.random).ok, false);
 });
 
 test('the game ends only once somebody has reached the target, and the lowest score wins', () => {
@@ -481,14 +481,14 @@ test('play again resets the game for the host, keeping the seats and settings', 
 test('a human who leaves mid-game is replaced by a computer player in the same seat', () => {
   const room = started();
   room.seats[1] = { kind: 'human', id: 2, name: 'Bob' };
-  const outcome = g.removeHuman(room, 2);
+  const outcome = g.removeHuman(room, 2, Math.random);
   assert.deepEqual([outcome.ok, outcome.empty, outcome.replaced], [true, false, true]);
   assert.equal(room.seats[1].kind, 'bot');
   assert.notEqual(room.seats[1].name, 'Bob');
   assert.equal(new Set(room.seats.map((s) => s.id)).size, 4);
   assert.equal(room.phase, 'passing');
   assert.ok(g.pendingAction(room), 'the new computer player has to pass');
-  assert.equal(g.removeHuman(room, 1).empty, true, 'nobody is left');
+  assert.equal(g.removeHuman(room, 1, Math.random).empty, true, 'nobody is left');
 });
 
 test('a leaver\'s chosen pass stays', () => {
@@ -496,14 +496,14 @@ test('a leaver\'s chosen pass stays', () => {
   room.seats[1] = { kind: 'human', id: 2, name: 'Bob' };
   const cards = room.hands[1].slice(0, 3);
   g.choosePass(room, 1, cards);
-  g.removeHuman(room, 2);
+  g.removeHuman(room, 2, Math.random);
   assert.deepEqual([...room.passes[1]].sort(), [...cards].sort());
 });
 
 test('the host passes on when the host leaves mid-game', () => {
   const room = started();
   room.seats[2] = { kind: 'human', id: 3, name: 'Cat' };
-  g.removeHuman(room, 1);
+  g.removeHuman(room, 1, Math.random);
   assert.equal(room.hostId, 3);
 });
 
@@ -515,7 +515,7 @@ test('statistics: winners win, ties share a placement, computer players and repl
   room.scores = [104, 30, 30, 60];
   room.winners = g.winnersOf(room.scores);
   room.tally[1] = { handsPlayed: 6, moonsShot: 1, queensTaken: 2, heartsTaken: 11 };
-  g.removeHuman(room, 4); // a leaver is not recorded
+  g.removeHuman(room, 4, Math.random); // a leaver is not recorded
   room.phase = 'finished';
   const players = g.statsPlayers(room);
   assert.deepEqual(players.map((p) => p.userId), [1, 2, 3]);
@@ -624,33 +624,33 @@ test('computer passes are three different cards from the hand and shed danger', 
 test('a computer player dumps the Queen of Spades when it cannot follow suit', () => {
   const room = midHand([['5D'], ['9D', '2H', 'QS', '7C'], ['3D'], ['4D']], { turn: 1, trick: [{ seat: 0, card: '5D' }] });
   room.hands[1] = ['2H', 'QS', '7C'];
-  assert.equal(g.botPlay(room, 1), 'QS');
+  assert.equal(g.botPlay(room, 1, Math.random), 'QS');
 });
 
 test('a computer player ducks, and dumps the Queen under a higher spade', () => {
   let room = midHand([['5D'], ['3D', '9D', 'KD'], [], []], { turn: 1, trick: [{ seat: 0, card: '5D' }] });
-  assert.equal(g.botPlay(room, 1), '3D', 'ducking under the five with the three');
+  assert.equal(g.botPlay(room, 1, Math.random), '3D', 'ducking under the five with the three');
   room = midHand([['KS'], ['2S', 'JS', 'QS'], [], []], { turn: 1, trick: [{ seat: 0, card: 'KS' }] });
-  assert.equal(g.botPlay(room, 1), 'QS', 'the king will take it');
+  assert.equal(g.botPlay(room, 1, Math.random), 'QS', 'the king will take it');
   room = midHand([['5S'], ['2S', 'JS', 'QS'], [], []], { turn: 1, trick: [{ seat: 0, card: '5S' }] });
-  assert.equal(g.botPlay(room, 1), '2S', 'but not under a low spade');
+  assert.equal(g.botPlay(room, 1, Math.random), '2S', 'but not under a low spade');
 });
 
 test('a computer player that must take the trick plays high last, low otherwise', () => {
   let room = midHand([['2D'], ['3D'], ['4D'], ['9D', 'KD']], { turn: 3, trick: [{ seat: 0, card: '2D' }, { seat: 1, card: '3D' }, { seat: 2, card: '4D' }] });
-  assert.equal(g.botPlay(room, 3), 'KD');
+  assert.equal(g.botPlay(room, 3, Math.random), 'KD');
   room = midHand([['8D'], ['9D', 'KD'], [], []], { turn: 1, trick: [{ seat: 0, card: '8D' }] });
   room.hands[1] = ['9D', 'KD'];
-  assert.equal(g.botPlay(room, 1), '9D');
+  assert.equal(g.botPlay(room, 1, Math.random), '9D');
 });
 
 test('a computer player leads low and flushes the Queen of Spades with a low spade', () => {
   let room = midHand([['2D', '9C', 'AS', '3S', 'AH'], [], [], []], { turn: 0 });
-  assert.equal(g.botPlay(room, 0), '3S');
+  assert.equal(g.botPlay(room, 0, Math.random), '3S');
   room = midHand([['2D', '9C', 'AS', '3S', 'QS'], [], [], []], { turn: 0 });
-  assert.notEqual(suitOf(g.botPlay(room, 0)), 'S', 'with the Queen in hand it avoids spades');
+  assert.notEqual(suitOf(g.botPlay(room, 0, Math.random)), 'S', 'with the Queen in hand it avoids spades');
   room = midHand([['KC', '9C', 'AH', '3H'], [], [], []], { turn: 0, heartsBroken: true });
-  assert.equal(g.botPlay(room, 0), '9C', 'hearts last');
+  assert.equal(g.botPlay(room, 0, Math.random), '9C', 'hearts last');
 });
 
 test('a computer player with an overwhelming hand goes for the moon, and gives up when somebody else scores', () => {
@@ -660,7 +660,7 @@ test('a computer player with an overwhelming hand goes for the moon, and gives u
   const room = midHand([['3C'], strong, [], []], { turn: 1, trick: [] });
   room.hands[1] = strong;
   room.moonBid = 1;
-  assert.equal(g.botPlay(room, 1), 'AS', 'leads its highest card');
+  assert.equal(g.botPlay(room, 1, Math.random), 'AS', 'leads its highest card');
   room.taken[2] = ['AH'];
   room.trick = [];
   const hand = midHand([['2C'], ['3C'], ['4C'], ['5C']]);

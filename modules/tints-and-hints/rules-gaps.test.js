@@ -11,7 +11,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const first = () => 0;
 
 function started(n = 3, turnsEach = 2) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, turnsEach });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, turnsEach });
   for (let i = 2; i <= n; i++) game.addHuman(room, i);
   game.start(room, 1, first);
   return room;
@@ -32,8 +32,8 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   readyAll(game, room, first);
   assert.equal(room.phase, 'finished');
   const before = JSON.stringify(room);
-  assert.deepEqual(game.removeHuman(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
-  assert.deepEqual(game.removeHuman(room, 999), { ok: false, error: 'You are not in this game.' }, 'a stranger is told so, and nothing changes');
+  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(game.removeHuman(room, 999, Math.random), { ok: false, error: 'You are not in this game.' }, 'a stranger is told so, and nothing changes');
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.isLive(room), false);
 });
@@ -58,13 +58,13 @@ test('hints: whitespace is collapsed, the second hint is separate, and an object
 });
 
 test('colours: taking someone else\'s is refused, keeping your own is fine, and the lobby gives each newcomer a free one', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   for (let i = 2; i <= 8; i++) game.addHuman(room, i);
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8);
   assert.equal(game.setColour(room, 1, room.players[1].colour).ok, false);
   assert.equal(game.setColour(room, 1, room.players[0].colour).ok, true);
   assert.equal(game.setColour(room, 99, game.COLOURS[0]).ok, false);
-  game.removeHuman(room, 3);
+  game.removeHuman(room, 3, Math.random);
   game.addHuman(room, 20);
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8, 'the freed colour is reused');
 });
@@ -90,9 +90,9 @@ test('a hinter who leaves at the reveal does not hold the others up; at the seco
 });
 
 test('advancing from the lobby, or from a phase with a stranger, is refused with a reason', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
-  assert.match(game.advance(room, 1).error, /nothing to continue/);
+  assert.match(game.advance(room, 1, Math.random).error, /nothing to continue/);
   assert.equal(game.guess(room, 2, 'A1').ok, false);
   assert.equal(game.setHint(room, 1, 'x').ok, false);
   game.start(room, 1, first);

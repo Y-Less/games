@@ -16,7 +16,7 @@ export const ID = /\bc\d\d\b/g;
  * @returns {object} the room (asserts that it started)
  */
 export function started(seats = 4, rng = () => 0.5, { target = 15 } = {}) {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats, target } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats, target } });
   game.fillWithBots(room, 1);
   const outcome = game.start(room, 1, rng);
   assert.equal(outcome.ok, true, outcome.error);
@@ -31,7 +31,7 @@ export function started(seats = 4, rng = () => 0.5, { target = 15 } = {}) {
  * @param {object} options  as for started()
  * @returns {object} the room, with no host
  */
-export function botsOnly(seats = 4, rng = Math.random, options) {
+export function botsOnly(seats = 4, rng, options) {
   const room = started(seats, rng, options);
   for (let i = 0; i < room.seats.length; i++) room.seats[i] = { kind: 'bot', id: `bot:x${i}`, name: `Bot ${i}` };
   room.hostId = null;

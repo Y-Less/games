@@ -135,7 +135,7 @@ function nextFace(room, rng) {
  * @param {() => number} rng
  * @returns {{ id: number, c: string }[]} the dice, shuffled; a die has no face until it is rolled
  */
-export function makeBag(players, rng = Math.random) {
+export function makeBag(players, rng) {
   const dice = [];
   for (const c of COLOURS) for (let n = 0; n < dicePerColour(players); n++) dice.push({ id: dice.length, c });
   return shuffle(dice, rng);
@@ -403,11 +403,11 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {string} args.hostName  the host's name
  * @param {number} [args.size]    how many seats (one of SIZES)
  * @param {object} [args.settings]  settings from the client (checked here)
- * @param {number} [args.now]     the creation time in milliseconds
+ * @param {number} args.now     the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} when the size or the settings are not allowed (the message is fit to show to a person)
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
@@ -569,10 +569,10 @@ export function setSize(room, userId, size) {
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
- * @param {() => number} [rng]
+ * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random) {
+export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
@@ -604,10 +604,10 @@ export function start(room, userId, rng = Math.random) {
  * @param {object} room
  * @param {number} seat  who is choosing
  * @param {unknown} pid  the pattern id from the client
- * @param {() => number} [rng]  used for the first round's dice if this was the last choice
+ * @param {() => number} rng  used for the first round's dice if this was the last choice
  * @returns {{ ok: boolean, error?: string }}
  */
-export function chooseWindow(room, seat, pid, rng = Math.random) {
+export function chooseWindow(room, seat, pid, rng) {
   if (room.phase !== 'windows') return fail('It is not time to choose a window.');
   if (room.picked[seat]) return fail('You have already chosen your window.');
   if (typeof pid !== 'string' || !room.options[seat].includes(pid)) return fail('Choose one of your four windows.');
@@ -917,10 +917,10 @@ function putDie(room, seat, poolAt, cell) {
  * @param {object} room
  * @param {number} seat
  * @param {{ die: number, cell: number }} args  the pool die's id and the space, as sent by the client
- * @param {() => number} [rng]  not used; accepted so that every action has the same signature
+ * @param {() => number} rng  not used; accepted so that every action has the same signature
  * @returns {{ ok: boolean, error?: string }}
  */
-export function placeDie(room, seat, args, rng = Math.random) {
+export function placeDie(room, seat, args, rng) {
   const { die, cell } = isObject(args) ? args : {};
   const problem = myTurn(room, seat);
   if (problem) return problem;
@@ -951,10 +951,10 @@ export const toolCost = (room, index) => (room.spent[index] > 0 ? 2 : 1);
  * @param {object} room
  * @param {number} seat
  * @param {{ tool: string, params: object }} args  the tool id and its parameters, as sent by the client
- * @param {() => number} [rng]  random numbers for a roll that has not been made yet this turn (see nextFace)
+ * @param {() => number} rng  random numbers for a roll that has not been made yet this turn (see nextFace)
  * @returns {{ ok: boolean, cost?: number, error?: string }}
  */
-export function useTool(room, seat, args, rng = Math.random) {
+export function useTool(room, seat, args, rng) {
   const { tool, params } = isObject(args) ? args : {};
   const problem = myTurn(room, seat);
   if (problem) return problem;
@@ -983,10 +983,10 @@ export function useTool(room, seat, args, rng = Math.random) {
  *
  * @param {object} room
  * @param {number} seat
- * @param {() => number} [rng]  used if a new round starts
+ * @param {() => number} rng  used if a new round starts
  * @returns {{ ok: boolean, error?: string }}
  */
-export function endTurn(room, seat, rng = Math.random) {
+export function endTurn(room, seat, rng) {
   const problem = myTurn(room, seat);
   if (problem) return problem;
   advanceTurn(room, rng);

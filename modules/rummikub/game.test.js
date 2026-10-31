@@ -18,13 +18,13 @@ function setPosition(room, { racks, table = [], turn = 0, melded = null }) {
 }
 
 test('creating and configuring a room', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', size: 3, settings: { numbers: 9, colours: 5 } });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', size: 3, settings: { numbers: 9, colours: 5 } });
   assert.equal(room.phase, 'lobby');
   assert.equal(room.settings.numbers, 9);
   assert.equal(room.settings.wildcards, 2);
-  assert.throws(() => game.createRoom({ code: 'a', hostId: 1, hostName: 'A', size: 7 }));
-  assert.throws(() => game.createRoom({ code: 'a', hostId: 1, hostName: 'A', size: 1 }));
-  assert.throws(() => game.createRoom({ code: 'a', hostId: 1, hostName: 'A', settings: { numbers: 'many' } }));
+  assert.throws(() => game.createRoom({ now: 0, code: 'a', hostId: 1, hostName: 'A', size: 7 }));
+  assert.throws(() => game.createRoom({ now: 0, code: 'a', hostId: 1, hostName: 'A', size: 1 }));
+  assert.throws(() => game.createRoom({ now: 0, code: 'a', hostId: 1, hostName: 'A', settings: { numbers: 'many' } }));
   assert.equal(game.setSettings(room, 2, { numbers: 5 }).ok, false, 'not the host');
   assert.equal(game.setSettings(room, 1, { numbers: 500, timer: 1 }).ok, true);
   assert.equal(room.settings.numbers, 20);
@@ -38,15 +38,15 @@ test('creating and configuring a room', () => {
 });
 
 test('seats: humans, computer players, kicking, one seat each', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', size: 3 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', size: 3 });
   assert.equal(game.addHuman(room, 2, 'Ann').ok, true);
   assert.equal(room.seats[1].name, 'Ann (2)');
   assert.equal(game.addHuman(room, 2, 'Ann').seat, 1, 'joining twice is harmless');
   assert.equal(game.addHuman(room, 3, 'Cat').ok, true);
   assert.equal(game.addHuman(room, 4, 'Dan').ok, false, 'full');
-  assert.equal(game.kick(room, 2, 2).ok, false, 'only the host');
-  assert.equal(game.kick(room, 1, 0).ok, false, 'not yourself');
-  assert.equal(game.kick(room, 1, 2).userId, 3);
+  assert.equal(game.kick(room, 2, 2, Math.random).ok, false, 'only the host');
+  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'not yourself');
+  assert.equal(game.kick(room, 1, 2, Math.random).userId, 3);
   assert.equal(game.addBot(room, 1).ok, true);
   assert.equal(room.seats[2].kind, 'bot');
   assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, false, true], 'the scoreboard marks computer players');
@@ -62,23 +62,23 @@ test('starting: the deal, the pool, and refusing games that cannot be played', (
   assert.ok(room.racks.every((r) => r.length === 14));
   assert.equal(room.pool.length, 106 - 56);
   assertInvariants(room);
-  const small = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } });
+  const small = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } });
   game.fillWithBots(small, 1);
-  const refused = game.start(small, 1);
+  const refused = game.start(small, 1, Math.random, Date.now());
   assert.equal(refused.ok, false);
   assert.match(refused.error, /too few/);
   assert.equal(small.phase, 'lobby');
-  const fewer = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 10, colours: 4, wildcards: 2 } });
+  const fewer = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 10, colours: 4, wildcards: 2 } });
   game.fillWithBots(fewer, 1);
-  assert.equal(game.start(fewer, 1).ok, true);
+  assert.equal(game.start(fewer, 1, Math.random, Date.now()).ok, true);
   assert.ok(fewer.racks.every((r) => r.length === 11), 'a smaller deal for a smaller tile set');
   assert.ok(fewer.pool.length >= 11);
-  assert.equal(game.start(fewer, 1).ok, false, 'already started');
-  const empty = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
-  assert.equal(game.start(empty, 1).ok, false, 'empty seats');
-  const impossible = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2, settings: { numbers: 2, colours: 2, wildcards: 8 } });
+  assert.equal(game.start(fewer, 1, Math.random, Date.now()).ok, false, 'already started');
+  const empty = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  assert.equal(game.start(empty, 1, Math.random, Date.now()).ok, false, 'empty seats');
+  const impossible = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2, settings: { numbers: 2, colours: 2, wildcards: 8 } });
   game.fillWithBots(impossible, 1);
-  assert.match(game.start(impossible, 1).error, /no run or group/);
+  assert.match(game.start(impossible, 1, Math.random, Date.now()).error, /no run or group/);
 });
 
 test('turns: only the player to move can act, and a refused play changes nothing', () => {
@@ -86,13 +86,13 @@ test('turns: only the player to move can act, and a refused play changes nothing
   const mover = room.turn;
   const other = (mover + 1) % 3;
   const snapshot = JSON.stringify(room);
-  assert.equal(game.draw(room, other).ok, false);
-  assert.equal(game.play(room, other, { table: [] }).ok, false);
-  assert.equal(game.play(room, mover, { table: [[room.racks[mover][0]]] }).ok, false);
-  assert.equal(game.play(room, mover, 'garbage').ok, false);
-  assert.equal(game.play(room, mover, {}).ok, false);
+  assert.equal(game.draw(room, other, Date.now()).ok, false);
+  assert.equal(game.play(room, other, { table: [] }, Date.now()).ok, false);
+  assert.equal(game.play(room, mover, { table: [[room.racks[mover][0]]] }, Date.now()).ok, false);
+  assert.equal(game.play(room, mover, 'garbage', Date.now()).ok, false);
+  assert.equal(game.play(room, mover, {}, Date.now()).ok, false);
   assert.equal(JSON.stringify(room), snapshot, 'nothing changed');
-  assert.equal(game.draw(room, mover).ok, true);
+  assert.equal(game.draw(room, mover, Date.now()).ok, true);
   assert.equal(room.racks[mover].length, 15);
   assert.equal(room.turn, other);
   assertInvariants(room);
@@ -101,21 +101,21 @@ test('turns: only the player to move can act, and a refused play changes nothing
 test('a first meld, then extending the table', () => {
   const { room } = playingRoom(2, { seed: 2 });
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12), t(1, 1), t(2, 1)], [t(0, 13), t(3, 9), t(2, 9), t(1, 9)]], turn: 0 });
-  assert.equal(game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }).ok, true);
+  assert.equal(game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now()).ok, true);
   assert.equal(room.melded[0], true);
   assert.deepEqual(room.racks[0].length, 2);
   assert.equal(room.turn, 1);
   assert.equal(room.lastPlay.seat, 0);
   // seat 1 cannot extend the run before melding
-  const refused = game.play(room, 1, { table: [[t(0, 10), t(0, 11), t(0, 12), t(0, 13)]] });
+  const refused = game.play(room, 1, { table: [[t(0, 10), t(0, 11), t(0, 12), t(0, 13)]] }, Date.now());
   assert.equal(refused.ok, false);
   assert.equal(room.racks[1].length, 4);
   // a group of 9s is worth 27 < 30
-  assert.equal(game.play(room, 1, { table: [[t(0, 10), t(0, 11), t(0, 12)], [t(3, 9), t(2, 9), t(1, 9)]] }).ok, false);
-  assert.equal(game.draw(room, 1).ok, true);
+  assert.equal(game.play(room, 1, { table: [[t(0, 10), t(0, 11), t(0, 12)], [t(3, 9), t(2, 9), t(1, 9)]] }, Date.now()).ok, false);
+  assert.equal(game.draw(room, 1, Date.now()).ok, true);
   assertInvariants(room);
   // seat 0 has melded: now it may extend with whatever it holds, but it holds nothing useful, so it draws
-  assert.equal(game.draw(room, 0).ok, true);
+  assert.equal(game.draw(room, 0, Date.now()).ok, true);
 });
 
 test('going out wins the round: the winner gains the others\' racks, the others lose their own', () => {
@@ -124,7 +124,7 @@ test('going out wins the round: the winner gains the others\' racks, the others 
     racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(1, 1), t(2, 5), joker(STD)], [t(3, 13), t(3, 12)]],
     turn: 0,
   });
-  const result = game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  const result = game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
   assert.equal(result.ok, true);
   assert.equal(room.phase, 'finished', 'one round by default');
   assert.deepEqual(room.scores, [61, -36, -25]);
@@ -137,7 +137,7 @@ test('going out wins the round: the winner gains the others\' racks, the others 
 test('the numbers: jokers cost 30 and the score table adds up', () => {
   const { room } = playingRoom(2, { seed: 4 });
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [joker(STD), t(2, 5)]], turn: 0 });
-  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
   assert.deepEqual(room.scores, [35, -35]);
   assert.equal(rackValue(room.settings, room.racks[1]), 35);
   assert.equal(room.history[0].deltas[0], 35);
@@ -147,11 +147,11 @@ test('a blocked round: pool empty and everyone passes; the lowest rack wins and 
   const { room } = playingRoom(3, { seed: 6 });
   setPosition(room, { racks: [[t(0, 1), t(1, 4)], [t(0, 2), t(1, 9)], [t(0, 3), t(1, 3)]], turn: 0 });
   room.pool = [];
-  assert.equal(game.draw(room, 0).ok, true);
+  assert.equal(game.draw(room, 0, Date.now()).ok, true);
   assert.equal(room.idle, 1);
-  assert.equal(game.draw(room, 1).ok, true);
+  assert.equal(game.draw(room, 1, Date.now()).ok, true);
   assert.equal(room.phase, 'playing');
-  assert.equal(game.draw(room, 2).ok, true);
+  assert.equal(game.draw(room, 2, Date.now()).ok, true);
   assert.equal(room.phase, 'finished');
   assert.equal(room.lastRound.reason, 'blocked');
   assert.deepEqual(room.lastRound.totals, [5, 11, 6]);
@@ -163,9 +163,9 @@ test('a blocked round with tied lowest racks shares the winnings, rounded down',
   const { room } = playingRoom(3, { seed: 6 });
   setPosition(room, { racks: [[t(0, 1), t(1, 4)], [t(0, 2), t(1, 3)], [t(0, 3), t(1, 9)]], turn: 0 });
   room.pool = [];
-  game.draw(room, 0);
-  game.draw(room, 1);
-  game.draw(room, 2);
+  game.draw(room, 0, Date.now());
+  game.draw(room, 1, Date.now());
+  game.draw(room, 2, Date.now());
   assert.deepEqual(room.lastRound.winners, [0, 1]);
   assert.deepEqual(room.lastRound.deltas, { 0: 3, 1: 3, 2: -7 });
   assert.deepEqual(room.winners, [0, 1]);
@@ -174,7 +174,7 @@ test('a blocked round with tied lowest racks shares the winnings, rounded down',
 test('a draw from a full pool resets the pass count, so passing needs an empty pool', () => {
   const { room } = playingRoom(2, { seed: 8 });
   room.idle = 5;
-  game.draw(room, room.turn);
+  game.draw(room, room.turn, Date.now());
   assert.equal(room.idle, 0);
   assert.equal(room.phase, 'playing');
 });
@@ -185,15 +185,15 @@ test('several rounds: scores add up, everybody continues, the first player moves
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)]], turn: room.turn });
   const mover = room.turn;
   setPosition(room, { racks: mover === 0 ? [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)]] : [[t(2, 5), t(3, 5)], [t(0, 10), t(0, 11), t(0, 12)]], turn: mover });
-  assert.equal(game.play(room, mover, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }).ok, true);
+  assert.equal(game.play(room, mover, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now()).ok, true);
   assert.equal(room.phase, 'between');
   assert.equal(room.history.length, 1);
-  assert.equal(game.play(room, mover, { table: [] }).ok, false, 'no play between rounds');
-  assert.equal(game.draw(room, mover).ok, false);
-  assert.equal(game.next(room, 0).ok, true);
+  assert.equal(game.play(room, mover, { table: [] }, Date.now()).ok, false, 'no play between rounds');
+  assert.equal(game.draw(room, mover, Date.now()).ok, false);
+  assert.equal(game.next(room, 0, Math.random, Date.now()).ok, true);
   assert.equal(room.phase, 'between', 'waits for the other person too');
-  assert.equal(game.next(room, 0).ok, true, 'pressing twice is harmless');
-  assert.equal(game.next(room, 1).ok, true);
+  assert.equal(game.next(room, 0, Math.random, Date.now()).ok, true, 'pressing twice is harmless');
+  assert.equal(game.next(room, 1, Math.random, Date.now()).ok, true);
   assert.equal(room.phase, 'playing');
   assert.equal(room.round, 2);
   assert.equal(room.first, (first + 1) % 2);
@@ -207,22 +207,22 @@ test('several rounds: scores add up, everybody continues, the first player moves
 test('between rounds the server can force the next round, and a leaver is replaced', () => {
   const { room } = playingRoom(3, { seed: 9, settings: { rounds: 2 } });
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)], [t(1, 1), t(2, 2)]], turn: 0 });
-  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
   assert.equal(room.phase, 'between');
-  game.next(room, 0);
-  game.next(room, 1);
+  game.next(room, 0, Math.random, Date.now());
+  game.next(room, 1, Math.random, Date.now());
   assert.equal(room.phase, 'between');
-  const left = game.removeHuman(room, 3);
+  const left = game.removeHuman(room, 3, Math.random);
   assert.equal(left.ok, true);
   assert.equal(left.replaced, true);
   assert.equal(room.seats[2].kind, 'bot');
   assert.equal(room.phase, 'playing', 'everyone who is left was ready');
   const again = playingRoom(2, { seed: 1, settings: { rounds: 2 } });
   setPosition(again.room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5)]], turn: 0 });
-  game.play(again.room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
-  assert.equal(game.forceNext(again.room).ok, true);
+  game.play(again.room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
+  assert.equal(game.forceNext(again.room, Math.random, Date.now()).ok, true);
   assert.equal(again.room.round, 2);
-  assert.equal(game.forceNext(again.room).ok, false);
+  assert.equal(game.forceNext(again.room, Math.random, Date.now()).ok, false);
 });
 
 test('a game of several rounds finishes with placements and statistics', () => {
@@ -232,8 +232,8 @@ test('a game of several rounds finishes with placements and statistics', () => {
     const racks = [[t(2, 5)], [t(2, 6)], [t(2, 7)]];
     racks[mover] = [t(0, 10), t(0, 11), t(0, 12)];
     setPosition(room, { racks, turn: mover });
-    game.play(room, mover, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
-    if (room.phase === 'between') game.forceNext(room);
+    game.play(room, mover, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
+    if (room.phase === 'between') game.forceNext(room, Math.random, Date.now());
   }
   assert.equal(room.phase, 'finished');
   assertInvariants(room);
@@ -269,14 +269,14 @@ test('the turn timer: nothing before the deadline, then a draw', () => {
 test('a human who leaves mid-game is replaced by a computer player who keeps the rack', () => {
   const { room } = playingRoom(3, { seed: 7 });
   const rack = [...room.racks[1]];
-  const result = game.removeHuman(room, 2);
+  const result = game.removeHuman(room, 2, Math.random);
   assert.equal(result.replaced, true);
   assert.equal(room.seats[1].kind, 'bot');
   assert.deepEqual(room.racks[1], rack);
-  assert.equal(game.removeHuman(room, 2).ok, false);
-  game.removeHuman(room, 1);
+  assert.equal(game.removeHuman(room, 2, Math.random).ok, false);
+  game.removeHuman(room, 1, Math.random);
   assert.equal(room.hostId, 3, 'the host moves on');
-  const last = game.removeHuman(room, 3);
+  const last = game.removeHuman(room, 3, Math.random);
   assert.equal(last.empty, true);
 });
 
@@ -294,7 +294,7 @@ test('views show your own rack and only counts of the others, never the pool', (
   assert.deepEqual(outsider.rack, []);
   assert.equal(outsider.you, -1);
   assert.equal(game.viewFor(room, 1, { now: 1000 }).remaining, null);
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A' });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A' });
   const lobbyView = game.viewFor(lobby, 1);
   assert.equal(lobbyView.rack, undefined);
   assert.equal(lobbyView.deal.hand, 14);
@@ -303,7 +303,7 @@ test('views show your own rack and only counts of the others, never the pool', (
 test('end-of-round views reveal the racks, but not the pool', () => {
   const { room } = playingRoom(2, { seed: 11 });
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)]], turn: 0 });
-  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
   const view = game.viewFor(room, 2);
   assert.deepEqual(view.lastRound.racks[1], [t(2, 5), t(3, 5)]);
   assert.equal(view.final.players.length, 2);
@@ -312,11 +312,11 @@ test('end-of-round views reveal the racks, but not the pool', () => {
 
 test('persistence: a room survives a JSON round trip', () => {
   const { room, rng } = playingRoom(4, { seed: 13, bots: true });
-  for (let i = 0; i < 10; i++) game.draw(room, room.turn);
+  for (let i = 0; i < 10; i++) game.draw(room, room.turn, Date.now());
   const copy = JSON.parse(JSON.stringify(room));
   assert.deepEqual(copy, room);
   assertInvariants(copy);
-  assert.equal(game.draw(copy, copy.turn).ok, true);
+  assert.equal(game.draw(copy, copy.turn, Date.now()).ok, true);
   void rng;
   void seeded;
 });
@@ -330,15 +330,15 @@ test('the tile you draw is marked, for you alone, until your next turn begins', 
   for (let seat = 0; seat < 3; seat++) assert.equal(game.viewFor(room, userOf(seat)).drawn, null, 'nothing is marked at the start');
 
   const next = room.pool[room.pool.length - 1];
-  assert.equal(game.draw(room, first).ok, true);
+  assert.equal(game.draw(room, first, Date.now()).ok, true);
   assert.equal(game.viewFor(room, userOf(first)).drawn, next, 'the drawn tile is the one marked');
   assert.ok(game.viewFor(room, userOf(first)).rack.includes(next), 'and it is in the rack');
   assert.equal(game.viewFor(room, userOf(second)).drawn, null, 'the others are not told which tile it was');
   assert.equal(game.viewFor(room, 99).drawn, null, 'nor is a spectator');
 
-  assert.equal(game.draw(room, second).ok, true);
+  assert.equal(game.draw(room, second, Date.now()).ok, true);
   assert.equal(game.viewFor(room, userOf(first)).drawn, next, 'it stays marked while the others take their turns');
-  assert.equal(game.draw(room, third).ok, true);
+  assert.equal(game.draw(room, third, Date.now()).ok, true);
   assert.equal(room.turn, first);
   assert.equal(game.viewFor(room, userOf(first)).drawn, null, 'it is cleared when your next turn begins');
   assert.notEqual(game.viewFor(room, userOf(second)).drawn, null, "and the next player's tile is still marked until theirs");
@@ -349,15 +349,15 @@ test('passing with an empty pool marks nothing, and a new round clears the mark'
   const { room } = playingRoom(3, { seed: 9, settings: { rounds: 2 } });
   setPosition(room, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(2, 5), t(3, 5)], [t(1, 1), t(2, 2)]], turn: 0 });
   room.pool = [];
-  assert.equal(game.draw(room, 0).ok, true, 'a pass');
+  assert.equal(game.draw(room, 0, Date.now()).ok, true, 'a pass');
   assert.equal(room.drawn[0], null, 'nothing was drawn');
   room.drawn[1] = t(2, 5); // a mark left over from the round
   room.turn = 0;
-  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] });
+  game.play(room, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now());
   assert.equal(room.phase, 'between');
-  game.next(room, 0);
-  game.next(room, 1);
-  game.next(room, 2);
+  game.next(room, 0, Math.random, Date.now());
+  game.next(room, 1, Math.random, Date.now());
+  game.next(room, 2, Math.random, Date.now());
   assert.equal(room.phase, 'playing');
   assert.deepEqual(room.drawn, [null, null, null], 'a new round starts with nothing marked');
 });
@@ -370,7 +370,7 @@ test('a game saved before drawn tiles were marked can still be viewed, drawn in 
   const seat = room.turn;
   assert.equal(game.viewFor(room, seat + 1).drawn, null, 'viewing it does not fail');
   const next = room.pool[room.pool.length - 1];
-  assert.equal(game.draw(room, seat).ok, true);
+  assert.equal(game.draw(room, seat, Date.now()).ok, true);
   assert.equal(room.turn, (seat + 1) % 3, 'the turn passed');
   assert.equal(game.viewFor(room, seat + 1).drawn, next);
   assertInvariants(room);
@@ -385,7 +385,7 @@ test('the achievement tallies: points and tiles played, tiles moved, jokers swap
     turn: 0,
     melded: [true, true],
   });
-  assert.equal(game.play(room, 0, { table: [[t(0, 5), t(0, 6), t(0, 7)], [j, t(1, 3), t(1, 4)]] }).ok, true);
+  assert.equal(game.play(room, 0, { table: [[t(0, 5), t(0, 6), t(0, 7)], [j, t(1, 3), t(1, 4)]] }, Date.now()).ok, true);
   const tally = room.tally[0];
   assert.equal(tally.jokersReplaced, 1);
   assert.equal(tally.tilesPlayed, 3);
@@ -395,7 +395,7 @@ test('the achievement tallies: points and tiles played, tiles moved, jokers swap
 
   const { room: other } = playingRoom(2, { seed: 6 });
   setPosition(other, { racks: [[t(0, 10), t(0, 11), t(0, 12)], [t(3, 1)]], turn: 0 });
-  assert.equal(game.play(other, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }).ok, true);
+  assert.equal(game.play(other, 0, { table: [[t(0, 10), t(0, 11), t(0, 12)]] }, Date.now()).ok, true);
   assert.equal(other.tally[0].outInOne, 1, 'out with the first meld');
   assert.equal(game.statsPlayers(other)[0].extras.outInOne, 1);
 });
@@ -415,14 +415,14 @@ test('the biggest rack and holding both jokers (once a round) are noted', () => 
   room.pairSeen = [false, false];
   setPosition(room, { racks: [[t(0, 1), t(1, 4), a, t(2, 9)], [t(3, 1)]], turn: 0 });
   room.pool.push(b);
-  game.draw(room, 0);
+  game.draw(room, 0, Date.now());
   const tally = room.tally[0];
   assert.deepEqual(room.racks[0].filter((id) => id === a || id === b).length, 2, 'the second joker was drawn');
   assert.equal(tally.bothJokers, 1);
   assert.ok(tally.biggestRack >= 5);
   room.turn = 0;
   room.pool.push(t(1, 9));
-  game.draw(room, 0);
+  game.draw(room, 0, Date.now());
   assert.equal(tally.bothJokers, 1, 'once a round');
 });
 
@@ -430,7 +430,7 @@ test('a room saved before roundsWon existed still counts a won round (no NaN)', 
   const { room } = playingRoom(2, { seed: 3 });
   delete room.tally[0].roundsWon; // as in a room saved by an older version
   setPosition(room, { racks: [[t(0, 1), t(0, 2), t(0, 3)], [t(3, 1)]], table: [], turn: 0, melded: [true, true] });
-  const result = game.play(room, 0, { table: [[t(0, 1), t(0, 2), t(0, 3)]] });
+  const result = game.play(room, 0, { table: [[t(0, 1), t(0, 2), t(0, 3)]] }, Date.now());
   assert.equal(result.ok, true, result.error);
   assert.equal(room.tally[0].roundsWon, 1, 'the key is created and counted from zero');
 });

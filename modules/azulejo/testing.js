@@ -10,7 +10,7 @@ export { seeded };
 /** A started game of n people (ids 1..n, host 1). */
 export function playingRoom(n, { seed = 1, free = false } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings: { freeWall: free } });
+  const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings: { freeWall: free } });
   for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
   return { room, rng };

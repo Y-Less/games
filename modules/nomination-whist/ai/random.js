@@ -6,6 +6,6 @@ export const random = {
   name: 'Random',
   description: 'Nominates any allowed number and plays any legal card at random.',
   weight: 0.5,
-  nominate: ({ allowed, rng = Math.random }) => sample(allowed, rng),
-  play: ({ legal, rng = Math.random }) => sample(legal, rng),
+  nominate: ({ allowed, rng }) => sample(allowed, rng),
+  play: ({ legal, rng }) => sample(legal, rng),
 };

@@ -43,21 +43,21 @@ const failsAtomically = (room, action, pattern) => {
 
 test('creating a room: sizes 2 to 5 only, the host in seat 0', () => {
   for (const size of SIZES) {
-    const room = game.createRoom({ code: 'a-b-c', hostId: 7, hostName: 'Host', size });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 7, hostName: 'Host', size });
     assert.equal(room.seats.length, size);
     assert.deepEqual(room.seats[0], { kind: 'human', id: 7, name: 'Host' });
     assert.ok(room.seats.slice(1).every((s) => s === null));
     assert.equal(room.phase, 'lobby');
     assert.deepEqual(room.settings, { badPrivate: false });
   }
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
-  for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) assert.throws(() => game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'H', size: bad }));
-  assert.throws(() => game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: 'yes' } }));
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: true } }).settings.badPrivate, true);
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
+  for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) assert.throws(() => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', size: bad }));
+  assert.throws(() => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: 'yes' } }));
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: true } }).settings.badPrivate, true);
 });
 
 test('seat count: only the host, only in the lobby, keeping everyone seated', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 5 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 5 });
   assert.equal(game.addHuman(room, 2, 'B').ok, true);
   assert.equal(game.addBot(room, 1, 4).ok, true);
   assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, false, true], 'the scoreboard marks computer players');
@@ -74,13 +74,13 @@ test('seat count: only the host, only in the lobby, keeping everyone seated', ()
   assert.equal(game.addHuman(room, 3, 'C').ok, true);
   assert.equal(room.seats[3].name, 'C');
   game.fillWithBots(room, 1);
-  game.start(room, 1);
+  game.start(room, 1, Math.random);
   assert.equal(game.setSize(room, 1, 4).ok, false, 'not once the game has started');
 });
 
 test('seats and computer players: fill, add, remove, kick, start conditions', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
-  assert.equal(game.start(room, 1).ok, false, 'empty seats');
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  assert.equal(game.start(room, 1, Math.random).ok, false, 'empty seats');
   assert.equal(game.addBot(room, 2).ok, false, 'not the host');
   assert.equal(game.addBot(room, 1, 9).ok, false);
   assert.equal(game.addBot(room, 1, 0).ok, false, 'taken');
@@ -96,25 +96,25 @@ test('seats and computer players: fill, add, remove, kick, start conditions', ()
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3);
   assert.equal(game.addBot(room, 1).ok, false, 'full');
   assert.equal(game.addHuman(room, 2, 'B').ok, false, 'full');
-  assert.equal(game.kick(room, 1, 1).ok, false, 'that is a computer player');
-  assert.equal(game.kick(room, 1, 0).ok, false, 'the host cannot kick themselves');
-  const other = game.createRoom({ code: 'd-e-f', hostId: 1, hostName: 'A', size: 2 });
+  assert.equal(game.kick(room, 1, 1, Math.random).ok, false, 'that is a computer player');
+  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'the host cannot kick themselves');
+  const other = game.createRoom({ now: 0, code: 'd-e-f', hostId: 1, hostName: 'A', size: 2 });
   game.addHuman(other, 2, 'B');
-  assert.equal(game.kick(other, 2, 0).ok, false, 'only the host');
-  assert.deepEqual(game.kick(other, 1, 1), { ok: true, userId: 2, replaced: false });
+  assert.equal(game.kick(other, 2, 0, Math.random).ok, false, 'only the host');
+  assert.deepEqual(game.kick(other, 1, 1, Math.random), { ok: true, userId: 2, replaced: false });
   assert.equal(other.seats[1], null);
-  assert.equal(game.kick(other, 1, 7).ok, false);
+  assert.equal(game.kick(other, 1, 7, Math.random).ok, false);
 });
 
 test('a game needs a person: all computer players cannot be started', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
   game.fillWithBots(room, 1);
   room.seats[0] = { kind: 'bot', id: 'bot:50', name: 'Robot' };
-  assert.equal(game.start(room, 1).ok, false);
+  assert.equal(game.start(room, 1, Math.random).ok, false);
 });
 
 test('duplicate display names get (2), (3)', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Sam', size: 5 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Sam', size: 5 });
   game.addHuman(room, 2, 'Sam');
   game.addHuman(room, 3, 'Sam');
   game.addHuman(room, 4, 'Gaudi');
@@ -123,7 +123,7 @@ test('duplicate display names get (2), (3)', () => {
 });
 
 test('bad private scoring: a host option, lobby only, validated', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
   game.addHuman(room, 2, 'B');
   assert.equal(room.settings.badPrivate, false, 'off by default');
   assert.equal(game.setSettings(room, 2, { badPrivate: true }).ok, false, 'only the host');
@@ -135,7 +135,7 @@ test('bad private scoring: a host option, lobby only, validated', () => {
   assert.equal(game.setSettings(room, 1, { badPrivate: false }).ok, true);
   assert.equal(room.settings.badPrivate, false);
   game.setSettings(room, 1, { badPrivate: true });
-  game.start(room, 1);
+  game.start(room, 1, Math.random);
   assert.equal(game.setSettings(room, 1, { badPrivate: false }).ok, false, 'fixed once started');
   assert.equal(room.settings.badPrivate, true);
   assert.equal(game.viewFor(room, 2).settings.badPrivate, true, 'every player is told which rule applies');
@@ -143,27 +143,27 @@ test('bad private scoring: a host option, lobby only, validated', () => {
 });
 
 test('leaving: a seat is freed in the lobby, a computer takes over mid-game, the host passes on', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
   game.addHuman(room, 2, 'B');
   game.addHuman(room, 3, 'C');
-  assert.equal(game.removeHuman(room, 99).ok, false);
-  assert.deepEqual(game.removeHuman(room, 1), { ok: true, empty: false, seat: 0, replaced: false });
+  assert.equal(game.removeHuman(room, 99, Math.random).ok, false);
+  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, seat: 0, replaced: false });
   assert.equal(room.seats[0], null);
   assert.equal(room.hostId, 2);
   game.addBot(room, 2);
-  game.start(room, 2);
+  game.start(room, 2, Math.random);
   assert.equal(room.phase, 'windows');
-  const outcome = game.removeHuman(room, 3);
+  const outcome = game.removeHuman(room, 3, Math.random);
   assert.equal(outcome.replaced, true);
   assert.equal(room.seats[2].kind, 'bot', 'a computer player took the seat');
-  assert.equal(game.removeHuman(room, 2).empty, true, 'nobody left');
+  assert.equal(game.removeHuman(room, 2, Math.random).empty, true, 'nobody left');
 });
 
 // ---- windows ----
 
 test('every player is dealt four windows from two distinct cards, for two to five players', () => {
   for (const n of SIZES) for (let seed = 1; seed <= 40; seed++) {
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: n });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: n });
     game.fillWithBots(room, 1);
     game.start(room, 1, seeded(seed));
     assert.equal(room.phase, 'windows');
@@ -182,21 +182,21 @@ test('every player is dealt four windows from two distinct cards, for two to fiv
 
 test('choosing a window: your own four only, once, and the game starts when all have chosen', () => {
   const rng = seeded(5);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
   game.addHuman(room, 2, 'B');
   game.addHuman(room, 3, 'C');
   game.start(room, 1, rng);
   const [mine, theirs] = [room.options[0], room.options[1]];
   for (const bad of [undefined, null, 5, '', '__proto__', '99.9', {}, [], theirs[0], 'test.blank']) {
-    const result = game.chooseWindow(room, 0, bad);
+    const result = game.chooseWindow(room, 0, bad, Math.random);
     assert.equal(result.ok, false);
     assert.ok(!result.error.includes(theirs[0]) && !JSON.stringify(result).includes(room.options[2][0]), 'no leak in the error');
   }
-  assert.equal(game.chooseWindow(room, 0, mine[2]).ok, true);
-  assert.equal(game.chooseWindow(room, 0, mine[1]).ok, false, 'only once');
+  assert.equal(game.chooseWindow(room, 0, mine[2], Math.random).ok, true);
+  assert.equal(game.chooseWindow(room, 0, mine[1], Math.random).ok, false, 'only once');
   assert.equal(room.phase, 'windows');
-  assert.equal(game.placeDie(room, 0, { die: 1, cell: 0 }).ok, false, 'the game has not begun');
-  assert.equal(game.chooseWindow(room, 2, room.options[2][3]).ok, true);
+  assert.equal(game.placeDie(room, 0, { die: 1, cell: 0 }, Math.random).ok, false, 'the game has not begun');
+  assert.equal(game.chooseWindow(room, 2, room.options[2][3], Math.random).ok, true);
   assert.equal(room.phase, 'windows');
   assert.equal(game.chooseWindow(room, 1, theirs[0], rng).ok, true);
   assert.equal(room.phase, 'playing');
@@ -280,8 +280,8 @@ test('leftover dice go to the round track in order, placed dice do not', () => {
   const { room, rng } = playingRoom(2, { seed: 4 });
   const first = room.pool.map((d) => d.id);
   const target = room.pool[0];
-  const cell = [0, 1, 2, 3, 4].find((c) => game.placeDie(structuredClone(room), 0, { die: target.id, cell: c }).ok);
-  assert.equal(game.placeDie(room, 0, { die: target.id, cell }).ok, true);
+  const cell = [0, 1, 2, 3, 4].find((c) => game.placeDie(structuredClone(room), 0, { die: target.id, cell: c }, Math.random).ok);
+  assert.equal(game.placeDie(room, 0, { die: target.id, cell }, Math.random).ok, true);
   assert.equal(room.turn.seat, 0, 'a turn goes on until the player ends it');
   passRound(room, rng);
   assert.deepEqual(room.track[0].map((d) => d.id).sort(), first.filter((id) => id !== target.id).sort());
@@ -290,19 +290,19 @@ test('leftover dice go to the round track in order, placed dice do not', () => {
 
 test('placing a die: whose turn, which die, which space, once per turn', () => {
   const { room, rng } = lab(2, { pool: [die('ruby', 3, 501), die('jade', 5, 502), die('topaz', 3, 503)] });
-  failsAtomically(room, () => game.placeDie(room, 1, { die: 501, cell: 0 }), /not your turn/);
+  failsAtomically(room, () => game.placeDie(room, 1, { die: 501, cell: 0 }, Math.random), /not your turn/);
   for (const bad of [{}, { die: 999, cell: 0 }, { die: '501', cell: 0 }, { die: 501 }, { die: 501, cell: -1 }, { die: 501, cell: 20 }, { die: 501, cell: 1.5 }, { die: 501, cell: '0' }, { die: null, cell: null }]) {
-    failsAtomically(room, () => game.placeDie(room, 0, bad));
+    failsAtomically(room, () => game.placeDie(room, 0, bad, Math.random));
   }
-  failsAtomically(room, () => game.placeDie(room, 0, { die: 501, cell: at(1, 2) }), /edge or corner/);
+  failsAtomically(room, () => game.placeDie(room, 0, { die: 501, cell: at(1, 2) }, Math.random), /edge or corner/);
   assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, rng).ok, true);
-  failsAtomically(room, () => game.placeDie(room, 0, { die: 502, cell: 1 }), /already placed/);
+  failsAtomically(room, () => game.placeDie(room, 0, { die: 502, cell: 1 }, Math.random), /already placed/);
   assert.equal(room.tally[0].dicePlaced, 1);
   assert.equal(game.endTurn(room, 0, rng).ok, true);
-  failsAtomically(room, () => game.endTurn(room, 0), /not your turn/);
+  failsAtomically(room, () => game.endTurn(room, 0, Math.random), /not your turn/);
   assert.equal(room.turn.seat, 1);
   // Seat 1's window is empty: its first die is on an edge, like everybody's.
-  failsAtomically(room, () => game.placeDie(room, 1, { die: 502, cell: at(1, 1) }), /edge/);
+  failsAtomically(room, () => game.placeDie(room, 1, { die: 502, cell: at(1, 1) }, Math.random), /edge/);
 });
 
 test('a turn does not end by itself, even when the die has been placed and a tool used: End turn is required', () => {
@@ -317,15 +317,15 @@ test('a turn does not end by itself, even when the die has been placed and a too
 });
 
 test('actions outside the game or its phases fail cleanly', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
-  assert.equal(game.placeDie(room, 0, { die: 1, cell: 0 }).ok, false);
-  assert.equal(game.useTool(room, 0, { tool: 'lathe', params: {} }).ok, false);
-  assert.equal(game.endTurn(room, 0).ok, false);
-  assert.equal(game.chooseWindow(room, 0, '0.0').ok, false);
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  assert.equal(game.placeDie(room, 0, { die: 1, cell: 0 }, Math.random).ok, false);
+  assert.equal(game.useTool(room, 0, { tool: 'lathe', params: {} }, Math.random).ok, false);
+  assert.equal(game.endTurn(room, 0, Math.random).ok, false);
+  assert.equal(game.chooseWindow(room, 0, '0.0', Math.random).ok, false);
   assert.equal(game.playAgain(room, 1).ok, false, 'the game is not over');
   for (const junk of [undefined, null, 5, 'x', [], {}]) {
-    assert.equal(game.placeDie(room, 0, junk).ok, false);
-    assert.equal(game.useTool(room, 0, junk).ok, false);
+    assert.equal(game.placeDie(room, 0, junk, Math.random).ok, false);
+    assert.equal(game.useTool(room, 0, junk, Math.random).ok, false);
   }
 });
 
@@ -339,7 +339,7 @@ test('tool cost: 1 favour token the first time, 2 every time after, tokens sit o
   assert.deepEqual(room.spent, [1, 0, 0]);
   assert.equal(game.toolCost(room, 0), 2, 'now it costs two');
   assert.equal(game.toolCost(room, 1), 1, 'other cards are untouched');
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'refire', params: { die: 501 } }), /already used a tool/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'refire', params: { die: 501 } }, Math.random), /already used a tool/);
   game.endTurn(room, 0, rng);
   game.endTurn(room, 1, rng);
   game.endTurn(room, 1, rng);
@@ -360,44 +360,44 @@ test('tool cost: 1 favour token the first time, 2 every time after, tokens sit o
 
 test('a tool you cannot afford, or that is not in the game, changes nothing', () => {
   const { room } = lab(2, { pool: [die('ruby', 3, 501)], tokens: 0 });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }), /costs 1 favour token and you have 0/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }, Math.random), /costs 1 favour token and you have 0/);
   room.tokens[0] = 1;
   room.spent[0] = 1;
   room.tokenTotal++;
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }), /costs 2 favour tokens and you have 1/);
-  for (const tool of ['mirror', 'nonsense', '', '__proto__', 'constructor', 5, null, undefined, {}, []]) failsAtomically(room, () => game.useTool(room, 0, { tool, params: {} }));
-  failsAtomically(room, () => game.useTool(room, 1, { tool: 'refire', params: { die: 501 } }), /not your turn/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }, Math.random), /costs 2 favour tokens and you have 1/);
+  for (const tool of ['mirror', 'nonsense', '', '__proto__', 'constructor', 5, null, undefined, {}, []]) failsAtomically(room, () => game.useTool(room, 0, { tool, params: {} }, Math.random));
+  failsAtomically(room, () => game.useTool(room, 1, { tool: 'refire', params: { die: 501 } }, Math.random), /not your turn/);
 });
 
 test('Lathe: one shade up or down, never wrapping', () => {
   const { room } = lab(2, { pool: [die('ruby', 6, 501), die('jade', 1, 502), die('topaz', 3, 503)] });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }), /6 cannot go up/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 502, delta: -1 } }), /1 cannot go down/);
-  for (const delta of [0, 2, -2, '1', null, undefined, 1.5, NaN]) failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 503, delta } }), /raise or to lower/);
-  for (const die of [900, '503', undefined, null]) failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die, delta: 1 } }), /pool/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: null }));
-  assert.equal(game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: -1 } }).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: 1 } }, Math.random), /6 cannot go up/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 502, delta: -1 } }, Math.random), /1 cannot go down/);
+  for (const delta of [0, 2, -2, '1', null, undefined, 1.5, NaN]) failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die: 503, delta } }, Math.random), /raise or to lower/);
+  for (const die of [900, '503', undefined, null]) failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: { die, delta: 1 } }, Math.random), /pool/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'lathe', params: null }, Math.random));
+  assert.equal(game.useTool(room, 0, { tool: 'lathe', params: { die: 501, delta: -1 } }, Math.random).ok, true);
   assert.equal(room.pool[0].v, 5);
 });
 
 test('Exchange: swaps a pool die with a round-track die', () => {
   const { room } = lab(2, { pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
   room.track = [[die('topaz', 2, 601), die('sapphire', 6, 602)], [die('amethyst', 1, 603)]];
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 501, trackDie: 999 } }), /round track/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 502, trackDie: 502 } }), /round track/, 'a pool die is not on the track');
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 999, trackDie: 601 } }), /pool/);
-  assert.equal(game.useTool(room, 0, { tool: 'exchange', params: { die: 501, trackDie: 603 } }).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 501, trackDie: 999 } }, Math.random), /round track/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 502, trackDie: 502 } }, Math.random), /round track/, 'a pool die is not on the track');
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'exchange', params: { die: 999, trackDie: 601 } }, Math.random), /pool/);
+  assert.equal(game.useTool(room, 0, { tool: 'exchange', params: { die: 501, trackDie: 603 } }, Math.random).ok, true);
   assert.deepEqual(room.pool.map((d) => d.id), [603, 502]);
   assert.deepEqual(room.track[1].map((d) => d.id), [501]);
   assert.equal(room.pool[0].c, 'amethyst');
   assert.equal(room.track[1][0].v, 3, 'dice keep their faces');
   const { room: empty } = lab(2, { pool: [die('ruby', 3, 501)] });
-  failsAtomically(empty, () => game.useTool(empty, 0, { tool: 'exchange', params: { die: 501, trackDie: 1 } }), /round track/);
+  failsAtomically(empty, () => game.useTool(empty, 0, { tool: 'exchange', params: { die: 501, trackDie: 1 } }, Math.random), /round track/);
 });
 
 test('Re-fire: rolls one die again, others untouched', () => {
   const { room } = lab(2, { pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'refire', params: { die: 9 } }), /pool/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'refire', params: { die: 9 } }, Math.random), /pool/);
   assert.equal(game.useTool(room, 0, { tool: 'refire', params: { die: 501 } }, () => 0.99).ok, true);
   assert.deepEqual(room.pool.map((d) => d.v), [6, 5]);
   const again = lab(2, { pool: [die('ruby', 3, 501)] });
@@ -407,14 +407,14 @@ test('Re-fire: rolls one die again, others untouched', () => {
 
 test('Great Kiln: all dice again, only on the second turn, before placing', () => {
   const { room, rng } = lab(2, { pool: [die('ruby', 3, 501), die('jade', 5, 502)], tools: ['kiln', 'lathe', 'refire'] });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'kiln', params: {} }), /second turn/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'kiln', params: {} }, Math.random), /second turn/);
   game.endTurn(room, 0, rng);
   game.endTurn(room, 1, rng);
   assert.equal(room.turn.number, 2);
   assert.equal(room.turn.seat, 1);
   room.pool = [die('ruby', 3, 501), die('jade', 5, 502)];
-  assert.equal(game.placeDie(room, 1, { die: 501, cell: 0 }).ok, true);
-  failsAtomically(room, () => game.useTool(room, 1, { tool: 'kiln', params: {} }), /before you place/);
+  assert.equal(game.placeDie(room, 1, { die: 501, cell: 0 }, Math.random).ok, true);
+  failsAtomically(room, () => game.useTool(room, 1, { tool: 'kiln', params: {} }, Math.random), /before you place/);
   game.endTurn(room, 1, rng);
   assert.equal(room.turn.seat, 0);
   assert.equal(room.turn.number, 2);
@@ -422,17 +422,17 @@ test('Great Kiln: all dice again, only on the second turn, before placing', () =
   assert.deepEqual(room.pool.map((d) => d.v), [4]);
   const empty = lab(2, { pool: [], tools: ['kiln', 'lathe', 'refire'] });
   empty.room.turn.number = 2;
-  failsAtomically(empty.room, () => game.useTool(empty.room, 0, { tool: 'kiln', params: {} }), /no dice/);
+  failsAtomically(empty.room, () => game.useTool(empty.room, 0, { tool: 'kiln', params: {} }, Math.random), /no dice/);
 });
 
 test('Mirror: the opposite face', () => {
   const { room } = lab(2, { pool: [die('ruby', 1, 501), die('jade', 2, 502), die('topaz', 3, 503), die('sapphire', 4, 504), die('amethyst', 5, 505), die('ruby', 6, 506)], tools: ['mirror', 'lathe', 'refire'] });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'mirror', params: { die: 1 } }), /pool/);
-  assert.equal(game.useTool(room, 0, { tool: 'mirror', params: { die: 502 } }).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'mirror', params: { die: 1 } }, Math.random), /pool/);
+  assert.equal(game.useTool(room, 0, { tool: 'mirror', params: { die: 502 } }, Math.random).ok, true);
   assert.deepEqual(room.pool.map((d) => d.v), [1, 5, 3, 4, 5, 6]);
   for (const [v, opposite] of [[1, 6], [2, 5], [3, 4], [4, 3], [5, 2], [6, 1]]) {
     const one = lab(2, { pool: [die('ruby', v, 501)], tools: ['mirror', 'lathe', 'refire'] });
-    game.useTool(one.room, 0, { tool: 'mirror', params: { die: 501 } });
+    game.useTool(one.room, 0, { tool: 'mirror', params: { die: 501 } }, Math.random);
     assert.equal(one.room.pool[0].v, opposite);
   }
 });
@@ -444,14 +444,14 @@ test('Slide Rule: moves one die, obeying every placement rule', () => {
   fillWindow(room, 0, THREE);
   const grid = () => room.grids[0].map((d) => d?.id ?? null);
   const before = grid();
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(3, 3), to: at(1, 0) } }), /no die/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 0), to: at(0, 1) } }), /already holds/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 0), to: at(3, 4) } }), /touch/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(0, 2) } }), /different space/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: 'a', to: 1 } }));
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: {} }));
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(3, 3), to: at(1, 0) } }, Math.random), /no die/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 0), to: at(0, 1) } }, Math.random), /already holds/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 0), to: at(3, 4) } }, Math.random), /touch/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(0, 2) } }, Math.random), /different space/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: 'a', to: 1 } }, Math.random));
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: {} }, Math.random));
   assert.deepEqual(grid(), before);
-  assert.equal(game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(1, 2) } }).ok, true);
+  assert.equal(game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(1, 2) } }, Math.random).ok, true);
   assert.equal(room.grids[0][at(1, 2)].id, 802);
   assert.equal(room.grids[0][at(0, 2)], null);
   assert.equal(room.tokens[0], 4);
@@ -460,23 +460,23 @@ test('Slide Rule: moves one die, obeying every placement rule', () => {
 test('Slide Rule cannot break the colour or shade restrictions or the like-dice rule', () => {
   const { room } = lab(2, { pid: 'test.mix', tools: ['slide', 'twin', 'tint'] });
   fillWindow(room, 0, [[0, 0, 'ruby', 1], [0, 1, 'jade', 2], [0, 2, 'topaz', 3]]);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 1), to: at(1, 1) } }), /Sapphire/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 1), to: at(1, 2) } }), /showing 4/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 1), to: at(1, 1) } }, Math.random), /Sapphire/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 1), to: at(1, 2) } }, Math.random), /showing 4/);
   fillWindow(room, 0, [[1, 0, 'amethyst', 2]]);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(1, 1) } }), /Sapphire/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'slide', params: { from: at(0, 2), to: at(1, 1) } }, Math.random), /Sapphire/);
 });
 
 test('Twin Slide: exactly two moves, one after the other, all or nothing', () => {
   const { room } = lab(2, { tools: ['twin', 'slide', 'tint'] });
   fillWindow(room, 0, THREE);
   const move = (from, to) => ({ from, to });
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2))] } }), /exactly 2 dice/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(1, 0)), move(at(0, 1), at(1, 1))] } }), /exactly 2/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: 'x' } }));
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), 5] } }));
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(3, 4))] } }), /touch/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(1, 2), at(1, 3))] } }), /only be moved once/);
-  assert.equal(game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(1, 0))] } }).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2))] } }, Math.random), /exactly 2 dice/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(1, 0)), move(at(0, 1), at(1, 1))] } }, Math.random), /exactly 2/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: 'x' } }, Math.random));
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), 5] } }, Math.random));
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(3, 4))] } }, Math.random), /touch/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(1, 2), at(1, 3))] } }, Math.random), /only be moved once/);
+  assert.equal(game.useTool(room, 0, { tool: 'twin', params: { moves: [move(at(0, 2), at(1, 2)), move(at(0, 0), at(1, 0))] } }, Math.random).ok, true);
   assert.deepEqual([at(1, 2), at(1, 0), at(0, 1)].map((i) => room.grids[0][i]?.id), [802, 800, 801]);
   assert.equal(room.grids[0].filter(Boolean).length, 3);
 });
@@ -485,42 +485,42 @@ test('Twin Slide: the second move sees the window after the first (order matters
   const { room } = lab(2, { tools: ['twin', 'slide', 'tint'] });
   fillWindow(room, 0, [[0, 0, 'ruby', 1], [0, 1, 'jade', 2]]);
   // Moving (0,1) away first leaves (0,0) alone; then moving (0,0) next to... the first die's new place works.
-  const ok = game.useTool(structuredClone(room), 0, { tool: 'twin', params: { moves: [{ from: at(0, 1), to: at(1, 1) }, { from: at(0, 0), to: at(0, 1) }] } });
+  const ok = game.useTool(structuredClone(room), 0, { tool: 'twin', params: { moves: [{ from: at(0, 1), to: at(1, 1) }, { from: at(0, 0), to: at(0, 1) }] } }, Math.random);
   assert.equal(ok.ok, true, 'a die can move into the gap the other one left');
-  const bad = game.useTool(structuredClone(room), 0, { tool: 'twin', params: { moves: [{ from: at(0, 1), to: at(3, 4) }, { from: at(0, 0), to: at(1, 0) }] } });
+  const bad = game.useTool(structuredClone(room), 0, { tool: 'twin', params: { moves: [{ from: at(0, 1), to: at(3, 4) }, { from: at(0, 0), to: at(1, 0) }] } }, Math.random);
   assert.equal(bad.ok, false);
 });
 
 test('Tint Shifter ignores the colour of the new space only', () => {
   const { room } = lab(2, { pid: 'test.mix', tools: ['tint', 'gauge', 'slide'] });
   fillWindow(room, 0, [[0, 0, 'ruby', 1], [0, 1, 'jade', 2]]);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(1, 2) } }), /showing 4/, 'the shade of (1,2) still counts');
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(3, 4) } }), /touch/);
-  assert.equal(game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(1, 1) } }).ok, true, 'a jade die on the sapphire space');
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(1, 2) } }, Math.random), /showing 4/, 'the shade of (1,2) still counts');
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(3, 4) } }, Math.random), /touch/);
+  assert.equal(game.useTool(room, 0, { tool: 'tint', params: { from: at(0, 1), to: at(1, 1) } }, Math.random).ok, true, 'a jade die on the sapphire space');
   assert.equal(room.grids[0][at(1, 1)].c, 'jade');
 });
 
 test('Gauge Breaker ignores the shade of the new space only', () => {
   const { room } = lab(2, { pid: 'test.mix', tools: ['gauge', 'tint', 'slide'] });
   fillWindow(room, 0, THREE);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 1) } }), /Sapphire/, 'the colour of (1,1) still counts');
-  assert.equal(game.useTool(room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 2) } }).ok, true, 'a 2 on the 4 space');
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 1) } }, Math.random), /Sapphire/, 'the colour of (1,1) still counts');
+  assert.equal(game.useTool(room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 2) } }, Math.random).ok, true, 'a 2 on the 4 space');
   assert.equal(room.grids[0][at(1, 2)].v, 2);
   const like = lab(2, { pid: 'test.mix', tools: ['gauge', 'tint', 'slide'] });
   fillWindow(like.room, 0, [[0, 0, 'ruby', 1], [0, 1, 'jade', 2], [0, 2, 'topaz', 3], [1, 3, 'sapphire', 2]]);
-  failsAtomically(like.room, () => game.useTool(like.room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 2) } }), /showing 2 cannot sit beside/, 'like shades beside still count');
+  failsAtomically(like.room, () => game.useTool(like.room, 0, { tool: 'gauge', params: { from: at(0, 1), to: at(1, 2) } }, Math.random), /showing 2 cannot sit beside/, 'like shades beside still count');
 });
 
 test('Track Echo: one or two dice of a colour that is on the round track', () => {
   const { room } = lab(2, { tools: ['echo', 'tint', 'slide'] });
   fillWindow(room, 0, [[0, 0, 'ruby', 1], [0, 1, 'jade', 2], [0, 3, 'ruby', 4]]);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }] } }), /no Ruby die on the round track/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }] } }, Math.random), /no Ruby die on the round track/);
   room.track = [[die('ruby', 5, 700), die('topaz', 2, 701)]];
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 1), to: at(1, 1) }] } }), /no Jade die/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 1), to: at(1, 1) }] } }), /same colour/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [] } }), /1 to 2/);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 3), to: at(1, 3) }, { from: at(0, 0), to: at(2, 0) }] } }), /1 to 2/);
-  assert.equal(game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 3), to: at(1, 2) }] } }).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 1), to: at(1, 1) }] } }, Math.random), /no Jade die/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 1), to: at(1, 1) }] } }, Math.random), /same colour/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [] } }, Math.random), /1 to 2/);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 3), to: at(1, 3) }, { from: at(0, 0), to: at(2, 0) }] } }, Math.random), /1 to 2/);
+  assert.equal(game.useTool(room, 0, { tool: 'echo', params: { moves: [{ from: at(0, 0), to: at(1, 0) }, { from: at(0, 3), to: at(1, 2) }] } }, Math.random).ok, true);
   assert.deepEqual([at(1, 0), at(1, 2)].map((i) => room.grids[0][i]?.c), ['ruby', 'ruby']);
 });
 
@@ -534,15 +534,15 @@ test('Free Pane: places a die without the touching rule, as the turn\'s die', ()
   // Not as the second die of a turn, and neighbours still matter.
   const again = lab(2, { tools: ['free-pane', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('ruby', 4, 502)] });
   fillWindow(again.room, 0, [[2, 2, 'ruby', 1]]);
-  failsAtomically(again.room, () => game.useTool(again.room, 0, { tool: 'free-pane', params: { die: 501, cell: at(2, 3) } }), /Ruby die cannot sit beside/);
-  failsAtomically(again.room, () => game.useTool(again.room, 0, { tool: 'free-pane', params: { die: 501, cell: at(2, 2) } }), /already holds/);
+  failsAtomically(again.room, () => game.useTool(again.room, 0, { tool: 'free-pane', params: { die: 501, cell: at(2, 3) } }, Math.random), /Ruby die cannot sit beside/);
+  failsAtomically(again.room, () => game.useTool(again.room, 0, { tool: 'free-pane', params: { die: 501, cell: at(2, 2) } }, Math.random), /already holds/);
   assert.equal(game.useTool(again.room, 0, { tool: 'free-pane', params: { die: 501, cell: at(3, 4) } }, rng).ok, true, 'far from everything is fine');
 });
 
 test('Free Pane cannot be used after the turn\'s die has been placed', () => {
   const { room } = lab(2, { tools: ['free-pane', 'lathe', 'refire'], pool: [die('ruby', 3, 501), die('jade', 5, 502)] });
-  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }).ok, true);
-  failsAtomically(room, () => game.useTool(room, 0, { tool: 'free-pane', params: { die: 502, cell: at(3, 4) } }), /already placed/);
+  assert.equal(game.placeDie(room, 0, { die: 501, cell: 0 }, Math.random).ok, true);
+  failsAtomically(room, () => game.useTool(room, 0, { tool: 'free-pane', params: { die: 502, cell: at(3, 4) } }, Math.random), /already placed/);
 });
 
 test('every tool leaves the dice, tokens and windows consistent (random uses over random games)', () => {
@@ -687,7 +687,7 @@ test('the scoreboard history: Round 1 to 10, then the private objectives; the wi
     room.seats = room.seats.map((_, i) => ({ kind: 'bot', id: `bot:${i}`, name: `Bot ${i}` }));
     let rounds = 0;
     for (let guard = 0; bot.pendingAction(room) && guard < 5000; guard++) {
-      bot.runPending(room);
+      bot.runPending(room, Math.random);
       if (room.history.length !== rounds) {
         rounds = room.history.length;
         if (room.phase === 'playing') {
@@ -744,7 +744,7 @@ test('stats: wins, placements, scores and the declared extras', () => {
 test('views never contain the bag, other private objectives or other players\' window choices', () => {
   for (const n of SIZES) {
     const rng = seeded(n);
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: n });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: n });
     for (let i = 2; i <= n; i++) game.addHuman(room, i, `P${i}`);
     game.start(room, 1, rng);
     for (let seat = 0; seat < n; seat++) {
@@ -773,7 +773,7 @@ test('views never contain the bag, other private objectives or other players\' w
 
 test('during the window phase nobody learns what the others chose; afterwards windows are public', () => {
   const rng = seeded(8);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
   game.addHuman(room, 2, 'B');
   game.start(room, 1, rng);
   game.chooseWindow(room, 0, room.options[0][1], rng);
@@ -995,7 +995,7 @@ test('Swift Hand: a computer player that has it takes the extra turn, and whole 
 
 function windowsRoomOf(n, seed = 5) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'p1', size: n });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'p1', size: n });
   for (let i = 2; i <= n; i++) game.addHuman(room, i, `p${i}`);
   assert.equal(game.start(room, 1, rng).ok, true);
   assert.equal(room.phase, 'windows');
@@ -1151,7 +1151,7 @@ test('undo: refused out of turn, in other phases, with nothing to undo, with jun
   assert.equal(game.endTurn(room, seat, rng).ok, true);
   failsAtomically(room, () => game.undoTurn(room, seat), /not your turn/);
   failsAtomically(room, () => game.undoTurn(room, other), /nothing to undo/);
-  const lobby = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
+  const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
   assert.equal(game.undoTurn(lobby, 0).ok, false);
   const windows = windowsRoomOf(2).room;
   assert.equal(game.undoTurn(windows, 0).ok, false);

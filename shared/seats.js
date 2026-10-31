@@ -67,7 +67,7 @@ export function uniqueName(room, wanted) {
  * @param {(room: object, bot: object, seat: number, rng: () => number) => object} [config.takeOver]  called with the
  *   computer player about to replace a person who left; it may mutate the room (write a log line, record the bot's AI)
  *   and returns the seat object to store (add `ai`, say). Default: the bot unchanged.
- * @param {(room: object, rng: () => number) => void} [config.afterRemoval]  runs after somebody has left and at least one
+ * @param {(room: object, rng: () => number, now: number) => void} [config.afterRemoval]  runs after somebody has left and at least one
  *   person remains (for example, they may have been the only one the game was waiting for)
  * @param {(seat: object) => (object | null)} [config.finishedSeat]  what a seat becomes when its person leaves a finished
  *   game (default null; Nomination Whist keeps a { kind: 'gone', name } marker so the final scores still make sense)
@@ -108,7 +108,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * @returns {{ ok: boolean, empty?: boolean, seat?: number, replaced?: boolean, error?: string }} `empty` is true when no
    *   person is left, so the caller should discard the room
    */
-  function removeHuman(room, userId, rng = Math.random) {
+  function removeHuman(room, userId, rng, now) {
     const seat = seatOf(room, userId);
     if (seat === -1) return fail('You are not in this game.');
     const midGame = isMidGame(room);
@@ -118,7 +118,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     const humans = humanSeats(room);
     if (!humans.length) return ok({ empty: true, seat });
     if (room.hostId === userId) room.hostId = room.seats[humans[0]].id;
-    afterRemoval(room, rng);
+    afterRemoval(room, rng, now);
     return ok({ empty: false, seat, replaced: midGame });
   }
 
@@ -162,13 +162,13 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    *
    * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }}
    */
-  function kick(room, hostId, seat, rng = Math.random) {
+  function kick(room, hostId, seat, rng, now) {
     const problem = asHost(room, hostId);
     if (problem) return problem;
     const target = Number.isInteger(seat) ? room.seats[seat] : null;
     if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
     if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
-    const removed = removeHuman(room, target.id, rng);
+    const removed = removeHuman(room, target.id, rng, now);
     return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
   }
 

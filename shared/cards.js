@@ -28,7 +28,7 @@ export function fullDeck() {
 export const deckFor = (jokers) => (jokers ? [...fullDeck(), ...JOKERS] : fullDeck());
 
 /** A shuffled copy (Fisher-Yates). Pass a seeded rng in tests. */
-export function shuffle(cards, rng = Math.random) {
+export function shuffle(cards, rng) {
   const deck = [...cards];
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));

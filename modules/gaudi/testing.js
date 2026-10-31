@@ -22,7 +22,7 @@ export const die = (c, v, id = 1000 + Math.floor(Math.random() * 1e6)) => ({ id,
 /** A started game of n people (ids 1..n, host 1) with every window chosen: the first of each player's four. */
 export function playingRoom(n, { seed = 1, pick = null } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
+  const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
   for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
   for (let seat = 0; seat < n; seat++) {

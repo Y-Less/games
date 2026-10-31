@@ -52,10 +52,10 @@ export const inRound = (room) => room.phase === 'playing' || room.phase === 'bet
  * Shuffles a list in place (Fisher-Yates).
  *
  * @param {any[]} items  the list; it is reordered, not copied
- * @param {() => number} [rng]  random numbers in [0, 1) (inject a seeded one in tests)
+ * @param {() => number} rng  random numbers in [0, 1) (inject a seeded one in tests)
  * @returns {any[]} the same list, for chaining
  */
-export function shuffle(items, rng = Math.random) {
+export function shuffle(items, rng) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [items[i], items[j]] = [items[j], items[i]];
@@ -77,11 +77,11 @@ export { normaliseSettings };
  * @param {string} args.hostName  the host's display name
  * @param {number} [args.size]  how many seats (one of SIZES)
  * @param {object} [args.settings]  the host's rule choices (checked by normaliseSettings)
- * @param {number} [args.now]  the clock, in milliseconds
+ * @param {number} args.now  the clock, in milliseconds
  * @returns {object} the room
  * @throws {Error} if the size or a setting is not allowed (the message is safe to show)
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now = Date.now() }) {
+export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
@@ -163,8 +163,8 @@ const seats = createSeatRules({
     return taken;
   },
   /** If the person who left was the last one the between-rounds screen was waiting for, the next round starts. */
-  afterRemoval(room, rng) {
-    if (room.phase === 'between') advanceIfReady(room, rng);
+  afterRemoval(room, rng, now) {
+    if (room.phase === 'between') advanceIfReady(room, rng, now);
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
@@ -213,11 +213,11 @@ export function setSize(room, userId, size) {
  *
  * @param {object} room  mutated
  * @param {number} userId  who is asking (must be the host)
- * @param {() => number} [rng]  random numbers for the first player, the deal and the AI choices
- * @param {number} [now]  the clock, in milliseconds (for the turn timer)
+ * @param {() => number} rng  random numbers for the first player, the deal and the AI choices
+ * @param {number} now  the clock, in milliseconds (for the turn timer)
  * @returns {{ ok: boolean, error?: string }}
  */
-export function start(room, userId, rng = Math.random, now = Date.now()) {
+export function start(room, userId, rng, now) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
@@ -315,10 +315,10 @@ function nextTurn(room, now) {
  * @param {object} room  mutated on success (table, rack, tally, log, turn)
  * @param {number} seat  who is playing (must hold the turn)
  * @param {{ table: number[][] }} args  the proposed table
- * @param {number} [now]  the clock, in milliseconds
+ * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, added?: number, roundOver?: boolean, gameOver?: boolean, error?: string }}
  */
-export function play(room, seat, args, now = Date.now()) {
+export function play(room, seat, args, now) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
   const { table } = isObject(args) ? args : {};
@@ -351,11 +351,11 @@ export function play(room, seat, args, now = Date.now()) {
  *
  * @param {object} room  mutated
  * @param {number} seat  who is drawing (must hold the turn)
- * @param {number} [now]  the clock, in milliseconds
+ * @param {number} now  the clock, in milliseconds
  * @param {string} [reason]  text added to the log line, such as " (out of time)"
  * @returns {{ ok: boolean, error?: string }}
  */
-export function draw(room, seat, now = Date.now(), reason = '') {
+export function draw(room, seat, now, reason = '') {
   if (room.phase !== 'playing') return fail('The game is not being played.');
   if (room.turn !== seat) return fail('It is not your turn.');
   if (room.pool.length) {
@@ -382,10 +382,10 @@ export function draw(room, seat, now = Date.now(), reason = '') {
  * The turn timer ran out: the player draws (or passes). Refused (nothing changes) before the deadline.
  *
  * @param {object} room  mutated on success
- * @param {number} [now]  the clock, in milliseconds
+ * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
  */
-export function timeout(room, now = Date.now()) {
+export function timeout(room, now) {
   if (room.phase !== 'playing' || room.deadline === null || now < room.deadline) return fail('There is no time limit to enforce.');
   return draw(room, room.turn, now, ' (out of time)');
 }
@@ -463,11 +463,11 @@ function finishGame(room) {
  *
  * @param {object} room  mutated
  * @param {number} seat  the person who pressed Continue
- * @param {() => number} [rng]  random numbers for the deal, if the round starts
- * @param {number} [now]  the clock, in milliseconds
+ * @param {() => number} rng  random numbers for the deal, if the round starts
+ * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
  */
-export function next(room, seat, rng = Math.random, now = Date.now()) {
+export function next(room, seat, rng, now) {
   if (room.phase !== 'between') return fail('There is no round to start.');
   if (!isHuman(room.seats[seat])) return fail('You are not in this game.');
   if (!room.ready.includes(seat)) room.ready.push(seat);
@@ -479,11 +479,11 @@ export function next(room, seat, rng = Math.random, now = Date.now()) {
  * Starts the next round if every person is ready for it. Side effect: mutates the room when it starts one.
  *
  * @param {object} room
- * @param {() => number} [rng]  random numbers for the deal
- * @param {number} [now]  the clock, in milliseconds
+ * @param {() => number} rng  random numbers for the deal
+ * @param {number} now  the clock, in milliseconds
  * @returns {boolean} whether a round was started
  */
-function advanceIfReady(room, rng = Math.random, now = Date.now()) {
+function advanceIfReady(room, rng, now) {
   if (room.phase !== 'between') return false;
   if (!humanSeats(room).every((seat) => room.ready.includes(seat))) return false;
   startNextRound(room, rng, now);
@@ -506,11 +506,11 @@ function startNextRound(room, rng, now) {
  * Starts the next round whether or not everyone has said they are ready (the server does this after a wait).
  *
  * @param {object} room  mutated
- * @param {() => number} [rng]  random numbers for the deal
- * @param {number} [now]  the clock, in milliseconds
+ * @param {() => number} rng  random numbers for the deal
+ * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
  */
-export function forceNext(room, rng = Math.random, now = Date.now()) {
+export function forceNext(room, rng, now) {
   if (room.phase !== 'between') return fail('There is no round to start.');
   startNextRound(room, rng, now);
   return ok();
@@ -583,7 +583,7 @@ export const tileCount = (room) => allTiles(room).length;
  * @param {number} [options.now]  the clock, in milliseconds (for the time left on the turn timer)
  * @returns {object} the view sent to that person's client
  */
-export function viewFor(room, userId, { online = () => true, now = Date.now() } = {}) {
+export function viewFor(room, userId, { online = () => true, now } = {}) {
   const me = seatOf(room, userId);
   const started = room.phase === 'playing' || room.phase === 'between' || room.phase === 'finished';
   const finished = room.phase === 'finished';
