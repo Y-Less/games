@@ -24,7 +24,7 @@ test('the Jokers are cards of no suit that rank above everything and sort to the
   assert.equal(deckFor(false).length, 52);
   assert.equal(deckFor(true).length, 54);
   assert.equal(new Set(deckFor(true)).size, 54);
-  assert.deepEqual(sortHand(['JK2', 'AH', '2C', 'JK1', '5S']), ['2C', '5S', 'AH', 'JK1', 'JK2']);
+  assert.deepEqual(sortHand(['JK2', 'AH', '2C', 'JK1', '5S']), ['AH', '5S', '2C', 'JK1', 'JK2']);
 });
 
 test('a Joker may be led or played when you cannot follow suit, never while you can', () => {

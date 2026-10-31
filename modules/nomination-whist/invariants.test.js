@@ -64,8 +64,14 @@ function checkRoom(room, label) {
   assert.equal(room.tally.reduce((sum, t) => sum + t.tricksWon, 0), room.history.reduce((sum, h) => sum + h.cards, 0));
   assert.equal(room.tally.reduce((sum, t) => sum + t.bidsMade, 0), room.history.reduce((sum, h) => sum + h.bids.filter((b, s) => b === h.taken[s]).length, 0));
   if (room.phase === 'finished') {
-    assert.equal(rounds, game.roundCount(room.settings), `${label}: every round was played`);
-    assert.deepEqual(room.winners, game.winnersOf(room.scores));
+    if (room.instantWin === null || room.instantWin === undefined) {
+      assert.equal(rounds, game.roundCount(room.settings), `${label}: every round was played`);
+      assert.deepEqual(room.winners, game.winnersOf(room.scores));
+    } else {
+      // an instant win ends the game in a 7-card round, with that player the one winner
+      assert.ok(rounds === 1 || rounds === game.roundCount(room.settings), `${label}: an instant win comes in the first or last round`);
+      assert.deepEqual(room.winners, [room.instantWin]);
+    }
   }
   if (room.phase === 'roundEnd') assert.ok(rounds < game.roundCount(room.settings));
   assert.ok(room.seats.some(game.isHuman), `${label}: a person is still seated`);

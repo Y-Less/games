@@ -3,10 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RANKS, SUITS, cardName, fullDeck, isCard, isRed, rankOf, rankValue, shuffle, sortHand, suitOf } from './cards.js';
 
-test('sortHand: the whole deck comes out grouped C, D, S, H and high to low within each suit', () => {
+test('sortHand: the whole deck comes out grouped H, S, D, C and high to low within each suit', () => {
   const sorted = sortHand(fullDeck());
   assert.equal(sorted.length, 52);
-  assert.deepEqual(sorted.map(suitOf), ['C', 'D', 'S', 'H'].flatMap((s) => Array(13).fill(s)));
+  assert.deepEqual(sorted.map(suitOf), ['H', 'S', 'D', 'C'].flatMap((s) => Array(13).fill(s)));
   for (let i = 0; i < 52; i += 13) {
     const values = sorted.slice(i, i + 13).map(rankValue);
     assert.deepEqual(values, [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
@@ -31,7 +31,7 @@ test('sortHand does not change its input, and sorting twice changes nothing', ()
 test('sortHand is stable for equal cards and copes with tiny hands', () => {
   assert.deepEqual(sortHand([]), []);
   assert.deepEqual(sortHand(['7S']), ['7S']);
-  assert.deepEqual(sortHand(['9H', '9H', '2C', '9H']), ['2C', '9H', '9H', '9H'], 'duplicates (from several decks) stay together');
+  assert.deepEqual(sortHand(['9H', '9H', '2C', '9H']), ['9H', '9H', '9H', '2C'], 'duplicates (from several decks) stay together');
   // Stability: objects that compare equal keep their order. Strings that compare equal are identical, so check with a
   // wrapper that carries an identity but sorts by the card text.
   const a = new String('5D');
@@ -42,7 +42,16 @@ test('sortHand is stable for equal cards and copes with tiny hands', () => {
 });
 
 test('sortHand puts cards of an unknown suit first rather than losing them', () => {
-  assert.deepEqual(sortHand(['AH', '3X', '2C']), ['3X', '2C', 'AH']);
+  assert.deepEqual(sortHand(['AH', '3X', '2C']), ['3X', 'AH', '2C']);
+});
+
+test('sortHand puts the trump suit first, then hearts, spades, diamonds and clubs, whatever the trump is', () => {
+  const hand = ['2C', 'AD', 'KS', '3H', 'JK1', 'QD', '9C'];
+  assert.deepEqual(sortHand(hand), ['3H', 'KS', 'AD', 'QD', '9C', '2C', 'JK1']);
+  assert.deepEqual(sortHand(hand, 'C'), ['9C', '2C', '3H', 'KS', 'AD', 'QD', 'JK1']);
+  assert.deepEqual(sortHand(hand, 'D'), ['AD', 'QD', '3H', 'KS', '9C', '2C', 'JK1']);
+  assert.deepEqual(sortHand(hand, 'H'), sortHand(hand), 'hearts as trumps is already first');
+  assert.deepEqual(sortHand(hand, null), sortHand(hand), 'no trumps');
 });
 
 test('shuffle with a degenerate rng that always says 0 gives a fixed permutation of the same cards', () => {

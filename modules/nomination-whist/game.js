@@ -282,7 +282,7 @@ export function dealRound(room, rng = Math.random) {
   const n = room.seats.length;
   const cards = handSize(room.settings, room.roundIndex);
   const deck = shuffle(deckFor(room.settings.jokers === true), rng);
-  room.hands = Array.from({ length: n }, (_, i) => sortHand(deck.slice(i * cards, (i + 1) * cards)));
+  room.hands = Array.from({ length: n }, (_, i) => sortHand(deck.slice(i * cards, (i + 1) * cards), trumpOf(room.roundIndex)));
   room.nominations = Array(n).fill(null);
   room.taken = Array(n).fill(0);
   room.trick = [];

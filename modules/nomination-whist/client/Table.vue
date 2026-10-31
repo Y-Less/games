@@ -39,7 +39,7 @@ const you = computed(() => props.state.you);
 const finished = computed(() => props.state.phase === 'finished');
 const seats = computed(() => props.state.seats);
 const round = computed(() => props.state.round);
-const hand = computed(() => sortHand(props.state.hand));
+const hand = computed(() => sortHand(props.state.hand, props.state.round?.trump));
 const nameOf = (seat) => seats.value[seat]?.name ?? '';
 const myTurn = computed(() => props.state.turn === you.value);
 const total = computed(() => seats.value.reduce((sum, s) => sum + (s.bid ?? 0), 0));
