@@ -161,12 +161,12 @@ test('categories: settings survive a save and reload, and a vanished category is
   game.setJudging(host.id, 'chooser');
   const saved = JSON.parse(JSON.stringify(game.toJSON()));
 
-  const reloaded = new Game({ getCategories: () => CATEGORIES, hints: [], saved });
+  const reloaded = new Game({ rng: Math.random, getCategories: () => CATEGORIES, hints: [], saved });
   assert.deepEqual(reloaded.s.categories, ['food', 'games']);
   assert.equal(reloaded.s.judging, 'chooser');
 
-  const withoutFood = new Game({ getCategories: () => CATEGORIES.filter((c) => c.key !== 'food'), hints: [], saved });
+  const withoutFood = new Game({ rng: Math.random, getCategories: () => CATEGORIES.filter((c) => c.key !== 'food'), hints: [], saved });
   assert.deepEqual(withoutFood.s.categories, ['games'], 'the missing category is dropped');
-  const onlyNew = new Game({ getCategories: () => [CATEGORIES[0]], hints: [], saved });
+  const onlyNew = new Game({ rng: Math.random, getCategories: () => [CATEGORIES[0]], hints: [], saved });
   assert.deepEqual(onlyNew.s.categories, ['fantasy'], 'if nothing selected still exists, fall back to everything');
 });

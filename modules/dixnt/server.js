@@ -2,6 +2,11 @@
 // Computer players are seats in the game (see game.js); this file plays their moves on a timer, one at a time.
 //
 //   DIXNT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
+//
+// This module does not use createRoomServer (shared/roomServer.js): Dixnt is not seat-based (people join by code, keep
+// their seat if they leave mid-game, and a computer player can take it over), so it has its own small server. It
+// follows the same house style: randomness is injected (ctx.rng, defaulting to Math.random here and nowhere else) and
+// the clock is Date.now.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,9 +19,27 @@ const MAX_GAMES = 500;
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // games nobody has touched for two weeks are forgotten
 const DEFAULT_BOT_DELAY = [600, 1400];
 
+/**
+ * The token that identifies an account's seat in a game.
+ *
+ * @param {{ id: number }} user  the signed-in account of a socket
+ * @returns {string} 'user:<id>'
+ */
 const tokenFor = (user) => `user:${user.id}`;
+
+/**
+ * The account id inside a seat token.
+ *
+ * @param {string} token  a seat token
+ * @returns {number | null} the account id, or null for a computer player's token
+ */
 const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) : null);
 
+/**
+ * Finds the folder of card images: DIXNT_CARDS_DIR, else ./cards, else the original dixit project's cards.
+ *
+ * @returns {string} an absolute path (it may not exist)
+ */
 function resolveCardsDir() {
   if (process.env.DIXNT_CARDS_DIR) return path.resolve(process.env.DIXNT_CARDS_DIR);
   const own = path.join(here, 'cards');
@@ -24,6 +47,11 @@ function resolveCardsDir() {
   return path.resolve(here, '..', '..', '..', 'dixit', 'game', 'cards');
 }
 
+/**
+ * Reads the chooser's word suggestions from hints.txt, one per line.
+ *
+ * @returns {string[]} the non-empty lines, trimmed (empty if there is no file)
+ */
 function loadHints() {
   const file = path.join(here, 'hints.txt');
   if (!fs.existsSync(file)) return [];
@@ -35,21 +63,39 @@ function loadHints() {
     .filter(Boolean);
 }
 
-/** DIXNT_BOT_DELAY ("600-1400", or one number) as [min, max] milliseconds. */
+/**
+ * Reads how long a computer player waits before each move.
+ *
+ * @returns {[number, number]} DIXNT_BOT_DELAY ("600-1400", or one number) as [min, max] milliseconds; a malformed
+ *          value gives the default
+ */
 function readBotDelay() {
   const [min, max = min] = String(process.env.DIXNT_BOT_DELAY ?? '').split('-').map(Number);
   if (!Number.isFinite(min) || min < 0) return DEFAULT_BOT_DELAY;
   return [min, Number.isFinite(max) ? Math.max(max, min) : min];
 }
 
+/**
+ * The Dixnt module: starts the server half of the game.
+ *
+ * @param {object} ctx  what the platform gives a module: io, mount, dataDir, codes, stats, achievements, log, and
+ *                      optionally `rng` (a () => [0, 1) generator; defaults to Math.random)
+ * @returns {{ dispose: () => void }} stops the timers and saves the games
+ * Side effects: mounts /cards, loads the saved games, registers the socket handlers and starts the hourly sweep.
+ */
 export default function (ctx) {
+  const rng = ctx.rng ?? Math.random; // the one place the default generator is chosen; the rules get it injected
   const [botMin, botMax] = readBotDelay();
   const cardsDir = resolveCardsDir();
   const gamesFile = path.join(ctx.dataDir, 'games.json');
   const hints = loadHints();
   ctx.mount('/cards', cardsDir, { maxAge: '7d', immutable: true });
 
-  /** Ids of every card that has a web-sized image on disk. */
+  /**
+   * Ids of every card that has a web-sized image on disk.
+   *
+   * @returns {number[]} sorted ascending
+   */
   function getCardIds() {
     const dir = path.join(cardsDir, 'medium');
     if (!fs.existsSync(dir)) return [];
@@ -63,7 +109,9 @@ export default function (ctx) {
 
   /**
    * The cards grouped into categories. cards/categories.json lists the categories; only cards whose image exists
-   * are offered. Without that file every card is one "All cards" category.
+   * are offered. Without that file every card is one "All cards" category. The answer is cached for five seconds.
+   *
+   * @returns {{ key: string, label: string, description: string, ids: number[] }[]}
    */
   let categoryCache = { at: 0, value: [] };
   function getCategories() {
@@ -88,30 +136,104 @@ export default function (ctx) {
   }
 
   // ---- games: one per invite code ----
-  /** code -> { game, touched, tally, tallied, recorded } */
+  /** code -> { game, touched, tally, tallied, recorded, collectedRound } */
   const games = new Map();
   const timers = new Map(); // code -> the timer for the next computer move
+
+  /**
+   * @returns {object} an empty per-person statistics tally
+   */
   const freshTally = () => ({});
 
+  /**
+   * Creates a game (new, or restored from a save) and files it under an invite code.
+   *
+   * @param {object} [options]
+   * @param {object | null} [options.saved]  a saved game state to restore
+   * @param {number} [options.touched]       when the game was last used (ms since the epoch)
+   * @param {string} [options.code]          the invite code (default: a fresh one)
+   * @param {object} [options.tally]         the statistics counted so far
+   * @param {number} [options.tallied]       how many rounds of the tally have been counted
+   * @param {boolean} [options.recorded]     whether the finished game has been reported to the statistics
+   * @returns {{ code: string, entry: object }}
+   * Side effects: adds the game to `games`.
+   */
   function createGame({ saved = null, touched = Date.now(), code = ctx.codes.generate((c) => games.has(c)), tally = freshTally(), tallied = 0, recorded = false } = {}) {
-    const game = new Game({ getCategories, hints, saved });
-    const entry = { game, touched, tally, tallied, recorded };
+    const game = new Game({ getCategories, hints, rng, saved });
+    // collectedRound: the round whose hands have been reported to the "Art lover" achievement (-1: none yet).
+    const entry = { game, touched, tally, tallied, recorded, collectedRound: -1 };
     games.set(code, entry);
     return { code, entry };
   }
 
-  try {
-    const saved = JSON.parse(fs.readFileSync(gamesFile, 'utf8'));
-    for (const [code, entry] of Object.entries(saved.games ?? {})) {
-      if (Date.now() - entry.touched < STALE_AFTER_MS) {
-        createGame({ saved: entry.game, touched: entry.touched, code, tally: entry.tally ?? {}, tallied: entry.tallied ?? 0, recorded: Boolean(entry.recorded) });
-      }
+  /**
+   * Keeps a damaged games file out of harm's way: copies it to games.json.corrupt (or, if that already exists,
+   * games.json.corrupt-<time>) so the next save cannot overwrite the only copy.
+   *
+   * @returns {string | null} the path of the copy, or null if it could not be made
+   * Side effects: writes a file next to games.json; logs a failure.
+   */
+  function keepCorruptCopy() {
+    let target = `${gamesFile}.corrupt`;
+    if (fs.existsSync(target)) target = `${gamesFile}.corrupt-${Date.now()}`;
+    try {
+      fs.copyFileSync(gamesFile, target);
+      return target;
+    } catch (error) {
+      ctx.log('could not keep a copy of the damaged games file:', error.message);
+      return null;
     }
-  } catch {
-    // no saved games yet
   }
 
+  /**
+   * Loads the saved games from games.json, skipping ones nobody has touched for two weeks. A missing file just means
+   * there are no games yet. A file that cannot be parsed, or a game in it that cannot be restored, is logged and the
+   * file is copied to games.json.corrupt, so the damage is noticed and nothing is lost when the next save happens.
+   *
+   * @returns {void}
+   * Side effects: fills `games`; may log and copy the file.
+   */
+  function loadSavedGames() {
+    let text;
+    try {
+      text = fs.readFileSync(gamesFile, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') ctx.log('could not read the saved games:', error.message);
+      return; // no saved games yet
+    }
+    let saved;
+    try {
+      saved = JSON.parse(text);
+      if (!saved || typeof saved.games !== 'object' || Array.isArray(saved.games)) throw new Error('it does not contain a games object');
+    } catch (error) {
+      const copy = keepCorruptCopy();
+      ctx.log(`the saved games file is corrupt (${error.message}); starting with no games${copy ? `, a copy is in ${copy}` : ''}`);
+      return;
+    }
+    let damaged = 0;
+    for (const [code, entry] of Object.entries(saved.games)) {
+      try {
+        if (Date.now() - entry.touched < STALE_AFTER_MS) {
+          createGame({ saved: entry.game, touched: entry.touched, code, tally: entry.tally ?? {}, tallied: entry.tallied ?? 0, recorded: Boolean(entry.recorded) });
+        }
+      } catch (error) {
+        games.delete(code);
+        damaged++;
+        ctx.log(`could not restore the saved game ${code}:`, error.message);
+      }
+    }
+    if (damaged) ctx.log(`${damaged} saved game(s) could not be restored; a copy of the file is in ${keepCorruptCopy()}`);
+  }
+  loadSavedGames();
+
   let saveTimer = null;
+
+  /**
+   * Writes every game to games.json straight away (to a temporary file first, then renamed over it).
+   *
+   * @returns {void}
+   * Side effects: writes files and cancels a pending scheduled save. Throws if the disk write fails.
+   */
   function saveNow() {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -124,6 +246,13 @@ export default function (ctx) {
     fs.writeFileSync(tmp, JSON.stringify(saved));
     fs.renameSync(tmp, gamesFile);
   }
+
+  /**
+   * Saves the games shortly from now (changes arriving in the meantime share one write).
+   *
+   * @returns {void}
+   * Side effects: (re)starts the save timer; a failed save is logged.
+   */
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -135,13 +264,26 @@ export default function (ctx) {
     }, 300);
   }
 
+  /**
+   * Forgets a game and stops its computer-move timer.
+   *
+   * @param {string} code  the invite code
+   * @returns {void}
+   * Side effects: removes it from `games` and `timers`.
+   */
   function discard(code) {
     clearTimeout(timers.get(code));
     timers.delete(code);
     games.delete(code);
   }
 
-  /** Plays the next computer move after a short wait, then looks again; stops when nothing is pending. */
+  /**
+   * Plays the next computer move after a short wait, then looks again; stops when nothing is pending.
+   *
+   * @param {string} code  the invite code
+   * @returns {void}
+   * Side effects: replaces the game's timer; when it fires it plays a move, updates the statistics, broadcasts and saves.
+   */
   function schedule(code) {
     clearTimeout(timers.get(code));
     timers.delete(code);
@@ -161,11 +303,17 @@ export default function (ctx) {
       broadcast(code);
       scheduleSave();
       schedule(code);
-    }, botMin + Math.random() * (botMax - botMin));
+    }, botMin + rng() * (botMax - botMin));
     timer.unref?.();
     timers.set(code, timer);
   }
 
+  /**
+   * Forgets games nobody has touched for two weeks and games with no people left.
+   *
+   * @returns {void}
+   * Side effects: discards games and schedules a save if any went.
+   */
   function pruneGames() {
     let changed = false;
     for (const [code, entry] of games) {
@@ -180,20 +328,40 @@ export default function (ctx) {
   pruneTimer.unref();
 
   // ---- statistics ----
+
+  /**
+   * @param {object} entry   a game's entry in `games`
+   * @param {string} token   a person's seat token
+   * @returns {object} that person's tally for this game (created if it is new)
+   */
   function tallyOf(entry, token) {
     return (entry.tally[token] ??= newTally());
   }
 
-  /** Counts a completed round towards each person's statistics (once per round). */
+  /**
+   * Counts a completed round towards each person's statistics (once per round).
+   *
+   * @param {object} entry  a game's entry in `games`
+   * @returns {void}
+   * Side effects: adds to the entry's tallies.
+   */
   function countRound(entry) {
     const { game } = entry;
     const tallyFor = (id) => {
       const player = game.player(id);
-      return player && !player.bot ? tallyOf(entry, player.token) : null; // computer players are not accounts and are not counted
+      return player && player.kind !== 'bot' ? tallyOf(entry, player.token) : null; // computer players are not accounts and are not counted
     };
     tallyRound(tallyFor, { pickers: Object.keys(game.s.picks), results: game.s.results });
   }
 
+  /**
+   * Reports a finished game (winners, places, scores and the extra counters) to the platform's statistics.
+   *
+   * @param {object} entry  a game's entry in `games`
+   * @param {string} code   the invite code (the game's identity in the statistics)
+   * @returns {void}
+   * Side effects: calls ctx.stats.record; a failure is logged, not thrown.
+   */
   function recordFinished(entry, code) {
     const { game } = entry;
     const winners = new Set(game.winnerIds());
@@ -217,7 +385,13 @@ export default function (ctx) {
     }
   }
 
-  /** Adds the cards each person holds to the ones they have been dealt (the "Art lover" achievement). */
+  /**
+   * Adds the cards each person holds to the ones they have been dealt (the "Art lover" achievement).
+   *
+   * @param {object} entry  a game's entry in `games`
+   * @returns {void}
+   * Side effects: calls ctx.achievements.collect for each person; a failure is logged, not thrown.
+   */
   function collectCards(entry) {
     for (const p of entry.game.s.players) {
       const userId = userIdOf(p.token);
@@ -230,15 +404,27 @@ export default function (ctx) {
     }
   }
 
-  /** Keeps the statistics in step with the game after every change. */
+  /**
+   * Keeps the statistics in step with the game after every change. Hands only change when cards are dealt, which
+   * happens when a round starts, so the cards are collected once per round rather than after every action.
+   *
+   * @param {string} code   the invite code
+   * @param {object} entry  a game's entry in `games`
+   * @returns {void}
+   * Side effects: may collect cards, count a round, reset the tally (in the lobby) or record a finished game.
+   */
   function track(code, entry) {
     const s = entry.game.s;
-    collectCards(entry);
     if (s.phase === 'lobby') {
       entry.tally = freshTally();
       entry.tallied = 0;
       entry.recorded = false;
+      entry.collectedRound = -1; // the next game deals new hands
       return;
+    }
+    if (s.round !== entry.collectedRound) {
+      entry.collectedRound = s.round;
+      collectCards(entry);
     }
     if (s.completed > entry.tallied && s.phase === 'results' && s.results) countRound(entry);
     entry.tallied = s.completed;
@@ -252,6 +438,10 @@ export default function (ctx) {
   // socket.id -> { code }: which game a connection is in. A player can have several sockets (phone and laptop).
   const sessions = new Map();
 
+  /**
+   * @param {string} code  the invite code
+   * @returns {Set<string>} the seat ids that have at least one open connection in that game
+   */
   function connectedPlayerIds(code) {
     const { game } = games.get(code);
     const ids = new Set();
@@ -263,7 +453,13 @@ export default function (ctx) {
     return ids;
   }
 
-  /** Sends every connection in the game its own personalised view (or null if it is no longer in the game). */
+  /**
+   * Sends every connection in the game its own personalised view (or null if it is no longer in the game).
+   *
+   * @param {string} code  the invite code
+   * @returns {void}
+   * Side effects: emits 'state' to sockets; forgets sockets whose account is no longer a player.
+   */
   function broadcast(code) {
     const entry = games.get(code);
     const connected = entry ? connectedPlayerIds(code) : null;
@@ -276,12 +472,32 @@ export default function (ctx) {
     }
   }
 
+  /**
+   * @param {object} socket  a Socket.IO socket
+   * @returns {object | null} the seat of the socket's account in the game the socket is in
+   */
   const playerOf = (socket) => {
     const entry = games.get(sessions.get(socket.id)?.code);
     return entry ? entry.game.findByToken(tokenFor(socket.data.user)) : null;
   };
+
+  /**
+   * @param {object} socket  a Socket.IO socket
+   * @returns {Game | undefined} the game the socket is in
+   */
   const gameOf = (socket) => games.get(sessions.get(socket.id)?.code)?.game;
 
+  /**
+   * Runs one client request: calls `fn`, answers through the acknowledgement ({ ok: true, ... } or
+   * { ok: false, error }), then keeps the games in step (statistics, computer moves, broadcasts, saving).
+   *
+   * @param {object} socket  the requesting socket
+   * @param {Function | any} ack  the client's acknowledgement callback (ignored if it is not a function)
+   * @param {() => object | void} fn  does the work; may return extra fields for the answer and may throw a GameError
+   * @returns {void}
+   * Side effects: replies, may discard a game with no people left, broadcasts and schedules a save. Other errors are
+   * logged and the client is told something went wrong.
+   */
   function respond(socket, ack, fn) {
     const reply = typeof ack === 'function' ? ack : () => {};
     const before = sessions.get(socket.id)?.code;
@@ -311,7 +527,15 @@ export default function (ctx) {
     scheduleSave();
   }
 
-  /** Registers an action that needs a joined player. `run(player, payload, game)` may return extra ack fields. */
+  /**
+   * Registers an action that needs a joined player. `run(player, payload, game)` may return extra ack fields.
+   *
+   * @param {object} socket  the connection to listen on
+   * @param {string} event   the socket event name
+   * @param {(player: object, payload: object, game: Game) => object | void} run  the work
+   * @returns {void}
+   * Side effects: adds a socket listener.
+   */
   function action(socket, event, run) {
     socket.on(event, (payload, ack) =>
       respond(socket, ack, () => {
@@ -322,6 +546,11 @@ export default function (ctx) {
     );
   }
 
+  /**
+   * @param {string} rawCode  an invite code as typed
+   * @returns {{ code: string, entry: object }} the game it names
+   * Side effects: throws a GameError if there is no such game.
+   */
   const requireGame = (rawCode) => {
     const code = ctx.codes.normalise(rawCode);
     const entry = code && games.get(code);
@@ -329,7 +558,13 @@ export default function (ctx) {
     return { code, entry };
   };
 
-  /** The account's display name, made unique within the game and short enough for it. */
+  /**
+   * The account's display name, made unique within the game and short enough for it.
+   *
+   * @param {Game} game       the game being joined
+   * @param {string} rawName  the account's name
+   * @returns {string}
+   */
   function nameInGame(game, rawName) {
     const base = String(rawName ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
     const taken = (name) => game.s.players.some((p) => p.name.toLowerCase() === name.toLowerCase());
@@ -341,6 +576,8 @@ export default function (ctx) {
     return base;
   }
 
+  // One set of handlers per connection. Each event below is a request from the client; most go through action() so
+  // they need a seat in the game, and every one answers through respond().
   ctx.io.on('connection', (socket) => {
     const user = socket.data.user;
     const token = tokenFor(user);
@@ -367,6 +604,7 @@ export default function (ctx) {
       }),
     );
 
+    // Start a new game with this account as its host.
     socket.on('create', (payload, ack) =>
       respond(socket, ack, () => {
         if (games.size >= MAX_GAMES) throw new GameError('There are too many games running. Please try again later.');
@@ -382,6 +620,7 @@ export default function (ctx) {
       }),
     );
 
+    // Join a game by its code (or simply attach this connection if the account is already in it).
     socket.on('join', (payload, ack) =>
       respond(socket, ack, () => {
         const { code, entry } = requireGame(payload?.code);
@@ -391,6 +630,7 @@ export default function (ctx) {
       }),
     );
 
+    // A connection closing: forget it and let the others see that this person may now be away.
     socket.on('disconnect', () => {
       const code = sessions.get(socket.id)?.code;
       sessions.delete(socket.id);
@@ -418,6 +658,7 @@ export default function (ctx) {
     action(socket, 'vote', (player, { targetId }, game) => game.vote(player.id, targetId));
     action(socket, 'nextRound', (player, _payload, game) => game.nextRound(player.id));
     action(socket, 'abortRound', (player, _payload, game) => game.abortRound(player.id));
+    // The host's "kick": refused for a finished game (see Game.requireMayRemove).
     action(socket, 'removePlayer', (player, { targetId }, game) => game.leave(player.id, targetId));
   });
 
@@ -426,6 +667,12 @@ export default function (ctx) {
   ctx.log(`${getCardIds().length} cards in ${getCategories().length} categories, ${hints.length} hints, ${games.size} saved games`);
 
   return {
+    /**
+     * Stops the timers and saves the games one last time.
+     *
+     * @returns {void}
+     * Side effects: clears intervals and timeouts, writes games.json (a failure is logged).
+     */
     dispose() {
       clearInterval(pruneTimer);
       for (const timer of timers.values()) clearTimeout(timer);

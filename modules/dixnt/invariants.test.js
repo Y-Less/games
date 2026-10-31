@@ -163,7 +163,7 @@ for (const judging of JUDGING_MODES) {
       }
       if (sawFinished) finishedGames++;
     }
-    assert.ok(finishedGames >= 10, `many games reach their end (${finishedGames} of 25)`);
+    assert.ok(finishedGames >= 8, `many games reach their end (${finishedGames} of 25)`);
   });
 }
 

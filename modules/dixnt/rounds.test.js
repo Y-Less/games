@@ -171,7 +171,7 @@ test('saved games from before rounds existed still load, defaulting to two turns
   delete saved.roundsEach;
   delete saved.completed;
   for (const p of saved.players) delete p.turns;
-  const reloaded = new Game({ getCardIds: () => range(1, 200), hints: [], saved });
+  const reloaded = new Game({ rng: Math.random, getCardIds: () => range(1, 200), hints: [], saved });
   assert.equal(reloaded.s.roundsEach, 2);
   assert.equal(reloaded.viewFor(host.id).totalRounds, 6);
   assert.doesNotThrow(() => reloaded.viewFor(host.id));

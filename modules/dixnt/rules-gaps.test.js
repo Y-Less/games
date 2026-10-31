@@ -49,7 +49,7 @@ test('the last player leaving resets the room but keeps the host-chosen settings
 });
 
 test('a saved game from an older version is brought up to date', () => {
-  const old = new Game({ getCardIds: () => ids(50), hints: [] });
+  const old = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
   const [a, b, c] = ['A', 'B', 'C'].map((n) => old.addPlayer(n, n));
   old.start(a.id);
   const saved = JSON.parse(JSON.stringify(old.toJSON()));
@@ -60,7 +60,7 @@ test('a saved game from an older version is brought up to date', () => {
   saved.judging = 'something retired';
   saved.categories = ['gone'];
   saved.ready = { x: true };
-  const loaded = new Game({ getCardIds: () => ids(50), hints: [], saved });
+  const loaded = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [], saved });
   assert.equal(loaded.s.phase, 'voting', 'the old separate discussion step is folded into voting');
   assert.equal('ready' in loaded.s, false);
   assert.equal(loaded.s.judging, 'everyone');
@@ -69,7 +69,7 @@ test('a saved game from an older version is brought up to date', () => {
   assert.equal(loaded.s.history[0].label, 'Earlier rounds');
   assert.deepEqual(loaded.s.history[0].deltas, { [a.id]: 300, [b.id]: 100, [c.id]: 0 });
   // Without scores there is nothing to explain, and in a lobby neither.
-  const quiet = new Game({ getCardIds: () => ids(50), hints: [], saved: { ...saved, history: undefined, players: saved.players.map((p) => ({ ...p, score: 0 })) } });
+  const quiet = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [], saved: { ...saved, history: undefined, players: saved.players.map((p) => ({ ...p, score: 0 })) } });
   assert.deepEqual(quiet.s.history, []);
 });
 
@@ -88,7 +88,7 @@ test('the deck follows the cards on disk: missing cards vanish everywhere, new o
   assert.equal(all.length, 68, '60 - 2 removed + 10 new');
   assert.ok(ids(10, 500).every((id) => game.s.draw.includes(id)));
   // The same sync in the lobby adds nothing to the (empty) deck.
-  const lobby = new Game({ getCardIds: () => available, hints: [] });
+  const lobby = new Game({ rng: Math.random, getCardIds: () => available, hints: [] });
   lobby.syncCards();
   assert.deepEqual(lobby.s.draw, []);
 });
@@ -115,14 +115,14 @@ test('starting needs enough cards for everyone, and the host to be asking', () =
   refuses(() => game.start(players[1].id), /host/);
   game.start(players[0].id);
   refuses(() => game.start(players[0].id), /already started/);
-  const small = new Game({ getCardIds: () => ids(50), hints: [] });
+  const small = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
   small.addPlayer('A', 'A');
   small.addPlayer('B', 'B');
   refuses(() => small.start(small.s.hostId), /at least 3/);
 });
 
 test('names: blank, too long and duplicate (in any case) are refused; the settings are lobby-only', () => {
-  const game = new Game({ getCardIds: () => ids(50), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
   refuses(() => game.addPlayer('   ', 't'), /name/);
   refuses(() => game.addPlayer(undefined, 't'), /name/);
   refuses(() => game.addPlayer('x'.repeat(MAX_NAME_LENGTH + 1), 't'), /at most/);
@@ -139,7 +139,7 @@ test('names: blank, too long and duplicate (in any case) are refused; the settin
 });
 
 test('settings accept numeric strings and fractions by rounding, and refuse anything outside the range', () => {
-  const game = new Game({ getCardIds: () => ids(50), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
   const host = game.addPlayer('A', 'A').id;
   game.setHandSize(host, '5');
   assert.equal(game.s.handSize, 5);
@@ -351,7 +351,7 @@ test('hints cycle without repeats until the pool runs out, then reshuffle', () =
   const first = [...game.nextHints(3), ...game.nextHints(3)];
   assert.equal(new Set(first).size, 6, 'two draws of three use the six hints once each');
   assert.equal(game.nextHints(3).length, 3, 'then the pool is refilled');
-  const none = new Game({ getCardIds: () => ids(10), hints: [] });
+  const none = new Game({ rng: Math.random, getCardIds: () => ids(10), hints: [] });
   assert.deepEqual(none.nextHints(3), []);
 });
 

@@ -194,7 +194,7 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
 });
 
 test('an AI is recorded on a bot seat, shown as { id, name } for bots only, saved and restored', () => {
-  const game = new Game({ getCategories: () => categories, hints });
+  const game = new Game({ rng: Math.random, getCategories: () => categories, hints });
   const [host, bot, human] = ['Host', 'Bot', 'Human'].map((n) => game.addPlayer(n, `t-${n}`));
   assert.throws(() => game.setAI(bot.id, 'wizardry'), GameError, 'unknown AIs are refused');
   assert.throws(() => game.setAI('nobody', 'sharp'), GameError, 'the seat must exist');
@@ -205,13 +205,13 @@ test('an AI is recorded on a bot seat, shown as { id, name } for bots only, save
   assert.equal(seat(game, human.id).ai, null);
   // A re-declaration replaces it, and a save/restore round trip keeps it.
   game.setAI(bot.id, 'literal');
-  const restored = new Game({ getCategories: () => categories, hints, saved: JSON.parse(JSON.stringify(game.toJSON())) });
+  const restored = new Game({ rng: Math.random, getCategories: () => categories, hints, saved: JSON.parse(JSON.stringify(game.toJSON())) });
   assert.deepEqual(seat(restored, bot.id).ai, { id: 'literal', name: 'Literal' });
   // A room saved with an AI that no longer exists falls back to the first AI; a seat saved before this feature has none.
   const saved = JSON.parse(JSON.stringify(game.toJSON()));
   saved.players.find((p) => p.id === bot.id).ai = 'retired';
   delete saved.players.find((p) => p.id === human.id).ai;
-  const old = new Game({ getCategories: () => categories, hints, saved });
+  const old = new Game({ rng: Math.random, getCategories: () => categories, hints, saved });
   assert.deepEqual(seat(old, bot.id).ai, { id: 'standard', name: 'Standard' });
   assert.equal(seat(old, human.id).ai, null);
 });

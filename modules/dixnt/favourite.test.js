@@ -105,7 +105,7 @@ test('favourite style: works with rounds, so everyone is judged in turn and the 
 });
 
 test('the play style can be switched between all three in the lobby', () => {
-  const game = new Game({ getCardIds: () => range(1, 100), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => range(1, 100), hints: [] });
   const players = ['Ann', 'Bob', 'Cat'].map((n) => game.addPlayer(n, `t-${n}`));
   for (const mode of ['chooser', 'favourite', 'everyone']) {
     game.setJudging(players[0].id, mode);

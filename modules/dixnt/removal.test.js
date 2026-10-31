@@ -29,7 +29,7 @@ test('the host removes a person mid-round: a computer player takes the seat', ()
   const bob = game.s.players.find((p) => p.name === 'Bob');
   game.leave(host.id, bob.id);
   assert.equal(game.s.players.length, 4);
-  assert.equal(game.player(bob.id).bot, true);
+  assert.equal(game.player(bob.id).kind, 'bot');
   assert.notEqual(game.player(bob.id).name, 'Bob');
 });
 

@@ -56,13 +56,13 @@ function playOut(game, people, { guard = 5000 } = {}) {
 }
 
 test('the host adds, fills and removes computer players in the lobby, up to the maximum', () => {
-  const game = new Game({ getCardIds: () => cards(400), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(400), hints: [] });
   const host = game.addPlayer('Host', 'user:1');
   const guest = game.addPlayer('Guest', 'user:2');
   assert.throws(() => game.addBot(guest.id), GameError, 'only the host adds');
   assert.throws(() => game.fillWithBots(guest.id), GameError);
   const { id } = game.addBot(host.id);
-  assert.equal(game.player(id).bot, true);
+  assert.equal(game.player(id).kind, 'bot');
   assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.bot), [false, false, true], 'the scoreboard marks computer players');
   assert.equal(game.viewFor(host.id).scoreboard.players.some((p) => p.current), false, 'nobody is the chooser in the lobby');
   assert.equal(game.player(id).token.startsWith('bot:'), true);
@@ -85,7 +85,7 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.throws(() => game.addPlayer('Late', 'user:9'), GameError, 'people cannot take a thirteenth seat either');
   const names = game.s.players.map((p) => p.name.toLowerCase());
   assert.equal(new Set(names).size, names.length, 'every name is different');
-  assert.equal(game.s.players.filter((p) => p.bot).length, MAX_PLAYERS - 2);
+  assert.equal(game.s.players.filter((p) => p.kind === 'bot').length, MAX_PLAYERS - 2);
 
   game.start(host.id);
   assert.throws(() => game.addBot(host.id), GameError, 'not once the game has started');
@@ -94,7 +94,7 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
 });
 
 test('a bot never shares a name with a person', () => {
-  const game = new Game({ getCardIds: () => cards(400), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(400), hints: [] });
   const host = game.addPlayer('Ada', 'user:1');
   game.addBot(host.id);
   assert.notEqual(game.s.players[1].name.toLowerCase(), 'ada');
@@ -129,7 +129,7 @@ test('starting deals every bot an AI from the game rng, and the view shows it fo
 
   // Back in the lobby the seats stay, and the AIs are dealt again at the next start.
   game.returnToLobby(host.id);
-  assert.ok(game.s.players.slice(1).every((p) => p.bot && p.ai === undefined));
+  assert.ok(game.s.players.slice(1).every((p) => p.kind === 'bot' && p.ai === undefined));
   game.start(host.id);
   assert.ok(game.s.players.slice(1).every((p) => p.ai));
 });
@@ -169,7 +169,7 @@ test('bots decide from what a person in their seat sees: no clue for the imposte
     for (const judging of JUDGING_MODES) {
       const { game, host } = lobbyWith(5, { judging, roundsEach: 1, seed: 11 });
       game.start(host.id);
-      for (const p of game.s.players) if (p.bot) p.ai = 'spy';
+      for (const p of game.s.players) if (p.kind === 'bot') p.ai = 'spy';
       let cardsChecked = 0;
       let votesChecked = 0;
       for (let guard = 0; guard < 2000 && game.s.phase !== 'finished'; guard++) {
@@ -221,7 +221,7 @@ test('a broken or illegal AI answer is replaced by a random legal move', () => {
   try {
     const { game, host } = lobbyWith(4, { roundsEach: 1 });
     game.start(host.id);
-    for (const p of game.s.players) if (p.bot) p.ai = 'broken';
+    for (const p of game.s.players) if (p.kind === 'bot') p.ai = 'broken';
     playOut(game, [host]);
     assert.equal(game.s.phase, 'finished');
   } finally {
@@ -262,7 +262,7 @@ test('a person leaving mid-round is replaced by a computer player who keeps thei
   if (guestPlays) game.playCard(guest.id, hand[2]);
   game.leave(guest.id, guest.id);
   const seat = game.player(guest.id);
-  assert.equal(seat.bot, true);
+  assert.equal(seat.kind, 'bot');
   assert.notEqual(seat.name, 'Guest');
   assert.ok(seat.ai && AIS.some((ai) => ai.id === seat.ai));
   assert.equal(game.findByToken('user:2'), null, 'the account no longer has a seat');
@@ -275,7 +275,7 @@ test('a person leaving mid-round is replaced by a computer player who keeps thei
   // The host leaves too: the other person hosts; then the last person leaving ends the game.
   game.leave(host.id, host.id);
   assert.equal(game.s.hostId, third.id);
-  assert.equal(game.player(host.id).bot, true);
+  assert.equal(game.player(host.id).kind, 'bot');
   assert.equal(game.humans().length, 1);
   game.leave(third.id, third.id);
   assert.equal(game.humans().length, 0, 'no people left: the server drops the game');
@@ -295,7 +295,7 @@ test('a person who was the chooser, or who still owed a card or a vote, is repla
     }
     assert.equal(game.s.phase, phase);
     game.leave(guest.id, guest.id);
-    assert.equal(game.player(guest.id).bot, true);
+    assert.equal(game.player(guest.id).kind, 'bot');
     assert.equal(game.s.phase, phase);
     playOut(game, [host]);
     assert.equal(game.s.phase, 'finished', `a game that lost a person in "${phase}" still finishes`);
@@ -338,14 +338,17 @@ test('computer players survive a save and reload', () => {
   for (let i = 0; i < 6; i++) game.runBotAction();
   const saved = JSON.parse(JSON.stringify(game.toJSON()));
   const again = new Game({ getCardIds: () => cards(400), hints: cards(30).map(String), saved, rng: seededRng(9) });
-  assert.deepEqual(again.s.players.map((p) => [p.bot ?? false, p.ai ?? null]), game.s.players.map((p) => [p.bot ?? false, p.ai ?? null]));
+  assert.deepEqual(again.s.players.map((p) => [p.kind, p.ai ?? null]), game.s.players.map((p) => [p.kind, p.ai ?? null]));
   playOut(again, [again.player(host.id)]);
   assert.equal(again.s.phase, 'finished');
   // An older save with no bots in it loads as before.
   const old = JSON.parse(JSON.stringify(game.toJSON()));
-  for (const p of old.players) delete p.bot;
+  for (const p of old.players) {
+    delete p.kind;
+    delete p.bot;
+  }
   delete old.nextBot;
-  assert.equal(new Game({ getCardIds: () => cards(400), saved: old }).humans().length, 4);
+  assert.equal(new Game({ rng: Math.random, getCardIds: () => cards(400), saved: old }).humans().length, 4);
 });
 
 // ---------- over real sockets ----------
@@ -544,7 +547,7 @@ test('over sockets: garbage to the bot events is refused and harms nothing', asy
 });
 
 test('the scoreboard marks the chooser as the current player once the game is on', () => {
-  const game = new Game({ getCardIds: () => cards(400), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(400), hints: [] });
   const host = game.addPlayer('Host', 'user:1');
   game.addPlayer('Guest', 'user:2');
   game.addBot(host.id);

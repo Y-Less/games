@@ -20,6 +20,15 @@
 //
 // Length: the game ends once every player has chosen the word `roundsEach` times (a round only counts as a turn
 // once it has been completed). Then the phase becomes 'finished' and the host can return everyone to the lobby.
+//
+// Randomness: nothing in this file calls Math.random. Every random choice (shuffles, the imposter, seat ids, the AIs'
+// fallbacks) goes through the `rng` the caller passes to the Game, so a test can make a whole game deterministic.
+// The server passes Math.random (or its own injected generator); see server.js.
+//
+// Seats: a seat is { id, kind, token, name, score, turns, hand, waiting, ai? }. `kind` is 'human' (an account) or
+// 'bot' (a computer player). Saves from before `kind` existed marked computer players with `bot: true`; the
+// constructor migrates those (see migrateSeats), so old saved rooms keep working. The view sent to clients still
+// says `bot: true/false` for each seat, because that is the client's vocabulary.
 
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { winnersOf } from '../../shared/scores.js';
@@ -41,17 +50,50 @@ export const DEFAULT_HAND_SIZE = 8;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_WORD_LENGTH = 60;
 
+/** The two kinds of seat. */
+export const KIND_HUMAN = 'human';
+export const KIND_BOT = 'bot';
+
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo', 'Juno', 'Kit', 'Luna'];
 /** Used only if the word list is empty, so a computer chooser can always give a word. */
 const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 
+/** The phases in which a round is under way (or its results are showing), so a seat taken over has something to play. */
+const ROUND_PHASES = ['word', 'picking', 'voting', 'results'];
+
+/** The error the rules throw for anything a player did wrong; its message is safe to show to that player. */
 export class GameError extends Error {}
+
+/**
+ * Refuses an action by throwing a GameError.
+ *
+ * @param {string} message  what to tell the player
+ * @returns {never}
+ * Side effects: always throws.
+ */
 const fail = (message) => {
   throw new GameError(message);
 };
 
-export function shuffle(items, rng = Math.random) {
+/**
+ * Is this seat a computer player?
+ *
+ * @param {object} seat  an entry of state.players
+ * @returns {boolean}
+ */
+const isBot = (seat) => seat.kind === KIND_BOT;
+
+/**
+ * Shuffles an array in place (Fisher-Yates).
+ *
+ * @param {any[]} items        the array to shuffle
+ * @param {() => number} rng   a random number generator returning [0, 1); there is no default, so a game's rules can
+ *                             never reach for Math.random behind a test's back
+ * @returns {any[]} the same array, shuffled
+ * Side effects: reorders `items`.
+ */
+export function shuffle(items, rng) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [items[i], items[j]] = [items[j], items[i]];
@@ -59,25 +101,45 @@ export function shuffle(items, rng = Math.random) {
   return items;
 }
 
-const newPublicId = () => Math.random().toString(36).slice(2, 10);
+/**
+ * Makes a new id for a seat: eight base-36 characters from `rng`, made unique among the ids already taken.
+ * A constant (or badly behaved) generator therefore cannot give two seats the same id or hang this function: a
+ * clash just gets a counter added.
+ *
+ * @param {() => number} rng        a random number generator returning [0, 1)
+ * @param {Set<string>} [taken]     ids that must not be reused
+ * @returns {string}
+ */
+export function newPublicId(rng, taken = new Set()) {
+  const base = Math.floor(rng() * 36 ** 8).toString(36).padStart(8, '0');
+  let id = base;
+  for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+  return id;
+}
 
 export class Game {
   /**
+   * Builds a game, either brand new (in the lobby) or restored from a save.
+   *
    * @param {object} options
    * @param {() => {key: string, label: string, description?: string, ids: number[]}[]} [options.getCategories]
    *        the cards currently available, grouped into categories
    * @param {() => number[]} [options.getCardIds] shortcut for a single category containing every card
    * @param {string[]} options.hints word/phrase suggestions for the chooser
-   * @param {() => number} [options.rng]
+   * @param {() => number} options.rng a random number generator returning [0, 1). Required: the rules never use
+   *        Math.random themselves.
    * @param {object} [options.saved] a previously saved state (see toJSON)
+   * Side effects: migrates and normalises `saved` in place (older saves are brought up to date).
    */
-  constructor({ getCategories, getCardIds, hints = [], rng = Math.random, saved = null }) {
+  constructor({ getCategories, getCardIds, hints = [], rng, saved = null }) {
+    if (typeof rng !== 'function') throw new TypeError('A Game needs an rng: the rules never use Math.random themselves.');
     this.getCategories =
       getCategories ?? (() => [{ key: 'all', label: 'All cards', description: '', ids: getCardIds ? getCardIds() : [] }]);
     this.hints = hints;
     this.rng = rng;
     this.hintPool = [];
     this.s = { ...Game.blankState(), ...(saved ?? {}) };
+    this.migrateSeats();
     this.rescaleOldPoints(saved);
     this.normaliseHistory(saved);
     if (this.s.phase === 'discussion') this.s.phase = 'voting'; // saved by an older version that had a separate step
@@ -86,12 +148,17 @@ export class Game {
     this.syncCards();
   }
 
+  /**
+   * The state of a game nobody has joined yet.
+   *
+   * @returns {object} a fresh state object (see toJSON)
+   */
   static blankState() {
     return {
       phase: 'lobby',
-      // { id, token, name, score, turns, hand: number[], waiting: boolean, bot?: true, ai?: string }. A computer player
-      // has bot: true, no account (its token is 'bot:<n>', which no user token can match) and, once a game starts,
-      // the id of its AI.
+      // { id, kind: 'human' | 'bot', token, name, score, turns, hand: number[], waiting: boolean, ai?: string }. A
+      // computer player has kind 'bot', no account (its token is 'bot:<n>', which no user token can match) and, once a
+      // game starts, the id of its AI.
       players: [],
       nextBot: 1,
       hostId: null,
@@ -119,7 +186,30 @@ export class Game {
     };
   }
 
-  /** A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today. */
+  /**
+   * Brings the seats of an older save up to date: a seat marked `bot: true` becomes `kind: 'bot'`, and every other
+   * seat becomes `kind: 'human'`. Safe to run on seats that are already migrated.
+   *
+   * @returns {void}
+   * Side effects: edits the seat objects in this.s.players (removing the old `bot` flag).
+   */
+  migrateSeats() {
+    for (const p of this.s.players) {
+      if ('bot' in p) {
+        if (p.bot) p.kind = KIND_BOT;
+        delete p.bot;
+      }
+      p.kind ??= KIND_HUMAN;
+    }
+  }
+
+  /**
+   * A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today.
+   *
+   * @param {object | null} saved  the save the game was built from (null for a new game)
+   * @returns {void}
+   * Side effects: rewrites the scores and the history deltas.
+   */
   rescaleOldPoints(saved) {
     if (!saved || saved.pointScale !== undefined || saved.phase === 'lobby') return;
     const scale = (points) => Math.round(points / 100);
@@ -127,7 +217,13 @@ export class Game {
     for (const entry of this.s.history ?? []) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
   }
 
-  /** Older saved games have no history: if they already have scores, show them as one "Earlier rounds" row. */
+  /**
+   * Older saved games have no history: if they already have scores, show them as one "Earlier rounds" row.
+   *
+   * @param {object | null} saved  the save the game was built from (null for a new game)
+   * @returns {void}
+   * Side effects: sets this.s.history.
+   */
   normaliseHistory(saved) {
     const s = this.s;
     if (Array.isArray(saved?.history)) return;
@@ -137,41 +233,76 @@ export class Game {
     }
   }
 
+  /**
+   * What gets saved to disk (JSON.stringify calls this).
+   *
+   * @returns {object} the live state object, not a copy
+   */
   toJSON() {
     return this.s;
   }
 
   // ---------- lookups ----------
 
+  /**
+   * @param {string} id  a seat id
+   * @returns {object | null} the seat, or null if nobody has that id
+   */
   player(id) {
     return this.s.players.find((p) => p.id === id) ?? null;
   }
 
+  /**
+   * @param {string} token  an account token ('user:<id>') or a computer player's token
+   * @returns {object | null} the seat with that token, or null
+   */
   findByToken(token) {
     return this.s.players.find((p) => p.token === token) ?? null;
   }
 
+  /**
+   * @param {string} id  a seat id
+   * @returns {object} the seat
+   * Side effects: throws a GameError if there is no such seat.
+   */
   requirePlayer(id) {
     return this.player(id) ?? fail('You are not in this game.');
   }
 
+  /**
+   * @param {string} id  a seat id
+   * @returns {boolean} whether that seat belongs to the host
+   */
   isHost(id) {
     return this.s.hostId === id;
   }
 
-  /** Players taking part in the current round (everyone except late joiners). */
+  /**
+   * Players taking part in the current round (everyone except late joiners).
+   *
+   * @returns {object[]} seats
+   */
   inRound() {
     return this.s.players.filter((p) => !p.waiting);
   }
 
-  /** Players who play a card this round (everyone in the round except the chooser). */
+  /**
+   * Players who play a card this round (everyone in the round except the chooser).
+   *
+   * @returns {object[]} seats
+   */
   cardPlayers() {
     return this.inRound().filter((p) => p.id !== this.s.chooserId);
   }
 
   // ---------- deck ----------
 
-  /** Makes sure the saved settings are valid for the categories that exist now. */
+  /**
+   * Makes sure the saved settings are valid for the categories that exist now.
+   *
+   * @returns {void}
+   * Side effects: may reset s.judging and s.categories.
+   */
   normaliseSettings() {
     const s = this.s;
     if (!JUDGING_MODES.includes(s.judging)) s.judging = 'everyone';
@@ -180,16 +311,28 @@ export class Game {
     s.categories = chosen.length ? chosen : known;
   }
 
+  /**
+   * @returns {object[]} the categories the host has selected, in the standard order
+   */
   selectedCategories() {
     return this.getCategories().filter((c) => this.s.categories.includes(c.key));
   }
 
-  /** Ids of every card in the selected categories. */
+  /**
+   * Ids of every card in the selected categories.
+   *
+   * @returns {number[]}
+   */
   availableIds() {
     return [...new Set(this.selectedCategories().flatMap((c) => c.ids))];
   }
 
-  /** Keeps the deck in step with the cards on disk: new cards join the draw pile, missing ones vanish. */
+  /**
+   * Keeps the deck in step with the cards on disk: new cards join the draw pile, missing ones vanish.
+   *
+   * @returns {void}
+   * Side effects: edits the draw pile, discard pile and every hand; may shuffle the draw pile.
+   */
   syncCards() {
     const available = new Set(this.availableIds());
     const s = this.s;
@@ -205,6 +348,13 @@ export class Game {
     }
   }
 
+  /**
+   * Deals a player cards until their hand is full, reshuffling the discard pile if the draw pile runs out.
+   *
+   * @param {object} player  a seat
+   * @returns {void}
+   * Side effects: moves cards from the draw (and discard) pile into the hand.
+   */
   drawUp(player) {
     const s = this.s;
     while (player.hand.length < s.handSize) {
@@ -219,6 +369,15 @@ export class Game {
 
   // ---------- players and lobby ----------
 
+  /**
+   * Seats a person. In a game that has started they wait for the next round.
+   *
+   * @param {string} name   their display name (cleaned, and checked for length and for clashes)
+   * @param {string} token  their account token
+   * @returns {object} the new seat
+   * Side effects: adds a seat; the first person to sit becomes the host. Throws a GameError if the game is full or
+   * the name is unusable.
+   */
   addPlayer(name, token) {
     const clean = String(name ?? '').trim().replace(/\s+/g, ' ');
     if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
@@ -228,7 +387,8 @@ export class Game {
       fail('Someone is already using that name.');
     }
     const player = {
-      id: newPublicId(),
+      id: this.newSeatId(),
+      kind: KIND_HUMAN,
       token,
       name: clean,
       score: 0,
@@ -242,9 +402,23 @@ export class Game {
   }
 
   /**
+   * A fresh seat id that no current seat has, drawn from this game's rng.
+   *
+   * @returns {string}
+   */
+  newSeatId() {
+    return newPublicId(this.rng, new Set(this.s.players.map((p) => p.id)));
+  }
+
+  /**
    * A bot running as its own process (bots/bot.js, signed in as an account) says which AI it plays with, when it joins
    * and again at the start of every game. Stored on the seat and shown to everyone as { id, name } for that seat only.
    * Built-in computer players never call this: the game deals them an AI itself when it starts.
+   *
+   * @param {string} id    the seat id of the caller
+   * @param {string} aiId  the id of one of the AIs in ./ai
+   * @returns {void}
+   * Side effects: sets `ai` on the seat. Throws a GameError for an unknown AI or seat.
    */
   setAI(id, aiId) {
     const player = this.requirePlayer(id);
@@ -252,28 +426,47 @@ export class Game {
     player.ai = aiId;
   }
 
-  /** { id, name } of an AI; a saved id that no longer exists falls back to the first AI. */
+  /**
+   * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
+   * @returns {{ id: string, name: string }} how an AI is shown to the players
+   */
   aiView(aiId) {
     const { id, name } = aiById(AIS, aiId);
     return { id, name };
   }
 
-  /** People in the game (accounts), as opposed to computer players. */
+  /**
+   * People in the game (accounts), as opposed to computer players.
+   *
+   * @returns {object[]} seats
+   */
   humans() {
-    return this.s.players.filter((p) => !p.bot);
+    return this.s.players.filter((p) => !isBot(p));
   }
 
-  /** A fresh computer-player seat (it gets an AI when a game starts, or when it takes over mid-game). */
+  /**
+   * A fresh computer-player seat (it gets an AI when a game starts, or when it takes over mid-game). It is not yet
+   * added to the game.
+   *
+   * @returns {object} a seat with kind 'bot' and a name nobody else is using
+   * Side effects: uses up one number of s.nextBot.
+   */
   newBot() {
     const s = this.s;
     const used = new Set(s.players.map((p) => p.name.toLowerCase()));
     let name = BOT_NAMES.find((n) => !used.has(n.toLowerCase())) ?? 'Computer';
     for (let n = 2; used.has(name.toLowerCase()); n++) name = `Computer ${n}`;
     s.nextBot ??= 1;
-    return { id: newPublicId(), token: `bot:${s.nextBot++}`, name, score: 0, turns: 0, hand: [], waiting: s.phase !== 'lobby', bot: true };
+    return { id: this.newSeatId(), kind: KIND_BOT, token: `bot:${s.nextBot++}`, name, score: 0, turns: 0, hand: [], waiting: s.phase !== 'lobby' };
   }
 
-  /** The host adds one computer player to the lobby. */
+  /**
+   * The host adds one computer player to the lobby.
+   *
+   * @param {string} byId  the seat id of the caller (must be the host)
+   * @returns {{ id: string }} the new seat's id
+   * Side effects: adds a seat. Throws a GameError outside the lobby, for a non-host, or if the game is full.
+   */
   addBot(byId) {
     if (!this.isHost(byId)) fail('Only the host can add computer players.');
     if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
@@ -283,7 +476,14 @@ export class Game {
     return { id: bot.id };
   }
 
-  /** The host fills the lobby with computer players until there are `target` players (default: enough to start). */
+  /**
+   * The host fills the lobby with computer players until there are `target` players (default: enough to start).
+   *
+   * @param {string} byId     the seat id of the caller (must be the host)
+   * @param {number} [target] how many players there should be; clamped between MIN_PLAYERS and MAX_PLAYERS
+   * @returns {void}
+   * Side effects: adds seats. Throws a GameError outside the lobby or for a non-host.
+   */
   fillWithBots(byId, target = MIN_PLAYERS) {
     if (!this.isHost(byId)) fail('Only the host can add computer players.');
     if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
@@ -291,13 +491,35 @@ export class Game {
     while (this.s.players.length < wanted) this.s.players.push(this.newBot());
   }
 
-  /** The host removes a computer player from the lobby. */
+  /**
+   * The host removes a computer player from the lobby.
+   *
+   * @param {string} byId      the seat id of the caller (must be the host)
+   * @param {string} targetId  the seat id of the computer player
+   * @returns {void}
+   * Side effects: removes a seat. Throws a GameError outside the lobby, for a non-host or if the seat is a person.
+   */
   removeBot(byId, targetId) {
     if (!this.isHost(byId)) fail('Only the host can remove computer players.');
     if (this.s.phase !== 'lobby') fail('Computer players can only be removed in the lobby.');
-    const index = this.s.players.findIndex((p) => p.id === targetId && p.bot);
+    const index = this.s.players.findIndex((p) => p.id === targetId && isBot(p));
     if (index < 0) fail('That is not a computer player.');
     this.s.players.splice(index, 1);
+  }
+
+  /**
+   * Checks that `byId` may remove `targetId`: a person may always remove themselves; only the host may remove anyone
+   * else, and nobody can be removed from a finished game (there is nothing left to take them out of).
+   *
+   * @param {string} byId      the seat id of the caller
+   * @param {string} targetId  the seat id to remove
+   * @returns {object} the target's seat
+   * Side effects: throws a GameError if the removal is not allowed.
+   */
+  requireMayRemove(byId, targetId) {
+    if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
+    if (byId !== targetId && this.s.phase === 'finished') fail('The game is over: there is nobody to remove.');
+    return this.player(targetId) ?? fail('That player is not in the game.');
   }
 
   /**
@@ -305,25 +527,39 @@ export class Game {
    * takes over a person's seat, keeping their hand, score and turns, so the game carries on at any size as long as
    * another person is still there. In every other case (lobby, finished game, a late joiner still waiting, a computer
    * player, or nobody else left) the seat is simply removed, as removePlayer does.
+   *
+   * @param {string} byId      the seat id of the caller
+   * @param {string} targetId  the seat id of the person leaving
+   * @returns {void}
+   * Side effects: either converts the seat to a computer player (the host moves to another person if it was theirs)
+   * or removes it (see removePlayer). Throws a GameError if the caller may not do this.
    */
   leave(byId, targetId) {
     const s = this.s;
-    if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
-    const target = this.player(targetId);
-    if (!target) fail('That player is not in the game.');
-    const midGame = ['word', 'picking', 'voting', 'results'].includes(s.phase);
-    if (!midGame || target.bot || target.waiting || this.humans().length < 2) return this.removePlayer(byId, targetId);
+    const target = this.requireMayRemove(byId, targetId);
+    const midGame = ROUND_PHASES.includes(s.phase);
+    if (!midGame || isBot(target) || target.waiting || this.humans().length < 2) return this.removePlayer(byId, targetId);
     const { name, token } = this.newBot();
-    Object.assign(target, { bot: true, token, name, ai: pickAI(AIS, this.rng).id });
+    Object.assign(target, { kind: KIND_BOT, token, name, ai: pickAI(AIS, this.rng).id });
     if (s.hostId === targetId) s.hostId = this.humans()[0].id;
   }
 
-  /** Takes a player out of the game outright; the round is abandoned if it needed them. */
+  /**
+   * Takes a player out of the game outright. The round carries on without them whenever it can (see repairRound); it
+   * is abandoned only if it genuinely cannot continue, and the game goes back to the lobby if fewer than MIN_PLAYERS
+   * are left.
+   *
+   * @param {string} byId      the seat id of the caller
+   * @param {string} targetId  the seat id to remove
+   * @returns {void}
+   * Side effects: removes the seat, returns its hand to the discard pile, edits the scoreboard history, may move the
+   * host, and may move the round on, end it, or send the game to the lobby. Throws a GameError if the caller may not
+   * remove that player.
+   */
   removePlayer(byId, targetId) {
     const s = this.s;
-    if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
+    this.requireMayRemove(byId, targetId);
     const index = s.players.findIndex((p) => p.id === targetId);
-    if (index < 0) fail('That player is not in the game.');
     const [removed] = s.players.splice(index, 1);
     for (const round of s.history) {
       delete round.deltas[removed.id];
@@ -345,11 +581,67 @@ export class Game {
     if (s.phase === 'lobby') return;
     if (s.players.length < MIN_PLAYERS) {
       this.returnToLobby();
-    } else if (!removed.waiting) {
-      this.advance(); // the round can't continue without them, so move on
+    } else if (s.phase !== 'finished' && !removed.waiting) {
+      this.repairRound(removed);
     }
   }
 
+  /**
+   * Fixes up the round in progress after a player in it has been removed. The round carries on if it can: their card
+   * and vote are taken off the table, and if everyone who is left has now played (or voted) the round moves on at once.
+   * It is abandoned (moving to the next chooser, scoring nothing) only when it needs the person who went: the chooser,
+   * the imposter (who alone saw "???"), the favourite or the accused in the results, or when too few card players are
+   * left to hold a vote.
+   *
+   * @param {object} removed  the seat that has just been removed (it is no longer in s.players)
+   * @returns {void}
+   * Side effects: edits picks, votes, tableOrder and results; may open voting, resolve the votes or call advance().
+   */
+  repairRound(removed) {
+    const s = this.s;
+    if (!this.roundSurvives(removed)) {
+      this.advance();
+      return;
+    }
+    delete s.picks[removed.id];
+    delete s.votes[removed.id];
+    for (const [voterId, targetId] of Object.entries(s.votes)) if (targetId === removed.id) delete s.votes[voterId];
+    s.tableOrder = s.tableOrder.filter((id) => id !== removed.id);
+    if (s.phase === 'picking') {
+      if (this.cardPlayers().every((p) => p.id in s.picks)) this.openVoting();
+    } else if (s.phase === 'voting') {
+      if (this.voters().every((p) => p.id in s.votes)) this.resolveVotes();
+    } else if (s.phase === 'results' && s.results) {
+      // The round is over and counted: just take the person out of what is shown.
+      delete s.results.deltas[removed.id];
+      delete s.results.tally[removed.id];
+      for (const [voterId, targetId] of Object.entries(s.results.votes)) {
+        if (voterId === removed.id || targetId === removed.id) delete s.results.votes[voterId];
+      }
+    }
+  }
+
+  /**
+   * Can the current round go on now that `removed` has gone? (See repairRound for what it needs.)
+   *
+   * @param {object} removed  the seat that has just been removed
+   * @returns {boolean} false if the round cannot continue and must be abandoned
+   */
+  roundSurvives(removed) {
+    const s = this.s;
+    if (removed.id === s.chooserId) return false;
+    if (s.imposterId && removed.id === s.imposterId) return false;
+    if (s.phase === 'results' && s.results && [s.results.winnerId, s.results.accusedId].includes(removed.id)) return false;
+    const needed = s.phase === 'word' ? 1 : 2; // someone to play a card; and, once cards are down, someone to vote for
+    return this.cardPlayers().length >= needed;
+  }
+
+  /**
+   * @param {string} byId  the seat id of the caller (must be the host)
+   * @param {number} size  the new hand size
+   * @returns {void}
+   * Side effects: sets s.handSize. Throws a GameError outside the lobby, for a non-host or an out-of-range size.
+   */
   setHandSize(byId, size) {
     if (!this.isHost(byId)) fail('Only the host can change the hand size.');
     if (this.s.phase !== 'lobby') fail('The hand size can only be changed in the lobby.');
@@ -360,6 +652,12 @@ export class Game {
     this.s.handSize = n;
   }
 
+  /**
+   * @param {string} byId   the seat id of the caller (must be the host)
+   * @param {number} count  how many times each player chooses the word
+   * @returns {void}
+   * Side effects: sets s.roundsEach. Throws a GameError outside the lobby, for a non-host or an out-of-range count.
+   */
   setRounds(byId, count) {
     if (!this.isHost(byId)) fail('Only the host can change the number of rounds.');
     if (this.s.phase !== 'lobby') fail('The number of rounds can only be changed in the lobby.');
@@ -370,6 +668,12 @@ export class Game {
     this.s.roundsEach = n;
   }
 
+  /**
+   * @param {string} byId  the seat id of the caller (must be the host)
+   * @param {string} mode  one of JUDGING_MODES
+   * @returns {void}
+   * Side effects: sets s.judging. Throws a GameError outside the lobby, for a non-host or an unknown mode.
+   */
   setJudging(byId, mode) {
     if (!this.isHost(byId)) fail('Only the host can change how rounds are judged.');
     if (this.s.phase !== 'lobby') fail('The judging method can only be changed in the lobby.');
@@ -377,6 +681,13 @@ export class Game {
     this.s.judging = mode;
   }
 
+  /**
+   * @param {string} byId   the seat id of the caller (must be the host)
+   * @param {string[]} keys the category keys to use
+   * @returns {void}
+   * Side effects: sets s.categories (in the standard order). Throws a GameError outside the lobby, for a non-host,
+   * for an unknown key or for an empty choice.
+   */
   setCategories(byId, keys) {
     if (!this.isHost(byId)) fail('Only the host can choose the categories.');
     if (this.s.phase !== 'lobby') fail('The categories can only be changed in the lobby.');
@@ -387,6 +698,15 @@ export class Game {
     this.s.categories = known.filter((c) => wanted.includes(c.key)).map((c) => c.key); // keep the standard order
   }
 
+  /**
+   * Starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs and begins
+   * the first round.
+   *
+   * @param {string} byId  the seat id of the caller (must be the host)
+   * @returns {void}
+   * Side effects: resets scores, turns, hands, history and the deck, and enters the 'word' phase. Throws a GameError
+   * for a non-host, a game that has started, too few players or too few cards.
+   */
   start(byId) {
     const s = this.s;
     if (!this.isHost(byId)) fail('Only the host can start the game.');
@@ -409,12 +729,19 @@ export class Game {
     s.completed = 0;
     s.nextChooserIdx = 0;
     // Every computer player gets an AI for the whole game (people who run their own bot process declare theirs).
-    const bots = s.players.filter((p) => p.bot);
+    const bots = s.players.filter(isBot);
     const picks = assignAIs(AIS, bots.map((p) => p.id), this.rng);
     for (const p of bots) p.ai = picks[p.id];
     this.startRound();
   }
 
+  /**
+   * Sends everyone back to the lobby, clearing the game (settings and seats are kept).
+   *
+   * @param {string | null} [byId]  the seat id of the caller (must be the host); null when the rules do it themselves
+   * @returns {void}
+   * Side effects: resets the round, the deck, scores, hands and history. Throws a GameError for a non-host.
+   */
   returnToLobby(byId = null) {
     const s = this.s;
     if (byId && !this.isHost(byId)) fail('Only the host can end the game.');
@@ -438,12 +765,18 @@ export class Game {
       p.waiting = false;
       p.turns = 0;
       p.score = 0;
-      if (p.bot) delete p.ai; // a new AI is dealt at the next start
+      if (isBot(p)) delete p.ai; // a new AI is dealt at the next start
     }
   }
 
   // ---------- round flow ----------
 
+  /**
+   * Begins a round: everyone joins in, the next chooser is picked and everybody's hand is topped up.
+   *
+   * @returns {void}
+   * Side effects: increments s.round, picks s.chooserId, clears the table and enters the 'word' phase.
+   */
   startRound() {
     const s = this.s;
     this.syncCards();
@@ -468,13 +801,26 @@ export class Game {
     s.phase = 'word';
   }
 
-  /** Abandons the current round without scoring or discarding, and moves to the next chooser. */
+  /**
+   * Abandons the current round without scoring or discarding, and moves to the next chooser.
+   *
+   * @param {string} byId  the seat id of the caller (must be the host)
+   * @returns {void}
+   * Side effects: starts a new round. Throws a GameError for a non-host or when no round is under way.
+   */
   abortRound(byId) {
     if (!this.isHost(byId)) fail('Only the host can skip a round.');
     if (!['word', 'picking', 'voting'].includes(this.s.phase)) fail('There is no round to skip.');
     this.startRound();
   }
 
+  /**
+   * Suggestions for the chooser, without repeats until the list has been used up.
+   *
+   * @param {number} [count]  how many to give
+   * @returns {string[]} up to `count` hints (fewer if the list is shorter)
+   * Side effects: takes the hints out of the pool, refilling (and shuffling) it when it runs low.
+   */
   nextHints(count = 3) {
     if (this.hintPool.length < count) {
       this.hintPool = shuffle([...this.hints], this.rng);
@@ -482,6 +828,15 @@ export class Game {
     return this.hintPool.splice(-count, count);
   }
 
+  /**
+   * The chooser gives the word; the imposter is picked (except in the favourite style) and card-playing begins.
+   *
+   * @param {string} id    the seat id of the caller (must be the chooser)
+   * @param {string} word  the word or phrase
+   * @returns {void}
+   * Side effects: sets s.word and s.imposterId and enters the 'picking' phase. Throws a GameError out of turn, for a
+   * non-chooser, an empty or over-long word, or if nobody else is in the round to play a card (nothing is changed).
+   */
   submitWord(id, word) {
     const s = this.s;
     if (s.phase !== 'word') fail('It is not time to choose a word.');
@@ -490,12 +845,22 @@ export class Game {
     if (!clean) fail('Type a word or phrase first.');
     if (clean.length > MAX_WORD_LENGTH) fail(`Keep it to ${MAX_WORD_LENGTH} characters or fewer.`);
     const candidates = this.cardPlayers();
+    if (!candidates.length) fail('Nobody else is in this round to play a card.');
     s.word = clean;
     // In the favourite style nobody is kept in the dark, so there is no imposter.
     s.imposterId = s.judging === 'favourite' ? null : candidates[Math.floor(this.rng() * candidates.length)].id;
     s.phase = 'picking';
   }
 
+  /**
+   * A player puts a card from their hand on the table. When the last card is down, voting opens.
+   *
+   * @param {string} id      the seat id of the caller
+   * @param {number} cardId  the card to play
+   * @returns {void}
+   * Side effects: records the pick (a player may change it until the last card is in) and may open voting. Throws a
+   * GameError out of turn, for the chooser or a waiting player, or for a card not in the hand.
+   */
   playCard(id, cardId) {
     const s = this.s;
     if (s.phase !== 'picking') fail('It is not time to play a card.');
@@ -503,13 +868,31 @@ export class Game {
     if (player.waiting || id === s.chooserId) fail('You do not play a card this round.');
     if (!player.hand.includes(cardId)) fail('That card is not in your hand.');
     s.picks[id] = cardId;
-    if (this.cardPlayers().every((p) => p.id in s.picks)) {
-      s.tableOrder = shuffle(this.cardPlayers().map((p) => p.id), this.rng);
-      s.votes = {};
-      s.phase = 'voting';
-    }
+    if (this.cardPlayers().every((p) => p.id in s.picks)) this.openVoting();
   }
 
+  /**
+   * Lays the cards out in a random order and opens voting.
+   *
+   * @returns {void}
+   * Side effects: sets s.tableOrder, clears s.votes and enters the 'voting' phase.
+   */
+  openVoting() {
+    const s = this.s;
+    s.tableOrder = shuffle(this.cardPlayers().map((p) => p.id), this.rng);
+    s.votes = {};
+    s.phase = 'voting';
+  }
+
+  /**
+   * A player votes (or changes their vote). When the last needed vote is in, the round is resolved.
+   *
+   * @param {string} id        the seat id of the voter
+   * @param {string} targetId  the seat id of the player whose card they suspect (or, when favouring, like best)
+   * @returns {void}
+   * Side effects: records the vote and may resolve the round. Throws a GameError out of turn, for someone who may not
+   * vote, a vote for oneself, or a vote for someone who played no card.
+   */
   vote(id, targetId) {
     const s = this.s;
     if (s.phase !== 'voting') fail('It is not time to vote.');
@@ -522,11 +905,21 @@ export class Game {
     if (this.voters().every((p) => p.id in s.votes)) this.resolveVotes();
   }
 
-  /** The players whose votes are needed before the round can end. */
+  /**
+   * The players whose votes are needed before the round can end.
+   *
+   * @returns {object[]} seats
+   */
   voters() {
     return this.s.judging === 'everyone' ? this.inRound() : this.inRound().filter((p) => p.id === this.s.chooserId);
   }
 
+  /**
+   * Scores the round according to the play style (everyone, chooser or favourite) and shows the results.
+   *
+   * @returns {void}
+   * Side effects: changes scores, s.results, the history, the chooser's turns, and enters the 'results' phase.
+   */
   resolveVotes() {
     const s = this.s;
     if (s.judging === 'chooser') return this.resolveChooserVerdict();
@@ -555,7 +948,12 @@ export class Game {
     this.completeRound(notes);
   }
 
-  /** Chooser-only judging: spot the imposter and the chooser scores; get fooled and the imposter scores big. */
+  /**
+   * Chooser-only judging: spot the imposter and the chooser scores; get fooled and the imposter scores big.
+   *
+   * @returns {void}
+   * Side effects: as resolveVotes.
+   */
   resolveChooserVerdict() {
     const s = this.s;
     const accusedId = s.votes[s.chooserId];
@@ -571,7 +969,12 @@ export class Game {
     this.completeRound(notes);
   }
 
-  /** Favourite style: the chooser's favourite card scores, and nobody was bluffing. */
+  /**
+   * Favourite style: the chooser's favourite card scores, and nobody was bluffing.
+   *
+   * @returns {void}
+   * Side effects: as resolveVotes.
+   */
   resolveFavourite() {
     const s = this.s;
     const winnerId = s.votes[s.chooserId];
@@ -585,7 +988,15 @@ export class Game {
     this.completeRound(notes);
   }
 
-  /** Short public remarks for the scoreboard: who chose the word, who was the imposter and how it went. */
+  /**
+   * Short public remarks for the scoreboard: who chose the word, who was the imposter and how it went.
+   *
+   * @param {object} outcome
+   * @param {string} outcome.judging         the play style
+   * @param {boolean} [outcome.groupCorrect] whether the imposter was caught
+   * @param {string} [outcome.winnerId]      the favourite style's winner
+   * @returns {Object<string, string>} playerId -> remark
+   */
   roundNotes({ judging, groupCorrect, winnerId }) {
     const s = this.s;
     const notes = {};
@@ -602,6 +1013,10 @@ export class Game {
   /**
    * Records a finished round (abandoned rounds never get here): it counts as a turn for the chooser, goes into
    * the scoreboard history, and the results are shown.
+   *
+   * @param {Object<string, string>} [notes]  the scoreboard remarks from roundNotes
+   * @returns {void}
+   * Side effects: increments the chooser's turns and s.completed, adds a history row and enters 'results'.
    */
   completeRound(notes = {}) {
     const s = this.s;
@@ -612,6 +1027,13 @@ export class Game {
     s.phase = 'results';
   }
 
+  /**
+   * Leaves the results: the played cards are discarded and the next round (or the end of the game) begins.
+   *
+   * @param {string} id  the seat id of the caller (any player)
+   * @returns {void}
+   * Side effects: moves cards to the discard pile, then as advance. Throws a GameError if the round is not over.
+   */
   nextRound(id) {
     const s = this.s;
     if (s.phase !== 'results') fail('The round is not over yet.');
@@ -626,30 +1048,52 @@ export class Game {
     this.advance();
   }
 
-  /** Has every player chosen the word as many times as the host asked for? */
+  /**
+   * Has every player chosen the word as many times as the host asked for?
+   *
+   * @returns {boolean}
+   */
   allDone() {
     return this.s.players.every((p) => (p.turns ?? 0) >= this.s.roundsEach);
   }
 
-  /** How many more rounds are needed before everyone has had all their turns. */
+  /**
+   * How many more rounds are needed before everyone has had all their turns.
+   *
+   * @returns {number}
+   */
   roundsRemaining() {
     return this.s.players.reduce((sum, p) => sum + Math.max(0, this.s.roundsEach - (p.turns ?? 0)), 0);
   }
 
-  /** Moves on after a round: either the next round, or the end of the game. */
+  /**
+   * Moves on after a round: either the next round, or the end of the game.
+   *
+   * @returns {void}
+   * Side effects: enters the 'finished' phase or starts a round.
+   */
   advance() {
     if (this.allDone()) this.s.phase = 'finished';
     else this.startRound();
   }
 
-  /** Everyone sharing the highest score. */
+  /**
+   * Everyone sharing the highest score.
+   *
+   * @returns {string[]} seat ids
+   */
   winnerIds() {
     return winnersOf(Object.fromEntries(this.s.players.map((p) => [p.id, p.score])));
   }
 
   // ---------- computer players ----------
 
-  /** The AI a computer seat plays with (a seat saved without one gets the first, standard AI). */
+  /**
+   * The AI a computer seat plays with (a seat saved without one gets the first, standard AI).
+   *
+   * @param {object} player  a seat
+   * @returns {object} an AI (see ./ai)
+   */
   aiOf(player) {
     return aiById(AIS, player.ai);
   }
@@ -657,25 +1101,35 @@ export class Game {
   /**
    * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }. Computer players
    * never start the game or move on from the results: the host does that, so they can never hold a game up.
+   *
+   * @returns {{ type: 'word' | 'card' | 'vote', id: string } | null}
    */
   pendingBotAction() {
     const s = this.s;
     if (s.phase === 'word') {
       const chooser = this.player(s.chooserId);
-      return chooser?.bot ? { type: 'word', id: chooser.id } : null;
+      return chooser && isBot(chooser) ? { type: 'word', id: chooser.id } : null;
     }
     if (s.phase === 'picking') {
-      const bot = this.cardPlayers().find((p) => p.bot && !(p.id in s.picks) && p.hand.length);
+      const bot = this.cardPlayers().find((p) => isBot(p) && !(p.id in s.picks) && p.hand.length);
       return bot ? { type: 'card', id: bot.id } : null;
     }
     if (s.phase === 'voting') {
-      const bot = this.voters().find((p) => p.bot && !(p.id in s.votes));
+      const bot = this.voters().find((p) => isBot(p) && !(p.id in s.votes));
       return bot ? { type: 'vote', id: bot.id } : null;
     }
     return null;
   }
 
-  /** Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead. */
+  /**
+   * Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead.
+   *
+   * @param {object} player      the computer player's seat
+   * @param {string} decision    the AI's method to call ('chooseWord', 'playCard' or 'vote')
+   * @param {any[]} options      the legal answers
+   * @param {object} input       what the AI is told (the game adds the cards, round and judging style)
+   * @returns {any} one of `options`
+   */
   botDecide(player, decision, options, input) {
     let answer;
     try {
@@ -689,6 +1143,10 @@ export class Game {
   /**
    * Plays one pending computer move. Each decision is made from that seat's own view (viewFor), so a computer player
    * knows only what a person in the same seat would: its hand, the clue (unless it is the imposter), the table.
+   *
+   * @param {{ type: string, id: string } | null} [action]  the move to play (default: whatever is pending)
+   * @returns {boolean} false if there was nothing to do
+   * Side effects: submits a word, plays a card or votes, as that seat.
    */
   runBotAction(action = this.pendingBotAction()) {
     if (!action) return false;
@@ -718,6 +1176,14 @@ export class Game {
 
   // ---------- what each player is allowed to see ----------
 
+  /**
+   * What one player is allowed to see of the game: their own hand, the word (unless they are the imposter while cards
+   * are being played), and only the public parts of everything else.
+   *
+   * @param {string} id                      the seat id of the viewer
+   * @param {Set<string>} [connectedIds]     the seat ids that currently have a connection
+   * @returns {object | null} the view, or null if that seat does not exist
+   */
   viewFor(id, connectedIds = new Set()) {
     const s = this.s;
     const me = this.player(id);
@@ -775,15 +1241,15 @@ export class Game {
         score: p.score,
         turns: p.turns ?? 0,
         waiting: p.waiting,
-        connected: p.bot || connectedIds.has(p.id),
-        bot: Boolean(p.bot),
+        connected: isBot(p) || connectedIds.has(p.id),
+        bot: isBot(p), // the client's word for it; the seat itself says kind: 'bot'
         ai: p.ai ? this.aiView(p.ai) : null, // bot seats only
         isChooser: p.id === s.chooserId,
         hasPlayed: inPlay && p.id in s.picks,
         hasVoted: s.phase === 'voting' ? p.id in s.votes : false,
       })),
       scoreboard: {
-        players: s.players.map((p) => ({ id: p.id, name: p.name, userId: p.bot ? undefined : p.id, score: p.score, isMe: p.id === id, bot: Boolean(p.bot), current: p.id === s.chooserId, away: !p.bot && !connectedIds.has(p.id) })),
+        players: s.players.map((p) => ({ id: p.id, name: p.name, userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
         rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
         lowIsBetter: false,
       },

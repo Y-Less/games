@@ -257,7 +257,7 @@ test('removing a player mid-round abandons the round; dropping below three retur
 });
 
 test('only the host can remove others, start and change settings', () => {
-  const game = new Game({ getCardIds: () => cards(50), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(50), hints: [] });
   const a = game.addPlayer('A', 't1');
   const b = game.addPlayer('B', 't2');
   game.addPlayer('C', 't3');
@@ -270,14 +270,14 @@ test('only the host can remove others, start and change settings', () => {
 });
 
 test('duplicate and empty names are rejected', () => {
-  const game = new Game({ getCardIds: () => cards(50), hints: [] });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(50), hints: [] });
   game.addPlayer('Alex', 't1');
   assert.throws(() => game.addPlayer(' alex ', 't2'), GameError);
   assert.throws(() => game.addPlayer('   ', 't3'), GameError);
 });
 
 test('hints give three different suggestions and cycle through the whole list', () => {
-  const game = new Game({ getCardIds: () => cards(10), hints: cards(9).map(String) });
+  const game = new Game({ rng: Math.random, getCardIds: () => cards(10), hints: cards(9).map(String) });
   const seen = new Set();
   for (let i = 0; i < 3; i++) {
     const three = game.nextHints();
@@ -291,7 +291,7 @@ test('state survives a save and reload, and newly created cards join the deck', 
   const { game, players } = makeGame(['Ann', 'Bob', 'Cat'], { cardCount: 60 });
   game.submitWord(players[0].id, 'x');
   const saved = JSON.parse(JSON.stringify(game.toJSON()));
-  const reloaded = new Game({ getCardIds: () => cards(70), hints: [], saved });
+  const reloaded = new Game({ rng: Math.random, getCardIds: () => cards(70), hints: [], saved });
   assert.equal(reloaded.s.phase, 'picking');
   assert.equal(reloaded.s.draw.length, game.s.draw.length + 10);
   assert.equal(reloaded.s.word, 'x');
