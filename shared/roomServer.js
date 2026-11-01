@@ -97,7 +97,8 @@ export function pickKeys(payload, keys) {
  * @param {object} options
  * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra }),
  *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
- *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng, now) (returns { ok, empty, ... }),
+ *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng, now) (returns { ok, empty, ... };
+ *   `changed: false` says the room was left as it was, e.g. a finished list game keeps its standings, so nothing is saved or sent),
  *   kick(room, hostId, seat, rng, now), setSettings(room, userId, settings), addBot(room, userId, seat),
  *   removeBot(room, userId, seat, rng), fillWithBots(room, userId), start(room, userId, rng, now), playAgain(room, userId).
  *   Every rule returns { ok: true, ... } or { ok: false, error }.
@@ -376,10 +377,12 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
-   * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone.
+   * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone. When the rules say the room
+   * was left as it was (`changed: false`: a finished list game keeps its standings), nobody is told and nothing is saved, so
+   * a finished room is not kept young for ever by its players starting other games.
    * @param {object} room  the room being left
    * @param {number} userId  the account leaving
-   * @returns {{ ok: boolean, empty?: boolean, error?: string }} the rules outcome (`empty` means the room was discarded)
+   * @returns {{ ok: boolean, empty?: boolean, changed?: boolean, error?: string }} the rules outcome (`empty` means the room was discarded)
    * Side effects: mutates the room via the rules, detaches the person's sockets, then discards or `changed`s the room.
    */
   function leaveRoom(room, userId) {
@@ -387,7 +390,7 @@ export function createRoomServer(ctx, options) {
     if (!outcome.ok) return outcome;
     detach(userId, room.code);
     if (outcome.empty) discard(room);
-    else changed(room);
+    else if (outcome.changed !== false) changed(room);
     return outcome;
   }
 

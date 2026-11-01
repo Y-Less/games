@@ -116,7 +116,7 @@ test('removeHuman in a game hands over to the game, and a finished game is left 
   rules.addHuman(done, 2, 'Bob');
   done.phase = 'finished';
   const before = JSON.stringify(done);
-  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, abandoned: false, finished: false, changed: false }, 'and says so, so the room server does not save or send anything');
   assert.equal(JSON.stringify(done), before);
 });
 

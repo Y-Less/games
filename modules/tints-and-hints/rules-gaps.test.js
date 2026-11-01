@@ -32,7 +32,7 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   readyAll(game, room, first);
   assert.equal(room.phase, 'finished');
   const before = JSON.stringify(room);
-  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, abandoned: false, finished: false, changed: false });
   assert.deepEqual(game.removeHuman(room, 999, Math.random), { ok: false, error: 'You are not in this game.' }, 'a stranger is told so, and nothing changes');
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.isLive(room), false);

@@ -141,7 +141,8 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   }
 
   /**
-   * Takes somebody (a person or a computer player) out of the list, whoever asked. A game that is over is left alone.
+   * Takes somebody (a person or a computer player) out of the list, whoever asked. A game that is over is left alone (they
+   * stay on the final standings) and the result says `changed: false`, so the room server does not treat it as a change.
    * If they were the host the next person becomes host. Anything game-specific happens in config.afterRemoval.
    *
    * Side effects: splices room.players, may change room.hostId and whatever afterRemoval changes.
@@ -149,14 +150,14 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {object} room
    * @param {number | string} id
    * @param {() => number} rng
-   * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }} `empty` is true when
-   *   no person is left, so the caller should discard the room
+   * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, changed?: boolean, error?: string }}
+   *   `empty` is true when no person is left, so the caller should discard the room; `changed: false` means nothing happened
    */
   function takeOut(room, id, rng) {
     const index = seatOf(room, id);
     if (index === -1) return fail('You are not in this game.');
     const quiet = { empty: false, abandoned: false, finished: false };
-    if (!isLive(room)) return ok(quiet);
+    if (!isLive(room)) return ok({ ...quiet, changed: false });
     room.players.splice(index, 1);
     const people = humans(room);
     if (!people.length) return ok({ ...quiet, empty: true });
@@ -167,12 +168,13 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
 
   /**
    * A person leaves (or is removed by the host). In the lobby they simply go; in a game the game's own afterRemoval decides
-   * what happens next (the turn moves on, or the game is abandoned if too few are left). After a game ends nothing changes.
+   * what happens next (the turn moves on, or the game is abandoned if too few are left). After a game ends nothing changes
+   * (`changed: false`).
    *
    * @param {object} room
    * @param {number} userId
    * @param {() => number} rng
-   * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }}
+   * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, changed?: boolean, error?: string }}
    * Side effects: as takeOut (splices room.players, may change room.hostId and whatever afterRemoval changes).
    */
   function removeHuman(room, userId, rng) {

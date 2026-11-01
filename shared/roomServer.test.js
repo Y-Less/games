@@ -116,3 +116,44 @@ test('the same seed gives the same computer moves through nextAction, and anothe
   assert.deepEqual(again, first);
   assert.notDeepEqual(other.waits, first.waits);
 });
+
+/** A fake socket: an event emitter with the data the room server reads, which records what it is sent. */
+function fakeSocket(userId) {
+  const socket = new EventEmitter();
+  socket.data = { user: { id: userId, name: `User ${userId}` } };
+  socket.sent = [];
+  const emit = socket.emit.bind(socket);
+  socket.emit = (event, payload) => (event === 'state' ? socket.sent.push(payload) : emit(event, payload));
+  socket.ask = (event, payload = {}) => new Promise((resolve) => emit(event, payload, resolve));
+  return socket;
+}
+
+test('leaving a finished list game, or starting another one, leaves the finished room as old as it was', async (t) => {
+  // The roster rules leave a finished game alone (the standings keep everybody) and say `changed: false`; the room server
+  // must then not stamp, save or re-send the room, or a finished room would be kept young for ever by its players moving on.
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
+  const old = { code: 'a-b-c', phase: 'finished', updatedAt: 1000, players: [{ kind: 'human', id: 7, name: 'Ann' }] };
+  fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([old]));
+  const ctx = { io: new EventEmitter(), dataDir, log() {}, codes: { normalise: (c) => c ?? '', generate: () => 'd-e-f' }, stats: { record() {} } };
+  let clock = 5000;
+  const rules = {
+    isLive: (room) => room.phase !== 'finished',
+    isHuman: (p) => p.kind === 'human',
+    hasPlayer: (room, id) => room.players.some((p) => p.id === id),
+    seatOf: (room, id) => room.players.findIndex((p) => p.id === id),
+    viewFor: (room) => ({ code: room.code }),
+    removeHuman: (room) => (room.phase === 'finished' ? { ok: true, empty: false, changed: false } : { ok: true, empty: true }),
+    createRoom: ({ code, hostId, hostName }) => ({ code, phase: 'lobby', updatedAt: clock, players: [{ kind: 'human', id: hostId, name: hostName }] }),
+  };
+  const server = createRoomServer(ctx, { game: rules, pickSettings: () => ({}), nextAction: () => null, registerEvents() {}, members: (room) => room.players, now: () => clock });
+  t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  const ann = fakeSocket(7);
+  ctx.io.emit('connection', ann);
+  assert.deepEqual(await ann.ask('resume', { code: 'a-b-c' }), { ok: true, code: 'a-b-c' }, 'the finished room can still be looked at');
+  assert.deepEqual(await ann.ask('leave'), { ok: true });
+  assert.equal(server.rooms.get('a-b-c').updatedAt, 1000, 'leaving did not touch the room');
+  assert.deepEqual(ann.sent.at(-1), null, 'but the leaver was sent home');
+  assert.deepEqual(await ann.ask('create'), { ok: true, code: 'd-e-f' });
+  assert.equal(server.rooms.get('a-b-c').updatedAt, 1000, 'starting another game did not touch it either');
+  assert.equal(server.rooms.size, 2);
+});
