@@ -1,11 +1,18 @@
 <script setup>
+// Nomination Whist lobby: invite code, seat list (via SeatLobby) and the host's game options.
+// Props: state {Object, required} the lobby view of the game; send {Function, required} sends a request to the server.
+// Emits: none (all actions go through `send`: addBot, removeBot, fillBots, kick, start, settings).
+// Slots: none (fills SeatLobby's `settings` slot).
+// Side effects: none locally; user actions send requests to the server.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host (only they can change options).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// Seats mapped to the shape SeatLobby expects (id, name, kind, host/me/away flags); empty seats are null in the state.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,8 +23,11 @@ const seats = computed(() =>
     away: Boolean(seat?.away),
   })),
 );
+// Returns the index of the first empty seat (-1 if full), where a computer player is added.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// The selectable seat counts, from the server's minimum to its maximum inclusive.
 const seatOptions = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
+// Number of rounds in the chosen game length (a short game is 7 rounds, a full one 14).
 const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14));
 </script>
 

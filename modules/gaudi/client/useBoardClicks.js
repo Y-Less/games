@@ -15,13 +15,18 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
   const { me, myTurn, canPlace, pattern, nameOf, poolDie, emptyGrid } = turn;
   const { selected, mode, message } = sel;
 
-  /** The window shown as yours: the preview of a slide tool when one is in use, otherwise the real one. */
+  /**
+   * The window shown as yours: the preview of a slide tool when one is in use, otherwise the real one.
+   * @returns {(object | null)[]} CELLS dice or nulls
+   * Side effects: none.
+   */
   const myGrid = computed(() => mode.value?.grid ?? me.value?.window?.grid ?? emptyGrid());
 
   /**
    * Which spaces of your window to mark for what you are doing now: spaces a chosen die may go on (with the reason on the
    * others as a hover title), dice a slide tool can pick up, and where a picked-up die may go.
    * @returns {{ legal: number[], pick: number[], chosen: number[], titles: Record<number, string> }}
+   * Side effects: none (computed; recalculates when the view, selection or tool changes).
    */
   const highlight = computed(() => {
     const out = { legal: [], pick: [], chosen: [], titles: {} };
@@ -59,7 +64,9 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
   /**
    * A die in the pool was clicked: it is chosen for the tool being used, or selected for placing (clicking it again clears it).
    * Writes a reason in the Status box when it cannot be used now.
-   * @param {{ id: number }} die
+   * @param {{ id: number }} die  the pool die that was clicked
+   * @returns {void}
+   * Side effects: clears and may set the Status message; may change the tool's chosen die or the selected die.
    */
   function clickPool(die) {
     message.value = '';
@@ -76,7 +83,9 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
 
   /**
    * A die on the round track was clicked: only Exchange uses it (clicking it again clears it).
-   * @param {{ id: number }} die
+   * @param {{ id: number }} die  the round-track die that was clicked
+   * @returns {void}
+   * Side effects: toggles trackDie on the tool in use; does nothing for any other tool.
    */
   function clickTrack(die) {
     if (mode.value?.kind !== 'exchange') return;
@@ -87,6 +96,8 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
    * A space of your window was clicked: it is part of a slide tool, or the place for the selected pool die (a plain placement,
    * or Free Pane). Checks the rule on the screen first so that the player is told why, then asks the server.
    * @param {number} index  the space, 0 to CELLS - 1
+   * @returns {Promise<void>} resolves when the request (if any) has been answered
+   * Side effects: clears and may set the Status message; may send 'place' or 'tool'; on success clears the selection and tool.
    */
   async function clickCell(index) {
     message.value = '';
@@ -111,6 +122,8 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
    * moves it needs, the request is sent.
    * @param {object} m      the tool state from startMode (mutated: from, moves, grid)
    * @param {number} index  the space
+   * @returns {void}
+   * Side effects: mutates m (from, moves, grid), may set the Status message and may call applyTool (which sends 'tool').
    */
   function clickMoveCell(m, index) {
     const grid = m.grid;

@@ -3,6 +3,16 @@
 // holds); the table (the other seats' face-down hands at the edges, the pile and the rank to claim in the middle, your
 // hand along the bottom); and the Recent moves and Status boxes. Every word about what is happening is in Status. The
 // table is drawn at one design size and scaled by the window, so nothing changes size or position during a game.
+//
+// Props:
+//   state  {Object}    required. The player's view of the game (phases playing, check, finished).
+//   send   {Function}  required. send(action, payload) returns a promise of { ok, error? }.
+//   log    {Array}     Recent moves as [{ text }], kept by the page (see log.js).
+// Emits: none.
+// Slots: none (fills GameFrame's scorebar, main, log and status slots).
+// Side effects: sends play, call, accept, again, kick and removeBot requests; keeps local picks/message/sending state
+// (picks and message are cleared when the phase or play count changes, and picks are pruned when the hand changes);
+// reads the document's root font size to scale the table.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -21,26 +31,44 @@ const props = defineProps({
   log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
 });
 
+// (Cap on the fan size so a huge hand cannot overflow an opponent's seat.)
 const MAX_SHOWN = 13; // the most cards drawn in an opponent's fan, however many they hold
 
+// Template ref to the ScoreBoard, so the Status box can open it (`board.show()`).
 const board = ref(null);
+// The cards the player has picked to play, as card codes (equal cards repeat once per copy).
 const picks = ref([]);
+// A warning for the Status box (for example the pick limit); cleared on the next action.
 const message = ref('');
+// True while a request is in flight, so buttons cannot be double-pressed.
 const sending = ref(false);
 
+// Shorthand for the view.
 const s = computed(() => props.state);
+// Number of seats at the table.
 const count = computed(() => s.value.seatCount);
+// Returns the display name of a seat ('' if gone).
 const nameOf = (seat) => s.value.seats[seat]?.name ?? '';
+// The viewer's seat index.
 const you = computed(() => s.value.you);
+// True once the game is over.
 const finished = computed(() => s.value.phase === 'finished');
+// True while everyone decides whether to accept the last (final-cards) play or call Cheat.
 const checking = computed(() => s.value.phase === 'check');
+// True when the viewer is the host.
 const isHost = computed(() => s.value.hostSeat === s.value.you);
+// True when the viewer may play cards now.
 const myTurn = computed(() => Boolean(s.value.canPlay));
+// The most cards one play may hold.
 const maxPlay = computed(() => s.value.limits.maxPlay);
+// The rank currently to be claimed.
 const rank = computed(() => s.value.rank);
+// True when the viewer must call Cheat or accept the last play.
 const mustRespond = computed(() => Boolean(s.value.mustRespond));
+// True when the viewer may call Cheat on the last play.
 const canCall = computed(() => Boolean(s.value.canCall));
 
+// The other seats in turn order after the viewer, in the shape OpponentHands wants (name, fan size, note, away, current).
 const opponents = computed(() =>
   Array.from({ length: count.value - 1 }, (_, i) => i + 1).map((rel) => {
     const seat = (s.value.you + rel) % count.value;
@@ -55,10 +83,13 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat record whose pop-up is open, or null.
 const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.value) ?? null);
 
 // ---- the words, all of them in the Status box ----
+// The plural spoken form of the rank to claim, for example 'Aces'.
 const claimText = computed(() => rankWord(rank.value, 2));
+// The Status box headline: whose move it is and what they must do.
 const status = computed(() => {
   if (finished.value) return `${nameOf(s.value.winner)} gets rid of every card and wins.`;
   if (checking.value) {
@@ -68,6 +99,7 @@ const status = computed(() => {
   if (myTurn.value) return `Your turn: play 1 to ${maxPlay.value} cards and claim ${rankWord(rank.value, 2)}.`;
   return s.value.turn === null ? '' : `Waiting for ${nameOf(s.value.turn)} to play ${rankWord(rank.value, 2)}.`;
 });
+// True when the viewer has something to do (highlights the Status box).
 const mine = computed(() => !finished.value && (myTurn.value || mustRespond.value));
 // What the last call of Cheat turned up, in the past tense (empty until a call has been made).
 const callMessage = computed(() => {
@@ -75,6 +107,7 @@ const callMessage = computed(() => {
   if (!call) return '';
   return callSentence(call, nameOf, true);
 });
+// The extra Status lines, each { text, tone }: warning, play hint, last call, and the restart note.
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
@@ -98,12 +131,24 @@ watch(
 );
 
 // A hand can hold two copies of a card (two packs), so a card is picked by position among equal ones.
-/** Is the copy of `card` at this position in the hand one of the picked cards? */
+/**
+ * Says whether the copy of `card` at this position in the hand is one of the picked cards.
+ * @param {string} card  The card code.
+ * @param {number} index  Its position in the hand.
+ * @returns {boolean} True if picked.
+ * Side effects: none.
+ */
 const chosen = (card, index) => {
   const copies = copiesUpTo(s.value.hand, card, index);
   return picks.value.filter((c) => c === card).length >= copies;
 };
-/** Picks or unpicks the copy of `card` at this position (your turn only), keeping to the most cards one play may hold. Mutates picks and message. */
+/**
+ * Picks or unpicks the copy of `card` at this position (your turn only), keeping to the most cards one play may hold.
+ * @param {string} card  The card code.
+ * @param {number} index  Its position in the hand.
+ * @returns {void}
+ * Side effects: mutates `picks` and `message`.
+ */
 function pickAt(card, index) {
   if (!myTurn.value) return;
   message.value = '';
@@ -117,6 +162,13 @@ function pickAt(card, index) {
   else message.value = `You can play at most ${maxPlay.value} cards.`;
 }
 
+/**
+ * Sends a table action (play, call or accept) unless one is already in flight.
+ * @param {string} event  The request name.
+ * @param {Object} [payload]  Request data (the picked cards for 'play').
+ * @returns {Promise<void>}
+ * Side effects: sends the request; toggles `sending`; clears `picks` after a successful play.
+ */
 async function submit(event, payload) {
   if (sending.value) return;
   sending.value = true;
@@ -128,12 +180,16 @@ async function submit(event, payload) {
   }
 }
 
+// The cards turned over by the last call of Cheat (empty if none).
 const reveal = computed(() => s.value.lastCall?.cards ?? []);
+// A sentence describing the last play ('' before any play).
 const lastText = computed(() => (s.value.last ? `${nameOf(s.value.last.seat)} played ${cardCount(s.value.last.count)} as ${rankWord(s.value.last.rank, s.value.last.count)}.` : ''));
 
 // ---- fitting the room ----
-const DESIGN_H = 34;
+const DESIGN_H = 34; // the height, in rem, the table is designed at
+// Returns the root font size in pixels (16 if it cannot be read).
 const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+// Returns the scale factor (0.55 to 1.4) that fits the design-size table into the frame's height.
 const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * rem())));
 </script>
 

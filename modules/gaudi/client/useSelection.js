@@ -16,7 +16,11 @@ export function useSelection(s, poolDie) {
   const mode = ref(null); // a tool being used
   const message = ref('');
 
-  /** Drops the selected die and the tool in use. */
+  /**
+   * Drops the selected die and the tool in use.
+   * @returns {void}
+   * Side effects: sets selected and mode back to null.
+   */
   const clear = () => {
     selected.value = null;
     mode.value = null;

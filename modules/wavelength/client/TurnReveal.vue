@@ -3,6 +3,7 @@
 // player (or the team) scored.
 // Props: state (the server view: spectrum, result, bands, clue), markers (pins for the dial, from the result), nameOf
 //   (function: a player's name), colourOf (function: a player's colour).
+// Slots: none.
 // Emits: none.
 // Side effects: none.
 import Dial from './Dial.vue';

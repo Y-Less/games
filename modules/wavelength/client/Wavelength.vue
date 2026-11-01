@@ -1,6 +1,11 @@
 <script setup>
 // Wavelength: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
+// Props: socket (the platform's socket), user (the signed-in user or null), search (the page's query string, which may carry an
+//   invite code), setSearch (updates the query string).
+// Emits: none. Slots: none.
+// Side effects: useGameSocket subscribes to the socket's state events and calls onState for each; leaving mid-game asks for
+//   confirmation; RoomEntry's create and join send requests.
 import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
@@ -19,16 +24,20 @@ const props = defineProps({
 const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
 /**
  * Works the "Recent moves" list out from the change between one state and the next.
- *
- * Side effects: replaces `log`.
+ * The list is emptied outside a game and capped at the latest 200 lines.
  *
  * @param {object | null} next  the new state
  * @param {object | null} previous  the state it replaces
+ * @returns {void} nothing
+ *
+ * Side effects: replaces `log`.
  */
 function onState(next, previous) {
   log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
 }
 
+// state is the player's view (null outside a game); loaded is false until the first reply; notice is the latest error text.
+// leaveConfirm gives the warning shown when leaving a game in progress (empty for none).
 const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,

@@ -1,11 +1,18 @@
 <script setup>
+// The Hearts lobby: the invite code, the seat list (shared SeatLobby) and the host's rules (number of players, target score,
+// Jack of Diamonds, how shooting the moon scores).
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none.
+// Slots: none (it fills SeatLobby's `settings` slot).
+// Side effects: the buttons and checkbox send 'settings'; the seat list sends 'addBot', 'removeBot', 'fillBots', 'kick', 'start'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// Only the host may change the rules and the seats.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// The seats in the shape the shared seat list shows: name, kind, whether host, you, or away.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,8 +23,11 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// The player counts the host may choose, from the server's minimum to its maximum.
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
+// How many seats are taken (the table cannot shrink below this).
 const taken = computed(() => props.state.seats.filter(Boolean).length);
+// Number words for the seat counts, indexed by the count.
 const numberWord = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
 // One line about the deal for the chosen number of players, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
 const dealing = computed(() => {
@@ -25,8 +35,11 @@ const dealing = computed(() => {
   const out = removed.length ? `, ${removed.length > 1 ? `${removed.slice(0, -1).join(', ')} and ${removed.at(-1)}` : removed[0]} removed` : ', none removed';
   return `${numberWord[props.state.seatCount]} players: ${cardsEach} cards each${out}, pass ${passCount} cards.`;
 });
+// The first empty seat, where a computer player is added (-1 if the table is full).
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// The button wording for each way of scoring a shot at the moon.
 const moonText = { others: 'Everyone else scores +26', self: 'The shooter scores -26' };
+// Sends changed rules to the server (the host only; the server checks); returns its promise.
 const change = (settings) => props.send('settings', settings);
 </script>
 

@@ -1,6 +1,11 @@
 <script setup>
 // A development card drawn in CSS and SVG: prestige top left, the bonus gem top right, the cost down the left side.
 // Without `card` it is the back of a card of the given level (a face-down reserved card, or a draw pile).
+// Props: card (card id, or null for a back), level (level of a card back), need (five counts still to pay after the owner's
+//   bonuses, or null for the full cost), affordable, selected, clickable, dimmed, small (booleans for the look and behaviour),
+//   count (cards left, for a pile).
+// Emits: pick (the card was clicked while clickable). Slots: none.
+// Side effects: none beyond the emit.
 import { computed } from 'vue';
 import { CARD_BY_ID } from '../cards.js';
 import { GEM_FILL, GEM_NAMES } from './gems.js';
@@ -19,9 +24,13 @@ const props = defineProps({
 });
 defineEmits(['pick']);
 
+// Static card data (level, points, bonus, cost) for a face-up card, or null for a card back.
 const info = computed(() => (props.card ? CARD_BY_ID[props.card] : null));
+// The non-zero costs as { colour, cost, left }: `left` is what remains after bonuses (the full cost when `need` is not given).
 const costs = computed(() => (info.value ? info.value.cost.flatMap((n, c) => (n > 0 ? [{ colour: c, cost: n, left: props.need ? props.need[c] : n }] : [])) : []));
+// The card's accent colour: its bonus gem's fill, or a neutral slate for a card back.
 const tint = computed(() => (info.value ? GEM_FILL[info.value.bonus] : '#3a4d57'));
+// The accessible description of the card (or of a card back), including what is left to pay.
 const description = computed(() => {
   if (!info.value) return `A face-down level ${props.level} card`;
   const cost = costs.value.map((c) => `${c.left}${c.left !== c.cost ? ` (of ${c.cost})` : ''} ${GEM_NAMES[c.colour]}`).join(', ');

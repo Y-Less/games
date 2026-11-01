@@ -3,6 +3,7 @@
 // pop-up that opens from their chip in the score bar (with the host's Remove button, which is in popupProps).
 // Props: popupProps (what usePlayerPopup gives the popup, or null when none is open), opened (that player, or null), stage
 //   (what they are doing now, or an empty string).
+// Slots: none.
 // Emits: none.
 // Side effects: none.
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';

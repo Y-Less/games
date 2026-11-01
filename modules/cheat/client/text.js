@@ -6,6 +6,7 @@
  *
  * @param {number} n  how many cards
  * @returns {string}
+ * Side effects: none.
  */
 export const cardCount = (n) => `${n} ${n === 1 ? 'card' : 'cards'}`;
 
@@ -16,6 +17,7 @@ export const cardCount = (n) => `${n} ${n === 1 ? 'card' : 'cards'}`;
  * @param {(seat: number) => string} nameOf  gives the name to show for a seat
  * @param {boolean} [past]  true for "called ... picked up" (the Status box), false for "calls ... picks up" (the log)
  * @returns {string}
+ * Side effects: none.
  */
 export function callSentence(call, nameOf, past = false) {
   const [calls, picks] = past ? ['called', 'picked'] : ['calls', 'picks'];
@@ -30,5 +32,6 @@ export function callSentence(call, nameOf, past = false) {
  * @param {string} card    the card
  * @param {number} index   its position in the hand
  * @returns {number} 1 for the first copy, 2 for the second...
+ * Side effects: none.
  */
 export const copiesUpTo = (hand, card, index) => hand.slice(0, index + 1).filter((c) => c === card).length;

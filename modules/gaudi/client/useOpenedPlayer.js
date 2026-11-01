@@ -17,8 +17,11 @@ export function useOpenedPlayer(s, send) {
     isHost: () => s.value.hostSeat === s.value.you,
     remove: (seat, player) => send(player.bot ? 'removeBot' : 'kick', { seat }),
   });
+  // The seat whose name was clicked, from the whole seat list (not just other players), or null when nothing is open.
   const openedPlayer = computed(() => s.value.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too
+  // The same seat, but only once it has a window to draw (before the reveal it has none, so the pop-up says who has chosen).
   const openedSeat = computed(() => (openedPlayer.value?.window ? openedPlayer.value : null));
+  // Whether the opened seat is the viewer's own, so the pop-up can say "You" rather than "Has".
   const openedIsMe = computed(() => openedPlayer.value !== null && openedPlayer.value.seat === s.value.you);
   return { scoreProps, popupProps, closePopup, openedPlayer, openedSeat, openedIsMe };
 }

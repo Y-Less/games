@@ -1,4 +1,10 @@
 <script setup>
+// The Rummikub lobby: the invite code, the seats, and the host's rules for this game (seat count, tile settings, first meld,
+// turn timer) with a start button supplied by SeatLobby. Non-hosts see the rules but cannot change them.
+// Props: state (the server view: code, seats, you, hostSeat, settings, size, deal, limits), send (sends an action to the server).
+// Emits: none (everything goes through `send`).
+// Slots: none (it fills SeatLobby's `settings` slot itself).
+// Side effects: change and bump send 'settings' requests; the template's buttons send add/remove bot, kick, size and start.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
@@ -8,7 +14,9 @@ import Tile from './Tile.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True if you are the host (only the host may change the rules).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// The seats in the shape SeatLobby wants: id, name, kind (empty, bot or human), host and you flags, and whether a human is away.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -19,14 +27,22 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// Returns the number of the first empty seat, or -1 when every seat is taken.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// How many seats are taken (the player count cannot be lowered below this).
 const seated = computed(() => props.state.seats.filter(Boolean).length);
+// The game settings.
 const s = computed(() => props.state.settings);
+// How many tiles are in the whole set with the current settings.
 const total = computed(() => props.state.deal.total);
+// How many tiles each player would be dealt.
 const hand = computed(() => props.state.deal.hand);
+// Why the game cannot start with these settings (an empty or falsy value when it can).
 const problem = computed(() => startProblem(s.value, props.state.size));
+// The turn limits offered, in seconds (0 means no limit).
 const timerChoices = [0, 30, 60, 90, 120, 180, 300];
 
+// The numeric rules shown as spin boxes: the key in the settings, its label and a short explanation.
 const fields = [
   { key: 'numbers', label: 'Numbers per colour', hint: 'Tiles run from 1 up to this number.' },
   { key: 'colours', label: 'Colours', hint: 'Each colour has its own hue and shape.' },
@@ -35,11 +51,21 @@ const fields = [
   { key: 'meld', label: 'First meld (points)', hint: 'Needed from your own tiles before you may use the table.' },
 ];
 
+/**
+ * A number was typed into a rule's box: send it, or put the stored value back if what was typed is not a number.
+ *
+ * @param {string} key  the setting's name
+ * @param {Event} event  the input event; its target is the number input
+ * @returns {void} nothing
+ *
+ * Side effects: sends a 'settings' request, or resets the input's displayed value.
+ */
 function change(key, event) {
   const value = event.target.valueAsNumber;
   if (Number.isFinite(value)) props.send('settings', { [key]: value });
   else event.target.value = s.value[key];
 }
+// Sends a request to raise or lower a rule by `by`; returns nothing (the server clamps the value to its limits).
 const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
 </script>
 

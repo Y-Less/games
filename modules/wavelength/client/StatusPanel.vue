@@ -2,6 +2,7 @@
 // The Status box: the headline, the turn and the psychic, and the lines for what to do now.
 // Props: headline, mine (it is your move), turn (the psychic is to give a clue), lines (the Status lines), state (the server
 //   view: turn and turnsTotal), ended (the game is over), psychicName.
+// Slots: none.
 // Emits: none.
 // Side effects: none.
 import GameStatus from '../../../src/components/GameStatus.vue';

@@ -1,5 +1,9 @@
 <script setup>
 // A noble tile: worth 3 prestige, visits a player whose card bonuses meet the requirement.
+// Props: noble (noble id), clickable (it may be chosen), highlight (it is one of your choices), dimmed (not a choice while
+//   another noble is being chosen), small (compact size), bonuses (the viewer's five bonuses, to show progress, or null).
+// Emits: pick (the tile was clicked while clickable). Slots: none.
+// Side effects: none beyond the emit.
 import { computed } from 'vue';
 import { NOBLE_BY_ID } from '../cards.js';
 import Gem from './Gem.vue';
@@ -15,8 +19,11 @@ const props = defineProps({
 });
 defineEmits(['pick']);
 
+// Static noble data (name, points, requirements).
 const info = computed(() => NOBLE_BY_ID[props.noble]);
+// The requirements as { colour, count } pairs (the data keys them by colour as strings).
 const needs = computed(() => Object.entries(info.value.requires).map(([colour, count]) => ({ colour: Number(colour), count })));
+// The accessible description, with a "Choose" prefix when the tile can be clicked.
 const description = computed(() => `${props.clickable ? 'Choose ' : ''}${info.value.name}: worth ${info.value.points} prestige. Needs ${needs.value.map((n) => `${n.count} ${GEM_NAMES[n.colour]}`).join(', ')} cards.`);
 </script>
 

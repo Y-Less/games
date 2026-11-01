@@ -6,16 +6,39 @@ import { cardName } from '../../../shared/cards.js';
 
 const LIMIT = 120;
 
+/**
+ * A seat's name for a log line.
+ * @param {object} state  a view from the server
+ * @param {number} seat  the seat number
+ * @returns {string} the name, or "Someone" if the seat is empty
+ * Side effects: none.
+ */
 const nameOf = (state, seat) => state.seats[seat]?.name ?? 'Someone';
+/**
+ * Whether two plays in a trick are the same play (used to tell a trick that grew from a new one).
+ * @param {{ seat: number, card: string }} a  one play
+ * @param {{ seat: number, card: string }} b  another play
+ * @returns {boolean}
+ * Side effects: none.
+ */
 const same = (a, b) => a.seat === b.seat && a.card === b.card;
 
-/** The log after `next` arrives, given the log so far and the previous state (null when there was none). */
+/**
+ * The log after `next` arrives, given the log so far and the previous state (null when there was none). It is empty when
+ * there is no game, a lobby, or a different game from before; otherwise it is the old log plus lines for what changed, kept to
+ * the last LIMIT lines.
+ * @param {{ text: string }[]} log  the lines so far
+ * @param {object | null} prev  the state before this one
+ * @param {object | null} next  the state that has just arrived
+ * @returns {{ text: string }[]} the new list (a new array; the old one is not changed)
+ * Side effects: none.
+ */
 export function advanceLog(log, prev, next) {
   if (!next || next.phase === 'lobby') return [];
   if (!prev || prev.code !== next.code) return [];
   if (prev.phase === 'lobby') return [{ text: `Hand ${next.handNumber} is dealt.` }];
   const out = [...log];
-  const add = (text) => out.push({ text });
+  const add = (text) => out.push({ text }); // appends one line to this call's copy of the log; returns the new length
 
   if (next.handNumber !== prev.handNumber) add(`Hand ${next.handNumber} is dealt.`);
   if (prev.phase === 'passing' && next.phase === 'playing') add('The cards have been passed.');

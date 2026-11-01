@@ -1,11 +1,22 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
 // with the one before, and what changed becomes a line. Nothing here needs the server to keep a log.
 
-/** The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn). */
+/**
+ * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn).
+ *
+ * @param {object|null} prev  the previous server view, or null for the first one received
+ * @param {object|null} next  the new server view
+ * @returns {string[]} the new log lines, oldest first within the step (the list is displayed newest first, so a result's
+ *   guesses come before the line about the psychic)
+ *
+ * Side effects: none.
+ */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
+  // Returns the name of a player in the new view, or "Someone" if they have gone.
   const name = (id) => next.players.find((p) => p.id === id)?.name ?? 'Someone';
   const out = [];
+  // True when the step is within one turn (so a changed clue or guess is news, not a new turn's starting state).
   const sameTurn = prev && prev.turn === next.turn;
 
   if (next.phase === 'clue' && !(prev?.phase === 'clue' && sameTurn)) {

@@ -1,4 +1,7 @@
 <script setup>
+// Props: state {Object, required} the lobby view of the game; send {Function, required} sends a request to the server.
+// Emits: none (requests go through `send`: addBot, removeBot, fillBots, kick, colour, settings, start). Slots: none.
+// Side effects: none locally; user actions send requests to the server.
 // The waiting room: the invite code, the player list (PlayerListPanel) with marker colours, and the host's game options.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
@@ -7,11 +10,17 @@ import { cellColour } from '../grid.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host (only they can change options).
 const isHost = computed(() => props.state.hostId === props.state.you);
+// Set of marker colours already chosen, so those cannot be picked again.
 const taken = computed(() => new Set(props.state.players.map((p) => p.colour)));
+// This player's own entry in the player list.
 const mine = computed(() => props.state.players.find((p) => p.id === props.state.you));
+// The allowed numbers of turns each, from the server's limits.
 const turns = computed(() => props.state.limits.turns);
+// Total turns in the game: turns each times the number of players.
 const total = computed(() => props.state.turnsEach * props.state.players.length);
+// True when there are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
 

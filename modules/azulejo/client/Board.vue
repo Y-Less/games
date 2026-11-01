@@ -1,6 +1,27 @@
 <script setup>
 // One player's board: pattern lines (a staircase, filling from the right), the wall with faint ghost tiles showing
 // where each colour belongs, and the floor line with its penalties. Yours is clickable while you are placing tiles.
+//
+// Props:
+//   seat          {Object}         required. A seat from the view: { name, bot, online, score, lines, wall, floor, penalty }.
+//   cell          {number}         tile cell size in pixels; everything on the board scales from it (default 44).
+//   isMe          {boolean}        this is the viewer's own board.
+//   current       {boolean}        it is this player's turn (highlights the board).
+//   nextFirst     {boolean}        this player holds the first-player marker for the next round.
+//   free          {boolean}        free-wall variant: no ghost tiles on the wall.
+//   lineHints     {Array|null}     while a colour group is selected: per line { ok, title }; makes lines clickable.
+//   floorOpen     {boolean}        the floor line is clickable (a group is selected on your turn).
+//   floorTitle    {string}         tooltip for the clickable floor.
+//   choose        {Object|null}    { row, colour, columns } while this player picks a wall column (free wall).
+//   highlightRow  {number}         wall row to mark, or -1.
+//   previewLine   {number|string}  the line index or 'floor' currently being previewed, to outline it.
+// Emits:
+//   line(index)    a usable line was clicked.
+//   floor()        the floor line was clicked.
+//   column(col)    a wall column was chosen in free-wall mode.
+//   hover(target)  pointer/focus entered a line or the floor (index or 'floor'), or null when it left.
+// Slots: none.
+// Side effects: none beyond the emits above (pure rendering otherwise).
 import { computed } from 'vue';
 import { SIZE, wallColour } from '../rules.js';
 import Tile from './Tile.vue';
@@ -23,11 +44,17 @@ const props = defineProps({
 });
 const emit = defineEmits(['line', 'floor', 'column', 'hover']);
 
+// The indexes 0..SIZE-1, used for pattern lines and for wall rows and columns alike.
 const rows = Array.from({ length: SIZE }, (_, i) => i);
+// Returns the slot indexes [0..i] of pattern line i (line i holds i + 1 tiles).
 const slotsOf = (i) => Array.from({ length: i + 1 }, (_, k) => k);
+// Returns true if slot k of line i holds a tile (lines fill from the right, so the high slots fill first).
 const filled = (i, k) => k >= i + 1 - props.seat.lines[i].count;
+// Returns the { ok, title } hint for line i, or null when no group is selected.
 const hint = (i) => props.lineHints?.[i] ?? null;
+// Returns true if wall spot (r, c) is one of the columns the player may pick right now (free wall).
 const isChoice = (r, c) => props.choose?.row === r && props.choose.columns.includes(c);
+// The seven floor slots, each a tile colour (-1 for the marker) or null when empty.
 const floorSlots = computed(() => Array.from({ length: 7 }, (_, i) => props.seat.floor?.[i] ?? null));
 </script>
 

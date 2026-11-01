@@ -3,7 +3,7 @@
 // supply, the other players' pop-up, the log and the Status box are components; what you are choosing (gems, a card, tokens
 // to return) lives in the use*.js composables beside them.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply).
-// Emits: none.
+// Emits: none. Slots: none (fills GameFrame's slots).
 // Side effects: sends actions through `send`; opens and closes the scoreboard pop-up and the player pop-up.
 import { computed, reactive, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -25,7 +25,10 @@ import { useTokenReturn } from './useTokenReturn.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// Template ref to the ScoreBar, so the scoreboard pop-up can be opened and closed from here.
 const board = ref(null);
+// The shared table view, then the half-made choice every composable below reads and writes, then the composables themselves.
+// They are wrapped in reactive() so that their refs read as plain values (view.s, shared.picks, card.quote and so on).
 const view = reactive(useTableView(() => props.state));
 const shared = reactive(createChoiceState());
 const take = reactive(useGemTake(view, shared, props.send));
@@ -49,6 +52,7 @@ const openedSeat = computed(() => props.state.seats.find((o) => o && o.seat === 
  *
  * @param {object} area  the frame's slot area
  * @returns {object} an inline style
+ * Side effects: none.
  */
 const fs = (area) => ({ fontSize: `${fontSize(area)}px` });
 </script>

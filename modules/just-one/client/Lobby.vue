@@ -1,14 +1,20 @@
 <script setup>
 // The waiting room: the invite code, the player list (PlayerListPanel) and the host's game options.
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none. Slots: none.
+// Side effects: the buttons send 'settings' and 'start'; the player list sends 'addBot', 'removeBot', 'kick' and 'fillBots'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// Only the host may change the length of the game and start it.
 const isHost = computed(() => props.state.hostId === props.state.you);
+// The fewest and most turns each player may be given ({ min, max } from the server).
 const turns = computed(() => props.state.limits.turns);
+// Turns in the whole game: everyone takes the same number as the guesser.
 const total = computed(() => props.state.turnsEach * props.state.players.length);
+// There are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
 

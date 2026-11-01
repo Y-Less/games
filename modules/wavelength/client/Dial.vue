@@ -2,6 +2,12 @@
 // The Wavelength dial: a half circle between two opposites. Drag on it (or use the slider under it, which also works
 // with a keyboard) to turn the needle. When the target is known it is drawn as three bands; at the reveal every
 // guess is drawn as a marker in its player's colour. Sized by the `width` it is given, never by what it shows.
+// Props: left and right (the two ends' words), target (the hidden target position, or null), bands (the scoring bands, each
+//   { within, points }), guesses (markers to draw: { id, position, colour, name }), selected (the needle's position, or null),
+//   colour (the needle's colour), interactive (it can be turned), width (px), reserveSlider (keep the slider's room when not interactive).
+// Emits: pick(position) when the dial is turned by dragging or by the slider (position 0..100).
+// Slots: none.
+// Side effects: while a drag is in progress it captures the pointer on the SVG, and releases it afterwards; nothing else.
 import { computed, ref } from 'vue';
 import { VIEW, clampPosition, pointAt, positionAt, targetWedges, wedgePath } from './dial.js';
 
@@ -19,9 +25,11 @@ const props = defineProps({
 });
 const emit = defineEmits(['pick']);
 
-const svg = ref(null);
-const dragging = ref(false);
+const svg = ref(null); // the SVG element, needed to convert pointer coordinates to dial units
+const dragging = ref(false); // true while the pointer is held down on the dial
+// The dial's height in px, kept in proportion to its width.
 const height = computed(() => Math.round((props.width * VIEW.height) / VIEW.width));
+// The target's slices to draw (none while the target is hidden).
 const wedges = computed(() => (props.target === null ? [] : targetWedges(props.target, props.bands)));
 // The points of each band, written on the left half of that band (the middle band is the bullseye in the centre).
 const bandLabels = computed(() => {
@@ -35,9 +43,19 @@ const bandLabels = computed(() => {
 });
 // The ends are big and bold, and grow with the dial (never with what they say, so nothing moves from turn to turn).
 const endSize = computed(() => Math.round(Math.min(24, Math.max(17, props.width / 18))));
+// The needle's tip point, or null when there is no needle.
 const needle = computed(() => (props.selected === null ? null : pointAt(props.selected, VIEW.radius - 4)));
+// Each guess with the tip and base points of its marker on the rim.
 const pins = computed(() => props.guesses.map((g) => ({ ...g, tip: pointAt(g.position, VIEW.radius), base: pointAt(g.position, VIEW.radius - 22) })));
 
+/**
+ * Turns the dial to where a pointer event is, by converting the pointer's screen position into dial units.
+ *
+ * @param {PointerEvent} event  a pointer event with clientX and clientY
+ * @returns {void} nothing
+ *
+ * Side effects: emits 'pick' with the position; does nothing when the dial is not interactive or has no size.
+ */
 function turnTo(event) {
   if (!props.interactive || !svg.value) return;
   const box = svg.value.getBoundingClientRect();
@@ -46,13 +64,30 @@ function turnTo(event) {
   const y = ((event.clientY - box.top) * VIEW.height) / box.height;
   emit('pick', positionAt(x, y));
 }
+/**
+ * The pointer went down on the dial: start dragging and turn to that point.
+ *
+ * @param {PointerEvent} event  the pointerdown event
+ * @returns {void} nothing
+ *
+ * Side effects: sets `dragging`, captures the pointer on the SVG (so the drag continues outside it) and emits 'pick'.
+ */
 function down(event) {
   if (!props.interactive) return;
   dragging.value = true;
   svg.value.setPointerCapture?.(event.pointerId);
   turnTo(event);
 }
+// The pointer moved: turns the dial only while dragging. Returns false or nothing; the value is unused.
 const move = (event) => dragging.value && turnTo(event);
+/**
+ * The pointer was released or cancelled: stop dragging.
+ *
+ * @param {PointerEvent} event  the pointerup event
+ * @returns {void} nothing
+ *
+ * Side effects: clears `dragging` and releases the pointer capture.
+ */
 const up = (event) => {
   dragging.value = false;
   svg.value?.releasePointerCapture?.(event.pointerId);

@@ -3,7 +3,7 @@
 // confirming a token return, buying or reserving the selected card, reserving from a pile, or confirming picked gems.
 // Props: view (reactive table view), card (reactive card choice), take (reactive gem take), give (reactive token return),
 //   shared (reactive shared choice state: sel, picks, busy), canPass (the server allows passing).
-// Emits: pass.
+// Emits: pass. Slots: none.
 // Side effects: the buttons call buy, reserve, cancel, setGold, confirmTake, clearPicks, confirmGive and clear on the
 //   composables they are given.
 defineProps({

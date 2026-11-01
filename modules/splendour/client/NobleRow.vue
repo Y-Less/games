@@ -3,7 +3,7 @@
 // offer are highlighted and clickable and the rest are dimmed.
 // Props: nobles (noble ids still on the table), bonuses (your five card bonuses, for the progress on each tile),
 //   choosing (true while you must choose a noble), canPick (function: is this noble one of your choices).
-// Emits: pick(id) when a highlighted noble is clicked.
+// Emits: pick(id) when a highlighted noble is clicked. Slots: none.
 // Side effects: none.
 import NobleTile from './NobleTile.vue';
 

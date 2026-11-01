@@ -2,7 +2,7 @@
 // Your side of the table: your own board, big, with your action buttons in its bottom row, and the gem supply under it.
 // Props: state (the server view), view, card, take, give (the reactive table view and choices), shared (reactive shared choice
 //   state), boardGem and supplyGem (gem sizes in px, from the frame's area).
-// Emits: pass (the player passes because nothing else is possible).
+// Emits: pass (the player passes because nothing else is possible). Slots: none (fills PlayerBoard's `actions` slot).
 // Side effects: clicking your cards, your tokens or the supply calls the matching function on `card`, `give` or `take`.
 import PlayerBoard from './PlayerBoard.vue';
 import ActionBar from './ActionBar.vue';

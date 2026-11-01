@@ -3,6 +3,7 @@
 // player pop-up that opens from their chip in the score bar. It floats over the main area, so nothing moves.
 // Props: popupProps (what usePlayerPopup gives the popup, or null when none is open), opened (the opened seat's view, or
 //   null), score (their score), playing (the game is in play), turn (whose turn it is).
+// Slots: none.
 // Emits: none (closing is handled by the popup's own events inside popupProps).
 // Side effects: none.
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';

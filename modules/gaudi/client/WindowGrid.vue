@@ -1,6 +1,8 @@
 <script setup>
 // A window: four rows of five spaces showing each space's restriction (a tinted colour with its shape, or faint pips)
 // and the dice placed on it. It can highlight spaces (legal ones, ones to pick) and tell the parent which was clicked.
+// Props: rows, grid, cell, legal, pick, chosen, titles, interactive, label (each described beside its definition below).
+// Emits: cell (index of the space clicked, or chosen with Enter or Space, when interactive). Slots: none. Side effects: none.
 import Die from './Die.vue';
 import { COLOUR_HEX, PIPS, SHAPES } from './glyphs.js';
 import { CELLS, COLOUR_SHAPES, COLS, restrictionOf } from '../rules.js';
@@ -21,17 +23,29 @@ const emit = defineEmits(['cell']);
 /**
  * The pattern character of a space ('.' for a blank one, a colour letter or a shade digit).
  * @param {number} i  the space, 0 to CELLS - 1
- * @returns {string}
+ * @returns {string} the character
+ * Side effects: none.
  */
 const char = (i) => props.rows[Math.floor(i / COLS)]?.[i % COLS] ?? '.';
-/** The colour a space asks for (a colour name from rules.js), or null if it asks for none. */
+/**
+ * The colour a space asks for (a colour name from rules.js), or null if it asks for none.
+ * @param {number} i  the space
+ * @returns {string | null}
+ * Side effects: none.
+ */
 const colourOf = (i) => restrictionOf(char(i))?.colour ?? null;
-/** The shade (1-6) a space asks for, or null if it asks for none. */
+/**
+ * The shade (1-6) a space asks for, or null if it asks for none.
+ * @param {number} i  the space
+ * @returns {number | null}
+ * Side effects: none.
+ */
 const shadeOf = (i) => restrictionOf(char(i))?.shade ?? null;
 /**
  * The CSS classes of a space: whether it is highlighted as legal, pickable or chosen, and what it holds or asks for.
  * @param {number} i  the space
- * @returns {Record<string, boolean>}
+ * @returns {Record<string, boolean>} class name -> whether it applies
+ * Side effects: none.
  */
 const classes = (i) => ({
   legal: props.legal.includes(i),
@@ -44,13 +58,19 @@ const classes = (i) => ({
 /**
  * The words a screen reader reads for a space: what it asks for, where it is and what it holds.
  * @param {number} i  the space
- * @returns {string}
+ * @returns {string} the sentence
+ * Side effects: none.
  */
 const describe = (i) => {
   const wants = colourOf(i) ? `${colourOf(i)} space` : shadeOf(i) ? `space for a ${shadeOf(i)}` : 'blank space';
   return `${wants}, row ${Math.floor(i / COLS) + 1}, column ${(i % COLS) + 1}${props.grid[i] ? `, holds a ${props.grid[i].c} ${props.grid[i].v}` : ''}`;
 };
-/** Tells the parent that a space was clicked (or chosen by the keyboard). */
+/**
+ * Tells the parent that a space was clicked (or chosen by the keyboard).
+ * @param {number} i  the space
+ * @returns {void}
+ * Side effects: emits 'cell'.
+ */
 const press = (i) => emit('cell', i);
 </script>
 

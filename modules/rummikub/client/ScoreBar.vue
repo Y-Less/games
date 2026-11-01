@@ -2,6 +2,7 @@
 // The score bar at the top of the table, with the scoreboard pop-up it opens (showing last round's summary between rounds).
 // Props: state (the server view: scoreboard, lastRound, seats, you), settings, players (the scoreboard's players with their
 //   ready marks), finished, awaiting (the scores are waiting for you to close them), waiting (names still to close them).
+// Slots: none.
 // Emits: continue (the scores were closed between rounds). Other attributes (the player pop-up's props and events) fall
 //   through to the scoreboard.
 // Side effects: none beyond the emit.

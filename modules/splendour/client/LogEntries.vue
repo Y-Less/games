@@ -2,7 +2,7 @@
 // The game log: the recent moves, newest first, with gems drawn in line.
 // Props: entries (the log from the server view), you (your seat number, to highlight your own moves), nameOf (function: a
 //   seat's name).
-// Emits: none.
+// Emits: none. Slots: none (fills GameLog's default slot for each entry).
 // Side effects: none.
 import GameLog from '../../../src/components/GameLog.vue';
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';

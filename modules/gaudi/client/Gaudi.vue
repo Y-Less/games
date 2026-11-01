@@ -1,6 +1,10 @@
 <script setup>
 // Gaudi: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
+// Props: socket (the platform's socket wrapper), user (signed-in user or null), search / setSearch (read and write the
+// page's query string, which carries the invite code). Emits: none. Slots: none.
+// Side effects: useGameSocket subscribes to the socket's state and notice events and may change the URL's query string;
+// the create and join events send requests.
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
@@ -18,6 +22,8 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
+  // Warns before leaving a live game, because leaving hands the seat to a computer player.
+  // @param {object} state  the current view; @returns {string} the warning, or '' when leaving is harmless. No side effects.
   leaveConfirm: (state) => state.phase === 'windows' || state.phase === 'playing' ? 'A computer player takes your seat if you leave.' : '',
 });
 </script>

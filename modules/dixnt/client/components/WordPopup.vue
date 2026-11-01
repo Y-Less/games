@@ -2,13 +2,22 @@
 // When the chooser locks in the word, it pops up large for everyone at the same moment, and the person who is not told
 // the word sees ??? instead, so that they learn a word was chosen when the others do. It floats over the play area (it
 // takes no room, so nothing moves), goes by itself after a few seconds, or on a click.
+//
+// Props: none. Emits: none. Slots: none.
+// Side effects: watches store.wordPopup; sets a timer to hide itself (cleared on hide, on a new popup and on unmount).
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useDixnt } from '../useDixnt.js';
 
 const { store } = useDixnt();
-const SHOWN_MS = 4000;
+const SHOWN_MS = 4000; // how long the popup stays up, in milliseconds
+// The popup being shown ({ word, hidden, ... }), or null.
 const shown = ref(null);
-let timer = null;
+let timer = null; // the pending hide, if any
+/**
+ * Hides the popup now.
+ * @returns {void}
+ * Side effects: cancels the timer and clears `shown`.
+ */
 const hide = () => {
   clearTimeout(timer);
   shown.value = null;

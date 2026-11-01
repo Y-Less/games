@@ -13,8 +13,11 @@ import { GEM_NAMES } from './gems.js';
  * @returns {object} available, isPair, takeCheck ({ ok, text }), clickGem(colour), confirmTake(), clearPicks()
  */
 export function useGemTake(view, shared, send) {
+  // Gem colours (0 to 4, not Gold) that still have tokens in the supply.
   const available = computed(() => [0, 1, 2, 3, 4].filter((c) => view.supply[c] > 0));
+  // True when the picks are the same colour twice (a take of two of a kind).
   const isPair = computed(() => shared.picks.length === 2 && shared.picks[0] === shared.picks[1]);
+  // Whether the current picks make a legal take ({ ok }) and the guidance or confirmation wording to show ({ text }).
   const takeCheck = computed(() => {
     const p = shared.picks;
     if (!available.value.length) return { ok: false, text: 'There are no gems left to take. Reserve or buy a card instead.' };
@@ -30,6 +33,8 @@ export function useGemTake(view, shared, send) {
    * Clicking a gem stack in the supply: add it to the picks, take it back out, or explain why not.
    *
    * @param {number} c  the gem colour (0 to 4)
+   * @returns {void}
+   * Side effects: sets the shared picks, clears sel, and sets or clears the shared message.
    */
   function clickGem(c) {
     shared.message = '';
@@ -60,7 +65,11 @@ export function useGemTake(view, shared, send) {
     shared.picks = [...p, c];
   }
 
-  /** Sends the chosen gems (a pair or up to three different ones); keeps the picks if the server refuses. */
+  /**
+   * Sends the chosen gems (a pair or up to three different ones); keeps the picks if the server refuses.
+   * @returns {Promise<void>} resolves once the server has replied (does nothing if the picks are not a legal take or busy)
+   * Side effects: sets the shared busy flag while waiting; sends 'takeTwo' or 'take'; clears picks on success.
+   */
   async function confirmTake() {
     if (!takeCheck.value.ok || shared.busy) return;
     shared.busy = true;
@@ -69,7 +78,11 @@ export function useGemTake(view, shared, send) {
     if (reply.ok) shared.picks = [];
   }
 
-  /** Forgets the chosen gems. */
+  /**
+   * Forgets the chosen gems.
+   * @returns {void}
+   * Side effects: clears the shared picks.
+   */
   function clearPicks() {
     shared.picks = [];
   }

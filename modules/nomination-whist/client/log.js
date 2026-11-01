@@ -2,11 +2,25 @@
 // here from what changed between one state and the next: a new round, a nomination, a card played, a trick won.
 import { SUIT_NAMES, SUIT_SYMBOLS, isJoker, rankOf, suitOf } from '../../../shared/cards.js';
 
+/**
+ * Formats a card as a short label for a log line (rank plus suit symbol, or "a Joker").
+ * @param {number|string} card  card id as used by shared/cards.js
+ * @returns {string} short human-readable card name
+ * Side effects: none.
+ */
 const shortCard = (card) => (isJoker(card) ? 'a Joker' : `${rankOf(card)}${SUIT_SYMBOLS[suitOf(card)]}`);
 
-/** The log entries ({ text }) for what changed from `prev` to `next` (either may be null), oldest first. */
+/**
+ * The log entries ({ text }) for what changed from `prev` to `next` (either may be null), oldest first.
+ * Diffing consecutive states is needed because the server only ever sends the current state, never a history.
+ * @param {object|null} prev  previous game state (null if there was none)
+ * @param {object|null} next  new game state (null, lobby or no round yields no entries)
+ * @returns {{text: string}[]} new log entries, oldest first
+ * Side effects: none.
+ */
 export function movesBetween(prev, next) {
   if (!next || next.phase === 'lobby' || !next.round) return [];
+  // Returns a seat's display name, or 'Someone' if that seat is empty.
   const name = (seat) => next.seats[seat]?.name ?? 'Someone';
   const out = [];
   const same = prev && prev.round && prev.code === next.code && prev.round.number === next.round.number;

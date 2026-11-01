@@ -2,6 +2,12 @@
 // The Just One table, for every phase of a game: the score bar, the secret word (hidden from the guesser), the clues and the
 // controls for the moment, slim bars for the other players, and the two standard boxes along the bottom. The writers see the
 // word and send one-word clues; the guesser sees the clues that were not cancelled, guesses once, and picks the best hint.
+//
+// Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves, an array
+// of strings kept by JustOne.vue).
+// Emits: none. Slots: none (it fills GameFrame's scorebar, main, others, log and status slots).
+// Side effects: sends 'clue', 'guess', 'pass', 'best', 'ready', 'removeBot' and 'kick' requests; one watcher on the view
+// empties the clue and guess boxes when the turn or phase changes.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -16,33 +22,51 @@ const props = defineProps({
   log: { type: Array, default: () => [] },
 });
 
-const clueText = ref('');
-const guessText = ref('');
+const clueText = ref(''); // what is typed in the clue box
+const guessText = ref(''); // what is typed in the guess box
 
-const s = computed(() => props.state);
+const s = computed(() => props.state); // the view as a computed, so everything below recalculates when it changes
+// The phase of the game; the booleans below name the ones the template asks about.
 const phase = computed(() => s.value.phase);
+// You are this turn's guesser (who must not see the word).
 const isGuesser = computed(() => s.value.guesser === s.value.you);
 const clueTime = computed(() => phase.value === 'clues');
 const guessing = computed(() => phase.value === 'guessing');
 const choosing = computed(() => phase.value === 'choosing');
 const reveal = computed(() => phase.value === 'reveal');
 const ended = computed(() => phase.value === 'finished' || phase.value === 'abandoned');
+// Any of the three phases in which a turn is being played (not the reveal or the end).
 const playing = computed(() => clueTime.value || guessing.value || choosing.value);
+// Your own player entry.
 const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
+// Everyone but you, drawn as the slim bars.
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
+// A player's name by id, or "Someone" if they are not in the game.
 const nameOf = (id) => s.value.players.find((p) => p.id === id)?.name ?? 'Someone';
+// The guesser's name.
 const guesserName = computed(() => nameOf(s.value.guesser));
+// The players writing clues this turn (everyone but the guesser).
 const writerList = computed(() => s.value.players.filter((p) => p.id !== s.value.guesser));
+// How many writers have sent a clue.
 const writtenCount = computed(() => writerList.value.filter((p) => p.written).length);
+// This is the final turn of the game.
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
+// Names of the players who have not yet closed the turn's scores (reveal phase only).
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
+// A copy of the players ordered by score, highest first.
 const standings = computed(() => [...s.value.players].sort((a, b) => b.score - a.score));
+// The winners' names (empty until the game is over).
 const winners = computed(() => standings.value.filter((p) => p.winner).map((p) => p.name));
+// The clue you have written this turn, or null.
 const myClue = computed(() => s.value.clues.find((c) => c.own) ?? null);
+// You may write a clue now: clue phase, you are a writer, and you have not written yet.
 const canWrite = computed(() => clueTime.value && !isGuesser.value && !myClue.value);
+// You may guess now: you are the guesser and it is the guessing phase.
 const canGuess = computed(() => guessing.value && isGuesser.value);
+// Your own clue was cancelled (shown to you as a warning once the clues are in).
 const ownCancelled = computed(() => (guessing.value || choosing.value) && !isGuesser.value && s.value.clues.some((c) => c.id === s.value.you && c.cancelled));
 
+// Typed text belongs to one turn and phase: it is emptied when either changes (and once at the start).
 watch(
   () => `${s.value.turn}-${phase.value}`,
   () => {
@@ -52,10 +76,13 @@ watch(
   { immediate: true },
 );
 
+// Sends the typed clue; returns the request's promise (the server rejects empty or invalid clues).
 const sendClue = () => props.send('clue', { text: clueText.value });
+// Sends the typed guess; returns the request's promise.
 const sendGuess = () => props.send('guess', { text: guessText.value });
 
 // ---- the words in the Status box ----
+// The Status headline for the phase and your role, as one sentence ('' when there is nothing to say).
 const headline = computed(() => {
   if (phase.value === 'abandoned') return 'The game was abandoned.';
   if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
@@ -74,7 +101,9 @@ const headline = computed(() => {
   if (choosing.value) return isGuesser.value ? 'Right! Now pick the best hint.' : `${guesserName.value} found the word, and is picking the best hint.`;
   return '';
 });
+// It is your move (highlights the Status box): you can write a clue, or you are the guesser in the guessing or choosing phase.
 const mineNow = computed(() => canWrite.value || (isGuesser.value && (guessing.value || choosing.value)));
+// The further Status lines. Most are { text, tone } where tone only picks the colour; the abandoned case also holds a plain string.
 const lines = computed(() => {
   if (phase.value === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
   if (phase.value === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];
@@ -99,14 +128,23 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => s.value.you === s.value.hostId,
   remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
 });
+// The player whose chip was clicked in the score bar, or null when no pop-up is open.
 const opened = computed(() => s.value.players.find((p) => p.id === openId.value) ?? null);
+/**
+ * What a player is doing now, for their pop-up.
+ * @param {{ id: string, written: boolean }} p  a player from the view
+ * @returns {string} the phrase, or '' when there is nothing to say (after the game, or in other phases)
+ * Side effects: none.
+ */
 const stageOf = (p) => {
   if (ended.value) return '';
   if (p.id === s.value.guesser) return 'the guesser this turn';
   if (clueTime.value) return p.written ? 'has written a clue' : 'still to write a clue';
   return '';
 };
+// How many frame columns each slim bar spans: wider bars when four or fewer players are shown (a number, 3 or 2).
 const barSpan = (count) => (count <= 4 ? 3 : 2);
+// The grid style shared by every slim bar.
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.length)}` }));
 </script>
 

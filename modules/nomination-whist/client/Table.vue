@@ -1,4 +1,8 @@
 <script setup>
+// Props: state {Object, required} the player's view of the game; send {Function, required} sends a request to the server.
+// Emits: none (requests go through `send`: play, nominate, next, kick, removeBot).
+// Slots: none (fills GameFrame's scorebar, main, log and status slots).
+// Side effects: watches the state to reset the hint and to append to the Recent moves list (kept to the last 60); no timers or listeners of its own.
 // The game itself, in the standard frame: the score bar on top; the table (the trick in the middle, the nomination buttons in a zone of their own, and your hand along the bottom); and the two
 // boxes along the bottom, Recent moves and Status. Everything that is said (whose turn it is, the round, the trumps,
 // what you may not nominate), and the other players' details open from their chips in the score bar is in Status, so nothing in the play area grows, shrinks or moves while the game is played.
@@ -20,6 +24,7 @@ import RoundResult from './RoundResult.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// A transient warning (why a card cannot be played), cleared whenever the phase, turn or round changes.
 const hint = ref('');
 watch(
   () => [props.state.phase, props.state.turn, props.state.round?.number],
@@ -27,6 +32,7 @@ watch(
 );
 
 // ---- Recent moves, worked out from what changes ----
+// Recent moves list; seeded from the first state, then extended by diffing each new state against the previous one.
 const moves = ref(movesBetween(null, props.state));
 watch(
   () => props.state,
@@ -35,25 +41,45 @@ watch(
   },
 );
 
+// This player's seat number.
 const you = computed(() => props.state.you);
+// True once the game is over.
 const finished = computed(() => props.state.phase === 'finished');
+// All seats in seat order.
 const seats = computed(() => props.state.seats);
+// The current round's details (number, cards, trump, dealer).
 const round = computed(() => props.state.round);
+// Your hand sorted for display, with the trump suit grouped as the round dictates.
 const hand = computed(() => sortHand(props.state.hand, props.state.round?.trump));
+// Returns the name of a seat, or '' if there is none.
 const nameOf = (seat) => seats.value[seat]?.name ?? '';
+// True when it is your turn to nominate or play.
 const myTurn = computed(() => props.state.turn === you.value);
+// Sum of all nominations made so far (a player who has not nominated counts as 0).
 const total = computed(() => seats.value.reduce((sum, s) => sum + (s.bid ?? 0), 0));
+// True when every seat has nominated.
 const everyoneNominated = computed(() => seats.value.every((s) => s.bid !== null));
+// Names of players who have not yet closed the round scores (only meaningful in the roundEnd phase).
 const waitingFor = computed(() => (props.state.phase === 'roundEnd' ? seats.value.filter((s) => !s.ready).map((s) => s.name) : []));
+// The most recently finished round's result, or null before any round has finished.
 const lastRound = computed(() => props.state.rounds.at(-1) ?? null);
+// The seat object of the instant winner, or null if there is none.
 const instantWinner = computed(() => (props.state.instantWin === null || props.state.instantWin === undefined ? null : (seats.value[props.state.instantWin] ?? null)));
+// True when it is the nomination phase and your turn, which enables the nomination buttons.
 const nominating = computed(() => props.state.phase === 'nominating' && myTurn.value);
 
 /** Everyone clockwise from the viewer, as TrickCircle wants them. */
 const ordered = computed(() => seats.value.map((_, i) => seats.value[(you.value + i) % seats.value.length]).map((s) => ({ key: s.seat, name: s.name, ...s })));
+// Everyone except you, in clockwise order from you.
 const others = computed(() => ordered.value.slice(1));
+// Returns "n word" with an 's' added to the word unless n is 1.
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-/** The short line under an opponent's name: what they nominated and how many tricks they have won so far. */
+/**
+ * The short line under an opponent's name: what they nominated and how many tricks they have won so far.
+ * @param {object} seat  a seat object from the state (seat, bid, tricks)
+ * @returns {string} the note text
+ * Side effects: none.
+ */
 function noteFor(seat) {
   if (seat.bid === null) {
     if (props.state.phase === 'nominating' && props.state.turn === seat.seat) return 'nominating…';
@@ -61,10 +87,12 @@ function noteFor(seat) {
   }
   return props.state.phase === 'nominating' ? `nominated ${seat.bid}` : `nominated ${seat.bid} · won ${seat.tricks}`;
 }
+// Opponents in the shape OpponentHands expects (name, card count, note, away and current-turn flags).
 const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s.name, cards: s.cards, note: noteFor(s), away: Boolean(s.away && !s.bot), current: s.seat === props.state.turn })));
 
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
 // floating over the top of the main area so that nothing moves.
+// Data for the ScoreBoard and the player popup: one entry per player plus the finished rounds.
 const board = computed(() => ({
   players: seats.value.map((s) => ({ id: s.seat, name: s.name, userId: s.userId, score: s.score, isMe: s.seat === you.value, bot: Boolean(s.bot), current: s.seat === props.state.turn, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
   rounds: props.state.rounds,
@@ -75,20 +103,28 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => props.state.hostSeat === you.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat whose popup is open (may be yours), or null.
 const opened = computed(() => ordered.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
 
+// CSS class that colours the trump label red for hearts and diamonds.
 const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
+// The trump suit's name, or 'no trumps'.
 const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
+// True when you are the dealer this round.
 const imDealer = computed(() => round.value.dealer === you.value);
 const MOST_CARDS = 7; // the most cards in a hand: the nomination zone always has room for 0 to this
+// The nomination numbers to show, 0 up to the cards dealt (capped at the most a hand can hold).
 const options = computed(() => Array.from({ length: Math.min(MOST_CARDS, round.value.cards) + 1 }, (_, n) => n));
 
+// The cards in the middle: the current trick, or the last trick while the round-end scores are showing.
 const plays = computed(() => {
   const trick = props.state.trick.length ? props.state.trick : props.state.phase === 'roundEnd' ? (props.state.lastTrick?.plays ?? []) : [];
   return trick.map((p) => ({ key: p.seat, card: p.card }));
 });
+// Seat that won the trick on show, or null when the trick is unfinished.
 const winnerKey = computed(() => (props.state.trick.length ? props.state.trickWinner : props.state.phase === 'roundEnd' ? (props.state.lastTrick?.winner ?? null) : null));
 
+// The one-line headline for the Status box describing what is happening now.
 const headline = computed(() => {
   const { phase } = props.state;
   if (phase === 'nominating') return myTurn.value ? 'Your turn: nominate how many tricks you will win.' : `Waiting for ${nameOf(props.state.turn)} to nominate.`;
@@ -100,6 +136,7 @@ const headline = computed(() => {
   if (finished.value) return instantWinner.value ? `${instantWinner.value.name} wins the game instantly!` : 'The game is over.';
   return '';
 });
+// True when it is your move (nominate, play, or close the round scores), which highlights the Status box.
 const mineNow = computed(
   () =>
     !finished.value &&
@@ -107,6 +144,7 @@ const mineNow = computed(
       (props.state.phase === 'playing' && myTurn.value && props.state.turn !== null) ||
       (props.state.phase === 'roundEnd' && !seats.value[you.value].ready)),
 );
+// Extra Status lines: the hint, the suggestion, the dealer's forbidden number and the follow-suit reminder.
 const statusLines = computed(() => {
   const lines = [];
   if (hint.value) lines.push({ text: hint.value, tone: 'warn' });
@@ -127,6 +165,12 @@ const statusLines = computed(() => {
   return lines;
 });
 
+/**
+ * Handles a click on a card in your hand: shows why it is illegal, or plays it.
+ * @param {number|string} card  the card id clicked
+ * @returns {void}
+ * Side effects: sets or clears `hint`; sends a 'play' request to the server when the card is legal.
+ */
 function pick(card) {
   const reason = props.state.legal?.[card];
   if (reason) {
@@ -142,11 +186,19 @@ const TOP_RESERVE = 124; // pixels kept clear along the top for an opponent's ha
 const TOP_HANDS = [1, 3, 5, 6]; // how many opponents there are when one sits along the top, over the trick
 const CARD_REM = { md: 4.4, lg: 5.8 };
 // The hand is spread in an arc when there is room: the arc's middle cards stand higher than a flat row's, by its sag.
+// Returns how much higher (px) the middle cards of an arc stand than a flat row's, for a card size ('md' or 'lg').
 const arcSag = (size) => 8 * CARD_REM[size] * (1 - Math.cos(((MOST_CARDS - 1) / 2) * 3.6 * (Math.PI / 180)));
 const ZOOM_MAX = 1.6;
+/**
+ * Works out the hand size, whether it is fanned and the trick zoom from the room the frame gives the table.
+ * @param {{height: number, minimised?: boolean}} area  the main area's slot props
+ * @returns {{hand: string, fanned: boolean, zoom: number}} card size, fan on or off, trick zoom factor
+ * Side effects: none.
+ */
 const roomFor = (area) => {
   const handLarge = area.height >= 600;
   const size = handLarge ? 'lg' : 'md';
+  // Returns the height (px) left for the trick once a hand of the given height (rem) is allowed for.
   const fromRoom = (handRem) => area.height - (0.4 + handRem) * 16 - 8 - (TOP_HANDS.includes(others.value.length) ? TOP_RESERVE : 0); // the hand and the gap above it
   const flat = handLarge ? 9.6 : 7.6; // a card and the fan's lift for the one under the pointer
   const arc = flat + arcSag(size);

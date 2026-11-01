@@ -8,12 +8,17 @@ import { colourName, privateRule } from './wording.js';
  *   results, and the ref holding what the pointer is over
  * @returns {{ status: import('vue').ComputedRef<string>, statusLines: import('vue').ComputedRef<object[]> }}
  *   status is the headline, statusLines the further lines as { text, tone }
+ * Side effects: none (computed values only).
  */
 export function useStatusText({ s, turn, sel, tools, hint }) {
   const { windows, finished, me, myTurn, waitingFor, turnNumber, nameOf } = turn;
   const { mode, message } = sel;
 
-  /** The headline in the Status box: what is happening and what you may do. */
+  /**
+   * The headline in the Status box: what is happening and what you may do.
+   * @returns {string} one sentence, which depends on the phase and on whose turn it is
+   * Side effects: none.
+   */
   const status = computed(() => {
     if (finished.value) return 'The game is over.';
     if (windows.value) return s.value.chosen ? `You have chosen. Waiting for ${waitingFor.value.join(', ') || 'the others'}…` : 'Choose your window.';
@@ -23,10 +28,19 @@ export function useStatusText({ s, turn, sel, tools, hint }) {
     const tool = t.toolUsed ? 'your tool is used' : 'you may use a tool';
     return `Your ${t.extra ? 'extra' : turnNumber.value} turn: ${die}; ${tool}. Click End turn when you are happy.`;
   });
-  /** A reminder when you are about to end your turn without having placed a die. */
+  /**
+   * A reminder when you are about to end your turn without having placed a die.
+   * @returns {string} the reminder, or '' when it does not apply
+   * Side effects: none.
+   */
   const endHint = computed(() => (myTurn.value && s.value.turn.placements === 0 && s.value.pool.length ? 'You have not placed a die yet.' : ''));
+  // How your private colour is scored, shared by two of the lines below.
   const myPrivateRule = computed(() => privateRule(s.value.badPrivate));
-  /** Every line of the Status box, with its tone, for the phase the game is in. */
+  /**
+   * Every line of the Status box, with its tone, for the phase the game is in.
+   * @returns {{ text: string, tone: string }[]} tone is 'warn', 'mine' or 'muted' and only picks the colour
+   * Side effects: none.
+   */
   const statusLines = computed(() => {
     const lines = [];
     if (message.value) lines.push({ text: message.value, tone: 'warn' });

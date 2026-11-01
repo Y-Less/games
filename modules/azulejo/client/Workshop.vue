@@ -1,6 +1,18 @@
 <script setup>
 // The factory displays (round plates) and the centre. Click any tile to choose every tile of that colour on that plate
 // (or in the centre). Everything here is public.
+//
+// Props:
+//   factories      {Array}          required. One array of tile colours per display plate.
+//   centre         {Array}          required. Tile colours currently in the centre.
+//   markerInCentre {boolean}        the first-player marker is still in the centre.
+//   selected       {Object|null}    the chosen group { source: number | 'centre', colour }, for highlighting.
+//   active         {boolean}        it is the viewer's turn, so tiles are clickable.
+//   plate          {number}         base size in pixels for a plate (tiles and plate scale from it; default 40).
+//   centreHeight   {number}         fixed pixel height for the centre box, or 0 to let the CSS decide.
+// Emits: pick({ source, colour })  a tile was clicked: source is the plate index or 'centre'.
+// Slots: none.
+// Side effects: keeps local hover state only (to highlight the matching tiles); emits `pick` on click.
 import { computed, ref } from 'vue';
 import { COLOUR_NAMES } from '../rules.js';
 import Tile from './Tile.vue';
@@ -16,12 +28,25 @@ const props = defineProps({
 });
 const emit = defineEmits(['pick']);
 
+// Which group the pointer or keyboard focus is on; all matching tiles light up so the group is clear.
 const hovered = ref(null); // { source, colour }
+// The centre's tiles sorted by colour so equal tiles sit together.
 const sortedCentre = computed(() => [...props.centre].sort((a, b) => a - b));
+// Returns true if this group (source + colour) is the selected one.
 const isSel = (source, colour) => props.selected?.source === source && props.selected.colour === colour;
+// Returns true if this group is being pointed at while tiles can be chosen.
 const isHover = (source, colour) => props.active && hovered.value?.source === source && hovered.value.colour === colour;
+// Returns how many of `tiles` are of `colour`.
 const count = (tiles, colour) => tiles.filter((c) => c === colour).length;
+// Returns true if there are no tiles.
 const empty = (tiles) => tiles.length === 0;
+/**
+ * Records which group is under the pointer or focus.
+ * @param {number|string|null} source  Plate index or 'centre'; null clears the hover.
+ * @param {number} [colour]  Tile colour index of the group.
+ * @returns {void}
+ * Side effects: sets the local `hovered` ref.
+ */
 function over(source, colour) {
   hovered.value = source === null ? null : { source, colour };
 }

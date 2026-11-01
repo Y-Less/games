@@ -4,6 +4,7 @@
 // Props: sets (the shown sets from the working copy), settings (the game's tile settings), selected (selected tile ids),
 //   myTurn (it is your turn), dropHint (show the drop outline while dragging), fresh and recent (Sets of tile ids played
 //   this turn / by the last player), lockedTile(id), stands(item) and canAddTo(set) (functions from the working copy).
+// Slots: none.
 // Emits: pick(id), drop-selected(target) and drop-tiles(target) with a target like { type: 'set', index } or { type: 'new' },
 //   and drag-start-tile(event, id) and drag-end-tile().
 // Side effects: none beyond the emits.
@@ -28,6 +29,8 @@ defineEmits(['pick', 'drop-selected', 'drop-tiles', 'drag-start-tile', 'drag-end
  *
  * @param {object} set  a shown set
  * @returns {string} e.g. "Run, 12" or the error
+ *
+ * Side effects: none.
  */
 const setLabel = (set) => {
   if (!set.result.ok) return set.result.error;

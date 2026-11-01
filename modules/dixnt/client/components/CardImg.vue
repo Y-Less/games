@@ -1,4 +1,11 @@
 <script setup>
+// One card's picture, loaded lazily and not draggable. Sized by its parent's CSS.
+//
+// Props:
+//   cardId  {number}  required. The card's number.
+//   size    {string}  image size folder to load (default 'medium'; the hand uses 'small').
+// Emits: none. Slots: none.
+// Side effects: none (the browser fetches the image).
 import { useDixnt } from '../useDixnt.js';
 
 const { cardUrl } = useDixnt();

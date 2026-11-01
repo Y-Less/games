@@ -1,4 +1,8 @@
 <script setup>
+// Props: guesses {Array} guesses to draw (id, cell, round); players {Array} players (id, name, colour) used to colour markers;
+// target {String|null} the secret tint's cell, once revealed; selected {String|null} the cell chosen but not yet locked in;
+// disabled {Boolean} true when squares cannot be clicked; cell {Number} side of one square in pixels.
+// Emits: pick(cell) when a square is clicked. Slots: none. Side effects: none.
 // The colour grid. Guesses are drawn as nested rings in each player's colour: dotted for the first round and solid
 // for the second. It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
 // table gives it and never changes size while the game is played.
@@ -16,16 +20,20 @@ const props = defineProps({
 });
 const emit = defineEmits(['pick']);
 
+// Players keyed by id, for looking up a guess's colour and name.
 const byId = computed(() => new Map(props.players.map((p) => [p.id, p])));
+// Guesses grouped by grid cell, each with its player's colour and name attached.
 const markers = computed(() => {
   const map = {};
   for (const g of props.guesses) (map[g.cell] ??= []).push({ ...g, colour: byId.value.get(g.id)?.colour ?? '#fff', name: byId.value.get(g.id)?.name ?? '' });
   return map;
 });
+// Returns the accessible label for a square: its name, whether it is the tint, and each guess made on it.
 const label = (cell) => {
   const here = markers.value[cell] ?? [];
   return [cell, props.target === cell ? 'the tint' : '', ...here.map((m) => `${m.name} round ${m.round}`)].filter(Boolean).join(', ');
 };
+// CSS custom properties that size the grid, labels, gaps and the guess rings from `cell`.
 const style = computed(() => ({
   '--cell': `${props.cell}px`,
   '--head': `${HEAD}px`,

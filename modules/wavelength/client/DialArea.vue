@@ -3,6 +3,7 @@
 // Props: state (the server view: spectrum, target, bands), markers (pins to draw), needle (where your needle or the team's
 //   marker is), colour (the needle's colour), interactive (you may turn it), width (the dial's width in px), span (how many
 //   frame columns it takes).
+// Slots: none.
 // Emits: pick(position) when the dial is turned.
 // Side effects: none beyond the emit.
 import Dial from './Dial.vue';

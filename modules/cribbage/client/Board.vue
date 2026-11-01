@@ -1,5 +1,14 @@
 <script setup>
 // The cribbage board: a snaking track of holes (30 to a row), one lane per player, with a front and a back peg each.
+// Drawn as SVG in its own coordinates, so it scales to whatever box it is put in.
+//
+// Props:
+//   seats      {Array}   required. [{ seat, name, score, back }]: the front peg sits on `score`, the back peg on `back`.
+//   target     {number}  required. The winning score (the last hole); the track has target / 30 rows.
+//   skunkLine  {number}  the score marking the skunk line, or null for none.
+//   you        {number}  the viewer's seat, to emphasise their front peg (default -1).
+// Emits: none. Slots: none.
+// Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { seatColour } from './colours.js';
 
@@ -10,19 +19,30 @@ const props = defineProps({
   you: { type: Number, default: -1 },
 });
 
-const STEP = 12;
-const LANE = 11;
-const PAD = 10;
-const ROW_GAP = 9;
-const SLOTS = 31;
+const STEP = 12; // distance between neighbouring holes, in SVG units
+const LANE = 11; // distance between players' lanes within a row
+const PAD = 10; // margin around the track
+const ROW_GAP = 9; // extra space between rows
+const SLOTS = 31; // columns across the drawing: the start hole's column plus the 30 holes of a row
 
+// Number of rows of 30 holes the track has.
 const rows = computed(() => Math.floor(props.target / 30));
+// One lane per player.
 const laneCount = computed(() => props.seats.length);
+// Height of one row: all the lanes plus the gap.
 const rowHeight = computed(() => laneCount.value * LANE + ROW_GAP);
+// Fixed drawing width (the number of columns never changes).
 const width = PAD * 2 + (SLOTS - 1) * STEP;
+// Drawing height, which depends on the number of rows and lanes.
 const height = computed(() => PAD * 2 + rows.value * rowHeight.value - ROW_GAP + 4);
 
-/** Where a hole (0 is the start, target the finish) sits on the board. */
+/**
+ * Works out where a hole sits on the board. Even rows run left to right and odd rows right to left, so the track snakes.
+ * @param {number} h  Hole number: 0 is the start, `target` the finish.
+ * @param {number} lane  The player's lane (their seat index).
+ * @returns {{x: number, y: number}} The hole's position in SVG units.
+ * Side effects: none.
+ */
 function hole(h, lane) {
   const row = h === 0 ? 0 : Math.min(rows.value - 1, Math.floor((h - 1) / 30));
   const j = h - 30 * row;
@@ -30,6 +50,7 @@ function hole(h, lane) {
   return { x: PAD + x * STEP, y: PAD + row * rowHeight.value + lane * LANE };
 }
 
+// Every hole of every lane, with its position and whether it is drawn bigger (every fifth) or marked (start, skunk line, finish).
 const holes = computed(() => {
   const out = [];
   for (let lane = 0; lane < laneCount.value; lane++) {
@@ -41,6 +62,7 @@ const holes = computed(() => {
   return out;
 });
 
+// The number labels printed above the track at every tenth hole (and the finish).
 const markers = computed(() => {
   const out = [];
   for (let h = 5; h <= props.target; h += 5) {
@@ -51,12 +73,14 @@ const markers = computed(() => {
   return out;
 });
 
+// The two pegs per player: the back peg (faded) and the front peg, positioned on their holes.
 const pegs = computed(() =>
   props.seats.flatMap((s) => [
     { key: `b${s.seat}`, back: true, seat: s.seat, ...hole(s.back, s.seat) },
     { key: `f${s.seat}`, back: false, seat: s.seat, ...hole(s.score, s.seat) },
   ]),
 );
+// Text summary of the scores, for the board's accessible label.
 const label = computed(() => props.seats.map((s) => `${s.name} ${s.score}`).join(', '));
 </script>
 

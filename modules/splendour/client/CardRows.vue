@@ -3,7 +3,7 @@
 // reserve its top card blind.
 // Props: board (card ids per level, with empty slots), decks (cards left per level), afford (what you can afford, by card id),
 //   needOf (function: a card's cost to you), selectedCard (id or null), selectedLevel (level of the selected pile or null).
-// Emits: pick-card(id) and pick-deck(level).
+// Emits: pick-card(id) and pick-deck(level). Slots: none.
 // Side effects: none.
 import CardFace from './CardFace.vue';
 
@@ -16,6 +16,7 @@ defineProps({
   selectedLevel: { type: Number, default: null },
 });
 defineEmits(['pick-card', 'pick-deck']);
+// Card levels in display order, top row first.
 const levels = [3, 2, 1];
 </script>
 

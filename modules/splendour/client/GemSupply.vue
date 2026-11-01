@@ -1,7 +1,7 @@
 <script setup>
 // The gem supply: one button per gem colour (click to pick it for a take action) and the Gold, which is only gained by reserving.
 // Props: supply (six counts), picks (the gem colours chosen so far), size (the gem size in px).
-// Emits: pick(colour) when a gem stack is clicked.
+// Emits: pick(colour) when a gem stack is clicked. Slots: none.
 // Side effects: none.
 import Gem from './Gem.vue';
 import { GEM_NAMES } from './gems.js';

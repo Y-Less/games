@@ -1,12 +1,16 @@
 <script setup>
 // The end of the game, in the place of the table: who won and the final standings. (The way back to the lobby is in
 // the controls zone under it.)
+//
+// Props: none. Emits: none. Slots: none.
+// Side effects: none (pure rendering from the store).
 import { computed } from 'vue';
 import { placements } from '../../../../shared/scores.js';
 import { useDixnt } from '../useDixnt.js';
 
 const { players, store } = useDixnt();
 
+// The current state (the game is finished, so it is never null here).
 const state = computed(() => store.state);
 // The same players and totals as the scores pop-up (state.scoreboard), best first; tied players share a place.
 const standings = computed(() => {
@@ -14,7 +18,9 @@ const standings = computed(() => {
   const places = placements(Object.fromEntries(rows.map((p) => [p.id, p.score])));
   return [...rows].sort((a, b) => b.score - a.score).map((p) => ({ ...p, place: places[p.id] }));
 });
+// The winning players (several if tied).
 const winners = computed(() => players.value.filter((p) => state.value.winners.includes(p.id)));
+// The winners' names as prose: 'A', or 'A, B and C'.
 const winnerNames = computed(() => {
   const names = winners.value.map((p) => p.name);
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];

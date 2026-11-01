@@ -1,4 +1,8 @@
 <script setup>
+// Props: state {Object, required} the player's view of the game; send {Function, required} sends a request to the server
+// (returns a promise of {ok}); log {Array} the Recent moves lines.
+// Emits: none (requests go through `send`: hint, guess, ready, advance, kick, removeBot). Slots: none (fills GameFrame's slots).
+// Side effects: a watcher resets the picked square and hint text on each new turn or phase; saving a hint or locking in a guess sends to the server.
 // The Tints and Hints table, for every phase of a game: the score bar, the colour grid (big, with square cells), the
 // hint and guess controls beside it, slim bars for the other players, and the two standard boxes along the bottom.
 // The hinter sees the secret tint and describes it, everyone else guesses twice, then the tint is revealed.
@@ -19,32 +23,57 @@ const props = defineProps({
   log: { type: Array, default: () => [] },
 });
 
+// Wording for each kind of guess result.
 const kindText = { exact: 'Exactly right', close: 'Close', miss: 'Missed' };
+// The square chosen on the grid but not yet locked in.
 const picked = ref(null);
+// The hinter's hint text as typed.
 const hintText = ref('');
+// True once the typed hint has been saved to the server (reset on a new turn).
 const hintSaved = ref(false);
 
+// Shorthand for the current state, to keep the computed values below short.
 const s = computed(() => props.state);
+// The current phase (guessing1, guessing2, reveal, finished, abandoned).
 const phase = computed(() => s.value.phase);
+// True when you are this turn's hinter.
 const isHinter = computed(() => s.value.hinter === s.value.you);
+// True during either guessing round.
 const guessing = computed(() => phase.value === 'guessing1' || phase.value === 'guessing2');
+// True when the game is over (finished or abandoned).
 const ended = computed(() => phase.value === 'finished' || phase.value === 'abandoned');
+// The guessing round number: 2 in the second round, otherwise 1.
 const round = computed(() => (phase.value === 'guessing2' ? 2 : 1));
+// The hinter's name, with a fallback while they are not in the list.
 const hinterName = computed(() => s.value.players.find((p) => p.id === s.value.hinter)?.name ?? 'The hinter');
+// Everyone except the hinter.
 const guessers = computed(() => s.value.players.filter((p) => p.id !== s.value.hinter));
+// How many guessers have locked in a guess this round.
 const guessedCount = computed(() => guessers.value.filter((p) => p.guessed).length);
+// True when every guesser has guessed.
 const allGuessed = computed(() => guessedCount.value === guessers.value.length);
+// Your own entry in the player list.
 const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
+// Everyone except you, shown as slim bars.
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
+// The hint to show now: the second one in round two if it exists, otherwise the first.
 const hint = computed(() => (round.value === 2 && s.value.hints.second ? s.value.hints.second : s.value.hints.first));
+// True on the game's final turn.
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
+// True while the tint is being revealed.
 const reveal = computed(() => phase.value === 'reveal');
+// Names of players who have not yet closed the reveal scores.
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
+// True once there is a hint to guess from.
 const hintGiven = computed(() => round.value === 2 || Boolean(s.value.hints.first)); // nobody guesses until the first hint is in
+// True when you may pick and lock in a guess now.
 const canGuess = computed(() => guessing.value && !isHinter.value && !mine.value?.guessed && hintGiven.value);
+// Players ordered by score, highest first.
 const standings = computed(() => [...s.value.players].sort((a, b) => b.score - a.score));
+// Names of the winning players (more than one means a tie).
 const winners = computed(() => standings.value.filter((p) => p.winner).map((p) => p.name));
 
+// Each new turn or phase clears the picked square and re-seeds the hint box from any hint already given.
 watch(
   () => `${s.value.turn}-${phase.value}`,
   () => {
@@ -55,20 +84,37 @@ watch(
   { immediate: true },
 );
 
+/**
+ * Selects a square on the grid, if guessing is allowed now.
+ * @param {string} cell  the square's name (for example "C4")
+ * @returns {void}
+ * Side effects: sets `picked`.
+ */
 const pick = (cell) => {
   if (canGuess.value) picked.value = cell;
 };
+/**
+ * Sends the picked square to the server as your guess.
+ * @returns {Promise<void>} resolves once the server has replied
+ * Side effects: sends a 'guess' request; clears `picked` if it was accepted.
+ */
 async function lockIn() {
   if (!picked.value) return;
   const reply = await props.send('guess', { cell: picked.value });
   if (reply.ok) picked.value = null;
 }
+/**
+ * Sends the typed hint to the server.
+ * @returns {Promise<void>} resolves once the server has replied
+ * Side effects: sends a 'hint' request; sets `hintSaved` to whether it was accepted.
+ */
 async function saveHint() {
   const reply = await props.send('hint', { text: hintText.value });
   hintSaved.value = reply.ok;
 }
 
 // ---- the words in the Status box ----
+// The one-line headline for the Status box describing what is happening now.
 const headline = computed(() => {
   if (phase.value === 'abandoned') return 'The game was abandoned.';
   if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
@@ -78,7 +124,9 @@ const headline = computed(() => {
   if (mine.value?.guessed) return `Guess locked in. Waiting for the others (${guessedCount.value} of ${guessers.value.length}).`;
   return round.value === 1 ? 'Your turn: listen to the hint and guess the tint.' : 'Here is a second hint. Where would you guess now?';
 });
+// True when it is your move (hint or guess), which highlights the Status box.
 const mineNow = computed(() => guessing.value && (isHinter.value || canGuess.value)); // a guesser's turn starts once the first hint is in
+// Extra Status lines for the current phase (strings, or { text, tone } objects).
 const lines = computed(() => {
   if (phase.value === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
   if (phase.value === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];
@@ -95,6 +143,12 @@ const lines = computed(() => {
 });
 
 // ---- fitting the room: the grid is sized from the area the frame gives the table ----
+/**
+ * Works out how many columns the grid spans and how big each square is for the room given.
+ * @param {{width: number, height: number, gap: number, columns: number}} area  the main slot's measurements
+ * @returns {{span: number, cell: number}} frame columns for the grid, and square side in pixels
+ * Side effects: none.
+ */
 const dims = (area) => {
   const span = gridSpan(area);
   const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
@@ -110,13 +164,16 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => s.value.you === s.value.hostId,
   remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
 });
+// The player whose popup is open, or null.
 const opened = computed(() => s.value.players.find((p) => p.id === openId.value) ?? null);
+// Returns a short phrase for what a player is doing this turn ('' once the game has ended).
 const stageOf = (p) => {
   if (ended.value) return '';
   if (p.id === s.value.hinter) return 'the hinter this turn';
   if (guessing.value) return p.guessed ? 'has guessed' : 'still to guess';
   return '';
 };
+// Grid style making each slim bar span the right number of columns for the number of others.
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.length)}` }));
 </script>
 

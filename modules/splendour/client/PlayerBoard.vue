@@ -2,6 +2,12 @@
 // One player's board: prestige, tokens, card bonuses, nobles and reserved cards.
 // Your own reserved cards are shown and can be picked; other players' are shown face up if they were taken from the table
 // (everyone saw that) and face down if they were reserved blind from a pile.
+// Props: seat (the seat's view: tokens, bonuses, reserved cards, nobles, prestige), isMe, isTurn, interactive (cards can be
+//   picked), large (your own board: full-size reserved cards and bigger gems), selected (selected card id), afford (what you can
+//   afford, by card id), gem (gem size in px), pickTokens (tokens are the selector while returning), give (six counts marked to give back).
+// Emits: pick(card id) for a reserved card, token(colour) for a token while returning.
+// Slots: actions (shown at the bottom of a large board, for the action buttons).
+// Side effects: none beyond the emits.
 import { computed } from 'vue';
 import { NOBLE_BY_ID, CARD_BY_ID } from '../cards.js';
 import { MAX_RESERVED, MAX_TOKENS, NOBLE_POINTS, needOf as costAfterBonuses } from '../rules.js';
@@ -23,12 +29,14 @@ const props = defineProps({
 });
 defineEmits(['pick', 'token']);
 
+// How many tokens this player holds in all, Gold included.
 const total = computed(() => props.seat.tokens.reduce((a, b) => a + b, 0));
 /**
  * What a reserved card costs this player after their discounts (the shared calculation in rules.js).
  *
  * @param {string} id  a card id
  * @returns {number[]} five counts
+ * Side effects: none.
  */
 const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
 </script>

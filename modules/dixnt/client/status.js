@@ -1,7 +1,17 @@
 // The words of the Status box: what is happening and what you should do next, worked out from the game's state.
 // Returns { headline, mine, lines } for GameStatus. All instruction and turn text of the game lives here.
+
+// Joins names into prose: 'A', 'A and B', 'A, B and C' ('' for none).
 const list = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? ''));
 
+/**
+ * Works out what the Status box should say for the current state: the headline, whether it is the viewer's move, and
+ * the extra lines, which depend on the phase (word, picking, voting, results, finished) and the judging style.
+ * @param {object} state  The viewer's personalised game state.
+ * @param {{isHost?: boolean}} [options]  isHost adds the host's instruction at the end of the game.
+ * @returns {{headline: string, mine: boolean, lines: Array<string | {text: string, tone: string}>}} Content for GameStatus.
+ * Side effects: none.
+ */
 export function statusFor(state, { isHost = false } = {}) {
   const me = state.me;
   const players = state.players;
@@ -10,7 +20,9 @@ export function statusFor(state, { isHost = false } = {}) {
   const inRound = players.filter((p) => !p.waiting);
   const waitingOnCards = inRound.filter((p) => !p.isChooser && !p.hasPlayed).map((p) => p.name);
   const waitingOnVotes = inRound.filter((p) => !p.hasVoted).map((p) => p.name);
+  // Returns the name of a player id ('?' if unknown).
   const nameOf = (id) => players.find((p) => p.id === id)?.name ?? '?';
+  // Returns a Status line in the muted tone.
   const muted = (text) => ({ text, tone: 'muted' });
 
   if (state.phase === 'word') {
@@ -72,6 +84,7 @@ export function statusFor(state, { isHost = false } = {}) {
 
   if (state.phase === 'results' && state.results) {
     const r = state.results;
+    // Returns the points a player gained this round (0 if none recorded).
     const gained = (id) => r.deltas?.[id] ?? 0;
     const further = [];
     if (r.judging === 'favourite') {
@@ -103,5 +116,10 @@ export function statusFor(state, { isHost = false } = {}) {
   return { headline: '', mine: false, lines: [] };
 }
 
-/** The line that names the judging style, for the Status facts. */
+/**
+ * Names a judging style for the Status facts (an unknown style is shown as it is).
+ * @param {string} judging  'everyone', 'chooser' or 'favourite'.
+ * @returns {string} The label to show.
+ * Side effects: none.
+ */
 export const styleName = (judging) => ({ everyone: 'Everyone votes', chooser: 'Only the chooser decides', favourite: 'Favourite card' })[judging] ?? judging;

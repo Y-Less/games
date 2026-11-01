@@ -3,6 +3,7 @@
 // beside the rack.
 // Props: myTurn, targeting (tiles are selected, so the New set area is a target), canUndo, changed (the layout differs from
 //   the start of the turn), busy (a request is on its way), poolCount (tiles left in the pool), canEnd (the layout is valid).
+// Slots: none.
 // Emits: drop-selected(target), drop-tiles(target), undo, reset, draw and end.
 // Side effects: none beyond the emits.
 defineProps({

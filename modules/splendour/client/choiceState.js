@@ -2,11 +2,17 @@
 // composables (choosing one kind of thing clears the others).
 import { ref, watch } from 'vue';
 
-/** Six zeros: no tokens marked to give back. */
+/**
+ * Six zeros: no tokens marked to give back (one slot per colour, Gold last).
+ * @returns {number[]} a fresh array of six zeros
+ * Side effects: none.
+ */
 export const noTokens = () => [0, 0, 0, 0, 0, 0];
 
 /**
- * Creates the shared refs.
+ * Creates the shared refs, so that the gem, card and token composables all read and write the same half-made choice.
+ *
+ * Side effects: none (creates refs only; nothing is mutated until a composable writes to them).
  *
  * @returns {object} picks (gem colours chosen to take), sel ({ kind: 'card', id } or { kind: 'deck', level } or null),
  *   message (a warning for the Status box), payGold (Gold chosen by hand, or null), giveBack (tokens marked to give
@@ -23,8 +29,10 @@ export function createChoiceState() {
  *
  * @param {object} view    the table view (reactive)
  * @param {object} shared  the shared choice state (reactive)
+ * @returns {void}
  */
 export function useChoiceReset(view, shared) {
+  // A key that changes whenever the turn, round or pending choice does; any such change makes half-made picks stale.
   watch(
     () => `${view.s.turn}:${view.s.round}:${view.s.pending?.type ?? ''}`,
     () => {

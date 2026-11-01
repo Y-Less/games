@@ -1,4 +1,13 @@
 <script setup>
+// Cribbage lobby: the invite code and seats (via the shared SeatLobby), plus the host's choice of seat count and the
+// score to play to, with a line describing how many cards the chosen seat count deals.
+//
+// Props:
+//   state  {Object}    required. The player's view (phase 'lobby'): code, seats, you, isHost, seatCount, target, limits.
+//   send   {Function}  required. send(action, payload) asks the server to do something.
+// Emits: none.
+// Slots: none (fills SeatLobby's #settings slot).
+// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start and settings requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
@@ -15,8 +24,11 @@ const seats = computed(() =>
 );
 // How many seats are taken: the seat-count buttons below that number are disabled.
 const taken = computed(() => props.state.seats.filter(Boolean).length);
+// The scores the host may choose to play to.
 const targets = computed(() => props.state.limits.targets);
+// The seat counts the host can choose, from the server's minimum to its maximum.
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
+// One sentence describing the deal for the chosen seat count (cribbage deals differently for 2, 3, 4 and 5 players).
 const dealing = computed(() => {
   if (props.state.seatCount === 2) return 'Two players: six cards each, two to the box.';
   if (props.state.seatCount === 3) return 'Three players: five cards each, one card each to the box, and one more from the deck.';

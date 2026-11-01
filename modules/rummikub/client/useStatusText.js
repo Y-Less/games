@@ -4,11 +4,14 @@ import { computed } from 'vue';
 /**
  * The headline, the live message about your layout and the lines for between rounds.
  *
+ * Side effects: none (computed values only).
+ *
  * @param {object} view  the round view (reactive)
  * @param {object} copy  the working copy (reactive)
  * @returns {object} summary (what your layout is worth, for your turn), headline, lines (strings or { text, tone })
  */
 export function useStatusText(view, copy) {
+  // What your layout is worth, in words: instructions before you touch anything, then "Ready" or the rules' refusal.
   const summary = computed(() => {
     if (!view.myTurn) return '';
     if (!copy.changed) {
@@ -23,7 +26,9 @@ export function useStatusText(view, copy) {
     }
     return copy.status.error;
   });
+  // The newest entry of the game log (empty if there is none), shown between rounds as the round's outcome.
   const lastLine = computed(() => view.state.log.at(-1)?.text ?? '');
+  // The Status box's title: the winner(s), the end of a round, or whose turn it is.
   const headline = computed(() => {
     const state = view.state;
     if (view.finished) return state.winners.length === 1 ? `${view.nameOf(state.winners[0])} wins the game!` : `${state.winners.map(view.nameOf).join(' and ')} share the win.`;

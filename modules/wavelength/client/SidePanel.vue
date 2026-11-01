@@ -3,6 +3,7 @@
 // the legend. The same blocks in every phase and for every role, so nothing moves: a block with nothing to show is empty.
 // Props: state (the server view), view (the reactive game view), guess (the reactive guessing state), span (how many frame
 //   columns it takes).
+// Slots: none.
 // Emits: none (typing and locking in go straight to `guess`).
 // Side effects: the clue form and the Lock in button call sendClue and lockIn on `guess`.
 import ActionBlock from './ActionBlock.vue';

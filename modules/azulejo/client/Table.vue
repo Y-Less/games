@@ -2,6 +2,14 @@
 // The Azulejo table: the display plates and the centre, your board (prominent) and everyone else's beside it, the
 // scoreboard, a log, the wall-tiling summary and the final breakdown. The server sends the view; every action is one
 // request: `move` (take a colour group and place it) or `column` (free wall only).
+//
+// Props:
+//   state  {Object}    required. The player's view of the game (phases playing, tiling, finished).
+//   send   {Function}  required. send(action, payload) returns a promise of { ok, error? } from the server.
+// Emits: none.
+// Slots: none (fills GameFrame's scorebar, main, log and status slots).
+// Side effects: sends `move`, `column`, `again`, `kick` and `removeBot` requests; keeps local selection/hover/message
+// state, cleared whenever the round, turn or phase changes; the player pop-up composable manages its own state.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -18,19 +26,26 @@ import Workshop from './Workshop.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// Shorthand for the view, so templates and helpers stay short.
 const s = computed(() => props.state);
+// True once the game is over.
 const finished = computed(() => s.value.phase === 'finished');
+// True when the free-wall variant is on.
 const free = computed(() => s.value.settings.freeWall);
+// The viewer's own seat record, or null for a spectator.
 const me = computed(() => s.value.seats[s.value.you] ?? null);
+// Returns the display name of a seat, or 'Someone' if it is empty.
 const nameOf = (seat) => s.value.seats[seat]?.name ?? 'Someone';
+// True when it is the viewer's turn to take tiles.
 const myTurn = computed(() => s.value.phase === 'playing' && s.value.turn === s.value.you);
+// True when the viewer is the host (may remove players and restart).
 const isHost = computed(() => s.value.hostSeat === s.value.you);
 
 const sel = ref(null); // the chosen colour group: { source: number | 'centre', colour }
 const hover = ref(null); // a line index or 'floor' under the pointer
 const message = ref('');
 
-// Choices do not survive the turn moving on.
+// Choices do not survive the turn moving on (a stale selection could otherwise be sent against a changed table).
 watch(
   () => `${s.value.round}:${s.value.turn}:${s.value.phase}`,
   () => {
@@ -41,11 +56,21 @@ watch(
 );
 
 // ---- the chosen group, and what each line would do with it ----
+// Returns the tile array for a plate index or 'centre'.
 const sourceTiles = (source) => (source === 'centre' ? s.value.centre : (s.value.factories[source] ?? []));
+// Returns a readable name for a tile source, for messages.
 const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${source + 1}`);
+// How many tiles are in the selected group (0 if nothing is selected).
 const selCount = computed(() => (sel.value ? sourceTiles(sel.value.source).filter((c) => c === sel.value.colour).length : 0));
+// True if taking the selected group also takes the first-player marker (taking from the centre first).
 const takesMarker = computed(() => Boolean(sel.value) && sel.value.source === 'centre' && s.value.markerInCentre);
 
+/**
+ * Explains in words what placing the selected group on a line (or the floor) would do, using the shared rules preview.
+ * @param {number|string} line  Line index 0-4, or 'floor'.
+ * @returns {string} A sentence for tooltips and the status box.
+ * Side effects: none.
+ */
 function describe(line) {
   const preview = previewTake({ lines: me.value.lines, floor: me.value.floor }, { count: selCount.value, line, marker: takesMarker.value });
   const name = COLOUR_NAMES[sel.value.colour];
@@ -61,6 +86,7 @@ function describe(line) {
   return `${parts.join('; ')}.`;
 }
 
+// Per-line { ok, title } hints for the selected group: title is the reason it is refused, or what it would do. Null when not choosing.
 const lineHints = computed(() => {
   if (!sel.value || !myTurn.value || !me.value) return null;
   return Array.from({ length: 5 }, (_, i) => {
@@ -68,18 +94,32 @@ const lineHints = computed(() => {
     return { ok: problem === null, title: problem ?? describe(i) };
   });
 });
+// True when the floor line can be clicked (a group is selected on the viewer's turn).
 const floorOpen = computed(() => Boolean(sel.value) && myTurn.value);
+// The tooltip text for the line or floor being pointed at, or '' when none.
 const preview = computed(() => {
   if (!sel.value || !myTurn.value || hover.value === null) return '';
   if (hover.value === 'floor') return describe('floor');
   return lineHints.value?.[hover.value]?.title ?? '';
 });
 
+/**
+ * Selects a colour group, or deselects it when the same group is clicked again.
+ * @param {{source: number|string, colour: number}} group  Plate index or 'centre', and tile colour.
+ * @returns {void}
+ * Side effects: sets `sel` and clears the message.
+ */
 function pick({ source, colour }) {
   message.value = '';
   sel.value = sel.value?.source === source && sel.value.colour === colour ? null : { source, colour };
 }
 
+/**
+ * Sends the selected group to a line (or the floor); on success clears the selection, otherwise shows the server's reason.
+ * @param {number|string} line  Line index 0-4, or 'floor'.
+ * @returns {Promise<void>}
+ * Side effects: sends a `move` request; updates `sel`, `hover` and `message`.
+ */
 async function place(line) {
   if (!sel.value) return;
   const reply = await props.send('move', { source: sel.value.source, colour: sel.value.colour, line });
@@ -89,6 +129,12 @@ async function place(line) {
     message.value = '';
   } else message.value = reply.error ?? '';
 }
+/**
+ * Handles a click on a pattern line: places the group if allowed, else shows why not.
+ * @param {number} i  Line index 0-4.
+ * @returns {void}
+ * Side effects: may call `place` (a server request) or set `message`.
+ */
 function clickLine(i) {
   if (!lineHints.value) return;
   if (!lineHints.value[i].ok) {
@@ -97,10 +143,13 @@ function clickLine(i) {
   }
   place(i);
 }
+// Sends the free-wall column choice and returns the request's promise.
 const chooseColumn = (col) => props.send('column', { col });
 
 // ---- the words above the table ----
+// Seats that still have to choose a wall column.
 const choosing = computed(() => s.value.choosing ?? []);
+// The headline of the Status box: what is happening and what the viewer should do.
 const status = computed(() => {
   if (finished.value) return 'The game is over.';
   if (s.value.phase === 'tiling') {
@@ -112,6 +161,7 @@ const status = computed(() => {
   return `Now choose where the ${selCount.value} ${COLOUR_NAMES[sel.value.colour]} go: a highlighted line, or the floor.`;
 });
 // The further lines of the Status box, most useful first.
+// (Returns the list of detail lines: strings or { text, tone }.)
 const statusLines = computed(() => {
   const lines = [];
   if (sel.value) lines.push({ text: selectedLine.value, tone: 'mine' });
@@ -123,21 +173,27 @@ const statusLines = computed(() => {
   lines.push({ text: `First player: ${nameOf(s.value.first)}. First-player marker: ${marker.value}.`, tone: 'muted' });
   return lines;
 });
+// Describes the current selection in a sentence ('' when nothing is selected).
 const selectedLine = computed(() => {
   if (!sel.value) return '';
   return `${selCount.value} ${COLOUR_NAMES[sel.value.colour]} from ${sourceName(sel.value.source)}${takesMarker.value ? ', with the first-player marker (it takes a floor slot and makes you first next round)' : ''}.`;
 });
+// Says where the first-player marker is now: in the centre, taken, or with a named player.
 const marker = computed(() => {
   const seat = s.value.seats.findIndex((x) => x && x.floor.includes(-1));
   if (s.value.markerInCentre) return 'in the centre';
   return seat === -1 ? 'taken' : `with ${nameOf(seat)}`;
 });
+// Seat index holding the marker on their floor, or -1.
 const markerHolder = computed(() => s.value.seats.findIndex((x) => x && x.floor.includes(-1)));
 
 // ---- boards ----
+// The pending wall-column choice ({ row, colour, columns }) for the viewer, or null.
 const choose = computed(() => (s.value.phase === 'tiling' ? s.value.choice : null));
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
+// Returns all the sizes derived from the frame's area: board cell, plate size, centre height and the pop-up board cell.
+// Pure: it only reads the area and the number of plates.
 const dims = (area) => {
   const { left, right } = area; // the frame's two columns, shared with the bars and the boxes below
   const cell = boardCell(left, area.height, { max: 92 });
@@ -156,11 +212,15 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat whose board the open pop-up shows, or null.
 const openedBoard = computed(() => (openId.value === null ? null : (s.value.seats.find((o) => o && o.seat === openId.value) ?? null))); // yours too: your own summary
 
 // ---- end ----
+// Names of the winners (several when shared).
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));
+// Returns the label for a final placement ('Winner', '2nd', ...).
 const rankText = (row) => (row.placement === 1 ? 'Winner' : ['', '1st', '2nd', '3rd', '4th', '5th'][row.placement] ?? `${row.placement}th`);
+// Total tiles in the box lid (discarded tiles), shown in the status facts.
 const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 </script>
 

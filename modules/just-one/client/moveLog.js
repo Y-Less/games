@@ -1,9 +1,17 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
 // with the one before, and what changed becomes a line. Nothing here needs the server to keep a log.
 
-/** The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn). */
+/**
+ * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn). The caller appends
+ * them to its list, so a line is only produced on the one step where its event happens.
+ * @param {object | null} prev  the state before (null for the first state received)
+ * @param {object | null} next  the state that has just arrived
+ * @returns {string[]} the new lines, oldest first (empty when there is no game or it is in the lobby)
+ * Side effects: none.
+ */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
+  // A player's name from the new state, or "Someone" if they are not found (returns a string).
   const name = (id) => next.players.find((p) => p.id === id)?.name ?? 'Someone';
   const out = [];
   const sameTurn = prev && prev.turn === next.turn;

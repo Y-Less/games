@@ -1,13 +1,25 @@
 <script setup>
+// The Gaudi lobby: the invite code, the seat list (shared SeatLobby) and the host's rules (table size, bad private scoring).
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none.
+// Slots: none (it fills SeatLobby's `settings` slot).
+// Side effects: the buttons and checkbox send 'size', 'settings', 'addBot', 'removeBot', 'fillBots', 'kick' and 'start'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
-/** Is this player the host? Only the host may change the rules and the seats. */
+/**
+ * Is this player the host? Only the host may change the rules and the seats.
+ * @returns {boolean}
+ * Side effects: none.
+ */
 const isHost = computed(() => props.state.hostSeat === props.state.you);
-/** The seats in the shape the shared seat list shows: name, kind, whether host, you, or away. */
+/**
+ * The seats in the shape the shared seat list shows: name, kind, whether host, you, or away.
+ * @returns {{ id: number, name: string, kind: string, isHost: boolean, isMe: boolean, away: boolean }[]}
+ * Side effects: none.
+ */
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -18,11 +30,24 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
-/** The first empty seat, where a computer player is added (-1 if the table is full). */
+/**
+ * The first empty seat, where a computer player is added (-1 if the table is full).
+ * @returns {number} the seat number or -1
+ * Side effects: none.
+ */
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
-/** How many seats are taken (the table cannot shrink below this). */
+/**
+ * How many seats are taken (the table cannot shrink below this).
+ * @returns {number}
+ * Side effects: none.
+ */
 const seated = computed(() => props.state.seats.filter(Boolean).length);
-/** A line saying how many dice the bag holds for this many seats. */
+/**
+ * A line saying how many dice the bag holds for this many seats (the bag is five colours of equal count, sized so that ten
+ * rounds of a pool of 2n + 1 dice use every die).
+ * @returns {string}
+ * Side effects: none.
+ */
 const diceLine = computed(() => `${10 * (2 * props.state.size + 1)} dice in the bag, ${2 * (2 * props.state.size + 1)} of each colour`);
 </script>
 

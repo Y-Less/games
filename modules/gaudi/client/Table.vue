@@ -29,10 +29,10 @@ import { useTurnState } from './useTurnState.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
-const board = ref(null);
+const board = ref(null); // the ScoreBoard, so the final screen's "See the scores" button can open its pop-up
 const hint = ref(''); // what the tool or objective under the pointer does (shown in Status)
 
-const s = computed(() => props.state);
+const s = computed(() => props.state); // the view as a computed, which is what every composable below takes
 const turn = useTurnState(s);
 const { windows, finished, me, myTurn, nameOf, poolMax, trackSlots, winners } = turn;
 const sel = useSelection(s, turn.poolDie);
@@ -42,17 +42,29 @@ const clicks = useBoardClicks({ s, turn, sel, applyTool: tools.applyTool, send: 
 const { status, statusLines } = useStatusText({ s, turn, sel, tools, hint });
 const { scoreProps, popupProps, openedPlayer, openedSeat, openedIsMe } = useOpenedPlayer(s, props.send);
 
-/** The pool dice drawn as chosen: the one selected for placing, or the one chosen for the tool in use. */
+/**
+ * The pool dice drawn as chosen: the one selected for placing, or the one chosen for the tool in use.
+ * @returns {number[]} die ids (zero, one or two)
+ * Side effects: none.
+ */
 const chosenIds = computed(() => [selected.value, mode.value?.die].filter((id) => id != null));
 
-/** Takes the whole turn back (server side) and clears any half-made choice on the screen. */
+/**
+ * Takes the whole turn back (server side) and clears any half-made choice on the screen.
+ * @returns {Promise<void>} resolves when the server has answered
+ * Side effects: sends 'undo'; clears the selection and tool; sets or clears the Status message.
+ */
 async function undoTurn() {
   const reply = await props.send('undo');
   sel.clear();
   message.value = reply.ok ? '' : reply.error;
 }
 
-/** Ends your turn; shows the server's reason if it refuses. */
+/**
+ * Ends your turn; shows the server's reason if it refuses.
+ * @returns {Promise<void>} resolves when the server has answered
+ * Side effects: sends 'end'; may set the Status message.
+ */
 async function endTurn() {
   const reply = await props.send('end');
   if (!reply.ok) message.value = reply.error;
@@ -62,6 +74,7 @@ async function endTurn() {
  * Works out every size on the table from the area the frame gives it (see layout.js).
  * @param {object} area  { width, height, left, columns, gap, mainSpan }
  * @returns {object} cell, die, perRow, poolHeight, trackDie, option and popup sizes in pixels
+ * Side effects: none (called from the template, once per use, so keep it cheap and pure).
  */
 const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: finished.value, options: s.value.options?.length ?? 4 });
 </script>

@@ -1,6 +1,7 @@
 <script setup>
 // The final scores, best first, with the winners highlighted (shown beside the dial once the game is finished).
 // Props: standings (the players sorted by score, each with placement, name, score and winner).
+// Slots: none.
 // Emits: none.
 // Side effects: none.
 defineProps({

@@ -4,6 +4,12 @@
 // moves and Status. Every word about what is happening (turns, instructions, hand and trick numbers, the target, the
 // passing direction) is in Status, so the table holds only cards, names and scores. The table is drawn at one design size
 // and scaled by the window (see `scale`), so nothing changes size or position while a game is played.
+//
+// Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves as
+// [{ text }], kept by Hearts.vue).
+// Emits: none. Slots: none (it fills GameFrame's scorebar, main, log and status slots).
+// Side effects: sends 'pass', 'play', 'claim', 'next', 'again', 'removeBot' and 'kick' requests; two watchers on the view
+// clear the chosen pass cards and the warning message when the hand or the turn moves on.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -23,27 +29,43 @@ const props = defineProps({
   log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
 });
 
-const board = ref(null);
-const picks = ref([]);
-const message = ref('');
+const board = ref(null); // the ScoreBoard, so "See the scores" can open its pop-up
+const picks = ref([]); // the cards chosen to pass, before they are confirmed
+const message = ref(''); // a warning for Status (why a card cannot be played)
 
-const s = computed(() => props.state);
+const s = computed(() => props.state); // the view as a computed, so everything below recalculates when it changes
+// How many players are at the table.
 const count = computed(() => s.value.seatCount);
+// The seat object `rel` places clockwise from you (0 is you); returns it from the view.
 const seatAt = (rel) => s.value.seats[(s.value.you + rel) % count.value];
+// The seat number `rel` places clockwise from you (0 is you).
 const seatIndex = (rel) => (s.value.you + rel) % count.value;
+// Cards dealt to each player this game (varies with the number of players).
 const cardsEach = computed(() => s.value.deal.cardsEach);
+// How many cards each player passes.
 const passCount = computed(() => s.value.deal.passCount);
+// A seat's name, or '' for an empty seat.
 const nameOf = (seat) => s.value.seats[seat]?.name ?? '';
+// Which phase the hand is in (the next four are exactly one true at a time).
 const passing = computed(() => s.value.phase === 'passing');
 const finished = computed(() => s.value.phase === 'finished');
 const handEnd = computed(() => s.value.phase === 'handEnd');
 const playing = computed(() => s.value.phase === 'playing');
 // The cards you received are marked only until the first card of the hand is played.
 const showReceived = computed(() => playing.value && s.value.trickNumber === 1 && !s.value.trick.length);
+// You may play now: the server only sends the legal-card map on your turn.
 const myTurn = computed(() => Boolean(s.value.legal));
 const claimable = computed(() => playing.value && Boolean(s.value.canClaim)); // you lead and cannot lose another trick
+// The seats around the trick circle, starting with you, as { key, name }.
 const circleSeats = computed(() => Array.from({ length: count.value }, (_, rel) => ({ key: seatIndex(rel), name: nameOf(seatIndex(rel)) })));
+// The cards in the current trick as { key (the seat), card }; none outside the playing phase.
 const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ key: p.seat, card: p.card })) : []));
+/**
+ * The small note under an opponent's cards: passing progress, or the tricks they have taken.
+ * @param {number} rel  places clockwise from you (1 or more)
+ * @returns {string} the note, or '' when there is nothing to say
+ * Side effects: none.
+ */
 const oppNote = (rel) => {
   const seat = seatAt(rel);
   if (passing.value) return seat.passed ? 'passed' : 'choosing';
@@ -56,10 +78,15 @@ const opponents = computed(() =>
     return { key: seatIndex(rel), name: seat.name, cards: seat.cards, note: oppNote(rel), away: !seat.online, current: s.value.turn === seatIndex(rel) };
   }),
 );
+// Whether the hand just finished was a shot at the moon (changes how the scores are signed).
 const isMoonRound = computed(() => s.value.lastHand?.moon != null);
+// Your own seat object.
 const you = computed(() => s.value.seats[s.value.you]);
+// Names of the players who have not yet closed the hand's scores (only at the end of a hand).
 const waitingFor = computed(() => (handEnd.value ? s.value.seats.filter((seat) => !seat.ready).map((seat) => seat.name) : []));
+// The winners' names (empty until the game is over).
 const winnerNames = computed(() => (s.value.winners ?? []).map(nameOf));
+// Whether you are the host (who gets Play again and the Remove button).
 const isHost = computed(() => s.value.hostSeat === s.value.you);
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, which also has the
@@ -70,9 +97,11 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat whose chip was clicked in the score bar, or null when no pop-up is open.
 const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.value) ?? null);
 
 // ---- the words, all of them in the Status box ----
+// The headline of the Status box for the phase, as one sentence ('' when there is nothing to say).
 const status = computed(() => {
   if (finished.value) return winnerNames.value.length > 1 ? `It is a tie: ${winnerNames.value.join(' and ')} win.` : `${winnerNames.value[0]} wins with ${s.value.scoreboard.players[s.value.winners[0]].score} points.`;
   if (passing.value) return s.value.pass.chosen ? 'Waiting for the others to choose their cards.' : `${s.value.pass.label}: choose ${passCount.value} cards for ${s.value.pass.toName}.`;
@@ -84,7 +113,9 @@ const status = computed(() => {
   if (handEnd.value) return you.value.ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next hand.` : `Hand ${s.value.lastHand?.hand} is over: close the scores to carry on.`;
   return '';
 });
+// Whether it is your move (highlights the Status box).
 const mine = computed(() => !finished.value && (myTurn.value || (passing.value && !s.value.pass.chosen)));
+// The further Status lines as { text, tone }, which depend on the phase; tone only picks the colour.
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
@@ -99,6 +130,7 @@ const statusLines = computed(() => {
   }
   return lines;
 });
+// A sentence about the last hand's shot at the moon, or '' if nobody shot it.
 const moonMessage = computed(() => {
   const moon = s.value.lastHand?.moon;
   if (moon == null) return '';
@@ -106,15 +138,24 @@ const moonMessage = computed(() => {
   return s.value.settings.moon === 'self' ? `${nameOf(moon)} shot the moon and scores -${points}.` : `${nameOf(moon)} shot the moon: everyone else scores +${points}.`;
 });
 
+// A new hand or phase starts again with no cards chosen to pass.
 watch(
   () => `${s.value.phase}:${s.value.handNumber}`,
   () => (picks.value = []),
 );
+// A warning is only about the moment it was shown: any play clears it.
 watch(
   () => `${s.value.turn}:${s.value.trick.length}`,
   () => (message.value = ''),
 );
 
+/**
+ * A card in your hand was clicked: while passing it is chosen or unchosen; on your turn it is played if it is legal, otherwise
+ * the reason is shown in Status.
+ * @param {string} card  the card's code
+ * @returns {void}
+ * Side effects: clears the message; changes picks; may set the message; may send 'play' (through submit).
+ */
 function pick(card) {
   message.value = '';
   if (passing.value && !s.value.pass.chosen) {
@@ -131,6 +172,13 @@ function pick(card) {
 // One card goes at a time: until the server has answered, the card just clicked is still drawn in the hand, and a second
 // click on it (a double click, say) would only come back as "That card is not in your hand."
 const sending = ref(false);
+/**
+ * Sends a request while blocking further card clicks until the server answers.
+ * @param {string} event  the request name, such as 'play' or 'claim'
+ * @param {object} [payload]  its parameters
+ * @returns {Promise<void>} resolves when the server has answered (its reply is not examined)
+ * Side effects: sets and clears `sending`; sends the request.
+ */
 async function submit(event, payload) {
   sending.value = true;
   try {
@@ -140,16 +188,25 @@ async function submit(event, payload) {
   }
 }
 
+/**
+ * Sends the cards chosen to pass.
+ * @returns {Promise<void>} resolves when the server has answered
+ * Side effects: sends 'pass'; clears picks if it is accepted.
+ */
 async function confirmPass() {
   const reply = await props.send('pass', { cards: picks.value });
   if (reply.ok) picks.value = [];
 }
 
 // Once you have passed, those cards are gone from your hand while the others choose (the fan keeps its size, see `max`).
+// (the hand as drawn: your cards less any already passed)
 const shownHand = computed(() => (passing.value && s.value.pass.chosen ? s.value.hand.filter((card) => !s.value.pass.chosen.includes(card)) : s.value.hand));
 
+// Whether cards in your hand can be clicked now (choosing cards to pass, or your turn to play).
 const interactive = computed(() => (passing.value && !s.value.pass.chosen) || myTurn.value);
+// Whether a card is drawn dimmed: it is your turn and the server gave a reason it cannot be played.
 const dimmed = (card) => myTurn.value && s.value.legal[card] !== null;
+// The reason a card cannot be played, for its hover title ('' if it can or it is not your turn).
 const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
 
 // ---- your hand, from 7 to 17 cards ----
@@ -158,12 +215,19 @@ const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
 const CARD_W = 5.8; // rem, a large card
 const ROW_W = 12 * 0.48 * CARD_W + CARD_W + 0.6; // the flat row of 13 cards
 const FAN_SPAN = 12 * 3.6; // degrees from the first card to the last in the 13-card fan
+// How tightly the hand is drawn for this deal size: `overlap` (flat row) and `step` (degrees between cards in the fan).
 const handLook = computed(() => {
   const n = cardsEach.value;
   const overlap = n <= 13 ? 0.48 : (ROW_W - CARD_W - 0.6) / ((n - 1) * CARD_W);
   const step = Math.min(6, Math.max(1, FAN_SPAN / Math.max(1, n - 1)));
   return { overlap, step };
 });
+/**
+ * The style that centres the hand: its width depends on the deal size and on whether it is fanned or a flat row.
+ * @param {boolean} fanned  true for the arc, false for the flat row
+ * @returns {{ marginLeft: string }} a negative left margin of half the width, in rem
+ * Side effects: none.
+ */
 const handStyle = (fanned) => {
   const n = cardsEach.value;
   const { overlap, step } = handLook.value;
@@ -174,7 +238,14 @@ const handStyle = (fanned) => {
 // needs that much more room between the trick and the bottom edge. The design leaves CLEAR rem there; a window taller
 // than the table can be scaled to (see `scale`) leaves more. The minimised boxes also give the arc its room.
 const CLEAR = 2.9; // rem between the lowest played card and the top of a flat hand, in the design
+// How far (rem) the middle cards of the fanned hand stand higher than the flat row's (the arc's sag).
 const arcSag = computed(() => 8 * CARD_W * (1 - Math.cos(((cardsEach.value - 1) / 2) * handLook.value.step * (Math.PI / 180))));
+/**
+ * Whether the hand can be shown as an arc in the room the frame gives (otherwise it is a flat row).
+ * @param {{ minimised?: boolean, height: number }} area  the main area given by the frame
+ * @returns {boolean}
+ * Side effects: none (reads the root font size through rem()).
+ */
 function arcFits(area) {
   if (area.minimised) return true;
   const s = scale(area);
@@ -186,7 +257,9 @@ function arcFits(area) {
 // The table is drawn at a design height of DESIGN_H rem and every piece is scaled by one factor worked out from the
 // height the frame gives it, so it is the same at every moment of a game and fills the window at any desktop size.
 const DESIGN_H = 34;
+// The size of a rem in pixels (the root font size; 16 if it cannot be read).
 const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+// The one factor every piece of the table is scaled by: the area's height over the design height, kept between 0.55 and 1.4.
 const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * rem())));
 </script>
 

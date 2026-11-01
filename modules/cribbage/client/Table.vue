@@ -4,6 +4,14 @@
 // bottom, Recent moves (the scoring) and Status. Every word about what is happening (turns, instructions, the hand
 // number, the dealer, the target, the deck and box counts, the result) is in Status. It is drawn for every phase after
 // the lobby (discarding, pegging, the show and the end), so nothing changes size or position from one to the next.
+//
+// Props:
+//   state  {Object}    required. The player's view (phases discard, play, show, finished).
+//   send   {Function}  required. send(action, payload) returns a promise of { ok, error? }.
+// Emits: none.
+// Slots: none (fills GameFrame's scorebar and main slots, and the boxes below them).
+// Side effects: sends play, discard, ready, kick and removeBot requests; keeps local `picked` cards (pruned when the
+// hand changes, cleared when the phase changes); the player pop-up composable manages its own state.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -19,14 +27,28 @@ import { seatColour } from './colours.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// The cards chosen for the box during the discard phase (card codes).
 const picked = ref([]);
+// Template ref to the ScoreBoard (kept so it can be opened programmatically).
 const scoreboard = ref(null);
+// Shorthand for the view.
 const s = computed(() => props.state);
+// The current phase: discard, play, show or finished.
 const phase = computed(() => s.value.phase);
+// The viewer's seat index.
 const me = computed(() => s.value.you);
+// All seat records.
 const seats = computed(() => s.value.seats);
+// The viewer's own seat record.
 const you = computed(() => seats.value[me.value]);
+// Returns the seat `rel` places clockwise from the viewer.
 const seatAt = (rel) => seats.value[(me.value + rel) % seats.value.length];
+/**
+ * Builds the small caption under an opponent's hand: dealer status and, while discarding, whether they have discarded.
+ * @param {Object} seat  An opponent's seat record.
+ * @returns {string} The caption ('' if there is nothing to say).
+ * Side effects: none.
+ */
 const oppNote = (seat) => {
   const dealing = seat.seat === s.value.dealer;
   if (phase.value === 'discard') return `${dealing ? 'dealer, ' : ''}${seat.discarded ? 'discarded' : 'choosing'}`;
@@ -39,20 +61,35 @@ const opponents = computed(() =>
     return { key: seat.seat, name: seat.name, cards: seat.cards, note: oppNote(seat), away: !seat.online, current: turn.value === seat.seat };
   }),
 );
+// The dealer's seat record.
 const dealer = computed(() => seats.value[s.value.dealer]);
+// True when the viewer deals (so the box is theirs).
 const youDeal = computed(() => s.value.dealer === me.value);
+// True during the pegging phase.
 const inPlay = computed(() => phase.value === 'play');
+// True once the game is over.
 const finished = computed(() => phase.value === 'finished');
+// Seat whose turn it is to peg, or -1 outside pegging.
 const turn = computed(() => (inPlay.value ? s.value.play.turn : -1));
+// True when it is the viewer's turn to peg.
 const myTurn = computed(() => turn.value === me.value);
+// The cards the viewer may legally play now, as a set.
 const playable = computed(() => new Set(s.value.play?.playable ?? []));
+// How many cards the viewer still has to put in the box (0 when done or not discarding).
 const need = computed(() => s.value.need);
+// Words for whose box it is: 'your' or the dealer's name with 's.
 const cribOwner = computed(() => (youDeal.value ? 'your' : `${dealer.value.name}'s`));
+// Names of those who have not yet discarded.
 const waitingFor = computed(() => seats.value.filter((x) => !x.discarded).map((x) => x.name));
+// The winner's seat record once finished, else null.
 const winner = computed(() => (finished.value ? seats.value[s.value.winner] : null));
+// Final standings: seats with their place, sorted by place then score. Empty until finished.
 const standings = computed(() => (finished.value ? seats.value.map((x) => ({ ...x, place: s.value.placements[x.seat] })).sort((a, b) => a.place - b.place || b.score - a.score) : []));
+// Losers who finished below the skunk line. Empty until finished.
 const skunked = computed(() => (finished.value ? seats.value.filter((x) => x.seat !== s.value.winner && x.score < s.value.skunkLine) : []));
+// The score bar's players, with a ready flag added during the show.
 const scorePlayers = computed(() => s.value.scoreboard.players.map((p) => ({ ...p, ready: phase.value === 'show' && Boolean(seats.value[p.id]?.ready) })));
+// Names of those who have not yet closed the show (empty outside the show).
 const waitingForReady = computed(() => (phase.value === 'show' ? seats.value.filter((x) => !x.ready).map((x) => x.name) : []));
 
 watch(
@@ -64,6 +101,13 @@ watch(
   () => (picked.value = []),
 );
 
+/**
+ * Handles a click on a card in your hand: during the discard phase it toggles the card in the box selection (replacing
+ * the oldest pick when full); during pegging on your turn it plays the card.
+ * @param {string} card  The card code.
+ * @returns {void}
+ * Side effects: may change `picked`, or send a `play` request.
+ */
 function pick(card) {
   if (phase.value === 'discard') {
     if (!need.value) return;
@@ -74,6 +118,11 @@ function pick(card) {
     props.send('play', { card });
   }
 }
+/**
+ * Sends the picked cards to the box.
+ * @returns {Promise<void>}
+ * Side effects: sends a `discard` request; clears `picked` on success.
+ */
 async function discard() {
   const reply = await props.send('discard', { cards: picked.value });
   if (reply?.ok) picked.value = [];
@@ -87,7 +136,14 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => Boolean(s.value.isHost),
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat record whose pop-up is open, or null.
 const opened = computed(() => seats.value.find((o) => o.seat === openId.value) ?? null); // yours too: your own summary
+/**
+ * Builds the lines of an opponent's (or your own) pop-up: cards held, discard status, whose box it is, and the pegs.
+ * @param {Object} o  A seat record.
+ * @returns {string[]} One sentence per line.
+ * Side effects: none.
+ */
 const detailLines = (o) => {
   const lines = [`${o.cards} ${o.cards === 1 ? 'card' : 'cards'} in hand`];
   const mine = o.seat === me.value;
@@ -98,6 +154,7 @@ const detailLines = (o) => {
 };
 
 // ---- the words, all of them in the Status box ----
+// The Status box headline: whose move it is, or what the viewer must do.
 const status = computed(() => {
   if (finished.value) return `${winner.value.name}${winner.value.seat === me.value ? ' (you)' : ''} wins!`;
   if (phase.value === 'discard') return need.value ? `Choose ${need.value} card${need.value === 1 ? '' : 's'} for ${cribOwner.value} box.` : `Waiting for ${waitingFor.value.join(', ')}…`;
@@ -105,7 +162,9 @@ const status = computed(() => {
   if (phase.value === 'show') return you.value.ready ? `Waiting for ${waitingForReady.value.join(', ')}…` : 'Close the scores pop-up when you are ready for the next hand.';
   return '';
 });
+// True when the viewer has something to do (highlights the Status box).
 const mine = computed(() => !finished.value && ((phase.value === 'discard' && Boolean(need.value)) || (inPlay.value && myTurn.value)));
+// The extra Status lines, each { text, tone }: discard progress, the count restarting, and the final standings.
 const statusLines = computed(() => {
   const lines = [];
   if (phase.value === 'discard' && need.value) lines.push({ text: `${picked.value.length} of ${need.value} chosen: pick them, then press Send to the box.`, tone: 'muted' });
@@ -122,6 +181,8 @@ const statusLines = computed(() => {
 });
 
 // ---- fitting the room: the cards are sized from the height the frame gives the table ----
+// Returns the card widths and box heights derived from the frame's height: hand, pegging row, piles, and the board's height.
+// Pure: it only reads the area.
 const dims = (area) => {
   const hand = Math.round(Math.max(52, Math.min(124, (area.height * 0.34) / 1.4))); // width of a card in your hand, px
   const peg = Math.round(hand * 0.8); // width of a card in the pegging row
@@ -132,14 +193,17 @@ const dims = (area) => {
 // The opponents' hands sit over the pegging zone (above your hand): top centre for one, three or five opponents (so the
 // zone is inset from the top), and left and right for two or more (inset from the sides). A hand is drawn about 0.3 of
 // the zone's height deep (see OpponentHands), so that is how far the pegging row is kept away from each edge.
-const OPPONENT_DEPTH = 0.31;
+const OPPONENT_DEPTH = 0.31; // fraction of the zone's height an opponent's hand takes up
+// Returns the padding that keeps the pegging zone clear of the opponents' hands (top for odd counts, sides for two or more).
 const room = (area) => {
   const n = opponents.value.length;
   const d = dims(area);
   const depth = Math.round((area.height - (d.hand * 1.4 + 19)) * OPPONENT_DEPTH);
   return { paddingTop: n % 2 === 1 ? `${depth}px` : '', paddingInline: n >= 2 ? `${depth}px` : '' };
 };
+// The cards of the current pegging sequence, each { card, seat }.
 const sequence = computed(() => (inPlay.value ? s.value.play.sequence : []));
+// The previous (finished) sequence, shown faded until the next card is played.
 const previous = computed(() => (inPlay.value && !sequence.value.length ? s.value.play.previous : []));
 </script>
 

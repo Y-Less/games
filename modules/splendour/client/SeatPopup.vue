@@ -3,6 +3,7 @@
 // clicked in the score bar. Nothing else on the table moves.
 // Props: popupProps (what usePlayerPopup gives the popup, or null when none is open), seat (the opened seat's view, or null),
 //   you (your seat number), turn (whose turn it is), finished (the game is over), gem (gem size in px).
+// Slots: none.
 // Emits: none (closing is handled by the popup's own events inside popupProps).
 // Side effects: none.
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';

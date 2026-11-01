@@ -1,16 +1,29 @@
 <script setup>
+// Dixnt lobby: the invite code, the players (the host can remove people and add computer players), and the host's
+// settings: play style, card categories, hand size and number of rounds. Everyone else sees them read-only.
+//
+// Props: none. Emits: none. Slots: none.
+// Side effects: sends addBot, fillBots, removeBot, removePlayer, setJudging, setCategories, setHandSize, setRounds and
+// start requests (through the store).
 import { computed } from 'vue';
 import InviteCode from '../../../../src/components/InviteCode.vue';
 import { useDixnt } from '../useDixnt.js';
 
 const { isHost, players, send, store } = useDixnt();
+// The current state.
 const state = computed(() => store.state);
+// True when no more players can join.
 const full = computed(() => players.value.length >= state.value.maxPlayers);
+// How many more players are needed before the game can start (0 when enough).
 const missingPlayers = computed(() => Math.max(0, state.value.minPlayers - players.value.length));
+// Cards needed to deal everyone a full hand.
 const cardsNeeded = computed(() => players.value.length * state.value.handSize);
+// True when the chosen categories hold enough cards for that deal.
 const enoughCards = computed(() => state.value.availableCards >= cardsNeeded.value);
+// The categories currently in the deck.
 const selected = computed(() => state.value.categories.filter((c) => c.selected));
 
+// The three play styles with their titles and rule text (which quotes the current point values).
 const judgingOptions = computed(() => [
   {
     mode: 'everyone',
@@ -28,8 +41,15 @@ const judgingOptions = computed(() => [
     text: `Everybody sees the word and nobody has to bluff. The chooser picks the card they like best, and the player who played it scores ${state.value.pointsFavourite}.`,
   },
 ]);
+// The option for the style in use (shown to non-hosts).
 const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode === state.value.judging));
 
+/**
+ * Adds a category to the deck, or removes it if it is already in, by sending the whole new selection.
+ * @param {string} key  The category's key.
+ * @returns {void}
+ * Side effects: sends a `setCategories` request.
+ */
 function toggleCategory(key) {
   const keys = state.value.categories.filter((c) => (c.key === key ? !c.selected : c.selected)).map((c) => c.key);
   send('setCategories', { keys });

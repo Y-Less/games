@@ -1,10 +1,18 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
 // with the one before, and what changed becomes a line. Nothing here needs the server to keep a log.
+// Wording for each kind of guess result, used in the guess lines of the log.
 const KIND = { exact: 'exactly right', close: 'close', miss: 'missed' };
 
-/** The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn). */
+/**
+ * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn).
+ * @param {object|null} prev  the previous state (null for the first)
+ * @param {object|null} next  the new state (null or lobby yields no lines)
+ * @returns {string[]} new log lines, oldest first
+ * Side effects: none.
+ */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
+  // Returns the name of the player with this id, or 'Someone' if not found.
   const name = (id) => next.players.find((p) => p.id === id)?.name ?? 'Someone';
   const out = [];
   const samePhase = prev && prev.phase === next.phase && prev.turn === next.turn;

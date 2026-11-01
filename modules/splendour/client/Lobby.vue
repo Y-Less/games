@@ -1,11 +1,18 @@
 <script setup>
+// Splendour lobby: invite code, seat list (via SeatLobby) and the host's game options.
+// Props: state (the lobby view of the game), send (sends a request to the server).
+// Emits: none (all actions go through `send`: addBot, removeBot, fillBots, kick, start, settings).
+// Slots: none (fills SeatLobby's `settings` slot).
+// Side effects: none locally; user actions send requests to the server.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host (only they can change options).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// Seats mapped to the shape SeatLobby expects (id, name, kind, host/me/away flags); empty seats are null in the state.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,8 +23,11 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// Returns the index of the first empty seat (-1 if full), where a computer player is added.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// How many seats are taken, by people or computer players.
 const occupied = computed(() => props.state.seats.filter(Boolean).length);
+// Sends a settings change to the server; `settings` is an object of the options to change.
 const change = (settings) => props.send('settings', settings);
 </script>
 

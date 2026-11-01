@@ -10,7 +10,7 @@
 // This file only composes: the working copy, dragging, the timer, the sent actions and the words are in the use*.js files,
 // and each area of the screen is its own component.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply).
-// Emits: none.
+// Emits: none. Slots: none (it fills GameFrame's slots itself).
 // Side effects: sends actions through `send`; opens and closes the scoreboard and player pop-ups.
 import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -31,11 +31,18 @@ import { useWorkingCopy } from './useWorkingCopy.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// Each composable's returned refs are wrapped in reactive() so the template and the other composables read them without .value.
+// The round view: read-only facts about the game for this player.
 const view = reactive(useRoundView(() => props.state));
+// The working copy of the table that you build during your turn.
 const copy = reactive(useWorkingCopy(view));
+// Mouse drag and drop of tiles.
 const drag = reactive(useTileDrag(view, copy));
+// The things sent to the server: end turn, draw, carry on.
 const actions = reactive(useTurnActions(view, copy, props.send));
+// The turn countdown (null when untimed).
 const { secondsLeft } = useTurnClock(() => props.state);
+// The Status box's words.
 const { headline, lines } = useStatusText(view, copy);
 
 // Another player's details (their tile count and so on) open from their chip in the score bar: one at a time, floating
@@ -46,14 +53,18 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => view.isHost,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
+// The seat view of the player whose pop-up is open, or null when none is.
 const opened = computed(() => props.state.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too: your own summary
+// The score of the player whose pop-up is open (0 when none is).
 const openedScore = computed(() => props.state.scoreboard.players.find((p) => p.id === openId.value)?.score ?? 0);
 
 /**
  * The rack's rows follow the room the frame leaves (a larger window shows more of it), never what is in it.
  *
  * @param {object} area  the frame's slot area
- * @returns {number} how many rows of tiles the rack shows
+ * @returns {number} how many rows of tiles the rack shows (3 when the area is at least 600px tall, otherwise 2)
+ *
+ * Side effects: none.
  */
 const rackRows = (area) => (area.height >= 600 ? 3 : 2);
 </script>

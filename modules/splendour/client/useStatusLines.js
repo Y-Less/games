@@ -6,8 +6,9 @@ import { GEM_NAMES } from './gems.js';
 /**
  * Turns a payment into words, e.g. "2 Ruby and 1 Onyx".
  *
- * @param {number[]} pay  six counts
+ * @param {number[]} pay  six counts, one per colour with Gold last
  * @returns {string} the words, or "nothing"
+ * Side effects: none.
  */
 export function payText(pay) {
   const parts = pay.flatMap((n, c) => (n > 0 ? [`${n} ${GEM_NAMES[c]}`] : []));
@@ -21,8 +22,11 @@ export function payText(pay) {
  * @param {object} ctx  reactive parts of the table: view (useTableView), ending (useEnding), shared (choiceState), take
  *   (useGemTake) and card (useCardChoice)
  * @returns {object} banner, lastRound (strings) and statusLines (a list of strings or { text, tone })
+ *
+ * Side effects: none (creates computed values only).
  */
 export function useStatusLines({ view, ending, shared, take, card }) {
+  // The one-line headline for the Status box: the result, a pending choice, or whose turn it is.
   const banner = computed(() => {
     const { s, finished, myTurn, nameOf } = view;
     const { winners } = ending;
@@ -33,8 +37,10 @@ export function useStatusLines({ view, ending, shared, take, card }) {
     if (myTurn) return 'Your turn: take gems, reserve a card or buy a card.';
     return `Waiting for ${nameOf(s.turn)}…`;
   });
+  // A note that the final round has begun and why ('' otherwise).
   const lastRound = computed(() => (view.s.finalRound && !view.finished ? `${view.nameOf(view.s.triggeredBy)} reached ${view.s.settings.target}: this is the last round, so everyone gets the same number of turns.` : ''));
 
+  // The Status box lines, in order of importance: warning, last-round note, then what is selected or what to do next.
   const statusLines = computed(() => {
     const lines = [];
     if (shared.message) lines.push({ text: shared.message, tone: 'warn' });

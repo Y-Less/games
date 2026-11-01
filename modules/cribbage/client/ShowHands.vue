@@ -1,5 +1,10 @@
 <script setup>
 // The show: each hand (and the box) laid out with the starter and an itemised count.
+//
+// Props:
+//   state  {Object}  required. The view during the show: show.entries ({ kind, seat, cards, items, total, after }), starter, seats, you.
+// Emits: none. Slots: none.
+// Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { rankOf, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
 import CardRow from './CardRow.vue';
@@ -7,8 +12,11 @@ import { seatColour } from './colours.js';
 
 const props = defineProps({ state: { type: Object, required: true } });
 
+// The hands to show, in order ([] when there is no show yet).
 const entries = computed(() => props.state.show?.entries ?? []);
+// Returns the cards as short text, each as rank then suit symbol, separated by spaces.
 const text = (cards) => cards.map((c) => `${rankOf(c)}${SUIT_SYMBOLS[suitOf(c)]}`).join(' ');
+// Returns the name of a seat.
 const nameOf = (seat) => props.state.seats[seat].name;
 </script>
 

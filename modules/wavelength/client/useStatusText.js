@@ -5,11 +5,14 @@ import { maxScore } from '../scoring.js';
 /**
  * The headline, whether it is your move, and the lines under it.
  *
+ * Side effects: none (computed values only).
+ *
  * @param {object} view  the game view (reactive, from useGameView)
  * @param {object} guess  the guessing state (reactive, from useGuessing): its `picked` is read
  * @returns {object} headline, mineNow (it is your move) and lines (strings or { text, tone })
  */
 export function useStatusText(view, guess) {
+  // The Status box's title for this phase, role and mode.
   const headline = computed(() => {
     const { state } = view;
     if (view.phase === 'abandoned') return 'The game was abandoned.';
@@ -28,7 +31,9 @@ export function useStatusText(view, guess) {
     if (view.mine?.guessed) return `Guess locked in. Waiting for the others (${view.guessedCount} of ${view.guessers.length}).`;
     return 'Your turn: read the clue and turn the dial to where you think the target is.';
   });
+  // True when the table should be highlighted as yours: you are the psychic writing a clue, or you may guess.
   const mineNow = computed(() => (view.clueTime && view.isPsychic) || view.canGuess);
+  // The smaller lines under the headline: advice for the phase, as strings or { text, tone } objects.
   const lines = computed(() => {
     if (view.phase === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
     if (view.phase === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];

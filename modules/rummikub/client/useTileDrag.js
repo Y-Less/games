@@ -20,6 +20,10 @@ export function useTileDrag(view, copy) {
    *
    * @param {DragEvent} event  the browser's dragstart event
    * @param {number} id  the dragged tile
+   * @returns {void} nothing
+   *
+   * Side effects: cancels the drag when it is not your turn or the tile is locked; otherwise sets `dragging`, writes the ids to
+   * the event's dataTransfer and schedules `dropHint` to be set on the next tick.
    */
   function dragStart(event, id) {
     if (!view.myTurn || copy.lockedTile(id)) {
@@ -42,6 +46,9 @@ export function useTileDrag(view, copy) {
    * The dragged tiles are dropped on a target.
    *
    * @param {object} target  { type: 'set', index } or { type: 'rack' } or { type: 'new' }
+   * @returns {void} nothing
+   *
+   * Side effects: clears `dragging` and `dropHint`; moves the tiles through copy.place when it is your turn.
    */
   function drop(target) {
     const ids = dragging.value;
@@ -49,7 +56,13 @@ export function useTileDrag(view, copy) {
     dropHint.value = false;
     if (view.myTurn && ids.length) copy.place(ids, target);
   }
-  /** The drag ended (dropped or cancelled). */
+  /**
+   * The drag ended (dropped or cancelled).
+   *
+   * @returns {void} nothing
+   *
+   * Side effects: clears `dragging` and `dropHint`.
+   */
   const dragEnd = () => {
     dragging.value = [];
     dropHint.value = false;

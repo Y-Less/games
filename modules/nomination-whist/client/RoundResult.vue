@@ -1,5 +1,8 @@
 <script setup>
 // What each player nominated, took and scored in one finished round.
+// Props: round {Object, required} one entry of the view's `rounds` (label, bids, taken, deltas, instantWin);
+// seats {Array, required} the seat objects (seat, name); you {Number} this player's seat, -1 for none.
+// Emits: none. Slots: none. Side effects: none.
 defineProps({
   round: { type: Object, required: true }, // one entry of the view's `rounds`
   seats: { type: Array, required: true },

@@ -1,11 +1,21 @@
 // Names, colours and shapes of the five gems and Gold (index 5). Every gem has its own SHAPE as well as its own colour,
 // so the game can be played without telling colours apart.
+// Display names, indexed by colour (0 to 4) with Gold at 5.
 export const GEM_NAMES = ['Diamond', 'Sapphire', 'Emerald', 'Ruby', 'Onyx', 'Gold'];
+// Fill colour of each gem, same indexing.
 export const GEM_FILL = ['#f3f7fa', '#3f7fe0', '#2fb577', '#e04a5b', '#4b4b5a', '#f0b84a'];
+// Outline colour of each gem, same indexing.
 export const GEM_STROKE = ['#9db1bf', '#a9c8ff', '#9ce8c3', '#ffb3bb', '#b2b2c6', '#fff0c6'];
+// Text colour that reads well on top of each gem's fill (for counts drawn on a gem), same indexing.
 export const GEM_INK = ['#1b2a33', '#ffffff', '#06281a', '#ffffff', '#ffffff', '#2a1c05'];
+// Shape name of each gem (a key of SHAPES), same indexing.
 export const GEM_SHAPES = ['rhombus', 'circle', 'octagon', 'triangle', 'hexagon', 'star'];
 
+/**
+ * Builds the points string of the Gold star: 16 points alternating outer and inner radius around (12, 12).
+ * @returns {string} SVG `points` attribute value
+ * Side effects: none.
+ */
 const star = () => {
   const points = [];
   for (let k = 0; k < 16; k++) {

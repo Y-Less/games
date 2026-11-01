@@ -22,6 +22,8 @@ const picked = ref(null); // the window chosen but not yet confirmed
 
 /**
  * Sends the window picked in the options. The pick is kept if the server refuses it, and cleared once it is accepted.
+ * @returns {Promise<void>} resolves when the server has answered (immediately if nothing is picked)
+ * Side effects: sends 'window'; clears picked on success.
  */
 async function chooseWindow() {
   if (!picked.value) return;
@@ -32,6 +34,8 @@ async function chooseWindow() {
 /**
  * Picks an offered window (nothing happens once you have chosen).
  * @param {string} pid  the window's id
+ * @returns {void}
+ * Side effects: sets picked (unless the choice is already locked in).
  */
 const pick = (pid) => {
   if (!props.state.chosen) picked.value = pid;

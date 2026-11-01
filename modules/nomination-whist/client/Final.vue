@@ -1,11 +1,19 @@
 <script setup>
+// Final screen of Nomination Whist: winner banner, ranked standings and a host-only "Play again" button.
+// Props: state {Object, required} the player's view of the finished game; send {Function, required} sends a request to the server.
+// Emits: none (talks to the server via `send('again')`).
+// Slots: none.
+// Side effects: none locally; the button sends an 'again' request to the server.
 import { computed } from 'vue';
 import { placements } from '../../../shared/scores.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host (only they may restart).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// Map of seat -> finishing place (1 = best). An instant winner is forced to first and the others are ranked below them.
 const places = computed(() => {
+  // Returns a seat -> place map for the given seats, ranked by score.
   const all = (seats) => placements(Object.fromEntries(seats.map((s) => [s.seat, s.score])));
   const win = props.state.instantWin;
   if (win === null || win === undefined) return all(props.state.seats);
@@ -13,9 +21,13 @@ const places = computed(() => {
   const others = all(props.state.seats.filter((s) => s.seat !== win));
   return { ...Object.fromEntries(Object.entries(others).map(([seat, place]) => [seat, place + 1])), [win]: 1 };
 });
+// Seats ordered by place, ties broken by seat number, for display.
 const standings = computed(() => [...props.state.seats].sort((a, b) => places.value[a.seat] - places.value[b.seat] || a.seat - b.seat));
+// The seat objects that the server lists as winners (more than one means a tie).
 const winners = computed(() => props.state.seats.filter((s) => props.state.winners.includes(s.seat)));
+// The seat object of the instant winner, or null if the game was not won instantly.
 const instantWinner = computed(() => props.state.seats.find((s) => s.seat === props.state.instantWin) ?? null);
+// True when this player is among the winners.
 const iWon = computed(() => props.state.winners.includes(props.state.you));
 </script>
 

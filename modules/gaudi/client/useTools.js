@@ -7,7 +7,7 @@ import { startMode } from './toolkit.js';
  * @param {object} ctx  { s, turn, sel, send }: the view (computed), the useTurnState result, the useSelection result and the
  *   function that sends a request to the server and resolves with { ok, error }
  * @returns {object} toolBlock(tool), startTool(tool), toolParams, applyTool(extra), modeDie, modeSummary
- * Side effects: startTool and applyTool change the selection; applyTool sends a 'tool' request.
+ * Side effects: startTool and applyTool change the selection; applyTool sends a 'tool' request. Nothing is listened to.
  */
 export function useTools({ s, turn, sel, send }) {
   const { me, myTurn, poolDie } = turn;
@@ -16,7 +16,8 @@ export function useTools({ s, turn, sel, send }) {
   /**
    * Why a tool cannot be used right now, or '' if it can (not your turn, one already used, not enough favour tokens...).
    * @param {{ cost: number }} tool  a tool card from the view
-   * @returns {string}
+   * @returns {string} the reason in words, or ''
+   * Side effects: none.
    */
   const toolBlock = (tool) => {
     if (s.value.phase !== 'playing') return 'The game is not being played.';
@@ -29,6 +30,8 @@ export function useTools({ s, turn, sel, send }) {
   /**
    * A tool card was clicked: begins guided use of it (clicking the same card again cancels). The server checks everything again.
    * @param {object} tool  a tool card from the view
+   * @returns {void}
+   * Side effects: clears and may set the Status message; sets or clears the tool in use and drops the selected die.
    */
   function startTool(tool) {
     message.value = '';
@@ -39,7 +42,11 @@ export function useTools({ s, turn, sel, send }) {
     mode.value = startMode(tool, me.value.window.grid);
   }
 
-  /** The request parameters the guided choices add up to so far, or null while something is still to be chosen. */
+  /**
+   * The request parameters the guided choices add up to so far, or null while something is still to be chosen.
+   * @returns {object | null} for example { die }, { die, trackDie }, {} or { moves }
+   * Side effects: none.
+   */
   const toolParams = computed(() => {
     const m = mode.value;
     if (!m) return null;
@@ -53,6 +60,8 @@ export function useTools({ s, turn, sel, send }) {
   /**
    * Sends the tool being used. A failed slide resets the moves the player made, since the window on screen was only a preview.
    * @param {object} [extra]  parameters added by the button pressed (such as delta for Lathe)
+   * @returns {Promise<void>} resolves when the server has answered
+   * Side effects: sends a 'tool' request; on success ends the tool, on failure sets the Status message (and resets a slide's moves).
    */
   async function applyTool(extra = {}) {
     const m = mode.value;
@@ -70,9 +79,17 @@ export function useTools({ s, turn, sel, send }) {
     }
   }
 
-  /** The pool die chosen for the tool being used, if any. */
+  /**
+   * The pool die chosen for the tool being used, if any.
+   * @returns {object | null} the die from the pool, or null
+   * Side effects: none.
+   */
   const modeDie = computed(() => (mode.value?.die == null ? null : poolDie(mode.value.die)));
-  /** A sentence saying how far the guided use of the tool has got (shown in Status). */
+  /**
+   * A sentence saying how far the guided use of the tool has got (shown in Status).
+   * @returns {string} the progress, or '' when no tool is in use
+   * Side effects: none.
+   */
   const modeSummary = computed(() => {
     const m = mode.value;
     if (!m) return '';

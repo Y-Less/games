@@ -1,16 +1,26 @@
 <script setup>
 // The waiting room: the invite code, the player list (PlayerListPanel) with marker colours, and the host's game options.
+// Props: state (the server view: code, players, you, hostId, mode, turnsEach, limits), send (sends an action to the server).
+// Emits: none (everything goes through `send`).
+// Slots: none (it fills PlayerListPanel's `lead` slot with each player's colour chip).
+// Side effects: the template's buttons send add/remove bot, kick, colour, mode, settings and start requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True if you are the host (only the host may change the options).
 const isHost = computed(() => props.state.hostId === props.state.you);
+// The marker colours already chosen, so the picker can show them as unavailable.
 const taken = computed(() => new Set(props.state.players.map((p) => p.colour)));
+// Your own player record.
 const mine = computed(() => props.state.players.find((p) => p.id === props.state.you));
+// The allowed range for turns per player ({ min, max }).
 const turns = computed(() => props.state.limits.turns);
+// How many turns the whole game will last (turns each times players).
 const total = computed(() => props.state.turnsEach * props.state.players.length);
+// True once there are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
 

@@ -16,7 +16,9 @@ import { sum } from './tableView.js';
  * @returns {object} giveTotal, choosingNoble, canPickNoble(id), addGive(c), removeGive(c), clickToken(c), clear(), confirmGive(), chooseNoble(id)
  */
 export function useTokenReturn(view, shared, send) {
+  // How many tokens are currently marked for return.
   const giveTotal = computed(() => sum(shared.giveBack));
+  // True when the server is waiting for you to pick a noble.
   const choosingNoble = computed(() => view.pendingMine?.type === 'noble');
 
   /**
@@ -24,6 +26,7 @@ export function useTokenReturn(view, shared, send) {
    *
    * @param {string} id  a noble id
    * @returns {boolean} true when you are choosing and this noble is an option
+   * Side effects: none.
    */
   const canPickNoble = (id) => Boolean(choosingNoble.value && view.pendingMine.options.includes(id));
 
@@ -31,6 +34,8 @@ export function useTokenReturn(view, shared, send) {
    * Marks one more token of a colour for return, within what you hold and what you must give back.
    *
    * @param {number} c  the token colour (0 to 5, 5 being Gold)
+   * @returns {void}
+   * Side effects: replaces the shared giveBack (unless the mark is not allowed, when nothing changes).
    */
   function addGive(c) {
     if (!view.pendingMine || shared.giveBack[c] >= view.tokens[c] || giveTotal.value >= view.pendingMine.count) return;
@@ -40,6 +45,8 @@ export function useTokenReturn(view, shared, send) {
    * Unmarks one token of a colour.
    *
    * @param {number} c  the token colour
+   * @returns {void}
+   * Side effects: replaces the shared giveBack.
    */
   function removeGive(c) {
     if (shared.giveBack[c] > 0) shared.giveBack = shared.giveBack.map((n, i) => (i === c ? n - 1 : n));
@@ -48,6 +55,8 @@ export function useTokenReturn(view, shared, send) {
    * Clicking one of your own tokens while returning: mark one more for return, or (when no more can be marked) take one back.
    *
    * @param {number} c  the token colour
+   * @returns {void}
+   * Side effects: replaces the shared giveBack via addGive or removeGive.
    */
   function clickToken(c) {
     if (!view.pendingMine) return;
@@ -55,11 +64,19 @@ export function useTokenReturn(view, shared, send) {
     if (!full) addGive(c);
     else removeGive(c);
   }
-  /** Unmarks every token. */
+  /**
+   * Unmarks every token.
+   * @returns {void}
+   * Side effects: resets the shared giveBack to zeros.
+   */
   function clear() {
     shared.giveBack = noTokens();
   }
-  /** Sends the tokens marked for return once exactly the right number is marked. */
+  /**
+   * Sends the tokens marked for return once exactly the right number is marked.
+   * @returns {Promise<void>} resolves once the server has replied (does nothing if the count is wrong or busy)
+   * Side effects: sets the shared busy flag while waiting; sends 'giveBack'; clears the marks on success.
+   */
   async function confirmGive() {
     if (!view.pendingMine || giveTotal.value !== view.pendingMine.count || shared.busy) return;
     shared.busy = true;
@@ -72,6 +89,7 @@ export function useTokenReturn(view, shared, send) {
    *
    * @param {string} noble  a noble id
    * @returns {Promise} the server's reply
+   * Side effects: sends a 'noble' request to the server.
    */
   const chooseNoble = (noble) => send('noble', { noble });
 

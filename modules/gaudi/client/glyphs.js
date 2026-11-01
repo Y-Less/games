@@ -2,6 +2,7 @@
 // is never the only clue) and where the pips go. Everything is drawn in a 40 x 40 box. Which colour has which shape, the
 // colours' names and the pattern letters are rules, not drawing: they come from ../rules.js (COLOUR_SHAPES, COLOUR_NAMES,
 // COLOUR_LETTERS).
+// Pure data: exports only constants, so there are no functions and no side effects.
 
 /** The glass colour of each die colour. */
 export const COLOUR_HEX = { ruby: '#cf3f56', topaz: '#e6b422', jade: '#2f9e63', sapphire: '#3b78d6', amethyst: '#9457c9' };

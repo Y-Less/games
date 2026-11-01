@@ -1,11 +1,22 @@
 <script setup>
+// Azulejo lobby: shows the invite code and the seats (via the shared SeatLobby), and lets the host pick the number of
+// seats and whether the wall is "free". Everyone else sees the settings read-only.
+//
+// Props:
+//   state  {Object}    required. The player's view of the game (phase 'lobby'): code, seats, you, hostSeat, size, limits, settings.
+//   send   {Function}  required. send(action, payload) asks the server to do something.
+// Emits: none.
+// Slots: none (fills SeatLobby's #settings slot).
+// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start, size, settings requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host and so may change settings.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// Seats in the shape SeatLobby wants: id, name, kind (empty/bot/human), host and own-seat flags, and whether a human is offline.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,8 +27,11 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// Returns the index of the first empty seat (-1 if full), where an added bot goes.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// Number of occupied seats; the player count cannot be lowered below this.
 const seated = computed(() => props.state.seats.filter(Boolean).length);
+// Number of display plates for the chosen player count (the game's rule: two per player plus one).
 const plates = computed(() => 2 * props.state.size + 1);
 </script>
 

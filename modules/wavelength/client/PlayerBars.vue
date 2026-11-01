@@ -2,6 +2,7 @@
 // The slim bars for the other players, on the frame's own columns: name, colour, role tag and score.
 // Props: players (the other players), psychic (the psychic's id), ended (the game is over), guessing (guessing is in
 //   progress), team (a team game, where nobody guesses alone).
+// Slots: none.
 // Emits: none.
 // Side effects: none.
 import { computed } from 'vue';
@@ -15,6 +16,7 @@ const props = defineProps({
   team: { type: Boolean, default: false },
 });
 
+// Grid placement: how many of the frame's columns each bar spans, given how many bars there are.
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(props.players.length)}` }));
 </script>
 

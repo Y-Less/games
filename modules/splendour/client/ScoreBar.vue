@@ -4,6 +4,7 @@
 // Emits: again (the host chose Play again in the scoreboard pop-up). Other attributes (the player pop-up's props and
 //   events) fall through to the scoreboard.
 // Exposes: show() and close() for the scoreboard pop-up.
+// Slots: none.
 // Side effects: none beyond the emits.
 import { ref } from 'vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
@@ -15,11 +16,20 @@ defineProps({
 });
 const emit = defineEmits(['again']);
 
+// Template ref to the ScoreBoard component, so show() and close() can reach it.
 const board = ref(null);
 defineExpose({
-  /** Opens the scoreboard pop-up. */
+  /**
+   * Opens the scoreboard pop-up.
+   * @returns {void}
+   * Side effects: opens the pop-up.
+   */
   show: () => board.value.show(),
-  /** Closes the scoreboard pop-up. */
+  /**
+   * Closes the scoreboard pop-up.
+   * @returns {void}
+   * Side effects: closes the pop-up.
+   */
   close: () => board.value.close(),
 });
 </script>

@@ -1,6 +1,13 @@
 <script setup>
 // What the wall-tiling phase of the last round did, for every player: each tile placed and what it scored, the
 // floor penalty, and the new score. Nothing is hidden: this is the same information the walls now show.
+//
+// Props:
+//   tiling  {Object}  required. lastTiling from the view: { round, players: [{ seat, placed, dropped, penalty, lost, before, after }] }.
+//   seats   {Array}   required. Seat records (for names), indexed by seat number.
+//   you     {number}  the viewer's seat, to highlight their row (default -1: nobody).
+// Emits: none. Slots: none.
+// Side effects: none (pure rendering).
 import Tile from './Tile.vue';
 
 defineProps({
@@ -8,6 +15,7 @@ defineProps({
   seats: { type: Array, required: true },
   you: { type: Number, default: -1 },
 });
+// Returns the human-readable (1-based) name of a zero-based wall row, for tooltips.
 const rowName = (row) => `row ${row + 1}`;
 </script>
 

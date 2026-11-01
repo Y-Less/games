@@ -1,11 +1,22 @@
 <script setup>
+// Cheat lobby: the invite code and seats (via the shared SeatLobby), plus the host's choice of how many players sit
+// (which also decides the number of packs and the deal). Everyone else sees the choice read-only.
+//
+// Props:
+//   state  {Object}    required. The player's view (phase 'lobby'): code, seats, you, hostSeat, seatCount, decks, limits.
+//   send   {Function}  required. send(action, payload) asks the server to do something.
+// Emits: none.
+// Slots: none (fills SeatLobby's #settings slot).
+// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start and settings requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
+// True when this player is the host and so may change settings.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
+// Seats in the shape SeatLobby wants: id, name, kind (empty/bot/human), host and own-seat flags, and whether a human is offline.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,
@@ -16,15 +27,20 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// The player counts the host can choose, from the server's minimum to its maximum.
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
+// Number of occupied seats; the player count cannot go below this.
 const taken = computed(() => props.state.seats.filter(Boolean).length);
+// One sentence describing the deal for the chosen player count (packs, cards each, and any extra card).
 const dealing = computed(() => {
   const cards = props.state.decks * 52;
   const each = Math.floor(cards / props.state.seatCount);
   const extra = cards % props.state.seatCount;
   return `${props.state.seatCount} players: ${props.state.decks === 1 ? 'one pack' : 'two packs'}, ${each} cards each${extra ? ` (and ${extra} players get one more)` : ''}.`;
 });
+// Returns the index of the first empty seat (-1 if full), where an added bot goes.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
+// Asks the server to change settings; returns the request's promise.
 const change = (settings) => props.send('settings', settings);
 </script>
 

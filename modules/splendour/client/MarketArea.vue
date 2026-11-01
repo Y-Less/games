@@ -2,6 +2,7 @@
 // The market: the nobles (two columns of the frame's grid) beside the three rows of cards (six columns).
 // Props: state (the server view: nobles, board, decks, afford), view (the reactive table view), card (the reactive card choice),
 //   noble (the reactive token-return and noble choice).
+// Slots: none.
 // Emits: none (clicks go straight to the card and noble choices it is given).
 // Side effects: clicking a card, a pile or a noble calls the matching function on `card` or `noble`.
 import CardRows from './CardRows.vue';

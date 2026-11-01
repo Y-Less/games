@@ -2,6 +2,12 @@
 // Your hand, along the bottom of the main area. The zone is a fixed size (the cards are sized for a full hand), so it
 // never changes between phases or as cards are played. Click a card to look closer; while cards are being played the
 // closer look has the Play button.
+//
+// Props:
+//   cardWidth   {number}  required. Card width in pixels.
+//   cardHeight  {number}  required. Card height in pixels.
+// Emits: none. Slots: none.
+// Side effects: sets store.zoom to open the card viewer; the Play button sends a `playCard` request.
 import { computed } from 'vue';
 import { useDixnt } from '../useDixnt.js';
 import CardImg from './CardImg.vue';
@@ -13,9 +19,17 @@ defineProps({
 
 const { send, store } = useDixnt();
 
+// The current state.
 const state = computed(() => store.state);
+// True when the viewer may play a card now: picking phase, and not the chooser or waiting for the next round.
 const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser && !state.value.me.waiting);
 
+/**
+ * Builds the buttons the card viewer shows for one of your cards: a Play button while cards are being played.
+ * @param {number} cardId  The card showing in the viewer.
+ * @returns {Array<{label: string, primary: boolean, run: () => any}>} The actions (empty when you cannot play).
+ * Side effects: none (the `run` callback sends `playCard` unless that card is already the one played).
+ */
 function actionsFor(cardId) {
   const actions = [];
   if (canPlay.value) {
@@ -29,6 +43,12 @@ function actionsFor(cardId) {
   return actions;
 }
 
+/**
+ * Opens the card viewer on a card from your hand, with the whole hand to step through.
+ * @param {number} cardId  The card clicked.
+ * @returns {void}
+ * Side effects: sets store.zoom.
+ */
 function open(cardId) {
   store.zoom = { cardId, cards: [...state.value.me.hand], actionsFor };
 }

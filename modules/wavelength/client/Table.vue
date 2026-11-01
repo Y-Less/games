@@ -6,7 +6,7 @@
 // the words in useStatusText.js, and each area of the screen is its own component.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply), log (the
 //   recent moves, as lines of text).
-// Emits: none.
+// Emits: none. Slots: none (it fills GameFrame's slots itself).
 // Side effects: sends actions through `send`; opens and closes the scoreboard and player pop-ups.
 import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -29,8 +29,12 @@ const props = defineProps({
   log: { type: Array, default: () => [] },
 });
 
+// Each composable's returned refs are wrapped in reactive() so the template and the other composables read them without .value.
+// The game view: read-only facts about the game for this player.
 const view = reactive(useGameView(() => props.state));
+// Clueing and guessing: the dial position being turned, the clue being typed and what is sent.
 const guess = reactive(useGuessing(view, props.send));
+// The Status box's words.
 const { headline, mineNow, lines } = useStatusText(view, guess);
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
@@ -41,12 +45,15 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   isHost: () => props.state.you === props.state.hostId,
   remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
 });
+// The player whose pop-up is open, or null when none is.
 const opened = computed(() => props.state.players.find((p) => p.id === openId.value) ?? null);
 /**
  * What another player is doing now, for their pop-up.
  *
  * @param {object} p  a player from the view
  * @returns {string} e.g. "has guessed", or an empty string when there is nothing to say
+ *
+ * Side effects: none.
  */
 const stageOf = (p) => {
   if (view.ended) return '';

@@ -1,6 +1,10 @@
 <script setup>
 // Rummikub: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
+// Props: socket (the platform's socket), user (the signed-in user or null), search (the page's query string, which may carry an
+//   invite code), setSearch (updates the query string).
+// Emits: none. Slots: none.
+// Side effects: useGameSocket subscribes to the socket's state events; RoomEntry's create and join send requests.
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
@@ -14,6 +18,7 @@ const props = defineProps({
   setSearch: { type: Function, default: () => {} },
 });
 
+// state is the player's view (null outside a game); loaded is false until the first reply; notice is the latest error text.
 const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,

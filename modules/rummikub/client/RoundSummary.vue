@@ -1,5 +1,8 @@
 <script setup>
 // How a round ended: who won and why, and every player's leftover tiles (public once the round is over).
+// Props: lastRound (the view's summary of the round: winners, reason and the final racks), seats (all seats, for names),
+//   settings (the tile settings), you (your seat number, or -1 for a spectator).
+// Emits: none. Slots: none. Side effects: none.
 import { computed } from 'vue';
 import Tile from './Tile.vue';
 
@@ -9,10 +12,12 @@ const props = defineProps({
   settings: { type: Object, required: true },
   you: { type: Number, default: -1 },
 });
+// The sentence saying who won the round and how (went out, or lowest rack when nobody could play).
 const headline = computed(() => {
   const names = props.lastRound.winners.map((w) => props.seats[w]?.name ?? 'Someone').join(' and ');
   return props.lastRound.reason === 'out' ? `${names} went out.` : `Nobody could play. ${names} had the lowest rack.`;
 });
+// Formats a score change with an explicit plus sign for gains ("+5", "-12", "0").
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
 </script>
 

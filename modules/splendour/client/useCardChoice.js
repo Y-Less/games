@@ -18,11 +18,17 @@ import { sum } from './tableView.js';
  *   goldLeft, pickCard(id), pickDeck(level), setGold(n), cancel(), buy(), reserve()
  */
 export function useCardChoice(view, shared, send) {
+  // Id of the selected card, or null (a pile or nothing is selected).
   const selectedCard = computed(() => (shared.sel?.kind === 'card' ? shared.sel.id : null));
+  // Level of the selected pile, or null.
   const selectedLevel = computed(() => (shared.sel?.kind === 'deck' ? shared.sel.level : null));
+  // The static card data (cost, points, bonus) of the selected card, or null.
   const selectedInfo = computed(() => (selectedCard.value ? CARD_BY_ID[selectedCard.value] : null));
+  // True when the selected card is one of your reserved cards.
   const inReserve = computed(() => Boolean(selectedCard.value && view.me?.reserved.some((r) => r.card === selectedCard.value)));
+  // The server's offer for buying the selected card ({ pay, minGold, maxGold }), or null if you cannot afford it.
   const quote = computed(() => (selectedCard.value ? view.s.afford?.[selectedCard.value] ?? null : null));
+  // How much Gold you will pay with: your choice, clamped to what the quote allows (default: the least).
   const goldUsed = computed(() => (quote.value ? Math.min(quote.value.maxGold, Math.max(quote.value.minGold, shared.payGold ?? quote.value.minGold)) : 0));
   /** The payment for the chosen amount of Gold: Gold replaces gems, starting with the colour paid most. */
   const payPlan = computed(() => {
@@ -37,23 +43,29 @@ export function useCardChoice(view, shared, send) {
     }
     return pay;
   });
+  // For an unaffordable selected card: what is still short per colour (left), the Gold needed to cover it, and the total.
   const missing = computed(() => {
     if (!selectedCard.value || quote.value) return null;
     const left = view.needOf(selectedCard.value).map((n, c) => Math.max(0, n - view.tokens[c]));
     return { left, gold: Math.max(0, sum(left) - view.tokens[5]), total: sum(left) };
   });
+  // True when it is your turn and you have room in your reserve.
   const canReserve = computed(() => view.myTurn && view.me && view.me.reserved.length < MAX_RESERVED);
+  // Why you cannot reserve right now ('' when you can).
   const reserveWhy = computed(() => {
     if (!view.myTurn) return view.s.pending ? 'Finish your current choice first.' : 'It is not your turn.';
     if (view.me.reserved.length >= MAX_RESERVED) return 'You already have three reserved cards.';
     return '';
   });
+  // True when the supply still has Gold (a reserve takes one).
   const goldLeft = computed(() => view.supply[5] > 0);
 
   /**
    * Selects a card, or deselects it when it is already selected.
    *
    * @param {string} id  a card id
+   * @returns {void}
+   * Side effects: sets the shared sel, and clears picks, message and payGold.
    */
   function pickCard(id) {
     shared.message = '';
@@ -65,6 +77,8 @@ export function useCardChoice(view, shared, send) {
    * Selects a pile (to reserve its top card blind), or deselects it when it is already selected.
    *
    * @param {number} level  the pile's level (1 to 3)
+   * @returns {void}
+   * Side effects: sets the shared sel, and clears picks and message.
    */
   function pickDeck(level) {
     shared.message = '';
@@ -75,16 +89,26 @@ export function useCardChoice(view, shared, send) {
    * Chooses how much Gold to pay with (the amount is clamped to what the quote allows).
    *
    * @param {number} n  the amount of Gold
+   * @returns {void}
+   * Side effects: sets the shared payGold.
    */
   function setGold(n) {
     shared.payGold = n;
   }
-  /** Drops the selection. */
+  /**
+   * Drops the selection.
+   * @returns {void}
+   * Side effects: clears the shared sel.
+   */
   function cancel() {
     shared.sel = null;
   }
 
-  /** Buys the selected card, with a custom payment only when the amount of Gold was changed. */
+  /**
+   * Buys the selected card, with a custom payment only when the amount of Gold was changed.
+   * @returns {Promise<void>} resolves once the server has replied (does nothing if not affordable, not your turn or busy)
+   * Side effects: sets the shared busy flag while waiting; sends a 'buy' request; clears sel on success.
+   */
   async function buy() {
     if (!quote.value || !view.myTurn || shared.busy) return;
     shared.busy = true;
@@ -93,7 +117,11 @@ export function useCardChoice(view, shared, send) {
     shared.busy = false;
     if (reply.ok) shared.sel = null;
   }
-  /** Reserves the selected card, or the top card of the selected pile. */
+  /**
+   * Reserves the selected card, or the top card of the selected pile.
+   * @returns {Promise<void>} resolves once the server has replied (does nothing if reserving is not allowed or busy)
+   * Side effects: sets the shared busy flag while waiting; sends a 'reserve' request; clears sel on success.
+   */
   async function reserve() {
     if (!canReserve.value || shared.busy) return;
     shared.busy = true;

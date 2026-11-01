@@ -4,6 +4,7 @@
 // Props: headline, mine (it is your move), lines (the Status lines), round, rounds (rounds in the game), poolCount, meld (the
 //   first-meld target), showPoints (show how many points you have towards it), points (your layout's points), secondsLeft
 //   (the turn timer, or null), finished, isHost.
+// Slots: none.
 // Emits: again (Play again).
 // Side effects: none beyond the emit.
 import GameStatus from '../../../src/components/GameStatus.vue';

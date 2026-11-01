@@ -1,5 +1,11 @@
 // How the screen guides the player through each tool: which things to click, and how they become the request's
 // parameters. The server checks everything again; this only decides what to ask for and what to highlight.
+/**
+ * The guidance of each tool, by tool id: `kind` says what the player is asked to click (see useTools' toolParams), `min`/`max`
+ * how many slide moves are needed, `options` the rules a slide relaxes (passed to rules.js) and `sameColour` that a second
+ * moved die must match the first. Tools missing from here fall back to a plain confirm button in startMode.
+ * Side effects: none (a constant).
+ */
 export const TOOL_KINDS = {
   lathe: { kind: 'delta' }, // a pool die, then raise or lower it
   mirror: { kind: 'pool' }, // a pool die
@@ -21,6 +27,7 @@ export const TOOL_KINDS = {
  * @param {{ id: string, name: string, cost: number, how: string }} tool  a tool card from the view
  * @param {(object | null)[]} grid  the player's window now (slide tools preview their moves on a copy of it)
  * @returns {object} the kind of guidance, the choices made so far (none) and the window to preview on
+ * Side effects: none (the grid is shared, not copied: slide moves replace m.grid rather than editing it).
  */
 export function startMode(tool, grid) {
   const def = TOOL_KINDS[tool.id] ?? { kind: 'confirm' };

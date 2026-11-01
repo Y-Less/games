@@ -3,6 +3,15 @@
 // then the vote button or the votes it got), so the table is the same size in every phase. While people are still
 // choosing, a face-down card marks each one who has played and a dashed slot each who has not. Click a card to look
 // closer (the viewer steps through the whole table).
+//
+// Props:
+//   cardWidth   {number}  required. Card width in pixels.
+//   cardHeight  {number}  required. Card height in pixels.
+//   count       {number}  required. How many cards the table is sized for: everyone in the round.
+//   columns     {number}  required. How many cards fit in a row.
+// Emits: none. Slots: none.
+// Side effects: sets store.zoom to open the card viewer; sends `vote` requests (after a confirm dialog when a single
+// decision ends the round).
 import { computed } from 'vue';
 import { useDixnt } from '../useDixnt.js';
 import { CAPTION } from '../layout.js';
@@ -17,28 +26,47 @@ const props = defineProps({
 
 const { nameOf, send, store } = useDixnt();
 
+// The current state.
 const state = computed(() => store.state);
+// True during the voting phase.
 const voting = computed(() => state.value.phase === 'voting');
+// The round's results (null until there are some).
 const results = computed(() => state.value.results);
+// True once the played cards are face up (voting and results).
 const revealed = computed(() => voting.value || state.value.phase === 'results');
+// How many players have played a card so far.
 const played = computed(() => state.value.players.filter((p) => p.hasPlayed).length);
 // The slots before the reveal: face-down cards for those who have played, then empty places.
 const slots = computed(() => Array.from({ length: props.count }, (_, i) => ({ down: i < played.value })));
 
+// Returns the names of those who voted for a player in the results.
 const votersFor = (playerId) =>
   Object.entries(results.value?.votes ?? {})
     .filter(([, target]) => target === playerId)
     .map(([voter]) => nameOf(voter));
 
+/**
+ * Builds the tooltip for a card's vote count: the number of votes and who cast them.
+ * @param {string} playerId  The player whose card it is.
+ * @returns {string} For example '2 votes: Ann, Bo'; '' in the favourite style, which has no vote counts.
+ * Side effects: none.
+ */
 function voteSummary(playerId) {
   if (results.value.judging === 'favourite') return '';
   const count = results.value.tally[playerId];
   const names = votersFor(playerId);
   return `${count} vote${count === 1 ? '' : 's'}${names.length ? `: ${names.join(', ')}` : ''}`;
 }
+// Returns the short vote count under a card ('1 vote', '3 votes'; '' in the favourite style).
 const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : `${results.value.tally[playerId]} vote${results.value.tally[playerId] === 1 ? '' : 's'}`);
 
-/** Votes in the 'everyone' style can be changed, but a chooser's decision ends the round, so ask first. */
+/**
+ * Casts a vote (or the chooser's decision) for a player. Votes in the 'everyone' style can be changed, but a chooser's
+ * decision ends the round, so that asks first.
+ * @param {string} playerId  The player voted for.
+ * @returns {void}
+ * Side effects: may show a confirm dialog; sends a `vote` request.
+ */
 function castVote(playerId) {
   if (state.value.judging !== 'everyone') {
     const question =
@@ -50,9 +78,17 @@ function castVote(playerId) {
   send('vote', { targetId: playerId });
 }
 
+// Returns true if the viewer can currently vote for this player's card.
 const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
+// Returns the label of the vote button under a card, depending on the style and whether it is your pick.
 const voteLabel = (playerId) => (state.value.me.myVote === playerId ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : 'Vote');
 
+/**
+ * Builds the buttons the card viewer shows for a card on the table: a vote button if you can vote for its owner.
+ * @param {number} cardId  The card showing in the viewer.
+ * @returns {Array<{label: string, primary: boolean, run: () => any}>} The actions (empty if you cannot vote for it).
+ * Side effects: none (the `run` callback casts the vote unless it is already your pick).
+ */
 function actionsFor(cardId) {
   const entry = state.value.table.find((e) => e.cardId === cardId);
   if (!entry || !canVoteFor(entry.playerId)) return [];
@@ -60,6 +96,12 @@ function actionsFor(cardId) {
   return [{ label: picked ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : `Vote for ${nameOf(entry.playerId)}`, primary: true, run: () => !picked && castVote(entry.playerId) }];
 }
 
+/**
+ * Opens the card viewer on a table card, with the whole table to step through.
+ * @param {number} cardId  The card clicked.
+ * @returns {void}
+ * Side effects: sets store.zoom.
+ */
 function zoom(cardId) {
   store.zoom = { cardId, cards: state.value.table.map((entry) => entry.cardId), actionsFor };
 }

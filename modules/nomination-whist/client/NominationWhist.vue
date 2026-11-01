@@ -1,4 +1,7 @@
 <script setup>
+// Props: socket {Object, required} platform socket; user {Object|null} signed-in user; search {String} current URL query string;
+// setSearch {Function} updates the URL query string. Emits: none. Slots: none.
+// Side effects: useGameSocket subscribes to the socket's `state` events and syncs the invite code with the URL for the life of the component.
 // Nomination Whist: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 import ErrorToast from '../../../src/components/ErrorToast.vue';
@@ -18,6 +21,7 @@ const { state, loaded, busy, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
+  // Returns the warning shown when leaving mid-game ('' when leaving is harmless).
   leaveConfirm: (state) => ['nominating', 'playing', 'roundEnd'].includes(state.phase) ? 'A computer player takes your seat if you leave.' : '',
 });
 </script>

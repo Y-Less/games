@@ -3,7 +3,7 @@
 // over, the standings with Play again and Show the scores.
 // Props: state (the server view), banner (the headline), lines (the Status lines), mine (it is your move), finished (the game
 //   is over), isHost (you may start another game), standings (final standings with names).
-// Emits: again (Play again) and show-scores (open the scoreboard pop-up).
+// Emits: again (Play again) and show-scores (open the scoreboard pop-up). Slots: none (fills GameStatus's facts slot).
 // Side effects: none beyond the emits.
 import GameStatus from '../../../src/components/GameStatus.vue';
 
@@ -17,6 +17,7 @@ defineProps({
   standings: { type: Array, default: () => [] },
 });
 defineEmits(['again', 'show-scores']);
+// Card levels in display order, top first, for the piles' counts in the facts.
 const levels = [3, 2, 1];
 </script>
 

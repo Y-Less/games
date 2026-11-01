@@ -1,6 +1,10 @@
 <script setup>
 // Just One: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
+// Props: socket (the platform's socket wrapper), user (signed-in user or null), search / setSearch (read and write the
+// page's query string, which carries the invite code). Emits: none. Slots: none.
+// Side effects: useGameSocket subscribes to the socket's state and notice events and may change the URL's query string;
+// the create and join events send requests; onState keeps the Recent moves list.
 import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
@@ -24,6 +28,7 @@ const log = ref([]); // "Recent moves": worked out here from the changes between
  *
  * @param {object | null} next  the new state
  * @param {object | null} previous  the state it replaces
+ * @returns {void} (the list is kept to the last 200 lines, and cleared outside a game)
  */
 function onState(next, previous) {
   log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
@@ -33,6 +38,8 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
+  // Warns before leaving a game in progress, because there is no way back in.
+  // @param {object} state  the current view; @returns {string} the warning, or '' when leaving is harmless. No side effects.
   leaveConfirm: (state) => ['clues', 'guessing', 'choosing', 'reveal'].includes(state.phase) ? 'You will not be able to come back.' : '',
   onState,
 });
