@@ -173,9 +173,19 @@ describe('Recent moves', () => {
     expect(movesBetween(null, { ...state, phase: 'lobby' })).toEqual([]);
   });
 
-  it('is shown in the log box', () => {
-    const { w } = mountTable(base());
+  it('is shown in the log box, and is kept by the page so that every state is seen even when two arrive in one redraw', async () => {
+    const socket = { connected: false, handlers: {}, emit: vi.fn((e, p, ack) => ack?.({ ok: true })), off: vi.fn() };
+    socket.on = vi.fn((e, f) => (socket.handlers[e] = f));
+    const w = mount(NominationWhist, { props: { socket } });
+    const state = base();
+    socket.handlers.state(state);
+    const nominated = copy(state);
+    nominated.seats[1].bid = 2;
+    socket.handlers.state(nominated); // a watcher on the table's state prop would have seen only this one
+    await flushPromises();
     expect(w.find('.box.log').text()).toContain('Round 1: 7 cards each');
+    expect(w.find('.box.log').text()).toContain(`${nominated.seats[1].name} nominated 2.`);
+    w.unmount();
   });
 });
 

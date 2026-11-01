@@ -2,7 +2,7 @@
 // Props: state {Object, required} the player's view of the game; send {Function, required} sends a request to the server.
 // Emits: none (requests go through `send`: play, nominate, next, kick, removeBot).
 // Slots: none (fills GameFrame's scorebar, main, log and status slots).
-// Side effects: watches the state to reset the hint and to append to the Recent moves list (kept to the last 60); no timers or listeners of its own.
+// Side effects: watches the state to reset the hint; no timers or listeners of its own (the Recent moves list is kept by the page, see log.js).
 // The game itself, in the standard frame: the score bar on top; the table (the trick in the middle, the nomination buttons in a zone of their own, and your hand along the bottom); and the two
 // boxes along the bottom, Recent moves and Status. Everything that is said (whose turn it is, the round, the trumps,
 // what you may not nominate), and the other players' details open from their chips in the score bar is in Status, so nothing in the play area grows, shrinks or moves while the game is played.
@@ -19,26 +19,19 @@ import TrickCircle from '../../../src/components/TrickCircle.vue';
 import { sortHand, SUIT_NAMES, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import Final from './Final.vue';
-import { movesBetween } from './log.js';
 import RoundResult from './RoundResult.vue';
 
-const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const props = defineProps({
+  state: { type: Object, required: true },
+  send: { type: Function, required: true },
+  log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
+});
 
 // A transient warning (why a card cannot be played), cleared whenever the phase, turn or round changes.
 const hint = ref('');
 watch(
   () => [props.state.phase, props.state.turn, props.state.round?.number],
   () => (hint.value = ''),
-);
-
-// ---- Recent moves, worked out from what changes ----
-// Recent moves list; seeded from the first state, then extended by diffing each new state against the previous one.
-const moves = ref(movesBetween(null, props.state));
-watch(
-  () => props.state,
-  (next, prev) => {
-    moves.value = [...moves.value, ...movesBetween(prev, next)].slice(-60);
-  },
 );
 
 // This player's seat number.
@@ -92,11 +85,8 @@ const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s
 
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
 // floating over the top of the main area so that nothing moves.
-// Data for the ScoreBoard and the player popup: one entry per player plus the finished rounds.
-const board = computed(() => ({
-  players: seats.value.map((s) => ({ id: s.seat, name: s.name, userId: s.userId, score: s.score, isMe: s.seat === you.value, bot: Boolean(s.bot), current: s.seat === props.state.turn, away: s.away && !s.bot, ready: s.ready, note: s.seat === props.state.instantWin ? 'instant win' : undefined })),
-  rounds: props.state.rounds,
-}));
+// The standard scoreboard (players plus the finished rounds), built by the server like every other game's.
+const board = computed(() => props.state.scoreboard);
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => board.value.players,
   hostId: () => props.state.hostSeat,
@@ -275,7 +265,7 @@ const roomFor = (area) => {
     </template>
 
     <template #log>
-      <GameLog :entries="moves" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
     </template>
 
     <template #status>

@@ -7,8 +7,8 @@
 // A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>',
 // name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
 import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
-import { placements } from '../../shared/scores.js';
-import { statsRows } from '../../shared/tally.js';
+import { placements, seatScoreboardEntry } from '../../shared/scores.js';
+import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { AIS } from './ai/index.js';
 import { contextModel, lutv } from './ai/lut.js';
@@ -697,7 +697,8 @@ export function statsPlayers(room) {
     outcome: room.winners.includes(i) ? 'win' : 'loss',
     placement: place[i],
     score: room.scores[i],
-    extras: { ...room.tally[i], perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
+    // extrasOf, not a spread: a room saved before a counter existed then records 0 for it rather than nothing.
+    extras: { ...extrasOf(room.tally[i], STAT_KEYS), perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
   }));
 }
 
@@ -739,7 +740,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
  */
 export function nominateContext(room, seat, rng) {
   return {
-    hand: room.hands[seat],
+    hand: [...room.hands[seat]],
     trump: trumpThisRound(room),
     players: room.seats.length,
     allowed: allowedNominations(room, seat),
@@ -768,7 +769,7 @@ export function nominateContext(room, seat, rng) {
  */
 export function playContext(room, seat, rng) {
   return {
-    hand: room.hands[seat],
+    hand: [...room.hands[seat]],
     legal: legalCards(room, seat),
     trick: room.trick.map((p) => p.card),
     trickPlays: room.trick.map((p) => ({ ...p })),
@@ -907,7 +908,6 @@ function seatView(room, i, online) {
   return {
     seat: i,
     name: seat.name,
-    userId: isHuman(seat) ? seat.id : undefined,
     bot: isBot(seat),
     ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
     away: isGone(seat) || (isHuman(seat) && !online(seat.id)),
@@ -962,6 +962,26 @@ function playView(room, me) {
 }
 
 /**
+ * The standard scoreboard (shared/scores.js): the players (with who is ready between rounds, and the instant winner
+ * noted), the rounds scored so far, and that high scores win. The site reads `current` from here (its "Take your time"
+ * clock), so it is built on the server like every other game's.
+ *
+ * @param {object} room  not changed
+ * @param {number} me  the viewer's seat, or -1
+ * @param {(id: number) => boolean} online
+ * @returns {object}
+ * Side effects: none.
+ */
+function scoreboardView(room, me, online) {
+  const player = (seat, i) => ({
+    ...seatScoreboardEntry(seat, i, { score: room.scores[i], me, current: room.turn === i, online }),
+    ...(room.phase === 'roundEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}),
+    ...(room.instantWin === i ? { note: 'instant win' } : {}),
+  });
+  return { players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])), rounds: roundsView(room), lowIsBetter: false };
+}
+
+/**
  * Everything one account may know: its own hand and the public table, never anybody else's cards.
  *
  * @param {object} room  not changed
@@ -980,6 +1000,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     rounds: roundsView(room),
+    scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     instantWin: room.instantWin ?? null,
     limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
