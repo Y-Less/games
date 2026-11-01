@@ -102,7 +102,7 @@ test('one account on two sockets: both see the same game, and a clue sent from o
   assert.equal((await a.call('clue', { text: 'beta' })).ok, false, 'still only one clue');
 });
 
-test('a writer who has gone away holds up the clues until the host removes them, and then the guessing opens', async (t) => {
+test('a writer who has gone away holds up the clues until the host removes them; then a computer player writes for them and the guessing opens', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan']);
   await g.host.call('start');
@@ -118,12 +118,14 @@ test('a writer who has gone away holds up the clues until the host removes them,
   const host = g.host.id === c.id ? null : g.host;
   if (host) {
     assert.ok((await host.call('kick', { userId: c.id })).ok);
-    await until(() => guesser.state?.phase === 'guessing', 'the guessing opens once the missing writer is removed');
-    assert.equal(guesser.state.clues.length, 2);
+    await until(() => guesser.state?.phase === 'guessing', 'the guessing opens once the computer player has written for the one removed');
+    assert.equal(guesser.state.players.length, 4, 'nobody is lost');
+    assert.equal(guesser.state.players.filter((p) => p.bot).length, 1, 'a computer player took the place');
+    assert.ok(guesser.state.clues.length >= 2 && guesser.state.clues.length <= 3, 'its clue counts (unless it matched one and both were cancelled)');
   }
 });
 
-test('when the guesser is gone the host removes them, the turn is skipped and the next guesser starts', async (t) => {
+test('when the guesser is gone the host removes them, and a computer player guesses in their place: the turn is not lost', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { turnsEach: 2 });
   await g.host.call('start');
@@ -133,9 +135,9 @@ test('when the guesser is gone the host removes them, the turn is skipped and th
   for (const s of guesser.sockets) s.close();
   await until(() => g.host.state.players.find((p) => p.id === guesser.id).online === false, 'the guesser away');
   assert.ok((await g.host.call('kick', { userId: guesser.id })).ok);
-  await until(() => g.host.state.players.length === 3 && g.host.state.phase === 'clues', 'a new turn');
-  assert.notEqual(g.host.state.guesser, guesser.id);
-  assert.equal(g.host.state.scoreboard.rounds.length, 0, 'the skipped turn scored nothing');
+  await until(() => g.host.state.players.some((p) => p.bot && p.id === g.host.state.guesser), 'the computer player is the guesser');
+  assert.equal(g.host.state.players.length, 4, 'nobody is lost');
+  assert.equal(g.host.state.turnsTotal, 8, 'and no turn is lost');
 });
 
 test('the host leaving passes the game on, and one account is in one game at a time', async (t) => {

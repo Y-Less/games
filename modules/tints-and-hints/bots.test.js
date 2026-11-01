@@ -214,25 +214,23 @@ test('a whole game of one person and computers finishes, at every table size', (
   }
 });
 
-test('removing a computer player: from the lobby, and in a game (the game carries on, or is abandoned)', () => {
+test('removing a computer player: in the lobby it goes; in a game it stays, because its turns are part of the game', () => {
   const room = lobbyWith(3);
-  game.start(room, 1, seededRng(8));
   const rng = seededRng(8);
-  const botOf = () => room.players.find((p) => p.kind === 'bot' && p.id !== room.hinter);
-  const out = game.removeBot(room, room.hostId, botOf().id, rng);
-  assert.deepEqual(out, { ok: true, empty: false, abandoned: false, finished: false });
-  assert.equal(room.players.length, 3);
+  const before = room.players.length;
+  const bot = room.players.find((p) => p.kind === 'bot');
+  assert.deepEqual(game.removeBot(room, room.hostId, bot.id, rng), { ok: true });
+  assert.equal(room.players.length, before - 1);
   checkRoom(room);
-  game.removeBot(room, room.hostId, botOf().id, rng);
-  assert.equal(room.players.length, 2);
+  game.start(room, 1, seededRng(8));
+  const count = room.players.length;
+  const botOf = () => room.players.find((p) => p.kind === 'bot' && p.id !== room.hinter);
+  assert.deepEqual(game.removeBot(room, room.hostId, botOf().id, rng), { ok: false, error: 'Computer players can only be removed in the lobby.' });
+  assert.equal(room.players.length, count);
+  checkRoom(room);
   playOut(room, rng);
   assert.equal(room.phase, 'finished');
-
-  const two = lobbyWith(1);
-  game.start(two, 1, rng);
-  const dropped = game.removeBot(two, two.hostId, two.players.find((p) => p.kind === 'bot').id, rng);
-  assert.equal(dropped.abandoned, true, 'a person alone is not a game');
-  assert.equal(two.phase, 'abandoned');
+  assert.equal(room.history.length, room.turnsTotal, 'every turn was played, the computer players\' included');
 });
 
 test('when the last person leaves, the computer players alone do not keep the game', () => {
@@ -351,7 +349,7 @@ function checkSeenNoTint(person) {
   }
 }
 
-test('the host removes a computer player mid-game; with one person left and a computer, removing it abandons the game; the computers never keep a game alive', async (t) => {
+test('the host cannot remove a computer player mid-game, and the computers never keep a game alive once the last person leaves', async (t) => {
   const site = await launch(t);
   const ann = await site.person('ann').open();
   assert.equal((await ann.call('create', { turnsEach: 5 })).ok, true);
@@ -359,21 +357,14 @@ test('the host removes a computer player mid-game; with one person left and a co
   await until(() => ann.state.players.length === 4);
   await ann.call('start');
   await until(() => ann.state.phase === 'guessing1');
-  const [first, second] = ann.state.players.filter((p) => p.bot);
-  assert.equal((await ann.call('removeBot', { seat: first.id })).ok, true);
-  await until(() => ann.state.players.length === 3 && !ann.state.players.some((p) => p.id === first.id), 'a bot removed mid-game');
+  const [first] = ann.state.players.filter((p) => p.bot);
+  assert.deepEqual(await ann.call('removeBot', { seat: first.id }), { ok: false, error: 'Computer players can only be removed in the lobby.' });
+  await sleep(50);
+  assert.equal(ann.state.players.length, 4, 'the computer players stay: their turns are part of the game');
   assert.ok(['guessing1', 'guessing2', 'reveal'].includes(ann.state.phase));
-  assert.equal((await ann.call('removeBot', { seat: first.id })).ok, false, 'already gone');
-  assert.equal((await ann.call('removeBot', { seat: second.id })).ok, true);
-  await until(() => ann.state.players.length === 2 || ann.state.phase === 'abandoned');
-  const last = ann.state.players.find((p) => p.bot);
-  if (last) {
-    assert.equal((await ann.call('removeBot', { seat: last.id })).ok, true);
-    await until(() => ann.state.phase === 'abandoned', 'abandoned');
-  }
-  assert.equal((await ann.stats()).summary.played, 0, 'abandoned games are not recorded');
-  assert.equal((await ann.call('leave')).ok, true);
+  assert.equal((await ann.call('leave')).ok, true, 'the last person leaving ends the game');
   await until(() => ann.state === null);
+  assert.equal((await ann.stats()).summary.played, 0, 'a game nobody finished is not recorded');
 });
 
 test('only the host can use the computer-player events, and a game with people and computers lets people leave', async (t) => {
@@ -394,13 +385,15 @@ test('only the host can use the computer-player events, and a game with people a
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase === 'guessing1');
 
-  // A person leaves mid-game: the seat is not taken over (the game carries on with fewer players, as before).
+  // A person leaves mid-game: a computer player takes their place, so the game is the same size.
   assert.equal((await cat.call('leave')).ok, true);
-  await until(() => ann.state.players.length === 4, 'cat gone');
-  assert.equal(ann.state.players.filter((p) => p.bot).length, 2);
+  await until(() => ann.state.players.filter((p) => p.bot).length === 3, 'a computer player took cat\'s place');
+  assert.equal(ann.state.players.length, 5);
+  assert.ok(!ann.state.players.some((p) => p.id === cat.id));
   assert.ok(ann.state.phase !== 'abandoned');
   assert.equal((await ann.call('kick', { userId: bob.id })).ok, true);
-  await until(() => ann.state.players.length === 3, 'bob removed');
+  await until(() => ann.state.players.filter((p) => p.bot).length === 4, 'bob removed and replaced');
+  assert.equal(ann.state.players.length, 5);
 
   // The last person leaves: the computers alone are dropped, and the room is gone.
   const code = ann.state.code;

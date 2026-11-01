@@ -191,7 +191,7 @@ test('a guesser who goes away does not stop the team locking in, though the reve
   assert.equal(psychic.state.players.find((p) => p.id === b.id).ready, false);
 });
 
-test('when the psychic is gone the host removes them, the turn is skipped and the next psychic starts', async (t) => {
+test('when the psychic is gone the host removes them, and a computer player gives the clue in their place: the turn is not lost', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { turnsEach: 2 });
   await g.host.call('start');
@@ -202,9 +202,10 @@ test('when the psychic is gone the host removes them, the turn is skipped and th
   for (const s of psychic.sockets) s.close();
   await until(() => host.state.players.find((p) => p.id === psychic.id).online === false, 'the psychic away');
   assert.ok((await host.call('kick', { userId: psychic.id })).ok);
-  await until(() => host.state.players.length === 3 && host.state.phase === 'clue', 'a new turn');
-  assert.notEqual(host.state.psychic, psychic.id);
-  assert.equal(host.state.scoreboard.rounds.length, 0, 'the skipped turn scored nothing');
+  await until(() => host.state.players.some((p) => p.bot && p.id === host.state.psychic), 'the computer player is the psychic');
+  assert.equal(host.state.players.length, 4, 'nobody is lost');
+  assert.equal(host.state.turnsTotal, 8, 'and no turn is lost');
+  await until(() => host.state.phase !== 'clue' || host.state.turn > 0, 'the computer player gives the clue by itself');
 });
 
 test('the host leaving passes the game on, in either mode', async (t) => {

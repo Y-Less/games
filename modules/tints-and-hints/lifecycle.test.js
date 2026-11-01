@@ -193,15 +193,16 @@ test('the host disconnecting keeps the host role; leaving passes it on; the host
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
   assert.equal((await ann.call('kick', { userId: bob.id })).ok, true, 'a player can be removed mid-game');
-  await until(() => ann.state.players.length === 2, 'bob removed');
+  await until(() => ann.state.players.some((p) => p.bot), 'bob replaced by a computer player');
+  assert.equal(ann.state.players.length, 3, 'the game is the same size');
   assert.ok(ann.state.players.every((p) => p.id !== bob.id));
-  assert.equal(ann.state.phase === 'guessing1' || ann.state.phase === 'guessing2', true, 'the game went on with two');
+  assert.equal(ann.state.phase === 'guessing1' || ann.state.phase === 'guessing2', true, 'the game went on');
 
-  // Leaving passes the host role to whoever is first in the list.
+  // Leaving passes the host role to whoever is first in the list, and a computer player takes the leaver's place.
   assert.equal((await ann.call('leave', {})).ok, true);
-  await until(() => cat.state?.phase === 'abandoned' || cat.state?.hostId === cat.id, 'cat to host or the game to be abandoned');
-  assert.equal(cat.state.hostId, cat.id);
-  assert.equal(cat.state.phase, 'abandoned', 'one player left is not a game');
+  await until(() => cat.state?.hostId === cat.id, 'cat to host');
+  assert.equal(cat.state.players.filter((p) => p.bot).length, 2, 'two computer players now');
+  assert.ok(['guessing1', 'guessing2', 'reveal'].includes(cat.state.phase), 'one person and two computers play on');
   for (const p of [ann, cat]) checkRun(p.states, p.name);
 });
 
@@ -236,7 +237,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   assert.equal((await ann.call('create', {})).ok, true);
 });
 
-test('a game abandoned or finished frees its players; one live game per account otherwise', async (t) => {
+test('leaving a game, or finishing it, frees a player; one live game per account otherwise', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob']);
   const [ann, bob] = g.people;
@@ -269,14 +270,18 @@ test('a game abandoned or finished frees its players; one live game per account 
   const late = await site.person('late').open();
   assert.match((await late.call('join', { code: g.code })).error, /already started/);
 
-  // One of two leaves: the game is abandoned. The other is free at once to start or join something else.
+  // One of two leaves: a computer player takes their place and the leaver is free at once to start or join something else.
   assert.equal((await bob.call('leave', {})).ok, true);
-  await until(() => ann.state.phase === 'abandoned', 'abandoned');
-  assert.ok(ann.state.players.length === 1);
-  assert.equal((await ann.call('join', { code: dan.code })).ok, true, 'free to join another game');
-  await until(() => other.state.players.length === 2, 'ann in dan\'s room');
+  await until(() => ann.state.players.some((p) => p.bot), 'a computer player in bob\'s place');
+  assert.equal(ann.state.players.length, 2);
+  assert.equal((await bob.call('join', { code: dan.code })).ok, true, 'bob is free to join another game');
+  await until(() => other.state.players.length === 2, 'bob in dan\'s room');
+  assert.equal((await ann.call('join', { code: dan.code })).ok, false, 'ann is still in her game');
+  // The last person leaving ends the game, which is not recorded.
+  assert.equal((await ann.call('leave', {})).ok, true);
+  await until(() => ann.state === null, 'ann out');
+  assert.equal((await ann.call('join', { code: g.code })).ok, false, 'the room is gone');
   await sleep(20);
-  // The abandoned game was not recorded.
   assert.equal((await ann.stats()).perGame.length, 0);
   assert.equal((await bob.stats()).perGame.length, 0);
   for (const p of [ann, bob, other]) checkRun(p.states, p.name);

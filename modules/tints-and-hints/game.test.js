@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import { seeded } from '../../shared/testkit.js';
 import { COLS, ROWS, cellColour, cellName, fromOldCell, fromEarlierCell, fromV4Cell, isCell, isClose, parseCell } from './grid.js';
 
 const sequence = (...values) => {
@@ -213,47 +214,56 @@ test('ties: every tied leader wins and placements are shared', () => {
 test('leaving: in the lobby, the host passes on; the last one out empties the room', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
-  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, replaced: false });
   assert.equal(room.hostId, 2);
   assert.equal(game.removeHuman(room, 2, Math.random).empty, true);
 });
 
-test('leaving mid-game: the hinter leaving skips the turn, and too few players abandons the game', () => {
+test('leaving mid-game: a computer player takes the hinter\'s place and the turn goes on; the last person out empties the room', () => {
   const room = started([1, 2, 3, 4]);
   hint(room);
   game.guess(room, 2, 'M4');
-  const left = game.removeHuman(room, 1, Math.random);
-  assert.equal(left.abandoned, false);
+  const left = game.removeHuman(room, 1, seeded(1));
+  assert.deepEqual(left, { ok: true, empty: false, replaced: true });
   assert.equal(room.hostId, 2, 'the host passes on');
-  assert.equal(room.hinter, 2, 'the next player in order becomes the hinter');
+  const bot = room.players[0];
+  assert.equal(bot.kind, 'bot');
+  assert.equal(room.hinter, bot.id, 'the computer player is the hinter now');
   assert.equal(room.phase, 'guessing1');
-  assert.equal(room.first.length, 0, 'a fresh turn');
-  assert.equal(room.turn, 1, 'the cancelled turn still counts');
+  assert.equal(room.first.length, 1, 'the guess already made stays');
+  assert.equal(room.turn, 0, 'the same turn goes on');
+  assert.equal(room.players.length, 4, 'nobody is lost');
 
-  game.removeHuman(room, 4, Math.random); // a guesser: no one is waiting for them now
-  hint(room);
+  game.removeHuman(room, 4, seeded(1)); // a guesser: a computer player guesses for them
   game.guess(room, 3, 'A1');
-  assert.ok(game.advance(room, 2, Math.random).ok);
-  assert.equal(room.players.length, 2);
-  assert.equal(game.removeHuman(room, 3, Math.random).abandoned, true);
-  assert.equal(room.phase, 'abandoned');
-  assert.equal(game.advance(room, 2, Math.random).ok, false);
+  assert.deepEqual(game.pendingBotAction(room), { type: 'guess', id: room.players[3].id });
+  assert.ok(game.runBotAction(room, seeded(2)));
+  assert.deepEqual(game.pendingBotAction(room), { type: 'advance', id: bot.id }, 'everyone has guessed, so the computer hinter continues');
+  assert.ok(game.runBotAction(room, seeded(3)));
+  assert.equal(room.phase, 'guessing2');
+  game.removeHuman(room, 3, seeded(1));
+  assert.equal(room.players.filter((p) => p.kind === 'human').map((p) => p.id).join(), '2', 'one person and three computers play on');
+  assert.equal(game.removeHuman(room, 2, seeded(1)).empty, true, 'the last person leaving empties the room');
 });
 
-test('rotation carries on in order when someone before the next hinter leaves', () => {
+test('the order of play is unchanged when someone leaves: the computer player keeps their slot', () => {
   const room = started([1, 2, 3, 4]);
-  game.removeHuman(room, 1, Math.random);
-  assert.equal(room.hinter, 2);
-  assert.equal(room.players[room.nextIdx].id, 3);
-  game.removeHuman(room, 4, Math.random);
-  assert.equal(room.players[room.nextIdx].id, 3);
+  const order = room.players.map((p) => p.id);
+  game.removeHuman(room, 1, seeded(1));
+  assert.equal(room.players[0].kind, 'bot');
+  assert.deepEqual(room.players.slice(1).map((p) => p.id), order.slice(1));
+  assert.equal(room.players[room.nextIdx].id, 2, 'the next hinter is still the next in the list');
+  game.removeHuman(room, 4, seeded(1));
+  assert.equal(room.players[room.nextIdx].id, 2);
+  assert.equal(room.turnsTotal, 8, 'and the game is as long as it was');
 });
 
-test('a game that runs out of turns because the hinter left finishes', () => {
+test('a hinter who leaves on the last turn does not end the game early: the computer player plays it', () => {
   const room = started([1, 2, 3], { turnsEach: 1 });
   room.turn = 2;
-  assert.equal(game.removeHuman(room, 1, Math.random).finished, true);
-  assert.equal(room.phase, 'finished');
+  assert.equal(game.removeHuman(room, 1, seeded(1)).replaced, true);
+  assert.equal(room.phase, 'guessing1');
+  assert.equal(room.turn, 2);
 });
 
 test('views: only the hinter sees the tint until the reveal, and same-round guesses are hidden from other guessers', () => {

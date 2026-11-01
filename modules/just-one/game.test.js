@@ -16,7 +16,7 @@ function started(ids = [1, 2, 3, 4], { turnsEach = 1, seed = 4 } = {}) {
 }
 const writersOf = (room) => room.players.filter((p) => p.id !== room.guesser).map((p) => p.id);
 const score = (room, id) => room.players.find((p) => p.id === id).score;
-const closeReveal = (room) => room.players.forEach((p) => game.ready(room, p.id, Math.random));
+const closeReveal = (room, rng = seeded(9)) => room.players.forEach((p) => game.ready(room, p.id, rng)); // seeded: the next word must not depend on luck
 /** Everybody but the guesser sends a clue: the given words in turn. */
 function writeClues(room, words, rng = seeded(1)) {
   writersOf(room).forEach((id, i) => assert.ok(game.submitClue(room, id, words[i], rng).ok, `${words[i]}`));
@@ -171,7 +171,22 @@ test('the guesser sees neither the word nor the cancelled clues nor who wrote wh
   game.chooseBest(room, guesser, 0);
   assert.equal(view(guesser).word, room.word, 'revealed to all');
   assert.equal(view(guesser).clues.length, 3);
-  assert.equal(view(guesser).scoreboard.players.filter((p) => p.current).length, 1, 'the guesser is the current player');
+  assert.deepEqual(view(guesser).scoreboard.players.filter((p) => p.current), [], 'at the reveal nobody is to act');
+});
+
+test('the scoreboard marks whoever the game is waiting for: the writers still to write, then the guesser', () => {
+  const room = started();
+  const guesser = room.guesser;
+  const [a, b, c] = writersOf(room);
+  const current = () => game.viewFor(room, guesser).scoreboard.players.filter((p) => p.current).map((p) => p.id).sort();
+  assert.deepEqual(current(), [a, b, c].sort(), 'every writer, to begin with');
+  game.submitClue(room, a, 'alpha', Math.random);
+  assert.deepEqual(current(), [b, c].sort(), 'one fewer once a clue is in');
+  game.submitClue(room, b, 'beta', Math.random);
+  game.submitClue(room, c, 'gamma', Math.random);
+  assert.deepEqual(current(), [guesser], 'then the guesser');
+  game.guess(room, guesser, room.word);
+  assert.deepEqual(current(), [guesser], 'who also picks the best hint');
 });
 
 test('everyone is the guesser turnsEach times, words do not repeat, and the game finishes with its history', () => {
@@ -181,7 +196,7 @@ test('everyone is the guesser turnsEach times, words do not repeat, and the game
   while (room.phase !== 'finished') {
     guessers.push(room.guesser);
     words.push(room.word);
-    writeClues(room, ['one', 'two']);
+    writeClues(room, ['qzx', 'xzq']); // nonsense clues that no secret word can contain
     if (guessers.length % 2) {
       game.guess(room, room.guesser, room.word);
       if (room.phase === 'choosing') game.chooseBest(room, room.guesser, 0);
@@ -198,40 +213,69 @@ test('everyone is the guesser turnsEach times, words do not repeat, and the game
   assert.ok(stats.some((s) => s.outcome === 'win'));
 });
 
-test('leaving: a writer, the guesser, and too few players', () => {
+test('leaving: a computer player takes the place of a writer, of the guesser, and of the host; the last person out empties the room', () => {
   const room = started([1, 2, 3, 4]);
   const [a, b, c] = writersOf(room);
   game.submitClue(room, a, 'alpha', Math.random);
   game.submitClue(room, b, 'beta', Math.random);
-  assert.ok(game.removeHuman(room, c, Math.random).ok);
-  assert.equal(room.phase, 'guessing', 'the clues are in once the missing writer has gone');
-  assert.deepEqual([...room.order].sort(), [a, b].sort());
+  const slot = room.players.findIndex((p) => p.id === c);
+  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true });
+  const bot = room.players[slot];
+  assert.equal(bot.kind, 'bot');
+  assert.ok(bot.ai, 'it was given an AI');
+  assert.equal(room.players.length, 4, 'nobody is lost');
+  assert.equal(room.phase, 'clues', 'the clues are still not all in: the computer has to write one');
+  assert.deepEqual(game.pendingBotAction(room), { type: 'clue', id: bot.id });
+  assert.ok(game.runBotAction(room, seeded(2)));
+  assert.equal(room.phase, 'guessing');
+  assert.ok(room.order.includes(bot.id) || room.cancelled.includes(bot.id), 'its clue counts like anybody else\'s');
 
   const choosing = started([1, 2, 3, 4]);
   writeClues(choosing, ['red', 'tasty', 'tasty']); // one clue is left
   game.guess(choosing, choosing.guesser, choosing.word);
   assert.equal(choosing.phase, 'choosing');
+  const [writer] = choosing.order;
+  game.removeHuman(choosing, writer, seeded(1)); // the writer of the only hint left goes
+  assert.equal(choosing.phase, 'choosing', 'the hint stays, under the computer player\'s name');
   assert.equal(choosing.order.length, 1);
-  for (const id of [...choosing.order]) game.removeHuman(choosing, id, Math.random); // the writer of the only hint left goes
-  assert.equal(choosing.phase, 'reveal', 'with no hint left to pick the turn is scored');
-  assert.equal(score(choosing, choosing.guesser), 2);
+  assert.equal(choosing.players.find((p) => p.id === choosing.order[0]).kind, 'bot');
+  game.chooseBest(choosing, choosing.guesser, 0);
+  assert.equal(score(choosing, choosing.order[0]), 1, 'and the best-hint point goes to it');
 
   const second = started([1, 2, 3, 4]);
   const gone = second.guesser;
-  game.removeHuman(second, gone, Math.random);
-  assert.equal(second.phase, 'clues', 'the turn is skipped and the next one starts');
-  assert.notEqual(second.guesser, gone);
-  assert.equal(second.history.length, 0, 'a skipped turn scores nothing');
+  game.removeHuman(second, gone, seeded(1));
+  assert.equal(second.phase, 'clues', 'the turn goes on');
+  assert.equal(second.players.find((p) => p.id === second.guesser).kind, 'bot', 'with the computer player as guesser');
+  assert.equal(second.turnsTotal, 4, 'and no turn is lost');
 
   const pair = started([1, 2, 3]);
-  game.removeHuman(pair, 2, Math.random);
-  assert.equal(pair.phase, 'clues', 'two players can still play');
-  game.removeHuman(pair, 3, Math.random);
-  assert.equal(pair.phase, 'abandoned');
+  game.removeHuman(pair, 2, seeded(1));
+  game.removeHuman(pair, 3, seeded(1));
+  assert.equal(pair.phase, 'clues', 'one person and two computers play on');
+  assert.equal(game.removeHuman(pair, 1, seeded(1)).empty, true, 'the last person leaving empties the room');
   assert.equal(game.removeHuman(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 }), 1, Math.random).empty, true);
   const host = started([1, 2, 3]);
-  game.removeHuman(host, 1, Math.random);
+  game.removeHuman(host, 1, seeded(1));
   assert.equal(host.hostId, 2, 'the host passes on');
+});
+
+test('a computer player taking over at the reveal does not hold the others up, and the history still adds up', () => {
+  const room = started([1, 2, 3, 4]);
+  writeClues(room, ['red', 'tasty', 'wet']);
+  game.guess(room, room.guesser, room.word);
+  game.chooseBest(room, room.guesser, 0);
+  assert.equal(room.phase, 'reveal');
+  const best = room.best;
+  for (const p of room.players) if (p.id !== best) game.ready(room, p.id, seeded(1));
+  assert.equal(room.phase, 'reveal', 'still waiting for the best writer');
+  game.removeHuman(room, best, seeded(1));
+  assert.equal(room.turn, 1, 'a computer player is always ready, so the turn ended');
+  assert.equal(room.phase, 'clues', 'and the next one began');
+  const bot = room.players.find((p) => p.kind === 'bot');
+  assert.equal(bot.score, 1, 'the point stays with the seat');
+  assert.equal(room.history[0].deltas[bot.id], 1, 'and the history names the seat by its new id');
+  assert.equal(room.history[0].deltas[best], undefined);
 });
 
 test('a saved room comes back as it was', () => {

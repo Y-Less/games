@@ -1,21 +1,22 @@
 // Tests for the shared player-list rules (shared/roster.js): joining, computer players, leaving, kicking and loading old rooms.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createRosterRules, humans, migratePlayers, seatOf, uniqueName } from './roster.js';
+import { createRosterRules, humans, migratePlayers, renameInHistory, seatOf, uniqueName } from './roster.js';
 
 const LIVE = ['lobby', 'playing'];
 
-/** The rules with a tiny game: players have a score, and leaving mid-game is reported through `left`. */
-function makeRules(left = []) {
+/** The rules with a tiny game: players have a score, and a computer player taking over mid-game is reported through `taken`. */
+function makeRules(taken = []) {
   return createRosterRules({
     isLive: (room) => LIVE.includes(room.phase),
     minPlayers: 2,
     maxPlayers: 4,
     botNames: ['Ada', 'Bram'],
     makePlayer: (room, base, extras = {}) => ({ ...base, score: 0, ...extras }),
-    afterRemoval: (room, who) => {
-      left.push(who);
-      return room.players.length < 2 ? { abandoned: true } : {};
+    takeOver: (room, oldId, bot) => {
+      taken.push({ oldId, bot });
+      bot.ai = 'standard';
+      renameInHistory(room, oldId, bot.id);
     },
   });
 }
@@ -72,21 +73,18 @@ test('fillWithBots fills up to the target, kept between the minimum and the maxi
   assert.equal(rules.fillWithBots(room, 2).ok, false, 'only the host');
 });
 
-test('removeBot works in the lobby and in a game, only for the host and only for computer players', () => {
-  const left = [];
-  const rules = makeRules(left);
+test('removeBot works in the lobby only, for the host and only for computer players', () => {
+  const rules = makeRules();
   const room = lobby();
   rules.fillWithBots(room, 1, 3);
   assert.equal(rules.removeBot(room, 2, 'bot:1').ok, false, 'only the host');
   assert.equal(rules.removeBot(room, 1, 1).error, 'That is not a computer player.', 'a person is not a computer player');
   assert.ok(rules.removeBot(room, 1, 'bot:1').ok);
   assert.deepEqual(room.players.map((p) => p.id), [1, 'bot:2']);
-  assert.deepEqual(left, [], 'nothing game-specific happens in the lobby');
   rules.fillWithBots(room, 1, 3);
   room.phase = 'playing';
-  const gone = room.players[1].id;
-  assert.ok(rules.removeBot(room, 1, gone).ok);
-  assert.deepEqual(left, [{ id: gone, index: 1 }], 'in a game the game is told');
+  assert.equal(rules.removeBot(room, 1, room.players[1].id).error, 'Computer players can only be removed in the lobby.', 'its turns are part of the game now');
+  assert.equal(room.players.length, 3);
   room.phase = 'finished';
   assert.equal(rules.removeBot(room, 1, room.players[1].id).error, 'The game is over: there is nobody to remove.');
 });
@@ -96,7 +94,7 @@ test('removeHuman: the lobby just loses them, the host passes to the next person
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
   rules.addBot(room, 1);
-  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, abandoned: false, finished: false });
+  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: false });
   assert.equal(room.hostId, 2, 'the host is now the next person, not a computer player');
   assert.deepEqual(room.players.map((p) => p.id), [2, 'bot:1']);
   assert.equal(rules.removeHuman(room, 99).error, 'You are not in this game.');
@@ -104,19 +102,29 @@ test('removeHuman: the lobby just loses them, the host passes to the next person
   assert.equal(rules.removeHuman(room, 2).empty, true);
 });
 
-test('removeHuman in a game hands over to the game, and a finished game is left alone', () => {
-  const left = [];
-  const rules = makeRules(left);
+test('removeHuman in a game puts a computer player in their place, with their score and slot, and a finished game is left alone', () => {
+  const taken = [];
+  const rules = makeRules(taken);
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
+  rules.addHuman(room, 3, 'Cy');
   room.phase = 'playing';
-  assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, abandoned: true, finished: false });
-  assert.deepEqual(left, [{ id: 2, index: 1 }]);
+  room.players[1].score = 7;
+  room.history = [{ label: 'Turn 1', deltas: { 2: 7, 1: 0 }, notes: { 2: 'guessed it' } }];
+  assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, replaced: true });
+  assert.deepEqual(room.players.map((p) => p.id), [1, 'bot:1', 3], 'same slot, so the turn order is unchanged');
+  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard' }, 'the score carries over and the game gave it an AI');
+  assert.deepEqual(taken, [{ oldId: 2, bot: room.players[1] }]);
+  assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { 'bot:1': 7, 1: 0 }, notes: { 'bot:1': 'guessed it' } }, 'the history still adds up');
+  assert.equal(seatOf(room, 2), -1, 'the person is free to join another game');
+  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: true }, 'the host leaving mid-game is replaced too');
+  assert.equal(room.hostId, 3, 'and the host passes to the next person');
+  assert.equal(rules.removeHuman(room, 3).empty, true, 'the last person leaving empties the room, however many computers are left');
   const done = lobby();
   rules.addHuman(done, 2, 'Bob');
   done.phase = 'finished';
   const before = JSON.stringify(done);
-  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, abandoned: false, finished: false, changed: false }, 'and says so, so the room server does not save or send anything');
+  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, replaced: false, changed: false }, 'and says so, so the room server does not save or send anything');
   assert.equal(JSON.stringify(done), before);
 });
 
@@ -130,13 +138,16 @@ test('kick: only the host, only another person, and never once the game is over'
   assert.equal(rules.kick(room, 1, 1).error, 'That player is not in the game.', 'not themselves');
   assert.equal(rules.kick(room, 1, 'bot:1').error, 'That player is not in the game.', 'computer players are removed with removeBot');
   assert.equal(rules.kick(room, 1, 99).error, 'That player is not in the game.');
-  assert.deepEqual(rules.kick(room, 1, 3), { ok: true, userId: 3, abandoned: false, finished: false });
+  assert.deepEqual(rules.kick(room, 1, 3), { ok: true, userId: 3, replaced: false });
   assert.deepEqual(humans(room).map((p) => p.id), [1, 2]);
+  room.phase = 'playing';
+  assert.deepEqual(rules.kick(room, 1, 2), { ok: true, userId: 2, replaced: true }, 'in a game a computer player takes their place');
+  assert.deepEqual(room.players.map((p) => p.kind), ['human', 'bot', 'bot']);
   room.phase = 'finished';
+  assert.deepEqual(rules.kick(room, 1, 2), { ok: false, error: 'That player is not in the game.' });
+  room.players[1] = { kind: 'human', id: 2, name: 'Bob', score: 0 };
   assert.deepEqual(rules.kick(room, 1, 2), { ok: false, error: 'The game is over: there is nobody to remove.' });
   assert.deepEqual(humans(room).map((p) => p.id), [1, 2], 'nobody was removed');
-  room.phase = 'abandoned';
-  assert.equal(rules.kick(room, 1, 2).ok, false, 'an abandoned game has nobody to remove either');
 });
 
 test('migratePlayers turns bot: true into kind: bot, names people from the account, and is safe to run twice', () => {

@@ -10,9 +10,9 @@
 // computer players), ./tally.js (per-player counters) and ./words.js (the word list and clue matching).
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
@@ -140,8 +140,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Just One somebody who leaves mid-game is
- * not replaced: the game carries on with one fewer (see afterRemoval).
+ * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * a computer player in their place, so no turn is lost (see takeOver).
  * Side effects: each rule it provides mutates the room's player list.
  */
 const roster = createRosterRules({
@@ -150,7 +150,7 @@ const roster = createRosterRules({
   maxPlayers: MAX_PLAYERS,
   botNames: BOT_NAMES,
   makePlayer,
-  afterRemoval: (room, left, rng) => afterRemoval(room, left.id, left.index, rng),
+  takeOver,
 });
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
@@ -505,41 +505,35 @@ export function forceNext(room, rng) {
 export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
- * Just One's part of somebody leaving a game that is under way (the roster has already taken them out of the list and, if
- * they were the host, handed the host on): their clue and their place in the guesser's list go, the guesser's turn is
- * skipped if the guesser left, and the game moves on if it was only waiting for them. Fewer than two players left means
- * the game is abandoned (it needs three to start, but two can finish).
+ * Just One's part of a computer player taking the place of a person who left a game under way (the roster has already put
+ * it in the list, with the person's score and counters): it gets an AI, everything that named the person now names it
+ * (their turn as guesser, their clue, the guesser's list, the ready list, the history), and if the reveal was only waiting
+ * for that person the next turn starts. Anything it now has to do (write a clue, guess) is picked up by pendingBotAction.
  *
- * Side effects: mutates the room (clues, order, ready, nextIdx, phase) and may score the turn or start the next one.
+ * Side effects: mutates the room (the bot, guesser, clues, cancelled, order, best, ready, result, history) and may start the next turn.
  *
  * @param {object} room
- * @param {number | string} id  who left
- * @param {number} index        where they were in the player list
+ * @param {number} oldId  the account id of the person who left
+ * @param {object} bot    the computer player now in their place
  * @param {() => number} rng
- * @returns {{ abandoned: boolean, finished: boolean }}
- * (Side effects as above.)
+ * @returns {void}
  */
-function afterRemoval(room, id, index, rng) {
-  const wasGuesser = room.guesser === id && PLAYING.includes(room.phase);
-  if (index < room.nextIdx) room.nextIdx--;
-  if (room.players.length) room.nextIdx %= room.players.length;
-  room.clues = room.clues.filter((c) => c.id !== id);
-  room.cancelled = room.cancelled.filter((x) => x !== id);
-  const orderBefore = room.order.length;
-  room.order = room.order.filter((x) => x !== id);
-  if (room.best === id) room.best = null;
-  room.ready = (room.ready ?? []).filter((x) => x !== id);
-  if (room.players.length < 2) {
-    room.phase = 'abandoned';
-    room.ready = [];
-    return { abandoned: true, finished: false };
+function takeOver(room, oldId, bot, rng) {
+  bot.ai = pickAI(AIS, rng).id;
+  const renamed = (x) => (x === oldId ? bot.id : x);
+  room.guesser = renamed(room.guesser);
+  room.best = renamed(room.best);
+  for (const clue of room.clues) clue.id = renamed(clue.id);
+  room.cancelled = room.cancelled.map(renamed);
+  room.order = room.order.map(renamed);
+  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
+  if (room.result) {
+    room.result.guesser = renamed(room.result.guesser);
+    room.result.best = renamed(room.result.best);
+    for (const clue of room.result.clues) clue.id = renamed(clue.id);
   }
-  if (room.phase === 'reveal') return { abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false };
-  if (wasGuesser) return { abandoned: false, finished: finishTurn(room, rng) };
-  // A writer has gone: the clues are in once everybody who is left has written one; and a hint the guesser could pick is gone.
-  if (room.phase === 'clues' && allWritten(room)) openGuessing(room, rng);
-  else if (room.phase === 'choosing' && !room.order.length && orderBefore) scoreTurn(room, namer(room, String));
-  return { abandoned: false, finished: false };
+  renameInHistory(room, oldId, bot.id);
+  if (room.phase === 'reveal' && unready(room).length === 0) finishTurn(room, rng);
 }
 
 /**
@@ -634,8 +628,8 @@ function playerView(room, p, { nameOf, online, final }) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js): the guesser has the turn, and while the results are up each player shows whether
- * they are ready to go on.
+ * The standard scoreboard (shared/scores.js): whoever the game is waiting for is `current` (the site's "Take your time"
+ * clock reads it), and while the results are up each player shows whether they are ready to go on.
  *
  * @param {object} room  not changed
  * @param {number} userId  the viewer
@@ -644,8 +638,9 @@ function playerView(room, p, { nameOf, online, final }) {
  * Side effects: none.
  */
 function scoreboardView(room, userId, { nameOf, online }) {
-  const playing = PLAYING.includes(room.phase);
-  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: (playing || room.phase === 'reveal') && p.id === room.guesser, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  // `current` marks who the game is waiting for: the writers still to write a clue, then the guesser.
+  const mustAct = (p) => (room.phase === 'clues' ? p.id !== room.guesser && !clueOf(room, p.id) : ['guessing', 'choosing'].includes(room.phase) && p.id === room.guesser);
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
     rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),

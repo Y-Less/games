@@ -236,7 +236,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   assert.ok((await ann.send('create')).ok, 'free to start another game');
 });
 
-test('an abandoned game is not recorded, and the host can remove someone who has gone', async (t) => {
+test('a game nobody finishes is not recorded, and the host can remove someone who has gone (a computer player takes their place)', async (t) => {
   const { account } = await launch(t);
   const accounts = [await account('ann'), await account('bob'), await account('cat')];
   const [ann, bob, cat] = await Promise.all(accounts.map((a) => a.open()));
@@ -255,11 +255,14 @@ test('an abandoned game is not recorded, and the host can remove someone who has
   cat.socket.close();
   await ann.until((s) => s.players.find((p) => p.id === accounts[2].id).online === false);
   assert.ok((await ann.send('kick', { userId: accounts[2].id })).ok);
-  await bob.until((s) => s.players.length === 2);
+  await bob.until((s) => s.players.some((p) => p.bot) && !s.players.some((p) => p.id === accounts[2].id), 'a computer player in cat\'s place');
+  assert.equal(bob.state.players.length, 3, 'the game is the same size');
 
   assert.ok((await bob.send('leave')).ok);
-  const left = await ann.until((s) => s.phase === 'abandoned', 'the game to be abandoned');
-  assert.equal(left.players.length, 1);
+  const alone = await ann.until((s) => s.players.filter((p) => !p.bot).length === 1, 'ann alone with two computer players');
+  assert.equal(alone.players.length, 3);
+  assert.ok((await ann.send('leave')).ok, 'the last person leaving ends the game');
+  await ann.until((s) => s === null);
   for (const a of accounts) assert.equal((await a.stats()).summary.played, 0, `${a.name} has no game recorded`);
 });
 

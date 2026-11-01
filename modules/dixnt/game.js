@@ -323,6 +323,23 @@ export class Game {
     return this.inRound().filter((p) => p.id !== this.s.chooserId);
   }
 
+  /**
+   * Is the round waiting for this player to do something? The chooser while the word is chosen, everybody still to play
+   * a card, then everybody still to vote. The scoreboard shows it as `current` and the site's "Take your time" clock
+   * reads it, so it must mean "it is your move", not "it is your round".
+   *
+   * @param {object} p  a seat
+   * @returns {boolean}
+   * Side effects: none.
+   */
+  mustAct(p) {
+    const s = this.s;
+    if (s.phase === 'word') return p.id === s.chooserId;
+    if (s.phase === 'picking') return this.cardPlayers().some((x) => x.id === p.id) && !(p.id in s.picks);
+    if (s.phase === 'voting') return this.voters().some((x) => x.id === p.id) && !(p.id in s.votes);
+    return false;
+  }
+
   // ---------- deck ----------
 
   /**
@@ -1308,7 +1325,7 @@ export class Game {
     const s = this.s;
     return {
       // `id` is the seat id (what the game talks about); `userId` is the account, which the site needs for name styles and avatars.
-      players: s.players.map((p) => ({ id: p.id, name: p.name, userId: userIdOf(p.token) ?? undefined, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
+      players: s.players.map((p) => ({ id: p.id, name: p.name, userId: userIdOf(p.token) ?? undefined, score: p.score, isMe: p.id === id, bot: isBot(p), current: this.mustAct(p), away: !isBot(p) && !connectedIds.has(p.id) })),
       rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
       lowIsBetter: false,
     };

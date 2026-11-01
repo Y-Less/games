@@ -65,6 +65,7 @@ function playRandomGame(seed) {
   illegal('a stranger starting', () => game.start(room, 999, rng));
   illegal('a guest starting', () => game.start(room, room.players.find((p) => p.id !== room.hostId).id, rng));
   assert.equal(game.start(room, room.hostId, rng).ok, true);
+  const size = room.players.length; // a leaver mid-game is replaced, so this never changes
   check('start');
   illegal('a second start', () => game.start(room, room.hostId, rng));
   illegal('joining a started game', () => game.addHuman(room, 1000));
@@ -78,14 +79,18 @@ function playRandomGame(seed) {
     const phase = room.phase;
     const roll = rng();
     const guessers = room.players.filter((p) => p.id !== room.hinter);
-    if (roll < 0.004 && phase !== 'reveal') {
-      const leaver = pick(rng, room.players);
+    const people = room.players.filter((p) => p.kind === 'human');
+    // Somebody may leave while another person remains (the server drops a room its last person leaves; see the socket tests).
+    if (roll < 0.004 && phase !== 'reveal' && people.length > 1) {
+      const leaver = pick(rng, people);
       const result = game.removeHuman(room, leaver.id, rng);
       assert.equal(result.ok, true);
+      assert.equal(result.replaced, true, 'a computer player takes a leaver\'s place');
+      assert.equal(room.players.length, size, 'so the game keeps its size');
       log.push('leave');
       check('leave');
-    } else if (roll < 0.01 && phase === 'reveal') {
-      const leaver = pick(rng, room.players);
+    } else if (roll < 0.01 && phase === 'reveal' && people.length > 1) {
+      const leaver = pick(rng, people);
       assert.equal(game.removeHuman(room, leaver.id, rng).ok, true);
       check('leave at the reveal');
     } else if (roll < 0.2) {
@@ -158,17 +163,16 @@ function playRandomGame(seed) {
     assert.ok(standing.some((s) => s.winner));
     assert.equal(standing[0].placement, 1);
     const stats = game.statsPlayers(room);
-    assert.equal(stats.length, room.players.length);
+    assert.equal(stats.length, room.players.filter((p) => p.kind === 'human').length, 'only accounts are recorded: a computer player that took over is not');
     assert.ok(stats.every((s) => s.score === room.players.find((p) => p.id === s.userId).score));
   }
   return { ended, turns: turnsSeen.size, players: wanted };
 }
 
-test('300 seeded random games with illegal actions, leavers and views: invariants hold after every action and every game ends', () => {
+test('300 seeded random games with illegal actions, leavers and views: invariants hold after every action and every game finishes', () => {
   const ends = { finished: 0, abandoned: 0 };
   for (let seed = 1; seed <= 300; seed++) ends[playRandomGame(seed).ended]++;
-  assert.ok(ends.finished > 100, `plenty finish (${JSON.stringify(ends)})`);
-  assert.ok(ends.abandoned > 5, `some are abandoned (${JSON.stringify(ends)})`);
+  assert.deepEqual(ends, { finished: 300, abandoned: 0 }, 'leavers are replaced by computer players, so every game is played to the end');
 });
 
 test('random games without leavers always finish with exactly turnsEach turns per player, in joining order', () => {

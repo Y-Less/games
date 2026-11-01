@@ -142,42 +142,50 @@ test('the view hides the target from guessers and every guess until the reveal',
   assert.equal(view(b).players.find((p) => p.id === a).guessed, true);
   assert.ok(!JSON.stringify(view(a)).includes(`"target":${room.target}`));
   assert.ok(!JSON.stringify(view(b)).includes('"result":{'), 'no result yet');
+  assert.deepEqual(view(a).scoreboard.players.filter((p) => p.current).map((p) => p.id), [b], 'the one still to guess is the current player');
   game.guess(room, b, 70);
   assert.equal(view(a).target, room.target, 'revealed');
   assert.equal(view(a).guesses.length, 2);
   assert.equal(view(a).result.entries.length, 2);
-  assert.equal(view(a).scoreboard.players.filter((p) => p.current).length, 1, 'the psychic is the current player');
+  assert.deepEqual(view(a).scoreboard.players.filter((p) => p.current), [], 'at the reveal nobody is to act');
   assert.equal(room.players.every((p) => view(p.id).spectrum.left), true);
   assert.deepEqual(game.viewFor(game.createRoom({ now: 0, code: 'x-y-z', hostId: 1 }), 1).spectrum, null, 'no spectrum in the lobby');
 });
 
-test('leaving: a guesser who was holding up the reveal, the psychic, and too few players', () => {
+test('leaving: a computer player takes the place of a guesser, of the psychic and of the host; the last person out empties the room', () => {
   const room = started([1, 2, 3, 4]);
   const psychic = room.psychic;
   const [a, b, c] = guessersOf(room).map((p) => p.id);
   game.setClue(room, psychic, 'warm');
   game.guess(room, a, 50);
   game.guess(room, b, 50);
-  const outcome = game.removeHuman(room, c, Math.random);
-  assert.ok(outcome.ok && !outcome.abandoned);
-  assert.equal(room.phase, 'reveal', 'the missing guess is no longer waited for');
+  const slot = room.players.findIndex((p) => p.id === c);
+  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true });
+  const bot = room.players[slot];
+  assert.equal(bot.kind, 'bot');
+  assert.equal(room.phase, 'guessing', 'the computer player still has to guess');
+  assert.deepEqual(game.pendingBotAction(room), { type: 'guess', id: bot.id });
+  assert.ok(game.runBotAction(room, seeded(2)));
+  assert.equal(room.phase, 'reveal');
   assert.equal(room.history.length, 1);
+  assert.ok(bot.id in room.history[0].deltas, 'its guess scored under its new id');
 
   const second = started([1, 2, 3, 4]);
   game.setClue(second, second.psychic, 'warm');
   const gone = second.psychic;
-  game.removeHuman(second, gone, Math.random);
-  assert.equal(second.phase, 'clue', 'the turn is skipped and the next one starts');
-  assert.notEqual(second.psychic, gone);
-  assert.equal(second.history.length, 0, 'a skipped turn scores nothing');
-  assert.equal(second.players.length, 3);
+  game.removeHuman(second, gone, seeded(1));
+  assert.equal(second.phase, 'guessing', 'the turn goes on with the clue already given');
+  assert.equal(second.players.find((p) => p.id === second.psychic).kind, 'bot', 'the computer player is the psychic');
+  assert.equal(second.players.length, 4, 'nobody is lost');
+  assert.equal(second.turnsTotal, 8, 'and no turn is lost');
 
   const pair = started([1, 2]);
-  game.removeHuman(pair, 2, Math.random);
-  assert.equal(pair.phase, 'abandoned');
+  game.removeHuman(pair, 2, seeded(1));
+  assert.equal(pair.players.map((p) => p.kind).join(), 'human,bot', 'one person and a computer play on');
+  assert.equal(game.removeHuman(pair, 1, seeded(1)).empty, true, 'the last person leaving empties the room');
   assert.equal(game.removeHuman(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 }), 1, Math.random).empty, true);
   const host = started([1, 2, 3]);
-  game.removeHuman(host, 1, Math.random);
+  game.removeHuman(host, 1, seeded(1));
   assert.equal(host.hostId, 2, 'the host passes on');
 });
 
@@ -473,9 +481,10 @@ test('a team game survives the psychic leaving, and a saved room keeps its mode 
   assert.equal(copy.mode, 'team');
   assert.equal(copy.marker, 42);
   const gone = room.psychic;
-  game.removeHuman(room, gone, Math.random);
-  assert.equal(room.phase, 'clue');
-  assert.equal(room.marker, null, 'a new turn starts with the marker unplaced');
+  game.removeHuman(room, gone, seeded(1));
+  assert.equal(room.phase, 'guessing', 'the turn goes on');
+  assert.equal(room.players.find((p) => p.id === room.psychic).kind, 'bot', 'with a computer player as psychic');
+  assert.equal(room.marker, 42, 'and the team marker stays where it was');
   const old = game.migrate({ ...JSON.parse(JSON.stringify(started())), mode: undefined, marker: undefined });
   assert.equal(old.mode, 'solo', 'a room saved before team mode is a solo game');
 });

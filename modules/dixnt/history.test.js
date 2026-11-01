@@ -93,11 +93,15 @@ test('nothing is revealed early: the history only grows when the round is over',
   game.start(host.id);
   playRound(game);
   game.nextRound(host.id);
-  const before = JSON.stringify(game.viewFor(host.id).scoreboard);
+  // `current` marks who must act, so it moves as the round goes on; the scores and rounds must not.
+  const scores = () => JSON.stringify({ ...game.viewFor(host.id).scoreboard, players: game.viewFor(host.id).scoreboard.players.map(({ current, ...p }) => p) });
+  const before = scores();
+  assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.current), game.s.players.map((p) => p.id === game.s.chooserId), 'the chooser is to act');
   game.submitWord(game.s.chooserId, 'word');
-  assert.equal(JSON.stringify(game.viewFor(host.id).scoreboard), before, 'choosing the word changes nothing');
+  assert.equal(scores(), before, 'choosing the word changes nothing');
+  assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.current), game.s.players.map((p) => p.id !== game.s.chooserId), 'now everybody else is to play a card');
   for (const p of game.cardPlayers()) game.playCard(p.id, p.hand[0]);
-  assert.equal(JSON.stringify(game.viewFor(host.id).scoreboard), before, 'neither does voting time');
+  assert.equal(scores(), before, 'neither does voting time');
 });
 
 test('abandoned rounds are not recorded, and labels count completed rounds only', () => {

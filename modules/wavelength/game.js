@@ -9,10 +9,10 @@
 // Sockets, timers and saving are not here: server.js drives these rules through shared/roomServer.js.
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
 import { SPECTRA, spectrumById } from './spectra.js';
@@ -192,8 +192,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Wavelength somebody who leaves mid-game is
- * not replaced: the game carries on with one fewer (see afterRemoval).
+ * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * a computer player in their place, so no turn is lost (see takeOver).
  */
 const roster = createRosterRules({
   isLive,
@@ -201,7 +201,7 @@ const roster = createRosterRules({
   maxPlayers: MAX_PLAYERS,
   botNames: BOT_NAMES,
   makePlayer,
-  afterRemoval: (room, left, rng) => afterRemoval(room, left.id, left.index, rng),
+  takeOver,
 });
 /** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
@@ -604,33 +604,33 @@ export function forceNext(room, rng) {
 export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
- * Wavelength's part of somebody leaving a game that is under way (the roster has already taken them out of the list and, if
- * they were the host, handed the host on): their guess goes, the psychic's turn is skipped if the psychic left, and the turn
- * is scored if it was only waiting for them. Fewer than MIN_PLAYERS left means the game is abandoned.
+ * Wavelength's part of a computer player taking the place of a person who left a game under way (the roster has already
+ * put it in the list, with the person's score, counters and colour): it gets an AI, everything that named the person now
+ * names it (their turn as psychic, their guess, the team lock, the ready list, the history), and if the reveal was only
+ * waiting for that person the next turn starts. Anything it now has to do (a clue, a guess) is picked up by pendingBotAction.
  *
- * Side effects: mutates the room (guesses, ready, nextIdx, phase) and may score the turn or start the next one.
+ * Side effects: mutates the room (the bot, psychic, guesses, lockedBy, ready, result, history) and may start the next turn.
  *
  * @param {object} room
- * @param {number | string} id  who left
- * @param {number} index        where they were in the player list
+ * @param {number} oldId  the account id of the person who left
+ * @param {object} bot    the computer player now in their place
  * @param {() => number} rng
- * @returns {{ abandoned: boolean, finished: boolean }}
+ * @returns {void}
  */
-function afterRemoval(room, id, index, rng) {
-  const wasPsychic = room.psychic === id && PLAYING.includes(room.phase);
-  if (index < room.nextIdx) room.nextIdx--;
-  if (room.players.length) room.nextIdx %= room.players.length;
-  room.guesses = room.guesses.filter((g) => g.id !== id);
-  room.ready = (room.ready ?? []).filter((x) => x !== id);
-  if (room.players.length < MIN_PLAYERS) {
-    room.phase = 'abandoned';
-    room.ready = [];
-    return { abandoned: true, finished: false };
+function takeOver(room, oldId, bot, rng) {
+  bot.ai = pickAI(AIS, rng).id;
+  const renamed = (x) => (x === oldId ? bot.id : x);
+  room.psychic = renamed(room.psychic);
+  room.lockedBy = renamed(room.lockedBy ?? null);
+  for (const g of room.guesses) g.id = renamed(g.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
+  if (room.result) {
+    room.result.psychic = renamed(room.result.psychic);
+    if ('lockedBy' in room.result) room.result.lockedBy = renamed(room.result.lockedBy);
+    for (const e of room.result.entries) e.id = renamed(e.id);
   }
-  if (room.phase === 'reveal') return { abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false };
-  if (wasPsychic) return { abandoned: false, finished: finishTurn(room, rng) };
-  if (room.phase === 'guessing' && allGuessed(room)) scoreTurn(room, namer(room, String)); // the one who was missing has gone
-  return { abandoned: false, finished: false };
+  renameInHistory(room, oldId, bot.id);
+  if (room.phase === 'reveal' && unready(room).length === 0) finishTurn(room, rng);
 }
 
 /**
@@ -706,8 +706,8 @@ function playerView(room, p, { nameOf, online, final }) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js): the psychic has the turn, and while the results are up each player shows whether
- * they are ready to go on.
+ * The standard scoreboard (shared/scores.js): whoever the game is waiting for is `current` (the site's "Take your time"
+ * clock reads it), and while the results are up each player shows whether they are ready to go on.
  *
  * @param {object} room  not changed
  * @param {number} userId  the viewer
@@ -717,7 +717,14 @@ function playerView(room, p, { nameOf, online, final }) {
  * Side effects: none.
  */
 function scoreboardView(room, userId, { nameOf, online }) {
-  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: (PLAYING.includes(room.phase) || room.phase === 'reveal') && p.id === room.psychic, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  // `current` marks who the game is waiting for: the psychic for the clue, then the guessers (all of a team, which decides
+  // together; alone, those who have not guessed yet).
+  const mustAct = (p) => {
+    if (room.phase === 'clue') return p.id === room.psychic;
+    if (room.phase !== 'guessing' || p.id === room.psychic) return false;
+    return room.mode === 'team' || !room.guesses.some((g) => g.id === p.id);
+  };
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
     rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),

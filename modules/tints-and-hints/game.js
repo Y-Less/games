@@ -12,10 +12,10 @@
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
@@ -167,8 +167,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Tints and Hints somebody who leaves
- * mid-game is not replaced: the game carries on with one fewer (see afterRemoval).
+ * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * a computer player in their place, so no turn is lost (see takeOver).
  */
 const roster = createRosterRules({
   isLive,
@@ -176,7 +176,7 @@ const roster = createRosterRules({
   maxPlayers: MAX_PLAYERS,
   botNames: BOT_NAMES,
   makePlayer,
-  afterRemoval: (room, left, rng) => afterRemoval(room, left.id, left.index, rng),
+  takeOver,
 });
 /** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
@@ -565,32 +565,32 @@ export function forceNext(room, rng) {
 export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
- * Tints and Hints' part of somebody leaving a game that is under way (the roster has already taken them out of the list and,
- * if they were the host, handed the host on): their guesses go and the hinter's turn is skipped if the hinter left. Fewer
- * than MIN_PLAYERS left means the game is abandoned.
+ * Tints and Hints' part of a computer player taking the place of a person who left a game under way (the roster has
+ * already put it in the list, with the person's score, counters and colour): it gets an AI, everything that named the
+ * person now names it (their turn as hinter, their guesses, the ready list, the history), and if the reveal was only
+ * waiting for that person the next turn starts. Anything it now has to do (a hint, a guess, continuing) is picked up by
+ * pendingBotAction.
  *
- * Side effects: mutates the room (guesses, ready, nextIdx, phase) and may start the next turn.
+ * Side effects: mutates the room (the bot, hinter, first, second, ready, result, history) and may start the next turn.
  *
- * @param {object} room  the room, with the player already removed from room.players
- * @param {number | string} id  who left
- * @param {number} index        where they were in the player list
- * @param {() => number} rng  random source for a following turn
- * @returns {{ abandoned: boolean, finished: boolean }} whether the game ended because too few are left, or finished
+ * @param {object} room
+ * @param {number} oldId  the account id of the person who left
+ * @param {object} bot    the computer player now in their place
+ * @param {() => number} rng
+ * @returns {void}
  */
-function afterRemoval(room, id, index, rng) {
-  const wasHinter = room.hinter === id && ['guessing1', 'guessing2'].includes(room.phase);
-  if (index < room.nextIdx) room.nextIdx--;
-  if (room.players.length) room.nextIdx %= room.players.length;
-  room.first = room.first.filter((g) => g.id !== id);
-  room.second = room.second.filter((g) => g.id !== id);
-  room.ready = (room.ready ?? []).filter((x) => x !== id);
-  if (room.players.length < MIN_PLAYERS) {
-    room.phase = 'abandoned';
-    room.ready = [];
-    return { abandoned: true, finished: false };
+function takeOver(room, oldId, bot, rng) {
+  bot.ai = pickAI(AIS, rng).id;
+  const renamed = (x) => (x === oldId ? bot.id : x);
+  room.hinter = renamed(room.hinter);
+  for (const list of [room.first, room.second]) for (const g of list) g.id = renamed(g.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
+  if (room.result) {
+    room.result.hinter = renamed(room.result.hinter);
+    for (const e of room.result.entries) e.id = renamed(e.id);
   }
-  if (room.phase === 'reveal') return { abandoned: false, finished: unready(room).length === 0 ? finishTurn(room, rng) : false };
-  return { abandoned: false, finished: wasHinter ? finishTurn(room, rng) : false };
+  renameInHistory(room, oldId, bot.id);
+  if (room.phase === 'reveal' && unready(room).length === 0) finishTurn(room, rng);
 }
 
 /**
@@ -686,8 +686,8 @@ function playerView(room, p, { nameOf, online, final }) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js): the hinter has the turn, and while the results are up each player shows whether
- * they are ready to go on.
+ * The standard scoreboard (shared/scores.js): whoever the game is waiting for is `current` (the site's "Take your time"
+ * clock reads it), and while the results are up each player shows whether they are ready to go on.
  *
  * @param {object} room  not changed
  * @param {number} userId  the viewer
@@ -697,8 +697,16 @@ function playerView(room, p, { nameOf, online, final }) {
  * Side effects: none.
  */
 function scoreboardView(room, userId, { nameOf, online }) {
-  /** One player's scoreboard row, marked as current if they are the hinter during a turn. */
-  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
+  // `current` marks who the game is waiting for: the hinter for the first hint and to continue once everyone has guessed,
+  // otherwise the guessers still to guess in this round.
+  const mustAct = (p) => {
+    if (!['guessing1', 'guessing2'].includes(room.phase)) return false;
+    const list = room.phase === 'guessing1' ? room.first : room.second;
+    const hintDue = room.phase === 'guessing1' && !room.hints.first;
+    if (p.id === room.hinter) return hintDue || allGuessed(room);
+    return !hintDue && !list.some((g) => g.id === p.id);
+  };
+  const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
     rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
