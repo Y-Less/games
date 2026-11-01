@@ -8,7 +8,10 @@ import { AVATAR_SLOTS, normaliseAvatar } from '../../shared/avatar.js';
 import AvatarFigure from '../components/AvatarFigure.vue';
 import BackgroundFx from '../components/BackgroundFx.vue';
 import StyledName from '../components/StyledName.vue';
-import { animationsPlaying, backgroundCss, buy, cardBackCss, refreshShop, session, updateProfile } from '../session.js';
+import { animationsPlaying, backgroundCss, cardBackCss } from '../appearance.js';
+import { updateProfile } from '../profileApi.js';
+import { session } from '../session.js';
+import { buy, refreshShop } from '../shopStore.js';
 
 const TABS = [
   {

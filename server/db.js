@@ -83,7 +83,53 @@ CREATE INDEX IF NOT EXISTS result_players_result ON result_players (result_id);
 CREATE INDEX IF NOT EXISTS results_game ON results (game, finished_at);
 `;
 
-/** Opens (creating if needed) the database in dataDir. Pass ':memory:' as dataDir for a throwaway one. */
+/**
+ * A migration step that adds a column to `users` when it is missing.
+ * @param {string} column  the column name
+ * @param {string} definition  its SQL type and default, as in ALTER TABLE ... ADD COLUMN
+ * @returns {{ id: string, run: (db: import('node:sqlite').DatabaseSync, columns: string[]) => void }}
+ * Side effects: none until the step runs, then it may ALTER the table.
+ */
+const addUserColumn = (column, definition) => ({
+  id: `users.${column}`,
+  run(db, columns) {
+    if (!columns.includes(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} ${definition}`);
+  },
+});
+
+/**
+ * The steps that bring a database made by an older version up to date, in the order they run. Every step is safe to run
+ * on a database that already has it (the site runs all of them each time it opens one), so a step only adds what is missing.
+ * Each is { id, run(db, usersColumns) }, where usersColumns are the names of the users table's columns before any step ran.
+ */
+export const MIGRATIONS = [
+  addUserColumn('card_back', `TEXT NOT NULL DEFAULT '{"type":"preset","value":"crimson"}'`),
+  addUserColumn('name_style', `TEXT NOT NULL DEFAULT '{"style":"plain"}'`),
+  addUserColumn('avatar', `TEXT NOT NULL DEFAULT ''`), // empty: the default avatar
+  addUserColumn('background_animation', `TEXT NOT NULL DEFAULT 'none'`),
+  addUserColumn('effect_intensity', 'INTEGER'), // percent; NULL: full (100)
+  addUserColumn('effect_speed', 'INTEGER'), // percent; NULL: normal (100)
+  addUserColumn('marker_colour', 'TEXT'), // the default marker colour (#rrggbb); NULL: none chosen
+  addUserColumn('site_theme', 'TEXT'), // the colour theme (shared/siteThemes.js); NULL: the first, free one
+  addUserColumn('site_font', 'TEXT'), // the font; NULL: the first, free one
+  addUserColumn('animations_choice', 'INTEGER'), // NULL: follow the device's own motion setting
+  {
+    // Matrix B was taken off sale (its code is kept). Whoever owned it was given Matrix (the former Matrix A, 'matrix-a') in its
+    // place, and whoever was using it is moved to that one, so that their background does not just stop.
+    id: 'matrix-b-retired',
+    run(db) {
+      db.exec("INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) SELECT user_id, 'ba:matrix-a', bought_at FROM owned_items WHERE item_id = 'ba:matrix'");
+      db.exec("UPDATE users SET background_animation = 'matrix-a' WHERE background_animation = 'matrix'");
+    },
+  },
+];
+
+/**
+ * Opens (creating if needed) the database in dataDir. Pass ':memory:' as dataDir for a throwaway one.
+ * @param {string} dataDir  the folder for hub.sqlite (created when missing), or ':memory:'
+ * @returns {import('node:sqlite').DatabaseSync}
+ * Side effects: creates the folder and file, creates missing tables and runs every migration step.
+ */
 export function openDatabase(dataDir) {
   let file = ':memory:';
   if (dataDir !== ':memory:') {
@@ -94,44 +140,19 @@ export function openDatabase(dataDir) {
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
   const columns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
-  if (!columns.includes('card_back')) {
-    db.exec(`ALTER TABLE users ADD COLUMN card_back TEXT NOT NULL DEFAULT '{"type":"preset","value":"crimson"}'`);
-  }
-  if (!columns.includes('name_style')) {
-    db.exec(`ALTER TABLE users ADD COLUMN name_style TEXT NOT NULL DEFAULT '{"style":"plain"}'`);
-  }
-  if (!columns.includes('avatar')) {
-    db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''`); // empty: the default avatar
-  }
-  if (!columns.includes('background_animation')) {
-    db.exec(`ALTER TABLE users ADD COLUMN background_animation TEXT NOT NULL DEFAULT 'none'`);
-  }
-  if (!columns.includes('effect_intensity')) {
-    db.exec('ALTER TABLE users ADD COLUMN effect_intensity INTEGER'); // percent; NULL: full (100)
-  }
-  if (!columns.includes('effect_speed')) {
-    db.exec('ALTER TABLE users ADD COLUMN effect_speed INTEGER'); // percent; NULL: normal (100)
-  }
-  if (!columns.includes('marker_colour')) {
-    db.exec('ALTER TABLE users ADD COLUMN marker_colour TEXT'); // the default marker colour (#rrggbb); NULL: none chosen
-  }
-  if (!columns.includes('site_theme')) {
-    db.exec('ALTER TABLE users ADD COLUMN site_theme TEXT'); // the colour theme (shared/siteThemes.js); NULL: the first, free one
-  }
-  if (!columns.includes('site_font')) {
-    db.exec('ALTER TABLE users ADD COLUMN site_font TEXT'); // the font; NULL: the first, free one
-  }
-  if (!columns.includes('animations_choice')) {
-    db.exec('ALTER TABLE users ADD COLUMN animations_choice INTEGER'); // NULL: follow the device's own motion setting
-  }
-  // Matrix B was taken off sale (its code is kept). Whoever owned it was given Matrix (the former Matrix A, 'matrix-a') in its
-  // place, and whoever was using it is moved to that one, so that their background does not just stop.
-  db.exec("INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) SELECT user_id, 'ba:matrix-a', bought_at FROM owned_items WHERE item_id = 'ba:matrix'");
-  db.exec("UPDATE users SET background_animation = 'matrix-a' WHERE background_animation = 'matrix'");
+  for (const step of MIGRATIONS) step.run(db, columns);
   return db;
 }
 
-/** Runs fn inside a transaction (rolled back if it throws). */
+/**
+ * Runs fn inside a transaction (rolled back if it throws).
+ * @template T
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {() => T} fn
+ * @returns {T}  what fn returned
+ * @throws whatever fn threw, after rolling back
+ * Side effects: BEGIN, then COMMIT or ROLLBACK.
+ */
 export function transaction(db, fn) {
   db.exec('BEGIN');
   try {

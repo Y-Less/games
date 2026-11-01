@@ -2,7 +2,8 @@
 // The Achievements page: for the site and then for each game, every achievement with the level you have reached and how far
 // you are towards the next. The rules for levels are in shared/achievements.js; the server works out the numbers.
 import { onMounted, ref } from 'vue';
-import { api, session } from '../session.js';
+import { api } from '../api.js';
+import { session } from '../session.js';
 
 const sections = ref(null);
 const failed = ref('');

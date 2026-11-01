@@ -4,7 +4,9 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { AVATAR_SLOTS, avatarItemId, normaliseAvatar } from '../../shared/avatar.js';
-import { owns, session, updateProfile } from '../session.js';
+import { updateProfile } from '../profileApi.js';
+import { session } from '../session.js';
+import { owns } from '../shopStore.js';
 import AvatarFigure from './AvatarFigure.vue';
 
 const saved = computed(() => normaliseAvatar(session.user.avatar));
@@ -16,9 +18,21 @@ const message = ref('');
 const problem = ref('');
 const busy = ref(false);
 
+/**
+ * Whether an avatar part has not been bought yet.
+ * @param {string} slot
+ * @param {{ id: string }} option
+ * @returns {boolean}
+ * Side effects: none.
+ */
 const locked = (slot, option) => !owns(avatarItemId(slot, option.id));
 const lockedCount = computed(() => AVATAR_SLOTS.reduce((n, { slot, options }) => n + options.filter((o) => locked(slot, o)).length, 0));
 
+/**
+ * Saves the avatar being edited.
+ * @returns {Promise<void>}
+ * Side effects: updates the profile; sets message, problem and busy.
+ */
 async function save() {
   message.value = problem.value = '';
   busy.value = true;
@@ -31,6 +45,11 @@ async function save() {
     busy.value = false;
   }
 }
+/**
+ * Throws away the unsaved changes.
+ * @returns {void}
+ * Side effects: resets the draft to the saved avatar.
+ */
 const reset = () => (draft.value = { ...saved.value });
 </script>
 

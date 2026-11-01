@@ -1,5 +1,4 @@
 // Game statistics. Modules report finished games with record(); the site turns them into profile stats and leaderboards.
-import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
 const OUTCOMES = ['win', 'loss', 'draw'];
@@ -7,13 +6,16 @@ const OUTCOMES = ['win', 'loss', 'draw'];
 /**
  * @param {import('node:sqlite').DatabaseSync} db
  * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max', hidden?: boolean }> }>} listGames
- * @param {{ onRecorded?: (userIds: number[]) => void }} [options] onRecorded is called after a game is recorded, with the players in it
- *   (the site works out their achievements then).
+ * @param {{ onPlayerRecorded?: (resultId: number, player: object, info: { isBot: boolean }) => void, onRecorded?: (userIds: number[]) => void }} [options]
+ *   onPlayerRecorded is called inside the recording transaction, once for each player, with the new result id, the player as
+ *   reported and whether the account is a computer player (the site pays coins from it; a throw rolls the whole game back).
+ *   onRecorded is called after a game is recorded, with the players in it (the site works out their achievements then).
+ * @returns {{ record: Function, forUser: Function, leaderboard: Function }}
+ * Side effects: none until a method is called.
  */
-export function createStats(db, listGames, { onRecorded } = {}) {
+export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}) {
   const knownUser = db.prepare('SELECT 1 FROM users WHERE id = ?');
   const isBot = db.prepare('SELECT is_bot FROM users WHERE id = ?');
-  const coins = createCoins(db);
 
   /**
    * Records one finished game.
@@ -38,9 +40,7 @@ export function createStats(db, listGames, { onRecorded } = {}) {
         .run(game, result.code ?? null, Date.now());
       const insert = db.prepare('INSERT INTO result_players (result_id, user_id, placement, score, outcome, extras) VALUES (?, ?, ?, ?, ?, ?)');
       for (const p of players) {
-        // Bot accounts take part in games but never earn coins. There is no minimum number of people: beating
-        // computer players pays the same as beating people.
-        if (!isBot.get(p.userId).is_bot) coins.awardPlacement(p.userId, Number(lastInsertRowid), p);
+        onPlayerRecorded?.(Number(lastInsertRowid), p, { isBot: Boolean(isBot.get(p.userId).is_bot) });
         insert.run(
           lastInsertRowid,
           p.userId,
@@ -61,13 +61,24 @@ export function createStats(db, listGames, { onRecorded } = {}) {
     return resultId;
   }
 
+  /**
+   * Keeps only the numeric extras a player reported.
+   * @param {Record<string, *> | undefined} extras
+   * @returns {Record<string, number>}
+   * Side effects: none.
+   */
   function cleanExtras(extras) {
     const out = {};
     for (const [key, value] of Object.entries(extras ?? {})) if (Number.isFinite(value)) out[key] = value;
     return out;
   }
 
-  /** Everything the profile page shows for one user. */
+  /**
+   * Everything the profile page shows for one user.
+   * @param {number} userId
+   * @returns {{ summary: object, perGame: object[], recent: object[] }}
+   * Side effects: none.
+   */
   function forUser(userId) {
     const totals = db
       .prepare(
@@ -124,7 +135,13 @@ export function createStats(db, listGames, { onRecorded } = {}) {
     return { summary: { ...summary, winRate: summary.played ? summary.wins / summary.played : 0 }, perGame, recent };
   }
 
-  /** Top players for one game by wins (then win rate), skipping bots unless asked. */
+  /**
+   * Top players for one game by wins (then win rate), skipping bots unless asked.
+   * @param {string} game  module id
+   * @param {{ limit?: number, includeBots?: boolean }} [options]
+   * @returns {Array<{ userId: number, name: string, played: number, wins: number }>}
+   * Side effects: none.
+   */
   function leaderboard(game, { limit = 10, includeBots = false } = {}) {
     return db
       .prepare(

@@ -1,12 +1,13 @@
 <script setup>
 // Hosts one game module inside the site's play field. The module's client half (modules/<id>/client/index.js) is a
 // Vue component; the shell gives it a connected socket for its own namespace and the signed-in user.
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
-import { io } from 'socket.io-client';
-import { api, session } from '../session.js';
-import { renderMarkdown } from '../markdown.js';
+import { session } from '../session.js';
 import { playBar } from '../playBar.js';
+import { useFrameFit } from '../useFrameFit.js';
+import { useGameRules } from '../useGameRules.js';
+import { useModuleSocket } from '../useModuleSocket.js';
 import HelpDialog from '../components/HelpDialog.vue';
 
 const props = defineProps({ game: { type: String, required: true } });
@@ -17,125 +18,30 @@ const meta = computed(() => session.games.find((g) => g.id === props.game) ?? nu
 const loader = loaders[`../../modules/${props.game}/client/index.js`];
 const GameComponent = loader ? defineAsyncComponent(loader) : null;
 
-const socket = shallowRef(null);
-const connected = ref(false);
-const problem = ref('');
-const rules = ref(null); // rendered HTML once loaded
-const showRules = ref(false); // the Help pop-up, which shows the game's rules
-
-onMounted(() => {
-  if (!meta.value || !GameComponent) {
-    problem.value = 'That game is not available.';
-    return;
-  }
-  const s = io(`/${props.game}`);
-  s.on('connect', () => {
-    connected.value = true;
-    problem.value = '';
-  });
-  s.on('disconnect', () => (connected.value = false));
-  s.on('connect_error', (error) => {
-    if (/sign in/i.test(error.message)) {
-      session.user = null;
-      router.push({ name: 'login', query: { next: router.currentRoute.value.fullPath } });
-    } else {
-      problem.value = 'Could not reach the game. Trying again…';
-    }
-  });
-  socket.value = s;
+const { socket, connected, problem } = useModuleSocket(() => props.game, {
+  available: () => Boolean(meta.value && GameComponent),
+  onSignedOut: () => router.push({ name: 'login', query: { next: router.currentRoute.value.fullPath } }),
 });
+const { rules, showRules, openRules } = useGameRules(() => props.game);
+const { frame } = useFrameFit();
+
 // The title and Help button live in the site header (App.vue), which reads them from playBar.
 watchEffect(() => {
   playBar.game = meta.value ? { name: meta.value.name, hasRules: Boolean(meta.value.rules), openRules } : null;
 });
 onBeforeUnmount(() => {
   playBar.game = null;
-  socket.value?.close();
 });
-
-async function openRules() {
-  showRules.value = true;
-  if (rules.value !== null) return;
-  try {
-    rules.value = renderMarkdown(await api('GET', `/api/games/${props.game}/rules`));
-  } catch {
-    rules.value = '<p>This game has no written rules yet.</p>';
-  }
-}
 
 // Lets a module keep its own addresses (for example an invite link) without the shell reloading it.
+/**
+ * Changes the address bar's query string without reloading.
+ * @param {string} search  the new query string, with or without the leading '?'
+ * @returns {void}
+ * Side effects: replaces the history entry.
+ */
 const setSearch = (search) => window.history.replaceState(null, '', `${window.location.pathname}${search ? `?${search.replace(/^\?/, '')}` : ''}`);
 const search = window.location.search;
-
-// Fit the game to the window: the game is drawn at its natural size, and if that is taller than the room below the
-// title it is scaled down (never up) so the page does not need to scroll while playing. The natural height only ever
-// grows within a window size, so the scale settles instead of bouncing as panels come and go.
-const frame = ref(null);
-const MIN_SCALE = 0.55;
-let natural = 0;
-let observer = null;
-let waiting = null; // the MutationObserver waiting for the game's first element to appear, if any
-function fit() {
-  const el = frame.value;
-  const inner = el?.firstElementChild;
-  if (!el || !inner || !el.offsetParent) return;
-  const current = Number.parseFloat(el.style.zoom) || 1;
-  // A screen that lays itself out to fit the window (its root has data-fits-window) is never scaled.
-  if (el.querySelector('[data-fits-window]')) {
-    natural = 0;
-    if (current !== 1) {
-      el.style.zoom = '1';
-      el.style.setProperty('--fit-zoom', '1');
-    }
-    return;
-  }
-  natural = Math.max(natural, inner.getBoundingClientRect().height / current);
-  const top = el.getBoundingClientRect().top + window.scrollY;
-  const room = window.innerHeight - top - 12;
-  const scale = natural > 0 ? Math.min(1, Math.max(MIN_SCALE, room / natural)) : 1;
-  const next = Math.floor(scale * 100) / 100;
-  if (Math.abs(next - current) >= 0.01) {
-    el.style.zoom = String(next);
-    el.style.setProperty('--fit-zoom', String(next)); // sticky bars inside the game divide their offset by this
-  }
-}
-function refit() {
-  natural = 0;
-  fit();
-}
-onMounted(() => {
-  window.addEventListener('resize', refit);
-  observer = new ResizeObserver(fit);
-});
-/**
- * Watches the game's frame: measures its first element, or waits for one to appear.
- * @param {HTMLElement | null} el  the new frame element
- * @param {HTMLElement | null} old  the previous one
- * @returns {void}
- * Side effects: moves the ResizeObserver; replaces any pending MutationObserver (disconnecting the old one).
- */
-watch(frame, (el, old) => {
-  waiting?.disconnect();
-  waiting = null;
-  if (old) observer?.unobserve(old.firstElementChild ?? old);
-  if (el?.firstElementChild) observer?.observe(el.firstElementChild);
-  else if (el) {
-    waiting = new MutationObserver(() => {
-      if (!el.firstElementChild) return;
-      observer?.observe(el.firstElementChild);
-      waiting?.disconnect();
-      waiting = null;
-    });
-    waiting.observe(el, { childList: true });
-  }
-});
-/** Stops listening when the page goes away. Side effects: removes the resize listener, disconnects both observers. */
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', refit);
-  waiting?.disconnect();
-  waiting = null;
-  observer?.disconnect();
-});
 </script>
 
 <template>

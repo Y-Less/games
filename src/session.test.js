@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  api, applyBackground, backgroundCss, cardBackCss, changePassword, loadSession, register, safeNext, session, signIn, signOut,
-  updateProfile, uploadBackground, uploadCardBack,
-} from './session.js';
+import { api } from './api.js';
+import { applyBackground, backgroundCss, cardBackCss } from './appearance.js';
+import { changePassword, updateProfile, uploadBackground, uploadCardBack } from './profileApi.js';
+import { loadSession, register, safeNext, session, signIn, signOut } from './session.js';
 
 const PRESETS = { night: 'night-image', dawn: 'dawn-image' };
 const BACKS = { crimson: 'crimson-back', navy: 'navy-back' };

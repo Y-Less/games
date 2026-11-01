@@ -6,7 +6,8 @@ import BackgroundFx from './components/BackgroundFx.vue';
 import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
 import { clearProfiles } from './profiles.js';
-import { refreshShop, session, signOut } from './session.js';
+import { session, signOut } from './session.js';
+import { refreshShop } from './shopStore.js';
 import { leaveOffer, playBar } from './playBar.js';
 import HelpDialog from './components/HelpDialog.vue';
 import { renderMarkdown } from './markdown.js';
@@ -23,6 +24,11 @@ watch(() => route.fullPath, () => refreshShop());
 watch(offer, (now) => {
   if (!now) confirming.value = false;
 });
+/**
+ * The Leave game button: asks first when the game wants a confirmation, otherwise leaves.
+ * @returns {void}
+ * Side effects: shows the confirmation, or leaves.
+ */
 function askLeave() {
   if (offer.value?.confirmText) confirming.value = true;
   else doLeave();
@@ -32,10 +38,20 @@ const helpOpen = ref(false);
 const help = computed(() => pageHelp(route));
 const helpHtml = computed(() => (help.value ? renderMarkdown(help.value.markdown) : '<p>There is no help for this page.</p>'));
 watch(() => route.fullPath, () => (helpOpen.value = false));
+/**
+ * The Help button: the game's rules when playing, otherwise the page's help.
+ * @returns {void}
+ * Side effects: opens a pop-up.
+ */
 function openHelp() {
   if (playing.value && playBar.game) playBar.game.openRules();
   else helpOpen.value = true;
 }
+/**
+ * Leaves the game.
+ * @returns {Promise<void>}
+ * Side effects: closes the confirmation and runs the game's own leave action.
+ */
 async function doLeave() {
   confirming.value = false;
   // The game's own screen takes over once you have left: its lobby, where you can start or join another game.

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { createAuth } from './auth.js';
-import { openDatabase } from './db.js';
+import { MIGRATIONS, openDatabase } from './db.js';
 import { register, withSite, workspace } from './fixtures/testkit.js';
 
 const OLD_USERS = `CREATE TABLE users (
@@ -155,4 +155,23 @@ test('everyone who owned Matrix B is given Matrix (matrix-a), and users of B are
   // Opening it again changes nothing.
   const again = track(openDatabase(dir));
   assert.equal(again.prepare('SELECT COUNT(*) AS n FROM owned_items').get().n, 8);
+});
+
+test('migration steps have unique ids and each can be run again on a finished database', (t) => {
+  const { dir, track } = workspace(t);
+  const db = track(openDatabase(dir));
+  assert.equal(new Set(MIGRATIONS.map((step) => step.id)).size, MIGRATIONS.length);
+  const before = columnsOf(db);
+  for (const step of MIGRATIONS) step.run(db, columnsOf(db));
+  assert.deepEqual(columnsOf(db), before);
+});
+
+test('an add-column step adds its column only when it is missing', (t) => {
+  const { dir, track } = workspace(t);
+  const db = track(openDatabase(dir));
+  const step = MIGRATIONS.find((s) => s.id === 'users.site_font');
+  db.exec('ALTER TABLE users DROP COLUMN site_font');
+  assert.ok(!columnsOf(db).includes('site_font'));
+  step.run(db, columnsOf(db));
+  assert.ok(columnsOf(db).includes('site_font'));
 });

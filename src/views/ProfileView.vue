@@ -3,7 +3,10 @@ import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import AvatarEditor from '../components/AvatarEditor.vue';
 import { MARKER_COLOURS, CUSTOM_MARKER_ITEM } from '../../shared/markerColours.js';
-import { cardBackCss, changePassword, owns, session, updateProfile, uploadBackground, uploadCardBack } from '../session.js';
+import { cardBackCss } from '../appearance.js';
+import { changePassword, updateProfile, uploadBackground, uploadCardBack } from '../profileApi.js';
+import { session } from '../session.js';
+import { owns } from '../shopStore.js';
 
 const displayName = ref(session.user.displayName);
 const current = computed(() => session.user.background);

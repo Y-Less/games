@@ -8,8 +8,9 @@ import { createStats } from './stats.js';
 function setup(t) {
   const db = openDatabase(':memory:');
   t.after(() => db.close());
-  const stats = createStats(db, () => []);
   const coins = createCoins(db);
+  // The site pays coins from the stats hook (see startSite); computer accounts earn none.
+  const stats = createStats(db, () => [], { onPlayerRecorded: (resultId, player, { isBot }) => { if (!isBot) coins.awardPlacement(player.userId, resultId, player); } });
   let n = 0;
   const addUser = (name, { bot = false } = {}) =>
     Number(db.prepare('INSERT INTO users (username, username_lower, password_hash, display_name, is_bot, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(name, name, 'x', name, bot ? 1 : 0, ++n).lastInsertRowid);

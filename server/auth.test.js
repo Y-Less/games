@@ -2,20 +2,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {
-  AuthError,
-  BACKGROUND_PRESETS,
-  CARD_BACK_PRESETS,
-  SESSION_COOKIE,
-  SESSION_DAYS,
-  cleanBackground,
-  cleanCardBack,
-  clearedCookie,
-  createAuth,
-  parseCookies,
-  sessionCookie,
-} from './auth.js';
+import { SESSION_COOKIE, SESSION_DAYS, clearedCookie, createAuth, parseCookies, sessionCookie } from './auth.js';
 import { openDatabase } from './db.js';
+import { AuthError } from './errors.js';
+import { BACKGROUND_PRESETS, CARD_BACK_PRESETS, cleanBackground, cleanCardBack } from './profileSettings.js';
 
 function setup(t) {
   const db = openDatabase(':memory:');

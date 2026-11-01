@@ -383,3 +383,25 @@ test('record: the same account listed twice counts once, with its first entry', 
   assert.equal(db.prepare('SELECT score FROM result_players WHERE result_id = ? AND user_id = ?').get(id, a).score, 5);
   assert.equal(stats.forUser(a).perGame[0].played, 1);
 });
+
+test('onPlayerRecorded runs inside the transaction for each player, with the result id and whether they are a bot', (t) => {
+  const { db, addUser, count } = setup(t, []);
+  const calls = [];
+  const stats = createStats(db, () => [], { onPlayerRecorded: (resultId, player, info) => calls.push({ resultId, userId: player.userId, ...info, rows: count('results') }) });
+  const ann = addUser('ann');
+  const robot = addUser('robot', { bot: true });
+  const id = stats.record('alpha', { players: [{ userId: ann, outcome: 'win' }, { userId: robot, outcome: 'loss' }, { userId: 9999, outcome: 'loss' }] });
+  assert.deepEqual(calls, [
+    { resultId: id, userId: ann, isBot: false, rows: 1 },
+    { resultId: id, userId: robot, isBot: true, rows: 1 },
+  ]);
+});
+
+test('a throw from onPlayerRecorded rolls the whole game back', (t) => {
+  const { db, addUser, count } = setup(t, []);
+  const stats = createStats(db, () => [], { onPlayerRecorded: () => { throw new Error('no'); } });
+  const ann = addUser('ann');
+  assert.throws(() => stats.record('alpha', one(ann, 'win')), /no/);
+  assert.equal(count('results'), 0);
+  assert.equal(count('result_players'), 0);
+});

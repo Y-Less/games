@@ -1,11 +1,9 @@
-// Accounts: registration, login, sessions (an opaque random cookie; only its hash is stored) and the profile.
+// Accounts: registration, login, sessions (an opaque random cookie; only its hash is stored) and the cookie helpers.
+// The profile (settings, public looks) is in profile.js; the error type is in errors.js.
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
-import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
-import { DEFAULT_NAME_STYLE, isNameStyle } from '../shared/nameStyles.js';
-import { normaliseMarker } from '../shared/markerColours.js';
-import { DEFAULT_FONT, DEFAULT_THEME, isSiteFont, isSiteTheme } from '../shared/siteThemes.js';
+import { AuthError } from './errors.js';
+import { createProfiles, publicUser } from './profile.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -13,64 +11,36 @@ export const SESSION_COOKIE = 'sid';
 export const SESSION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export class AuthError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
-
-export const BACKGROUND_PRESETS = {
-  night: 'radial-gradient(1200px 700px at 50% -10%, #254452 0%, #16252d 60%)',
-  dusk: 'linear-gradient(160deg, #2b1f3d 0%, #4a2c4f 45%, #7a3e55 100%)',
-  forest: 'linear-gradient(170deg, #12261c 0%, #1d3b2a 55%, #2f5a3c 100%)',
-  ocean: 'linear-gradient(170deg, #0b1e36 0%, #12385c 55%, #1b5f84 100%)',
-  ember: 'linear-gradient(165deg, #2a120e 0%, #522018 55%, #8a3a22 100%)',
-  slate: 'linear-gradient(170deg, #1b1d22 0%, #2a2e36 100%)',
-  wine: 'linear-gradient(165deg, #25101a 0%, #4a1a2e 55%, #7a2a44 100%)',
-  lagoon: 'linear-gradient(170deg, #0a2326 0%, #115055 55%, #1c8081 100%)',
-  violet: 'linear-gradient(165deg, #1d1433 0%, #37226a 55%, #5b3d99 100%)',
-  // A very dark green-tinged slate: the slate background under a green panel (60%).
-  pine: 'linear-gradient(170deg, #0b1611 0%, #111d19 100%)',
-};
-
-/** Card-back designs (CSS backgrounds). Card games draw every face-down card with the signed-in user's choice. */
-export const CARD_BACK_PRESETS = {
-  crimson:
-    'repeating-linear-gradient(45deg, #8a2433 0 7px, #6b1a27 7px 14px), #6b1a27',
-  navy: 'repeating-linear-gradient(135deg, #1f3a68 0 7px, #16294a 7px 14px), #16294a',
-  forest: 'repeating-linear-gradient(45deg, #2f6a45 0 7px, #214c32 7px 14px), #214c32',
-  gold: 'repeating-linear-gradient(135deg, #c79a3b 0 7px, #9c7425 7px 14px), #9c7425',
-  teal: 'radial-gradient(circle at 50% 50%, #2e7d86 0 22%, #1d5058 23% 60%, #123b42 61%)',
-  mono: 'repeating-linear-gradient(0deg, #2b2b2e 0 6px, #3a3a3e 6px 12px), #2b2b2e',
-  plum: 'repeating-linear-gradient(45deg, #5b2a6e 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, #7c3d92 0 6px, #4a2159 6px 12px), #4a2159',
-  ocean: 'repeating-radial-gradient(circle at 50% 120%, #1c6e9c 0 6px, #14527a 6px 12px), #14527a',
-  sunset: 'linear-gradient(160deg, #f6a04d 0%, #d6456b 50%, #4a2c6e 100%)',
-  emerald: 'linear-gradient(45deg, rgb(0 0 0 / 0.25) 25%, transparent 25% 75%, rgb(0 0 0 / 0.25) 75%) 0 0 / 14px 14px, linear-gradient(45deg, rgb(0 0 0 / 0.25) 25%, transparent 25% 75%, rgb(0 0 0 / 0.25) 75%) 7px 7px / 14px 14px, #1f8a5b',
-  rose: 'repeating-linear-gradient(90deg, #d99a8c 0 5px, #b9766a 5px 10px), #b9766a',
-  midnight: 'radial-gradient(circle at 20% 25%, #fff 0 1px, transparent 2px) 0 0 / 28px 28px, radial-gradient(circle at 70% 65%, #cfe6ff 0 1px, transparent 2px) 0 0 / 34px 34px, linear-gradient(180deg, #0c1233, #1c1a52)',
-  ruby: 'repeating-conic-gradient(#7a1020 0 25%, #a3172f 0 50%) 0 0 / 16px 16px',
-  chequer: 'repeating-conic-gradient(#f1ede2 0 25%, #1c1c1f 0 50%) 0 0 / 16px 16px',
-  lavender: 'radial-gradient(circle, #f2eaff 0 2px, transparent 3px) 0 0 / 12px 12px, #8f7ad1',
-  amber: 'repeating-radial-gradient(circle at 50% 50%, #e0922b 0 5px, #a8650f 5px 10px), #a8650f',
-  ice: 'repeating-linear-gradient(45deg, rgb(255 255 255 / 0.3) 0 2px, transparent 2px 9px), repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.3) 0 2px, transparent 2px 9px), #5a9fc9',
-  gingham: 'repeating-linear-gradient(0deg, rgb(255 255 255 / 0.16) 0 8px, transparent 8px 16px), repeating-linear-gradient(90deg, rgb(255 255 255 / 0.16) 0 8px, transparent 8px 16px), #3b4a63',
-  mint: 'repeating-linear-gradient(90deg, #a9e3cb 0 6px, #7ccaad 6px 12px), #7ccaad',
-  carbon: 'radial-gradient(#0d0d0f 40%, transparent 42%) 0 0 / 8px 8px, radial-gradient(#0d0d0f 40%, transparent 42%) 4px 4px / 8px 8px, #26272b',
-};
-
-const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const USERNAME = /^[A-Za-z0-9_-]{3,20}$/;
 const KEY_LENGTH = 64;
-const isText = (value) => typeof value === 'string';
-const COLOUR = /^#[0-9a-fA-F]{6}$/;
 
+/**
+ * The stored form of a session token (only this is kept in the database).
+ * @param {string} value  the token
+ * @returns {string}  its SHA-256, in hex
+ * Side effects: none.
+ */
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
+
+/**
+ * Hashes a password for storage.
+ * @param {string} password
+ * @returns {Promise<string>}  "scrypt$<salt hex>$<key hex>"
+ * Side effects: uses random bytes for the salt.
+ */
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16);
   const key = await scrypt(password, salt, KEY_LENGTH);
   return `scrypt$${salt.toString('hex')}$${key.toString('hex')}`;
 }
 
+/**
+ * Whether a password matches a stored hash.
+ * @param {string} password
+ * @param {string} stored  a value from hashPassword
+ * @returns {Promise<boolean>}
+ * Side effects: none.
+ */
 async function checkPassword(password, stored) {
   const [scheme, saltHex, keyHex] = String(stored).split('$');
   if (scheme !== 'scrypt' || !saltHex || !keyHex) return false;
@@ -81,126 +51,21 @@ async function checkPassword(password, stored) {
   return expected.length === KEY_LENGTH && crypto.timingSafeEqual(actual, expected);
 }
 
-/** Checks a background setting and returns the clean version that is stored. */
-export function cleanBackground(input) {
-  const type = input?.type;
-  if (type === 'preset' && isText(input.value) && Object.hasOwn(BACKGROUND_PRESETS, input.value)) return { type, value: input.value };
-  if (type === 'colour' && isText(input.value) && COLOUR.test(input.value)) return { type, value: input.value.toLowerCase() };
-  if (type === 'gradient' && isText(input.from) && isText(input.to) && COLOUR.test(input.from) && COLOUR.test(input.to)) {
-    const angle = Math.max(0, Math.min(360, Math.round(Number(input.angle ?? 160))));
-    return { type, from: input.from.toLowerCase(), to: input.to.toLowerCase(), angle: Number.isFinite(angle) ? angle : 160 };
-  }
-  if (type === 'image' && isText(input.file) && /^bg-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type, file: input.file };
-  throw new AuthError('That is not a valid background.');
-}
-
-/** Checks a card-back setting: one of the presets, or the user's own uploaded picture. */
-export function cleanCardBack(input) {
-  if (input?.type === 'preset' && isText(input.value) && Object.hasOwn(CARD_BACK_PRESETS, input.value)) return { type: 'preset', value: input.value };
-  if (input?.type === 'image' && isText(input.file) && /^cb-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type: 'image', file: input.file };
-  throw new AuthError('That is not a valid card back.');
-}
-
-/**
- * Checks a name style: the id of one of the styles in shared/nameStyles.js and, optionally, one of the animations in
- * shared/animations.js ({ style, animation }; a still name is stored without `animation`).
- */
-export function cleanNameStyle(input) {
-  if (!(isText(input?.style) && isNameStyle(input.style))) throw new AuthError('That is not a valid name style.');
-  if (input.animation === undefined || input.animation === 'none') return { style: input.style };
-  if (!isNameAnimation(input.animation)) throw new AuthError('That is not a valid name animation.');
-  return { style: input.style, animation: input.animation };
-}
-
-/** Checks the play-animations setting: true (always), false (never) or null (follow the device's own motion setting). */
-export function cleanPlayAnimations(input) {
-  if (typeof input === 'boolean' || input === null) return input;
-  throw new AuthError('Play animations must be always, never or follow the device.');
-}
-
-export const EFFECT_INTENSITY = { min: 10, max: 300, normal: 100 };
-export const EFFECT_SPEED = { min: 25, max: 300, normal: 100 };
-
-/** Checks a background animation level (a whole percentage within the given range). */
-export function cleanEffectLevel(input, { min, max }, what) {
-  if (!Number.isInteger(input) || input < min || input > max) throw new AuthError(`The ${what} must be a whole number from ${min} to ${max}.`);
-  return input;
-}
-
-/** Checks a background animation: one of the ids in shared/animations.js. */
-export function cleanBackgroundAnimation(input) {
-  if (isBackgroundAnimation(input)) return input;
-  throw new AuthError('That is not a valid background animation.');
-}
-
-/** Checks a colour theme or font choice: the id of one that exists. */
-export function cleanChoice(input, isValid, what) {
-  if (!isValid(input)) throw new AuthError(`That is not a ${what}.`);
-  return input;
-}
-
-/** Checks a default marker colour: a #rrggbb colour (kept in lower case), or null for none. */
-export function cleanMarkerColour(input) {
-  if (input === null) return null;
-  const colour = normaliseMarker(input);
-  if (!colour) throw new AuthError('A marker colour is six hex digits such as #ff2d95.');
-  return colour;
-}
-
-function parseNameStyle(text) {
-  try {
-    return cleanNameStyle(JSON.parse(text));
-  } catch {
-    return { ...DEFAULT_NAME_STYLE };
-  }
-}
-
-/** Checks an avatar: an object with, for each slot, the id of one of its options in shared/avatar.js (a missing slot gets the default). */
-export function cleanAvatar(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('That is not a valid avatar.');
-  for (const { slot } of AVATAR_SLOTS) {
-    if (input[slot] !== undefined && !isAvatarOption(slot, input[slot])) throw new AuthError('That is not a valid avatar.');
-  }
-  return normaliseAvatar(input);
-}
-
-function parseAvatar(text) {
-  try {
-    return normaliseAvatar(JSON.parse(text));
-  } catch {
-    return normaliseAvatar(null);
-  }
-}
-
-/** What other players may see of someone: their name, how it is dressed and their avatar. */
-const publicProfile = (row) => ({ displayName: row.display_name, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar) });
-
-function publicUser(row) {
-  let background;
-  try {
-    background = JSON.parse(row.background);
-  } catch {
-    background = { type: 'preset', value: 'night' };
-  }
-  let cardBack;
-  try {
-    cardBack = JSON.parse(row.card_back);
-  } catch {
-    cardBack = { type: 'preset', value: 'crimson' };
-  }
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
-}
-
 /** Registrations one address may attempt in 15 minutes (the REGISTER_LIMIT environment variable overrides it, for the UI tests). */
 export const REGISTER_LIMIT = 20;
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ canUse?: (userId: number, settings: { background?: object, cardBack?: object, nameStyle?: object, avatar?: object, markerColour?: string | null, backgroundAnimation?: string }) => void }} [options]
- *   canUse throws when a profile change uses something the user has not bought (the shop supplies it; tests may omit it).
+ * @param {{ canUse?: (userId: number, settings: object) => void }} [options]
+ *   canUse throws when a profile change uses something the user has not bought (the site supplies it from the shop; tests may omit it).
+ *   Auth only passes it on to the profile; it knows nothing about the shop.
+ * @returns {object}  the account operations (register, login, logout, userForToken, changePassword ...) and the profile ones
+ * Side effects: none until a method is called.
  */
 export function createAuth(db, { canUse = () => {} } = {}) {
   const attempts = new Map(); // "ip|username" -> { count, first }: slows down password guessing
+  const profiles = createProfiles(db, { canUse });
+  const byId = profiles.userById;
 
   /**
    * Counts one attempt against `key` and refuses it when there have been too many in the last 15 minutes.
@@ -221,6 +86,12 @@ export function createAuth(db, { canUse = () => {} } = {}) {
     if (entry.count > max) throw new AuthError('Too many attempts. Please wait a few minutes and try again.', 429);
   }
 
+  /**
+   * Starts a session for a user.
+   * @param {number} userId
+   * @returns {string}  the session token (the cookie value; only its hash is stored)
+   * Side effects: inserts a sessions row.
+   */
   function createSession(userId) {
     const token = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
@@ -232,11 +103,6 @@ export function createAuth(db, { canUse = () => {} } = {}) {
     );
     return token;
   }
-
-  const byId = (id) => {
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
-    return row ? publicUser(row) : null;
-  };
 
   return {
     /**
@@ -265,6 +131,13 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return { user: byId(id), token: createSession(id) };
     },
 
+    /**
+     * Signs a user in.
+     * @param {{ username: string, password: string, ip?: string }} details
+     * @returns {Promise<{ user: object, token: string }>}
+     * @throws {AuthError} 401 for a wrong username or password, 429 when there have been too many attempts
+     * Side effects: counts the attempt (cleared on success); inserts a session on success.
+     */
     async login({ username, password, ip = '' }) {
       username = String(username ?? '').trim();
       throttle(`${ip}|${username.toLowerCase()}`);
@@ -276,11 +149,22 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return { user: publicUser(row), token: createSession(row.id) };
     },
 
+    /**
+     * Ends a session.
+     * @param {string | undefined} token  the session token (nothing happens without one)
+     * @returns {void}
+     * Side effects: deletes the sessions row.
+     */
     logout(token) {
       if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hash(token));
     },
 
-    /** The signed-in user for a session token, or null. */
+    /**
+     * The signed-in user for a session token, or null.
+     * @param {string | undefined} token
+     * @returns {object | null}
+     * Side effects: none.
+     */
     userForToken(token) {
       if (!token || typeof token !== 'string') return null;
       const row = db
@@ -289,56 +173,20 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return row ? publicUser(row) : null;
     },
 
-    userById: byId,
+    userById: profiles.userById,
+    publicProfiles: profiles.publicProfiles,
+    updateProfile: profiles.updateProfile,
 
-    /** Up to 100 users' public profiles as { [id]: { displayName, nameStyle, avatar } }; unknown ids are left out. */
-    publicProfiles(ids) {
-      const out = {};
-      const select = db.prepare('SELECT display_name, name_style, avatar FROM users WHERE id = ?');
-      for (const id of [...new Set(ids)].slice(0, 100)) {
-        const row = Number.isInteger(id) ? select.get(id) : null;
-        if (row) out[id] = publicProfile(row);
-      }
-      return out;
-    },
-
-    updateProfile(userId, { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed }) {
-      // Check everything first, so a refused change changes nothing.
-      let name;
-      if (displayName !== undefined) {
-        name = String(displayName).trim();
-        if (!name || name.length > 20) throw new AuthError('Display names are 1 to 20 characters.');
-      }
-      const cleanedBackground = background === undefined ? undefined : cleanBackground(background);
-      const cleanedCardBack = cardBack === undefined ? undefined : cleanCardBack(cardBack);
-      const cleanedNameStyle = nameStyle === undefined ? undefined : cleanNameStyle(nameStyle);
-      const cleanedAvatar = avatar === undefined ? undefined : cleanAvatar(avatar);
-      const cleanedMarker = markerColour === undefined ? undefined : cleanMarkerColour(markerColour);
-      const cleanedTheme = siteTheme === undefined ? undefined : cleanChoice(siteTheme, isSiteTheme, 'colour theme');
-      const cleanedFont = siteFont === undefined ? undefined : cleanChoice(siteFont, isSiteFont, 'font');
-      const cleanedPlay = playAnimations === undefined ? undefined : cleanPlayAnimations(playAnimations);
-      const cleanedBackgroundAnimation = backgroundAnimation === undefined ? undefined : cleanBackgroundAnimation(backgroundAnimation);
-      const cleanedIntensity = effectIntensity === undefined ? undefined : cleanEffectLevel(effectIntensity, EFFECT_INTENSITY, 'intensity');
-      const cleanedSpeed = effectSpeed === undefined ? undefined : cleanEffectLevel(effectSpeed, EFFECT_SPEED, 'speed');
-      // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
-      if (cleanedBackground?.type === 'image' && !cleanedBackground.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
-      if (cleanedCardBack?.type === 'image' && !cleanedCardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
-      canUse(userId, { background: cleanedBackground, cardBack: cleanedCardBack, nameStyle: cleanedNameStyle, avatar: cleanedAvatar, markerColour: cleanedMarker, siteTheme: cleanedTheme, siteFont: cleanedFont, backgroundAnimation: cleanedBackgroundAnimation, effectIntensity: cleanedIntensity, effectSpeed: cleanedSpeed });
-      if (name !== undefined) db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, userId);
-      if (cleanedBackground !== undefined) db.prepare('UPDATE users SET background = ? WHERE id = ?').run(JSON.stringify(cleanedBackground), userId);
-      if (cleanedCardBack !== undefined) db.prepare('UPDATE users SET card_back = ? WHERE id = ?').run(JSON.stringify(cleanedCardBack), userId);
-      if (cleanedNameStyle !== undefined) db.prepare('UPDATE users SET name_style = ? WHERE id = ?').run(JSON.stringify(cleanedNameStyle), userId);
-      if (cleanedAvatar !== undefined) db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(JSON.stringify(cleanedAvatar), userId);
-      if (cleanedMarker !== undefined) db.prepare('UPDATE users SET marker_colour = ? WHERE id = ?').run(cleanedMarker, userId);
-      if (cleanedTheme !== undefined) db.prepare('UPDATE users SET site_theme = ? WHERE id = ?').run(cleanedTheme, userId);
-      if (cleanedFont !== undefined) db.prepare('UPDATE users SET site_font = ? WHERE id = ?').run(cleanedFont, userId);
-      if (cleanedPlay !== undefined) db.prepare('UPDATE users SET animations_choice = ? WHERE id = ?').run(cleanedPlay === null ? null : cleanedPlay ? 1 : 0, userId);
-      if (cleanedBackgroundAnimation !== undefined) db.prepare('UPDATE users SET background_animation = ? WHERE id = ?').run(cleanedBackgroundAnimation, userId);
-      if (cleanedIntensity !== undefined) db.prepare('UPDATE users SET effect_intensity = ? WHERE id = ?').run(cleanedIntensity, userId);
-      if (cleanedSpeed !== undefined) db.prepare('UPDATE users SET effect_speed = ? WHERE id = ?').run(cleanedSpeed, userId);
-      return byId(userId);
-    },
-
+    /**
+     * Changes a password and signs out every other device.
+     * @param {number} userId
+     * @param {string} currentPassword
+     * @param {string} newPassword
+     * @param {string} [keepToken]  the session to keep signed in
+     * @returns {Promise<void>}
+     * @throws {AuthError} 401 for a wrong current password, 400 for an unusable new one
+     * Side effects: updates the password hash; deletes the user's other sessions.
+     */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
       if (!row || !(await checkPassword(String(currentPassword ?? ''), row.password_hash))) throw new AuthError('Your current password is wrong.', 401);
@@ -349,12 +197,23 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, hash(keepToken ?? ''));
     },
 
+    /**
+     * Removes sessions that have run out.
+     * @returns {void}
+     * Side effects: deletes sessions rows.
+     */
     deleteExpiredSessions() {
       db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
     },
   };
 }
 
+/**
+ * Reads a Cookie header.
+ * @param {string} [header]
+ * @returns {Record<string, string>}  cookie name -> value (malformed ones are skipped)
+ * Side effects: none.
+ */
 export function parseCookies(header = '') {
   const cookies = {};
   for (const part of String(header).split(';')) {
@@ -369,6 +228,13 @@ export function parseCookies(header = '') {
   return cookies;
 }
 
+/**
+ * The Set-Cookie value that signs a browser in.
+ * @param {string} token  the session token
+ * @param {{ secure?: boolean }} [options]  secure: add the Secure flag (the request came over HTTPS)
+ * @returns {string}
+ * Side effects: none.
+ */
 export function sessionCookie(token, { secure = false } = {}) {
   const maxAge = SESSION_DAYS * 24 * 60 * 60;
   return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;

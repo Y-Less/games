@@ -1,7 +1,7 @@
 // A secret for people who open the browser's console: it prints a banner, and the function the banner names unlocks the
 // global "Steve's Achievement" for whoever is signed in.
 import banner from './steve.txt?raw';
-import { api } from './session.js';
+import { api } from './api.js';
 
 export const STEVE_BANNER = banner.trimEnd();
 

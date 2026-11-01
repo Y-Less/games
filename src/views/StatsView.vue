@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import StyledName from '../components/StyledName.vue';
-import { api, session } from '../session.js';
+import { api } from '../api.js';
+import { session } from '../session.js';
 
 const stats = ref(null);
 const failed = ref('');

@@ -3,15 +3,26 @@
 // its pop-up has been seen, so a player who was away still gets them the next time they come back.
 import { reactive } from 'vue';
 import { io } from 'socket.io-client';
-import { api, refreshShop } from './session.js';
+import { api } from './api.js';
+import { refreshShop } from './shopStore.js';
 
 /** `queue` holds the unlocks waiting for a pop-up: { id, level, game, name, text, coins }. */
 export const feed = reactive({ queue: [] });
 
 let socket = null;
+/**
+ * A unlock's identity in the queue.
+ * @param {{ id: string, level: number }} unlock
+ * @returns {string}
+ * Side effects: none.
+ */
 const keyOf = (unlock) => `${unlock.id}:${unlock.level}`;
 
-/** Asks the server what is new and queues what is not queued already. */
+/**
+ * Asks the server what is new and queues what is not queued already.
+ * @returns {Promise<void>}
+ * Side effects: one request; adds to feed.queue and refreshes the shop (the coins have changed) when something is new.
+ */
 export async function fetchPending() {
   try {
     const { unlocks } = await api('GET', '/api/achievements/pending');
@@ -23,7 +34,12 @@ export async function fetchPending() {
   }
 }
 
-/** Starts listening (once). */
+/**
+ * Starts listening (once).
+ * @param {() => import('socket.io-client').Socket} [connect]  makes the site socket (replaceable in tests)
+ * @returns {void}
+ * Side effects: opens the site socket and asks for what is pending on every connection and 'achievements' event.
+ */
 export function startFeed(connect = io) {
   if (socket) return;
   socket = connect();
@@ -31,14 +47,23 @@ export function startFeed(connect = io) {
   socket.on('achievements', fetchPending);
 }
 
-/** Stops listening and forgets what was waiting (the player has signed out). */
+/**
+ * Stops listening and forgets what was waiting (the player has signed out).
+ * @returns {void}
+ * Side effects: closes the socket and empties feed.queue.
+ */
 export function stopFeed() {
   socket?.close();
   socket = null;
   feed.queue.splice(0);
 }
 
-/** Takes these unlocks off the queue and tells the server they have been shown. */
+/**
+ * Takes these unlocks off the queue and tells the server they have been shown.
+ * @param {Array<{ id: string, level: number }>} unlocks
+ * @returns {void}
+ * Side effects: edits feed.queue and posts to /api/achievements/seen (failures are ignored).
+ */
 export function shown(unlocks) {
   const keys = new Set(unlocks.map(keyOf));
   for (let i = feed.queue.length - 1; i >= 0; i--) if (keys.has(keyOf(feed.queue[i]))) feed.queue.splice(i, 1);
