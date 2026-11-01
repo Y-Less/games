@@ -1,0 +1,34 @@
+<script setup>
+// The score bar at the top of the table, with the scoreboard pop-up it opens.
+// Props: state (the server view, for the scoreboard), finished (the game is over), isHost (you may start another game).
+// Emits: again (the host chose Play again in the scoreboard pop-up). Other attributes (the player pop-up's props and
+//   events) fall through to the scoreboard.
+// Exposes: show() and close() for the scoreboard pop-up.
+// Side effects: none beyond the emits.
+import { ref } from 'vue';
+import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+
+defineProps({
+  state: { type: Object, required: true },
+  finished: { type: Boolean, default: false },
+  isHost: { type: Boolean, default: false },
+});
+const emit = defineEmits(['again']);
+
+const board = ref(null);
+defineExpose({
+  /** Opens the scoreboard pop-up. */
+  show: () => board.value.show(),
+  /** Closes the scoreboard pop-up. */
+  close: () => board.value.close(),
+});
+</script>
+
+<template>
+  <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false">
+    <template #footer>
+      <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
+      <button v-if="finished && isHost" @click="emit('again'); board.close()">Play again</button>
+    </template>
+  </ScoreBoard>
+</template>

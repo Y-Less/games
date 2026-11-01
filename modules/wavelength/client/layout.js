@@ -18,3 +18,16 @@ export function dialWidth(columnWidth, height, stacked = false) {
 
 /** How the slim bars share the frame's 12 columns: each bar spans this many of them. */
 export const barSpan = (count) => (count <= 4 ? 3 : 2);
+
+/**
+ * Where the dial goes in the area the frame gives the table: how many columns it spans and how wide it is drawn.
+ *
+ * @param {object} area  the frame's slot area ({ width, height, gap, columns })
+ * @returns {{ span: number, width: number }} the dial's column span and its width in px
+ */
+export function dialLayout(area) {
+  const span = dialSpan(area);
+  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
+  const colWidth = Math.round(unit * span + area.gap * (span - 1));
+  return { span, width: dialWidth(colWidth, area.height, span === area.columns) };
+}

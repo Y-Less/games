@@ -1,388 +1,120 @@
 <script setup>
 // The play field, in the standard frame: the score bar on top; the table of sets (wide) with your rack, the New set
-// area and the turn buttons directly under it; slim bars for the other players; and the two boxes along the bottom,
-// Recent moves and Status. Everything that is said (whose turn it is, the round, the pool, the first-meld target, the
-// live check of your layout) is in Status, so nothing in the play area grows, shrinks or moves while the game is played.
-// The table is a list of sets; your rack sits below. During your turn you build a working copy of the
-// table (move tiles by dragging them, or by clicking tiles and then clicking where they should go) and press End turn,
-// which sends the whole layout to the server; the server makes the same check as the buttons here and answers with
-// the new state, or refuses and leaves everything as it was. Undo and Reset turn only touch the working copy.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+// area and the turn buttons directly under it; and the two boxes along the bottom, Recent moves and Status. Everything
+// that is said (whose turn it is, the round, the pool, the first-meld target, the live check of your layout) is in Status,
+// so nothing in the play area grows, shrinks or moves while the game is played.
+// The table is a list of sets; your rack sits below. During your turn you build a working copy of the table (move tiles by
+// dragging them, or by clicking tiles and then clicking where they should go) and press End turn, which sends the whole
+// layout to the server; the server makes the same check as the buttons here and answers with the new state, or refuses
+// and leaves everything as it was. Undo and Reset turn only touch the working copy.
+// This file only composes: the working copy, dragging, the timer, the sent actions and the words are in the use*.js files,
+// and each area of the screen is its own component.
+// Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply).
+// Emits: none.
+// Side effects: sends actions through `send`; opens and closes the scoreboard and player pop-ups.
+import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
-import GameStatus from '../../../src/components/GameStatus.vue';
-import PlayerPopup from '../../../src/components/PlayerPopup.vue';
-import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
-import { dealSize, pinnedJokers } from '../rules.js';
-import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './arrangement.js';
-import RoundSummary from './RoundSummary.vue';
-import Tile from './Tile.vue';
+import PlayerFacts from './PlayerFacts.vue';
+import RackPanel from './RackPanel.vue';
+import ScoreBar from './ScoreBar.vue';
+import StatusPanel from './StatusPanel.vue';
+import TableFelt from './TableFelt.vue';
+import TurnActions from './TurnActions.vue';
+import { useRoundView } from './useRoundView.js';
+import { useStatusText } from './useStatusText.js';
+import { useTileDrag } from './useTileDrag.js';
+import { useTurnActions } from './useTurnActions.js';
+import { useTurnClock } from './useTurnClock.js';
+import { useWorkingCopy } from './useWorkingCopy.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
 
-const FROZEN = 'Until your first meld the sets already on the table cannot be changed.';
+const view = reactive(useRoundView(() => props.state));
+const copy = reactive(useWorkingCopy(view));
+const drag = reactive(useTileDrag(view, copy));
+const actions = reactive(useTurnActions(view, copy, props.send));
+const { secondsLeft } = useTurnClock(() => props.state);
+const { headline, lines } = useStatusText(view, copy);
 
-const s = computed(() => props.state.settings);
-const finished = computed(() => props.state.phase === 'finished');
-const between = computed(() => props.state.phase === 'between');
-const me = computed(() => props.state.seats[props.state.you] ?? null);
-const myTurn = computed(() => props.state.phase === 'playing' && props.state.turn === props.state.you && props.state.you !== -1);
-const melded = computed(() => Boolean(me.value?.melded));
-const nameOf = (seat) => props.state.seats[seat]?.name ?? 'Someone';
-const isHost = computed(() => props.state.hostSeat === props.state.you);
-
-// ---- the working copy of this turn ----
-const arr = ref(startArrangement(props.state.table, props.state.rack));
-const undoStack = ref([]);
-const selected = ref([]);
-const dragging = ref([]);
-const dropHint = ref(false); // the table's outline while dragging: set a moment after the drag starts (see dragStart)
-const hint = ref('');
-const sortMode = ref('run');
-const busy = ref(false);
-
-function reset() {
-  arr.value = startArrangement(props.state.table, props.state.rack);
-  undoStack.value = [];
-  selected.value = [];
-  hint.value = '';
-}
-watch(() => [props.state.version, props.state.round, props.state.phase, props.state.you], reset);
-
-const status = computed(() =>
-  turnStatus(s.value, { arr: arr.value, before: props.state.table, rack: props.state.rack, melded: melded.value, meld: s.value.meld }),
-);
-const changed = computed(() => !sameArrangement(arr.value, startArrangement(props.state.table, props.state.rack)));
-const fresh = computed(() => placedThisTurn(arr.value, props.state.table));
-const recent = computed(() => new Set(props.state.lastPlay?.ids ?? []));
-const rackTiles = computed(() => sortRack(s.value, arr.value.rack, sortMode.value));
-const oldIds = computed(() => new Set(props.state.table.flat()));
-// With the "play on after melding" option the table opens as soon as the new sets of your own tiles are worth enough.
-const unlocked = computed(() => melded.value || (s.value.playOnMeld === true && status.value.points >= s.value.meld));
-const frozenSet = (ids) => !unlocked.value && ids.some((id) => oldIds.value.has(id));
-/** Whether the + button of a set can take the selected tiles right now. */
-const canAddTo = (set) => myTurn.value && !set.frozen && selected.value.length > 0;
-// Jokers that were on the table when the turn began remember what they stand for, and stay put until a tile that fits is swapped in.
-const pinned = computed(() => pinnedJokers(s.value, props.state.table));
-const fixedJokers = computed(() => new Set([...pinned.value.keys()].filter((id) => !arr.value.freed?.includes(id))));
-const lockedTile = (id) => (!unlocked.value && oldIds.value.has(id)) || fixedJokers.value.has(id);
-
-const shownSets = computed(() =>
-  arr.value.sets.map((ids, index) => {
-    const result = status.value.sets[index];
-    const items = result.ok ? result.items : ids.map((id) => ({ id, joker: false }));
-    return { index, ids, result, items, frozen: frozenSet(ids) };
-  }),
-);
-// What a joker stands for: what a joker already on the table remembers (one tile, or two to choose between), or what its set makes it.
-const stands = (item) => {
-  const options = fixedJokers.value.has(item.id) ? pinned.value.get(item.id) : null;
-  if (options) return { number: options[0].number, colour: options[0].colour, text: [...new Set(options.map((o) => o.number))].join('/') };
-  return item.joker && item.number ? { number: item.number, colour: item.colour } : null;
-};
-
-const canEnd = computed(() => myTurn.value && status.value.ok && !busy.value);
-const summary = computed(() => {
-  if (!myTurn.value) return '';
-  if (!changed.value) {
-    return melded.value
-      ? 'Move tiles from your rack onto the table, or rearrange it. Or draw a tile.'
-      : `Make a first meld of ${s.value.meld} or more points from your own tiles${s.value.playOnMeld ? ', then play on with the whole table,' : ''} or draw a tile.`;
-  }
-  if (status.value.ok) {
-    return melded.value
-      ? `Ready: ${status.value.placed} ${status.value.placed === 1 ? 'tile' : 'tiles'} played.`
-      : `Ready: first meld worth ${status.value.points} points${status.value.placed > 0 && s.value.playOnMeld ? ', and the table is open' : ''}.`;
-  }
-  return status.value.error;
-});
-
-// ---- moving tiles ----
-function remember() {
-  undoStack.value.push({ arr: arr.value });
-}
-function place(ids, target) {
-  const problem = canMove(arr.value, ids, target, { before: props.state.table, melded: unlocked.value, fixed: fixedJokers.value });
-  if (problem) {
-    hint.value = problem;
-    return false;
-  }
-  hint.value = '';
-  remember();
-  const moved = moveTiles(arr.value, ids, target);
-  const split = ids.length === 1 ? splitRunAtDuplicate(s.value, arr.value, moved, ids[0]) : null;
-  const released = releaseJokers(s.value, split?.arr ?? moved, pinned.value);
-  if (split) hint.value = `The run was split at the second ${split.number}.`;
-  if (released.freed.length > (moved.freed?.length ?? 0)) hint.value = 'The joker is replaced: it has moved to a set of its own, so use it in a set this turn.';
-  arr.value = released;
-  selected.value = [];
-  return true;
-}
-function pick(id) {
-  if (!myTurn.value) return;
-  if (lockedTile(id)) {
-    hint.value = fixedJokers.value.has(id) ? JOKER_STAYS : FROZEN;
-    return;
-  }
-  hint.value = '';
-  selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id];
-}
-function dropSelected(target) {
-  if (myTurn.value && selected.value.length) place([...selected.value], target);
-}
-function dragStart(event, id) {
-  if (!myTurn.value || lockedTile(id)) {
-    event.preventDefault();
-    return;
-  }
-  dragging.value = selected.value.includes(id) ? [...selected.value] : [id];
-  try {
-    event.dataTransfer.setData('text/plain', dragging.value.join(','));
-    event.dataTransfer.effectAllowed = 'move';
-  } catch {
-    // an environment without data transfer (the tests)
-  }
-  // Changing the page inside dragstart can make the browser cancel the drag, so the outline waits until it has begun.
-  setTimeout(() => {
-    dropHint.value = dragging.value.length > 0;
-  }, 0);
-}
-function drop(target) {
-  const ids = dragging.value;
-  dragging.value = [];
-  dropHint.value = false;
-  if (myTurn.value && ids.length) place(ids, target);
-}
-const dragEnd = () => {
-  dragging.value = [];
-  dropHint.value = false;
-};
-
-function undo() {
-  const last = undoStack.value.pop();
-  if (!last) return;
-  arr.value = last.arr;
-  selected.value = [];
-  hint.value = '';
-}
-
-async function endTurn() {
-  if (!canEnd.value) return;
-  busy.value = true;
-  try {
-    await props.send('play', { table: arr.value.sets });
-  } finally {
-    busy.value = false;
-  }
-}
-async function drawTile() {
-  if (!myTurn.value || busy.value) return;
-  busy.value = true;
-  try {
-    await props.send('draw');
-  } finally {
-    busy.value = false;
-  }
-}
-const onContinue = () => {
-  if (props.state.phase === 'between') props.send('next');
-};
-
-// ---- the turn timer ----
-const clock = ref(Date.now());
-const deadline = ref(null);
-watch(
-  () => [props.state.version, props.state.remaining],
-  () => {
-    deadline.value = props.state.remaining === null || props.state.remaining === undefined ? null : Date.now() + props.state.remaining;
-  },
-  { immediate: true },
-);
-const secondsLeft = computed(() => (deadline.value === null ? null : Math.max(0, Math.ceil((deadline.value - clock.value) / 1000))));
-let ticker = null;
-onMounted(() => {
-  ticker = setInterval(() => {
-    clock.value = Date.now();
-  }, 500);
-});
-onBeforeUnmount(() => clearInterval(ticker));
-
-const readyNames = computed(() => props.state.seats.filter((x) => x && !x.bot && x.ready).map((x) => x.name));
-const waitingNames = computed(() => (between.value ? props.state.seats.filter((x) => x && !x.bot && !x.ready).map((x) => x.name) : []));
-const scorePlayers = computed(() => props.state.scoreboard.players.map((p) => ({ ...p, ready: between.value && Boolean(props.state.seats[p.id]?.bot || props.state.seats[p.id]?.ready) })));
-const youReady = computed(() => Boolean(me.value?.ready));
-const hand = computed(() => dealSize(s.value, props.state.size));
 // Another player's details (their tile count and so on) open from their chip in the score bar: one at a time, floating
 // over the top of the main area so that nothing moves.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
-  players: () => scorePlayers.value,
+  players: () => view.scorePlayers,
   hostId: () => props.state.hostSeat,
-  isHost: () => isHost.value,
+  isHost: () => view.isHost,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
 });
 const opened = computed(() => props.state.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too: your own summary
 const openedScore = computed(() => props.state.scoreboard.players.find((p) => p.id === openId.value)?.score ?? 0);
-const lastLine = computed(() => props.state.log.at(-1)?.text ?? '');
-const headline = computed(() => {
-  if (finished.value) return props.state.winners.length === 1 ? `${nameOf(props.state.winners[0])} wins the game!` : `${props.state.winners.map(nameOf).join(' and ')} share the win.`;
-  if (between.value) return `Round ${props.state.round} is over.`;
-  if (props.state.phase !== 'playing') return '';
-  return myTurn.value ? 'Your turn' : `${nameOf(props.state.turn)} is playing`;
-});
-// The live message about your layout (or the last refusal) and, between rounds, who is ready.
-const lines = computed(() => {
-  if (between.value) {
-    return [
-      lastLine.value,
-      youReady.value ? `Waiting for ${waitingNames.value.join(', ')}` : 'Close the scores to carry on.',
-      { text: `Ready: ${readyNames.value.join(', ') || 'nobody yet'}`, tone: 'muted' },
-    ].filter(Boolean);
-  }
-  if (!myTurn.value) return props.state.phase === 'playing' ? [{ text: `Each player started with ${hand.value} tiles.`, tone: 'muted' }] : [];
-  const text = hint.value || summary.value;
-  const tone = hint.value || (changed.value && !status.value.ok) ? 'warn' : changed.value && status.value.ok ? 'mine' : '';
-  return [{ text, tone }];
-});
-const setLabel = (set) => {
-  if (!set.result.ok) return set.result.error;
-  return `${set.result.kind === 'run' ? 'Run' : 'Group'}, ${set.result.value}`;
-};
-// The rack's rows follow the room the frame leaves (a larger window shows more of it), never what is in it.
+
+/**
+ * The rack's rows follow the room the frame leaves (a larger window shows more of it), never what is in it.
+ *
+ * @param {object} area  the frame's slot area
+ * @returns {number} how many rows of tiles the rack shows
+ */
 const rackRows = (area) => (area.height >= 600 ? 3 : 2);
 </script>
 
 <template>
   <GameFrame class="table-view" :main-span="9">
     <template #scorebar>
-      <ScoreBoard :players="scorePlayers" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :awaiting="between && !youReady" :waiting="waitingNames" :sticky="false" v-bind="scoreProps" @continue="onContinue">
-        <template #round>
-          <RoundSummary v-if="state.lastRound" :last-round="state.lastRound" :seats="state.seats" :settings="s" :you="state.you" />
-        </template>
-      </ScoreBoard>
+      <ScoreBar :state="state" :settings="view.s" :players="view.scorePlayers" :finished="view.finished" :awaiting="view.between && !view.youReady" :waiting="view.waitingNames" v-bind="scoreProps" @continue="actions.onContinue" />
     </template>
 
     <template #main="area">
       <div class="arena" :style="{ '--rack-rows': rackRows(area) }">
-        <PlayerPopup v-if="popupProps" v-bind="popupProps">
-          <dl v-if="opened" class="facts">
-            <dt>Tiles in rack</dt>
-            <dd>{{ opened.count }}</dd>
-            <dt>First meld</dt>
-            <dd>{{ opened.melded ? 'made' : 'not yet' }}</dd>
-            <dt>Score</dt>
-            <dd>{{ openedScore }}</dd>
-            <dt>Turn</dt>
-            <dd>{{ state.phase === 'playing' && state.turn === opened.seat ? 'playing now' : 'waiting' }}</dd>
-          </dl>
-        </PlayerPopup>
-        <section
-          class="felt"
-          :class="{ dropping: myTurn && dropHint }"
-          aria-label="The table"
-          @dragover.prevent
-          @drop.prevent="drop({ type: 'new' })"
-        >
-          <div v-if="!shownSets.length" class="muted empty">The table is empty. {{ myTurn ? 'Make a first set from your rack.' : '' }}</div>
-          <div class="sets">
-            <div
-              v-for="set in shownSets"
-              :key="set.ids.join('-')"
-              class="set"
-              :class="{ bad: !set.result.ok, good: set.result.ok, frozen: set.frozen, target: selected.length && myTurn && !set.frozen }"
-              :data-set="set.index"
-              @click.self="dropSelected({ type: 'set', index: set.index })"
-              @dragover.prevent
-              @drop.prevent.stop="drop({ type: 'set', index: set.index })"
-            >
-              <div class="tiles" @click.self="dropSelected({ type: 'set', index: set.index })">
-                <Tile
-                  v-for="item in set.items"
-                  :key="item.id"
-                  :settings="s"
-                  :id="item.id"
-                  :selected="selected.includes(item.id)"
-                  :fresh="fresh.has(item.id)"
-                  :recent="recent.has(item.id) && !fresh.has(item.id)"
-                  :locked="lockedTile(item.id)"
-                  :stands="stands(item)"
-                  :interactive="myTurn"
-                  @click.stop="pick(item.id)"
-                  @dragstart="dragStart($event, item.id)"
-                  @dragend="dragEnd"
-                />
-                <!-- always drawn, so a set is the same size on every turn; it only shows when it can be used -->
-                <button
-                  class="add"
-                  :class="{ ready: canAddTo(set) }"
-                  :tabindex="canAddTo(set) ? 0 : -1"
-                  :aria-hidden="canAddTo(set) ? undefined : 'true'"
-                  :aria-label="`Add the selected tiles to set ${set.index + 1}`"
-                  @click.stop="dropSelected({ type: 'set', index: set.index })"
-                >+</button>
-              </div>
-              <small class="label" :class="{ err: !set.result.ok }">{{ setLabel(set) }}</small>
-            </div>
-          </div>
-        </section>
-
-        <section class="rack-panel" :class="{ mine: myTurn }" aria-label="Your rack" :style="{ gridColumn: `span ${area.mainSpan}` }">
-          <div class="rack-head">
-            <strong>Your rack<span class="muted"> ({{ arr.rack.length }} {{ arr.rack.length === 1 ? 'tile' : 'tiles' }})</span></strong>
-            <div class="seg" role="group" aria-label="Sort the rack">
-              <button :class="{ primary: sortMode === 'run' }" :aria-pressed="sortMode === 'run'" title="Colour, then number: good for runs" @click="sortMode = 'run'">Runs</button>
-              <button :class="{ primary: sortMode === 'group' }" :aria-pressed="sortMode === 'group'" title="Number, then colour: good for groups" @click="sortMode = 'group'">Groups</button>
-            </div>
-          </div>
-          <div
-            class="rack"
-            :class="{ target: selected.length && myTurn }"
-            data-rack
-            @click.self="dropSelected({ type: 'rack' })"
-            @dragover.prevent
-            @drop.prevent="drop({ type: 'rack' })"
-          >
-            <Tile
-              v-for="id in rackTiles"
-              :key="id"
-              :settings="s"
-              :id="id"
-              :selected="selected.includes(id)"
-              :drawn="id === state.drawn && state.phase === 'playing'"
-              :interactive="myTurn"
-              @click.stop="pick(id)"
-              @dragstart="dragStart($event, id)"
-              @dragend="dragEnd"
-            />
-            <span v-if="!rackTiles.length" class="muted">Your rack is empty.</span>
-          </div>
-        </section>
-
-        <div class="actions">
-          <div
-            class="set new"
-            :class="{ target: selected.length && myTurn, idle: !myTurn }"
-            role="button"
-            :tabindex="myTurn ? 0 : -1"
-            :aria-disabled="myTurn ? undefined : 'true'"
-            aria-label="Start a new set"
-            @click="dropSelected({ type: 'new' })"
-            @keydown.enter.prevent="dropSelected({ type: 'new' })"
-            @keydown.space.prevent="dropSelected({ type: 'new' })"
-            @dragover.prevent
-            @drop.prevent="drop({ type: 'new' })"
-          >
-            <span class="muted">New set: drop tiles here</span>
-          </div>
-          <div class="buttons">
-            <button :disabled="!myTurn || !undoStack.length" @click="undo">Undo</button>
-            <button :disabled="!myTurn || !changed" @click="reset">Reset turn</button>
-            <button :disabled="!myTurn || busy" :title="state.poolCount ? 'Take a tile from the pool and end your turn' : 'The pool is empty: pass'" @click="drawTile">
-              {{ state.poolCount ? 'Draw a tile' : 'Pass' }}
-            </button>
-            <button class="primary" :disabled="!canEnd" @click="endTurn">End turn</button>
-          </div>
-        </div>
+        <PlayerFacts :popup-props="popupProps" :opened="opened" :score="openedScore" :playing="state.phase === 'playing'" :turn="state.turn" />
+        <TableFelt
+          :sets="copy.shownSets"
+          :settings="view.s"
+          :selected="copy.selected"
+          :my-turn="view.myTurn"
+          :drop-hint="drag.dropHint"
+          :fresh="copy.fresh"
+          :recent="copy.recent"
+          :locked-tile="copy.lockedTile"
+          :stands="copy.stands"
+          :can-add-to="copy.canAddTo"
+          @pick="copy.pick"
+          @drop-selected="copy.dropSelected"
+          @drop-tiles="drag.drop"
+          @drag-start-tile="drag.dragStart"
+          @drag-end-tile="drag.dragEnd"
+        />
+        <RackPanel
+          v-model:sort-mode="copy.sortMode"
+          :tiles="copy.rackTiles"
+          :count="copy.arr.rack.length"
+          :settings="view.s"
+          :selected="copy.selected"
+          :my-turn="view.myTurn"
+          :drawn="state.drawn"
+          :playing="state.phase === 'playing'"
+          :span="area.mainSpan"
+          @pick="copy.pick"
+          @drop-selected="copy.dropSelected"
+          @drop-tiles="drag.drop"
+          @drag-start-tile="drag.dragStart"
+          @drag-end-tile="drag.dragEnd"
+        />
+        <TurnActions
+          :my-turn="view.myTurn"
+          :targeting="copy.selected.length > 0"
+          :can-undo="copy.undoStack.length > 0"
+          :changed="copy.changed"
+          :busy="actions.busy"
+          :pool-count="state.poolCount"
+          :can-end="actions.canEnd"
+          @drop-selected="copy.dropSelected"
+          @drop-tiles="drag.drop"
+          @undo="copy.undo"
+          @reset="copy.reset"
+          @draw="actions.drawTile"
+          @end="actions.endTurn"
+        />
       </div>
     </template>
 
@@ -391,18 +123,21 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
     </template>
 
     <template #status>
-      <GameStatus :headline="headline" :mine="myTurn && !finished" :lines="lines">
-        <template #facts>
-          <strong>Round {{ state.round }}<template v-if="s.rounds > 1"> of {{ s.rounds }}</template></strong>
-          <span class="pool" :title="`${state.poolCount} tiles in the pool`"><span class="back" aria-hidden="true"></span>{{ state.poolCount }} in the pool</span>
-          <span>First meld: {{ s.meld }} points<template v-if="!melded && state.you !== -1"> (you have {{ status.points }})</template></span>
-          <span v-if="secondsLeft !== null" class="timer" :class="{ low: secondsLeft <= 10 }" aria-label="Time left this turn">{{ secondsLeft }}s left</span>
-        </template>
-        <div v-if="finished" class="row">
-          <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-          <span v-else class="muted">Waiting for the host to play again.</span>
-        </div>
-      </GameStatus>
+      <StatusPanel
+        :headline="headline"
+        :mine="view.myTurn && !view.finished"
+        :lines="lines"
+        :round="state.round"
+        :rounds="view.s.rounds"
+        :pool-count="state.poolCount"
+        :meld="view.s.meld"
+        :show-points="!view.melded && state.you !== -1"
+        :points="copy.status.points"
+        :seconds-left="secondsLeft"
+        :finished="view.finished"
+        :is-host="view.isHost"
+        @again="send('again')"
+      />
     </template>
   </GameFrame>
 </template>
@@ -420,195 +155,5 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
   grid-template-columns: subgrid;
   grid-template-rows: minmax(0, 1fr) auto;
   row-gap: 8px;
-}
-
-/* The table of sets: wide, a fixed height whatever is laid; a long game scrolls inside it. */
-.felt {
-  grid-column: 1 / -1;
-  min-height: 0;
-  padding: 0.6rem 0.8rem;
-  overflow-y: auto;
-}
-.empty {
-  padding: 0.4rem;
-}
-/* While tiles are being dragged, the whole felt says it will take them as a new set (dropping on a set adds to that set). */
-.felt.dropping {
-  outline: 2px dashed var(--amber);
-  outline-offset: -4px;
-}
-.sets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  align-items: flex-start;
-}
-.set {
-  display: grid;
-  gap: 0.25rem;
-  padding: 0.45rem 0.5rem 0.3rem;
-  border-radius: 12px;
-  background: rgb(0 0 0 / 0.22);
-  border: 2px solid transparent;
-  max-width: 100%;
-}
-.set.good {
-  border-color: rgb(127 174 122 / 0.45);
-}
-.set.bad {
-  border-color: var(--danger);
-}
-.set.frozen {
-  opacity: 0.85;
-  border-style: dashed;
-}
-.set.target:not(.new) {
-  cursor: copy;
-}
-.tiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  align-items: center;
-}
-.label {
-  color: var(--muted);
-  font-size: 0.78rem;
-  max-width: 18rem;
-}
-.label.err {
-  color: #ffb4a3;
-}
-.add {
-  /* always present (so nothing moves when a tile is picked up); only its visibility changes */
-  visibility: hidden;
-  width: 2.2rem;
-  height: 3.2rem;
-  padding: 0;
-  border-radius: 7px;
-  border-style: dashed;
-  font-size: 1.3rem;
-}
-.add.ready {
-  visibility: visible;
-}
-
-/* Your rack: the most prominent thing, directly under the table, with room for a fixed number of rows of tiles. */
-.rack-panel {
-  --rows: var(--rack-rows, 2);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.rack-head {
-  height: 1.9rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.seg {
-  display: inline-flex;
-  gap: 0.3rem;
-}
-.seg button {
-  padding-top: 0.15rem;
-  padding-bottom: 0.15rem;
-}
-.rack {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 0.3rem;
-  padding: 0.6rem;
-  box-sizing: border-box;
-  height: calc(var(--rows) * 3.5rem + (var(--rows) - 1) * 0.3rem + 1.4rem);
-  overflow-y: auto;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #5b4527, #46341c);
-  border: 1px solid #2c200f;
-}
-.rack-panel.mine .rack {
-  border-color: var(--amber);
-}
-.rack.target {
-  outline: 2px dashed #4aa3ff;
-}
-
-/* The New set area and the four turn buttons: always in the same place, beside the rack. */
-.actions {
-  grid-column: span 3;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-top: calc(1.9rem + 0.4rem); /* level with the rack, not with its heading */
-}
-.set.new {
-  flex: 1;
-  min-height: 0;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  border: 2px dashed rgb(241 231 210 / 0.4);
-  background: none;
-  cursor: pointer;
-}
-.set.new.idle {
-  cursor: default;
-  opacity: 0.55;
-}
-.set.new.target {
-  border-color: #4aa3ff;
-}
-.buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-.buttons button {
-  height: 2.4rem;
-  padding: 0 0.5rem;
-  white-space: nowrap;
-}
-
-/* Another player's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */
-.facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.2rem 1rem;
-  margin: 0;
-}
-.facts dt {
-  color: var(--muted);
-}
-.facts dd {
-  margin: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Status facts. */
-.pool {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.back {
-  display: inline-block;
-  width: 0.8rem;
-  height: 1.05rem;
-  border-radius: 3px;
-  border: 1px solid #b7a98a;
-  background: repeating-linear-gradient(45deg, #6b5a3a, #6b5a3a 3px, #85714a 3px, #85714a 6px);
-}
-.timer {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--parchment);
-}
-.timer.low {
-  color: var(--danger);
 }
 </style>
