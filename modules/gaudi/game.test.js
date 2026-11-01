@@ -5,6 +5,7 @@ import * as game from './game.js';
 import { cellProblem, COLOURS, COLS, PATTERNS, PATTERN_CARDS, bagSize, emptyGrid, poolSize, patternOf } from './rules.js';
 import { botStep } from './bot.js';
 import { assertInvariants, die, driveStep, playingRoom, seeded, setWindow, viewLeaks } from './testing.js';
+import { LOG_KEPT } from '../../shared/moveLog.js';
 
 const at = (r, c) => r * COLS + c;
 const SIZES = [2, 3, 4, 5];
@@ -1288,4 +1289,23 @@ test('undo: a room saved before the roll list existed still lets a tool roll', (
   delete room.rollsUsed;
   assert.equal(game.useTool(room, room.turn.seat, { tool: 'refire', params: { die: room.pool[0].id } }, rng).ok, true);
   assert.equal(game.undoTurn(room, room.turn.seat).ok, true);
+});
+
+test('undo: the log of the undone actions goes away even once the log is full and dropping its oldest lines', () => {
+  // The undo used to remember only the log's length; with the log at its cap every new line drops an old one, the length
+  // never changes and the undone lines stayed in Recent moves.
+  const { room, rng } = playingRoom(3, { seed: 5 });
+  room.tools = ['refire', 'lathe', 'kiln'];
+  room.spent = [0, 0, 0];
+  const seat = room.turn.seat;
+  while (room.log.length < LOG_KEPT) room.log.unshift({ seat: null, text: `old line ${room.log.length}` });
+  game.endTurn(room, seat, rng); // a fresh turn snapshot, taken with the log full
+  const turnSeat = room.turn.seat;
+  const before = JSON.stringify(room.log);
+  assert.equal(game.useTool(room, turnSeat, { tool: 'refire', params: { die: room.pool[0].id } }, rng).ok, true);
+  assert.equal(room.log.length, LOG_KEPT, 'the log stays at its cap');
+  assert.notEqual(JSON.stringify(room.log), before, 'the tool wrote a line');
+  assert.equal(game.undoTurn(room, turnSeat).ok, true);
+  assert.equal(JSON.stringify(room.log), before, 'the line is gone and the dropped old line is back');
+  assertInvariants(room, 'undo with a full log');
 });

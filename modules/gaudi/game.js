@@ -838,7 +838,7 @@ function saveTurnStart(room) {
   room.undo = {
     seat,
     turn: { ...room.turn },
-    logLength: room.log.length,
+    log: room.log, // the whole log (at most LOG_KEPT lines): a length alone cannot undo lines once the oldest are being dropped
     grid: room.grids[seat],
     pool: room.pool,
     track: room.track,
@@ -889,7 +889,7 @@ export function undoTurn(room, seat) {
   room.tally[seat] = copy.tally;
   room.skip = copy.skip;
   room.turn = copy.turn;
-  room.log.length = copy.logLength;
+  room.log = copy.log ?? room.log.slice(0, copy.logLength); // rooms saved before the log was kept whole hold only its length
   room.rollsUsed = 0; // the faces already rolled this turn are read back again, not rolled afresh
   return ok();
 }
