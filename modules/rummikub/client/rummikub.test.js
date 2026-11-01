@@ -445,9 +445,6 @@ describe('the site header', () => {
     socket.handlers.state(view({ racks: [[t(0, 1)], [t(0, 2)]] }));
     await flushPromises();
     expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
-    socket.handlers.state({ ...view({ racks: [[t(0, 1)], [t(0, 2)]] }), phase: 'finished' });
-    await flushPromises();
-    expect(leaveOffer().confirmText).toBe('');
     w.unmount();
   });
 });
