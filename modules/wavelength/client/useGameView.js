@@ -83,8 +83,9 @@ export function useGameView(getState) {
    * Side effects: none.
    */
   const teamPin = () => (state.value.marker === null ? [] : [{ id: 'team', position: state.value.marker, colour: TEAM_MARKER, name: 'Your team' }]);
-  // The markers shown in the scoreboard's turn pop-up: the team's one marker, or each player's guess, in their colours.
-  const popupMarkers = computed(() => (team.value ? teamPin() : (state.value.result?.entries ?? [])).map((e) => ({ id: e.id, position: e.position, name: e.name, colour: colourOf(e.id) })));
+  // The markers shown in the scoreboard's turn pop-up: the team's one marker (in the team colour it already carries), or
+  // each player's guess in their own colour.
+  const popupMarkers = computed(() => (team.value ? teamPin() : (state.value.result?.entries ?? [])).map((e) => ({ id: e.id, position: e.position, name: e.name, colour: e.colour ?? colourOf(e.id) })));
 
   return { state, team, phase, isPsychic, clueTime, guessing, playing, ended, reveal, psychicName, guessers, guessedCount, mine, others, lastTurn, waitingFor, canGuess, standings, winners, myGuess, popupMarkers, nameOf, colourOf, teamPin };
 }

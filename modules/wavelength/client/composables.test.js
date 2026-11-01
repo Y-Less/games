@@ -57,6 +57,15 @@ describe('useGameView', () => {
     expect(view.colourOf(99)).toBe('#fff');
   });
 
+  it('draws the team marker in the team colour in the scores pop-up, and solo guesses in their own colours', () => {
+    const team = setup(reactive({ state: makeState({ mode: 'team', marker: 0.4 }) })).view;
+    expect(team.popupMarkers).toHaveLength(1);
+    expect(team.popupMarkers[0].colour).toBe(team.teamPin()[0].colour);
+    expect(team.popupMarkers[0].colour).not.toBe('#fff');
+    const solo = setup(reactive({ state: makeState({ phase: 'reveal', result: { entries: [{ id: 3, position: 0.2, name: 'Cy' }] } }) })).view;
+    expect(solo.popupMarkers).toEqual([{ id: 3, position: 0.2, name: 'Cy', colour: '#000003' }]);
+  });
+
   it('does not let you guess twice alone, but does in a team', () => {
     const solo = setup(reactive({ state: makeState({ players: [player(1, 'Ann', { guessed: true }), player(2, 'Bob')] }) }));
     expect(solo.view.canGuess).toBe(false);
