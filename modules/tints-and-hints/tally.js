@@ -25,7 +25,7 @@ export const newCounters = () => freshTally(STAT_KEYS);
  */
 export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
 
-/** The columns that spell a name: a turn with a secret square in one of them is counted for its hinter (the "Alex" achievement). */
+/** The columns that spell a name: a turn with a secret square in one of them is counted for its hinter (the `alex` achievement). */
 export const ALEX = [...'ALEX'];
 
 /**

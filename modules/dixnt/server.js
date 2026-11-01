@@ -154,7 +154,7 @@ export default function (ctx) {
    */
   function createGame({ saved = null, touched = Date.now(), code = ctx.codes.generate((c) => games.has(c)), tally = freshTally(), tallied = 0, recorded = false } = {}) {
     const game = new Game({ getCategories, hints, rng, saved });
-    // collectedRound: the round whose hands have been reported to the "Art lover" achievement (-1: none yet).
+    // collectedRound: the round whose hands have been reported to the `art` achievement (-1: none yet).
     const entry = { game, touched, tally, tallied, recorded, collectedRound: -1 };
     games.set(code, entry);
     return { code, entry };
@@ -395,7 +395,7 @@ export default function (ctx) {
   }
 
   /**
-   * Adds the cards each person holds to the ones they have been dealt (the "Art lover" achievement).
+   * Adds the cards each person holds to the ones they have been dealt (the `art` achievement).
    *
    * @param {object} entry  a game's entry in `games`
    * @returns {void}
