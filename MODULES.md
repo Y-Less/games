@@ -68,6 +68,32 @@ Rules of the road:
 - Keep game state in memory and save it under `ctx.dataDir` if it should survive a restart.
 - Never trust the payload: validate everything a client sends.
 
+### The shared room server (`shared/roomServer.js`)
+
+Every room-based game (all of them except Dixnt, which keeps its own server) writes its `server.js` as a short call to
+`createRoomServer(ctx, options)` instead of copying the socket layer. It keeps the rooms in memory and saves them
+atomically under `ctx.dataDir`, sweeps old rooms, tracks each account's sockets, sends every person their own view, and
+handles `create`, `join`/`resume`, `leave`, `kick` and the lobby events (`settings`, `addBot`, `removeBot`, `fillBots`,
+`start`, `again`). The game supplies only what is particular to it:
+
+- `game`: the rules module (`createRoom`, `viewFor`, `statsPlayers`, `isLive`, the seat rules and so on; the full list is
+  in the header of `createRoomServer`).
+- `pickSettings(payload)`: the settings it accepts from a client.
+- `nextAction(room, rng, now)`: what the server must do by itself next, as `{ key?, wait, run }` or `null` (a computer
+  move, the pause after a trick, the wait for everyone to close the score pop-up). The same `key` keeps its timer instead
+  of restarting it. A `run` that throws is retried up to three times with a doubling pause.
+- `registerEvents({ on, act, userId, rng, now })`: the game's own socket events.
+
+Seat rules are shared too. Games with numbered seats build theirs with `createSeatRules` (`shared/seats.js`); games that
+keep a list of players use `createRosterRules` (`shared/roster.js`). Both give you `addHuman`, `removeHuman`, `addBot`,
+`removeBot`, `fillWithBots` and `kick`, with these conventions: a person is `{ kind: 'human', id, name }` and a computer
+player is `{ kind: 'bot', id: 'bot:<n>', name }` (never a `bot: true` flag); names are made unique whatever their
+capitals; and `kick` is refused once the game is over.
+
+**Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
+to the rules and the computer players. Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or
+`now` argument, so a test can replay a game from a seed.
+
 ## Statistics
 
 When a game finishes, call once per game:
@@ -212,7 +238,7 @@ Card games share a few pieces so they look and behave alike:
   (`sm`/`md`/`lg`), `clickable` (renders a button and emits `pick`), `disabled`, `selected`, `dimmed`.
 - **Built-in computer players.** A room has a fixed number of seats; the host can add or remove computer players in the
   lobby, and the game starts only when every seat is taken. Computer players are not accounts: give them ids like
-  `bot:1`, drive their turns on the server after a short random delay (so people can follow the play), and leave them
+  `bot:1` and `kind: 'bot'`, drive their turns on the server after a short random delay (so people can follow the play), and leave them
   out of `ctx.stats.record` (only accounts are recorded).
 - Hidden information stays on the server: send each player their own hand, and only the *count* of everyone else's.
 - `src/components/SeatLobby.vue`: the waiting room for fixed-seat games (seats, add/remove/fill computer players,
