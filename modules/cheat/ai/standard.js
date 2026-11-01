@@ -1,8 +1,9 @@
 // The Cheat computer players that think. They differ in how readily they cheat and how readily they call:
 //
-//   play({ hand, rank, pileSize, handSizes, decks, maxPlay, ... }, rng)  -> one to four cards from the hand
-//   call({ hand, last, pileSize, handSizes, decks, final, ... }, rng)    -> true to call "Cheat!" on the last play
+//   play({ hand, rank, pileSize, handSizes, decks, maxPlay, rng, ... })  -> one to four cards from the hand
+//   call({ hand, last, pileSize, handSizes, decks, final, rng, ... })    -> true to call "Cheat!" on the last play
 //
+// The random numbers come inside the context (ctx.rng), as in every other game's AIs; nothing is passed as a second argument.
 // An honest play puts down every card of the rank claimed (up to four). With none, a player must cheat, and puts down the
 // cards that are cheapest to lose. Calling is certain when the last play claims more cards than can exist outside the caller's
 // own hand; otherwise it is a matter of how big the claim is, how big the pile is that a wrong call would pick up, and whether
@@ -29,7 +30,7 @@ export function makeThinker({ id, name, description, weight, cheats = 0, eager =
     description,
     weight,
     // Chooses the cards to play: honest when it holds the rank (with an occasional spare card slipped in by cheats), else the cheapest junk.
-    play: ({ hand, rank, maxPlay }, rng) => {
+    play: ({ hand, rank, maxPlay, rng }) => {
       const honest = ofRank(hand, rank).slice(0, maxPlay);
       if (honest.length) {
         // A cheat sometimes slips a spare card in with the true ones.
@@ -41,9 +42,9 @@ export function makeThinker({ id, name, description, weight, cheats = 0, eager =
     },
     // Decides whether to call: always when the claim is impossible, else a probability that grows with the claim size and with an
     // opponent close to going out, shrinks with the pile (a wrong call picks it up), and jumps in the final check.
-    call: (ctx, rng) => {
+    call: (ctx) => {
       if (impossible(ctx)) return true;
-      const { last, pileSize, handSizes, final } = ctx;
+      const { last, pileSize, handSizes, final, rng } = ctx;
       let p = 0.05 + 0.09 * (last.count - 1);
       if (handSizes[last.seat] <= 2) p += 0.15;
       if (final) p += 0.45; // they win unless somebody speaks now

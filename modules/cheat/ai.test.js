@@ -7,7 +7,8 @@ import * as g from './game.js';
 import { AIS } from './ai/index.js';
 
 const ai = (id) => AIS.find((a) => a.id === id);
-const context = (extra) => ({ seat: 1, hand: ['2C', '2D', '9S'], rank: '2', plays: 1, pileSize: 4, handSizes: [5, 3, 5, 5], decks: 1, maxPlay: 4, last: null, final: false, ...extra });
+// The same shape as aiContext in game.js, rng included: an AI gets one argument and nothing else.
+const context = (extra, seed = 1) => ({ seat: 1, hand: ['2C', '2D', '9S'], rank: '2', plays: 1, pileSize: 4, handSizes: [5, 3, 5, 5], decks: 1, maxPlay: 4, last: null, final: false, rng: seeded(seed), ...extra });
 
 /** A game of computers only: the first seat is a computer too (the host is replaced when they leave). */
 function botGame(n, seed, ais) {
@@ -27,15 +28,15 @@ test('there are several computer players and the first is the standard one', () 
 });
 
 test('an honest player plays every card of the rank, up to four', () => {
-  const play = ai('standard').play(context({ hand: ['2C', '2D', '2H', '2S', '9S'] }), seeded(1));
+  const play = ai('standard').play(context({ hand: ['2C', '2D', '2H', '2S', '9S'] }));
   assert.deepEqual([...play].sort(), ['2C', '2D', '2H', '2S']);
-  assert.deepEqual(ai('standard').play(context({ hand: ['2C', '9S', 'KD'] }), seeded(1)), ['2C']);
+  assert.deepEqual(ai('standard').play(context({ hand: ['2C', '9S', 'KD'] })), ['2C']);
 });
 
 test('without the rank, a player has to cheat with cards from their own hand', () => {
   for (const a of AIS) {
     const hand = ['3C', '9S', 'KD', '5H'];
-    const play = a.play(context({ hand }), seeded(2));
+    const play = a.play(context({ hand }, 2));
     assert.ok(play.length >= 1 && play.length <= 4);
     assert.ok(play.every((c) => hand.includes(c)));
   }
@@ -44,15 +45,16 @@ test('without the rank, a player has to cheat with cards from their own hand', (
 test('a play that cannot be true is always called by the thinking players', () => {
   // The caller holds three of the four 7s, so nobody can have played two 7s from one pack.
   const ctx = context({ hand: ['7C', '7D', '7H'], last: { seat: 0, count: 2, rank: '7' }, handSizes: [5, 3, 5, 5] });
-  for (const id of ['standard', 'suspicious', 'bluffer']) assert.equal(ai(id).call(ctx, seeded(3)), true, id);
+  for (const id of ['standard', 'suspicious', 'bluffer']) assert.equal(ai(id).call(ctx), true, id);
 });
 
 test('a play that is plainly safe is not always called, and the thinking players never call their own', () => {
-  const ctx = context({ hand: ['9C', '9D'], last: { seat: 0, count: 1, rank: '2' }, pileSize: 12 });
+  const safe = { hand: ['9C', '9D'], last: { seat: 0, count: 1, rank: '2' }, pileSize: 12 };
   for (const id of ['standard', 'suspicious', 'bluffer']) {
     let calls = 0;
-    for (let i = 0; i < 400; i++) calls += ai(id).call(ctx, seeded(i + 1)) ? 1 : 0;
+    for (let i = 0; i < 400; i++) calls += ai(id).call(context(safe, i + 1)) ? 1 : 0;
     assert.ok(calls < 400, `${id} does not call everything`);
+    assert.ok(calls > 0, `${id} calls sometimes: the rng reaches it through the context`);
   }
 });
 
@@ -93,6 +95,19 @@ for (const n of [3, 4, 5, 6, 7]) {
     }
   });
 }
+
+test('computer players call "Cheat!" in whole games (the rng reaches the AI through the real call shape)', () => {
+  // The AIs once took the rng as a second argument that the game never passed, so every call threw into the "broken AI"
+  // fallback and nobody ever called: this would have been caught by counting calls in a real game.
+  let calls = 0;
+  for (let seed = 1; seed <= 6; seed++) {
+    const room = botGame(4, seed, ['standard', 'suspicious']);
+    const rng = seeded(seed);
+    while (room.phase !== 'finished') g.runPending(room, rng);
+    calls += room.tally.reduce((total, t) => total + t.callsMade, 0);
+  }
+  assert.ok(calls > 0, 'somebody called "Cheat!" in six games');
+});
 
 test('every kind of computer player wins games against the others', () => {
   const wins = Object.fromEntries(AIS.map((a) => [a.id, 0]));
