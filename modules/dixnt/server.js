@@ -7,6 +7,7 @@
 // their seat if they leave mid-game, and a computer player can take it over), so it has its own small server. It
 // follows the same house style: randomness is injected (ctx.rng, defaulting to Math.random here and nowhere else) and
 // the clock is Date.now.
+import { numberFrom, textFrom } from '../../shared/input.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -578,7 +579,7 @@ export default function (ctx) {
     * Side effects: none.
    */
   function nameInGame(game, rawName) {
-    const base = String(rawName ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
+    const base = textFrom(rawName).trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
     // Is this name already used by a seat in the game (ignoring case)?
     const taken = (name) => game.s.players.some((p) => p.name.toLowerCase() === name.toLowerCase());
     for (let n = 1; n < 100; n++) {
@@ -667,7 +668,7 @@ export default function (ctx) {
     action(socket, 'endGame', (player, _payload, game) => game.returnToLobby(player.id));
     action(socket, 'hints', (_player, _payload, game) => ({ hints: game.nextHints(3) }));
     action(socket, 'submitWord', (player, { word }, game) => game.submitWord(player.id, word));
-    action(socket, 'playCard', (player, { cardId }, game) => game.playCard(player.id, Number(cardId)));
+    action(socket, 'playCard', (player, { cardId }, game) => game.playCard(player.id, numberFrom(cardId)));
     action(socket, 'vote', (player, { targetId }, game) => game.vote(player.id, targetId));
     action(socket, 'nextRound', (player, _payload, game) => game.nextRound(player.id));
     action(socket, 'abortRound', (player, _payload, game) => game.abortRound(player.id));

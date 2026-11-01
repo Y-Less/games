@@ -15,6 +15,7 @@
 // Every rule returns { ok: true, ... } or { ok: false, error } and (like all the rules) mutates the room it is given.
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
+import { numberFrom } from './input.js';
 import { DEFAULT_BOT_NAMES, asHost, fail, freeName, isBot, isHuman, nextBotName, ok } from './seats.js';
 
 export { isBot, isHuman };
@@ -253,7 +254,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   function fillWithBots(room, userId, target = minPlayers) {
     const refused = lobbyHostOnly(room, userId, 'add');
     if (refused) return refused;
-    const wanted = Math.min(maxPlayers, Math.max(minPlayers, Math.round(Number(target)) || minPlayers));
+    const wanted = Math.min(maxPlayers, Math.max(minPlayers, Math.round(numberFrom(target)) || minPlayers));
     while (room.players.length < wanted) room.players.push(newBot(room));
     return ok();
   }

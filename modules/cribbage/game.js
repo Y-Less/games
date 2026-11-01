@@ -9,6 +9,7 @@
 // particular to Cribbage. Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
 //
 // Depends on shared/ (cards, ai, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting) and ./tally.js.
+import { textFrom } from '../../shared/input.js';
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
@@ -87,7 +88,7 @@ const withGameFields = (seat) => (seat && seat.score === undefined ? { ...gameFi
  * @returns {string}
  * Side effects: none.
  */
-const cleanName = (raw) => String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
+const cleanName = (raw) => textFrom(raw).trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
 
 /**
  * A name nobody else at the table has (ignoring capital letters), never longer than MAX_NAME_LENGTH: "Ann" becomes

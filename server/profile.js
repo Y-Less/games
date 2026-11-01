@@ -1,5 +1,6 @@
 // The profile: how a users row becomes what the site shows (publicUser, publicProfile) and how a profile change is
 // checked and saved. Every setting is one row of SETTINGS, so adding one means adding a row (and its column in db.js).
+import { textFrom } from '../shared/input.js';
 import { normaliseAvatar } from '../shared/avatar.js';
 import { isBackgroundAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE } from '../shared/nameStyles.js';
@@ -43,7 +44,7 @@ export const SETTINGS = [
      * Side effects: none; throws an AuthError when the length is wrong.
      */
     clean(input) {
-      const name = String(input).trim();
+      const name = textFrom(input).trim();
       if (!name || name.length > 20) throw new AuthError('Display names are 1 to 20 characters.');
       return name;
     },

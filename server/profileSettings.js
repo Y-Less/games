@@ -1,6 +1,7 @@
 // What a person can choose on their profile: the preset backgrounds and card backs, the animation level ranges, and the
 // checks that turn whatever a client sends into the clean value that is stored. (The browser does not repeat these
 // checks: it is told the presets by /api/config and the server is the only judge, so this is a server-side file.)
+import { numberFrom } from '../shared/input.js';
 import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
 import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
 import { isNameStyle } from '../shared/nameStyles.js';
@@ -64,7 +65,7 @@ export function cleanBackground(input) {
   if (type === 'preset' && isText(input.value) && Object.hasOwn(BACKGROUND_PRESETS, input.value)) return { type, value: input.value };
   if (type === 'colour' && isText(input.value) && COLOUR.test(input.value)) return { type, value: input.value.toLowerCase() };
   if (type === 'gradient' && isText(input.from) && isText(input.to) && COLOUR.test(input.from) && COLOUR.test(input.to)) {
-    const angle = Math.max(0, Math.min(360, Math.round(Number(input.angle ?? 160))));
+    const angle = Math.max(0, Math.min(360, Math.round(numberFrom(input.angle ?? 160))));
     return { type, from: input.from.toLowerCase(), to: input.to.toLowerCase(), angle: Number.isFinite(angle) ? angle : 160 };
   }
   if (type === 'image' && isText(input.file) && /^bg-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type, file: input.file };

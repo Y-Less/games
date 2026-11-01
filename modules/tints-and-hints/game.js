@@ -9,6 +9,7 @@
 // Depends on: ./grid.js (the grid and its geometry), ./tally.js (statistics counters), ./ai (computer players) and shared/
 // (scores, tally, ai, markerColours, seats, roster) for the rules common to all games. Sockets, timers and saving are not
 // here: server.js drives these rules through shared/roomServer.js.
+import { textFrom } from '../../shared/input.js';
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
@@ -314,7 +315,7 @@ export function start(room, id, rng) {
  */
 export function setHint(room, id, text) {
   if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('You cannot give a hint now.');
-  const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
+  const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
   if (room.phase === 'guessing1' && !clean) return fail('The first hint is needed: type one before anyone guesses.');
   room.hints[room.phase === 'guessing1' ? 'first' : 'second'] = clean;
   return ok();

@@ -7,6 +7,7 @@
 // Depends on: shared/ (scores, tally, ai, markerColours, seats, roster) for the common room rules, ./ai (computer players),
 // ./scoring.js (the bands), ./spectra.js (the spectra and their example clues) and ./tally.js (the statistics counters).
 // Sockets, timers and saving are not here: server.js drives these rules through shared/roomServer.js.
+import { textFrom } from '../../shared/input.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -179,6 +180,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     target: null,
     clue: '',
     marker: null, // team mode: where the team's shared marker is
+    lockedBy: null, // team mode: who locked the marker in (null until somebody does)
     guesses: [],
     result: null,
     history: [],
@@ -368,7 +370,7 @@ export function start(room, id, rng) {
 export function setClue(room, id, text) {
   if (room.phase !== 'clue') return fail('The clue has already been given.');
   if (id !== room.psychic) return fail('Only the psychic gives the clue.');
-  const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, CLUE_LENGTH);
+  const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, CLUE_LENGTH);
   if (!clean) return fail('Type a clue first.');
   room.clue = clean;
   room.phase = 'guessing';

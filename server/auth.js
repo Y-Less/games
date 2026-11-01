@@ -1,5 +1,6 @@
 // Accounts: registration, login, sessions (an opaque random cookie; only its hash is stored) and the cookie helpers.
 // The profile (settings, public looks) is in profile.js; the error type is in errors.js.
+import { textFrom } from '../shared/input.js';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { AuthError } from './errors.js';
@@ -116,12 +117,12 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      */
     async register({ username, password, displayName, isBot = false, ip }) {
       if (ip !== undefined) throttle(`register|${ip}`, Number(process.env.REGISTER_LIMIT) || REGISTER_LIMIT);
-      username = String(username ?? '').trim();
-      password = String(password ?? '');
+      username = textFrom(username).trim();
+      password = textFrom(password);
       if (!USERNAME.test(username)) throw new AuthError('Usernames are 3 to 20 letters, numbers, dashes or underscores.');
       if (password.length < 8) throw new AuthError('Passwords must be at least 8 characters.');
       if (password.length > 200) throw new AuthError('That password is too long.');
-      const name = String(displayName ?? username).trim().slice(0, 20) || username;
+      const name = (textFrom(displayName) || username).trim().slice(0, 20) || username;
       if (db.prepare('SELECT 1 FROM users WHERE username_lower = ?').get(username.toLowerCase())) {
         throw new AuthError('That username is taken.', 409);
       }
@@ -141,11 +142,11 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: counts the attempt (cleared on success); inserts a session on success.
      */
     async login({ username, password, ip = '' }) {
-      username = String(username ?? '').trim();
+      username = textFrom(username).trim();
       throttle(`${ip}|${username.toLowerCase()}`);
       const row = db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase());
       // Always do the hashing work, so a missing user takes as long as a wrong password.
-      const ok = await checkPassword(String(password ?? ''), row?.password_hash ?? 'scrypt$00$00');
+      const ok = await checkPassword(textFrom(password), row?.password_hash ?? 'scrypt$00$00');
       if (!row || !ok) throw new AuthError('Wrong username or password.', 401);
       attempts.delete(`${ip}|${username.toLowerCase()}`);
       return { user: publicUser(row), token: createSession(row.id) };
@@ -192,10 +193,10 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-      if (!row || !(await checkPassword(String(currentPassword ?? ''), row.password_hash))) throw new AuthError('Your current password is wrong.', 401);
-      if (String(newPassword ?? '').length < 8) throw new AuthError('Passwords must be at least 8 characters.');
-      if (String(newPassword).length > 200) throw new AuthError('That password is too long.');
-      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(String(newPassword)), userId);
+      if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('Your current password is wrong.', 401);
+      if (textFrom(newPassword).length < 8) throw new AuthError('Passwords must be at least 8 characters.');
+      if (textFrom(newPassword).length > 200) throw new AuthError('That password is too long.');
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(textFrom(newPassword)), userId);
       // Sign out every other device.
       db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, hash(keepToken ?? ''));
     },

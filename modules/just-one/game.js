@@ -8,6 +8,7 @@
 // Depends on: shared/scores.js (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer
 // player choice), shared/seats.js (result helpers), shared/roster.js (lobby and player-list rules), ./ai/index.js (the
 // computer players), ./tally.js (per-player counters) and ./words.js (the word list and clue matching).
+import { textFrom } from '../../shared/input.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -286,7 +287,7 @@ export function submitClue(room, id, text, rng) {
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (id === room.guesser) return fail('You are guessing, so you do not write a clue.');
   if (clueOf(room, id)) return fail('You have already sent your clue.');
-  const clean = String(text ?? '').trim();
+  const clean = textFrom(text).trim();
   if (!clean) return fail('Type your clue first.');
   if (clean.length > CLUE_LENGTH) return fail(`A clue is at most ${CLUE_LENGTH} letters.`);
   const problem = clueProblem(clean, room.word);
@@ -338,7 +339,7 @@ const sameWord = (a, b) => normal(a) === normal(b);
 export function guess(room, id, text, nameOf = String) {
   if (room.phase !== 'guessing') return fail('It is not time to guess.');
   if (id !== room.guesser) return fail('Only the guesser guesses.');
-  const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, GUESS_LENGTH);
+  const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, GUESS_LENGTH);
   if (!clean) return fail('Type a guess, or pass.');
   const correct = sameWord(clean, room.word);
   room.guess = { text: clean, correct, passed: false };

@@ -30,6 +30,7 @@
 // constructor migrates those (see migrateSeats), so old saved rooms keep working. The view sent to clients still
 // says `bot: true/false` for each seat, because that is the client's vocabulary.
 
+import { numberFrom, textFrom } from '../../shared/input.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { winnersOf } from '../../shared/scores.js';
 import { AIS, buildCardInfo } from './ai/index.js';
@@ -427,7 +428,7 @@ export class Game {
    * the name is unusable.
    */
   addPlayer(name, token) {
-    const clean = String(name ?? '').trim().replace(/\s+/g, ' ');
+    const clean = textFrom(name).trim().replace(/\s+/g, ' ');
     if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
     if (!clean) fail('Please enter a name.');
     if (clean.length > MAX_NAME_LENGTH) fail(`Names can be at most ${MAX_NAME_LENGTH} characters.`);
@@ -538,7 +539,7 @@ export class Game {
   fillWithBots(byId, target = MIN_PLAYERS) {
     if (!this.isHost(byId)) fail('Only the host can add computer players.');
     if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
-    const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(Number(target)) || MIN_PLAYERS));
+    const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(numberFrom(target)) || MIN_PLAYERS));
     while (this.s.players.length < wanted) this.s.players.push(this.newBot());
   }
 
@@ -697,7 +698,7 @@ export class Game {
   setHandSize(byId, size) {
     if (!this.isHost(byId)) fail('Only the host can change the hand size.');
     if (this.s.phase !== 'lobby') fail('The hand size can only be changed in the lobby.');
-    const n = Math.round(Number(size));
+    const n = Math.round(numberFrom(size));
     if (!(n >= MIN_HAND_SIZE && n <= MAX_HAND_SIZE)) {
       fail(`Hand size must be between ${MIN_HAND_SIZE} and ${MAX_HAND_SIZE}.`);
     }
@@ -713,7 +714,7 @@ export class Game {
   setRounds(byId, count) {
     if (!this.isHost(byId)) fail('Only the host can change the number of rounds.');
     if (this.s.phase !== 'lobby') fail('The number of rounds can only be changed in the lobby.');
-    const n = Math.round(Number(count));
+    const n = Math.round(numberFrom(count));
     if (!(n >= MIN_ROUNDS_EACH && n <= MAX_ROUNDS_EACH)) {
       fail(`Each player can choose the word between ${MIN_ROUNDS_EACH} and ${MAX_ROUNDS_EACH} times.`);
     }
@@ -894,7 +895,7 @@ export class Game {
     const s = this.s;
     if (s.phase !== 'word') fail('It is not time to choose a word.');
     if (id !== s.chooserId) fail('Only the chooser can pick the word.');
-    const clean = String(word ?? '').trim().replace(/\s+/g, ' ');
+    const clean = textFrom(word).trim().replace(/\s+/g, ' ');
     if (!clean) fail('Type a word or phrase first.');
     if (clean.length > MAX_WORD_LENGTH) fail(`Keep it to ${MAX_WORD_LENGTH} characters or fewer.`);
     const candidates = this.cardPlayers();

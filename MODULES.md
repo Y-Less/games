@@ -66,7 +66,9 @@ Rules of the road:
 - **Identity is the account.** Use `socket.data.user.id` to recognise a player. A player may have several sockets
   (phone and laptop) and may reconnect at any time, so a game must cope with that.
 - Keep game state in memory and save it under `ctx.dataDir` if it should survive a restart.
-- Never trust the payload: validate everything a client sends.
+- Never trust the payload: validate everything a client sends. Read numbers and text out of it with `numberFrom` and
+  `textFrom` from `shared/input.js`: `Number(x)` and `String(x)` throw for some objects, and a handler that throws on
+  garbage is a crash where a refusal was due.
 
 ### The shared room server (`shared/roomServer.js`)
 
@@ -223,9 +225,21 @@ Game addresses: the site serves a module at `/play/<id>`. A game with invite lin
 
 ## Tests
 
-Put module tests next to the module as `modules/<id>/*.test.js`; `npm test` runs `server/*.test.js` plus
-`modules/*/*.test.js`. Test the rules without sockets where possible, and the socket protocol against a real
-site with `startSite({ port: 0, dataDir, modulesDir })` from `server/index.js` (see `server/hub.test.js`).
+Put module tests next to the module as `modules/<id>/*.test.js`; `npm test` runs `server/*.test.js`, `shared/*.test.js`
+and `modules/*/*.test.js` with Node's test runner, then the vitest component tests (`src/**/*.test.js` and
+`modules/*/client/**/*.test.js`). Test the rules without sockets where possible, and the socket protocol against a real
+site with `launchModule(t, { id, moduleDir })` from `shared/testkit.js` (or `startSite({ port: 0, dataDir, modulesDir })`
+from `server/index.js`; see `server/hub.test.js`). `launchModule` fails the test if the server logged a failure (a
+handler or a scheduled move that threw, a save that failed); a test that provokes one on purpose passes
+`allowServerErrors: true`.
+
+Every module keeps a `views.js` that plays whole seeded games with computer players and records every view the rules
+send. Its `view.test.js` checks those views are the same every time for a seed (and whatever else the game promises of
+them), and its `client/render-all.test.js` draws every one of them with the real root component through
+`walkViews` (`shared/renderWalk.js`), failing on any error or Vue warning: a state the table cannot draw is a crash a
+player would meet. A new game should have both. The robustness tests (`modules/<id>/robustness.test.js`) throw
+garbage at every socket event in every phase; `handledSocketEvents` in the test kit lists the events a server handles so
+that a new event cannot go untested.
 
 ## Card games
 
