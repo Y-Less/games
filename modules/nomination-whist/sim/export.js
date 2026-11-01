@@ -4,7 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DECK, ESTIMATE_STEPS, KINDS, MIN_PLAYERS, SPEC, Stats, TRUMPS, coordsOf } from './tables.js';
 
-/** Key columns in words: every coordinate becomes the number a person expects (players 3-7, cards 1-7, a card name ...). */
+/**
+ * Key columns in words: every coordinate becomes the number a person expects (players 3-7, cards 1-7, a card name ...).
+ * @param {string} key  the key (column) name from SPEC
+ * @param {number} value  the stored zero-based coordinate
+ * @returns {string|number} the human-readable value
+ * Side effects: none.
+ */
 function describe(key, value) {
   switch (key) {
     case 'players':
@@ -28,9 +34,16 @@ function describe(key, value) {
   }
 }
 
+/** The chance as a five-decimal string, or empty when the cell was never seen (`n` is 0). Pure. */
 const ratio = (count, n) => (n ? (count / n).toFixed(5) : '');
 
-/** Writes one CSV per table into `dir`; cells that never came up are left out. Returns the file names. */
+/**
+ * Writes one CSV per table into `dir`; cells that never came up are left out.
+ * @param {import('./tables.js').Stats} stats  the counts to write
+ * @param {string} dir  output directory (created if missing)
+ * @returns {string[]} the file names written
+ * Side effects: creates `dir` and writes one `<table>.csv` file in it, replacing any earlier one.
+ */
 export function writeCsvs(stats, dir) {
   fs.mkdirSync(dir, { recursive: true });
   const files = [];
@@ -54,7 +67,14 @@ export function writeCsvs(stats, dir) {
   return files;
 }
 
-/** Saves the raw counts and what produced them. `meta` holds the config, the chunks done and the deal count. */
+/**
+ * Saves the raw counts and what produced them. `meta` holds the config, the chunks done and the deal count.
+ * @param {import('./tables.js').Stats} stats  the counts
+ * @param {object} meta  config and progress to record alongside (deals and a timestamp are added)
+ * @param {string} dir  checkpoint directory (created if missing)
+ * @returns {void}
+ * Side effects: writes tables.bin and meta.json in `dir` (via temporary files and renames, so a crash cannot corrupt them).
+ */
 export function saveCounts(stats, meta, dir) {
   fs.mkdirSync(dir, { recursive: true });
   const floats = stats.toFloats();
@@ -65,7 +85,12 @@ export function saveCounts(stats, meta, dir) {
   fs.renameSync(path.join(dir, 'meta.json.tmp'), path.join(dir, 'meta.json'));
 }
 
-/** Loads what saveCounts wrote: { stats, meta }, or null if there is nothing there. */
+/**
+ * Loads what saveCounts wrote.
+ * @param {string} dir  checkpoint directory
+ * @returns {{ stats: import('./tables.js').Stats, meta: object } | null} the restored counts, or null if there is nothing there
+ * Side effects: reads files only.
+ */
 export function loadCounts(dir) {
   const metaFile = path.join(dir, 'meta.json');
   const binFile = path.join(dir, 'tables.bin');

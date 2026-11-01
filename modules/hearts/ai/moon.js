@@ -5,7 +5,13 @@ import { rankValue, suitOf } from '../../../shared/cards.js';
 import { QUEEN, SUIT_LIST, avoiding, bySuit, highest, isHeart, isPointCard, lowest, observe, passSize, preferring, seatsIn, tricksIn } from './util.js';
 import standard from './standard.js';
 
-/** How many tricks this hand can count on: cards that outrank everything still unseen in their suit. */
+/**
+ * How many tricks this hand can count on: cards that outrank everything still unseen in their suit.
+ * @param {object} ctx  AI context (see index.js); uses hand.
+ * @param {object} [know]  card-counting result from observe(ctx), computed if omitted.
+ * @returns {number} the count of guaranteed winners.
+ * Side effects: none.
+ */
 export function sureTricks(ctx, know = observe(ctx)) {
   let sure = 0;
   for (const suit of SUIT_LIST) {
@@ -19,7 +25,13 @@ export function sureTricks(ctx, know = observe(ctx)) {
   return sure;
 }
 
-/** Is the attempt still alive? Only while nobody else has taken a point card, and the tricks to come look winnable. */
+/**
+ * Is the attempt still alive? Only while nobody else has taken a point card, and the tricks to come look winnable.
+ * @param {object} ctx  AI context (see index.js); uses seat, taken, trick, legal and tricksPlayed.
+ * @param {object} [know]  card-counting result from observe(ctx), computed if omitted.
+ * @returns {boolean} false once the moon is out of reach.
+ * Side effects: none.
+ */
 export function moonAlive(ctx, know = observe(ctx)) {
   const { seat, taken, trick } = ctx;
   if (taken.some((cards, s) => s !== seat && cards.some(isPointCard))) return false;
@@ -40,21 +52,36 @@ export function moonAlive(ctx, know = observe(ctx)) {
   return true;
 }
 
+/**
+ * Passes the cards worth least to a moon attempt, keeping strong cards in long suits and hearts.
+ * @param {object} ctx  AI context (see index.js); uses hand and passCount.
+ * @returns {string[]} the cards to pass.
+ * Side effects: none.
+ */
 function passMoon(ctx) {
   const { hand } = ctx;
+  // Cards held in a suit.
   const length = (suit) => hand.filter((c) => suitOf(c) === suit).length;
   // Keep strong, long suits and hearts; the cards worth least to a moon attempt are passed.
   const keep = (card) => rankValue(card) * 1.5 + length(suitOf(card)) * 2.5 + (isHeart(card) ? 4 : 0) + (card === QUEEN ? 8 : 0);
   return [...hand].sort((a, b) => keep(a) - keep(b)).slice(0, passSize(ctx));
 }
 
+/**
+ * Plays to win every trick that carries points; once the attempt is dead (moonAlive false) it plays like standard.
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat and taken.
+ * @returns {string} one card from ctx.legal.
+ * Side effects: none.
+ */
 function playMoon(ctx) {
   const { legal, trick, hand } = ctx;
   if (legal.length === 1) return legal[0];
   const know = observe(ctx);
   if (!moonAlive(ctx, know)) return standard.choosePlay({ ...ctx, moonBid: null });
 
+  // Cards held in a suit.
   const suitLength = (suit) => hand.filter((c) => suitOf(c) === suit).length;
+  // A master card cannot be beaten: it is not unseen-owned and nothing higher of its suit is still out.
   const isMaster = (card) => !know.unseen.has(card) && ![...know.unseen].some((o) => suitOf(o) === suitOf(card) && rankValue(o) > rankValue(card));
 
   if (!trick.length) {
@@ -82,6 +109,7 @@ function playMoon(ctx) {
   // Cannot follow: shed the least useful non-point card; hearts and the Queen are only played onto a trick this seat wins.
   const junk = legal.filter((c) => !isPointCard(c));
   const options = junk.length ? junk : legal;
+  // Usefulness of a card to keep (low rank, short suit = least useful); the lowest is shed.
   const value = (c) => rankValue(c) + suitLength(suitOf(c)) * 3;
   return options.reduce((best, c) => (value(c) < value(best) ? c : best));
 }

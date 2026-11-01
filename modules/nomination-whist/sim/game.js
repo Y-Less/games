@@ -7,16 +7,28 @@ import { AIS } from '../ai/index.js';
 import { legalCards } from '../trick.js';
 import { FULL_SCHEDULE, INSTANT_WIN_TRICKS, SHORT_SCHEDULE, forbiddenNomination, scoreRound, trickWinner, trumpOf, winnersOf } from '../game.js';
 
-/** Whether a round can end the game on the spot (the same rule as isInstantWinRound in ../game.js): a 7-card first or last round. */
+/**
+ * Whether a round can end the game on the spot (the same rule as isInstantWinRound in ../game.js): a 7-card first or last round.
+ * @param {number[]} schedule  cards per round
+ * @param {number} round  0-based round index
+ * @returns {boolean} true if an instant win is possible in that round
+ * Side effects: none.
+ */
 export const isInstantWinRound = (schedule, round) => schedule[round] === INSTANT_WIN_TRICKS && (round === 0 || round === schedule.length - 1);
 
+// Standard is the fallback for any AI that returns an illegal nomination or card, as in the live game.
 const standard = AIS.find((ai) => ai.id === 'standard');
+/** The cards of `hand` that may be played to `trick` (a list of { seat, card }), by the game's own rule. Pure. */
 const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card));
 
 /**
  * Plays one round. `observe`, when given, is called as `observe({ type: 'nominate' | 'play' | 'trick', ... })` for
  * every decision, so callers can collect whatever they like without this file knowing about it.
+ * @param {{ ais: object[], cards: number, trump: string|null, dealer: number, scores: number[], round: number, rounds: number, settings: { missPoints: boolean, jokers?: boolean }, instantWin?: boolean }} round  one AI per seat plus the round's setup and the score situation
+ * @param {() => number} rng  random source for the shuffle and for the AIs
+ * @param {((event: object) => void) | null} [observe]  decision callback
  * @returns {{ nominations: number[], taken: number[], hands: string[][] }} `hands` are as dealt
+ * Side effects: consumes numbers from `rng` and calls `observe`; nothing else.
  */
 export function playRound({ ais, cards, trump, dealer, scores, round, rounds, settings, instantWin = false }, rng, observe = null) {
   const jokers = settings.jokers === true;
@@ -80,7 +92,10 @@ export function playRound({ ais, cards, trump, dealer, scores, round, rounds, se
  * the spot (`instantWin` in the result is that seat, otherwise null); the scores are those at that moment.
  * With `jokers` on, the two Jokers are shuffled in (see ../trick.js for what they do).
  * @param {{ ais: object[], firstDealer?: number, schedule?: number[], missPoints?: boolean, instantWin?: boolean, jokers?: boolean }} game  one AI per seat
- * @returns {{ scores: number[], winners: number[], instantWin: number | null, rounds: object[] }}
+ * @param {() => number} rng  random source
+ * @param {((event: object) => void) | null} [observe]  passed through to playRound
+ * @returns {{ scores: number[], winners: number[], instantWin: number | null, rounds: object[] }} final scores, the winning seat(s) and a record per round
+ * Side effects: consumes numbers from `rng` and calls `observe`; nothing else.
  */
 export function playGame({ ais, firstDealer = 0, schedule = FULL_SCHEDULE, missPoints = true, instantWin = true, jokers = false }, rng, observe = null) {
   const players = ais.length;

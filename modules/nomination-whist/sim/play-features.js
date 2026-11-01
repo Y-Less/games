@@ -20,6 +20,7 @@ const COARSE_SITUATION = [['players', 5], ['need', 5], ['slack', 4], ['after', 4
 const TABLE = [['winner', 4], ['wantAfter', 3], ['madeAfter', 3]];
 const CARD = [['role', 4], ['beats', 2], ['rank', 4], ['trumpCard', 2]];
 
+/** The number of distinct keys a spec describes: the product of its digit sizes. Pure. */
 const sizeOf = (spec) => spec.reduce((product, [, size]) => product * size, 1);
 export const SIZES = {
   coarseSituation: sizeOf(COARSE_SITUATION),
@@ -30,13 +31,20 @@ export const SIZES = {
 export const COARSE_CELLS = SIZES.coarseSituation * SIZES.card;
 export const FINE_CELLS = SIZES.coarseSituation * SIZES.table * SIZES.card;
 
+/** Clamps `n` into 0 to `max`. Pure. */
 const clip = (n, max) => Math.max(0, Math.min(max, n));
+/** Combines digits into one mixed-radix index (first digit slowest), using the sizes in `spec`. Pure. */
 const compose = (digits, spec) => digits.reduce((index, digit, i) => index * spec[i][1] + digit, 0);
 
 /** What a player wants from the trick: 0 more tricks needed, 1 has made its number exactly, 2 has missed already. */
 const wantOf = (need) => (need > 0 ? 0 : need === 0 ? 1 : 2);
 
-/** The part of the key that is the same for every candidate card of one decision. */
+/**
+ * The part of the key that is the same for every candidate card of one decision.
+ * @param {object} ctx  the play context (players, hand, trick, trump, need, nominations, taken, trickPlays, seat)
+ * @returns {{ coarse: number, fineTable: number }} the coarse situation index and the table-state digit of the fine key
+ * Side effects: none.
+ */
 export function situation(ctx) {
   const { players, hand, trick, trump, need, nominations, taken, trickPlays = [], seat } = ctx;
   const after = players - trick.length - 1;
@@ -60,7 +68,14 @@ export function situation(ctx) {
   return { coarse, fineTable: compose([winner, Math.min(wantAfter, 2), Math.min(madeAfter, 2)], TABLE) };
 }
 
-/** The part of the key that is about one candidate card. `unseen` is unseenCards(hand, played), computed once per decision. */
+/**
+ * The part of the key that is about one candidate card. `unseen` is unseenCards(hand, played), computed once per decision.
+ * @param {object} ctx  the play context (trick, trump)
+ * @param {string} card  the candidate card
+ * @param {string[]} unseen  cards not in my hand and not yet played
+ * @returns {number} the card digit (role, beats, how many unseen cards outrank it, trump)
+ * Side effects: none.
+ */
 export function cardPart(ctx, card, unseen) {
   const { trick, trump } = ctx;
   const suit = suitOf(card);
@@ -71,7 +86,12 @@ export function cardPart(ctx, card, unseen) {
   return compose([role, beats, Math.min(higher, 3), isTrump ? 1 : 0], CARD);
 }
 
-/** Both table indexes for each legal card of a decision: [{ card, coarse, fine }]. */
+/**
+ * Both table indexes for each legal card of a decision.
+ * @param {object} ctx  the play context (needs `legal`, `hand`, `played` as well as what situation uses)
+ * @returns {{ card: string, coarse: number, fine: number }[]} one entry per legal card
+ * Side effects: none.
+ */
 export function keysFor(ctx) {
   const { coarse, fineTable } = situation(ctx);
   const unseen = unseenCards(ctx.hand, ctx.played);
@@ -81,7 +101,12 @@ export function keysFor(ctx) {
   });
 }
 
-/** The coarse cell that a fine cell refines: the same situation and card, with the table state dropped. */
+/**
+ * The coarse cell that a fine cell refines: the same situation and card, with the table state dropped.
+ * @param {number} fine  a fine cell index
+ * @returns {number} the coarse cell index
+ * Side effects: none.
+ */
 export function coarseOfFine(fine) {
   const part = fine % SIZES.card;
   const situationIndex = Math.floor(fine / (SIZES.card * SIZES.table));

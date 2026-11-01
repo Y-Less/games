@@ -22,28 +22,66 @@ export const DEALS = {
   7: { removed: ['2C', '2D', '3D'], each: 7, pass: 2, rotation: [1, 2, 3, 4, 5, 6, 0] },
 };
 
+/**
+ * Whether a value is a supported number of players.
+ * @param {*} n  value to test.
+ * @returns {boolean} true for an integer from MIN_SEATS to MAX_SEATS.
+ * Side effects: none.
+ */
 export const isSeatCount = (n) => Number.isInteger(n) && n >= MIN_SEATS && n <= MAX_SEATS;
 
-/** The deal for a number of players (falls back to the four-player deal for a number that is not supported). */
+/**
+ * The deal for a number of players (falls back to the four-player deal for a number that is not supported).
+ * @param {number} seats  number of players.
+ * @returns {{removed: string[], each: number, pass: number, rotation: number[]}} the DEALS entry.
+ * Side effects: none.
+ */
 export const dealFor = (seats) => DEALS[seats] ?? DEALS[DEFAULT_SEATS];
 
-/** The deck that is dealt: 52 cards less the removed ones. */
+/**
+ * The deck that is dealt: 52 cards less the removed ones.
+ * @param {number} seats  number of players.
+ * @returns {string[]} card codes in the deck.
+ * Side effects: none.
+ */
 export const deckFor = (seats) => fullDeck().filter((card) => !dealFor(seats).removed.includes(card));
 
-/** The card that must open the first trick: the lowest club still in the deck (the 2 of clubs for 4 players). */
+/**
+ * The card that must open the first trick: the lowest club still in the deck (the 2 of clubs for 4 players).
+ * @param {number} seats  number of players.
+ * @returns {string} card code.
+ * Side effects: none.
+ */
 export function openingCard(seats) {
   const removed = dealFor(seats).removed;
   return RANKS.map((rank) => `${rank}C`).find((card) => !removed.includes(card));
 }
 
-/** How many tricks a hand has, and how many cards each player is dealt. */
+/**
+ * How many tricks a hand has, which is also how many cards each player is dealt.
+ * @param {number} seats  number of players.
+ * @returns {number} tricks per hand.
+ * Side effects: none.
+ */
 export const tricksFor = (seats) => dealFor(seats).each;
+/**
+ * How many cards each player passes.
+ * @param {number} seats  number of players.
+ * @returns {number} cards passed (3, or 2 with 6 or 7 players).
+ * Side effects: none.
+ */
 export const passCountFor = (seats) => dealFor(seats).pass;
 
 /** Points in a hand once the Queen of Spades (13) and the 13 hearts are counted. A moon is worth this much. */
 export const HAND_POINTS = 26;
 
-/** The offset to the left of the pass on a hand (0: none). */
+/**
+ * The offset to the left of the pass on a hand (0: none).
+ * @param {number} seats  number of players.
+ * @param {number} handNumber  zero-based hand index; the rotation repeats.
+ * @returns {number} places to the left that cards go.
+ * Side effects: none.
+ */
 export function offsetFor(seats, handNumber) {
   const { rotation } = dealFor(seats);
   return rotation[handNumber % rotation.length];
@@ -52,6 +90,10 @@ export function offsetFor(seats, handNumber) {
 /**
  * Names a pass: 'none', 'left', 'right' (the neighbours), 'across' (exactly opposite) or 'left2', 'left3', 'right2'...
  * (that many places away, on whichever side is nearer; 'across' when it is equally far both ways).
+ * @param {number} seats  number of players.
+ * @param {number} offset  places to the left (any integer; reduced modulo seats).
+ * @returns {string} the direction name.
+ * Side effects: none.
  */
 export function directionName(seats, offset) {
   const o = ((offset % seats) + seats) % seats;
@@ -61,7 +103,13 @@ export function directionName(seats, offset) {
   return distance === 1 ? side : `${side}${distance}`;
 }
 
-/** The inverse of directionName: the offset to the left, for a number of players. */
+/**
+ * The inverse of directionName: the offset to the left, for a number of players.
+ * @param {number} seats  number of players.
+ * @param {string} direction  a name from directionName; unrecognised names mean no pass.
+ * @returns {number} places to the left (0 for none).
+ * Side effects: none.
+ */
 export function offsetOfDirection(seats, direction) {
   if (direction === 'none') return 0;
   if (direction === 'across') return Math.floor(seats / 2);
@@ -71,7 +119,13 @@ export function offsetOfDirection(seats, direction) {
   return match[1] === 'left' ? distance % seats : (seats - (distance % seats)) % seats;
 }
 
-/** Everything the table shows about a pass: its name, side and distance, and a sentence for it. */
+/**
+ * Everything the table shows about a pass: its name, side and distance, and a sentence for it.
+ * @param {number} seats  number of players.
+ * @param {number} offset  places to the left that cards go.
+ * @returns {{direction: string, offset: number, side: string, distance: number, count: number, label: string}} description.
+ * Side effects: none.
+ */
 export function describePass(seats, offset) {
   const direction = directionName(seats, offset);
   const count = passCountFor(seats);

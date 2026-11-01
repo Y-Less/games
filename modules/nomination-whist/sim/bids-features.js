@@ -17,13 +17,28 @@ export const UNCLAIMED_MIN = -2; // tricks claimed beyond the cards dealt, at mo
 export const AFTER_BUCKETS = 7; // players still to nominate after me, 0 (the dealer) to 6
 const CARD_INDEX = new Map(deckFor(true).map((card, i) => [card, i])); // the 52 cards, then the two Jokers
 
-/** The number of buckets of each part for a round of `cards` cards (the keys of a one-card round include the Jokers when they are in play). */
+/**
+ * The number of key buckets for a round of `cards` cards (the keys of a one-card round include the Jokers when they are in play).
+ * @param {number} cards  cards each in the round
+ * @param {boolean} [jokers]  whether the two Jokers are in the pack
+ * @returns {number} how many distinct keys there are
+ * Side effects: none.
+ */
 export const keyBuckets = (cards, jokers = false) => (cards === 1 ? fullDeck().length + (jokers ? 2 : 0) : cards * ESTIMATE_STEPS + 1);
+/**
+ * The number of unclaimed-trick buckets for a round of `cards` cards (from UNCLAIMED_MIN up to all of the cards).
+ * @param {number} cards  cards each in the round
+ * @returns {number} how many distinct values `unclaimed` can take
+ * Side effects: none.
+ */
 export const unclaimedBuckets = (cards) => cards - UNCLAIMED_MIN + 1;
 
 /**
  * The cell of a nomination decision, from what an AI is told when it nominates: `hand`, `trump`, `players` and the
  * `nominations` so far (null or undefined for a seat that has not nominated, which includes the player themselves).
+ * @param {{ hand: string[], trump: string|null, players: number, nominations?: (number|null)[] }} ctx  the nominate context
+ * @returns {{ key: number, unclaimed: number, after: number }} the cell; `unclaimed` is offset by UNCLAIMED_MIN so it is never negative
+ * Side effects: none.
  */
 export function cellOf({ hand, trump, players, nominations = [] }) {
   const cards = hand.length;
@@ -35,6 +50,7 @@ export function cellOf({ hand, trump, players, nominations = [] }) {
     if (bid == null) waiting++;
     else claimed += bid;
   }
+  // Clamped: claims beyond the cards dealt are only told apart down to UNCLAIMED_MIN, and it can never exceed the cards.
   const unclaimed = Math.max(UNCLAIMED_MIN, Math.min(cards, cards - claimed));
   return { key, unclaimed: unclaimed - UNCLAIMED_MIN, after: waiting - 1 };
 }

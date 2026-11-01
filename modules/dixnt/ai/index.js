@@ -10,6 +10,7 @@
 //        (spotting the imposter; in the 'favourite' style it is the chooser picking the best card)
 //
 // `cards` is the card metadata (see cards.js): categories only, since that is all the site knows about its cards.
+// Depends on shared/ai.js (defineAIs validates and registers them) and the five AI files below; it only wires them up.
 import { defineAIs } from '../../../shared/ai.js';
 import { contrarian } from './contrarian.js';
 import { literal } from './literal.js';

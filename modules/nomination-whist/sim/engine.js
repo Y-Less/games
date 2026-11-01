@@ -24,12 +24,18 @@ export const POLICIES = ['mix', 'contest', ...AIS.map((ai) => ai.id)];
 /**
  * The AI for each seat of one deal. `policy` is a comma-separated list of AI ids (seat n uses entry n, repeating),
  * `mix` (each seat gets a random AI, by the game's own weights) or `contest` (see above).
+ * @param {string} policy  the seat policy
+ * @param {number} players  seats at the table
+ * @param {() => number} rng  random source, used only by `mix`
+ * @returns {object[]} one AI (with `nominate` and `play`) per seat
+ * Side effects: none (throws on an unknown AI id).
  */
 export function seatAIs(policy, players, rng) {
   const names = String(policy).split(',').map((s) => s.trim()).filter(Boolean);
   return Array.from({ length: players }, (_, seat) => {
     const name = names[seat % names.length];
     if (name === 'mix') return pickAI(AIS, rng);
+    // `contest` plays as Standard but pretends it needs 99 tricks, so every seat fights for every trick: it shows what cards win when nobody is dodging.
     if (name === 'contest') return { nominate: standard.nominate, play: (ctx) => standard.play({ ...ctx, need: 99 }) };
     const ai = byId.get(name);
     if (!ai) throw new Error(`Unknown AI "${name}" (use one of ${POLICIES.join(', ')})`);
@@ -37,6 +43,12 @@ export function seatAIs(policy, players, rng) {
   });
 }
 
+/**
+ * The table index of a trump suit; no trump (null) maps to 'N'.
+ * @param {string|null} trump  the trump suit or null
+ * @returns {number} the index into TRUMPS
+ * Side effects: none.
+ */
 const trumpKey = (trump) => TRUMPS.indexOf(trump ?? 'N');
 
 /**
@@ -57,6 +69,8 @@ export const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card
  * @param {() => number} rng
  * @param {import('./tables.js').Stats} stats
  * @param {number[] | null} dump  when given, one row per hand is pushed to it (see README, "The hands file")
+ * @returns {void}
+ * Side effects: adds to `stats` (and `stats.deals`), pushes to `dump` when given, and consumes numbers from `rng`.
  */
 export function playDeal({ players, cards, trump: trumpName, policy, instantWin = false, missPoints = true, jokers = false }, rng, stats, dump = null) {
   const trump = trumpName === 'N' ? null : trumpName;
@@ -67,6 +81,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
   const start = hands.map((hand) => [...hand]);
   const roundInstant = instantWin && cards === 7;
 
+  // An AI that returns a number outside `allowed` (for example the dealer's forbidden one) falls back to Standard rather than breaking the deal.
   // Nominations: from the dealer's left round to the dealer, who may not make the total equal the tricks.
   const nominations = Array(players).fill(null);
   for (let i = 1; i <= players; i++) {
@@ -112,6 +127,7 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
       let card = ais[seat].play(context);
       if (!legal.includes(card)) card = standard.play(context);
       const led = k === 0 ? null : suitOf(trick[0].card);
+      // kind: 0 led, 1 followed suit, 2 trumped, 3 discarded (matches KINDS in tables.js).
       const kind = k === 0 ? 0 : suitOf(card) === led ? 1 : trump && suitOf(card) === trump ? 2 : 3;
       events.push({ seat, card, cardsLeft: hand.length, position: k, kind });
       hands[seat] = hand.filter((c) => c !== card);
@@ -158,4 +174,5 @@ export function playDeal({ players, cards, trump: trumpName, policy, instantWin 
   stats.deals++;
 }
 
+/** Numbers pushed per hand in the hands dump: six facts (players, cards, trump, seat order, nomination, taken) then MAX_ROW card bytes. */
 export const DUMP_ROW_BYTES = 6 + MAX_ROW;

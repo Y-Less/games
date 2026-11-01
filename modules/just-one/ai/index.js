@@ -6,6 +6,7 @@
 //   best({ word, clues }, rng)        -> the index in `clues` of the best hint (word is the one they have just guessed)
 //
 // The first entry is the fallback.
+// Depends on: shared/ai.js (defineAIs) and the strategies in random.js and standard.js.
 import { defineAIs } from '../../../shared/ai.js';
 import random from './random.js';
 import standard, { adventurous } from './standard.js';

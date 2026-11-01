@@ -8,4 +8,5 @@ import { random } from './random.js';
 import { sharp } from './sharp.js';
 import { standard } from './standard.js';
 
+/** All Nomination Whist computer players, keyed by id (standard first as the fallback). */
 export const AIS = defineAIs([standard, random, cautious, optimist, counter, sharp, lutv]);

@@ -4,6 +4,8 @@
 // players before have claimed, and exactly how many players still nominate after (your table position). Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 50_000_000
 // Writes models/bidding-context.json (or bidding-context-jokers.json with --jokers), which the `lutc` AI (ai/lut.js) reads.
+// Depends on: bids-collect.js (the worker that plays the deals and counts them), bids-features.js (the cell layout, shared
+// with the AI) and ../game.js (TRUMP_ORDER). A top-level script: importing it starts training.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,7 +41,9 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
+/** Parses a command-line number, allowing underscores (50_000_000). Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
+// Expands "3-7" or "4,5" into the list of player counts to train for.
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
   if (!(from >= 3 && to <= 7 && from <= to)) throw new Error('--players must be within 3-7');
@@ -49,7 +53,11 @@ const minN = num(opts['min-n']);
 const jokers = opts.jokers;
 const outFile = opts.out || `modules/nomination-whist/sim/models/bidding-context${jokers ? '-jokers' : ''}.json`;
 
-/** Plays the deals in worker threads, with a status bar, and returns the summed counts. */
+/**
+ * Plays the deals in worker threads, with a status bar, and returns the summed counts.
+ * @returns {Promise<Float64Array>} the counts of every cell (indexed by bids-collect's indexOf), added over all chunks
+ * Side effects: starts and terminates worker threads and writes a progress bar to stderr.
+ */
 async function collect() {
   const total = new Float64Array(CELLS);
   const chunk = num(opts.chunk);
@@ -60,12 +68,14 @@ async function collect() {
   const started = Date.now();
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./bids-collect.js', import.meta.url)), { workerData: { seed: num(opts.seed), size: chunk, players, jokers } }));
   await new Promise((resolve) => {
+    /** Gives `worker` the next chunk number, if any are left. Side effects: posts a message. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
       worker.on('message', ({ counts }) => {
         for (let i = 0; i < CELLS; i++) total[i] += counts[i];
         done++;
         const now = Date.now();
+        /** The progress line: bar, percentage, deals per second and ETA. Pure. */
         const line = () => {
           const rate = (done * chunk) / ((now - started) / 1000);
           const eta = Math.round(((jobs - done) * chunk) / rate);
@@ -89,13 +99,33 @@ async function collect() {
   return total;
 }
 
-/** The counts of tricks taken for one cell as an array of length cards + 1. */
+/**
+ * The counts of tricks taken for one cell as an array of length cards + 1.
+ * @param {Float64Array} total  the summed counts
+ * @param {number} p  players at the table
+ * @param {number} cards  cards each
+ * @param {number} trump  trump index
+ * @param {{ key: number, unclaimed: number, after: number }} cell  the cell
+ * @returns {number[]} how often each number of tricks (0 to `cards`) was taken from this cell
+ * Side effects: none.
+ */
 const countsAt = (total, p, cards, trump, cell) => Array.from({ length: cards + 1 }, (_, t) => total[indexOf(p, cards, trump, cell, t)]);
 
 /**
  * One cell as probabilities. A window of neighbouring estimates and unclaimed counts (same number of players still to
  * nominate) is widened until at least `minN` hands are in it, and past a width of 3 the other positions join too, at half weight.
  * Returns null for a cell nobody reached and that has no busy neighbours.
+ * Why smooth: a rare cell's raw counts are noisy, so it borrows from similar hands (nearby estimates, similar claims),
+ * weighting the nearer ones more (triangular weights); other table positions count half because position matters but less than the hand.
+ * @param {Float64Array} total  the summed counts
+ * @param {number} p  players at the table
+ * @param {number} cards  cards each
+ * @param {number} trump  trump index
+ * @param {number} e  key bucket (hand estimate, or the card in a one-card round)
+ * @param {number} u  unclaimed bucket
+ * @param {number} a  players still to nominate after this one
+ * @returns {number[] | null} the chance of taking 0 to `cards` tricks (to four decimals), or null if the cell cannot be filled
+ * Side effects: none.
  */
 function probabilities(total, p, cards, trump, e, u, a) {
   const eMax = keyBuckets(cards, jokers);
@@ -121,6 +151,7 @@ function probabilities(total, p, cards, trump, e, u, a) {
   return null;
 }
 
+// Main: collect the counts, smooth every cell into a row of probabilities, and write the table the `lutc` AI reads.
 const deals = num(opts.deals);
 console.log(`${players.join(',')} players, ${deals.toLocaleString('en-GB')} deals${jokers ? ', with Jokers' : ''}`);
 const started = Date.now();

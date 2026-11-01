@@ -5,6 +5,8 @@
 // Seats 0..n-1 run clockwise: the player to your left is seat + 1, so passing "left" sends cards to seat + 1 and play
 // goes round in increasing seat order. The number of seats is room.seats.length. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer
 // player ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
+// Depends on: deals.js (deal sizes and pass rotation), tally.js (statistics), ai/ (computer players) and the shared helpers
+// for seats, cards, tricks, scores and AI selection under ../../shared.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
@@ -30,16 +32,58 @@ export const BOT_NAMES = DEFAULT_BOT_NAMES;
 
 const LIVE = ['lobby', 'passing', 'playing', 'handEnd'];
 
+/**
+ * Whether a card is a heart.
+ * @param {string} card  card code such as 'QS'.
+ * @returns {boolean} true for hearts.
+ * Side effects: none.
+ */
 export const isHeart = (card) => suitOf(card) === 'H';
+/**
+ * Whether a card scores penalty points on its own (a heart or the Queen of Spades; the Jack is a bonus, not a penalty).
+ * @param {string} card  card code.
+ * @returns {boolean} true for hearts and the Queen.
+ * Side effects: none.
+ */
 export const isPointCard = (card) => isHeart(card) || card === QUEEN;
+/**
+ * Whether the room is still in progress (not finished).
+ * @param {object} room  the room.
+ * @returns {boolean} true in lobby, passing, playing and handEnd.
+ * Side effects: none.
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
+/**
+ * The seat a player's passed cards go to.
+ * @param {number} seat  the passing seat.
+ * @param {string} direction  pass direction name (see deals.js directionName).
+ * @param {number} [seats]  seat count (default four).
+ * @returns {number} the receiving seat.
+ * Side effects: none.
+ */
 export const passTarget = (seat, direction, seats = DEFAULT_SEATS) => (seat + offsetOfDirection(seats, direction)) % seats;
+/**
+ * The seat a player's received cards come from (the inverse of passTarget).
+ * @param {number} seat  the receiving seat.
+ * @param {string} direction  pass direction name.
+ * @param {number} [seats]  seat count (default four).
+ * @returns {number} the passing seat.
+ * Side effects: none.
+ */
 export const passSource = (seat, direction, seats = DEFAULT_SEATS) => (seat + seats - offsetOfDirection(seats, direction)) % seats;
+// A fresh list of n empty card lists, one per seat.
 const emptyHands = (n) => Array.from({ length: n }, () => []);
 
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 
+/**
+ * Validates a settings change on top of the current settings (target score, Jack of Diamonds, moon scoring mode).
+ * @param {object} input  the requested changes; missing keys keep their current value.
+ * @param {object} [current]  the settings to start from (default DEFAULT_SETTINGS).
+ * @returns {{ok: boolean, settings?: object, error?: string}} the merged settings or the first problem found.
+ * Side effects: none.
+ */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (input?.target !== undefined) {
@@ -57,6 +101,17 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
+/**
+ * Creates a new room in the lobby with the host seated.
+ * @param {object} options
+ * @param {string} options.code  the room code.
+ * @param {number} options.hostId  the host's account id.
+ * @param {string} options.hostName  the host's display name.
+ * @param {object} [options.settings]  initial settings, including `seats` (3 to 7, default 4).
+ * @param {number} [options.now]  creation timestamp.
+ * @returns {object} the new room.
+ * Side effects: none; throws an Error when the seat count or the settings are invalid.
+ */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
   if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
@@ -76,6 +131,12 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   return room;
 }
 
+/**
+ * Resets everything that belongs to one game (scores, tallies, history and the hand state) for the current seat count.
+ * @param {object} room  the room.
+ * @returns {void}
+ * Side effects: mutates room (scores, tally, history, hands, passes, trick state, moon bid and so on).
+ */
 function resetGame(room) {
   const n = room.seats.length;
   Object.assign(room, {
@@ -109,6 +170,7 @@ function resetGame(room) {
  * The seat rules (join, leave, kick, computer players) are the shared ones. In Hearts a person who leaves mid-hand is
  * replaced by a computer player that gets its own AI, and if they were the only one the hand-end pop-up was waiting for,
  * the game moves on.
+ * Side effects: the rules it returns (addHuman, addBot, ...) mutate room.seats; see shared/seats.js.
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['passing', 'playing', 'handEnd'].includes(room.phase),
@@ -118,6 +180,14 @@ const seats = createSeatRules({
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
+/**
+ * Lets the host change settings (and the number of seats) while in the lobby.
+ * @param {object} room  the room.
+ * @param {number} userId  the account asking; must be the host.
+ * @param {object} input  requested settings, optionally with `seats`.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: on success mutates room.settings and may resize the seats (which resets the game).
+ */
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -134,6 +204,13 @@ export function setSettings(room, userId, input) {
 }
 
 /** Grows or shrinks the table. Shrinking keeps everyone seated, closing up the gaps in turn order if it has to. */
+/**
+ * Grows or shrinks the table to `count` seats, closing gaps when shrinking would otherwise drop a player.
+ * @param {object} room  the room.
+ * @param {number} count  the new number of seats.
+ * @returns {void}
+ * Side effects: replaces room.seats and resets the game state.
+ */
 function resizeSeats(room, count) {
   if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
   room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
@@ -142,6 +219,13 @@ function resizeSeats(room, count) {
 
 // ---- dealing and passing ----
 
+/**
+ * Shuffles and deals a hand, works out this hand's pass direction and starts either the passing or (on a no-pass hand) the play.
+ * @param {object} room  the room.
+ * @param {() => number} rng  random source for the shuffle.
+ * @returns {void}
+ * Side effects: mutates room (hands, pass state, trick state, phase, turn and moon bid).
+ */
 export function deal(room, rng) {
   const n = room.seats.length;
   const each = tricksFor(n);
@@ -164,6 +248,12 @@ export function deal(room, rng) {
   else room.phase = 'passing';
 }
 
+/**
+ * Starts the play of a hand: the holder of the opening card leads, and any computer player with a moon-worthy hand declares.
+ * @param {object} room  the room.
+ * @returns {void}
+ * Side effects: sets room.phase, room.turn and room.moonBid.
+ */
 function beginPlay(room) {
   room.phase = 'playing';
   room.turn = room.hands.findIndex((hand) => hand.includes(openingCard(room.seats.length)));
@@ -171,11 +261,25 @@ function beginPlay(room) {
 }
 
 /** The first computer player whose AI judges its hand strong enough to go for every point (if any). */
+/**
+ * Records which computer seat (if any) will try to shoot the moon, so that seat's AI plays for every point.
+ * @param {object} room  the room.
+ * @returns {void}
+ * Side effects: sets room.moonBid to a seat index or null.
+ */
 function setMoonBid(room) {
   const bidder = room.seats.findIndex((s, i) => isBot(s) && aiOf(room, i).bidsMoon?.({ hand: room.hands[i], settings: room.settings, seatCount: room.seats.length }));
   room.moonBid = bidder === -1 ? null : bidder;
 }
 
+/**
+ * Starts the game: checks the table is full, deals the first hand and gives each computer player an AI for the whole game.
+ * @param {object} room  the room.
+ * @param {number} userId  the account asking; must be the host in the lobby.
+ * @param {() => number} rng  random source.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: on success resets and deals the room and sets room.seats[i].ai for each bot.
+ */
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
@@ -191,6 +295,14 @@ export function start(room, userId, rng) {
   return ok();
 }
 
+/**
+ * Records a seat's chosen pass cards; when every seat has chosen, the exchange happens.
+ * @param {object} room  the room.
+ * @param {number} seat  the passing seat.
+ * @param {string[]} cards  exactly passCount different cards from the seat's hand.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: on success sets room.passes[seat] and may run the exchange and start the play.
+ */
 export function choosePass(room, seat, cards) {
   if (room.phase !== 'passing') return fail('It is not time to pass cards.');
   if (room.passes[seat]) return fail('You have already passed your cards.');
@@ -202,6 +314,12 @@ export function choosePass(room, seat, cards) {
   return ok();
 }
 
+/**
+ * Carries out the pass: every seat loses its passed cards and receives the ones sent to it, then play begins.
+ * @param {object} room  the room; every seat must have chosen.
+ * @returns {void}
+ * Side effects: mutates room.hands, room.received and the tallies (opening card passed or received), then calls beginPlay.
+ */
 function exchange(room) {
   const n = room.seats.length;
   const hands = room.hands.map((hand, seat) => hand.filter((card) => !room.passes[seat].includes(card)));
@@ -225,6 +343,7 @@ function exchange(room) {
  * @param {number} seat
  * @param {string} card
  * @returns {string | null} the reason, or null when the card is legal
+ * Side effects: none.
  */
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
@@ -244,6 +363,13 @@ export function illegalReason(room, seat, card) {
   return null;
 }
 
+/**
+ * The cards a seat may legally play right now.
+ * @param {object} room  not changed.
+ * @param {number} seat  the seat.
+ * @returns {string[]} the playable cards from its hand.
+ * Side effects: none.
+ */
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
 
 /**
@@ -274,6 +400,7 @@ export function playCard(room, seat, card) {
  *
  * @param {{ seat: number, card: string }[]} trick  in the order played; not empty
  * @returns {number} the seat
+ * Side effects: none.
  */
 export function trickWinner(trick) {
   return trickWinnerSeat(trick);
@@ -283,6 +410,10 @@ export function trickWinner(trick) {
  * True when the seat has the lead and cannot lose another trick whatever the others hold: every card in its hand is higher
  * than every card of its suit that has not been played and is not in its hand. Leading them in any order then wins every
  * trick (a player with none of the suit cannot beat it, and follows only with lower cards).
+ * @param {object} room  not changed.
+ * @param {number} seat  the seat asking.
+ * @returns {boolean} true when the seat may claim every remaining trick.
+ * Side effects: none.
  */
 export function canClaim(room, seat) {
   if (room.phase !== 'playing' || room.turn !== seat || room.trick.length !== 0) return false;
@@ -296,6 +427,10 @@ export function canClaim(room, seat) {
 /**
  * The seat takes every remaining trick. The rest of the hand is played out for real (the others' cards go where they
  * would have gone, so the scoring is exact), recorded in the trick log like any other.
+ * @param {object} room  the room.
+ * @param {number} seat  the claiming seat; must be on lead with a claimable hand.
+ * @returns {{ok: boolean, tricks?: number, error?: string}} the number of tricks claimed, or why it was refused.
+ * Side effects: plays out every remaining card, resolves the tricks, scores the hand (may finish the game) and sets room.lastClaim.
  */
 export function claimAll(room, seat) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
@@ -315,7 +450,13 @@ export function claimAll(room, seat) {
   return ok({ tricks });
 }
 
-/** Gives a finished trick to its winner, who leads next; after the last trick the hand is scored. */
+/**
+ * Gives a finished trick to its winner, who leads next; after the last trick the hand is scored.
+ * @param {object} room  the room with a full trick on the table.
+ * @returns {{ok: boolean, winner?: number, handOver?: boolean, error?: string}} the winner and whether that was the last trick.
+ * Side effects: moves the trick into the winner's taken cards and the trick log, updates tallies, cancels a moon bid if somebody else
+ *   took points, advances the turn and, after the last trick, scores the hand (endHand).
+ */
 export function resolveTrick(room) {
   if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('There is no finished trick.');
   const winner = trickWinner(room.trick);
@@ -345,6 +486,11 @@ export function resolveTrick(room) {
  * everyone else scores 26, whatever the number of players (or, in the "self" mode, the shooter scores -26 and the others nothing). The Jack of
  * Diamonds still counts on a moon hand, when the setting is on: whoever took it also scores -5 (the Jack does not
  * have to be taken to shoot the moon).
+ * @param {string[][]} taken  the cards each seat took in tricks.
+ * @param {object} settings  game settings (jackOfDiamonds, moon).
+ * @returns {{points: number[], moon: (number|null), details: {hearts: number, queen: boolean, jack: boolean}[]}} points per seat,
+ *   the seat that shot the moon (or null) and what each seat took.
+ * Side effects: none.
  */
 export function scoreHand(taken, settings) {
   const details = taken.map((cards) => ({
@@ -363,8 +509,20 @@ export function scoreHand(taken, settings) {
   return { points, moon: moonSeat === -1 ? null : moonSeat, details };
 }
 
+/**
+ * The seats with the lowest score (lowest wins in Hearts); several seats on a tie.
+ * @param {number[]} scores  total score per seat.
+ * @returns {number[]} the winning seats.
+ * Side effects: none.
+ */
 export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === Math.min(...scores) ? [seat] : []));
 
+/**
+ * Scores the finished hand: updates scores, tallies and history, then either ends the game (someone reached the target) or waits for the next hand.
+ * @param {object} room  the room with every trick taken.
+ * @returns {void}
+ * Side effects: mutates room (scores, tally, lastHand, history, phase, winners, ready).
+ */
 function endHand(room) {
   const result = scoreHand(room.taken, room.settings);
   room.scores = room.scores.map((score, seat) => score + result.points[seat]);
@@ -388,7 +546,14 @@ function endHand(room) {
   }
 }
 
-/** A person is ready for the next hand (they closed the score pop-up); it is dealt once every person is. */
+/**
+ * A person is ready for the next hand (they closed the score pop-up); it is dealt once every person is.
+ * @param {object} room  the room.
+ * @param {number} userId  the account that closed the pop-up.
+ * @param {() => number} rng  random source for the deal.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: adds the seat to room.ready and may deal the next hand.
+ */
 export function nextHand(room, userId, rng) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'handEnd') return fail('The hand is not over.');
@@ -399,6 +564,13 @@ export function nextHand(room, userId, rng) {
   return ok();
 }
 
+/**
+ * Deals the next hand if every human has closed the score pop-up.
+ * @param {object} room  the room.
+ * @param {() => number} rng  random source.
+ * @returns {boolean} true if a new hand was dealt.
+ * Side effects: may deal the next hand (mutates the room).
+ */
 function advanceIfReady(room, rng) {
   if (room.phase !== 'handEnd') return false;
   room.ready ??= [];
@@ -407,19 +579,39 @@ function advanceIfReady(room, rng) {
   return true;
 }
 
+/**
+ * Moves on to the next hand number and deals it.
+ * @param {object} room  the room.
+ * @param {() => number} rng  random source.
+ * @returns {void}
+ * Side effects: increments room.handNumber, clears room.ready and deals.
+ */
 function dealNext(room, rng) {
   room.handNumber++;
   room.ready = [];
   deal(room, rng);
 }
 
-/** Deals the next hand whether or not everyone has closed the pop-up (the server does this after a wait). */
+/**
+ * Deals the next hand whether or not everyone has closed the pop-up (the server does this after a wait).
+ * @param {object} room  the room.
+ * @param {() => number} rng  random source for the deal.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: deals the next hand (mutates the room).
+ */
 export function forceNextHand(room, rng) {
   if (room.phase !== 'handEnd') return fail('The hand is not over.');
   dealNext(room, rng);
   return ok();
 }
 
+/**
+ * Returns a finished game to the lobby so the same table can play again.
+ * @param {object} room  the room.
+ * @param {number} userId  the account asking; must be the host.
+ * @returns {{ok: boolean, error?: string}} ok, or why it was refused.
+ * Side effects: on success resets the game and sets room.phase to 'lobby'.
+ */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
@@ -434,6 +626,7 @@ export function playAgain(room, userId) {
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   const places = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])), { lowIsBetter: true });
@@ -447,17 +640,39 @@ export function statsPlayers(room) {
 
 // ---- computer players ----
 
+// Re-exported so callers (and tests) can ask whether a hand is overwhelming enough to go for the moon.
 export const wantsMoon = standardWantsMoon;
 
-/** The AI a computer seat plays with. Seats without one (rooms saved before AIs existed) get the first, standard AI. */
+/**
+ * The AI a computer seat plays with. Seats without one (rooms saved before AIs existed) get the first, standard AI.
+ * @param {object} room  not changed.
+ * @param {number} seat  the computer seat.
+ * @returns {object} the AI object (see ai/index.js).
+ * Side effects: none.
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
-/** Cards to pass, as the standard AI chooses them (kept for callers that only have a hand). */
+/**
+ * Cards to pass, as the standard AI chooses them (kept for callers that only have a hand).
+ * @param {string[]} hand  the hand.
+ * @param {object} [settings]  game settings (default DEFAULT_SETTINGS).
+ * @param {number} [count]  how many cards to pass (default 3).
+ * @returns {string[]} the cards to pass.
+ * Side effects: none.
+ */
 export function botPass(hand, settings = DEFAULT_SETTINGS, count = 3) {
   return passStandard({ hand, settings, passCount: count });
 }
 
-/** The plain data an AI decides from: its own hand and the public history of the hand, never other hands. */
+/**
+ * The plain data an AI decides from: its own hand and the public history of the hand, never other hands. Everything is
+ * copied so an AI cannot change the room.
+ * @param {object} room  not changed.
+ * @param {number} seat  the computer seat.
+ * @param {() => number} rng  random source handed to the AI.
+ * @returns {object} the context described at the top of ai/index.js.
+ * Side effects: none.
+ */
 export function aiContext(room, seat, rng) {
   return {
     seat,
@@ -484,17 +699,33 @@ export function aiContext(room, seat, rng) {
   };
 }
 
-/** The cards a computer seat passes, chosen by its own AI (always the right number of different cards from its hand). */
+/**
+ * The cards a computer seat passes, chosen by its own AI (always the right number of different cards from its hand).
+ * Falls back to the standard AI if the chosen AI returns something invalid.
+ * @param {object} room  not changed.
+ * @param {number} seat  the computer seat.
+ * @param {() => number} rng  random source.
+ * @returns {string[]} the cards to pass.
+ * Side effects: may advance rng.
+ */
 export function botPassFor(room, seat, rng) {
   const hand = room.hands[seat];
   const count = passCountFor(room.seats.length);
+  // True when the AI's answer is a proper pass: the right number of different cards, all from the hand.
   const valid = (cards) => Array.isArray(cards) && cards.length === count && new Set(cards).size === count && cards.every((c) => hand.includes(c));
   const ctx = aiContext(room, seat, rng);
   const cards = aiOf(room, seat).choosePass(ctx);
   return valid(cards) ? cards : passStandard(ctx);
 }
 
-/** The card a computer player plays: always one of its legal cards, chosen by its own AI. */
+/**
+ * The card a computer player plays: always one of its legal cards, chosen by its own AI (the first legal card if it errs).
+ * @param {object} room  not changed.
+ * @param {number} seat  the computer seat.
+ * @param {() => number} rng  random source.
+ * @returns {string} a legal card.
+ * Side effects: may advance rng.
+ */
 export function botPlay(room, seat, rng) {
   const legal = legalCards(room, seat);
   if (legal.length === 1) return legal[0];
@@ -502,10 +733,20 @@ export function botPlay(room, seat, rng) {
   return legal.includes(card) ? card : legal[0];
 }
 
-/** The next thing a computer (or the clock) has to do, or null when the game waits for a person. */
-/** True while the hand is over and waiting for people to close the score pop-up (the server times this out). */
+/**
+ * True while the hand is over and waiting for people to close the score pop-up (the server times this out).
+ * @param {object} room  not changed.
+ * @returns {boolean} true in the handEnd phase.
+ * Side effects: none.
+ */
 export const waitingForReady = (room) => room.phase === 'handEnd';
 
+/**
+ * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
+ * @param {object} room  not changed.
+ * @returns {{type: 'pass'|'play'|'resolve', seat?: number}|null} the pending action.
+ * Side effects: none.
+ */
 export function pendingAction(room) {
   if (room.phase === 'passing') {
     const seat = room.seats.findIndex((s, i) => isBot(s) && !room.passes[i]);
@@ -516,7 +757,13 @@ export function pendingAction(room) {
   return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
 }
 
-/** Performs a pending action. Returns the action, or null if there was nothing to do. */
+/**
+ * Performs a pending action. Returns the action, or null if there was nothing to do.
+ * @param {object} room  the room.
+ * @param {() => number} rng  random source for the computer players.
+ * @returns {{type: string, seat?: number}|null} the action performed.
+ * Side effects: mutates the room (a computer pass, play or the resolving of a full trick); throws if a computer makes an illegal move.
+ */
 export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
@@ -538,6 +785,7 @@ export function runPending(room, rng) {
  * @param {object} room  not changed
  * @param {number} seat
  * @returns {number} hearts, plus 13 for the Queen of Spades, plus the Jack of Diamonds' bonus when that counts
+ * Side effects: none.
  */
 function handPoints(room, seat) {
   const { hearts, queen, jack } = scoreHand(room.taken, { ...room.settings, moon: 'others' }).details[seat];
@@ -551,6 +799,7 @@ function handPoints(room, seat) {
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
  * @returns {object}
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const seat = room.seats[i];
@@ -578,6 +827,7 @@ function seatView(room, i, online) {
  * @param {object} room  not changed
  * @param {(id: number) => boolean} online
  * @returns {(object | null)[]}
+ * Side effects: none.
  */
 const seatsView = (room, online) => room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null));
 
@@ -588,8 +838,10 @@ const seatsView = (room, online) => room.seats.map((seat, i) => (seat ? seatView
  * @param {number} me  the viewer's seat, or -1
  * @param {(id: number) => boolean} online
  * @returns {object}
+ * Side effects: none.
  */
 function scoreboardView(room, me, online) {
+  // One scoreboard row for a seat, plus whether it has closed the hand-end pop-up.
   const player = (seat, i) => ({
     ...seatScoreboardEntry(seat, i, { score: room.scores[i], me, current: room.phase === 'playing' && room.turn === i, online }),
     ...(room.phase === 'handEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}),
@@ -608,6 +860,7 @@ function scoreboardView(room, me, online) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object} fields to add to the view when the game has started
+ * Side effects: none.
  */
 function playView(room, me) {
   const myTurn = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
@@ -634,10 +887,12 @@ function playView(room, me) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object}
+ * Side effects: none.
  */
 function passView(room, me) {
   const n = room.seats.length;
   const offset = room.passOffset ?? offsetOfDirection(n, room.passDirection);
+  // The display name of a seat, or null when it is empty or out of range.
   const name = (seat) => (seat === null || seat === undefined || !room.seats[seat] ? null : room.seats[seat].name);
   const base = { ...describePass(n, offset), cards: passCountFor(n) };
   let pass;
@@ -659,6 +914,7 @@ function passView(room, me) {
  * @param {number} userId  the account looking (it may be a spectator with no seat)
  * @param {{ online?: (id: number) => boolean }} [options]  says who is connected, so the view can show who is away
  * @returns {object} the view sent to that person
+ * Side effects: none.
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -682,12 +938,18 @@ export function viewFor(room, userId, { online = () => true } = {}) {
   return view;
 }
 
-/** What the table needs to describe the deal for this many players: removed cards are public. */
+/**
+ * What the table needs to describe the deal for this many players: removed cards are public.
+ * @param {number} seats  number of players.
+ * @returns {object} cards each, tricks, pass count, removed cards, opening card, hand points and the pass rotation.
+ * Side effects: none.
+ */
 function dealView(seats) {
   const deal = dealFor(seats);
   return { cardsEach: deal.each, tricks: deal.each, passCount: deal.pass, removed: [...deal.removed], openingCard: openingCard(seats), handPoints: HAND_POINTS, rotation: deal.rotation.map((offset) => describePass(seats, offset)) };
 }
 
+// Just the id and name of an AI, which is all the table needs to show about a computer player.
 const describeAIBrief = (ai) => {
   const { id, name } = describeAI(ai);
   return { id, name };

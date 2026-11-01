@@ -13,6 +13,8 @@
 //   - when cards are being played the AI chooses a card from its hand
 //   - when voting the AI chooses whom to accuse (if the game's judging method lets it vote at all)
 // It can only join an existing game, and it does not start the game or move on to the next round: a human does that.
+// Depends on socket.io-client, shared/ai.js (AI selection) and ../ai/ (the decision functions); it is run directly
+// and is never imported, so everything below runs at load time.
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -65,13 +67,22 @@ if (!(minDelay >= 0 && maxDelay >= minDelay)) {
   process.exit(1);
 }
 
+// Prints a line prefixed with the bot's name, so several bots in one terminal can be told apart.
 const log = (message) => console.log(`[${name}] ${message}`);
+// Picks a random element; only used as the fallback when the AI gives an illegal or no answer.
 const pick = (items) => items[Math.floor(Math.random() * items.length)];
+// Resolves after ms milliseconds (the bot's "thinking" pause).
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// A random think time between the --delay minimum and maximum, so bots do not act in lockstep.
 const thinkTime = () => minDelay + Math.random() * (maxDelay - minDelay);
 const baseUrl = options.url.replace(/\/+$/, '');
 
 // ---- identity: an account named after the bot, with a password remembered between runs ----
+/**
+ * Reads the remembered bot passwords from the token file.
+ * @returns {{ [name: string]: string }} password per bot account name; empty if the file is missing or unreadable
+ * Side effects: reads the token file.
+ */
 function readPasswords() {
   try {
     return JSON.parse(fs.readFileSync(options['token-file'], 'utf8'));
@@ -80,6 +91,12 @@ function readPasswords() {
   }
 }
 
+/**
+ * Saves this bot's password into the token file so the account can be signed into again on the next run.
+ * @param {string} password  the account password to store under the bot's name
+ * @returns {void} nothing
+ * Side effects: creates the token file's folder if needed and rewrites the token file.
+ */
 function rememberPassword(password) {
   const passwords = readPasswords();
   passwords[name] = password;
@@ -87,6 +104,13 @@ function rememberPassword(password) {
   fs.writeFileSync(options['token-file'], JSON.stringify(passwords, null, 2));
 }
 
+/**
+ * POSTs JSON to the site and reports the outcome without throwing on HTTP errors.
+ * @param {string} url  path beginning with "/", appended to the site URL
+ * @param {object} body  JSON request body
+ * @returns {Promise<{ ok: boolean, status: number, error?: string, cookie: string | null }>} result, with the first Set-Cookie pair (the session) if any
+ * Side effects: one HTTP request to the site.
+ */
 async function post(url, body) {
   const res = await fetch(baseUrl + url, {
     method: 'POST',
@@ -98,7 +122,11 @@ async function post(url, body) {
   return { ok: res.ok, status: res.status, error: data.error, cookie };
 }
 
-/** Logs in with the remembered password, registering the account first if it does not exist yet. */
+/**
+ * Logs in with the remembered password, registering the account first if it does not exist yet.
+ * @returns {Promise<string | null>} the session cookie to send on the socket
+ * Side effects: HTTP requests to the site; may register an account and write the token file. Throws if the account exists but its password is unknown.
+ */
 async function signIn() {
   const stored = readPasswords()[name];
   if (stored) {
@@ -124,6 +152,7 @@ try {
 
 // ---- talking to the server ----
 const socket = io(`${baseUrl}/dixnt`, { extraHeaders: { cookie } });
+// Emits a socket event and resolves with the server's acknowledgement reply.
 const call = (event, payload = {}) => new Promise((resolve) => socket.emit(event, payload, resolve));
 
 let cards = NO_CARDS; // card categories, fetched once connected; without them the smarter AIs just guess
@@ -131,13 +160,22 @@ let ai = null;
 let previousPhase = null;
 let imposterRound = null; // the round in which this bot could not see the word, i.e. was the imposter
 
-/** Chooses an AI for a new game and tells the server (and so the other players) which one it is. */
+/**
+ * Chooses an AI for a new game and tells the server (and so the other players) which one it is.
+ * @returns {Promise<void>} resolves once the server has answered
+ * Side effects: sets the module's `ai`, sends declareAI over the socket and logs the choice.
+ */
 async function chooseAI() {
   ai = options.ai ? aiById(AIS, options.ai) : pickAI(AIS, Math.random);
   const reply = await call('declareAI', { id: ai.id });
   log(`playing as the "${ai.name}" AI${reply.ok ? '' : ` (the server did not accept it: ${reply.error})`}`);
 }
 
+/**
+ * Fetches the card categories the smarter AIs use to match clues to cards.
+ * @returns {Promise<void>} resolves when done; a failure is ignored and the AIs then guess
+ * Side effects: one HTTP request; replaces the module's `cards` on success.
+ */
 async function loadCards() {
   try {
     const res = await fetch(`${baseUrl}/assets/dixnt/cards/categories.json`);
@@ -151,6 +189,11 @@ let state = null;
 let acting = false; // only one decision at a time
 const decided = new Set(); // "round:phase" keys we have already acted on, so a state refresh can't make us act twice
 
+/**
+ * Runs on every (re)connection: resumes the seat in the game or joins it, loads the cards and declares the AI.
+ * @returns {Promise<void>} resolves when set up; exits the process if the game cannot be joined
+ * Side effects: socket events (resume/join/declareAI), an HTTP request for the cards, logging, may call process.exit.
+ */
 async function connect() {
   let reply = await call('resume', { code });
   if (!reply.ok) reply = await call('join', { code });
@@ -184,6 +227,12 @@ socket.on('state', (next) => {
   void act();
 });
 
+/**
+ * Looks at the latest state and, if it is this bot's turn to decide (choose a word, play a card or vote) and it has
+ * not already acted this round and phase, waits a think time and then performs the matching action.
+ * @returns {Promise<void>} resolves when the action (if any) has finished
+ * Side effects: sets `acting`, records the decision key in `decided`, sleeps, then sends socket events via the action; re-runs itself afterwards.
+ */
 async function act() {
   if (acting || !state) return;
   const s = state;
@@ -214,7 +263,14 @@ async function act() {
   }
 }
 
-/** Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead. */
+/**
+ * Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead.
+ * @param {'chooseWord' | 'playCard' | 'vote'} decision  which AI function to call
+ * @param {any[]} options  the legal answers
+ * @param {object} input  decision-specific inputs; cards, round and judging are added here
+ * @returns {any} a member of `options`
+ * Side effects: logs if the AI throws.
+ */
 function decide(decision, options, input) {
   let answer;
   try {
@@ -225,6 +281,11 @@ function decide(decision, options, input) {
   return options.includes(answer) ? answer : pick(options);
 }
 
+/**
+ * As chooser, fetches the hint words from the server, lets the AI pick one and submits it.
+ * @returns {Promise<void>} resolves when submitted or when it failed (the failure is logged)
+ * Side effects: socket events (hints, submitWord) and logging.
+ */
 async function chooseWord() {
   const reply = await call('hints');
   if (!reply.ok || !reply.hints?.length) return log(`could not get hints: ${reply.error ?? 'none returned'}`);
@@ -233,12 +294,23 @@ async function chooseWord() {
   log(result.ok ? `chose the word "${word}"` : `could not submit a word: ${result.error}`);
 }
 
+/**
+ * Lets the AI choose a card from the hand (the clue is null if this bot is the imposter) and plays it.
+ * @returns {Promise<void>} resolves when played or when it failed (logged)
+ * Side effects: socket event playCard and logging.
+ */
 async function playCard() {
   const cardId = decide('playCard', state.me.hand, { word: state.word, hand: state.me.hand });
   const result = await call('playCard', { cardId });
   log(result.ok ? `played card ${cardId}` : `could not play a card: ${result.error}`);
 }
 
+/**
+ * Lets the AI choose whom to accuse (or, in the favourite style, which card to pick) and casts the vote.
+ * The bot remembers the round in which it could not see the word, so the AI knows when it was the imposter.
+ * @returns {Promise<void>} resolves when voted or when it failed (logged)
+ * Side effects: socket event vote and logging.
+ */
 async function castVote() {
   const targetId = decide('vote', state.voteTargets, {
     word: state.word,

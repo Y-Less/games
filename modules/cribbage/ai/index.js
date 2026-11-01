@@ -1,4 +1,5 @@
 // The cribbage computer players. `standard` is first: it is the fallback for rooms saved before AIs existed.
+// Depends on shared/ai.js and each AI file in this folder.
 import { defineAIs } from '../../../shared/ai.js';
 import { balanced } from './balanced.js';
 import { greedy } from './greedy.js';

@@ -8,8 +8,15 @@ import { JACK, bySuit, passSize } from './util.js';
 import standard, { passStandard } from './standard.js';
 import { lookAhead } from './sharp.js';
 
+// Tuning: the Jack is really -5, but valuing it at 16 in the look-ahead makes the AI chase it over a few hearts.
 const HUNGER = 16; // what the Jack is worth to this AI when choosing a card
 
+/**
+ * Passes like the standard AI, but keeps diamonds when the Jack of Diamonds option is on so there is something to hunt with.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings and passCount.
+ * @returns {string[]} the cards to pass.
+ * Side effects: none.
+ */
 function passJack(ctx) {
   if (!ctx.settings.jackOfDiamonds) return passStandard(ctx);
   // Pass like the standard AI but never give away diamonds worth hunting with.
@@ -22,6 +29,12 @@ function passJack(ctx) {
   return [...keep, ...rest, ...filler].slice(0, passSize(ctx));
 }
 
+/**
+ * Plays by look-ahead with an inflated Jack value while the Jack is still out and a diamond is legal; otherwise standard.
+ * @param {object} ctx  AI context (see index.js); uses legal, settings and taken.
+ * @returns {string} one card from ctx.legal.
+ * Side effects: none.
+ */
 function playJack(ctx) {
   const { legal, settings, taken } = ctx;
   if (!settings.jackOfDiamonds || legal.length === 1) return standard.choosePlay(ctx);
@@ -36,6 +49,7 @@ export default {
   name: 'Jack hunter',
   description: 'Hunts the Jack of Diamonds when that option is on (otherwise plays like Standard): keeps and leads diamonds to catch it.',
   weight: 1,
+  // Moon bidding is not specialised: defer to the standard AI.
   bidsMoon: (ctx) => standard.bidsMoon(ctx),
   choosePass: passJack,
   choosePlay: playJack,

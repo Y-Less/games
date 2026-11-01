@@ -12,6 +12,7 @@ import * as game from './game.js';
  * Reads the Cheat timings from the environment.
  *
  * @returns {{ bot: { min: number, max: number } }} the range of milliseconds a computer player waits before acting
+ * Side effects: none (reads process.env).
  */
 function readDelays() {
   return { bot: readDelayRange('CHEAT_BOT_DELAY', '900-1800') };
@@ -25,6 +26,7 @@ function readDelays() {
  * @param {{ min: number, max: number }} range  the computer-player range from readDelays
  * @param {() => number} rng  the server's random numbers
  * @returns {number} milliseconds
+ * Side effects: advances the rng.
  */
 function decideWait({ min, max }, rng) {
   const low = min * 0.6;
@@ -37,7 +39,7 @@ function decideWait({ min, max }, rng) {
  * Side effects: everything createRoomServer does (reads saved rooms, registers the connection handler, sets timers).
  *
  * @param {object} ctx  the module context from the site (io, dataDir, log, codes, stats, achievements...)
- * @returns {{ dispose: () => void }}
+ * @returns {{ dispose: () => void }} the handle the site calls to stop the server half
  */
 export default function (ctx) {
   const delays = readDelays();
@@ -64,7 +66,8 @@ export default function (ctx) {
  * Keeps only the settings a client may send (the number of seats), whatever else it sends.
  *
  * @param {object | undefined} payload  the client's message
- * @returns {{ seats?: number }}
+ * @returns {{ seats?: number }} the permitted settings
+ * Side effects: none.
  */
 function pickSettings(payload) {
   return pickKeys(payload, ['seats']);

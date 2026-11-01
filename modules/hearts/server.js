@@ -15,6 +15,8 @@ import * as game from './game.js';
  *
  * @returns {{ bot: { min: number, max: number }, trick: number, nextWait: number }} computer-player range, trick pause and
  *   between-hands wait, all in milliseconds
+ *
+ * Side effects: none (reads process.env).
  */
 function readDelays() {
   return {
@@ -29,13 +31,21 @@ function readDelays() {
  *
  * @param {object} ctx  the module context from the site
  * @returns {{ dispose: () => void }}
+ *
+ * Side effects: creates the room server, which registers socket events and schedules timers on the context.
  */
 export default function (ctx) {
   const delays = readDelays();
   return createRoomServer(ctx, {
     game,
     pickSettings,
-    /** A computer move, the end of a trick, or the wait for the score pop-up: whichever the room is in now. */
+    /**
+     * A computer move, the end of a trick, or the wait for the score pop-up: whichever the room is in now.
+     * @param {object} room  the room.
+     * @param {() => number} rng  random source.
+     * @returns {{wait: number, run: () => void, key?: string}|null} what to schedule, or null when nothing is pending.
+     * Side effects: none itself; the returned run() mutates the room.
+     */
     nextAction(room, rng) {
       const action = game.pendingAction(room);
       if (action) {
@@ -45,6 +55,12 @@ export default function (ctx) {
       if (game.waitingForReady(room)) return { key: `next:${room.handNumber}`, wait: delays.nextWait, run: () => game.forceNextHand(room, rng) };
       return null;
     },
+    /**
+     * Registers Hearts' socket events: pass, play, claim, next.
+     * @param {object} helpers  act (run a room action as this player), on (subscribe), userId, rng.
+     * @returns {void}
+     * Side effects: subscribes handlers; each event mutates the room and records achievements for the player.
+     */
     registerEvents({ act, on, userId, rng }) {
       on('pass', ({ cards }) => act((room, seat) => game.choosePass(room, seat, cards)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
@@ -59,7 +75,12 @@ export default function (ctx) {
   });
 }
 
-/** Only the settings (the three options and the number of seats), whatever else a client sends. */
+/**
+ * Only the settings (the three options and the number of seats), whatever else a client sends.
+ * @param {object} payload  settings from the client.
+ * @returns {object} the whitelisted keys (target, jackOfDiamonds, moon, seats).
+ * Side effects: none.
+ */
 function pickSettings(payload) {
   return pickKeys(payload, ['target', 'jackOfDiamonds', 'moon', 'seats']);
 }

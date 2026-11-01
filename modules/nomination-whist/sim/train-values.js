@@ -4,6 +4,9 @@
 // make that the new table, and measure it. Run from the platform folder:
 //   node modules/nomination-whist/sim/train-values.js --players 3-7 --deals 100_000_000 --iterations 2
 // Writes models/bidding-values.json (or bidding-values-jokers.json with --jokers) after every iteration.
+// Depends on: value-collect.js (the worker that plays the deals, and the layout of its counts), value-features.js (the cells)
+// and value-model.js (the saved table), plus tourney.js (run in a child process to measure the result). A top-level
+// script: importing it starts training.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -44,6 +47,7 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
+/** Parses a command-line number, allowing underscores (100_000_000). Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
@@ -54,7 +58,13 @@ const jokers = opts.jokers;
 const minN = num(opts['min-n']);
 const outFile = fileURLToPath(VALUE_FILES[jokers]);
 
-/** Plays the deals in worker threads, with a status bar, and returns the summed counts. */
+/**
+ * Plays the deals in worker threads, with a status bar, and returns the summed counts.
+ * @param {object | null} model  the bid-value table the non-exploring seats nominate from (null means the table-aware lookup, lutc)
+ * @param {number} iteration  0-based iteration number, which varies the seeds between iterations
+ * @returns {Promise<Float64Array>} the counts (indexed as value-collect.js's indexOf), added over all chunks
+ * Side effects: starts and terminates worker threads and writes a progress bar to stderr.
+ */
 async function collect(model, iteration) {
   const sums = new Float64Array(TOTAL);
   const chunk = num(opts.chunk);
@@ -66,6 +76,7 @@ async function collect(model, iteration) {
   const base = { model, seed: num(opts.seed) + iteration * 1000003, size: chunk, players, jokers };
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./value-collect.js', import.meta.url)), { workerData: base }));
   await new Promise((resolve) => {
+    /** Gives `worker` the next chunk number, if any are left. Side effects: posts a message. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
       worker.on('message', ({ counts }) => {
@@ -93,7 +104,15 @@ async function collect(model, iteration) {
   return sums;
 }
 
-/** Turns the counts into the table. */
+/**
+ * Turns the counts into the table: for each situation and each nomination, the chance of hitting it and the tricks taken on a miss.
+ * A rare situation borrows from its neighbours: the window over neighbouring hand estimates and unclaimed counts widens
+ * until it holds `--min-n` tries. Exactly-described hands (one or two cards) are never blurred together (width 0), since
+ * neighbouring keys there are unrelated cards, but the unclaimed count may still be widened.
+ * @param {Float64Array} sums  the summed counts from collect
+ * @returns {{ model: object, rows: number, entries: number }} the table, how many situations it has and how many valued nominations
+ * Side effects: none.
+ */
 function learn(sums) {
   const model = { kind: 'bidding-values', version: 1, trainedOn: { players, jokers, minN, savedAt: new Date().toISOString() }, players: {} };
   let rows = 0;
@@ -108,6 +127,7 @@ function learn(sums) {
         const base = OFFSETS[cards];
         const width = cards <= 2 ? 0 : 5; // exact hands are not blurred together; estimates of neighbouring hands are
         const uWidth = 3;
+        /** The index into `sums` of one count (mirrors value-collect.js's indexOf, with `count` and `regime` fixed by the loops). Pure. */
         const at = (key, u, a, bid, taken) => base + (((((count - 3) * REGIMES + regime) * K + key) * U + u) * AFTER_VALUES + a) * (cards + 1) * (cards + 1) + bid * (cards + 1) + taken;
         /** [tries, hits, tricks taken on a miss] for a nomination, over a window of neighbouring cells that grows until it holds minN tries. */
         const stat = (key, u, a, bid) => {
@@ -165,7 +185,12 @@ function learn(sums) {
   return { model, rows, entries };
 }
 
-/** Plays the table against lutc in child processes, at every player count, and prints the scores. */
+/**
+ * Plays the table against lutc in child processes, at every player count, and prints the scores.
+ * Seats alternate between the two, so neither benefits from position. Skipped when `--eval-games` is 0.
+ * @returns {void}
+ * Side effects: reloads the saved table, runs tourney.js child processes and logs one line; throws if one fails.
+ */
 function evaluate() {
   const games = num(opts['eval-games']);
   if (!games) return;
@@ -182,6 +207,7 @@ function evaluate() {
   console.log(`  lutv v lutc (mean score): ${rows.join(' | ')}`);
 }
 
+// Main loop: collect with the current table (plus one random explorer per deal), learn a new table, save it and measure it.
 let model = opts.fresh ? null : valueModel(jokers, true);
 console.log(`${players.join(',')} players${jokers ? ', with Jokers' : ''}, ${num(opts.iterations)} iterations of ${num(opts.deals).toLocaleString('en-GB')} deals, starting from ${model ? 'the saved table' : 'the table-aware lookup'}`);
 for (let iteration = 0; iteration < num(opts.iterations); iteration++) {

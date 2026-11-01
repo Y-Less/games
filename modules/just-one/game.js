@@ -4,6 +4,10 @@
 // A turn: one player, the guesser, does not see the secret word. Everybody else sees it and secretly writes a one-word clue.
 // Clues that match are cancelled. The guesser sees the clues that are left and makes one guess. If it is right they pick
 // the best hint from them, and only the guesser and the writer of that hint score.
+//
+// Depends on: shared/scores.js (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer
+// player choice), shared/seats.js (result helpers), shared/roster.js (lobby and player-list rules), ./ai/index.js (the
+// computer players), ./tally.js (per-player counters) and ./words.js (the word list and clue matching).
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI } from '../../shared/ai.js';
@@ -13,16 +17,22 @@ import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
 
+// Table size limits (three are needed for a useful game of clues; seven is the most the screen shows comfortably).
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 7;
+// How many turns as the guesser each player gets: bounds and default for the host's setting.
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
+// The longest clue and guess accepted, in characters (keeps the table readable and stops pasted essays).
 export const CLUE_LENGTH = 24;
 export const GUESS_LENGTH = 40;
+// Points per turn: the guesser for a right guess, and the writer of the hint they pick as best.
 export const POINTS = { guesser: 2, bestHint: 1 };
 
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus'];
+// Phases in which the game is still going.
 const LIVE = ['lobby', 'clues', 'guessing', 'choosing', 'reveal'];
+// Phases of a turn in which people are acting (as opposed to the lobby or the reveal).
 const PLAYING = ['clues', 'guessing', 'choosing'];
 
 // The player-list vocabulary (who is in the room, and who is a person) is shared with Wavelength and Tints and Hints.
@@ -33,13 +43,31 @@ export { hasPlayer, humans, isHuman, seatOf };
  *
  * @param {object} room
  * @returns {boolean} false once it has finished or been abandoned
+ * Side effects: none.
  */
 export const isLive = (room) => LIVE.includes(room.phase);
-/** The player with this id, or undefined. */
+/**
+ * The player with this id, or undefined.
+ * @param {object} room  the room
+ * @param {number | string} id  a player id
+ * @returns {object | undefined} the player
+ * Side effects: none.
+ */
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
-/** A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names). */
+/**
+ * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
+ * @param {object} room  the room
+ * @param {(id: number | string) => string} nameOf  fallback lookup
+ * @returns {(id: number | string) => string} the name lookup
+ * Side effects: none.
+ */
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
-/** Everybody but the guesser. */
+/**
+ * Everybody but the guesser: the people who write clues this turn.
+ * @param {object} room  the room
+ * @returns {object[]} the writers
+ * Side effects: none.
+ */
 const writers = (room) => room.players.filter((p) => p.id !== room.guesser);
 
 /**
@@ -48,9 +76,23 @@ const writers = (room) => room.players.filter((p) => p.id !== room.guesser);
  * @param {object} room   unused here (Wavelength needs it to pick a free colour); part of the shared makePlayer contract
  * @param {object} base   { kind: 'human' | 'bot', id, name? }
  * @returns {object} the player
+ * Side effects: none.
  */
 const makePlayer = (room, base) => ({ ...base, score: 0, ...newCounters() });
+/**
+ * The clue a writer has sent this turn.
+ * @param {object} room  the room
+ * @param {number | string} id  the writer's id
+ * @returns {{ id: *, text: string } | undefined} their clue, or undefined if they have not sent one
+ * Side effects: none.
+ */
 const clueOf = (room, id) => room.clues.find((c) => c.id === id);
+/**
+ * Have all the writers (everyone but the guesser) sent a clue?
+ * @param {object} room  the room
+ * @returns {boolean} true once the clues are all in
+ * Side effects: none.
+ */
 const allWritten = (room) => writers(room).every((p) => clueOf(room, p.id));
 
 /**
@@ -64,6 +106,7 @@ const allWritten = (room) => writers(room).every((p) => clueOf(room, p.id));
  * @param {number} [args.turnsEach] turns each (default 2); `settings.turnsEach` wins if both are given
  * @param {number} args.now       the time to stamp it with
  * @returns {object} the room, in the lobby
+ * Side effects: none outside the new room (an invalid setting is silently left at its default).
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default }) {
   const room = {
@@ -99,6 +142,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 /**
  * The lobby, joining, leaving and computer-player rules, from shared/roster.js. In Just One somebody who leaves mid-game is
  * not replaced: the game carries on with one fewer (see afterRemoval).
+ * Side effects: each rule it provides mutates the room's player list.
  */
 const roster = createRosterRules({
   isLive,
@@ -117,6 +161,7 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * @param {number} id        who is asking (must be the host)
  * @param {object} settings  { turnsEach? }
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: may change room.turnsEach (via setTurnsEach).
  */
 export function setSettings(room, id, settings = {}) {
   if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
@@ -127,6 +172,7 @@ export function setSettings(room, id, settings = {}) {
  * Just One has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
  *
  * @returns {{ ok: false, error: string }}
+ * Side effects: none.
  */
 export function playAgain() {
   return fail('Start a new game from the menu.');
@@ -139,6 +185,7 @@ export function playAgain() {
  * @param {number} id          who is asking (must be the host)
  * @param {number} turnsEach   a whole number from TURNS_EACH.min to TURNS_EACH.max
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: sets room.turnsEach on success.
  */
 export function setTurnsEach(room, id, turnsEach) {
   if (id !== room.hostId) return fail('Only the host can change the settings.');
@@ -150,6 +197,14 @@ export function setTurnsEach(room, id, turnsEach) {
   return ok();
 }
 
+/**
+ * Sets the room up for the next turn: the next player in order guesses, a word not yet used this game is drawn (the used list
+ * is cleared if every word has been played), and the previous turn's clues and result are wiped.
+ * @param {object} room  the room (mutated)
+ * @param {() => number} rng  random source for the word
+ * @returns {void}
+ * Side effects: sets guesser, nextIdx, used, word, clues, cancelled, order, guess, best, result, ready and phase ('clues').
+ */
 function startTurn(room, rng) {
   room.guesser = room.players[room.nextIdx].id;
   room.nextIdx = (room.nextIdx + 1) % room.players.length;
@@ -182,6 +237,7 @@ function startTurn(room, rng) {
  * @param {number} id            who is asking (must be the host)
  * @param {() => number} rng
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects (restated): also sets turnsTotal, turn, used, and each computer player's `ai`.
  */
 export function start(room, id, rng) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
@@ -199,7 +255,15 @@ export function start(room, id, rng) {
   return ok();
 }
 
-/** Why a clue is not allowed for this word, or null. */
+/**
+ * Why a clue is not allowed for this word, or null. A clue must be a single word (letters, digits, apostrophes and hyphens),
+ * and may not be the secret word or contain it or be contained in it (compared by normal(), so plurals count as the same).
+ * The containment test only applies from three letters up so that short clues such as "a" or "it" are not wrongly refused.
+ * @param {string} text  the trimmed clue
+ * @param {string} word  the secret word
+ * @returns {string | null} the reason to show, or null if the clue is allowed
+ * Side effects: none.
+ */
 export function clueProblem(text, word) {
   if (!/^[\p{L}\p{N}][\p{L}\p{N}'’-]*$/u.test(text)) return 'A clue is one word.';
   const clue = normal(text);
@@ -208,7 +272,15 @@ export function clueProblem(text, word) {
   return null;
 }
 
-/** The writer's clue: one word. Once everybody has written theirs, matching clues are cancelled and the guessing begins. */
+/**
+ * The writer's clue: one word. Once everybody has written theirs, matching clues are cancelled and the guessing begins.
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  the writer
+ * @param {string} text  the clue as typed
+ * @param {() => number} rng  random source (for the order the guesser sees the clues in)
+ * @returns {{ ok: boolean, error?: string }} the result
+ * Side effects: adds to room.clues; when the last clue arrives, runs openGuessing (cancelled, order, phase).
+ */
 export function submitClue(room, id, text, rng) {
   if (room.phase !== 'clues') return fail('The clues are in.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
@@ -224,7 +296,14 @@ export function submitClue(room, id, text, rng) {
   return ok();
 }
 
-/** Cancels the clues that match each other and shows the rest to the guesser, in a shuffled order. */
+/**
+ * Cancels the clues that match each other and shows the rest to the guesser, in a shuffled order (so that the order does not
+ * reveal who wrote what). Every clue in a matching group is cancelled, including the first, which is the Just One rule.
+ * @param {object} room  the room (mutated)
+ * @param {() => number} rng  random source for the shuffle (Fisher-Yates)
+ * @returns {void}
+ * Side effects: sets room.cancelled, room.order and room.phase ('guessing').
+ */
 function openGuessing(room, rng) {
   const count = new Map();
   for (const c of room.clues) count.set(normal(c.text), (count.get(normal(c.text)) ?? 0) + 1);
@@ -238,9 +317,24 @@ function openGuessing(room, rng) {
   room.phase = 'guessing';
 }
 
+/**
+ * Do two texts count as the same word (ignoring case, punctuation and a plural s)?
+ * @param {string} a  one text
+ * @param {string} b  the other
+ * @returns {boolean} true if normal() makes them equal
+ * Side effects: none.
+ */
 const sameWord = (a, b) => normal(a) === normal(b);
 
-/** The guesser's one guess. If it is right and any clues are left they go on to pick the best hint. */
+/**
+ * The guesser's one guess. If it is right and any clues are left they go on to pick the best hint.
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is guessing (must be the guesser)
+ * @param {string} text  the guess as typed (whitespace collapsed, cut to GUESS_LENGTH)
+ * @param {(id: *) => string} [nameOf]  name lookup for the history label
+ * @returns {{ ok: boolean, error?: string }} the result
+ * Side effects: sets room.guess; moves to 'choosing', or scores the turn (see scoreTurn) and opens the reveal.
+ */
 export function guess(room, id, text, nameOf = String) {
   if (room.phase !== 'guessing') return fail('It is not time to guess.');
   if (id !== room.guesser) return fail('Only the guesser guesses.');
@@ -253,7 +347,14 @@ export function guess(room, id, text, nameOf = String) {
   return ok();
 }
 
-/** The guesser gives up on this word: nobody scores. */
+/**
+ * The guesser gives up on this word: nobody scores.
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is passing (must be the guesser)
+ * @param {(id: *) => string} [nameOf]  name lookup for the history label
+ * @returns {{ ok: boolean, error?: string }} the result
+ * Side effects: sets room.guess as passed and scores the turn (history entry, reveal phase).
+ */
 export function pass(room, id, nameOf = String) {
   if (room.phase !== 'guessing') return fail('It is not time to guess.');
   if (id !== room.guesser) return fail('Only the guesser can pass.');
@@ -262,7 +363,15 @@ export function pass(room, id, nameOf = String) {
   return ok();
 }
 
-/** After a right guess, the guesser picks the best of the clues they saw (`n` is its place in their list, from 0). */
+/**
+ * After a right guess, the guesser picks the best of the clues they saw (`n` is its place in their list, from 0).
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is choosing (must be the guesser)
+ * @param {number} n  index into room.order
+ * @param {(id: *) => string} [nameOf]  name lookup for the history label
+ * @returns {{ ok: boolean, error?: string }} the result
+ * Side effects: sets room.best and scores the turn (scores, counters, history, reveal phase).
+ */
 export function chooseBest(room, id, n, nameOf = String) {
   if (room.phase !== 'choosing') return fail('There is no best hint to pick yet.');
   if (id !== room.guesser) return fail('Only the guesser picks the best hint.');
@@ -272,7 +381,14 @@ export function chooseBest(room, id, n, nameOf = String) {
   return ok();
 }
 
-/** Scores the turn and opens the reveal. */
+/**
+ * Scores the turn and opens the reveal: two points to the guesser for a right guess and one to the writer of the best hint.
+ * A guesser or best-hint writer who has left simply scores nothing (the lookups return undefined).
+ * @param {object} room  the room (mutated)
+ * @param {(id: *) => string} [nameOf]  name lookup for the history label
+ * @returns {void}
+ * Side effects: changes scores, bumps statistics counters (tallyTurn), sets room.result, pushes room.history, clears ready and sets phase 'reveal'.
+ */
 function scoreTurn(room, nameOf = String) {
   const guesser = playerOf(room, room.guesser);
   const best = room.best === null ? null : playerOf(room, room.best);
@@ -316,6 +432,7 @@ function scoreTurn(room, nameOf = String) {
  * @param {object} room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
  * @returns {object} the same room
+ * Side effects: mutates the room (as described above).
  */
 export function migrate(room, nameOf) {
   migratePlayers(room, nameOf);
@@ -326,6 +443,13 @@ export function migrate(room, nameOf) {
   return room;
 }
 
+/**
+ * Ends the reveal: counts the turn and either finishes the game or starts the next turn.
+ * @param {object} room  the room (mutated)
+ * @param {() => number} rng  random source for the next word
+ * @returns {boolean} true if that was the last turn and the game is now finished
+ * Side effects: increments room.turn, clears ready, and sets phase 'finished' or sets up the next turn (startTurn).
+ */
 function finishTurn(room, rng) {
   room.turn++;
   room.ready = [];
@@ -337,10 +461,22 @@ function finishTurn(room, rng) {
   return false;
 }
 
-/** The people who have yet to close the scores at the reveal. */
+/**
+ * The people who have yet to close the scores at the reveal (computer players never need to).
+ * @param {object} room  the room
+ * @returns {object[]} the humans not in room.ready
+ * Side effects: none.
+ */
 const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
 
-/** At the reveal, a person has closed the scores pop-up and is ready for the next turn. */
+/**
+ * At the reveal, a person has closed the scores pop-up and is ready for the next turn; when everybody has, the turn ends.
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is ready
+ * @param {() => number} rng  random source for the next word
+ * @returns {{ ok: boolean, error?: string, finished?: boolean }} finished is true if the game is over
+ * Side effects: adds to room.ready, and may move on to the next turn or finish the game (finishTurn).
+ */
 export function ready(room, id, rng) {
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
   if (room.phase !== 'reveal') return fail('There are no scores to close.');
@@ -348,13 +484,24 @@ export function ready(room, id, rng) {
   return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
 }
 
-/** Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait). */
+/**
+ * Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait).
+ * @param {object} room  the room (mutated)
+ * @param {() => number} rng  random source for the next word
+ * @returns {{ ok: boolean, error?: string, finished?: boolean }} finished is true if the game is over
+ * Side effects: as finishTurn.
+ */
 export function forceNext(room, rng) {
   if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
   return ok({ finished: finishTurn(room, rng) });
 }
 
-/** True while the reveal waits for people to close the scores (the server times this out). */
+/**
+ * True while the reveal waits for people to close the scores (the server times this out).
+ * @param {object} room  the room
+ * @returns {boolean} whether the room is at the reveal
+ * Side effects: none.
+ */
 export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
@@ -370,6 +517,7 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @param {number} index        where they were in the player list
  * @param {() => number} rng
  * @returns {{ abandoned: boolean, finished: boolean }}
+ * (Side effects as above.)
  */
 function afterRemoval(room, id, index, rng) {
   const wasGuesser = room.guesser === id && PLAYING.includes(room.phase);
@@ -399,6 +547,7 @@ function afterRemoval(room, id, index, rng) {
  *
  * @param {object} room  not changed
  * @returns {object[]} copies of the players with `placement` and `winner`
+ * Side effects: none.
  */
 export function standings(room) {
   return standingsOf(room.players);
@@ -409,6 +558,7 @@ export function standings(room) {
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   return statsRows(standings(room), (p) => ({
@@ -427,7 +577,8 @@ export function statsPlayers(room) {
  * @param {object} room  not changed
  * @param {number} userId  the viewer
  * @param {(id: number) => string} nameOf  a player's name
- * @returns {object[]}
+ * @returns {object[]} the clue entries to show that viewer
+ * Side effects: none.
  */
 function cluesView(room, userId, nameOf) {
   const member = hasPlayer(room, userId);
@@ -449,7 +600,8 @@ function cluesView(room, userId, nameOf) {
  *
  * @param {object} room  not changed
  * @param {(id: number) => string} nameOf  a player's name
- * @returns {object | null}
+ * @returns {object | null} the result, or null before the reveal
+ * Side effects: none.
  */
 function resultView(room, nameOf) {
   const revealed = ['reveal', 'finished'].includes(room.phase);
@@ -463,7 +615,8 @@ function resultView(room, nameOf) {
  * @param {object} room  not changed
  * @param {object} p  the player
  * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean, final: Map<number, object> }} context
- * @returns {object}
+ * @returns {object} the player entry for the view
+ * Side effects: none.
  */
 function playerView(room, p, { nameOf, online, final }) {
   return {
@@ -487,7 +640,8 @@ function playerView(room, p, { nameOf, online, final }) {
  * @param {object} room  not changed
  * @param {number} userId  the viewer
  * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean }} context
- * @returns {object}
+ * @returns {object} the scoreboard for the view
+ * Side effects: none.
  */
 function scoreboardView(room, userId, { nameOf, online }) {
   const playing = PLAYING.includes(room.phase);
@@ -508,6 +662,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
  * @param {number} userId  the account looking
  * @param {{ nameOf?: (id: number) => string, online?: (id: number) => boolean }} [options]  names for players who have left, and who is connected
  * @returns {object} the view sent to that person
+ * Side effects: none.
  */
 export function viewFor(room, userId, { nameOf = String, online = () => true } = {}) {
   nameOf = namer(room, nameOf);
@@ -540,6 +695,9 @@ export function viewFor(room, userId, { nameOf = String, online = () => true } =
 /**
  * The next thing a computer player has to do, or null: { type: 'clue' | 'guess' | 'best', id }. Computer players never move on
  * from the reveal: that is up to the people (or the server's timeout).
+ * @param {object} room  the room (not changed)
+ * @returns {{ type: 'clue' | 'guess' | 'best', id: number | string } | null} the action, or null if no computer player is waiting
+ * Side effects: none.
  */
 export function pendingBotAction(room) {
   if (room.phase === 'clues') {
@@ -556,12 +714,19 @@ export function pendingBotAction(room) {
 /**
  * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser never sees
  * the word. An AI that throws or answers with something illegal is replaced by a legal choice.
+ * @param {object} room  the room (mutated by the move played)
+ * @param {() => number} rng  random source handed to the AI
+ * @param {object | null} [action]  the move to play (default: pendingBotAction)
+ * @param {(id: *) => string} [nameOf]  name lookup for history labels
+ * @returns {boolean} true if a move was played successfully
+ * Side effects: plays the move (submitClue, guess/pass or chooseBest) and so changes the room as they do.
  */
 export function runBotAction(room, rng, action = pendingBotAction(room), nameOf = String) {
   if (!action) return false;
   const player = playerOf(room, action.id);
   const ai = aiById(AIS, player.ai);
   const view = viewFor(room, action.id, { nameOf });
+  // Runs an AI decision, turning a throw into undefined so that the fallbacks below take over.
   const attempt = (decide) => {
     try {
       return decide();

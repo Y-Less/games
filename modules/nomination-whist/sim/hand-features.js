@@ -20,7 +20,10 @@ export const INPUTS = 61;
 
 /**
  * The features of a decision. `ctx` is what an AI is given when it nominates (hand, trump, players, nominations).
+ * @param {{ hand: string[], trump?: string|null, players: number, nominations?: (number|null)[] }} ctx  the nominate context
  * @param {Float32Array} [out] reused between calls to save allocating
+ * @returns {Float32Array} `out`, filled with the INPUTS features (scaled to roughly 0 to 1)
+ * Side effects: overwrites `out` (zeroed first); nothing else.
  */
 export function handFeatures(ctx, out = new Float32Array(INPUTS)) {
   out.fill(0);
@@ -68,6 +71,7 @@ export function handFeatures(ctx, out = new Float32Array(INPUTS)) {
     if (ranks.length === 1) singles++;
     if (ranks.length === 2) doubles++;
     longest = Math.max(longest, ranks.length);
+    // Guarded kings (with company) are told apart from bare ones, which are easier to lose to the ace; queens count only with company and a king or ace.
     const has = (rank) => ranks.includes(rank);
     if (has(13)) {
       if (ranks.length >= 2) guardedKings++;
@@ -86,6 +90,7 @@ export function handFeatures(ctx, out = new Float32Array(INPUTS)) {
   out[37] = aceKings / n;
   out[38] = backedQueens / n;
 
+  // One-hot players, cards and position; the claimed/unclaimed figures tell the model how crowded the bidding already is.
   out[39 + Math.min(4, Math.max(0, players - 3))] = 1;
   out[44 + Math.min(6, Math.max(0, cards - 1))] = 1;
   let claimed = 0;

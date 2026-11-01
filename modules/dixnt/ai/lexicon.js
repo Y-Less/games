@@ -14,11 +14,20 @@ export const THEMES = {
   food: ['food', 'feast', 'bread', 'cake', 'bak', 'kitchen', 'cook', 'hunger', 'thirst', 'craving', 'spicy', 'sweet', 'sour', 'salt', 'sugar', 'fruit', 'apple', 'summer', 'harvest', 'market', 'abundance', 'plenty', 'lavish', 'table', 'dinner', 'supper', 'breakfast', 'tea', 'wine', 'fireside', 'hearth', 'gathering', 'family', 'gratitude', 'comfort', 'warm', 'tender', 'recipe', 'taste'],
 };
 
+/** Splits text into lowercase alphabetic words of three or more letters (shorter ones carry no theme). */
 const tokens = (text) => String(text ?? '').toLowerCase().split(/[^a-z]+/).filter((t) => t.length >= 3);
 
+/** Filler words ignored when mining a category description for stems. */
 const STOP = new Set(['and', 'the', 'for', 'with', 'new', 'that', 'this', 'from', 'into', 'our']);
 
-/** How many of the stems match the clue (a stem with a space must appear in the phrase; others match word starts). */
+/**
+ * How many of the stems match the clue (a stem with a space must appear in the phrase; others match word starts).
+ * A clue word also matches when it is a prefix of a longer stem (>= 4 letters), so a clipped word still counts.
+ * @param {string} word  the clue
+ * @param {string[]} stems  lowercase stems to look for
+ * @returns {number} how many stems matched (0 or more)
+ * Side effects: none.
+ */
 function matches(word, stems) {
   const text = String(word ?? '').toLowerCase();
   const words = tokens(text);
@@ -35,6 +44,9 @@ function matches(word, stems) {
  * How well a clue suits each category: { [categoryKey]: score >= 0 }.
  * @param {string} word the clue
  * @param {{ [key: string]: { label?: string, description?: string } }} categories from the card info
+ * @returns {{ [key: string]: number }} score per category key: hits in the hand-written theme list plus hits in the
+ *   category's own label and description (long non-filler words only, so unlisted categories still score)
+ * Side effects: none.
  */
 export function themeScores(word, categories) {
   const out = {};

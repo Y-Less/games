@@ -8,9 +8,16 @@ import { AIS } from '../ai/index.js';
 import { lut, lutc, lutv, lutvTable } from '../ai/lut.js';
 import { sharp } from '../ai/sharp.js';
 
+/**
+ * Pairs a learned bidder with Sharp's card play, so bidding tables can be compared when the play is as good as it gets.
+ * @param {object} ai  an AI with `id`, `name` and `nominate`
+ * @returns {object} a copy whose `id` ends in `-sharp` and whose `play` is Sharp's
+ * Side effects: none.
+ */
 const withSharpPlay = (ai) => ({ ...ai, id: `${ai.id}-sharp`, name: `${ai.name} + Sharp play`, play: sharp.play });
 
 /** `lutc` held to the table for games without Jokers even in a Jokers game: the baseline for the table learned for them. */
+// (The `nominate` override below forces `jokers: false` so lutc reads its no-Jokers table whatever the game says.)
 const lutcPlain = { ...lutc, id: 'lutc-plain', name: 'Lookup (table-aware, no-Jokers table)', nominate: (ctx) => lutc.nominate({ ...ctx, jokers: false }) };
 
 export const SIM_AIS = defineAIs([...AIS, lut, lutc, lutcPlain, lutvTable, withSharpPlay(lut), withSharpPlay(lutc), withSharpPlay(lutv)]);

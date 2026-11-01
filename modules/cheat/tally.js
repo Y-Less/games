@@ -1,11 +1,16 @@
 // What Cheat counts about each player for the statistics and achievements (see module.json "stats"). The game calls these as
-// plays and calls are made; nothing here changes the game.
+// plays and calls are made; nothing here changes the game. Depends on shared/cards.js and shared/tally.js.
 import { RANKS, SUITS } from '../../shared/cards.js';
 import { bump, freshTally } from '../../shared/tally.js';
 
 /** Every counter kept for a player. */
 export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect', 'liesGotAway', 'badCalls', 'brazenLies', 'cleanGetaways', 'fullSuits'];
-/** A fresh set of counters, all zero, for one player. */
+/**
+ * A fresh set of counters, all zero, for one player.
+ *
+ * @returns {object} the counters, keyed by STAT_KEYS
+ * Side effects: none.
+ */
 export const newTally = () => freshTally(STAT_KEYS);
 
 /** The counters the table shows to everybody (the others are for the player's own statistics only). */
@@ -19,7 +24,8 @@ export const BRAZEN_COUNT = 4;
  * Side effects: mutates the tally.
  *
  * @param {object} tally  the player's counters
- * @param {{ count: number, lie: boolean }} play
+ * @param {{ count: number, lie: boolean }} play  how many cards were played and whether the claim was false
+ * @returns {void}
  */
 export function tallyPlay(tally, { count, lie }) {
   if (!lie) return;
@@ -34,6 +40,7 @@ export function tallyPlay(tally, { count, lie }) {
  * @param {object} callerTally  the caller's counters
  * @param {object} accusedTally  the accused player's counters
  * @param {boolean} lie  whether the play really was a lie
+ * @returns {void}
  */
 export function tallyCall(callerTally, accusedTally, lie) {
   bump(callerTally, 'callsMade');
@@ -48,6 +55,7 @@ export function tallyCall(callerTally, accusedTally, lie) {
  * Side effects: mutates the tally.
  *
  * @param {object} tally  the liar's counters
+ * @returns {void}
  */
 export const tallyLieStood = (tally) => bump(tally, 'liesGotAway');
 
@@ -56,10 +64,18 @@ export const tallyLieStood = (tally) => bump(tally, 'liesGotAway');
  * Side effects: mutates the tally.
  *
  * @param {object} tally  the winner's counters
+ * @returns {void}
  */
 export const tallyCleanGetaway = (tally) => bump(tally, 'cleanGetaways');
 
-/** Does this hand hold all thirteen ranks of a suit? */
+/**
+ * Does this hand hold all thirteen ranks of a suit?
+ *
+ * @param {string[]} hand  card codes (rank then suit)
+ * @param {string} suit  the suit letter
+ * @returns {boolean} true when every rank of the suit is held
+ * Side effects: none.
+ */
 const holdsSuit = (hand, suit) => RANKS.every((rank) => hand.includes(rank + suit));
 
 /**
@@ -69,6 +85,7 @@ const holdsSuit = (hand, suit) => RANKS.every((rank) => hand.includes(rank + sui
  * @param {object} tally  the player's counters
  * @param {string[]} before  the hand before
  * @param {string[]} after  the hand after
+ * @returns {void}
  */
 export function tallyHand(tally, before, after) {
   for (const suit of SUITS) if (holdsSuit(after, suit) && !holdsSuit(before, suit)) bump(tally, 'fullSuits');

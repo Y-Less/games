@@ -3,6 +3,8 @@
 // folder:  node modules/nomination-whist/sim/run.js --deals 5000000 --out sim-out/whist
 // See README.md for the options, what is counted and how to use it. Ctrl-C stops cleanly: the counts so far are saved
 // and `--resume` carries on from there.
+// Depends on: engine.js (seatAIs, POLICIES), export.js (checkpoints and CSVs), tables.js (Stats), worker.js (the job each
+// thread runs). This is a top-level script: importing it starts a run.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -61,12 +63,28 @@ if (opts.help) {
   process.exit(0);
 }
 
+/**
+ * Parses a command-line whole number (underscores allowed) and checks its lower bound.
+ * @param {string} text  the option value
+ * @param {string} name  the option name, for the error message
+ * @param {number} [min]  the smallest acceptable value
+ * @returns {number} the integer
+ * Side effects: none (throws on a bad value).
+ */
 const whole = (text, name, min = 1) => {
   const n = Number(String(text).replaceAll('_', ''));
   if (!Number.isInteger(n) || n < min) throw new Error(`--${name} must be a whole number of at least ${min}`);
   return n;
 };
-/** "3-7", "4" or "3,5,6" -> [3, 4, 5, 6, 7] and so on, within bounds. */
+/**
+ * "3-7", "4" or "3,5,6" -> [3, 4, 5, 6, 7] and so on, within bounds.
+ * @param {string} text  the option value (ranges and commas may be mixed)
+ * @param {string} name  the option name, for the error message
+ * @param {number} min  the smallest allowed value
+ * @param {number} max  the largest allowed value
+ * @returns {number[]} the distinct values, ascending
+ * Side effects: none (throws when a value is out of bounds).
+ */
 function listOf(text, name, min, max) {
   const out = new Set();
   for (const part of String(text).split(',')) {
@@ -77,6 +95,8 @@ function listOf(text, name, min, max) {
   return [...out].sort((a, b) => a - b);
 }
 
+// What identifies a run: --resume refuses to continue unless this matches the saved config exactly, because counts from
+// different settings must never be added together.
 const config = {
   players: listOf(opts.players, 'players', MIN_PLAYERS, MAX_PLAYERS),
   cards: listOf(opts.cards, 'cards', 1, MAX_CARDS),
@@ -120,8 +140,10 @@ console.log(
 );
 if (/sharp/.test(config.ai) || config.ai === 'mix') console.log('Note: "sharp" simulates inside every decision and is hundreds of times slower than the other AIs.');
 
+/** Saves the counts so far and the chunks done, so `--resume` can carry on (every fifth chunk, and at the end). Side effects: writes tables.bin and meta.json in the output folder. */
 const checkpoint = () => saveCounts(stats, { config, doneChunks: [...done].sort((a, b) => a - b), totalChunks: chunks }, outDir);
 let stopping = false;
+// First Ctrl-C lets running jobs finish and saves; a second one exits at once.
 process.on('SIGINT', () => {
   if (stopping) process.exit(1);
   stopping = true;
@@ -135,16 +157,19 @@ const startDeals = stats.deals;
 let sinceCsv = 0;
 let lastLine = 0;
 
+// A simple pool: each worker gets the next pending chunk as soon as it has returned the last one, so fast workers do more.
 await new Promise((resolve, reject) => {
   if (!pending.length) return resolve();
   let running = 0;
   const workers = [];
+  /** Ends the pool once the last worker has stopped asking for work. Side effects: terminates every worker and resolves the wait. */
   const finish = () => {
     if (running === 0) {
       for (const w of workers) w.terminate();
       resolve();
     }
   };
+  /** Gives `worker` the next pending chunk, or retires it when stopping or when nothing is left. Side effects: posts a message or decrements `running`. */
   const next = (worker) => {
     if (stopping || !pending.length) {
       running--;

@@ -1,6 +1,8 @@
 // The secret words of Just One, each with the clues people tend to give for it, strongest first. The computer players use
 // the lists: as a clue-giver one says a word from the list of the secret word, and as a guesser one looks for the word whose
-// lists the visible clues come from. A person may give any clue at all.
+// lists the visible clues come from. A person may give any clue at all. Depends on nothing.
+
+// Builds one entry from a word and its space-separated usual clues, strongest first.
 const w = (word, related) => ({ word, related: related.split(' ') });
 
 export const WORDS = [
@@ -121,12 +123,23 @@ export const WORDS = [
   w('snowman', 'carrot hat scarf winter coal build frosty cold'),
 ];
 
+// Lookup of entries by secret word.
 export const wordById = new Map(WORDS.map((entry) => [entry.word, entry]));
+/**
+ * The usual clues of a word, strongest first.
+ * @param {string} word  a secret word
+ * @returns {string[]} its clues, or an empty list for a word that is not in the list
+ * Side effects: none.
+ */
 export const relatedTo = (word) => wordById.get(word)?.related ?? [];
 
 /**
  * Two clues, or a clue and a word, are the same when this gives them the same text: lower case, letters and digits only, and
  * a plural "s" taken off, so that "Apple" and "apples" match and "ice cream" is the same as "icecream".
+ * Words of three letters or fewer keep a trailing s ("bus", "gas") since it is not a plural.
+ * @param {*} text  the clue or word (null and undefined count as empty)
+ * @returns {string} the comparison form
+ * Side effects: none.
  */
 export function normal(text) {
   const plain = String(text ?? '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');

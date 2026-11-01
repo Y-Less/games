@@ -3,6 +3,8 @@
 // play and how many seats), its own socket events (discard, play, ready), and what the server has to do by itself (a
 // computer player's move after a short think).
 //
+// Depends on shared/roomServer.js and ./game.js.
+//
 // Timing can be changed through the environment (the tests make it fast):
 //   CRIBBAGE_BOT_DELAY   "min-max" milliseconds a computer player thinks before acting (default 600-1400)
 import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
@@ -15,7 +17,7 @@ import * as game from './game.js';
  * and starts the shared server's timers; dispose() stops them.
  *
  * @param {object} ctx  the module context from the site
- * @returns {{ dispose: () => void }}
+ * @returns {{ dispose: () => void }} the handle the site calls to stop the server half
  */
 export default function (ctx) {
   const thinkTime = readDelayRange('CRIBBAGE_BOT_DELAY', '600-1400');
@@ -38,6 +40,7 @@ export default function (ctx) {
         },
       };
     },
+    /** Cribbage's own socket events: discard to the crib, play a card, and ready (to continue after a show). */
     registerEvents({ act, on, userId, rng }) {
       on('discard', ({ cards }) => act((room, seat) => game.discard(room, seat, cards, rng)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
@@ -50,7 +53,8 @@ export default function (ctx) {
  * Only the settings (how far to play and the number of seats), whatever else a client sends.
  *
  * @param {object} payload  what the client sent
- * @returns {{ target?: number, seats?: number }}
+ * @returns {{ target?: number, seats?: number }} the permitted settings
+ * Side effects: none.
  */
 function pickSettings(payload) {
   return pickKeys(payload, ['target', 'seats']);

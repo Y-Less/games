@@ -16,15 +16,17 @@ import { bestCard, followCards } from '../../shared/tricks.js';
  *
  * @param {string[]} cards  the cards played so far, in order
  * @returns {string | null} the suit led, or null if nothing has been led or a Joker was
+ * Side effects: none.
  */
 export const ledSuit = (cards) => (cards.length && !isJoker(cards[0]) ? suitOf(cards[0]) : null);
 
 /**
  * The cards that may be played to a trick: the suit led if the hand has any (a Joker cannot be played then), otherwise anything.
  *
- * @param {string[]} hand
+ * @param {string[]} hand  the player's cards
  * @param {string[]} trick  the cards played so far, in order
  * @returns {string[]} the legal cards
+ * Side effects: none.
  */
 export function legalCards(hand, trick) {
   const led = ledSuit(trick);
@@ -39,6 +41,7 @@ export function legalCards(hand, trick) {
  * @param {string[]} cards  in the order played; not empty
  * @param {string | null} trump  the trump suit, or null for none
  * @returns {string} the winning card
+ * Side effects: none.
  */
 export function winningCard(cards, trump) {
   const jokers = cards.filter(isJoker);

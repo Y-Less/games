@@ -6,6 +6,7 @@
 //     keyed on it came to advise nominating 0 with the queen of trumps. From three cards up the estimate is still used.
 //   - the trump suit does not matter, only whether the round has trumps (`regime`), so each cell gets four times the data.
 // Used by the collector, the trainer and the AI, so they cannot disagree.
+// Depends on: bids-features.js (the shared table-state cell) and shared/cards.js.
 import { isJoker, rankValue, suitOf } from '../../../shared/cards.js';
 import { cellOf } from './bids-features.js';
 
@@ -15,14 +16,38 @@ export const PLAYER_COUNTS = 5; // 3 to 7
 export const AFTER_VALUES = 7; // players still to nominate after you, 0 to 6
 export const MAX_CARDS = 7;
 
-/** A card as a small number: rank (0 to 12), plus 13 for a trump; 26 for a Joker. */
+/**
+ * A card as a small number: rank (0 to 12), plus 13 for a trump; 26 for a Joker.
+ * @param {string} card  the card
+ * @param {string|null} trump  the trump suit, or null for no trumps
+ * @returns {number} the descriptor, 0 to 26
+ * Side effects: none.
+ */
 export const descriptorOf = (card, trump) => (isJoker(card) ? 26 : rankValue(card) - 2 + (trump !== null && suitOf(card) === trump ? 13 : 0));
 
-/** How many different keys a hand of `cards` cards can have. */
+/**
+ * How many different keys a hand of `cards` cards can have.
+ * One card: its descriptor. Two cards: the ordered descriptor pair plus a same-suit flag. Three or more: Standard's estimate in quarters.
+ * @param {number} cards  cards in the hand
+ * @returns {number} the number of keys
+ * Side effects: none.
+ */
 export const keyBuckets = (cards) => (cards === 1 ? DESCRIPTORS : cards === 2 ? DESCRIPTORS * DESCRIPTORS * 2 : cards * 4 + 1);
+/**
+ * How many unclaimed-trick values there are: from 2 over-claimed to every trick unclaimed.
+ * @param {number} cards  cards in the hand
+ * @returns {number} the number of buckets
+ * Side effects: none.
+ */
 export const unclaimedBuckets = (cards) => cards + 3; // from 2 over-claimed to every trick unclaimed
 
-/** The key of a hand: exact for one or two cards, otherwise Standard's estimate in quarters of a trick. */
+/**
+ * The key of a hand: exact for one or two cards, otherwise Standard's estimate in quarters of a trick.
+ * @param {{ hand: string[], trump: string|null }} ctx  the nominate context
+ * @param {{ key: number }} base  the cell from bids-features.js, whose key is the Standard estimate
+ * @returns {number} the key
+ * Side effects: none.
+ */
 function keyOf(ctx, base) {
   const { hand, trump } = ctx;
   if (hand.length === 1) return descriptorOf(hand[0], trump);
@@ -34,7 +59,12 @@ function keyOf(ctx, base) {
   return base.key;
 }
 
-/** The cell for a nomination: `hand`, `trump`, `players` and the `nominations` so far, as the AIs are given them. */
+/**
+ * The cell for a nomination: `hand`, `trump`, `players` and the `nominations` so far, as the AIs are given them.
+ * @param {object} ctx  the nominate context
+ * @returns {{ key: number, unclaimed: number, after: number, regime: number }} the cell (`regime` is 1 when the round has trumps)
+ * Side effects: none.
+ */
 export function valueCell(ctx) {
   const base = cellOf(ctx);
   return { key: keyOf(ctx, base), unclaimed: base.unclaimed, after: base.after, regime: ctx.trump ? 1 : 0 };

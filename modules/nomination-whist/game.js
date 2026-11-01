@@ -1,5 +1,7 @@
 // The rules of Nomination Whist, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
+// Depends on shared/ (cards, seats, scores, tally, tricks, ai), ./trick.js for the card rules, ./tally.js for the statistics
+// and ./ai for the computer players; the sockets and timers are in server.js.
 //
 // Seats run clockwise: the player to your left is seat + 1, so play and nominations go round in increasing seat order.
 // A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>',
@@ -27,9 +29,21 @@ export const HIT_BONUS = 10;
 /** Nominating this many (a full 7-card hand) and winning every trick in the first or last round wins the game. */
 export const INSTANT_WIN_TRICKS = FULL_HAND;
 export { STAT_KEYS };
-/** Games saved before the option existed have it on. */
+/**
+ * Whether the instant win is on. Games saved before the option existed have it on.
+ *
+ * @param {object} settings  the room's settings
+ * @returns {boolean} false only if the setting was explicitly turned off
+ * Side effects: none.
+ */
 export const instantWinOn = (settings) => settings.instantWin !== false;
-/** Games saved before the option existed have hints on. */
+/**
+ * Whether the nomination hint is on. Games saved before the option existed have hints on.
+ *
+ * @param {object} settings  the room's settings
+ * @returns {boolean} false only if the setting was explicitly turned off
+ * Side effects: none.
+ */
 export const hintsOn = (settings) => settings.hints !== false;
 /** The names computer players are given (the shared list). */
 export const BOT_NAMES = DEFAULT_BOT_NAMES;
@@ -37,42 +51,136 @@ export const BOT_NAMES = DEFAULT_BOT_NAMES;
 const LIVE = ['lobby', 'nominating', 'playing', 'roundEnd'];
 const MID_GAME = ['nominating', 'playing', 'roundEnd'];
 
-/** Is the game still going (not finished)? Finished rooms are kept for a day, live ones for a week. */
+/**
+ * Is the game still going (not finished)? Finished rooms are kept for a day, live ones for a week.
+ *
+ * @param {object} room  the room (not changed)
+ * @returns {boolean} true unless the game has finished
+ * Side effects: none.
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
 // The seat vocabulary is shared (shared/seats.js); it is re-exported because the server, the AIs and the tests import it from here.
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 
 // ---- the shape of a game ----
 
+/**
+ * The cards dealt in each round of a game, in order.
+ *
+ * @param {object} settings  the room's settings (length 'full' or 'short')
+ * @returns {number[]} hand sizes by round
+ * Side effects: none.
+ */
 export const scheduleFor = (settings) => (settings.length === 'short' ? SHORT_SCHEDULE : FULL_SCHEDULE);
+/**
+ * How many rounds a game lasts.
+ *
+ * @param {object} settings  the room's settings
+ * @returns {number} the number of rounds
+ * Side effects: none.
+ */
 export const roundCount = (settings) => scheduleFor(settings).length;
-/** Cards dealt in a round (0-based). */
+/**
+ * Cards dealt in a round (0-based).
+ *
+ * @param {object} settings  the room's settings
+ * @param {number} round  the zero-based round
+ * @returns {number} the hand size
+ * Side effects: none.
+ */
 export const handSize = (settings, round) => scheduleFor(settings)[round];
-/** The trump suit of a round (0-based): H, C, D, S, or null for no trumps; the order repeats. */
+/**
+ * The trump suit of a round (0-based): H, C, D, S, or null for no trumps; the order repeats.
+ *
+ * @param {number} round  the zero-based round
+ * @returns {string | null} the suit letter, or null for no trumps
+ * Side effects: none.
+ */
 export const trumpOf = (round) => TRUMP_ORDER[round % TRUMP_ORDER.length];
+/**
+ * The trump suit as words.
+ *
+ * @param {string | null} trump  the suit letter, or null
+ * @returns {string} the suit's name, or 'no trumps'
+ * Side effects: none.
+ */
 export const trumpName = (trump) => (trump ? SUIT_NAMES[trump] : 'no trumps');
+/**
+ * A short heading for a round, such as "Round 3: 5 cards, Hearts".
+ *
+ * @param {object} settings  the room's settings
+ * @param {number} round  the zero-based round
+ * @returns {string} the label
+ * Side effects: none.
+ */
 export const roundLabel = (settings, round) => {
   const cards = handSize(settings, round);
   return `Round ${round + 1}: ${cards} ${cards === 1 ? 'card' : 'cards'}, ${trumpName(trumpOf(round))}`;
 };
-/** The dealer of a round (0-based), given the first round's dealer: the deal passes clockwise each round. */
+/**
+ * The dealer of a round (0-based), given the first round's dealer: the deal passes clockwise each round.
+ *
+ * @param {number} firstDealer  the first round's dealer seat
+ * @param {number} round  the zero-based round
+ * @param {number} seats  the number of seats
+ * @returns {number} the dealer's seat
+ * Side effects: none.
+ */
 export const dealerFor = (firstDealer, round, seats) => (firstDealer + round) % seats;
 
-/** The one number the dealer may not nominate: the one that makes the nominations total the tricks available. */
+/**
+ * The one number the dealer may not nominate: the one that makes the nominations total the tricks available (so that
+ * somebody must always miss).
+ *
+ * @param {number} cards  the hand size, which is also the number of tricks
+ * @param {number} othersTotal  the sum of everybody else's nominations
+ * @returns {number | null} the forbidden number, or null when it would be negative (nothing is forbidden)
+ * Side effects: none.
+ */
 export const forbiddenNomination = (cards, othersTotal) => (cards - othersTotal >= 0 ? cards - othersTotal : null);
 
-/** What a player scores in a round. Exactly right: 10 plus the nomination. A miss: the tricks taken, or nothing. */
+/**
+ * What a player scores in a round. Exactly right: 10 plus the nomination. A miss: the tricks taken, or nothing.
+ *
+ * @param {number} bid  the nomination
+ * @param {number} taken  the tricks won
+ * @param {object} settings  the room's settings (missPoints)
+ * @returns {number} the points
+ * Side effects: none.
+ */
 export function scoreRound(bid, taken, settings) {
   if (bid === taken) return HIT_BONUS + bid;
   return settings.missPoints ? taken : 0;
 }
 
-/** Whether a round (0-based) can end the game on the spot: the first round, or the last if it is a 7-card round. */
+/**
+ * Whether a round (0-based) can end the game on the spot: the first round, or the last if it is a 7-card round.
+ *
+ * @param {object} settings  the room's settings
+ * @param {number} round  the zero-based round
+ * @returns {boolean} true if a made 7 here would win the game
+ * Side effects: none.
+ */
 export const isInstantWinRound = (settings, round) =>
   handSize(settings, round) === INSTANT_WIN_TRICKS && (round === 0 || round === roundCount(settings) - 1);
 
+/**
+ * The seats with the highest total (more than one on a tie).
+ *
+ * @param {number[]} scores  totals by seat
+ * @returns {number[]} the winning seats
+ * Side effects: none.
+ */
 export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === Math.max(...scores) ? [seat] : []));
 
+/**
+ * Checks a settings change and merges it over the current settings.
+ *
+ * @param {object} input  the settings sent (any subset of seats, length, missPoints, instantWin, jokers, hints)
+ * @param {object} [current=DEFAULT_SETTINGS]  the settings to change
+ * @returns {{ ok: boolean, settings?: object, error?: string }} the new settings, or why they are refused
+ * Side effects: none.
+ */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (input?.seats !== undefined) {
@@ -102,6 +210,18 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   return ok({ settings: next });
 }
 
+/**
+ * A new lobby room with the host in seat 0.
+ *
+ * @param {object} args
+ * @param {string} args.code  the room code
+ * @param {*} args.hostId  the host's account id
+ * @param {string} args.hostName  the host's display name
+ * @param {object} [args.settings={}]  the settings to start with (merged over the defaults)
+ * @param {number} args.now  the creation time in milliseconds
+ * @returns {object} the room
+ * Side effects: none (throws if the settings are invalid).
+ */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
@@ -119,6 +239,13 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   return room;
 }
 
+/**
+ * Puts the game state back to the start (scores, tallies, history and the round's cards), keeping seats and settings.
+ *
+ * @param {object} room  mutates every game field
+ * @returns {void}
+ * Side effects: overwrites the room's game state.
+ */
 function resetGame(room) {
   const n = room.seats.length;
   Object.assign(room, {
@@ -227,7 +354,9 @@ export function start(room, userId, rng) {
  * Every computer player picks the AI it will play this game with (kept on the seat, so it survives a restart).
  *
  * @param {object} room  mutates `ai` on every computer player's seat
- * @param {() => number} rng
+ * @param {() => number} rng  random numbers for the choice
+ * @returns {void}
+ * Side effects: sets `ai` on the computer players' seats.
  */
 function assignBotAIs(room, rng) {
   const bots = botSeats(room);
@@ -237,6 +366,14 @@ function assignBotAIs(room, rng) {
   });
 }
 
+/**
+ * Deals the current round: shuffles, deals sorted hands, clears the round's state and puts the player after the dealer to nominate.
+ *
+ * @param {object} room  mutates hands, nominations, taken, trick, played, phase and turn
+ * @param {() => number} rng  random numbers for the shuffle
+ * @returns {void}
+ * Side effects: mutates the room as described.
+ */
 export function dealRound(room, rng) {
   const n = room.seats.length;
   const cards = handSize(room.settings, room.roundIndex);
@@ -252,22 +389,58 @@ export function dealRound(room, rng) {
   room.turn = (room.dealer + 1) % n;
 }
 
+/**
+ * The hand size of the round in play.
+ *
+ * @param {object} room  not changed
+ * @returns {number} the cards each player holds at the start of the round
+ * Side effects: none.
+ */
 export const cardsThisRound = (room) => handSize(room.settings, room.roundIndex);
+/**
+ * The trump suit of the round in play.
+ *
+ * @param {object} room  not changed
+ * @returns {string | null} the suit letter, or null for no trumps
+ * Side effects: none.
+ */
 export const trumpThisRound = (room) => trumpOf(room.roundIndex);
 
-/** The number the dealer may not nominate right now, or null (it is not the dealer's turn). */
+/**
+ * The number the dealer may not nominate right now, or null (it is not the dealer's turn).
+ *
+ * @param {object} room  not changed
+ * @returns {number | null} the forbidden number, or null
+ * Side effects: none.
+ */
 export function forbiddenNow(room) {
   if (room.phase !== 'nominating' || room.turn !== room.dealer) return null;
   const others = room.nominations.reduce((sum, bid, seat) => sum + (seat === room.dealer ? 0 : (bid ?? 0)), 0);
   return forbiddenNomination(cardsThisRound(room), others);
 }
 
-/** The numbers a seat may nominate on its turn. */
+/**
+ * The numbers a seat may nominate on its turn.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the nominating seat
+ * @returns {number[]} 0 to the hand size, without the dealer's forbidden number when the seat is the dealer
+ * Side effects: none.
+ */
 export function allowedNominations(room, seat) {
   const forbidden = seat === room.dealer ? forbiddenNow(room) : null;
   return Array.from({ length: cardsThisRound(room) + 1 }, (_, n) => n).filter((n) => n !== forbidden);
 }
 
+/**
+ * A seat nominates the number of tricks it will take. After the dealer the round moves to play.
+ *
+ * @param {object} room  mutates nominations, turn and (after the dealer) phase
+ * @param {number} seat  the nominating seat
+ * @param {number} number  the nomination
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as described; the room is unchanged when it fails.
+ */
 export function nominate(room, seat, number) {
   if (room.phase !== 'nominating') return fail('It is not time to nominate.');
   if (room.turn !== seat) return fail('It is not your turn to nominate.');
@@ -293,8 +466,8 @@ export function nominate(room, seat, number) {
  * only goes down when the player cannot follow (see trick.js).
  *
  * @param {object} room  not changed
- * @param {number} seat
- * @param {string} card
+ * @param {number} seat  the seat playing
+ * @param {string} card  the card it wants to play
  * @returns {string | null} the reason, or null when the card is legal
  */
 export function illegalReason(room, seat, card) {
@@ -306,15 +479,23 @@ export function illegalReason(room, seat, card) {
   return isJoker(card) ? `You can only play a Joker when you cannot follow suit (${led}).` : `You must follow suit (${led}).`;
 }
 
+/**
+ * The cards a seat may play right now.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the seat
+ * @returns {string[]} the legal cards from its hand
+ * Side effects: none.
+ */
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
 
 /**
  * Plays a card to the trick, if the seat may.
  * Side effects: takes the card from the hand, adds it to the trick and the played pile, and moves the turn on (to nobody once the trick is full).
  *
- * @param {object} room
- * @param {number} seat
- * @param {string} card
+ * @param {object} room  mutated as described
+ * @param {number} seat  the seat playing
+ * @param {string} card  the card to play
  * @returns {{ ok: boolean, error?: string, complete?: boolean }} `complete` says the trick is now full
  */
 export function playCard(room, seat, card) {
@@ -343,7 +524,13 @@ export function trickWinner(trick, trump) {
   return trick.find((p) => p.card === best).seat;
 }
 
-/** Gives a finished trick to its winner, who leads next; after the last trick the round is scored. */
+/**
+ * Gives a finished trick to its winner, who leads next; after the last trick the round is scored.
+ *
+ * @param {object} room  mutates taken, lastTrick, trick, tricksPlayed and turn (and, via endRound, the scores and phase)
+ * @returns {{ ok: boolean, error?: string, winner?: number, roundOver?: boolean }}
+ * Side effects: as described; the room is unchanged when there is no finished trick.
+ */
 export function resolveTrick(room) {
   if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('There is no finished trick.');
   const winner = trickWinner(room.trick, trumpThisRound(room));
@@ -360,6 +547,14 @@ export function resolveTrick(room) {
   return ok({ winner, roundOver: false });
 }
 
+/**
+ * Scores the round: adds the points, records the tallies and history, and decides what comes next (an instant win or the last
+ * round finishes the game; otherwise the round-end pop-up).
+ *
+ * @param {object} room  mutates scores, tally, history, phase, winners, instantWin and ready
+ * @returns {void}
+ * Side effects: as described.
+ */
 function endRound(room) {
   const points = room.nominations.map((bid, seat) => scoreRound(bid, room.taken[seat], room.settings));
   room.scores = room.scores.map((score, seat) => score + points[seat]);
@@ -392,7 +587,15 @@ function endRound(room) {
   }
 }
 
-/** A person is ready for the next round (they closed the score pop-up); it is dealt once every person is. */
+/**
+ * A person is ready for the next round (they closed the score pop-up); it is dealt once every person is.
+ *
+ * @param {object} room  mutates ready, and deals when everybody is ready
+ * @param {*} userId  the account that closed the pop-up
+ * @param {() => number} rng  random numbers for the deal
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as described.
+ */
 export function nextRound(room, userId, rng) {
   if (!hasPlayer(room, userId)) return fail('You are not in this game.');
   if (room.phase !== 'roundEnd') return fail('The round is not over.');
@@ -418,6 +621,14 @@ function advanceIfReady(room, rng) {
   return true;
 }
 
+/**
+ * Moves on a round: the deal passes clockwise and the new round is dealt.
+ *
+ * @param {object} room  mutates roundIndex, dealer, ready and the round's cards
+ * @param {() => number} rng  random numbers for the deal
+ * @returns {void}
+ * Side effects: as described.
+ */
 function dealNext(room, rng) {
   room.roundIndex++;
   room.dealer = (room.dealer + 1) % room.seats.length;
@@ -425,13 +636,27 @@ function dealNext(room, rng) {
   dealRound(room, rng);
 }
 
-/** Deals the next round whether or not everyone has closed the pop-up (the server does this after a wait). */
+/**
+ * Deals the next round whether or not everyone has closed the pop-up (the server does this after a wait).
+ *
+ * @param {object} room  mutates as dealNext does
+ * @param {() => number} rng  random numbers for the deal
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as described.
+ */
 export function forceNextRound(room, rng) {
   if (room.phase !== 'roundEnd') return fail('The round is not over.');
   dealNext(room, rng);
   return ok();
 }
 
+/**
+ * Whether the game is waiting for people to close the round-end pop-up.
+ *
+ * @param {object} room  not changed
+ * @returns {boolean} true in the roundEnd phase
+ * Side effects: none.
+ */
 export const waitingForReady = (room) => room.phase === 'roundEnd';
 
 /**
@@ -458,6 +683,7 @@ export function playAgain(room, userId) {
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   const place = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])));
@@ -477,7 +703,13 @@ export function statsPlayers(room) {
 
 // ---- computer players ----
 
-/** The next thing a computer (or the clock) has to do, or null when the game waits for a person. */
+/**
+ * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
+ *
+ * @param {object} room  not changed
+ * @returns {{ type: 'nominate' | 'play' | 'resolve', seat?: number } | null} the action, or null
+ * Side effects: none.
+ */
 export function pendingAction(room) {
   if (room.phase === 'nominating') return isBot(room.seats[room.turn]) ? { type: 'nominate', seat: room.turn } : null;
   if (room.phase !== 'playing') return null;
@@ -485,10 +717,25 @@ export function pendingAction(room) {
   return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
 }
 
-/** The AI a computer player plays with; rooms saved before AIs existed fall back to the first one. */
+/**
+ * The AI a computer player plays with; rooms saved before AIs existed fall back to the first one.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the computer player's seat
+ * @returns {object} the AI
+ * Side effects: none.
+ */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
-/** What an AI may know when it nominates: its own hand and the public table, never anybody else's cards. */
+/**
+ * What an AI may know when it nominates: its own hand and the public table, never anybody else's cards.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the nominating seat
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {object} the nomination context (copies of the room's arrays, so an AI cannot change the room)
+ * Side effects: none.
+ */
 export function nominateContext(room, seat, rng) {
   return {
     hand: room.hands[seat],
@@ -509,7 +756,15 @@ export function nominateContext(room, seat, rng) {
   };
 }
 
-/** The same for a card to play: the trick so far, what has been played, and everybody's nominations and tricks. */
+/**
+ * The same for a card to play: the trick so far, what has been played, and everybody's nominations and tricks.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the playing seat
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {object} the play context (copies of the room's arrays)
+ * Side effects: none.
+ */
 export function playContext(room, seat, rng) {
   return {
     hand: room.hands[seat],
@@ -532,7 +787,15 @@ export function playContext(room, seat, rng) {
   };
 }
 
-/** The card a computer player would play: always one of its legal cards (an AI that answers illegally is overruled). */
+/**
+ * The card a computer player would play: always one of its legal cards (an AI that answers illegally is overruled).
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the computer player's seat
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {string} the card
+ * Side effects: may advance rng.
+ */
 export function botPlay(room, seat, rng) {
   const context = playContext(room, seat, rng);
   const card = aiOf(room, seat).play(context);
@@ -545,6 +808,11 @@ export function botPlay(room, seat, rng) {
  * players before them have nominated, with the player then playing to it. From the table learned for games with or without
  * the Jokers (falling back to the table-aware one where it has nothing). Null at any other time, so nobody is told it early,
  * and always null when the host has turned hints off.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the viewer's seat
+ * @returns {number | null} the suggested nomination, or null
+ * Side effects: none (it uses a fixed random source, so the hint is steady); may load tables from disk once.
  */
 export function suggestedNomination(room, seat) {
   if (!hintsOn(room.settings) || room.phase !== 'nominating' || room.turn !== seat) return null;
@@ -555,14 +823,29 @@ export function suggestedNomination(room, seat) {
   return context.allowed.includes(number) ? number : null;
 }
 
-/** The number a computer player would nominate: always an allowed one. */
+/**
+ * The number a computer player would nominate: always an allowed one (an AI that answers illegally is overruled).
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the computer player's seat
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {number} the nomination
+ * Side effects: may advance rng.
+ */
 export function botNominate(room, seat, rng) {
   const context = nominateContext(room, seat, rng);
   const number = aiOf(room, seat).nominate(context);
   return context.allowed.includes(number) ? number : AIS[0].nominate(context);
 }
 
-/** Performs a pending action. Returns the action, or null if there was nothing to do. */
+/**
+ * Performs a pending action. Returns the action, or null if there was nothing to do.
+ *
+ * @param {object} room  mutated by the nomination, play or trick resolution
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {{ type: string, seat?: number } | null} the action performed, or null
+ * Side effects: as the action does; throws if a computer player makes an illegal move.
+ */
 export function runPending(room, rng) {
   const action = pendingAction(room);
   if (!action) return null;
@@ -578,7 +861,13 @@ export function runPending(room, rng) {
 
 // ---- what each player may see ----
 
-/** The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows. */
+/**
+ * The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows.
+ *
+ * @param {object} room  not changed
+ * @returns {object[]} one entry per scored round
+ * Side effects: none.
+ */
 export function roundsView(room) {
   return room.history.map((h) => ({
     label: roundLabel(room.settings, h.round - 1),
@@ -597,8 +886,9 @@ export function roundsView(room) {
 /**
  * An AI as the table shows it: its id and name.
  *
- * @param {{ id: string, name: string }} ai
+ * @param {{ id: string, name: string }} ai  the AI
  * @returns {{ id: string, name: string }}
+ * Side effects: none.
  */
 const aiSummary = ({ id, name }) => ({ id, name });
 
@@ -608,7 +898,8 @@ const aiSummary = ({ id, name }) => ({ id, name });
  * @param {object} room  not changed
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
- * @returns {object}
+ * @returns {object} the seat's public fields (cards held, nomination, tricks, score, readiness)
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const seat = room.seats[i];
@@ -631,7 +922,8 @@ function seatView(room, i, online) {
  * The round being played: its number, size, trump and dealer.
  *
  * @param {object} room  not changed
- * @returns {object}
+ * @returns {object} number, total, cards, trump, dealer and label
+ * Side effects: none.
  */
 function roundView(room) {
   const round = room.roundIndex;
@@ -651,6 +943,7 @@ function roundView(room) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object} fields to add to the view when the game has started
+ * Side effects: none.
  */
 function playView(room, me) {
   const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
@@ -674,6 +967,7 @@ function playView(room, me) {
  * @param {number} userId  the account looking (it may be a spectator with no seat)
  * @param {{ online?: (id: number) => boolean }} [options]  says who is connected, so the view can show who is away
  * @returns {object} the view sent to that person
+ * Side effects: none.
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);

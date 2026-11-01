@@ -7,6 +7,8 @@
 // Every occupied seat also carries this game's own fields: score, back (the back peg), ready, discarded and stats.
 // The join / leave / kick / computer-player rules are the shared ones (shared/seats.js); this file adds what is
 // particular to Cribbage. Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
+//
+// Depends on shared/ (cards, ai, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting) and ./tally.js.
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
@@ -22,9 +24,11 @@ export const MIN_SEATS = 2;
 export const MAX_SEATS = 5;
 export const DEFAULT_SEATS = 2;
 export const MAX_NAME_LENGTH = 24;
+/** Names the shared seat rules hand out to computer players. */
 export const BOT_NAMES = ['Robin', 'Sam', 'Jo', 'Max', 'Kit', 'Lee', 'Pat', 'Ash', 'Bea', 'Fen'];
-/** A winner "skunks" an opponent who finishes below this. */
+/** A winner "skunks" an opponent who finishes below this (by target score): a statistic only, it changes no points. */
 export const SKUNK_LINE = { 61: 31, 121: 91 };
+/** How many lines of the move log are kept (the view shows fewer). */
 const LOG_LIMIT = 60;
 
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
@@ -36,23 +40,34 @@ export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
  * @param {number} players      how many seats there are (2 to 5)
  * @param {boolean} [isDealer]  whether the player in question is the dealer (matters with five players)
  * @returns {{ dealt: number, discards: number, extraToCrib: number }}
+ * Side effects: none.
  */
 export const dealRules = (players, isDealer = false) => {
   const dealerLight = players === 5 && isDealer;
   return { dealt: players === 2 ? 6 : dealerLight ? 4 : 5, discards: players === 2 ? 2 : dealerLight ? 0 : 1, extraToCrib: players === 3 ? 1 : 0 };
 };
 
+/** Rank order for sorting hands (ace low, as in runs). */
 const PIPS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+/** Sort comparator: rank first, then suit letter so the order is stable and predictable. */
 const byRank = (a, b) => PIPS.indexOf(rankOf(a)) - PIPS.indexOf(rankOf(b)) || a.slice(-1).localeCompare(b.slice(-1));
-/** A copy of the cards in rank order (suits break ties). */
+/**
+ * A copy of the cards in rank order (suits break ties).
+ *
+ * @param {string[]} cards  card codes; not changed
+ * @returns {string[]} the sorted copy
+ * Side effects: none.
+ */
 export const sortCards = (cards) => [...cards].sort(byRank);
 
+/** The message for a seat count outside MIN_SEATS to MAX_SEATS. */
 const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} seats.`;
 
 /**
  * The fields every occupied seat carries for this game, all at their starting values.
  *
  * @returns {{ score: number, back: number, ready: boolean, discarded: boolean, stats: object }} a fresh object each call
+ * Side effects: none.
  */
 const gameFields = () => ({ score: 0, back: 0, ready: false, discarded: false, stats: newTally() });
 
@@ -61,6 +76,7 @@ const gameFields = () => ({ score: 0, back: 0, ready: false, discarded: false, s
  *
  * @param {object | null} seat
  * @returns {object | null} the same seat if it already has them, otherwise a new object
+ * Side effects: none (the seat is not changed).
  */
 const withGameFields = (seat) => (seat && seat.score === undefined ? { ...gameFields(), ...seat } : seat);
 
@@ -69,6 +85,7 @@ const withGameFields = (seat) => (seat && seat.score === undefined ? { ...gameFi
  *
  * @param {unknown} raw
  * @returns {string}
+ * Side effects: none.
  */
 const cleanName = (raw) => String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
 
@@ -79,9 +96,12 @@ const cleanName = (raw) => String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0
  * @param {object} room
  * @param {unknown} raw  what the person typed
  * @returns {string}
+ * @returns {string} a name unique at the table
+ * Side effects: none.
  */
 function fitName(room, raw) {
   const base = cleanName(raw);
+  // Case-insensitive, so "ann" cannot sit beside "Ann".
   const taken = (name) => room.seats.some((s) => s && s.name.toLowerCase() === name.toLowerCase());
   for (let n = 1; n < 100; n++) {
     const suffix = n === 1 ? '' : ` (${n})`;
@@ -102,6 +122,7 @@ function fitName(room, raw) {
  * @param {number} args.now       the clock, in milliseconds
  * @returns {object} the new room
  * @throws {Error} with a message for the person if a setting is not allowed
+ * Side effects: none outside the room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const { target = 121, seats: count = DEFAULT_SEATS } = settings;
@@ -138,6 +159,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
  *
  * @param {object} room
  * @returns {boolean}
+ * Side effects: none.
  */
 export const isLive = (room) => room.phase !== 'finished';
 
@@ -176,6 +198,7 @@ export function migrate(room) {
  * middle of a game is replaced by a computer player that keeps their name, pegs and cards and gets an AI of its own;
  * a person who leaves after the game is kept as a 'gone' marker so the scores still make sense; and if they were the
  * only person the show was waiting for, the next hand is dealt.
+ * Side effects: none at definition; the returned rules mutate the room they are given.
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['discard', 'play', 'show'].includes(room.phase),
@@ -269,6 +292,7 @@ export function setSettings(room, userId, { target, seats: count } = {}) {
  * @param {number} seat    who the line is about
  * @param {string} text    what happened
  * @param {number} [points]  points scored by it (0 for none)
+ * @returns {void}
  */
 function log(room, seat, text, points = 0) {
   addMove(room, { seat, text, points }, LOG_LIMIT);
@@ -280,6 +304,7 @@ function log(room, seat, text, points = 0) {
  * Side effects: appends to room.history and clears room.handDeltas.
  *
  * @param {object} room
+ * @returns {void}
  */
 function commitHand(room) {
   room.history.push({ label: `Hand ${room.handNo}`, deltas: room.handDeltas });
@@ -293,6 +318,7 @@ function commitHand(room) {
  *
  * @param {object} room
  * @param {number} seat  the winning seat
+ * @returns {void}
  */
 function finish(room, seat) {
   room.phase = 'finished';
@@ -311,6 +337,7 @@ function finish(room, seat) {
  * @param {number} seat  who scores
  * @param {{ label: string, points: number }[]} entries  what they score, in order
  * @param {{ pegging?: boolean, quiet?: boolean }} [options]  `pegging` counts the points as pegged in the play; `quiet` leaves them out of the log
+ * @returns {void}
  */
 function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
   const s = room.seats[seat];
@@ -336,6 +363,7 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
  *
  * @param {object} room
  * @param {() => number} rng
+ * @returns {void}
  */
 function deal(room, rng) {
   const { extraToCrib } = dealRules(room.seats.length);
@@ -352,6 +380,7 @@ function deal(room, rng) {
   room.phase = 'discard';
   for (const s of room.seats) {
     s.ready = false;
+    // A seat with nothing to discard (the dealer at five players) counts as already done, so the phase does not wait for it.
     s.discarded = dealRules(room.seats.length, room.seats.indexOf(s) === room.dealer).discards === 0; // nothing to discard
     bump(s.stats, 'handsPlayed');
   }
@@ -391,6 +420,7 @@ export function start(room, userId, rng) {
  *
  * @param {object} room
  * @param {() => number} rng  the game's random numbers
+ * @returns {void}
  */
 function assignBotAIs(room, rng) {
   const bots = botSeats(room);
@@ -457,6 +487,7 @@ export function discard(room, seat, cards, rng) {
  *
  * @param {object} room
  * @param {() => number} rng  chooses where the deck is cut
+ * @returns {void}
  */
 function beginPlay(room, rng) {
   room.crib = sortCards(room.crib);
@@ -469,7 +500,14 @@ function beginPlay(room, rng) {
 
 // ---- the play (pegging) ----
 
-/** Does this seat still hold any cards in the play? */
+/**
+ * Does this seat still hold any cards in the play?
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  the seat to check
+ * @returns {boolean} true when it has at least one card
+ * Side effects: none.
+ */
 const hasCards = (room, seat) => room.hands[seat].length > 0;
 
 /**
@@ -478,6 +516,7 @@ const hasCards = (room, seat) => room.hands[seat].length > 0;
  * @param {object} room
  * @param {number} seat
  * @returns {string[]} empty outside the play
+ * Side effects: none.
  */
 export const playableCards = (room, seat) => (room.play ? room.hands[seat].filter((c) => room.play.count + pipValue(c) <= 31) : []);
 
@@ -487,6 +526,7 @@ export const playableCards = (room, seat) => (room.play ? room.hands[seat].filte
  * Side effects: mutates room.play.
  *
  * @param {object} room
+ * @returns {void}
  */
 function resetSequence(room) {
   const p = room.play;
@@ -526,11 +566,13 @@ export function playCard(room, seat, card) {
  *
  * @param {object} room
  * @param {number} from  the seat that has just played
+ * @returns {void}
  */
 function afterPlay(room, from) {
   const p = room.play;
   const n = room.seats.length;
 
+  // Thirty-one already scored its two in playCard, and nobody gets a go for it: just start a new count.
   if (p.count === 31) {
     resetSequence(room);
   } else {
@@ -546,11 +588,13 @@ function afterPlay(room, from) {
         log(room, seat, `${room.seats[seat].name}: go`);
       }
     }
+    // Nobody can play: the last to play pegs one for go, or for the last card if every hand is now empty.
     const anyLeft = room.seats.some((_, seat) => hasCards(room, seat));
     award(room, p.last, [{ label: anyLeft ? 'Go' : 'Last card', points: 1 }], { pegging: true });
     if (room.phase === 'finished') return;
     resetSequence(room);
   }
+  // After a new count, play resumes with the next seat that has cards; if none has, the play is over.
   for (let k = 1; k <= n; k++) {
     const seat = (from + k) % n;
     if (hasCards(room, seat)) {
@@ -569,6 +613,7 @@ function afterPlay(room, from) {
  * Side effects: sets the phase to 'show', fills room.show, scores each hand, updates tallies and may finish the game.
  *
  * @param {object} room
+ * @returns {void}
  */
 function startShow(room) {
   const n = room.seats.length;
@@ -597,6 +642,7 @@ function startShow(room) {
  *
  * @param {object} room
  * @param {() => number} rng
+ * @returns {void}
  */
 function advanceIfReady(room, rng) {
   if (room.phase !== 'show' || !room.seats.every((s) => !isHuman(s) || s.ready)) return;
@@ -628,6 +674,7 @@ export function ready(room, seat, rng) {
  *
  * @param {object} room
  * @returns {{ seat: number, kind: 'discard' | 'play' } | null}
+ * Side effects: none.
  */
 export function pendingBot(room) {
   if (room.phase === 'discard') {
@@ -644,6 +691,7 @@ export function pendingBot(room) {
  * @param {object} room
  * @param {number} seat
  * @returns {object} an entry of AIS
+ * Side effects: none.
  */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat].ai);
 
@@ -655,6 +703,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat].ai);
  * @param {number} seat
  * @param {() => number} rng
  * @returns {object}
+ * Side effects: none.
  */
 function discardContext(room, seat, rng) {
   const { discards } = dealRules(room.seats.length, seat === room.dealer);
@@ -668,6 +717,7 @@ function discardContext(room, seat, rng) {
  * @param {number} seat
  * @param {() => number} rng
  * @returns {object}
+ * Side effects: none.
  */
 function playContext(room, seat, rng) {
   const p = room.play;
@@ -699,6 +749,7 @@ function playContext(room, seat, rng) {
  * @param {(choice: unknown) => boolean} isValid  whether a choice is legal
  * @param {() => T} lastResort          a choice that is always legal
  * @returns {T}
+ * Side effects: whatever `choose` does (it consumes rng); the room is not changed here.
  */
 function chooseSafely(room, seat, choose, isValid, lastResort) {
   for (const ai of [aiOf(room, seat), AIS[0]]) {
@@ -744,6 +795,7 @@ export function botMove(room, rng) {
  *
  * @param {object} room
  * @returns {number[]}
+ * Side effects: none.
  */
 const seatPlacements = (room) => Object.values(placements(Object.fromEntries(room.seats.map((s, i) => [i, s.score]))));
 
@@ -752,6 +804,7 @@ const seatPlacements = (room) => Object.values(placements(Object.fromEntries(roo
  *
  * @param {{ id: string, name: string }} ai
  * @returns {{ id: string, name: string }}
+ * Side effects: none.
  */
 const aiSummary = ({ id, name }) => ({ id, name });
 
@@ -762,6 +815,7 @@ const aiSummary = ({ id, name }) => ({ id, name });
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
  * @returns {object}
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const s = room.seats[i];
@@ -790,6 +844,7 @@ function seatView(room, i, online) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object} `hand`, `need`, `cribCount`, `deckCount`, `starter`, `play` and `show`
+ * Side effects: none.
  */
 function handView(room, me) {
   const live = room.phase === 'discard' || room.phase === 'play';
@@ -812,6 +867,7 @@ function handView(room, me) {
  * @param {number} me  the viewer's seat, or -1
  * @param {(id: number) => boolean} online
  * @returns {object}
+ * Side effects: none.
  */
 function scoreboardView(room, me, online) {
   const player = (s, i) => seatScoreboardEntry(s, i, { score: s.score, me, current: room.phase === 'play' && room.play?.turn === i, online });
@@ -831,6 +887,7 @@ function scoreboardView(room, me, online) {
  * @param {number} userId  the account looking
  * @param {{ online?: (id: number) => boolean }} [options]  says who is connected
  * @returns {object} the view sent to that person
+ * Side effects: none.
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -860,6 +917,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
  *
  * @param {object} room  a finished room
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   const skunked = room.seats.some((s, i) => i !== room.winner && s.score < SKUNK_LINE[room.target]);

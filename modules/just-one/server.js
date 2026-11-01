@@ -6,6 +6,8 @@
 // Timing can be changed through the environment (the tests make it fast):
 //   JUST_ONE_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
 //   JUST_ONE_NEXT_WAIT   milliseconds the reveal waits for everyone to close the scores before moving on (default 60000)
+//
+// Depends on shared/roomServer.js (the room server and its timing helpers) and ./game.js (the rules).
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 
@@ -14,6 +16,7 @@ import * as game from './game.js';
  *
  * @returns {{ bot: { min: number, max: number }, nextWait: number }} the computer-player range and the wait at the reveal,
  *   both in milliseconds
+ * Side effects: none (reads process.env).
  */
 function readDelays() {
   return {
@@ -27,8 +30,8 @@ function readDelays() {
  *
  * Side effects: see createRoomServer (reads the saved rooms, starts timers, registers the socket events).
  *
- * @param {object} ctx  the module context from the site
- * @returns {{ dispose: () => void }}
+ * @param {object} ctx  the module context from the site (users, storage, sockets)
+ * @returns {{ dispose: () => void }} a handle that stops the timers
  */
 export default function (ctx) {
   const delays = readDelays();
@@ -45,6 +48,10 @@ export default function (ctx) {
     /**
      * A computer move, or moving on from the reveal: whichever the room is in now. A move that does nothing is reported as a
      * failure (it would otherwise be repeated for ever), so the room server's retry-with-a-pause takes over.
+     * @param {object} room  the room
+     * @param {() => number} rng  random source
+     * @returns {{ wait: number, key?: string, run: () => void } | null} what to schedule, or null when nothing is due
+     * Side effects: none itself; the returned run() plays the move or forces the next turn on the room.
      */
     nextAction(room, rng) {
       const action = game.pendingBotAction(room);
@@ -70,6 +77,12 @@ export default function (ctx) {
       }
       return null;
     },
+    /**
+     * Registers Just One's socket events; each one runs a game.js action for the connected user and broadcasts the result.
+     * @param {object} hooks  { act (run a room action and share it), on (listen for an event), userId, rng }
+     * @returns {void}
+     * Side effects: adds socket listeners; each event mutates the room through game.js.
+     */
     registerEvents({ act, on, userId, rng }) {
       on('clue', ({ text }) => act((room) => game.submitClue(room, userId, text, rng)));
       on('guess', ({ text }) => act((room) => game.guess(room, userId, text)));
@@ -80,7 +93,12 @@ export default function (ctx) {
   });
 }
 
-/** Only the settings (turns each), whatever else a client sends. */
+/**
+ * Only the settings (turns each), whatever else a client sends.
+ * @param {object} payload  the untrusted settings object from the client
+ * @returns {object} a copy with only the allowed keys
+ * Side effects: none.
+ */
 function pickSettings(payload) {
   return pickKeys(payload, ['turnsEach']);
 }

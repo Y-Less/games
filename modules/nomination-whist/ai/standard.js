@@ -4,15 +4,32 @@ import { isJoker, rankValue, suitOf, SUITS } from '../../../shared/cards.js';
 import { highest, isMaster, lowest, nearestAllowed, winningCard } from './cards.js';
 import { withLastChance } from './endgame.js';
 
+// Rough chance that a trump of each rank wins a trick; anything below a 9 is worth a token 0.14 (see estimateTricks).
 const TRUMP_VALUE = { 14: 0.95, 13: 0.8, 12: 0.62, 11: 0.48, 10: 0.36, 9: 0.26 };
+// What a side-suit ace is worth: less with a trump suit, since an opponent who is void can ruff it.
 const SIDE_ACE = { trumps: 0.72, none: 0.9 };
 /** A Joker wins whenever it is led or played on a suit it cannot follow, unless the other Joker is in the same trick. */
 export const JOKER_VALUE = 0.85;
 
-/** More players means fewer sure tricks: somebody is more likely to be void and to ruff. */
+/**
+ * More players means fewer sure tricks: somebody is more likely to be void and to ruff.
+ *
+ * @param {number} players  the number of players at the table
+ * @returns {number} a multiplier for side-suit winners, from 1 (three players) down to a floor of 0.55
+ * Side effects: none.
+ */
 const crowding = (players) => Math.max(0.55, 1 - 0.07 * (players - 3));
 
-/** How many tricks a hand is likely to win: high trumps, aces and kings elsewhere, and short suits to ruff with. */
+/**
+ * How many tricks a hand is likely to win: high trumps, aces and kings elsewhere, and short suits to ruff with.
+ *
+ * @param {string[]} hand  the player's cards
+ * @param {string | null} trump  the trump suit, or null for none
+ * @param {number} players  the number of players at the table
+ * @param {number} [boost=0]  added to every card's weight (see endgame.js)
+ * @returns {number} the expected tricks, at most the hand size
+ * Side effects: none.
+ */
 export function estimateTricks(hand, trump, players, boost = 0) {
   const trumps = trump ? hand.filter((c) => suitOf(c) === trump) : [];
   let total = trumps.reduce((sum, c) => sum + (TRUMP_VALUE[rankValue(c)] ?? 0.14), 0);
@@ -21,7 +38,7 @@ export function estimateTricks(hand, trump, players, boost = 0) {
   for (const suit of SUITS) {
     if (suit === trump) continue;
     const ranks = hand.filter((c) => suitOf(c) === suit).map(rankValue);
-    const has = (rank) => ranks.includes(rank);
+    const has = (rank) => ranks.includes(rank); // whether the hand holds this rank in the suit
     let side = 0;
     if (has(14)) side += aceValue;
     if (has(13)) side += ranks.length >= 2 ? (has(14) ? 0.55 : 0.4) : 0.2;
@@ -42,6 +59,11 @@ export function estimateTricks(hand, trump, players, boost = 0) {
 /**
  * Whether a 7-card hand is realistically capable of taking every trick: a run of the top trumps from the ace down
  * (six of them, or five when every other card is a trump or an ace). The estimate above is too cautious to say this.
+ *
+ * @param {string[]} hand  the player's cards
+ * @param {string | null} trump  the trump suit, or null for none (then it is never possible)
+ * @returns {boolean} true if nominating 7 is realistic
+ * Side effects: none.
  */
 export function canTakeAllSeven(hand, trump) {
   if (!trump || hand.length !== 7) return false;
@@ -55,6 +77,10 @@ export function canTakeAllSeven(hand, trump) {
 /**
  * The nomination a computer player makes: its estimate, or the nearest number it is allowed. When `instantWin` is true
  * (the round can be won outright by taking all 7 tricks), a hand that can realistically do so nominates 7.
+ *
+ * @param {object} ctx  nomination context: hand, trump, players, allowed, instantWin, rng, plus the endgame fields
+ * @returns {number} the nomination, always one of ctx.allowed
+ * Side effects: advances ctx.rng.
  */
 export function chooseNomination(ctx) {
   const { hand, trump, players, allowed, instantWin = false, rng } = ctx;
@@ -67,6 +93,18 @@ export function chooseNomination(ctx) {
  * `played` every card seen this round, `need` how many more tricks it nominated than it has won. While it needs
  * tricks it wins them (sure winners first, the cheapest card that beats the table otherwise); once it has enough
  * it ducks, and sheds its most dangerous cards when it cannot follow suit.
+ *
+ * @param {object} ctx  play context
+ * @param {string[]} ctx.hand  the player's cards
+ * @param {string[]} ctx.legal  the cards it may play
+ * @param {string[]} ctx.trick  cards on the table so far, in order
+ * @param {string | null} ctx.trump  the trump suit, or null
+ * @param {string[]} ctx.played  every card seen this round
+ * @param {number} ctx.need  tricks still wanted (nominated minus won)
+ * @param {number} ctx.players  the number of players
+ * @param {boolean} [ctx.jokers=false]  whether the Jokers are in the pack
+ * @returns {string} the card to play
+ * Side effects: none.
  */
 export function chooseCard({ hand, legal, trick, trump, played, need, players, jokers = false }) {
   if (legal.length === 1) return legal[0];
@@ -101,11 +139,22 @@ export function chooseCard({ hand, legal, trick, trump, played, need, players, j
 
 export { winningCard };
 
+/** The standard AI: a rule-of-thumb estimate for the nomination, then rule-based play to hit it exactly. */
 export const standard = {
   id: 'standard',
   name: 'Standard',
   description: 'Nominates from a rule-of-thumb count of its likely tricks, then plays to hit its number exactly.',
   weight: 3,
+  /** Nominates via chooseNomination.
+   * @param {object} ctx  nomination context
+   * @returns {number} the nomination
+   * Side effects: advances ctx.rng.
+   */
   nominate: (ctx) => chooseNomination(ctx),
+  /** Plays via chooseCard.
+   * @param {object} ctx  play context
+   * @returns {string} the card to play
+   * Side effects: none.
+   */
   play: (ctx) => chooseCard(ctx),
 };

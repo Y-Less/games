@@ -14,7 +14,11 @@ import { COARSE_CELLS, FINE_CELLS, keysFor } from './play-features.js';
 import { bestPlay } from './play-model.js';
 import { mixSeed, mulberry32 } from './rng.js';
 
-/** The empty sums for a chunk: points added up, and how many plays, for each cell of both tables. */
+/**
+ * The empty sums for a chunk: points added up, and how many plays, for each cell of both tables.
+ * @returns {{ fineSum: Float64Array, fineN: Float64Array, coarseSum: Float64Array, coarseN: Float64Array, deals: number, plays: number }} zeroed totals
+ * Side effects: none.
+ */
 export const emptyTotals = () => ({
   fineSum: new Float64Array(FINE_CELLS),
   fineN: new Float64Array(FINE_CELLS),
@@ -26,7 +30,9 @@ export const emptyTotals = () => ({
 
 /**
  * Plays `size` deals (players, cards and trump chosen at random, all from the seed and chunk number) and returns the totals.
- * @param {{ model: object | null, seed: number, chunk: number, size: number, players: number[], epsilon: number }} job
+ * @param {{ model: object | null, seed: number, chunk: number, size: number, players: number[], epsilon: number }} job  `epsilon` is the chance a seat plays a random legal card
+ * @returns {object} the totals (see emptyTotals)
+ * Side effects: none (the RNG is local to the chunk).
  */
 export function collectChunk({ model, seed, chunk, size, players, epsilon }) {
   const rng = mulberry32(mixSeed(seed, chunk));
@@ -34,6 +40,7 @@ export function collectChunk({ model, seed, chunk, size, players, epsilon }) {
   let records = [];
   const ai = {
     nominate: lut.nominate,
+    /** Plays the policy's card, except that with chance `epsilon` it plays (and records) a random legal card. */
     play(ctx) {
       if (ctx.legal.length === 1) return ctx.legal[0];
       if (rng() < epsilon) {
@@ -54,6 +61,7 @@ export function collectChunk({ model, seed, chunk, size, players, epsilon }) {
       { ais: Array(count).fill(ai), cards, trump, dealer, scores: Array(count).fill(0), round: 0, rounds: 14, settings: { missPoints: true } },
       rng,
     );
+    // The points the round was worth to each seat; every recorded random play is credited with its seat's whole round.
     const points = nominations.map((bid, seat) => roundPoints(bid, taken[seat]));
     for (const r of records) {
       totals.fineSum[r.fine] += points[r.seat];
@@ -67,6 +75,7 @@ export function collectChunk({ model, seed, chunk, size, players, epsilon }) {
   return totals;
 }
 
+// Worker entry point: each message is a job ({ chunk }) answered with that chunk's totals.
 if (parentPort) {
   parentPort.on('message', (job) => parentPort.postMessage({ chunk: job.chunk, totals: collectChunk({ ...workerData, ...job }) }));
 }

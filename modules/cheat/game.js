@@ -9,6 +9,8 @@
 //
 // Seats 0..n-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
 // ({ kind: 'bot', id: 'bot:<n>', name, ai }) or null (empty, lobby only).
+//
+// Depends on the shared card, seat, AI, score, tally and trick helpers in shared/, and on ./ai and ./tally.js.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -30,7 +32,7 @@ export const BOT_NAMES = DEFAULT_BOT_NAMES;
 /** The phases in which a game is still going on (a finished game is not). */
 const LIVE = ['lobby', 'playing', 'check'];
 
-/** Is this room's game still going on (in the lobby, being played or in the final check)? */
+/** Is this room's game still going on (in the lobby, being played or in the final check)? Pure: reads room.phase only. */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 /** Is this a table size the game allows (a whole number from MIN_SEATS to MAX_SEATS)? */
@@ -47,8 +49,9 @@ const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
  * The seat after this one, clockwise (wrapping round the table).
  *
  * @param {object} room  not changed
- * @param {number} seat
- * @returns {number}
+ * @param {number} seat  the seat to count on from
+ * @returns {number} the next seat index
+ * Side effects: none.
  */
 const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
 
@@ -63,6 +66,7 @@ const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
  * @param {number} args.now     the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} if the number of seats is not allowed
+ * Side effects: none outside the new room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
@@ -84,7 +88,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
  * Clears everything about a game in progress (hands, pile, turn, tallies...), sized for the current number of seats.
  * Side effects: mutates room. Used when a room is created, resized, started and played again.
  *
- * @param {object} room
+ * @param {object} room  the room to reset in place
+ * @returns {void}
  */
 function resetGame(room) {
   const n = room.seats.length;
@@ -109,6 +114,7 @@ function resetGame(room) {
  * The seat rules (join, leave, kick, computer players) are the shared ones. In Cheat a person who leaves mid-game (while
  * it is being played or in the final check) is replaced by a computer player that gets its own AI; nothing else needs to
  * happen when somebody leaves.
+ * Side effects: none at definition; the returned rules mutate the room they are given.
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['playing', 'check'].includes(room.phase),
@@ -124,7 +130,7 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
  * @param {object} room
  * @param {number} userId  the account asking; must be the host
  * @param {{ seats?: number }} input  the new settings
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
@@ -142,8 +148,9 @@ export function setSettings(room, userId, input) {
  * Grows or shrinks the table. Shrinking keeps everyone seated, closing up the gaps in turn order if it has to.
  * Side effects: mutates room (its seats, and resets the game state).
  *
- * @param {object} room
+ * @param {object} room  the room to resize in place
  * @param {number} count  the new number of seats (already checked to be allowed and not fewer than the people seated)
+ * @returns {void}
  */
 function resizeSeats(room, count) {
   if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
@@ -161,7 +168,7 @@ function resizeSeats(room, count) {
  * @param {object} room
  * @param {number} userId  the account asking; must be the host
  * @param {() => number} rng  random numbers for the shuffle and the AI picks
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
@@ -193,7 +200,7 @@ export function start(room, userId, rng) {
  * @param {object} room
  * @param {number} seat  the seat playing
  * @param {string[]} cards  the cards played, each from that seat's hand
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function playCards(room, seat, cards) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
@@ -259,9 +266,9 @@ export function callCheat(room, seat) {
  * In the final check, a person says they believe the last play, so that the player who went out can win.
  * Side effects: mutates room (decided; may finish the game).
  *
- * @param {object} room
+ * @param {object} room  the room in the final check
  * @param {number} seat  the seat accepting
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function accept(room, seat) {
   if (room.phase !== 'check' || !room.last) return fail('There is no last play to accept.');
@@ -276,7 +283,8 @@ export function accept(room, seat) {
  * The player who went out wins once everybody else has accepted their last play. Does nothing before that.
  * Side effects: may mutate room (tallies, and finishes the game).
  *
- * @param {object} room
+ * @param {object} room  the room to settle
+ * @returns {void}
  */
 function settleCheck(room) {
   if (room.phase !== 'check' || !room.last) return;
@@ -295,6 +303,7 @@ function settleCheck(room) {
  *
  * @param {object} room
  * @param {number} winner  the winning seat
+ * @returns {void}
  */
 function finish(room, winner) {
   room.phase = 'finished';
@@ -310,7 +319,7 @@ function finish(room, winner) {
  *
  * @param {object} room
  * @param {number} userId  the account asking; must be the host
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
@@ -326,6 +335,7 @@ export function playAgain(room, userId) {
  *
  * @param {object} room  a finished room
  * @returns {object[]} entries of { userId, outcome, placement, score, extras }
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   const left = room.cardsLeft ?? room.hands.map((hand) => hand.length);
@@ -343,8 +353,10 @@ export function statsPlayers(room) {
 /**
  * The AI a computer seat plays with. Seats without one get the first, standard AI.
  *
- * @param {object} room
- * @param {number} seat
+ * @param {object} room  not changed
+ * @param {number} seat  the computer seat
+ * @returns {object} the AI definition
+ * Side effects: none.
  */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
@@ -355,6 +367,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
  * @param {number} seat  the computer seat deciding
  * @param {() => number} rng  random numbers for the AI
  * @returns {object} a fresh object, so an AI cannot change the room
+ * Side effects: none.
  */
 export function aiContext(room, seat, rng) {
   return {
@@ -376,13 +389,15 @@ export function aiContext(room, seat, rng) {
  * The cards a computer player plays: always one to four cards from its hand, chosen by its own AI. If the AI throws or
  * suggests something illegal, the first card of the hand is played instead.
  *
- * @param {object} room
- * @param {number} seat
- * @param {() => number} rng
- * @returns {string[]}
+ * @param {object} room  not changed
+ * @param {number} seat  the computer seat playing
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {string[]} the cards to play (validated)
+ * Side effects: advances the rng; the room is not changed.
  */
 export function botPlay(room, seat, rng) {
   const hand = room.hands[seat];
+  // Is this a legal play: one to MAX_PLAY cards, each really in the hand (duplicates need duplicates)?
   const valid = (cards) => {
     if (!Array.isArray(cards) || cards.length < 1 || cards.length > MAX_PLAY) return false;
     const rest = [...hand];
@@ -405,10 +420,11 @@ export function botPlay(room, seat, rng) {
 /**
  * Whether a computer player calls "Cheat!" on the last play (false if its AI throws).
  *
- * @param {object} room
- * @param {number} seat
- * @param {() => number} rng
- * @returns {boolean}
+ * @param {object} room  not changed
+ * @param {number} seat  the computer seat deciding
+ * @param {() => number} rng  random numbers for the AI
+ * @returns {boolean} true to call
+ * Side effects: advances the rng; the room is not changed.
  */
 export function botCalls(room, seat, rng) {
   try {
@@ -422,8 +438,9 @@ export function botCalls(room, seat, rng) {
  * The next thing a computer player has to do, or null when the game waits for a person. A decision about the last play
  * comes before a play.
  *
- * @param {object} room
- * @returns {{ type: 'decide' | 'play', seat: number } | null}
+ * @param {object} room  not changed
+ * @returns {{ type: 'decide' | 'play', seat: number } | null} the action, or null when waiting for a person
+ * Side effects: none.
  */
 export function pendingAction(room) {
   if (!['playing', 'check'].includes(room.phase)) return null;
@@ -439,8 +456,8 @@ export function pendingAction(room) {
  * Performs a pending action.
  * Side effects: mutates room (a call, a decision or a play).
  *
- * @param {object} room
- * @param {() => number} rng
+ * @param {object} room  the room to act on
+ * @param {() => number} rng  random numbers for the AI
  * @returns {{ type: string, seat: number } | null} the action done, or null if there was nothing to do
  * @throws {Error} if a computer player's move turns out to be illegal
  */
@@ -468,7 +485,8 @@ export function runPending(room, rng) {
  * @param {object} room  not changed
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
- * @returns {object}
+ * @returns {object} the seat's public details
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const seat = room.seats[i];
@@ -489,8 +507,9 @@ function seatView(room, i, online) {
  *
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
- * @param {(id: number) => boolean} online
- * @returns {object}
+ * @param {(id: number) => boolean} online  says who is connected
+ * @returns {object} the scoreboard
+ * Side effects: none.
  */
 function scoreboardView(room, me, online) {
   const player = (seat, i) => seatScoreboardEntry(seat, i, { score: room.hands[i].length, me, current: room.phase === 'playing' && room.turn === i, online });
@@ -503,6 +522,7 @@ function scoreboardView(room, me, online) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object} fields to add to the view when the game has started
+ * Side effects: none.
  */
 function playView(room, me) {
   const live = ['playing', 'check'].includes(room.phase);
@@ -527,6 +547,7 @@ function playView(room, me) {
  * @param {number} userId  the account looking (it may be a spectator with no seat)
  * @param {{ online?: (id: number) => boolean }} [options]  says who is connected, so the view can show who is away
  * @returns {object} the view sent to that person
+ * Side effects: none.
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);
@@ -546,7 +567,13 @@ export function viewFor(room, userId, { online = () => true } = {}) {
   return view;
 }
 
-/** The id and name of an AI, which is all the table shows of it. */
+/**
+ * The id and name of an AI, which is all the table shows of it.
+ *
+ * @param {object} ai  an AI definition
+ * @returns {{ id: string, name: string }} the public part
+ * Side effects: none.
+ */
 const describeAIBrief = (ai) => {
   const { id, name } = describeAI(ai);
   return { id, name };

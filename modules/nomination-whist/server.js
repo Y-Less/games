@@ -15,6 +15,7 @@ import * as game from './game.js';
  *
  * @returns {{ bot: { min: number, max: number }, trick: number, nextWait: number }} the computer-player delay range, the
  *   trick pause and the between-rounds wait, all in milliseconds
+ * Side effects: none (reads the environment).
  */
 function readDelays() {
   return {
@@ -40,7 +41,8 @@ export default function (ctx) {
     /**
      * A computer move, the end of a trick, or the wait for the score pop-up: whichever the room is in now.
      *
-     * @param {object} room
+     * @param {object} room  the room (not changed here)
+     * @param {() => number} rng  random numbers for the computer-player delay and the move itself
      * @returns {{ key?: string, wait: number, run: () => void } | null} null when the game is waiting for a person
      */
     nextAction(room, rng) {
@@ -52,7 +54,17 @@ export default function (ctx) {
       if (game.waitingForReady(room)) return { key: `next:${room.roundIndex}`, wait: delays.nextWait, run: () => game.forceNextRound(room, rng) };
       return null;
     },
-    /** The game's own socket events: nominating, playing a card and closing the round-end pop-up. */
+    /**
+     * The game's own socket events: nominating, playing a card and closing the round-end pop-up.
+     *
+     * @param {object} helpers  from the shared room server
+     * @param {Function} helpers.act  runs a change against the sender's room and seat, then saves and broadcasts
+     * @param {Function} helpers.on  registers a socket event handler
+     * @param {*} helpers.userId  the sender's account id
+     * @param {() => number} helpers.rng  random numbers (for dealing the next round)
+     * @returns {void}
+     * Side effects: registers handlers; each event mutates the room, may count a card played for achievements.
+     */
     registerEvents({ act, on, userId, rng }) {
       on('nominate', ({ number }) => act((room, seat) => game.nominate(room, seat, number)));
       on('play', ({ card }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCard(room, seat, card), 1)));
@@ -66,6 +78,7 @@ export default function (ctx) {
  *
  * @param {object} payload  the client's "create" or "settings" message
  * @returns {object} just the settings keys that were sent
+ * Side effects: none.
  */
 function pickSettings(payload) {
   return pickKeys(payload, ['seats', 'length', 'missPoints', 'instantWin', 'jokers', 'hints']);

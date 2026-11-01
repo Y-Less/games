@@ -17,7 +17,7 @@ import { HAND_POINTS, offsetOfDirection, openingCard } from '../deals.js';
 import standard, { wantsMoon } from './standard.js';
 import moon, { moonAlive } from './moon.js';
 
-/** Numbers behind Sharp's judgement, kept together so they can be tuned against tournament results. */
+/** Numbers behind Sharp's judgement (hand-risk weights for passing and the sample count), kept together so they can be tuned against tournament results. */
 export const TUNING = {
   samples: 16, // how many deals of the hidden cards each decision looks ahead through
   relative: 0, // weight of the points other seats score (a small positive favours dumping on others)
@@ -36,6 +36,14 @@ export const TUNING = {
 
 // ---- passing ----
 
+/**
+ * Estimates how many penalty points a hand is likely to cost, so passing can pick the three cards whose removal helps most.
+ * Uncovered Queens, high spades and high hearts add risk; short suits subtract it because a void lets the hand dump.
+ * @param {string[]} hand  the cards that would be kept after passing.
+ * @param {object} settings  game settings; jackOfDiamonds makes the Jack reduce risk.
+ * @returns {number} a relative risk score (lower is better, not a literal point count).
+ * Side effects: none.
+ */
 function handRisk(hand, settings) {
   const spadesLow = hand.filter((c) => suitOf(c) === 'S' && rankValue(c) < 12).length;
   const hasQueen = hand.includes(QUEEN);
@@ -55,7 +63,15 @@ function handRisk(hand, settings) {
   return risk;
 }
 
-/** Every way to choose `size` cards from a hand (in hand order). */
+/**
+ * Every way to choose `size` cards from a hand (in hand order), as a generator.
+ * @param {string[]} hand  cards to choose from.
+ * @param {number} size  how many to choose.
+ * @param {number} [from]  recursion: first index still available.
+ * @param {string[]} [chosen]  recursion: the cards chosen so far.
+ * @yields {string[]} one combination of `size` cards.
+ * Side effects: none.
+ */
 function* choices(hand, size, from = 0, chosen = []) {
   if (chosen.length === size) {
     yield chosen;
@@ -64,6 +80,13 @@ function* choices(hand, size, from = 0, chosen = []) {
   for (let i = from; i <= hand.length - (size - chosen.length); i++) yield* choices(hand, size, i + 1, [...chosen, hand[i]]);
 }
 
+/**
+ * Sharp's pass: the moon AI's pass with an overwhelming hand, otherwise the choice of cards whose removal leaves the
+ * lowest handRisk.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings and passCount.
+ * @returns {string[]} the cards to pass.
+ * Side effects: none.
+ */
 function passSharp(ctx) {
   const { hand, settings } = ctx;
   const size = passSize(ctx);
@@ -83,14 +106,22 @@ function passSharp(ctx) {
 // ---- look-ahead ----
 
 const RANK = new Map();
+// Memoised rankValue: the look-ahead calls it millions of times, so the lookup is cached per card.
 const rv = (card) => {
   let r = RANK.get(card);
   if (r === undefined) RANK.set(card, (r = rankValue(card)));
   return r;
 };
+// The suit letter of a card code (last character); cheaper than suitOf inside the hot look-ahead loop.
 const suit = (card) => card[card.length - 1];
 
-/** The cards a seat may play now, by the rules of the game. `sim.tricks` is the number of finished tricks. */
+/**
+ * The cards a seat may play now, by the rules of the game (opening card, hearts not broken, follow suit, no points on trick one).
+ * @param {object} sim  look-ahead state; `sim.tricks` is the number of finished tricks.
+ * @param {number} seat  the seat to ask about.
+ * @returns {string[]} the legal cards (the seat's hand, or a subset).
+ * Side effects: none.
+ */
 function legalIn(sim, seat) {
   const hand = sim.hands[seat];
   if (!sim.trick.length) {
@@ -111,14 +142,25 @@ function legalIn(sim, seat) {
   return hand;
 }
 
+// Lowest-ranked card of a non-empty list (uses the memoised rank).
 const lowestOf = (cards) => cards.reduce((a, b) => (rv(b) < rv(a) ? b : a));
+// Highest-ranked card of a non-empty list (uses the memoised rank).
 const highestOf = (cards) => cards.reduce((a, b) => (rv(b) > rv(a) ? b : a));
+// Drops the cards matching `bad`, unless that would leave nothing.
 const without = (cards, bad) => {
   const kept = cards.filter((c) => !bad(c));
   return kept.length ? kept : cards;
 };
 
-/** The opponent model for look-ahead: the standard AI's rules (deterministic), or a moon chaser's for a suspected shooter. */
+/**
+ * The opponent model for look-ahead: the standard AI's rules (deterministic), or a moon chaser's for a suspected shooter.
+ * It is deterministic so each simulated world gives a repeatable outcome per candidate card.
+ * @param {object} sim  look-ahead state.
+ * @param {number} seat  the seat choosing.
+ * @param {string[]} legal  that seat's legal cards.
+ * @returns {string} the card the model says the seat plays.
+ * Side effects: none.
+ */
 function modelPlay(sim, seat, legal) {
   if (legal.length === 1) return legal[0];
   const hand = sim.hands[seat];
@@ -169,6 +211,14 @@ function modelPlay(sim, seat, legal) {
   return bestCard;
 }
 
+/**
+ * Applies a play to the simulated hand: removes it from the seat's hand, adds it to the trick and updates the flags.
+ * @param {object} sim  look-ahead state (hands, trick, broken, queenGone...).
+ * @param {number} seat  the seat playing.
+ * @param {string} card  the card played.
+ * @returns {void}
+ * Side effects: mutates sim (hands, trick, broken, queenGone).
+ */
 function playCardIn(sim, seat, card) {
   const hand = sim.hands[seat];
   hand.splice(hand.indexOf(card), 1);
@@ -177,6 +227,12 @@ function playCardIn(sim, seat, card) {
   if (card === QUEEN) sim.queenGone = true;
 }
 
+/**
+ * Resolves the full trick in the simulation: finds the winner and credits them with the hearts, Queen and Jack in it.
+ * @param {object} sim  look-ahead state.
+ * @returns {void}
+ * Side effects: mutates sim (hearts, queen, jackTaker, trick, tricks, turn).
+ */
 function finishTrick(sim) {
   const led = suit(sim.trick[0].card);
   let win = sim.trick[0];
@@ -191,7 +247,15 @@ function finishTrick(sim) {
   sim.turn = win.seat;
 }
 
-/** Plays the hand out from the current position (the card in `sim.trick` so far) and returns each seat's points. */
+/**
+ * Plays the hand out from the current position (the card in `sim.trick` so far) and returns each seat's points.
+ * Shooting the moon is scored per the room's `moon` setting, and the Jack of Diamonds counts as -jackValue.
+ * @param {object} sim  look-ahead state.
+ * @param {object} settings  game settings (moon, jackOfDiamonds).
+ * @param {number} jackValue  how many points the Jack is worth to its taker.
+ * @returns {number[]} points per seat.
+ * Side effects: mutates sim (plays every remaining card).
+ */
 function playOut(sim, settings, jackValue) {
   while (sim.tricks < sim.total) {
     if (sim.trick.length === sim.n) {
@@ -211,12 +275,20 @@ function playOut(sim, settings, jackValue) {
   });
 }
 
-/** Deals the unseen cards to the other seats: known voids are respected and the cards this seat passed go to their receiver. */
+/**
+ * Deals the unseen cards to the other seats: known voids are respected and the cards this seat passed go to their receiver.
+ * @param {object} ctx  AI context (see index.js).
+ * @param {object} know  card-counting result from observe(ctx).
+ * @param {() => number} rng  random source in [0, 1).
+ * @returns {string[][]|null} a hand per seat (this seat's left empty), or null if no consistent deal was found.
+ * Side effects: advances rng.
+ */
 function sampleWorld(ctx, know, rng) {
   const { seat } = ctx;
   const n = seatsIn(ctx);
   const others = Array.from({ length: n }, (_, t) => t).filter((t) => t !== seat);
   const unseen = [...know.unseen];
+  // Where this seat's passed cards went (the receiver is known to hold them, which sharpens the sampled worlds).
   const shift = ctx.passOffset ?? offsetOfDirection(n, ctx.direction);
   const receiver = shift ? (seat + shift) % n : -1;
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -230,7 +302,9 @@ function sampleWorld(ctx, know, rng) {
         room[receiver]--;
       } else free.push(card);
     }
+    // Early attempts respect every known void; the last few relax that so a contradictory belief cannot stall the deal.
     const strict = attempt < 25;
+    // The seats that may legally hold this card given what is known of their voids.
     const eligible = (card) => others.filter((t) => !(strict && know.voids[t].has(suit(card))));
     free.sort((a, b) => eligible(a).length - eligible(b).length || rng() - 0.5);
     let stuck = false;
@@ -257,7 +331,14 @@ function sampleWorld(ctx, know, rng) {
   return null;
 }
 
-/** Cards that play identically: neighbours in a suit with no unseen card between them. Keeps the lowest of each run. */
+/**
+ * Cards that play identically: neighbours in a suit with no unseen card between them. Keeps the lowest of each run, so
+ * the look-ahead does not waste samples on equivalent candidates.
+ * @param {string[]} cards  candidate cards.
+ * @param {object} know  card-counting result from observe(ctx).
+ * @returns {string[]} the candidates with equivalents removed.
+ * Side effects: none.
+ */
 function distinct(cards, know) {
   const out = [];
   for (const card of cards) {
@@ -273,6 +354,12 @@ function distinct(cards, know) {
   return out;
 }
 
+/**
+ * Sharp's play: legal singleton, the Moon AI's play while this seat's own moon bid is alive, otherwise look-ahead.
+ * @param {object} ctx  AI context (see index.js).
+ * @returns {string} one card from ctx.legal.
+ * Side effects: advances ctx.rng (through the look-ahead sampling).
+ */
 function playSharp(ctx) {
   if (ctx.legal.length === 1) return ctx.legal[0];
   if (ctx.moonBid === ctx.seat && moonAlive(ctx)) return moon.choosePlay(ctx);
@@ -282,6 +369,10 @@ function playSharp(ctx) {
 /**
  * Chooses a card by looking ahead (see the top of this file). `jackValue` is how many points the Jack of Diamonds is
  * worth to whoever takes it when that option is on: 5 in the rules, more for an AI that wants it badly.
+ * @param {object} ctx  AI context (see index.js).
+ * @param {{jackValue?: number}} [options]  jackValue override.
+ * @returns {string} the candidate card with the lowest expected penalty over the sampled worlds.
+ * Side effects: advances ctx.rng.
  */
 export function lookAhead(ctx, { jackValue = 5 } = {}) {
   const { legal, seat, settings } = ctx;
@@ -355,6 +446,7 @@ export default {
   name: 'Sharp',
   description: 'Counts cards, tracks who is out of which suit and looks ahead: safe leads, Queen management, dumping on the likely winner, stopping moon attempts.',
   weight: 3,
+  // Moon bidding is the standard AI's: only with an overwhelming hand.
   bidsMoon: (ctx) => standard.bidsMoon(ctx),
   choosePass: passSharp,
   choosePlay: playSharp,

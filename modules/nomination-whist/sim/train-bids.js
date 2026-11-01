@@ -5,6 +5,8 @@
 // options are applied at play time and are not baked in. Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids.js --players 3-7 --in sim-out/whist --out modules/nomination-whist/sim/models/bidding.json
 // With --jokers it reads a run.js --jokers run and writes models/bidding-jokers.json (the table for games with the two Jokers).
+// Depends on: tables.js (the count layout) and export.js (loadCounts, to read what run.js saved). A top-level script:
+// importing it builds the table.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -28,7 +30,14 @@ if (opts.help) {
   process.exit(0);
 }
 
-/** "3-7", "4" or "3,5,6" -> [3, 4, 5, 6, 7]. */
+/**
+ * "3-7", "4" or "3,5,6" -> [3, 4, 5, 6, 7].
+ * @param {string} text  the --players value
+ * @param {number} min  the smallest allowed player count
+ * @param {number} max  the largest allowed player count
+ * @returns {number[]} the distinct counts, ascending
+ * Side effects: none (throws when out of bounds).
+ */
 function listOf(text, min, max) {
   const out = new Set();
   for (const part of text.split(',')) {
@@ -47,7 +56,14 @@ if (!saved) throw new Error(`No counts in ${opts.in}: run sim/run.js first`);
 if ((saved.meta.config.jokers === true) !== opts.jokers) throw new Error(`${opts.in} was played ${saved.meta.config.jokers ? 'with' : 'without'} the Jokers: ${opts.jokers ? 'run.js needs --jokers' : 'pass --jokers to train from it'}`);
 const hand = saved.stats.tables.hand.n;
 
-/** Counts of tricks taken by estimate bucket, for one players x cards x trump (every seat order added together). */
+/**
+ * Counts of tricks taken by estimate bucket, for one players x cards x trump (every seat order added together).
+ * @param {number} p  players minus MIN_PLAYERS (the stored coordinate)
+ * @param {number} cards  cards each
+ * @param {number} tk  trump index
+ * @returns {number[][]} `rows[estimate][tricks]` counts
+ * Side effects: none.
+ */
 function matrix(p, cards, tk) {
   const rows = Array.from({ length: ESTIMATE_BUCKETS }, () => new Array(cards + 1).fill(0));
   for (let seat = 0; seat < p + MIN_PLAYERS; seat++) {
@@ -56,7 +72,15 @@ function matrix(p, cards, tk) {
   return rows;
 }
 
-/** One row as probabilities: widen a triangular window over neighbouring estimates until enough hands back it. */
+/**
+ * One row as probabilities: widen a triangular window over neighbouring estimates until enough hands back it.
+ * Why: a rare estimate has too few hands for stable chances, so it borrows from near estimates (the nearer, the heavier).
+ * @param {number[][]} rows  the counts from matrix()
+ * @param {number} e  the estimate bucket
+ * @param {number} cards  cards each
+ * @returns {number[] | null} chance of taking 0 to `cards` tricks (four decimals), or null if even the widest window is too thin
+ * Side effects: none.
+ */
 function row(rows, e, cards) {
   for (let width = 0; width < ESTIMATE_BUCKETS; width++) {
     const sums = new Array(cards + 1).fill(0);
@@ -72,6 +96,7 @@ function row(rows, e, cards) {
   return null;
 }
 
+// Main: build a row for every players x cards x trump x estimate and write the table the `lut` AI reads.
 const model = {
   kind: 'bidding',
   version: 1,

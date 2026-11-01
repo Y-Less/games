@@ -5,10 +5,17 @@
 import { rankValue, suitOf } from '../../../shared/cards.js';
 import { JACK, QUEEN, avoiding, bySuit, highest, isHeart, lowest, passSize, playedSet, pointTakers, seatsIn } from './util.js';
 
+/**
+ * Chooses the cards the Avoider passes on: the ones most likely to cost it points if kept.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings (jackOfDiamonds) and passCount.
+ * @returns {string[]} the cards to pass, highest "danger" first, passSize(ctx) of them.
+ * Side effects: none.
+ */
 function passAvoider(ctx) {
   const { hand, settings } = ctx;
   const spades = bySuit(hand, 'S');
   const hasQueen = hand.includes(QUEEN);
+  // How badly this card wants to be passed: higher is worse to keep. The Queen is only safe with a long spade suit to protect it.
   const danger = (card) => {
     const rank = rankValue(card);
     if (card === QUEEN) return hasQueen && spades.length >= 6 ? 20 : 100;
@@ -22,10 +29,18 @@ function passAvoider(ctx) {
   return [...hand].sort((a, b) => danger(b) - danger(a)).slice(0, passSize(ctx));
 }
 
+/**
+ * Chooses the card the Avoider plays: duck whenever possible, dump penalty cards when void, and never feed a lone
+ * point-taker hearts (that could hand them the moon).
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat, settings, taken and history.
+ * @returns {string} one card from ctx.legal.
+ * Side effects: none.
+ */
 function playAvoider(ctx) {
   const { legal, trick, hand, seat } = ctx;
   if (legal.length === 1) return legal[0];
   const jackOn = ctx.settings.jackOfDiamonds;
+  // Removes the Jack of Diamonds (worth -5) from the options when that option is on, unless it is all there is.
   const keepJack = (cards) => (jackOn ? avoiding(cards, (c) => c === JACK) : cards);
   const played = playedSet(ctx);
 
@@ -63,6 +78,7 @@ function playAvoider(ctx) {
   const highSpades = legal.filter((c) => suitOf(c) === 'S' && rankValue(c) >= 13 && !played.has(QUEEN));
   if (highSpades.length) return highest(highSpades);
   // Otherwise shed the highest card of the shortest suit, which leads towards a void.
+  // How many cards of this card's suit the hand holds, so the shortest suit can be shed towards a void.
   const length = (card) => hand.filter((c) => suitOf(c) === suitOf(card)).length;
   const options = keepJack(nonHearts.length ? nonHearts : legal);
   return options.reduce((best, c) => (length(c) < length(best) || (length(c) === length(best) && rankValue(c) > rankValue(best)) ? c : best));

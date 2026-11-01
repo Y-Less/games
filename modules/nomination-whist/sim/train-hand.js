@@ -4,6 +4,8 @@
 // out to be worth, then measure it. Run from the platform folder:
 //   node modules/nomination-whist/sim/train-hand.js --players 3-7 --deals 20_000_000 --iterations 3
 // Writes models/hand-values.json (or hand-values-jokers.json with --jokers) after every iteration.
+// Depends on: hand-collect.js (the worker that plays the deals), hand-features.js and hand-model.js (what is learned),
+// and tourney.js (run in a child process to measure the result). A top-level script: importing it starts training.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -45,6 +47,7 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
+/** Parses a command-line number, allowing underscores (20_000_000). Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
@@ -54,9 +57,16 @@ const players = opts.players.split(',').flatMap((part) => {
 const jokers = opts.jokers;
 const outFile = fileURLToPath(HAND_FILES[jokers]);
 const BATCH = num(opts.batch);
+// How much the squared loss on tricks-taken-on-a-miss counts against the hit loss: the miss output matters less to the
+// choice of nomination than the chance of hitting, so it is down-weighted so it does not dominate the shared hidden layer.
 const MISS_WEIGHT = 0.5;
 
-/** Adam optimiser state and gradients for a model. */
+/**
+ * Adam optimiser state and gradient accumulators for a model (one zeroed array per parameter, plus the step count).
+ * @param {{ w1: Float32Array, b1: Float32Array, w2: Float32Array, b2: Float32Array }} model  the network to train
+ * @returns {{ params: string[], state: { grad: object, m: object, v: object, step: number } }} the trainer
+ * Side effects: none (allocates the arrays).
+ */
 function trainerFor(model) {
   const zeros = (a) => new Float32Array(a.length);
   const params = ['w1', 'b1', 'w2', 'b2'];
@@ -69,7 +79,19 @@ function trainerFor(model) {
   return { params, state };
 }
 
-/** Trains on one chunk of examples (shuffled, in batches) and returns how well the model had predicted them before. */
+/**
+ * Trains on one chunk of examples (shuffled, in batches) and returns how well the model had predicted them before.
+ * Scoring each example before learning from it gives an honest (out-of-sample) error figure at no extra cost.
+ * The loss is logistic on the hit chance of the nominated number, plus a squared loss on the tricks taken on a miss (only
+ * the two outputs of that nomination get a gradient).
+ * @param {object} model  the network weights (updated in place)
+ * @param {{ params: string[], state: object }} trainer  from trainerFor
+ * @param {{ n: number, x: Float32Array, bid: Uint8Array, taken: Uint8Array, explorer: Uint8Array, table: Float32Array }} data  the examples from hand-collect.js
+ * @param {number} lr  learning rate for this chunk
+ * @param {() => number} rng  random source for the shuffle
+ * @returns {{ n: number, modelSq: number, tableSq: number, compared: number, modelSqCompared: number, bce: number }} error sums before learning
+ * Side effects: mutates `model` and the trainer's state (weights, Adam moments, step count).
+ */
 function learnFrom(model, trainer, data, lr, rng) {
   const { n, x, bid, taken, explorer, table } = data;
   const { hidden } = model;
@@ -83,6 +105,7 @@ function learnFrom(model, trainer, data, lr, rng) {
   }
   const score = { n: 0, modelSq: 0, tableSq: 0, compared: 0, modelSqCompared: 0, bce: 0 };
   let inBatch = 0;
+  /** Takes one Adam step from the gradients summed over the current batch, then clears them. Side effects: updates the model weights, the moments and `inBatch`. */
   const apply = () => {
     state.step++;
     const c1 = 1 - 0.9 ** state.step;
@@ -161,7 +184,16 @@ function learnFrom(model, trainer, data, lr, rng) {
   return score;
 }
 
-/** Plays the deals in worker threads, training on each chunk as it arrives. Returns the totals of how well it predicted. */
+/**
+ * Plays the deals in worker threads, training on each chunk as it arrives. Returns the totals of how well it predicted.
+ * The learning rate follows a cosine decay from `--lr` down to 5% of it over the iteration, so it settles at the end.
+ * @param {object} model  the network being trained (updated in place)
+ * @param {object | null} opponents  the model the workers' seats nominate with, or null to use the bid-value table
+ * @param {{ params: string[], state: object }} trainer  from trainerFor
+ * @param {number} iteration  0-based iteration number, which varies the seeds between iterations
+ * @returns {Promise<object>} the summed error figures (see learnFrom)
+ * Side effects: starts and terminates worker threads, mutates `model`, and writes a progress bar to stderr.
+ */
 async function iterate(model, opponents, trainer, iteration) {
   const chunk = num(opts.chunk);
   const jobs = Math.ceil(num(opts.deals) / chunk);
@@ -175,6 +207,7 @@ async function iterate(model, opponents, trainer, iteration) {
   let lastDraw = 0;
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./hand-collect.js', import.meta.url)), { workerData: base }));
   await new Promise((resolve) => {
+    /** Gives `worker` the next chunk number, if any are left. Side effects: posts a message. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
       worker.on('message', (data) => {
@@ -204,7 +237,12 @@ async function iterate(model, opponents, trainer, iteration) {
   return totals;
 }
 
-/** Plays the model against the bid-value table in child processes, at every player count, and prints the scores. */
+/**
+ * Plays the model against the bid-value table in child processes, at every player count, and prints the scores.
+ * Seats alternate between the two, so neither benefits from position. Skipped when `--eval-games` is 0.
+ * @returns {void}
+ * Side effects: reloads the saved model, runs tourney.js child processes and logs one line; throws if one fails.
+ */
 function evaluate() {
   const games = num(opts['eval-games']);
   if (!games) return;
@@ -221,6 +259,7 @@ function evaluate() {
   console.log(`  hand model v bid-value table (mean score): ${rows.join(' | ')}`);
 }
 
+// Main loop: each iteration collects with the current model (opponents) and trains on what it collects, then saves and measures.
 const saved = opts.fresh ? null : handModel(jokers, true);
 const model = saved ?? newModel(mulberry32(num(opts.seed)));
 const trainer = trainerFor(model);
@@ -230,6 +269,7 @@ for (let iteration = 0; iteration < num(opts.iterations); iteration++) {
   const totals = await iterate(model, iteration === 0 && !saved ? null : model, trainer, iteration);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, JSON.stringify(modelToJson(model, { trainedOn: { players, jokers, iteration, savedAt: new Date().toISOString() } })));
+  /** Root mean square error from a sum of squares and a count, to three decimals. Pure. */
   const rmse = (sq, n) => Math.sqrt(sq / n).toFixed(3);
   console.log(
     `iteration ${iteration + 1}: ${totals.n.toLocaleString('en-GB')} nominations, predicted points rmse ${rmse(totals.modelSq, totals.n)}, hit loss ${(totals.bce / totals.n).toFixed(4)}` +

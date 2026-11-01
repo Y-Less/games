@@ -24,6 +24,7 @@ const DEFAULT_BOT_DELAY = [600, 1400];
  *
  * @param {{ id: number }} user  the signed-in account of a socket
  * @returns {string} 'user:<id>'
+  * Side effects: none.
  */
 const tokenFor = (user) => `user:${user.id}`;
 
@@ -32,6 +33,7 @@ const tokenFor = (user) => `user:${user.id}`;
  *
  * @param {string} token  a seat token
  * @returns {number | null} the account id, or null for a computer player's token
+  * Side effects: none.
  */
 const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) : null);
 
@@ -39,6 +41,7 @@ const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) :
  * Finds the folder of card images: DIXNT_CARDS_DIR, else ./cards, else the original dixit project's cards.
  *
  * @returns {string} an absolute path (it may not exist)
+  * Side effects: reads an environment variable and checks the filesystem; changes nothing.
  */
 function resolveCardsDir() {
   if (process.env.DIXNT_CARDS_DIR) return path.resolve(process.env.DIXNT_CARDS_DIR);
@@ -51,6 +54,7 @@ function resolveCardsDir() {
  * Reads the chooser's word suggestions from hints.txt, one per line.
  *
  * @returns {string[]} the non-empty lines, trimmed (empty if there is no file)
+  * Side effects: reads hints.txt; changes nothing.
  */
 function loadHints() {
   const file = path.join(here, 'hints.txt');
@@ -68,6 +72,7 @@ function loadHints() {
  *
  * @returns {[number, number]} DIXNT_BOT_DELAY ("600-1400", or one number) as [min, max] milliseconds; a malformed
  *          value gives the default
+  * Side effects: reads an environment variable; changes nothing.
  */
 function readBotDelay() {
   const [min, max = min] = String(process.env.DIXNT_BOT_DELAY ?? '').split('-').map(Number);
@@ -95,6 +100,7 @@ export default function (ctx) {
    * Ids of every card that has a web-sized image on disk.
    *
    * @returns {number[]} sorted ascending
+    * Side effects: reads the card image folder; changes nothing.
    */
   function getCardIds() {
     const dir = path.join(cardsDir, 'medium');
@@ -112,6 +118,7 @@ export default function (ctx) {
    * are offered. Without that file every card is one "All cards" category. The answer is cached for five seconds.
    *
    * @returns {{ key: string, label: string, description: string, ids: number[] }[]}
+   * Side effects: reads cards/categories.json and the card folder; refreshes the five-second cache.
    */
   let categoryCache = { at: 0, value: [] };
   function getCategories() {
@@ -142,6 +149,7 @@ export default function (ctx) {
 
   /**
    * @returns {object} an empty per-person statistics tally
+    * Side effects: none.
    */
   const freshTally = () => ({});
 
@@ -333,6 +341,7 @@ export default function (ctx) {
    * @param {object} entry   a game's entry in `games`
    * @param {string} token   a person's seat token
    * @returns {object} that person's tally for this game (created if it is new)
+    * Side effects: creates and stores the person's tally in the entry if it is new.
    */
   function tallyOf(entry, token) {
     return (entry.tally[token] ??= newTally());
@@ -347,6 +356,7 @@ export default function (ctx) {
    */
   function countRound(entry) {
     const { game } = entry;
+    // Looks up a seat's tally for tallyRound; computer players have none.
     const tallyFor = (id) => {
       const player = game.player(id);
       return player && player.kind !== 'bot' ? tallyOf(entry, player.token) : null; // computer players are not accounts and are not counted
@@ -441,6 +451,7 @@ export default function (ctx) {
   /**
    * @param {string} code  the invite code
    * @returns {Set<string>} the seat ids that have at least one open connection in that game
+    * Side effects: none.
    */
   function connectedPlayerIds(code) {
     const { game } = games.get(code);
@@ -475,6 +486,7 @@ export default function (ctx) {
   /**
    * @param {object} socket  a Socket.IO socket
    * @returns {object | null} the seat of the socket's account in the game the socket is in
+    * Side effects: none.
    */
   const playerOf = (socket) => {
     const entry = games.get(sessions.get(socket.id)?.code);
@@ -484,6 +496,7 @@ export default function (ctx) {
   /**
    * @param {object} socket  a Socket.IO socket
    * @returns {Game | undefined} the game the socket is in
+    * Side effects: none.
    */
   const gameOf = (socket) => games.get(sessions.get(socket.id)?.code)?.game;
 
@@ -564,9 +577,11 @@ export default function (ctx) {
    * @param {Game} game       the game being joined
    * @param {string} rawName  the account's name
    * @returns {string}
+    * Side effects: none.
    */
   function nameInGame(game, rawName) {
     const base = String(rawName ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH) || 'Player';
+    // Is this name already used by a seat in the game (ignoring case)?
     const taken = (name) => game.s.players.some((p) => p.name.toLowerCase() === name.toLowerCase());
     for (let n = 1; n < 100; n++) {
       const suffix = n === 1 ? '' : ` (${n})`;

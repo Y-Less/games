@@ -7,6 +7,7 @@
 // On disk (models/bidding-values.json, and bidding-values-jokers.json for games with the Jokers):
 //   players[count][regime][cards][key][unclaimed][after] = [ [pHit, mMiss] | null for nomination 0, 1, ... ] | null
 // where pHit is the chance of hitting the nomination and mMiss the tricks taken on a miss, averaged over all deals.
+// Depends on: value-features.js (the cell of a decision). Used by the AI (ai/lut.js), value-collect.js and train-values.js.
 import fs from 'node:fs';
 import { valueCell } from './value-features.js';
 
@@ -14,9 +15,15 @@ export const VALUE_FILES = {
   false: new URL('./models/bidding-values.json', import.meta.url),
   true: new URL('./models/bidding-values-jokers.json', import.meta.url),
 };
-const loaded = {};
+const loaded = {}; // cache of the saved tables, keyed by whether the Jokers are in play
 
-/** The table for games without (or with) the Jokers, loaded once; null if there is none. `reload` forgets what was loaded. */
+/**
+ * The table for games without (or with) the Jokers, loaded once; null if there is none. `reload` forgets what was loaded.
+ * @param {boolean} [jokers]  whether the Jokers are in play
+ * @param {boolean} [reload]  discard the cached copy first
+ * @returns {object | null} the table
+ * Side effects: reads the table file and caches the result.
+ */
 export function valueModel(jokers = false, reload = false) {
   const key = jokers === true;
   if (reload) delete loaded[key];
@@ -30,18 +37,35 @@ export function valueModel(jokers = false, reload = false) {
   return loaded[key];
 }
 
-/** What the table holds for this situation: an array with an entry per nomination, or null if it has none. */
+/**
+ * What the table holds for this situation: an array with an entry per nomination, or null if it has none.
+ * @param {object} model  the table
+ * @param {object} ctx  the nominate context (players, hand, trump, nominations)
+ * @returns {Array<[number, number] | null> | null} `[pHit, mMiss]` per nomination
+ * Side effects: none.
+ */
 export function valueRow(model, ctx) {
   const { key, unclaimed, after, regime } = valueCell(ctx);
   return model.players[ctx.players]?.[regime]?.[ctx.hand.length]?.[key]?.[unclaimed]?.[after] ?? null;
 }
 
-/** The expected points of nominating `bid` from a table entry. A miss scores the tricks taken, if misses score. */
+/**
+ * The expected points of nominating `bid` from a table entry: a hit scores 10 + the number. A miss scores the tricks taken, if misses score.
+ * @param {[number, number]} entry  `[pHit, mMiss]`
+ * @param {number} bid  the nomination
+ * @param {boolean} [missPoints]  whether a miss scores the tricks taken
+ * @returns {number} the expected points
+ * Side effects: none.
+ */
 export const expectedPoints = (entry, bid, missPoints = true) => entry[0] * (10 + bid) + (missPoints ? entry[1] : 0);
 
 /**
  * The allowed nomination with the best expected points, or null if the table knows nothing about the allowed ones here.
  * Only nominations the table has data for are considered.
+ * @param {object} model  the table
+ * @param {{ allowed: number[], missPoints?: boolean }} ctx  the nominate context (see valueCell for the rest)
+ * @returns {number | null} the chosen nomination
+ * Side effects: none.
  */
 export function bestByValue(model, ctx) {
   const row = valueRow(model, ctx);

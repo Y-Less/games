@@ -4,6 +4,7 @@
 //
 // Keys are always small numbers: players is stored as players - 3, cards as cards - 1, trump as an index into TRUMPS,
 // card as an index into DECK, and so on (see `coordsOf`/`indexOf`). The CSV export (export.js) turns them back into words.
+// Depends only on shared/cards.js; engine.js fills the tables, export.js writes them out.
 import { fullDeck } from '../../../shared/cards.js';
 
 export const DECK = fullDeck(); // 'AC' ... : the card index used everywhere below
@@ -16,6 +17,7 @@ export const ESTIMATE_STEPS = 4; // the standard AI's trick estimate is bucketed
 export const ESTIMATE_BUCKETS = MAX_CARDS * ESTIMATE_STEPS + 1;
 export const KINDS = ['lead', 'follow', 'ruff', 'discard']; // what a play was: led, followed suit, trumped in, or threw off
 
+// The three keys most tables start with (players - 3, cards - 1, trump) and their sizes.
 const BASE = [['players', MAX_PLAYERS - MIN_PLAYERS + 1], ['cards', MAX_CARDS], ['trump', TRUMPS.length]];
 
 /**
@@ -41,8 +43,16 @@ export const SPEC = {
   bids: { keys: [...BASE, ['estimate', ESTIMATE_BUCKETS], ['nomination', MAX_CARDS + 1]], values: ['n', 'hit'] },
 };
 
+/** The number of cells a table spec has: the product of its key sizes. Pure. */
 const sizeOf = (spec) => spec.keys.reduce((product, [, size]) => product * size, 1);
 
+/**
+ * The position in a table's flat array of one cell, row-major in the order of SPEC's keys.
+ * @param {string} table  a key of SPEC
+ * @param {number[]} coords  one zero-based coordinate per key
+ * @returns {number} the flat index
+ * Side effects: none.
+ */
 export function indexOf(table, coords) {
   let index = 0;
   const keys = SPEC[table].keys;
@@ -50,6 +60,13 @@ export function indexOf(table, coords) {
   return index;
 }
 
+/**
+ * The inverse of indexOf: the coordinates of a flat index (used by the CSV export).
+ * @param {string} table  a key of SPEC
+ * @param {number} index  the flat index
+ * @returns {number[]} one zero-based coordinate per key
+ * Side effects: none.
+ */
 export function coordsOf(table, index) {
   const keys = SPEC[table].keys;
   const coords = new Array(keys.length);
@@ -60,7 +77,12 @@ export function coordsOf(table, index) {
   return coords;
 }
 
+/** All the tables' counts plus the number of deals that made them; two Stats add together cell by cell (`merge`). */
 export class Stats {
+  /**
+   * Makes a Stats with every table zeroed.
+   * Side effects: allocates the arrays.
+   */
   constructor() {
     this.tables = {};
     for (const [name, spec] of Object.entries(SPEC)) {
@@ -69,7 +91,14 @@ export class Stats {
     this.deals = 0;
   }
 
-  /** Adds one observation: `values` is { n: 1, won: 0 or 1 } (just the ones that apply; n is always counted). */
+  /**
+   * Adds one observation: `n` is always counted, and the table's second column (won or hit) too when `won` is truthy.
+   * @param {string} table  a key of SPEC
+   * @param {number[]} coords  one zero-based coordinate per key
+   * @param {number} [won]  1 if the observation also counts as a win/hit, else 0
+   * @returns {void}
+   * Side effects: increments cells in this Stats.
+   */
   add(table, coords, won = 0) {
     const index = indexOf(table, coords);
     const t = this.tables[table];
@@ -77,6 +106,12 @@ export class Stats {
     if (won) (t.won ?? t.hit)[index]++;
   }
 
+  /**
+   * Adds another Stats into this one, cell by cell (how worker results are combined).
+   * @param {Stats} other  the counts to add
+   * @returns {void}
+   * Side effects: mutates this Stats (`other` is left alone).
+   */
   merge(other) {
     for (const [name, columns] of Object.entries(this.tables)) {
       for (const [value, array] of Object.entries(columns)) {
@@ -87,7 +122,11 @@ export class Stats {
     this.deals += other.deals;
   }
 
-  /** Every array in a fixed order, as one Float64Array (for a checkpoint file). */
+  /**
+   * Every array in a fixed order, as one Float64Array (for a checkpoint file).
+   * @returns {Float64Array} a copy of all the counts, back to back
+   * Side effects: none.
+   */
   toFloats() {
     const arrays = this.#arrays();
     const out = new Float64Array(arrays.reduce((sum, a) => sum + a.length, 0));
@@ -99,6 +138,13 @@ export class Stats {
     return out;
   }
 
+  /**
+   * Rebuilds a Stats from what toFloats produced.
+   * @param {Float64Array} floats  the counts in toFloats order
+   * @param {number} deals  the deal count to record
+   * @returns {Stats} the restored counts
+   * Side effects: none.
+   */
   static fromFloats(floats, deals) {
     const stats = new Stats();
     let at = 0;
@@ -110,11 +156,21 @@ export class Stats {
     return stats;
   }
 
-  /** What a worker thread sends back: plain typed arrays, which structured cloning handles. */
+  /**
+   * What a worker thread sends back: plain typed arrays, which structured cloning handles.
+   * @returns {{ tables: object, deals: number }} the message
+   * Side effects: none (the arrays are shared until the message is cloned).
+   */
   toMessage() {
     return { tables: this.tables, deals: this.deals };
   }
 
+  /**
+   * Rebuilds a Stats from a worker's message.
+   * @param {{ tables: object, deals: number }} message  what toMessage produced
+   * @returns {Stats} the counts
+   * Side effects: none.
+   */
   static fromMessage({ tables, deals }) {
     const stats = new Stats();
     for (const [name, columns] of Object.entries(tables)) for (const [value, array] of Object.entries(columns)) stats.tables[name][value].set(array);
@@ -122,6 +178,7 @@ export class Stats {
     return stats;
   }
 
+  /** All the count arrays in SPEC order (the order toFloats and fromFloats rely on). Pure. */
   #arrays() {
     return Object.entries(SPEC).flatMap(([name, spec]) => spec.values.map((value) => this.tables[name][value]));
   }

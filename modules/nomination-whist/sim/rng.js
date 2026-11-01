@@ -1,6 +1,11 @@
 // A small seeded random number generator, so a run can be repeated exactly and resumed chunk by chunk.
 
-/** mulberry32: a fast 32-bit generator. Returns () => number in [0, 1). */
+/**
+ * mulberry32: a fast 32-bit generator.
+ * @param {number} seed  any integer
+ * @returns {() => number} a function giving numbers in [0, 1)
+ * Side effects: none (the returned function advances its own private state).
+ */
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return () => {
@@ -12,7 +17,12 @@ export function mulberry32(seed) {
   };
 }
 
-/** Mixes several integers into one 32-bit seed (the base seed and a chunk number, say). */
+/**
+ * Mixes several integers into one 32-bit seed (the base seed and a chunk number, say), so each chunk has its own stream.
+ * @param {...number} parts  the integers to mix
+ * @returns {number} an unsigned 32-bit seed
+ * Side effects: none.
+ */
 export function mixSeed(...parts) {
   let h = 0x12345678;
   for (const part of parts) {

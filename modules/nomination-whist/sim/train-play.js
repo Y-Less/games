@@ -4,6 +4,8 @@
 // Run from the platform folder:
 //   node modules/nomination-whist/sim/train-play.js --players 3-7 --iterations 3 --deals 20_000_000
 // The table is saved after every iteration (models/play.json and play.bin), so it can be stopped at any time.
+// Depends on: play-collect.js (the worker that plays the deals), play-features.js and play-model.js (the table layout and
+// files), and tourney.js (run in a child process to measure the result). A top-level script: importing it starts training.
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import { parseArgs } from 'node:util';
@@ -44,13 +46,20 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
+/** Parses a command-line number, allowing underscores (20_000_000). Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
   return Array.from({ length: to - from + 1 }, (_, i) => from + i);
 });
 
-/** Collects `--deals` deals with `model` as the policy, in worker threads, with a status bar. */
+/**
+ * Collects `--deals` deals with `model` as the policy, in worker threads, with a status bar.
+ * @param {object | null} model  the play table the seats follow (null means Standard's play)
+ * @param {number} iteration  0-based iteration number, which varies the seeds between iterations
+ * @returns {Promise<object>} the summed totals (see emptyTotals in play-collect.js)
+ * Side effects: starts and terminates worker threads and writes a progress bar to stderr.
+ */
 async function collect(model, iteration) {
   const total = emptyTotals();
   const chunk = num(opts.chunk);
@@ -62,6 +71,7 @@ async function collect(model, iteration) {
   const started = Date.now();
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./play-collect.js', import.meta.url)), { workerData: base }));
   await new Promise((resolve) => {
+    /** Gives `worker` the next chunk number, or terminates it when none are left. Side effects: posts a message or terminates the worker. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : worker.terminate());
     for (const worker of workers) {
       worker.on('message', ({ totals }) => {
@@ -87,7 +97,14 @@ async function collect(model, iteration) {
   return total;
 }
 
-/** Turns the collected sums into a table: a coarse cell needs `--min-coarse` plays; a fine cell is pulled towards its coarse cell. */
+/**
+ * Turns the collected sums into a table: a coarse cell needs `--min-coarse` plays; a fine cell is pulled towards its coarse cell.
+ * Why the pull: a fine cell has more detail but fewer plays, so its average is blended with `--shrink` imaginary plays at
+ * its coarse cell's value (or the overall average if that is unknown), which stops a thinly-seen cell from over-claiming.
+ * @param {object} total  the summed totals from collect
+ * @returns {{ model: object, fineFilled: number, coarseFilled: number }} the new table and how many cells of each kind have a value
+ * Side effects: none.
+ */
 function learn(total) {
   const minCoarse = num(opts['min-coarse']);
   const shrink = num(opts.shrink);
@@ -114,7 +131,12 @@ function learn(total) {
   return { model, fineFilled, coarseFilled };
 }
 
-/** Plays the table against Standard (alternate seats) at every player count, in child processes, and prints the scores. */
+/**
+ * Plays the table against Standard (alternate seats) at every player count, in child processes, and prints the scores.
+ * Skipped when `--eval-games` is 0.
+ * @returns {void}
+ * Side effects: runs tourney.js child processes and logs one line; throws if one fails.
+ */
 function evaluate() {
   const games = num(opts['eval-games']);
   if (!games) return;
@@ -129,6 +151,7 @@ function evaluate() {
   console.log(`  lut v standard (mean score): ${rows.join(' | ')}`);
 }
 
+// Main loop: collect with the current table (plus random exploration), learn a new table from it, save it and measure it.
 let model = opts.fresh ? null : loadPlayModel();
 console.log(`${players.join(',')} players, ${num(opts.iterations)} iterations of ${num(opts.deals).toLocaleString('en-GB')} deals, starting from ${model ? 'the saved table' : "Standard's play"}`);
 for (let iteration = 0; iteration < num(opts.iterations); iteration++) {

@@ -81,6 +81,7 @@ const fail = (message) => {
  *
  * @param {object} seat  an entry of state.players
  * @returns {boolean}
+  * Side effects: none.
  */
 const isBot = (seat) => seat.kind === KIND_BOT;
 
@@ -109,6 +110,7 @@ export function shuffle(items, rng) {
  * @param {() => number} rng        a random number generator returning [0, 1)
  * @param {Set<string>} [taken]     ids that must not be reused
  * @returns {string}
+  * Side effects: advances `rng` only.
  */
 export function newPublicId(rng, taken = new Set()) {
   const base = Math.floor(rng() * 36 ** 8).toString(36).padStart(8, '0');
@@ -152,6 +154,7 @@ export class Game {
    * The state of a game nobody has joined yet.
    *
    * @returns {object} a fresh state object (see toJSON)
+    * Side effects: none.
    */
   static blankState() {
     return {
@@ -212,6 +215,7 @@ export class Game {
    */
   rescaleOldPoints(saved) {
     if (!saved || saved.pointScale !== undefined || saved.phase === 'lobby') return;
+    // Converts an old hundreds-based point total to today's scale.
     const scale = (points) => Math.round(points / 100);
     for (const p of this.s.players) p.score = scale(p.score);
     for (const entry of this.s.history ?? []) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
@@ -237,6 +241,7 @@ export class Game {
    * What gets saved to disk (JSON.stringify calls this).
    *
    * @returns {object} the live state object, not a copy
+    * Side effects: none.
    */
   toJSON() {
     return this.s;
@@ -247,6 +252,7 @@ export class Game {
   /**
    * @param {string} id  a seat id
    * @returns {object | null} the seat, or null if nobody has that id
+   * Side effects: none.
    */
   player(id) {
     return this.s.players.find((p) => p.id === id) ?? null;
@@ -255,6 +261,7 @@ export class Game {
   /**
    * @param {string} token  an account token ('user:<id>') or a computer player's token
    * @returns {object | null} the seat with that token, or null
+    * Side effects: none.
    */
   findByToken(token) {
     return this.s.players.find((p) => p.token === token) ?? null;
@@ -272,6 +279,7 @@ export class Game {
   /**
    * @param {string} id  a seat id
    * @returns {boolean} whether that seat belongs to the host
+    * Side effects: none.
    */
   isHost(id) {
     return this.s.hostId === id;
@@ -281,6 +289,7 @@ export class Game {
    * Players taking part in the current round (everyone except late joiners).
    *
    * @returns {object[]} seats
+    * Side effects: none.
    */
   inRound() {
     return this.s.players.filter((p) => !p.waiting);
@@ -290,6 +299,7 @@ export class Game {
    * Players who play a card this round (everyone in the round except the chooser).
    *
    * @returns {object[]} seats
+    * Side effects: none.
    */
   cardPlayers() {
     return this.inRound().filter((p) => p.id !== this.s.chooserId);
@@ -313,6 +323,7 @@ export class Game {
 
   /**
    * @returns {object[]} the categories the host has selected, in the standard order
+    * Side effects: none.
    */
   selectedCategories() {
     return this.getCategories().filter((c) => this.s.categories.includes(c.key));
@@ -322,6 +333,7 @@ export class Game {
    * Ids of every card in the selected categories.
    *
    * @returns {number[]}
+    * Side effects: none.
    */
   availableIds() {
     return [...new Set(this.selectedCategories().flatMap((c) => c.ids))];
@@ -337,6 +349,7 @@ export class Game {
     const available = new Set(this.availableIds());
     const s = this.s;
     const known = new Set();
+    // Filter predicate: keeps a card only if it is still available and not already seen in another pile or hand (drops duplicates).
     const keep = (id) => available.has(id) && !known.has(id) && known.add(id);
     s.draw = s.draw.filter(keep);
     s.discard = s.discard.filter(keep);
@@ -405,6 +418,7 @@ export class Game {
    * A fresh seat id that no current seat has, drawn from this game's rng.
    *
    * @returns {string}
+    * Side effects: advances this game's rng.
    */
   newSeatId() {
     return newPublicId(this.rng, new Set(this.s.players.map((p) => p.id)));
@@ -429,6 +443,7 @@ export class Game {
   /**
    * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
    * @returns {{ id: string, name: string }} how an AI is shown to the players
+    * Side effects: none.
    */
   aiView(aiId) {
     const { id, name } = aiById(AIS, aiId);
@@ -439,6 +454,7 @@ export class Game {
    * People in the game (accounts), as opposed to computer players.
    *
    * @returns {object[]} seats
+    * Side effects: none.
    */
   humans() {
     return this.s.players.filter((p) => !isBot(p));
@@ -626,6 +642,7 @@ export class Game {
    *
    * @param {object} removed  the seat that has just been removed
    * @returns {boolean} false if the round cannot continue and must be abandoned
+    * Side effects: none.
    */
   roundSurvives(removed) {
     const s = this.s;
@@ -784,6 +801,7 @@ export class Game {
     s.round++;
     // Normally just the next player in join order; anyone who has already had all their turns is skipped while
     // somebody else still owes some (this happens after skipped rounds or when someone joins late).
+    // Has this player still to choose the word for some of the rounds the host asked for?
     const owes = (player) => (player.turns ?? 0) < s.roundsEach;
     const someoneOwes = s.players.some(owes);
     let idx = s.nextChooserIdx % s.players.length;
@@ -909,6 +927,7 @@ export class Game {
    * The players whose votes are needed before the round can end.
    *
    * @returns {object[]} seats
+   * Side effects: none.
    */
   voters() {
     return this.s.judging === 'everyone' ? this.inRound() : this.inRound().filter((p) => p.id === this.s.chooserId);
@@ -996,6 +1015,7 @@ export class Game {
    * @param {boolean} [outcome.groupCorrect] whether the imposter was caught
    * @param {string} [outcome.winnerId]      the favourite style's winner
    * @returns {Object<string, string>} playerId -> remark
+    * Side effects: none.
    */
   roundNotes({ judging, groupCorrect, winnerId }) {
     const s = this.s;
@@ -1052,6 +1072,7 @@ export class Game {
    * Has every player chosen the word as many times as the host asked for?
    *
    * @returns {boolean}
+    * Side effects: none.
    */
   allDone() {
     return this.s.players.every((p) => (p.turns ?? 0) >= this.s.roundsEach);
@@ -1061,6 +1082,7 @@ export class Game {
    * How many more rounds are needed before everyone has had all their turns.
    *
    * @returns {number}
+    * Side effects: none.
    */
   roundsRemaining() {
     return this.s.players.reduce((sum, p) => sum + Math.max(0, this.s.roundsEach - (p.turns ?? 0)), 0);
@@ -1081,6 +1103,7 @@ export class Game {
    * Everyone sharing the highest score.
    *
    * @returns {string[]} seat ids
+    * Side effects: none.
    */
   winnerIds() {
     return winnersOf(Object.fromEntries(this.s.players.map((p) => [p.id, p.score])));
@@ -1093,6 +1116,7 @@ export class Game {
    *
    * @param {object} player  a seat
    * @returns {object} an AI (see ./ai)
+    * Side effects: none.
    */
   aiOf(player) {
     return aiById(AIS, player.ai);
@@ -1103,6 +1127,7 @@ export class Game {
    * never start the game or move on from the results: the host does that, so they can never hold a game up.
    *
    * @returns {{ type: 'word' | 'card' | 'vote', id: string } | null}
+    * Side effects: none.
    */
   pendingBotAction() {
     const s = this.s;
@@ -1129,6 +1154,7 @@ export class Game {
    * @param {any[]} options      the legal answers
    * @param {object} input       what the AI is told (the game adds the cards, round and judging style)
    * @returns {any} one of `options`
+    * Side effects: calls the AI and advances this game's rng; nothing else is changed.
    */
   botDecide(player, decision, options, input) {
     let answer;
@@ -1182,6 +1208,7 @@ export class Game {
    *
    * @param {string} id  the seat id of the viewer
    * @returns {string | null} the word, or null when this player may not know it (yet)
+    * Side effects: none.
    */
   wordView(id) {
     const s = this.s;
@@ -1193,6 +1220,7 @@ export class Game {
    * The categories the host can pick from, with how many cards each holds and whether it is selected.
    *
    * @returns {{ key: string, label: string, description: string, count: number, selected: boolean }[]}
+    * Side effects: none.
    */
   categoriesView() {
     const s = this.s;
@@ -1210,6 +1238,7 @@ export class Game {
    *
    * @param {object} me  the viewer's player
    * @returns {object}
+    * Side effects: none.
    */
   meView(me) {
     const s = this.s;
@@ -1229,6 +1258,7 @@ export class Game {
    *
    * @param {Set<string>} connectedIds  the seat ids that currently have a connection
    * @returns {object[]}
+    * Side effects: none.
    */
   playersView(connectedIds) {
     const s = this.s;
@@ -1254,6 +1284,7 @@ export class Game {
    * @param {string} id  the seat id of the viewer
    * @param {Set<string>} connectedIds  the seat ids that currently have a connection
    * @returns {object}
+    * Side effects: none.
    */
   scoreboardView(id, connectedIds) {
     const s = this.s;
@@ -1269,6 +1300,7 @@ export class Game {
    *
    * @param {string} id  the seat id of the viewer
    * @returns {{ table: object[], voteTargets: string[] }}
+    * Side effects: none.
    */
   tableView(id) {
     const s = this.s;
@@ -1288,6 +1320,7 @@ export class Game {
    * @param {string} id                      the seat id of the viewer
    * @param {Set<string>} [connectedIds]     the seat ids that currently have a connection
    * @returns {object | null} the view, or null if that seat does not exist
+    * Side effects: none.
    */
   viewFor(id, connectedIds = new Set()) {
     const s = this.s;

@@ -15,6 +15,15 @@ export const LAST_CHANCE_BOOST = 1;
  * end the game that way), `round` and `rounds` (so that it is the last round), `scores` (everybody's total before this round)
  * and `seat`. Even the most a round can give (17) must leave you behind the best of the others, who cannot score less than
  * nothing. Without the context (a simulation of single deals, say) it is false.
+ *
+ * @param {object} ctx  the nomination context
+ * @param {boolean} ctx.instantWin  whether a nomination of 7 that is made wins the game
+ * @param {number} ctx.round  the zero-based round being played
+ * @param {number} ctx.rounds  the number of rounds in the game
+ * @param {number[]} ctx.scores  everybody's total before this round, by seat
+ * @param {number} ctx.seat  this player's seat
+ * @returns {boolean} true if even a perfect round cannot lift the player past the leader
+ * Side effects: none.
  */
 export function cannotWinOnPoints({ instantWin, round, rounds, scores, seat }) {
   if (!instantWin || !scores || round !== rounds - 1) return false;
@@ -22,12 +31,23 @@ export function cannotWinOnPoints({ instantWin, round, rounds, scores, seat }) {
   return scores[seat] + MOST_POINTS_IN_A_ROUND < best;
 }
 
-/** The boost to add to every card's weight in this situation: none normally, a lot when there is nothing to lose. */
+/**
+ * The boost to add to every card's weight in this situation: none normally, a lot when there is nothing to lose.
+ *
+ * @param {object} ctx  nomination context (see cannotWinOnPoints)
+ * @returns {number} LAST_CHANCE_BOOST or 0
+ * Side effects: none.
+ */
 export const lastChanceBoost = (ctx) => (cannotWinOnPoints(ctx) ? LAST_CHANCE_BOOST : 0);
 
 /**
  * An AI's nomination with the last chance applied. `decide(boost)` is its usual nomination with every card's weight turned up
  * by `boost`: when the player cannot win on points and it comes to 7, that is the nomination; otherwise `decide(0)`, as usual.
+ *
+ * @param {object} ctx  the nomination context
+ * @param {(boost: number) => number} decide  the AI's usual nomination given a per-card weight boost
+ * @returns {number} the nomination
+ * Side effects: whatever decide has (typically advancing the random source).
  */
 export function withLastChance(ctx, decide) {
   const boost = lastChanceBoost(ctx);
