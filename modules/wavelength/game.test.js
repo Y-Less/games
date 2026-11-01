@@ -537,3 +537,17 @@ test('the most a game can score and the score a team needs both come from the ba
   const room = teamRoom([1, 2, 3]);
   assert.equal(game.teamWinScore(room.turnsTotal), 2 * room.turnsTotal, 'a team must average the outer band a turn');
 });
+
+test('a room saved without a ready list or a team lock still takes a ready', () => {
+  const room = started([1, 2, 3]);
+  game.setClue(room, room.psychic, 'x');
+  for (const p of guessersOf(room)) game.guess(room, p.id, 50);
+  assert.equal(room.phase, 'reveal');
+  const saved = JSON.parse(JSON.stringify(room));
+  delete saved.ready;
+  delete saved.lockedBy;
+  const back = game.migrate(saved);
+  assert.deepEqual(back.ready, []);
+  assert.equal(back.lockedBy, null);
+  assert.equal(game.ready(back, 1, seeded(1)).ok, true);
+});

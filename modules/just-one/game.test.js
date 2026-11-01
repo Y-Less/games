@@ -382,3 +382,17 @@ test('a room saved before players had a kind still loads: bot: true becomes kind
   assert.deepEqual(game.statsPlayers({ ...room, phase: 'finished' }).map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
   assert.equal(game.humans(room).length, room.players.length - bots.length);
 });
+
+test('a room saved without a ready list (or with none of the newer fields) still takes a ready', () => {
+  const room = started([1, 2, 3]);
+  writeClues(room, ['red', 'tasty']);
+  game.guess(room, room.guesser, room.word);
+  game.chooseBest(room, room.guesser, 0);
+  assert.equal(room.phase, 'reveal');
+  const saved = JSON.parse(JSON.stringify(room));
+  delete saved.ready;
+  delete saved.used;
+  const back = game.migrate(saved);
+  assert.deepEqual(back.ready, []);
+  assert.equal(game.ready(back, 1, seeded(1)).ok, true);
+});

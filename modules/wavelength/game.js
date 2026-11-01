@@ -527,6 +527,8 @@ export function migrate(room, nameOf) {
   room.used ??= [];
   room.mode ??= 'solo';
   room.marker ??= null;
+  room.lockedBy ??= null;
+  room.ready ??= []; // ready() reads it unguarded
   if (!Array.isArray(room.history)) room.history = [];
   return room;
 }
