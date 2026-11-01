@@ -11,31 +11,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { placements } from '../../shared/scores.js';
-import { Game, GameError, MAX_NAME_LENGTH } from './game.js';
+import { Game, GameError, MAX_NAME_LENGTH, tokenFor, userIdOf } from './game.js';
 import { newTally, statsExtras, tallyRound } from './tally.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MAX_GAMES = 500;
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // games nobody has touched for two weeks are forgotten
 const DEFAULT_BOT_DELAY = [600, 1400];
-
-/**
- * The token that identifies an account's seat in a game.
- *
- * @param {{ id: number }} user  the signed-in account of a socket
- * @returns {string} 'user:<id>'
-  * Side effects: none.
- */
-const tokenFor = (user) => `user:${user.id}`;
-
-/**
- * The account id inside a seat token.
- *
- * @param {string} token  a seat token
- * @returns {number | null} the account id, or null for a computer player's token
-  * Side effects: none.
- */
-const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) : null);
 
 /**
  * Finds the folder of card images: DIXNT_CARDS_DIR, else ./cards, else the original dixit project's cards.

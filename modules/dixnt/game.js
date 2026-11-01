@@ -119,6 +119,24 @@ export function newPublicId(rng, taken = new Set()) {
   return id;
 }
 
+/**
+ * The token that identifies an account's seat in a game (a computer player's is 'bot:<n>', which no account's can match).
+ *
+ * @param {{ id: number }} user  the signed-in account
+ * @returns {string} 'user:<id>'
+ * Side effects: none.
+ */
+export const tokenFor = (user) => `user:${user.id}`;
+
+/**
+ * The account id inside a seat token.
+ *
+ * @param {string} token  a seat token
+ * @returns {number | null} the account id, or null for a computer player's token
+ * Side effects: none.
+ */
+export const userIdOf = (token) => (/^user:\d+$/.test(token) ? Number(token.slice(5)) : null);
+
 export class Game {
   /**
    * Builds a game, either brand new (in the lobby) or restored from a save.
@@ -563,7 +581,7 @@ export class Game {
   /**
    * Takes a player out of the game outright. The round carries on without them whenever it can (see repairRound); it
    * is abandoned only if it genuinely cannot continue, and the game goes back to the lobby if fewer than MIN_PLAYERS
-   * are left.
+   * are left. A finished game is left as it is (the others keep the final standings), whoever leaves.
    *
    * @param {string} byId      the seat id of the caller
    * @param {string} targetId  the seat id to remove
@@ -594,10 +612,10 @@ export class Game {
       });
       return;
     }
-    if (s.phase === 'lobby') return;
+    if (s.phase === 'lobby' || s.phase === 'finished') return; // a finished game keeps its final standings for the others
     if (s.players.length < MIN_PLAYERS) {
       this.returnToLobby();
-    } else if (s.phase !== 'finished' && !removed.waiting) {
+    } else if (!removed.waiting) {
       this.repairRound(removed);
     }
   }
@@ -1289,7 +1307,8 @@ export class Game {
   scoreboardView(id, connectedIds) {
     const s = this.s;
     return {
-      players: s.players.map((p) => ({ id: p.id, name: p.name, userId: isBot(p) ? undefined : p.id, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
+      // `id` is the seat id (what the game talks about); `userId` is the account, which the site needs for name styles and avatars.
+      players: s.players.map((p) => ({ id: p.id, name: p.name, userId: userIdOf(p.token) ?? undefined, score: p.score, isMe: p.id === id, bot: isBot(p), current: p.id === s.chooserId, away: !isBot(p) && !connectedIds.has(p.id) })),
       rounds: s.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
       lowIsBetter: false,
     };

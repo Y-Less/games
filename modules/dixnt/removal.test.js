@@ -33,6 +33,18 @@ test('the host removes a person mid-round: a computer player takes the seat', ()
   assert.notEqual(game.player(bob.id).name, 'Bob');
 });
 
+test('leaving a finished game leaves the final standings for the others, even when fewer than three remain', () => {
+  const { game, host } = started();
+  game.s.phase = 'finished';
+  const bob = game.s.players.find((p) => p.name === 'Bob');
+  const cat = game.s.players.find((p) => p.name === 'Cat');
+  game.leave(bob.id, bob.id);
+  game.leave(cat.id, cat.id);
+  assert.equal(game.s.phase, 'finished', 'the game is not sent back to the lobby');
+  assert.deepEqual(game.s.players.map((p) => p.name), ['Ann', game.s.players[1].name]);
+  assert.throws(() => game.leave(host.id, game.s.players[1].id), GameError, 'the host cannot remove anybody once the game is over');
+});
+
 test('only the host removes others, and nonsense ids change nothing', () => {
   const { game, host, botId } = started();
   const bob = game.s.players.find((p) => p.name === 'Bob');

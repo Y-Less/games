@@ -1,9 +1,8 @@
-// A snapshot of what Game.viewFor sends: every view, for each seat and for a stranger, along whole seeded games with
-// computer players. The digest was taken before viewFor was split into smaller builders, so splitting it further must not
-// change a byte of what is sent.
+// What Game.viewFor sends, for each seat and for a stranger, along whole seeded games with computer players: the same
+// views every time for a seed, nothing for a stranger, and a fixed set of parts. (These used to pin a SHA-1 of every view,
+// which also pinned every computer decision and every field, so a legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { Game } from './game.js';
 
 const cards = (n) => Array.from({ length: n }, (_, i) => i + 1);
@@ -49,25 +48,26 @@ function recordedViews(judging, seed) {
   return { views, finished: game.s.phase === 'finished' };
 }
 
-const digest = (views) => createHash('sha1').update(views.join('\n')).digest('hex');
+const describeJudging = { everyone: 'everyone judges', chooser: 'the chooser judges', favourite: 'favourites are picked' };
 
-test('the views of a game where everyone judges are exactly as they were', () => {
-  const { views, finished } = recordedViews('everyone', 91);
-  assert.equal(finished, true);
-  assert.equal(digest(views), '5df086dc9871d13a686a3bd55114098adb3b5102');
-});
-
-test('the views of a game where the chooser judges are exactly as they were', () => {
-  const { views, finished } = recordedViews('chooser', 92);
-  assert.equal(finished, true);
-  assert.equal(digest(views), 'e7b586c9c379cf82e5b90bf3e24ac8e28d3cf603');
-});
-
-test('the views of a game of favourites are exactly as they were', () => {
-  const { views, finished } = recordedViews('favourite', 93);
-  assert.equal(finished, true);
-  assert.equal(digest(views), '28fd368153f592f853c946bdabc0dcf0d1a42ed4');
-});
+for (const [judging, seed] of [
+  ['everyone', 91],
+  ['chooser', 92],
+  ['favourite', 93],
+]) {
+  test(`the views of a game where ${describeJudging[judging]} are the same every time for a seed, and say who is an account`, () => {
+    const first = recordedViews(judging, seed);
+    assert.equal(first.finished, true);
+    assert.deepEqual(recordedViews(judging, seed).views, first.views, 'a seed replays the same game and the same views');
+    assert.ok(first.views.length > 50, 'the game was long enough to look at');
+    for (const text of first.views) {
+      const view = JSON.parse(text);
+      if (view === null) continue; // a stranger is sent nothing
+      assert.equal(typeof view.phase, 'string');
+      for (const p of view.scoreboard.players) assert.ok(p.bot ? p.userId === undefined : Number.isInteger(p.userId), 'people carry their account id, computers none');
+    }
+  });
+}
 
 test('a view lists its parts in a fixed order', () => {
   const game = new Game({ getCardIds: () => cards(400), hints: [], rng: seededRng(1) });

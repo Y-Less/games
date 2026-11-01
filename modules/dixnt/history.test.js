@@ -77,6 +77,17 @@ test('the scoreboard shape is the same for everybody, with isMe and away set per
   assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score', 'userId']);
 });
 
+test('the scoreboard names each person by account id, which is what the site needs for name styles and avatars', () => {
+  const game = newGame();
+  const ann = game.addPlayer('Ann', 'user:7');
+  game.addPlayer('Bob', 'user:12');
+  game.addPlayer('Cat', 'user:3');
+  game.addBot(ann.id);
+  const { players } = game.viewFor(ann.id, new Set()).scoreboard;
+  assert.deepEqual(players.map((p) => p.userId), [7, 12, 3, undefined], 'accounts, and nothing for a computer player');
+  assert.notEqual(players[0].id, 7, "the seat id is the game's own, not the account");
+});
+
 test('nothing is revealed early: the history only grows when the round is over', () => {
   const { game, host } = setup(['Ann', 'Bob', 'Cat']);
   game.start(host.id);
