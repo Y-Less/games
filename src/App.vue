@@ -6,6 +6,7 @@
 // Side effects: refreshes the shop on every page change; closes the help pop-up on navigation; signing out clears the
 // profile cache and navigates to the sign-in page.
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AchievementPopups from './components/AchievementPopups.vue';
 import BackgroundFx from './components/BackgroundFx.vue';
@@ -21,6 +22,7 @@ import { pageHelp } from './pageHelp.js';
 
 const route = useRoute();
 const router = useRouter();
+const { t, locale } = useI18n();
 const menuOpen = ref(false); // the header's account menu
 // Whether a game is on screen (the header then shows its title and the Help and Leave buttons).
 const playing = computed(() => route.name === 'play');
@@ -51,10 +53,10 @@ function askLeave() {
 }
 // The Help button: a game's own rules while playing (the play view opens them), otherwise the page's help.
 const helpOpen = ref(false);
-// The current page's help ({ title, markdown }) or null.
-const help = computed(() => pageHelp(route));
+// The current page's help ({ title, markdown }) or null, in the current language.
+const help = computed(() => pageHelp(route, locale.value));
 // The help text as safe HTML.
-const helpHtml = computed(() => (help.value ? renderMarkdown(help.value.markdown) : '<p>There is no help for this page.</p>'));
+const helpHtml = computed(() => (help.value ? renderMarkdown(help.value.markdown) : `<p>${t('nav.noHelp')}</p>`));
 watch(() => route.fullPath, () => (helpOpen.value = false));
 /**
  * The Help button: the game's rules when playing, otherwise the page's help.
@@ -94,47 +96,47 @@ async function leaveSite() {
   <div class="site">
     <BackgroundFx fixed :effect="session.user?.backgroundAnimation" :background="session.user?.background" :intensity="session.user?.effectIntensity" :speed="session.user?.effectSpeed" />
     <header class="bar">
-      <RouterLink to="/" class="brand">Game Hub</RouterLink>
-      <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" aria-label="Main">
-        <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">Games</RouterLink>
-        <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">Statistics</RouterLink>
-        <RouterLink to="/achievements" class="optional" :class="{ on: route.name === 'achievements' }">Achievements</RouterLink>
-        <RouterLink to="/shop" class="optional" :class="{ on: route.name === 'shop' }">Shop</RouterLink>
+      <RouterLink to="/" class="brand">{{ $t('nav.brand') }}</RouterLink>
+      <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" :aria-label="$t('nav.main')">
+        <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">{{ $t('nav.games') }}</RouterLink>
+        <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">{{ $t('nav.stats') }}</RouterLink>
+        <RouterLink to="/achievements" class="optional" :class="{ on: route.name === 'achievements' }">{{ $t('nav.achievements') }}</RouterLink>
+        <RouterLink to="/shop" class="optional" :class="{ on: route.name === 'shop' }">{{ $t('nav.shop') }}</RouterLink>
       </nav>
 
       <div v-if="playing && playBar.game" class="game-bar">
         <div v-if="offer" class="leave">
-          <button class="quiet" :aria-expanded="confirming" @click="askLeave">Leave game</button>
-          <div v-if="confirming" class="confirm panel" role="alertdialog" aria-label="Leave game">
+          <button class="quiet" :aria-expanded="confirming" @click="askLeave">{{ $t('nav.leaveGame') }}</button>
+          <div v-if="confirming" class="confirm panel" role="alertdialog" :aria-label="$t('nav.leaveGame')">
             <p>{{ offer.confirmText }}</p>
             <div class="row">
-              <button class="primary" @click="doLeave">Yes, leave</button>
-              <button class="quiet" @click="confirming = false">Stay</button>
+              <button class="primary" @click="doLeave">{{ $t('nav.yesLeave') }}</button>
+              <button class="quiet" @click="confirming = false">{{ $t('nav.stay') }}</button>
             </div>
           </div>
         </div>
         <h1 class="game-title">{{ playBar.game.name }}</h1>
       </div>
 
-      <button class="quiet help-button" :class="{ first: !playing }" @click="openHelp">Help</button>
+      <button class="quiet help-button" :class="{ first: !playing }" @click="openHelp">{{ $t('common.help') }}</button>
 
-      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="`${session.shop.balance} gold: spend it in the shop`" aria-label="Your gold">
+      <RouterLink v-if="session.user && session.shop" to="/shop" class="coins" :class="{ 'in-game': playing }" :title="$t('nav.gold', { n: session.shop.balance })" :aria-label="$t('nav.yourGold')">
         <span class="coin" aria-hidden="true" />{{ session.shop.balance }}
       </RouterLink>
       <div v-if="session.user" class="account">
         <StyledName as="button" class="quiet" :name="session.user.displayName" :user-id="session.user.id" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen"> ▾</StyledName>
         <div v-if="menuOpen" class="dropdown panel" @click="menuOpen = false">
-          <AvatarFigure class="my-avatar" :avatar="session.user.avatar" size="5rem" label="Your avatar" />
-          <RouterLink to="/profile">Profile</RouterLink>
-          <RouterLink to="/shop">Shop</RouterLink>
-          <RouterLink to="/stats">My statistics</RouterLink>
-          <RouterLink to="/achievements">Achievements</RouterLink>
-          <button class="quiet" @click="leaveSite">Sign out</button>
+          <AvatarFigure class="my-avatar" :avatar="session.user.avatar" size="5rem" :label="$t('nav.yourAvatar')" />
+          <RouterLink to="/profile">{{ $t('nav.profile') }}</RouterLink>
+          <RouterLink to="/shop">{{ $t('nav.shop') }}</RouterLink>
+          <RouterLink to="/stats">{{ $t('nav.myStats') }}</RouterLink>
+          <RouterLink to="/achievements">{{ $t('nav.achievements') }}</RouterLink>
+          <button class="quiet" @click="leaveSite">{{ $t('nav.signOut') }}</button>
         </div>
       </div>
     </header>
 
-    <HelpDialog v-if="helpOpen" :html="helpHtml" :title="help?.title ?? 'Help'" @close="helpOpen = false" />
+    <HelpDialog v-if="helpOpen" :html="helpHtml" :title="help?.title ?? $t('common.help')" @close="helpOpen = false" />
     <AchievementPopups />
 
     <main class="field">

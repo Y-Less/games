@@ -431,10 +431,10 @@ export function createRoomServer(ctx, options) {
     const userId = socket.data.user.id;
     const mine = liveRoomOf(userId);
     const code = ctx.codes.normalise(rawCode);
-    if (rawCode && !code) return { ok: false, error: 'That is not an invite code. It looks like boss-aware-you.' };
+    if (rawCode && !code) return { ok: false, error: 'notAnInviteCode' };
     if (mine && code && mine.code !== code) {
       attach(socket, mine);
-      return { ok: false, error: `You are already in the game ${mine.code}. Leave it to join another.` };
+      return { ok: false, error: 'alreadyInGameJoin', params: { code: mine.code } };
     }
     if (mine) {
       attach(socket, mine);
@@ -448,7 +448,7 @@ export function createRoomServer(ctx, options) {
     const room = rooms.get(code);
     if (!room) {
       socket.emit('state', null);
-      return { ok: false, error: 'No game has that code.' };
+      return { ok: false, error: 'noGameWithCode' };
     }
     if (game.hasPlayer(room, userId)) {
       attach(socket, room);
@@ -457,7 +457,7 @@ export function createRoomServer(ctx, options) {
     const added = game.addHuman(room, userId, socket.data.user.name, playerExtras(userId));
     if (!added.ok) {
       socket.emit('state', null);
-      return room.phase === 'finished' ? { ok: false, error: 'That game has finished.' } : added;
+      return room.phase === 'finished' ? { ok: false, error: 'thatGameFinished' } : added;
     }
     leaveAllRooms(userId, room);
     attach(socket, room);
@@ -490,7 +490,7 @@ export function createRoomServer(ctx, options) {
           reply(handler(payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {}) ?? { ok: true });
         } catch (error) {
           ctx.log(`${event} failed:`, error);
-          reply({ ok: false, error: 'Something went wrong on the server.' });
+          reply({ ok: false, error: 'serverError' });
         }
       });
 
@@ -504,20 +504,20 @@ export function createRoomServer(ctx, options) {
     const act = (rule) => {
       const room = roomOfSocket();
       const seat = room ? game.seatOf(room, userId) : -1;
-      if (seat === -1) return { ok: false, error: 'You are not in a game.' };
+      if (seat === -1) return { ok: false, error: 'notInAnyGame' };
       const outcome = rule(room, seat);
       if (outcome.ok) changed(room);
       return outcome.ok ? { ok: true } : { ok: false, error: outcome.error };
     };
 
     on('resume', ({ code }) => enter(socket, code));
-    on('join', ({ code }) => (typeof code === 'string' && code.trim() ? enter(socket, code) : { ok: false, error: 'Type an invite code.' }));
+    on('join', ({ code }) => (typeof code === 'string' && code.trim() ? enter(socket, code) : { ok: false, error: 'typeInviteCode' }));
 
     on('create', (payload) => {
       const mine = liveRoomOf(userId);
       if (mine) {
         attach(socket, mine);
-        return { ok: false, error: `You are already in the game ${mine.code}. Leave it to start another.` };
+        return { ok: false, error: 'alreadyInGameStart', params: { code: mine.code } };
       }
       let room;
       try {
@@ -556,7 +556,7 @@ export function createRoomServer(ctx, options) {
     // The host removes someone: the rules refuse a finished game, a missing seat and the host themselves.
     on('kick', (payload) => {
       const room = roomOfSocket();
-      if (!room) return { ok: false, error: 'You are not in a game.' };
+      if (!room) return { ok: false, error: 'notInAnyGame' };
       const outcome = game.kick(room, userId, payload[kickKey], rng, now());
       if (!outcome.ok) return { ok: false, error: outcome.error };
       detach(outcome.userId, room.code);

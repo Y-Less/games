@@ -221,7 +221,7 @@ describe('ScoreBoard pop-up', () => {
   it('shows who is still to close it, and ticks the people who have', async () => {
     make({ rounds: [round1], players: players.map((p) => ({ ...p, ready: p.id === 'b' })), waiting: ['Ann', 'Cat'] });
     await wrapper.setProps({ rounds: [round1, round2] });
-    expect(dialog().querySelector('.waiting').textContent).toContain('Waiting for Ann, Cat');
+    expect(dialog().querySelector('.waiting').textContent).toContain('Waiting for Ann and Cat');
     expect(chips().map((c) => c.find('.tick:not(.unready)').exists())).toEqual([false, true, false]);
   });
 

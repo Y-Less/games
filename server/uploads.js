@@ -48,8 +48,8 @@ export function createUploads(uploadsDir) {
    */
   function saveImage({ kind, userId, contentType, body }) {
     const type = IMAGE_TYPES[contentType?.split(';')[0]];
-    if (!type || !Buffer.isBuffer(body) || !body.length) throw new AuthError('Please upload a PNG, JPEG or WebP image (up to 3 MB).', 415);
-    if (!type.magic(body)) throw new AuthError('That file is not really an image of that type.', 415);
+    if (!type || !Buffer.isBuffer(body) || !body.length) throw new AuthError('invalidImage', 415);
+    if (!type.magic(body)) throw new AuthError('imageTypeMismatch', 415);
     const file = `${kind}-${userId}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
     fs.writeFileSync(path.join(uploadsDir, file), body);
     removeImages(kind, userId, file);

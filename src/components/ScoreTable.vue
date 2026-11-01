@@ -6,12 +6,14 @@
 // Side effects: none.
 // Every round's scores in a table, with totals. Standard shape: see shared/scores.js.
 import { computed } from 'vue';
+import { ordinalText } from '../messageText.js';
+import { useGameText } from '../useGameText.js';
 import { placements } from '../../shared/scores.js';
 import StyledName from './StyledName.vue';
 
 const props = defineProps({
   players: { type: Array, required: true }, // [{ id, name, score, isMe? }]
-  rounds: { type: Array, default: () => [] }, // [{ label, deltas: { [id]: points }, notes?: { [id]: text } }]
+  rounds: { type: Array, default: () => [] }, // [{ label, deltas: { [id]: points }, notes?: { [id]: message } }]; label and notes are messages (shared/messages.js)
   lowIsBetter: { type: Boolean, default: false },
   target: { type: Number, default: null },
   running: { type: Boolean, default: false }, // show the running total beside each round's points
@@ -45,16 +47,7 @@ function best(round) {
   return new Set(props.players.filter((p) => (round.deltas?.[p.id] ?? 0) === top && values.some((v) => v !== top)).map((p) => p.id));
 }
 
-/**
- * Formats a place as an English ordinal (1st, 2nd, 3rd, 11th ...).
- * @param {number} n  the place, 1-based
- * @returns {string}  e.g. "22nd"
- * Side effects: none.
- */
-function ordinal(n) {
-  const teen = n % 100 > 10 && n % 100 < 14;
-  return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th')}`;
-}
+const { t, text } = useGameText();
 
 // Returns a points figure as text, with a leading + for gains when higher scores are better.
 const sign = (n) => (n > 0 && props.lowIsBetter === false ? `+${n}` : String(n));
@@ -65,17 +58,17 @@ const sign = (n) => (n > 0 && props.lowIsBetter === false ? `+${n}` : String(n))
     <table class="score-table">
       <thead>
         <tr>
-          <th scope="col">Round</th>
-          <th v-for="p in players" :key="p.id" scope="col" :colspan="split ? 2 : undefined" :class="{ me: p.isMe }"><StyledName :name="p.name" :user-id="p.userId ?? null" /><span v-if="p.isMe" class="you"> (you)</span></th>
+          <th scope="col">{{ t('scoreboard.round') }}</th>
+          <th v-for="p in players" :key="p.id" scope="col" :colspan="split ? 2 : undefined" :class="{ me: p.isMe }"><StyledName :name="p.name" :user-id="p.userId ?? null" /><span v-if="p.isMe" class="you">{{ ` ${t('common.youBracketed')}` }}</span></th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="!rounds.length">
-          <td :colspan="players.length * (split ? 2 : 1) + 1" class="muted empty">No rounds finished yet.</td>
+          <td :colspan="players.length * (split ? 2 : 1) + 1" class="muted empty">{{ t('scoreboard.noRounds') }}</td>
         </tr>
         <template v-for="(round, i) in rounds" :key="i">
           <tr v-if="split" class="split-row" :class="{ noted: hasNotes(round) }">
-            <th scope="row" :rowspan="hasNotes(round) ? 2 : undefined">{{ round.label }}</th>
+            <th scope="row" :rowspan="hasNotes(round) ? 2 : undefined">{{ text(round.label) }}</th>
             <template v-for="p in players" :key="p.id">
               <td class="points" :class="{ top: best(round).has(p.id), me: p.isMe }">{{ sign(round.deltas?.[p.id] ?? 0) }}</td>
               <td class="total muted" :class="{ me: p.isMe }">{{ runningTotals[i][p.id] }}</td>
@@ -83,24 +76,24 @@ const sign = (n) => (n > 0 && props.lowIsBetter === false ? `+${n}` : String(n))
           </tr>
           <tr v-if="split && hasNotes(round)" class="notes-row">
             <td v-for="p in players" :key="p.id" colspan="2" :class="{ me: p.isMe }">
-              <small v-if="round.notes?.[p.id]" class="note muted">{{ round.notes[p.id] }}</small>
+              <small v-if="round.notes?.[p.id]" class="note muted">{{ text(round.notes[p.id]) }}</small>
             </td>
           </tr>
           <tr v-else-if="!split">
-            <th scope="row">{{ round.label }}</th>
-            <td v-for="p in players" :key="p.id" :class="{ top: best(round).has(p.id), me: p.isMe }" :title="round.notes?.[p.id]">
+            <th scope="row">{{ text(round.label) }}</th>
+            <td v-for="p in players" :key="p.id" :class="{ top: best(round).has(p.id), me: p.isMe }" :title="round.notes?.[p.id] ? text(round.notes[p.id]) : undefined">
               {{ sign(round.deltas?.[p.id] ?? 0) }}<span v-if="running" class="run muted"> ({{ runningTotals[i][p.id] }})</span>
-              <small v-if="round.notes?.[p.id]" class="note muted">{{ round.notes[p.id] }}</small>
+              <small v-if="round.notes?.[p.id]" class="note muted">{{ text(round.notes[p.id]) }}</small>
             </td>
           </tr>
         </template>
       </tbody>
       <tfoot>
         <tr>
-          <th scope="row">Total<span v-if="target" class="muted"> / {{ target }}</span></th>
+          <th scope="row">{{ t('scoreboard.total') }}<span v-if="target" class="muted"> / {{ target }}</span></th>
           <td v-for="p in players" :key="p.id" :colspan="split ? 2 : undefined" :class="{ leader: places[p.id] === 1, me: p.isMe }">
             <strong>{{ p.score }}</strong>
-            <small class="place muted">{{ places[p.id] === 1 ? 'leading' : ordinal(places[p.id]) }}</small>
+            <small class="place muted">{{ places[p.id] === 1 ? t('scoreboard.leading') : ordinalText(places[p.id]) }}</small>
           </td>
         </tr>
       </tfoot>

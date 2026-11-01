@@ -8,7 +8,9 @@
 // until OK is clicked (they do not hide themselves). When many arrive together (the first visit after achievements began paying out, say) they
 // are shown as one pop-up with the total, so nobody has to click through a long line of them.
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { feed, shown, startFeed, stopFeed } from '../achievementFeed.js';
+import { catalogue } from '../catalogueText.js';
 import { session } from '../session.js';
 import NoticePopup from './NoticePopup.vue';
 
@@ -44,20 +46,31 @@ function closed() {
 const many = computed(() => (current.value?.length ?? 0) > 1);
 // Total coins earned across the unlocks in the current pop-up.
 const coins = computed(() => (current.value ?? []).reduce((sum, u) => sum + u.coins, 0));
-// Returns a number formatted with British thousands separators.
-const number = (n) => n.toLocaleString('en-GB');
+const { t, n: number } = useI18n();
+/**
+ * The pop-up's words for one unlock, in the player's language (the server's English is the fallback).
+ * @param {{ gameId: string, key: string, name: string, text: string, n: number, level: number, levels: number, game: string }} unlock
+ * @returns {{ name: string, line: string }}
+ * Side effects: none.
+ */
+function wordsFor(unlock) {
+  const name = catalogue.achievementName(unlock.gameId, unlock);
+  const text = catalogue.achievementText(unlock.gameId, unlock, unlock.n, unlock.text);
+  const game = unlock.gameId === 'global' ? unlock.game : catalogue.gameName({ id: unlock.gameId, name: unlock.game });
+  return { name, line: unlock.levels > 1 ? t('unlocks.oneLineLevel', { game, level: unlock.level, text }) : t('unlocks.oneLine', { game, text }) };
+}
 </script>
 
 <template>
   <NoticePopup v-if="current" :key="current.map((u) => `${u.id}:${u.level}`).join()" :active="true" :auto-hide="false" :row="1" name="achievement" @close="closed">
     <template v-if="many">
-      <strong class="title">{{ current.length }} achievements unlocked!</strong>
-      <span class="line">+{{ number(coins) }} gold. See them on the Achievements page.</span>
+      <strong class="title">{{ t('unlocks.many', { count: current.length }) }}</strong>
+      <span class="line">{{ t('unlocks.manyLine', { coins: number(coins) }) }}</span>
     </template>
     <template v-else>
-      <strong class="title">Achievement unlocked: {{ current[0].name }}</strong>
-      <span class="line">{{ current[0].game }}{{ current[0].levels > 1 ? `, level ${current[0].level}` : '' }}: {{ current[0].text }}</span>
-      <span class="line reward">+{{ number(current[0].coins) }} gold</span>
+      <strong class="title">{{ t('unlocks.one', { name: wordsFor(current[0]).name }) }}</strong>
+      <span class="line">{{ wordsFor(current[0]).line }}</span>
+      <span class="line reward">{{ t('unlocks.reward', { coins: number(current[0].coins) }) }}</span>
     </template>
   </NoticePopup>
 </template>

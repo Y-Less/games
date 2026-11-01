@@ -69,7 +69,7 @@ export function cleanBackground(input) {
     return { type, from: input.from.toLowerCase(), to: input.to.toLowerCase(), angle: Number.isFinite(angle) ? angle : 160 };
   }
   if (type === 'image' && isText(input.file) && /^bg-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type, file: input.file };
-  throw new AuthError('That is not a valid background.');
+  throw new AuthError('invalidBackground');
 }
 
 /**
@@ -82,7 +82,7 @@ export function cleanBackground(input) {
 export function cleanCardBack(input) {
   if (input?.type === 'preset' && isText(input.value) && Object.hasOwn(CARD_BACK_PRESETS, input.value)) return { type: 'preset', value: input.value };
   if (input?.type === 'image' && isText(input.file) && /^cb-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type: 'image', file: input.file };
-  throw new AuthError('That is not a valid card back.');
+  throw new AuthError('invalidCardBack');
 }
 
 /**
@@ -94,9 +94,9 @@ export function cleanCardBack(input) {
  * Side effects: none.
  */
 export function cleanNameStyle(input) {
-  if (!(isText(input?.style) && isNameStyle(input.style))) throw new AuthError('That is not a valid name style.');
+  if (!(isText(input?.style) && isNameStyle(input.style))) throw new AuthError('invalidNameStyle');
   if (input.animation === undefined || input.animation === 'none') return { style: input.style };
-  if (!isNameAnimation(input.animation)) throw new AuthError('That is not a valid name animation.');
+  if (!isNameAnimation(input.animation)) throw new AuthError('invalidNameAnimation');
   return { style: input.style, animation: input.animation };
 }
 
@@ -109,20 +109,19 @@ export function cleanNameStyle(input) {
  */
 export function cleanPlayAnimations(input) {
   if (typeof input === 'boolean' || input === null) return input;
-  throw new AuthError('Play animations must be always, never or follow the device.');
+  throw new AuthError('invalidPlayAnimations');
 }
 
 /**
  * Checks a background animation level (a whole percentage within the given range).
  * @param {*} input  what the client sent
  * @param {{ min: number, max: number }} range  the allowed range
- * @param {string} what  the name used in the error message ('intensity' or 'speed')
- * @returns {number}
+  * @returns {number}
  * @throws {AuthError} 400 when it is not a whole number in range
  * Side effects: none.
  */
-export function cleanEffectLevel(input, { min, max }, what) {
-  if (!Number.isInteger(input) || input < min || input > max) throw new AuthError(`The ${what} must be a whole number from ${min} to ${max}.`);
+export function cleanEffectLevel(input, { min, max }) {
+  if (!Number.isInteger(input) || input < min || input > max) throw new AuthError('invalidEffectLevel', 400, { min, max });
   return input;
 }
 
@@ -135,20 +134,19 @@ export function cleanEffectLevel(input, { min, max }, what) {
  */
 export function cleanBackgroundAnimation(input) {
   if (isBackgroundAnimation(input)) return input;
-  throw new AuthError('That is not a valid background animation.');
+  throw new AuthError('invalidBackgroundAnimation');
 }
 
 /**
  * Checks a colour theme or font choice: the id of one that exists.
  * @param {*} input  what the client sent
  * @param {(value: *) => boolean} isValid  whether the id exists
- * @param {string} what  the name used in the error message ('colour theme' or 'font')
- * @returns {*} the input, unchanged
+  * @returns {*} the input, unchanged
  * @throws {AuthError} 400 when it does not exist
  * Side effects: none.
  */
-export function cleanChoice(input, isValid, what) {
-  if (!isValid(input)) throw new AuthError(`That is not a ${what}.`);
+export function cleanChoice(input, isValid, code) {
+  if (!isValid(input)) throw new AuthError(code);
   return input;
 }
 
@@ -162,7 +160,7 @@ export function cleanChoice(input, isValid, what) {
 export function cleanMarkerColour(input) {
   if (input === null) return null;
   const colour = normaliseMarker(input);
-  if (!colour) throw new AuthError('A marker colour is six hex digits such as #ff2d95.');
+  if (!colour) throw new AuthError('invalidMarkerColour');
   return colour;
 }
 
@@ -174,9 +172,9 @@ export function cleanMarkerColour(input) {
  * Side effects: none.
  */
 export function cleanAvatar(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('That is not a valid avatar.');
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new AuthError('invalidAvatar');
   for (const { slot } of AVATAR_SLOTS) {
-    if (input[slot] !== undefined && !isAvatarOption(slot, input[slot])) throw new AuthError('That is not a valid avatar.');
+    if (input[slot] !== undefined && !isAvatarOption(slot, input[slot])) throw new AuthError('invalidAvatar');
   }
   return normaliseAvatar(input);
 }

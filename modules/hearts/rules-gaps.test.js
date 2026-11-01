@@ -97,7 +97,7 @@ test('the first trick: the 2 of clubs leads, and points may only go on it when n
   game.playCard(room, leader, '2C');
   assert.equal(game.illegalReason(room, (leader + 1) % 4, 'QS'), null);
   room.hands[(leader + 1) % 4] = ['QS', '3H', '5D'];
-  assert.match(game.illegalReason(room, (leader + 1) % 4, 'QS'), /first trick|follow/);
+  assert.match(game.illegalReason(room, (leader + 1) % 4, 'QS').key, /noPointsFirstTrick|followSuit/);
 });
 
 test('statistics: everybody seated is recorded once with the right outcome and placement', () => {

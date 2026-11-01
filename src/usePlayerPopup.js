@@ -15,6 +15,7 @@
 //   <ScoreBoard v-bind="scoreProps" ... />
 //   <PlayerPopup v-if="popupProps" v-bind="popupProps"> ...the game's panel for openId... </PlayerPopup>
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { useGameText } from './useGameText.js';
 
 // What counts as "inside": the chips that open pop-ups, and the pop-up itself.
 export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
@@ -36,6 +37,7 @@ export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
 export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, remove = null }) {
   const openId = ref(null);
   const error = ref('');
+  const { error: errorWords } = useGameText();
   const anchor = shallowRef(null); // the chip the pop-up hangs under
   let pinned = false; // opened by a click, so moving the pointer away does not close it
   let timer = null;
@@ -112,9 +114,9 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     try {
       reply = await remove(target.id, target);
     } catch {
-      reply = { ok: false, error: 'Could not remove that player.' };
+      reply = { ok: false, error: 'removeFailed' };
     }
-    if (reply && reply.ok === false) error.value = reply.error || 'Could not remove that player.';
+    if (reply && reply.ok === false) error.value = errorWords(reply.error ? reply : { error: 'removeFailed' });
     else close();
   }
 

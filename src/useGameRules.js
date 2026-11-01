@@ -1,7 +1,8 @@
 // The Help pop-up of a game: its written rules, fetched when first asked for.
-// Depends on: vue (ref), api.js (the rules request) and markdown.js (renderMarkdown).
+// Depends on: vue (ref), api.js (the rules request), i18n.js (the language asked for) and markdown.js (renderMarkdown).
 import { ref } from 'vue';
 import { api } from './api.js';
+import { i18n } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 
 /**
@@ -18,15 +19,16 @@ export function useGameRules(game) {
   /**
    * Opens the rules pop-up, loading the rules the first time.
    * @returns {Promise<void>}
-   * Side effects: sets showRules; fetches /api/games/<id>/rules once (a game without rules gets a short notice instead).
+   * Side effects: sets showRules; fetches /api/games/<id>/rules once, in the current language (a game without rules
+   * gets a short notice instead).
    */
   async function openRules() {
     showRules.value = true;
     if (rules.value !== null) return;
     try {
-      rules.value = renderMarkdown(await api('GET', `/api/games/${game()}/rules`));
+      rules.value = renderMarkdown(await api('GET', `/api/games/${game()}/rules?lang=${encodeURIComponent(i18n.global.locale.value)}`));
     } catch {
-      rules.value = '<p>This game has no written rules yet.</p>';
+      rules.value = `<p>${i18n.global.t('play.noRules')}</p>`;
     }
   }
 

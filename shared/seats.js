@@ -16,7 +16,9 @@
 export const DEFAULT_BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
 /** A failed rule. */
-export const fail = (error) => ({ ok: false, error });
+// `error` is a code: a key under `errors.` in the game's or the site's locale file (src/locales/en.json), which the client
+// puts into words; `params` are the values the words need. See shared/messages.js.
+export const fail = (error, params) => (params ? { ok: false, error, params } : { ok: false, error });
 /** A successful rule, with any extra facts about what happened. */
 export const ok = (extra = {}) => ({ ok: true, ...extra });
 
@@ -58,9 +60,9 @@ export function freeGoneSeats(room) {
 }
 
 /** Null if this account is the host, otherwise the failure to return. */
-export const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
+export const asHost = (room, userId) => (room.hostId === userId ? null : fail('hostOnly'));
 /** Null while the game is still in the lobby, otherwise the failure to return. */
-const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
+const inLobby = (room) => (room.phase === 'lobby' ? null : fail('settingsBeforeStart'));
 /** Both of the above: the first problem, or null if the host is changing the lobby. */
 export const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
 
@@ -143,9 +145,9 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    */
   function addHuman(room, userId, name) {
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-    if (room.phase !== 'lobby') return fail('That game has already started.');
+    if (room.phase !== 'lobby') return fail('thatGameStarted');
     const seat = firstEmpty(room);
-    if (seat === -1) return fail('That game is full.');
+    if (seat === -1) return fail('gameFull');
     room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
     return ok({ seat });
   }
@@ -163,7 +165,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    */
   function removeHuman(room, userId, rng, now) {
     const seat = seatOf(room, userId);
-    if (seat === -1) return fail('You are not in this game.');
+    if (seat === -1) return fail('notInGame');
     const midGame = isMidGame(room);
     const leaving = room.seats[seat];
     if (midGame) room.seats[seat] = takeOver(room, newBot(room), seat, rng);
@@ -187,9 +189,9 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     const problem = hostInLobby(room, userId);
     if (problem) return problem;
     const index = seat === undefined ? firstEmpty(room) : seat;
-    if (index === -1) return fail('Every seat is taken.');
-    if (!Number.isInteger(index) || index < 0 || index >= room.seats.length) return fail('There is no such seat.');
-    if (room.seats[index]) return fail('That seat is taken.');
+    if (index === -1) return fail('everySeatTaken');
+    if (!Number.isInteger(index) || index < 0 || index >= room.seats.length) return fail('noSuchSeat');
+    if (room.seats[index]) return fail('seatTaken');
     room.seats[index] = newBot(room);
     return ok({ seat: index });
   }
@@ -205,7 +207,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
   function removeBot(room, userId, seat) {
     const problem = hostInLobby(room, userId);
     if (problem) return problem;
-    if (!Number.isInteger(seat) || !isBot(room.seats[seat])) return fail('There is no computer player in that seat.');
+    if (!Number.isInteger(seat) || !isBot(room.seats[seat])) return fail('noBotInSeat');
     room.seats[seat] = null;
     return ok();
   }
@@ -240,8 +242,8 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     const problem = asHost(room, hostId);
     if (problem) return problem;
     const target = Number.isInteger(seat) ? room.seats[seat] : null;
-    if (!isHuman(target) || target.id === hostId) return fail('There is no one else in that seat.');
-    if (room.phase === 'finished') return fail('The game is over: there is nobody to remove.');
+    if (!isHuman(target) || target.id === hostId) return fail('nobodyElseInSeat');
+    if (room.phase === 'finished') return fail('gameOverNobodyToRemove');
     const removed = removeHuman(room, target.id, rng, now);
     return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
   }

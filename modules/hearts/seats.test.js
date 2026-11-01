@@ -71,7 +71,8 @@ test('the first lead is the lowest club still in the deck, must be led, and the 
       const other = room.hands[room.turn].find((c) => c !== opening);
       const refused = g.playCard(room, room.turn, other);
       assert.equal(refused.ok, false);
-      assert.match(refused.error, /must lead the/);
+      assert.equal(refused.error, 'mustLead');
+      assert.equal(refused.params.card.key, 'cards.name', 'the refusal names the card to lead');
       if (n !== 4) assert.ok(!refused.error.includes('2 of clubs'), 'it does not name the 2 of clubs');
       assert.equal(g.legalCards(room, room.turn).length, 1);
       assert.deepEqual(g.legalCards(room, room.turn), [opening]);
@@ -79,7 +80,7 @@ test('the first lead is the lowest club still in the deck, must be led, and the 
   }
   const four = startedRoom(4);
   while (four.phase === 'passing') g.runPending(four, Math.random) ?? g.choosePass(four, 0, four.hands[0].slice(0, 3));
-  assert.match(g.playCard(four, four.turn, four.hands[four.turn].find((c) => c !== '2C')).error, /2 of clubs/);
+  assert.equal(g.playCard(four, four.turn, four.hands[four.turn].find((c) => c !== '2C')).error, 'mustLead');
   assert.equal(g.playCard(four, four.turn, '2C').ok, true);
 });
 
@@ -90,12 +91,12 @@ test('pass directions: names, offsets and labels', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5].map((o) => directionName(6, o)), ['none', 'left', 'left2', 'across', 'right2', 'right']);
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((o) => directionName(7, o)), ['none', 'left', 'left2', 'left3', 'right3', 'right2', 'right']);
   for (const n of COUNTS) for (let o = 0; o < n; o++) assert.equal(offsetOfDirection(n, directionName(n, o)), o);
-  assert.equal(describePass(4, 1).label, 'Passing 3 to the left');
-  assert.equal(describePass(6, 2).label, 'Passing 2 to the left (2 places along)');
+  assert.deepEqual(describePass(4, 1).label, { key: 'pass.side', params: { count: 3, side: { key: 'pass.left' } } });
+  assert.deepEqual(describePass(6, 2).label, { key: 'pass.sideFar', params: { count: 2, side: { key: 'pass.left' }, distance: 2 } });
   assert.equal(describePass(5, 3).distance, 2);
   assert.equal(describePass(5, 3).side, 'right');
   assert.equal(describePass(6, 3).side, 'across');
-  assert.equal(describePass(7, 0).label, 'No passing this hand');
+  assert.deepEqual(describePass(7, 0).label, { key: 'pass.none' });
   assert.equal(g.passTarget(2, 'left2', 5), 4);
   assert.equal(g.passSource(4, 'left2', 5), 2);
   assert.equal(g.passTarget(0, 'right', 3), 2);
@@ -218,7 +219,7 @@ test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody
   assert.equal(g.addBot(room, 1, 7).ok, false);
   assert.equal(g.removeBot(room, 1, 6).ok, true);
   assert.equal(g.start(room, 1, Math.random).ok, false);
-  assert.match(g.start(room, 1, Math.random).error, /All 7 seats/);
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'allSeatsNeedPlayers', params: { seats: 7 } });
   g.fillWithBots(room, 1);
   assert.equal(room.seats.every(Boolean), true);
   assert.equal(g.start(room, 1, seeded(3)).ok, true);
@@ -254,7 +255,7 @@ test('the view: seat count, deal, who passes to whom (with names), and nothing h
     assert.equal(view.pass.from, (n - DEALS[n].rotation[0]) % n);
     assert.equal(view.pass.fromName, room.seats[view.pass.from].name);
     assert.equal(view.pass.targets.length, n);
-    assert.ok(view.pass.label.startsWith('Passing'));
+    assert.ok(view.pass.label.key.startsWith('pass.'), 'the pass is described by a message');
     // A hand of play numbers the tricks out of the right total.
     assert.equal(view.trickNumber, 1);
     for (const other of [2]) {

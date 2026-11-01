@@ -166,7 +166,7 @@ test('every state-changing endpoint insists on JSON', async (t) => {
     for (const [label, body, headers] of bodies) {
       const res = await c.call(method, url, body, headers);
       assert.equal(res.status, 415, `${method} ${url} with ${label}`);
-      assert.deepEqual(res.data, { error: 'Send JSON.' });
+      assert.deepEqual(res.data, { error: 'sendJson' });
     }
   }
   assert.equal((await c.get('/api/me')).data.user.displayName, 'alice', 'nothing was changed');
@@ -208,7 +208,7 @@ test('the JSON body limit is 20 kB: exactly at it is accepted, one byte over is 
   const over = bodyOfSize(limit + 1, 'limit-over');
   const refusedBody = await client().call('POST', '/api/auth/register', over, { 'content-type': 'application/json' });
   assert.equal(refusedBody.status, 413);
-  assert.deepEqual(refusedBody.data, { error: 'That is too large.' });
+  assert.deepEqual(refusedBody.data, { error: 'tooLarge' });
   const huge = await client().call('POST', '/api/auth/login', JSON.stringify({ username: 'x', password: 'y'.repeat(1_000_000) }), { 'content-type': 'application/json' });
   assert.equal(huge.status, 413);
   assert.equal((await client().post('/api/auth/login', { username: 'limit-over', password: 'password1' })).status, 401, 'the refused registration made no account');
@@ -226,7 +226,7 @@ test('invalid JSON is a 400 with a JSON error, never a 500', async (t) => {
       assert.equal(typeof res.data.error, 'string');
     }
   }
-  assert.match((await c.call('POST', '/api/auth/login', '{bad', json)).data.error, /JSON/);
+  assert.equal((await c.call('POST', '/api/auth/login', '{bad', json)).data.error, 'invalidJson');
 });
 
 test('an empty or odd-shaped (but valid) JSON body is handled as missing fields', async (t) => {
@@ -351,7 +351,7 @@ test('login throttling over HTTP: per address (as seen through a trusted proxy) 
   for (let i = 0; i < 10; i++) assert.equal((await guess('victim1', `wrong ${i}`, '203.0.113.1')).status, 401);
   const blocked = await guess('victim1', 'right password', '203.0.113.1');
   assert.equal(blocked.status, 429);
-  assert.match(blocked.data.error, /too many/i);
+  assert.equal(blocked.data.error, 'tooManyAttempts');
   assert.equal((await guess('VICTIM1', 'right password', '203.0.113.1')).status, 429, 'the username case does not matter');
   assert.equal((await guess('victim1', 'right password', '203.0.113.2')).status, 200, 'another address is unaffected');
   assert.equal((await guess('bystander', 'right password', '203.0.113.1')).status, 200, 'so is another username');
@@ -406,6 +406,6 @@ test('registration is limited per address over HTTP, and another address is unaf
   for (let i = 0; i < REGISTER_LIMIT; i++) assert.equal((await make(`spam-${i}`, '203.0.113.9')).status, 200);
   const blocked = await make('spam-over', '203.0.113.9');
   assert.equal(blocked.status, 429);
-  assert.match(blocked.data.error, /too many/i);
+  assert.equal(blocked.data.error, 'tooManyAttempts');
   assert.equal((await make('other-address', '203.0.113.10')).status, 200);
 });

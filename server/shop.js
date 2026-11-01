@@ -182,7 +182,7 @@ export function choicesChanged(before, after) {
 export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, effectIntensity, effectSpeed }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
   for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, siteTheme && `st:${siteTheme}`, siteFont && `sf:${siteFont}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
-    if (itemId && !owns(db, userId, itemId)) throw new ShopError(`You need to buy "${byId.get(itemId)?.name ?? 'that'}" in the shop first.`, 403);
+    if (itemId && !owns(db, userId, itemId)) throw new ShopError('notOwned', 403, { item: byId.get(itemId)?.name ?? itemId });
   }
 }
 
@@ -238,10 +238,10 @@ export function createShop(db) {
      */
     buy(userId, itemId) {
       const item = typeof itemId === 'string' ? byId.get(itemId) : null;
-      if (!item) throw new ShopError('There is no such item.', 404);
+      if (!item) throw new ShopError('noSuchItem', 404);
       return transaction(db, () => {
-        if (owns(db, userId, itemId)) throw new ShopError('You already have that.', 409);
-        if (coins.balance(userId) < item.price) throw new ShopError('You do not have enough gold for that.', 402);
+        if (owns(db, userId, itemId)) throw new ShopError('alreadyOwned', 409);
+        if (coins.balance(userId) < item.price) throw new ShopError('notEnoughGold', 402);
         coins.spend(userId, item.price, `shop:${item.id}`);
         db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)').run(userId, item.id, Date.now());
         return { item, balance: coins.balance(userId) };

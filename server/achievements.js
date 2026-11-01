@@ -248,7 +248,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
       const found = find(row.id);
       if (!found) return []; // a game has since dropped it
       const { section, definition } = found;
-      return [{ id: row.id, level: row.level, levels: definition.levels.length, game: section.name, name: definition.name, text: levelText(definition, definition.levels[row.level - 1]), coins: row.coins }];
+      return [{ id: row.id, level: row.level, levels: definition.levels.length, game: section.name, gameId: section.id, key: definition.key, n: definition.levels[row.level - 1], name: definition.name, text: levelText(definition, definition.levels[row.level - 1]), coins: row.coins }];
     });
   }
 

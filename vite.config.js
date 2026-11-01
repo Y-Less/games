@@ -6,7 +6,7 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   plugins: [vue()],
   // Component tests (vitest) live next to the components as src/**/*.test.js; the server tests use node:test.
-  test: { environment: 'jsdom', include: ['src/**/*.test.js', 'modules/*/client/**/*.test.js'] },
+  test: { environment: 'jsdom', include: ['src/**/*.test.js', 'modules/*/client/**/*.test.js'], setupFiles: ['src/testSetup.js'] },
   server: {
     host: true,
     proxy: {

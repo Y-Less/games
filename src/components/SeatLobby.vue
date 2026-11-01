@@ -10,15 +10,17 @@
 // Emits addBot, removeBot(id), fillBots, kick(id), start. Slot #settings holds the host's game options and
 // #footer extra buttons or notes beside Start.
 import { computed } from 'vue';
+import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
   seats: { type: Array, required: true },
   isHost: { type: Boolean, default: false },
   starting: { type: Boolean, default: false },
-  startLabel: { type: String, default: 'Start the game' },
+  startLabel: { type: String, default: '' }, // '' : "Start the game"
   allowBots: { type: Boolean, default: true },
-  title: { type: String, default: 'Waiting for players' },
+  title: { type: String, default: '' }, // '' : "Waiting for players"
 });
+const { t } = useGameText();
 const emit = defineEmits(['addBot', 'removeBot', 'fillBots', 'kick', 'start']);
 
 // Number of seats nobody occupies yet.
@@ -31,37 +33,37 @@ const ready = computed(() => empty.value === 0 && humans.value >= 1);
 
 <template>
   <section class="lobby panel stack">
-    <h2>{{ title }}</h2>
+    <h2>{{ title || t('lobby.title') }}</h2>
     <ul class="seats">
       <li v-for="(seat, i) in seats" :key="seat.id ?? `empty-${i}`" class="seat" :class="[seat.kind, { me: seat.isMe, away: seat.away }]">
         <template v-if="seat.kind === 'empty'">
-          <span class="muted">Empty seat</span>
-          <button v-if="isHost && allowBots" class="quiet" @click="emit('addBot')">Add a computer player</button>
+          <span class="muted">{{ t('lobby.emptySeat') }}</span>
+          <button v-if="isHost && allowBots" class="quiet" @click="emit('addBot')">{{ t('lobby.addBot') }}</button>
         </template>
         <template v-else>
           <span class="who">
             {{ seat.name }}
-            <span v-if="seat.isMe" class="tag">you</span>
-            <span v-if="seat.isHost" class="tag">host</span>
-            <span v-if="seat.kind === 'bot'" class="tag bot">computer</span>
-            <span v-if="seat.away" class="tag away">away</span>
+            <span v-if="seat.isMe" class="tag">{{ t('common.you') }}</span>
+            <span v-if="seat.isHost" class="tag">{{ t('common.host') }}</span>
+            <span v-if="seat.kind === 'bot'" class="tag bot">{{ t('common.computer') }}</span>
+            <span v-if="seat.away" class="tag away">{{ t('common.away') }}</span>
           </span>
-          <button v-if="isHost && seat.kind === 'bot'" class="quiet" @click="emit('removeBot', seat.id)">Remove</button>
-          <button v-else-if="isHost && seat.kind === 'human' && !seat.isMe" class="quiet" @click="emit('kick', seat.id)">Remove</button>
+          <button v-if="isHost && seat.kind === 'bot'" class="quiet" @click="emit('removeBot', seat.id)">{{ t('common.remove') }}</button>
+          <button v-else-if="isHost && seat.kind === 'human' && !seat.isMe" class="quiet" @click="emit('kick', seat.id)">{{ t('common.remove') }}</button>
         </template>
       </li>
     </ul>
 
     <div v-if="isHost && allowBots && empty > 1" class="row">
-      <button @click="emit('fillBots')">Fill the empty seats with computer players</button>
+      <button @click="emit('fillBots')">{{ t('lobby.fillBots') }}</button>
     </div>
 
     <slot name="settings" />
 
     <div class="row">
-      <button v-if="isHost" class="primary" :disabled="!ready || starting" @click="emit('start')">{{ startLabel }}</button>
-      <span v-else class="muted">Waiting for the host to start.</span>
-      <span v-if="isHost && empty" class="muted">{{ empty }} more {{ empty === 1 ? 'seat' : 'seats' }} to fill.</span>
+      <button v-if="isHost" class="primary" :disabled="!ready || starting" @click="emit('start')">{{ startLabel || t('lobby.start') }}</button>
+      <span v-else class="muted">{{ t('lobby.waitingForHost') }}</span>
+      <span v-if="isHost && empty" class="muted">{{ t('lobby.seatsToFill', { count: empty }, empty) }}</span>
       <slot name="footer" />
     </div>
   </section>

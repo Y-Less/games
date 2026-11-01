@@ -12,6 +12,7 @@
 // `seats` is [{ key, name }] viewer first; `plays` is [{ key, card }] in the order played; `winnerKey` outlines the
 // winning card. `labels` prints each player's name on their card. The default slot is laid over the middle (messages).
 import { computed } from 'vue';
+import { useGameText } from '../useGameText.js';
 import { suitOf } from '../../shared/cards.js';
 import PlayingCard from './PlayingCard.vue';
 
@@ -23,6 +24,7 @@ const props = defineProps({
   size: { type: String, default: 'lg' }, // 'sm' | 'md' | 'lg', as PlayingCard
   labels: { type: Boolean, default: false },
 });
+const { t } = useGameText();
 
 /**
  * A small stable number from a string: the same card from the same seat always sits at the same angle.
@@ -55,7 +57,7 @@ const slots = computed(() =>
 </script>
 
 <template>
-  <div class="trick-circle" :class="size" :style="{ '--spread': spread }" role="group" aria-label="The trick" aria-live="polite">
+  <div class="trick-circle" :class="size" :style="{ '--spread': spread }" role="group" :aria-label="t('cards.trick')" aria-live="polite">
     <div
       v-for="slot in slots"
       :key="slot.seat.key"

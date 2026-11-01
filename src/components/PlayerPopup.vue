@@ -13,6 +13,7 @@
 // `error` (the reason the last removal was refused, if any). It emits `remove` once the host has confirmed.
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { profileOf } from '../profiles.js';
+import { useGameText } from '../useGameText.js';
 import AvatarFigure from './AvatarFigure.vue';
 import BotIcon from './BotIcon.vue';
 import StyledName from './StyledName.vue';
@@ -54,8 +55,9 @@ watch(() => props.error, (error) => error && (confirming.value = false));
 // A real player's avatar, once the site has told us what it is (computer players have the robot).
 const avatar = computed(() => profileOf(props.player.userId ?? null)?.avatar ?? null);
 
+const { t } = useGameText();
 // Wording for the removal button and confirmation.
-const noun = computed(() => (props.player.bot ? 'computer player' : 'player'));
+const noun = computed(() => (props.player.bot ? t('common.computerPlayer').toLocaleLowerCase() : t('common.player')));
 /**
  * The host has confirmed the removal.
  * @returns {void}
@@ -68,27 +70,27 @@ function confirm() {
 </script>
 
 <template>
-  <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="`${player.name}'s details`">
+  <div ref="root" class="player-popup popup" :style="style" role="group" :aria-label="t('popup.details', { name: player.name })">
     <header class="head">
-      <AvatarFigure v-if="player.bot" class="portrait" robot :seed="`${player.id}:${player.name}`" size="3.2rem" label="Computer player" />
+      <AvatarFigure v-if="player.bot" class="portrait" robot :seed="`${player.id}:${player.name}`" size="3.2rem" :label="t('common.computerPlayer')" />
       <AvatarFigure v-else-if="avatar" class="portrait" :avatar="avatar" size="3.2rem" />
       <strong class="who">
         <BotIcon v-if="player.bot" />
         <StyledName :name="player.name" :user-id="player.userId ?? null" />
       </strong>
-      <span v-if="player.isMe" class="tag">you</span>
-      <span v-if="player.isHost" class="tag host">host</span>
-      <span class="tag state" :class="{ away: player.away }">{{ player.away ? 'away' : player.bot ? 'computer' : 'connected' }}</span>
+      <span v-if="player.isMe" class="tag">{{ t('common.you') }}</span>
+      <span v-if="player.isHost" class="tag host">{{ t('common.host') }}</span>
+      <span class="tag state" :class="{ away: player.away }">{{ player.away ? t('common.away') : player.bot ? t('common.computer') : t('common.connected') }}</span>
     </header>
     <div v-if="$slots.default" class="panel"><slot /></div>
     <footer v-if="canRemove" class="foot">
       <template v-if="!confirming">
-        <button type="button" class="danger" @click="confirming = true">Remove {{ noun }}</button>
+        <button type="button" class="danger" @click="confirming = true">{{ t('popup.removeButton', { noun }) }}</button>
       </template>
       <div v-else class="confirm" role="alert">
-        <span>Remove {{ player.name }} from the game?</span>
-        <button type="button" class="danger" data-confirm @click="confirm">Yes, remove</button>
-        <button type="button" class="quiet" @click="confirming = false">Cancel</button>
+        <span>{{ t('popup.removeConfirm', { name: player.name }) }}</span>
+        <button type="button" class="danger" data-confirm @click="confirm">{{ t('popup.yesRemove') }}</button>
+        <button type="button" class="quiet" @click="confirming = false">{{ t('common.cancel') }}</button>
       </div>
       <p v-if="error" class="error" role="status">{{ error }}</p>
     </footer>

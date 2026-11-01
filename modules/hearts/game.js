@@ -12,6 +12,7 @@ import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
+import { cardMsg, msg, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
@@ -75,7 +76,6 @@ export const passSource = (seat, direction, seats = DEFAULT_SEATS) => (seat + se
 // A fresh list of n empty card lists, one per seat.
 const emptyHands = (n) => Array.from({ length: n }, () => []);
 
-const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 
 /**
  * Validates a settings change on top of the current settings (target score, Jack of Diamonds, moon scoring mode).
@@ -87,15 +87,15 @@ const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (input?.target !== undefined) {
-    if (!TARGETS.includes(input.target)) return fail(`The target score must be ${TARGETS.slice(0, -1).join(', ')} or ${TARGETS.at(-1)}.`);
+    if (!TARGETS.includes(input.target)) return fail('targetScore', { targets: TARGETS.join(', ') });
     next.target = input.target;
   }
   if (input?.jackOfDiamonds !== undefined) {
-    if (typeof input.jackOfDiamonds !== 'boolean') return fail('The Jack of Diamonds setting must be on or off.');
+    if (typeof input.jackOfDiamonds !== 'boolean') return fail('jackSetting');
     next.jackOfDiamonds = input.jackOfDiamonds;
   }
   if (input?.moon !== undefined) {
-    if (!MOON_MODES.includes(input.moon)) return fail('Shooting the moon must score +26 for everyone else, or -26 for the shooter.');
+    if (!MOON_MODES.includes(input.moon)) return fail('moonSetting');
     next.moon = input.moon;
   }
   return ok({ settings: next });
@@ -114,7 +114,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
-  if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
+  if (!isSeatCount(seatCount)) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} players.`);
   const normalised = normaliseSettings(settings);
   const room = {
     code,
@@ -195,9 +195,9 @@ export function setSettings(room, userId, input) {
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
   if (input?.seats !== undefined) {
-    if (!isSeatCount(input.seats)) return fail(seatsProblem);
+    if (!isSeatCount(input.seats)) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
     const seated = room.seats.filter(Boolean).length;
-    if (input.seats < seated) return fail('Remove a player first: that would leave too few seats.');
+    if (input.seats < seated) return fail('removePlayerFirst');
     resizeSeats(room, input.seats);
   }
   room.settings = next.settings;
@@ -284,8 +284,8 @@ function setMoonBid(room) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  if (!humanSeats(room).length) return fail('needPerson');
   resetGame(room);
   deal(room, rng);
   // Every computer player picks its AI for the whole game (after the deal, so the deal itself is unchanged).
@@ -305,11 +305,11 @@ export function start(room, userId, rng) {
  * Side effects: on success sets room.passes[seat] and may run the exchange and start the play.
  */
 export function choosePass(room, seat, cards) {
-  if (room.phase !== 'passing') return fail('It is not time to pass cards.');
-  if (room.passes[seat]) return fail('You have already passed your cards.');
+  if (room.phase !== 'passing') return fail('notTimeToPass');
+  if (room.passes[seat]) return fail('alreadyPassed');
   const count = passCountFor(room.seats.length);
-  if (!Array.isArray(cards) || cards.length !== count || new Set(cards).size !== count) return fail(`Choose exactly ${count} different cards to pass.`);
-  if (!cards.every((card) => typeof card === 'string' && room.hands[seat].includes(card))) return fail('You can only pass cards from your hand.');
+  if (!Array.isArray(cards) || cards.length !== count || new Set(cards).size !== count) return fail('chooseExactly', { count });
+  if (!cards.every((card) => typeof card === 'string' && room.hands[seat].includes(card))) return fail('passFromHand');
   room.passes[seat] = sortHand(cards);
   if (room.passes.every(Boolean)) exchange(room);
   return ok();
@@ -343,24 +343,25 @@ function exchange(room) {
  * @param {object} room  not changed
  * @param {number} seat
  * @param {string} card
- * @returns {string | null} the reason, or null when the card is legal
+ * @returns {{ key: string, params?: object } | null} the reason as a message (an `errors.` key, see shared/messages.js), or
+ *   null when the card is legal
  * Side effects: none.
  */
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
-  if (!hand.includes(card)) return 'That card is not in your hand.';
+  if (!hand.includes(card)) return msg('errors.notInHand');
   if (room.trick.length === 0) {
     if (room.tricksPlayed === 0) {
       const opening = openingCard(room.seats.length);
-      return card === opening ? null : `You must lead the ${cardName(opening)}.`;
+      return card === opening ? null : msg('errors.mustLead', { card: cardMsg(opening) });
     }
-    if (isHeart(card) && !room.heartsBroken && hand.some((c) => !isHeart(c))) return 'Hearts have not been broken yet.';
+    if (isHeart(card) && !room.heartsBroken && hand.some((c) => !isHeart(c))) return msg('errors.heartsNotBroken');
     return null;
   }
   const led = suitOf(room.trick[0].card);
   if (suitOf(card) === led) return null;
-  if (followCards(hand, led).length) return `You must follow suit (${SUIT_NAMES[led]}).`;
-  if (room.tricksPlayed === 0 && isPointCard(card) && hand.some((c) => !isPointCard(c))) return 'No points on the first trick.';
+  if (followCards(hand, led).length) return msg('errors.followSuit', { suit: suitMsg(led) });
+  if (room.tricksPlayed === 0 && isPointCard(card) && hand.some((c) => !isPointCard(c))) return msg('errors.noPointsFirstTrick');
   return null;
 }
 
@@ -383,11 +384,11 @@ export const legalCards = (room, seat) => room.hands[seat].filter((card) => ille
  * @returns {{ ok: boolean, error?: string, complete?: boolean }} `complete` says the trick is now full
  */
 export function playCard(room, seat, card) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
-  if (typeof card !== 'string') return fail('That is not a card.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
+  if (typeof card !== 'string') return fail('notACard');
   const reason = illegalReason(room, seat, card);
-  if (reason) return fail(reason);
+  if (reason) return fail(reason.key.slice('errors.'.length), reason.params);
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
   if (isHeart(card) || card === QUEEN) room.heartsBroken = true; // the queen breaks hearts too
@@ -434,9 +435,9 @@ export function canClaim(room, seat) {
  * Side effects: plays out every remaining card, resolves the tricks, scores the hand (may finish the game) and sets room.lastClaim.
  */
 export function claimAll(room, seat) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat || room.trick.length !== 0) return fail('You can only claim when it is your turn to lead.');
-  if (!canClaim(room, seat)) return fail('You could still lose a trick: a higher card is out there.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat || room.trick.length !== 0) return fail('claimWhenLeading');
+  if (!canClaim(room, seat)) return fail('claimCouldLose');
   const n = room.seats.length;
   const tricks = tricksFor(n) - room.tricksPlayed;
   while (room.phase === 'playing') {
@@ -459,7 +460,7 @@ export function claimAll(room, seat) {
  *   took points, advances the turn and, after the last trick, scores the hand (endHand).
  */
 export function resolveTrick(room) {
-  if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('There is no finished trick.');
+  if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('noFinishedTrick');
   const winner = trickWinner(room.trick);
   const cards = room.trick.map((p) => p.card);
   room.taken[winner].push(...cards);
@@ -532,9 +533,9 @@ function endHand(room) {
   });
   room.lastHand = { hand: room.handNumber + 1, ...result, totals: [...room.scores] };
   room.history.push({
-    label: `Hand ${room.handNumber + 1}`,
+    label: msg('hand', { n: room.handNumber + 1 }),
     deltas: Object.fromEntries(result.points.map((points, seat) => [seat, points])),
-    notes: result.moon === null ? {} : { [result.moon]: 'shot the moon' },
+    notes: result.moon === null ? {} : { [result.moon]: msg('shotMoon') },
     points: result.points,
     moon: result.moon,
   });
@@ -556,8 +557,8 @@ function endHand(room) {
  * Side effects: adds the seat to room.ready and may deal the next hand.
  */
 export function nextHand(room, userId, rng) {
-  if (!hasPlayer(room, userId)) return fail('You are not in this game.');
-  if (room.phase !== 'handEnd') return fail('The hand is not over.');
+  if (!hasPlayer(room, userId)) return fail('notInGame');
+  if (room.phase !== 'handEnd') return fail('handNotOver');
   room.ready ??= [];
   const seat = seatOf(room, userId);
   if (!room.ready.includes(seat)) room.ready.push(seat);
@@ -601,7 +602,7 @@ function dealNext(room, rng) {
  * Side effects: deals the next hand (mutates the room).
  */
 export function forceNextHand(room, rng) {
-  if (room.phase !== 'handEnd') return fail('The hand is not over.');
+  if (room.phase !== 'handEnd') return fail('handNotOver');
   dealNext(room, rng);
   return ok();
 }
@@ -616,7 +617,7 @@ export function forceNextHand(room, rng) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   freeGoneSeats(room);
   resetGame(room);
   room.phase = 'lobby';

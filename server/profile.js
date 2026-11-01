@@ -6,6 +6,7 @@ import { isBackgroundAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE } from '../shared/nameStyles.js';
 import { normaliseMarker } from '../shared/markerColours.js';
 import { DEFAULT_FONT, DEFAULT_THEME, isSiteFont, isSiteTheme } from '../shared/siteThemes.js';
+import { isLanguageTag } from '../shared/languages.js';
 import { AuthError } from './errors.js';
 import {
   EFFECT_INTENSITY,
@@ -45,7 +46,7 @@ export const SETTINGS = [
      */
     clean(input) {
       const name = textFrom(input).trim();
-      if (!name || name.length > 20) throw new AuthError('Display names are 1 to 20 characters.');
+      if (!name || name.length > 20) throw new AuthError('displayNameLength');
       return name;
     },
     store: asIs,
@@ -63,7 +64,7 @@ export const SETTINGS = [
      * Side effects: none; throws an AuthError when the picture belongs to someone else.
      */
     check(background, userId) {
-      if (background.type === 'image' && !background.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
+      if (background.type === 'image' && !background.file.startsWith(`bg-${userId}-`)) throw new AuthError('invalidBackground');
     },
     store: asJson,
   },
@@ -79,19 +80,22 @@ export const SETTINGS = [
      * Side effects: none; throws an AuthError when the picture belongs to someone else.
      */
     check(cardBack, userId) {
-      if (cardBack.type === 'image' && !cardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
+      if (cardBack.type === 'image' && !cardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('invalidCardBack');
     },
     store: asJson,
   },
   { key: 'nameStyle', column: 'name_style', gated: true, clean: cleanNameStyle, store: asJson },
   { key: 'avatar', column: 'avatar', gated: true, clean: cleanAvatar, store: asJson },
   { key: 'markerColour', column: 'marker_colour', gated: true, clean: cleanMarkerColour, store: asIs },
-  { key: 'siteTheme', column: 'site_theme', gated: true, clean: (input) => cleanChoice(input, isSiteTheme, 'colour theme'), store: asIs },
-  { key: 'siteFont', column: 'site_font', gated: true, clean: (input) => cleanChoice(input, isSiteFont, 'font'), store: asIs },
+  { key: 'siteTheme', column: 'site_theme', gated: true, clean: (input) => cleanChoice(input, isSiteTheme, 'invalidSiteTheme'), store: asIs },
+  { key: 'siteFont', column: 'site_font', gated: true, clean: (input) => cleanChoice(input, isSiteFont, 'invalidSiteFont'), store: asIs },
+  // The site's language: a tag the client has files for, or null to follow the browser. The server keeps no list of
+  // languages (the client finds its own files), so any well-formed tag is accepted.
+  { key: 'language', column: 'language', clean: (input) => (input === null ? null : cleanChoice(input, isLanguageTag, 'invalidLanguage')), store: asIs },
   { key: 'playAnimations', column: 'animations_choice', clean: cleanPlayAnimations, store: (play) => (play === null ? null : play ? 1 : 0) },
   { key: 'backgroundAnimation', column: 'background_animation', gated: true, clean: cleanBackgroundAnimation, store: asIs },
-  { key: 'effectIntensity', column: 'effect_intensity', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_INTENSITY, 'intensity'), store: asIs },
-  { key: 'effectSpeed', column: 'effect_speed', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_SPEED, 'speed'), store: asIs },
+  { key: 'effectIntensity', column: 'effect_intensity', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_INTENSITY), store: asIs },
+  { key: 'effectSpeed', column: 'effect_speed', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_SPEED), store: asIs },
 ];
 
 /**
@@ -154,7 +158,7 @@ export const publicProfile = (row) => ({ displayName: row.display_name, nameStyl
 export function publicUser(row) {
   const background = parseJson(row.background, { type: 'preset', value: 'night' });
   const cardBack = parseJson(row.card_back, { type: 'preset', value: 'crimson' });
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, language: isLanguageTag(row.language) ? row.language : null, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
 }
 
 /**

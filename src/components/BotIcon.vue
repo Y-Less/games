@@ -6,14 +6,17 @@
 // A small robot-head glyph marking a computer player, the same size wherever it appears (it takes `size` px square, or
 // 1em by default), so a row never changes width because one seat is a computer. It is an image with the label
 // "Computer player" (override with `label`).
+import { useGameText } from '../useGameText.js';
+
 defineProps({
   size: { type: [Number, String], default: null },
-  label: { type: String, default: 'Computer player' },
+  label: { type: String, default: '' }, // '' : "Computer player"
 });
+const { t } = useGameText();
 </script>
 
 <template>
-  <span class="bot-icon" role="img" :aria-label="label" :title="label" :style="size ? { width: `${size}px`, height: `${size}px` } : undefined">
+  <span class="bot-icon" role="img" :aria-label="label || t('common.computerPlayer')" :title="label || t('common.computerPlayer')" :style="size ? { width: `${size}px`, height: `${size}px` } : undefined">
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 1.6v2" />

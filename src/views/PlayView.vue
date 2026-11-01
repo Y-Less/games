@@ -4,18 +4,23 @@
 // Props: game (string, required): the module id from the route. Emits: none. Slots: none.
 // Depends on: session.js, playBar.js, useFrameFit.js, useGameRules.js, useModuleSocket.js, HelpDialog.vue and the modules'
 // client entry points (found with import.meta.glob).
-// Side effects: opens the module's socket; publishes the game's title and Help button to playBar (cleared on unmount).
-import { computed, defineAsyncComponent, onBeforeUnmount, watchEffect } from 'vue';
+// Side effects: opens the module's socket; publishes the game's title and Help button to playBar (cleared on unmount);
+// provides the module id (GAME_ID) to everything drawn inside.
+import { computed, defineAsyncComponent, onBeforeUnmount, provide, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import { session } from '../session.js';
 import { playBar } from '../playBar.js';
 import { useFrameFit } from '../useFrameFit.js';
 import { useGameRules } from '../useGameRules.js';
 import { useModuleSocket } from '../useModuleSocket.js';
+import { catalogue } from '../catalogueText.js';
+import { GAME_ID } from '../useGameText.js';
 import HelpDialog from '../components/HelpDialog.vue';
 
 const props = defineProps({ game: { type: String, required: true } });
 const router = useRouter();
+// Every component of the game, and every shared component drawn in it, finds the game's own words through this.
+provide(GAME_ID, props.game);
 
 // Every module's client entry, loaded lazily; the glob is resolved at build time.
 const loaders = import.meta.glob('../../modules/*/client/index.js');
@@ -35,7 +40,7 @@ const { frame } = useFrameFit();
 
 // The title and Help button live in the site header (App.vue), which reads them from playBar.
 watchEffect(() => {
-  playBar.game = meta.value ? { name: meta.value.name, openRules } : null;
+  playBar.game = meta.value ? { name: catalogue.gameName(meta.value), openRules } : null;
 });
 onBeforeUnmount(() => {
   playBar.game = null;
@@ -55,7 +60,7 @@ const search = window.location.search; // the address's query string when the pa
 <template>
   <section class="play stack">
     <p v-if="problem" class="panel" role="alert">{{ problem }}</p>
-    <div v-else-if="socket && !connected" class="panel muted">Connecting…</div>
+    <div v-else-if="socket && !connected" class="panel muted">{{ $t('play.connecting') }}</div>
 
     <div v-if="socket && GameComponent" v-show="connected" ref="frame" class="field-frame">
       <GameComponent :socket="socket" :user="session.user" :search="search" :set-search="setSearch" />

@@ -5,6 +5,7 @@
 // Depends on: vue and playBar.js (useLeave); the socket itself is passed in by the caller.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useLeave } from './playBar.js';
+import { useGameText } from './useGameText.js';
 
 /**
  * The code in an invite link such as "?boss-aware-you" (the search string with its leading "?" taken off).
@@ -44,6 +45,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   const loaded = ref(false);
   const busy = ref(false);
   const notice = ref('');
+  const { error: errorWords } = useGameText(); // a refusal's code, in the player's language
   const initialCode = inviteFrom(search);
   let invite = initialCode; // used once, by the first `resume`
 
@@ -68,7 +70,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
         settled = true;
         clearTimeout(timer);
         busy.value = false;
-        if (!reply?.ok) notice.value = reply?.error ?? 'The server did not answer.';
+        if (!reply?.ok) notice.value = errorWords(reply);
         resolve(reply ?? { ok: false });
       };
       const timer = setTimeout(() => settle(null), ACK_TIMEOUT_MS);

@@ -9,6 +9,7 @@ import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import { advanceLog } from './log.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
@@ -19,6 +20,7 @@ const props = defineProps({
   search: { type: String, default: '' },
   setSearch: { type: Function, default: () => {} },
 });
+const { t } = useGameText();
 
 const log = ref([]); // Recent moves, worked out from the states as they arrive (see log.js)
 /**
@@ -44,18 +46,18 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   setSearch: props.setSearch,
   // Warns before leaving a live game (hands in progress), because leaving hands the seat to a computer player.
   // @param {object} state  the current view; @returns {string} the warning, or '' when leaving is harmless. No side effects.
-  leaveConfirm: (state) => state.phase !== 'lobby' && state.phase !== 'finished' ? 'A computer player takes your seat if you leave.' : '',
+  leaveConfirm: (state) => (state.phase !== 'lobby' && state.phase !== 'finished' ? t('leaveConfirm') : ''),
   onState,
 });
 </script>
 
 <template>
   <div class="hearts stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Hearts"
-      intro="Three to seven players (four is usual), one deck, and the lowest score wins. Computer players can fill any empty seats."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

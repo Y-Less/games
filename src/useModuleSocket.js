@@ -4,6 +4,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { io } from 'socket.io-client';
 import { setUser } from './session.js';
+import { i18n } from './i18n.js';
 
 /**
  * Connects to a game's namespace while the component is mounted (call from a component's setup).
@@ -22,7 +23,7 @@ export function useModuleSocket(game, { available, onSignedOut }) {
 
   onMounted(() => {
     if (!available()) {
-      problem.value = 'That game is not available.';
+      problem.value = i18n.global.t('play.unavailable');
       return;
     }
     const s = io(`/${game()}`);
@@ -36,7 +37,7 @@ export function useModuleSocket(game, { available, onSignedOut }) {
         setUser(null); // not `session.user = null`: the shop balance and the CSS look must go too
         onSignedOut();
       } else {
-        problem.value = 'Could not reach the game. Trying again…';
+        problem.value = i18n.global.t('play.unreachable');
       }
     });
     socket.value = s;

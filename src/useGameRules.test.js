@@ -20,7 +20,7 @@ describe('useGameRules', () => {
     expect(rules.value).toContain('Play nicely.');
     await openRules();
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/games/hearts/rules');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/games/hearts/rules?lang=en');
   });
 
   it('says so when the game has no written rules', async () => {

@@ -1,0 +1,118 @@
+{
+  "entry": {
+    "noun": "game of Hearts",
+    "intro": "Three to seven players (four is usual), one deck, and the lowest score wins. Computer players can fill any empty seats."
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
+    "rules": "Rules for this game",
+    "players": "Players",
+    "deal": "{players} players: {cardsEach} cards each, {removed}, pass {passCount} cards.",
+    "removed": "{cards} removed",
+    "noneRemoved": "none removed",
+    "playTo": "Play to",
+    "points": "{n} points",
+    "jack": "Jack of Diamonds is worth -5 to whoever takes it",
+    "moon": "Shooting the moon (all the hearts and the Queen of Spades)",
+    "moonOthers": "Everyone else scores +26",
+    "moonSelf": "The shooter scores -26",
+    "hostOnly": "Only the host can change these."
+  },
+  "number": {
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven"
+  },
+  "hand": "Hand {n}",
+  "shotMoon": "shot the moon",
+  "pass": {
+    "none": "No passing this hand",
+    "across": "Passing {count} across",
+    "side": "Passing {count} to the {side}",
+    "sideFar": "Passing {count} to the {side} ({distance} places along)",
+    "left": "left",
+    "right": "right"
+  },
+  "status": {
+    "tie": "It is a tie: {names} win.",
+    "wins": "{name} wins with {score} points.",
+    "waitingOthersChoose": "Waiting for the others to choose their cards.",
+    "choose": "{label}: choose {count} cards for {name}.",
+    "takesTrick": "{name} takes the trick.",
+    "leadOpening": "You have the {card}: lead it.",
+    "yourTurn": "Your turn: play a card.",
+    "waitingFor": "Waiting for {name}.",
+    "waitingReady": "Waiting for {names} to be ready for the next hand.",
+    "handOver": "Hand {n} is over: close the scores to carry on.",
+    "pick": "Pick {count} cards, then press the button on the table ({chosen} of {count} chosen).",
+    "receive": "You will receive {count} cards from {name}.",
+    "claimable": "No one can beat your cards: you cannot lose another trick. Press Claim all to take them.",
+    "received": "The cards you received are outlined in green.",
+    "lastTrick": "Last trick: {name} took it.",
+    "hostAgain": "You can start another game.",
+    "againHost": "The host can start another game.",
+    "moonSelf": "{name} shot the moon and scores -{points}.",
+    "moonOthers": "{name} shot the moon: everyone else scores +{points}."
+  },
+  "table": {
+    "label": "The table",
+    "yourHand": "Your hand",
+    "thisHand": "This hand",
+    "passed": "passed",
+    "choosing": "choosing",
+    "tricks": "{count} trick | {count} tricks",
+    "hearts": "{count} heart | {count} hearts",
+    "queen": ", Queen of Spades",
+    "jack": ", Jack of Diamonds",
+    "claimAll": "Claim all",
+    "passThese": "Pass these {chosen} of {count} cards",
+    "nothingPlayed": "Nothing has been played yet.",
+    "playAgain": "Play again",
+    "seeScores": "See the scores"
+  },
+  "facts": {
+    "hand": "Hand {n}",
+    "trick": "Trick {n} of {total}",
+    "heartsBroken": "Hearts are broken",
+    "heartsNotBroken": "Hearts not broken yet",
+    "playTo": "Play to {n}",
+    "jack": "Jack of Diamonds: -5"
+  },
+  "popup": {
+    "score": "Score",
+    "cardsInHand": "Cards in hand",
+    "tricksTaken": "Tricks taken",
+    "heartsTaken": "Hearts taken",
+    "pointsThisHand": "Points this hand",
+    "passing": "Passing",
+    "hasChosen": "has chosen",
+    "stillChoosing": "still choosing"
+  },
+  "log": {
+    "dealt": "Hand {n} is dealt.",
+    "passed": "The cards have been passed.",
+    "played": "{name} played the {card}.",
+    "takesTrick": "{name} takes the trick.",
+    "claims": "{name} claims the remaining {count} trick. | {name} claims the remaining {count} tricks.",
+    "handOver": "Hand {n} is over.",
+    "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
+  },
+  "errors": {
+    "targetScore": "The target score must be one of {targets}.",
+    "jackSetting": "The Jack of Diamonds setting must be on or off.",
+    "moonSetting": "Shooting the moon must score +26 for everyone else, or -26 for the shooter.",
+    "notTimeToPass": "It is not time to pass cards.",
+    "alreadyPassed": "You have already passed your cards.",
+    "chooseExactly": "Choose exactly {count} different cards to pass.",
+    "passFromHand": "You can only pass cards from your hand.",
+    "mustLead": "You must lead the {card}.",
+    "heartsNotBroken": "Hearts have not been broken yet.",
+    "followSuit": "You must follow suit ({suit}).",
+    "noPointsFirstTrick": "No points on the first trick.",
+    "claimWhenLeading": "You can only claim when it is your turn to lead.",
+    "claimCouldLose": "You could still lose a trick: a higher card is out there."
+  }
+}

@@ -7,7 +7,8 @@ that plugs into it. The site starts the module's **server half** on a socket nam
 ```
 modules/<id>/
   module.json        what the menu shows, and which statistics the game can report
-  rules.md           shown by the "Rules" button above the play field (optional)
+  rules.md           shown by the "Rules" button above the play field (optional; rules.<lang>.md beside it for a language)
+  locales/<lang>.json  the game's words in each language (see Languages)
   server.js          export default function (ctx) { ... }      the rules and the socket handlers
   client/index.js    export default <a Vue component>           the screens, drawn inside the play field
   public/            static files served at /assets/<id>/ (optional)
@@ -222,6 +223,60 @@ shrink while the game is played, and the page never scrolls: the frame is sized 
 
 Game addresses: the site serves a module at `/play/<id>`. A game with invite links should use
 `/play/<id>?<code>` (so a link shared with a friend signs them in first, then lands in the right place).
+
+## Languages
+
+Everything a player reads comes from a locale file, so that a language is a set of files and nothing else:
+
+```
+src/locales/<lang>.json              the site's words (navigation, shared components, shared refusals ...)
+modules/<id>/locales/<lang>.json     a game's words, merged under its id ('hearts.lobby.intro')
+modules/<id>/rules.<lang>.md         the rules in that language (beside rules.md, which stays the original)
+src/help/<lang>/<page>.md            the Help button's text for each page of the site
+```
+
+`src/i18n.js` finds every file at build time (`import.meta.glob`), bundles English and fetches another language the
+first time someone chooses it; `LANGUAGES` is whatever `src/locales/` holds. A game without a translation shows English
+for its own words. The language is the profile's `language` setting (null: the browser's languages, matched by tag and
+then by primary subtag), applied by `setUser`; the Intl formatters get `intlLocale()` (`en` is British: `en-GB`).
+
+**In a component** call `useGameText()` (`src/useGameText.js`):
+
+```js
+const { t, text, error, list } = useGameText();
+t('lobby.intro');                      // the game's key, falling back to the site's ('common.close', 'play.loading' ...)
+t('table.tricks', { count }, count);   // plural forms: "{count} trick | {count} tricks"
+text(state.pass.label);                // a message the server sent (below); a plain string (a name) comes back as it is
+list(names);                           // "Ann, Bob and Cat", as the language joins a list
+```
+
+The play view provides the game's id (`GAME_ID`), so neither a game's components nor the shared ones name it; in a
+test, `src/testSetup.js` provides it from the test file's folder. Templates may use `$t('common.close')` for a site
+key. Never build a sentence from pieces: give the whole sentence a key with named params (`"{name} takes the trick."`),
+so a translator can reorder it. vue-i18n's syntax: `{name}` is a param, `|` separates plural forms, a literal brace is
+`{'{'}` and a literal `@` is `{'@'}`.
+
+**On the server** nothing is ever a sentence. A refusal is `fail(code, params)` (`shared/seats.js`), where `code` is a
+key under `errors.` in the game's file first and the site's second; the site's `src/locales/en.json` has the refusals
+every game shares (`notYourTurn`, `notInGame`, `hostOnly`, `gameFull`, `settingsBeforeStart`, `needPerson`,
+`allSeatsNeedPlayers` with `{ seats }`, `playersRange` with `{ min, max }` ...), and a game's own go in its file.
+HTTP routes throw `new AuthError(code, status, params)` the same way. Anything else the client will show comes as a
+message, `msg(key, params)` from `shared/messages.js`: a scoreboard round's `label` and `notes`, a player's `note`, a log
+line, a status hint, the reason a card cannot be played. A param may itself be a message (`cardMsg('QS')`,
+`suitMsg('H')`) or a list of them, and a numeric `count` param picks the plural form. The client puts a message into
+words with `text()`; `ScoreBoard`, `ScoreTable` and `GameLog`'s default slot already do. Server tests assert on codes
+and message shapes, never on English.
+
+**Names the server defines** (a game's `name` and `description` in module.json, its stat labels and achievements, the
+site's achievements, shop items, avatar parts, the menu's categories) stay English in their definition and are
+translated by key when a language has one (`src/catalogueText.js`): `<game>.meta.name`, `<game>.meta.description`,
+`<game>.stats.<key>`, `<game>.achievements.<key>.name` / `.text` (with `{n}`) / `.one`, `siteAchievements.<key>.*`,
+`shop.<itemId>`, `avatar.slots.<slot>`, `avatar.options.<slot>.<id>` and `categories.<key>`. English files do not
+repeat them.
+
+`src/i18n.test.js` keeps all this true for the site and for every game: it fails on text written straight into a
+template or a script, on a key nobody wrote, and on a key nobody asks for (`vitest run src/i18n.test.js -t hearts`
+checks one game). Hearts (`modules/hearts`) is the reference for a converted game.
 
 ## Tests
 

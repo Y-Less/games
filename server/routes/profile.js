@@ -11,8 +11,8 @@ import { handler, tokenOf } from './http.js';
  */
 export function registerProfileRoutes(api, { auth, achievements, uploads, requireUser }) {
   api.patch('/me', requireUser, handler(async (req, res) => {
-    const { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed } = req.body ?? {};
-    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed });
+    const { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed, language } = req.body ?? {};
+    const user = auth.updateProfile(req.user.id, { displayName, background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, playAnimations, effectIntensity, effectSpeed, language });
     if (background !== undefined && user.background.type !== 'image') uploads.removeImages('bg', user.id);
     if (cardBack !== undefined && user.cardBack.type !== 'image') uploads.removeImages('cb', user.id);
     const changed = choicesChanged(req.user, user);

@@ -13,6 +13,7 @@ import { parseCookies, SESSION_COOKIE } from './auth.js';
 import { codes } from './codes.js';
 import { watchTurns } from './turnClock.js';
 import { cleanDefinition, GAME_ACHIEVEMENTS } from '../shared/achievements.js';
+import { isLanguageTag } from '../shared/languages.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/markerColours.js';
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
@@ -140,17 +141,22 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
     /** The loaded modules' manifests, sorted by name. Side effects: none. */
     list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
     /**
-     * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder.
+     * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder. With a
+     * language, a translation next to the rules file (rules.md -> rules.fr.md) is preferred when there is one.
      * @param {string} id  the module id
+     * @param {string} [lang]  a language tag such as 'fr' or 'pt-BR' ('' or anything that is not a tag: the original)
      * @returns {string | null} the rules text
      * Side effects: reads a file.
      */
-    rules(id) {
+    rules(id, lang = '') {
       const entry = modules.get(id);
       if (!entry?.meta.rules) return null;
-      const file = path.resolve(entry.dir, entry.meta.rules);
-      if (!file.startsWith(entry.dir + path.sep) || !fs.statSync(file, { throwIfNoEntry: false })?.isFile()) return null;
-      return fs.readFileSync(file, 'utf8');
+      const original = path.resolve(entry.dir, entry.meta.rules);
+      const translated = isLanguageTag(lang) ? original.replace(/\.md$/, `.${lang}.md`) : null;
+      for (const file of [translated, original]) {
+        if (file && file.startsWith(entry.dir + path.sep) && fs.statSync(file, { throwIfNoEntry: false })?.isFile()) return fs.readFileSync(file, 'utf8');
+      }
+      return null;
     },
     /**
      * Stops every module that offers a dispose hook, one after another.

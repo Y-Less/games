@@ -12,16 +12,18 @@
 // `entries` are in the order they happened (oldest first). With `newest-first` the newest is shown at the top instead.
 // The default slot draws one entry: <GameLog :entries="log" v-slot="{ entry, index, old }">...</GameLog>.
 import { nextTick, onMounted, ref, watch, computed } from 'vue';
+import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
   entries: { type: Array, default: () => [] },
   newestFirst: { type: Boolean, default: false },
-  label: { type: String, default: 'Recent actions' },
+  label: { type: String, default: '' }, // '' : "Recent actions"
   empty: { type: String, default: '' },
   // How many of the newest entries are drawn at full strength; the rest get the `old` class (0 means none are old).
   fresh: { type: Number, default: 0 },
 });
 
+const { t } = useGameText();
 const box = ref(null);
 let pinned = true; // true while the newest entry is in view, so that new ones may scroll themselves into view
 const SLACK = 6; // px of tolerance when deciding the player is "at the newest end" (sub-pixel scroll positions)
@@ -66,7 +68,7 @@ defineExpose({ toNewest });
 </script>
 
 <template>
-  <ul ref="box" class="game-log" :aria-label="label" @scroll.passive="onScroll">
+  <ul ref="box" class="game-log" :aria-label="label || t('frame.recentActions')" @scroll.passive="onScroll">
     <li v-if="!entries.length && empty" class="muted">{{ empty }}</li>
     <li v-for="row in shown" :key="row.index" :class="{ old: row.old }">
       <slot :entry="row.entry" :index="row.index" :old="row.old">{{ row.entry?.text ?? row.entry }}</slot>

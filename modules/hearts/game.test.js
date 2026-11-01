@@ -207,19 +207,19 @@ test('the first trick is led with the 2 of clubs, and clubs must follow', () => 
   room.trick = [];
   room.tricksPlayed = 0;
   assert.deepEqual(g.legalCards(room, 0), ['2C']);
-  assert.match(g.illegalReason(room, 0, '5C'), /2 of clubs/);
+  assert.deepEqual(g.illegalReason(room, 0, '5C'), { key: 'errors.mustLead', params: { card: { key: 'cards.name', params: { rank: { key: 'cards.rank.2' }, suit: { key: 'cards.suit.C' } } } } });
   assert.equal(g.playCard(room, 1, '3C').ok, false, 'not your turn');
   assert.equal(g.playCard(room, 0, '5C').ok, false);
   assert.equal(g.playCard(room, 0, '2C').ok, true);
   assert.deepEqual(g.legalCards(room, 1), ['3C'], 'must follow clubs');
-  assert.match(g.illegalReason(room, 1, 'KS'), /follow suit \(clubs\)/);
+  assert.deepEqual(g.illegalReason(room, 1, 'KS'), { key: 'errors.followSuit', params: { suit: { key: 'cards.suit.C' } } });
 });
 
 test('no points on the first trick, unless every card is a point card', () => {
   const room = midHand([['2C'], ['KS', 'QS', 'AH', '3D'], ['QS', 'AH', '2H'], ['9D']], { tricksPlayed: 0, turn: 1, trick: [{ seat: 0, card: '2C' }] });
   assert.deepEqual(g.legalCards(room, 1), ['KS', '3D'], 'void in clubs: anything but hearts and the Queen of Spades');
-  assert.match(g.illegalReason(room, 1, 'QS'), /first trick/);
-  assert.match(g.illegalReason(room, 1, 'AH'), /first trick/);
+  assert.equal(g.illegalReason(room, 1, 'QS').key, 'errors.noPointsFirstTrick');
+  assert.equal(g.illegalReason(room, 1, 'AH').key, 'errors.noPointsFirstTrick');
   room.turn = 2;
   assert.deepEqual(g.legalCards(room, 2), ['QS', 'AH', '2H'], 'only point cards: any of them');
 });
@@ -232,7 +232,7 @@ test('the Jack of Diamonds is not a point card on the first trick', () => {
 test('hearts cannot be led until broken, unless the hand is all hearts', () => {
   const room = midHand([['5C', 'AH', '3H'], ['2D'], ['2D'], ['2D']]);
   assert.deepEqual(g.legalCards(room, 0), ['5C']);
-  assert.match(g.illegalReason(room, 0, 'AH'), /not been broken/);
+  assert.equal(g.illegalReason(room, 0, 'AH').key, 'errors.heartsNotBroken');
   assert.equal(g.playCard(room, 0, 'AH').ok, false);
   room.heartsBroken = true;
   assert.deepEqual(g.legalCards(room, 0), ['5C', 'AH', '3H']);
@@ -586,7 +586,7 @@ test('a view holds your hand and public information only', () => {
 test('the legal map appears only on your turn, with a reason for each illegal card', () => {
   const room = midHand([['5C', 'AH', 'KH'], ['2D'], ['2D'], ['2D']]);
   const view = g.viewFor(room, 1);
-  assert.deepEqual(view.legal, { '5C': null, AH: 'Hearts have not been broken yet.', KH: 'Hearts have not been broken yet.' });
+  assert.deepEqual(view.legal, { '5C': null, AH: { key: 'errors.heartsNotBroken' }, KH: { key: 'errors.heartsNotBroken' } });
   room.turn = 1;
   assert.equal(g.viewFor(room, 1).legal, null);
 });
@@ -605,7 +605,7 @@ test('every view carries the standard scoreboard with the whole round history', 
     assert.equal(scoreboard.lowIsBetter, true);
     assert.equal(scoreboard.target, 50);
     assert.deepEqual(scoreboard.players.map((p) => [p.id, p.score, p.isMe]), [[0, 0, id === 1], [1, 26, id === 2], [2, 26, false], [3, 26, false]]);
-    assert.deepEqual(scoreboard.rounds, [{ label: 'Hand 1', deltas: { 0: 0, 1: 26, 2: 26, 3: 26 }, notes: { 0: 'shot the moon' } }]);
+    assert.deepEqual(scoreboard.rounds, [{ label: { key: 'hand', params: { n: 1 } }, deltas: { 0: 0, 1: 26, 2: 26, 3: 26 }, notes: { 0: { key: 'shotMoon' } } }]);
   }
 });
 

@@ -151,8 +151,8 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    */
   function addHuman(room, userId, name, extras = {}) {
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-    if (room.phase !== 'lobby') return fail('That game has already started.');
-    if (room.players.length >= maxPlayers) return fail('That game is full.');
+    if (room.phase !== 'lobby') return fail('thatGameStarted');
+    if (room.players.length >= maxPlayers) return fail('gameFull');
     const base = { kind: 'human', id: userId };
     if (typeof name === 'string') base.name = uniqueName(room, name);
     room.players.push(makePlayer(room, base, extras));
@@ -176,7 +176,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    */
   function takeOut(room, id, rng) {
     const index = seatOf(room, id);
-    if (index === -1) return fail('You are not in this game.');
+    if (index === -1) return fail('notInGame');
     if (!isLive(room)) return ok({ empty: false, replaced: false, changed: false });
     let replaced = false;
     if (room.phase === 'lobby') room.players.splice(index, 1);
@@ -204,7 +204,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * Side effects: as takeOut.
    */
   function removeHuman(room, userId, rng) {
-    if (!isHuman(room.players[seatOf(room, userId)])) return fail('You are not in this game.');
+    if (!isHuman(room.players[seatOf(room, userId)])) return fail('notInGame');
     return takeOut(room, userId, rng);
   }
 
@@ -218,8 +218,8 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * Side effects: none.
    */
   function lobbyHostOnly(room, userId, what) {
-    if (userId !== room.hostId) return fail(`Only the host can ${what} computer players.`);
-    if (room.phase !== 'lobby') return fail(`Computer players can only be ${what === 'add' ? 'added' : 'removed'} in the lobby.`);
+    if (userId !== room.hostId) return fail(what === 'add' ? 'hostOnlyAddBots' : 'hostOnlyRemoveBots');
+    if (room.phase !== 'lobby') return fail(what === 'add' ? 'botsLobbyOnly' : 'botsRemoveLobbyOnly');
     return null;
   }
 
@@ -235,7 +235,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   function addBot(room, userId) {
     const refused = lobbyHostOnly(room, userId, 'add');
     if (refused) return refused;
-    if (room.players.length >= maxPlayers) return fail('That game is full.');
+    if (room.players.length >= maxPlayers) return fail('gameFull');
     const bot = newBot(room);
     room.players.push(bot);
     return ok({ id: bot.id });
@@ -271,10 +271,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    */
   function removeBot(room, userId, botId) {
     const problem = asHost(room, userId);
-    if (problem) return fail('Only the host can remove computer players.');
+    if (problem) return fail('hostOnlyRemoveBots');
     const index = seatOf(room, botId);
-    if (!isBot(room.players[index])) return fail('That is not a computer player.');
-    if (!isLive(room)) return fail('The game is over: there is nobody to remove.');
+    if (!isBot(room.players[index])) return fail('notAComputer');
+    if (!isLive(room)) return fail('gameOverNobodyToRemove');
     const refused = lobbyHostOnly(room, userId, 'remove');
     if (refused) return refused;
     room.players.splice(index, 1);
@@ -294,10 +294,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * Side effects: as takeOut.
    */
   function kick(room, hostId, targetId, rng) {
-    if (hostId !== room.hostId) return fail('Only the host can remove players.');
+    if (hostId !== room.hostId) return fail('hostOnlyRemove');
     const target = room.players.find((p) => p.id === targetId);
-    if (!isHuman(target) || target.id === hostId) return fail('That player is not in the game.');
-    if (!isLive(room)) return fail('The game is over: there is nobody to remove.');
+    if (!isHuman(target) || target.id === hostId) return fail('playerNotInGame');
+    if (!isLive(room)) return fail('gameOverNobodyToRemove');
     const removed = takeOut(room, target.id, rng);
     return removed.ok ? ok({ userId: target.id, replaced: removed.replaced }) : removed;
   }

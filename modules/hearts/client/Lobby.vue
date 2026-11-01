@@ -7,8 +7,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, list } = useGameText();
 
 // Only the host may change the rules and the seats.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -27,18 +29,20 @@ const seats = computed(() =>
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
 // How many seats are taken (the table cannot shrink below this).
 const taken = computed(() => props.state.seats.filter(Boolean).length);
-// Number words for the seat counts, indexed by the count.
-const numberWord = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'];
 // One line about the deal for the chosen number of players, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
 const dealing = computed(() => {
   const { cardsEach, removed, passCount } = props.state.deal;
-  const out = removed.length ? `, ${removed.length > 1 ? `${removed.slice(0, -1).join(', ')} and ${removed.at(-1)}` : removed[0]} removed` : ', none removed';
-  return `${numberWord[props.state.seatCount]} players: ${cardsEach} cards each${out}, pass ${passCount} cards.`;
+  return t('lobby.deal', {
+    players: t(`number.${props.state.seatCount}`),
+    cardsEach,
+    removed: removed.length ? t('lobby.removed', { cards: list(removed) }) : t('lobby.noneRemoved'),
+    passCount,
+  });
 });
 // The first empty seat, where a computer player is added (-1 if the table is full).
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
 // The button wording for each way of scoring a shot at the moon.
-const moonText = { others: 'Everyone else scores +26', self: 'The shooter scores -26' };
+const moonText = { others: 'lobby.moonOthers', self: 'lobby.moonSelf' };
 // Sends changed rules to the server (the host only; the server checks); returns its promise.
 const change = (settings) => props.send('settings', settings);
 </script>
@@ -46,7 +50,7 @@ const change = (settings) => props.send('settings', settings);
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -60,31 +64,31 @@ const change = (settings) => props.send('settings', settings);
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Players</legend>
+          <legend class="muted">{{ t('lobby.players') }}</legend>
           <div class="row">
             <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="n < taken" :aria-pressed="state.seatCount === n" @click="change({ seats: n })">{{ n }}</button>
           </div>
           <p class="muted deal">{{ dealing }}</p>
         </fieldset>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Play to</legend>
+          <legend class="muted">{{ t('lobby.playTo') }}</legend>
           <div class="row">
-            <button v-for="t in state.limits.targets" :key="t" :class="{ primary: state.settings.target === t }" :aria-pressed="state.settings.target === t" @click="change({ target: t })">{{ t }} points</button>
+            <button v-for="target in state.limits.targets" :key="target" :class="{ primary: state.settings.target === target }" :aria-pressed="state.settings.target === target" @click="change({ target })">{{ t('lobby.points', { n: target }) }}</button>
           </div>
         </fieldset>
         <label class="check">
           <input type="checkbox" :checked="state.settings.jackOfDiamonds" :disabled="!isHost" @change="change({ jackOfDiamonds: $event.target.checked })" />
-          <span>Jack of Diamonds is worth -5 to whoever takes it</span>
+          <span>{{ t('lobby.jack') }}</span>
         </label>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Shooting the moon (all the hearts and the Queen of Spades)</legend>
+          <legend class="muted">{{ t('lobby.moon') }}</legend>
           <div class="row">
-            <button v-for="mode in state.limits.moonModes" :key="mode" :class="{ primary: state.settings.moon === mode }" :aria-pressed="state.settings.moon === mode" @click="change({ moon: mode })">{{ moonText[mode] }}</button>
+            <button v-for="mode in state.limits.moonModes" :key="mode" :class="{ primary: state.settings.moon === mode }" :aria-pressed="state.settings.moon === mode" @click="change({ moon: mode })">{{ t(moonText[mode]) }}</button>
           </div>
         </fieldset>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

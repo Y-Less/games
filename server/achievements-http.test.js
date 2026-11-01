@@ -113,7 +113,7 @@ test('unlocking a level pays 100 times its number, and the unlock is waiting unt
   await ask(socket, 'lap', { n: 2 });
   assert.equal((await balanceOf(c)) - before, 100, 'laps level 1 of 2');
   const pending = (await c.get('/api/achievements/pending')).data.unlocks;
-  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', name: 'Laps', text: 'Run 2 laps', coins: 100 }]);
+  assert.deepEqual(pending, [{ id: 'pad.laps', level: 1, levels: 2, game: 'PAD', gameId: 'pad', key: 'laps', n: 2, name: 'Laps', text: 'Run 2 laps', coins: 100 }]);
   assert.equal((await find('pad.laps')).level, 1);
   assert.equal((await c.get('/api/achievements/pending')).data.unlocks.length, 1, 'still waiting: it has not been shown');
   assert.equal((await c.post('/api/achievements/seen', { items: [{ id: 'pad.laps', level: 1 }] })).status, 200);

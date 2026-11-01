@@ -9,9 +9,10 @@
 // Emits `create` and `join` (with the tidied code). A code in the address (an invite link) can be passed as `initialCode`.
 import { computed, ref } from 'vue';
 import { normaliseCode } from '../../shared/codes.js';
+import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
-  noun: { type: String, default: 'game' },
+  noun: { type: String, default: '' }, // '' : "game"
   intro: { type: String, default: '' },
   busy: { type: Boolean, default: false },
   error: { type: String, default: '' },
@@ -19,6 +20,9 @@ const props = defineProps({
   createLabel: { type: String, default: '' },
 });
 const emit = defineEmits(['create', 'join']);
+const { t } = useGameText();
+// What the room is called in the buttons ("game", "game of Hearts").
+const what = computed(() => props.noun || t('entry.noun'));
 
 // What the player has typed so far, starting from any code that came in with the invite link.
 const typed = ref(props.initialCode);
@@ -29,11 +33,11 @@ const code = computed(() => normaliseCode(typed.value));
 <template>
   <section class="entry panel stack">
     <p v-if="intro" class="muted intro">{{ intro }}</p>
-    <button class="primary wide" :disabled="busy" @click="emit('create')">{{ createLabel || `Start a new ${noun}` }}</button>
-    <p class="muted or">or join a friend's {{ noun }}</p>
+    <button class="primary wide" :disabled="busy" @click="emit('create')">{{ createLabel || t('entry.create', { noun: what }) }}</button>
+    <p class="muted or">{{ t('entry.or', { noun: what }) }}</p>
     <form class="join-row" @submit.prevent="code && emit('join', code)">
-      <input v-model="typed" aria-label="Invite code" placeholder="e.g. boss-aware-you" autocomplete="off" autocapitalize="none" spellcheck="false" />
-      <button :disabled="busy || !code">Join</button>
+      <input v-model="typed" :aria-label="t('entry.inviteCode')" :placeholder="t('entry.placeholder')" autocomplete="off" autocapitalize="none" spellcheck="false" />
+      <button :disabled="busy || !code">{{ t('entry.join') }}</button>
     </form>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </section>

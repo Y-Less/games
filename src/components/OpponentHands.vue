@@ -16,6 +16,7 @@
 // is). `max` is the most cards a hand ever holds: the fan's box is that size, so nothing moves as cards are played.
 // The whole thing is scaled to the room, so the same layout fits any desktop window. Side hands are turned on their sides.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useGameText } from '../useGameText.js';
 import CardFan from './CardFan.vue';
 import PlayingCard from './PlayingCard.vue';
 import { MAX_OPPONENTS, OPPONENT_LAYOUTS } from '../opponentLayouts.js';
@@ -26,6 +27,7 @@ const props = defineProps({
   // Rem of table height per unit of scale (the bigger, the smaller the hands): a short, busy table can ask for smaller ones.
   base: { type: Number, default: 34 },
 });
+const { t } = useGameText();
 
 // Sizes, in rem, of one hand drawn at scale 1 (small cards in a fan, then the name under it).
 const CARD = 3;
@@ -122,8 +124,8 @@ const placed = computed(() => {
 
 <template>
   <div ref="root" class="opponent-hands">
-    <div v-for="o in placed" :key="o.key" class="opp" :class="[o.side, { away: o.away, current: o.current }]" :style="o.style" role="group" :aria-label="`${o.name}: ${o.cards} ${o.cards === 1 ? 'card' : 'cards'}`">
-      <CardFan class="opp-fan" :items="Array.from({ length: o.cards }, (_, n) => n)" size="sm" :step="STEP" :reach="6" :max="max" :flip="o.side === 'top'" :aria-label="`${o.cards} cards`">
+    <div v-for="o in placed" :key="o.key" class="opp" :class="[o.side, { away: o.away, current: o.current }]" :style="o.style" role="group" :aria-label="t('cards.hand', { name: o.name, cards: t('cards.count', { count: o.cards }, o.cards) })">
+      <CardFan class="opp-fan" :items="Array.from({ length: o.cards }, (_, n) => n)" size="sm" :step="STEP" :reach="6" :max="max" :flip="o.side === 'top'" :aria-label="t('cards.count', { count: o.cards }, o.cards)">
         <template #default><PlayingCard :card="null" size="sm" /></template>
       </CardFan>
       <div class="label">

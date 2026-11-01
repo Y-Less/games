@@ -74,10 +74,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 <template>
   <Teleport to="body">
     <div v-if="open" class="modal-backdrop" @click.self="close">
-      <div ref="panel" class="modal panel" :class="size" role="dialog" aria-modal="true" :aria-label="title || 'Dialog'" tabindex="-1">
+      <div ref="panel" class="modal panel" :class="size" role="dialog" aria-modal="true" :aria-label="title || $t('common.dialog')" tabindex="-1">
         <header v-if="title || closable" class="modal-head">
           <h2>{{ title }}</h2>
-          <button v-if="closable" class="quiet" aria-label="Close" @click="close">Close</button>
+          <button v-if="closable" class="quiet" :aria-label="$t('common.close')" @click="close">{{ $t('common.close') }}</button>
         </header>
         <div class="modal-body"><slot /></div>
         <footer v-if="$slots.footer" class="modal-foot"><slot name="footer" /></footer>

@@ -4,6 +4,7 @@
 // Cards are removed from the 52-card deck so that everyone gets the same number and the whole remaining deck is dealt.
 // The Queen of Spades, the Jack of Diamonds and every heart are always kept, so a hand is always worth 26 points.
 import { RANKS, fullDeck } from '../../shared/cards.js';
+import { msg } from '../../shared/messages.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -120,10 +121,11 @@ export function offsetOfDirection(seats, direction) {
 }
 
 /**
- * Everything the table shows about a pass: its name, side and distance, and a sentence for it.
+ * Everything the table shows about a pass: its name, side and distance, and a sentence for it (a message under the
+ * game's `pass.*` keys, see shared/messages.js).
  * @param {number} seats  number of players.
  * @param {number} offset  places to the left that cards go.
- * @returns {{direction: string, offset: number, side: string, distance: number, count: number, label: string}} description.
+ * @returns {{direction: string, offset: number, side: string, distance: number, count: number, label: object}} description.
  * Side effects: none.
  */
 export function describePass(seats, offset) {
@@ -133,8 +135,8 @@ export function describePass(seats, offset) {
   const distance = direction === 'across' ? Math.floor(seats / 2) : match ? Number(match[2] || 1) : 0;
   const side = direction === 'none' ? 'none' : direction === 'across' ? 'across' : match[1];
   let label;
-  if (side === 'none') label = 'No passing this hand';
-  else if (side === 'across') label = `Passing ${count} across`;
-  else label = distance === 1 ? `Passing ${count} to the ${side}` : `Passing ${count} to the ${side} (${distance} places along)`;
+  if (side === 'none') label = msg('pass.none');
+  else if (side === 'across') label = msg('pass.across', { count });
+  else label = distance === 1 ? msg('pass.side', { count, side: msg(`pass.${side}`) }) : msg('pass.sideFar', { count, side: msg(`pass.${side}`), distance });
   return { direction, offset, side, distance, count, label };
 }

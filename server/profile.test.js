@@ -49,6 +49,6 @@ test('a refused change changes nothing: a bad later setting stops an earlier goo
 test('a picture of someone else is refused only after every setting has been cleaned', (t) => {
   const { profiles, id } = setup(t);
   const foreign = { type: 'image', file: 'bg-999-0123456789ab.png' };
-  assert.throws(() => profiles.updateProfile(id, { background: foreign, nameStyle: { style: 'nonsense' } }), /name style/);
-  assert.throws(() => profiles.updateProfile(id, { background: foreign }), /not a valid background/);
+  assert.throws(() => profiles.updateProfile(id, { background: foreign, nameStyle: { style: 'nonsense' } }), /invalidNameStyle/);
+  assert.throws(() => profiles.updateProfile(id, { background: foreign }), /invalidBackground/);
 });

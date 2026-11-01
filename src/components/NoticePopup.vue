@@ -63,7 +63,7 @@ onBeforeUnmount(() => clearTimeout(timer));
     <Transition name="notice">
       <div v-if="open" class="notice" :class="name" :style="{ '--row': row }" role="status" aria-live="polite">
         <div class="content"><slot /></div>
-        <button type="button" class="primary ok" @click="dismiss">OK</button>
+        <button type="button" class="primary ok" @click="dismiss">{{ $t('common.ok') }}</button>
       </div>
     </Transition>
   </Teleport>

@@ -7,6 +7,10 @@ import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 import { cardName } from '../../../shared/cards.js';
 import { advanceLog } from './log.js';
+import { messageText } from '../../../src/messageText.js';
+
+// A log line (a message) in English, as the table draws it.
+const words = (line) => messageText(line, 'hearts');
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -179,9 +183,9 @@ describe('Hearts table in the standard frame', () => {
   });
 
   it('draws the recent moves it is given, newest first', () => {
-    const w = mount(Table, { props: { state: view(room()), send: makeSend(), log: [{ text: 'Hand 1 is dealt.' }, { text: 'Hazel played the two of clubs.' }] } });
+    const w = mount(Table, { props: { state: view(room()), send: makeSend(), log: [{ key: 'log.dealt', params: { n: 1 } }, { key: 'log.played', params: { name: 'Hazel', card: { key: 'cards.name', params: { rank: '2', suit: { key: 'cards.suit.C' } } } } }] } });
     const rows = w.findAll('.box.log li').map((li) => li.text());
-    expect(rows).toEqual(['Hazel played the two of clubs.', 'Hand 1 is dealt.']);
+    expect(rows).toEqual(['Hazel played the 2 of clubs.', 'Hand 1 is dealt.']);
   });
 
   it('shows the result and the buttons in Status once the game is over', async () => {
@@ -324,18 +328,18 @@ describe('advanceLog', () => {
 
   it('notes each card played and the trick taken', () => {
     let log = advanceLog([], at(), at({ trick: [{ seat: 0, card: '2C' }] }));
-    expect(log.map((l) => l.text)).toEqual(['Ann played the 2 of clubs.']);
+    expect(log.map(words)).toEqual(['Ann played the 2 of clubs.']);
     const full = [{ seat: 0, card: '2C' }, { seat: 1, card: '5C' }, { seat: 2, card: 'KC' }, { seat: 3, card: 'AC' }];
     log = advanceLog(log, at({ trick: [{ seat: 0, card: '2C' }] }), at({ trick: full, trickWinner: 3 }));
-    expect(log.map((l) => l.text).slice(1)).toEqual(['Bo played the 5 of clubs.', 'Cy played the king of clubs.', 'Di played the ace of clubs.', 'Di takes the trick.']);
+    expect(log.map(words).slice(1)).toEqual(['Bo played the 5 of clubs.', 'Cy played the king of clubs.', 'Di played the ace of clubs.', 'Di takes the trick.']);
     log = advanceLog(log, at({ trick: full, trickWinner: 3 }), at({ trick: [{ seat: 3, card: '9D' }] }));
-    expect(log.at(-1).text).toBe('Di played the 9 of diamonds.');
+    expect(words(log.at(-1))).toBe('Di played the 9 of diamonds.');
   });
 
   it('notes new hands, passing and the end of the game, and keeps a limited list', () => {
-    expect(advanceLog([], at({ phase: 'passing' }), at({ phase: 'playing' })).map((l) => l.text)).toEqual(['The cards have been passed.']);
-    expect(advanceLog([], at({ handNumber: 1 }), at({ handNumber: 2 })).map((l) => l.text)).toEqual(['Hand 2 is dealt.']);
-    expect(advanceLog([], at(), at({ phase: 'finished', winners: [1, 2] })).map((l) => l.text)).toEqual(['The game is over: Bo and Cy win.']);
+    expect(advanceLog([], at({ phase: 'passing' }), at({ phase: 'playing' })).map(words)).toEqual(['The cards have been passed.']);
+    expect(advanceLog([], at({ handNumber: 1 }), at({ handNumber: 2 })).map(words)).toEqual(['Hand 2 is dealt.']);
+    expect(advanceLog([], at(), at({ phase: 'finished', winners: [1, 2] })).map(words)).toEqual(['The game is over: Bo and Cy win.']);
     const long = Array.from({ length: 200 }, (_, i) => ({ text: String(i) }));
     expect(advanceLog(long, at(), at({ handNumber: 2 })).length).toBe(120);
   });
@@ -366,8 +370,8 @@ describe('Claim all', () => {
     const at = (extra) => ({ code: 'a-b-c', phase: 'playing', handNumber: 1, seats, trick: [], trickWinner: null, ...extra });
     const claim = { seat: 0, tricks: 3, hand: 1 };
     const log = advanceLog([], at(), at({ phase: 'handEnd', lastClaim: claim }));
-    expect(log.map((l) => l.text)).toContain('Ann claims the remaining 3 tricks.');
-    expect(advanceLog(log, at({ phase: 'handEnd', lastClaim: claim }), at({ phase: 'handEnd', lastClaim: claim })).filter((l) => /claims/.test(l.text))).toHaveLength(1);
+    expect(log.map(words)).toContain('Ann claims the remaining 3 tricks.');
+    expect(advanceLog(log, at({ phase: 'handEnd', lastClaim: claim }), at({ phase: 'handEnd', lastClaim: claim })).filter((l) => /claims/.test(words(l)))).toHaveLength(1);
   });
 });
 

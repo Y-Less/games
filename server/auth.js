@@ -86,7 +86,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return;
     }
     entry.count += 1;
-    if (entry.count > max) throw new AuthError('Too many attempts. Please wait a few minutes and try again.', 429);
+    if (entry.count > max) throw new AuthError('tooManyAttempts', 429);
   }
 
   /**
@@ -119,12 +119,12 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       if (ip !== undefined) throttle(`register|${ip}`, Number(process.env.REGISTER_LIMIT) || REGISTER_LIMIT);
       username = textFrom(username).trim();
       password = textFrom(password);
-      if (!USERNAME.test(username)) throw new AuthError('Usernames are 3 to 20 letters, numbers, dashes or underscores.');
-      if (password.length < 8) throw new AuthError('Passwords must be at least 8 characters.');
-      if (password.length > 200) throw new AuthError('That password is too long.');
+      if (!USERNAME.test(username)) throw new AuthError('usernameRules');
+      if (password.length < 8) throw new AuthError('passwordShort');
+      if (password.length > 200) throw new AuthError('passwordLong');
       const name = (textFrom(displayName) || username).trim().slice(0, 20) || username;
       if (db.prepare('SELECT 1 FROM users WHERE username_lower = ?').get(username.toLowerCase())) {
-        throw new AuthError('That username is taken.', 409);
+        throw new AuthError('usernameTaken', 409);
       }
       const passwordHash = await hashPassword(password);
       const { lastInsertRowid } = db
@@ -147,7 +147,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       const row = db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase());
       // Always do the hashing work, so a missing user takes as long as a wrong password.
       const ok = await checkPassword(textFrom(password), row?.password_hash ?? 'scrypt$00$00');
-      if (!row || !ok) throw new AuthError('Wrong username or password.', 401);
+      if (!row || !ok) throw new AuthError('wrongLogin', 401);
       attempts.delete(`${ip}|${username.toLowerCase()}`);
       return { user: publicUser(row), token: createSession(row.id) };
     },
@@ -193,9 +193,9 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-      if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('Your current password is wrong.', 401);
-      if (textFrom(newPassword).length < 8) throw new AuthError('Passwords must be at least 8 characters.');
-      if (textFrom(newPassword).length > 200) throw new AuthError('That password is too long.');
+      if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('wrongCurrentPassword', 401);
+      if (textFrom(newPassword).length < 8) throw new AuthError('passwordShort');
+      if (textFrom(newPassword).length > 200) throw new AuthError('passwordLong');
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(textFrom(newPassword)), userId);
       // Sign out every other device.
       db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, hash(keepToken ?? ''));

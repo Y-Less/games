@@ -25,6 +25,7 @@
 // emit `details` with the player's id on a click, or with null when that player's details (`openDetails`) are already open,
 // and `hover` (with the id) and `unhover` as the pointer enters and leaves the chip (usePlayerPopup turns these into the pop-up).
 import { computed, ref, watch } from 'vue';
+import { useGameText } from '../useGameText.js';
 import { placements } from '../../shared/scores.js';
 import BotIcon from './BotIcon.vue';
 import GameModal from './GameModal.vue';
@@ -32,7 +33,7 @@ import ScoreTable from './ScoreTable.vue';
 import { nameLook } from '../nameLook.js';
 
 const props = defineProps({
-  players: { type: Array, required: true }, // [{ id, name, score, userId?, isMe?, away?, note? }]; userId: the account, for the name style
+  players: { type: Array, required: true }, // [{ id, name, score, userId?, isMe?, away?, note? }]; userId: the account, for the name style; note: a message (shared/messages.js); note: a message (shared/messages.js)
   rounds: { type: Array, default: () => [] },
   lowIsBetter: { type: Boolean, default: false },
   target: { type: Number, default: null },
@@ -78,10 +79,11 @@ const winners = computed(() => props.players.filter((p) => places.value[p.id] ==
 // The most recent round, or null before the first one.
 const lastRound = computed(() => props.rounds.at(-1) ?? null);
 // Title of the pop-up: final scores, scores after the round that just ended, or a plain "so far" when opened by the button.
+const { t, text, list } = useGameText();
 const title = computed(() => {
-  if (props.finished) return 'Final scores';
-  if (justFinished.value && lastRound.value) return `Scores after ${lastRound.value.label}`;
-  return 'Scores so far';
+  if (props.finished) return t('scoreboard.final');
+  if (justFinished.value && lastRound.value) return t('scoreboard.after', { label: text(lastRound.value.label) });
+  return t('scoreboard.soFar');
 });
 
 // Someone who still has to close the round pop-up (they reloaded, or it opened before they joined) gets it again;
@@ -158,7 +160,7 @@ defineExpose({ show, close });
 </script>
 
 <template>
-  <section class="score-bar" :class="{ sticky }" aria-label="Scores">
+  <section class="score-bar" :class="{ sticky }" :aria-label="t('scoreboard.label')">
     <ul class="chips">
       <li
         v-for="p in players"
@@ -175,35 +177,35 @@ defineExpose({ show, close });
           class="chip-body"
           :class="{ 'chip-button': clickable(p) }"
           :type="clickable(p) ? 'button' : undefined"
-          :aria-label="clickable(p) ? `Show ${p.name}'s details` : undefined"
-          :title="clickable(p) ? 'Show details' : undefined"
+          :aria-label="clickable(p) ? t('scoreboard.showDetails', { name: p.name }) : undefined"
+          :title="clickable(p) ? t('scoreboard.showDetailsTitle') : undefined"
           :aria-pressed="clickable(p) ? isOpen(p) : undefined"
           @click="clickable(p) && toggleDetails(p, $event)"
           @pointerenter="clickable(p) && emit('hover', p.id, $event.currentTarget)"
           @pointerleave="clickable(p) && emit('unhover')"
         >
           <span v-if="p.bot" class="bot"><BotIcon /></span>
-          <span class="name">{{ p.name }}<span v-if="p.isMe" class="you"> (you)</span></span>
+          <span class="name">{{ p.name }}<span v-if="p.isMe" class="you">{{ ` ${t('common.youBracketed')}` }}</span></span>
           <strong class="points">{{ p.score }}</strong>
-          <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? 'Ready for the next round' : undefined" :aria-label="p.ready ? 'ready' : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
-          <small v-if="p.note" class="muted">{{ p.note }}</small>
+          <span v-if="p.ready !== undefined" class="tick" :class="{ unready: !p.ready }" :title="p.ready ? t('scoreboard.readyTitle') : undefined" :aria-label="p.ready ? t('scoreboard.ready') : undefined" :aria-hidden="p.ready ? undefined : 'true'">&#10003;</span>
+          <small v-if="p.note" class="muted">{{ text(p.note) }}</small>
         </component>
       </li>
     </ul>
-    <button class="quiet all" @click="show">All rounds</button>
+    <button class="quiet all" @click="show">{{ t('scoreboard.allRounds') }}</button>
   </section>
 
   <GameModal v-model:open="open" :title="title" size="lg" @close="closed">
     <p v-if="finished && winners.length" class="winner" role="status">
-      <template v-if="winners.length === 1">{{ winners[0].name }}{{ winners[0].isMe ? ' (you)' : '' }} wins!</template>
-      <template v-else>A tie: {{ winners.map((w) => w.name).join(' and ') }} win.</template>
+      <template v-if="winners.length === 1">{{ t('scoreboard.wins', { name: winners[0].isMe ? `${winners[0].name} ${t('common.youBracketed')}` : winners[0].name }) }}</template>
+      <template v-else>{{ t('scoreboard.tie', { names: list(winners.map((w) => w.name)) }) }}</template>
     </p>
     <slot name="round" />
     <ScoreTable :players="players" :rounds="rounds" :low-is-better="lowIsBetter" :target="target" :running="running" :split="splitTotals" />
     <template #footer>
       <slot name="footer">
-        <span v-if="waiting.length && !finished" class="waiting muted" role="status">Waiting for {{ waiting.join(', ') }}&hellip;</span>
-        <button class="primary" data-autofocus @click="proceed">{{ finished ? 'Close' : 'Continue' }}</button>
+        <span v-if="waiting.length && !finished" class="waiting muted" role="status">{{ t('scoreboard.waitingFor', { names: list(waiting) }) }}</span>
+        <button class="primary" data-autofocus @click="proceed">{{ finished ? t('common.close') : t('scoreboard.continue') }}</button>
       </slot>
     </template>
   </GameModal>

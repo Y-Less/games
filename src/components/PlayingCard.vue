@@ -6,7 +6,9 @@
 // A playing card drawn in CSS. `card` is a string such as "QS" (see shared/cards.js); pass null for a face-down card,
 // which shows the viewer's chosen card back. With `clickable` it is a button and emits `pick`.
 import { computed } from 'vue';
-import { cardName, isJoker, isRed, rankOf, SUIT_SYMBOLS, suitOf } from '../../shared/cards.js';
+import { cardMsg } from '../../shared/messages.js';
+import { useGameText } from '../useGameText.js';
+import { isJoker, isRed, rankOf, SUIT_SYMBOLS, suitOf } from '../../shared/cards.js';
 
 const props = defineProps({
   card: { type: String, default: null },
@@ -17,10 +19,11 @@ const props = defineProps({
   dimmed: { type: Boolean, default: false },
   trump: { type: Boolean, default: false }, // a trump: the white of the face is the light trump blue
 });
+const { t, text } = useGameText();
 defineEmits(['pick']);
 
 // Accessible name of the card ("face-down card" when hidden).
-const label = computed(() => (props.card ? cardName(props.card) : 'face-down card'));
+const label = computed(() => (props.card ? text(cardMsg(props.card)) : t('cards.faceDown')));
 // True when the card is a joker, which has no rank or suit.
 const joker = computed(() => Boolean(props.card && isJoker(props.card)));
 // Rank text shown in the corners (a star for jokers, empty when face-down).

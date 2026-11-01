@@ -3,6 +3,7 @@
 // changes in profileApi.js.
 import { api, onUnauthorised } from './api.js';
 import { applyUserLook } from './appearance.js';
+import { pickLocale, setLocale } from './i18n.js';
 import { refreshShop } from './shopStore.js';
 import { session } from './sessionState.js';
 
@@ -25,15 +26,17 @@ export function safeNext(next) {
 }
 
 /**
- * Makes `user` the signed-in user (null: nobody) and gives the page their look.
+ * Makes `user` the signed-in user (null: nobody) and gives the page their look and language.
  * @param {object | null} user
  * @returns {void}
- * Side effects: sets session.user (clearing session.shop for nobody) and the page's CSS variables.
+ * Side effects: sets session.user (clearing session.shop for nobody), the page's CSS variables and its language (which
+ * may fetch that language's files; a failure there is logged and leaves the language as it was).
  */
 export function setUser(user) {
   session.user = user;
   if (!user) session.shop = null;
   applyUserLook(user);
+  setLocale(pickLocale(user)).catch((error) => console.error('Could not load the language:', error));
 }
 
 /**

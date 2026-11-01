@@ -23,21 +23,21 @@ test('addHuman seats a newcomer, once, and gives them a name nobody else has', (
 test('addHuman refuses a full table and a game that has started', () => {
   const room = lobby();
   rules.fillWithBots(room, 1);
-  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'That game is full.');
+  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'gameFull');
   room.phase = 'playing';
-  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'That game has already started.');
+  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'thatGameStarted');
 });
 
 test('only the host changes the lobby, and only in the lobby', () => {
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
-  assert.equal(rules.addBot(room, 2).error, 'Only the host can do that.');
+  assert.equal(rules.addBot(room, 2).error, 'hostOnly');
   assert.deepEqual(rules.addBot(room, 1), { ok: true, seat: 2 });
   assert.ok(isBot(room.seats[2]));
   assert.equal(rules.removeBot(room, 1, 2).ok, true);
   assert.equal(room.seats[2], null);
   room.phase = 'playing';
-  assert.equal(rules.addBot(room, 1).error, 'You can only change that before the game starts.');
+  assert.equal(rules.addBot(room, 1).error, 'settingsBeforeStart');
 });
 
 test('computer players take the names in order, then fall back to Computer', () => {
@@ -56,7 +56,7 @@ test('removeHuman frees the seat in the lobby and passes the host on', () => {
   assert.equal(out.replaced, false);
   assert.equal(room.seats[0], null);
   assert.equal(room.hostId, 2);
-  assert.equal(rules.removeHuman(room, 99).error, 'You are not in this game.');
+  assert.equal(rules.removeHuman(room, 99).error, 'notInGame');
 });
 
 test('removeHuman mid-game puts a computer player in the seat, via the takeOver hook', () => {
@@ -97,11 +97,11 @@ test('a finished game can keep a marker for the person who left', () => {
 test('kick removes someone else, never the host, and never from a finished game', () => {
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
-  assert.equal(rules.kick(room, 2, 0).error, 'Only the host can do that.');
-  assert.equal(rules.kick(room, 1, 0).error, 'There is no one else in that seat.');
-  assert.equal(rules.kick(room, 1, 2).error, 'There is no one else in that seat.');
+  assert.equal(rules.kick(room, 2, 0).error, 'hostOnly');
+  assert.equal(rules.kick(room, 1, 0).error, 'nobodyElseInSeat');
+  assert.equal(rules.kick(room, 1, 2).error, 'nobodyElseInSeat');
   room.phase = 'finished';
-  assert.equal(rules.kick(room, 1, 1).error, 'The game is over: there is nobody to remove.');
+  assert.equal(rules.kick(room, 1, 1).error, 'gameOverNobodyToRemove');
   room.phase = 'lobby';
   const out = rules.kick(room, 1, 1);
   assert.deepEqual(out, { ok: true, userId: 2, replaced: false });

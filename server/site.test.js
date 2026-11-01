@@ -38,12 +38,12 @@ test('unknown API routes are JSON 404s, never the app page', async (t) => {
     const res = await fetch(base + url);
     assert.equal(res.status, 404, `GET ${url}`);
     assert.match(res.headers.get('content-type'), /application\/json/);
-    assert.deepEqual(await res.json(), { error: 'Not found.' });
+    assert.deepEqual(await res.json(), { error: 'notFound' });
   }
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
     const res = await c.call(method, '/api/does-not-exist', {});
     assert.equal(res.status, 404, method);
-    assert.deepEqual(res.data, { error: 'Not found.' });
+    assert.deepEqual(res.data, { error: 'notFound' });
   }
   assert.equal((await c.get('/api/stats/leaderboard/nope')).status, 401, 'protected routes check sign-in first');
 });

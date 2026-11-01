@@ -21,7 +21,7 @@ function createApiRouter() {
   // Requiring JSON on every change (apart from the image upload) means a form on another website cannot make changes.
   api.use((req, res, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/me/background-image' || req.path === '/me/card-back-image') return next();
-    if (!req.is('application/json')) return res.status(415).json({ error: 'Send JSON.' });
+    if (!req.is('application/json')) return res.status(415).json({ error: 'sendJson' });
     next();
   });
   api.use(express.json({ limit: '20kb' }));
@@ -48,7 +48,7 @@ export function registerRoutes(app, deps) {
   registerShopRoutes(api, all);
   registerStatsRoutes(api, all);
   registerAchievementRoutes(api, all);
-  api.use((req, res) => res.status(404).json({ error: 'Not found.' }));
+  api.use((req, res) => res.status(404).json({ error: 'notFound' }));
   app.use('/api', api);
 
   registerStaticRoutes(app, deps);

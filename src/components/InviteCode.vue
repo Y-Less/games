@@ -6,8 +6,10 @@
 //   clears the "Link copied" hint, cleared again on unmount.
 // Shows a room's invite code and copies its invite link (this game's address with ?<code>) on click.
 import { onBeforeUnmount, ref } from 'vue';
+import { useGameText } from '../useGameText.js';
 
-const props = defineProps({ code: { type: String, required: true }, label: { type: String, default: 'Copy invite link' } });
+const props = defineProps({ code: { type: String, required: true }, label: { type: String, default: '' } }); // label '' : "Copy invite link"
+const { t } = useGameText();
 
 const copied = ref(false); // true for two seconds after a successful copy, to show "Link copied"
 let timer = null; // the pending timeout that resets `copied`
@@ -24,7 +26,7 @@ async function copy() {
     await navigator.clipboard.writeText(link());
     copied.value = true;
   } catch {
-    window.prompt('Copy this invite link:', link());
+    window.prompt(t('invite.prompt'), link());
     return;
   }
   clearTimeout(timer);
@@ -34,9 +36,9 @@ onBeforeUnmount(() => clearTimeout(timer));
 </script>
 
 <template>
-  <button class="invite quiet" :title="label" @click="copy">
+  <button class="invite quiet" :title="label || t('invite.copy')" @click="copy">
     <span class="code">{{ code }}</span>
-    <span class="hint muted" aria-live="polite">{{ copied ? 'Link copied' : label }}</span>
+    <span class="hint muted" aria-live="polite">{{ copied ? t('invite.copied') : label || t('invite.copy') }}</span>
   </button>
 </template>
 

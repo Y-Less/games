@@ -6,7 +6,9 @@
 // The avatar editor on the Profile page: pick one option for each slot (skin, hair, eyes ...) and watch the figure change.
 // Options you have not bought are shown but cannot be picked: they are bought in the shop, which previews them on you.
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
+import { catalogue } from '../catalogueText.js';
 import { AVATAR_SLOTS, avatarItemId, normaliseAvatar } from '../../shared/avatar.js';
 import { updateProfile } from '../profileApi.js';
 import { session } from '../session.js';
@@ -23,6 +25,7 @@ watch(savedParts, () => (draft.value = { ...saved.value }));
 
 // True when the draft differs from the saved avatar, which enables the Save and Reset buttons.
 const changed = computed(() => AVATAR_SLOTS.some(({ slot }) => draft.value[slot] !== saved.value[slot]));
+const { t } = useI18n();
 const message = ref('');
 const problem = ref('');
 const busy = ref(false);
@@ -48,7 +51,7 @@ async function save() {
   busy.value = true;
   try {
     await updateProfile({ avatar: draft.value });
-    message.value = 'Avatar saved.';
+    message.value = t('avatar.saved');
   } catch (e) {
     problem.value = e.message;
   } finally {
@@ -65,23 +68,26 @@ const reset = () => (draft.value = { ...saved.value });
 
 <template>
   <div class="panel stack avatar-editor">
-    <h2>Avatar</h2>
-    <p class="muted">Shown to other players when they open your details in a game.<template v-if="lockedCount"> More parts are for sale in the <RouterLink to="/shop">shop</RouterLink>.</template></p>
+    <h2>{{ t('avatar.title') }}</h2>
+    <p class="muted">
+      {{ t('avatar.intro') }}
+      <i18n-t v-if="lockedCount" keypath="avatar.moreInShop" tag="span"><template #shop><RouterLink to="/shop">{{ t('avatar.shop') }}</RouterLink></template></i18n-t>
+    </p>
     <p v-if="message" class="ok" role="status">{{ message }}</p>
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
     <div class="layout">
       <div class="figure">
-        <AvatarFigure :avatar="draft" size="9rem" label="Your avatar" />
+        <AvatarFigure :avatar="draft" size="9rem" :label="t('avatar.yours')" />
         <div class="row">
-          <button class="primary" :disabled="!changed || busy" @click="save">Save avatar</button>
-          <button :disabled="!changed || busy" @click="reset">Undo</button>
+          <button class="primary" :disabled="!changed || busy" @click="save">{{ t('avatar.save') }}</button>
+          <button :disabled="!changed || busy" @click="reset">{{ t('common.undo') }}</button>
         </div>
       </div>
 
       <div class="slots">
         <fieldset v-for="s in AVATAR_SLOTS" :key="s.slot" class="slot" :data-slot="s.slot">
-          <legend>{{ s.label }}</legend>
+          <legend>{{ catalogue.avatarSlotLabel(s) }}</legend>
           <div class="options">
             <button
               v-for="o in s.options"
@@ -90,12 +96,12 @@ const reset = () => (draft.value = { ...saved.value });
               :class="{ chosen: draft[s.slot] === o.id, locked: locked(s.slot, o), colour: o.colour }"
               :style="o.colour ? { '--swatch': o.gradient ? `linear-gradient(${o.gradient.join(', ')})` : o.colour } : undefined"
               :disabled="locked(s.slot, o)"
-              :title="locked(s.slot, o) ? `${o.name}: buy it in the shop (${o.price} gold)` : o.name"
-              :aria-label="`${s.label}: ${o.name}`"
+              :title="locked(s.slot, o) ? t('avatar.lockedTitle', { name: catalogue.avatarOptionName(s.slot, o), price: o.price }) : catalogue.avatarOptionName(s.slot, o)"
+              :aria-label="t('avatar.option', { slot: catalogue.avatarSlotLabel(s), name: catalogue.avatarOptionName(s.slot, o) })"
               :aria-pressed="draft[s.slot] === o.id"
               @click="draft[s.slot] = o.id"
             >
-              <template v-if="!o.colour">{{ o.name }}</template>
+              <template v-if="!o.colour">{{ catalogue.avatarOptionName(s.slot, o) }}</template>
             </button>
           </div>
         </fieldset>

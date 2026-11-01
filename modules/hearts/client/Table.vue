@@ -6,7 +6,7 @@
 // and scaled by the window (see `scale`), so nothing changes size or position while a game is played.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves as
-// [{ text }], kept by Hearts.vue).
+// messages, kept by Hearts.vue).
 // Emits: none. Slots: none (it fills GameFrame's scorebar, main, log and status slots).
 // Side effects: sends 'pass', 'play', 'claim', 'next', 'again', 'removeBot' and 'kick' requests; two watchers on the view
 // clear the chosen pass cards and the warning message when the hand or the turn moves on.
@@ -16,8 +16,9 @@ import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
-import { cardName } from '../../../shared/cards.js';
+import { cardMsg } from '../../../shared/messages.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import CardFan from '../../../src/components/CardFan.vue';
 import OpponentHands from '../../../src/components/OpponentHands.vue';
@@ -26,8 +27,9 @@ import TrickCircle from '../../../src/components/TrickCircle.vue';
 const props = defineProps({
   state: { type: Object, required: true },
   send: { type: Function, required: true },
-  log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
+  log: { type: Array, default: () => [] }, // Recent moves: messages, kept by the page (see log.js)
 });
+const { t, text, list } = useGameText();
 
 const board = ref(null); // the ScoreBoard, so "See the scores" can open its pop-up
 const picks = ref([]); // the cards chosen to pass, before they are confirmed
@@ -68,8 +70,8 @@ const circlePlays = computed(() => (playing.value ? s.value.trick.map((p) => ({ 
  */
 const oppNote = (rel) => {
   const seat = seatAt(rel);
-  if (passing.value) return seat.passed ? 'passed' : 'choosing';
-  return seat.tricks ? `${seat.tricks} ${seat.tricks === 1 ? 'trick' : 'tricks'}` : '';
+  if (passing.value) return seat.passed ? t('table.passed') : t('table.choosing');
+  return seat.tricks ? t('table.tricks', { count: seat.tricks }, seat.tricks) : '';
 };
 // The others, clockwise from you: the player after you first.
 const opponents = computed(() =>
@@ -103,14 +105,17 @@ const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.v
 // ---- the words, all of them in the Status box ----
 // The headline of the Status box for the phase, as one sentence ('' when there is nothing to say).
 const status = computed(() => {
-  if (finished.value) return winnerNames.value.length > 1 ? `It is a tie: ${winnerNames.value.join(' and ')} win.` : `${winnerNames.value[0]} wins with ${s.value.scoreboard.players.find((p) => p.id === s.value.winners[0])?.score} points.`;
-  if (passing.value) return s.value.pass.chosen ? 'Waiting for the others to choose their cards.' : `${s.value.pass.label}: choose ${passCount.value} cards for ${s.value.pass.toName}.`;
-  if (playing.value) {
-    if (s.value.trickWinner !== null) return `${nameOf(s.value.trickWinner)} takes the trick.`;
-    if (myTurn.value) return s.value.trickNumber === 1 && !s.value.trick.length ? `You have the ${cardName(s.value.deal.openingCard)}: lead it.` : 'Your turn: play a card.';
-    return s.value.turn === null ? '' : `Waiting for ${nameOf(s.value.turn)}.`;
+  if (finished.value) {
+    if (winnerNames.value.length > 1) return t('status.tie', { names: list(winnerNames.value) });
+    return t('status.wins', { name: winnerNames.value[0], score: s.value.scoreboard.players.find((p) => p.id === s.value.winners[0])?.score });
   }
-  if (handEnd.value) return you.value.ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next hand.` : `Hand ${s.value.lastHand?.hand} is over: close the scores to carry on.`;
+  if (passing.value) return s.value.pass.chosen ? t('status.waitingOthersChoose') : t('status.choose', { label: text(s.value.pass.label), count: passCount.value, name: s.value.pass.toName });
+  if (playing.value) {
+    if (s.value.trickWinner !== null) return t('status.takesTrick', { name: nameOf(s.value.trickWinner) });
+    if (myTurn.value) return s.value.trickNumber === 1 && !s.value.trick.length ? t('status.leadOpening', { card: text(cardMsg(s.value.deal.openingCard)) }) : t('status.yourTurn');
+    return s.value.turn === null ? '' : t('status.waitingFor', { name: nameOf(s.value.turn) });
+  }
+  if (handEnd.value) return you.value.ready ? t('status.waitingReady', { names: list(waitingFor.value) }) : t('status.handOver', { n: s.value.lastHand?.hand });
   return '';
 });
 // Whether it is your move (highlights the Status box).
@@ -119,14 +124,14 @@ const mine = computed(() => !finished.value && (myTurn.value || (passing.value &
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
-  if (passing.value && !s.value.pass.chosen) lines.push({ text: `Pick ${passCount.value} cards, then press the button on the table (${picks.value.length} of ${passCount.value} chosen).`, tone: 'muted' });
-  if (passing.value && s.value.pass.fromName) lines.push({ text: `You will receive ${passCount.value} cards from ${s.value.pass.fromName}.`, tone: 'muted' });
-  if (claimable.value) lines.push({ text: 'No one can beat your cards: you cannot lose another trick. Press Claim all to take them.', tone: 'mine' });
-  if (s.value.received.length && showReceived.value) lines.push({ text: 'The cards you received are outlined in green.', tone: 'muted' });
-  if (s.value.lastTrick && playing.value && !s.value.trick.length) lines.push({ text: `Last trick: ${nameOf(s.value.lastTrick.winner)} took it.`, tone: 'muted' });
+  if (passing.value && !s.value.pass.chosen) lines.push({ text: t('status.pick', { count: passCount.value, chosen: picks.value.length }), tone: 'muted' });
+  if (passing.value && s.value.pass.fromName) lines.push({ text: t('status.receive', { count: passCount.value, name: s.value.pass.fromName }), tone: 'muted' });
+  if (claimable.value) lines.push({ text: t('status.claimable'), tone: 'mine' });
+  if (s.value.received.length && showReceived.value) lines.push({ text: t('status.received'), tone: 'muted' });
+  if (s.value.lastTrick && playing.value && !s.value.trick.length) lines.push({ text: t('status.lastTrick', { name: nameOf(s.value.lastTrick.winner) }), tone: 'muted' });
   if (handEnd.value && moonMessage.value) lines.push({ text: moonMessage.value, tone: 'mine' });
   if (finished.value) {
-    lines.push({ text: isHost.value ? 'You can start another game.' : 'The host can start another game.', tone: 'muted' });
+    lines.push({ text: isHost.value ? t('status.hostAgain') : t('status.againHost'), tone: 'muted' });
   }
   return lines;
 });
@@ -135,7 +140,7 @@ const moonMessage = computed(() => {
   const moon = s.value.lastHand?.moon;
   if (moon == null) return '';
   const points = s.value.deal.handPoints;
-  return s.value.settings.moon === 'self' ? `${nameOf(moon)} shot the moon and scores -${points}.` : `${nameOf(moon)} shot the moon: everyone else scores +${points}.`;
+  return s.value.settings.moon === 'self' ? t('status.moonSelf', { name: nameOf(moon), points }) : t('status.moonOthers', { name: nameOf(moon), points });
 });
 
 // A new hand or phase starts again with no cards chosen to pass.
@@ -165,7 +170,7 @@ function pick(card) {
   }
   if (!s.value.legal || sending.value) return;
   const reason = s.value.legal[card];
-  if (reason) message.value = reason;
+  if (reason) message.value = text(reason);
   else submit('play', { card });
 }
 
@@ -207,7 +212,9 @@ const interactive = computed(() => (passing.value && !s.value.pass.chosen) || my
 // Whether a card is drawn dimmed: it is your turn and the server gave a reason it cannot be played.
 const dimmed = (card) => myTurn.value && s.value.legal[card] !== null;
 // The reason a card cannot be played, for its hover title ('' if it can or it is not your turn).
-const reasonFor = (card) => (myTurn.value ? s.value.legal[card] ?? '' : '');
+const reasonFor = (card) => (myTurn.value && s.value.legal[card] ? text(s.value.legal[card]) : '');
+// What a seat took this hand, for the summary and the pop-up: "3 hearts, Queen of Spades, Jack of Diamonds".
+const takenText = (details) => `${t('table.hearts', { count: details.hearts }, details.hearts)}${details.queen ? t('table.queen') : ''}${s.value.settings.jackOfDiamonds && details.jack ? t('table.jack') : ''}`;
 
 // ---- your hand, from 7 to 17 cards ----
 // The flat row (or the fan) of a deal bigger than 13 cards is squeezed into the width of the 13-card hand, and a smaller
@@ -281,14 +288,12 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
         @continue="send('next')"
       >
         <template #round>
-          <section v-if="state.lastHand && (handEnd || finished)" class="summary stack" aria-label="This hand">
+          <section v-if="state.lastHand && (handEnd || finished)" class="summary stack" :aria-label="t('table.thisHand')">
             <p v-if="moonMessage" class="moon" role="status">{{ moonMessage }}</p>
             <ul class="taken">
               <li v-for="(seat, i) in state.seats" :key="i" :class="{ me: i === state.you }">
                 <strong>{{ seat.name }}</strong>
-                <span class="muted">
-                  {{ state.lastHand.details[i].hearts }} {{ state.lastHand.details[i].hearts === 1 ? 'heart' : 'hearts' }}<template v-if="state.lastHand.details[i].queen">, Queen of Spades</template><template v-if="state.settings.jackOfDiamonds && state.lastHand.details[i].jack">, Jack of Diamonds</template>
-                </span>
+                <span class="muted">{{ takenText(state.lastHand.details[i]) }}</span>
                 <b>{{ state.lastHand.points[i] > 0 && !isMoonRound ? '+' : '' }}{{ state.lastHand.points[i] }}</b>
               </li>
             </ul>
@@ -300,28 +305,28 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
     <template #main="area">
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
-          <dt>Score</dt>
+          <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
-          <dt>Cards in hand</dt>
+          <dt>{{ t('popup.cardsInHand') }}</dt>
           <dd>{{ opened.cards }}</dd>
           <template v-if="state.phase !== 'passing'">
-            <dt>Tricks taken</dt>
+            <dt>{{ t('popup.tricksTaken') }}</dt>
             <dd>{{ opened.tricks }}</dd>
-            <dt>Hearts taken</dt>
-            <dd>{{ opened.hearts }}<template v-if="opened.queen">, Queen of Spades</template><template v-if="state.settings.jackOfDiamonds && opened.jack">, Jack of Diamonds</template></dd>
-            <dt>Points this hand</dt>
+            <dt>{{ t('popup.heartsTaken') }}</dt>
+            <dd>{{ opened.hearts }}<template v-if="opened.queen">{{ t('table.queen') }}</template><template v-if="state.settings.jackOfDiamonds && opened.jack">{{ t('table.jack') }}</template></dd>
+            <dt>{{ t('popup.pointsThisHand') }}</dt>
             <dd>{{ opened.points }}</dd>
           </template>
-          <dt v-else>Passing</dt>
-          <dd v-if="state.phase === 'passing'">{{ opened.passed ? 'has chosen' : 'still choosing' }}</dd>
+          <dt v-else>{{ t('popup.passing') }}</dt>
+          <dd v-if="state.phase === 'passing'">{{ opened.passed ? t('popup.hasChosen') : t('popup.stillChoosing') }}</dd>
         </dl>
       </PlayerPopup>
-      <section class="felt" aria-label="The table" :style="{ '--s': scale(area) }">
+      <section class="felt" :aria-label="t('table.label')" :style="{ '--s': scale(area) }">
         <OpponentHands :opponents="opponents" :max="cardsEach" />
 
         <TrickCircle class="trick" :seats="circleSeats" :plays="circlePlays" :winner-key="state.trickWinner" size="lg" />
 
-        <CardFan class="my-fan hand" :class="{ fanned: arcFits(area), minimised: area.minimised }" role="group" :style="handStyle(arcFits(area))" aria-label="Your hand" :items="shownHand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!arcFits(area)">
+        <CardFan class="my-fan hand" :class="{ fanned: arcFits(area), minimised: area.minimised }" role="group" :style="handStyle(arcFits(area))" :aria-label="t('table.yourHand')" :items="shownHand" :item-key="(card) => card" size="lg" :max="cardsEach" :step="handLook.step" :overlap="handLook.overlap" :straight="!arcFits(area)">
           <template #default="{ item: card }">
             <div class="slot" :class="{ received: showReceived && state.received.includes(card) }" :title="reasonFor(card)">
               <PlayingCard :card="card" size="lg" :clickable="interactive" :selected="picks.includes(card)" :dimmed="dimmed(card)" @pick="pick" />
@@ -329,28 +334,28 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
           </template>
         </CardFan>
         <div class="row confirm" :class="{ hidden: !(passing && !state.pass.chosen) && !claimable }">
-          <button v-if="claimable" class="primary claim" :disabled="sending" @click="submit('claim')">Claim all</button>
-          <button v-else class="primary" :disabled="picks.length !== passCount" @click="confirmPass">Pass these {{ picks.length }} of {{ passCount }} cards</button>
+          <button v-if="claimable" class="primary claim" :disabled="sending" @click="submit('claim')">{{ t('table.claimAll') }}</button>
+          <button v-else class="primary" :disabled="picks.length !== passCount" @click="confirmPass">{{ t('table.passThese', { chosen: picks.length, count: passCount }) }}</button>
         </div>
       </section>
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="status" :mine="mine" :popup="false" :lines="statusLines">
         <template #facts>
-          <strong>Hand {{ state.handNumber }}</strong>
-          <span v-if="playing || handEnd">Trick {{ state.trickNumber }} of {{ state.deal.tricks }}</span>
-          <span v-if="playing || handEnd">{{ state.heartsBroken ? 'Hearts are broken' : 'Hearts not broken yet' }}</span>
-          <span>Play to {{ state.scoreboard.target }}</span>
-          <span v-if="state.settings.jackOfDiamonds">Jack of Diamonds: -5</span>
+          <strong>{{ t('facts.hand', { n: state.handNumber }) }}</strong>
+          <span v-if="playing || handEnd">{{ t('facts.trick', { n: state.trickNumber, total: state.deal.tricks }) }}</span>
+          <span v-if="playing || handEnd">{{ state.heartsBroken ? t('facts.heartsBroken') : t('facts.heartsNotBroken') }}</span>
+          <span>{{ t('facts.playTo', { n: state.scoreboard.target }) }}</span>
+          <span v-if="state.settings.jackOfDiamonds">{{ t('facts.jack') }}</span>
         </template>
         <div v-if="finished" class="row">
-          <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-          <button @click="board.show()">See the scores</button>
+          <button v-if="isHost" class="primary" @click="send('again')">{{ t('table.playAgain') }}</button>
+          <button @click="board.show()">{{ t('table.seeScores') }}</button>
         </div>
       </GameStatus>
     </template>

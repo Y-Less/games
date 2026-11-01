@@ -8,7 +8,7 @@
 // Close button, Escape, or a click outside it. `html` is null while it loads.
 import { onBeforeUnmount, onMounted } from 'vue';
 
-defineProps({ html: { type: String, default: null }, title: { type: String, default: 'Help' } });
+defineProps({ html: { type: String, default: null }, title: { type: String, default: '' } }); // title '' : "Help"
 const emit = defineEmits(['close']);
 
 // Handler for window keydown: emits close when Escape is pressed (returns false or the emit result; the value is unused).
@@ -19,9 +19,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEsc));
 
 <template>
   <div class="backdrop" @click.self="emit('close')">
-    <div class="dialog panel" role="dialog" :aria-label="title">
-      <button class="quiet close" @click="emit('close')">Close</button>
-      <div class="help" v-html="html ?? 'Loading…'" />
+    <div class="dialog panel" role="dialog" :aria-label="title || $t('common.help')">
+      <button class="quiet close" @click="emit('close')">{{ $t('common.close') }}</button>
+      <div class="help" v-html="html ?? $t('common.loading')" />
     </div>
   </div>
 </template>

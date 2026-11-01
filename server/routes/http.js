@@ -12,12 +12,12 @@ export const tokenOf = (req) => parseCookies(req.headers.cookie)[SESSION_COOKIE]
 /**
  * Makes the middleware that refuses requests from nobody signed in.
  * @param {{ userForToken: (token: string | undefined) => object | null }} auth
- * @returns {import('express').RequestHandler}  replies 401 { error: 'Please sign in.' }, or sets `req.user` and goes on
+ * @returns {import('express').RequestHandler}  replies 401 { error: 'signIn' }, or sets `req.user` and goes on
  * Side effects: none until it runs; then sets req.user or sends the 401.
  */
 export const makeRequireUser = (auth) => (req, res, next) => {
   const user = auth.userForToken(tokenOf(req));
-  if (!user) return res.status(401).json({ error: 'Please sign in.' });
+  if (!user) return res.status(401).json({ error: 'signIn' });
   req.user = user;
   next();
 };

@@ -86,7 +86,8 @@ test('the free starting choices need nothing, and a refused change changes nothi
   assert.equal(night.status, 200);
   const refused = await c.patch('/api/me', { displayName: 'Renamed', background: { type: 'preset', value: 'dusk' } });
   assert.equal(refused.status, 403);
-  assert.match(refused.data.error, /Dusk/);
+  assert.equal(refused.data.error, 'notOwned');
+  assert.match(refused.data.params.item, /Dusk/, 'the refusal names the item to buy');
   assert.equal((await c.get('/api/me')).data.user.displayName, 'shopper');
 });
 

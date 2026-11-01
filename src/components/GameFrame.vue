@@ -23,15 +23,17 @@
 // pieces to fit it. Both bottom boxes have a minimise button; either one hides the bodies of both boxes (leaving just their
 // titles), which gives the main area the room, and `minimised` is passed to the main slot so that a game can use it (the choice is remembered). The root carries data-fits-window, which tells the play view not to scale the game down.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
   // The frame is a grid of 12 equal columns (--cols). Each row picks its own split on that grid, so the outer edges
   // and the gutters line up in every row while the splits may differ.
   mainSpan: { type: Number, default: 7 }, // columns taken by the left part of the main area (the rest go to the right part)
   logSpan: { type: Number, default: 6 }, // columns taken by the Recent moves box (the rest go to Status)
-  logTitle: { type: String, default: 'Recent moves' },
-  statusTitle: { type: String, default: 'Status' },
+  logTitle: { type: String, default: '' }, // '' : "Recent moves"
+  statusTitle: { type: String, default: '' }, // '' : "Status"
 });
+const { t } = useGameText();
 
 const STORE = 'gameframe.minimised';
 // Returns true when the player last left the bottom boxes minimised (false when unset or storage is unavailable, e.g. private mode).
@@ -132,17 +134,17 @@ defineExpose({ measure });
     <div ref="mainBox" class="main"><slot name="main" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" :minimised="minimised" /></div>
     <div v-if="$slots.others" class="others"><slot name="others" :width="area.width" :height="area.height" :left="columns.left" :right="columns.right" :gap="columns.gap" :main-span="columns.mainSpan" :columns="columns.columns" /></div>
     <div class="bottom">
-      <section class="box log" :aria-label="logTitle">
+      <section class="box log" :aria-label="logTitle || t('frame.log')">
         <div class="head">
-          <h3>{{ logTitle }}</h3>
-          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? 'Show Recent moves and Status' : 'Minimise Recent moves and Status'" :title="minimised ? 'Show' : 'Minimise'" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
+          <h3>{{ logTitle || t('frame.log') }}</h3>
+          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? t('frame.showBoxes') : t('frame.minimiseBoxes')" :title="minimised ? t('frame.show') : t('frame.minimise')" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
         </div>
         <div v-show="!minimised" class="body"><slot name="log" /></div>
       </section>
-      <section class="box status" :aria-label="statusTitle">
+      <section class="box status" :aria-label="statusTitle || t('frame.status')">
         <div class="head">
-          <h3>{{ statusTitle }}</h3>
-          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? 'Show Recent moves and Status' : 'Minimise Recent moves and Status'" :title="minimised ? 'Show' : 'Minimise'" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
+          <h3>{{ statusTitle || t('frame.status') }}</h3>
+          <button type="button" class="fold" :aria-expanded="!minimised" :aria-label="minimised ? t('frame.showBoxes') : t('frame.minimiseBoxes')" :title="minimised ? t('frame.show') : t('frame.minimise')" @click="toggle">{{ minimised ? '▴' : '▾' }}</button>
         </div>
         <div v-show="!minimised" class="body"><slot name="status" /></div>
       </section>
