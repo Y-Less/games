@@ -33,7 +33,7 @@
     },
     {
       "key": "wordsmith",
-      "name": "Wordsmith",
+      "name": "The WordSmith",
       "text": "Write {n} clues",
       "one": "Write a clue",
       "levels": "veryEasy",

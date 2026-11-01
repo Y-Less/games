@@ -56,12 +56,12 @@ export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore',
 
 /** The achievements that belong to the site rather than to one game. */
 export const GLOBAL_ACHIEVEMENTS = [
-  { key: 'welcome', name: 'Welcome', text: 'Sign up', levels: GLOBAL_TIERS.unlock, measure: 'member' },
+  { key: 'welcome', name: 'Millenium Home', text: 'Sign up', levels: GLOBAL_TIERS.unlock, measure: 'member' },
   { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: GLOBAL_TIERS.medium, stat: 'played' },
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
   { key: 'persistent', name: 'Persistent', text: 'You just lost the game ({n} times)', one: 'You just lost the game (1 time)', levels: GLOBAL_TIERS.medium, stat: 'losses' },
   { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: GLOBAL_TIERS.veryEasy },
-  { key: 'slow', name: 'Take your time', text: 'Take over 10 minutes for a turn', levels: GLOBAL_TIERS.unlock },
+  { key: 'slow', name: 'Hurry up Dods!', text: 'Take over 10 minutes for a turn', levels: GLOBAL_TIERS.unlock },
   {
     key: 'pieces',
     name: 'Played pieces',
@@ -74,7 +74,7 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', levels: [10, 50, 100, 500, 1000] },
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
   { key: 'steve', name: "Steve's Achievement", text: "Claim Steve's reward", levels: GLOBAL_TIERS.unlock },
-  { key: 'everygame', name: 'Won every game', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
+  { key: 'everygame', name: 'Master of all', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */

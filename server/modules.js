@@ -89,7 +89,7 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
         next();
       });
 
-      // A player who keeps a game waiting for over ten minutes on their turn, while connected, earns the global "Take your time".
+      // A player who keeps a game waiting for over ten minutes on their turn, while connected, earns the global `global.slow` achievement.
       // Wraps socket.emit so every `state` view sent to this player is also shown to the turn clock; returns nothing.
       const watchSlowTurns = (socket) => {
         const watch = watchTurns({ onSlow: () => achievements?.forGame(meta.id).raise(socket.data.user.id, 'global.slow', 1) });

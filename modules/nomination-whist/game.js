@@ -963,7 +963,7 @@ function playView(room, me) {
 
 /**
  * The standard scoreboard (shared/scores.js): the players (with who is ready between rounds, and the instant winner
- * noted), the rounds scored so far, and that high scores win. The site reads `current` from here (its "Take your time"
+ * noted), the rounds scored so far, and that high scores win. The site reads `current` from here (its `global.slow`
  * clock), so it is built on the server like every other game's.
  *
  * @param {object} room  not changed

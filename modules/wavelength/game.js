@@ -710,7 +710,7 @@ function playerView(room, p, { nameOf, online, final }) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js): whoever the game is waiting for is `current` (the site's "Take your time"
+ * The standard scoreboard (shared/scores.js): whoever the game is waiting for is `current` (the site's `global.slow`
  * clock reads it), and while the results are up each player shows whether they are ready to go on.
  *
  * @param {object} room  not changed

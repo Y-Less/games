@@ -123,7 +123,7 @@
     },
     {
       "key": "missed",
-      "name": "Missed the moon",
+      "name": "My friends and I think it's wrong to go to the moon",
       "text": "Take 25 points in a hand",
       "levels": "unlock",
       "stat": "missedMoons"

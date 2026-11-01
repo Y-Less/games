@@ -326,7 +326,7 @@ export class Game {
 
   /**
    * Is the round waiting for this player to do something? The chooser while the word is chosen, everybody still to play
-   * a card, then everybody still to vote. The scoreboard shows it as `current` and the site's "Take your time" clock
+   * a card, then everybody still to vote. The scoreboard shows it as `current` and the site's `global.slow` clock
    * reads it, so it must mean "it is your move", not "it is your round".
    *
    * @param {object} p  a seat
