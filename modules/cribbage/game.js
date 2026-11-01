@@ -328,8 +328,9 @@ function finish(room, seat) {
 }
 
 /**
- * Pegs points for a seat. The back peg moves to where the front peg was; the game ends the moment the target is
- * reached, and any remaining entries are not scored.
+ * Pegs points for a seat. The back peg moves to where the front peg was, but only when something is actually scored (a
+ * zero-point award leaves both pegs, so the board still shows the last real move); the game ends the moment the target
+ * is reached, and any remaining entries are not scored.
  *
  * Side effects: changes the seat's score, back peg and tally, the hand's deltas and the log, and may finish the game.
  *
@@ -341,9 +342,13 @@ function finish(room, seat) {
  */
 function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
   const s = room.seats[seat];
-  s.back = s.score;
+  let moved = false;
   for (const entry of entries) {
     if (room.phase === 'finished' || entry.points <= 0) continue;
+    if (!moved) {
+      s.back = s.score;
+      moved = true;
+    }
     const before = s.score;
     s.score = Math.min(room.target, s.score + entry.points);
     room.handDeltas[seat] = (room.handDeltas[seat] ?? 0) + s.score - before;
@@ -636,6 +641,20 @@ function startShow(room) {
 }
 
 /**
+ * Moves the deal on by one seat and deals the next hand.
+ *
+ * Side effects: changes room.dealer and deals (using rng).
+ *
+ * @param {object} room  a room in the show
+ * @param {() => number} rng
+ * @returns {void}
+ */
+function nextHand(room, rng) {
+  room.dealer = (room.dealer + 1) % room.seats.length;
+  deal(room, rng);
+}
+
+/**
  * Deals the next hand once every person has said they are ready (computer players, and people who have gone, never wait).
  *
  * Side effects: when everyone is ready, moves the deal on by one seat and deals (using rng).
@@ -645,9 +664,31 @@ function startShow(room) {
  * @returns {void}
  */
 function advanceIfReady(room, rng) {
-  if (room.phase !== 'show' || !room.seats.every((s) => !isHuman(s) || s.ready)) return;
-  room.dealer = (room.dealer + 1) % room.seats.length;
-  deal(room, rng);
+  if (waitingForReady(room) && room.seats.every((s) => !isHuman(s) || s.ready)) nextHand(room, rng);
+}
+
+/**
+ * Whether the table is waiting for people to close the show (the hand's scores) before the next deal.
+ *
+ * @param {object} room
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const waitingForReady = (room) => room.phase === 'show';
+
+/**
+ * Deals the next hand whether or not everyone has closed the show (the server does this after a wait, so that one person
+ * who has gone quiet cannot hold the table for ever).
+ *
+ * @param {object} room
+ * @param {() => number} rng
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as nextHand.
+ */
+export function forceNextHand(room, rng) {
+  if (!waitingForReady(room)) return fail('The hand is not over.');
+  nextHand(room, rng);
+  return ok();
 }
 
 /**

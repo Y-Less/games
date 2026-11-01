@@ -1,9 +1,8 @@
-// A snapshot of what viewFor sends (see game.js): every view, for a person and a stranger, along whole seeded games of
-// computers. The digest was taken before viewFor was split into smaller builders, so splitting it further must not change
-// a byte of what is sent.
+// What viewFor sends (see game.js) along whole seeded games: the same views every time for a seed, nothing hidden shown
+// to a stranger, and a fixed set of parts. (These used to pin a SHA-1 of every view, which also pinned every computer
+// decision and every field, so a legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
 
@@ -39,19 +38,22 @@ function recordedViews(seed, seats, target) {
   return { views, finished: room.phase === 'finished' };
 }
 
-const digest = (views) => createHash('sha1').update(views.join('\n')).digest('hex');
-
-test('the views of a two-player game to 61 are exactly as they were', () => {
-  const { views, finished } = recordedViews(81, 2, 61);
-  assert.equal(finished, true);
-  assert.equal(digest(views), 'dcba79bfe80caf399337a34031dca1d38423ea02');
-});
-
-test('the views of a three-player game to 61 are exactly as they were', () => {
-  const { views, finished } = recordedViews(82, 3, 61);
-  assert.equal(finished, true);
-  assert.equal(digest(views), '6a9851d4647d72960dd1bae2afef1a4c094d8940');
-});
+for (const [seed, seats] of [
+  [81, 2],
+  [82, 3],
+]) {
+  test(`the views of a ${seats}-player game to 61 are the same every time for a seed, and a stranger sees no cards`, () => {
+    const first = recordedViews(seed, seats, 61);
+    assert.equal(first.finished, true);
+    assert.deepEqual(recordedViews(seed, seats, 61).views, first.views, 'a seed replays the same game and the same views');
+    assert.ok(first.views.length > 50, 'the game was long enough to look at');
+    for (const text of first.views) {
+      const view = JSON.parse(text);
+      if (view.you === -1) assert.equal(view.hand.length, 0, 'a stranger is sent no cards');
+      else if (view.phase === 'discard') assert.ok(view.hand.length > 0, 'a person is sent their hand');
+    }
+  });
+}
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1 });

@@ -516,3 +516,32 @@ test("a computer player's pending discard keeps its key while people discard, so
   assert.equal(game.discard(room, 0, hand.slice(0, hand.length - 4), seeded(1)).ok, true);
   assert.equal(game.pendingBot(room).key, before.key, 'Alex discarding changes nothing for the waiting computer');
 });
+
+test('the back peg only moves when something is scored, so the board keeps showing the last real move', () => {
+  const room = inPlay([['QS', '6C'], ['KH', '5D']], { scores: [10, 20] });
+  room.seats.forEach((s) => (s.back = s.score - 3)); // as if each had just pegged three
+  play(room, 1, 'KH');
+  play(room, 0, 'QS');
+  play(room, 1, '5D');
+  assert.deepEqual(room.seats.map((s) => [s.back, s.score]), [[7, 10], [17, 20]], 'three plays that score nothing move no peg');
+  play(room, 0, '6C'); // thirty-one for 2, then the show scores both hands at once
+  assert.deepEqual(room.seats.map((s) => [s.back, s.score]), [[12, 16], [20, 22]], 'each back peg marks where the front one was before the last real score');
+});
+
+test('the show can be forced on by the clock, so one quiet person cannot hold the table', () => {
+  const room = inPlay([['QS', '6C'], ['KH', '5D']]);
+  assert.equal(game.waitingForReady(room), false);
+  assert.equal(game.forceNextHand(room, seeded(1)).ok, false, 'not during the play');
+  play(room, 1, 'KH');
+  play(room, 0, 'QS');
+  play(room, 1, '5D');
+  play(room, 0, '6C');
+  assert.equal(room.phase, 'show');
+  assert.equal(game.waitingForReady(room), true);
+  const handNo = room.handNo;
+  assert.equal(game.forceNextHand(room, seeded(1)).ok, true);
+  assert.equal(room.phase, 'discard');
+  assert.equal(room.dealer, 1, 'the deal moved on');
+  assert.equal(room.handNo, handNo + 1);
+  assert.equal(game.waitingForReady(room), false);
+});
