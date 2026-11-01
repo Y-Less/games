@@ -1,8 +1,10 @@
 // State-validity checks shared by the Tints and Hints robustness, lifecycle and invariant tests (not a test itself).
+// Depends on node:assert, grid.js (isCell) and game.js (the limits and palette). Nothing here changes any game state.
 import assert from 'node:assert/strict';
 import { isCell } from './grid.js';
 import { COLOURS, HINT_LENGTH, MAX_PLAYERS, TURNS_EACH } from './game.js';
 
+/** Every phase a room can be in. */
 export const PHASES = ['lobby', 'guessing1', 'guessing2', 'reveal', 'finished', 'abandoned'];
 
 /** Which phase may follow which, as one player sees it (a new turn goes from reveal, or from a skipped turn, to guessing1). */
@@ -15,7 +17,16 @@ export const NEXT_PHASES = {
   abandoned: ['abandoned'],
 };
 
-/** The invariants of a whole room (server side, game.js level). */
+/**
+ * The invariants of a whole room (server side, game.js level): players, colours, scores against history, hints, guesses.
+ * Scores are checked against the history so that a bug in scoring or in undoing a turn shows up as a mismatch.
+ *
+ * @param {object} room  the server-side room state
+ * @param {string} [what]  a label put in front of every failure message
+ * @returns {void} (throws an AssertionError on the first broken invariant)
+ *
+ * Side effects: none (read-only; throws on failure).
+ */
 export function checkRoom(room, what = 'room') {
   const ids = room.players.map((p) => p.id);
   assert.ok(PHASES.includes(room.phase), `${what}: unknown phase ${room.phase}`);
@@ -64,7 +75,16 @@ export function checkRoom(room, what = 'room') {
   if (room.phase === 'guessing1') assert.equal(room.second.length, 0, `${what}: second-round guesses in the first round`);
 }
 
-/** What any one player's view must satisfy (client side, e2e level). `viewer` is that player's account id. */
+/**
+ * What any one player's view must satisfy (client side, e2e level): above all, that the secret tint and other players'
+ * current guesses never leak to a guesser before the reveal.
+ *
+ * @param {object|null} view  the view built for one player (its `you` is that player's account id), or null for none
+ * @param {string} [what]  a label put in front of every failure message
+ * @returns {void} (throws an AssertionError on the first broken invariant)
+ *
+ * Side effects: none (read-only; throws on failure).
+ */
 export function checkView(view, what = 'view') {
   if (view === null) return;
   assert.ok(PHASES.includes(view.phase), `${what}: unknown phase ${view.phase}`);
@@ -107,7 +127,15 @@ export function checkView(view, what = 'view') {
   assert.equal(new Set(colours).size, colours.length);
 }
 
-/** Checks a person's whole run of states: each one valid, and the phase only ever moving forward. */
+/**
+ * Checks a person's whole run of states: each one valid, and the phase only ever moving forward.
+ *
+ * @param {(object|null)[]} states  the views one person saw, in order (null means they were not in a room)
+ * @param {string} [what]  a label put in front of every failure message
+ * @returns {void} (throws an AssertionError on the first problem)
+ *
+ * Side effects: none (read-only; throws on failure).
+ */
 export function checkRun(states, what = 'run') {
   let previous = null;
   states.forEach((view, i) => {
@@ -121,7 +149,16 @@ export function checkRun(states, what = 'run') {
   });
 }
 
-/** Every person in the room closes the scores pop-up at the reveal; returns the last reply (so the turn moves on). */
+/**
+ * Every person in the room closes the scores pop-up at the reveal; returns the last reply (so the turn moves on).
+ *
+ * @param {{ready: Function}} game  the game module (its ready(room, id, rng) is called per player)
+ * @param {object} room  the room, in the reveal phase for this to do anything
+ * @param {() => number} rng  random source passed through to the game (the next turn picks a tint)
+ * @returns {{ok: boolean, error?: string}} the last reply from game.ready, or a failure if nobody was ready
+ *
+ * Side effects: marks every player ready in the room, which can start the next turn (mutates the room).
+ */
 export function readyAll(game, room, rng) {
   let last = { ok: false, error: 'nobody' };
   for (const p of [...room.players]) {

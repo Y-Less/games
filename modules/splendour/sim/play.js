@@ -1,4 +1,6 @@
 // Plays whole Splendour games between strategies (see strategies.js), and measures what happened. Not part of the game.
+//
+// Depends on: ../game.js (the rules), ../bot.js (situation), ../kit.js (botsOnly) and ../cards.js (card data).
 import * as game from '../game.js';
 import { situation } from '../bot.js';
 import { botsOnly } from '../kit.js';
@@ -15,7 +17,13 @@ import { CARD_BY_ID } from '../cards.js';
  * @param {() => number} rng
  */
 function takeTurn(room, seat, ai, rng) {
-  /** Throws if a rule refused the strategy's choice. */
+  /**
+   * Throws if a rule refused the strategy's choice.
+   *
+   * Side effects: none, except that it throws.
+   *
+   * @param {{ ok: boolean, error?: string }} result  what the game rule returned
+   */
   const check = (result) => {
     if (!result.ok) throw new Error(`illegal move by ${ai.id}: ${result.error}`);
   };
@@ -40,6 +48,8 @@ function takeTurn(room, seat, ai, rng) {
  * Plays one game. `players` is the strategy for each seat, seat 0 going first. `rng` decides the players' choices and `dealRng`
  * the shuffle (they are the same unless a game is to be replayed on the same deal). Returns what happened:
  * { winners, rounds, endReason, seats: [{ prestige, cards, byLevel, nobles, reached }] }.
+ *
+ * Side effects: builds and mutates a private room and advances `rng` and `dealRng`; throws if the game does not end.
  *
  * @param {object[]} players  one strategy per seat
  * @param {number} target     the prestige that ends the game (any number; the game itself only offers 10, 15 and 20)

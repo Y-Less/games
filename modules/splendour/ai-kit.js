@@ -1,4 +1,7 @@
 // Helpers for the AI tests: whole computer-only games with chosen AIs, and tournaments between them.
+//
+// Depends on: ./game.js and ./bot.js (the game being played), ./kit.js (botsOnly, checkInvariants) and
+// ../../shared/testkit.js (the seeded random number generator).
 import * as game from './game.js';
 import * as bot from './bot.js';
 import { botsOnly, checkInvariants } from './kit.js';
@@ -6,6 +9,8 @@ import { seeded } from '../../shared/testkit.js';
 
 /**
  * Plays one all-bot game to the end.
+ *
+ * Side effects: builds and mutates a private room, advances `rng`, and throws if the game stalls or does not end.
  *
  * @param {string[]} ids  the AI for each seat in turn order
  * @param {() => number} rng
@@ -27,6 +32,8 @@ export function playWith(ids, rng, { target = 15, check = false } = {}) {
 /**
  * Plays `games` games between the AIs in `lineup` (each game a fresh deal, with the seats rotated so that nobody
  * always goes first).
+ *
+ * Side effects: plays many private games with a locally seeded rng; nothing shared is touched.
  *
  * @param {string[]} lineup  AI ids, one per seat
  * @param {number} games
@@ -50,5 +57,12 @@ export function tournament(lineup, games, seed, options) {
   return tally;
 }
 
-/** One line of win rates, e.g. "sharp 62.5%, random 12.5%". */
+/**
+ * One line of win rates, e.g. "sharp 62.5%, random 12.5%".
+ *
+ * Side effects: none.
+ *
+ * @param {Record<string, { rate: number }>} tally  the result of tournament()
+ * @returns {string}
+ */
 export const summary = (tally) => Object.entries(tally).map(([id, r]) => `${id} ${(r.rate * 100).toFixed(1)}%`).join(', ');

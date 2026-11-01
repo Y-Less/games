@@ -16,6 +16,8 @@ import { CORNERS, cellNumber } from './grid.js';
  *
  * @returns {{ bot: { min: number, max: number }, nextWait: number }} the computer-player range and the wait at the reveal,
  *   both in milliseconds
+ *
+ * Side effects: none (reads process.env only).
  */
 function readDelays() {
   return {
@@ -30,11 +32,18 @@ function readDelays() {
  * Side effects: see createRoomServer (reads the saved rooms, starts timers, registers the socket events).
  *
  * @param {object} ctx  the module context from the site
- * @returns {{ dispose: () => void }}
+ * @returns {{ dispose: () => void }} the handle the site calls on shutdown to stop timers
  */
 export default function (ctx) {
   const delays = readDelays();
-  /** An account's display name (used for people who have left the room, and for rooms saved before names were kept). */
+  /**
+   * An account's display name (used for people who have left the room, and for rooms saved before names were kept).
+   *
+   * @param {number} id  the account id
+   * @returns {string} the display name, or 'Someone' if the account is unknown
+   *
+   * Side effects: none.
+   */
   const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
 
   /**
@@ -44,11 +53,13 @@ export default function (ctx) {
    * Side effects: sets room.collected to this turn, and calls ctx.achievements.collect for every person who guessed. A
    * failure is logged and ignored: it must not stop the game.
    *
-   * @param {object} room
+   * @param {object} room  the room just changed
+   * @returns {void}
    */
   function collectSquares(room) {
     if (room.phase !== 'reveal' || !room.result || room.collected === room.turn) return;
     room.collected = room.turn;
+    /** Records items collected towards one achievement for a person; computer players (non-numeric ids) are skipped and errors are logged, not thrown. */
     const collect = (id, key, items) => {
       if (typeof id !== 'number') return; // computer players are not accounts
       try {
@@ -75,6 +86,13 @@ export default function (ctx) {
     /**
      * A computer move, or moving on from the reveal: whichever the room is in now. A move that does nothing is reported as a
      * failure (it would otherwise be repeated for ever), so the room server's retry-with-a-pause takes over.
+     *
+     * @param {object} room  the room to look at
+     * @param {() => number} rng  random source, for the computer's thinking time and its decisions
+     * @returns {{key?: string, wait: number, run: () => void}|null} what to do after `wait` milliseconds, or null for nothing
+     *
+     * Side effects: none while choosing; the returned run() makes the computer move or forces the next turn (mutates the room)
+     * and throws if the game refuses, which makes the room server retry later.
      */
     nextAction(room, rng) {
       const action = game.pendingBotAction(room);
@@ -100,6 +118,15 @@ export default function (ctx) {
       }
       return null;
     },
+    /**
+     * Adds this game's own socket events to each connection; every handler runs a game rule on the sender's room via `act`.
+     *
+     * @param {{act: Function, on: Function, userId: number, rng: () => number}} h  the room server's helpers: `on` registers an event,
+     *   `act` runs a rule on the room and tells everybody, `userId` is this connection's account, `rng` the shared random source
+     * @returns {void}
+     *
+     * Side effects: registers socket event handlers; each event later mutates the room through the game rules and broadcasts.
+     */
     registerEvents({ act, on, userId, rng }) {
       on('colour', ({ colour }) => act((room) => game.setColour(room, userId, colour, ctx.markers.canCustom(userId))));
       on('hint', ({ text }) => act((room) => game.setHint(room, userId, text)));
@@ -110,7 +137,14 @@ export default function (ctx) {
   });
 }
 
-/** Only the settings (turns each), whatever else a client sends. */
+/**
+ * Only the settings (turns each), whatever else a client sends.
+ *
+ * @param {object} payload  the settings the client sent (untrusted)
+ * @returns {object} a new object with just `turnsEach`
+ *
+ * Side effects: none.
+ */
 function pickSettings(payload) {
   return pickKeys(payload, ['turnsEach']);
 }

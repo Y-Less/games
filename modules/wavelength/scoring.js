@@ -18,7 +18,9 @@ export const TEAM_WIN_TURN_POINTS = BANDS.at(-1).points;
  * The most a score can be over a whole game (everybody bullseyes every turn).
  *
  * @param {number} turnsTotal  how many turns the game has
- * @returns {number}
+ * @returns {number} the top possible score
+ *
+ * Side effects: none.
  */
 export const maxScore = (turnsTotal) => MAX_TURN_POINTS * turnsTotal;
 
@@ -26,6 +28,8 @@ export const maxScore = (turnsTotal) => MAX_TURN_POINTS * turnsTotal;
  * The score a team needs to win its game (the server uses this for the statistics).
  *
  * @param {number} turnsTotal  how many turns the game has
- * @returns {number}
+ * @returns {number} the winning score: the outer band's points every turn
+ *
+ * Side effects: none.
  */
 export const teamWinScore = (turnsTotal) => TEAM_WIN_TURN_POINTS * turnsTotal;

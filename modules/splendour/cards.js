@@ -2,6 +2,9 @@
 // The set is generated from a small table of cost patterns, so it is deterministic and perfectly balanced between the
 // colours: every pattern is used once for each bonus colour (rotated round the colour wheel, and mirrored on odd
 // patterns so that neighbouring colours are not always paired in the same way).
+//
+// Depends on: ./rules.js (GOLD, NOBLE_POINTS, TOKEN_KINDS), which it re-exports in part. It has no other imports, so the
+// browser client can load it too.
 
 import { GOLD, NOBLE_POINTS, TOKEN_KINDS } from './rules.js';
 
@@ -44,6 +47,8 @@ export const CARDS_PER_LEVEL = { 1: 40, 2: 30, 3: 20 };
  * Generates all 90 development cards from PATTERNS: every pattern is used once for each bonus colour, rotated round the
  * colour wheel (and mirrored on odd patterns). Card ids (c01, c02...) follow the order of generation, so they never change.
  *
+ * Side effects: none.
+ *
  * @returns {{ id: string, level: number, bonus: number, points: number, cost: number[] }[]} fresh, unfrozen card objects
  */
 function build() {
@@ -69,12 +74,16 @@ export const CARD_BY_ID = Object.freeze(Object.fromEntries(CARDS.map((c) => [c.i
 /**
  * The cards of one level.
  *
+ * Side effects: none.
+ *
  * @param {number} level  1, 2 or 3
  * @returns {object[]} the frozen cards, in id order
  */
 export const cardsOfLevel = (level) => CARDS.filter((c) => c.level === level);
 /**
  * Is this a real card id? (Used to validate whatever a client sends; inherited names such as "toString" are refused.)
+ *
+ * Side effects: none.
  *
  * @param {unknown} id
  * @returns {boolean}
@@ -85,6 +94,8 @@ export const isCardId = (id) => typeof id === 'string' && Object.hasOwn(CARD_BY_
 const [D, S, E, R, O] = [0, 1, 2, 3, 4];
 /**
  * Builds a noble tile's requirements from a { colour: count } spec (a plain copy, so each tile owns its object).
+ *
+ * Side effects: none.
  *
  * @param {Record<number, number>} spec  how many bonuses of each colour index the noble asks for
  * @returns {Record<string, number>}
@@ -107,6 +118,8 @@ export const NOBLES = Object.freeze(
 export const NOBLE_BY_ID = Object.freeze(Object.fromEntries(NOBLES.map((n) => [n.id, n])));
 /**
  * Is this a real noble id? (Validates what a client sends.)
+ *
+ * Side effects: none.
  *
  * @param {unknown} id
  * @returns {boolean}

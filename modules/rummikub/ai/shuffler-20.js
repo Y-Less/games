@@ -1,3 +1,4 @@
+// The "Juggler" computer player: a shuffler (see shuffler.js) that may move up to 20 table tiles, nearly the classic player.
 import { makeShuffler } from './shuffler.js';
 
 export default makeShuffler({

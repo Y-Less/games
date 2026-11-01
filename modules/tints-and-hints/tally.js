@@ -3,8 +3,26 @@
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 import { COLS, distance, parseCell } from './grid.js';
 
+// Depends on shared/tally.js for the counter helpers and ./grid.js for cell geometry.
+
+/** The statistic counters Tints and Hints keeps per player. */
 export const STAT_KEYS = ['exactGuesses', 'closeGuesses', 'hintsGiven', 'missGuesses', 'firstExact', 'leeks', 'distance', 'alexTurns'];
+/**
+ * A fresh, all-zero set of counters for a new player.
+ *
+ * @returns {object} counters keyed by STAT_KEYS
+ *
+ * Side effects: none.
+ */
 export const newCounters = () => freshTally(STAT_KEYS);
+/**
+ * Picks this game's counters off a player for the statistics record.
+ *
+ * @param {object} player  the player holding the counters
+ * @returns {object} the STAT_KEYS values of that player
+ *
+ * Side effects: none.
+ */
 export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
 
 /** The columns that spell a name: a turn with a secret square in one of them is counted for its hinter (the "Alex" achievement). */
@@ -17,6 +35,15 @@ export const ALEX = [...'ALEX'];
  *   hinter    the player who gave the hints, or undefined if they have left
  *   target    the secret square
  * A "leek" is a turn where nobody scored with the first hint, and somebody found the exact square with the second.
+ *
+ * @param {object} turn  the scored turn
+ * @param {{id: string, round: number, cell: string, kind: string}[]} turn.entries  the guesses
+ * @param {(id: string) => object|undefined} turn.playerOf  looks up the player holding the counters
+ * @param {object|undefined} turn.hinter  the hint-giver, or undefined if they have left
+ * @param {string} turn.target  the secret square, such as 'B7'
+ * @returns {void}
+ *
+ * Side effects: increments counters on guessers and the hinter (via bump); nothing else.
  */
 export function tallyTurn({ entries, playerOf, hinter, target }) {
   for (const { id, round, cell, kind } of entries) {

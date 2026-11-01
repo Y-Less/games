@@ -14,6 +14,7 @@ import { aiById } from '../../shared/ai.js';
  * @param {object} room  not changed
  * @param {number} seat
  * @returns {object} an AI object from ai/index.js
+ * Side effects: none.
  */
 export const aiOf = (room, seat) => aiById(AIS, room.seats?.[seat]?.ai);
 
@@ -22,6 +23,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats?.[seat]?.ai);
  *
  * @param {object} room  not changed
  * @returns {{ type: 'turn', seat: number } | null}
+ * Side effects: none.
  */
 export function pendingAction(room) {
   if (room.phase !== 'playing' || room.turn === null || room.turn === undefined) return null;
@@ -35,6 +37,7 @@ export function pendingAction(room) {
  * @param {number} seat
  * @param {object} [options]  passed to the AI (rng, budget...)
  * @returns {{ type: 'play', table: number[][] } | { type: 'draw' }}
+ * Side effects: none.
  */
 export function chooseTurn(room, seat, options = {}) {
   const play = aiOf(room, seat).plan(room, seat, options);

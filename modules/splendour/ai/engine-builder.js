@@ -1,12 +1,19 @@
 // "Engine builder": the long game. Early on it buys the cheapest cards it can to build up a discount in every colour
 // (so that later cards cost almost nothing), and only once the engine is running does it go for the big point cards.
+//
+// Depends on: ../cards.js (card data) and ./lib.js (situation helpers). It does not reuse standard.js, so that it stays a
+// distinct style of play.
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, boardCards, me, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 
-const ENGINE_SIZE = 9; // cards bought before it switches from building to scoring
+// Cards bought before it switches from building to scoring: about where a discount in every colour has made the level 2 and
+// 3 cards cheap enough to buy in a turn or two (it also stops building at 8 prestige, in case it is already ahead).
+const ENGINE_SIZE = 9;
 
 /**
  * Is the engine still being built? True until nine cards are bought or the player has 8 prestige.
+ *
+ * Side effects: none.
  *
  * @param {object} s  the situation
  * @returns {boolean}
@@ -18,6 +25,8 @@ function building(s) {
 
 /**
  * Chooses a move: cheap cards that spread the discounts while building, big point cards afterwards.
+ *
+ * Side effects: advances `rng` (one draw per move scored); changes nothing else.
  *
  * @param {object} s  the situation (see lib.js)
  * @param {() => number} rng  random numbers in [0, 1)
@@ -31,6 +40,8 @@ function chooseMove(s, rng) {
   const ranked = targetsOf(s)
     .map((t) => ({
       ...t,
+      // While building, level 3 cards come last (-9): they cost too much to be an engine piece. Otherwise the fewer gems in
+      // total (and the nearer to affordable) the better, with a little for points. Afterwards: points per missing gem.
       aim: build ? (t.card.level === 3 ? -9 : 3 - sum(t.need) * 0.5 - t.short * 0.9 + t.card.points * 0.3) : (t.card.points * 2 + 0.5) / (t.short + 1),
     }))
     .sort((a, b) => b.aim - a.aim);
@@ -45,6 +56,7 @@ function chooseMove(s, rng) {
       const quote = payment(player, card);
       const paid = sum(quote.pay.slice(0, 5)) * 0.15 + quote.pay[GOLD] * 0.9;
       if (build) {
+        // Spread the discounts: the colour held least gains most, while a fifth card of one colour adds little (-1.2).
         const spread = player.bonuses[card.bonus] === lowest ? 1.2 : player.bonuses[card.bonus] >= 4 ? -1.2 : 0;
         const wanted = Math.min(1.5, onTable.filter((c) => c.cost[card.bonus] > 0).length * 0.25);
         return 10 + spread + wanted + card.points * 0.3 - (card.level === 3 ? 3 : 0) - paid - sum(quote.need) * 0.45;
@@ -72,6 +84,8 @@ export default {
   /**
    * Which tokens to give back: keeps what the three cheapest cards need.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses returnCount)
    * @returns {number[]} six counts summing to s.returnCount
    */
@@ -81,6 +95,8 @@ export default {
   },
   /**
    * Which noble to take when several visit at once: simply the first offered.
+   *
+   * Side effects: none.
    *
    * @param {object} s  the situation (uses options)
    * @returns {string} a noble id from s.options

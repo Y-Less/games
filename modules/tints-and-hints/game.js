@@ -1,5 +1,14 @@
 // The rules of Tints and Hints, with no sockets or files. A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
+//
+// A turn: the hinter sees a secret square (the tint) on a colour grid and gives a hint; everyone else guesses the square
+// (round one). The hinter may then give a second hint and everyone guesses again (round two), after which the tint is
+// revealed and scored: exact and close (neighbouring) squares score, more in round one, and the hinter scores for each
+// guesser who found the exact square.
+//
+// Depends on: ./grid.js (the grid and its geometry), ./tally.js (statistics counters), ./ai (computer players) and shared/
+// (scores, tally, ai, markerColours, seats, roster) for the rules common to all games. Sockets, timers and saving are not
+// here: server.js drives these rules through shared/roomServer.js.
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
@@ -10,17 +19,27 @@ import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, s
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
+/** The fewest people that can play: one hinter and one guesser. */
 export const MIN_PLAYERS = 2;
+/** The most people in a room (the marker palette and the table only have room for so many). */
 export const MAX_PLAYERS = 8;
+/** How many turns each person gets as hinter: the game lasts turnsEach x players turns. */
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
+/** The longest hint, in characters; longer ones are cut. */
 export const HINT_LENGTH = 80;
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
+/**
+ * The scoring table. Guessers: the exact square or a close one (touching it, diagonals included), with more for guessing
+ * earlier (round one, before the second hint). The hinter earns hinterPerGuesser for each guesser who found the exact square,
+ * which rewards hints that are clear without giving the square away.
+ */
 export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClose: 1, hinterPerGuesser: 3 };
 
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana'];
 /** Version of the colour grid the squares of a room are named in (1, with no marker, was the 24 x 10 grid). */
 const GRID_VERSION = 5;
+/** The phases of a game that is still going (or not yet started). */
 const LIVE = ['lobby', 'guessing1', 'guessing2', 'reveal'];
 
 // The player-list vocabulary (who is in the room, and who is a person) is shared with Just One and Wavelength.
@@ -29,17 +48,49 @@ export { hasPlayer, humans, isHuman, seatOf };
 /**
  * Is the game still going (or still in the lobby)?
  *
- * @param {object} room
+ * @param {object} room  the room to look at
  * @returns {boolean} false once it has finished or been abandoned
+ *
+ * Side effects: none.
  */
 export const isLive = (room) => LIVE.includes(room.phase);
-/** The player with this id, or undefined. */
+/**
+ * The player with this id, or undefined.
+ *
+ * @param {object} room  the room to search
+ * @param {number|string} id  the player id (an account id, or 'bot:<n>')
+ * @returns {object|undefined} the player
+ *
+ * Side effects: none.
+ */
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
-/** A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names). */
+/**
+ * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
+ *
+ * @param {object} room  the room whose players are searched
+ * @param {(id: number) => string} nameOf  fallback lookup, such as the account's display name
+ * @returns {(id: number|string) => string} the lookup
+ *
+ * Side effects: none.
+ */
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
-/** Everybody but the hinter. */
+/**
+ * Everybody but the hinter.
+ *
+ * @param {object} room  the room to look at
+ * @returns {object[]} the players who guess this turn
+ *
+ * Side effects: none.
+ */
 const guessers = (room) => room.players.filter((p) => p.id !== room.hinter);
-/** A random square of the grid, such as 'M4'. */
+/**
+ * A random square of the grid, such as 'M4' (a random column then a random row, so every square is equally likely).
+ *
+ * @param {() => number} rng  random source returning a number in [0, 1)
+ * @returns {string} a square name
+ *
+ * Side effects: none (calls `rng`, which advances its state).
+ */
 const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.floor(rng() * ROWS.length)];
 
 /**
@@ -51,6 +102,8 @@ const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.fl
  * @param {object} base     { kind: 'human' | 'bot', id, name? }
  * @param {{ colour?: string | null }} [extras]  what the server knows about a person joining
  * @returns {object} the player
+ *
+ * Side effects: none (the room is only read).
  */
 const makePlayer = (room, base, extras = {}) => ({
   ...base,
@@ -58,6 +111,14 @@ const makePlayer = (room, base, extras = {}) => ({
   score: 0,
   ...newCounters(),
 });
+/**
+ * The first palette colour no player has yet.
+ *
+ * @param {object} room  the room whose players are looked at
+ * @returns {string|undefined} a free colour (undefined only if more players than colours, which MAX_PLAYERS prevents)
+ *
+ * Side effects: none.
+ */
 const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
 
 /**
@@ -72,6 +133,8 @@ const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.col
  * @param {string | null} [args.colour]  the host's default marker colour, already checked to be one they may use (ctx.markers.preferred)
  * @param {number} args.now        the time to stamp it with
  * @returns {object} the room, in the lobby
+ *
+ * Side effects: none outside the new room (it is built and returned, not stored).
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default, colour = null }) {
   const room = {
@@ -125,6 +188,8 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * @param {number} id        who is asking (must be the host)
  * @param {object} settings  { turnsEach? }
  * @returns {{ ok: boolean, error?: string }}
+ *
+ * Side effects: sets room.turnsEach when given.
  */
 export function setSettings(room, id, settings = {}) {
   if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
@@ -134,7 +199,9 @@ export function setSettings(room, id, settings = {}) {
 /**
  * Tints and Hints has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
  *
- * @returns {{ ok: false, error: string }}
+ * @returns {{ ok: false, error: string }} always a refusal
+ *
+ * Side effects: none.
  */
 export function playAgain() {
   return fail('Start a new game from the menu.');
@@ -143,13 +210,13 @@ export function playAgain() {
 /**
  * A player picks their marker colour in the lobby.
  *
- * Side effect: changes the player's colour.
+ * Side effects: changes the player's colour (only if it is allowed and not taken by somebody else).
  *
- * @param {object} room
- * @param {number} id
- * @param {string} colour
+ * @param {object} room  the room (must be in the lobby)
+ * @param {number} id  the player choosing
+ * @param {string} colour  the wanted colour
  * @param {boolean} [canCustom]  this player has unlocked any marker colour (otherwise only the free palette is allowed)
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
@@ -161,6 +228,16 @@ export function setColour(room, id, colour, canCustom = false) {
   return ok();
 }
 
+/**
+ * The host sets how many turns each person gets as hinter.
+ *
+ * @param {object} room  the room (must be in the lobby)
+ * @param {number} id  who is asking (must be the host)
+ * @param {number} turnsEach  an integer from TURNS_EACH.min to TURNS_EACH.max
+ * @returns {{ ok: boolean, error?: string }} ok, or why not
+ *
+ * Side effects: sets room.turnsEach.
+ */
 export function setTurnsEach(room, id, turnsEach) {
   if (id !== room.hostId) return fail('Only the host can change the settings.');
   if (room.phase !== 'lobby') return fail('The game has already started.');
@@ -171,6 +248,15 @@ export function setTurnsEach(room, id, turnsEach) {
   return ok();
 }
 
+/**
+ * Sets up the next turn: the next person in the list becomes hinter and a random secret square (the tint) is drawn.
+ *
+ * @param {object} room  the room to set up
+ * @param {() => number} rng  random source for the tint
+ * @returns {void}
+ *
+ * Side effects: changes the hinter, nextIdx, tint and phase ('guessing1'), and clears the hints, guesses, result and ready list.
+ */
 function startTurn(room, rng) {
   room.hinter = room.players[room.nextIdx].id;
   room.nextIdx = (room.nextIdx + 1) % room.players.length;
@@ -189,10 +275,10 @@ function startTurn(room, rng) {
  *
  * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the tint and the AIs.
  *
- * @param {object} room
+ * @param {object} room  the room (must be in the lobby)
  * @param {number} id            who is asking (must be the host)
- * @param {() => number} rng
- * @returns {{ ok: boolean, error?: string }}
+ * @param {() => number} rng  random source for the order, the tint and the AIs
+ * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function start(room, id, rng) {
   if (id !== room.hostId) return fail('Only the host can start the game.');
@@ -221,10 +307,10 @@ export function start(room, id, rng) {
  *
  * Side effect: replaces room.hints.first or room.hints.second.
  *
- * @param {object} room
+ * @param {object} room  the room (must be in a guessing phase)
  * @param {number} id      who is asking (must be the hinter, while guessing is open)
  * @param {string} text    the hint; whitespace is tidied and it is cut to HINT_LENGTH letters
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function setHint(room, id, text) {
   if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('You cannot give a hint now.');
@@ -234,6 +320,17 @@ export function setHint(room, id, text) {
   return ok();
 }
 
+/**
+ * A guesser picks a square for the round being played. Each person guesses once per round and the guess stays hidden from
+ * the other guessers until the round is closed (see guessesView).
+ *
+ * @param {object} room  the room (must be in a guessing phase, with the first hint in)
+ * @param {number} id  who is guessing (not the hinter)
+ * @param {string} cell  a square name on the grid
+ * @returns {{ ok: boolean, error?: string }} ok, or why not
+ *
+ * Side effects: adds to room.first or room.second.
+ */
 export function guess(room, id, cell) {
   if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('It is not time to guess.');
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
@@ -246,12 +343,30 @@ export function guess(room, id, cell) {
   return ok();
 }
 
+/**
+ * Whether every guesser has guessed in the round being played (the hinter can then close the round).
+ *
+ * @param {object} room  the room, in a guessing phase
+ * @returns {boolean} true if nobody is still to guess
+ *
+ * Side effects: none.
+ */
 const allGuessed = (room) => {
   const list = room.phase === 'guessing1' ? room.first : room.second;
   return guessers(room).every((p) => list.some((g) => g.id === p.id));
 };
 
-/** Scores the turn exactly as the original game did (see README.md for its quirks). */
+/**
+ * Scores the turn exactly as the original game did (see README.md for its quirks): each guess scores by whether it is the
+ * tint (exact), touches it (close) or neither, with round one worth more; the hinter scores per guesser who found it.
+ *
+ * @param {object} room  the room, with both rounds' guesses in
+ * @param {(id: number|string) => string} [nameOf]  names for the history label
+ * @returns {void}
+ *
+ * Side effects: adds points to the players, updates the statistics counters (tallyTurn), sets room.result and appends to
+ * room.history. The caller (advance) moves the phase on to the reveal.
+ */
 function scoreTurn(room, nameOf = String) {
   const entries = [];
   const got = new Set();
@@ -288,10 +403,18 @@ function scoreTurn(room, nameOf = String) {
  * the turn is scored, i.e. at the reveal, so the history never shows anything the players have yet to see.
  * A turn that is skipped because its hinter left is never scored and so appends nothing (the next entry's number
  * simply jumps ahead, which is honest about the skipped turn).
+ *
+ * @param {object} room  the room, with room.result set
+ * @param {(id: number|string) => string} nameOf  gives the hinter's name for the label
+ * @param {number} found  how many guessers found the exact square (for the hinter's note)
+ * @returns {void}
+ *
+ * Side effects: pushes one round onto room.history.
  */
 function recordHistory(room, nameOf, found) {
   const deltas = {};
   const notes = {};
+  /** Describes one scoring guess for the history note, such as 'exact in round 1'. */
   const phrase = (kind, round) => `${kind} in round ${round}`;
   for (const p of guessers(room)) {
     const mine = room.result.entries.filter((e) => e.id === p.id);
@@ -313,9 +436,9 @@ function recordHistory(room, nameOf, found) {
  * history, and if the scores are more than the history adds up to (turns scored before the history was kept) the difference
  * becomes one "Earlier turns" entry, so the totals always equal the scores.
  *
- * Side effect: mutates the room. Running it twice changes nothing more.
+ * Side effects: mutates the room (players, squares, grid version, history). Running it twice changes nothing more.
  *
- * @param {object} room
+ * @param {object} room  the saved room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
  * @returns {object} the same room
  */
@@ -342,6 +465,15 @@ export function migrate(room, nameOf) {
   return room;
 }
 
+/**
+ * Ends the turn after the reveal: counts it, then finishes the game after the last turn or starts the next turn.
+ *
+ * @param {object} room  the room, at the reveal
+ * @param {() => number} rng  random source for the next turn's tint
+ * @returns {boolean} true if the game is now finished
+ *
+ * Side effects: increments room.turn, clears room.ready and either sets the phase to 'finished' or sets up the next turn (see startTurn).
+ */
 function finishTurn(room, rng) {
   room.turn++;
   room.ready = [];
@@ -353,7 +485,18 @@ function finishTurn(room, rng) {
   return false;
 }
 
-/** Moves on: the hinter closes each round of guessing. (The reveal is closed by everyone, see `ready`.) */
+/**
+ * Moves on: the hinter closes each round of guessing. (The reveal is closed by everyone, see `ready`.) Closing round one opens
+ * round two; closing round two scores the turn and opens the reveal.
+ *
+ * @param {object} room  the room (must be in a guessing phase, with everyone having guessed)
+ * @param {number} id  who is asking (must be the hinter)
+ * @param {() => number} rng  random source (unused here; kept so every game's advance has the same shape)
+ * @param {(id: number) => string} [nameOf]  fallback names for the history label
+ * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok (the game never finishes here), or why not
+ *
+ * Side effects: moves the phase on; at the end of round two also scores the turn (scores, history, result) and clears room.ready.
+ */
 export function advance(room, id, rng, nameOf = String) {
   nameOf = namer(room, nameOf);
   if (room.phase === 'reveal') return fail('Close the scores to carry on.');
@@ -369,12 +512,26 @@ export function advance(room, id, rng, nameOf = String) {
   return ok({ finished: false });
 }
 
-/** The people who have yet to close the scores at the reveal. */
+/**
+ * The people who have yet to close the scores at the reveal (computer players never need to).
+ *
+ * @param {object} room  the room to look at
+ * @returns {object[]} the human players not in room.ready
+ *
+ * Side effects: none.
+ */
 const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
 
 /**
  * At the reveal, a person has closed the scores pop-up and is ready for the next turn. Once every person is ready
  * (computer players always are) the next turn starts, or the game finishes after the last one.
+ *
+ * @param {object} room  the room (must be at the reveal)
+ * @param {number} id  the person who closed the pop-up
+ * @param {() => number} rng  random source for the next turn
+ * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok with whether the game finished, or why not
+ *
+ * Side effects: adds the person to room.ready; may end the turn (see finishTurn).
  */
 export function ready(room, id, rng) {
   if (!hasPlayer(room, id)) return fail('You are not in this game.');
@@ -383,13 +540,28 @@ export function ready(room, id, rng) {
   return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
 }
 
-/** Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait). */
+/**
+ * Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait).
+ *
+ * @param {object} room  the room (must be at the reveal)
+ * @param {() => number} rng  random source for the next turn
+ * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok with whether the game finished, or why not
+ *
+ * Side effects: ends the turn (see finishTurn).
+ */
 export function forceNext(room, rng) {
   if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
   return ok({ finished: finishTurn(room, rng) });
 }
 
-/** True while the reveal waits for people to close the scores (the server times this out). */
+/**
+ * True while the reveal waits for people to close the scores (the server times this out).
+ *
+ * @param {object} room  the room to look at
+ * @returns {boolean} whether the room is at the reveal
+ *
+ * Side effects: none.
+ */
 export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
@@ -399,11 +571,11 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  *
  * Side effects: mutates the room (guesses, ready, nextIdx, phase) and may start the next turn.
  *
- * @param {object} room
+ * @param {object} room  the room, with the player already removed from room.players
  * @param {number | string} id  who left
  * @param {number} index        where they were in the player list
- * @param {() => number} rng
- * @returns {{ abandoned: boolean, finished: boolean }}
+ * @param {() => number} rng  random source for a following turn
+ * @returns {{ abandoned: boolean, finished: boolean }} whether the game ended because too few are left, or finished
  */
 function afterRemoval(room, id, index, rng) {
   const wasHinter = room.hinter === id && ['guessing1', 'guessing2'].includes(room.phase);
@@ -426,6 +598,8 @@ function afterRemoval(room, id, index, rng) {
  *
  * @param {object} room  not changed
  * @returns {object[]} copies of the players with `placement` and `winner`
+ *
+ * Side effects: none.
  */
 export function standings(room) {
   return standingsOf(room.players);
@@ -435,7 +609,9 @@ export function standings(room) {
  * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only.
  *
  * @param {object} room  a finished room (not changed)
- * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
+ * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}  one row per person
+ *
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   return statsRows(standings(room), (p) => ({
@@ -453,10 +629,13 @@ export function statsPlayers(room) {
  * @param {object} room  not changed
  * @param {number} userId  the viewer
  * @returns {{ id: number, cell: string, round: number }[]} both rounds' guesses, first round first
+ *
+ * Side effects: none.
  */
 function guessesView(room, userId) {
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
+  /** One round's guesses as this viewer may see them: all if the round is closed (or they are the hinter), otherwise only their own. */
   const list = (guesses, round) => {
     const open = isHinter || revealed || (round === 1 && room.phase !== 'guessing1') || (round === 2 && room.phase !== 'guessing2');
     return guesses.filter((g) => open || g.id === userId).map((g) => ({ id: g.id, cell: g.cell, round }));
@@ -469,7 +648,9 @@ function guessesView(room, userId) {
  *
  * @param {object} room  not changed
  * @param {(id: number) => string} nameOf  a player's name
- * @returns {object | null}
+ * @returns {object | null} the result with names, or null before the reveal
+ *
+ * Side effects: none.
  */
 function resultView(room, nameOf) {
   const revealed = ['reveal', 'finished'].includes(room.phase);
@@ -483,7 +664,9 @@ function resultView(room, nameOf) {
  * @param {object} room  not changed
  * @param {object} p  the player
  * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean, final: Map<number, object> }} context
- * @returns {object}
+ * @returns {object} the public fields of the player (the AI is shown by its description, never its internals)
+ *
+ * Side effects: none.
  */
 function playerView(room, p, { nameOf, online, final }) {
   const current = room.phase === 'guessing1' ? room.first : room.phase === 'guessing2' ? room.second : [];
@@ -509,9 +692,12 @@ function playerView(room, p, { nameOf, online, final }) {
  * @param {object} room  not changed
  * @param {number} userId  the viewer
  * @param {{ nameOf: (id: number) => string, online: (id: number) => boolean }} context
- * @returns {object}
+ * @returns {object} the scoreboard in the shared shape
+ *
+ * Side effects: none.
  */
 function scoreboardView(room, userId, { nameOf, online }) {
+  /** One player's scoreboard row, marked as current if they are the hinter during a turn. */
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: ['guessing1', 'guessing2', 'reveal'].includes(room.phase) && p.id === room.hinter, online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
@@ -531,6 +717,8 @@ function scoreboardView(room, userId, { nameOf, online }) {
  * @param {(id: number) => boolean} [options.online]  who is connected
  * @param {boolean} [options.canCustom]  whether this player may pick any colour (a shop unlock)
  * @returns {object} the view sent to that person
+ *
+ * Side effects: none.
  */
 export function viewFor(room, userId, { nameOf = String, online = () => true, canCustom = false } = {}) {
   nameOf = namer(room, nameOf);
@@ -564,6 +752,11 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
  * The next thing a computer player has to do, or null: { type: 'hint' | 'guess' | 'advance', id }. Computer players
  * never move on from the reveal: that is the hinter's or the host's job, and the host is always a person, so a
  * computer player cannot hold the game up or rush people past their results.
+ *
+ * @param {object} room  the room to look at
+ * @returns {{ type: 'hint' | 'guess' | 'advance', id: string }|null} the move and who makes it, or null if none is due
+ *
+ * Side effects: none.
  */
 export function pendingBotAction(room) {
   if (!['guessing1', 'guessing2'].includes(room.phase)) return null;
@@ -577,11 +770,20 @@ export function pendingBotAction(room) {
   return null;
 }
 
+/** Every square of the grid: the list of legal answers handed to a computer guesser. */
 const ALL_CELLS = COLS.flatMap((c) => ROWS.map((r) => c + r));
 
 /**
  * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser
  * never sees the secret tint. An AI that throws or answers with something illegal is replaced by a random legal choice.
+ *
+ * @param {object} room  the room
+ * @param {() => number} rng  random source handed to the AI (and used for the fallback guess)
+ * @param {{type: string, id: string}|null} [action]  the move to play (default: whatever pendingBotAction says)
+ * @param {(id: number) => string} [nameOf]  fallback names
+ * @returns {boolean} true if the game accepted the move
+ *
+ * Side effects: makes the move (a hint, guess or advance), which mutates the room and may score the turn.
  */
 export function runBotAction(room, rng, action = pendingBotAction(room), nameOf = String) {
   if (!action) return false;
@@ -589,6 +791,7 @@ export function runBotAction(room, rng, action = pendingBotAction(room), nameOf 
   const ai = aiById(AIS, player.ai);
   const view = viewFor(room, action.id, { nameOf });
   const round = room.phase === 'guessing1' ? 1 : 2;
+  /** Runs an AI decision, returning undefined if it throws (a broken AI must not stop the game). */
   const attempt = (decide) => {
     try {
       return decide();

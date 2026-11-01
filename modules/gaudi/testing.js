@@ -1,4 +1,5 @@
 // Helpers shared by the Gaudi tests (not used by the game itself).
+// Depends on game.js (the rules, driven directly), bot.js (botStep), ai/standard.js (window choice) and rules.js (constants).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
@@ -15,11 +16,22 @@ export { seeded };
  * @param {string} c   a colour
  * @param {number} v   its face, 1-6
  * @param {number} [id]  its id (a random one if not given, so that it never clashes with a real die)
- * @returns {{ id: number, c: string, v: number }}
+ * @returns {{ id: number, c: string, v: number }} the die
+ *
+ * Side effects: none (uses Math.random only for a default id).
  */
 export const die = (c, v, id = 1000 + Math.floor(Math.random() * 1e6)) => ({ id, c, v });
 
-/** A started game of n people (ids 1..n, host 1) with every window chosen: the first of each player's four. */
+/**
+ * A started game of n people (ids 1..n, host 1) with every window chosen: the first of each player's four.
+ *
+ * @param {number} n  the number of seats
+ * @param {{ seed?: number, pick?: (string | null)[] | null }} [options]  seed for the rng; pick optionally names a pattern per seat
+ *   (used only when it was among that seat's four options)
+ * @returns {{ room: object, rng: () => number }} the room, now in the playing phase, and the rng used
+ *
+ * Side effects: builds a new in-memory room; asserts that each step succeeds.
+ */
 export function playingRoom(n, { seed = 1, pick = null } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
@@ -33,7 +45,16 @@ export function playingRoom(n, { seed = 1, pick = null } = {}) {
   return { room, rng };
 }
 
-/** Puts a window's patterns in place (even ones not dealt), for hand-built positions. */
+/**
+ * Puts a window's patterns in place (even ones not dealt), for hand-built positions.
+ *
+ * @param {object} room  the room to change
+ * @param {number} seat  the seat to change
+ * @param {string} pid   the pattern id to give it
+ * @returns {void}
+ *
+ * Side effects: sets room.patterns[seat], that seat's tokens (its difficulty) and room.tokenTotal, so the token invariant still holds.
+ */
 export function setWindow(room, seat, pid) {
   room.patterns[seat] = pid;
   room.tokens[seat] = patternOf(pid).difficulty;
@@ -43,14 +64,25 @@ export function setWindow(room, seat, pid) {
 /**
  * Every die in the game, wherever it is: bag, pool, round track and windows.
  *
- * @param {object} room
- * @returns {object[]}
+ * @param {object} room  the room to look through
+ * @returns {object[]} every die, once each
+ *
+ * Side effects: none.
  */
 export function allDice(room) {
   return [...room.bag, ...room.pool, ...room.track.flat(), ...room.grids.flat().filter(Boolean)];
 }
 
-/** Everything that must hold after every single action. */
+/**
+ * Everything that must hold after every single action: dice and tokens conserved, no like dice side by side, the turn
+ * matching the order, and so on.
+ *
+ * @param {object} room  the room to check
+ * @param {string} [label]  text to put in failure messages, to say which action was just taken
+ * @returns {void}
+ *
+ * Side effects: none apart from assertions, which throw on a violation.
+ */
 export function assertInvariants(room, label = '') {
   const where = `${label} (round ${room.round}, ${room.phase})`;
   if (!['playing', 'finished'].includes(room.phase)) return;
@@ -83,7 +115,15 @@ export function assertInvariants(room, label = '') {
   }
 }
 
-/** One computer-style decision for whoever has to act, whatever kind of seat it is. Returns false when the game is over. */
+/**
+ * One computer-style decision for whoever has to act, whatever kind of seat it is. Returns false when the game is over.
+ *
+ * @param {object} room  the room being played
+ * @param {() => number} rng  random source returning [0, 1)
+ * @returns {{ type: string } | false} the step taken (a window choice is { type: 'window' }), or false when nothing is left to do
+ *
+ * Side effects: mutates room through the game functions; asserts that the move was legal.
+ */
 export function driveStep(room, rng) {
   if (room.phase === 'windows') {
     const seat = room.picked.findIndex((p) => !p);
@@ -104,7 +144,15 @@ export function driveStep(room, rng) {
   return step;
 }
 
-/** Every die id, colour and face in a view that could be a bag die: they must not appear. */
+/**
+ * Looks for secrets in a view: a bag die, another seat's private colour or window options, or results shown too early.
+ *
+ * @param {object} room  the room the view was made from
+ * @param {object} view  the view sent to one client
+ * @returns {string[]} a description of each leak found (empty when the view is clean)
+ *
+ * Side effects: none.
+ */
 export function viewLeaks(room, view) {
   const text = JSON.stringify(view);
   const problems = [];

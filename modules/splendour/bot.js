@@ -4,6 +4,8 @@
 // decision and checks that it is legal.
 //
 // Every move is chosen from game.legalMoves, so a computer player can never make an illegal move.
+//
+// Depends on: ../../shared/ai.js (aiById), ./cards.js (LEVELS), ./game.js (the rules) and ./ai/index.js (the AIs).
 import { aiById } from '../../shared/ai.js';
 import { LEVELS } from './cards.js';
 import * as game from './game.js';
@@ -11,6 +13,8 @@ import { AIS } from './ai/index.js';
 
 /**
  * The AI a seat plays with. Rooms saved before AIs existed have none recorded, and fall back to the first (standard).
+ *
+ * Side effects: none.
  *
  * @param {object} room
  * @param {number} seat
@@ -21,6 +25,8 @@ export const aiOf = (room, seat) => aiById(AIS, room.ais?.[room.seats[seat]?.id]
 /**
  * What an AI may know: the table, every player's tokens and discounts, its own reserve and others' face-up reserves.
  * Never the order of the draw piles or anyone else's face-down reserve.
+ *
+ * Side effects: none.
  *
  * @param {object} room
  * @param {number} seat   the seat that is choosing
@@ -58,11 +64,19 @@ export function situation(room, seat, extra = {}) {
   };
 }
 
-/** The standard AI, which every other AI falls back on when it gives an answer that is not legal. */
+/**
+ * The standard AI, which every other AI falls back on when it gives an answer that is not legal.
+ *
+ * Side effects: none.
+ *
+ * @returns {object} AIS[0] (see ai/index.js)
+ */
 const standard = () => AIS[0];
 
 /**
  * Asks the seat's AI for a move and checks that it is one of the legal moves (otherwise the standard AI chooses).
+ *
+ * Side effects: advances `rng` if the AI draws from it; does not change the room.
  *
  * @param {object} room
  * @param {number} seat
@@ -81,6 +95,8 @@ export function chooseMove(room, seat, rng) {
 /**
  * Which tokens to give back (exactly as many as the seat is over by).
  *
+ * Side effects: advances `rng` if the AI draws from it; does not change the room.
+ *
  * @param {object} room  with a pending return
  * @param {number} seat
  * @param {() => number} rng
@@ -97,6 +113,8 @@ export function chooseReturn(room, seat, rng) {
 /**
  * Which of several visiting nobles to take.
  *
+ * Side effects: advances `rng` if the AI draws from it; does not change the room.
+ *
  * @param {object} room  with a pending noble choice
  * @param {number} seat
  * @param {() => number} rng
@@ -111,6 +129,8 @@ export function chooseNoble(room, seat, rng) {
 /**
  * The seat (if a computer player's) that has something to do, or null while the game waits for a person.
  *
+ * Side effects: none.
+ *
  * @param {object} room
  * @returns {{ type: 'turn', seat: number } | null}
  */
@@ -123,14 +143,20 @@ export function pendingAction(room) {
 /**
  * A computer player finishes its turn: the move, then any tokens to return and any noble to choose.
  *
- * Side effect: mutates `room`. Throws if the AI's choice is refused (which would be a bug).
+ * Side effects: mutates `room`. Throws if the AI's choice is refused (which would be a bug).
  *
  * @param {object} room
  * @param {number} seat
  * @param {() => number} rng
  */
 export function playTurn(room, seat, rng) {
-  /** Throws if a rule refused the computer player's choice. */
+  /**
+   * Throws if a rule refused the computer player's choice.
+   *
+   * Side effects: none, except that it throws.
+   *
+   * @param {{ ok: boolean, error?: string }} result  what the game rule returned
+   */
   const expect = (result) => {
     if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
   };
@@ -146,6 +172,8 @@ export function playTurn(room, seat, rng) {
 /**
  * Reads the SPLENDOUR_AI test/benchmark hook.
  *
+ * Side effects: reads process.env.SPLENDOUR_AI (default argument); changes nothing.
+ *
  * @param {string | undefined} wanted  the variable's value (default: the real environment variable)
  * @returns {string | null} the AI id if it names a real AI, otherwise null (no forcing)
  */
@@ -157,7 +185,7 @@ export function forcedAIFromEnv(wanted = process.env.SPLENDOUR_AI) {
  * Starts a game and then makes every computer player use one AI. Test/benchmark hook only (see above); it replaces
  * game.start for the 'start' event when SPLENDOUR_AI is set.
  *
- * Side effect: mutates `room` (as game.start does, then overwrites room.ais).
+ * Side effects: mutates `room` (as game.start does, then overwrites room.ais).
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
@@ -174,7 +202,7 @@ export function startWithForcedAI(room, userId, rng, forcedAI) {
 /**
  * Performs a pending action.
  *
- * Side effect: mutates `room` (a whole computer turn).
+ * Side effects: mutates `room` (a whole computer turn).
  *
  * @param {object} room
  * @param {() => number} rng

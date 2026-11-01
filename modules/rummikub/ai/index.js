@@ -9,4 +9,5 @@ import shuffler20 from './shuffler-20.js';
 import sharp from './sharp.js';
 import random from './random.js';
 
+// The registry, in the order shown to hosts; defineAIs (shared/ai.js) validates it. Other modules reach it through bot.js.
 export const AIS = defineAIs([standard, shuffler5, shuffler10, shuffler20, sharp, random]);

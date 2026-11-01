@@ -1,6 +1,7 @@
 // The pure rules of Gaudi that need no room, sockets or randomness: colours, window patterns, the placement rules,
 // the public and private objectives and window scoring. The server and the client both import this file (the client
 // uses it to highlight legal spaces and explain illegal ones), so it must not import anything from node.
+// It has no dependencies of its own; game.js, bot.js, the AIs and the client all depend on it. Nothing in it changes state.
 
 export const ROWS = 4;
 export const COLS = 5;
@@ -16,11 +17,32 @@ export const COLOUR_LETTERS = { R: 'ruby', T: 'topaz', J: 'jade', S: 'sapphire',
 export const COLOUR_NAMES = { ruby: 'Ruby', topaz: 'Topaz', jade: 'Jade', sapphire: 'Sapphire', amethyst: 'Amethyst' };
 export const COLOUR_SHAPES = { ruby: 'diamond', topaz: 'circle', jade: 'triangle', sapphire: 'square', amethyst: 'star' };
 
-/** Each round the pool holds two dice per player and one more. */
+/**
+ * Each round the pool holds two dice per player and one more.
+ *
+ * @param {number} players  the number of seats
+ * @returns {number} dice in the pool
+ *
+ * Side effects: none.
+ */
 export const poolSize = (players) => 2 * players + 1;
-/** The bag holds exactly the dice the ten rounds use: 10 x (2n + 1), shared evenly by the five colours. */
+/**
+ * The bag holds exactly the dice the ten rounds use: 10 x (2n + 1), shared evenly by the five colours.
+ *
+ * @param {number} players  the number of seats
+ * @returns {number} dice in the bag at the start
+ *
+ * Side effects: none.
+ */
 export const bagSize = (players) => ROUNDS * poolSize(players);
-/** Dice of each colour in the bag: 2 x (2n + 1), i.e. 10, 14, 18 and 22 for two to five players. */
+/**
+ * Dice of each colour in the bag: 2 x (2n + 1), i.e. 10, 14, 18 and 22 for two to five players.
+ *
+ * @param {number} players  the number of seats
+ * @returns {number} dice of each colour
+ *
+ * Side effects: none.
+ */
 export const dicePerColour = (players) => bagSize(players) / COLOURS.length;
 
 /** Points per die of the private colour when the host switches on "bad private scoring". */
@@ -98,6 +120,10 @@ export const PATTERN_IDS = Object.keys(PATTERNS);
  *
  * @param {unknown} pid  an id such as '3.1' (card 3, face 1); anything else is allowed and gives null
  * @returns {object | null} { pid, card, face, name, difficulty, rows, cells }, or null if there is no such pattern
+ *
+ * Why Object.hasOwn: a client-supplied id such as 'constructor' must not find a property of the prototype.
+ *
+ * Side effects: none.
  */
 export const patternOf = (pid) => (typeof pid === 'string' && Object.hasOwn(PATTERNS, pid) ? PATTERNS[pid] : null);
 
@@ -106,6 +132,8 @@ export const patternOf = (pid) => (typeof pid === 'string' && Object.hasOwn(PATT
  *
  * @param {string} char  '.', a colour letter (R T J S A) or a shade digit (1-6)
  * @returns {{ colour: string } | { shade: number } | null} the colour name, the shade, or null for a blank space
+ *
+ * Side effects: none.
  */
 export function restrictionOf(char) {
   if (Object.hasOwn(COLOUR_LETTERS, char)) return { colour: COLOUR_LETTERS[char] };
@@ -115,11 +143,32 @@ export function restrictionOf(char) {
 
 // ---- the grid ----
 
-/** The row (0-3) of a space of a window. */
+/**
+ * The row (0-3) of a space of a window.
+ *
+ * @param {number} index  the space
+ * @returns {number} its row
+ *
+ * Side effects: none.
+ */
 export const rowOf = (index) => Math.floor(index / COLS);
-/** The column (0-4) of a space of a window. */
+/**
+ * The column (0-4) of a space of a window.
+ *
+ * @param {number} index  the space
+ * @returns {number} its column
+ *
+ * Side effects: none.
+ */
 export const colOf = (index) => index % COLS;
-/** Is this space on the edge of the window (including the corners)? The first die must go on one. */
+/**
+ * Is this space on the edge of the window (including the corners)? The first die must go on one.
+ *
+ * @param {number} index  the space
+ * @returns {boolean} true on the edge
+ *
+ * Side effects: none.
+ */
 export const isEdge = (index) => rowOf(index) === 0 || rowOf(index) === ROWS - 1 || colOf(index) === 0 || colOf(index) === COLS - 1;
 
 /**
@@ -128,6 +177,8 @@ export const isEdge = (index) => rowOf(index) === 0 || rowOf(index) === ROWS - 1
  * @param {number} index      the space
  * @param {boolean} diagonal  also include the four diagonal neighbours
  * @returns {number[]} the spaces that exist (fewer at the edges)
+ *
+ * Side effects: none.
  */
 function neighbours(index, diagonal) {
   const out = [];
@@ -144,17 +195,46 @@ function neighbours(index, diagonal) {
 }
 export const ORTHOGONAL = Array.from({ length: CELLS }, (_, i) => neighbours(i, false));
 export const SURROUNDING = Array.from({ length: CELLS }, (_, i) => neighbours(i, true));
-/** A window with no dice in it: CELLS nulls. */
+/**
+ * A window with no dice in it: CELLS nulls.
+ *
+ * @returns {null[]} a new array each call, so windows never share state
+ *
+ * Side effects: none.
+ */
 export const emptyGrid = () => Array.from({ length: CELLS }, () => null);
-/** The dice in a window, without the empty spaces. */
+/**
+ * The dice in a window, without the empty spaces.
+ *
+ * @param {(object | null)[]} grid  a window
+ * @returns {object[]} the dice
+ *
+ * Side effects: none.
+ */
 export const diceIn = (grid) => grid.filter(Boolean);
-/** How many spaces of a window hold no die (each costs a point at the end). */
+/**
+ * How many spaces of a window hold no die (each costs a point at the end).
+ *
+ * @param {(object | null)[]} grid  a window
+ * @returns {number} the empty spaces
+ *
+ * Side effects: none.
+ */
 export const emptySpaces = (grid) => grid.filter((d) => !d).length;
 
 /**
  * Why `die` cannot go on space `index` of a window, or null when it can. Options relax one rule each:
  * `ignoreColour` and `ignoreShade` skip the space's own restriction of that kind; `ignoreTouch` skips the rule that a
- * die must touch the dice already placed (and that the first one is on an edge).
+ * die must touch the dice already placed (and that the first one is on an edge). The like-beside-like rule is never relaxed.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {object} pattern  its pattern (see patternOf)
+ * @param {number} index    the space to try
+ * @param {object} die      { c, v }
+ * @param {{ ignoreColour?: boolean, ignoreShade?: boolean, ignoreTouch?: boolean }} [options]  rules to relax
+ * @returns {string | null} a sentence the client can show, or null when the placement is legal
+ *
+ * Side effects: none.
  */
 export function cellProblem(grid, pattern, index, die, options = {}) {
   if (!Number.isInteger(index) || index < 0 || index >= CELLS) return 'There is no such space.';
@@ -176,7 +256,18 @@ export function cellProblem(grid, pattern, index, die, options = {}) {
   return null;
 }
 
-/** Why the die in `from` cannot be moved to `to`, or null. The die is lifted first, so it cannot count as its own neighbour. */
+/**
+ * Why the die in `from` cannot be moved to `to`, or null. The die is lifted first, so it cannot count as its own neighbour.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {object} pattern  its pattern
+ * @param {number} from  the space the die is on
+ * @param {number} to    the space it would move to
+ * @param {object} [options]  rules to relax (see cellProblem)
+ * @returns {string | null} the reason it cannot move, or null when it can
+ *
+ * Side effects: none (the window is copied, not changed).
+ */
 export function moveProblem(grid, pattern, from, to, options = {}) {
   if (!Number.isInteger(from) || from < 0 || from >= CELLS || !grid[from]) return 'There is no die on that space to move.';
   if (!Number.isInteger(to) || to < 0 || to >= CELLS) return 'There is no such space.';
@@ -189,15 +280,27 @@ export function moveProblem(grid, pattern, from, to, options = {}) {
 /**
  * Every space a die could be placed on.
  *
- * @param {(object | null)[]} grid
- * @param {object} pattern
+ * @param {(object | null)[]} grid  the window
+ * @param {object} pattern  its pattern
  * @param {object} die       { c, v }
  * @param {object} [options]  placement rules to relax (see cellProblem)
- * @returns {number[]}
+ * @returns {number[]} the space numbers where the die may go
+ *
+ * Side effects: none.
  */
 export const legalCells = (grid, pattern, die, options) => grid.flatMap((_, i) => (cellProblem(grid, pattern, i, die, options) === null ? [i] : []));
 
-/** True if no die at all could ever go on this space (ignoring touching and the first-die rule). */
+/**
+ * True if no die at all could ever go on this space (ignoring touching and the first-die rule). Every colour-and-shade
+ * face the space allows is blocked by a neighbour of the same colour or shade.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {object} pattern  its pattern
+ * @param {number} index    the space
+ * @returns {boolean} true for an empty space that can never be filled; false for a filled space or one that can
+ *
+ * Side effects: none.
+ */
 export function isDeadSpace(grid, pattern, index) {
   if (grid[index]) return false;
   const wanted = restrictionOf(pattern.cells[index]);
@@ -209,7 +312,15 @@ export function isDeadSpace(grid, pattern, index) {
   return true;
 }
 
-/** A complete valid filling of a pattern with unlimited dice, or null. Used by the tests to prove patterns are playable. */
+/**
+ * A complete valid filling of a pattern with unlimited dice, or null. Used by the tests to prove patterns are playable.
+ * It fills in space order with backtracking, so only earlier neighbours need checking.
+ *
+ * @param {object} pattern  the pattern to fill
+ * @returns {({ c: string, v: number } | null)[] | null} a full window, or null if the pattern cannot be completed
+ *
+ * Side effects: none (works on its own window).
+ */
 export function solvePattern(pattern) {
   const grid = emptyGrid();
   const place = (index) => {
@@ -230,26 +341,67 @@ export function solvePattern(pattern) {
 
 // ---- objectives ----
 
-/** The spaces of one row of a window. */
+/**
+ * The spaces of one row of a window.
+ *
+ * @param {number} r  the row number
+ * @returns {number[]} the space numbers
+ *
+ * Side effects: none.
+ */
 const rowCells = (r) => Array.from({ length: COLS }, (_, c) => r * COLS + c);
-/** The spaces of one column of a window. */
+/**
+ * The spaces of one column of a window.
+ *
+ * @param {number} c  the column number
+ * @returns {number[]} the space numbers
+ *
+ * Side effects: none.
+ */
 const colCells = (c) => Array.from({ length: ROWS }, (_, r) => r * COLS + c);
-/** All the rows (or all the columns) as lists of spaces: cellsOf(i) for i = 0 to count - 1. */
+/**
+ * All the rows (or all the columns) as lists of spaces: cellsOf(i) for i = 0 to count - 1.
+ *
+ * @param {(i: number) => number[]} cellsOf  rowCells or colCells
+ * @param {number} count  how many lines there are (ROWS or COLS)
+ * @returns {number[][]} one list of spaces per line
+ *
+ * Side effects: none.
+ */
 const lines = (cellsOf, count) => Array.from({ length: count }, (_, i) => cellsOf(i));
 /**
  * Are these spaces all filled with dice that differ in colour ('c') or shade ('v')?
- * @param {(object | null)[]} grid
- * @param {number[]} cells
- * @param {'c' | 'v'} key
- * @returns {boolean}
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {number[]} cells  the spaces of one line
+ * @param {'c' | 'v'} key  what must differ
+ * @returns {boolean} true only when every space holds a die and no value repeats
+ *
+ * Side effects: none.
  */
 const allDifferent = (grid, cells, key) => {
   if (cells.some((i) => !grid[i])) return false;
   return new Set(cells.map((i) => grid[i][key])).size === cells.length;
 };
-/** How many dice in a window satisfy a test. */
+/**
+ * How many dice in a window satisfy a test.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {(die: object) => boolean} test  applied to each die
+ * @returns {number} the count
+ *
+ * Side effects: none.
+ */
 const countWhere = (grid, test) => diceIn(grid).filter(test).length;
-/** Builds the `sets` function of a pairs objective: how many pairs of a die showing a and a die showing b the window holds. */
+/**
+ * Builds the `sets` function of a pairs objective: how many pairs of a die showing a and a die showing b the window holds.
+ *
+ * @param {number} a  the first shade
+ * @param {number} b  the second shade
+ * @returns {(grid: (object | null)[]) => number} the pair counter: the smaller of the two counts, since each pair needs one of each
+ *
+ * Side effects: none.
+ */
 const shadePair = (a, b) => (grid) => Math.min(countWhere(grid, (d) => d.v === a), countWhere(grid, (d) => d.v === b));
 
 /**
@@ -276,14 +428,24 @@ export const OBJECTIVES = [
     sets: (g) => g.filter((d, i) => d && SURROUNDING[i].some((n) => !ORTHOGONAL[i].includes(n) && g[n]?.c === d.c)).length,
   },
 ];
-/** Whether a window is full and has completed every one of these public objectives as many times as it possibly can. */
+/**
+ * Whether a window is full and has completed every one of these public objectives as many times as it possibly can.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {string[]} objectiveIds  the public objectives on the table
+ * @returns {boolean} true for a perfect window
+ *
+ * Side effects: none.
+ */
 export const isPerfect = (grid, objectiveIds) => emptySpaces(grid) === 0 && objectiveIds.every((id) => objectivePoints(id, grid).sets >= objectiveOf(id).max);
 
 export const OBJECTIVE_IDS = OBJECTIVES.map((o) => o.id);
 /**
  * A public objective's definition.
  * @param {string} id  one of OBJECTIVE_IDS
- * @returns {object | null}
+ * @returns {object | null} the definition, or null for an unknown id
+ *
+ * Side effects: none.
  */
 export const objectiveOf = (id) => OBJECTIVES.find((o) => o.id === id) ?? null;
 
@@ -291,8 +453,10 @@ export const objectiveOf = (id) => OBJECTIVES.find((o) => o.id === id) ?? null;
  * What a window scores for one public objective.
  *
  * @param {string} id  one of OBJECTIVE_IDS
- * @param {(object | null)[]} grid
+ * @param {(object | null)[]} grid  the window
  * @returns {{ sets: number, points: number }} how many times it is completed and the points that earns
+ *
+ * Side effects: none. (Throws if id is unknown.)
  */
 export function objectivePoints(id, grid) {
   const objective = objectiveOf(id);
@@ -303,12 +467,28 @@ export function objectivePoints(id, grid) {
 /**
  * The private objective: by default the shades of every die of your secret colour, added up. With "bad private
  * scoring" every such die is worth a flat 3 whatever it shows.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {string} colour  the secret colour
+ * @param {boolean} [bad]  true when "bad private scoring" is on
+ * @returns {number} the private points
+ *
+ * Side effects: none.
  */
 export function privatePoints(grid, colour, bad = false) {
   return diceIn(grid).reduce((sum, d) => sum + (d.c === colour ? (bad ? BAD_PRIVATE_POINTS : d.v) : 0), 0);
 }
 
-/** A window's score without the private objective: public objectives + favour tokens - empty spaces. */
+/**
+ * A window's score without the private objective: public objectives + favour tokens - empty spaces.
+ *
+ * @param {(object | null)[]} grid  the window
+ * @param {string[]} objectiveIds  the public objectives on the table
+ * @param {number} tokens  the favour tokens left
+ * @returns {number} the provisional score (the private objective is kept secret until the end)
+ *
+ * Side effects: none.
+ */
 export function provisionalScore(grid, objectiveIds, tokens) {
   return objectiveIds.reduce((sum, id) => sum + objectivePoints(id, grid).points, 0) + tokens - emptySpaces(grid);
 }

@@ -7,6 +7,7 @@
 // { row, colour, columns }.
 //
 // countOf, sourceTiles, takesMarker and floorPenaltyAfter live in ../rules.js (the game and the client use them too).
+// Depends on: ../rules.js only (it is the single source of truth for the rules these helpers measure).
 import { SIZE, columnsFor, countOf, floorPenaltyAfter, isDeadCell, previewTake, sourceTiles, takesMarker } from '../rules.js';
 
 /**
@@ -14,6 +15,8 @@ import { SIZE, columnsFor, countOf, floorPenaltyAfter, isDeadCell, previewTake, 
  *
  * @param {(number | null)[][]} wall  5 rows of 5 cells
  * @returns {(number | null)[][]} a new wall with new row arrays
+ *
+ * Side effects: none.
  */
 export const copyWall = (wall) => wall.map((r) => r.slice());
 
@@ -23,14 +26,40 @@ export const copyWall = (wall) => wall.map((r) => r.slice());
  * @param {any[]} items  a non-empty list
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {any} one of the items
+ *
+ * Side effects: none, apart from drawing once from `rng`.
  */
 export const pickOne = (items, rng) => items[Math.floor(rng() * items.length)];
 
-/** How many cells of a wall row are filled. */
+/**
+ * How many cells of a wall row are filled (a measure of how close the row is to ending the game).
+ *
+ * @param {(number | null)[][]} wall  the wall (not changed)
+ * @param {number} row  the wall row, 0..4
+ * @returns {number} the filled cells, 0..5
+ *
+ * Side effects: none.
+ */
 export const rowFill = (wall, row) => wall[row].filter((c) => c !== null).length;
-/** How many cells of a wall column are filled. */
+/**
+ * How many cells of a wall column are filled (a measure of how close the column is to its bonus).
+ *
+ * @param {(number | null)[][]} wall  the wall (not changed)
+ * @param {number} col  the wall column, 0..4
+ * @returns {number} the filled cells, 0..5
+ *
+ * Side effects: none.
+ */
 export const colFill = (wall, col) => wall.filter((r) => r[col] !== null).length;
-/** How many tiles of one colour are on the wall. */
+/**
+ * How many tiles of one colour are on the wall (five make a colour set).
+ *
+ * @param {(number | null)[][]} wall  the wall (not changed)
+ * @param {number} colour  the colour to count
+ * @returns {number} the tiles of that colour, 0..5
+ *
+ * Side effects: none.
+ */
 export const setFill = (wall, colour) => wall.flat().filter((c) => c === colour).length;
 
 /**
@@ -40,6 +69,8 @@ export const setFill = (wall, colour) => wall.flat().filter((c) => c === colour)
  * @param {number} colour  the colour to count
  * @param {'centre' | number} except  a factory index or 'centre': the source being taken from, so it is not counted
  * @returns {number}
+ *
+ * Side effects: none.
  */
 export const tilesLeft = (state, colour, except) =>
   state.factories.reduce((n, f, i) => (i === except ? n : n + countOf(f, colour)), 0) + (except === 'centre' ? 0 : countOf(state.centre, colour));
@@ -52,6 +83,8 @@ export const tilesLeft = (state, colour, except) =>
  * @param {{ source: 'centre' | number, colour: number, line: number | 'floor' }} move
  * @returns {{ count: number, marker: boolean, preview: object }} tiles taken, whether the first-player marker comes too,
  *   and the previewTake result (see rules.js)
+ *
+ * Side effects: none.
  */
 export function takeOf(state, seat, move) {
   const count = countOf(sourceTiles(state, move.source), move.colour);
@@ -66,6 +99,8 @@ export function takeOf(state, seat, move) {
  * @param {object} state  the AI snapshot (not changed)
  * @param {{ source: 'centre' | number, colour: number }} move
  * @returns {object} a shallow copy: boards are shared with `state`, so only read them
+ *
+ * Side effects: none (builds a new object; `state` is left alone).
  */
 export function tableAfter(state, move) {
   const next = { ...state };
@@ -89,12 +124,16 @@ export function tableAfter(state, move) {
  * @param {() => number} rng  random numbers in [0, 1)
  * @param {(wall: (number | null)[][], col: number) => number} value  how good the wall is with the tile at `col`
  * @returns {{ col: number, value: number } | null} null when there is no column
+ *
+ * Side effects: none, apart from drawing from `rng`.
  */
 export function bestColumnBy(wall, row, colour, free, rng, value) {
+  // Every candidate column is scored on a copy of the wall, so the real wall is never touched.
   let best = null;
   for (const col of columnsFor(wall, row, colour, free)) {
     const next = copyWall(wall);
     next[row][col] = colour;
+    // The small noise only breaks ties between near-equal columns, so seeded games stay reproducible but not robotic.
     const v = value(next, col) + rng() * 0.2;
     if (!best || v > best.value) best = { col, value: v };
   }
@@ -107,6 +146,8 @@ export function bestColumnBy(wall, row, colour, free, rng, value) {
  * @param {(number | null)[][]} before  the wall before the tile
  * @param {(number | null)[][]} after   the wall with the tile placed
  * @returns {number}
+ *
+ * Side effects: none.
  */
 export function newDeadCells(before, after) {
   let dead = 0;
@@ -123,12 +164,16 @@ export function newDeadCells(before, after) {
  * @param {() => number} rng  random numbers in [0, 1)
  * @param {(wall: (number | null)[][], col: number) => number} value  how good the wall is with the tile at `col`
  * @returns {number} the chosen column
+ *
+ * Side effects: none, apart from drawing from `rng`.
  */
 export function chooseColumnBy(state, seat, pending, rng, value) {
   const wall = state.walls[seat];
   const options = pending.columns.map((col) => {
     const next = copyWall(wall);
     next[pending.row][col] = pending.colour;
+    // 4 points per killed place: a dead cell on a free wall can never score or count towards a row, column or set,
+    // so it is worth more than almost any single tile score.
     return { col, value: value(next, col) - 4 * newDeadCells(wall, next) + rng() * 0.2 };
   });
   return options.reduce((best, o) => (o.value > best.value ? o : best)).col;
@@ -141,5 +186,7 @@ export function chooseColumnBy(state, seat, pending, rng, value) {
  * @param {number} seat     the seat taking
  * @param {{ onFloor: number, markerOnFloor: boolean }} preview  from takeOf
  * @returns {number} the total penalty the floor would show
+ *
+ * Side effects: none.
  */
 export const floorAfter = (state, seat, preview) => floorPenaltyAfter(state.floors[seat].length, preview);

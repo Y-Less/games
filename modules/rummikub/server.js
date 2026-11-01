@@ -16,6 +16,7 @@ import { LIMITS } from './rules.js';
  *
  * @returns {{ bot: { min: number, max: number }, roundWait: number }} the computer-player delay range and the wait between
  *   rounds, both in milliseconds
+ * Side effects: none (reads process.env).
  */
 function readDelays() {
   return {
@@ -72,6 +73,7 @@ export default function (ctx) {
  *
  * @param {object | undefined} payload  what the client sent with 'create' or 'settings'
  * @returns {object} a new object holding just the rule limits and `playOnMeld` that were given
+ * Side effects: none.
  */
 function pickSettings(payload) {
   return pickKeys(payload, [...Object.keys(LIMITS), 'playOnMeld']);

@@ -29,6 +29,8 @@ export const SUPPLY_PER_COLOUR = Object.freeze({ 2: 4, 3: 5, 4: 7 });
 /**
  * How many tokens of each gem colour the table starts with.
  *
+ * Side effects: none.
+ *
  * @param {number} players  2, 3 or 4
  * @returns {number | undefined} undefined for any other number of players
  */
@@ -38,6 +40,8 @@ export const supplyPerColour = (players) => SUPPLY_PER_COLOUR[players];
  * What a card costs a player after their discounts: each colour's cost less the number of bought cards of that colour,
  * never below zero.
  *
+ * Side effects: none.
+ *
  * @param {{ cost: number[] }} card  a card from cards.js
  * @param {number[]} bonuses         the player's five discounts
  * @returns {number[]} five counts
@@ -46,6 +50,8 @@ export const needOf = (card, bonuses) => card.cost.map((c, i) => Math.max(0, c -
 
 /**
  * What buying a card would take: the colours' tokens are spent first and Gold covers whatever is still short.
+ *
+ * Side effects: none.
  *
  * @param {number[]} tokens   the player's six token counts
  * @param {number[]} bonuses  the player's five discounts

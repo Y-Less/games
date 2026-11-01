@@ -1,10 +1,15 @@
 // "Standard": the original Splendour computer player. A sensible all-rounder that scores every legal move from the
 // value of the cards on the table (points, discounts, progress towards a noble) and how close it is to affording them.
+// Other AIs (noble-hunter, blocker) build on its scoreMoves export, and bot.js falls back on it when an AI misbehaves.
+//
+// Depends on: ../cards.js (card and noble data) and ./lib.js (situation helpers).
 import { CARD_BY_ID, NOBLE_BY_ID } from '../cards.js';
 import { GOLD, boardCards, me, opponents, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 
 /**
  * How much a card is worth having: points, a discount, and progress towards a noble.
+ *
+ * Side effects: none.
  *
  * @param {object} s     the situation
  * @param {object} card  a card object
@@ -23,11 +28,21 @@ function cardValue(s, card) {
   return value;
 }
 
-/** Could any opponent buy this card right now? */
+/**
+ * Could any opponent buy this card right now? (If so, reserving it may be worth the turn.)
+ *
+ * Side effects: none.
+ *
+ * @param {object} s     the situation
+ * @param {object} card  a card object
+ * @returns {boolean}
+ */
 const threatened = (s, card) => opponents(s).some((p) => payment(p, card));
 
 /**
  * Ranks every card the player could aim for and works out which gems they should collect.
+ *
+ * Side effects: none.
  *
  * @param {object} s  the situation
  * @returns {{ list: object[], best: object, wants: number[] }} the targets best first, the top one, and how many gems of
@@ -35,6 +50,8 @@ const threatened = (s, card) => opponents(s).some((p) => payment(p, card));
  */
 function plan(s) {
   const list = targetsOf(s)
+    // Value divided by (tokens still short + 1) to the power 1.3: a card one gem away is worth far more than the same card
+    // three gems away, and an exponent above 1 makes nearly-affordable cards win without ignoring big prizes.
     .map((t) => ({ ...t, score: cardValue(s, t.card) / (t.short + 1) ** 1.3 }))
     .sort((a, b) => b.score - a.score);
   const wants = [0, 0, 0, 0, 0];
@@ -44,6 +61,8 @@ function plan(s) {
 
 /**
  * Scores one legal move (higher is better); no randomness.
+ *
+ * Side effects: none.
  *
  * @param {object} s     the situation
  * @param {object} move  one of s.moves
@@ -58,6 +77,8 @@ function scoreMove(s, move, p) {
   if (move.type === 'buy') {
     const card = CARD_BY_ID[move.card];
     const quote = payment(player, card);
+    // The base of 10 puts every purchase above any gem-taking move (which scores a few points at most); the payment terms then
+    // prefer cheaper buys and, above all, avoid spending Gold (0.9 per Gold against 0.15 per ordinary token).
     return 10 + cardValue(s, card) - sum(quote.pay.slice(0, 5)) * 0.15 - quote.pay[GOLD] * 0.9;
   }
   if (move.type === 'take') {
@@ -72,6 +93,8 @@ function scoreMove(s, move, p) {
     const card = CARD_BY_ID[move.card];
     const target = p.list.find((t) => t.id === move.card);
     let value = 0.4 + gold * 0.4;
+    // Reserve the card it is working towards when it is nearly affordable (so nobody can take it), or a valuable card an
+    // opponent could buy this very turn (denial).
     if (target === p.best && target.short <= 2 + gold) value += 2.2 + target.card.points * 0.3;
     else if (card.points >= 3 && threatened(s, card)) value += 1.6 + card.points * 0.25;
     return value - penalty;
@@ -81,6 +104,8 @@ function scoreMove(s, move, p) {
 
 /**
  * Every legal move with its score (no randomness), for the AIs that build on this one.
+ *
+ * Side effects: none.
  *
  * @param {object} s  the situation
  * @returns {{ move: object, score: number }[]}
@@ -98,6 +123,8 @@ export default {
   /**
    * Chooses the best-scoring move, with a little randomness to break ties.
    *
+   * Side effects: advances `rng` (one draw per move scored); changes nothing else.
+   *
    * @param {object} s  the situation (see lib.js)
    * @param {() => number} rng  random numbers in [0, 1)
    * @returns {object} one of s.moves, or { type: 'pass' } when there are none
@@ -110,6 +137,8 @@ export default {
   /**
    * Which tokens to give back: surplus colours first, the colours the best cards need next, Gold last.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses returnCount)
    * @returns {number[]} six counts summing to s.returnCount
    */
@@ -118,6 +147,8 @@ export default {
   },
   /**
    * Which noble to take when several visit at once: simply the first offered.
+   *
+   * Side effects: none.
    *
    * @param {object} s  the situation (uses options)
    * @returns {string} a noble id from s.options

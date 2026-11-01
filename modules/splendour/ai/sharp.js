@@ -7,14 +7,24 @@
 //
 // It works on the plain situation described in lib.js, so it knows nothing about the draw piles. When it buys or
 // reserves a card in its imagination the gap on the table is left empty rather than guessed at.
+//
+// Depends on: ../cards.js (card and noble data) and ./lib.js (situation helpers).
 import { CARD_BY_ID, LEVELS, NOBLE_BY_ID } from '../cards.js';
 import { GOLD, MAX_TOKENS, nobleList, nobleGap, needOf, payment, sum } from './lib.js';
 
-/** How much each part of a position is worth, in roughly "points". */
+/**
+ * How much each part of a position is worth, in roughly "points" (the unit that evalSeat adds up).
+ * bonus: a discount is a permanent saving, so it is worth the most; token: a gem that a card on the table needs; gold: a
+ * wild token, worth more than an ordinary gem; noble: scales progress towards a noble; ready: how close the best cards
+ * are to being bought; rival: how much of the strongest opponent's score is subtracted from ours.
+ * They are hand-set heuristic values, not derived from theory.
+ */
 const W = { bonus: 1.8, token: 0.2, gold: 0.5, noble: 1.0, ready: 0.3, rival: 0.75 };
 
 /**
  * A copy of a situation player that can be changed safely (its token, bonus and reserve lists are copied).
+ *
+ * Side effects: none.
  *
  * @param {object} p  a player of the situation
  * @returns {object}
@@ -24,6 +34,8 @@ const clonePlayer = (p) => ({ ...p, tokens: [...p.tokens], bonuses: [...p.bonuse
 /**
  * A copy of the situation in which any one seat can be changed (the rest is shared and never written to).
  *
+ * Side effects: none.
+ *
  * @param {object} s  the situation
  * @returns {object} a new situation; the players array is new but the players in it are the originals until replaced
  */
@@ -31,11 +43,20 @@ function fork(s) {
   return { ...s, supply: [...s.supply], board: { 1: [...s.board[1]], 2: [...s.board[2]], 3: [...s.board[3]] }, nobles: [...s.nobles], players: [...s.players] };
 }
 
-/** The ids of every face-up card in a situation (empty slots left out). */
+/**
+ * The ids of every face-up card in a situation (empty slots left out).
+ *
+ * Side effects: none.
+ *
+ * @param {object} s  the situation
+ * @returns {string[]} card ids, level 1 first
+ */
 const boardIds = (s) => LEVELS.flatMap((l) => s.board[l]).filter(Boolean);
 
 /**
  * The default payment a player would make for a card (the shared calculation in rules.js, via lib.js).
+ *
+ * Side effects: none.
  *
  * @param {object} p     a situation player
  * @param {object} card
@@ -49,6 +70,8 @@ const payFor = (p, card) => payment(p, card)?.pay ?? null;
  * The facts about the whole game that colour how every seat is judged: how far the game has got and whether the leader
  * is close enough to the target for points to matter more.
  *
+ * Side effects: none.
+ *
  * @param {object} s  the situation
  * @returns {{ phase: number, pointWeight: number }} `phase` falls from 1 towards 0.25 as the leader nears the target
  */
@@ -60,6 +83,8 @@ function context(s) {
 /**
  * What a seat's position is worth, in roughly "points": prestige, the next cards it could buy, tokens that will be
  * spent, discounts, Gold and progress towards nobles.
+ *
+ * Side effects: none.
  *
  * @param {object} s    the situation
  * @param {number} i    the seat being judged
@@ -87,20 +112,25 @@ function evalSeat(s, i, ctx) {
   };
   for (const id of boardIds(s)) consider(id);
   for (const id of p.reserved) consider(id);
+  // Prestige is the real score. The best card counts fully and the runner-up at 0.4, because only one can be bought per turn.
   let value = p.prestige * ctx.pointWeight + (first + second * 0.4) * W.ready;
   for (let c = 0; c < 5; c++) {
     const have = p.tokens[c];
     const used = Math.min(have, need[c]);
     value += used * W.token + (have - used) * 0.05;
     const cards = p.bonuses[c];
+    // Discounts: the first three of a colour are worth full price, the next two half, anything beyond five hardly anything
+    // (no card costs more than seven), and all of it fades with `phase` because late on a discount has no time to pay back.
     value += (Math.min(cards, 3) * W.bonus + Math.min(Math.max(cards - 3, 0), 2) * W.bonus * 0.5 + Math.max(cards - 5, 0) * 0.2) * ctx.phase;
   }
+  // More than three Gold is wasted: it is rarely needed in such amounts and it takes up room under the ten-token limit.
   value += Math.min(p.tokens[GOLD], 3) * W.gold;
   // Nobles: the nearest two, counted by how far along they are.
   const progress = nobleList(s)
     .map((noble) => {
       const total = sum(Object.values(noble.requires));
       const f = 1 - nobleGap(p.bonuses, noble) / total;
+      // Squared so that a noble that is nearly complete counts for much more than one barely started (3 is its prize).
       return f * f * 3 * W.noble;
     })
     .sort((a, b) => b - a);
@@ -111,6 +141,8 @@ function evalSeat(s, i, ctx) {
 /**
  * My position against the strongest opponent (and, a little, the rest).
  *
+ * Side effects: none.
+ *
  * @param {object} s    the situation
  * @param {number} seat my seat
  * @param {object} ctx  from context()
@@ -118,6 +150,7 @@ function evalSeat(s, i, ctx) {
  */
 function judge(s, seat, ctx) {
   const rivals = s.players.map((_, i) => i).filter((i) => i !== seat).map((i) => evalSeat(s, i, ctx));
+  // The strongest opponent is the one that will beat us, so they count in full; the others only a quarter as much.
   const top = Math.max(...rivals);
   return evalSeat(s, seat, ctx) - W.rival * top - W.rival * 0.25 * (sum(rivals) - top);
 }
@@ -157,6 +190,8 @@ function dropTokens(s, i, count) {
 /**
  * The table after a seat plays a move (tokens above the limit are given back in the best way, and a noble visits).
  * The situation passed in is left alone.
+ *
+ * Side effects: none.
  *
  * @param {object} s     the situation
  * @param {number} i     the seat playing
@@ -213,6 +248,8 @@ function apply(s, i, move) {
 /**
  * The moves an opponent could plausibly make: every card they can buy and every way of taking gems.
  *
+ * Side effects: none.
+ *
  * @param {object} s  the situation
  * @param {number} i  the opponent's seat
  * @returns {object[]} moves (never reserves or passes)
@@ -233,6 +270,8 @@ function replies(s, i) {
 /**
  * What an opponent does in reply: whatever suits them best (and me least), or, in the last round, whatever scores most.
  *
+ * Side effects: none.
+ *
  * @param {object} s       the situation
  * @param {number} i       the replying opponent's seat
  * @param {number} seat    my seat
@@ -246,6 +285,8 @@ function reply(s, i, seat, ending, ctx) {
   for (const move of replies(s, i)) {
     if (ending && move.type !== 'buy') continue;
     const after = apply(s, i, move);
+    // In the last round only a purchase can change the score, and the game's own tie-break is fewest cards, so rank by prestige
+    // then by fewest cards. Otherwise assume a self-interested opponent who also (a little) spoils our position.
     const value = ending ? after.players[i].prestige * 1000 - after.players[i].bought : evalSeat(after, i, ctx) - 0.35 * evalSeat(after, seat, ctx);
     if (value > bestValue) {
       best = after;
@@ -258,6 +299,8 @@ function reply(s, i, seat, ending, ctx) {
 
 /**
  * Once the final round is under way: win or lose, and by how much.
+ *
+ * Side effects: none.
  *
  * @param {object} s    the situation
  * @param {number} seat my seat
@@ -274,6 +317,8 @@ function outcome(s, seat) {
 /**
  * Chooses a move by playing each legal move on a copy of the table, letting every opponent reply, and keeping the move
  * that leaves this seat best placed.
+ *
+ * Side effects: advances `rng` (one draw per move scored); changes nothing else.
  *
  * @param {object} s     the situation
  * @param {() => number} rng  breaks near-ties
@@ -292,6 +337,7 @@ function chooseMove(s, rng) {
     for (let i = s.seat + 1; i < s.n; i++) order.push(i);
     if (!ending) for (let i = 0; i < s.seat; i++) order.push(i);
     for (const i of order) t = reply(t, i, s.seat, ending, ctx);
+    // The tiny random term only decides between moves that are otherwise exactly equal.
     const value = (ending ? outcome(t, s.seat) : judge(t, s.seat, ctx)) + rng() * 0.02;
     if (value > bestValue) {
       best = move;
@@ -310,6 +356,8 @@ export default {
   /**
    * Which tokens to give back: the ones whose loss costs the position least.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses returnCount)
    * @returns {number[]} six counts
    */
@@ -323,11 +371,13 @@ export default {
   /**
    * When several nobles visit at once: take the one an opponent is closest to getting.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses options)
    * @returns {string} a noble id from s.options
    */
   chooseNoble(s) {
-    /** How close the best-placed opponent is to this noble, from 0 to 1. */
+    /** How close the best-placed opponent is to this noble, from 0 to 1 (1 means they would already qualify). */
     const closeness = (id) => Math.max(0, ...s.players.filter((p) => p.seat !== s.seat).map((p) => 1 - nobleGap(p.bonuses, NOBLE_BY_ID[id]) / sum(Object.values(NOBLE_BY_ID[id].requires))));
     return [...s.options].sort((a, b) => closeness(b) - closeness(a))[0];
   },

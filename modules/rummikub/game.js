@@ -10,6 +10,9 @@
 // A round: everybody is dealt tiles; on their turn a player either plays (sends the whole table as they want it, which
 // is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty). The round ends when someone empties
 // their rack, or when the pool is empty and everyone has passed in a row. A game is `settings.rounds` rounds.
+//
+// Depends on rules.js (tiles, sets, checkPlay), tally.js (statistics counters), ai/index.js (the computer players' logics) and
+// the shared helpers in shared/ (seats, scores, move log, tally, ai). bot.js and server.js build on this file, never the reverse.
 import { assignAIs, describeAI, pickAI, aiById } from '../../shared/ai.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
@@ -38,15 +41,17 @@ export const DEFAULT_SIZE = 4;
 export { STAT_KEYS };
 export const BOT_NAMES = ['Mabel', 'Hugo', 'Ivy', 'Otto', 'Nell', 'Felix', 'Dora', 'Ezra'];
 
+// The phases in which the game has not finished.
 const LIVE = ['lobby', 'playing', 'between'];
+// Whether value is a plain object (not null, not an array): guards the untrusted `args` a client sends.
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-/** Is the game still going (lobby, a round, or between rounds)? A finished game is not live, so people may leave it. */
+/** Is the game still going (lobby, a round, or between rounds)? A finished game is not live, so people may leave it. Takes the room; returns a boolean; no side effects. */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
-/** The name at a seat for the log ("Someone" if the seat is empty). */
+/** The name at a seat for the log ("Someone" if the seat is empty). Takes (room, seat); returns a string; no side effects. */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
-/** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)? */
+/** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)? Takes the room; returns a boolean; no side effects. */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
 /**
@@ -55,6 +60,7 @@ export const inRound = (room) => room.phase === 'playing' || room.phase === 'bet
  * @param {any[]} items  the list; it is reordered, not copied
  * @param {() => number} rng  random numbers in [0, 1) (inject a seeded one in tests)
  * @returns {any[]} the same list, for chaining
+ * Side effects: reorders `items` in place (consumes random numbers from rng).
  */
 export function shuffle(items, rng) {
   for (let i = items.length - 1; i > 0; i--) {
@@ -81,6 +87,7 @@ export { normaliseSettings };
  * @param {number} args.now  the clock, in milliseconds
  * @returns {object} the room
  * @throws {Error} if the size or a setting is not allowed (the message is safe to show)
+ * Side effects: none (builds and returns a new room object).
  */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
@@ -174,6 +181,7 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
  * @param {number} userId  who is asking (must be the host)
  * @param {object} input  the options to change (the rest are kept)
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: replaces room.settings on success; nothing changes on failure.
  */
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
@@ -191,6 +199,7 @@ export function setSettings(room, userId, input) {
  * @param {number} userId  who is asking (must be the host)
  * @param {number} size  the new number of seats
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: on success changes room.size and room.seats and resets the game fields; nothing changes on failure.
  */
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
@@ -214,6 +223,7 @@ export function setSize(room, userId, size) {
  * @param {() => number} rng  random numbers for the first player, the deal and the AI choices
  * @param {number} now  the clock, in milliseconds (for the turn timer)
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: on success resets the room, deals round one, sets room.phase, logs, and assigns each computer seat an AI; nothing changes on failure.
  */
 export function start(room, userId, rng, now) {
   const problem = hostInLobby(room, userId);
@@ -277,7 +287,13 @@ function startRound(room, rng, now) {
 
 // ---- playing ----
 
-/** Notes what a rack shows for the statistics (see tally.js); `pairSeen` remembers, for the round, who has held both jokers. */
+/**
+ * Notes what a rack shows for the statistics (see tally.js); `pairSeen` remembers, for the round, who has held both jokers.
+ *
+ * @param {object} room
+ * @param {number} seat  whose rack to look at
+ * Side effects: updates room.tally[seat] and room.pairSeen (created here for rooms saved before it existed).
+ */
 function noteRack(room, seat) {
   room.pairSeen ??= Array(room.size).fill(false);
   room.pairSeen[seat] = tallyRack(room.tally[seat], room.settings, room.racks[seat], room.pairSeen[seat]);
@@ -288,6 +304,7 @@ function noteRack(room, seat) {
  *
  * @param {object} room
  * @returns {(number | null)[]} one entry per seat
+ * Side effects: none (the room is not changed; a fresh array is returned if there is none).
  */
 const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
 
@@ -315,6 +332,7 @@ function nextTurn(room, now) {
  * @param {{ table: number[][] }} args  the proposed table
  * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, added?: number, roundOver?: boolean, gameOver?: boolean, error?: string }}
+ * Side effects: on success changes room.table, the rack, room.melded, room.idle, room.lastPlay, the tally and the log, then ends the turn or the round; nothing changes on failure.
  */
 export function play(room, seat, args, now) {
   if (room.phase !== 'playing') return fail('The game is not being played.');
@@ -352,6 +370,7 @@ export function play(room, seat, args, now) {
  * @param {number} now  the clock, in milliseconds
  * @param {string} [reason]  text added to the log line, such as " (out of time)"
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: moves a tile from the pool to the rack (or counts a pass), updates the tally, log and idle count, then ends the turn or the round.
  */
 export function draw(room, seat, now, reason = '') {
   if (room.phase !== 'playing') return fail('The game is not being played.');
@@ -382,6 +401,7 @@ export function draw(room, seat, now, reason = '') {
  * @param {object} room  mutated on success
  * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as draw() on success; nothing changes on failure.
  */
 export function timeout(room, now) {
   if (room.phase !== 'playing' || room.deadline === null || now < room.deadline) return fail('There is no time limit to enforce.');
@@ -464,6 +484,7 @@ function finishGame(room) {
  * @param {() => number} rng  random numbers for the deal, if the round starts
  * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: adds the seat to room.ready and may start the next round.
  */
 export function next(room, seat, rng, now) {
   if (room.phase !== 'between') return fail('There is no round to start.');
@@ -507,6 +528,7 @@ function startNextRound(room, rng, now) {
  * @param {() => number} rng  random numbers for the deal
  * @param {number} now  the clock, in milliseconds
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: starts the next round (deals, logs, resets the timer) on success.
  */
 export function forceNext(room, rng, now) {
   if (room.phase !== 'between') return fail('There is no round to start.');
@@ -521,6 +543,7 @@ export function forceNext(room, rng, now) {
  * @param {object} room  mutated
  * @param {number} userId  who is asking (must be the host)
  * @returns {{ ok: boolean, error?: string }}
+ * Side effects: resets the game fields and sets room.phase to 'lobby' on success.
  */
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
@@ -536,6 +559,7 @@ export function playAgain(room, userId) {
  *
  * @param {object} room  a finished room
  * @returns {object[]} entries for ctx.stats.record
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   return statsRows(room.seats, (seat, i) => ({
@@ -553,12 +577,13 @@ export function statsPlayers(room) {
  *
  * @param {object} room
  * @returns {number[]} the pool, then every rack, then every table set, flattened
+ * Side effects: none.
  */
 export function allTiles(room) {
   return [...room.pool, ...room.racks.flat(), ...room.table.flat()];
 }
 
-/** How many tiles there are in the room altogether (always totalTiles once a round has been dealt). */
+/** How many tiles there are in the room altogether (always totalTiles once a round has been dealt). Takes the room; returns a number; no side effects. */
 export const tileCount = (room) => allTiles(room).length;
 
 /**
@@ -566,6 +591,7 @@ export const tileCount = (room) => allTiles(room).length;
  *
  * @param {object} room  not changed
  * @returns {boolean}
+ * Side effects: none.
  */
 const hasStarted = (room) => room.phase === 'playing' || room.phase === 'between' || room.phase === 'finished';
 
@@ -576,6 +602,7 @@ const hasStarted = (room) => room.phase === 'playing' || room.phase === 'between
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
  * @returns {object}
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const seat = room.seats[i];
@@ -600,6 +627,7 @@ function seatView(room, i, online) {
  * @param {number} me  the viewer's seat, or -1
  * @param {(id: number) => boolean} online
  * @returns {object}
+ * Side effects: none.
  */
 function scoreboardView(room, me, online) {
   const started = hasStarted(room);
@@ -618,6 +646,7 @@ function scoreboardView(room, me, online) {
  * @param {number} me  the viewer's seat, or -1
  * @param {number} [now]  the clock, in milliseconds (for the time left on the turn timer)
  * @returns {object} fields to add to the view when the game has started
+ * Side effects: none.
  */
 function playView(room, me, now) {
   return {
@@ -645,6 +674,7 @@ function playView(room, me, now) {
  * @param {(id: number) => boolean} [options.online]  is this person connected? (to show who is away)
  * @param {number} [options.now]  the clock, in milliseconds (for the time left on the turn timer)
  * @returns {object} the view sent to that person's client
+ * Side effects: none (never includes another player's rack or the pool order).
  */
 export function viewFor(room, userId, { online = () => true, now } = {}) {
   const me = seatOf(room, userId);

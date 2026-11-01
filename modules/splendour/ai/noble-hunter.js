@@ -1,11 +1,15 @@
 // "Noble hunter": picks the noble that is closest to visiting and buys the cards of the colours it still needs, since
 // a noble is worth three points for no gems at all. Once no noble is left to chase it plays like the standard player.
+//
+// Depends on: ../cards.js (card data), ./lib.js (situation helpers) and ./standard.js (the fallback player and scoreMoves).
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, me, nobleGap, nobleList, opponents, overflowOf, payment, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 import standard, { scoreMoves } from './standard.js';
 
 /**
  * The nearest noble and how many more cards of each colour it needs, or null if none is left.
+ *
+ * Side effects: none.
  *
  * @param {object} s  the situation
  * @returns {{ noble: object, gap: number, missing: number[] } | null}
@@ -24,6 +28,8 @@ function goal(s) {
 /**
  * Chases the nearest noble; once none is left to chase it plays like the standard player.
  *
+ * Side effects: advances `rng` (one draw per move scored); changes nothing else.
+ *
  * @param {object} s  the situation (see lib.js)
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {object} one of s.moves, or { type: 'pass' } when there are none
@@ -31,6 +37,7 @@ function goal(s) {
 function chooseMove(s, rng) {
   if (!s.moves.length) return { type: 'pass' };
   const aim = goal(s);
+  // With no noble left to chase (or one it already qualifies for) the noble plan has nothing to say, so play the standard way.
   if (!aim || aim.gap === 0) return standard.chooseMove(s, rng);
   const player = me(s);
   // Gems that would help buy cards of the colours the noble needs.
@@ -45,6 +52,8 @@ function chooseMove(s, rng) {
       const card = CARD_BY_ID[move.card];
       const quote = payment(player, card);
       const useful = aim.missing[card.bonus] > 0;
+      // A card in a colour the noble still needs scores well above any other (15 against 6), the more the noble needs it the
+      // better; points still count so that a useful card with points beats a useful card without.
       return (useful ? 15 + aim.missing[card.bonus] * 0.5 : 6) + card.points * 0.8 - sum(quote.pay.slice(0, 5)) * 0.1 - quote.pay[GOLD] * 0.8;
     }
     if (move.type === 'take') return move.colours.reduce((total, c) => total + (wants[c] > 0 ? 1 + wants[c] * 0.3 : 0.1), 0) - overflowOf(s, move.colours.length);
@@ -65,6 +74,8 @@ export default {
   /**
    * Which tokens to give back: keeps what the cards of the noble's colours need.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses returnCount)
    * @returns {number[]} six counts summing to s.returnCount
    */
@@ -76,6 +87,8 @@ export default {
   },
   /**
    * When several nobles visit at once: the one an opponent is closest to (so they cannot have it next).
+   *
+   * Side effects: none.
    *
    * @param {object} s  the situation (uses options)
    * @returns {string} a noble id from s.options

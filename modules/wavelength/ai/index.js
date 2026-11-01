@@ -5,6 +5,7 @@
 //   guess({ clue, anchors }, rng)   -> a position from 0 to 100 (clue is what everybody can see, never the target)
 //
 // `anchors` are the example clues of the spectrum, [{ position, text }]. The first entry is the fallback.
+// Depends on shared/ai.js (defineAIs validates and registers the list) and the two strategy files beside this one.
 import { defineAIs } from '../../../shared/ai.js';
 import random from './random.js';
 import standard, { wobbly } from './standard.js';

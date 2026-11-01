@@ -4,12 +4,23 @@
 //     player go out, or an opponent is close to going out (then nothing is held back);
 //   - among equal plays it gets rid of the awkward tiles (near the ends of the number range) and keeps the flexible middle ones;
 //   - when the pool is empty, or an opponent is close to going out, high tiles are played first (they cost the most if stuck).
+// Depends on ../search.js, which builds the candidate plays; this file only decides how tiles are weighed and when jokers
+// are kept back.
 import { SEARCH_BUDGET, firstLegal, meldAttempts, shuffleAttempts, standardAttempts } from '../search.js';
 
 const BIG = 1000;
 const HOLD = -2500; // a joker is only used when the rest of the play is worth more than this (three other tiles)
 const DANGER = 3; // an opponent with this many tiles or fewer is about to win
 
+/**
+ * The value of playing each kind of numbered tile. All are worth about BIG so that the number of tiles dominates; the small
+ * extras only break ties.
+ *
+ * @param {object} s  the room settings (numbers and colours per tile kind)
+ * @param {boolean} urgent  true when the game is nearly over, so high tiles should go first (they cost most if stuck)
+ * @returns {Int32Array} one weight per tile kind (kind = colour * numbers + number - 1)
+ * Side effects: none.
+ */
 function weightsFor(s, urgent) {
   const kinds = s.numbers * s.colours;
   const mid = (s.numbers + 1) / 2;
@@ -21,6 +32,17 @@ function weightsFor(s, urgent) {
   return weights;
 }
 
+/**
+ * Picks the Sharp play: the one that lays the most tiles, trying first with jokers free to use and then, when the rack holds
+ * jokers and nothing is urgent, again with jokers made unattractive so they are kept unless they are really needed.
+ *
+ * @param {object} room  the room; not changed
+ * @param {number} seat  the seat to play for
+ * @param {object} [options]
+ * @param {number} [options.budget]  the search budget (nodes) handed to search.js; defaults to SEARCH_BUDGET
+ * @returns {{ table: number[][], added: number } | null} the best play found, or null to draw
+ * Side effects: none.
+ */
 function plan(room, seat, { budget = SEARCH_BUDGET } = {}) {
   const s = room.settings;
   const rack = room.racks[seat];
@@ -31,6 +53,8 @@ function plan(room, seat, { budget = SEARCH_BUDGET } = {}) {
   const weights = weightsFor(s, urgent);
   const jokerFree = BIG + (urgent ? 30 * 8 : 0);
   // everything it can find: the whole table rebuilt, new sets only, and every way of moving up to 20 table tiles
+  // The candidate searches for a given joker weight: before the first meld only new sets count (the opening rule); after it,
+  // a whole-table rebuild plus the limited rearrangement search. rackIds restricts which rack tiles may be used.
   const attemptsWith = (jokerWeight, rackIds) =>
     room.melded[seat]
       ? [

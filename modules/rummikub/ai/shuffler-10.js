@@ -1,3 +1,4 @@
+// The "Rearranger" computer player: a shuffler (see shuffler.js) that may move up to 10 table tiles, a middle strength.
 import { makeShuffler } from './shuffler.js';
 
 export default makeShuffler({

@@ -2,8 +2,26 @@
 // on the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
+// Depends on shared/tally.js for the counter helpers. Every function here either builds counters or bumps them on players.
+
+/** The statistic counters Wavelength keeps per player. */
 export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues', 'guesses', 'missDistance'];
+/**
+ * A fresh, all-zero set of counters for a new player.
+ *
+ * @returns {object} counters keyed by STAT_KEYS
+ *
+ * Side effects: none.
+ */
 export const newCounters = () => freshTally(STAT_KEYS);
+/**
+ * Picks this game's counters off a player for the statistics record.
+ *
+ * @param {object} player  the player holding the counters
+ * @returns {object} the STAT_KEYS values of that player
+ *
+ * Side effects: none.
+ */
 export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
 
 /** The two ends of the dial. */
@@ -16,6 +34,13 @@ export const DIAL_MAX = 100;
  *   playerOf  the player (the object that holds the counters) for an id
  *   psychic   the player who gave the clue, or undefined if they have left
  * "Only scorer" and "blank clue" need at least two guessers, so three or more people.
+ *
+ * @param {{id: string, position: number, distance: number, points: number, bullseye: boolean}[]} entries  the turn's guesses
+ * @param {(id: string) => object} playerOf  looks up the player holding the counters for an id
+ * @param {object|undefined} psychic  the clue-giver, or undefined if they have left (then no clue stats are counted)
+ * @returns {void}
+ *
+ * Side effects: increments counters on the guessers and the psychic (via bump); nothing else.
  */
 export function tallyTurn(entries, playerOf, psychic) {
   const scorers = entries.filter((e) => e.points > 0);

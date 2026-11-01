@@ -47,20 +47,45 @@ import {
 export { MAX_PLAYERS, MIN_PLAYERS, factoryCount, takesMarker };
 // The seat vocabulary the server, the AIs and the tests import from here: it is the shared one (shared/seats.js).
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
+// The table sizes on offer, the default, the one setting (free wall off: the fixed wall), and the names given to computer players.
 export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 export const DEFAULT_SETTINGS = { freeWall: false };
 export { STAT_KEYS };
 export const BOT_NAMES = ['Isabel', 'Tomas', 'Beatriz', 'Duarte', 'Ines', 'Rui', 'Carmo', 'Vasco', 'Leonor', 'Nuno'];
 
+// The phases in which a game is still going on (as opposed to finished).
 const LIVE = ['lobby', 'playing', 'tiling'];
-/** Is this a plain object (not null, not an array)? Payloads from clients are checked with it. */
+/**
+ * Is this a plain object (not null, not an array)? Payloads from clients are checked with it.
+ *
+ * @param {any} value  whatever the client sent
+ * @returns {boolean} true for a plain object
+ *
+ * Side effects: none.
+ */
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+// Short for Number.isInteger: client payloads are checked with it before they index anything.
 const isInt = Number.isInteger;
 
-/** Is the game still going (in the lobby, being played or being tiled)? Finished games are kept for less time. */
+/**
+ * Is the game still going (in the lobby, being played or being tiled)? Finished games are kept for less time.
+ *
+ * @param {object} room  the room
+ * @returns {boolean} true unless the game has finished
+ *
+ * Side effects: none.
+ */
 export const isLive = (room) => LIVE.includes(room.phase);
-/** The name to show for a seat in the log ("Someone" for an empty seat). */
+/**
+ * The name to show for a seat in the log ("Someone" for an empty seat).
+ *
+ * @param {object} room  the room
+ * @param {number} seat  the seat index
+ * @returns {string} the name
+ *
+ * Side effects: none.
+ */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
 
 /**
@@ -69,6 +94,8 @@ export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
  * @param {any[]} items  the list to shuffle (mutated and returned)
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {any[]} the same list
+ *
+ * Side effects: mutates `items` (and draws from `rng`).
  */
 export function shuffle(items, rng) {
   for (let i = items.length - 1; i > 0; i--) {
@@ -83,6 +110,8 @@ export function shuffle(items, rng) {
  *
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {number[]} the 100 colour numbers
+ *
+ * Side effects: draws from `rng`.
  */
 export function makeBag(rng) {
   const tiles = [];
@@ -98,6 +127,8 @@ export function makeBag(rng) {
  * @param {any} input  what the client sent (anything; only a boolean `freeWall` is read)
  * @param {{ freeWall: boolean }} [current]  the settings to start from
  * @returns {{ ok: true, settings: object } | { ok: false, error: string }} a new settings object; `current` is not changed
+ *
+ * Side effects: none.
  */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
@@ -120,6 +151,8 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {number} args.now  the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} if the size or the settings are invalid (the message is shown to the player)
+ *
+ * Side effects: none on shared state: it only builds and returns a new room.
  */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
@@ -193,6 +226,8 @@ const addLog = (room, seat, text) => addMove(room, { seat, text });
  * @param {object} room
  * @param {number} seat
  * @returns {object} an AI from ./ai/index.js
+ *
+ * Side effects: none.
  */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
@@ -201,6 +236,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
  * is being played (or tiled) is replaced by a computer player that picks its AI straight away (lobby computer players get
  * theirs when the game starts), and the log says so. Nothing else has to happen after somebody leaves.
  */
+// (Creating the rules has no side effects: the handlers it returns, exported just below, mutate the room they are given.)
 const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'playing' || room.phase === 'tiling',
   botNames: BOT_NAMES,
@@ -338,9 +374,24 @@ function startRound(room, rng) {
 
 // ---- taking and placing ----
 
-/** Is this a source a player may take from: the centre, or the index of a factory that exists? */
+/**
+ * Is this a source a player may take from: the centre, or the index of a factory that exists?
+ *
+ * @param {object} room  the room
+ * @param {any} source  what the client sent
+ * @returns {boolean} true when it names a real source
+ *
+ * Side effects: none.
+ */
 const validSource = (room, source) => source === 'centre' || (isInt(source) && source >= 0 && source < room.factories.length);
-/** The name of a source for the log and for error messages. */
+/**
+ * The name of a source for the log and for error messages.
+ *
+ * @param {'centre' | number} source  'centre' or a factory index
+ * @returns {string} e.g. "the centre" or "factory 3"
+ *
+ * Side effects: none.
+ */
 const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${source + 1}`);
 
 /**
@@ -349,6 +400,8 @@ const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${
  * @param {object} room  (not changed)
  * @param {number} seat
  * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' }[]} empty unless it is this seat's turn
+ *
+ * Side effects: none.
  */
 export function legalMoves(room, seat) {
   const moves = [];
@@ -365,7 +418,14 @@ export function legalMoves(room, seat) {
   return moves;
 }
 
-/** Has every tile been taken from the factories and the centre? Then the round is over and the walls are tiled. */
+/**
+ * Has every tile been taken from the factories and the centre? Then the round is over and the walls are tiled.
+ *
+ * @param {object} room  the room
+ * @returns {boolean} true when nothing is left to take
+ *
+ * Side effects: none.
+ */
 const roundOver = (room) => room.centre.length === 0 && room.factories.every((f) => f.length === 0);
 
 /**
@@ -643,6 +703,8 @@ export function playAgain(room, userId) {
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: 'win' | 'loss', placement: number, score: number, extras: object }[]}
+ *
+ * Side effects: none.
  */
 export function statsPlayers(room) {
   return statsRows(room.seats, (seat, i) => ({
@@ -670,6 +732,8 @@ export function statsPlayers(room) {
  *
  * @param {object} room  (not changed)
  * @returns {number}
+ *
+ * Side effects: none.
  */
 export function tileCount(room) {
   const lines = room.lines.flat().reduce((n, l) => n + l.count, 0);
@@ -678,7 +742,14 @@ export function tileCount(room) {
   return room.bag.length + room.lid.length + room.factories.flat().length + room.centre.length + lines + walls + floors;
 }
 
-/** How many tiles of each colour are in the lid (shown to everyone; the lid's order is not). */
+/**
+ * How many tiles of each colour are in the lid (shown to everyone; the lid's order is not).
+ *
+ * @param {object} room  the room
+ * @returns {number[]} one count per colour
+ *
+ * Side effects: none.
+ */
 const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
 
 /**
@@ -686,6 +757,8 @@ const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
  *
  * @param {object} room  not changed
  * @returns {boolean}
+ *
+ * Side effects: none.
  */
 const hasStarted = (room) => room.phase === 'playing' || room.phase === 'tiling' || room.phase === 'finished';
 
@@ -696,6 +769,8 @@ const hasStarted = (room) => room.phase === 'playing' || room.phase === 'tiling'
  * @param {number} i  the seat's index
  * @param {(id: number) => boolean} online  says who is connected
  * @returns {object}
+ *
+ * Side effects: none.
  */
 function seatView(room, i, online) {
   const seat = room.seats[i];
@@ -721,9 +796,12 @@ function seatView(room, i, online) {
  * @param {number} me  the viewer's seat, or -1
  * @param {(id: number) => boolean} online
  * @returns {object}
+ *
+ * Side effects: none.
  */
 function scoreboardView(room, me, online) {
   const started = hasStarted(room);
+  // One scoreboard row for a seat: its score, whether it is the viewer, whose turn it is, and whether it is online.
   const player = (seat, i) => seatScoreboardEntry(seat, i, { score: started ? room.scores[i] : 0, me, current: room.phase === 'playing' && room.turn === i, online });
   return {
     players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])),
@@ -738,6 +816,8 @@ function scoreboardView(room, me, online) {
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @returns {object} fields to add to the view when the game has started
+ *
+ * Side effects: none.
  */
 function playView(room, me) {
   const tiling = room.phase === 'tiling';
@@ -764,6 +844,8 @@ function playView(room, me) {
  * @param {number} userId  the account the view is for (may be a spectator: `you` is then -1)
  * @param {{ online?: (id: number) => boolean }} [options]  says whether a person is connected, to show who is away
  * @returns {object} plain data for the client
+ *
+ * Side effects: none (the view is built fresh and shares no hidden data).
  */
 export function viewFor(room, userId, { online = () => true } = {}) {
   const me = seatOf(room, userId);

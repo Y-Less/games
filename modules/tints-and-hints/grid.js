@@ -1,3 +1,4 @@
+// Depends on nothing (no imports), so the browser can load it too.
 // The colour grid, shared by the server (what counts as a close guess) and the client (drawing it).
 // 52 columns by 24 rows. A square is a column name and a row number, such as "M9" or "AC14". Columns are named A to Z
 // and then AA to AZ, and run round the colour wheel in equal steps; rows are numbered 1 to 24, from very dark and muted
@@ -21,8 +22,25 @@ const L_PALE = 0.94;
 const CHROMA_FIRST = 0.35; // the top row's share of the full chroma
 const CHROMA_RISE = 1.7; // how fast it grows down the rows (in shares per whole grid)
 
+/**
+ * Applies the sRGB transfer curve (gamma) to one linear-light component.
+ *
+ * @param {number} v  linear component, 0 to 1
+ * @returns {number} the encoded component, 0 to 1
+ *
+ * Side effects: none.
+ */
 const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
-/** The linear sRGB of an OKLCH colour (components outside 0 to 1 are out of gamut). */
+/**
+ * The linear sRGB of an OKLCH colour (components outside 0 to 1 are out of gamut).
+ *
+ * @param {number} L  OKLCH lightness, 0 to 1
+ * @param {number} C  OKLCH chroma (colourfulness)
+ * @param {number} hue  hue angle in degrees
+ * @returns {number[]} [r, g, b] in linear light
+ *
+ * Side effects: none.
+ */
 function oklchToLinear(L, C, hue) {
   const a = C * Math.cos((hue * Math.PI) / 180);
   const b = C * Math.sin((hue * Math.PI) / 180);
@@ -31,8 +49,24 @@ function oklchToLinear(L, C, hue) {
   const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
   return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
 }
+/**
+ * Whether a linear sRGB triple can be shown (a tiny tolerance absorbs rounding error).
+ *
+ * @param {number[]} rgb  [r, g, b] in linear light
+ * @returns {boolean} true if every component is within 0 to 1
+ *
+ * Side effects: none.
+ */
 const inGamut = (rgb) => rgb.every((v) => v >= -1e-6 && v <= 1 + 1e-6);
-/** The most chroma sRGB can show at this lightness and hue. */
+/**
+ * The most chroma sRGB can show at this lightness and hue, found by bisection (24 halvings, far finer than 8-bit colour).
+ *
+ * @param {number} L  OKLCH lightness
+ * @param {number} hue  hue angle in degrees
+ * @returns {number} the largest in-gamut chroma
+ *
+ * Side effects: none.
+ */
 function maxChroma(L, hue) {
   let lo = 0;
   let hi = 0.4;
@@ -43,6 +77,16 @@ function maxChroma(L, hue) {
   }
   return lo;
 }
+/**
+ * Converts an OKLCH colour to an sRGB hex string, clamping to the gamut as a last guard against rounding.
+ *
+ * @param {number} L  OKLCH lightness
+ * @param {number} chroma  OKLCH chroma
+ * @param {number} hue  hue angle in degrees
+ * @returns {string} a colour such as '#a1b2c3'
+ *
+ * Side effects: none.
+ */
 function hexOf(L, chroma, hue) {
   const rgb = oklchToLinear(L, chroma, hue);
   return '#' + rgb.map((v) => Math.round(Math.min(1, Math.max(0, encode(Math.max(0, v)))) * 255).toString(16).padStart(2, '0')).join('');
@@ -52,12 +96,39 @@ function hexOf(L, chroma, hue) {
 // way, then averaged over the same width. That can only come out at or under the real limit, so every colour stays
 // inside sRGB, and it changes smoothly from one hue to the next.
 const SMOOTH = 1;
+/**
+ * Reads a list as a ring: indexes beyond either end wrap round (the hue wheel is circular).
+ *
+ * @param {Array} list  the items
+ * @param {number} i  any integer index, negative or past the end
+ * @returns {*} the item at the wrapped index
+ *
+ * Side effects: none.
+ */
 const ringAt = (list, i) => list[((i % list.length) + list.length) % list.length];
+/**
+ * Smooths a ring of per-column chroma limits: a minimum filter then an average of the same width. The minimum keeps
+ * the result at or under the true limit (so still in gamut); the average removes the creases the minimum leaves.
+ *
+ * @param {number[]} limits  the true maximum chroma of each column, in order
+ * @returns {number[]} the eased limits, same length
+ *
+ * Side effects: none.
+ */
 function easedLimits(limits) {
   const low = limits.map((_, i) => Math.min(...Array.from({ length: 2 * SMOOTH + 1 }, (__, k) => ringAt(limits, i + k - SMOOTH))));
   return low.map((_, i) => Array.from({ length: 2 * SMOOTH + 1 }, (__, k) => ringAt(low, i + k - SMOOTH)).reduce((x, y) => x + y, 0) / (2 * SMOOTH + 1));
 }
+/**
+ * The OKLCH hue of a column: equal steps round the wheel from HUE_START.
+ *
+ * @param {number} col  column index from 0
+ * @returns {number} hue in degrees, 0 up to 360
+ *
+ * Side effects: none.
+ */
 const hueOf = (col) => (HUE_START + (col * 360) / COLS.length) % 360;
+// The finished palette, COLOURS[row][col] as a hex string, worked out once when the module loads.
 const COLOURS = ROWS.map((_, row) => {
   const t = row / (ROWS.length - 1);
   const L = L_DARK + (L_PALE - L_DARK) * t;
@@ -69,42 +140,106 @@ const COLOURS = ROWS.map((_, row) => {
 const NAME = /^([A-Z]{1,2})([1-9]\d?)$/;
 const COL_INDEX = new Map(COLS.map((c, i) => [c, i]));
 
-/** The column and row indexes (both from 0) of a square name, or null if it is not a square. */
+/**
+ * The column and row indexes (both from 0) of a square name, or null if it is not a square.
+ *
+ * @param {*} cell  a square name such as 'M9' (any other type gives null)
+ * @returns {{col: number, row: number}|null} the indexes, or null
+ *
+ * Side effects: none.
+ */
 export function parseCell(cell) {
   const m = typeof cell === 'string' ? NAME.exec(cell) : null;
   if (!m || !COL_INDEX.has(m[1]) || Number(m[2]) > ROWS.length) return null;
   return { col: COL_INDEX.get(m[1]), row: Number(m[2]) - 1 };
 }
 
+/**
+ * The name of the square at a column and row.
+ *
+ * @param {number} col  column index from 0
+ * @param {number} row  row index from 0
+ * @returns {string} the name, such as 'M9'
+ *
+ * Side effects: none.
+ */
 export const cellName = (col, row) => COLS[col] + ROWS[row];
 
+/**
+ * Whether a value is the name of a square on the grid.
+ *
+ * @param {*} cell  any value
+ * @returns {boolean} true if it is a valid square name
+ *
+ * Side effects: none.
+ */
 export const isCell = (cell) => parseCell(cell) !== null;
 
+/**
+ * The colour of a square. The square must be valid (check with isCell first), or this throws.
+ *
+ * @param {string} cell  a valid square name
+ * @returns {string} an sRGB hex colour
+ *
+ * Side effects: none.
+ */
 export function cellColour(cell) {
   const { col, row } = parseCell(cell);
   return COLOURS[row][col];
 }
 
-/** Within one square of the target, diagonals included. The hue does not wrap round from the last column to the first. */
+/**
+ * Within one square of the target, diagonals included. The hue does not wrap round from the last column to the first.
+ *
+ * @param {string} cell  the guessed square
+ * @param {string} target  the secret square
+ * @returns {boolean} true if both are valid and no more than one column and one row apart
+ *
+ * Side effects: none.
+ */
 export function isClose(cell, target) {
   const a = parseCell(cell);
   const b = parseCell(target);
   return Boolean(a && b) && Math.abs(a.col - b.col) <= 1 && Math.abs(a.row - b.row) <= 1;
 }
 
-/** The name, in the 48 x 24 grid, of a square from the old 24 x 10 grid ("M4": columns A to X, rows 0 to 9), or null. */
+/**
+ * The name, in the 48 x 24 grid, of a square from the old 24 x 10 grid ("M4": columns A to X, rows 0 to 9), or null.
+ * Used to migrate saved data from before the grid grew: columns double, rows double and move down 4.
+ *
+ * @param {string} cell  an old-grid square name
+ * @returns {string|null} the equivalent name, or null if it is not an old-grid square
+ *
+ * Side effects: none.
+ */
 export function fromOldCell(cell) {
   const m = typeof cell === 'string' ? /^([A-X])([0-9])$/.exec(cell) : null;
   return m ? cellName(2 * (m[1].charCodeAt(0) - 65), 2 * Number(m[2]) + 4) : null;
 }
 
-/** The name, in the 48 x 24 grid, of a square from the 48 x 20 grid before the new rows (version 2: shifted by 4 rows) or the one with a top row (version 3: by 3). */
+/**
+ * The name, in the 48 x 24 grid, of a square from the 48 x 20 grid before the new rows (version 2: shifted by 4 rows) or the one with a top row (version 3: by 3).
+ *
+ * @param {string} cell  an earlier-grid square name
+ * @param {number} shift  how many rows to move down (4 for version 2, 3 for version 3)
+ * @returns {string|null} the equivalent name, or null if it is invalid or would fall off the bottom
+ *
+ * Side effects: none.
+ */
 export function fromEarlierCell(cell, shift) {
   const p = parseCell(cell);
   return p && p.row + shift < ROWS.length ? cellName(p.col, p.row + shift) : null;
 }
 
-/** The name in this grid of a square from the 48 x 24 grid (version 4): the same hue and level, to the nearest square. */
+/**
+ * The name in this grid of a square from the 48 x 24 grid (version 4): the same hue and level, to the nearest square.
+ * The first row maps to the first row; the rest are rescaled to the new row count.
+ *
+ * @param {string} cell  a version 4 square name
+ * @returns {string|null} the equivalent name, or null if it is not a valid square
+ *
+ * Side effects: none.
+ */
 export function fromV4Cell(cell) {
   const p = parseCell(cell);
   if (!p) return null;
@@ -134,39 +269,89 @@ const DESCRIPTIONS = [
   ['black cherry', 'raisin', 'pomegranate', 'hot lipstick', 'flamingo', 'ballet shoes'],
 ];
 
-/** The block (column group, row group, both from 0) that a square is in. */
+/**
+ * The block (column group, row group, both from 0) that a square is in.
+ *
+ * @param {string} cell  a square name
+ * @returns {{col: number, row: number}|null} the block indexes, or null if not a square
+ *
+ * Side effects: none.
+ */
 export function groupOf(cell) {
   const p = parseCell(cell);
   return p && { col: Math.floor(p.col / GROUP_SIZE), row: Math.floor(p.row / GROUP_SIZE) };
 }
 
-/** The description of a block, an object of a similar colour, e.g. "fir tree". Every block has a different one. */
+/**
+ * The description of a block, an object of a similar colour, e.g. "fir tree". Every block has a different one.
+ *
+ * @param {{col: number, row: number}} block  block indexes from 0
+ * @returns {string} the description
+ *
+ * Side effects: none.
+ */
 export const describeGroup = ({ col, row }) => DESCRIPTIONS[col][row];
 
-/** The description of the block that holds a square, or null if it is not a square. */
+/**
+ * The description of the block that holds a square, or null if it is not a square.
+ *
+ * @param {string} cell  a square name
+ * @returns {string|null} the description, or null
+ *
+ * Side effects: none.
+ */
 export const describeCell = (cell) => (parseCell(cell) ? describeGroup(groupOf(cell)) : null);
 
-/** The 16 squares of a block. */
+/**
+ * The 16 squares of a block.
+ *
+ * @param {{col: number, row: number}} block  block indexes from 0
+ * @returns {string[]} the square names, column by column
+ *
+ * Side effects: none.
+ */
 export function groupCells({ col, row }) {
   const out = [];
   for (let c = col * GROUP_SIZE; c < (col + 1) * GROUP_SIZE; c++) for (let r = row * GROUP_SIZE; r < (row + 1) * GROUP_SIZE; r++) out.push(cellName(c, r));
   return out;
 }
 
-/** The 16 squares described by a hint (any case, spare spaces ignored), or null if the text is not one of the descriptions. */
+/**
+ * The 16 squares described by a hint (any case, spare spaces ignored), or null if the text is not one of the descriptions.
+ *
+ * @param {*} text  the hint text (null or undefined count as empty)
+ * @returns {string[]|null} the block's squares, or null if the text matches no description
+ *
+ * Side effects: none.
+ */
 export function cellsDescribedBy(text) {
   const wanted = String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   for (let col = 0; col < DESCRIPTIONS.length; col++) for (let row = 0; row < DESCRIPTIONS[col].length; row++) if (describeGroup({ col, row }) === wanted) return groupCells({ col, row });
   return null;
 }
 
-/** A square's number, from 0, running down each column in turn: stable, so it can be remembered (see the collecting achievements). */
+/**
+ * A square's number, from 0, running down each column in turn: stable, so it can be remembered (see the collecting achievements).
+ *
+ * @param {string} cell  a square name
+ * @returns {number} the number, or -1 if it is not a square
+ *
+ * Side effects: none.
+ */
 export function cellNumber(cell) {
   const p = parseCell(cell);
   return p ? p.col * ROWS.length + p.row : -1;
 }
 
-/** How far apart two squares are, counting columns plus rows (straight lines, not diagonals). */
+/**
+ * How far apart two squares are, counting columns plus rows (straight lines, not diagonals).
+ *
+ * @param {string} cell  one square name
+ * @param {string} target  the other square name
+ * @returns {number} the taxicab distance, or 0 if either is not a square
+ *
+ * Side effects: none.
+ */
 export function distance(cell, target) {
   const a = parseCell(cell);
   const b = parseCell(target);

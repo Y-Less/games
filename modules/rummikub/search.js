@@ -5,8 +5,12 @@
 // value of a finished table is the points of rack tiles it uses (a joker is worth 30) unless the caller supplies its
 // own `weights`, with memoising of states already seen and a cap on the number of states (a deterministic node count,
 // never the clock), so a turn is always quick and always repeatable.
+//
+// Depends on ./rules.js only (set validation, joker rules and checkPlay). The AIs in ai/ choose how to call these
+// functions (which weights, which joker value, how many table tiles may move); nothing here touches the room.
 import { JOKER_VALUE, checkPlay, fitsJoker, isJoker, jokerOptions, rackValue, resolveSet, tileOf } from './rules.js';
 
+// The default cap on states visited by one solve(): large enough to find good tables, small enough that a turn stays quick.
 export const SEARCH_BUDGET = 6000;
 
 /**
@@ -14,6 +18,21 @@ export const SEARCH_BUDGET = 6000;
  * must be used and copies that may be. `jn` / `jo` the same for jokers. mode 'rack' values the rack tiles used (jokers 30),
  * mode 'rep' values the numbers the tiles stand for (the first-meld rule). Returns { value, sets } where each set is a
  * list of parts ({ k } a tile of that kind, { j } a joker standing for that number), or null when nothing fits.
+ *
+ * @param {object} s  the room's settings
+ * @param {object} args
+ * @param {Int8Array} args.need  per kind, copies that must be used (table tiles); lent to the search and restored
+ * @param {Int8Array} args.opt  per kind, copies that may be used (rack tiles); lent to the search and restored
+ * @param {number} args.jn  jokers that must be used (on the table)
+ * @param {number} args.jo  jokers that may be used (in the rack)
+ * @param {'rack' | 'rep'} args.mode  what to maximise (see above)
+ * @param {number} [args.budget]  the most search states to visit before giving up on the rest
+ * @param {Int32Array | null} [args.weights]  per-kind value of playing a rack tile, instead of its number (an AI's own taste)
+ * @param {number} [args.jokerWeight]  the value of playing a rack joker (30 by default; negative means "hold it back")
+ * @param {object | null} [args.stats]  if given, its `nodes` count is increased by the states visited, so callers can share a budget
+ * @returns {{ value: number, sets: object[][], aborted: boolean } | null} the best table found (aborted: the budget ran out, so it
+ *   may not be the best possible), or null when no arrangement uses every table tile
+ * Side effects: temporarily changes need, opt (restored before returning); adds to args.stats.nodes if given.
  */
 export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weights = null, jokerWeight = JOKER_VALUE, stats = null }) {
   const N = s.numbers;
@@ -22,7 +41,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
   let nodes = 0;
   let aborted = false;
   const memo = new Map();
-  /** How many copies of a kind are left to use, whether they must be used (on the table) or may be (in the rack). */
+  // How many copies of a kind are left to use, whether they must be used (on the table) or may be (in the rack).
   const avail = (k) => need[k] + opt[k];
 
   /**
@@ -171,6 +190,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
  * @param {number[]} rackIds  tiles that may be played
  * @returns {{ need: Int8Array, opt: Int8Array, jn: number, jo: number, ids: object[], jokers: object }} the counts for solve()
  *   and the ids to turn its answer back into tiles
+ * Side effects: none.
  */
 export function inventory(s, tableIds, rackIds) {
   const K = s.numbers * s.colours;
@@ -178,6 +198,7 @@ export function inventory(s, tableIds, rackIds) {
   const opt = new Int8Array(K);
   const ids = Array.from({ length: K }, () => ({ table: [], rack: [] }));
   const jokers = { table: [], rack: [] };
+  // Files each id of `list` under the table or rack side of its kind (or the jokers), and counts it in need or opt.
   const add = (list, where) => {
     for (const id of list) {
       if (isJoker(s, id)) jokers[where].push(id);
@@ -200,13 +221,13 @@ export function inventory(s, tableIds, rackIds) {
  * @param {object} inv  what inventory() returned
  * @param {object[][]} sets  the sets solve() found
  * @returns {number[][]} the same sets as tile ids
+ * Side effects: none.
  */
 export function realise(inv, sets) {
   const queues = inv.ids.map((q) => [...q.table, ...q.rack]);
   const jokerQueue = [...inv.jokers.table, ...inv.jokers.rack];
   return sets.map((parts) => parts.map((part) => (part.j === undefined ? queues[part.k].shift() : jokerQueue.shift())));
 }
-
 
 /**
  * The first attempt (best first) that the server's own check accepts, as { table, added, value }, or null.
@@ -215,7 +236,9 @@ export function realise(inv, sets) {
  * @param {number} seat  whose rack the attempts play from
  * @param {{ value: number, table: number[][] }[]} attempts  candidate tables
  * @param {number} [limit]  how many of the best attempts to check
- * @returns {{ table: number[][], added: number, value: number } | null}
+ * @returns {{ table: number[][], added: number, value: number } | null} the play (added = rack tiles it uses), or null when none of
+ *   the best `limit` passes the check (the search can propose layouts the rules refuse, e.g. a joker moved without a swap)
+ * Side effects: none.
  */
 export function firstLegal(room, seat, attempts, limit = 6) {
   const s = room.settings;
@@ -235,7 +258,9 @@ export function firstLegal(room, seat, attempts, limit = 6) {
  * @param {object} room  not changed
  * @param {number} seat  whose rack to use
  * @param {object} [options]  budget, rackIds (default the whole rack), weights and jokerWeight for solve()
- * @returns {{ value: number, table: number[][] }[]} zero or one attempts
+ * @returns {{ value: number, table: number[][] }[]} zero or one attempts (mode 'rep' counts the numbers the tiles stand for,
+ *   because that is how the first-meld threshold is scored)
+ * Side effects: none.
  */
 export function meldAttempts(room, seat, { budget = SEARCH_BUDGET, rackIds = room.racks[seat], weights = null, jokerWeight } = {}) {
   const s = room.settings;
@@ -253,6 +278,7 @@ export function meldAttempts(room, seat, { budget = SEARCH_BUDGET, rackIds = roo
  * @param {number} seat  whose rack to use
  * @param {object} [options]  budget, weights and jokerWeight for solve()
  * @returns {{ value: number, table: number[][] }[]} candidate tables, in no particular order
+ * Side effects: none.
  */
 export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights = null, jokerWeight } = {}) {
   const s = room.settings;
@@ -289,6 +315,7 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
  * @param {number} seat  whose rack to play from
  * @param {object} [options]  passed to standardAttempts (budget, weights, jokerWeight)
  * @returns {{ table: number[][], added: number, value: number } | null} the play, or null when there is none
+ * Side effects: none.
  */
 export function standardPlay(room, seat, options = {}) {
   return firstLegal(room, seat, standardAttempts(room, seat, options), 3);
@@ -302,9 +329,21 @@ export function standardPlay(room, seat, options = {}) {
 // `tableTiles` tiles, cheapest choices first. The order of the choices does not depend on the limit, so a bigger limit
 // only ever looks at more choices (after the same ones a smaller limit looked at), and so can never do worse.
 
+// Work caps for shuffleAttempts: nodes per solve, nodes over the whole turn, and table-tile choices tried. Fixed numbers (not
+// time) so a turn is repeatable; they are what keep the biggest table-tile limits affordable.
 export const SHUFFLE_LIMITS = { solveNodes: 800, totalNodes: 20000, combos: 120 };
 
-/** Possible ways to free tiles from one set: { cost, freed, kept } (kept: the pieces that stay together). */
+/**
+ * Possible ways to free tiles from one set: keep it whole, free all of it, or (for a run of 4+ or a group of 4) free one or
+ * two end/middle tiles so the leftovers are still legal sets. A set holding a joker is only freed if the rack could swap the
+ * joker out, since a table joker cannot just be moved.
+ *
+ * @param {object} s  the room's settings
+ * @param {number[]} ids  the set
+ * @param {number[]} [rack]  the rack, to see whether a joker in the set could be swapped
+ * @returns {{ cost: number, freed: number[], kept: number[][] }[]} cost = table tiles moved; kept = pieces that stay together
+ * Side effects: none.
+ */
 function setOptions(s, ids, rack = []) {
   const L = ids.length;
   const resolved = resolveSet(s, ids);
@@ -348,14 +387,25 @@ function setOptions(s, ids, rack = []) {
  *
  * @param {object} a  a tile as returned by tileOf
  * @param {object} b  another tile
- * @returns {boolean}
+ * @returns {boolean} whether they could share a set
+ * Side effects: none.
  */
 const touches = (a, b) => {
   if (a.joker || b.joker) return true;
   return a.number === b.number || (a.colour === b.colour && Math.abs(a.number - b.number) <= 2);
 };
 
-/** Adds rack tiles that fit to locked pieces, greedily. Returns { pieces, left }. */
+/**
+ * Adds rack tiles that fit to locked pieces, greedily (high tiles first, jokers last, so jokers are spent only when nothing
+ * else fits).
+ *
+ * @param {object} s  the room's settings
+ * @param {number[][]} pieces  the sets that stay put
+ * @param {number[]} rackIds  rack tiles that may be added
+ * @param {boolean} withJokers  whether rack jokers may be added too
+ * @returns {{ pieces: number[][], left: number[] }} the extended copies of the pieces and the rack tiles not used
+ * Side effects: none (the inputs are copied).
+ */
 function extendPieces(s, pieces, rackIds, withJokers) {
   const pool = [...rackIds].sort((x, y) => Number(isJoker(s, x)) - Number(isJoker(s, y)) || tileOf(s, y).number - tileOf(s, x).number);
   const out = pieces.map((p) => [...p]);
@@ -380,6 +430,19 @@ function extendPieces(s, pieces, rackIds, withJokers) {
 /**
  * Every attempt for a computer that may move at most `tableTiles` table tiles in a turn: [{ value, table, moved }].
  * Deterministic: node counts (never the clock) bound the work.
+ *
+ * @param {object} room  not changed
+ * @param {number} seat  whose rack to play from
+ * @param {object} [options]
+ * @param {number} [options.tableTiles]  the most table tiles that may be moved
+ * @param {number} [options.solveNodes]  override of SHUFFLE_LIMITS.solveNodes
+ * @param {number} [options.totalNodes]  override of SHUFFLE_LIMITS.totalNodes
+ * @param {number} [options.combos]  override of SHUFFLE_LIMITS.combos
+ * @param {Int32Array | null} [options.weights]  per-kind value of playing a rack tile (default: its number)
+ * @param {number} [options.jokerWeight]  the value of playing a rack joker
+ * @param {boolean} [options.extendJokers]  whether jokers may be added to locked sets (false when jokers are being held back)
+ * @returns {{ value: number, table: number[][], moved: number }[]} candidate tables with how many table tiles each moves
+ * Side effects: none.
  */
 export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalNodes, combos, weights = null, jokerWeight = JOKER_VALUE, extendJokers = true } = {}) {
   const limits = { ...SHUFFLE_LIMITS };
@@ -415,7 +478,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   const stats = { nodes: 0 };
   const attempts = [];
   let evaluated = 0;
-  /** Has the search used up its budget of combinations or solver nodes? */
+  // Has the search used up its budget of combinations or solver nodes?
   const done = () => evaluated >= limits.combos || stats.nodes >= limits.totalNodes;
 
   /**
@@ -429,7 +492,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
     if (!weights) return rackValue(s, played);
     return played.reduce((sum, id) => sum + (isJoker(s, id) ? jokerWeight : weights[kindOf(id)]), 0);
   };
-  /** The kind (colour * numbers + number - 1) of a numbered tile id. */
+  // The kind (colour * numbers + number - 1) of a numbered tile id.
   const kindOf = (id) => {
     const t = tileOf(s, id);
     return t.colour * s.numbers + t.number - 1;
@@ -524,6 +587,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
  * @param {number} seat  whose rack to play from
  * @param {object} [options]  passed to shuffleAttempts (tableTiles, node limits, weights...)
  * @returns {{ table: number[][], added: number, value: number } | null} the play, or null when there is none
+ * Side effects: none.
  */
 export function shufflePlay(room, seat, options) {
   return firstLegal(room, seat, shuffleAttempts(room, seat, options));

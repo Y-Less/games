@@ -1,8 +1,16 @@
 // The weakest computer player: it picks one legal move at random (a random new set or a random tile added to a set on the
 // table), and draws when it has none. Before its first meld it plays random sets until they are worth enough.
+// Depends on ../rules.js (resolveSet to validate a set, checkPlay as the final judge). It never rearranges the table,
+// which is what keeps it weak: it only ever appends a set or a single tile.
 import { checkPlay, resolveSet } from '../rules.js';
 
-/** A small seeded generator for when the caller gives none (mulberry32), so a game is still repeatable. */
+/**
+ * A small seeded generator for when the caller gives none (mulberry32), so a game is still repeatable.
+ *
+ * @param {number} seed  any number; only its low 32 bits are used
+ * @returns {() => number} a function giving a number in [0, 1) each call
+ * Side effects: none (the returned closure keeps its own private state).
+ */
 function fallbackRng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -14,8 +22,22 @@ function fallbackRng(seed) {
   };
 }
 
+// One element of a non-empty list chosen uniformly with the given generator.
 const pick = (list, rng) => list[Math.floor(rng() * list.length)];
 
+/**
+ * Chooses a random legal play for a seat: before its first meld, random disjoint new sets worth at least the meld
+ * threshold; afterwards one random move (a new set of three, or one rack tile added to a table set).
+ *
+ * @param {object} room  the room; not changed
+ * @param {number} seat  the seat to play for
+ * @param {object} [options]
+ * @param {() => number} [options.rng]  random numbers in [0, 1); a seeded fallback derived from the move count is used if
+ *   missing, so tests stay repeatable
+ * @returns {{ table: number[][], added: number, value: number } | null} the whole proposed table and how many rack tiles it
+ *   uses (value is always 0: this AI does not score plays), or null to draw
+ * Side effects: none.
+ */
 function plan(room, seat, { rng } = {}) {
   const random = rng ?? fallbackRng((room.moves ?? 0) * 31 + seat * 7 + 1);
   const s = room.settings;
@@ -58,6 +80,7 @@ function plan(room, seat, { rng } = {}) {
     if (moves.length) proposed = pick(moves, random);
   }
   if (!proposed) return null;
+  // Belt and braces: the rules' own check has the last word, so a bug above can only cost this AI a turn, never the game.
   const checked = checkPlay(s, { before: table, rack, proposed, melded, meld: s.meld });
   return checked.ok ? { table: proposed, added: checked.added.length, value: 0 } : null;
 }

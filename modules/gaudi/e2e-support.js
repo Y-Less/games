@@ -1,13 +1,30 @@
 // Helpers for the Gaudi tests that run against the real site (not part of the game).
+// Depends on rules.js (legal placements), shared/testkit.js (sleep) and the test "people" (socket clients with .state and .call).
 import assert from 'node:assert/strict';
 import { legalCells, patternOf } from './rules.js';
 import { sleep } from '../../shared/testkit.js';
 
+/**
+ * Makes the server's computer players act quickly, for tests.
+ *
+ * @param {string} [range]  "min-max" milliseconds for GAUDI_BOT_DELAY
+ * @returns {void}
+ *
+ * Side effects: sets process.env.GAUDI_BOT_DELAY (read when the server starts).
+ */
 export const fast = (range = '0-3') => {
   process.env.GAUDI_BOT_DELAY = range;
 };
 
-/** Does whatever this person has to do right now, the simplest legal way. Returns true if it acted. */
+/**
+ * Does whatever this person has to do right now, the simplest legal way: the hardest window, the first legal placement
+ * of any pool die, otherwise end the turn. It never uses a tool.
+ *
+ * @param {{ state: object | null, call: (event: string, payload?: object) => Promise<{ ok: boolean, error?: string }> }} person  a test client
+ * @returns {Promise<boolean>} true if it acted, false when it was not this person's move
+ *
+ * Side effects: sends socket events through person.call; asserts that each is accepted.
+ */
 export async function step(person) {
   const s = person.state;
   if (!s) return false;
@@ -36,7 +53,15 @@ export async function step(person) {
   return true;
 }
 
-/** Plays every person's turns until all of them see the finished game. */
+/**
+ * Plays every person's turns until all of them see the finished game.
+ *
+ * @param {object[]} people  test clients, as for step()
+ * @param {{ timeout?: number }} [options]  milliseconds to wait before failing the test
+ * @returns {Promise<void>}
+ *
+ * Side effects: sends socket events through step(); sleeps briefly when nobody could act; fails the test on timeout.
+ */
 export async function playToEnd(people, { timeout = 90000 } = {}) {
   const started = Date.now();
   while (!people.every((p) => p.state?.phase === 'finished')) {
@@ -47,7 +72,14 @@ export async function playToEnd(people, { timeout = 90000 } = {}) {
   }
 }
 
-/** The scoring shown in a finished view, recomputed from the public windows: it must agree. */
+/**
+ * The scoring shown in a finished view, recomputed from the public windows: it must agree.
+ *
+ * @param {object} state  a finished view as sent to a client
+ * @returns {void}
+ *
+ * Side effects: none apart from assertions, which throw on a mismatch.
+ */
 export function checkFinal(state) {
   assert.equal(state.phase, 'finished');
   const final = state.final.players;
@@ -71,6 +103,15 @@ export function checkFinal(state) {
   }
 }
 
+/**
+ * The per-game extra statistics of one game, as a { key: value } object.
+ *
+ * @param {{ perGame: { name: string, extras: { key: string, value: * }[] }[] }} stats  a stats response
+ * @param {string} [name]  the game's name in the stats
+ * @returns {object} the extras keyed by their key
+ *
+ * Side effects: none.
+ */
 export const extrasOf = (stats, name = 'Gaudi') => {
   const game = stats.perGame.find((g) => g.name === name);
   return Object.fromEntries(game.extras.map((e) => [e.key, e.value]));

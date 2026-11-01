@@ -1,4 +1,5 @@
 // Helpers shared by the Azulejo tests (not used by the game itself).
+// Depends on: ./game.js and ./bot.js (the things under test), ./rules.js (constants) and shared/testkit.js (seeded rng).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { chooseColumnFor, chooseMove } from './bot.js';
@@ -7,7 +8,15 @@ import { seeded } from '../../shared/testkit.js';
 
 export { seeded };
 
-/** A started game of n people (ids 1..n, host 1). */
+/**
+ * A started game of n people (ids 1..n, host 1).
+ *
+ * @param {number} n  the number of seats, 2..5
+ * @param {{ seed?: number, free?: boolean }} options  the rng seed and whether the wall is free
+ * @returns {{ room: object, rng: () => number }} the room in the playing phase, and the seeded rng it was dealt with
+ *
+ * Side effects: builds a new room (nothing shared); throws if the game does not start.
+ */
 export function playingRoom(n, { seed = 1, free = false } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings: { freeWall: free } });
@@ -17,14 +26,33 @@ export function playingRoom(n, { seed = 1, free = false } = {}) {
 }
 
 /**
- * Hand-built positions: puts a table in place (nothing is checked for conservation). Anything left out is emptied.
- * `walls[seat]` is five strings of five characters: '.' empty, 'X' the tile that belongs there in the fixed wall, or a
- * digit 0-4 for an explicit colour (free walls).
+ * Hand-built position: puts a wall in place (nothing is checked for legality). `rows` is five strings of five characters:
+ * '.' empty, 'X' the tile that belongs there in the fixed wall, or a digit 0-4 for an explicit colour (free walls).
+ *
+ * @param {object} room  the room
+ * @param {number} seat  whose wall
+ * @param {string[]} rows  five strings of five characters
+ *
+ * Side effects: mutates `room.walls[seat]`.
  */
 export function setWall(room, seat, rows) {
   room.walls[seat] = rows.map((text, r) => [...text].map((ch, c) => (ch === '.' ? null : ch === 'X' ? wallColour(r, c) : Number(ch))));
 }
 
+/**
+ * Hand-built positions: puts a table in place (nothing is checked for conservation). Anything left out is emptied.
+ *
+ * @param {object} room  the room
+ * @param {object} table  what to put on the table
+ * @param {number[][]} table.factories  the tiles on each factory (default: empty)
+ * @param {number[]} table.centre  the centre tiles
+ * @param {boolean} table.marker  whether the first-player marker is in the centre
+ * @param {number} table.turn  whose turn it is
+ * @param {number[] | null} table.bag  a bag to put back (null leaves it)
+ * @param {number[] | null} table.lid  a lid to put back (null leaves it)
+ *
+ * Side effects: mutates `room` (factories, centre, marker, turn, phase, and the bag and lid when given).
+ */
 export function setTable(room, { factories = [], centre = [], marker = true, turn = 0, bag = null, lid = null } = {}) {
   room.factories = Array.from({ length: game.factoryCount(room.size) }, (_, i) => factories[i] ?? []);
   room.centre = centre;
@@ -35,7 +63,15 @@ export function setTable(room, { factories = [], centre = [], marker = true, tur
   if (lid) room.lid = lid;
 }
 
-/** Everything that must hold after every single action. */
+/**
+ * Everything that must hold after every single action: 100 tiles conserved (20 per colour), legal lines, walls and floors,
+ * at most one marker, scores that equal the history, and a complete row when the game has finished.
+ *
+ * @param {object} room  the room to check
+ * @param {string} label  text for the failure message (default empty)
+ *
+ * Side effects: none; throws an assertion error on a violation.
+ */
 export function assertInvariants(room, label = '') {
   const where = `${label} (round ${room.round}, ${room.phase})`;
   if (!['playing', 'tiling', 'finished'].includes(room.phase)) return;
@@ -91,7 +127,15 @@ export function assertInvariants(room, label = '') {
   if (room.phase === 'tiling') assert.ok(room.pending.some(Boolean), `${where}: tiling only waits for a choice`);
 }
 
-/** One computer-style decision for whoever has to act, whatever kind of seat it is. Returns false when the game is over. */
+/**
+ * One computer-style decision for whoever has to act, whatever kind of seat it is.
+ *
+ * @param {object} room  the room
+ * @param {() => number} rng  random numbers in [0, 1)
+ * @returns {{ type: string, seat: number } | false} what was done, or false when the game is not in a phase that waits for a move or a column
+ *
+ * Side effects: mutates `room` through game.takeTiles / game.chooseColumn; throws if the AI made an illegal move.
+ */
 export function driveStep(room, rng) {
   if (room.phase === 'tiling') {
     const seat = room.pending.findIndex(Boolean);
@@ -108,7 +152,15 @@ export function driveStep(room, rng) {
   return { type: 'move', seat, ...move };
 }
 
-/** Anything in a view that would reveal the bag: its key, its contents or its order. */
+/**
+ * Anything in a view that would reveal the bag: its key, its contents or its order.
+ *
+ * @param {object} room  the room the view was made from
+ * @param {object} view  the view to inspect
+ * @returns {string[]} a description of each leak found (empty when it is clean)
+ *
+ * Side effects: none.
+ */
 export function viewLeaks(room, view) {
   const text = JSON.stringify(view);
   const problems = [];
@@ -122,4 +174,5 @@ export function viewLeaks(room, view) {
   return problems;
 }
 
+// Re-exported so tests can use the same column check as the rules.
 export { colHas };

@@ -1,16 +1,22 @@
 // "Rusher": goes for prestige as fast as it can. It buys any card that is worth points as soon as it can afford it,
 // collects gems for the card with the best points-per-turn, and reserves a card to stop an opponent taking the points.
+//
+// Depends on: ../cards.js (card data) and ./lib.js (situation helpers).
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, me, opponents, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 
 /**
  * Ranks the cards by points per turn still needed and works out which gems to collect.
  *
+ * Side effects: none.
+ *
  * @param {object} s  the situation
  * @returns {{ ranked: object[], wants: number[] }} the targets best first and the gems wanted per colour
  */
 function plan(s) {
   const ranked = targetsOf(s)
+    // Points per turn: the card's points (plus 0.2 so a zero-point card still has some aim) over the turns still needed. The
+    // exponent 1.2 is gentler than the standard player's 1.3, so a big card that is a little further off still wins.
     .map((t) => ({ ...t, aim: (t.card.points + 0.2) / (t.short + 1) ** 1.2 }))
     .sort((a, b) => b.aim - a.aim);
   const wants = [0, 0, 0, 0, 0];
@@ -20,6 +26,8 @@ function plan(s) {
 
 /**
  * How much it would hurt to let an opponent have this card: its points, and more still if it would put them on the target.
+ *
+ * Side effects: none.
  *
  * @param {object} s     the situation
  * @param {object} card  a card object
@@ -36,6 +44,8 @@ function denial(s, card) {
 
 /**
  * Buys any card worth points at once and reserves cards to deny opponents.
+ *
+ * Side effects: advances `rng` (one draw per move scored); changes nothing else.
  *
  * @param {object} s  the situation (see lib.js)
  * @param {() => number} rng  random numbers in [0, 1)
@@ -79,6 +89,8 @@ export default {
   /**
    * Which tokens to give back: keeps what the two best targets need.
    *
+   * Side effects: none.
+   *
    * @param {object} s  the situation (uses returnCount)
    * @returns {number[]} six counts summing to s.returnCount
    */
@@ -87,6 +99,8 @@ export default {
   },
   /**
    * Which noble to take when several visit at once: simply the first offered.
+   *
+   * Side effects: none.
    *
    * @param {object} s  the situation (uses options)
    * @returns {string} a noble id from s.options

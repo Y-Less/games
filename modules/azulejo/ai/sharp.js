@@ -10,9 +10,14 @@
 // It also decides when the game should end. A row completed this round ends the game, so if finishing one leaves it
 // ahead after the bonuses it goes for it; if it would be behind it declines and builds columns and sets instead, which
 // is why games between sharp players are not all five rounds long.
+// Depends on: ../rules.js (scoring, bonuses, floor, wall helpers) and ./common.js (copyWall, take previews, column choosing).
 import { COLOURS, COLUMN_BONUS, FLOOR_SLOTS, ROW_BONUS, SET_BONUS, SIZE, bonuses, columnsFor, countOf, floorPenalty, lineCapacity, rowComplete, tileScore } from '../rules.js';
 import { bestColumnBy, chooseColumnBy, copyWall, takeOf, tilesLeft } from './common.js';
 
+// Tuning constants. LONG_GAME discounts bonuses that are not yet earned, because the game may end before they are;
+// MARGIN_PAYS is the reward per point of lead when ending the game (capped in evaluate); CANDIDATES and PLAYOUTS bound
+// the search so a move takes milliseconds; RIVAL_SHARE stops it from ignoring what a move gives the opponents,
+// while still caring more about its own board.
 const LONG_GAME = 0.55; // how much of an unfinished bonus is worth counting while the game may still go on
 const MARGIN_PAYS = 0.35;
 const CANDIDATES = 6; // moves played out to the end of the round
@@ -27,6 +32,8 @@ const RIVAL_SHARE = 0.5; // how much an opponent's gain counts against us
  * @param {{ colour: number | null, count: number }[]} lines  the pattern lines to tile
  * @param {boolean} free  true on a free wall
  * @returns {{ wall: (number | null)[][], gain: number }} the projected wall and the points the tiling would score
+ *
+ * Side effects: none (works on a copy of the wall).
  */
 function project(wall, lines, free) {
   const next = copyWall(wall);
@@ -47,6 +54,8 @@ function project(wall, lines, free) {
  *
  * @param {(number | null)[][]} wall
  * @returns {number} the summed share of the row, column and colour-set bonuses still to win
+ *
+ * Side effects: none.
  */
 function potential(wall) {
   let p = 0;
@@ -65,7 +74,14 @@ function potential(wall) {
   return p;
 }
 
-/** Is any row of this wall complete (which ends the game at the end of the round)? */
+/**
+ * Is any row of this wall complete (which ends the game at the end of the round)?
+ *
+ * @param {(number | null)[][]} wall  the wall to look at
+ * @returns {boolean} true when at least one row is full
+ *
+ * Side effects: none.
+ */
 const anyRow = (wall) => wall.some((_, r) => rowComplete(wall, r));
 
 /**
@@ -76,14 +92,18 @@ const anyRow = (wall) => wall.some((_, r) => rowComplete(wall, r));
  * @param {{ lines: object[], floor: number }[]} boards  one per seat; `floor` is a slot count
  * @param {(colour: number, need: number) => number} chance  how likely a part-built line is to be finished
  * @returns {{ mine: number, others: number }} the value for `seat` and the mean value of the other seats
+ *
+ * Side effects: none (all the work is on projected copies).
  */
 function evaluate(state, seat, boards, chance) {
   const free = state.settings.freeWall;
   const projs = boards.map((b, p) => project(state.walls[p], b.lines, free));
   const penalties = boards.map((b) => floorPenalty({ length: b.floor }));
   const totals = projs.map((pr, p) => Math.max(0, state.scores[p] + pr.gain - penalties[p]));
+  // `mine`: this seat would end the game; `ends`: anybody would. Once the game is ending, unearned bonuses stop counting.
   const mine = anyRow(projs[seat].wall);
   const ends = projs.some((pr) => anyRow(pr.wall));
+  // Projected final totals (score plus every bonus), for judging whether ending the game would win it.
   const finals = projs.map((pr, p) => totals[p] + bonuses(pr.wall).points);
   const values = projs.map((pr, p) => {
     let value = pr.gain - penalties[p];
@@ -94,12 +114,15 @@ function evaluate(state, seat, boards, chance) {
         value -= 0.3 * line.count; // tiles stuck on a line that can never be finished
         return;
       }
+      // A part-built line is worth what it would score if finished, times the chance of finishing it, times how far along
+      // it is: so the discount is steeper for lines that are barely started.
       const done = bestColumnBy(pr.wall, row, line.colour, free, () => 0, (w, col) => tileScore(w, row, col)).value;
       value += done * chance(line.colour, lineCapacity(row) - line.count) * (line.count / lineCapacity(row));
     });
     value += bonuses(pr.wall).points + (ends ? 0 : LONG_GAME * potential(pr.wall));
     if (p === seat && mine) {
       // Ending the game: good only if it is won. Behind, it is better to keep it going.
+      // The margin over the best rival decides the reward (a lead of up to 10 counts) or the penalty (a deficit of up to 12).
       const margin = finals[seat] - Math.max(...finals.filter((_, q) => q !== seat));
       value += margin > 0 ? 3 + MARGIN_PAYS * Math.min(margin, 10) : -(2 + 0.5 * Math.min(-margin, 12));
     }
@@ -109,7 +132,14 @@ function evaluate(state, seat, boards, chance) {
   return { mine: values[seat], others: others.reduce((a, b) => a + b, 0) / others.length };
 }
 
-/** The boards ({ lines, floor slot count }) of every seat in a snapshot, for evaluate(). */
+/**
+ * The boards of every seat in a snapshot, in the shape evaluate() takes.
+ *
+ * @param {object} state  the AI snapshot (not changed)
+ * @returns {{ lines: object[], floor: number }[]} one per seat; `floor` is a slot count, and the lines are the snapshot's own arrays (read only)
+ *
+ * Side effects: none.
+ */
 const boardsOf = (state) => state.lines.map((lines, p) => ({ lines, floor: state.floors[p].length }));
 
 /**
@@ -117,6 +147,8 @@ const boardsOf = (state) => state.lines.map((lines, p) => ({ lines, floor: state
  *
  * @param {object} state  the AI snapshot (not changed)
  * @returns {{ factories: number[][], centre: number[], marker: boolean, boards: object[] }} the sandbox, which take() mutates
+ *
+ * Side effects: none (it builds new objects; `state` is left alone).
  */
 function sandbox(state) {
   return {
@@ -162,6 +194,8 @@ function take(box, p, move) {
  *
  * @param {object} box  from sandbox()
  * @returns {{ source: 'centre' | number, colour: number, count: number, marker: boolean }[]}
+ *
+ * Side effects: none.
  */
 function offers(box) {
   const out = [];
@@ -177,6 +211,8 @@ function offers(box) {
  *
  * @param {object} state  the AI snapshot
  * @returns {number[][][]} table[seat][row][colour]
+ *
+ * Side effects: none.
  */
 function tileTable(state) {
   const free = state.settings.freeWall;
@@ -198,11 +234,15 @@ function tileTable(state) {
  * @param {number[][][]} table  from tileTable()
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor', value: number } | null} null if nothing is on the table
+ *
+ * Side effects: none, apart from drawing from `rng`.
  */
 function quickMove(box, p, table, rng) {
   const board = box.boards[p];
   let best = null;
   for (const offer of offers(box)) {
+    // Start from "put everything on the floor", priced at 0.7 per slot still free (a milder rate than the real penalty,
+    // so a truly bad table can still be coped with), and see whether any line beats it.
     let choice = { line: 'floor', value: -0.7 * Math.min(FLOOR_SLOTS - board.floor, offer.count + (offer.marker ? 1 : 0)) };
     for (let line = 0; line < SIZE; line++) {
       const have = board.lines[line];
@@ -212,9 +252,12 @@ function quickMove(box, p, table, rng) {
       const over = offer.count - put + (offer.marker ? 1 : 0);
       const pen = Math.max(0, floorPenalty({ length: Math.min(FLOOR_SLOTS, board.floor + over) }) - floorPenalty({ length: board.floor }));
       const done = have.count + put === cap;
+      // A finished line is worth its wall score plus 0.5; otherwise a little for each tile and half-credit for progress.
+      // The marker (0.3) is a small plus: going first next round helps.
       const value = -pen + (done ? table[p][line][offer.colour] + 0.5 : 0.1 * put + 0.5 * ((have.count + put) / cap)) + (offer.marker ? 0.3 : 0);
       if (value > choice.value) choice = { line, value };
     }
+    // Noisier than the real evaluation (0.4): the stand-ins for the opponents should be sensible but not perfectly predictable.
     const value = choice.value + rng() * 0.4;
     if (!best || value > best.value) best = { source: offer.source, colour: offer.colour, line: choice.line, value };
   }
@@ -230,8 +273,11 @@ function quickMove(box, p, table, rng) {
  * @param {number[][][]} table  from tileTable()
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ mine: number, others: number }} from evaluate()
+ *
+ * Side effects: none, apart from drawing from `rng`.
  */
 function playOut(state, seat, move, table, rng) {
+  // The candidate move is played first; the other seats then follow in turn order with the quick policy until the table is empty.
   const box = sandbox(state);
   take(box, seat, move);
   let p = (seat + 1) % state.size;
@@ -255,8 +301,11 @@ function playOut(state, seat, move, table, rng) {
  * @param {object} move   the candidate move
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {number} higher is better
+ *
+ * Side effects: none, apart from drawing from `rng`.
  */
 function quickValue(state, seat, move, rng) {
+  // Build the boards as they would be after this move (without playing anyone else), then evaluate them.
   const { marker, preview } = takeOf(state, seat, move);
   const boards = boardsOf(state).map((b) => ({ lines: b.lines, floor: b.floor }));
   const lines = state.lines[seat].map((l) => ({ ...l }));
@@ -267,6 +316,7 @@ function quickValue(state, seat, move, rng) {
     const available = tilesLeft(state, colour, move.source);
     return available >= need ? 0.7 : available > 0 ? 0.4 : 0.25;
   });
+  // A little for the marker and a very little noise (0.05): this is only a ranking to choose which moves to play out.
   return mine + (marker ? 0.5 : 0) + rng() * 0.05;
 }
 
@@ -283,9 +333,12 @@ export default {
    * @param {object[]} moves  the legal moves
    * @param {() => number} rng  random numbers in [0, 1)
    * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no move
+   *
+   * Side effects: none, apart from drawing from `rng`.
    */
   chooseMove(state, seat, moves, rng) {
     if (!moves.length) return null;
+    // Cheap one-move ranking first; only the best CANDIDATES get the expensive play-outs.
     const ranked = moves.map((move) => ({ move, value: quickValue(state, seat, move, rng) })).sort((a, b) => b.value - a.value);
     const table = tileTable(state);
     let best = null;
@@ -295,6 +348,7 @@ export default {
         const { mine, others } = playOut(state, seat, move, table, rng);
         total += mine - RIVAL_SHARE * others;
       }
+      // The mean play-out value (own value minus a share of the rivals') plus a fifth of the one-move value as a tie-break.
       const score = total / PLAYOUTS + 0.2 * value;
       if (!best || score > best.score) best = { source: move.source, colour: move.colour, line: move.line, score };
     }
@@ -308,8 +362,11 @@ export default {
    * @param {{ row: number, colour: number, columns: number[] }} pending
    * @param {() => number} rng  random numbers in [0, 1)
    * @returns {number} the chosen column
+   *
+   * Side effects: none, apart from drawing from `rng`.
    */
   chooseColumn(state, seat, pending, rng) {
+    // The tile score, plus the change in unearned-bonus potential: a column that builds towards a row, column or set wins.
     return chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col) + LONG_GAME * (potential(wall) - potential(state.walls[seat])));
   },
 };

@@ -1,4 +1,6 @@
 // Helpers shared by the Splendour tests (not part of the game): building rooms and checking invariants.
+//
+// Depends on: node:assert, ./game.js (the rules), ./cards.js (card data) and ./rules.js (the shared limits).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { CARDS, CARD_BY_ID } from './cards.js';
@@ -9,6 +11,8 @@ export const ID = /\bc\d\d\b/g;
 /**
  * A started room with seat 0 held by human 1 ("ann") and computer players elsewhere; seat order is not shuffled (the
  * default rng always returns 0.5, which keeps the order).
+ *
+ * Side effects: creates a new room (nothing shared); the rng is advanced by the shuffle; asserts that the game started.
  *
  * @param {number} seats  2, 3 or 4
  * @param {() => number} rng
@@ -26,6 +30,8 @@ export function started(seats = 4, rng = () => 0.5, { target = 15 } = {}) {
 /**
  * A room where every seat is a computer player.
  *
+ * Side effects: as for started(), then replaces every seat with a computer player and clears the host.
+ *
  * @param {number} seats
  * @param {() => number} rng
  * @param {object} options  as for started()
@@ -38,12 +44,21 @@ export function botsOnly(seats = 4, rng, options) {
   return room;
 }
 
-/** Adds up a list of numbers. */
+/**
+ * Adds up a list of numbers.
+ *
+ * Side effects: none.
+ *
+ * @param {number[]} list
+ * @returns {number}
+ */
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 
 /**
  * Everything that must hold after every action: tokens, cards and nobles conserved, prestige and history consistent,
  * limits respected. Throws an assertion error naming the first thing that does not hold.
+ *
+ * Side effects: none, except that it throws an assertion error when a check fails.
  *
  * @param {object} room
  * @param {string} label  shown in the message to say where the check was made
@@ -103,6 +118,8 @@ export function checkInvariants(room, label = '') {
 /**
  * The cards a viewer is allowed to know about: the table, their own reserve, others' face-up reserves and the log.
  *
+ * Side effects: none.
+ *
  * @param {object} room
  * @param {number} seat  the viewer's seat
  * @returns {Set<string>} card ids
@@ -117,6 +134,8 @@ export function visibleIds(room, seat) {
 
 /**
  * A view must name no card its viewer may not see (no deck order, no one else's blind reserve). Throws if it does.
+ *
+ * Side effects: none, except that it throws an assertion error when a check fails.
  *
  * @param {object} room
  * @param {number} userId  the viewer's account id

@@ -14,12 +14,16 @@
 //                  the card with the most points for the gems it is short of.
 //
 // "Buying points" is the same for both: the card with the most prestige, cheapest to reach, as soon as it can be paid for.
+//
+// Depends on: ../cards.js (card data), ../rules.js (token limits) and ../ai/lib.js (the situation helpers shared with the AIs).
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, MAX_TOKENS, SUPPLY_PER_COLOUR } from '../rules.js';
 import { boardCards, me, nobleList, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from '../ai/lib.js';
 
 /**
  * How much each colour is wanted by the expensive cards on the table and the nobles in play: the colours worth discounting.
+ *
+ * Side effects: none.
  *
  * @param {object} s  the situation (see ai/lib.js)
  * @returns {number[]} five weights, the largest scaled to 1
@@ -39,6 +43,8 @@ function colourWorth(s) {
  * Whether a player could ever pay for this card: it fits in the token limit, and the table has that many of each colour
  * (plus Gold).
  *
+ * Side effects: none.
+ *
  * @param {object} s  the situation
  * @param {{ need: number[] }} t  a target from targetsOf
  * @returns {boolean}
@@ -47,6 +53,8 @@ const reachable = (s, t) => sum(t.need) <= MAX_TOKENS && t.need.every((n) => n <
 
 /**
  * Builds one strategy.
+ *
+ * Side effects: none.
  *
  * @param {object} config
  * @param {string} config.id
@@ -58,14 +66,21 @@ const reachable = (s, t) => sum(t.need) <= MAX_TOKENS && t.need.every((n) => n <
  *   an object shaped like an AI (see ai/lib.js); it remembers the card it is working towards between calls
  */
 function create({ id, name, engineSize, minPoints, description }) {
-  /** Is the engine still being built? */
+  /**
+   * Is the engine still being built (fewer than `engineSize` cards bought)?
+   *
+   * Side effects: none.
+   *
+   * @param {object} s  the situation
+   * @returns {boolean}
+   */
   const building = (s) => me(s).bought < engineSize;
   const memory = new Map(); // seat -> the card it is working towards: { id, round }
 
   /**
    * The cards worth working towards, best first, for what the player is doing now.
    *
-   * Side effect: updates `memory` with the card now ranked first.
+   * Side effects: updates `memory` with the card now ranked first.
    *
    * @param {object} s  the situation
    * @returns {{ ranked: object[], wants: number[], worth: number[], build: boolean, lowest: number, fallback: boolean }}
@@ -103,6 +118,8 @@ function create({ id, name, engineSize, minPoints, description }) {
   /**
    * Chooses a move: buys for the engine or for points, takes gems for the best target, reserves to lock one in.
    *
+   * Side effects: advances `rng` (one draw per move scored); changes nothing else.
+   *
    * @param {object} s  the situation
    * @param {() => number} rng
    * @returns {object} one of s.moves, or { type: 'pass' } when there are none
@@ -111,7 +128,15 @@ function create({ id, name, engineSize, minPoints, description }) {
     if (!s.moves.length) return { type: 'pass' };
     const player = me(s);
     const { ranked, wants, worth, build, lowest, fallback } = plan(s);
-    /** Scores one legal move (higher is better). */
+    /**
+     * Scores one legal move (higher is better): buys for the engine or for points, gem-taking by what the best targets
+     * lack, and reserves only to lock in a nearly affordable card.
+     *
+     * Side effects: none.
+     *
+     * @param {object} move  one of s.moves
+     * @returns {number}
+     */
     const score = (move) => {
       if (move.type === 'buy') {
         const card = CARD_BY_ID[move.card];
@@ -121,6 +146,7 @@ function create({ id, name, engineSize, minPoints, description }) {
           const balance = player.bonuses[card.bonus] === lowest ? 0.4 : player.bonuses[card.bonus] >= 4 ? -0.6 : 0;
           return 10 + card.points * 0.8 + worth[card.bonus] * 0.8 + balance - (card.level === 3 ? 1 : 0) - paid;
         }
+        // 6 plus the points: below a normal purchase (10) but above any gem move, so with nothing worth having in reach it still takes the cheapest card.
         if (fallback) return 6 + card.points - paid; // nothing in reach is worth points: take the cheapest card
         if (card.points < minPoints) return -5; // a rusher does not spend a turn on a card with no points
         return 10 + card.points * 3 - paid;
@@ -142,7 +168,7 @@ function create({ id, name, engineSize, minPoints, description }) {
     name,
     description,
     chooseMove,
-    // Which tokens to give back: keeps what the three best targets need.
+    // Which tokens to give back: keeps what the three best targets need. (Side effects: updates `memory`, via plan.)
     chooseReturn: (s) => returnByNeeds(s, peakNeeds(plan(s).ranked.slice(0, 3))),
     // Which noble to take when several visit: the first offered.
     chooseNoble: (s) => s.options[0],
@@ -152,6 +178,8 @@ function create({ id, name, engineSize, minPoints, description }) {
 /**
  * Builds an engine of `size` cards, then buys points.
  *
+ * Side effects: none.
+ *
  * @param {number} size  cards to build first
  * @returns {object} a strategy (see create)
  */
@@ -159,6 +187,8 @@ export const engine = (size = 8) => create({ id: `engine-${size}`, name: `Engine
 
 /**
  * Never builds: buys only cards worth at least `points` prestige, from the start.
+ *
+ * Side effects: none.
  *
  * @param {number} points  the fewest points a card must be worth
  * @returns {object} a strategy (see create)

@@ -1,3 +1,4 @@
+// The "Tidy" computer player: a shuffler (see shuffler.js) that moves at most 5 table tiles, so it mostly adds to sets.
 import { makeShuffler } from './shuffler.js';
 
 export default makeShuffler({

@@ -33,6 +33,8 @@ const LIVE = ['lobby', 'playing'];
 /**
  * Is this room still in play (the lobby or a game being played)? A person can be in only one such room at a time.
  *
+ * Side effects: none.
+ *
  * @param {object} room
  * @returns {boolean}
  */
@@ -40,6 +42,8 @@ export const isLive = (room) => LIVE.includes(room.phase);
 
 /**
  * Adds up a list of numbers.
+ *
+ * Side effects: none.
  *
  * @param {number[]} list
  * @returns {number}
@@ -49,12 +53,16 @@ const sum = (list) => list.reduce((a, b) => a + b, 0);
 /**
  * A fresh set of empty tokens: five colours and Gold, all zero.
  *
+ * Side effects: none.
+ *
  * @returns {number[]} six zeros
  */
 export const emptyTokens = () => [0, 0, 0, 0, 0, 0];
 
 /**
  * Is this a sensible token count (a whole number from 0 to 1000)? Used to validate what a client sends.
+ *
+ * Side effects: none.
  *
  * @param {unknown} n
  * @returns {boolean}
@@ -64,6 +72,8 @@ const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= 1000;
 /**
  * Is this a list of six sensible token counts? Used to validate payments and returned tokens a client sends.
  *
+ * Side effects: none.
+ *
  * @param {unknown} a
  * @returns {boolean}
  */
@@ -71,6 +81,8 @@ const isTokenArray = (a) => Array.isArray(a) && a.length === 6 && a.every(isCoun
 
 /**
  * The discounts a player has earned: how many bought cards of each colour.
+ *
+ * Side effects: none.
  *
  * @param {{ bought: string[] }} player  a player of the room
  * @returns {number[]} five counts
@@ -83,12 +95,16 @@ export function bonusesOf(player) {
 /**
  * A player's prestige: the points of the cards bought plus the points of the nobles who have visited.
  *
+ * Side effects: none.
+ *
  * @param {{ bought: string[], nobles: string[] }} player
  * @returns {number}
  */
 export const prestigeOf = (player) => sum(player.bought.map((id) => CARD_BY_ID[id].points)) + sum(player.nobles.map((id) => NOBLE_BY_ID[id].points));
 /**
  * How many tokens (of any kind, Gold included) a player holds.
+ *
+ * Side effects: none.
  *
  * @param {{ tokens: number[] }} player
  * @returns {number}
@@ -98,6 +114,8 @@ export const tokenTotal = (player) => sum(player.tokens);
 /**
  * What buying a card would take: null if it cannot be afforded, else the default payment and the range of Gold. (The cost
  * calculation itself is the shared one in rules.js.)
+ *
+ * Side effects: none.
  *
  * @param {{ tokens: number[], bought: string[] }} player  a player of the room
  * @param {{ cost: number[] }} card
@@ -114,6 +132,8 @@ export function payment(player, card) {
 
 /**
  * Checks the settings a client asked for and merges them over the current ones.
+ *
+ * Side effects: none.
  *
  * @param {{ target?: number, seats?: number } | undefined} input  what was asked for (missing fields keep their value)
  * @param {{ target: number, seats: number }} current
@@ -134,6 +154,8 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
 
 /**
  * Makes a new room in the lobby with its host seated.
+ *
+ * Side effects: none.
  *
  * @param {object} args
  * @param {string} args.code      the invite code
@@ -163,7 +185,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 /**
  * Puts everything that belongs to one game back to its empty state (the seats, host and settings are kept).
  *
- * Side effect: mutates `room`.
+ * Side effects: mutates `room`.
  *
  * @param {object} room
  */
@@ -200,7 +222,17 @@ function resetGame(room) {
 const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'playing',
   botNames: BOT_NAMES,
-  /** The computer player taking over a seat gets an AI of its own, recorded under its id. Mutates room.ais. */
+  /**
+   * The computer player taking over a seat gets an AI of its own, recorded under its id.
+   *
+   * Side effects: mutates room.ais (adds an entry for the bot).
+   *
+   * @param {object} room
+   * @param {object} bot   the new computer-player seat entry
+   * @param {number} seat  the seat it takes over
+   * @param {() => number} rng  random numbers in [0, 1)
+   * @returns {object} the bot, unchanged
+   */
   takeOver: (room, bot, seat, rng) => {
     (room.ais ??= {})[bot.id] = pickAI(AIS, rng).id;
     return bot;
@@ -212,7 +244,7 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
  * The host changes the target prestige or the number of seats (lobby only). Shrinking the table keeps everyone seated,
  * packed to the front, and refuses if too many are seated.
  *
- * Side effect: mutates room.settings and, if the seat count changes, room.seats.
+ * Side effects: mutates room.settings and, if the seat count changes, room.seats.
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
@@ -238,6 +270,8 @@ export function setSettings(room, userId, input) {
 /**
  * A shuffled copy of a list (Fisher-Yates); the original is left alone.
  *
+ * Side effects: advances `rng` (one draw per element but the first); the list itself is not changed.
+ *
  * @param {unknown[]} list
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {unknown[]}
@@ -255,7 +289,7 @@ export function shuffle(list, rng) {
  * The host starts the game: shuffles the seats (so the host is not always first), deals the board and nobles, and gives
  * every computer player an AI.
  *
- * Side effect: mutates `room` (resets the game, then sets seats, players, supply, decks, board, nobles, ais, phase).
+ * Side effects: mutates `room` (resets the game, then sets seats, players, supply, decks, board, nobles, ais, phase).
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
@@ -290,7 +324,7 @@ export function start(room, userId, rng) {
 /**
  * Adds an entry to the game log (which keeps only the latest 60).
  *
- * Side effect: mutates room.log.
+ * Side effects: mutates room.log.
  *
  * @param {object} room
  * @param {number} seat   who did it
@@ -303,6 +337,8 @@ function logEntry(room, seat, entry) {
 
 /**
  * Is this seat allowed to start an action now? It must be playing, on turn, with nothing pending.
+ *
+ * Side effects: none.
  *
  * @param {object} room
  * @param {number} seat
@@ -318,7 +354,12 @@ function checkTurn(room, seat) {
 /**
  * Credits points to a seat for this round (shown in the score table).
  *
- * Side effect: mutates room.roundDeltas.
+ * Side effects: mutates room.roundDeltas.
+ *
+ * @param {object} room
+ * @param {number} seat    the seat that scored
+ * @param {number} points  prestige gained (a card's points or a noble's)
+ * @returns {void}
  */
 const givePoints = (room, seat, points) => {
   room.roundDeltas[seat] += points;
@@ -326,14 +367,19 @@ const givePoints = (room, seat, points) => {
 /**
  * Adds a note about what a seat did this round (shown in the score table).
  *
- * Side effect: mutates room.roundNotes.
+ * Side effects: mutates room.roundNotes.
+ *
+ * @param {object} room
+ * @param {number} seat   the seat the note is about
+ * @param {string} text   the note, for example the name of a card bought
+ * @returns {number} the new length of that seat's notes (the result of push; callers ignore it)
  */
 const note = (room, seat, text) => room.roundNotes[seat].push(text);
 
 /**
  * After any action: too many tokens, then nobles, then the end of the turn.
  *
- * Side effect: mutates `room` (sets a pending return, or visits nobles and may end the turn).
+ * Side effects: mutates `room` (sets a pending return, or visits nobles and may end the turn).
  *
  * @param {object} room
  * @param {number} seat  who has just acted
@@ -350,6 +396,8 @@ function afterAction(room, seat) {
 /**
  * The nobles whose requirements a player's card bonuses meet.
  *
+ * Side effects: none.
+ *
  * @param {object} room
  * @param {number} seat
  * @returns {string[]} noble ids still on the table
@@ -362,7 +410,7 @@ export function qualifyingNobles(room, seat) {
 /**
  * Lets nobles visit a seat: one visits at once, several make the player choose (a pending choice), none do nothing.
  *
- * Side effect: mutates `room`; ends the turn unless a choice is pending.
+ * Side effects: mutates `room`; ends the turn unless a choice is pending.
  *
  * @param {object} room
  * @param {number} seat
@@ -381,7 +429,7 @@ function visitNobles(room, seat) {
 /**
  * A noble visits a player: it leaves the table, joins the player and scores its points.
  *
- * Side effect: mutates room.nobles, the player, the round points, the notes and the log.
+ * Side effects: mutates room.nobles, the player, the round points, the notes and the log.
  *
  * @param {object} room
  * @param {number} seat
@@ -401,7 +449,7 @@ function takeNoble(room, seat, id) {
  * Ends a seat's turn: marks the final round if the target has been reached, passes the turn on and, after the last seat,
  * records the round and finishes the game if it is over (target reached, stalemate or the round limit).
  *
- * Side effect: mutates `room` (pending, finalRound, turn, history, round, and possibly the phase).
+ * Side effects: mutates `room` (pending, finalRound, turn, history, round, and possibly the phase).
  *
  * @param {object} room
  * @param {number} seat  whose turn has just ended
@@ -439,6 +487,8 @@ function endTurn(room, seat) {
 /**
  * Ranking key: prestige, then fewer purchased cards (a higher key places higher).
  *
+ * Side effects: none.
+ *
  * @param {object} player
  * @returns {number}
  */
@@ -447,7 +497,7 @@ const rankKey = (player) => prestigeOf(player) * 1000 - player.bought.length;
 /**
  * Ends the game and decides the winners (everyone tied for first place).
  *
- * Side effect: mutates room.phase, turn, pending and winners.
+ * Side effects: mutates room.phase, turn, pending and winners.
  *
  * @param {object} room
  */
@@ -464,7 +514,7 @@ function finish(room) {
 /**
  * Take up to three gems of different colours (three if at least three colours are available).
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -495,7 +545,7 @@ export function takeGems(room, seat, colours) {
 /**
  * Take two gems of one colour (only if at least four are left).
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -519,7 +569,7 @@ export function takeTwo(room, seat, colour) {
 /**
  * Reserves a face-up card ({ card }) or the top card of a deck, unseen ({ level }); the player also gets a Gold if any is left.
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -563,7 +613,7 @@ export function reserveCard(room, seat, target) {
 /**
  * Buys a face-up card or one of your own reserved cards. `pay` (six counts) is optional: coloured tokens are used first by default.
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -609,7 +659,7 @@ export function buyCard(room, seat, id, pay) {
 /**
  * Returns tokens after going over the token limit (exactly as many as you are over by).
  *
- * Side effect: mutates `room` when it succeeds (moves the tokens to the supply, then visits nobles).
+ * Side effects: mutates `room` when it succeeds (moves the tokens to the supply, then visits nobles).
  *
  * @param {object} room
  * @param {number} seat
@@ -638,7 +688,7 @@ export function returnTokens(room, seat, give) {
 /**
  * Chooses which of several visiting nobles to take.
  *
- * Side effect: mutates `room` when it succeeds (the noble visits and the turn ends).
+ * Side effects: mutates `room` when it succeeds (the noble visits and the turn ends).
  *
  * @param {object} room
  * @param {number} seat
@@ -661,6 +711,8 @@ export function chooseNoble(room, seat, id) {
 /**
  * Every legal move for a seat (objects like { type: 'take', colours }), for computer players and tests.
  *
+ * Side effects: none.
+ *
  * @param {object} room
  * @param {number} seat
  * @returns {object[]} empty when it is not the seat's turn, a choice is pending, or the seat has to pass
@@ -670,7 +722,15 @@ export function legalMoves(room, seat) {
   const player = room.players[seat];
   const moves = [];
   const open = [0, 1, 2, 3, 4].filter((c) => room.supply[c] > 0);
-  /** Every way of choosing k items from the list. */
+  /**
+   * Every way of choosing k items from the list, as lists (gem colours here, since a "take" move names its colours).
+   *
+   * Side effects: none.
+   *
+   * @param {number[]} list  the items to choose from
+   * @param {number} k       how many to choose
+   * @returns {number[][]} every combination, in list order
+   */
   const choose = (list, k) => (k === 0 ? [[]] : list.flatMap((x, i) => choose(list.slice(i + 1), k - 1).map((rest) => [x, ...rest])));
   if (open.length >= 3) for (const colours of choose(open, 3)) moves.push({ type: 'take', colours });
   else for (let k = 1; k <= open.length; k++) for (const colours of choose(open, k)) moves.push({ type: 'take', colours });
@@ -689,7 +749,7 @@ export function legalMoves(room, seat) {
 /**
  * Passes the turn (only when there is nothing else to do).
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -709,7 +769,7 @@ export function passTurn(room, seat) {
 /**
  * Applies a move object from legalMoves.
  *
- * Side effect: mutates `room` when it succeeds.
+ * Side effects: mutates `room` when it succeeds.
  *
  * @param {object} room
  * @param {number} seat
@@ -736,7 +796,7 @@ export function applyMove(room, seat, move) {
 /**
  * The host sends everyone back to the lobby after a finished game.
  *
- * Side effect: mutates `room` (resets the game, phase becomes 'lobby').
+ * Side effects: mutates `room` (resets the game, phase becomes 'lobby').
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
@@ -753,6 +813,8 @@ export function playAgain(room, userId) {
 
 /**
  * What the statistics should record for a finished game: one entry per human still seated.
+ *
+ * Side effects: none.
  *
  * @param {object} room  a finished room
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
@@ -773,6 +835,8 @@ export function statsPlayers(room) {
 /**
  * One occupied seat as the table shows it. Before the game starts that is just who is sitting there; afterwards it includes
  * tokens, bonuses, nobles and reserved cards (a card reserved blind is face down to everybody but its owner).
+ *
+ * Side effects: none.
  *
  * @param {object} room  not changed
  * @param {number} i  the seat's index
@@ -807,6 +871,8 @@ function seatView(room, i, me, online) {
 /**
  * The standard scoreboard (shared/scores.js): prestige is the score.
  *
+ * Side effects: none.
+ *
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
  * @param {(id: number) => boolean} online
@@ -826,6 +892,8 @@ function scoreboardView(room, me, online) {
 /**
  * The public table once the game has started: tokens, the cards on show, the sizes of the draw piles (never their order),
  * nobles, the turn, the log and the standings.
+ *
+ * Side effects: none.
  *
  * @param {object} room  not changed
  * @returns {object} fields to add to the view when the game has started
@@ -850,6 +918,8 @@ function tableView(room) {
 /**
  * What a seated viewer can afford and whether they must pass.
  *
+ * Side effects: none.
+ *
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat (not -1)
  * @returns {object} `afford` (what each affordable card costs, by card id) and `canPass`
@@ -870,6 +940,8 @@ function affordView(room, me) {
  * taken, and people remember); one reserved blind from a draw pile is only ever sent to the player who holds it (until it is
  * bought): to everyone else a blind reserve is face down, showing only its level.
  * The draw piles are sent as counts only.
+ *
+ * Side effects: none.
  *
  * @param {object} room
  * @param {number} userId  the account the view is for (may be a spectator, who gets seat -1)

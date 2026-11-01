@@ -1,4 +1,6 @@
 // Helpers for the socket-level tests: a "person" that plays from nothing but the view the server sends it.
+//
+// Depends on: node:assert, ./kit.js (the card id pattern), ../../shared/testkit.js (sleep) and ./rules.js (shared limits).
 import assert from 'node:assert/strict';
 import { ID } from './kit.js';
 import { sleep } from '../../shared/testkit.js';
@@ -7,19 +9,28 @@ import { GOLD_SUPPLY, MAX_RESERVED, supplyPerColour } from './rules.js';
 /**
  * Makes the computer players quick for the rest of this process (sets SPLENDOUR_BOT_DELAY).
  *
+ * Side effects: sets process.env.SPLENDOUR_BOT_DELAY for the whole process.
+ *
  * @param {string} delay  a "min-max" range in milliseconds
  */
 export const fast = (delay = '0-2') => {
   process.env.SPLENDOUR_BOT_DELAY = delay;
 };
 
-/** Adds up a list of numbers. */
+/**
+ * Adds up a list of numbers.
+ *
+ * Side effects: none.
+ *
+ * @param {number[]} list
+ * @returns {number}
+ */
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 
 /**
  * Does whatever this person has to do right now (a simple, always legal strategy).
  *
- * Side effect: sends socket events through `p.call`.
+ * Side effects: sends socket events through `p.call`.
  *
  * @param {object} p  a test person with `state` (the latest view) and `call(event, payload)`
  * @returns {Promise<boolean>} true if it acted
@@ -62,6 +73,8 @@ export async function step(p) {
 /**
  * Plays every person's turns until the condition holds.
  *
+ * Side effects: drives `step` for every person (socket events) and waits with sleep; throws an assertion error if stuck.
+ *
  * @param {object[]} people  test persons (see step)
  * @param {() => boolean} done  checked between rounds of play
  * @param {{ timeout?: number }} options  milliseconds before the test fails as stuck
@@ -77,11 +90,21 @@ export async function playOn(people, done, { timeout = 60000 } = {}) {
   }
 }
 
-/** Plays on until every person has seen the game finish. */
+/**
+ * Plays on until every person has seen the game finish.
+ *
+ * Side effects: as for playOn (socket events, waiting; throws an assertion error if the game gets stuck).
+ *
+ * @param {object[]} people  test persons (see step)
+ * @param {{ timeout?: number }} options  as for playOn
+ * @returns {Promise<void>}
+ */
 export const playToEnd = (people, options) => playOn(people, () => people.every((p) => p.state?.phase === 'finished'), options);
 
 /**
  * Every card named in a view is one that viewer may see. Throws if one is not.
+ *
+ * Side effects: none, except that it throws an assertion error when a check fails.
  *
  * @param {object | null} view  what the server sent
  * @param {string} who         shown in the message
@@ -102,6 +125,8 @@ export function assertNoLeaks(view, who = '') {
 /**
  * A view must make sense, whatever has been thrown at the server: a known phase, valid settings, tokens and nobles
  * conserved, and no card leaked. Throws if not.
+ *
+ * Side effects: none, except that it throws an assertion error when a check fails.
  *
  * @param {object | null | undefined} s  what the server sent
  * @param {string} who  shown in the message

@@ -1,13 +1,28 @@
 // Helpers for the Azulejo tests that run against the real site (not part of the game).
+// Depends on: ./rules.js (to recompute the scoring) and shared/testkit.js (sleep). The "person" objects are the shared test clients.
 import assert from 'node:assert/strict';
 import { bonuses, lineProblem } from './rules.js';
 import { sleep } from '../../shared/testkit.js';
 
+/**
+ * Makes computer players act almost at once, so a test does not wait for the real 600-1400 ms delay. Call before the server starts.
+ *
+ * @param {string} range  "min-max" milliseconds (default "0-3")
+ *
+ * Side effects: sets process.env.AZULEJO_BOT_DELAY.
+ */
 export const fast = (range = '0-3') => {
   process.env.AZULEJO_BOT_DELAY = range;
 };
 
-/** The simplest legal move for the person, from their view: the first group, on the first legal line (or the floor). */
+/**
+ * The simplest legal move for the person, from their view: the first group, on the first legal line (or the floor).
+ *
+ * @param {object} state  the person's view (from viewFor)
+ * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' }} a move the rules accept
+ *
+ * Side effects: none.
+ */
 export function simpleMove(state) {
   const me = state.seats[state.you];
   const free = state.settings.freeWall;
@@ -23,11 +38,19 @@ export function simpleMove(state) {
   return { source, colour: tiles[0], line: 'floor' };
 }
 
-/** Does whatever this person has to do right now, the simplest legal way. Returns true if it acted. */
+/**
+ * Does whatever this person has to do right now, the simplest legal way.
+ *
+ * @param {object} person  a test client with `state` and `call`
+ * @returns {Promise<boolean>} true if it acted
+ *
+ * Side effects: sends a socket request through `person` (which changes the room on the server); asserts that it succeeded.
+ */
 export async function step(person) {
   const s = person.state;
   if (!s) return false;
   if (s.phase === 'tiling' && s.choice) {
+    // The last offered column is as good as any: this helper only needs the game to move on.
     const reply = await person.call('column', { col: s.choice.columns[s.choice.columns.length - 1] });
     assert.equal(reply.ok, true, reply.error);
     return true;
@@ -38,7 +61,15 @@ export async function step(person) {
   return true;
 }
 
-/** Plays every person's turns until all of them see the finished game. */
+/**
+ * Plays every person's turns until all of them see the finished game.
+ *
+ * @param {object[]} people  the test clients, one per human seat
+ * @param {{ timeout?: number }} options  the most milliseconds to wait (default 90000)
+ * @returns {Promise<void>} resolves when everybody sees phase "finished"
+ *
+ * Side effects: plays moves through the people (changing the room on the server); fails the test on timeout.
+ */
 export async function playToEnd(people, { timeout = 90000 } = {}) {
   const started = Date.now();
   while (!people.every((p) => p.state?.phase === 'finished')) {
@@ -49,7 +80,13 @@ export async function playToEnd(people, { timeout = 90000 } = {}) {
   }
 }
 
-/** The scoring shown in a finished view, recomputed from the public walls: it must agree. */
+/**
+ * The scoring shown in a finished view, recomputed from the public walls: it must agree.
+ *
+ * @param {object} state  a finished view
+ *
+ * Side effects: none; throws an assertion error when the view disagrees with the rules.
+ */
 export function checkFinal(state) {
   assert.equal(state.phase, 'finished');
   const final = state.final.players;
@@ -75,6 +112,15 @@ export function checkFinal(state) {
   }
 }
 
+/**
+ * The per-game statistics extras of one game as a { key: value } object.
+ *
+ * @param {object} stats  the statistics response of the site
+ * @param {string} name  the game name (default "Azulejo")
+ * @returns {object} extras by key
+ *
+ * Side effects: none.
+ */
 export const extrasOf = (stats, name = 'Azulejo') => {
   const game = stats.perGame.find((g) => g.name === name);
   return Object.fromEntries(game.extras.map((e) => [e.key, e.value]));

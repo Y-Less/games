@@ -2,6 +2,18 @@
 // (0 is the left end, 100 the right end). The anchors are only used by the computer players, who cannot read a clue
 // the way a person does: as the psychic one says the example nearest its target, and as a guesser one turns the dial
 // to the place of the example it recognises. A person may write anything.
+
+/**
+ * Builds one spectrum record from compact [position, text] pairs (keeps the table below to one line per spectrum).
+ *
+ * @param {string} id  stable identifier
+ * @param {string} left  label of the left end (position 0)
+ * @param {string} right  label of the right end (position 100)
+ * @param {...[number, string]} anchors  example clues as [position 0 to 100, text]
+ * @returns {{id: string, left: string, right: string, anchors: {position: number, text: string}[]}} the spectrum
+ *
+ * Side effects: none.
+ */
 const spectrum = (id, left, right, ...anchors) => ({ id, left, right, anchors: anchors.map(([position, text]) => ({ position, text })) });
 
 export const SPECTRA = [
@@ -60,4 +72,12 @@ export const SPECTRA = [
   spectrum('grown-up', 'Childish', 'Grown-up', [5, 'a ball pit'], [28, 'a sticker book'], [50, 'a driving licence'], [74, 'a mortgage'], [96, 'a pension review']),
 ];
 
+/**
+ * Looks a spectrum up by id.
+ *
+ * @param {string} id  the spectrum id
+ * @returns {object|null} the spectrum, or null if there is none with that id
+ *
+ * Side effects: none.
+ */
 export const spectrumById = (id) => SPECTRA.find((s) => s.id === id) ?? null;

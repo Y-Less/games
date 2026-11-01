@@ -1,5 +1,7 @@
 // "Random": a uniformly random legal move, whatever the position. The easiest opponent, and the baseline the others
 // are measured against.
+//
+// Depends on: ./lib.js (randomReturn only).
 import { randomReturn } from './lib.js';
 
 export default {
@@ -9,6 +11,8 @@ export default {
   weight: 1,
   /**
    * Picks any legal move at random.
+   *
+   * Side effects: advances `rng` (one draw per move scored); changes nothing else.
    *
    * @param {object} s  the situation (see lib.js)
    * @param {() => number} rng  random numbers in [0, 1)
@@ -22,6 +26,8 @@ export default {
   chooseReturn: randomReturn,
   /**
    * Picks any of the visiting nobles at random.
+   *
+   * Side effects: advances `rng` once.
    *
    * @param {object} s  the situation (uses options)
    * @param {() => number} rng

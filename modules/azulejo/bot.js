@@ -3,9 +3,11 @@
 // game starts and stored on the seat (`seat.ai`). A seat with no AI, or an unknown one, plays as the first ("standard").
 //
 // Randomness is always passed in as `rng` (the server and the tests inject it); there is no default.
+// Depends on: ./game.js (the rules, the seat and AI lookups) and ./rules.js (COLOURS); the AIs themselves are in ./ai/.
 import * as game from './game.js';
 import { COLOURS } from './rules.js';
 
+// Is this seat a computer player? (Re-exported from the shared seat rules via game.js.)
 const isBot = game.isBot;
 
 /**
@@ -14,6 +16,8 @@ const isBot = game.isBot;
  * @param {object} room  the room (not changed)
  * @returns {{ type: 'column' | 'move', seat: number } | null} null when the game is waiting for a person (or is not
  *   being played). While tiling, a computer with a pending column choice goes first; while playing, it is whoever's turn it is.
+ *
+ * Side effects: none.
  */
 export function pendingAction(room) {
   if (room.phase === 'tiling') {
@@ -29,6 +33,8 @@ export function pendingAction(room) {
  *
  * @param {object} room  the room (not changed)
  * @returns {object} a snapshot whose arrays are the room's own (AIs must only read them); the lid is reduced to counts
+ *
+ * Side effects: none (builds a new object; its arrays are the room's own, so callers must only read them).
  */
 export function snapshot(room) {
   return {
@@ -55,6 +61,8 @@ export function snapshot(room) {
  * @param {number} seat  the computer seat
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {{ source: 'centre' | number, colour: number, line: number | 'floor' } | null} null when there is no legal move
+ *
+ * Side effects: none, apart from whatever the AI draws from `rng`.
  */
 export function chooseMove(room, seat, rng) {
   return game.aiOf(room, seat).chooseMove(snapshot(room), seat, game.legalMoves(room, seat), rng);
@@ -67,6 +75,8 @@ export function chooseMove(room, seat, rng) {
  * @param {number} seat  the computer seat
  * @param {() => number} rng  random numbers in [0, 1)
  * @returns {number} one of the offered columns
+ *
+ * Side effects: none, apart from whatever the AI draws from `rng`.
  */
 export function chooseColumnFor(room, seat, rng) {
   const { row, colour, columns } = room.pending[seat];

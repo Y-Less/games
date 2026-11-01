@@ -8,12 +8,25 @@ import { seeded } from '../../shared/testkit.js';
 
 export { seeded };
 
-/** The id of a numbered tile (colour 0-based, number 1-based, copy 0 or 1) and of the i-th joker. */
+// Tile ids by meaning: tile(s, colour, number, copy) takes the settings, a 0-based colour, a 1-based number and the copy (0 or
+// 1); joker(s, i) the i-th joker. Both return an id; no side effects.
 export const tile = (s, colour, number, copy = 0) => copy * s.colours * s.numbers + colour * s.numbers + number - 1;
+// See tile() above: the id of the i-th joker.
 export const joker = (s, i = 0) => numberedCount(s) + i;
+// The standard settings used by most tests: a classic 13-number, 4-colour, 2-joker set, one round, 30-point meld, no timer.
 export const STD = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0 };
 
-/** A started game of n people (ids 1..n, host 1) with the given settings, or with computer players in the other seats. */
+/**
+ * A started game of n people (ids 1..n, host 1) with the given settings, or with computer players in the other seats.
+ *
+ * @param {number} n  the number of seats
+ * @param {object} [options]
+ * @param {number} [options.seed]  seed for the deal
+ * @param {object} [options.settings]  rule settings passed to createRoom
+ * @param {boolean} [options.bots]  true to fill every other seat with computer players instead of people
+ * @returns {{ room: object, rng: () => number }} the started room and the seeded generator used
+ * Side effects: none outside the new room (asserts that starting worked).
+ */
 export function playingRoom(n, { seed = 1, settings = {}, bots = false } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings });
@@ -31,13 +44,22 @@ export function playingRoom(n, { seed = 1, settings = {}, bots = false } = {}) {
  * @param {number} seat  whose rack to play from
  * @param {object} [options]  passed to the AI's plan (budget, rng...); options.ai picks a different AI
  * @returns {{ table: number[][], added: number } | null} the play, or null when there is none
+ * Side effects: none.
  */
 export function bestPlay(room, seat, options = {}) {
   const ai = options.ai ?? AIS[0];
   return ai.plan(room, seat, options);
 }
 
-/** Everything that must hold after every single action. */
+/**
+ * Everything that must hold after every single action: every tile is somewhere exactly once, scores are integers that
+ * sum to zero (up to rounding) and match the history, and a round in progress has a valid turn and no empty rack.
+ *
+ * @param {object} room  not changed
+ * @param {string} [label]  text added to failure messages
+ * @returns {void}
+ * Side effects: none (throws an assertion error when something is wrong).
+ */
 export function assertInvariants(room, label = '') {
   const where = `${label} (round ${room.round}, ${room.phase})`;
   if (!['playing', 'between', 'finished'].includes(room.phase)) return;
@@ -59,7 +81,14 @@ export function assertInvariants(room, label = '') {
   }
 }
 
-/** One decision for whoever is to move, whatever kind of seat it is. Returns the action taken, or false when none. */
+/**
+ * One decision for whoever is to move, whatever kind of seat it is (the seat's own AI chooses, even for a person's seat).
+ *
+ * @param {object} room  mutated by the play or draw
+ * @param {number} now  the clock, in milliseconds
+ * @returns {{ seat: number, type: 'play' | 'draw' } | false} the action taken, or false when no round is in progress
+ * Side effects: plays or draws for the seat whose turn it is; asserts the move was legal.
+ */
 export function driveStep(room, now) {
   if (room.phase !== 'playing') return false;
   const seat = room.turn;
