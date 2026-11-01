@@ -54,3 +54,4 @@ test('only the host removes others, and nonsense ids change nothing', () => {
   for (const id of ['nobody', 99999, null, undefined, {}, []]) assert.throws(() => game.leave(host.id, id), GameError);
   assert.equal(JSON.stringify(game.s), before);
 });
+

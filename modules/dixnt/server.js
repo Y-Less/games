@@ -16,6 +16,8 @@ import { newTally, statsExtras, tallyRound } from './tally.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MAX_GAMES = 500;
+const MAX_RETRIES = 3; // how many times in a row a failed computer move is tried again (with a doubling pause)
+const RETRY_BASE_MS = 1000;
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000; // games nobody has touched for two weeks are forgotten
 const DEFAULT_BOT_DELAY = [600, 1400];
 
@@ -128,6 +130,7 @@ export default function (ctx) {
   /** code -> { game, touched, tally, tallied, recorded, collectedRound } */
   const games = new Map();
   const timers = new Map(); // code -> the timer for the next computer move
+  const failures = new Map(); // game code -> how many computer moves have thrown in a row
 
   /**
    * @returns {object} an empty per-person statistics tally
@@ -284,8 +287,21 @@ export default function (ctx) {
       if (games.get(code) !== entry) return;
       try {
         entry.game.runBotAction();
+        failures.delete(code);
       } catch (error) {
-        ctx.log('a computer move failed:', error);
+        // As the shared room server does: log it and try again after a growing pause, up to MAX_RETRIES times in a row,
+        // so a passing problem does not leave a table with a computer player waiting for ever.
+        const count = (failures.get(code) ?? 0) + 1;
+        failures.set(code, count);
+        ctx.log(`a computer move failed (${count}):`, error);
+        if (count <= MAX_RETRIES) {
+          const retry = setTimeout(() => {
+            timers.delete(code);
+            if (games.get(code) === entry) schedule(code);
+          }, RETRY_BASE_MS * 2 ** (count - 1));
+          retry.unref?.();
+          timers.set(code, retry);
+        }
         return;
       }
       entry.touched = Date.now();
