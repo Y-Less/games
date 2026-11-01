@@ -94,6 +94,18 @@ describe('useWorkingCopy', () => {
     await Promise.resolve();
     expect(copy.arr.sets).toHaveLength(0);
   });
+
+  it('keeps the half-built layout when the server re-sends the same table (someone connected or disconnected)', async () => {
+    const { holder, copy } = setup(view({ racks: [meldRack, [t(0, 1)]] }));
+    copy.pick(t(0, 10));
+    copy.pick(t(1, 10));
+    copy.pick(t(2, 10));
+    copy.dropSelected({ type: 'new' });
+    expect(copy.arr.sets).toHaveLength(1);
+    holder.state = { ...holder.state, seats: holder.state.seats.map((seat) => ({ ...seat })) }; // a new view object, same version
+    await Promise.resolve();
+    expect(copy.arr.sets).toHaveLength(1);
+  });
 });
 
 describe('useTileDrag', () => {

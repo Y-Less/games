@@ -39,8 +39,10 @@ export function useWorkingCopy(view) {
     selected.value = [];
     hint.value = '';
   }
-  // Any new server view (another player moved, a new round, a seat change) invalidates the half-built layout.
-  watch(() => [view.state.version, view.state.round, view.state.phase, view.state.you], reset);
+  // A new table (another player moved, a new round, a seat change) invalidates the half-built layout. The key is one string:
+  // a getter returning a fresh array would count every server push as a change (Vue compares the getter's result by
+  // identity), and the server also pushes when somebody connects or disconnects, which must not throw your layout away.
+  watch(() => `${view.state.version}:${view.state.round}:${view.state.phase}:${view.state.you}`, reset);
 
   // The rules' verdict on the current layout (is End turn allowed, and why not).
   const status = computed(() =>
