@@ -16,7 +16,7 @@ import { handModel } from './sim/hand-model.js';
 import { FULL_HAND, newTally, STAT_KEYS, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, ok, seatOf } from '../../shared/seats.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -284,7 +284,7 @@ const seats = createSeatRules({
   botNames: BOT_NAMES,
   takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
-  finishedSeat: (leaving) => ({ kind: 'gone', name: leaving.name }),
+  finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
@@ -670,7 +670,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over.');
-  room.seats = room.seats.map((s) => (s?.kind === 'gone' ? null : s));
+  freeGoneSeats(room);
   for (const s of room.seats) if (s) delete s.ai;
   resetGame(room);
   room.phase = 'lobby';
@@ -909,7 +909,7 @@ function seatView(room, i, online) {
     userId: isHuman(seat) ? seat.id : undefined,
     bot: isBot(seat),
     ai: isBot(seat) && room.phase !== 'lobby' ? aiSummary(aiOf(room, i)) : null,
-    away: seat.kind === 'gone' || (isHuman(seat) && !online(seat.id)),
+    away: isGone(seat) || (isHuman(seat) && !online(seat.id)),
     cards: room.hands[i].length,
     bid: room.nominations[i],
     tricks: room.taken[i],

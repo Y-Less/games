@@ -9,7 +9,7 @@
 //   }
 // `rounds` holds every finished round, oldest first, so the whole history can be shown.
 // Depends on: ./seats.js (isBot, isHuman).
-import { isBot, isHuman } from './seats.js';
+import { isBot, isGone, isHuman } from './seats.js';
 
 /**
  * Adds up each player's round scores.
@@ -53,7 +53,8 @@ export function winnersOf(scores, options) {
  * One seat's entry in the standard scoreboard's `players` (see the shape at the top of this file), for games that seat people
  * and computer players by seat number.
  *
- * @param {{ kind: string, id: number | string, name: string }} seat  an occupied seat
+ * @param {{ kind: string, id: number | string, name: string }} seat  an occupied seat (a person, a computer player, or the
+ *   { kind: 'gone', name } marker a seated game leaves when a person leaves a finished game: shown as away)
  * @param {number} index  the seat's index, which is its scoreboard `id`
  * @param {object} state
  * @param {number} state.score  what to show as the seat's score
@@ -62,9 +63,8 @@ export function winnersOf(scores, options) {
  * @param {(id: number) => boolean} state.online  says who is connected, so that people who have left the table show as away
  * @returns {{ id: number, name: string, userId: number | undefined, score: number, isMe: boolean, bot: boolean, current: boolean, away: boolean }}
  */
-
 export function seatScoreboardEntry(seat, index, { score, me, current, online }) {
-  return { id: index, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isHuman(seat) && !online(seat.id) };
+  return { id: index, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isGone(seat) || (isHuman(seat) && !online(seat.id)) };
 }
 
 /**

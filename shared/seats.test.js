@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { drawUnused, pickOne, seeded } from './random.js';
-import { createSeatRules, isBot, isHuman, seatOf, uniqueName } from './seats.js';
+import { createSeatRules, freeGoneSeats, goneSeat, isBot, isGone, isHuman, seatOf, uniqueName } from './seats.js';
 
 /** A three-seat lobby with Ann (the host) in seat 0. */
 function lobby() {
@@ -124,4 +124,18 @@ test('drawUnused never repeats until everything has been drawn, then starts agai
   assert.deepEqual([...first].sort(), ['a', 'b', 'c']);
   const fourth = drawUnused(['a', 'b', 'c'], used, rng);
   assert.deepEqual(used, [fourth], 'the memory was cleared and now holds only the new draw');
+});
+
+test('a person who leaves a finished game leaves a gone marker, which play-again clears', () => {
+  const gone = createSeatRules({ isMidGame: (room) => room.phase === 'playing', finishedSeat: goneSeat });
+  const room = { hostId: 1, phase: 'finished', nextBot: 1, seats: [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }, { kind: 'bot', id: 'bot:1', name: 'Hazel' }] };
+  assert.deepEqual(gone.removeHuman(room, 1, seeded(1), 0), { ok: true, empty: false, seat: 0, replaced: false });
+  assert.deepEqual(room.seats[0], { kind: 'gone', name: 'Ann' });
+  assert.equal(isGone(room.seats[0]), true);
+  assert.equal(isHuman(room.seats[0]), false, 'a gone marker is not a person');
+  assert.equal(room.hostId, 2);
+  assert.equal(gone.kick(room, 2, 0, seeded(1), 0).ok, false, 'there is nobody in that seat to remove');
+  freeGoneSeats(room);
+  assert.equal(room.seats[0], null);
+  assert.equal(room.seats[1].id, 2, 'the others keep their seats');
 });

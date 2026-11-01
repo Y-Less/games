@@ -103,7 +103,7 @@ const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.v
 // ---- the words, all of them in the Status box ----
 // The headline of the Status box for the phase, as one sentence ('' when there is nothing to say).
 const status = computed(() => {
-  if (finished.value) return winnerNames.value.length > 1 ? `It is a tie: ${winnerNames.value.join(' and ')} win.` : `${winnerNames.value[0]} wins with ${s.value.scoreboard.players[s.value.winners[0]].score} points.`;
+  if (finished.value) return winnerNames.value.length > 1 ? `It is a tie: ${winnerNames.value.join(' and ')} win.` : `${winnerNames.value[0]} wins with ${s.value.scoreboard.players.find((p) => p.id === s.value.winners[0])?.score} points.`;
   if (passing.value) return s.value.pass.chosen ? 'Waiting for the others to choose their cards.' : `${s.value.pass.label}: choose ${passCount.value} cards for ${s.value.pass.toName}.`;
   if (playing.value) {
     if (s.value.trickWinner !== null) return `${nameOf(s.value.trickWinner)} takes the trick.`;

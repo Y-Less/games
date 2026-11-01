@@ -37,6 +37,26 @@ export const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
 /** A list of n empty seats. */
 export const emptySeats = (n) => Array.from({ length: n }, () => null);
 
+/** Is this seat the marker left by a person who left after the game ended? (See goneSeat.) */
+export const isGone = (seat) => seat?.kind === 'gone';
+/**
+ * The marker a person leaves behind when they leave a FINISHED game: their name stays on the final scores and the table
+ * does not have to cope with a missing seat. Pass it as `finishedSeat` to createSeatRules. The marker is not a person
+ * (isHuman is false, so it is never kicked, recorded or waited for) and it is away.
+ * @param {{ name: string }} leaving  the seat they are leaving
+ * @returns {{ kind: 'gone', name: string }}
+ */
+export const goneSeat = (leaving) => ({ kind: 'gone', name: leaving.name });
+/**
+ * Frees the seats of people who left the finished game (for "play again": the next game starts in the lobby without them).
+ * @param {{ seats: Array<object | null> }} room  the room to change
+ * @returns {void}
+ * Side effects: replaces every gone marker in `room.seats` with null.
+ */
+export function freeGoneSeats(room) {
+  room.seats = room.seats.map((seat) => (isGone(seat) ? null : seat));
+}
+
 /** Null if this account is the host, otherwise the failure to return. */
 export const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
 /** Null while the game is still in the lobby, otherwise the failure to return. */

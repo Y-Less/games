@@ -271,3 +271,23 @@ test('picking up the pile that completes a suit is counted, once, and only when 
   g.callCheat(room, 1);
   assert.equal(room.tally[1].fullSuits, 1, 'they already held the whole suit');
 });
+
+test('a person who leaves a finished game stays on the table as gone, so the views of the others still make sense', () => {
+  const room = started();
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bob' };
+  stage(room, [['AS'], ['2C', '9D'], ['3C', '4D'], ['6C', '7D']], { pile: ['KS'] });
+  g.playCards(room, 0, ['AS']);
+  g.callCheat(room, 2);
+  assert.equal(room.phase, 'finished');
+  assert.deepEqual(g.removeHuman(room, 1, seeded(1), 0), { ok: true, empty: false, seat: 0, replaced: false });
+  assert.equal(room.phase, 'finished', 'the game stays finished');
+  assert.deepEqual(room.seats[0], { kind: 'gone', name: 'Ann' });
+  assert.equal(room.hostId, 2, 'the host passes on');
+  const view = g.viewFor(room, 2, { online: () => true });
+  assert.equal(view.seats[0].name, 'Ann', 'the final standings still name them');
+  assert.equal(view.seats[0].online, false, 'but they are away');
+  assert.equal(view.scoreboard.players[0].away, true);
+  assert.equal(view.scoreboard.players.length, room.seats.length, 'no seat is missing from the scoreboard');
+  assert.equal(g.playAgain(room, 2).ok, true);
+  assert.equal(room.seats[0], null, 'their seat is free for the next game');
+});

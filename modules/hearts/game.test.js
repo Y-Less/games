@@ -830,3 +830,22 @@ test('the tally counts the opening card being passed on and being passed to you,
   for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
   assert.equal(room.tally.reduce((n, t) => n + t.tricksWon, 0), 13, 'every trick has a winner');
 });
+
+test('a person who leaves a finished game stays on the table as gone, so the views of the others still make sense', () => {
+  const room = simulate({ target: 50, jackOfDiamonds: true, moon: 'self' }, 7);
+  room.seats[0] = { kind: 'human', id: 1, name: 'Ann' };
+  room.seats[1] = { kind: 'human', id: 2, name: 'Bob' };
+  room.hostId = 1;
+  assert.deepEqual(g.removeHuman(room, 1, seeded(1), 0), { ok: true, empty: false, seat: 0, replaced: false });
+  assert.equal(room.phase, 'finished', 'the game stays finished');
+  assert.deepEqual(room.seats[0], { kind: 'gone', name: 'Ann' });
+  assert.equal(room.hostId, 2, 'the host passes on');
+  const view = g.viewFor(room, 2, { online: () => true });
+  assert.equal(view.seats[0].name, 'Ann', 'the final scores still name them');
+  assert.equal(view.seats[0].online, false, 'but they are away');
+  assert.equal(view.scoreboard.players[0].away, true);
+  assert.equal(view.scoreboard.players.length, room.seats.length, 'no seat is missing from the scoreboard');
+  assert.equal(g.kick(room, 2, 0, seeded(1), 0).ok, false, 'there is nobody left to remove in that seat');
+  assert.equal(g.playAgain(room, 2).ok, true);
+  assert.equal(room.seats[0], null, 'their seat is free for the next game');
+});

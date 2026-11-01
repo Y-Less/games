@@ -88,7 +88,9 @@ Seat rules are shared too. Games with numbered seats build theirs with `createSe
 keep a list of players use `createRosterRules` (`shared/roster.js`). Both give you `addHuman`, `removeHuman`, `addBot`,
 `removeBot`, `fillWithBots` and `kick`, with these conventions: a person is `{ kind: 'human', id, name }` and a computer
 player is `{ kind: 'bot', id: 'bot:<n>', name }` (never a `bot: true` flag); names are made unique whatever their
-capitals; and `kick` is refused once the game is over.
+capitals; and `kick` is refused once the game is over. A person who leaves a *finished* seated game should leave the
+`goneSeat` marker (`{ kind: 'gone', name }`, pass it as `finishedSeat`) rather than an empty seat, so the final scores
+still name them and the table never meets a missing seat; `playAgain` then calls `freeGoneSeats(room)`.
 
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players. Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or

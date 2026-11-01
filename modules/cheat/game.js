@@ -8,13 +8,14 @@
 // once nobody has caught their last play out.
 //
 // Seats 0..n-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
-// ({ kind: 'bot', id: 'bot:<n>', name, ai }) or null (empty, lobby only).
+// ({ kind: 'bot', id: 'bot:<n>', name, ai }), a person who left after the game ended ({ kind: 'gone', name }, kept so the
+// final standings still make sense) or null (empty, lobby only).
 //
 // Depends on the shared card, seat, AI, score, tally and trick helpers in shared/, and on ./ai and ./tally.js.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat as seatAfter } from '../../shared/tricks.js';
@@ -120,6 +121,7 @@ const seats = createSeatRules({
   isMidGame: (room) => ['playing', 'check'].includes(room.phase),
   botNames: BOT_NAMES,
   takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
+  finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
@@ -325,6 +327,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over.');
+  freeGoneSeats(room);
   resetGame(room);
   room.phase = 'lobby';
   return ok();
@@ -496,7 +499,7 @@ function seatView(room, i, online) {
     name: seat.name,
     bot: isBot(seat),
     ...(isBot(seat) && started ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
-    online: isBot(seat) || online(seat.id),
+    online: isBot(seat) || (isHuman(seat) && online(seat.id)), // a person who left the finished game is away
     cards: room.hands[i].length,
     ...(started ? { stats: extrasOf(room.tally[i], PUBLIC_KEYS) } : {}),
   };

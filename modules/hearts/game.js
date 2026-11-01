@@ -4,7 +4,8 @@
 // Three to seven players (the host's choice, 4 by default; see deals.js for the deal and the passing of each size).
 // Seats 0..n-1 run clockwise: the player to your left is seat + 1, so passing "left" sends cards to seat + 1 and play
 // goes round in increasing seat order. The number of seats is room.seats.length. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer
-// player ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
+// player ({ kind: 'bot', id: 'bot:<n>', name }), a person who left after the game ended ({ kind: 'gone', name }, kept so the
+// final scores still make sense) or null (empty, lobby only).
 // Depends on: deals.js (deal sizes and pass rotation), tally.js (statistics), ai/ (computer players) and the shared helpers
 // for seats, cards, tricks, scores and AI selection under ../../shared.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
@@ -12,7 +13,7 @@ import { statsRows } from '../../shared/tally.js';
 import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
@@ -177,6 +178,7 @@ const seats = createSeatRules({
   botNames: BOT_NAMES,
   takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
+  finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
@@ -616,6 +618,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('The game is not over.');
+  freeGoneSeats(room);
   resetGame(room);
   room.phase = 'lobby';
   return ok();
@@ -808,7 +811,7 @@ function seatView(room, i, online) {
     name: seat.name,
     bot: isBot(seat),
     ...(isBot(seat) && room.phase !== 'lobby' ? { ai: describeAIBrief(aiOf(room, i)) } : {}),
-    online: isBot(seat) || online(seat.id),
+    online: isBot(seat) || (isHuman(seat) && online(seat.id)), // a person who left the finished game is away
     cards: room.hands[i].length,
     tricks: room.taken[i].length / room.seats.length,
     hearts: room.taken[i].filter(isHeart).length,
