@@ -3,7 +3,7 @@
 // the coins for levels reached and builds what the Achievements page shows; which achievements exist is in achievementRegistry.js.
 // Depends on: shared/achievements.js (levels, rewards, text), ./achievementRegistry.js, ./collections.js, ./coins.js and
 // ./db.js (transaction), plus the achievement_progress, achievement_awards and users tables.
-import { BUILTIN_STATS, describe, levelInfo, levelReward, levelText } from '../shared/achievements.js';
+import { BUILTIN_STATS, TIERS, describe, levelInfo, levelReward, levelText } from '../shared/achievements.js';
 import { createRegistry, fullId, GLOBAL } from './achievementRegistry.js';
 import { createCollections } from './collections.js';
 import { createCoins } from './coins.js';
@@ -315,14 +315,18 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
   }
 
   /**
-   * Checks a game's definitions: stat keys must be ones the game declares (or built in).
-   * @param {{ id: string, stats?: Array<{ key: string }>, achievements?: object[] }} meta  a game's manifest
+   * Checks a game's definitions: stat keys must be ones the game declares (or built in), and every definition in the
+   * manifest must have been accepted (a misspelt tier name or levels out of order would otherwise vanish silently).
+   * @param {{ id: string, stats?: Array<{ key: string }>, achievements?: object[], rejectedAchievements?: string[] }} meta  a game's manifest
    * @returns {string[]} one sentence per problem found (empty when fine)
    * Side effects: none.
    */
   function problems(meta) {
     const declared = new Set([...BUILTIN_STATS, ...(meta.stats ?? []).map((s) => s.key)]);
-    return (meta.achievements ?? []).filter((a) => a.stat && !declared.has(a.stat)).map((a) => `${meta.id}: "${a.key}" uses the stat "${a.stat}", which the game does not declare`);
+    return [
+      ...(meta.achievements ?? []).filter((a) => a.stat && !declared.has(a.stat)).map((a) => `${meta.id}: "${a.key}" uses the stat "${a.stat}", which the game does not declare`),
+      ...(meta.rejectedAchievements ?? []).map((key) => `${meta.id}: the achievement "${key}" is not valid (check its key, name, text and levels: a tier name must be one of ${Object.keys(TIERS).join(', ')})`),
+    ];
   }
 
   return { add, raise, collect, get, forUser, forGame, problems, settle, pending, seen };

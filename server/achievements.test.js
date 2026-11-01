@@ -103,6 +103,8 @@ test('a definition whose stat the game does not declare is reported', () => {
   assert.deepEqual(achievements.problems(GAMES[0]), []);
   assert.equal(achievements.problems({ id: 'x', stats: [], achievements: [{ key: 'a', stat: 'missing' }] }).length, 1);
   assert.deepEqual(achievements.problems({ id: 'x', stats: [], achievements: [{ key: 'a', stat: 'wins' }] }), [], 'built-in stats are always there');
+  const [typo] = achievements.problems({ id: 'x', stats: [], achievements: [], rejectedAchievements: ['moon'] });
+  assert.match(typo, /"moon" is not valid/, 'a definition the manifest reader refused (a misspelt tier, say) is reported, not lost');
 });
 
 test('every level unlocked pays 100 times its number, once, and is queued to be shown', () => {

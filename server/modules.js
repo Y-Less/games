@@ -1,6 +1,6 @@
 // Finds and starts the game modules in modules/<id>/. See MODULES.md for the contract.
 //
-//   modules/<id>/module.json   { id, name, description, minPlayers, maxPlayers, category, rules, stats }
+//   modules/<id>/module.json   { id, name, description, minPlayers, maxPlayers, category, rules, stats, achievements }
 //   modules/<id>/server.js     export default function (ctx) { ... }   (the rules and the socket handlers)
 //   modules/<id>/client/index.js   a Vue component, loaded by the site into its play field
 // Depends on: express (static assets), ./auth.js (sessions), ./codes.js, ./turnClock.js, and shared/achievements.js and
@@ -37,6 +37,7 @@ function withStandardAchievements(own) {
 function readManifest(dir, folder) {
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, folder, 'module.json'), 'utf8'));
   if (!ID.test(manifest.id) || manifest.id !== folder) throw new Error(`module.json id must match the folder name "${folder}"`);
+  const own = Array.isArray(manifest.achievements) ? manifest.achievements : [];
   return {
     id: manifest.id,
     name: String(manifest.name ?? manifest.id),
@@ -46,7 +47,10 @@ function readManifest(dir, folder) {
     category: String(manifest.category ?? 'other'),
     rules: manifest.rules ? String(manifest.rules) : null,
     stats: Array.isArray(manifest.stats) ? manifest.stats.filter((s) => s?.key && s?.label) : [],
-    achievements: withStandardAchievements(Array.isArray(manifest.achievements) ? manifest.achievements.map(cleanDefinition).filter(Boolean) : []),
+    achievements: withStandardAchievements(own.map(cleanDefinition).filter(Boolean)),
+    // The definitions cleanDefinition refused (a misspelt tier name, levels out of order, a missing name): named here so
+    // that the start-up check (achievements.problems) can say so, rather than an achievement quietly going missing.
+    rejectedAchievements: own.filter((a) => !cleanDefinition(a)).map((a) => String(a?.key ?? '?')),
   };
 }
 
