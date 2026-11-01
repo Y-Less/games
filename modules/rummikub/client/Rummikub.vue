@@ -23,6 +23,8 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
+  // Returns the warning to show before leaving mid-game (a round or the pause between rounds), or '' for no warning.
+  leaveConfirm: (state) => (state.phase === 'playing' || state.phase === 'between' ? 'A computer player takes your seat if you leave.' : ''),
 });
 </script>
 

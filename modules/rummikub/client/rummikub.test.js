@@ -431,10 +431,24 @@ describe('the site header', () => {
     expect(w.findAll('button').some((b) => b.text() === 'Leave game')).toBe(false); // the lobby has none of its own
     const offer = leaveOffer();
     expect(offer).not.toBeNull();
+    expect(offer.confirmText).toBe('', 'leaving the lobby needs no confirmation');
     await offer.leave();
     expect(socket.emit).toHaveBeenCalledWith('leave', {}, expect.any(Function));
     w.unmount();
     expect(leaveOffer()).toBeNull();
+  });
+
+  it('asks before leaving mid-game, because a computer player takes the seat', async () => {
+    const { leaveOffer } = await import('../../../src/playBar.js');
+    const socket = { connected: false, emit: vi.fn((e, p, ack) => ack?.({ ok: true })), on: vi.fn((e, f) => (socket.handlers[e] = f)), off: vi.fn(), handlers: {} };
+    const w = mount(Rummikub, { props: { socket } });
+    socket.handlers.state(view({ racks: [[t(0, 1)], [t(0, 2)]] }));
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('A computer player takes your seat if you leave.');
+    socket.handlers.state({ ...view({ racks: [[t(0, 1)], [t(0, 2)]] }), phase: 'finished' });
+    await flushPromises();
+    expect(leaveOffer().confirmText).toBe('');
+    w.unmount();
   });
 });
 
