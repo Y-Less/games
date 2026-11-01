@@ -5,26 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
-
-/** Plays a seeded game of computers (seat 0 included) and returns every view of seat 0's person and of a stranger. */
-function recordedViews(seats, seed) {
-  const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats }, now: 1 });
-  const views = [JSON.stringify(game.viewFor(room, 1)), JSON.stringify(game.viewFor(room, 99))];
-  game.fillWithBots(room, 1);
-  views.push(JSON.stringify(game.viewFor(room, 1)));
-  assert.equal(game.start(room, 1, rng).ok, true);
-  const person = room.seats[0];
-  const look = () => views.push(JSON.stringify(game.viewFor(room, 1)), JSON.stringify(game.viewFor(room, 99)), JSON.stringify(game.viewFor(room, 1, { online: () => false })));
-  look();
-  room.seats[0] = { kind: 'bot', id: 'bot:90', name: person.name, ai: room.seats[1].ai };
-  for (let guard = 0; guard < 20000 && room.phase !== 'finished'; guard++) {
-    if (!game.runPending(room, rng)) break;
-    look();
-  }
-  look();
-  return { views, finished: room.phase === 'finished' };
-}
+import { recordedViews } from './views.js';
 
 for (const [seats, seed] of [
   [4, 21],

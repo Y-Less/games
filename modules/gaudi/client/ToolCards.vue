@@ -10,7 +10,7 @@ defineProps({
   tools: { type: Array, required: true },
   deal: { type: Boolean, default: false },
   activeId: { type: String, default: null },
-  blockOf: { type: Function, default: () => () => '' },
+  blockOf: { type: Function, default: () => '' }, // a Function prop's default IS the function (Vue does not call it as a factory)
 });
 const emit = defineEmits(['start', 'hint']);
 </script>

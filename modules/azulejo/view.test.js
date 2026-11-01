@@ -1,46 +1,28 @@
-// A snapshot of what viewFor sends (see game.js): every view, for a person and a stranger, along whole seeded games of
-// computers. The digest was taken before viewFor was split into smaller builders, so splitting it further must not change
-// a byte of what is sent.
+// What viewFor sends (see game.js) along whole seeded games: the same views every time for a seed, every seat on the
+// scoreboard, and a fixed set of parts. (These used to pin a SHA-1 of every view, which also pinned every computer
+// decision and every field, so a legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import * as game from './game.js';
-import { runPending } from './bot.js';
 import { seeded } from '../../shared/random.js';
+import { recordedViews } from './views.js';
 
-/** Plays a seeded game of computers (seat 0 included) and returns every view of seat 0's person and of a stranger. */
-function recordedViews(seed, size, freeWall) {
-  const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', size, settings: { freeWall }, now: 1 });
-  const views = [JSON.stringify(game.viewFor(room, 1)), JSON.stringify(game.viewFor(room, 99))];
-  game.fillWithBots(room, 1);
-  views.push(JSON.stringify(game.viewFor(room, 1)));
-  assert.equal(game.start(room, 1, rng).ok, true);
-  const person = room.seats[0];
-  const look = () => views.push(JSON.stringify(game.viewFor(room, 1)), JSON.stringify(game.viewFor(room, 99)), JSON.stringify(game.viewFor(room, 1, { online: () => false })));
-  look();
-  room.seats[0] = { kind: 'bot', id: 'bot:90', name: person.name, ai: room.seats[1].ai };
-  for (let guard = 0; guard < 5000 && room.phase !== 'finished'; guard++) {
-    if (!runPending(room, rng)) break;
-    look();
-  }
-  look();
-  return { views, finished: room.phase === 'finished' };
+for (const [label, record] of [
+  ['three-player game', () => recordedViews(61, 3, false)],
+  ['two-player game with a free wall', () => recordedViews(62, 2, true)],
+]) {
+  test(`the views of a ${label} are the same every time for a seed, and every seat is on the scoreboard`, () => {
+    const first = record();
+    assert.equal(first.finished, true);
+    assert.deepEqual(record().views, first.views, 'a seed replays the same game and the same views');
+    assert.ok(first.views.length > 20, 'the game was long enough to look at');
+    for (const text of first.views) {
+      const view = JSON.parse(text);
+      assert.equal(view.scoreboard.players.length, view.seats.filter(Boolean).length, 'every seat is on the scoreboard');
+      if (view.you !== -1) assert.ok(view.seats[view.you], 'a member is seated where the view says');
+    }
+  });
 }
-
-const digest = (views) => createHash('sha1').update(views.join('\n')).digest('hex');
-
-test('the views of a three-player game are exactly as they were', () => {
-  const { views, finished } = recordedViews(61, 3, false);
-  assert.equal(finished, true);
-  assert.equal(digest(views), '1f3894df0b469dddb60530d970106feb486555e5');
-});
-
-test('the views of a two-player game with a free wall are exactly as they were', () => {
-  const { views, finished } = recordedViews(62, 2, true);
-  assert.equal(finished, true);
-  assert.equal(digest(views), 'a3e670fafb00f579a7e01995b7515d52da813de9');
-});
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1 });

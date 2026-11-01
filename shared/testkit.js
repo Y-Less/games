@@ -69,10 +69,12 @@ export async function until(condition, what, { timeout = 20000, step = 5 } = {})
  * @param {string} [options.dataDir]  a temporary folder to use (default: a fresh one in the OS temp dir)
  * @param {boolean} [options.keep]  leave the data folder in place afterwards (for restart tests)
  * @param {(dataDir: string) => void} [options.setup]  runs before the site starts
- * @returns {Promise<{ site: object, base: string, dataDir: string, person: (name: string) => object, stop: () => Promise<void>, alive: () => Promise<boolean>, people: object[] }>} handles for driving the running site
- * Side effects: copies files into dataDir, starts an HTTP/socket server on a random port, and registers a t.after cleanup (stops it, deletes dataDir unless keep).
+ * @param {boolean} [options.allowServerErrors]  by default the test fails if the server logged a failure (a handler or a
+ *   scheduled move that threw, a save that failed); a test that provokes one on purpose passes true
+ * @returns {Promise<{ site: object, base: string, dataDir: string, person: (name: string) => object, stop: () => Promise<void>, alive: () => Promise<boolean>, people: object[], logs: string[], serverErrors: () => string[] }>} handles for driving the running site
+ * Side effects: copies files into dataDir, starts an HTTP/socket server on a random port, and registers a t.after cleanup (stops it, deletes dataDir unless keep, and checks the server log).
  */
-export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-kit-`)), keep = false, setup } = {}) {
+export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-kit-`)), keep = false, setup, allowServerErrors = false } = {}) {
   const copy = path.join(dataDir, 'copy');
   const modulesDir = path.join(copy, 'modules');
   if (!fs.existsSync(modulesDir)) {
@@ -86,7 +88,8 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
     }
   }
   setup?.(dataDir);
-  const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
+  const logs = []; // everything the site and the module log: a handler that threw shows up here as "<event> failed:"
+  const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: (...args) => logs.push(args.map((a) => (a instanceof Error ? a.stack : String(a))).join(' ')) });
   const base = `http://127.0.0.1:${site.port}`;
   const people = [];
   let stopped = false;
@@ -97,9 +100,13 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
     for (const p of people) p.closeAll();
     await site.close();
   };
+  // The log lines that mean something went wrong on the server (a socket handler or a scheduled move threw, a save or a
+  // load failed), as opposed to a refusal a player is meant to read.
+  const serverErrors = () => logs.filter((line) => /failed|could not|TypeError|ReferenceError|RangeError/.test(line));
   t.after(async () => {
     await stop();
     if (!keep) fs.rmSync(dataDir, { recursive: true, force: true });
+    if (!allowServerErrors) assert.deepEqual(serverErrors(), [], 'the server logged a failure during the test');
   });
 
   // One test account: its cookie, its sockets and the states it has been sent. Created through `person(name)`.
@@ -223,7 +230,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
     const res = await fetch(`${base}/api/config`).catch(() => null);
     return Boolean(res?.ok);
   };
-  return { site, base, dataDir, person, stop, alive, people };
+  return { site, base, dataDir, person, stop, alive, people, logs, serverErrors };
 }
 
 // ---- garbage ----
