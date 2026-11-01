@@ -1,6 +1,6 @@
 // A snapshot of what viewFor sends (see game.js): every view, for a person and a stranger, along whole seeded games of
 // computers. The digest was taken before viewFor was split into smaller builders, so splitting it further must not change
-// a byte of what is sent.
+// a byte of what is sent. (Updated once, when other humans stopped being sent anyone else's reserved cards.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -30,13 +30,13 @@ const digest = (views) => createHash('sha1').update(views.join('\n')).digest('he
 test('the views of a three-player game are exactly as they were', () => {
   const { views, finished } = recordedViews(51, 3, 10);
   assert.equal(finished, true);
-  assert.equal(digest(views), 'f225f3bb6559f9c49c7a0b000331a83f568ef6b3');
+  assert.equal(digest(views), '85befd152405e0221c36fb22b25fff2103b10b48');
 });
 
 test('the views of a four-player game are exactly as they were', () => {
   const { views, finished } = recordedViews(52, 4, 15);
   assert.equal(finished, true);
-  assert.equal(digest(views), '8c2872cd6b066ecec30bffbc121b9e2345f47c83');
+  assert.equal(digest(views), '117aef161c2437e28e5f375173345d0a0b5db587');
 });
 
 test('a view lists its parts in a fixed order', () => {

@@ -576,7 +576,7 @@ describe('Splendour layout', () => {
 });
 
 describe('Splendour reserved cards in other players\' views', () => {
-  it('draws another player\'s blind reserve face down and one taken from the table face up, and your own face up', async () => {
+  it('draws another player\'s reserves face down, whether taken from the table or blind, and your own face up', async () => {
     const { default: PlayerBoard } = await import('./PlayerBoard.vue');
     const room = started(2);
     room.turn = 0;
@@ -587,7 +587,7 @@ describe('Splendour reserved cards in other players\' views', () => {
     const board = (seat, isMe) => mount(PlayerBoard, { props: { seat, isMe } });
     const theirs = board(others, false);
     expect(theirs.findAll('.reserved .dev-card')).toHaveLength(2);
-    expect(theirs.findAll('.reserved .dev-card.back')).toHaveLength(1); // only the blind one
+    expect(theirs.findAll('.reserved .dev-card.back')).toHaveLength(2);
     const mine = board(game.viewFor(room, 1).seats[0], true);
     expect(mine.findAll('.reserved .dev-card')).toHaveLength(2);
     expect(mine.findAll('.reserved .dev-card.back')).toHaveLength(0);

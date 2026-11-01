@@ -54,7 +54,7 @@ export function situation(room, seat, extra = {}) {
       nobles: p.nobles.length,
       reservedCount: p.reserved.length,
       // A bot knows its own reserves and every other player's reserve that was taken face up from the table (`!r.blind`),
-      // exactly as a person does (game.js `viewFor` shows those cards to everyone). Blind reserves stay secret.
+      // as a person could remember them (a human is not sent them by game.js `viewFor`). Blind reserves stay secret.
       reserved: p.reserved.filter((r) => i === seat || !r.blind).map((r) => r.card),
     })),
     moves: [],

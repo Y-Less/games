@@ -251,7 +251,7 @@ test('hidden information: nobody is ever sent a face-down card they may not see'
     if (ann.state.seats.some((s) => s?.reserved.some((r) => r.blind)) ) {
       for (const [viewer, other] of [[ann, bob], [bob, ann]]) {
         const theirs = viewer.state.seats[other.state.you].reserved;
-        for (const r of theirs) if (r.blind) assert.equal(r.card, null);
+        for (const r of theirs) assert.equal(r.card, null);
         const mine = viewer.state.seats[viewer.state.you].reserved;
         for (const r of mine) assert.match(r.card, /^c\d\d$/);
       }

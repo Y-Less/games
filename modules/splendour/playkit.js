@@ -117,7 +117,7 @@ export function assertNoLeaks(view, who = '') {
   for (const entry of view.log) if (entry.card) allowed.add(entry.card);
   for (const id of JSON.stringify(view).match(ID) ?? []) assert.ok(allowed.has(id), `${who}: was sent ${id}, which is not theirs to see`);
   for (const seat of view.seats) {
-    for (const r of seat?.reserved ?? []) if (r.blind && seat.seat !== view.you) assert.equal(r.card, null, `${who}: another player's blind reserve is hidden`);
+    for (const r of seat?.reserved ?? []) if (seat.seat !== view.you) assert.equal(r.card, null, `${who}: another player's reserve is hidden`);
   }
   for (const l of [1, 2, 3]) assert.equal(typeof view.decks[l], 'number', `${who}: the piles are counts`);
 }

@@ -15,7 +15,7 @@ Do exactly one of these.
 
 - **Take three gems** of three different colours. If fewer than three colours are left you may take fewer.
 - **Take two gems** of the same colour, but only if at least four of that colour are in the supply.
-- **Reserve a card.** Take any face-up card, or the top card of a pile without looking at it, and keep it in your hand. You also take one Gold if any is left. You may hold at most 3 reserved cards, and you can still reserve when there is no Gold left. Other players see how many cards you have reserved. A card you took from the table stays visible to them (they saw you take it), but one you took blind from a pile is face down to everyone except you until you buy it.
+- **Reserve a card.** Take any face-up card, or the top card of a pile without looking at it, and keep it in your hand. You also take one Gold if any is left. You may hold at most 3 reserved cards, and you can still reserve when there is no Gold left. Other players see how many cards you have reserved. Whether it came from the table or blind from a pile, a reserved card is face down to the other players on screen (only you see yours) until you buy it. Computer players are told the ones you took face up, as a person could remember them.
 - **Buy a card.** Buy a face-up card, or one of your reserved cards, by paying its cost. Paid tokens go back to the supply and the gap in the table is filled from that pile.
 
 ## Bonuses and Gold

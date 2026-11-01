@@ -834,7 +834,7 @@ export function statsPlayers(room) {
 
 /**
  * One occupied seat as the table shows it. Before the game starts that is just who is sitting there; afterwards it includes
- * tokens, bonuses, nobles and reserved cards (a card reserved blind is face down to everybody but its owner).
+ * tokens, bonuses, nobles and reserved cards (a reserved card is face down to everybody but its owner).
  *
  * Side effects: none.
  *
@@ -862,7 +862,7 @@ function seatView(room, i, me, online) {
     nobles: [...p.nobles],
     reserved: p.reserved.map((r) => ({
       level: CARD_BY_ID[r.card].level,
-      card: i === me || !r.blind ? r.card : null, // a card taken face up from the table was seen by everyone
+      card: i === me ? r.card : null, // only the owner is sent the card; computer players are told the face-up ones (bot.js)
       blind: r.blind, // how it was reserved (everyone saw that), not whether you can see it
     })),
   };
@@ -936,9 +936,9 @@ function affordView(room, me) {
 }
 
 /**
- * Everything one account may know. A reserved card taken face up from the table is shown to everyone (they all saw it
- * taken, and people remember); one reserved blind from a draw pile is only ever sent to the player who holds it (until it is
- * bought): to everyone else a blind reserve is face down, showing only its level.
+ * Everything one account may know. A reserved card is only ever sent to the player who holds it (until it is bought): to
+ * everyone else it is face down, showing only its level. (Computer players are told the face-up ones too, as a person could
+ * remember them: see bot.js.)
  * The draw piles are sent as counts only.
  *
  * Side effects: none.
