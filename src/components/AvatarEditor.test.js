@@ -44,6 +44,16 @@ describe('AvatarEditor', () => {
     expect(save().element.disabled).toBe(true);
   });
 
+  it('keeps unsaved changes when another part of the profile is saved', async () => {
+    await option('hair', 'Hair: Long').trigger('click');
+    session.user = { ...session.user, displayName: 'Annie' }; // what every other save on the Profile page does
+    await flushPromises();
+    expect(option('hair', 'Hair: Long').attributes('aria-pressed')).toBe('true');
+    session.user = { ...session.user, avatar: { ...DEFAULT_AVATAR, hair: 'curly' } }; // the avatar itself changed elsewhere
+    await flushPromises();
+    expect(option('hair', 'Hair: Curly').attributes('aria-pressed')).toBe('true');
+  });
+
   it('undoes unsaved changes', async () => {
     await option('hair', 'Hair: Long').trigger('click');
     await wrapper.findAll('button').find((b) => b.text() === 'Undo').trigger('click');

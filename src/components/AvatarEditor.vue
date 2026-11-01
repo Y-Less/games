@@ -16,7 +16,10 @@ import AvatarFigure from './AvatarFigure.vue';
 // The avatar stored on the account, with any missing or invalid parts filled in.
 const saved = computed(() => normaliseAvatar(session.user.avatar));
 const draft = ref({ ...saved.value }); // the choices being edited, kept apart from `saved` until Save
-watch(saved, (avatar) => (draft.value = { ...avatar }));
+// The draft starts again only when the saved avatar itself changes (saved here, or on another device). `saved` is a
+// new object every time the account is replaced, which every other profile save does, so watch its parts, not it.
+const savedParts = computed(() => AVATAR_SLOTS.map(({ slot }) => saved.value[slot]).join('|'));
+watch(savedParts, () => (draft.value = { ...saved.value }));
 
 // True when the draft differs from the saved avatar, which enables the Save and Reset buttons.
 const changed = computed(() => AVATAR_SLOTS.some(({ slot }) => draft.value[slot] !== saved.value[slot]));
