@@ -14,8 +14,11 @@ import siteMessages from './locales/en.json';
 const moduleMessages = import.meta.glob('../modules/*/locales/en.json', { eager: true, import: 'default' });
 const sources = import.meta.glob(['./**/*.{vue,js}', '../modules/*/client/**/*.{vue,js}', '../modules/*/*.js', '../shared/*.js', '../server/**/*.js'], { query: '?raw', import: 'default', eager: true });
 
-/** Source files that are tests, test kits or fixtures: their English is for developers. */
-const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|views\.js|fixtures\/|\/sim\/|\/arena\.js|\/testing\.js)$/;
+/**
+ * Source files whose English is not the interface: tests, test kits and fixtures (for developers), and a game's content
+ * (Just One's word list, Wavelength's spectra), which is translated as content, not as keys.
+ */
+const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|views\.js|fixtures\/|\/sim\/|\/arena\.js|\/testing\.js|\/words\.js|\/spectra\.js)$/;
 /** Attributes whose static value is read out or shown. */
 const TEXT_ATTRIBUTES = ['title', 'aria-label', 'aria-description', 'aria-roledescription', 'placeholder', 'alt', 'label', 'empty', 'intro', 'noun', 'headline', 'message', 'create-label', 'start-label', 'log-title', 'status-title', 'confirm-text', 'legend'];
 /** Template text that is not a word in any language. */
