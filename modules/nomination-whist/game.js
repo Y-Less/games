@@ -707,14 +707,15 @@ export function statsPlayers(room) {
  * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
  *
  * @param {object} room  not changed
- * @returns {{ type: 'nominate' | 'play' | 'resolve', seat?: number } | null} the action, or null
+ * @returns {{ type: 'nominate' | 'play' | 'resolve', seat?: number, key: string } | null} the action, or null; `key` names
+ *   it and stays the same while unrelated things happen, so the server's timer for it is not restarted by them
  * Side effects: none.
  */
 export function pendingAction(room) {
-  if (room.phase === 'nominating') return isBot(room.seats[room.turn]) ? { type: 'nominate', seat: room.turn } : null;
+  if (room.phase === 'nominating') return isBot(room.seats[room.turn]) ? { type: 'nominate', seat: room.turn, key: `nominate:${room.turn}:${room.roundIndex}` } : null;
   if (room.phase !== 'playing') return null;
-  if (room.trick.length === room.seats.length) return { type: 'resolve' };
-  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
+  if (room.trick.length === room.seats.length) return { type: 'resolve', key: `resolve:${room.roundIndex}:${room.tricksPlayed}` };
+  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.roundIndex}:${room.tricksPlayed}:${room.trick.length}` } : null;
 }
 
 /**

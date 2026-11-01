@@ -31,8 +31,10 @@ export default function (ctx) {
      * server logs it and tries again a little later instead of leaving the game stuck.
      */
     nextAction(room, rng) {
-      if (!game.pendingBot(room)) return null;
+      const pending = game.pendingBot(room);
+      if (!pending) return null;
       return {
+        key: pending.key,
         wait: botWait(thinkTime, rng),
         run() {
           const outcome = game.botMove(room, rng);

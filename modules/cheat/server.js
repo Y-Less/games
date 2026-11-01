@@ -51,7 +51,7 @@ export default function (ctx) {
       const action = game.pendingAction(room);
       if (!action) return null;
       const wait = action.type === 'decide' ? decideWait(delays.bot, rng) : botWait(delays.bot, rng);
-      return { wait, run: () => game.runPending(room, rng) };
+      return { key: action.key, wait, run: () => game.runPending(room, rng) };
     },
     /** Cheat's own socket events: play cards, call "Cheat!" and accept the last play. */
     registerEvents({ act, on, userId }) {

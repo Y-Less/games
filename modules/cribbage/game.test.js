@@ -506,3 +506,13 @@ test('the tally counts each completed deal in which the dealer scored nothing, m
     room.seats.forEach((s, seat) => assert.ok(s.stats.nineteens >= empty[seat] && s.stats.nineteens <= empty[seat] + 1, `seat ${seat}: ${s.stats.nineteens} against ${empty[seat]}`));
   }
 });
+
+test("a computer player's pending discard keeps its key while people discard, so its timer is not restarted by them", () => {
+  const room = started(4);
+  room.seats[2] = { ...room.seats[2], kind: 'human', id: 2, name: 'Bob' };
+  const before = game.pendingBot(room);
+  assert.equal(before.kind, 'discard');
+  const hand = room.hands[0];
+  assert.equal(game.discard(room, 0, hand.slice(0, hand.length - 4), seeded(1)).ok, true);
+  assert.equal(game.pendingBot(room).key, before.key, 'Alex discarding changes nothing for the waiting computer');
+});

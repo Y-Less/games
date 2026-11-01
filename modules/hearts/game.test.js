@@ -283,7 +283,7 @@ test('a finished trick goes to its winner, who leads next', () => {
   assert.equal(last.complete, true);
   assert.equal(room.turn, null, 'nobody plays while a trick waits to be cleared');
   assert.equal(g.playCard(room, 0, '9C').ok, false);
-  assert.deepEqual(g.pendingAction(room), { type: 'resolve' });
+  assert.equal(g.pendingAction(room).type, 'resolve');
   const outcome = g.resolveTrick(room);
   assert.deepEqual([outcome.winner, outcome.handOver], [1, false]);
   assert.deepEqual(room.taken[1].sort(), ['2D', '5D', '6D', 'AD']);
@@ -848,4 +848,15 @@ test('a person who leaves a finished game stays on the table as gone, so the vie
   assert.equal(g.kick(room, 2, 0, seeded(1), 0).ok, false, 'there is nobody left to remove in that seat');
   assert.equal(g.playAgain(room, 2).ok, true);
   assert.equal(room.seats[0], null, 'their seat is free for the next game');
+});
+
+test("a computer player's pending action keeps its key while other people pass, so its timer is not restarted by them", () => {
+  const room = started();
+  room.seats[2] = { kind: 'human', id: 2, name: 'Bob' };
+  const before = g.pendingAction(room);
+  assert.equal(before.type, 'pass');
+  assert.equal(g.choosePass(room, 0, room.hands[0].slice(0, 3)).ok, true);
+  assert.equal(g.pendingAction(room).key, before.key, 'Ann passing changes nothing for the waiting computer');
+  assert.equal(g.runPending(room, seeded(1)).type, 'pass');
+  assert.notEqual(g.pendingAction(room).key, before.key, 'once it has passed, the next computer is a new action');
 });

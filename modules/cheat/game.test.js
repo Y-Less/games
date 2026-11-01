@@ -291,3 +291,15 @@ test('a person who leaves a finished game stays on the table as gone, so the vie
   assert.equal(g.playAgain(room, 2).ok, true);
   assert.equal(room.seats[0], null, 'their seat is free for the next game');
 });
+
+test("a computer player's decision about the final play keeps its key while people accept it, so its timer is not restarted", () => {
+  const room = started();
+  room.seats[2] = { kind: 'human', id: 2, name: 'Bob' };
+  stage(room, [['5C'], ['2C', '9D'], ['3C', '4D'], ['6C', '7D']], { pile: ['KS'] });
+  g.playCards(room, 0, ['5C']);
+  assert.equal(room.phase, 'check');
+  const before = g.pendingAction(room);
+  assert.deepEqual([before.type, before.seat], ['decide', 1]);
+  assert.equal(g.accept(room, 2).ok, true);
+  assert.equal(g.pendingAction(room).key, before.key, 'Bob accepting changes nothing for the deciding computer');
+});

@@ -673,15 +673,16 @@ export function ready(room, seat, rng) {
  * The computer player who has something to do now, if any.
  *
  * @param {object} room
- * @returns {{ seat: number, kind: 'discard' | 'play' } | null}
+ * @returns {{ seat: number, kind: 'discard' | 'play', key: string } | null} `key` names the move and stays the same while
+ *   unrelated things happen (a person discarding, say), so the server's timer for it is not restarted by them
  * Side effects: none.
  */
 export function pendingBot(room) {
   if (room.phase === 'discard') {
     const seat = room.seats.findIndex((s) => isBot(s) && !s.discarded);
-    return seat === -1 ? null : { seat, kind: 'discard' };
+    return seat === -1 ? null : { seat, kind: 'discard', key: `discard:${seat}:${room.handNo}` };
   }
-  if (room.phase === 'play' && isBot(room.seats[room.play.turn])) return { seat: room.play.turn, kind: 'play' };
+  if (room.phase === 'play' && isBot(room.seats[room.play.turn])) return { seat: room.play.turn, kind: 'play', key: `play:${room.play.turn}:${room.handNo}:${room.hands.flat().length}` };
   return null;
 }
 

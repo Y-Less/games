@@ -49,7 +49,7 @@ export default function (ctx) {
     nextAction(room, rng) {
       const action = game.pendingAction(room);
       if (action) {
-        return { wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => game.runPending(room, rng) };
+        return { key: action.key, wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => game.runPending(room, rng) };
       }
       // The wait is not restarted when somebody closes the pop-up: the same hand's timer keeps running.
       if (game.waitingForReady(room)) return { key: `next:${room.handNumber}`, wait: delays.nextWait, run: () => game.forceNextHand(room, rng) };

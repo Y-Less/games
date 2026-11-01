@@ -747,17 +747,19 @@ export const waitingForReady = (room) => room.phase === 'handEnd';
 /**
  * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
  * @param {object} room  not changed.
- * @returns {{type: 'pass'|'play'|'resolve', seat?: number}|null} the pending action.
+ * @returns {{type: 'pass'|'play'|'resolve', seat?: number, key: string}|null} the pending action; `key` names it, and stays
+ *   the same while unrelated things happen (another person passing, somebody connecting), so the server's timer for it is
+ *   not restarted by them.
  * Side effects: none.
  */
 export function pendingAction(room) {
   if (room.phase === 'passing') {
     const seat = room.seats.findIndex((s, i) => isBot(s) && !room.passes[i]);
-    return seat === -1 ? null : { type: 'pass', seat };
+    return seat === -1 ? null : { type: 'pass', seat, key: `pass:${seat}:${room.handNumber}` };
   }
   if (room.phase !== 'playing') return null;
-  if (room.trick.length === room.seats.length) return { type: 'resolve' };
-  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn } : null;
+  if (room.trick.length === room.seats.length) return { type: 'resolve', key: `resolve:${room.handNumber}:${room.tricksPlayed}` };
+  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.handNumber}:${room.tricksPlayed}:${room.trick.length}` } : null;
 }
 
 /**

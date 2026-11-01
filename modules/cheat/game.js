@@ -442,16 +442,18 @@ export function botCalls(room, seat, rng) {
  * comes before a play.
  *
  * @param {object} room  not changed
- * @returns {{ type: 'decide' | 'play', seat: number } | null} the action, or null when waiting for a person
+ * @returns {{ type: 'decide' | 'play', seat: number, key: string } | null} the action, or null when waiting for a person;
+ *   `key` names it and stays the same while unrelated things happen (a person accepting the final play, say), so the
+ *   server's timer for it is not restarted by them
  * Side effects: none.
  */
 export function pendingAction(room) {
   if (!['playing', 'check'].includes(room.phase)) return null;
   if (room.last) {
     const seat = room.seats.findIndex((s, i) => isBot(s) && i !== room.last.seat && !room.decided.includes(i));
-    if (seat !== -1) return { type: 'decide', seat };
+    if (seat !== -1) return { type: 'decide', seat, key: `decide:${seat}:${room.plays}` };
   }
-  if (room.phase === 'playing' && isBot(room.seats[room.turn])) return { type: 'play', seat: room.turn };
+  if (room.phase === 'playing' && isBot(room.seats[room.turn])) return { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.plays}` };
   return null;
 }
 
