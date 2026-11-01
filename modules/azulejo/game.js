@@ -464,10 +464,14 @@ export function takeTiles(room, seat, args, rng) {
   const floor = room.floors[seat];
   const floorBefore = floor.length;
   const marker = takesMarker(room, source);
+  let markerOnFloor = false; // a full floor has no room for it, and then it costs nothing (and counts as nothing dropped)
   if (marker) {
     room.markerInCentre = false;
     room.nextFirst = seat;
-    if (floor.length < FLOOR_SLOTS) floor.push(MARKER);
+    if (floor.length < FLOOR_SLOTS) {
+      floor.push(MARKER);
+      markerOnFloor = true;
+    }
   }
   let overflow = count;
   if (line !== 'floor') {
@@ -480,7 +484,7 @@ export function takeTiles(room, seat, args, rng) {
     else room.lid.push(colour);
   }
   const placed = count - overflow;
-  tallyTake(room.tally[seat], { taken: count, dropped: overflow + (marker ? 1 : 0), floorBefore, floorAfter: floor.length });
+  tallyTake(room.tally[seat], { taken: count, dropped: overflow + (markerOnFloor ? 1 : 0), floorBefore, floorAfter: floor.length });
   const result = line === 'floor' ? 'all to the floor' : `${placed} on line ${line + 1}${overflow ? `, ${overflow} to the floor` : ''}`;
   addLog(room, seat, `${seatName(room, seat)} took ${tilesText(count, colour)} from ${sourceName(source)}${marker ? ' and the first-player marker' : ''}: ${result}`);
 

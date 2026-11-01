@@ -815,3 +815,14 @@ test('statistics: a game that ends with the whole wall filled counts the bottom 
   assert.deepEqual([full.extras.wallTiles, other.extras.wallTiles], [25, 0], 'tiles placed on the wall at the end');
   assert.deepEqual([other.extras.gridsFilled, other.extras.bottomRows], [0, 0]);
 });
+
+test('the first-player marker counts as dropped only when it actually lands on the floor', () => {
+  const { room, rng } = playingRoom(2, { seed: 3 });
+  setTable(room, { factories: [[0, 0, 1, 1]], centre: [2, 2], marker: true, turn: 0 });
+  room.floors[0] = [3, 3, 3, 3, 3, 3, 3]; // a full floor: the marker has nowhere to go
+  const before = room.tally[0].tilesDropped;
+  assert.equal(game.takeTiles(room, 0, { source: 'centre', colour: 2, line: 'floor' }, rng).ok, true);
+  assert.equal(room.nextFirst, 0, 'they still play first next round');
+  assert.equal(room.floors[0].includes(MARKER), false, 'but the marker is not on the floor');
+  assert.equal(room.tally[0].tilesDropped, before + 2, 'two tiles went to the lid; the marker was not dropped');
+});
