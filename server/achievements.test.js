@@ -210,3 +210,11 @@ test('played pieces add up the building games own counts, and won every game is 
   assert.throws(() => achievements.add('hearts', ann, 'global.pieces'), /cannot be set/);
   assert.throws(() => achievements.add('hearts', ann, 'global.everygame'), /cannot be set/);
 });
+
+test('won every game is not given away on a site with no games loaded', () => {
+  const { db, user, results } = setup();
+  const ann = user('ann');
+  results.set(ann, { summary: { played: 0, wins: 0, losses: 0, draws: 0 }, perGame: [] });
+  const empty = createAchievements(db, { listGames: () => [], statsFor: (id) => results.get(id), notify() {} });
+  assert.equal(empty.get(ann, 'global.everygame'), 0, 'nothing to win means nothing won');
+});

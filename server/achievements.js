@@ -76,7 +76,10 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     return (sectionId, definition) => {
       if (definition.sum) return definition.sum.reduce((total, [gameId, stat]) => total + statOf(gameId, stat), 0);
       if (definition.measure) return measures[definition.measure]?.(userId) ?? 0;
-      if (definition.wonEvery) return listGames().every((game) => statOf(game.id, 'wins') >= 1) ? 1 : 0;
+      if (definition.wonEvery) {
+        const games = listGames(); // a site with no games loaded has nothing to win, so nobody has "won every game"
+        return games.length && games.every((game) => statOf(game.id, 'wins') >= 1) ? 1 : 0;
+      }
       if (!definition.stat) return saved.get(`${sectionId}.${definition.key}`) ?? 0;
       return (sectionId === GLOBAL ? global : games.get(sectionId) ?? {})[definition.stat] ?? 0;
     };

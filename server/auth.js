@@ -9,6 +9,7 @@ const scrypt = promisify(crypto.scrypt);
 
 export const SESSION_COOKIE = 'sid';
 export const SESSION_DAYS = 30;
+const THROTTLE_WINDOW_MS = 15 * 60 * 1000; // failed sign-ins and registrations are counted over this long
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const USERNAME = /^[A-Za-z0-9_-]{3,20}$/;
@@ -63,7 +64,7 @@ export const REGISTER_LIMIT = 20;
  * Side effects: none until a method is called.
  */
 export function createAuth(db, { canUse = () => {} } = {}) {
-  const attempts = new Map(); // "ip|username" -> { count, first }: slows down password guessing
+  const attempts = new Map(); // "ip|username" -> { count, first }: slows down password guessing (entries older than the window are dropped as it is used)
   const profiles = createProfiles(db, { canUse });
   const byId = profiles.userById;
 
@@ -77,8 +78,9 @@ export function createAuth(db, { canUse = () => {} } = {}) {
    */
   function throttle(key, max = 10) {
     const now = Date.now();
+    for (const [other, { first }] of attempts) if (now - first > THROTTLE_WINDOW_MS) attempts.delete(other); // forget old keys, or the map grows for ever
     const entry = attempts.get(key);
-    if (!entry || now - entry.first > 15 * 60 * 1000) {
+    if (!entry) {
       attempts.set(key, { count: 1, first: now });
       return;
     }
