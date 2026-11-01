@@ -95,7 +95,9 @@ export function pickKeys(payload, keys) {
  *
  * @param {object} ctx  the module context the site gives server.js (io, dataDir, log, codes, stats, ...)
  * @param {object} options
- * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra }),
+ * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra })
+ *   (the one rule that throws instead of returning { ok: false }: the Error's message is shown to the person, so throw
+ *   only what they should read, such as "Play to 61 or 121."),
  *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
  *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng, now) (returns { ok, empty, ... };
  *   `changed: false` says the room was left as it was, e.g. a finished list game keeps its standings, so nothing is saved or sent),
@@ -140,25 +142,34 @@ export function createRoomServer(ctx, options) {
   let saveTimer = null;
 
   /**
-   * Reads the saved rooms, if any. A missing file is normal; anything else is logged and the rooms start empty.
+   * Reads the saved rooms, if any. A missing file is normal; an unreadable file is logged and the rooms start empty; one
+   * room that cannot be brought up to date is logged and skipped, so it does not take the others down with it.
    * @returns {void}
-   * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room) and may log an error.
+   * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room) and may log errors.
    */
   function loadRooms() {
+    let saved;
     try {
-      for (const saved of JSON.parse(fs.readFileSync(file, 'utf8'))) {
-        const room = migrate ? migrate(saved) ?? saved : saved;
-        rooms.set(room.code, room);
-      }
+      saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (error) {
       if (error.code !== 'ENOENT') ctx.log('could not read the saved games:', error.message);
+      return;
+    }
+    for (const entry of Array.isArray(saved) ? saved : []) {
+      try {
+        const room = migrate ? migrate(entry) ?? entry : entry;
+        rooms.set(room.code, room);
+      } catch (error) {
+        ctx.log(`could not load the saved game ${entry?.code}:`, error.message);
+      }
     }
   }
 
   /**
-   * Asks for a save soon; many changes in a short time cost one write.
+   * Writes every room to disk now, atomically (a temporary file renamed over the real one, so a crash mid-write leaves
+   * the old file whole). A failure is logged, never thrown.
    * @returns {void}
-   * Side effects: sets the debounce timer (unreferenced, so it never keeps the process alive) if none is pending.
+   * Side effects: clears any pending debounced save, writes `rooms.json`, may log.
    */
   function saveNow() {
     clearTimeout(saveTimer);
@@ -171,7 +182,7 @@ export function createRoomServer(ctx, options) {
     }
   }
 
-  /** Asks for a save soon; many changes in a short time cost one write. */
+  /** Asks for a save soon; many changes in a short time cost one write (the timer is unreferenced, so it never keeps the process alive). */
   function save() {
     saveTimer ??= setTimeout(saveNow, SAVE_DEBOUNCE_MS);
     saveTimer.unref?.();
@@ -189,15 +200,16 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
-   * Forgets a room completely (its timer, its saved copy).
+   * Forgets a room completely (its timer, its saved copy) and sends anybody still looking at it back to the menu.
    * @param {object} room  the room to drop
    * @returns {void}
-   * Side effects: cancels its timer, deletes it from `failures` and `rooms`, and schedules a save.
+   * Side effects: cancels its timer, deletes it from `failures` and `rooms`, detaches its people's sockets, and schedules a save.
    */
   function discard(room) {
     cancelTimer(room.code);
     failures.delete(room.code);
     rooms.delete(room.code);
+    for (const seat of members(room)) if (game.isHuman(seat)) detach(seat.id, room.code);
     save();
   }
 
@@ -271,7 +283,8 @@ export function createRoomServer(ctx, options) {
   /**
    * Works out what the server has to do by itself next for this room and sets the timer for it, replacing any earlier
    * timer (unless the action says its key is unchanged). If the action throws, the failure is logged and it is tried
-   * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts.
+   * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts (any
+   * change to the room, see `changed`, starts the count afresh).
    * The same goes if working out the next action throws, or if telling everybody afterwards does: a bug in one game's rules
    * must not escape from a timer (where nothing would catch it) or leave the room waiting for ever.
    * @param {object} room  the room to schedule for
@@ -299,8 +312,7 @@ export function createRoomServer(ctx, options) {
       if (rooms.get(room.code) !== room) return;
       try {
         action.run();
-        failures.delete(room.code);
-        changed(room);
+        changed(room); // which also forgets earlier failures
       } catch (error) {
         failedMove(room, 'a scheduled move failed', error);
       }
@@ -358,13 +370,15 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
-   * Call after any change to a room: stamps it, runs the game's afterChange hook, records a finished game, saves, tells everyone and reschedules.
+   * Call after any change to a room: stamps it, forgets any run of failed scheduled moves (somebody acted, so the room is
+   * worth retrying for), runs the game's afterChange hook, records a finished game, saves, tells everyone and reschedules.
    * @param {object} room  the room that changed
    * @returns {void}
-   * Side effects: sets `room.updatedAt`, may mutate the room via `afterChange`, and triggers recording, saving, pushing and scheduling.
+   * Side effects: sets `room.updatedAt`, clears the room's failure count, may mutate the room via `afterChange`, and triggers recording, saving, pushing and scheduling.
    */
   function changed(room) {
     room.updatedAt = now();
+    failures.delete(room.code);
     try {
       afterChange?.(room);
     } catch (error) {
@@ -517,6 +531,7 @@ export function createRoomServer(ctx, options) {
           ...createArgs(payload),
         });
       } catch (error) {
+        ctx.log('create refused:', error.message); // a rules bug would surface here too, so keep a trace of it
         return { ok: false, error: error.message };
       }
       leaveAllRooms(userId);

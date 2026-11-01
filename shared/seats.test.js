@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { drawUnused, pickOne, seeded } from './random.js';
-import { createSeatRules, freeGoneSeats, goneSeat, isBot, isGone, isHuman, seatOf, uniqueName } from './seats.js';
+import { createSeatRules, freeGoneSeats, freeName, goneSeat, isBot, isGone, isHuman, nextBotName, seatOf, uniqueName } from './seats.js';
 
 /** A three-seat lobby with Ann (the host) in seat 0. */
 function lobby() {
@@ -138,4 +138,14 @@ test('a person who leaves a finished game leaves a gone marker, which play-again
   freeGoneSeats(room);
   assert.equal(room.seats[0], null);
   assert.equal(room.seats[1].id, 2, 'the others keep their seats');
+});
+
+test('computer players are named without regard to capitals, like people', () => {
+  const room = { hostId: 1, phase: 'lobby', nextBot: 1, seats: [{ kind: 'human', id: 1, name: 'hazel' }, { kind: 'human', id: 2, name: 'COMPUTER' }, null, null] };
+  const first = rules.newBot(room);
+  assert.notEqual(first.name.toLowerCase(), 'hazel', 'the first list name is taken, whatever its capitals');
+  const bots = createSeatRules({ isMidGame: () => false, botNames: ['hazel'] });
+  assert.equal(bots.newBot(room).name, 'Computer 2', 'the fallback is numbered past the person called COMPUTER');
+  assert.equal(nextBotName(['Otis', 'computer', 'COMPUTER 2'], ['Otis']), 'Computer 3', 'past the list, Computer is numbered without regard to capitals');
+  assert.equal(freeName(['Ann', 'ann (2)'], 'ANN', (w, n) => `${w} (${n})`), 'ANN (3)');
 });

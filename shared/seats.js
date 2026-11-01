@@ -65,18 +65,45 @@ export const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can 
 export const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
 
 /**
+ * The first of `wanted`, `numbered(wanted, 2)`, `numbered(wanted, 3)` ... that is not already used, ignoring capital letters.
+ * Both people and computer players are named through this, so "hazel" and "Hazel" can never sit at one table.
+ * @param {Iterable<string>} used  the names already taken
+ * @param {string} wanted  the name asked for
+ * @param {(wanted: string, n: number) => string} numbered  how to write the n-th variant, e.g. "Ann (2)" or "Computer 2"
+ * @returns {string}
+ * Side effects: none.
+ */
+export function freeName(used, wanted, numbered) {
+  const taken = new Set([...used].map((n) => n.toLowerCase()));
+  let name = wanted;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = numbered(wanted, n);
+  return name;
+}
+
+/**
+ * The name for the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
+ * @param {Iterable<string>} used  the names already taken (people and computer players)
+ * @param {string[]} botNames  the names to try first, in order
+ * @returns {string}
+ * Side effects: none.
+ */
+export function nextBotName(used, botNames) {
+  const taken = new Set([...used].map((n) => n.toLowerCase()));
+  const base = botNames.find((n) => !taken.has(n.toLowerCase())) ?? 'Computer';
+  return freeName(used, base, (b, n) => `${b} ${n}`);
+}
+
+/**
  * Finds a name nobody else at the table has (ignoring capital letters): "Ann" becomes "Ann (2)" if "ann" is taken.
  * @param {{ seats: Array<{ name: string } | null> }} room  the room whose seats are checked (not changed)
  * @param {string} wanted  the name the person would like
  * @returns {string} `wanted`, or `wanted` with " (n)" appended
  * Side effects: none.
  */
-export function uniqueName(room, wanted) {
-  const used = new Set(room.seats.filter(Boolean).map((s) => s.name.toLowerCase()));
-  let name = wanted;
-  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${wanted} (${n})`;
-  return name;
-}
+export const uniqueName = (room, wanted) => freeName(seatNames(room), wanted, (w, n) => `${w} (${n})`);
+
+/** The names of everybody at the table (people and computer players). */
+const seatNames = (room) => room.seats.filter(Boolean).map((s) => s.name);
 
 /**
  * Builds a game's seat rules.
@@ -102,11 +129,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * Side effects: increments `room.nextBot`.
    */
   function newBot(room) {
-    const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
-    const base = botNames.find((n) => !used.has(n)) ?? 'Computer';
-    let name = base;
-    for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
-    return { kind: 'bot', id: `bot:${room.nextBot++}`, name };
+    return { kind: 'bot', id: `bot:${room.nextBot++}`, name: nextBotName(seatNames(room), botNames) };
   }
 
   /**

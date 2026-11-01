@@ -13,7 +13,7 @@
 // Every rule returns { ok: true, ... } or { ok: false, error } and (like all the rules) mutates the room it is given.
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
-import { DEFAULT_BOT_NAMES, asHost, fail, isBot, isHuman, ok } from './seats.js';
+import { DEFAULT_BOT_NAMES, asHost, fail, freeName, isBot, isHuman, nextBotName, ok } from './seats.js';
 
 export { isBot, isHuman };
 
@@ -51,12 +51,10 @@ export const humans = (room) => room.players.filter(isHuman);
  * @param {string} wanted  the name the person would like
  * @returns {string}
  */
-export function uniqueName(room, wanted) {
-  const used = new Set(room.players.filter((p) => typeof p.name === 'string').map((p) => p.name.toLowerCase()));
-  let name = wanted;
-  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${wanted} (${n})`;
-  return name;
-}
+export const uniqueName = (room, wanted) => freeName(playerNames(room), wanted, (w, n) => `${w} (${n})`);
+
+/** The names of everybody in the room (a person saved before names were kept may have none). */
+const playerNames = (room) => room.players.filter((p) => typeof p.name === 'string').map((p) => p.name);
 
 /**
  * Brings the player list of a SAVED room up to date, so that rooms written before the move to this file still load:
@@ -111,12 +109,8 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @returns {object} the new player (not yet in room.players)
    */
   function newBot(room) {
-    const used = new Set(room.players.filter((p) => typeof p.name === 'string').map((p) => p.name));
-    const base = botNames.find((n) => !used.has(n)) ?? 'Computer';
-    let name = base;
-    for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
     room.nextBot ??= 1;
-    return makePlayer(room, { kind: 'bot', id: `bot:${room.nextBot++}`, name });
+    return makePlayer(room, { kind: 'bot', id: `bot:${room.nextBot++}`, name: nextBotName(playerNames(room), botNames) });
   }
 
   /**

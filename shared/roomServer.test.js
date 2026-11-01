@@ -157,3 +157,52 @@ test('leaving a finished list game, or starting another one, leaves the finished
   assert.equal(server.rooms.get('a-b-c').updatedAt, 1000, 'starting another game did not touch it either');
   assert.equal(server.rooms.size, 2);
 });
+
+/** The rules stub the socket tests use: list-style rooms, nothing hidden. */
+function listRules(extra = {}) {
+  return {
+    isLive: (room) => room.phase !== 'finished',
+    isHuman: (p) => p.kind === 'human',
+    hasPlayer: (room, id) => room.players.some((p) => p.id === id),
+    seatOf: (room, id) => room.players.findIndex((p) => p.id === id),
+    viewFor: (room) => ({ code: room.code }),
+    removeHuman: () => ({ ok: true, empty: true }),
+    createRoom: ({ code, hostId, hostName }) => ({ code, phase: 'lobby', updatedAt: 0, players: [{ kind: 'human', id: hostId, name: hostName }] }),
+    ...extra,
+  };
+}
+
+test('one saved room that cannot be brought up to date is skipped and logged; the others still load', (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
+  fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([{ code: 'good', phase: 'playing', updatedAt: 1000, players: [] }, { code: 'bad', phase: 'playing', updatedAt: 1000, players: [] }]));
+  const logs = [];
+  const ctx = { io: new EventEmitter(), dataDir, log: (...args) => logs.push(args.map(String).join(' ')), codes: {}, stats: { record() {} } };
+  const migrate = (room) => {
+    if (room.code === 'bad') throw new Error('unknown shape');
+    return room;
+  };
+  const server = createRoomServer(ctx, { game: listRules(), pickSettings: () => ({}), nextAction: () => null, registerEvents() {}, members: (room) => room.players, migrate, now: () => 2000 });
+  t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  assert.deepEqual([...server.rooms.keys()], ['good']);
+  assert.ok(logs.some((line) => line.includes('bad') && line.includes('unknown shape')), 'the skipped room is named in the log');
+});
+
+test('the hourly sweep sends anybody still looking at a discarded room back to the menu', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
+  let clock = 10_000;
+  fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([{ code: 'a-b-c', phase: 'playing', updatedAt: clock, players: [{ kind: 'human', id: 7, name: 'Ann' }] }]));
+  const ctx = { io: new EventEmitter(), dataDir, log() {}, codes: { normalise: (c) => c ?? '' }, stats: { record() {} } };
+  const server = createRoomServer(ctx, { game: listRules(), pickSettings: () => ({}), nextAction: () => null, registerEvents() {}, members: (room) => room.players, now: () => clock });
+  t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  const ann = fakeSocket(7);
+  ctx.io.emit('connection', ann);
+  ann.handlers = {};
+  ann.emit('resume', {}, () => {});
+  assert.deepEqual(ann.sent.at(-1), { code: 'a-b-c' }, 'Ann is looking at her live game');
+  clock += 8 * 24 * 60 * 60 * 1000; // a week and a day later, with nobody having touched the room
+  t.mock.timers.tick(60 * 60 * 1000);
+  assert.equal(server.rooms.size, 0, 'the room was swept');
+  assert.equal(ann.sent.at(-1), null, 'and Ann was sent home rather than left pointing at nothing');
+  assert.equal(ann.data.code, null);
+});
