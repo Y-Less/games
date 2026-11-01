@@ -56,7 +56,7 @@ export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore',
 
 /** The achievements that belong to the site rather than to one game. */
 export const GLOBAL_ACHIEVEMENTS = [
-  { key: 'welcome', name: 'Millenium Home', text: 'Sign up', levels: GLOBAL_TIERS.unlock, measure: 'member' },
+  { key: 'welcome', name: 'Millennium Home', text: 'Sign up', levels: GLOBAL_TIERS.unlock, measure: 'member' },
   { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: GLOBAL_TIERS.medium, stat: 'played' },
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
   { key: 'persistent', name: 'Persistent', text: 'You just lost the game ({n} times)', one: 'You just lost the game (1 time)', levels: GLOBAL_TIERS.medium, stat: 'losses' },
