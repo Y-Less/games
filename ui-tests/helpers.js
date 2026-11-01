@@ -23,6 +23,7 @@ export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The fast computer-player settings every module reads from the environment (see each module's server.js). */
 const FAST_ENV = {
+  REGISTER_LIMIT: '100000', // every test account is made from one address, far more than the real per-address limit allows
   HEARTS_BOT_DELAY: '0-5',
   HEARTS_TRICK_PAUSE: '0',
   CRIBBAGE_BOT_DELAY: '0-5',

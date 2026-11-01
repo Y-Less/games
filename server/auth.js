@@ -191,7 +191,7 @@ function publicUser(row) {
   return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
 }
 
-/** Registrations one address may attempt in 15 minutes. */
+/** Registrations one address may attempt in 15 minutes (the REGISTER_LIMIT environment variable overrides it, for the UI tests). */
 export const REGISTER_LIMIT = 20;
 
 /**
@@ -247,7 +247,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: inserts a user and a session; counts the attempt against the address.
      */
     async register({ username, password, displayName, isBot = false, ip }) {
-      if (ip !== undefined) throttle(`register|${ip}`, REGISTER_LIMIT);
+      if (ip !== undefined) throttle(`register|${ip}`, Number(process.env.REGISTER_LIMIT) || REGISTER_LIMIT);
       username = String(username ?? '').trim();
       password = String(password ?? '');
       if (!USERNAME.test(username)) throw new AuthError('Usernames are 3 to 20 letters, numbers, dashes or underscores.');
