@@ -4,7 +4,7 @@
 // Depends on: the coin_ledger, result_players, results and users tables (see db.js).
 
 /** Coins for a finished game, by placement (1 = best). Tied players share a placement, so they share its prize. */
-export const PLACEMENT_PRIZES = { 1: 100, 2: 50, 3: 20 };
+const PLACEMENT_PRIZES = { 1: 100, 2: 50, 3: 20 };
 
 /**
  * What a recorded player earns: by placement, or as 1st when the game reports a win without a placement.

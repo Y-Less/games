@@ -18,7 +18,7 @@ export const IMAGE_TYPES = {
  * Makes the uploads folder and the operations on it. `serve` hands the files out with a long cache time because each name
  * is random and never reused, and with nosniff so a mislabelled file is never run as a page.
  * @param {string} uploadsDir  the folder pictures are kept in (created when missing)
- * @returns {{ dir: string, serve: import('express').RequestHandler, removeImages: Function, saveImage: Function }}
+ * @returns {{ serve: import('express').RequestHandler, removeImages: Function, saveImage: Function }}
  * Side effects: creates the folder.
  */
 export function createUploads(uploadsDir) {
@@ -58,5 +58,5 @@ export function createUploads(uploadsDir) {
 
   const serve = express.static(uploadsDir, { maxAge: '30d', immutable: true, setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff') });
 
-  return { dir: uploadsDir, serve, removeImages, saveImage };
+  return { serve, removeImages, saveImage };
 }

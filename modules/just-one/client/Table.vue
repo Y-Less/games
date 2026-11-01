@@ -224,7 +224,6 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
               </span>
             </li>
           </ul>
-          <p v-if="state.guess && !guessing && !choosing && !reveal && !ended" class="muted guess-note">{{ guesserName }} guessed “{{ state.guess.text }}”.</p>
         </section>
 
         <div class="action">

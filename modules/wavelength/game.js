@@ -27,7 +27,7 @@ export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 /** The longest clue, in characters; longer ones are cut (so a clue cannot swamp the table). */
 export const CLUE_LENGTH = 80;
 /** `solo`: everyone guesses alone. `team`: the guessers share one marker, move it together and lock it in. */
-export const MODES = ['solo', 'team'];
+const MODES = ['solo', 'team'];
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 // The scoring numbers (the bands, the most a turn can score, what a team must average to win) live in scoring.js so that the
 // client can import them too. They are re-exported here so everything about the rules can still be had from game.js.

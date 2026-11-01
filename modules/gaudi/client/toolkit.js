@@ -6,7 +6,7 @@
  * moved die must match the first. Tools missing from here fall back to a plain confirm button in startMode.
  * Side effects: none (a constant).
  */
-export const TOOL_KINDS = {
+const TOOL_KINDS = {
   lathe: { kind: 'delta' }, // a pool die, then raise or lower it
   mirror: { kind: 'pool' }, // a pool die
   refire: { kind: 'pool' },

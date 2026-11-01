@@ -124,7 +124,7 @@ export const WORDS = [
 ];
 
 // Lookup of entries by secret word.
-export const wordById = new Map(WORDS.map((entry) => [entry.word, entry]));
+const wordById = new Map(WORDS.map((entry) => [entry.word, entry]));
 /**
  * The usual clues of a word, strongest first.
  * @param {string} word  a secret word

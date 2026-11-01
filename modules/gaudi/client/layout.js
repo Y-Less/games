@@ -36,7 +36,7 @@ export const spanWidth = (area, n) => {
  * @returns {number} the size of one space in pixels, a whole number
  * Side effects: none.
  */
-export const windowCell = (width, height, { min = 24, max = 140 } = {}) =>
+const windowCell = (width, height, { min = 24, max = 140 } = {}) =>
   clamp(min, Math.floor(Math.min((width - WINDOW_FIXED) / COLS, (height - WINDOW_FIXED_H) / ROWS)), max);
 
 /**

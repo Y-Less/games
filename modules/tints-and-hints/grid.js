@@ -14,7 +14,6 @@
 // Every colour is a plain sRGB hex string, so it is the same in every browser.
 export const COLS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((c) => 'A' + c)];
 export const ROWS = Array.from({ length: 24 }, (_, i) => String(i + 1));
-export const CELL_COUNT = COLS.length * ROWS.length;
 
 const HUE_START = 15; // degrees of OKLCH hue for column A (a red), so each 4-column block is centred on a named hue
 const L_DARK = 0.34;
@@ -277,7 +276,7 @@ const DESCRIPTIONS = [
  *
  * Side effects: none.
  */
-export function groupOf(cell) {
+function groupOf(cell) {
   const p = parseCell(cell);
   return p && { col: Math.floor(p.col / GROUP_SIZE), row: Math.floor(p.row / GROUP_SIZE) };
 }
@@ -290,7 +289,7 @@ export function groupOf(cell) {
  *
  * Side effects: none.
  */
-export const describeGroup = ({ col, row }) => DESCRIPTIONS[col][row];
+const describeGroup = ({ col, row }) => DESCRIPTIONS[col][row];
 
 /**
  * The description of the block that holds a square, or null if it is not a square.
@@ -310,7 +309,7 @@ export const describeCell = (cell) => (parseCell(cell) ? describeGroup(groupOf(c
  *
  * Side effects: none.
  */
-export function groupCells({ col, row }) {
+function groupCells({ col, row }) {
   const out = [];
   for (let c = col * GROUP_SIZE; c < (col + 1) * GROUP_SIZE; c++) for (let r = row * GROUP_SIZE; r < (row + 1) * GROUP_SIZE; r++) out.push(cellName(c, r));
   return out;

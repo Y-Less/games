@@ -61,7 +61,6 @@ export const BOT_NAMES = ['Gaudi', 'Jujol', 'Lluis', 'Pau', 'Mercè', 'Rosa', 'E
 // How many tools and public objectives a game deals, and how many window patterns each player chooses between.
 export const TOOL_COUNT = 3;
 export const PUBLIC_COUNT = 3;
-export const WINDOW_OPTIONS = 4;
 
 /** The phases in which a game is still going; a finished game is only kept so that its result can be looked at. */
 const LIVE = ['lobby', 'windows', 'playing'];

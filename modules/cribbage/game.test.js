@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fullDeck, isCard, shuffle } from '../../shared/cards.js';
-import { chooseDiscard, choosePlay } from './bot.js';
+import { chooseDiscard, choosePlay } from './ai/standard.js';
 import * as game from './game.js';
 import { pipValue } from './scoring.js';
 

@@ -43,9 +43,9 @@ export const SITE_FONTS = [
 export const DEFAULT_THEME = SITE_THEMES[0].id;
 export const DEFAULT_FONT = SITE_FONTS[0].id;
 // Returns the theme with this id, or the default theme when unknown.
-export const themeById = (id) => SITE_THEMES.find((t) => t.id === id) ?? SITE_THEMES[0];
+const themeById = (id) => SITE_THEMES.find((t) => t.id === id) ?? SITE_THEMES[0];
 // Returns the font with this id, or the default font when unknown.
-export const fontById = (id) => SITE_FONTS.find((f) => f.id === id) ?? SITE_FONTS[0];
+const fontById = (id) => SITE_FONTS.find((f) => f.id === id) ?? SITE_FONTS[0];
 // True when `id` is a string naming a known theme.
 export const isSiteTheme = (id) => typeof id === 'string' && SITE_THEMES.some((t) => t.id === id);
 // True when `id` is a string naming a known font.

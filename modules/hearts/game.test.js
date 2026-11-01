@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import * as g from './game.js';
 import { STAT_KEYS } from './tally.js';
+import { passStandard } from './ai/standard.js';
 import { newTally, tallyExchange } from './tally.js';
 
 function seeded(seed) {
@@ -612,13 +613,13 @@ test('every view carries the standard scoreboard with the whole round history', 
 
 test('computer passes are three different cards from the hand and shed danger', () => {
   const hand = ['2C', '5D', '9D', 'KD', '3S', '7S', 'QS', 'AS', '2H', 'AH', 'QH', '4H', '8C'];
-  const pass = g.botPass(hand);
+  const pass = passStandard({ hand, settings: g.DEFAULT_SETTINGS, passCount: 3 });
   assert.equal(new Set(pass).size, 3);
   assert.ok(pass.every((c) => hand.includes(c)));
   assert.ok(pass.includes('QS'), 'the Queen of Spades goes');
   assert.ok(pass.includes('AS'));
   assert.ok(pass.includes('AH'));
-  const jack = g.botPass([...hand.slice(0, 12), 'JD'], { jackOfDiamonds: true });
+  const jack = passStandard({ hand: [...hand.slice(0, 12), 'JD'], settings: { jackOfDiamonds: true }, passCount: 3 });
   assert.ok(!jack.includes('JD'), 'a Jack worth -5 is kept');
 });
 
@@ -715,7 +716,7 @@ test('computer passes are always three different cards from the hand over thousa
   for (let n = 0; n < 3000; n++) {
     const room = started({ jackOfDiamonds: n % 2 === 0 }, rng);
     for (const hand of room.hands) {
-      const pass = g.botPass(hand, room.settings);
+      const pass = passStandard({ hand, settings: room.settings, passCount: 3 });
       assert.equal(pass.length, 3);
       assert.equal(new Set(pass).size, 3);
       assert.ok(pass.every((c) => hand.includes(c)));

@@ -7,7 +7,7 @@ import * as game from './game.js';
 import { AIS } from './ai/index.js';
 import { peggingValues } from './ai/pegger.js';
 import { pipValue } from './scoring.js';
-import { chooseDiscard, choosePlay } from './bot.js';
+import { chooseDiscard, choosePlay } from './ai/standard.js';
 
 function seeded(seed = 1) {
   let a = seed >>> 0;

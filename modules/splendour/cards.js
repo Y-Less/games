@@ -41,7 +41,6 @@ const PATTERNS = {
 };
 
 export const LEVELS = [1, 2, 3];
-export const CARDS_PER_LEVEL = { 1: 40, 2: 30, 3: 20 };
 
 /**
  * Generates all 90 development cards from PATTERNS: every pattern is used once for each bonus colour, rotated round the

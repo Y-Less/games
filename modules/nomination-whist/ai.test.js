@@ -8,7 +8,7 @@ import { AIS } from './ai/index.js';
 import { countTricks, winChance } from './ai/counter.js';
 import { dealUnseen, playOut, roundPoints } from './ai/sharp.js';
 import { unseenCards } from './ai/cards.js';
-import { chooseCard, chooseNomination, estimateTricks } from './bot.js';
+import { chooseCard, chooseNomination, estimateTricks } from './ai/standard.js';
 
 function seeded(seed) {
   let a = seed >>> 0;

@@ -205,21 +205,6 @@ export function randomReturn(s, rng) {
 }
 
 /**
- * The gems a `take` or `takeTwo` move would gain, as counts per colour.
- *
- * Side effects: none.
- *
- * @param {object} move
- * @returns {number[]} five counts (all zero for any other kind of move)
- */
-export function gainOf(move) {
-  const gain = [0, 0, 0, 0, 0];
-  if (move.type === 'take') for (const c of move.colours) gain[c]++;
-  if (move.type === 'takeTwo') gain[move.colour] = 2;
-  return gain;
-}
-
-/**
  * The overflow penalty for ending a turn over the token limit.
  *
  * Side effects: none.

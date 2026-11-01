@@ -99,7 +99,7 @@ five.
    `bagCount` (a count only). It never includes the bag's contents, and the tests check this. Use plain data only; do not
    reach for the room. A pending column choice is `{ row, colour, columns }`.
 5. Use only the `rng` you are given, never `Math.random`, so seeded games and tests repeat.
-6. `ai/common.js` has helpers (`takeOf`, `tableAfter`, `bestColumnBy`, `chooseColumnBy`, `tilesLeft`, `newDeadCells` and others),
+6. `ai/common.js` has helpers (`takeOf`, `bestColumnBy`, `chooseColumnBy`, `tilesLeft`, `newDeadCells` and others),
    and `standard.js` exports `columnValue` and `moveValue` for AIs that build on it.
 7. Add the id to `ai.test.js`: whole games at every player count, legality over many positions, and a test of its
    distinguishing trait. `ai-support.js` has `playBotGame` and `tournament`.

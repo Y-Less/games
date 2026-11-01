@@ -305,36 +305,8 @@ const roomFor = (area) => {
   min-height: 0;
 }
 .head,
-.body {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.name {
-  font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .tally b {
   color: var(--parchment);
-}
-.tag {
-  flex: none;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0 0.4rem;
-  border-radius: 99px;
-  background: var(--amber);
-  color: var(--amber-ink);
-}
-.tag.quiet-tag {
-  background: none;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-weight: 400;
 }
 /* The trump suit drawn like one of its cards: the theme's trump face, and the suit's own ink (black or red) as on the cards. */
 .trump b {
@@ -346,25 +318,6 @@ const roomFor = (area) => {
 }
 .trump.red b {
   color: #b4281f;
-}
-
-/* Another player's details, in the panel of the standard player pop-up (opened from their chip in the score bar). */
-.facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.2rem 1rem;
-  margin: 0;
-}
-.facts dt {
-  color: var(--muted);
-}
-.facts dd {
-  margin: 0;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.facts dd b {
-  color: var(--parchment);
 }
 
 /* The opponents' hands go round the edges of the table above your own hand. */

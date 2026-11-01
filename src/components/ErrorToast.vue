@@ -21,7 +21,7 @@ defineProps({ text: { type: String, required: true } });
   transform: translateX(-50%);
   z-index: 30;
   width: max-content;
-  max-width: 40rem;
+  max-width: min(40rem, 92vw); /* a long message on a phone wraps rather than overflowing the screen */
   margin: 0;
   padding: 0.6rem 0.9rem;
   border: 1px solid var(--danger);

@@ -24,7 +24,7 @@ export const MAX_PLAYERS = 7;
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 // The longest clue and guess accepted, in characters (keeps the table readable and stops pasted essays).
 export const CLUE_LENGTH = 24;
-export const GUESS_LENGTH = 40;
+const GUESS_LENGTH = 40;
 // Points per turn: the guesser for a right guess, and the writer of the hint they pick as best.
 export const POINTS = { guesser: 2, bestHint: 1 };
 

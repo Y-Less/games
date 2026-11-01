@@ -134,7 +134,7 @@ async function leaveSite() {
       </div>
     </header>
 
-    <HelpDialog v-if="helpOpen" :html="helpHtml" @close="helpOpen = false" />
+    <HelpDialog v-if="helpOpen" :html="helpHtml" :title="help?.title ?? 'Help'" @close="helpOpen = false" />
     <AchievementPopups />
 
     <main class="field">

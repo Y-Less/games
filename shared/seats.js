@@ -60,7 +60,7 @@ export function freeGoneSeats(room) {
 /** Null if this account is the host, otherwise the failure to return. */
 export const asHost = (room, userId) => (room.hostId === userId ? null : fail('Only the host can do that.'));
 /** Null while the game is still in the lobby, otherwise the failure to return. */
-export const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
+const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can only change that before the game starts.'));
 /** Both of the above: the first problem, or null if the host is changing the lobby. */
 export const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
 

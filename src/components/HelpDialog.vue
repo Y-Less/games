@@ -1,6 +1,6 @@
 <script setup>
 // File: the header Help dialog. Depends on: nothing beyond the window keydown event.
-// Props: html (String|null, pre-rendered safe Markdown HTML; null while loading).
+// Props: html (String|null, pre-rendered safe Markdown HTML; null while loading), title (String, the dialog's name; 'Help' by default).
 // Emits: close (Close button, Escape, or a click on the backdrop).
 // Slots: none.
 // Side effects: adds a window keydown listener on mount and removes it on unmount.
@@ -8,7 +8,7 @@
 // Close button, Escape, or a click outside it. `html` is null while it loads.
 import { onBeforeUnmount, onMounted } from 'vue';
 
-defineProps({ html: { type: String, default: null } });
+defineProps({ html: { type: String, default: null }, title: { type: String, default: 'Help' } });
 const emit = defineEmits(['close']);
 
 // Handler for window keydown: emits close when Escape is pressed (returns false or the emit result; the value is unused).
@@ -19,7 +19,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEsc));
 
 <template>
   <div class="backdrop" @click.self="emit('close')">
-    <div class="dialog panel" role="dialog" aria-label="Help">
+    <div class="dialog panel" role="dialog" :aria-label="title">
       <button class="quiet close" @click="emit('close')">Close</button>
       <div class="help" v-html="html ?? 'Loading…'" />
     </div>

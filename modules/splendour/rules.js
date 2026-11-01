@@ -9,7 +9,7 @@
 // from bought cards) are arrays of five counts, one per gem colour.
 
 /** The number of gem colours (Gold is not one of them). */
-export const COLOUR_COUNT = 5;
+const COLOUR_COUNT = 5;
 /** The index of Gold in a token array (five colours, then gold). */
 export const GOLD = 5;
 /** How many kinds of token there are: the five colours and Gold. */

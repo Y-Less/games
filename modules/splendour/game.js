@@ -20,7 +20,7 @@ export const SEAT_COUNTS = [2, 3, 4];
 export const TARGETS = [10, 15, 20];
 export const DEFAULT_SETTINGS = { target: 15, seats: 4 };
 export { MAX_TOKENS, MAX_RESERVED, GOLD_SUPPLY, supplyPerColour, needOf };
-export const BOARD_SLOTS = 4;
+const BOARD_SLOTS = 4;
 export const MAX_ROUNDS = 100; // a safety net: a game nobody can win ends after this many rounds
 export { STAT_KEYS };
 export const BOT_NAMES = ['Aurelia', 'Cormac', 'Thessaly', 'Ludo', 'Perpetua', 'Ansel', 'Odile', 'Marcus', 'Wren', 'Isidore'];
@@ -57,7 +57,7 @@ const sum = (list) => list.reduce((a, b) => a + b, 0);
  *
  * @returns {number[]} six zeros
  */
-export const emptyTokens = () => [0, 0, 0, 0, 0, 0];
+const emptyTokens = () => [0, 0, 0, 0, 0, 0];
 
 /**
  * Is this a sensible token count (a whole number from 0 to 1000)? Used to validate what a client sends.

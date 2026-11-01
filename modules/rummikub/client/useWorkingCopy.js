@@ -6,7 +6,7 @@ import { pinnedJokers } from '../rules.js';
 import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './arrangement.js';
 
 // The refusal shown when someone tries to touch the sets already on the table before their first meld.
-export const FROZEN = 'Until your first meld the sets already on the table cannot be changed.';
+const FROZEN = 'Until your first meld the sets already on the table cannot be changed.';
 
 /**
  * The working copy.

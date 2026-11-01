@@ -192,35 +192,7 @@ export function sortRack(s, rack, mode) {
  *
  * Side effects: none.
  */
-export const describeSet = (s, ids) => resolveSet(s, ids);
-
-/**
- * Sets as they should be drawn: valid sets in their natural order, unfinished ones as the player left them.
- *
- * @param {object} s  the game settings
- * @param {number[]} ids  the set's tile ids
- * @returns {number[]} the ids in drawing order (a one-line wrapper around orderedSet)
- *
- * Side effects: none.
- */
-export const displaySet = (s, ids) => orderedSet(s, ids);
-
-/**
- * For a joker inside a valid set, what it stands for: { number, colour } or null.
- *
- * @param {object} s  the game settings
- * @param {number[]} ids  the ids of the set the joker is in
- * @param {number} id  the tile to ask about
- * @returns {{number: number, colour: number}|null} the tile it represents, or null if `id` is not a joker or the set is not valid
- *
- * Side effects: none.
- */
-export function jokerStands(s, ids, id) {
-  if (!isJoker(s, id)) return null;
-  const r = resolveSet(s, ids);
-  const item = r.ok ? r.items.find((i) => i.id === id) : null;
-  return item ? { number: item.number, colour: item.colour } : null;
-}
+const describeSet = (s, ids) => resolveSet(s, ids);
 
 /**
  * The ids on the table now that were not there at the start of the turn: the ones to mark as "yours this turn".

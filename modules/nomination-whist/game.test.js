@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { fullDeck, isCard, suitOf } from '../../shared/cards.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 import * as g from './game.js';
-import { canTakeAllSeven, chooseNomination, estimateTricks, winningCard } from './bot.js';
+import { canTakeAllSeven, chooseNomination, estimateTricks, winningCard } from './ai/standard.js';
 
 /** A small deterministic random number generator. */
 function seeded(seed) {

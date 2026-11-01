@@ -17,7 +17,7 @@
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
-export const HAND_SIZE = 14;
+const HAND_SIZE = 14;
 export const JOKER_VALUE = 30;
 export const MIN_SET = 3;
 export const MIN_DEAL = 6;
@@ -31,7 +31,7 @@ export const LIMITS = {
   meld: [0, 60],
   timer: [0, 300],
 };
-export const MIN_TIMER = 15; // seconds; a timer shorter than this (but not off) is raised to it
+const MIN_TIMER = 15; // seconds; a timer shorter than this (but not off) is raised to it
 export const DEFAULT_SETTINGS = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0, playOnMeld: false };
 
 export const COLOUR_NAMES = ['Red', 'Blue', 'Orange', 'Black', 'Green', 'Purple', 'Teal', 'Pink'];

@@ -4,7 +4,7 @@
 import { onBeforeUnmount, shallowReactive, unref } from 'vue';
 
 export const playBar = shallowReactive({
-  game: null, // { name, hasRules, openRules } while a game is open
+  game: null, // { name, openRules } while a game is open
   leave: null, // the registration made by useLeave, or null
 });
 

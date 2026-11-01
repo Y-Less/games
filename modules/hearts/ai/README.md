@@ -129,7 +129,7 @@ beats a mixed Avoider/Standard/Jack table over 60 games.
    (`target`, `jackOfDiamonds`, `moon`), `heartsBroken`, `tricksPlayed`, `handNumber`, `direction`, `passed`,
    `received`, `seatCount`, `trickCount`, `passCount`, `passOffset`, `openingCard`, `chasingMoon` (whether this seat has bid for the moon; another seat's bid is its own secret) and `rng`. It never contains another player's hand.
 4. Use `ctx.rng`, never `Math.random`, so seeded games and tests repeat. Keep the file free of sockets, files and state:
-   an AI is a pure function of its context. Shared helpers (card counting in `observe`, `pointTakers`, `cardPoints`,
+   an AI is a pure function of its context. Shared helpers (card counting in `observe`, `pointTakers`,
    and so on) are in `ai/util.js`.
 5. Add tests to `modules/hearts/ai.test.js`: the AI plays whole games legally in the all-bot harness, and shows its
    distinguishing trait over seeded games (`versus` in `arena.js`). Update the list and weight tests there too.

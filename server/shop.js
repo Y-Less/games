@@ -59,14 +59,6 @@ for (const f of SITE_FONTS) add({ id: `sf:${f.id}`, type: 'site-font', name: f.n
 for (const { id, name, price, slot, option } of avatarItems()) add({ id, type: 'avatar', name, price, slot, option });
 
 /**
- * Another module adds its own items (name styles, avatar parts ...) here once, when the site starts.
- * @param {Array<object>} items
- * @returns {void}
- * Side effects: adds to the catalogue.
- */
-export const registerItems = (items) => items.forEach(add);
-
-/**
  * An item by id.
  * @param {string} id
  * @returns {object | null}

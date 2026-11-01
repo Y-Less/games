@@ -4,7 +4,7 @@
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
 /** Everything counted, including what is only needed to work out a stat at the end. */
-export const COUNTERS = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed', 'soleCorrect', 'favouritePicks', 'votesCast'];
+const COUNTERS = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed', 'soleCorrect', 'favouritePicks', 'votesCast'];
 /**
  * Creates an empty tally with every counter at zero.
  * @returns {object} a fresh tally

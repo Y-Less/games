@@ -9,4 +9,3 @@ import { sharp } from './sharp.js';
 import { standard } from './standard.js';
 
 export const AIS = defineAIs([standard, random, greedy, balanced, pegger, sharp]);
-export { chooseDiscard, choosePlay, cribPotential } from './standard.js';

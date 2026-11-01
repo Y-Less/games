@@ -23,10 +23,9 @@ export { DEFAULT_SEATS, MAX_SEATS, MIN_SEATS, HAND_POINTS, openingCard };
 export const TARGETS = [50, 100, 150];
 export const MOON_MODES = ['others', 'self'];
 export const DEFAULT_SETTINGS = { target: 100, jackOfDiamonds: true, moon: 'others' };
-export const PASS_DIRECTIONS = ['left', 'right', 'across', 'none']; // the four-player rotation (see deals.js for the rest)
 export const QUEEN = 'QS';
 export const JACK = 'JD';
-export const MOON_POINTS = HAND_POINTS;
+const MOON_POINTS = HAND_POINTS;
 export const JACK_POINTS = -5;
 export { STAT_KEYS };
 export const BOT_NAMES = DEFAULT_BOT_NAMES;
@@ -655,18 +654,6 @@ export const wantsMoon = standardWantsMoon;
  * Side effects: none.
  */
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
-
-/**
- * Cards to pass, as the standard AI chooses them (kept for callers that only have a hand).
- * @param {string[]} hand  the hand.
- * @param {object} [settings]  game settings (default DEFAULT_SETTINGS).
- * @param {number} [count]  how many cards to pass (default 3).
- * @returns {string[]} the cards to pass.
- * Side effects: none.
- */
-export function botPass(hand, settings = DEFAULT_SETTINGS, count = 3) {
-  return passStandard({ hand, settings, passCount: count });
-}
 
 /**
  * The plain data an AI decides from: its own hand and the public history of the hand, never other hands. Everything is

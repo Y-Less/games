@@ -68,20 +68,6 @@ export const highest = (cards) => cards.reduce((a, b) => (rankValue(b) > rankVal
 export const bySuit = (cards, suit) => cards.filter((c) => suitOf(c) === suit);
 
 /**
- * What a card scores whoever takes it: 1 per heart, 13 for the Queen of Spades, -5 for the Jack when that option is on.
- * @param {string} card  card code.
- * @param {object} [settings]  game settings; only jackOfDiamonds is read.
- * @returns {number} the card's penalty value (negative for the Jack).
- * Side effects: none.
- */
-export function cardPoints(card, settings) {
-  if (isHeart(card)) return 1;
-  if (card === QUEEN) return 13;
-  if (card === JACK && settings?.jackOfDiamonds) return -5;
-  return 0;
-}
-
-/**
  * Keeps the cards that satisfy `keep`, unless that would leave none (so a preference never empties the options).
  * @param {string[]} cards  candidate cards.
  * @param {(card: string) => boolean} keep  predicate for cards to prefer.
@@ -108,17 +94,6 @@ export const avoiding = (cards, unwanted) => preferring(cards, (c) => !unwanted(
  * Side effects: none.
  */
 export const playedSet = (ctx) => new Set([...ctx.taken.flat(), ...ctx.trick.map((p) => p.card)]);
-
-/**
- * The play that is winning a (possibly unfinished) trick: the highest card of the suit led.
- * @param {{seat: number, card: string}[]} trick  non-empty list of plays so far.
- * @returns {{seat: number, card: string}} the winning play (its seat is the winner).
- * Side effects: none.
- */
-export function winningPlay(trick) {
-  const led = suitOf(trick[0].card);
-  return trick.reduce((best, play) => (suitOf(play.card) === led && rankValue(play.card) > rankValue(best.card) ? play : best), trick[0]);
-}
 
 /**
  * Card counting from public information only.
@@ -150,25 +125,6 @@ export function observe(ctx) {
   const sizes = Array.from({ length: seats }, (_, s) => tricksIn(ctx) - ctx.tricksPlayed - (onTable.has(s) ? 1 : 0));
   return { played, unseen, voids, sizes };
 }
-
-/**
- * The unseen cards of one suit.
- * @param {{unseen: Set<string>}} know  result of observe().
- * @param {string} suit  suit letter.
- * @returns {string[]} unseen cards of that suit (held by other players).
- * Side effects: none.
- */
-export const unseenOf = (know, suit) => [...know.unseen].filter((c) => suitOf(c) === suit);
-
-/**
- * The seat `n` places after `seat`, wrapping round the table.
- * @param {number} seat  starting seat.
- * @param {number} [n]  places to move on (default 1).
- * @param {number} [seats]  seat count (default four).
- * @returns {number} the resulting seat index.
- * Side effects: none.
- */
-export const after = (seat, n = 1, seats = DEFAULT_SEATS) => (seat + n) % seats;
 
 /**
  * The seats that have taken a heart or the Queen of Spades this hand. A moon needs this to stay at one seat.

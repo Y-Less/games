@@ -6,12 +6,12 @@ import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
  * Wraps the platform's player pop-up for the Gaudi table.
  * @param {import('vue').ComputedRef<object>} s  the view sent by the server
  * @param {Function} send  sends a request to the server (used to kick or remove a computer player)
- * @returns {object} scoreProps and popupProps (bind them to the score board and PlayerPopup), closePopup(),
- *   openedPlayer (the seat clicked, yours too), openedSeat (that seat if it has a window to show), openedIsMe
+ * @returns {object} scoreProps and popupProps (bind them to the score board and PlayerPopup), openedPlayer (the seat
+ *   clicked, yours too), openedSeat (that seat if it has a window to show), openedIsMe
  * Side effects: the pop-up's remove action sends 'kick' or 'removeBot'.
  */
 export function useOpenedPlayer(s, send) {
-  const { openId, scoreProps, popupProps, close: closePopup } = usePlayerPopup({
+  const { openId, scoreProps, popupProps } = usePlayerPopup({
     players: () => s.value.scoreboard.players,
     hostId: () => s.value.hostSeat,
     isHost: () => s.value.hostSeat === s.value.you,
@@ -23,5 +23,5 @@ export function useOpenedPlayer(s, send) {
   const openedSeat = computed(() => (openedPlayer.value?.window ? openedPlayer.value : null));
   // Whether the opened seat is the viewer's own, so the pop-up can say "You" rather than "Has".
   const openedIsMe = computed(() => openedPlayer.value !== null && openedPlayer.value.seat === s.value.you);
-  return { scoreProps, popupProps, closePopup, openedPlayer, openedSeat, openedIsMe };
+  return { scoreProps, popupProps, openedPlayer, openedSeat, openedIsMe };
 }

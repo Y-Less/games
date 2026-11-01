@@ -30,7 +30,7 @@ async function startPlaying(options) {
   session.user = { id: 1, displayName: 'Ann' };
   await router.replace('/play/nomination-whist');
   w = mount(App, { global: { plugins: [router] } });
-  playBar.game = { name: 'Nomination Whist', hasRules: false };
+  playBar.game = { name: 'Nomination Whist' };
   game = mount(registers(options));
   await nextTick();
 }
@@ -90,7 +90,7 @@ describe('the Help button', () => {
   it('opens the game rules instead while playing', async () => {
     const openRules = vi.fn();
     await startPlaying({ leave: vi.fn() });
-    playBar.game = { name: 'Nomination Whist', hasRules: true, openRules };
+    playBar.game = { name: 'Nomination Whist', openRules };
     await button(w, 'Help').trigger('click');
     expect(openRules).toHaveBeenCalledOnce();
     expect(w.find('[role="dialog"]').exists()).toBe(false);

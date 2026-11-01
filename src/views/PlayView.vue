@@ -35,7 +35,7 @@ const { frame } = useFrameFit();
 
 // The title and Help button live in the site header (App.vue), which reads them from playBar.
 watchEffect(() => {
-  playBar.game = meta.value ? { name: meta.value.name, hasRules: Boolean(meta.value.rules), openRules } : null;
+  playBar.game = meta.value ? { name: meta.value.name, openRules } : null;
 });
 onBeforeUnmount(() => {
   playBar.game = null;

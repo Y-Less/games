@@ -51,8 +51,8 @@ export const MAX_NAME_LENGTH = 20;
 export const MAX_WORD_LENGTH = 60;
 
 /** The two kinds of seat. */
-export const KIND_HUMAN = 'human';
-export const KIND_BOT = 'bot';
+const KIND_HUMAN = 'human';
+const KIND_BOT = 'bot';
 
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo', 'Juno', 'Kit', 'Luna'];
