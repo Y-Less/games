@@ -1,4 +1,5 @@
 // The shop as the client knows it: the listing and your coin balance (kept in session.shop), what you own, and buying.
+// Depends on: api.js (requests) and sessionState.js (the shared store).
 import { api } from './api.js';
 import { session } from './sessionState.js';
 

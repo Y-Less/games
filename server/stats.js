@@ -1,11 +1,13 @@
 // Game statistics. Modules report finished games with record(); the site turns them into profile stats and leaderboards.
+// Depends on: ./db.js (transaction) and the users, results and result_players tables.
 import { transaction } from './db.js';
 
-const OUTCOMES = ['win', 'loss', 'draw'];
+const OUTCOMES = ['win', 'loss', 'draw']; // the only results a player can be recorded with (matches the table's CHECK) // the only results a player can be recorded with (matches the table's CHECK)
 
 /**
- * @param {import('node:sqlite').DatabaseSync} db
- * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max', hidden?: boolean }> }>} listGames
+ * Makes the statistics service over a database.
+ * @param {import('node:sqlite').DatabaseSync} db  the site database
+ * @param {() => Array<{ id: string, name: string, stats?: Array<{ key: string, label: string, agg?: 'sum' | 'max', hidden?: boolean }> }>} listGames  the loaded games (their names and extra-stat definitions)
  * @param {{ onPlayerRecorded?: (resultId: number, player: object, info: { isBot: boolean }) => void, onRecorded?: (userIds: number[]) => void }} [options]
  *   onPlayerRecorded is called inside the recording transaction, once for each player, with the new result id, the player as
  *   reported and whether the account is a computer player (the site pays coins from it; a throw rolls the whole game back).

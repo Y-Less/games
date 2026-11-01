@@ -1,6 +1,8 @@
 // Achievements (see shared/achievements.js). A player's value for each one is either worked out from their recorded results
 // (an achievement with a `stat`) or is progress a game saves with add() / raise(). This file keeps the saved progress, pays
 // the coins for levels reached and builds what the Achievements page shows; which achievements exist is in achievementRegistry.js.
+// Depends on: shared/achievements.js (levels, rewards, text), ./achievementRegistry.js, ./collections.js, ./coins.js and
+// ./db.js (transaction), plus the achievement_progress, achievement_awards and users tables.
 import { BUILTIN_STATS, describe, levelInfo, levelReward, levelText } from '../shared/achievements.js';
 import { createRegistry, fullId, GLOBAL } from './achievementRegistry.js';
 import { createCollections } from './collections.js';
@@ -8,10 +10,14 @@ import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
 /**
- * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ listGames: () => Array<{ id: string, name: string, achievements?: object[] }>, statsFor: (userId: number) => object, notify?: (userId: number) => void }} options
+ * Makes the achievements service over a database.
+ * @param {import('node:sqlite').DatabaseSync} db  the site database
+ * @param {{ listGames: () => Array<{ id: string, name: string, achievements?: object[] }>, statsFor: (userId: number) => object, notify?: (userId: number) => void, measures?: Record<string, (userId: number) => number> }} options
  *   statsFor is stats.forUser: the results the stat-based achievements are worked out from. notify is told when a player has
- *   new unlocks to be shown.
+ *   new unlocks to be shown. measures maps a definition's `measure` name to a function giving a player's current number
+ *   (members, coins spent, shop customisation: things that are neither results nor saved progress).
+ * @returns {{ add: Function, raise: Function, collect: Function, get: Function, forUser: Function, forGame: Function, problems: Function, settle: Function, pending: Function, seen: Function }}
+ * Side effects: prepares statements; the returned operations write progress, awards and coins, and call `notify`.
  */
 export function createAchievements(db, { listGames, statsFor, notify = () => {}, measures = {} }) {
   const coins = createCoins(db);
@@ -29,14 +35,25 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
   const unseen = db.prepare('SELECT id, level, coins FROM achievement_awards WHERE user_id = ? AND shown = 0 ORDER BY awarded_at, id, level');
   const markSeen = db.prepare('UPDATE achievement_awards SET shown = 1 WHERE user_id = ? AND id = ? AND level = ?');
 
-  /** Whether the value is worked out from the recorded results, rather than being progress a game saves. */
+  /**
+   * Whether the value is worked out from the recorded results, rather than being progress a game saves.
+   * @param {object} definition  an achievement definition
+   * @returns {boolean} true for stat, sum, wonEvery and measure achievements
+   */
   const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery || definition.measure);
+  // A player's saved progress for a full id, or 0 when there is none.
   const savedValue = (userId, id) => read.get(userId, id)?.value ?? 0;
+  // Whether this id is a real person's account (bots and unknown ids collect nothing).
   const isPerson = (userId) => Number.isInteger(userId) && isBot.get(userId)?.is_bot === 0;
 
   // ---- values: what a player has achieved so far ----
 
-  /** The numbers the stat-based achievements are worked out from, for one player: the site's totals and each game's. */
+  /**
+   * The numbers the stat-based achievements are worked out from, for one player: the site's totals and each game's.
+   * @param {number} userId  the player
+   * @returns {{ global: object, games: Map<string, object> }} site totals, and per-game built-in plus extra stats
+   * Side effects: none (reads stats through statsFor).
+   */
   function statValues(userId) {
     const { summary, perGame } = statsFor(userId);
     const global = Object.fromEntries(['played', 'wins', 'losses', 'draws'].map((key) => [key, summary[key]]));
@@ -46,7 +63,12 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     return { global, games };
   }
 
-  /** Reads one player's saved progress and results once, and answers (section id, definition) with that definition's current value. */
+  /**
+   * Reads one player's saved progress and results once, and answers (section id, definition) with that definition's current value.
+   * @param {number} userId  the player
+   * @returns {(sectionId: string, definition: object) => number} the value lookup (it uses only what was read here)
+   * Side effects: none (reads the database).
+   */
   function valuesFor(userId) {
     const { global, games } = statValues(userId);
     const saved = new Map(readAll.all(userId).map((row) => [row.id, row.value]));
@@ -60,7 +82,13 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     };
   }
 
-  /** The current value of one achievement ("hearts.moon", or "global.cards"), for a game that wants to look. */
+  /**
+   * The current value of one achievement ("hearts.moon", or "global.cards"), for a game that wants to look.
+   * @param {number} userId  the player
+   * @param {string} id  the full achievement id
+   * @returns {number} the value, or 0 for an unknown id
+   * Side effects: none.
+   */
   function get(userId, id) {
     const found = find(id);
     if (!found) return 0;
@@ -70,7 +98,13 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
 
   // ---- saved progress ----
 
-  /** The id and definition of an achievement a game may save progress for. */
+  /**
+   * The id and definition of an achievement a game may save progress for.
+   * @param {string} game  the game id a bare key belongs to
+   * @param {string} key  a bare key, or "global.<key>"
+   * @returns {{ id: string, definition: object }} the full id and its definition
+   * Side effects: none; throws for an unknown achievement or one worked out from results (which cannot be set).
+   */
   function resolve(game, key) {
     const id = fullId(game, key);
     const found = find(id);
@@ -79,7 +113,15 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     return { id, definition: found.definition };
   }
 
-  /** Saves the value `next` makes of the current one, and pays any level it reaches. Returns { before, after, level, unlocked }. */
+  /**
+   * Saves the value `next` makes of the current one, and pays any level it reaches.
+   * @param {string} game  the game id a bare key belongs to
+   * @param {number} userId  the player
+   * @param {string} key  the achievement key
+   * @param {(current: number) => number} next  works out the new value from the current one
+   * @returns {{ before: number, after: number, level: number, unlocked: boolean } | null} null for a computer player
+   * Side effects: writes the progress; on a new level, inserts an award, pays coins and calls `notify`.
+   */
   function change(game, userId, key, next) {
     const { id, definition } = resolve(game, key);
     if (!isPerson(userId)) return null; // computer players do not collect achievements
@@ -93,14 +135,36 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     return { before, after, level: levelOf(after), unlocked };
   }
 
-  /** Adds to a saved achievement (1 by default). Returns { before, after, level, unlocked } or null for a computer player. */
+  /**
+   * Adds to a saved achievement (1 by default); a non-positive or non-numeric amount changes nothing.
+   * @param {string} game  the game id a bare key belongs to
+   * @param {number} userId  the player
+   * @param {string} key  the achievement key
+   * @param {number} [amount]  how much to add
+   * @returns {{ before: number, after: number, level: number, unlocked: boolean } | null} null for a computer player
+   * Side effects: as change().
+   */
   const add = (game, userId, key, amount = 1) => change(game, userId, key, (value) => (Number.isFinite(amount) && amount > 0 ? value + amount : value));
-  /** Raises a saved achievement to `value` if that is more than it is now (for "best ever" numbers). */
+  /**
+   * Raises a saved achievement to `value` if that is more than it is now (for "best ever" numbers).
+   * @param {string} game  the game id a bare key belongs to
+   * @param {number} userId  the player
+   * @param {string} key  the achievement key
+   * @param {number} value  the candidate best
+   * @returns {{ before: number, after: number, level: number, unlocked: boolean } | null} null for a computer player
+   * Side effects: as change().
+   */
   const raise = (game, userId, key, value) => change(game, userId, key, (current) => (Number.isFinite(value) ? Math.max(current, value) : current));
 
   /**
    * Adds numbered things (cards, say) to what a player has collected for an achievement, and saves how many different ones
-   * that is as its value. Returns { before, after, level, unlocked } like add(), or null for a computer player.
+   * that is as its value.
+   * @param {string} game  the game id a bare key belongs to
+   * @param {number} userId  the player
+   * @param {string} key  the achievement key
+   * @param {number[]} items  the numbers to add to the collection
+   * @returns {{ before: number, after: number, level: number, unlocked: boolean } | null} like add(); null for a computer player
+   * Side effects: updates the collection store, then as change().
    */
   function collect(game, userId, key, items) {
     const { id } = resolve(game, key);
@@ -112,7 +176,14 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
 
   /**
    * Pays for every level of `definition` that `value` has reached and that has not been paid yet (levelReward coins: 100 a level, or
-   * 250 for a one-level achievement), and records it to be shown. `done` is the set of "id:level" already paid. Returns the new levels.
+   * 250 for a one-level achievement), and records it to be shown.
+   * @param {number} userId  the player
+   * @param {string} id  the full achievement id
+   * @param {object} definition  its definition (levels)
+   * @param {number} value  the player's current value
+   * @param {Set<string>} done  the "id:level" pairs already paid
+   * @returns {Array<{ id: string, level: number }>} the newly paid levels
+   * Side effects: inserts awards and coin rows (callers wrap it in a transaction); it does not add to `done`.
    */
   function payLevels(userId, id, definition, value, done) {
     const fresh = [];
@@ -125,16 +196,29 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     }
     return fresh;
   }
+  // The "id:level" pairs a player has already been paid for, as a Set.
   const paidLevels = (userId) => new Set(awarded.all(userId).map((row) => `${row.id}:${row.level}`));
 
-  /** Works out one achievement for one player and pays what it newly unlocked (after a game saves progress). */
+  /**
+   * Works out one achievement for one player and pays what it newly unlocked (after a game saves progress).
+   * @param {number} userId  the player
+   * @param {string} id  the full achievement id
+   * @param {object} definition  its definition
+   * @returns {Array<{ id: string, level: number }>} the newly paid levels
+   * Side effects: a transaction of awards and coin rows; calls `notify` when anything is new.
+   */
   function settleOne(userId, id, definition) {
     const fresh = transaction(db, () => payLevels(userId, id, definition, savedValue(userId, id), paidLevels(userId)));
     if (fresh.length) notify(userId);
     return fresh;
   }
 
-  /** Works out every achievement for one player (from results and saved progress) and pays what is new. Returns the new levels. */
+  /**
+   * Works out every achievement for one player (from results and saved progress) and pays what is new.
+   * @param {number} userId  the player (a computer player gets nothing)
+   * @returns {Array<{ id: string, level: number }>} the newly paid levels
+   * Side effects: a transaction of awards and coin rows; calls `notify` when anything is new.
+   */
   function settle(userId) {
     if (!isPerson(userId)) return [];
     const valueOf = valuesFor(userId);
@@ -150,7 +234,12 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
 
   // ---- what a player is shown ----
 
-  /** What a player has unlocked and not yet been shown: [{ id, level, game, name, text, coins }], oldest first. */
+  /**
+   * What a player has unlocked and not yet been shown, oldest first.
+   * @param {number} userId  the player
+   * @returns {Array<{ id: string, level: number, levels: number, game: string, name: string, text: string, coins: number }>} the pop-ups due
+   * Side effects: none.
+   */
   function pending(userId) {
     return unseen.all(userId).flatMap((row) => {
       const found = find(row.id);
@@ -160,14 +249,25 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     });
   }
 
-  /** Marks unlocks as shown: items are { id, level }. */
+  /**
+   * Marks unlocks as shown; anything malformed is ignored.
+   * @param {number} userId  the player
+   * @param {Array<{ id: string, level: number }>} items  the pop-ups the person has now seen
+   * @returns {void}
+   * Side effects: updates achievement_awards.
+   */
   function seen(userId, items) {
     for (const item of Array.isArray(items) ? items : []) {
       if (typeof item?.id === 'string' && Number.isInteger(item.level)) markSeen.run(userId, item.id, item.level);
     }
   }
 
-  /** Everything the Achievements page shows: sections (the global ones, then each game that has any) of described achievements. */
+  /**
+   * Everything the Achievements page shows: sections (the global ones, then each game that has any) of described achievements.
+   * @param {number} userId  the player
+   * @returns {{ sections: Array<{ id: string, name: string, achievements: object[] }> }} the page data
+   * Side effects: none.
+   */
   function forUser(userId) {
     const valueOf = valuesFor(userId);
     return {
@@ -181,13 +281,21 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
 
   // ---- for the game modules ----
 
-  /** What a game module gets as ctx.achievements: its own keys by name, and the global ones as "global.<key>". */
+  /**
+   * What a game module gets as ctx.achievements: its own keys by name, and the global ones as "global.<key>".
+   * @param {string} game  the game's id, which bare keys belong to
+   * @returns {{ add: Function, raise: Function, collect: Function, get: Function, cardsPlayed: Function, level: Function }} the module's view
+   * Side effects: none until a method is called (they write as add, raise and collect do).
+   */
   function forGame(game) {
     return {
+      // add: bound to this game; returns add()'s result.
       add: (userId, key, amount) => add(game, userId, key, amount),
+      // raise: bound to this game; returns raise()'s result.
       raise: (userId, key, value) => raise(game, userId, key, value),
       /** Adds numbered things to a player's collection for `key`; its value is how many different ones they have had. */
       collect: (userId, key, items) => collect(game, userId, key, items),
+      // get: the current value of a key, bare or global.
       get: (userId, key) => get(userId, fullId(game, key)),
       /** Counts cards a person has just played towards the global Played cards achievement, if the move (`outcome`) was allowed. Returns the outcome. */
       cardsPlayed: (userId, outcome, count) => {
@@ -203,7 +311,12 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     };
   }
 
-  /** Checks a game's definitions: stat keys must be ones the game declares (or built in). Returns problems as text. */
+  /**
+   * Checks a game's definitions: stat keys must be ones the game declares (or built in).
+   * @param {{ id: string, stats?: Array<{ key: string }>, achievements?: object[] }} meta  a game's manifest
+   * @returns {string[]} one sentence per problem found (empty when fine)
+   * Side effects: none.
+   */
   function problems(meta) {
     const declared = new Set([...BUILTIN_STATS, ...(meta.stats ?? []).map((s) => s.key)]);
     return (meta.achievements ?? []).filter((a) => a.stat && !declared.has(a.stat)).map((a) => `${meta.id}: "${a.key}" uses the stat "${a.stat}", which the game does not declare`);

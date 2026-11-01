@@ -173,6 +173,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       return row ? publicUser(row) : null;
     },
 
+    // Profile operations are passed straight through from profile.js (see createProfiles) so callers only need `auth`.
     userById: profiles.userById,
     publicProfiles: profiles.publicProfiles,
     updateProfile: profiles.updateProfile,
@@ -240,4 +241,5 @@ export function sessionCookie(token, { secure = false } = {}) {
   return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
+// The Set-Cookie value that signs a browser out: the same cookie, emptied and expired at once.
 export const clearedCookie = `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;

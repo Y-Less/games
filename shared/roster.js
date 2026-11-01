@@ -12,6 +12,7 @@
 //
 // Every rule returns { ok: true, ... } or { ok: false, error } and (like all the rules) mutates the room it is given.
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
+// Depends on: ./seats.js (bot names, host check, result helpers).
 import { DEFAULT_BOT_NAMES, asHost, fail, isBot, isHuman, ok } from './seats.js';
 
 export { isBot, isHuman };
@@ -172,6 +173,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {number} userId
    * @param {() => number} rng
    * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }}
+   * Side effects: as takeOut (splices room.players, may change room.hostId and whatever afterRemoval changes).
    */
   function removeHuman(room, userId, rng) {
     if (!isHuman(room.players[seatOf(room, userId)])) return fail('You are not in this game.');
@@ -185,6 +187,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {number} userId
    * @param {'add' | 'remove'} what
    * @returns {{ ok: false, error: string } | null}
+   * Side effects: none.
    */
   function lobbyHostOnly(room, userId, what) {
     if (userId !== room.hostId) return fail(`Only the host can ${what} computer players.`);
@@ -237,6 +240,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {string} botId  the computer player's id ('bot:<n>')
    * @param {() => number} rng
    * @returns {{ ok: boolean, empty?: boolean, abandoned?: boolean, finished?: boolean, error?: string }}
+   * Side effects: as takeOut (splices room.players, may change room.hostId).
    */
   function removeBot(room, userId, botId, rng) {
     const problem = asHost(room, userId);
@@ -256,6 +260,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {number} targetId  the account id of the person to remove
    * @param {() => number} rng
    * @returns {{ ok: boolean, userId?: number, abandoned?: boolean, finished?: boolean, error?: string }}
+   * Side effects: as takeOut (splices room.players, may change room.hostId).
    */
   function kick(room, hostId, targetId, rng) {
     if (hostId !== room.hostId) return fail('Only the host can remove players.');

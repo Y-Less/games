@@ -4,6 +4,7 @@
 //
 // An option has an `id`, a `name` and a `price` in coins (0 = free for everyone). Colour options also have `colour`, and a
 // backdrop may have `gradient` (two colours) instead.
+// Depends on: nothing (pure data); consumed by server/shop.js, server/profile.js and src/avatarArt.js.
 
 export const AVATAR_SLOTS = [
   {
@@ -181,24 +182,36 @@ export const AVATAR_SLOTS = [
   },
 ];
 
+// Fast lookup: slot name -> (option id -> option), built once from AVATAR_SLOTS.
 const bySlot = new Map(AVATAR_SLOTS.map((s) => [s.slot, new Map(s.options.map((o) => [o.id, o]))]));
 
 /** An avatar with the first (free) option of every slot. */
 export const DEFAULT_AVATAR = Object.freeze(Object.fromEntries(AVATAR_SLOTS.map((s) => [s.slot, s.options[0].id])));
 
 /** The shop item id of an option (items are listed by server/shop.js). */
+// Returns the shop item id for an option, e.g. "av:hat:crown".
 export const avatarItemId = (slot, id) => `av:${slot}:${id}`;
 
-/** The option with this id in this slot, or null. */
+// Returns the option object for (slot, id), or null when the id is not a string or is unknown.
 export const avatarOption = (slot, id) => (typeof id === 'string' ? bySlot.get(slot)?.get(id) ?? null : null);
+// True when `id` is a known option in `slot`.
 export const isAvatarOption = (slot, id) => avatarOption(slot, id) !== null;
 
-/** Every option as { id, slot, option, name, price } for the shop: the priced ones are bought, the free ones belong to everyone. */
+/**
+ * Lists every avatar option as a shop item: the priced ones are bought, the free ones belong to everyone.
+ * @returns {Array<{ id: string, slot: string, option: string, name: string, price: number }>} one row per option
+ * Side effects: none.
+ */
 export function avatarItems() {
   return AVATAR_SLOTS.flatMap((s) => s.options.map((o) => ({ id: avatarItemId(s.slot, o.id), slot: s.slot, option: o.id, name: `${s.label}: ${o.name}`, price: o.price })));
 }
 
-/** An avatar that is safe to draw: every slot has a known option (anything else becomes the default one). */
+/**
+ * Makes an avatar safe to draw: every slot gets a known option, anything else becomes the slot's default (first) option.
+ * @param {object|null|undefined} input  a possibly partial or malformed avatar { slot: optionId }
+ * @returns {Record<string, string>} a complete avatar with one valid option id per slot
+ * Side effects: none.
+ */
 export function normaliseAvatar(input) {
   const out = {};
   for (const { slot } of AVATAR_SLOTS) out[slot] = isAvatarOption(slot, input?.[slot]) ? input[slot] : DEFAULT_AVATAR[slot];

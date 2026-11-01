@@ -8,9 +8,16 @@
 //     target: 121               // optional: the score the game is played to
 //   }
 // `rounds` holds every finished round, oldest first, so the whole history can be shown.
+// Depends on: ./seats.js (isBot, isHuman).
 import { isBot, isHuman } from './seats.js';
 
-/** Total of each player's round scores, as { [playerId]: total }. */
+/**
+ * Adds up each player's round scores.
+ * @param {{ deltas?: Record<string, number> }[]} rounds  the finished rounds, each with per-player point changes
+ * @param {Array<string|number>} [playerIds]  ids to include even if they never scored (they start at 0)
+ * @returns {Record<string, number>} map of player id to total
+ * Side effects: none.
+ */
 export function totalsFromRounds(rounds, playerIds = []) {
   const totals = Object.fromEntries(playerIds.map((id) => [id, 0]));
   for (const round of rounds) for (const [id, points] of Object.entries(round.deltas ?? {})) totals[id] = (totals[id] ?? 0) + points;
@@ -18,8 +25,12 @@ export function totalsFromRounds(rounds, playerIds = []) {
 }
 
 /**
- * Finishing positions for { [id]: score }: 1 is best, tied scores share a position and the next position is skipped
- * (1, 1, 3). Returns { [id]: placement }.
+ * Works out finishing positions: 1 is best, tied scores share a position and the next position is skipped (1, 1, 3).
+ * @param {Record<string, number>} scores  map of player id to score
+ * @param {object} [options]
+ * @param {boolean} [options.lowIsBetter]  true for games where the lowest score wins (default false)
+ * @returns {Record<string, number>} map of player id to placement
+ * Side effects: none.
  */
 export function placements(scores, { lowIsBetter = false } = {}) {
   const entries = Object.entries(scores);
@@ -27,7 +38,13 @@ export function placements(scores, { lowIsBetter = false } = {}) {
   return Object.fromEntries(entries.map(([id, score]) => [id, 1 + entries.filter(([, other]) => better(other, score)).length]));
 }
 
-/** The ids with the best score (all of them, if tied). */
+/**
+ * Finds the ids with the best score (all of them, if tied).
+ * @param {Record<string, number>} scores  map of player id to score
+ * @param {{ lowIsBetter?: boolean }} [options]  passed on to `placements`
+ * @returns {string[]} the winning ids
+ * Side effects: none.
+ */
 export function winnersOf(scores, options) {
   return Object.entries(placements(scores, options)).filter(([, place]) => place === 1).map(([id]) => id);
 }
@@ -45,6 +62,7 @@ export function winnersOf(scores, options) {
  * @param {(id: number) => boolean} state.online  says who is connected, so that people who have left the table show as away
  * @returns {{ id: number, name: string, userId: number | undefined, score: number, isMe: boolean, bot: boolean, current: boolean, away: boolean }}
  */
+
 export function seatScoreboardEntry(seat, index, { score, me, current, online }) {
   return { id: index, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isHuman(seat) && !online(seat.id) };
 }

@@ -1,4 +1,9 @@
 <script setup>
+// File: the per-round score table with totals. Depends on: ../../shared/scores.js (placements), StyledName.vue.
+// Props: players ([{ id, name, score, isMe? }]), rounds ([{ label, deltas, notes? }]), lowIsBetter, target (Number|null),
+//   running (Boolean, running totals), split (Boolean, points and running total in separate columns).
+// Emits: none.  Slots: none.
+// Side effects: none.
 // Every round's scores in a table, with totals. Standard shape: see shared/scores.js.
 import { computed } from 'vue';
 import { placements } from '../../shared/scores.js';
@@ -13,6 +18,7 @@ const props = defineProps({
   split: { type: Boolean, default: false }, // two columns per player: the round's points, then the running total (notes go below both)
 });
 
+// Each player's finishing place by current total (ties share a place); direction depends on lowIsBetter.
 const places = computed(() => placements(Object.fromEntries(props.players.map((p) => [p.id, p.score])), { lowIsBetter: props.lowIsBetter }));
 
 /** Cumulative totals after each round. */
@@ -24,20 +30,33 @@ const runningTotals = computed(() => {
   });
 });
 
+// Returns true when any player has a note in this round, so the notes row is only drawn when needed.
 const hasNotes = (round) => props.players.some((p) => round.notes?.[p.id]);
 
-/** Which players had the best score in a round (they are highlighted). */
+/**
+ * Which players had the best score in a round (they are highlighted); nobody is when everyone tied.
+ * @param {{deltas?: Object<string, number>}} round  one entry of `rounds`
+ * @returns {Set<string|number>}  ids of the best scorers
+ * Side effects: none.
+ */
 function best(round) {
   const values = props.players.map((p) => round.deltas?.[p.id] ?? 0);
   const top = props.lowIsBetter ? Math.min(...values) : Math.max(...values);
   return new Set(props.players.filter((p) => (round.deltas?.[p.id] ?? 0) === top && values.some((v) => v !== top)).map((p) => p.id));
 }
 
+/**
+ * Formats a place as an English ordinal (1st, 2nd, 3rd, 11th ...).
+ * @param {number} n  the place, 1-based
+ * @returns {string}  e.g. "22nd"
+ * Side effects: none.
+ */
 function ordinal(n) {
   const teen = n % 100 > 10 && n % 100 < 14;
   return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th')}`;
 }
 
+// Returns a points figure as text, with a leading + for gains when higher scores are better.
 const sign = (n) => (n > 0 && props.lowIsBetter === false ? `+${n}` : String(n));
 </script>
 

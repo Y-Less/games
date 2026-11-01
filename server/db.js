@@ -1,4 +1,5 @@
 // The site's database: accounts, sessions and game results, in one SQLite file (Node's built-in node:sqlite).
+// Depends on: node:sqlite, node:fs and node:path only; the other server files take the database it opens.
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -101,6 +102,8 @@ const addUserColumn = (column, definition) => ({
  * The steps that bring a database made by an older version up to date, in the order they run. Every step is safe to run
  * on a database that already has it (the site runs all of them each time it opens one), so a step only adds what is missing.
  * Each is { id, run(db, usersColumns) }, where usersColumns are the names of the users table's columns before any step ran.
+ * @type {Array<{ id: string, run: (db: import('node:sqlite').DatabaseSync, columns: string[]) => void }>}
+ * Side effects: none until a step runs (see openDatabase); steps ALTER tables or insert and update rows.
  */
 export const MIGRATIONS = [
   addUserColumn('card_back', `TEXT NOT NULL DEFAULT '{"type":"preset","value":"crimson"}'`),

@@ -1,18 +1,23 @@
 // Draws an avatar (see shared/avatar.js) as SVG, layer by layer on a 100 x 100 canvas: backdrop, hair behind, clothes,
 // neck, head, hair in front, eyes, mouth, glasses, hat. Every piece is built from our own catalogue (the colours come
 // from it and the part ids are checked against it), never from text a player typed, so the markup is safe to inject.
+// Depends on: shared/avatar.js (the catalogue and normaliseAvatar). Pure string building, no DOM access.
+// Each table below maps a catalogue option id to a function returning an SVG fragment; most take the colour `c`.
 import { avatarOption, normaliseAvatar } from '../shared/avatar.js';
 
+// Shared drawing constants: outline colour, the translucent shadow, and the common stroke attributes.
 const INK = '#241c1c';
 const SHADE = 'rgb(0 0 0 / 0.14)';
 const stroke = `stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
 
+// Returns the SVG for the backdrop (a flat rect or a gradient with unique id `id`) from a catalogue `option`.
 const backdropOf = (option, id) => {
   if (!option.gradient) return `<rect width="100" height="100" fill="${option.colour}"/>`;
   const [from, to] = option.gradient;
   return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="100" height="100" fill="url(#${id})"/>`;
 };
 
+// Hair drawn behind the head and body (long styles), by hair id; each takes the hair colour.
 const HAIR_BEHIND = {
   bob: (c) => `<path d="M26 46 C22 12 78 12 74 46 L77 68 Q50 76 23 68 Z" fill="${c}"/>`,
   pigtails: (c) => `<path d="M26 40 L14 52 L19 70 L28 56 Z M74 40 L86 52 L81 70 L72 56 Z" fill="${c}"/><circle cx="15" cy="52" r="6" fill="${c}"/><circle cx="85" cy="52" r="6" fill="${c}"/><path d="M26 44 L22 50 M74 44 L78 50" stroke="#d8719c" stroke-width="3" stroke-linecap="round"/>`,
@@ -22,6 +27,7 @@ const HAIR_BEHIND = {
   bun: (c) => `<circle cx="50" cy="13" r="10" fill="${c}"/>`,
 };
 
+// Hair drawn over the head, by hair id; each takes the hair colour and returns SVG.
 const HAIR_FRONT = {
   bob: (c) => `<path d="M26 56 C22 10 78 10 74 56 L68 56 C68 38 60 30 50 30 C40 30 32 38 32 56 Z" fill="${c}"/>`,
   pigtails: (c) => `<path d="M28 44 C24 4 76 4 72 44 C67 33 59 28 50 28 C41 28 33 33 28 44 Z" fill="${c}"/>`,
@@ -39,7 +45,9 @@ const HAIR_FRONT = {
     [[31, 33, 8], [41, 24, 9], [54, 23, 9], [66, 31, 8], [71, 42, 6], [29, 43, 6]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`).join(''),
 };
 
+// Returns the moustache path in colour `c` (shared by the goatee and beard).
 const moustache = (c) => `<path d="M37 55 C41 50 48 52 50 54 C52 52 59 50 63 55 C59 58 52 56 50 56 C48 56 41 58 37 55 Z" fill="${c}"/>`;
+// Facial hair by id, drawn over the face; each takes the hair colour.
 const FACIAL_HAIR = {
   none: () => '',
   stubble: (c) => `<path d="M29 50 C30 66 40 71 50 71 C60 71 70 66 71 50 C66 54 58 53 50 55 C42 53 34 54 29 50 Z" fill="${c}" fill-opacity="0.4"/>`,
@@ -49,15 +57,20 @@ const FACIAL_HAIR = {
   beard: (c) => `<path d="M28 47 C27 72 38 78 50 78 C62 78 73 72 72 47 C71 58 65 62 58 62 L42 62 C35 62 29 58 28 47 Z" fill="${c}"/>` + moustache(c),
 };
 
+// Returns one eye at horizontal position `x` of the given kind ('happy', 'sleepy', 'stars', else round).
 const eye = (x, kind) => {
   if (kind === 'happy') return `<path d="M${x - 4} 47 Q${x} 41 ${x + 4} 47" ${stroke}/>`;
   if (kind === 'sleepy') return `<path d="M${x - 4} 46 L${x + 4} 46" ${stroke}/><path d="M${x - 3} 49 Q${x} 50.5 ${x + 3} 49" stroke="${INK}" stroke-width="1" fill="none"/>`;
   if (kind === 'stars') return `<path d="M${x} 40 L${x + 1.8} 44.4 L${x + 6} 46 L${x + 1.8} 47.6 L${x} 52 L${x - 1.8} 47.6 L${x - 6} 46 L${x - 1.8} 44.4 Z" fill="#f2c94c" stroke="${INK}" stroke-width="1"/>`;
   return `<circle cx="${x}" cy="46" r="3" fill="${INK}"/><circle cx="${x + 1}" cy="45" r="0.9" fill="#fff"/>`;
 };
+// Returns a wide-open eye (white with pupil) at `x`.
 const wideEye = (x) => `<circle cx="${x}" cy="46" r="4.8" fill="#fff" stroke="${INK}" stroke-width="1.6"/><circle cx="${x}" cy="46" r="2.3" fill="${INK}"/>`;
+// Returns a heart-shaped eye at `x`.
 const heartEye = (x) => `<path d="M${x} 50 C${x - 7} 45 ${x - 4} 40 ${x} 43.5 C${x + 4} 40 ${x + 7} 45 ${x} 50 Z" fill="#e0506a" stroke="#a83348" stroke-width="0.8"/>`;
+// Returns a closed, lashed eye at `x`.
 const closedEye = (x) => `<path d="M${x - 4} 46 Q${x} 50.5 ${x + 4} 46" ${stroke}/><path d="M${x - 4} 46 L${x - 5.5} 44.5 M${x + 4} 46 L${x + 5.5} 44.5" ${stroke}/>`;
+// Both eyes by id; each function takes nothing and returns SVG.
 const EYES = {
   scowl: () => `<path d="M36 46 L44 46 A4 4 0 0 1 36 46 Z M56 46 L64 46 A4 4 0 0 1 56 46 Z" fill="${INK}"/><path d="M33 38 L46 45 M67 38 L54 45" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
   sad: () =>
@@ -73,6 +86,7 @@ const EYES = {
   wink: () => eye(40, 'round') + eye(60, 'happy'),
 };
 
+// Mouths by id; each function takes nothing and returns SVG.
 const MOUTHS = {
   scowl: () => `<path d="M42 62 Q50 55 58 62 L57 64 Q50 59 43 64 Z" fill="#fff" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><path d="M47 58.5 L47 62 M50 58 L50 61.5 M53 58.5 L53 62" stroke="${INK}" stroke-width="0.9"/>`,
   sad: () => `<path d="M43 63 Q45 59 47.5 61 Q50 63 52.5 61 Q55 59 57 63" ${stroke}/>`,
@@ -88,6 +102,7 @@ const MOUTHS = {
   tongue: () => `<path d="M42 57 Q50 66 58 57 Z" fill="#5a1f24" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="50" cy="62" rx="3.2" ry="2.6" fill="#e0707d"/>`,
 };
 
+// Glasses and eye-wear by id ('none' draws nothing); each function takes nothing and returns SVG.
 const GLASSES = {
   eyepatch: () => `<path d="M30 36 L56 43 M64 44 L71 40" stroke="#17171c" stroke-width="1.8" fill="none"/><ellipse cx="60" cy="46" rx="7.5" ry="6.5" fill="#17171c"/>`,
   heart: () =>
@@ -103,6 +118,7 @@ const GLASSES = {
 
 /** Clothes: the body, drawn from the shoulders down, in the chosen colour. */
 const body = (c) => `<path d="M10 100 C10 78 28 70 50 70 C72 70 90 78 90 100 Z" fill="${c}"/>`;
+// Clothes by id; each takes the top colour and the skin colour (tank shows skin) and returns SVG.
 const TOPS = {
   tank: (c, skin) => `<path d="M10 100 C10 78 28 70 50 70 C72 70 90 78 90 100 Z" fill="${skin}"/><path d="M26 100 L31 80 C37 77 43 78 50 85 C57 78 63 77 69 80 L74 100 Z" fill="${c}"/>`,
   turtleneck: (c) => body(c) + `<rect x="39" y="60" width="22" height="13" rx="6" fill="${c}"/><path d="M40 66 L60 66 M41 70 L59 70" stroke="${SHADE}" stroke-width="1.5"/>`,
@@ -119,6 +135,7 @@ const TOPS = {
   armour: () => `<path d="M10 100 C10 78 28 70 50 70 C72 70 90 78 90 100 Z" fill="#9ca6af"/><path d="M50 72 L50 100" stroke="#6f7983" stroke-width="2"/><path d="M26 76 C20 78 14 86 14 94 L30 94 Z M74 76 C80 78 86 86 86 94 L70 94 Z" fill="#b9c2ca" stroke="#6f7983" stroke-width="1.5"/><circle cx="22" cy="86" r="1.5" fill="#6f7983"/><circle cx="78" cy="86" r="1.5" fill="#6f7983"/>`,
 };
 
+// Hats by id, drawn last; each function takes nothing and returns SVG.
 const HATS = {
   bucket: () => `<path d="M28 39 C26 12 74 12 72 39 Z" fill="#8a9a5b"/><path d="M20 39 Q50 30 80 39 Q50 48 20 39 Z" fill="#6d7c45"/><path d="M29 35 Q50 40 71 35" fill="none" stroke="#5a6638" stroke-width="2"/>`,
   santa: () => `<path d="M27 38 C25 9 64 4 80 28 C75 28 72 31 73 38 Z" fill="#d03a3a"/><rect x="25" y="32" width="50" height="9" rx="4.5" fill="#f4efe3"/><circle cx="80" cy="29" r="5" fill="#f4efe3"/>`,
@@ -137,9 +154,15 @@ const HATS = {
 // Hats that cover the top of the head: the hair is only drawn below the hat line, so none of it shows above or through them.
 const COVERING = new Set(['cap', 'beanie', 'bucket', 'santa', 'cowboy', 'wizard', 'knight', 'tophat', 'party']);
 
+// Counts avatars drawn, to give each its own gradient and clip ids (several avatars share one page).
 let counter = 0;
 
-/** The SVG contents (to put inside an <svg viewBox="0 0 100 100">) for an avatar. Anything unknown is drawn as the default. */
+/**
+ * The SVG contents (to put inside an <svg viewBox="0 0 100 100">) for an avatar. Anything unknown is drawn as the default.
+ * @param {object} input  the avatar choices ({ skin, hair, hairColour, top, topColour, eyes, mouth, glasses, hat, backdrop, facialHair })
+ * @returns {string}  SVG markup built only from catalogue values, so it is safe to inject
+ * Side effects: increments the module's id counter (so gradient and clip ids are unique per call).
+ */
 export function avatarMarkup(input) {
   const a = normaliseAvatar(input);
   const colour = (slot) => avatarOption(slot, a[slot]).colour;
@@ -169,6 +192,7 @@ export function avatarMarkup(input) {
   ].join('');
 }
 
+// The robot's palette.
 const STEEL_LIGHT = '#c3cad3';
 const STEEL = '#8f97a2';
 const STEEL_DARK = '#5a616b';
@@ -176,6 +200,7 @@ const OUTLINE = '#3d434b';
 const SCREEN = '#1d232b';
 const GLOW = '#5fe3ff';
 
+// As `counter`, for the robot's gradient ids.
 let robotCounter = 0;
 
 /**
@@ -184,6 +209,9 @@ let robotCounter = 0;
  * is nothing to choose and nothing to escape; only the gradient ids are made fresh so that several on a page never share one.
  * The background colour comes from `seed` (any text, such as the computer player's id and name): every robot has its own,
  * and the same one always has the same.
+ * @param {string} [seed]  text the background colour is derived from
+ * @returns {string}  SVG markup for a 100 x 100 canvas
+ * Side effects: increments the module's robot id counter.
  */
 export function robotMarkup(seed = '') {
   const hue = [...String(seed)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);

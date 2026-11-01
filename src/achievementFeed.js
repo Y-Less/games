@@ -1,6 +1,7 @@
 // Achievement unlocks as they happen, wherever on the site the player is. The server tells the player's browser (on the site's
 // own socket) that there is something new; the unlocks themselves are fetched from the API, and each is marked as shown once
 // its pop-up has been seen, so a player who was away still gets them the next time they come back.
+// Depends on: vue, socket.io-client, api.js and shopStore.js (the coin balance is refreshed on new unlocks).
 import { reactive } from 'vue';
 import { io } from 'socket.io-client';
 import { api } from './api.js';
@@ -9,6 +10,7 @@ import { refreshShop } from './shopStore.js';
 /** `queue` holds the unlocks waiting for a pop-up: { id, level, game, name, text, coins }. */
 export const feed = reactive({ queue: [] });
 
+// The site socket once started, else null.
 let socket = null;
 /**
  * A unlock's identity in the queue.

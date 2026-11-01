@@ -1,15 +1,17 @@
 // What the site knows about other players' looks (their name style and avatar), fetched in batches from
 // /api/players and kept for a minute, so a score bar of six chips costs one request. Your own profile is read from the
 // session instead, so a change you make shows at once.
+// Depends on: vue, api.js and session.js (for your own profile).
 import { reactive } from 'vue';
 import { api } from './api.js';
 import { session } from './session.js';
 
+// How long a fetched profile is trusted before it is asked for again (ms).
 const MAX_AGE = 60 * 1000;
 const profiles = reactive({}); // id -> { displayName, nameStyle, avatar }
 const asked = new Map(); // id -> when it was last requested
-let wanted = new Set();
-let timer = null;
+let wanted = new Set(); // ids queued for the next batch
+let timer = null; // the pending batch timer, or null
 
 /**
  * Fetches the profiles asked for since the last batch.

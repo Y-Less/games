@@ -1,4 +1,9 @@
 <script setup>
+// File: the played-trick area of trick-taking card games. Depends on: ../../shared/cards.js (suitOf), PlayingCard.vue.
+// Props: seats ([{ key, name }], viewer first), plays ([{ key, card }], in play order), winnerKey (String|Number|null), trump (String,
+//   suit letter), size ('sm'|'md'|'lg'), labels (Boolean, print names on cards).
+// Emits: none.  Slots: default (laid over the middle, for messages).
+// Side effects: none.
 // The trick being played: one permanent slot per seat (the viewer's at the bottom, the others clockwise round from
 // there), the played cards lying on top of each other at jaunty angles, each pushed a little towards its player's side.
 // The angle is worked out from the seat and the card, so it is the same on every render. The area has a fixed size for
@@ -19,7 +24,12 @@ const props = defineProps({
   labels: { type: Boolean, default: false },
 });
 
-/** A small stable number from a string: the same card from the same seat always sits at the same angle. */
+/**
+ * A small stable number from a string: the same card from the same seat always sits at the same angle.
+ * @param {string} text  what to hash (seat key plus card)
+ * @returns {number}  an integer from 0 to 9972
+ * Side effects: none.
+ */
 function hash(text) {
   let h = 0;
   for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) % 9973;
@@ -29,6 +39,7 @@ function hash(text) {
 // With more than four seats the cards are spread a little wider, so that every one still shows.
 const spread = computed(() => (props.seats.length > 4 ? 1.4 : 1));
 
+// One entry per seat: its direction (sx, sy) from the centre, the card it has played (or null), play order and tilt in degrees.
 const slots = computed(() =>
   props.seats.map((seat, i) => {
     const angle = (2 * Math.PI * i) / props.seats.length;

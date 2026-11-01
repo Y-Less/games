@@ -1,5 +1,6 @@
 // How the signed-in user's choices look on the page: the background, the card back, whether animations play, and the
 // CSS variables of the site theme and font.
+// Depends on: shared/siteThemes.js (siteVariables) and sessionState.js (preset lists, current user).
 import { siteVariables } from '../shared/siteThemes.js';
 import { session } from './sessionState.js';
 

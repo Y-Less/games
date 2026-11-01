@@ -1,6 +1,8 @@
 // Where each opponent's face-down hand goes at a card table, by the number of opponents (see OpponentHands.vue). The
 // opponents are numbered clockwise from you (the player after you is 0). Left is listed bottom to top, the top row left
 // to right, and right top to bottom, which is clockwise round the table.
+// Depends on: nothing (read by OpponentHands.vue).
+// Shape: { [opponentCount]: { left: number[], top: number[], right: number[] } } of opponent indexes.
 export const OPPONENT_LAYOUTS = {
   1: { left: [], top: [0], right: [] },
   2: { left: [0], top: [], right: [1] },
@@ -9,4 +11,5 @@ export const OPPONENT_LAYOUTS = {
   5: { left: [0, 1], top: [2], right: [3, 4] },
   6: { left: [0, 1], top: [2, 3], right: [4, 5] },
 };
+// The most opponents a table can lay out (the largest key of OPPONENT_LAYOUTS).
 export const MAX_OPPONENTS = 6;

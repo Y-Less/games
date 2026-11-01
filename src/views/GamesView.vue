@@ -1,10 +1,15 @@
 <script setup>
+// The home page: the available games, grouped by category, each linking to its table.
+// Props: none. Emits: none. Slots: none.
+// Depends on: session.js (session.games, from /api/config). Side effects: none.
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { session } from '../session.js';
 
+// Heading for each game category; an unknown category shows its key.
 const CATEGORY_LABELS = { party: 'Party games', cards: 'Card games', strategy: 'Strategy games', word: 'Word games', other: 'More games' };
 
+// The games grouped by category, in order of first appearance: [{ key, label, games }].
 const groups = computed(() => {
   const byCategory = new Map();
   for (const game of session.games) {
@@ -14,6 +19,7 @@ const groups = computed(() => {
   return [...byCategory].map(([key, games]) => ({ key, label: CATEGORY_LABELS[key] ?? key, games }));
 });
 
+// Returns the player-count text for game `g`, e.g. '2 players' or '2–6 players'.
 const players = (g) => (g.minPlayers === g.maxPlayers ? `${g.minPlayers} players` : `${g.minPlayers}–${g.maxPlayers} players`);
 </script>
 

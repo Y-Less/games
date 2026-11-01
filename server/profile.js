@@ -20,8 +20,8 @@ import {
   cleanPlayAnimations,
 } from './profileSettings.js';
 
-const asJson = JSON.stringify;
-const asIs = (value) => value;
+const asJson = JSON.stringify; // a `store` for settings kept as JSON text: returns the JSON string of the value // a `store` for settings kept as JSON text: returns the JSON string of the value
+const asIs = (value) => value; // a `store` for settings kept as plain text: returns the value unchanged
 
 /**
  * The profile settings, in the order they are checked and saved.
@@ -36,6 +36,12 @@ export const SETTINGS = [
   {
     key: 'displayName',
     column: 'display_name',
+    /**
+     * Tidies a display name.
+     * @param {*} input  what the client sent
+     * @returns {string} the trimmed name (1 to 20 characters)
+     * Side effects: none; throws an AuthError when the length is wrong.
+     */
     clean(input) {
       const name = String(input).trim();
       if (!name || name.length > 20) throw new AuthError('Display names are 1 to 20 characters.');
@@ -49,6 +55,12 @@ export const SETTINGS = [
     gated: true,
     clean: cleanBackground,
     // A picture can only be chosen by the user who uploaded it (upload file names start with the owner's id).
+    /**
+     * @param {{ type: string, file?: string }} background  the cleaned background
+     * @param {number} userId  the user making the change
+     * @returns {void}
+     * Side effects: none; throws an AuthError when the picture belongs to someone else.
+     */
     check(background, userId) {
       if (background.type === 'image' && !background.file.startsWith(`bg-${userId}-`)) throw new AuthError('That is not a valid background.');
     },
@@ -59,6 +71,12 @@ export const SETTINGS = [
     column: 'card_back',
     gated: true,
     clean: cleanCardBack,
+    /**
+     * @param {{ type: string, file?: string }} cardBack  the cleaned card back
+     * @param {number} userId  the user making the change
+     * @returns {void}
+     * Side effects: none; throws an AuthError when the picture belongs to someone else.
+     */
     check(cardBack, userId) {
       if (cardBack.type === 'image' && !cardBack.file.startsWith(`cb-${userId}-`)) throw new AuthError('That is not a valid card back.');
     },

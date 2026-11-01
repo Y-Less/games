@@ -1,3 +1,6 @@
+// Entry point: loads the session, then mounts the Vue app with the router.
+// Depends on: vue, App.vue, router.js, session.js, steve.js, bundled fonts and style.css.
+// Side effects: installs the console secret, fetches the session, mounts the app on #app.
 import { createApp } from 'vue';
 import App from './App.vue';
 import { router } from './router.js';

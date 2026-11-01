@@ -1,4 +1,10 @@
 <script setup>
+// File: the waiting room of fixed-seat games. Depends on: Vue only.
+// Props: seats (Array of { id, name, kind, isHost?, isMe?, away? }), isHost, starting (Boolean, disables Start), startLabel,
+//   allowBots (Boolean), title (String).
+// Emits: addBot, removeBot(id), fillBots, kick(id), start: the parent does the sending.
+// Slots: settings (host's game options), footer (extra buttons or notes beside Start).
+// Side effects: none itself; only emits events.
 // The waiting room for a game with a fixed number of seats, some of which computer players can fill.
 // Seats: [{ id, name, kind: 'human' | 'bot' | 'empty', isHost?, isMe?, away? }] in seating order.
 // Emits addBot, removeBot(id), fillBots, kick(id), start. Slot #settings holds the host's game options and
@@ -15,8 +21,11 @@ const props = defineProps({
 });
 const emit = defineEmits(['addBot', 'removeBot', 'fillBots', 'kick', 'start']);
 
+// Number of seats nobody occupies yet.
 const empty = computed(() => props.seats.filter((s) => s.kind === 'empty').length);
+// Number of seats held by human players.
 const humans = computed(() => props.seats.filter((s) => s.kind === 'human').length);
+// True when every seat is filled and at least one is human, which enables Start.
 const ready = computed(() => empty.value === 0 && humans.value >= 1);
 </script>
 

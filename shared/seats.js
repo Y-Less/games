@@ -10,6 +10,7 @@
 //   room.nextBot    the number the next computer player's id will use
 //
 // Every rule returns { ok: true, ... } or { ok: false, error }, and (like all the rules) mutates the room it is given.
+// Depends on: nothing (pure, no imports); the rules here are driven by shared/roomServer.js and each seated game's rules.js.
 
 /** Names computer players are given, in order, until they run out (then "Computer", "Computer 2", ...). */
 export const DEFAULT_BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
@@ -44,11 +45,11 @@ export const inLobby = (room) => (room.phase === 'lobby' ? null : fail('You can 
 export const hostInLobby = (room, userId) => asHost(room, userId) ?? inLobby(room);
 
 /**
- * A name nobody else at the table has (ignoring capital letters): "Ann" becomes "Ann (2)" if "ann" is taken.
- *
- * @param {object} room
+ * Finds a name nobody else at the table has (ignoring capital letters): "Ann" becomes "Ann (2)" if "ann" is taken.
+ * @param {{ seats: Array<{ name: string } | null> }} room  the room whose seats are checked (not changed)
  * @param {string} wanted  the name the person would like
- * @returns {string}
+ * @returns {string} `wanted`, or `wanted` with " (n)" appended
+ * Side effects: none.
  */
 export function uniqueName(room, wanted) {
   const used = new Set(room.seats.filter(Boolean).map((s) => s.name.toLowerCase()));
@@ -76,7 +77,9 @@ export function uniqueName(room, wanted) {
 export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeOver = (room, bot) => bot, afterRemoval = () => {}, finishedSeat = () => null }) {
   /**
    * Makes the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
-   * Side effect: uses up one number from room.nextBot.
+   * @param {{ seats: Array<object|null>, nextBot: number }} room  the room (seats read to avoid clashing names)
+   * @returns {{ kind: 'bot', id: string, name: string }} the new bot (not yet placed in a seat)
+   * Side effects: increments `room.nextBot`.
    */
   function newBot(room) {
     const used = new Set(room.seats.filter(Boolean).map((s) => s.name));
@@ -89,8 +92,11 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
   /**
    * Seats a person in the first free seat. Joining twice is harmless (they keep their seat), and the game must still be in
    * the lobby for a newcomer.
-   *
-   * @returns {{ ok: boolean, seat?: number, error?: string }}
+   * @param {object} room  the room to change
+   * @param {number} userId  the joining account id
+   * @param {string} name  the display name wanted (made unique at the table)
+   * @returns {{ ok: boolean, seat?: number, error?: string }} the seat index, or why joining failed
+   * Side effects: sets `room.seats[seat]` to a new human seat on success.
    */
   function addHuman(room, userId, name) {
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
@@ -104,9 +110,13 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
   /**
    * Takes a person out. In the lobby their seat is freed; mid-game a computer player takes it over; once the game is over
    * the seat is freed (or marked by `finishedSeat`). If they were the host, the next person becomes host.
-   *
+   * @param {object} room  the room to change
+   * @param {number} userId  the account leaving
+   * @param {() => number} rng  random source, handed to `takeOver` and `afterRemoval`
+   * @param {number} now  current time in ms, handed to `afterRemoval`
    * @returns {{ ok: boolean, empty?: boolean, seat?: number, replaced?: boolean, error?: string }} `empty` is true when no
    *   person is left, so the caller should discard the room
+   * Side effects: mutates `room.seats`, may change `room.hostId`, `room.nextBot` and whatever `takeOver`/`afterRemoval` change.
    */
   function removeHuman(room, userId, rng, now) {
     const seat = seatOf(room, userId);
@@ -124,8 +134,11 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
 
   /**
    * The host puts a computer player in a seat (the first empty one if no seat is named). Lobby only.
-   *
-   * @returns {{ ok: boolean, seat?: number, error?: string }}
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (must be the host)
+   * @param {number} [seat]  the seat index wanted, or undefined for the first empty seat
+   * @returns {{ ok: boolean, seat?: number, error?: string }} the seat used, or why it failed
+   * Side effects: sets `room.seats[seat]` to a new bot; increments `room.nextBot`.
    */
   function addBot(room, userId, seat) {
     const problem = hostInLobby(room, userId);
@@ -138,7 +151,14 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     return ok({ seat: index });
   }
 
-  /** The host takes a computer player out of a seat. Lobby only. */
+  /**
+   * The host takes a computer player out of a seat. Lobby only.
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (must be the host)
+   * @param {number} seat  the seat index holding the bot
+   * @returns {{ ok: boolean, error?: string }} success, or why it failed
+   * Side effects: sets `room.seats[seat]` to null.
+   */
   function removeBot(room, userId, seat) {
     const problem = hostInLobby(room, userId);
     if (problem) return problem;
@@ -147,7 +167,13 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     return ok();
   }
 
-  /** The host fills every empty seat with a computer player. Lobby only. */
+  /**
+   * The host fills every empty seat with a computer player. Lobby only.
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (must be the host)
+   * @returns {{ ok: boolean, error?: string }} success, or why it failed
+   * Side effects: fills empty entries of `room.seats` with new bots; increments `room.nextBot` per bot.
+   */
   function fillWithBots(room, userId) {
     const problem = hostInLobby(room, userId);
     if (problem) return problem;
@@ -159,8 +185,13 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * The host removes another person, at any time before the game is over: in the lobby their seat is freed, and in a
    * game a computer player takes it over (as when someone leaves). A finished game has nobody to remove. The result names
    * the person so the server can send them home.
-   *
-   * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }}
+   * @param {object} room  the room to change
+   * @param {number} hostId  who is asking (must be the host)
+   * @param {number} seat  the seat index of the person to remove
+   * @param {() => number} rng  random source, passed through to removeHuman
+   * @param {number} now  current time in ms, passed through to removeHuman
+   * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }} who was removed, or why it failed
+   * Side effects: as removeHuman (mutates `room.seats`, may change the host).
    */
   function kick(room, hostId, seat, rng, now) {
     const problem = asHost(room, hostId);

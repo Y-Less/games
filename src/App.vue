@@ -1,4 +1,10 @@
 <script setup>
+// The site shell: the header (title, menu, Help, Leave game, sign out), the routed page, the help pop-up and the
+// achievement pop-ups.
+// Props: none. Emits: none. Slots: none (the page is rendered by <RouterView>).
+// Depends on: vue-router, session.js, shopStore.js, profiles.js, playBar.js, pageHelp.js, markdown.js and the shared components.
+// Side effects: refreshes the shop on every page change; closes the help pop-up on navigation; signing out clears the
+// profile cache and navigates to the sign-in page.
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AchievementPopups from './components/AchievementPopups.vue';
@@ -15,10 +21,12 @@ import { pageHelp } from './pageHelp.js';
 
 const route = useRoute();
 const router = useRouter();
-const menuOpen = ref(false);
+const menuOpen = ref(false); // the header's account menu
+// Whether a game is on screen (the header then shows its title and the Help and Leave buttons).
 const playing = computed(() => route.name === 'play');
+// The leave button's registration from playBar (null when nothing to offer).
 const offer = computed(() => (playing.value ? leaveOffer() : null));
-const confirming = ref(false);
+const confirming = ref(false); // whether the "really leave?" prompt is showing
 // Coins can change whenever a game ends, so the balance is read again on every page change.
 watch(() => route.fullPath, () => refreshShop());
 watch(offer, (now) => {
@@ -35,7 +43,9 @@ function askLeave() {
 }
 // The Help button: a game's own rules while playing (the play view opens them), otherwise the page's help.
 const helpOpen = ref(false);
+// The current page's help ({ title, markdown }) or null.
 const help = computed(() => pageHelp(route));
+// The help text as safe HTML.
 const helpHtml = computed(() => (help.value ? renderMarkdown(help.value.markdown) : '<p>There is no help for this page.</p>'));
 watch(() => route.fullPath, () => (helpOpen.value = false));
 /**

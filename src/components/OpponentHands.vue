@@ -1,4 +1,9 @@
 <script setup>
+// File: the face-down opponent hands around a card table. Depends on: CardFan.vue, PlayingCard.vue, ../opponentLayouts.js.
+// Props: opponents (Array of { key, name, cards, note?, away?, current? }), max (Number, largest hand size), base (Number, rem of
+//   table height per unit of scale).
+// Emits: none.  Slots: none.
+// Side effects: observes its own box with a ResizeObserver (disconnected on unmount) and reads the root font size.
 // The opponents' face-down hands, with their names, around the edges of a card table. Every card game shows these, laid
 // out by how many opponents there are (in clockwise order from you: the player after you first):
 //
@@ -29,16 +34,24 @@ const REACH = 6 * CARD;
 const LABEL = 2.6;
 const GAP = 0.8;
 const PAD = 0; // hands sit right on the edges of the table
+// Returns degrees converted to radians.
 const rad = (deg) => (deg * Math.PI) / 180;
+// Size in rem of one hand's card fan at scale 1, derived from the widest possible hand (`max`) so it never changes mid-game.
 const fan = computed(() => {
   const angle = ((props.max - 1) / 2) * STEP;
   return { width: 2 * REACH * Math.sin(rad(angle)) + CARD + 0.6, height: CARD * 1.4 + REACH * (1 - Math.cos(rad(angle))) + 1.4 };
 });
+// Size in rem of a whole hand block: the fan plus the name label under it.
 const block = computed(() => ({ width: fan.value.width, height: fan.value.height + LABEL }));
 
 const root = ref(null);
 const size = ref({ width: 1000, height: 560, rem: 16 });
 let observer = null;
+/**
+ * Reads the table's pixel size and the root font size so scale and positions can be worked out in rem.
+ * @returns {void}
+ * Side effects: sets the `size` ref (ignored while the box has no size yet, e.g. when hidden).
+ */
 function measure() {
   const el = root.value;
   if (!el) return;
@@ -56,6 +69,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 
+// The side/top arrangement of opponent indexes for the current opponent count (empty when there are none).
 const layout = computed(() => {
   const n = Math.min(MAX_OPPONENTS, props.opponents.length);
   return OPPONENT_LAYOUTS[n] ?? { left: [], top: [], right: [] };
@@ -74,6 +88,7 @@ const scale = computed(() => {
   return Math.max(0.4, s);
 });
 
+// Each opponent with its side and the absolute CSS (centre point, size, rotation, scale) that puts its block in place.
 const placed = computed(() => {
   const { width, height, rem } = size.value;
   const s = scale.value;
@@ -81,6 +96,7 @@ const placed = computed(() => {
   const across = (block.value.height * s * rem) / 2; // half the depth of a hand, away from the edge
   const pad = PAD * rem;
   const out = [];
+  // Adds opponent `index` to `out` centred at (cx, cy) px, turned `rotate` degrees; no return value.
   const put = (index, side, cx, cy, rotate) => {
     const o = props.opponents[index];
     if (!o) return;

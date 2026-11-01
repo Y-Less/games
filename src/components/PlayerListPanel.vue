@@ -1,4 +1,10 @@
 <script setup>
+// File: the players panel of seatless waiting rooms. Depends on: BotIcon.vue.
+// Props: players (Array of { id, name, bot?, online? }), you (Number|String, own id), hostId (Number|String), isHost (Boolean,
+//   shows the Add / Remove / Fill buttons), min and max (Number, player-count limits).
+// Emits: addBot, removeBot(id), kick(id), fillBots(count): the parent lobby does the real work.
+// Slots: lead (per player, scoped { player }, shown before the name), default (extra content at the bottom of the panel).
+// Side effects: none itself; only emits events.
 // The "Players (n of max)" panel of a waiting room whose players are not tied to numbered seats: each player with their
 // tags, the host's Remove buttons, and the host's Add / Fill with computer players buttons. A game's own per-player
 // extras go in the #lead slot (shown before the name, e.g. a colour chip; it gets the `player`).

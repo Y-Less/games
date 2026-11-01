@@ -1,5 +1,6 @@
 // Uploaded pictures (backgrounds and card backs): what is accepted, how they are stored under <dataDir>/uploads and how
 // they are served. The routes that receive them are in routes/uploads.js.
+// Depends on: express (serving), node:crypto (random names), node:fs/node:path, and ./errors.js (AuthError).
 import express from 'express';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -14,7 +15,8 @@ export const IMAGE_TYPES = {
 };
 
 /**
- * Makes the uploads folder and the operations on it.
+ * Makes the uploads folder and the operations on it. `serve` hands the files out with a long cache time because each name
+ * is random and never reused, and with nosniff so a mislabelled file is never run as a page.
  * @param {string} uploadsDir  the folder pictures are kept in (created when missing)
  * @returns {{ dir: string, serve: import('express').RequestHandler, removeImages: Function, saveImage: Function }}
  * Side effects: creates the folder.

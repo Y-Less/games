@@ -1,4 +1,9 @@
 <script setup>
+// File: a player's name drawn in their purchased name style. Depends on: ../nameLook.js (resolves the style and animation to CSS).
+// Props: name (String, required), userId (Number|null, the account whose style to look up), styleId and animationId (String|null,
+//   force a style or animation, used by shop previews), as (String, the element tag to render).
+// Emits: none.  Slots: default (extra content placed after the name, inside the styled element).
+// Side effects: none (nameLook reads the shared profile cache but this component writes nothing).
 // A player's name in the style they bought (a small border and background, see shared/nameStyles.js). Give it the
 // name to show (and an animation on its border, see shared/animations.js) and, for a real player, their account id as `userId` (games send it as `userId` on their scoreboard
 // players): the style is then looked up from the site. Without a userId (a computer player, say) the name is plain.

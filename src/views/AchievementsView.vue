@@ -1,13 +1,16 @@
 <script setup>
 // The Achievements page: for the site and then for each game, every achievement with the level you have reached and how far
 // you are towards the next. The rules for levels are in shared/achievements.js; the server works out the numbers.
+// Props: none. Emits: none. Slots: none.
+// Depends on: api.js (GET /api/achievements) and session.js. Side effects: one request on mount.
 import { onMounted, ref } from 'vue';
 import { api } from '../api.js';
 import { session } from '../session.js';
 
-const sections = ref(null);
-const failed = ref('');
+const sections = ref(null); // the server's sections once loaded (null while loading)
+const failed = ref(''); // the error text if loading failed
 
+// Loads the achievements. Side effects: sets sections, or failed.
 onMounted(async () => {
   try {
     const data = await api('GET', '/api/achievements');
@@ -17,12 +20,19 @@ onMounted(async () => {
   }
 });
 
+// Returns n formatted with UK thousands separators.
 const number = (n) => n.toLocaleString('en-GB');
+// Returns progress (0 to 1) as a whole percentage, rounded down.
 const percent = (progress) => Math.floor(progress * 100);
+// Returns true when achievement `a` is at its top level.
 const done = (a) => a.level === a.maxLevel;
+// Returns true when `a` has no levels earned (its name and goal stay secret).
 const hidden = (a) => a.level === 0; // nothing earned yet: the name and goal stay secret
+// Returns true when `a` has just one level.
 const single = (a) => a.maxLevel === 1; // one level: you have it or you do not, so there is nothing to count
+// Returns the total of levels earned across a section's achievements.
 const unlocked = (section) => section.achievements.reduce((sum, a) => sum + a.level, 0);
+// Returns the total of levels available across a section's achievements.
 const possible = (section) => section.achievements.reduce((sum, a) => sum + a.maxLevel, 0);
 </script>
 

@@ -1,4 +1,5 @@
-// Talking to the site's JSON API.
+// Talking to the site's JSON API: every page and composable goes through these two functions.
+// Depends on: the browser's fetch only.
 
 /**
  * Calls the API and returns the parsed body.

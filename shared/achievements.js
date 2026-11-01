@@ -12,6 +12,7 @@
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
 // - A global definition may instead add up stats from several games: `sum: [[game, stat], ...]`, be 1 once every game has
 //   been won at least once: `wonEvery: true`, or take its value from something the site measures: `measure: 'coinsSpent'`.
+// Depends on: nothing (pure, no imports); used by server/achievements.js, the achievement views and each module.json.
 
 /**
  * Levels by how often the thing happens, and one for a one-off; a definition may say `"levels": "easy"` instead of listing them. A game's own
@@ -46,8 +47,11 @@ export const GLOBAL_TIERS = {
 /** Gold for each level a player unlocks: 100 times the level number, or a flat 250 for an achievement with only one level. */
 export const COINS_PER_LEVEL = 100;
 export const SINGLE_LEVEL_COINS = 250;
+// Gold awarded for unlocking `level` (1-based) of an achievement with `levelCount` levels in total.
+// Returns SINGLE_LEVEL_COINS when there is only one level, otherwise COINS_PER_LEVEL * level.
 export const levelReward = (level, levelCount) => (levelCount === 1 ? SINGLE_LEVEL_COINS : COINS_PER_LEVEL * level);
 
+// Stat names always available to a definition's `stat`, in addition to a game's own declared stats.
 export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore', 'bestScore'];
 
 /** The achievements that belong to the site rather than to one game. */
@@ -79,9 +83,16 @@ export const GAME_ACHIEVEMENTS = [
   { key: 'won', name: 'Won the game', text: 'Win {n} games', one: 'Win a game', levels: TIERS.hard, stat: 'wins' },
 ];
 
+// A definition key: starts with a letter, then letters/digits only (it becomes a database key, so keep it plain).
 const KEY = /^[a-zA-Z][a-zA-Z0-9]{0,30}$/;
 
-/** Tidies one definition from a module.json, or returns null when it is not usable. */
+/**
+ * Validates one achievement definition from a module.json and normalises it.
+ * Rejects bad keys, empty names/text and non-ascending or non-positive levels; a string `levels` is looked up in TIERS.
+ * @param {object} input  the raw definition object
+ * @returns {{ key: string, name: string, text: string, one: string|null, levels: number[], stat: string|null }|null} the tidied definition, or null when unusable
+ * Side effects: none.
+ */
 export function cleanDefinition(input) {
   if (!input || typeof input !== 'object') return null;
   const { key, name, text, one, stat } = input;
@@ -91,17 +102,28 @@ export function cleanDefinition(input) {
   return { key, name, text, one: typeof one === 'string' && one ? one : null, levels: [...levels], stat: typeof stat === 'string' && stat ? stat : null };
 }
 
+// Formats numbers with thousands separators ("1,000") for level text.
 const FORMAT = new Intl.NumberFormat('en-GB');
 
-/** What a level asks for, in words: "Play 1,000 cards". */
+/**
+ * Describes what a level asks for in words, e.g. "Play 1,000 cards".
+ * @param {{ text: string, one?: string|null }} definition  the achievement definition
+ * @param {number} n  the level's target number
+ * @returns {string} the text, using `one` when n is 1 and the definition has it
+ * Side effects: none.
+ */
 export function levelText(definition, n) {
   const text = n === 1 && definition.one ? definition.one : definition.text;
   return text.replace('{n}', FORMAT.format(n));
 }
 
 /**
- * Where a value stands: the level reached (0 for none), the next level to aim for (null at the top) and how far along
- * that is. Progress is the value as a fraction of the next level's number, so 600 cards towards level 3 at 1,000 is 60%.
+ * Works out where a value stands against a list of levels.
+ * Progress is the value as a fraction of the next level's number, so 600 cards towards level 3 at 1,000 is 60%.
+ * @param {number[]} levels  ascending level targets
+ * @param {number} value  the player's current value
+ * @returns {{ level: number, next: number|null, progress: number }} level reached (0 for none), the next target (null at the top) and progress in 0..1
+ * Side effects: none.
  */
 export function levelInfo(levels, value) {
   const level = levels.filter((n) => value >= n).length;
@@ -109,7 +131,14 @@ export function levelInfo(levels, value) {
   return { level, next, progress: next === null ? 1 : Math.max(0, Math.min(1, value / next)) };
 }
 
-/** A definition with a player's value worked out, in the shape the page draws. */
+/**
+ * Builds the shape the page draws for one achievement: definition plus a player's value and level state.
+ * @param {object} definition  a cleaned definition (see cleanDefinition)
+ * @param {string} id  the unique id to report (e.g. "game:key"), echoed back
+ * @param {number} value  the player's current value
+ * @returns {object} { id, key, name, value, level, maxLevel, levels, current, next, progress }
+ * Side effects: none.
+ */
 export function describe(definition, id, value) {
   const { level, next, progress } = levelInfo(definition.levels, value);
   return {

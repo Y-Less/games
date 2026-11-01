@@ -2,10 +2,16 @@
 // error toast, the "busy" flag, joining or resuming a room on every (re)connection, the header's "Leave game" button,
 // and tidying up when the client unmounts. A game's top component calls `useGameSocket` once from its setup and keeps
 // only what is its own (its log of recent moves, its screens).
+// Depends on: vue and playBar.js (useLeave); the socket itself is passed in by the caller.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useLeave } from './playBar.js';
 
-/** The code in an invite link such as "?boss-aware-you" (the search string with its leading "?" taken off). */
+/**
+ * The code in an invite link such as "?boss-aware-you" (the search string with its leading "?" taken off).
+ * @param {*} search  location.search (null/undefined count as empty)
+ * @returns {string}  the code, or ''
+ * Side effects: none.
+ */
 export const inviteFrom = (search) => String(search ?? '').replace(/^\?/, '');
 
 /**
@@ -85,7 +91,8 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
    *
    * Side effects: calls the game's `onState`, replaces `state`, marks it loaded and updates the address bar.
    *
-   * @param {object | null} next
+   * @param {object | null} next  the new view of the room
+   * @returns {void}
    */
   function receive(next) {
     onState(next, state.value);

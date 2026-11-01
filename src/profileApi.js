@@ -1,4 +1,5 @@
 // Changing your own profile: settings, pictures and password. The server's reply (the new user) becomes the session's user.
+// Depends on: api.js (requests) and session.js (setUser).
 import { api, uploadImage } from './api.js';
 import { setUser } from './session.js';
 
@@ -44,4 +45,5 @@ export async function uploadCardBack(file) {
  * @throws {Error} with the server's reason when refused
  * Side effects: one request; the server signs out your other devices.
  */
+// (Arrow helper) Returns the promise of the password-change request.
 export const changePassword = (currentPassword, newPassword) => api('POST', '/api/me/password', { currentPassword, newPassword });

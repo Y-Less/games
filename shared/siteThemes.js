@@ -1,6 +1,7 @@
 // The look of the site, in two parts that a player chooses separately in the shop: a colour theme (the dark surfaces, lines
 // and accent that every page is drawn with) and a font. The first of each is free and is what everyone starts with. A theme
 // only sets the CSS variables in `vars` (see src/style.css), and a font sets --display (titles) and --body (everything else).
+// Depends on: nothing (pure data); consumed by server/shop.js and the client (src/appearance.js).
 export const SITE_THEMES = [
   { id: 'harbour', name: 'Harbour', price: 0, vars: { bg: '#16252d', raised: '#1f3540', sunken: '#112027', line: '#34505c', muted: '#9fb3b8', amber: '#e0a84a' } },
   { id: 'arctic', name: 'Arctic', price: 2000, vars: { bg: '#1a2b3a', raised: '#243b4f', sunken: '#121f2b', line: '#3f6180', muted: '#a4b9cc', amber: '#8fd3f0' } },
@@ -24,6 +25,7 @@ const WINGDINGS = "Wingdings, 'Wingdings 2', Webdings, fantasy";
 const GREAT_VIBES = "'Great Vibes', cursive"; // bundled (src/main.js): a flowing, swashed script
 const EMILYS_CANDY = "'Emilys Candy', fantasy"; // bundled: letters decorated with scallops and dots
 const MONO = "ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace";
+// The font choices; `display` is used for titles and `body` for everything else (CSS font-family stacks).
 export const SITE_FONTS = [
   { id: 'classic', name: 'Classic', price: 0, display: GEORGIA, body: GEORGIA },
   { id: 'palatino', name: 'Palatino', price: 1500, display: PALATINO, body: PALATINO },
@@ -37,14 +39,25 @@ export const SITE_FONTS = [
   { id: 'wingdings', name: 'Wingdings', price: 1500, display: WINGDINGS, body: WINGDINGS },
 ];
 
+// Ids everyone starts with (the first, free entry of each list).
 export const DEFAULT_THEME = SITE_THEMES[0].id;
 export const DEFAULT_FONT = SITE_FONTS[0].id;
+// Returns the theme with this id, or the default theme when unknown.
 export const themeById = (id) => SITE_THEMES.find((t) => t.id === id) ?? SITE_THEMES[0];
+// Returns the font with this id, or the default font when unknown.
 export const fontById = (id) => SITE_FONTS.find((f) => f.id === id) ?? SITE_FONTS[0];
+// True when `id` is a string naming a known theme.
 export const isSiteTheme = (id) => typeof id === 'string' && SITE_THEMES.some((t) => t.id === id);
+// True when `id` is a string naming a known font.
 export const isSiteFont = (id) => typeof id === 'string' && SITE_FONTS.some((f) => f.id === id);
 
-/** The CSS variables for a theme and a font, as { '--bg': ... }. */
+/**
+ * Builds the CSS custom properties for a theme and font, to be set on the page root.
+ * @param {string} themeId  a theme id (unknown ids fall back to the default)
+ * @param {string} fontId  a font id (unknown ids fall back to the default)
+ * @returns {Record<string, string>} map such as { '--bg': '#16252d', '--display': '...' }
+ * Side effects: none.
+ */
 export function siteVariables(themeId, fontId) {
   const { vars } = themeById(themeId);
   const font = fontById(fontId);

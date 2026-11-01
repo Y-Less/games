@@ -46,7 +46,7 @@ export const CARD_BACK_PRESETS = {
   carbon: 'radial-gradient(#0d0d0f 40%, transparent 42%) 0 0 / 8px 8px, radial-gradient(#0d0d0f 40%, transparent 42%) 4px 4px / 8px 8px, #26272b',
 };
 
-const isText = (value) => typeof value === 'string';
+const isText = (value) => typeof value === 'string'; // whether a value is a string: returns a boolean
 const COLOUR = /^#[0-9a-fA-F]{6}$/;
 
 export const EFFECT_INTENSITY = { min: 10, max: 300, normal: 100 };

@@ -2,6 +2,9 @@
 // The shop: spend the gold you win (100, 50 and 20 for coming 1st, 2nd and 3rd in a game) on name styles,
 // backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
+// Props: none (the tab comes from the route). Emits: none. Slots: none.
+// Depends on: shopStore.js (listing, buy), profileApi.js (use an item), session.js, appearance.js, shared/avatar.js and the
+// preview components. Side effects: refreshes the shop on mount; buying spends coins; using an item saves the profile.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { AVATAR_SLOTS, normaliseAvatar } from '../../shared/avatar.js';
@@ -13,6 +16,7 @@ import { updateProfile } from '../profileApi.js';
 import { session } from '../session.js';
 import { buy, refreshShop } from '../shopStore.js';
 
+// The shop's tabs: the URL slug, the label and the kinds of item (and, for avatars, the slots) listed under each.
 const TABS = [
   {
     slug: 'names',
@@ -36,17 +40,26 @@ const TABS = [
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
 const current = computed(() => TABS.find((t) => t.slug === route.params.tab) ?? TABS[0]);
+// The current tab's slug.
 const tab = computed(() => current.value.slug);
-const problem = ref('');
-const busy = ref('');
+const problem = ref(''); // the last error message
+const busy = ref(''); // the id of the item being bought or put on, or ''
 
 onMounted(refreshShop);
 
+// Your coins (0 until the listing arrives).
 const balance = computed(() => session.shop?.balance ?? 0);
 // The tab's items, one list for each kind of thing it sells (avatar parts have a list for each slot: hair, eyes, hats ...).
 const sections = computed(() => current.value.sections.map((s) => ({ ...s, items: (session.shop?.items ?? []).filter((item) => item.type === s.type && (!s.slot || item.slot === s.slot)) })));
 
+// Returns the item's id without its type prefix (the id the profile settings use).
 const key = (item) => item.id.slice(item.id.indexOf(':') + 1);
+/**
+ * Whether you are currently using this item.
+ * @param {object} item  a shop listing entry ({ id, type, slot?, option? ... })
+ * @returns {boolean}
+ * Side effects: none.
+ */
 function equipped(item) {
   const u = session.user;
   if (item.type === 'name-style') return u.nameStyle?.style === key(item);
@@ -60,6 +73,13 @@ function equipped(item) {
   return false;
 }
 
+/**
+ * Runs a shop action while marking the item busy.
+ * @param {string} id  the item id (shown as busy)
+ * @param {() => Promise<*>} task  the action
+ * @returns {Promise<void>}
+ * Side effects: sets busy and problem; runs the task.
+ */
 async function attempt(id, task) {
   problem.value = '';
   busy.value = id;
@@ -71,8 +91,16 @@ async function attempt(id, task) {
     busy.value = '';
   }
 }
+// Buys `item` (returns the promise of the attempt).
 const purchase = (item) => attempt(item.id, () => buy(item.id));
+// Returns a nameStyle setting with the animation only when there is a real one.
 const nameStyleWith = (style, animation) => (animation && animation !== 'none' ? { style, animation } : { style });
+/**
+ * Puts an owned item on (saves it to the profile).
+ * @param {object} item  a shop listing entry
+ * @returns {Promise<void>}
+ * Side effects: saves the profile through updateProfile, which replaces the session's user.
+ */
 function use(item) {
   const avatar = { ...normaliseAvatar(session.user.avatar), [item.slot]: item.option };
   const change = {

@@ -142,6 +142,7 @@ export function owns(db, userId, itemId) {
  */
 export function grandfather(db) {
   const grant = db.prepare('INSERT OR IGNORE INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)');
+  // Parses stored JSON text; returns the value, or null when it is damaged (never throws).
   const parse = (text) => {
     try {
       return JSON.parse(text);
@@ -169,7 +170,9 @@ export class ShopError extends AuthError {}
  * Side effects: none.
  */
 export function choicesChanged(before, after) {
+  // Whether two choices differ (null and undefined count as the same); returns a boolean.
   const differs = (a, b) => JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+  // The list of shop-relevant choices a user has put on; returns an array to compare position by position.
   const choices = (user) => [user.background, user.cardBack, user.nameStyle?.style, user.nameStyle?.animation, user.siteTheme, user.siteFont, user.backgroundAnimation, ...AVATAR_SLOTS.map(({ slot }) => user.avatar?.[slot])];
   const was = choices(before);
   return choices(after).filter((choice, i) => differs(choice, was[i])).length;
@@ -200,6 +203,7 @@ export function checkSettings(db, userId, { background, cardBack, nameStyle, ava
 export function createShop(db) {
   const coins = createCoins(db);
   return {
+    // Whether a user owns a shop item (see owns()); returns a boolean. Side effects: none.
     owns: (userId, itemId) => owns(db, userId, itemId),
 
     /**

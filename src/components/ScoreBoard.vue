@@ -1,4 +1,12 @@
 <script setup>
+// File: the standard scoreboard (score chips bar plus rounds pop-up). Depends on: ../../shared/scores.js, BotIcon.vue,
+//   GameModal.vue, ScoreTable.vue, ../nameLook.js.
+// Props: players, rounds, lowIsBetter, target, finished, autoOpen, roundPopups, running, splitTotals, sticky, waiting, awaiting,
+//   hasDetails, openDetails (see the comments on each below).
+// Emits: closed, continue, details(id|null, element), hover, unhover.
+// Slots: round (detail above the table), footer (replaces the Continue button).
+// Exposes: show(), close().
+// Side effects: watches rounds/finished/awaiting and opens the pop-up (local `open` state); emits the events above.
 // The standard scoreboard for every game:
 //   - a bar with everyone's current score, always visible (it sticks under the site header while the page scrolls);
 //   - a large pop-up with every round so far, which opens by itself after each round (unless `roundPopups` is false, for
@@ -42,10 +50,20 @@ const props = defineProps({
 const emit = defineEmits(['closed', 'continue', 'details', 'hover', 'unhover']);
 
 // The whole chip wears the player's chosen name style and animation (a computer player has none).
+// Returns the name look (style, animation, CSS) for a player's chip; computer players have no userId so get the plain look.
 const look = (p) => nameLook({ userId: p.userId ?? null });
 
+// Returns true when this player's chip should be a button (the game supplied details for them).
 const clickable = (p) => Boolean(props.hasDetails?.(p.id));
+// Returns true when this player's details are the ones currently open.
 const isOpen = (p) => props.openDetails !== null && props.openDetails === p.id;
+/**
+ * Chip click: asks the game to open this player's details, or to close them if already open.
+ * @param {{id: string|number}} p  the player whose chip was clicked
+ * @param {Event} [event]  the click, whose currentTarget is passed on so the pop-up can anchor to the chip
+ * @returns {void}
+ * Side effects: emits `details` with the id (null to close) and the chip element.
+ */
 function toggleDetails(p, event) {
   emit('details', isOpen(p) ? null : p.id, event?.currentTarget);
 }
@@ -53,9 +71,13 @@ function toggleDetails(p, event) {
 const open = ref(false);
 const justFinished = ref(false); // the pop-up was opened by a round ending (rather than by the button)
 
+// Place by score for each player id (1 = leading; ties share), respecting lowIsBetter.
 const places = computed(() => placements(Object.fromEntries(props.players.map((p) => [p.id, p.score])), { lowIsBetter: props.lowIsBetter }));
+// The players currently in first place (several when tied).
 const winners = computed(() => props.players.filter((p) => places.value[p.id] === 1));
+// The most recent round, or null before the first one.
 const lastRound = computed(() => props.rounds.at(-1) ?? null);
+// Title of the pop-up: final scores, scores after the round that just ended, or a plain "so far" when opened by the button.
 const title = computed(() => {
   if (props.finished) return 'Final scores';
   if (justFinished.value && lastRound.value) return `Scores after ${lastRound.value.label}`;
@@ -100,17 +122,33 @@ watch(
   },
 );
 
+/**
+ * Opens the pop-up on request (the All rounds button).
+ * @returns {void}
+ * Side effects: sets `open`, clears `justFinished` so closing it does not count as "ready for the next round".
+ */
 function show() {
   justFinished.value = false;
   open.value = true;
 }
+/**
+ * Closes the pop-up and reports it.
+ * @returns {void}
+ * Side effects: clears `open`, then runs closed() (which may emit continue and closed).
+ */
 function close() {
   open.value = false;
   closed();
 }
+// Continue button handler: same as closing (closing a round pop-up is how a player says they are ready).
 function proceed() {
   close();
 }
+/**
+ * Common close handling, also called when the modal closes itself (Esc, outside click).
+ * @returns {void}
+ * Side effects: emits `continue` when a round-ending pop-up was dismissed (and the game is not over), clears justFinished, emits `closed`.
+ */
 function closed() {
   if (justFinished.value && !props.finished) emit('continue'); // closing the round's pop-up means "ready for the next round"
   justFinished.value = false;

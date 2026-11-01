@@ -1,5 +1,6 @@
 // The play view's connection to a game module's socket namespace (/<id>), and what to do when it fails. (The module's
 // own client uses useGameSocket.js on top of the socket this one makes.)
+// Depends on: vue, socket.io-client and session.js (so a refused connection can sign the user out locally).
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { io } from 'socket.io-client';
 import { session } from './session.js';

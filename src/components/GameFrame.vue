@@ -1,4 +1,12 @@
 <script setup>
+// File: the standard layout of every game screen. Depends on: Vue only (browser window size, ResizeObserver, localStorage).
+// Props: mainSpan, logSpan (Number, grid columns out of 12), logTitle, statusTitle (String, box titles).
+// Emits: none.
+// Slots: scorebar, main (scoped: width, height, left, right, gap, mainSpan, columns, minimised), others (same but no minimised),
+//   log, status.
+// Exposes: measure() to re-measure the frame.
+// Side effects: listens for window resize (removed on unmount); observes the main box with a ResizeObserver; reads and writes
+//   localStorage 'gameframe.minimised'; dispatches a synthetic window 'resize' so the page shell re-checks scaling.
 // The standard shape of a game screen, so every game looks and behaves alike:
 //
 //   +------------------------------------------+
@@ -26,6 +34,7 @@ const props = defineProps({
 });
 
 const STORE = 'gameframe.minimised';
+// Returns true when the player last left the bottom boxes minimised (false when unset or storage is unavailable, e.g. private mode).
 const remembered = () => {
   try {
     return localStorage.getItem(STORE) === '1';
@@ -34,6 +43,11 @@ const remembered = () => {
   }
 };
 const minimised = ref(remembered());
+/**
+ * Flips the minimised state of both bottom boxes and remembers it.
+ * @returns {void}
+ * Side effects: sets `minimised`, writes localStorage, and after the DOM updates re-measures the main area and fires a window resize.
+ */
 function toggle() {
   minimised.value = !minimised.value;
   try {
@@ -53,6 +67,11 @@ const frameHeight = ref(Math.max(420, window.innerHeight - 110)); // a first gue
 const frameWidth = ref(Math.min(1760, window.innerWidth - 32));
 const area = ref({ width: frameWidth.value, height: Math.round(frameHeight.value * 0.5) });
 
+/**
+ * Sizes the frame from the window alone (never from the game) so nothing shifts during play.
+ * @returns {void}
+ * Side effects: sets frameHeight and frameWidth refs; reads layout via getBoundingClientRect.
+ */
 function measure() {
   const el = root.value;
   if (!el) return;
@@ -61,6 +80,11 @@ function measure() {
   frameWidth.value = Math.min(1760, window.innerWidth - 32);
 }
 let observer = null;
+/**
+ * Records the pixel size of the main area so the main and others slots can size their pieces to it.
+ * @returns {void}
+ * Side effects: sets the `area` ref.
+ */
 function measureMain() {
   const box = mainBox.value;
   if (box) area.value = { width: Math.floor(box.clientWidth), height: Math.floor(box.clientHeight) };
@@ -85,6 +109,7 @@ onBeforeUnmount(() => {
 
 const COLUMNS = 12;
 const COLUMN_GAP = 12; // px: the one gutter between columns, in every row
+// Inline style of the root: fixed pixel size plus the grid CSS variables used by the stylesheet.
 const style = computed(() => ({
   height: `${frameHeight.value}px`,
   width: `${frameWidth.value}px`,

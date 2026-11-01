@@ -1,5 +1,6 @@
 // Helpers for pitting computer players against each other in the AI tests: how to seat them, and how to total up a tournament.
 // Not used by the games themselves.
+// Depends on: nothing (pure, no imports).
 
 /**
  * The seating for game number `game` of a tournament: the lineup turned round by one seat each game, so that nobody always

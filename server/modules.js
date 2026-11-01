@@ -3,6 +3,8 @@
 //   modules/<id>/module.json   { id, name, description, minPlayers, maxPlayers, category, rules, stats }
 //   modules/<id>/server.js     export default function (ctx) { ... }   (the rules and the socket handlers)
 //   modules/<id>/client/index.js   a Vue component, loaded by the site into its play field
+// Depends on: express (static assets), ./auth.js (sessions), ./codes.js, ./turnClock.js, and shared/achievements.js and
+// shared/markerColours.js. The loaded module receives a `ctx` object built here (see loadModules).
 import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,11 +17,23 @@ import { CUSTOM_MARKER_ITEM, isPresetMarker, normaliseMarker } from '../shared/m
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
 
-/** The module's own achievements after the two every game has (played, won), unless it defines a key of that name itself. */
+/**
+ * The module's own achievements after the two every game has (played, won), unless it defines a key of that name itself.
+ * @param {object[]} own  the module's cleaned achievement definitions
+ * @returns {object[]} the standard ones (minus any it overrides) followed by its own
+ * Side effects: none.
+ */
 function withStandardAchievements(own) {
   return [...GAME_ACHIEVEMENTS.filter((a) => !own.some((o) => o.key === a.key)).map((a) => cleanDefinition(a)), ...own];
 }
 
+/**
+ * Reads and tidies a module's module.json, filling defaults so the rest of the site can rely on every field.
+ * @param {string} dir  the modules directory
+ * @param {string} folder  the module's folder name, which must equal the manifest's id
+ * @returns {object} { id, name, description, minPlayers, maxPlayers, category, rules, stats, achievements }
+ * Side effects: reads module.json; throws if it is missing, malformed or its id does not match the folder.
+ */
 function readManifest(dir, folder) {
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, folder, 'module.json'), 'utf8'));
   if (!ID.test(manifest.id) || manifest.id !== folder) throw new Error(`module.json id must match the folder name "${folder}"`);
@@ -37,8 +51,20 @@ function readManifest(dir, folder) {
 }
 
 /**
- * Loads every module and starts its server half.
+ * Loads every module and starts its server half. A module that fails to load is logged and skipped, not fatal.
+ * @param {object} options
+ * @param {string} options.dir  the modules directory
+ * @param {import('socket.io').Server} options.io  the socket server; each module gets the namespace `/<id>`
+ * @param {import('express').Express} options.app  the web app, for serving each module's assets
+ * @param {object} options.auth  the auth service (userForToken, userById)
+ * @param {object} options.stats  the stats service (record)
+ * @param {object} [options.achievements]  the achievements service (forGame)
+ * @param {string} options.dataDir  where per-module data folders are created
+ * @param {(userId: number, item: string) => boolean} [options.owns]  whether a user owns a shop item
+ * @param {(...args: any[]) => void} [options.log]  the logger (console.log by default)
  * @returns {Promise<{ list: () => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
+ * Side effects: registers socket middleware per namespace, creates data folders, mounts static routes on `app`, imports and
+ *   runs each module's server.js, and wraps each connected socket's `emit` to time slow turns.
  */
 export async function loadModules({ dir, io, app, auth, stats, achievements, dataDir, owns = () => false, log = console.log }) {
   const modules = new Map(); // id -> { meta, dispose }
@@ -60,6 +86,7 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
       });
 
       // A player who keeps a game waiting for over ten minutes on their turn, while connected, earns the global "Take your time".
+      // Wraps socket.emit so every `state` view sent to this player is also shown to the turn clock; returns nothing.
       const watchSlowTurns = (socket) => {
         const watch = watchTurns({ onSlow: () => achievements?.forGame(meta.id).raise(socket.data.user.id, 'global.slow', 1) });
         const emit = socket.emit.bind(socket);
@@ -106,7 +133,14 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
   }
 
   return {
+    /** The loaded modules' manifests, sorted by name. Side effects: none. */
     list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
+    /**
+     * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder.
+     * @param {string} id  the module id
+     * @returns {string | null} the rules text
+     * Side effects: reads a file.
+     */
     rules(id) {
       const entry = modules.get(id);
       if (!entry?.meta.rules) return null;
@@ -114,6 +148,11 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
       if (!file.startsWith(entry.dir + path.sep) || !fs.statSync(file, { throwIfNoEntry: false })?.isFile()) return null;
       return fs.readFileSync(file, 'utf8');
     },
+    /**
+     * Stops every module that offers a dispose hook, one after another.
+     * @returns {Promise<void>}
+     * Side effects: runs each module's own cleanup (timers, files, etc.).
+     */
     async dispose() {
       for (const { dispose } of modules.values()) await dispose?.();
     },

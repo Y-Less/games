@@ -1,4 +1,8 @@
 <script setup>
+// File: the shared content of every game's Status box. Depends on: YourTurnPopup.vue.
+// Props: headline, mine, turn, popup, lines: documented below.
+// Emits: none.  Slots: facts (the game-state line above the headline), default (extras below the lines).
+// Side effects: none itself; YourTurnPopup may show a timed pop-up.
 // The content of every game's "Status" box: what is happening and what to do next. It fills the box it is put in (the
 // box is a fixed size, see GameFrame) and scrolls inside itself, so more words never make the page grow.
 //   headline   the one line that matters now ("Your turn: click a colour on a plate.", "Waiting for Isabel…")
@@ -20,6 +24,7 @@ defineProps({
   popup: { type: Boolean, default: true },
   lines: { type: Array, default: () => [] },
 });
+// Normalises a `lines` entry (a plain string or { text, tone }) into { text, tone } so the template handles one shape.
 const lineOf = (line) => (typeof line === 'string' ? { text: line, tone: '' } : { tone: '', ...line });
 </script>
 

@@ -1,4 +1,10 @@
 <script setup>
+// File: the shared large pop-up dialog. Depends on: Vue only (document focus and keydown).
+// Props: open (Boolean), title (String), size ('md'|'lg'|'xl'), closable (Boolean, false ignores Esc and backdrop clicks).
+// Emits: update:open(false) and close, when the player dismisses it.
+// Slots: default (body), footer (buttons).
+// Side effects: while open, adds a document keydown listener (removed on close and unmount), remembers the previously focused
+//   element and moves focus into the dialog, then restores focus to it on close.
 // A large pop-up for any game: dims the page, traps Esc/backdrop clicks, and keeps focus inside while it is open.
 // Slots: default (the body), #footer (buttons). Use v-model:open (or the `close` event).
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
@@ -12,14 +18,25 @@ const props = defineProps({
 const emit = defineEmits(['update:open', 'close']);
 
 const panel = ref(null);
-let opener = null;
+let opener = null; // the element that had focus before the dialog opened, so focus can go back to it
 
+/**
+ * Asks the parent to close the dialog (does nothing when it is not closable).
+ * @returns {void}
+ * Side effects: emits update:open(false) and close.
+ */
 function close() {
   if (!props.closable) return;
   emit('update:open', false);
   emit('close');
 }
 
+/**
+ * Document keydown handler: Escape closes, Tab and Shift+Tab wrap inside the dialog so focus cannot leave it.
+ * @param {KeyboardEvent} event  the key press
+ * @returns {void}
+ * Side effects: may call preventDefault and move focus; may emit via close().
+ */
 function onKey(event) {
   if (event.key === 'Escape') close();
   if (event.key !== 'Tab' || !panel.value) return;

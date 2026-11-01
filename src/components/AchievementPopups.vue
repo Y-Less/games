@@ -1,4 +1,9 @@
 <script setup>
+// File: shows achievement unlock pop-ups from the shared feed. Depends on: ../achievementFeed.js (queue, start/stop), ../session.js
+//   (who is signed in), NoticePopup.vue.
+// Props: none.  Emits: none.  Slots: none.
+// Side effects: opens the achievement feed (site socket) when a user signs in and stops it on sign-out; marks shown unlocks as seen
+//   via the feed's `shown()` when the player clicks OK.
 // The pop-ups for achievement unlocks (see achievementFeed.js), one after another near the top of the page. They stay
 // until OK is clicked (they do not hide themselves). When many arrive together (the first visit after achievements began paying out, say) they
 // are shown as one pop-up with the total, so nobody has to click through a long line of them.
@@ -7,7 +12,7 @@ import { feed, shown, startFeed, stopFeed } from '../achievementFeed.js';
 import { session } from '../session.js';
 import NoticePopup from './NoticePopup.vue';
 
-const MOST_ONE_BY_ONE = 3;
+const MOST_ONE_BY_ONE = 3; // more queued unlocks than this are merged into a single summary pop-up
 const current = ref(null); // the unlocks in the pop-up being shown
 
 watch(() => session.user?.id, (id) => {
@@ -24,14 +29,22 @@ watch(() => [feed.queue.length, current.value], () => {
   current.value = feed.queue.length > MOST_ONE_BY_ONE ? [...feed.queue] : [feed.queue[0]];
 }, { immediate: true, deep: true });
 
+/**
+ * Called when the pop-up closes: records its unlocks as shown so they leave the queue, letting the next pop-up appear.
+ * @returns {void}
+ * Side effects: clears `current` and updates the feed via shown().
+ */
 function closed() {
   const done = current.value ?? [];
   current.value = null;
   shown(done);
 }
 
+// True when the current pop-up is a merged summary of several unlocks.
 const many = computed(() => (current.value?.length ?? 0) > 1);
+// Total coins earned across the unlocks in the current pop-up.
 const coins = computed(() => (current.value ?? []).reduce((sum, u) => sum + u.coins, 0));
+// Returns a number formatted with British thousands separators.
 const number = (n) => n.toLocaleString('en-GB');
 </script>
 

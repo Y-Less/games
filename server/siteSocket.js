@@ -1,5 +1,5 @@
 // The site's own socket (the default namespace), for what is not part of one game: a person's pop-ups arrive here,
-// wherever on the site they are.
+// wherever on the site they are. Depends on: ./auth.js (cookie parsing and the session cookie name) and socket.io.
 import { parseCookies, SESSION_COOKIE } from './auth.js';
 
 /**

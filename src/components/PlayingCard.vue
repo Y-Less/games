@@ -1,4 +1,8 @@
 <script setup>
+// File: one playing card drawn in CSS. Depends on: ../../shared/cards.js (names, ranks, suits, colours).
+// Props: card (String|null, e.g. "QS"; null is face-down), size ('sm'|'md'|'lg'), clickable, disabled, selected, dimmed, trump (Boolean).
+// Emits: pick (when clickable and clicked).  Slots: none.
+// Side effects: none.
 // A playing card drawn in CSS. `card` is a string such as "QS" (see shared/cards.js); pass null for a face-down card,
 // which shows the viewer's chosen card back. With `clickable` it is a button and emits `pick`.
 import { computed } from 'vue';
@@ -15,11 +19,17 @@ const props = defineProps({
 });
 defineEmits(['pick']);
 
+// Accessible name of the card ("face-down card" when hidden).
 const label = computed(() => (props.card ? cardName(props.card) : 'face-down card'));
+// True when the card is a joker, which has no rank or suit.
 const joker = computed(() => Boolean(props.card && isJoker(props.card)));
+// Rank text shown in the corners (a star for jokers, empty when face-down).
 const rank = computed(() => (!props.card ? '' : joker.value ? '★' : rankOf(props.card)));
+// Suit symbol shown on the face (empty for jokers and face-down cards).
 const symbol = computed(() => (!props.card || joker.value ? '' : SUIT_SYMBOLS[suitOf(props.card)]));
+// Truthy when the card is drawn in red (hearts and diamonds).
 const red = computed(() => props.card && isRed(props.card));
+// Element to render: a real button when clickable (for keyboard and screen-reader use), otherwise a plain div.
 const tag = computed(() => (props.clickable ? 'button' : 'div'));
 </script>
 

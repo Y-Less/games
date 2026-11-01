@@ -1,4 +1,10 @@
 <script setup>
+// File: the fixed-height scrolling list of game events. Depends on: Vue only.
+// Props: entries (Array, oldest first), newestFirst (Boolean), label (String, accessible name), empty (String, text when no entries),
+//   fresh (Number, how many newest entries are drawn at full strength).
+// Emits: none.  Slots: default (scoped { entry, index, old }, draws one entry).
+// Exposes: toNewest().
+// Side effects: sets the scrollTop of its own box (on mount, on new entries while the player is at the newest end, and on toNewest()).
 // A list of what has happened in a game (scoring, recent actions...) that never changes the size of the page. The box
 // has a fixed height (--log-height, 9rem unless the parent says otherwise, or the parent can make it a flex child with
 // `flex: 1 1 0`), scrolls inside itself, and keeps the newest entry in view unless the player has scrolled away from it.
@@ -18,18 +24,29 @@ const props = defineProps({
 
 const box = ref(null);
 let pinned = true; // true while the newest entry is in view, so that new ones may scroll themselves into view
-const SLACK = 6;
+const SLACK = 6; // px of tolerance when deciding the player is "at the newest end" (sub-pixel scroll positions)
 
+// The entries as rows { entry, index, old } in display order (reversed when newestFirst); `old` marks rows beyond the `fresh` newest.
 const shown = computed(() => {
   const total = props.entries.length;
   const rows = props.entries.map((entry, index) => ({ entry, index, old: props.fresh > 0 && total - index > props.fresh }));
   return props.newestFirst ? rows.reverse() : rows;
 });
 
+/**
+ * Scrolls the box to its newest entry.
+ * @returns {void}
+ * Side effects: sets the box's scrollTop (no-op before it is mounted).
+ */
 function toNewest() {
   const el = box.value;
   if (el) el.scrollTop = props.newestFirst ? 0 : el.scrollHeight;
 }
+/**
+ * Scroll handler: works out whether the player is at the newest end, so new entries only auto-scroll when they are.
+ * @returns {void}
+ * Side effects: sets the module-local `pinned` flag.
+ */
 function onScroll() {
   const el = box.value;
   if (!el) return;

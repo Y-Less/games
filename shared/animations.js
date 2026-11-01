@@ -2,6 +2,7 @@
 // website background (seen only by them, behind every page and game table). The server lists them as shop items and checks
 // a player owns the one they choose; the client draws them in CSS (src/components/StyledName.vue and BackgroundFx.vue).
 // `none` is the free, still choice in each list.
+// Depends on: nothing (pure data); consumed by server/shop.js and the client's StyledName.vue / BackgroundFx.vue.
 
 // `part` is what moves: the pill's border or its background.
 export const NAME_ANIMATIONS = [
@@ -33,7 +34,10 @@ export const BACKGROUND_ANIMATIONS = [
   { id: 'matrix', name: 'Matrix B', price: 1500, hidden: true },
 ];
 
+// Lookup sets of valid ids, so validation is O(1).
 const nameIds = new Set(NAME_ANIMATIONS.map((a) => a.id));
 const backgroundIds = new Set(BACKGROUND_ANIMATIONS.map((a) => a.id));
+// True when `id` is a string naming a known name animation (including 'none').
 export const isNameAnimation = (id) => typeof id === 'string' && nameIds.has(id);
+// True when `id` is a string naming a known background animation (including hidden ones, which owners may still use).
 export const isBackgroundAnimation = (id) => typeof id === 'string' && backgroundIds.has(id);

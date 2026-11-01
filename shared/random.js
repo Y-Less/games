@@ -1,12 +1,14 @@
 // Small random-number helpers shared by the rules, the computer players and the tests. Nothing here calls Math.random
 // by itself: every function takes the `rng` it should use (a () => number in [0, 1)) so a game can be replayed from a seed.
 // (shuffle lives in cards.js, next to the decks it shuffles.)
+// Depends on: nothing (pure, no imports).
 
 /**
  * A small seeded random number generator (mulberry32), so a failing run can be repeated.
  *
  * @param {number} seed  any integer
  * @returns {() => number} a function returning the next number in [0, 1)
+ * Side effects: none (the returned function carries its own private state and advances it on each call).
  */
 export function seeded(seed) {
   let a = seed >>> 0;
@@ -26,6 +28,7 @@ export function seeded(seed) {
  * @param {T[]} list  must not be empty
  * @param {() => number} rng
  * @returns {T}
+ * Side effects: none beyond advancing `rng` once.
  */
 export function pickOne(list, rng) {
   return list[Math.floor(rng() * list.length)];
@@ -34,14 +37,12 @@ export function pickOne(list, rng) {
 /**
  * Chooses an item that has not been used yet; once every item has been used the memory is cleared and the choice starts
  * again from the whole list. Used for words, spectra and prompts that should not repeat until they have all been seen.
- *
- * Side effect: records the chosen item in `used` (an array that is saved with the room), emptying it first if it was full.
- *
  * @template T
- * @param {T[]} list      every possible item
- * @param {T[]} used      the items already chosen, mutated
- * @param {() => number} rng
- * @returns {T}
+ * @param {T[]} list  every possible item
+ * @param {T[]} used  the items already chosen (saved with the room); mutated
+ * @param {() => number} rng  random source returning a number in [0, 1)
+ * @returns {T} the chosen item
+ * Side effects: pushes the chosen item onto `used`, emptying `used` first if every item was already in it.
  */
 export function drawUnused(list, used, rng) {
   let fresh = list.filter((item) => !used.includes(item));

@@ -16,9 +16,12 @@
 // the defaults (Math.random and Date.now) are chosen once, here, and nowhere else in the shared code or the rules. The same
 // `rng` and `now` reach the rules (start, removeHuman, kick), the game's own socket events (registerEvents gets `rng`),
 // `nextAction(room, rng, now)` and so the computer players, so one seed replays a whole game.
+// Depends on: node:fs and node:path only; the rules module, ctx and clock are injected through createRoomServer arguments.
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Retention and timing: how long to keep a finished room, then an unfinished one (kept longer: players may return to a
+// paused game), how often to sweep for old rooms, and how long to debounce saves.
 const KEEP_FINISHED_MS = 24 * 60 * 60 * 1000;
 const KEEP_OTHER_MS = 7 * 24 * 60 * 60 * 1000;
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
@@ -34,6 +37,7 @@ const RETRY_BASE_MS = 1000;
  * @param {string} name       the environment variable, e.g. 'HEARTS_BOT_DELAY'
  * @param {string} fallback   the range used when it is unset or malformed, e.g. '600-1400'
  * @returns {{ min: number, max: number }} min is never negative and max is never below min
+ * Side effects: none (reads process.env).
  */
 export function readDelayRange(name, fallback) {
   const parse = (text) => String(text).split('-').map(Number);
@@ -50,6 +54,7 @@ export function readDelayRange(name, fallback) {
  * @param {string} name      the environment variable, e.g. 'HEARTS_TRICK_PAUSE'
  * @param {number} fallback  used when it is unset, not a number or negative
  * @returns {number}
+ * Side effects: none (reads process.env).
  */
 export function readDelayMs(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
@@ -62,6 +67,7 @@ export function readDelayMs(name, fallback) {
  * @param {{ min: number, max: number }} range  from readDelayRange
  * @param {() => number} rng                    a random number generator returning [0, 1) (required: pass the server's)
  * @returns {number} milliseconds
+ * Side effects: none beyond advancing `rng` once.
  */
 export function botWait(range, rng) {
   return range.min + rng() * (range.max - range.min);
@@ -73,6 +79,7 @@ export function botWait(range, rng) {
  * @param {object | undefined} payload  whatever the client sent
  * @param {string[]} keys               the settings the game accepts
  * @returns {object} a new object with just those keys, leaving out the undefined ones
+ * Side effects: none.
  */
 export function pickKeys(payload, keys) {
   const picked = {};
@@ -131,7 +138,11 @@ export function createRoomServer(ctx, options) {
 
   let saveTimer = null;
 
-  /** Reads the saved rooms, if any. A missing file is normal; anything else is logged and the rooms start empty. */
+  /**
+   * Reads the saved rooms, if any. A missing file is normal; anything else is logged and the rooms start empty.
+   * @returns {void}
+   * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room) and may log an error.
+   */
   function loadRooms() {
     try {
       for (const saved of JSON.parse(fs.readFileSync(file, 'utf8'))) {
@@ -143,7 +154,11 @@ export function createRoomServer(ctx, options) {
     }
   }
 
-  /** Writes every room to disk straight away (to a temporary file first, so a crash cannot leave half a file). */
+  /**
+   * Asks for a save soon; many changes in a short time cost one write.
+   * @returns {void}
+   * Side effects: sets the debounce timer (unreferenced, so it never keeps the process alive) if none is pending.
+   */
   function saveNow() {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -161,13 +176,23 @@ export function createRoomServer(ctx, options) {
     saveTimer.unref?.();
   }
 
-  /** Stops any pending timer for a room. */
+  /**
+   * Stops any pending timer for a room.
+   * @param {string} code  the room code
+   * @returns {void}
+   * Side effects: clears the room timer for scheduled actions and removes it from `timers`.
+   */
   function cancelTimer(code) {
     clearTimeout(timers.get(code)?.timer);
     timers.delete(code);
   }
 
-  /** Forgets a room completely (its timer, its saved copy). */
+  /**
+   * Forgets a room completely (its timer, its saved copy).
+   * @param {object} room  the room to drop
+   * @returns {void}
+   * Side effects: cancels its timer, deletes it from `failures` and `rooms`, and schedules a save.
+   */
   function discard(room) {
     cancelTimer(room.code);
     failures.delete(room.code);
@@ -175,7 +200,11 @@ export function createRoomServer(ctx, options) {
     save();
   }
 
-  /** Drops rooms nobody has touched for a day (finished) or a week (still going). */
+  /**
+   * Drops rooms nobody has touched for a day (finished) or a week (still going).
+   * @returns {void}
+   * Side effects: discards stale rooms (see `discard`).
+   */
   function sweep() {
     const current = now();
     for (const room of [...rooms.values()]) {
@@ -186,14 +215,25 @@ export function createRoomServer(ctx, options) {
   const sweeper = setInterval(sweep, SWEEP_EVERY_MS);
   sweeper.unref();
 
-  /** The sockets a person has open that are currently looking at the room with this code. */
+  /**
+   * Finds the sockets a person has open that are currently looking at the room with this code.
+   * @param {number} id  the account id
+   * @param {string} code  the room code
+   * @returns {object[]} matching sockets (possibly none)
+   * Side effects: none.
+   */
   const open = (id, code) => [...(sockets.get(id) ?? [])].filter((s) => s.data.code === code);
-  /** A predicate "is this person connected to the room?", handed to the rules so the view can show who is away. */
+  // Returns a predicate (id => boolean): "is this person connected to the room?", handed to the rules so the view can show who is away.
   const online = (code) => (id) => open(id, code).length > 0;
-  /** The unfinished room a person is in, if any: a person can be in only one at a time. */
+  // Returns the unfinished room a person is in, or undefined: a person can be in only one at a time.
   const liveRoomOf = (userId) => [...rooms.values()].find((r) => game.isLive(r) && game.hasPlayer(r, userId));
 
-  /** Sends every connected person in the room their own view of it. */
+  /**
+   * Sends every connected person in the room their own view of it.
+   * @param {object} room  the room to broadcast
+   * @returns {void}
+   * Side effects: emits a 'state' event on each human member's open sockets for this room.
+   */
   function push(room) {
     for (const seat of members(room)) {
       if (!game.isHuman(seat)) continue;
@@ -201,13 +241,25 @@ export function createRoomServer(ctx, options) {
     }
   }
 
-  /** Points a socket at a room and gives it the current view. */
+  /**
+   * Points a socket at a room and gives everyone in it the current view.
+   * @param {object} socket  the socket to attach
+   * @param {object} room  the room it is now looking at
+   * @returns {void}
+   * Side effects: sets `socket.data.code`, then emits 'state' via `push`.
+   */
   function attach(socket, room) {
     socket.data.code = room.code;
     push(room);
   }
 
-  /** Sends a person's sockets back to the menu (they were removed from the room). */
+  /**
+   * Sends a person sockets back to the menu (they were removed from the room).
+   * @param {number} userId  the account removed
+   * @param {string} code  the room they left
+   * @returns {void}
+   * Side effects: clears `socket.data.code` and emits a null 'state' on each of their sockets for that room.
+   */
   function detach(userId, code) {
     for (const socket of open(userId, code)) {
       socket.data.code = null;
@@ -219,8 +271,11 @@ export function createRoomServer(ctx, options) {
    * Works out what the server has to do by itself next for this room and sets the timer for it, replacing any earlier
    * timer (unless the action says its key is unchanged). If the action throws, the failure is logged and it is tried
    * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts.
-   * The same goes if working out the next action throws, or if telling everybody afterwards does: a bug in one game's
-   * rules must not escape from a timer (where nothing would catch it) or leave the room waiting for ever.
+   * The same goes if working out the next action throws, or if telling everybody afterwards does: a bug in one game's rules
+   * must not escape from a timer (where nothing would catch it) or leave the room waiting for ever.
+   * @param {object} room  the room to schedule for
+   * @returns {void}
+   * Side effects: cancels/sets the room timer; when it fires it runs the game's action, which may mutate the room, and calls `changed`.
    */
   function schedule(room) {
     let action;
@@ -256,12 +311,11 @@ export function createRoomServer(ctx, options) {
   /**
    * Notes that a scheduled move (or the work of finding it) threw: logs it and, for the first MAX_RETRIES failures in a row,
    * tries again after a pause that doubles each time.
-   *
+   * @param {object} room  the room whose move failed
+   * @param {string} what  what failed, for the log
+   * @param {Error} error  the thrown error
+   * @returns {void}
    * Side effects: logs, counts the failure for this room and may set a retry timer.
-   *
-   * @param {object} room
-   * @param {string} what   what failed, for the log
-   * @param {Error} error
    */
   function failedMove(room, what, error) {
     const count = (failures.get(room.code) ?? 0) + 1;
@@ -270,7 +324,13 @@ export function createRoomServer(ctx, options) {
     if (count <= MAX_RETRIES) retryLater(room, RETRY_BASE_MS * 2 ** (count - 1));
   }
 
-  /** Tries scheduling again after a pause (used after a scheduled move threw). */
+  /**
+   * Tries scheduling again after a pause (used after a scheduled move threw).
+   * @param {object} room  the room to reschedule
+   * @param {number} wait  milliseconds to wait first
+   * @returns {void}
+   * Side effects: sets the room timer (unreferenced), which later calls `schedule(room)` if the room still exists.
+   */
   function retryLater(room, wait) {
     const timer = setTimeout(() => {
       timers.delete(room.code);
@@ -280,7 +340,12 @@ export function createRoomServer(ctx, options) {
     timers.set(room.code, { timer, key: undefined });
   }
 
-  /** Tells the statistics about a finished game, once. */
+  /**
+   * Tells the statistics about a finished game, once.
+   * @param {object} room  the room to check
+   * @returns {void}
+   * Side effects: sets `room.recorded` and calls `ctx.stats.record` (errors are logged, never thrown).
+   */
   function recordIfFinished(room) {
     if (room.phase !== 'finished' || room.recorded) return;
     room.recorded = true;
@@ -291,7 +356,12 @@ export function createRoomServer(ctx, options) {
     }
   }
 
-  /** Call after any change to a room: stamps it, runs the game's afterChange, records a finished game, saves, tells everyone and reschedules. */
+  /**
+   * Call after any change to a room: stamps it, runs the game's afterChange hook, records a finished game, saves, tells everyone and reschedules.
+   * @param {object} room  the room that changed
+   * @returns {void}
+   * Side effects: sets `room.updatedAt`, may mutate the room via `afterChange`, and triggers recording, saving, pushing and scheduling.
+   */
   function changed(room) {
     room.updatedAt = now();
     try {
@@ -305,7 +375,13 @@ export function createRoomServer(ctx, options) {
     schedule(room);
   }
 
-  /** Takes a person out of a room (a computer player replaces them mid-game) and tells everyone. */
+  /**
+   * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone.
+   * @param {object} room  the room being left
+   * @param {number} userId  the account leaving
+   * @returns {{ ok: boolean, empty?: boolean, error?: string }} the rules outcome (`empty` means the room was discarded)
+   * Side effects: mutates the room via the rules, detaches the person's sockets, then discards or `changed`s the room.
+   */
   function leaveRoom(room, userId) {
     const outcome = game.removeHuman(room, userId, rng, now());
     if (!outcome.ok) return outcome;
@@ -315,7 +391,13 @@ export function createRoomServer(ctx, options) {
     return outcome;
   }
 
-  /** Takes a person out of every room they are in (before they join or create another). */
+  /**
+   * Takes a person out of every room they are in (before they join or create another).
+   * @param {number} userId  the account
+   * @param {object|null} [except]  a room to leave alone (the one being joined)
+   * @returns {void}
+   * Side effects: as `leaveRoom` for each room found.
+   */
   function leaveAllRooms(userId, except = null) {
     for (const old of [...rooms.values()]) if (old !== except && game.hasPlayer(old, userId)) leaveRoom(old, userId);
   }
@@ -323,8 +405,10 @@ export function createRoomServer(ctx, options) {
   /**
    * Puts a socket into a room: resumes the person's own live game, or joins the room with the given code. With no code,
    * a person without a live game is shown the menu.
-   *
-   * @returns {{ ok: boolean, code?: string | null, error?: string }}
+   * @param {object} socket  the connected socket (needs `data.user`)
+   * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here
+   * @returns {{ ok: boolean, code?: string | null, error?: string }} the ack for the client
+   * Side effects: attaches the socket to a room or emits a null 'state'; joining adds the person to the room, leaves other rooms and calls `changed`.
    */
   function enter(socket, rawCode) {
     const userId = socket.data.user.id;
@@ -364,18 +448,23 @@ export function createRoomServer(ctx, options) {
     return { ok: true, code };
   }
 
+  // One connection per browser tab: track the socket, register the shared events, then the game-specific ones.
   ctx.io.on('connection', (socket) => {
     const userId = socket.data.user.id;
     socket.data.code = null;
     if (!sockets.has(userId)) sockets.set(userId, new Set());
     sockets.get(userId).add(socket);
 
-    /** The room this socket is looking at. */
+    // Returns the room this socket is currently looking at, or undefined.
     const roomOfSocket = () => rooms.get(socket.data.code);
 
     /**
      * Registers a socket event. The handler gets the payload (always a plain object, never an array or null) and returns
      * the ack object ({ ok: true } if it returns nothing); a throw is logged and the client gets a generic error.
+     * @param {string} event  the socket event name
+     * @param {(payload: object) => (object | undefined)} handler  the work to do
+     * @returns {object} the socket (from socket.on)
+     * Side effects: registers a listener on the socket; each call replies through the client ack callback and may log.
      */
     const on = (event, handler) =>
       socket.on(event, (payload, ack) => {
@@ -391,6 +480,9 @@ export function createRoomServer(ctx, options) {
     /**
      * Runs a rule on the room this socket is in, then tells everyone if it worked.
      * The rule gets (room, seat); the client only ever sees { ok } or { ok: false, error }.
+     * @param {(room: object, seat: number) => { ok: boolean, error?: string }} rule  the rule to run
+     * @returns {{ ok: boolean, error?: string }} the ack for the client
+     * Side effects: whatever the rule mutates; calls `changed(room)` on success.
      */
     const act = (rule) => {
       const room = roomOfSocket();

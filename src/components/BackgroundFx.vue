@@ -1,4 +1,10 @@
 <script setup>
+// File: the animated site-background effects (CSS only). Depends on: Vue only; effect names come from shared/animations.js.
+// Props: effect (String, which effect or 'none'), fixed (Boolean, cover the whole site), background (Object|null, the player's
+//   background setting, used by the gradient fade), demo (Boolean, shop preview), intensity and speed (Number, percent).
+// Emits: none.  Slots: none.
+// Side effects: none at runtime; the module-level counter `gains` is bumped once per instance to make a unique SVG filter id.
+//   The Matrix columns use a fixed seed, so output is deterministic.
 // An animation over the website background (see shared/animations.js): drifting light, stars, snow ... drawn in CSS only.
 // `fixed` puts it behind the whole site (App.vue); without it the effect fills its parent box, for the shop's previews.
 // It never takes clicks, and it stands still when the player has turned animations off (see style.css).
@@ -7,9 +13,11 @@
 import { computed } from 'vue';
 
 // Half of the columns (in either Matrix) start at the very top of the screen; the rest start anywhere down it.
+// Returns true for roughly half of the columns (given the random source `next`), meaning they start at the very top.
 const startsAtTop = (next) => next() < 0.5;
 // Half of them run on to the bottom of the screen; the rest stop at a random height on the way (what fraction of the way from
 // their start to the bottom they cover).
+// Returns the fraction (0.15 to 1) of the way from its start to the bottom that a column covers, drawing from `next`.
 const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 
 // The Matrix rain, as in the film: the letters never move. A bright head steps down each column, one row at a time, and the
@@ -17,12 +25,21 @@ const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 // part the head has just passed (and a second mask shows the head's own, random, glyph), so there is one animation per column
 // and none per letter. The columns are laid out from a fixed seed, so the rain looks the same every time (and in tests).
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
+/**
+ * Lays out the columns of the main Matrix rain from a fixed seed.
+ * @param {number} count  how many columns
+ * @param {boolean} demo  true for the small shop preview (shorter columns)
+ * @returns {Array<{text: string, lead: string, style: Object}>}  per column: the letters, the head's letters and CSS variables
+ * Side effects: none (the seeded generator is local, so the result is repeatable).
+ */
 function rain(count, demo) {
   let seed = 20240229;
+  // Linear congruential generator: returns the next repeatable number in [0, 1).
   const next = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
   };
+  // Returns one random glyph character.
   const glyph = () => GLYPHS[Math.floor(next() * GLYPHS.length)];
   return Array.from({ length: count }, (_, i) => {
     // Each column has its own text size (mostly small, a few large) and, for about a third of them, is dimmer overall.
@@ -46,8 +63,15 @@ function rain(count, demo) {
 
 // Matrix A: the first Matrix rain, in which each column of letters slides down the screen (and is rubbed out part-way). The
 // columns are laid out from a fixed seed, like the other Matrix's.
+/**
+ * Lays out the columns of Matrix A (sliding, part-erased columns) from a fixed seed.
+ * @param {number} count  how many columns
+ * @returns {Array<{letters: Array, fade: string, wrap: Object, style: Object}>}  per column: lettered cells, erase animation name, position and CSS variables
+ * Side effects: none.
+ */
 function rainSliding(count) {
   let seed = 20240229;
+  // Same repeatable generator as in rain(): returns the next number in [0, 1).
   const next = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
@@ -86,13 +110,18 @@ const props = defineProps({
   speed: { type: Number, default: 100 }, // percent: how fast it moves (likewise)
 });
 // Above 100% the effect cannot be more opaque, so the alpha of everything it draws is multiplied instead (an SVG filter).
-let gains = 0;
+let gains = 0; // module-wide counter so each instance gets its own filter id
 const gainId = `fx-gain-${++gains}`;
 const SAMPLE = { from: '#16252d', to: '#7a3e55', angle: 160 };
+// The gradient the fade effect slides: the player's own, or a sample in demos; null when there is none (the effect then hides).
 const fade = computed(() => (props.background?.type === 'gradient' ? props.background : props.demo ? SAMPLE : null));
+// Whether anything is drawn at all.
 const shown = computed(() => props.effect && props.effect !== 'none' && (props.effect !== 'gradient' || fade.value));
+// Columns for Matrix A (empty for other effects); the count scales with intensity up to 100%.
 const slidingColumns = computed(() => (props.effect === 'matrix-a' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100))) : []));
+// Columns for the main Matrix (empty for other effects); the count scales with intensity up to 100%.
 const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
+// Inline style of the effect's root: gradient colours, speed multiplier and intensity (opacity, or the gain filter above 100%).
 const style = computed(() => {
   const out = {};
   if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });

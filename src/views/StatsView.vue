@@ -1,13 +1,18 @@
 <script setup>
+// The statistics page: your totals, each game's figures and its leaderboard, and your recent games.
+// Props: none. Emits: none. Slots: none.
+// Depends on: api.js (GET /api/stats/me and /api/stats/leaderboard/<game>), session.js and StyledName.vue.
+// Side effects: requests on mount.
 import { onMounted, ref } from 'vue';
 import StyledName from '../components/StyledName.vue';
 import { api } from '../api.js';
 import { session } from '../session.js';
 
-const stats = ref(null);
-const failed = ref('');
+const stats = ref(null); // your stats once loaded
+const failed = ref(''); // the error text if loading failed
 const boards = ref({}); // game id -> leaderboard rows
 
+// Loads your stats and then one leaderboard per game you have played. Side effects: sets stats, boards or failed.
 onMounted(async () => {
   try {
     stats.value = await api('GET', '/api/stats/me');
@@ -19,8 +24,11 @@ onMounted(async () => {
   }
 });
 
+// Returns a 0 to 1 fraction as a whole-number percentage string.
 const percent = (n) => `${Math.round(n * 100)}%`;
+// Returns a timestamp (ms) as a UK-style date and time.
 const when = (ms) => new Date(ms).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+// Display word for each result.
 const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
 </script>
 

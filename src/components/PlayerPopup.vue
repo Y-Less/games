@@ -1,4 +1,9 @@
 <script setup>
+// File: the player-details dialog opened from a score chip. Depends on: ../profiles.js (profileOf), AvatarFigure.vue, BotIcon.vue,
+//   StyledName.vue.
+// Props: player ({ id, name, bot?, away?, isHost?, userId? }), canRemove (Boolean), error (String), anchor (Object|null, the chip element).
+// Emits: remove (after the host confirms).  Slots: default (the game's own panel about this player).
+// Side effects: reads layout (offsetParent, bounding rects) to position itself; resets its confirmation step on player or error change.
 // The standard dialog opened from a player's chip in the score bar (see usePlayerPopup.js, which owns the opening and
 // closing): a floating panel, centred at the top of the game's main area, over the table so that nothing moves. It
 // shows who the player is (name, a computer icon for computer players, whether they are away, a "host" badge) and,
@@ -23,6 +28,11 @@ const emit = defineEmits(['remove']);
 
 const root = ref(null);
 const left = ref(null); // px from the left of the area the pop-up sits in, or null to centre it
+/**
+ * Aligns the pop-up's left edge with its chip, kept inside the area it sits in (centres it if there is no anchor).
+ * @returns {void}
+ * Side effects: sets `left`.
+ */
 function place() {
   const el = root.value;
   const chip = props.anchor;
@@ -33,6 +43,7 @@ function place() {
 }
 onMounted(place);
 watch(() => [props.anchor, props.player.id], () => nextTick(place));
+// Inline style: a fixed left offset (and no centring transform) once anchored; none while centred.
 const style = computed(() => (left.value === null ? undefined : { left: `${left.value}px`, transform: 'none' }));
 
 const confirming = ref(false);
@@ -43,7 +54,13 @@ watch(() => props.error, (error) => error && (confirming.value = false));
 // A real player's avatar, once the site has told us what it is (computer players have the robot).
 const avatar = computed(() => profileOf(props.player.userId ?? null)?.avatar ?? null);
 
+// Wording for the removal button and confirmation.
 const noun = computed(() => (props.player.bot ? 'computer player' : 'player'));
+/**
+ * The host has confirmed the removal.
+ * @returns {void}
+ * Side effects: leaves the confirmation step and emits `remove`.
+ */
 function confirm() {
   confirming.value = false;
   emit('remove');

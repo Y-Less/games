@@ -1,6 +1,9 @@
+// The client-side routes and the sign-in guard.
+// Depends on: vue-router, session.js (who is signed in, safeNext) and the lazily loaded views.
 import { createRouter, createWebHistory } from 'vue-router';
 import { safeNext, session } from './session.js';
 
+// Each view is imported lazily so a page's code is only fetched when it is first visited.
 const routes = [
   { path: '/', name: 'games', component: () => import('./views/GamesView.vue') },
   { path: '/login', name: 'login', component: () => import('./views/AuthView.vue'), meta: { public: true } },
@@ -14,10 +17,13 @@ const routes = [
   { path: '/:rest(.*)*', redirect: '/' },
 ];
 
+// The app's router (installed by main.js with app.use(router)).
 export const router = createRouter({ history: createWebHistory(), routes });
 
 // Everything except the sign-in page needs an account. The page you wanted is remembered, so an invite link still
 // works after signing in.
+// @param {object} to  the route being entered; @returns {true|object|string} true to continue or a redirect location.
+// Side effects: none (the redirect is performed by vue-router).
 router.beforeEach((to) => {
   if (!session.ready) return true; // main.js starts the router once the session is known
   if (!session.user && !to.meta.public) return { name: 'login', query: { next: to.fullPath } };

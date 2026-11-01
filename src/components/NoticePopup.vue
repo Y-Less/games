@@ -1,4 +1,8 @@
 <script setup>
+// File: the generic non-blocking pop-up. Depends on: Vue only.
+// Props: active (Boolean), duration (Number, ms), autoHide (Boolean), name (String, extra class), row (Number, vertical slot).
+// Emits: close (closed by timer or OK; not when `active` goes false).  Slots: default (the content).
+// Side effects: schedules a setTimeout to auto-close while shown; clears it on hide and on unmount.
 // A small pop-up over the top of the page: the generic one behind "It's your turn" (YourTurnPopup) and the achievement
 // unlocks. It appears the moment `active` becomes true (or when it is already true as the component first appears), and
 // goes away by itself after `duration` milliseconds (unless `autoHide` is false, and then it stays until the player clicks
@@ -19,17 +23,32 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const open = ref(false);
-let timer = null;
+let timer = null; // the pending auto-close timeout, or null
 
+/**
+ * Hides the pop-up silently.
+ * @returns {void}
+ * Side effects: clears `open` and cancels the auto-close timer; emits nothing.
+ */
 function stop() {
   open.value = false;
   clearTimeout(timer);
   timer = null;
 }
+/**
+ * Hides the pop-up because it timed out or OK was clicked, and tells the parent.
+ * @returns {void}
+ * Side effects: as stop(), plus emits close.
+ */
 function dismiss() {
   stop();
   emit('close');
 }
+/**
+ * Shows the pop-up and (re)starts the auto-close timer when autoHide is on.
+ * @returns {void}
+ * Side effects: sets `open`, replaces the timer.
+ */
 function show() {
   open.value = true;
   clearTimeout(timer);

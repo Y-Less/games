@@ -1,4 +1,8 @@
 <script setup>
+// File: the Profile page's avatar editor. Depends on: ../../shared/avatar.js, ../profileApi.js (updateProfile), ../session.js,
+//   ../shopStore.js (owns), AvatarFigure.vue, vue-router (RouterLink).
+// Props: none.  Emits: none.  Slots: none.
+// Side effects: save() sends the avatar to the server through updateProfile; otherwise only local state.
 // The avatar editor on the Profile page: pick one option for each slot (skin, hair, eyes ...) and watch the figure change.
 // Options you have not bought are shown but cannot be picked: they are bought in the shop, which previews them on you.
 import { computed, ref, watch } from 'vue';
@@ -9,10 +13,12 @@ import { session } from '../session.js';
 import { owns } from '../shopStore.js';
 import AvatarFigure from './AvatarFigure.vue';
 
+// The avatar stored on the account, with any missing or invalid parts filled in.
 const saved = computed(() => normaliseAvatar(session.user.avatar));
-const draft = ref({ ...saved.value });
+const draft = ref({ ...saved.value }); // the choices being edited, kept apart from `saved` until Save
 watch(saved, (avatar) => (draft.value = { ...avatar }));
 
+// True when the draft differs from the saved avatar, which enables the Save and Reset buttons.
 const changed = computed(() => AVATAR_SLOTS.some(({ slot }) => draft.value[slot] !== saved.value[slot]));
 const message = ref('');
 const problem = ref('');
@@ -26,6 +32,7 @@ const busy = ref(false);
  * Side effects: none.
  */
 const locked = (slot, option) => !owns(avatarItemId(slot, option.id));
+// How many avatar options across all slots the player has not bought, for the shop hint.
 const lockedCount = computed(() => AVATAR_SLOTS.reduce((n, { slot, options }) => n + options.filter((o) => locked(slot, o)).length, 0));
 
 /**

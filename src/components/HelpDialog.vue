@@ -1,4 +1,9 @@
 <script setup>
+// File: the header Help dialog. Depends on: nothing beyond the window keydown event.
+// Props: html (String|null, pre-rendered safe Markdown HTML; null while loading).
+// Emits: close (Close button, Escape, or a click on the backdrop).
+// Slots: none.
+// Side effects: adds a window keydown listener on mount and removes it on unmount.
 // The pop-up for the header's Help button: some Markdown (already rendered to safe HTML) in a dialog that closes with the
 // Close button, Escape, or a click outside it. `html` is null while it loads.
 import { onBeforeUnmount, onMounted } from 'vue';
@@ -6,6 +11,7 @@ import { onBeforeUnmount, onMounted } from 'vue';
 defineProps({ html: { type: String, default: null } });
 const emit = defineEmits(['close']);
 
+// Handler for window keydown: emits close when Escape is pressed (returns false or the emit result; the value is unused).
 const closeOnEsc = (event) => event.key === 'Escape' && emit('close');
 onMounted(() => window.addEventListener('keydown', closeOnEsc));
 onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEsc));

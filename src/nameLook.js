@@ -5,6 +5,16 @@
 import { nameStyleById } from '../shared/nameStyles.js';
 import { profileOf } from './profiles.js';
 
+/**
+ * Works out the name-pill look (colours, animation) for a player.
+ * @param {object} [options]
+ * @param {?string} [options.userId]  account id whose chosen look is used when styleId/animationId are not given
+ * @param {?string} [options.styleId]  force a particular style id (shop previews), whatever the player owns
+ * @param {?string} [options.animationId]  force a particular animation id
+ * @returns {{ id: string, animation: string, styled: boolean, css: (object|undefined) }}  style id, animation id,
+ *   whether any look applies, and the CSS custom properties to bind (undefined when plain and not animated)
+ * Side effects: none.
+ */
 export function nameLook({ userId = null, styleId = null, animationId = null } = {}) {
   const chosen = profileOf(userId)?.nameStyle;
   const style = nameStyleById(styleId ?? chosen?.style);

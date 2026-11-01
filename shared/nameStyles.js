@@ -3,6 +3,7 @@
 // (src/components/StyledName.vue) from the colours here, so a style is one entry in this list.
 //
 // `border` and `fill` are CSS colours. `fill` may also be a gradient. `text` is optional (default: the normal text colour).
+// Depends on: nothing (pure data); consumed by server/shop.js and src/components/StyledName.vue.
 
 export const NAME_STYLES = [
   { id: 'plain', name: 'Plain', price: 0, border: 'transparent', fill: 'transparent' },
@@ -22,8 +23,12 @@ export const NAME_STYLES = [
   { id: 'toxic', name: 'Toxic', price: 1000, border: '#39ff88', fill: '#07140d', text: '#b8ffd6' },
 ];
 
+// What a player has chosen until they pick something else.
 export const DEFAULT_NAME_STYLE = { style: 'plain' };
 
+// Lookup of styles by id.
 const byId = new Map(NAME_STYLES.map((s) => [s.id, s]));
+// Returns the style with this id, falling back to the free 'plain' style for an unknown id.
 export const nameStyleById = (id) => byId.get(id) ?? byId.get('plain');
+// True when `id` is a string naming a known style.
 export const isNameStyle = (id) => typeof id === 'string' && byId.has(id);

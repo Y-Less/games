@@ -1,4 +1,9 @@
 <script setup>
+// The profile page: display name, animation setting, background, card back, marker colour, avatar and password.
+// Props: none. Emits: none. Slots: none.
+// Depends on: profileApi.js (saving), session.js (the signed-in user), shopStore.js (owns: which unlocks you have),
+// appearance.js, shared/markerColours.js and AvatarEditor.vue. Side effects: every change is saved to the server at once and
+// the session's user (and the page's look) is replaced by the reply.
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import AvatarEditor from '../components/AvatarEditor.vue';
@@ -8,11 +13,13 @@ import { changePassword, updateProfile, uploadBackground, uploadCardBack } from 
 import { session } from '../session.js';
 import { owns } from '../shopStore.js';
 
-const displayName = ref(session.user.displayName);
+const displayName = ref(session.user.displayName); // the name box's text
+// The saved background setting.
 const current = computed(() => session.user.background);
-const message = ref('');
-const problem = ref('');
+const message = ref(''); // the last success message
+const problem = ref(''); // the last error message
 
+// The custom colour and gradient pickers start from the saved values when they are of that type.
 const colour = ref(current.value.type === 'colour' ? current.value.value : '#16252d');
 const gradient = ref(
   current.value.type === 'gradient' ? { from: current.value.from, to: current.value.to, angle: current.value.angle } : { from: '#16252d', to: '#7a3e55', angle: 160 },
@@ -20,6 +27,13 @@ const gradient = ref(
 const oldPassword = ref('');
 const newPassword = ref('');
 
+/**
+ * Runs a save and reports how it went.
+ * @param {() => Promise<*>} task  the save to run
+ * @param {string} done  the message to show on success
+ * @returns {Promise<void>}
+ * Side effects: clears then sets message or problem (the server's reason on failure); runs the task.
+ */
 async function attempt(task, done) {
   message.value = '';
   problem.value = '';
@@ -31,32 +45,47 @@ async function attempt(task, done) {
   }
 }
 
+// Each handler below returns the promise from attempt(); all save to the server.
+// Saves the display name.
 const saveName = () => attempt(() => updateProfile({ displayName: displayName.value }), 'Name saved.');
+// 'on', 'off' or 'auto' for the animations radio group (a null setting follows the device).
 const animationsChoice = computed(() => (session.user.playAnimations === true ? 'on' : session.user.playAnimations === false ? 'off' : 'auto'));
+// Saves the animations choice ('on' | 'off' | 'auto').
 const setAnimations = (value) => attempt(() => updateProfile({ playAnimations: value === 'on' ? true : value === 'off' ? false : null }), { on: 'Animations always play.', off: 'Animations never play.', auto: 'Animations now follow your device.' }[value]);
+// Saves a numeric setting named `key` (e.g. animation strength) from a slider's input event.
 const setLevel = (key, event) => attempt(() => updateProfile({ [key]: Number(event.target.value) }), 'Saved.');
+// Saves a background setting object.
 const choose = (background) => attempt(() => updateProfile({ background }), 'Background saved.');
+// Uploads the picked file as the background, then clears the file input so the same file can be picked again.
 const upload = (event) => {
   const file = event.target.files?.[0];
   if (file) attempt(() => uploadBackground(file), 'Background saved.');
   event.target.value = '';
 };
+// Changes the password, and empties the two boxes on success.
 const savePassword = () =>
   attempt(async () => {
     await changePassword(oldPassword.value, newPassword.value);
     oldPassword.value = newPassword.value = '';
   }, 'Password changed. Your other devices have been signed out.');
 
+// Saves a card-back setting object.
 const chooseCardBack = (cardBack) => attempt(() => updateProfile({ cardBack }), 'Card back saved.');
+// Uploads the picked file as the card back (like upload, for the card back).
 const uploadBack = (event) => {
   const file = event.target.files?.[0];
   if (file) attempt(() => uploadCardBack(file), 'Card back saved.');
   event.target.value = '';
 };
+// The custom marker colour picker's value (starts at the saved one, else pink).
 const marker = ref(session.user.markerColour ?? '#ff2d95');
+// Saves a marker colour (null clears the default).
 const chooseMarker = (markerColour) => attempt(() => updateProfile({ markerColour }), markerColour ? 'Marker colour saved.' : 'You no longer have a default marker colour.');
+// Returns true when colour `c` is the saved marker colour.
 const isMarker = (c) => session.user.markerColour === c;
+// Returns true when preset card back `key` is the saved one.
 const isBackPreset = (key) => session.user.cardBack.type === 'preset' && session.user.cardBack.value === key;
+// Returns true when preset background `key` is the saved one.
 const isPreset = (key) => current.value.type === 'preset' && current.value.value === key;
 </script>
 

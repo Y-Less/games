@@ -1,5 +1,6 @@
 // The Help button's text for every page except a game (a game's own rules.md is shown there). Each is Markdown for
-// renderMarkdown. `pageHelp(route)` picks the page by route name, 
+// renderMarkdown. `pageHelp(route)` picks the page by route name.
+// Depends on: shared/achievements.js (the coin amounts quoted in the text); read by App.vue.
 import { COINS_PER_LEVEL, SINGLE_LEVEL_COINS } from '../shared/achievements.js';
 
 const SHOP_TABS = {
@@ -11,8 +12,10 @@ const SHOP_TABS = {
   unlocks: ['Unlocks', 'Choose your own colour, gradient or picture, any marker colour for games, and set how strong and how fast your background animation is, on the Profile page.'],
 };
 
+// One Markdown section per shop tab, built from SHOP_TABS so the tab list and the help cannot drift apart.
 const SHOP_SECTIONS = Object.values(SHOP_TABS).map(([label, text]) => `## ${label}\n\n${text}`).join('\n\n');
 
+// Returns the shop page's help Markdown (a function so it is only built when asked for).
 const shopHelp = () => `# Shop
 
 Spend the gold you win on ways to make the site your own. You get 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd, and more for unlocking achievements.
@@ -21,6 +24,7 @@ Anything you own can be put on straight from here with **Use**. Animations are p
 
 ${SHOP_SECTIONS}`;
 
+// Help Markdown by route name, for the pages whose text is fixed.
 const PAGES = {
   games: `# Games
 
@@ -54,7 +58,12 @@ Unlocking a level earns ${COINS_PER_LEVEL} gold times its level number, so ${COI
 Achievements you have not unlocked yet are hidden as ???, so there are surprises.`,
 };
 
-/** { title, markdown } for the page at `route`, or null when it has none. */
+/**
+ * The help text for a page.
+ * @param {{ name: string }} route  the current route (only its name is used)
+ * @returns {?{ title: string, markdown: string }}  the dialog title and Markdown, or null when the page has no help
+ * Side effects: none.
+ */
 export function pageHelp(route) {
   const name = route.name;
   if (name === 'shop') return { title: 'Help', markdown: shopHelp() };
