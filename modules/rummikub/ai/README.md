@@ -93,13 +93,14 @@ A separate 180-game offline run gave: sharp 0.267 win rate with a score of 34.2,
 1. Create `ai/<id>.js` with a default export `{ id, name, description, weight, plan }`. The `id` is lowercase and
    unique, and is saved in rooms, so do not rename it casually. `weight` defaults to 1; `0` keeps it out of the random
    pool (it can still be set by id in tests).
-2. `plan(room, seat, options)` returns `{ table, added, value }` (the whole proposed table as arrays of tile ids, and
-   how many rack tiles it plays) or `null` to draw. `options` may carry `rng` (a `() => number` in [0, 1)) and
-   `budget`. Use the supplied `rng`, never `Math.random`, so seeded games and tests repeat. Keep the file free of
-   sockets and files, and make `plan` a pure function of its arguments: anything to remember must be in the room.
-3. Use only what the seat may know: `room.settings`, `room.table`, its own rack `room.racks[seat]`, the other racks
-   only by length, the length of `room.pool`, `room.melded` and so on. Do not read other players' tiles. The plan is
-   checked by `rules.checkPlay` anyway, but peeking would still be cheating.
+2. `plan(situation, seat, options)` returns `{ table, added, value }` (the whole proposed table as arrays of tile ids,
+   and how many rack tiles it plays) or `null` to draw. `options` carries `rng` (a `() => number` in [0, 1); required,
+   never `Math.random`, so seeded games and tests repeat) and may carry `budget`. Keep the file free of sockets and
+   files, and make `plan` a pure function of its arguments: anything to remember must be in the room.
+3. The `situation` (built by `situation(room, seat)` in `bot.js`) is all the seat may know: `settings`, `table`,
+   `melded`, its own rack as `racks[seat]` (the other entries are `null`), the other racks only as `rackCounts`, and
+   `poolCount`. Other players' tiles and the pool's order are not in it, so an AI cannot peek. The plan is checked by
+   `rules.checkPlay` anyway.
 4. Reuse `search.js` (`standardAttempts`, `shuffleAttempts`, `meldAttempts`, `firstLegal`) and the helpers in `rules.js`
    rather than writing a new search, and bound any work by node counts, not the clock. To add another budget level,
    call `makeShuffler({ id, name, description, tableTiles })` from `shuffler.js`.

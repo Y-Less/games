@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
-import { aiOf, chooseTurn, pendingAction, runPending } from './bot.js';
+import { aiOf, chooseTurn, pendingAction, runPending, situation } from './bot.js';
 import { checkPlay, totalTiles } from './rules.js';
 import { shuffleAttempts } from './search.js';
 import { STD, assertInvariants, bestPlay, joker, playingRoom, seeded, tile } from './testing.js';
@@ -190,32 +190,32 @@ function eightTileRoom() {
 
 test('a position solvable only by moving 8 table tiles: a budget of 5 cannot, 10 and 20 can (and so can the classic AI)', () => {
   const room = eightTileRoom();
-  const results = Object.fromEntries([5, 10, 20].map((n) => [n, byId(`shuffler-${n}`).plan(room, 1)]));
+  const results = Object.fromEntries([5, 10, 20].map((n) => [n, byId(`shuffler-${n}`).plan(situation(room, 1), 1)]));
   assert.equal(results[5], null, 'five tiles is not enough');
   for (const n of [10, 20]) {
     assert.ok(results[n], `${n} finds it`);
     assert.equal(results[n].added, 2, 'the orange 4 and black 4 are played');
     const asSeat = { ...room, seats: room.seats.map((s, i) => (i === 1 ? { ...s, ai: `shuffler-${n}` } : s)) };
-    assert.equal(chooseTurn(asSeat, 1).type, 'play');
+    assert.equal(chooseTurn(asSeat, 1, { rng: seeded(1) }).type, 'play');
   }
   assert.equal(bestPlay(room, 1).added, 2);
   const moved = shuffleAttempts(room, 1, { tableTiles: 20 }).map((a) => a.moved);
   assert.equal(Math.min(...moved), 8, 'the cheapest way moves exactly 8 tiles');
   assert.equal(shuffleAttempts(room, 1, { tableTiles: 7 }).length, 0);
-  assert.equal(chooseTurn(room, 1).type, 'draw', 'the Tidy AI in that seat draws');
+  assert.equal(chooseTurn(room, 1, { rng: seeded(1) }).type, 'draw', 'the Tidy AI in that seat draws');
 });
 
 test('one table tile can be taken from the end of a long run for a budget of 1, but not from its middle when that would break it', () => {
   const { room } = botRoom(['standard', 'shuffler-5']);
   // a group of 7s needs the blue 7 from the end of blue 4-7 (the run keeps 4-5-6)
   position(room, { racks: [[], [t(2, 7), t(3, 7)]], table: [[t(1, 4), t(1, 5), t(1, 6), t(1, 7)]], turn: 1, melded: [false, true] });
-  const play = byId('shuffler-5').plan(room, 1);
+  const play = byId('shuffler-5').plan(situation(room, 1), 1);
   assert.ok(play);
   assert.equal(shuffleAttempts(room, 1, { tableTiles: 1 }).some((a) => a.value > 0), true);
   assert.equal(shuffleAttempts(room, 1, { tableTiles: 0 }).length, 0);
   // the middle tile of a 4-run cannot be taken without breaking it
   position(room, { racks: [[], [t(2, 5), t(3, 5)]], table: [[t(1, 4), t(1, 5), t(1, 6), t(1, 7)]], turn: 1, melded: [false, true] });
-  assert.equal(byId('shuffler-5').plan(room, 1), null);
+  assert.equal(byId('shuffler-5').plan(situation(room, 1), 1), null);
 });
 
 /** Positions met in games played by a mixture of AIs: every turn of a person who has already melded and has a rack. */
@@ -239,12 +239,12 @@ test('higher budgets are never worse: whatever 5 finds, 10 finds at least as goo
   const sums = { 5: 0, 10: 0, 20: 0 };
   let strictly = 0;
   for (const { room, seat } of positions) {
-    const values = [5, 10, 20].map((n) => byId(`shuffler-${n}`).plan(room, seat)?.value ?? 0);
+    const values = [5, 10, 20].map((n) => byId(`shuffler-${n}`).plan(situation(room, seat), seat)?.value ?? 0);
     assert.ok(values[0] <= values[1] && values[1] <= values[2], `values ${values}`);
     if (values[2] > values[0]) strictly++;
     [5, 10, 20].forEach((n, i) => (sums[n] += values[i]));
     // and the result is the same when asked again: the cap is a node count, not the clock
-    assert.deepEqual(byId('shuffler-20').plan(room, seat)?.table, byId('shuffler-20').plan(room, seat)?.table);
+    assert.deepEqual(byId('shuffler-20').plan(situation(room, seat), seat)?.table, byId('shuffler-20').plan(situation(room, seat), seat)?.table);
   }
   assert.ok(strictly > 0, 'some positions need the bigger budget');
   console.log(`# budget sweep over ${positions.length} positions: points played at 5/10/20 = ${sums[5]}/${sums[10]}/${sums[20]}; 20 beat 5 in ${strictly}`);
@@ -267,13 +267,13 @@ test('sharp keeps a joker back for a small play, but spends it to go out or when
   const others = Array.from({ length: 12 }, (_, i) => 52 + i);
   position(room, { ...base, racks: [others, [t(0, 1), t(2, 9), t(3, 2), J()]] });
   assert.ok(bestPlay(room, 1)?.added >= 1, 'the classic AI spends the joker on the run');
-  assert.equal(byId('sharp').plan(room, 1), null, 'sharp draws instead');
+  assert.equal(byId('sharp').plan(situation(room, 1), 1), null, 'sharp draws instead');
   // an opponent with two tiles left: no holding back
   room.racks[0] = [t(3, 12, 1), t(3, 13, 1)];
-  assert.ok(byId('sharp').plan(room, 1), 'now it plays the joker');
+  assert.ok(byId('sharp').plan(situation(room, 1), 1), 'now it plays the joker');
   // going out
   position(room, { ...base, racks: [others, [t(0, 7), J()]] });
-  assert.equal(byId('sharp').plan(room, 1).added, 2, 'two tiles, the last ones, joker included');
+  assert.equal(byId('sharp').plan(situation(room, 1), 1).added, 2, 'two tiles, the last ones, joker included');
 });
 
 test('sharp goes out when it can, using everything', () => {
@@ -284,7 +284,7 @@ test('sharp goes out when it can, using everything', () => {
     turn: 1,
     melded: [true, true],
   });
-  assert.equal(byId('sharp').plan(room, 1).added, 7);
+  assert.equal(byId('sharp').plan(situation(room, 1), 1).added, 7);
 });
 
 // ---- random ----
@@ -299,16 +299,16 @@ test('the random AI only ever plays legal moves, varies with its generator, and 
   });
   const results = new Set();
   for (let seed = 1; seed <= 30; seed++) {
-    const play = byId('random').plan(room, 1, { rng: seeded(seed) });
+    const play = byId('random').plan(situation(room, 1), 1, { rng: seeded(seed) });
     assert.ok(play, 'a legal move exists');
     assert.equal(checkPlay(room.settings, { before: room.table, rack: room.racks[1], proposed: play.table, melded: true, meld: 30 }).ok, true);
     results.add(JSON.stringify(play.table));
   }
   assert.ok(results.size > 1, 'different seeds make different moves');
   position(room, { racks: [[], [t(0, 1), t(2, 8), t(3, 11)]], table: [[t(3, 4), t(3, 5), t(3, 6)]], turn: 1, melded: [false, true] });
-  assert.equal(byId('random').plan(room, 1, { rng: seeded(1) }), null);
+  assert.equal(byId('random').plan(situation(room, 1), 1, { rng: seeded(1) }), null);
   position(room, { racks: [[], [t(0, 1), t(0, 2), t(0, 3), t(2, 8)]], turn: 1, melded: [false, false] });
-  assert.equal(byId('random').plan(room, 1, { rng: seeded(1) }), null, 'a first meld must be worth 30');
+  assert.equal(byId('random').plan(situation(room, 1), 1, { rng: seeded(1) }), null, 'a first meld must be worth 30');
 });
 
 // ---- a tournament ----

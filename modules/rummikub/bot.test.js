@@ -85,7 +85,7 @@ test('it replaces a joker on the table with the tile and reuses the joker', () =
 test('it draws when it cannot play, and never plays an invalid table', () => {
   const { room } = playingRoom(2, { seed: 1, bots: true });
   position(room, { racks: [[], [t(0, 1), t(1, 4), t(2, 8)]], table: [[t(0, 4), t(0, 5), t(0, 6)]], turn: 1, melded: [false, true] });
-  assert.deepEqual(chooseTurn(room, 1), { type: 'draw' });
+  assert.deepEqual(chooseTurn(room, 1, { rng: seeded(1) }), { type: 'draw' });
   const before = room.racks[1].length;
   runPending(room, Math.random, Date.now());
   assert.equal(room.racks[1].length, before + 1);

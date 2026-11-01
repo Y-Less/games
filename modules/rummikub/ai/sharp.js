@@ -44,11 +44,12 @@ function weightsFor(s, urgent) {
  * Side effects: none.
  */
 function plan(room, seat, { budget = SEARCH_BUDGET } = {}) {
+  // `room` is the seat's situation (bot.js): its own rack, the table, and only the SIZES of the other racks and the pool.
   const s = room.settings;
   const rack = room.racks[seat];
-  const rivals = room.racks.flatMap((r, i) => (i === seat ? [] : [r.length]));
+  const rivals = room.rackCounts.filter((_, i) => i !== seat);
   const closest = rivals.length ? Math.min(...rivals) : Infinity;
-  const emptyPool = room.pool ? room.pool.length === 0 : false;
+  const emptyPool = room.poolCount === 0;
   const urgent = closest <= DANGER || emptyPool;
   const weights = weightsFor(s, urgent);
   const jokerFree = BIG + (urgent ? 30 * 8 : 0);

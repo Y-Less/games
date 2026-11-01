@@ -86,13 +86,14 @@ export function assertInvariants(room, label = '') {
  *
  * @param {object} room  mutated by the play or draw
  * @param {number} now  the clock, in milliseconds
+ * @param {() => number} [rng]  random numbers for the AI (seeded by default, so a test is repeatable)
  * @returns {{ seat: number, type: 'play' | 'draw' } | false} the action taken, or false when no round is in progress
  * Side effects: plays or draws for the seat whose turn it is; asserts the move was legal.
  */
-export function driveStep(room, now) {
+export function driveStep(room, now, rng = seeded(1)) {
   if (room.phase !== 'playing') return false;
   const seat = room.turn;
-  const choice = chooseTurn(room, seat);
+  const choice = chooseTurn(room, seat, { rng });
   const result = choice.type === 'play' ? game.play(room, seat, { table: choice.table }, now) : game.draw(room, seat, now);
   assert.equal(result.ok, true, `a computer move must be legal: ${choice.type} -> ${result.error}`);
   return { seat, type: choice.type };

@@ -7,7 +7,9 @@
 // never the clock), so a turn is always quick and always repeatable.
 //
 // Depends on ./rules.js only (set validation, joker rules and checkPlay). The AIs in ai/ choose how to call these
-// functions (which weights, which joker value, how many table tiles may move); nothing here touches the room.
+// functions (which weights, which joker value, how many table tiles may move); nothing here touches the room. The `room`
+// these functions take is the seat's situation from bot.js (settings, table, melded and the seat's own rack): the same
+// field names as a room, with nothing of the other players' in it.
 import { JOKER_VALUE, checkPlay, fitsJoker, isJoker, jokerOptions, rackValue, resolveSet, tileOf } from './rules.js';
 
 // The default cap on states visited by one solve(): large enough to find good tables, small enough that a turn stays quick.
