@@ -75,7 +75,7 @@ test('starting offers windows to choose from; a reload resumes the same room', {
   await user.waitForText('Choose your window');
   await user.waitForCodeInUrl(code);
   assert.ok((await user.page.$$('.option')).length >= 2, 'several windows to choose from');
-  const dealt = await user.page.evaluate(() => ({ privateObjective: document.querySelector('.deal .private')?.innerText ?? '', objectives: document.querySelectorAll('.deal .objective').length, tools: document.querySelectorAll('.deal .tool').length }));
+  const dealt = await user.page.evaluate(() => ({ privateObjective: document.querySelector('.deal .private')?.closest('section')?.innerText ?? '', objectives: document.querySelectorAll('.deal .objective').length, tools: document.querySelectorAll('.deal .tool').length }));
   assert.match(dealt.privateObjective, /private objective/i, 'your private objective is shown before choosing a window');
   assert.deepEqual([dealt.objectives, dealt.tools], [3, 3], 'and so are the public objectives and tools');
   await user.waitForText('Your private objective is');

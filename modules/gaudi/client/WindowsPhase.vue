@@ -131,7 +131,4 @@ const pick = (pid) => {
   gap: 12px;
   align-items: start;
 }
-.deal .private {
-  align-self: end;
-}
 </style>
