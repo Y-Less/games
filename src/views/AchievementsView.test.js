@@ -58,10 +58,10 @@ describe('AchievementsView', () => {
     wrapper = mount(AchievementsView);
     expect(wrapper.text()).toContain('Loading');
     wrapper.unmount();
-    vi.stubGlobal('fetch', vi.fn(async () => reply({ error: 'Please sign in.' }, 401)));
+    vi.stubGlobal('fetch', vi.fn(async () => reply({ error: 'The achievements are being rebuilt.' }, 503)));
     wrapper = mount(AchievementsView);
     await flushPromises();
-    expect(wrapper.find('[role="alert"]').text()).toContain('Please sign in.');
+    expect(wrapper.find('[role="alert"]').text()).toContain('The achievements are being rebuilt.');
   });
 
   it('lists the global achievements and then each game in its own section', async () => {

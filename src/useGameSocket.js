@@ -34,8 +34,11 @@ export const inviteFrom = (search) => String(search ?? '').replace(/^\?/, '');
  *   `state` is the current view (null when not in a room), `loaded` is true once the server has said which,
  *   `notice` is the latest error text, `initialCode` is the invite code the page was opened with, and `send` is
  *   `send(event, payload)`: emits the event, shows a refusal as the notice and resolves with the reply
- *   ({ ok, error? }; a failure if the server did not answer).
+ *   ({ ok, error? }; a failure if the server did not answer, or has not within ACK_TIMEOUT_MS).
  */
+/** How long a request may wait for the server's answer before it is given up (milliseconds). */
+export const ACK_TIMEOUT_MS = 10000;
+
 export function useGameSocket({ socket, search = '', setSearch = () => {}, leaveConfirm = () => '', onState = () => {} }) {
   const state = ref(null);
   const loaded = ref(false);
@@ -45,9 +48,11 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   let invite = initialCode; // used once, by the first `resume`
 
   /**
-   * Sends one request to the server and waits for its answer.
+   * Sends one request to the server and waits for its answer. A request the server never answers (its handler threw
+   * before replying, or the connection dropped mid-way) is given up after ACK_TIMEOUT_MS, so `busy` cannot stick and
+   * disable every button for good.
    *
-   * Side effects: clears and may set `notice`; sets `busy` while waiting; emits a socket event.
+   * Side effects: clears and may set `notice`; sets `busy` while waiting; emits a socket event; sets a timer.
    *
    * @param {string} event  the socket event name ('create', 'join', 'leave', ...)
    * @param {object} [payload]  what the event needs
@@ -57,11 +62,17 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
     notice.value = '';
     busy.value = true;
     return new Promise((resolve) => {
-      socket.emit(event, payload, (reply) => {
+      let settled = false;
+      const settle = (reply) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         busy.value = false;
         if (!reply?.ok) notice.value = reply?.error ?? 'The server did not answer.';
         resolve(reply ?? { ok: false });
-      });
+      };
+      const timer = setTimeout(() => settle(null), ACK_TIMEOUT_MS);
+      socket.emit(event, payload, settle);
     });
   }
 

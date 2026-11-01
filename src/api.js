@@ -1,5 +1,20 @@
 // Talking to the site's JSON API: every page and composable goes through these two functions.
-// Depends on: the browser's fetch only.
+// Depends on: the browser's fetch only. session.js registers what to do when the server says the session has gone
+// (onUnauthorised), so that this file does not have to import it.
+
+let unauthorised = () => {};
+
+/**
+ * Registers what to do when any API call is refused as not signed in (HTTP 401): the session has expired, or the
+ * password was changed on another device. session.js uses it to sign the user out locally, so every page reacts the
+ * same way instead of showing the raw error text.
+ * @param {() => void} handler
+ * @returns {void}
+ * Side effects: replaces the handler.
+ */
+export function onUnauthorised(handler) {
+  unauthorised = handler;
+}
 
 /**
  * Calls the API and returns the parsed body.
@@ -24,6 +39,7 @@ export async function api(method, url, body) {
   } catch {
     data = text;
   }
+  if (res.status === 401) unauthorised();
   if (!res.ok) throw new Error(data?.error ?? `Something went wrong (${res.status}).`);
   return data;
 }

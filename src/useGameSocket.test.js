@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
 import { leaveOffer, playBar } from './playBar.js';
-import { inviteFrom, useGameSocket } from './useGameSocket.js';
+import { ACK_TIMEOUT_MS, inviteFrom, useGameSocket } from './useGameSocket.js';
 
 /** A stand-in socket: records listeners and emitted events, and answers with `reply` (nothing when undefined). */
 function fakeSocket({ connected = true, reply = { ok: true } } = {}) {
@@ -110,6 +110,23 @@ describe('useGameSocket', () => {
     const { api } = mountWith(socket);
     expect(await api.send('create')).toEqual({ ok: false });
     expect(api.notice.value).toBe('The server did not answer.');
+  });
+
+  it('gives up on a request the server never answers, so busy cannot stick', async () => {
+    vi.useFakeTimers();
+    try {
+      const socket = fakeSocket({ connected: false });
+      socket.emit = () => {}; // emits, but no ack ever comes
+      const { api } = mountWith(socket);
+      const pending = api.send('create');
+      expect(api.busy.value).toBe(true);
+      await vi.advanceTimersByTimeAsync(ACK_TIMEOUT_MS + 1);
+      expect(await pending).toEqual({ ok: false });
+      expect(api.busy.value).toBe(false);
+      expect(api.notice.value).toBe('The server did not answer.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('is busy while waiting for an answer', async () => {

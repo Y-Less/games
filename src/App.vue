@@ -32,6 +32,14 @@ watch(() => route.fullPath, () => refreshShop());
 watch(offer, (now) => {
   if (!now) confirming.value = false;
 });
+// The session can end under a page (it expired, or the password was changed elsewhere; api.js clears the user): go
+// to the sign-in page at once, remembering where we were, rather than leaving a page that cannot load anything.
+watch(
+  () => session.user,
+  (user) => {
+    if (!user && session.ready && !route.meta.public && route.name) router.replace({ name: 'login', query: { next: route.fullPath } });
+  },
+);
 /**
  * The Leave game button: asks first when the game wants a confirmation, otherwise leaves.
  * @returns {void}
@@ -130,7 +138,7 @@ async function leaveSite() {
     <AchievementPopups />
 
     <main class="field">
-      <RouterView :key="route.fullPath.split('?')[0]" />
+      <RouterView v-if="session.user || route.meta.public" :key="route.fullPath.split('?')[0]" />
     </main>
   </div>
 </template>
