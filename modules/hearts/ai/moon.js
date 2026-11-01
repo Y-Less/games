@@ -77,7 +77,7 @@ function playMoon(ctx) {
   const { legal, trick, hand } = ctx;
   if (legal.length === 1) return legal[0];
   const know = observe(ctx);
-  if (!moonAlive(ctx, know)) return standard.choosePlay({ ...ctx, moonBid: null });
+  if (!moonAlive(ctx, know)) return standard.choosePlay({ ...ctx, chasingMoon: false });
 
   // Cards held in a suit.
   const suitLength = (suit) => hand.filter((c) => suitOf(c) === suit).length;

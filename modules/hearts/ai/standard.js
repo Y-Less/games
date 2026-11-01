@@ -44,8 +44,8 @@ export function passStandard(ctx) {
 
 /**
  * Standard play: lead low and safe, duck point tricks, and when void dump the most dangerous card. When this seat has
- * bid the moon (ctx.moonBid) it does the reverse and wins tricks.
- * @param {object} ctx  AI context (see index.js); uses legal, trick, seat, hand, settings, moonBid, taken and rng.
+ * bid the moon (ctx.chasingMoon) it does the reverse and wins tricks.
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, seat, hand, settings, chasingMoon, taken and rng.
  * @returns {string} one card from ctx.legal.
  * Side effects: advances ctx.rng (random choice between equally low leads).
  */
@@ -54,7 +54,7 @@ export function playStandard(ctx) {
   if (legal.length === 1) return legal[0];
   const rng = ctx.rng;
   const jackOfDiamonds = ctx.settings.jackOfDiamonds;
-  const chasing = ctx.moonBid === seat;
+  const chasing = ctx.chasingMoon === true;
   // Removes the Jack of Diamonds from the options (it is worth -5, so it is kept to win with) when that option is on.
   const notJack = (cards) => (jackOfDiamonds ? avoiding(cards, (c) => c === JACK) : cards);
   // Picks uniformly at random from a list, so equal-value leads vary from game to game.

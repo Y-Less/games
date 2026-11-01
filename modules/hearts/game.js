@@ -9,7 +9,7 @@
 // Depends on: deals.js (deal sizes and pass rotation), tally.js (statistics), ai/ (computer players) and the shared helpers
 // for seats, cards, tricks, scores and AI selection under ../../shared.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
-import { statsRows } from '../../shared/tally.js';
+import { extrasOf, statsRows } from '../../shared/tally.js';
 import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -637,7 +637,8 @@ export function statsPlayers(room) {
     outcome: room.winners.includes(i) ? 'win' : 'loss',
     placement: places[i],
     score: room.scores[i],
-    extras: { ...room.tally[i], perfectGames: room.scores[i] <= 0 ? 1 : 0 },
+    // extrasOf, not a spread: a room saved before a counter existed then records 0 for it rather than nothing.
+    extras: { ...extrasOf(room.tally[i], STAT_KEYS), perfectGames: room.scores[i] <= 0 ? 1 : 0 },
   }));
 }
 
@@ -697,7 +698,7 @@ export function aiContext(room, seat, rng) {
     openingCard: openingCard(room.seats.length),
     passed: room.passes[seat] ? [...room.passes[seat]] : [],
     received: [...(room.received?.[seat] ?? [])],
-    moonBid: room.moonBid,
+    chasingMoon: room.moonBid === seat, // only whether THIS seat has bid for the moon: another seat's intention is its own secret
     rng,
   };
 }

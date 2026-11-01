@@ -6,7 +6,7 @@
 //   choosePlay(ctx) returns one of ctx.legal.
 // The context is plain data built by game.js (aiContext): seat, hand, legal, trick [{ seat, card }] (the plays so far),
 // history [{ plays, winner }] (finished tricks of this hand), taken (cards won per seat), scores, settings
-// { target, jackOfDiamonds, moon }, heartsBroken, tricksPlayed, handNumber, direction, passed, received, moonBid and rng.
+// { target, jackOfDiamonds, moon }, heartsBroken, tricksPlayed, handNumber, direction, passed, received, chasingMoon and rng.
 // Nothing about other players' hands is ever in it.
 import { defineAIs } from '../../../shared/ai.js';
 import standard from './standard.js';

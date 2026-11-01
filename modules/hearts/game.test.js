@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import * as g from './game.js';
+import { STAT_KEYS } from './tally.js';
 import { newTally, tallyExchange } from './tally.js';
 
 function seeded(seed) {
@@ -520,7 +521,7 @@ test('statistics: winners win, ties share a placement, computer players and repl
   const players = g.statsPlayers(room);
   assert.deepEqual(players.map((p) => p.userId), [1, 2, 3]);
   assert.deepEqual(players.map((p) => [p.outcome, p.placement, p.score]), [['loss', 4, 104], ['win', 1, 30], ['win', 1, 30]]);
-  assert.deepEqual(players[1].extras, { handsPlayed: 6, moonsShot: 1, queensTaken: 2, heartsTaken: 11, perfectGames: 0 });
+  assert.deepEqual(players[1].extras, { ...Object.fromEntries(STAT_KEYS.map((key) => [key, 0])), handsPlayed: 6, moonsShot: 1, queensTaken: 2, heartsTaken: 11, perfectGames: 0 }, 'every counter is recorded, as 0 when a room saved before it existed has none');
 });
 
 test('statistics: a game that ends with no points is a perfect game', () => {

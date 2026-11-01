@@ -362,7 +362,7 @@ function distinct(cards, know) {
  */
 function playSharp(ctx) {
   if (ctx.legal.length === 1) return ctx.legal[0];
-  if (ctx.moonBid === ctx.seat && moonAlive(ctx)) return moon.choosePlay(ctx);
+  if (ctx.chasingMoon && moonAlive(ctx)) return moon.choosePlay(ctx);
   return lookAhead(ctx);
 }
 

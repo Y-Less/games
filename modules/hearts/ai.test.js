@@ -40,7 +40,7 @@ function position({ seat, hand, trick = [], taken = [[], [], [], []], tricksPlay
     tricksPlayed,
     heartsBroken,
     turn: seat,
-    moonBid: null,
+    chasingMoon: false,
     passes: [null, null, null, null],
     received: [[], [], [], []],
   });
@@ -144,7 +144,7 @@ test('moon passes its weakest cards, leads winners from side suits and gives up 
 
   const dead = position({ seat: 0, tricksPlayed: 4, hand: ['AS', 'KS', '3D', 'AH', 'KH', 'QH', 'JH', '10H', '9H'], taken: [[], ['2H'], [], []] });
   assert.equal(moonAlive(dead), false, 'another seat has a heart');
-  assert.equal(byId.moon.choosePlay(dead), byId.standard.choosePlay({ ...dead, moonBid: null }), 'it then plays like standard');
+  assert.equal(byId.moon.choosePlay(dead), byId.standard.choosePlay({ ...dead, chasingMoon: false }), 'it then plays like standard');
 });
 
 test('moon wins the tricks that carry points and never gives a heart away while the attempt is alive', () => {

@@ -127,7 +127,7 @@ beats a mixed Avoider/Standard/Jack table over 60 games.
 3. The context is built by `aiContext` in `game.js` and holds plain data only: `seat`, `hand`, `legal`, `trick`
    (`[{ seat, card }]`), `history` (finished tricks of this hand), `taken` (cards won per seat), `scores`, `settings`
    (`target`, `jackOfDiamonds`, `moon`), `heartsBroken`, `tricksPlayed`, `handNumber`, `direction`, `passed`,
-   `received`, `seatCount`, `trickCount`, `passCount`, `passOffset`, `openingCard`, `moonBid` (the seat chasing the moon, or null) and `rng`. It never contains another player's hand.
+   `received`, `seatCount`, `trickCount`, `passCount`, `passOffset`, `openingCard`, `chasingMoon` (whether this seat has bid for the moon; another seat's bid is its own secret) and `rng`. It never contains another player's hand.
 4. Use `ctx.rng`, never `Math.random`, so seeded games and tests repeat. Keep the file free of sockets, files and state:
    an AI is a pure function of its context. Shared helpers (card counting in `observe`, `pointTakers`, `cardPoints`,
    and so on) are in `ai/util.js`.
