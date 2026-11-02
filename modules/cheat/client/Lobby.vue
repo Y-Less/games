@@ -11,8 +11,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // True when this player is the host and so may change settings.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -36,7 +38,8 @@ const dealing = computed(() => {
   const cards = props.state.decks * 52;
   const each = Math.floor(cards / props.state.seatCount);
   const extra = cards % props.state.seatCount;
-  return `${props.state.seatCount} players: ${props.state.decks === 1 ? 'one pack' : 'two packs'}, ${each} cards each${extra ? ` (and ${extra} players get one more)` : ''}.`;
+  const params = { players: props.state.seatCount, packs: t(`lobby.packs.${props.state.decks}`), cardsEach: each };
+  return extra ? t('lobby.dealExtra', { ...params, count: extra }, extra) : t('lobby.deal', params);
 });
 // Returns the index of the first empty seat (-1 if full), where an added bot goes.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
@@ -47,7 +50,7 @@ const change = (settings) => props.send('settings', settings);
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -61,15 +64,15 @@ const change = (settings) => props.send('settings', settings);
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Players</legend>
+          <legend class="muted">{{ t('lobby.players') }}</legend>
           <div class="row">
             <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="n < taken" :aria-pressed="state.seatCount === n" @click="change({ seats: n })">{{ n }}</button>
           </div>
           <p class="muted deal">{{ dealing }}</p>
         </fieldset>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

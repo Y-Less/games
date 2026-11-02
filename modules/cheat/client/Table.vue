@@ -7,7 +7,7 @@
 // Props:
 //   state  {Object}    required. The player's view of the game (phases playing, check, finished).
 //   send   {Function}  required. send(action, payload) returns a promise of { ok, error? }.
-//   log    {Array}     Recent moves as [{ text }], kept by the page (see log.js).
+//   log    {Array}     Recent moves as messages (see log.js and shared/messages.js), kept by the page.
 // Emits: none.
 // Slots: none (fills GameFrame's scorebar, main, log and status slots).
 // Side effects: sends play, call, accept, again, kick and removeBot requests; keeps local picks/message/sending state
@@ -22,14 +22,16 @@ import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
-import { rankWord } from './rank.js';
-import { callSentence, cardCount, copiesUpTo } from './text.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { rankMsg } from './rank.js';
+import { callMsg, copiesUpTo } from './text.js';
 
 const props = defineProps({
   state: { type: Object, required: true },
   send: { type: Function, required: true },
-  log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
+  log: { type: Array, default: () => [] }, // Recent moves as messages, kept by the page (see log.js)
 });
+const { t, text } = useGameText();
 
 // (Cap on the fan size so a huge hand cannot overflow an opponent's seat.)
 const MAX_SHOWN = 13; // the most cards drawn in an opponent's fan, however many they hold
@@ -73,7 +75,7 @@ const opponents = computed(() =>
   Array.from({ length: count.value - 1 }, (_, i) => i + 1).map((rel) => {
     const seat = (s.value.you + rel) % count.value;
     const other = s.value.seats[seat];
-    return { key: seat, name: other.name, cards: Math.min(other.cards, MAX_SHOWN), note: cardCount(other.cards), away: !other.online, current: s.value.turn === seat };
+    return { key: seat, name: other.name, cards: Math.min(other.cards, MAX_SHOWN), note: t('cards.count', { count: other.cards }, other.cards), away: !other.online, current: s.value.turn === seat };
   }),
 );
 
@@ -87,17 +89,20 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
 const opened = computed(() => s.value.seats.find((x) => x && x.seat === openId.value) ?? null);
 
 // ---- the words, all of them in the Status box ----
+// Returns the spoken form of a rank ('' when there is none): "an Ace" for one card, "Aces" for more.
+const rankText = (rank, count = 2) => (rank ? text(rankMsg(rank, count)) : '');
 // The plural spoken form of the rank to claim, for example 'Aces'.
-const claimText = computed(() => rankWord(rank.value, 2));
+const claimText = computed(() => rankText(rank.value, 2));
 // The Status box headline: whose move it is and what they must do.
 const status = computed(() => {
-  if (finished.value) return `${nameOf(s.value.winner)} gets rid of every card and wins.`;
+  if (finished.value) return t('status.wins', { name: nameOf(s.value.winner) });
   if (checking.value) {
     const who = nameOf(s.value.last.seat);
-    return mustRespond.value ? `${who} has played their last cards. Call Cheat, or say you believe them.` : s.value.last.seat === you.value ? 'That was your last play: waiting for the others to accept it.' : `Waiting for the others to decide about ${who}'s last play.`;
+    if (mustRespond.value) return t('status.lastCards', { name: who });
+    return s.value.last.seat === you.value ? t('status.yourLastPlay') : t('status.waitingDecide', { name: who });
   }
-  if (myTurn.value) return `Your turn: play 1 to ${maxPlay.value} cards and claim ${rankWord(rank.value, 2)}.`;
-  return s.value.turn === null ? '' : `Waiting for ${nameOf(s.value.turn)} to play ${rankWord(rank.value, 2)}.`;
+  if (myTurn.value) return t('status.yourTurn', { max: maxPlay.value, rank: claimText.value });
+  return s.value.turn === null ? '' : t('status.waitingFor', { name: nameOf(s.value.turn), rank: claimText.value });
 });
 // True when the viewer has something to do (highlights the Status box).
 const mine = computed(() => !finished.value && (myTurn.value || mustRespond.value));
@@ -105,15 +110,15 @@ const mine = computed(() => !finished.value && (myTurn.value || mustRespond.valu
 const callMessage = computed(() => {
   const call = s.value.lastCall;
   if (!call) return '';
-  return callSentence(call, nameOf, true);
+  return text(callMsg(call, nameOf, 'status'));
 });
 // The extra Status lines, each { text, tone }: warning, play hint, last call, and the restart note.
 const statusLines = computed(() => {
   const lines = [];
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
-  if (myTurn.value) lines.push({ text: picks.value.length ? `Playing ${cardCount(picks.value.length)} as ${claimText.value}.` : 'Click the cards to play, then press the button on the table. They need not really be the rank you claim.', tone: 'muted' });
+  if (myTurn.value) lines.push({ text: picks.value.length ? t('status.playing', { count: picks.value.length, rank: claimText.value }, picks.value.length) : t('status.pick'), tone: 'muted' });
   if (callMessage.value) lines.push({ text: callMessage.value, tone: 'muted' });
-  if (finished.value) lines.push({ text: isHost.value ? 'You can start another game.' : 'The host can start another game.', tone: 'muted' });
+  if (finished.value) lines.push({ text: isHost.value ? t('status.hostAgain') : t('status.againHost'), tone: 'muted' });
   return lines;
 });
 
@@ -159,7 +164,7 @@ function pickAt(card, index) {
     const at = picks.value.lastIndexOf(card);
     picks.value = picks.value.filter((_, i) => i !== at);
   } else if (picks.value.length < maxPlay.value) picks.value = [...picks.value, card];
-  else message.value = `You can play at most ${maxPlay.value} cards.`;
+  else message.value = t('status.atMost', { max: maxPlay.value });
 }
 
 /**
@@ -183,7 +188,7 @@ async function submit(event, payload) {
 // The cards turned over by the last call of Cheat (empty if none).
 const reveal = computed(() => s.value.lastCall?.cards ?? []);
 // A sentence describing the last play ('' before any play).
-const lastText = computed(() => (s.value.last ? `${nameOf(s.value.last.seat)} played ${cardCount(s.value.last.count)} as ${rankWord(s.value.last.rank, s.value.last.count)}.` : ''));
+const lastText = computed(() => (s.value.last ? t('table.lastPlay', { name: nameOf(s.value.last.seat), count: s.value.last.count, rank: rankText(s.value.last.rank, s.value.last.count) }, s.value.last.count) : ''));
 
 // ---- fitting the room ----
 const DESIGN_H = 34; // the height, in rem, the table is designed at
@@ -211,62 +216,62 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
     <template #main="area">
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
-          <dt>Cards in hand</dt>
+          <dt>{{ t('popup.cardsInHand') }}</dt>
           <dd>{{ opened.cards }}</dd>
-          <dt>Lies told</dt>
+          <dt>{{ t('popup.liesTold') }}</dt>
           <dd>{{ opened.stats?.liesTold ?? 0 }}</dd>
-          <dt>Caught lying</dt>
+          <dt>{{ t('popup.caughtLying') }}</dt>
           <dd>{{ opened.stats?.liesCaught ?? 0 }}</dd>
-          <dt>Calls (correct)</dt>
-          <dd>{{ opened.stats?.callsMade ?? 0 }} ({{ opened.stats?.callsCorrect ?? 0 }})</dd>
+          <dt>{{ t('popup.calls') }}</dt>
+          <dd>{{ t('popup.callsValue', { made: opened.stats?.callsMade ?? 0, correct: opened.stats?.callsCorrect ?? 0 }) }}</dd>
         </dl>
       </PlayerPopup>
-      <section class="felt" aria-label="The table" :style="{ '--s': scale(area) }">
+      <section class="felt" :aria-label="t('table.label')" :style="{ '--s': scale(area) }">
         <OpponentHands :opponents="opponents" :max="MAX_SHOWN" />
 
         <div class="middle">
-          <div class="claim" aria-label="Rank to claim">
-            <span class="muted">{{ finished ? 'Game over' : 'Claim' }}</span>
+          <div class="claim" :aria-label="t('table.rankToClaim')">
+            <span class="muted">{{ finished ? t('table.gameOver') : t('table.claim') }}</span>
             <b v-if="rank">{{ rank }}</b>
           </div>
-          <div class="pile" :aria-label="`The pile: ${state.pile} cards`">
+          <div class="pile" :aria-label="t('table.pile', { count: state.pile }, state.pile)">
             <PlayingCard v-if="state.pile" size="md" class="top-card" />
-            <span v-else class="empty muted">Empty</span>
+            <span v-else class="empty muted">{{ t('table.empty') }}</span>
             <b v-if="state.pile" class="size">{{ state.pile }}</b>
           </div>
-          <div class="shown" aria-label="Cards just turned over">
+          <div class="shown" :aria-label="t('table.turnedOver')">
             <PlayingCard v-for="(card, i) in reveal" :key="i" :card="card" size="sm" />
           </div>
           <p class="note muted">{{ lastText }}</p>
         </div>
 
         <div class="row actions">
-          <button v-if="myTurn" class="primary" :disabled="!picks.length || sending" @click="submit('play', { cards: picks })">Play {{ picks.length || '' }} as {{ rankWord(rank, 2) }}</button>
+          <button v-if="myTurn" class="primary" :disabled="!picks.length || sending" @click="submit('play', { cards: picks })">{{ t('table.play', { count: picks.length, rank: claimText }, picks.length) }}</button>
           <template v-else>
-            <button :class="{ hidden: !canCall }" :disabled="sending" @click="submit('call')">Cheat!</button>
-            <button :class="{ hidden: !mustRespond }" :disabled="sending" @click="submit('accept')">I believe you</button>
+            <button :class="{ hidden: !canCall }" :disabled="sending" @click="submit('call')">{{ t('table.cheat') }}</button>
+            <button :class="{ hidden: !mustRespond }" :disabled="sending" @click="submit('accept')">{{ t('table.believe') }}</button>
           </template>
         </div>
 
-        <div class="hand" role="group" aria-label="Your hand">
+        <div class="hand" role="group" :aria-label="t('table.yourHand')">
           <PlayingCard v-for="(card, i) in state.hand" :key="`${card}-${i}`" :card="card" size="md" :clickable="myTurn" :selected="chosen(card, i)" @pick="pickAt(card, i)" />
         </div>
       </section>
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="status" :mine="mine" :popup="false" :lines="statusLines">
         <template #facts>
-          <span>Claiming {{ rank ? rankWord(rank, 2) : '' }}</span>
-          <span>Pile: {{ state.pile }}</span>
+          <span>{{ t('facts.claiming', { rank: claimText }) }}</span>
+          <span>{{ t('facts.pile', { n: state.pile }) }}</span>
         </template>
         <div v-if="finished" class="row">
-          <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-          <button @click="board.show()">See the scores</button>
+          <button v-if="isHost" class="primary" @click="send('again')">{{ t('table.playAgain') }}</button>
+          <button @click="board.show()">{{ t('table.seeScores') }}</button>
         </div>
       </GameStatus>
     </template>

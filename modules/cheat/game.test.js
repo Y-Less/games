@@ -52,24 +52,24 @@ test('the holder of the Ace of Spades starts', () => {
 test('settings: the host picks 3 to 7 seats, and not fewer than are filled', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
   assert.equal(room.seats.length, g.DEFAULT_SEATS);
-  assert.equal(g.setSettings(room, 2, { seats: 5 }).ok, false, 'only the host');
-  assert.equal(g.setSettings(room, 1, { seats: 2 }).ok, false);
-  assert.equal(g.setSettings(room, 1, { seats: 8 }).ok, false);
-  assert.equal(g.setSettings(room, 1, { seats: 5.5 }).ok, false);
+  assert.deepEqual(g.setSettings(room, 2, { seats: 5 }), { ok: false, error: 'hostOnly' }, 'only the host');
+  assert.deepEqual(g.setSettings(room, 1, { seats: 2 }), { ok: false, error: 'playersRange', params: { min: 3, max: 7 } });
+  assert.equal(g.setSettings(room, 1, { seats: 8 }).error, 'playersRange');
+  assert.equal(g.setSettings(room, 1, { seats: 5.5 }).error, 'playersRange');
   assert.equal(g.setSettings(room, 1, { seats: 7 }).ok, true);
   assert.equal(room.seats.length, 7);
   g.fillWithBots(room, 1);
-  assert.equal(g.setSettings(room, 1, { seats: 3 }).ok, false, 'someone would lose their seat');
+  assert.deepEqual(g.setSettings(room, 1, { seats: 3 }), { ok: false, error: 'removePlayerFirst' }, 'someone would lose their seat');
   assert.throws(() => g.createRoom({ now: 0, code: 'x', hostId: 1, hostName: 'Ann', settings: { seats: 2 } }));
 });
 
 test('starting needs every seat filled and only the host may start', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(g.start(room, 1, Math.random).ok, false, 'empty seats');
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'allSeatsNeedPlayers', params: { seats: 4 } }, 'empty seats');
   g.fillWithBots(room, 1);
-  assert.equal(g.start(room, 2, Math.random).ok, false);
+  assert.deepEqual(g.start(room, 2, Math.random), { ok: false, error: 'hostOnly' });
   assert.equal(g.start(room, 1, Math.random).ok, true);
-  assert.equal(g.start(room, 1, Math.random).ok, false, 'already started');
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'settingsBeforeStart' }, 'already started');
 });
 
 test('an honest play: the cards go to the pile, the turn passes on and the next rank is claimed', () => {
@@ -89,9 +89,12 @@ test('a lie is recorded and a play that is not allowed changes nothing', () => {
   const room = started();
   stage(room, [['AS', 'AH', '5C'], ['2C', '9D'], ['3C', '4D'], ['6C', '7D']]);
   const before = JSON.stringify(room);
-  for (const [seat, cards] of [[1, ['2C']], [0, []], [0, ['AS', 'AH', '5C', '5C', '5D']], [0, ['KS']], [0, ['AS', 'AS']], [0, 'AS'], [0, [null]], [0, ['AS', 'AS', 'AH']]]) {
-    assert.equal(g.playCards(room, seat, cards).ok, false, JSON.stringify(cards));
+  for (const [seat, cards, error] of [[1, ['2C'], 'notYourTurn'], [0, [], 'playBetween'], [0, ['AS', 'AH', '5C', '5C', '5D'], 'playBetween'], [0, ['KS'], 'playFromHand'], [0, ['AS', 'AS'], 'playFromHand'], [0, 'AS', 'playBetween'], [0, [null], 'playFromHand'], [0, ['AS', 'AS', 'AH'], 'playFromHand']]) {
+    const refused = g.playCards(room, seat, cards);
+    assert.equal(refused.ok, false, JSON.stringify(cards));
+    assert.equal(refused.error, error, JSON.stringify(cards));
   }
+  assert.deepEqual(g.playCards(room, 0, []).params, { max: g.MAX_PLAY }, 'the refusal says how many cards a play may hold');
   assert.equal(JSON.stringify(room), before);
   assert.equal(g.playCards(room, 0, ['5C']).ok, true);
   assert.equal(room.last.lie, true);
@@ -127,10 +130,10 @@ test('calling a true play: the caller picks up the pile', () => {
 test('only the last play can be called, and not by its player', () => {
   const room = started();
   stage(room, [['AS', '8S'], ['2C', '9D'], ['3C', '4D'], ['6C', '7D']]);
-  assert.equal(g.callCheat(room, 1).ok, false, 'nothing to call yet');
+  assert.deepEqual(g.callCheat(room, 1), { ok: false, error: 'nothingToCall' }, 'nothing to call yet');
   g.playCards(room, 0, ['AS']);
-  assert.equal(g.callCheat(room, 0).ok, false, 'your own play');
-  assert.equal(g.callCheat(room, 9).ok, false);
+  assert.deepEqual(g.callCheat(room, 0), { ok: false, error: 'callOwnPlay' }, 'your own play');
+  assert.deepEqual(g.callCheat(room, 9), { ok: false, error: 'notInGame' });
   g.playCards(room, 1, ['2C']);
   assert.equal(room.last.seat, 1, 'the earlier play can no longer be called');
 });
@@ -142,7 +145,7 @@ test('going out: the last play can still be caught, otherwise the player wins', 
   g.playCards(room, 0, ['5C']);
   assert.equal(room.phase, 'check');
   assert.equal(room.turn, null);
-  assert.equal(g.playCards(room, 1, ['2C']).ok, false, 'nobody plays during the final check');
+  assert.deepEqual(g.playCards(room, 1, ['2C']), { ok: false, error: 'notPlaying' }, 'nobody plays during the final check');
   assert.equal(g.callCheat(room, 3).ok, true);
   assert.equal(room.phase, 'playing');
   assert.deepEqual(sorted(room.hands[0]), ['5C', 'KS']);
@@ -161,7 +164,7 @@ test('going out: the last play can still be caught, otherwise the player wins', 
   room = started(3);
   stage(room, [['5C'], ['2C'], ['3C']]);
   g.playCards(room, 0, ['5C']);
-  assert.equal(g.accept(room, 0).ok, false, 'you cannot accept your own play');
+  assert.deepEqual(g.accept(room, 0), { ok: false, error: 'acceptOwnPlay' }, 'you cannot accept your own play');
   assert.equal(g.accept(room, 1).ok, true);
   assert.equal(room.phase, 'check', 'one more to accept');
   assert.equal(g.accept(room, 1).ok, true, 'accepting twice is harmless');
@@ -176,7 +179,7 @@ test('accepting is only for the final check', () => {
   const room = started();
   stage(room, [['AS', '8S'], ['2C'], ['3C'], ['6C']]);
   g.playCards(room, 0, ['AS']);
-  assert.equal(g.accept(room, 1).ok, false);
+  assert.deepEqual(g.accept(room, 1), { ok: false, error: 'nothingToAccept' });
 });
 
 test('the statistics: one entry per person, with the outcome, the place and the tally as extras', () => {
@@ -202,11 +205,12 @@ test('leaving mid-game hands the seat to a computer player; the room is empty wh
 
 test('play again returns to the lobby with the same seats', () => {
   const room = started(3);
+  assert.deepEqual(g.playAgain(room, 1), { ok: false, error: 'notOver' }, 'not until the game is over');
   stage(room, [['5C'], ['2C'], ['3C']]);
   g.playCards(room, 0, ['5C']);
   g.accept(room, 1);
   g.accept(room, 2);
-  assert.equal(g.playAgain(room, 2).ok, false);
+  assert.deepEqual(g.playAgain(room, 2), { ok: false, error: 'hostOnly' });
   assert.equal(g.playAgain(room, 1).ok, true);
   assert.equal(room.phase, 'lobby');
   assert.equal(room.seats.filter(Boolean).length, 3);

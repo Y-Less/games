@@ -1,0 +1,92 @@
+{
+  "entry": {
+    "noun": "game of Cheat",
+    "intro": "Three to seven players. Play cards face down and claim they are the right rank, telling the truth or lying, and call out anyone you think is cheating. Computer players can fill any empty seats."
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
+    "rules": "Rules for this game",
+    "players": "Players",
+    "deal": "{players} players: {packs}, {cardsEach} cards each.",
+    "dealExtra": "{players} players: {packs}, {cardsEach} cards each (and {count} player gets one more). | {players} players: {packs}, {cardsEach} cards each (and {count} players get one more).",
+    "packs": {
+      "1": "one pack",
+      "2": "two packs"
+    },
+    "hostOnly": "Only the host can change these."
+  },
+  "rank": {
+    "A": "an Ace | Aces",
+    "2": "a 2 | 2s",
+    "3": "a 3 | 3s",
+    "4": "a 4 | 4s",
+    "5": "a 5 | 5s",
+    "6": "a 6 | 6s",
+    "7": "a 7 | 7s",
+    "8": "an 8 | 8s",
+    "9": "a 9 | 9s",
+    "10": "a 10 | 10s",
+    "J": "a Jack | Jacks",
+    "Q": "a Queen | Queens",
+    "K": "a King | Kings"
+  },
+  "status": {
+    "wins": "{name} gets rid of every card and wins.",
+    "lastCards": "{name} has played their last cards. Call Cheat, or say you believe them.",
+    "yourLastPlay": "That was your last play: waiting for the others to accept it.",
+    "waitingDecide": "Waiting for the others to decide about {name}'s last play.",
+    "yourTurn": "Your turn: play 1 to {max} cards and claim {rank}.",
+    "waitingFor": "Waiting for {name} to play {rank}.",
+    "atMost": "You can play at most {max} cards.",
+    "playing": "Playing {count} card as {rank}. | Playing {count} cards as {rank}.",
+    "pick": "Click the cards to play, then press the button on the table. They need not really be the rank you claim.",
+    "callLie": "{caller} called Cheat on {accused}: it was a lie, so {picker} picked up {count} card. | {caller} called Cheat on {accused}: it was a lie, so {picker} picked up {count} cards.",
+    "callTrue": "{caller} called Cheat on {accused}: it was true, so {picker} picked up {count} card. | {caller} called Cheat on {accused}: it was true, so {picker} picked up {count} cards.",
+    "hostAgain": "You can start another game.",
+    "againHost": "The host can start another game."
+  },
+  "table": {
+    "label": "The table",
+    "rankToClaim": "Rank to claim",
+    "gameOver": "Game over",
+    "claim": "Claim",
+    "pile": "The pile is empty | The pile: {count} card | The pile: {count} cards",
+    "empty": "Empty",
+    "turnedOver": "Cards just turned over",
+    "lastPlay": "{name} played {count} card as {rank}. | {name} played {count} cards as {rank}.",
+    "play": "Play as {rank} | Play {count} as {rank} | Play {count} as {rank}",
+    "cheat": "Cheat!",
+    "believe": "I believe you",
+    "yourHand": "Your hand",
+    "nothingPlayed": "Nothing has been played yet.",
+    "playAgain": "Play again",
+    "seeScores": "See the scores"
+  },
+  "facts": {
+    "claiming": "Claiming {rank}",
+    "pile": "Pile: {n}"
+  },
+  "popup": {
+    "cardsInHand": "Cards in hand",
+    "liesTold": "Lies told",
+    "caughtLying": "Caught lying",
+    "calls": "Calls (correct)",
+    "callsValue": "{made} ({correct})"
+  },
+  "log": {
+    "dealt": "The cards are dealt.",
+    "played": "{name} plays {count} card, claiming {rank}. | {name} plays {count} cards, claiming {rank}.",
+    "callLie": "{caller} calls Cheat on {accused}: it was a lie, so {picker} picks up {count} card. | {caller} calls Cheat on {accused}: it was a lie, so {picker} picks up {count} cards.",
+    "callTrue": "{caller} calls Cheat on {accused}: it was true, so {picker} picks up {count} card. | {caller} calls Cheat on {accused}: it was true, so {picker} picks up {count} cards.",
+    "wins": "{name} gets rid of every card and wins."
+  },
+  "errors": {
+    "playBetween": "Play between 1 and {max} cards.",
+    "playFromHand": "You can only play cards from your hand.",
+    "nothingToCall": "There is nothing to call.",
+    "callOwnPlay": "You cannot call your own play.",
+    "nothingToAccept": "There is no last play to accept.",
+    "acceptOwnPlay": "You cannot accept your own play."
+  }
+}

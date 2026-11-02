@@ -5,7 +5,11 @@ import * as game from '../game.js';
 import Cheat from './Cheat.vue';
 import Lobby from './Lobby.vue';
 import { advanceLog } from './log.js';
-import { rankWord } from './rank.js';
+import { rankMsg } from './rank.js';
+import { messageText } from '../../../src/messageText.js';
+
+// A message (a log line, a rank) in English, as the table draws it.
+const words = (message) => messageText(message, 'cheat');
 
 function seeded(seed) {
   let a = seed >>> 0;
@@ -171,11 +175,12 @@ describe('the table', () => {
 
 describe('the recent moves', () => {
   it('speaks ranks naturally', () => {
-    expect(rankWord('A', 2)).toBe('Aces');
-    expect(rankWord('A', 1)).toBe('an Ace');
-    expect(rankWord('8', 1)).toBe('an 8');
-    expect(rankWord('K', 3)).toBe('Kings');
-    expect(rankWord('7', 1)).toBe('a 7');
+    expect(rankMsg('A', 2)).toEqual({ key: 'rank.A', params: { count: 2 } });
+    expect(words(rankMsg('A', 2))).toBe('Aces');
+    expect(words(rankMsg('A', 1))).toBe('an Ace');
+    expect(words(rankMsg('8', 1))).toBe('an 8');
+    expect(words(rankMsg('K', 3))).toBe('Kings');
+    expect(words(rankMsg('7', 1))).toBe('a 7');
   });
 
   it('adds a line for each play, call and the end', () => {
@@ -186,16 +191,22 @@ describe('the recent moves', () => {
     const second = game.viewFor(r, 1);
     let log = advanceLog([], first, second);
     expect(log).toHaveLength(1);
-    expect(log[0].text).toMatch(/plays 1 card, claiming an Ace/);
+    expect(log[0]).toEqual({ key: 'log.played', params: { name: r.seats[seat].name, count: 1, rank: { key: 'rank.A', params: { count: 1 } } } });
+    expect(words(log[0])).toMatch(/plays 1 card, claiming an Ace/);
     const caller = (seat + 1) % 4;
     game.callCheat(r, caller);
     log = advanceLog(log, second, game.viewFor(r, 1));
     expect(log).toHaveLength(2);
-    expect(log[1].text).toMatch(/calls Cheat on .*picks up/);
+    expect(log[1].key).toMatch(/^log\.call(Lie|True)$/);
+    expect(log[1].params.count).toBe(r.lastCall.pileSize);
+    expect(words(log[1])).toMatch(/calls Cheat on .*picks up/);
+    const finished = { ...game.viewFor(r, 1), phase: 'finished', winner: seat };
+    expect(advanceLog(log, game.viewFor(r, 1), finished).at(-1)).toEqual({ key: 'log.wins', params: { name: r.seats[seat].name } });
+    expect(words(advanceLog([], view(room({ started: false })), second))).toBe('The cards are dealt.');
   });
 
   it('starts empty and clears in the lobby', () => {
-    expect(advanceLog([{ text: 'x' }], null, null)).toEqual([]);
+    expect(advanceLog([{ key: 'log.dealt' }], null, null)).toEqual([]);
     const r = room();
     expect(advanceLog([], null, view(r))).toEqual([]);
   });

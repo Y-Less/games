@@ -14,6 +14,7 @@ import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import { advanceLog } from './log.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
@@ -26,7 +27,9 @@ const props = defineProps({
 });
 
 // The Recent moves list shown by the table.
-const log = ref([]); // Recent moves, worked out from the states as they arrive (see log.js)
+const { t } = useGameText();
+
+const log = ref([]); // Recent moves (messages), worked out from the states as they arrive (see log.js)
 /**
  * Works the list of recent moves out from each state as it arrives (see log.js).
  *
@@ -48,18 +51,18 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning to show before leaving mid-game, or '' for no warning.
-  leaveConfirm: (state) => state.phase !== 'lobby' && state.phase !== 'finished' ? 'A computer player takes your seat if you leave.' : '',
+  leaveConfirm: (state) => (state.phase !== 'lobby' && state.phase !== 'finished' ? t('leaveConfirm') : ''),
   onState,
 });
 </script>
 
 <template>
   <div class="cheat stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Cheat"
-      intro="Three to seven players. Play cards face down and claim they are the right rank, telling the truth or lying, and call out anyone you think is cheating. Computer players can fill any empty seats."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

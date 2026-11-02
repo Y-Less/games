@@ -1,27 +1,26 @@
 // Wording shared by the "Recent moves" list (log.js) and the Status box (Table.vue), so that the same fact is always
-// written the same way.
+// written the same way. Everything is a message (shared/messages.js) that the table puts into words with `text()`.
+import { msg } from '../../../shared/messages.js';
+
+/** The keys for what a call of "Cheat!" turned up: the log says "calls ... picks up", the Status box "called ... picked up". */
+const CALL_KEYS = {
+  log: { lie: 'log.callLie', truth: 'log.callTrue' },
+  status: { lie: 'status.callLie', truth: 'status.callTrue' },
+};
 
 /**
- * "1 card" or "5 cards".
- *
- * @param {number} n  how many cards
- * @returns {string}
- * Side effects: none.
- */
-export const cardCount = (n) => `${n} ${n === 1 ? 'card' : 'cards'}`;
-
-/**
- * The sentence that says what a call of "Cheat!" turned up.
+ * The message that says what a call of "Cheat!" turned up: who called whom, whether it was a lie, and who picked up how
+ * many cards.
  *
  * @param {{ caller: number, accused: number, lie: boolean, picker: number, pileSize: number }} call  the call, as the server describes it (state.lastCall)
- * @param {(seat: number) => string} nameOf  gives the name to show for a seat
- * @param {boolean} [past]  true for "called ... picked up" (the Status box), false for "calls ... picks up" (the log)
- * @returns {string}
+ * @param {(seat: number) => string | object} nameOf  gives the name to show for a seat
+ * @param {'log' | 'status'} [where]  'log' for the present tense (the Recent moves list), 'status' for the past (the Status box)
+ * @returns {{ key: string, params: object }} the message
  * Side effects: none.
  */
-export function callSentence(call, nameOf, past = false) {
-  const [calls, picks] = past ? ['called', 'picked'] : ['calls', 'picks'];
-  return `${nameOf(call.caller)} ${calls} Cheat on ${nameOf(call.accused)}: it was ${call.lie ? 'a lie' : 'true'}, so ${nameOf(call.picker)} ${picks} up ${cardCount(call.pileSize)}.`;
+export function callMsg(call, nameOf, where = 'log') {
+  const keys = CALL_KEYS[where];
+  return msg(call.lie ? keys.lie : keys.truth, { caller: nameOf(call.caller), accused: nameOf(call.accused), picker: nameOf(call.picker), count: call.pileSize });
 }
 
 /**

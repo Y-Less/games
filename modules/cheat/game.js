@@ -1,5 +1,6 @@
 // The rules of Cheat, with no sockets or files. A room is a plain object that can be saved as JSON.
-// Every action returns { ok: true, ... } or { ok: false, error }.
+// Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in the
+// game's locale file or the site's (see shared/seats.js and shared/messages.js).
 //
 // Three to seven players, all the cards dealt out. Turns go clockwise and each one has a rank to claim, which runs Ace, 2, 3 ...
 // King and round again. On your turn you put one to four cards face down on the pile and say they are all of that rank (they
@@ -44,8 +45,6 @@ export const rankFor = (plays) => SEQUENCE[plays % SEQUENCE.length];
 export const decksFor = (seats) => (seats >= 6 ? 2 : 1);
 /** The cards for a table of this many seats: one pack, or two for six or more players, unshuffled. */
 export const deckFor = (seats) => Array.from({ length: decksFor(seats) }, () => fullDeck()).flat();
-/** The message for a table size that is not allowed. */
-const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} players.`;
 /**
  * The seat after this one, clockwise (wrapping round the table).
  *
@@ -71,7 +70,7 @@ const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
-  if (!isSeatCount(seatCount)) throw new Error(seatsProblem);
+  if (!isSeatCount(seatCount)) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} players.`);
   const room = {
     code,
     hostId,
@@ -132,15 +131,15 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
  * @param {object} room
  * @param {number} userId  the account asking; must be the host
  * @param {{ seats?: number }} input  the new settings
- * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
+ * @returns {{ ok: boolean, error?: string, params?: object }} ok, or the refusal's code (and its values)
  */
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (input?.seats !== undefined) {
-    if (!isSeatCount(input.seats)) return fail(seatsProblem);
+    if (!isSeatCount(input.seats)) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
     const seated = room.seats.filter(Boolean).length;
-    if (input.seats < seated) return fail('Remove a player first: that would leave too few seats.');
+    if (input.seats < seated) return fail('removePlayerFirst');
     resizeSeats(room, input.seats);
   }
   return ok();
@@ -175,8 +174,8 @@ function resizeSeats(room, count) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail(`All ${room.seats.length} seats need a player. Add computer players to fill the empty ones.`);
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  if (!humanSeats(room).length) return fail('needPerson');
   resetGame(room);
   const n = room.seats.length;
   const deck = shuffle(deckFor(n), rng);
@@ -205,13 +204,13 @@ export function start(room, userId, rng) {
  * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function playCards(room, seat, cards) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
-  if (!Array.isArray(cards) || cards.length < 1 || cards.length > MAX_PLAY) return fail(`Play between 1 and ${MAX_PLAY} cards.`);
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
+  if (!Array.isArray(cards) || cards.length < 1 || cards.length > MAX_PLAY) return fail('playBetween', { max: MAX_PLAY });
   const hand = [...room.hands[seat]];
   for (const card of cards) {
     const at = typeof card === 'string' ? hand.indexOf(card) : -1;
-    if (at === -1) return fail('You can only play cards from your hand.');
+    if (at === -1) return fail('playFromHand');
     hand.splice(at, 1);
   }
   const rank = rankFor(room.plays);
@@ -241,9 +240,9 @@ export function playCards(room, seat, cards) {
  * @returns {{ ok: boolean, lie?: boolean, error?: string }} `lie` says whether the play was a lie
  */
 export function callCheat(room, seat) {
-  if (!['playing', 'check'].includes(room.phase) || !room.last) return fail('There is nothing to call.');
-  if (!Number.isInteger(seat) || !room.seats[seat]) return fail('You are not in this game.');
-  if (seat === room.last.seat) return fail('You cannot call your own play.');
+  if (!['playing', 'check'].includes(room.phase) || !room.last) return fail('nothingToCall');
+  if (!Number.isInteger(seat) || !room.seats[seat]) return fail('notInGame');
+  if (seat === room.last.seat) return fail('callOwnPlay');
   const { seat: accused, rank, count, cards, lie } = room.last;
   const picker = lie ? accused : seat;
   const pileSize = room.pile.length;
@@ -273,9 +272,9 @@ export function callCheat(room, seat) {
  * @returns {{ ok: boolean, error?: string }} ok, or the reason it was refused
  */
 export function accept(room, seat) {
-  if (room.phase !== 'check' || !room.last) return fail('There is no last play to accept.');
-  if (!Number.isInteger(seat) || !room.seats[seat]) return fail('You are not in this game.');
-  if (seat === room.last.seat) return fail('You cannot accept your own play.');
+  if (room.phase !== 'check' || !room.last) return fail('nothingToAccept');
+  if (!Number.isInteger(seat) || !room.seats[seat]) return fail('notInGame');
+  if (seat === room.last.seat) return fail('acceptOwnPlay');
   if (!room.decided.includes(seat)) room.decided.push(seat);
   settleCheck(room);
   return ok();
@@ -326,7 +325,7 @@ function finish(room, winner) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   freeGoneSeats(room);
   resetGame(room);
   room.phase = 'lobby';
