@@ -7,27 +7,29 @@
 // Emits: none.
 // Side effects: none.
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   popupProps: { type: Object, default: null },
   opened: { type: Object, default: null },
   stage: { type: String, default: '' },
 });
+const { t } = useGameText();
 </script>
 
 <template>
   <PlayerPopup v-if="popupProps" v-bind="popupProps">
     <dl v-if="opened" class="facts">
       <template v-if="opened.ai">
-        <dt>Plays</dt>
+        <dt>{{ t('popup.plays') }}</dt>
         <dd>{{ opened.ai.name }}</dd>
       </template>
-      <dt>Score</dt>
+      <dt>{{ t('popup.score') }}</dt>
       <dd>{{ opened.score }}</dd>
-      <dt>Colour</dt>
+      <dt>{{ t('popup.colour') }}</dt>
       <dd><span class="dot" :style="{ background: opened.colour }" /></dd>
       <template v-if="stage">
-        <dt>Now</dt>
+        <dt>{{ t('popup.now') }}</dt>
         <dd>{{ stage }}</dd>
       </template>
     </dl>

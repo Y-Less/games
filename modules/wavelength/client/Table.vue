@@ -12,6 +12,7 @@ import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 import DialArea from './DialArea.vue';
 import PlayerBars from './PlayerBars.vue';
 import PlayerFacts from './PlayerFacts.vue';
@@ -28,6 +29,7 @@ const props = defineProps({
   send: { type: Function, required: true },
   log: { type: Array, default: () => [] },
 });
+const { t, text } = useGameText();
 
 // Each composable's returned refs are wrapped in reactive() so the template and the other composables read them without .value.
 // The game view: read-only facts about the game for this player.
@@ -51,14 +53,14 @@ const opened = computed(() => props.state.players.find((p) => p.id === openId.va
  * What another player is doing now, for their pop-up.
  *
  * @param {object} p  a player from the view
- * @returns {string} e.g. "has guessed", or an empty string when there is nothing to say
+ * @returns {string} what they are doing, or an empty string when there is nothing to say
  *
  * Side effects: none.
  */
 const stageOf = (p) => {
   if (view.ended) return '';
-  if (p.id === props.state.psychic) return 'the psychic this turn';
-  if (view.guessing) return p.guessed ? 'has guessed' : 'still to guess';
+  if (p.id === props.state.psychic) return t('popup.stagePsychic');
+  if (view.guessing) return p.guessed ? t('popup.hasGuessed') : t('popup.stillToGuess');
   return '';
 };
 </script>
@@ -91,7 +93,7 @@ const stageOf = (p) => {
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has happened yet." v-slot="{ entry }">{{ entry }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingYet')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>

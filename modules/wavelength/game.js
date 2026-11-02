@@ -12,6 +12,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
@@ -230,12 +231,12 @@ export function setSettings(room, id, settings = {}) {
 /**
  * Wavelength has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
  *
- * @returns {{ ok: false, error: string }} always a refusal
+ * @returns {{ ok: false, error: string }} always a refusal (the code of a message under `errors.`)
  *
  * Side effects: none.
  */
 export function playAgain() {
-  return fail('Start a new game from the menu.');
+  return fail('startFromMenu');
 }
 
 /**
@@ -251,8 +252,8 @@ export function playAgain() {
  */
 export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
-  if (!player) return fail('You are not in this game.');
-  if (room.phase !== 'lobby') return fail('Colours can only be chosen before the game starts.');
+  if (!player) return fail('notInGame');
+  if (room.phase !== 'lobby') return fail('coloursBeforeStart');
   const problem = markerProblem(colour, room.players.filter((p) => p.id !== id).map((p) => p.colour), canCustom);
   if (problem) return fail(problem);
   player.colour = normaliseMarker(colour);
@@ -270,10 +271,10 @@ export function setColour(room, id, colour, canCustom = false) {
  * Side effects: sets room.turnsEach.
  */
 export function setTurnsEach(room, id, turnsEach) {
-  if (id !== room.hostId) return fail('Only the host can change the settings.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
+  if (id !== room.hostId) return fail('hostOnlySettings');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (!Number.isInteger(turnsEach) || turnsEach < TURNS_EACH.min || turnsEach > TURNS_EACH.max) {
-    return fail(`Choose between ${TURNS_EACH.min} and ${TURNS_EACH.max} turns each.`);
+    return fail('turnsEach', { min: TURNS_EACH.min, max: TURNS_EACH.max });
   }
   room.turnsEach = turnsEach;
   return ok();
@@ -290,9 +291,9 @@ export function setTurnsEach(room, id, turnsEach) {
  * Side effects: sets room.mode.
  */
 export function setMode(room, id, mode) {
-  if (id !== room.hostId) return fail('Only the host can change the settings.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
-  if (!MODES.includes(mode)) return fail('That is not a way to play.');
+  if (id !== room.hostId) return fail('hostOnlySettings');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
+  if (!MODES.includes(mode)) return fail('notAMode');
   room.mode = mode;
   return ok();
 }
@@ -342,9 +343,9 @@ function startTurn(room, rng) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function start(room, id, rng) {
-  if (id !== room.hostId) return fail('Only the host can start the game.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
-  if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
+  if (id !== room.hostId) return fail('hostOnlyStart');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
+  if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   room.turnsTotal = room.turnsEach * room.players.length;
   room.turn = 0;
   room.used = [];
@@ -368,10 +369,10 @@ export function start(room, id, rng) {
  * Side effects: sets room.clue and moves the phase to 'guessing'.
  */
 export function setClue(room, id, text) {
-  if (room.phase !== 'clue') return fail('The clue has already been given.');
-  if (id !== room.psychic) return fail('Only the psychic gives the clue.');
+  if (room.phase !== 'clue') return fail('clueGiven');
+  if (id !== room.psychic) return fail('psychicOnlyClue');
   const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, CLUE_LENGTH);
-  if (!clean) return fail('Type a clue first.');
+  if (!clean) return fail('typeClue');
   room.clue = clean;
   room.phase = 'guessing';
   return ok();
@@ -389,13 +390,13 @@ export function setClue(room, id, text) {
  * Side effects: adds to room.guesses; may score the turn (scores, history, result, phase become 'reveal').
  */
 export function guess(room, id, position, nameOf = String) {
-  if (room.phase === 'clue') return fail('Wait for the clue.');
-  if (room.phase !== 'guessing') return fail('It is not time to guess.');
-  if (room.mode === 'team') return fail('Your team has one marker: move it together, then lock it in.');
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (id === room.psychic) return fail('You are the psychic, so you cannot guess.');
-  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('Turn the dial to a place between the two ends.');
-  if (room.guesses.some((g) => g.id === id)) return fail('You have already guessed. Wait for the others.');
+  if (room.phase === 'clue') return fail('waitForClue');
+  if (room.phase !== 'guessing') return fail('notTimeToGuess');
+  if (room.mode === 'team') return fail('teamOneMarker');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (id === room.psychic) return fail('psychicCannotGuess');
+  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('dialRange');
+  if (room.guesses.some((g) => g.id === id)) return fail('alreadyGuessed');
   room.guesses.push({ id, position: round1(position) });
   if (allGuessed(room)) scoreTurn(room, namer(room, nameOf));
   return ok();
@@ -411,11 +412,11 @@ export function guess(room, id, position, nameOf = String) {
  * Side effects: none.
  */
 function teamGuesser(room, id) {
-  if (room.mode !== 'team') return fail('This game is not played in a team.');
-  if (room.phase === 'clue') return fail('Wait for the clue.');
-  if (room.phase !== 'guessing') return fail('It is not time to guess.');
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (id === room.psychic) return fail('You are the psychic: your team moves the marker.');
+  if (room.mode !== 'team') return fail('notATeamGame');
+  if (room.phase === 'clue') return fail('waitForClue');
+  if (room.phase !== 'guessing') return fail('notTimeToGuess');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (id === room.psychic) return fail('psychicTeamMarker');
   return null;
 }
 
@@ -432,7 +433,7 @@ function teamGuesser(room, id) {
 export function setMarker(room, id, position) {
   const refused = teamGuesser(room, id);
   if (refused) return refused;
-  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('Move the marker to a place between the two ends.');
+  if (typeof position !== 'number' || !Number.isFinite(position) || position < DIAL_MIN || position > DIAL_MAX) return fail('markerRange');
   room.marker = round1(position);
   return ok();
 }
@@ -450,7 +451,7 @@ export function setMarker(room, id, position) {
 export function lockIn(room, id, nameOf = String) {
   const refused = teamGuesser(room, id);
   if (refused) return refused;
-  if (room.marker === null) return fail('Move the marker first.');
+  if (room.marker === null) return fail('moveMarkerFirst');
   room.guesses = guessers(room).map((p) => ({ id: p.id, position: room.marker }));
   room.lockedBy = id;
   scoreTurn(room, namer(room, nameOf));
@@ -490,7 +491,8 @@ function scoreTurn(room, nameOf = String) {
 }
 
 /**
- * Appends the finished turn to room.history (the standard round shape of shared/scores.js). This only happens when
+ * Appends the finished turn to room.history (the standard round shape of shared/scores.js), whose label and notes are
+ * messages for the client to put into words (shared/messages.js). This only happens when
  * the turn is scored, i.e. at the reveal, so the history never shows anything the players have yet to see.
  * A turn that is skipped because its psychic left is never scored and so appends nothing.
  *
@@ -505,13 +507,13 @@ function recordHistory(room, nameOf) {
   const notes = {};
   for (const e of room.result.entries) {
     deltas[e.id] = e.points;
-    notes[e.id] = e.bullseye ? 'bullseye' : e.points ? 'in the target' : 'missed';
+    notes[e.id] = msg(e.bullseye ? 'notes.bullseye' : e.points ? 'notes.inTarget' : 'notes.missed');
   }
   if (playerOf(room, room.psychic)) {
     deltas[room.psychic] = room.result.psychicPoints;
-    notes[room.psychic] = 'psychic';
+    notes[room.psychic] = msg('notes.psychic');
   }
-  room.history.push({ label: `Turn ${room.turn + 1}: ${nameOf(room.psychic)}`, deltas, notes });
+  room.history.push({ label: msg('turnLabel', { n: room.turn + 1, name: nameOf(room.psychic) }), deltas, notes });
 }
 
 /**
@@ -577,8 +579,8 @@ const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id))
  * Side effects: adds the person to room.ready; may end the turn (see finishTurn).
  */
 export function ready(room, id, rng) {
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (room.phase !== 'reveal') return fail('There are no scores to close.');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (room.phase !== 'reveal') return fail('noScoresToClose');
   if (!room.ready.includes(id)) room.ready.push(id);
   return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
 }
@@ -593,7 +595,7 @@ export function ready(room, id, rng) {
  * Side effects: ends the turn (see finishTurn).
  */
 export function forceNext(room, rng) {
-  if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
+  if (room.phase !== 'reveal') return fail('nothingToMoveOn');
   return ok({ finished: finishTurn(room, rng) });
 }
 

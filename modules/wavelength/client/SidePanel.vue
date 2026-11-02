@@ -8,6 +8,7 @@
 // Side effects: the clue form and the Lock in button call sendClue and lockIn on `guess`.
 import ActionBlock from './ActionBlock.vue';
 import ClueBox from './ClueBox.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import FinalScores from './FinalScores.vue';
 
 defineProps({
@@ -16,10 +17,11 @@ defineProps({
   guess: { type: Object, required: true },
   span: { type: Number, required: true },
 });
+const { t } = useGameText();
 </script>
 
 <template>
-  <aside class="side" :style="{ gridColumn: `span ${span}` }" aria-label="Clue and guess">
+  <aside class="side" :style="{ gridColumn: `span ${span}` }" :aria-label="t('table.sideLabel')">
     <ClueBox :clue="state.clue" :psychic-name="view.psychicName" :is-psychic="view.isPsychic" :playing="view.playing" />
     <ActionBlock
       v-model:clue-text="guess.clueText"
@@ -33,8 +35,8 @@ defineProps({
     />
     <FinalScores v-if="state.phase === 'finished'" :standings="view.standings" />
     <p class="legend muted">
-      <template v-if="view.team">One marker for the whole team. </template>The target has three bands: 4, 3 and 2 points.
-      <span v-if="view.mine" class="mark"><span class="dot" :style="{ background: view.mine.colour }" />your colour</span>
+      <template v-if="view.team">{{ t('table.teamMarkerNote') }} </template>{{ t('table.bandsLegend') }}
+      <span v-if="view.mine" class="mark"><span class="dot" :style="{ background: view.mine.colour }" />{{ t('table.yourColour') }}</span>
     </p>
   </aside>
 </template>

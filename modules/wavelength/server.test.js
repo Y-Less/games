@@ -18,7 +18,7 @@ test('a whole game with three people: create, join, start, clue, guess, reveal, 
 
   assert.deepEqual(await ann.call('resume'), { ok: true, code: null });
   assert.equal((await ann.call('join', { code: 'nonsense' })).ok, false);
-  assert.match((await ann.call('join', { code: 'boss-aware-you' })).error, /No game has that code/);
+  assert.equal((await ann.call('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
   const created = await ann.call('create', { turnsEach: 1 });
   assert.ok(created.ok);
   assert.equal((await ann.call('create')).ok, false, 'already in a game');

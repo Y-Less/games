@@ -6,6 +6,7 @@
 // Emits: none.
 // Side effects: none.
 import GameStatus from '../../../src/components/GameStatus.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   headline: { type: String, required: true },
@@ -16,14 +17,15 @@ defineProps({
   ended: { type: Boolean, default: false },
   psychicName: { type: String, required: true },
 });
+const { t } = useGameText();
 </script>
 
 <template>
   <GameStatus :headline="headline" :mine="mine" :turn="turn" :lines="lines">
     <template #facts>
-      <strong v-if="!ended">Turn {{ state.turn }} of {{ state.turnsTotal }}</strong>
-      <strong v-else>Game over</strong>
-      <span v-if="!ended">Psychic: {{ psychicName }}</span>
+      <strong v-if="!ended">{{ t('facts.turn', { n: state.turn, total: state.turnsTotal }) }}</strong>
+      <strong v-else>{{ t('facts.gameOver') }}</strong>
+      <span v-if="!ended">{{ t('facts.psychic', { name: psychicName }) }}</span>
     </template>
   </GameStatus>
 </template>

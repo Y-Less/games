@@ -499,7 +499,7 @@ test('kick refuses a finished game and removes nobody', () => {
   })();
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'gameOverNobodyToRemove' });
   assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 

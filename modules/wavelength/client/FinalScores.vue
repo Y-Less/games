@@ -4,13 +4,16 @@
 // Slots: none.
 // Emits: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
+
 defineProps({
   standings: { type: Array, required: true },
 });
+const { t } = useGameText();
 </script>
 
 <template>
-  <ol class="standings" aria-label="Final scores">
+  <ol class="standings" :aria-label="$t('scoreboard.final')">
     <li v-for="p in standings" :key="p.id" :class="{ top: p.winner }">
       <span class="place">{{ p.placement }}</span>
       <span class="who">{{ p.name }}</span>

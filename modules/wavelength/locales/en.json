@@ -1,0 +1,132 @@
+{
+  "entry": {
+    "noun": "game of Wavelength",
+    "intro": "Give a clue to a hidden spot between two opposites, and see how close your friends can turn the dial. You get a code to share."
+  },
+  "leaveConfirm": "You will not be able to come back.",
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends.",
+    "yourColour": "Your marker colour",
+    "chooseColour": "Choose marker colour {colour}",
+    "ownColour": "Your own colour",
+    "anyColour": "Any colour",
+    "chooseAnyColour": "Choose any marker colour",
+    "unlockColours": "Unlock any colour in the shop. Set your usual one under Profile.",
+    "howYouPlay": "How you play",
+    "mode": "Game mode",
+    "solo": "Everyone for themselves",
+    "soloText": "Each guesser turns their own dial. The closest guess scores the most.",
+    "team": "One team",
+    "teamText": "The guessers share one marker, move it together and anyone locks it in. Everyone scores the same.",
+    "hostChooses": "The host chooses.",
+    "length": "Length of the game",
+    "fewerTurns": "Fewer turns",
+    "moreTurns": "More turns",
+    "turnsEach": "{count} turn each | {count} turns each",
+    "totalTurns": "{turns} turns in all with {players} players. Everyone takes turns as the psychic."
+  },
+  "dial": {
+    "label": "A dial from {left} to {right}",
+    "slider": "Turn the dial from {left} to {right}"
+  },
+  "table": {
+    "players": "Players",
+    "psychicTag": "psychic",
+    "guessedTag": "guessed",
+    "sideLabel": "Clue and guess",
+    "teamMarkerNote": "One marker for the whole team.",
+    "bandsLegend": "The target has three bands: 4, 3 and 2 points.",
+    "yourColour": "your colour",
+    "cluePsychic": "{name}'s clue",
+    "onlyYouSeeTarget": "Only you can see the target.",
+    "clueWillAppear": "The clue will appear here.",
+    "cluePlaceholder": "Type your clue",
+    "clueLabel": "Clue",
+    "sendClue": "Send clue",
+    "lockIn": "Lock in",
+    "lockInGuess": "Lock in guess",
+    "nothingYet": "Nothing has happened yet.",
+    "thePsychic": "The psychic",
+    "yourTeam": "Your team"
+  },
+  "facts": {
+    "turn": "Turn {n} of {total}",
+    "gameOver": "Game over",
+    "psychic": "Psychic: {name}"
+  },
+  "popup": {
+    "plays": "Plays",
+    "score": "Score",
+    "colour": "Colour",
+    "now": "Now",
+    "stagePsychic": "the psychic this turn",
+    "hasGuessed": "has guessed",
+    "stillToGuess": "still to guess"
+  },
+  "status": {
+    "abandoned": "The game was abandoned.",
+    "teamFinal": "Your team scored {score} of {max} points.",
+    "wins": "{names} wins with {score} points. | {names} win with {score} points.",
+    "teamTurn": "Your team scores {points} for this turn.",
+    "psychicScores": "{name} scores {points} for the clue.",
+    "youArePsychic": "You are the psychic: the target is shown on your dial. Type a clue that points to it, without numbers or the words on the dial.",
+    "waitingClue": "Waiting for {name}'s clue.",
+    "psychicTeam": "Your clue is in. Your team is moving the marker together. You cannot see it until the reveal.",
+    "teamMove": "Move the marker together until you all agree, then anyone can lock it in.",
+    "psychicWaiting": "Your clue is in. Waiting for everyone to guess ({n} of {total}).",
+    "guessLocked": "Guess locked in. Waiting for the others ({n} of {total}).",
+    "guessNow": "Your turn: read the clue and turn the dial to where you think the target is.",
+    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
+    "leaveHint": "Use Leave game (top right) to go back to the menu.",
+    "finishedHint": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every turn again.",
+    "everyGuess": "Every guess is on the dial.",
+    "waitingNext": "Waiting for {names} to be ready for the next turn.",
+    "waitingFinal": "Waiting for {names} to be ready for the final scores.",
+    "closeScores": "Close the scores when you are ready to carry on.",
+    "waitTeamLock": "Wait for your team to lock in.",
+    "teamDrag": "Drag on the dial, or use the slider. Everyone sees the marker move.",
+    "guessedCount": "{n} of {total} have guessed.",
+    "dragHint": "Drag on the dial, or use the slider under it.",
+    "lockHint": "Lock it in when you are ready."
+  },
+  "reveal": {
+    "label": "This turn",
+    "clueLine": "{name}'s clue: “{clue}” · {name} scores {points}.",
+    "teamLocked": "{name} locked it in for the team: +{points} for everyone.",
+    "bullseye": "Bullseye",
+    "inTarget": "In the target",
+    "missed": "Missed"
+  },
+  "log": {
+    "turnStart": "Turn {n} of {total}: {name} is the psychic, between {left} and {right}.",
+    "clue": "{name} gave the clue “{clue}”.",
+    "guessed": "{name} guessed.",
+    "teamLock": "{name} locked in the marker for the team (+{points} for everyone).",
+    "bullseye": "{name} hit the bullseye (+{points}).",
+    "inTarget": "{name} landed in the target (+{points}).",
+    "missed": "{name} missed (+{points}).",
+    "reveal": "The target is revealed. {name} scores {points} for the clue.",
+    "gameOver": "The game is over: {names} wins. | The game is over: {names} win.",
+    "abandoned": "The game was abandoned."
+  },
+  "turnLabel": "Turn {n}: {name}",
+  "notes": {
+    "bullseye": "bullseye",
+    "inTarget": "in the target",
+    "missed": "missed",
+    "psychic": "psychic"
+  },
+  "errors": {
+    "notAMode": "That is not a way to play.",
+    "clueGiven": "The clue has already been given.",
+    "psychicOnlyClue": "Only the psychic gives the clue.",
+    "typeClue": "Type a clue first.",
+    "teamOneMarker": "Your team has one marker: move it together, then lock it in.",
+    "psychicCannotGuess": "You are the psychic, so you cannot guess.",
+    "dialRange": "Turn the dial to a place between the two ends.",
+    "notATeamGame": "This game is not played in a team.",
+    "psychicTeamMarker": "You are the psychic: your team moves the marker.",
+    "markerRange": "Move the marker to a place between the two ends.",
+    "moveMarkerFirst": "Move the marker first."
+  }
+}

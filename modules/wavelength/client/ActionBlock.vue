@@ -6,6 +6,8 @@
 // Slots: none.
 // Emits: update:clueText, send-clue and lock-in.
 // Side effects: none beyond the emits.
+import { useGameText } from '../../../src/useGameText.js';
+
 defineProps({
   clueText: { type: String, default: '' },
   isPsychic: { type: Boolean, default: false },
@@ -15,15 +17,16 @@ defineProps({
   ready: { type: Boolean, default: false },
 });
 defineEmits(['update:clueText', 'send-clue', 'lock-in']);
+const { t } = useGameText();
 </script>
 
 <template>
   <div class="block action">
     <form v-if="isPsychic && clueTime" class="clue-form row" @submit.prevent="$emit('send-clue')">
-      <input :value="clueText" maxlength="80" placeholder="Type your clue" aria-label="Clue" @input="$emit('update:clueText', $event.target.value)" />
-      <button type="submit" class="primary" :disabled="!clueText.trim()">Send clue</button>
+      <input :value="clueText" maxlength="80" :placeholder="t('table.cluePlaceholder')" :aria-label="t('table.clueLabel')" @input="$emit('update:clueText', $event.target.value)" />
+      <button type="submit" class="primary" :disabled="!clueText.trim()">{{ t('table.sendClue') }}</button>
     </form>
-    <button v-else-if="canGuess" class="primary wide" :disabled="!ready" @click="$emit('lock-in')">{{ team ? 'Lock in' : 'Lock in guess' }}</button>
+    <button v-else-if="canGuess" class="primary wide" :disabled="!ready" @click="$emit('lock-in')">{{ team ? t('table.lockIn') : t('table.lockInGuess') }}</button>
   </div>
 </template>
 

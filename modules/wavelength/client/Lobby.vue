@@ -7,8 +7,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // True if you are the host (only the host may change the options).
 const isHost = computed(() => props.state.hostId === props.state.you);
@@ -27,8 +29,8 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
 <template>
   <div class="stack">
     <section class="panel stack">
-      <h2>Waiting for players</h2>
-      <p class="muted">Share this code, or the invite link, with your friends.</p>
+      <h2>{{ $t('lobby.title') }}</h2>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -46,7 +48,7 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
     >
       <template #lead="{ player }"><span class="chip" :style="{ background: player.colour }" /></template>
       <div class="stack">
-        <span class="muted">Your marker colour</span>
+        <span class="muted">{{ t('lobby.yourColour') }}</span>
         <div class="row">
           <button
             v-for="c in state.colours"
@@ -55,45 +57,45 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
             :class="{ chosen: mine?.colour === c }"
             :style="{ background: c }"
             :disabled="taken.has(c) && mine?.colour !== c"
-            :aria-label="`Choose marker colour ${c}`"
+            :aria-label="t('lobby.chooseColour', { colour: c })"
             @click="send('colour', { colour: c })"
           />
-          <span v-if="mine && !state.colours.includes(mine.colour)" class="swatch-pick chosen" :style="{ background: mine.colour }" title="Your own colour" />
+          <span v-if="mine && !state.colours.includes(mine.colour)" class="swatch-pick chosen" :style="{ background: mine.colour }" :title="t('lobby.ownColour')" />
           <label v-if="state.canCustomColour" class="custom muted">
-            Any colour
-            <input type="color" class="picker" :value="mine?.colour" aria-label="Choose any marker colour" @change="send('colour', { colour: $event.target.value })" />
+            {{ t('lobby.anyColour') }}
+            <input type="color" class="picker" :value="mine?.colour" :aria-label="t('lobby.chooseAnyColour')" @change="send('colour', { colour: $event.target.value })" />
           </label>
         </div>
-        <span v-if="!state.canCustomColour" class="muted">Unlock any colour in the shop. Set your usual one under Profile.</span>
+        <span v-if="!state.canCustomColour" class="muted">{{ t('lobby.unlockColours') }}</span>
       </div>
     </PlayerListPanel>
 
     <section class="panel stack">
-      <h3>How you play</h3>
-      <div class="row modes" role="radiogroup" aria-label="Game mode">
+      <h3>{{ t('lobby.howYouPlay') }}</h3>
+      <div class="row modes" role="radiogroup" :aria-label="t('lobby.mode')">
         <label class="mode" :class="{ chosen: state.mode !== 'team' }">
           <input type="radio" name="mode" value="solo" :checked="state.mode !== 'team'" :disabled="!isHost" @change="send('mode', { mode: 'solo' })" />
-          <strong>Everyone for themselves</strong>
-          <span class="muted">Each guesser turns their own dial. The closest guess scores the most.</span>
+          <strong>{{ t('lobby.solo') }}</strong>
+          <span class="muted">{{ t('lobby.soloText') }}</span>
         </label>
         <label class="mode" :class="{ chosen: state.mode === 'team' }">
           <input type="radio" name="mode" value="team" :checked="state.mode === 'team'" :disabled="!isHost" @change="send('mode', { mode: 'team' })" />
-          <strong>One team</strong>
-          <span class="muted">The guessers share one marker, move it together and anyone locks it in. Everyone scores the same.</span>
+          <strong>{{ t('lobby.team') }}</strong>
+          <span class="muted">{{ t('lobby.teamText') }}</span>
         </label>
       </div>
-      <p v-if="!isHost" class="muted">The host chooses.</p>
-      <h3>Length of the game</h3>
+      <p v-if="!isHost" class="muted">{{ t('lobby.hostChooses') }}</p>
+      <h3>{{ t('lobby.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.turnsEach <= turns.min" aria-label="Fewer turns" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
-        <strong>{{ state.turnsEach }} {{ state.turnsEach === 1 ? 'turn' : 'turns' }} each</strong>
-        <button :disabled="!isHost || state.turnsEach >= turns.max" aria-label="More turns" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.turnsEach <= turns.min" :aria-label="t('lobby.fewerTurns')" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
+        <strong>{{ t('lobby.turnsEach', { count: state.turnsEach }, state.turnsEach) }}</strong>
+        <button :disabled="!isHost || state.turnsEach >= turns.max" :aria-label="t('lobby.moreTurns')" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
       </div>
-      <p class="muted">{{ total }} turns in all with {{ state.players.length }} players. Everyone takes turns as the psychic.</p>
+      <p class="muted">{{ t('lobby.totalTurns', { turns: total, players: state.players.length }) }}</p>
       <div class="row">
-        <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">Start the game</button>
-        <span v-if="isHost && !canStart" class="muted">You need at least {{ state.limits.min }} players.</span>
-        <span v-if="!isHost" class="muted">Waiting for the host to start.</span>
+        <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">{{ $t('lobby.start') }}</button>
+        <span v-if="isHost && !canStart" class="muted">{{ t('errors.minPlayers', { min: state.limits.min }) }}</span>
+        <span v-if="!isHost" class="muted">{{ $t('lobby.waitingForHost') }}</span>
       </div>
     </section>
   </div>

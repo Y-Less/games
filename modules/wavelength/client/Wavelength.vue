@@ -10,6 +10,7 @@ import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import { newEntries } from './moveLog.js';
 import Table from './Table.vue';
@@ -20,6 +21,7 @@ const props = defineProps({
   search: { type: String, default: '' },
   setSearch: { type: Function, default: () => {} },
 });
+const { t } = useGameText();
 
 const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
 /**
@@ -42,18 +44,18 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
-  leaveConfirm: (state) => ['clue', 'guessing', 'reveal'].includes(state.phase) ? 'You will not be able to come back.' : '',
+  leaveConfirm: (state) => (['clue', 'guessing', 'reveal'].includes(state.phase) ? t('leaveConfirm') : ''),
   onState,
 });
 </script>
 
 <template>
   <div class="wavelength stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Wavelength"
-      intro="Give a clue to a hidden spot between two opposites, and see how close your friends can turn the dial. You get a code to share."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

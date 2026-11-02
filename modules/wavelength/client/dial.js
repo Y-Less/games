@@ -69,7 +69,8 @@ export function positionAt(x, y) {
 export function wedgePath(from, to, radius = VIEW.radius) {
   const a = pointAt(from, radius);
   const b = pointAt(to, radius);
-  return `M ${VIEW.cx} ${VIEW.cy} L ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${radius} ${radius} 0 0 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)} Z`;
+  // One SVG path command per step: move to the centre, line out to the start, arc round to the end, close.
+  return ['M', VIEW.cx, VIEW.cy, 'L', a.x.toFixed(2), a.y.toFixed(2), 'A', radius, radius, 0, 0, 1, b.x.toFixed(2), b.y.toFixed(2), 'Z'].join(' ');
 }
 
 /**

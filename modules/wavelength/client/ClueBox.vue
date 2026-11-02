@@ -5,20 +5,23 @@
 // Slots: none.
 // Emits: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
+
 defineProps({
   clue: { type: String, default: '' },
   psychicName: { type: String, required: true },
   isPsychic: { type: Boolean, default: false },
   playing: { type: Boolean, default: false },
 });
+const { t } = useGameText();
 </script>
 
 <template>
   <div class="block clue-block">
     <span class="muted caption">
-      <template v-if="clue">{{ psychicName }}'s clue</template>
-      <template v-else-if="isPsychic && playing">Only you can see the target.</template>
-      <template v-else-if="playing">The clue will appear here.</template>
+      <template v-if="clue">{{ t('table.cluePsychic', { name: psychicName }) }}</template>
+      <template v-else-if="isPsychic && playing">{{ t('table.onlyYouSeeTarget') }}</template>
+      <template v-else-if="playing">{{ t('table.clueWillAppear') }}</template>
     </span>
     <p class="clue" :class="{ hidden: !clue }">&ldquo;{{ clue || '...' }}&rdquo;</p>
   </div>

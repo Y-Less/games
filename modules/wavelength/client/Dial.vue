@@ -9,6 +9,7 @@
 // Slots: none.
 // Side effects: while a drag is in progress it captures the pointer on the SVG, and releases it afterwards; nothing else.
 import { computed, ref } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { VIEW, clampPosition, pointAt, positionAt, targetWedges, wedgePath } from './dial.js';
 
 const props = defineProps({
@@ -24,6 +25,7 @@ const props = defineProps({
   reserveSlider: { type: Boolean, default: true }, // keep the slider's room under a dial that is not being turned
 });
 const emit = defineEmits(['pick']);
+const { t } = useGameText();
 
 const svg = ref(null); // the SVG element, needed to convert pointer coordinates to dial units
 const dragging = ref(false); // true while the pointer is held down on the dial
@@ -104,7 +106,7 @@ const up = (event) => {
       :width="width"
       :height="height"
       role="img"
-      :aria-label="`A dial from ${left} to ${right}`"
+      :aria-label="t('dial.label', { left, right })"
       @pointerdown="down"
       @pointermove="move"
       @pointerup="up"
@@ -139,7 +141,7 @@ const up = (event) => {
       max="100"
       step="0.5"
       :value="selected ?? 50"
-      :aria-label="`Turn the dial from ${left} to ${right}`"
+      :aria-label="t('dial.slider', { left, right })"
       @input="emit('pick', clampPosition($event.target.valueAsNumber))"
     />
   </div>

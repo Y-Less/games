@@ -6,6 +6,7 @@
 // Slots: none.
 // Emits: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
 import Dial from './Dial.vue';
 
 defineProps({
@@ -14,20 +15,19 @@ defineProps({
   nameOf: { type: Function, required: true },
   colourOf: { type: Function, required: true },
 });
+const { t } = useGameText();
 </script>
 
 <template>
-  <section class="reveal stack" aria-label="This turn">
+  <section class="reveal stack" :aria-label="t('reveal.label')">
     <Dial :left="state.spectrum.left" :right="state.spectrum.right" :target="state.result.target" :bands="state.bands" :guesses="markers" :width="320" :reserve-slider="false" />
-    <p class="muted clue-line">{{ state.result.psychicName }}'s clue: <strong>&ldquo;{{ state.clue }}&rdquo;</strong> &middot; {{ state.result.psychicName }} scores {{ state.result.psychicPoints }}.</p>
-    <p v-if="state.result.team" class="muted clue-line">
-      {{ nameOf(state.result.lockedBy) }} locked it in for the team: <strong>+{{ state.result.psychicPoints }} for everyone</strong>.
-    </p>
+    <p class="muted clue-line">{{ t('reveal.clueLine', { name: state.result.psychicName, clue: state.clue, points: state.result.psychicPoints }) }}</p>
+    <p v-if="state.result.team" class="muted clue-line">{{ t('reveal.teamLocked', { name: nameOf(state.result.lockedBy), points: state.result.psychicPoints }) }}</p>
     <ul v-else class="entries">
       <li v-for="e in state.result.entries" :key="e.id" class="row">
         <span class="dot" :style="{ background: colourOf(e.id) }" />
         <span class="name">{{ e.name }}</span>
-        <span :class="e.bullseye ? 'exact' : e.points ? 'close' : 'miss'">{{ e.bullseye ? 'Bullseye' : e.points ? 'In the target' : 'Missed' }}</span>
+        <span :class="e.bullseye ? 'exact' : e.points ? 'close' : 'miss'">{{ e.bullseye ? t('reveal.bullseye') : e.points ? t('reveal.inTarget') : t('reveal.missed') }}</span>
         <strong>+{{ e.points }}</strong>
       </li>
     </ul>

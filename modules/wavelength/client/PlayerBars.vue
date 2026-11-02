@@ -6,6 +6,7 @@
 // Emits: none.
 // Side effects: none.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { barSpan } from './layout.js';
 
 const props = defineProps({
@@ -15,19 +16,20 @@ const props = defineProps({
   guessing: { type: Boolean, default: false },
   team: { type: Boolean, default: false },
 });
+const { t } = useGameText();
 
 // Grid placement: how many of the frame's columns each bar spans, given how many bars there are.
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(props.players.length)}` }));
 </script>
 
 <template>
-  <ul v-if="players.length" class="bars" aria-label="Players">
+  <ul v-if="players.length" class="bars" :aria-label="t('table.players')">
     <li v-for="p in players" :key="p.id" class="bar" :class="{ away: !p.online, psychic: p.id === psychic && !ended }" :style="barStyle">
       <span class="dot" :style="{ background: p.colour }" />
       <strong class="who">{{ p.name }}</strong>
-      <span v-if="p.id === psychic && !ended" class="tag psychic-tag">psychic</span>
-      <span v-else-if="guessing && !team && p.guessed" class="tag done">guessed</span>
-      <span v-if="!p.online" class="tag away">away</span>
+      <span v-if="p.id === psychic && !ended" class="tag psychic-tag">{{ t('table.psychicTag') }}</span>
+      <span v-else-if="guessing && !team && p.guessed" class="tag done">{{ t('table.guessedTag') }}</span>
+      <span v-if="!p.online" class="tag away">{{ $t('common.away') }}</span>
       <span class="score">{{ p.score }}</span>
     </li>
   </ul>

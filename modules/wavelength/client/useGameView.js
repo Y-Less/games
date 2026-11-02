@@ -1,6 +1,9 @@
 // What the Wavelength table knows about the game from the server's view, for the player looking at it: the phase, the
 // roles, who has guessed, the standings and the markers to draw. Nothing here changes anything.
+// The few words it works out (a missing player's name, the psychic, the team's marker) come from the game's locale file
+// through useGameText (src/useGameText.js), so they read in the player's language.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 /** The colour of the shared team marker (yellow, distinct from every player's own marker colour). */
 export const TEAM_MARKER = '#ffd400';
@@ -17,6 +20,7 @@ export const TEAM_MARKER = '#ffd400';
  *   the functions nameOf(id), colourOf(id) and teamPin()
  */
 export function useGameView(getState) {
+  const { t } = useGameText();
   // The server view itself.
   const state = computed(getState);
   const team = computed(() => state.value.mode === 'team'); // the guessers share one marker, move it together and lock it in
@@ -35,7 +39,7 @@ export function useGameView(getState) {
   // True while the target and everyone's guesses are shown.
   const reveal = computed(() => phase.value === 'reveal');
   // The psychic's name, or "The psychic" if they cannot be found.
-  const psychicName = computed(() => state.value.players.find((p) => p.id === state.value.psychic)?.name ?? 'The psychic');
+  const psychicName = computed(() => state.value.players.find((p) => p.id === state.value.psychic)?.name ?? t('table.thePsychic'));
   // Everyone except the psychic.
   const guessers = computed(() => state.value.players.filter((p) => p.id !== state.value.psychic));
   // How many guessers have locked in.
@@ -65,7 +69,7 @@ export function useGameView(getState) {
    *
    * Side effects: none.
    */
-  const nameOf = (id) => state.value.players.find((p) => p.id === id)?.name ?? 'Someone';
+  const nameOf = (id) => state.value.players.find((p) => p.id === id)?.name ?? t('common.someone');
   /**
    * A player's marker colour, or white when they are not in the game.
    *
@@ -82,7 +86,7 @@ export function useGameView(getState) {
    *
    * Side effects: none.
    */
-  const teamPin = () => (state.value.marker === null ? [] : [{ id: 'team', position: state.value.marker, colour: TEAM_MARKER, name: 'Your team' }]);
+  const teamPin = () => (state.value.marker === null ? [] : [{ id: 'team', position: state.value.marker, colour: TEAM_MARKER, name: t('table.yourTeam') }]);
   // The markers shown in the scoreboard's turn pop-up: the team's one marker (in the team colour it already carries), or
   // each player's guess in their own colour.
   const popupMarkers = computed(() => (team.value ? teamPin() : (state.value.result?.entries ?? [])).map((e) => ({ id: e.id, position: e.position, name: e.name, colour: e.colour ?? colourOf(e.id) })));

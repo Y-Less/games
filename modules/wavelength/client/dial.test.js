@@ -1,8 +1,14 @@
 // The dial's geometry, the layout sums and the "Recent moves" of Wavelength.
 import { describe, expect, it } from 'vitest';
+import { messageText } from '../../../src/messageText.js';
 import { VIEW, angleOf, pointAt, positionAt, targetWedges, wedgePath } from './dial.js';
 import { NARROW, dialSpan, dialWidth } from './layout.js';
 import { newEntries } from './moveLog.js';
+
+/** A log line, as the table puts it into words (every line is a message, never a sentence). */
+const words = (line) => messageText(line, 'wavelength');
+/** The lines a step adds, in words. */
+const said = (prev, next) => newEntries(prev, next).map(words);
 
 describe('dial geometry', () => {
   it('puts 0 on the left, 100 on the right and 50 straight up', () => {
@@ -56,26 +62,27 @@ describe('recent moves', () => {
 
   it('announces a turn once, then the clue, the guesses and the result', () => {
     const first = state();
-    expect(newEntries(null, first)).toEqual(['Turn 1 of 4: Ann is the psychic, between Cold and Hot.']);
+    expect(newEntries(null, first)).toEqual([{ key: 'log.turnStart', params: { n: 1, total: 4, name: 'Ann', left: 'Cold', right: 'Hot' } }]);
+    expect(said(null, first)).toEqual(['Turn 1 of 4: Ann is the psychic, between Cold and Hot.']);
     expect(newEntries(first, state())).toEqual([]);
     const clued = state({ phase: 'guessing', clue: 'a hot bath' });
-    expect(newEntries(first, clued)).toEqual(['Ann gave the clue “a hot bath”.']);
+    expect(said(first, clued)).toEqual(['Ann gave the clue “a hot bath”.']);
     const guessed = { ...clued, players: [players()[0], { ...players()[1], guessed: true }] };
-    expect(newEntries(clued, guessed)).toEqual(['Bob guessed.']);
+    expect(said(clued, guessed)).toEqual(['Bob guessed.']);
     const revealed = { ...guessed, phase: 'reveal', result: { psychicName: 'Ann', psychicPoints: 3, entries: [{ name: 'Bob', points: 4, bullseye: true }] } };
-    expect(newEntries(guessed, revealed)).toEqual(['Bob hit the bullseye (+4).', 'The target is revealed. Ann scores 3 for the clue.']);
+    expect(said(guessed, revealed)).toEqual(['Bob hit the bullseye (+4).', 'The target is revealed. Ann scores 3 for the clue.']);
   });
 
   it('describes a team lock-in as one line', () => {
     const guessing = state({ phase: 'guessing', clue: 'x', mode: 'team' });
     const revealed = { ...guessing, phase: 'reveal', result: { team: true, lockedBy: 2, psychicName: 'Ann', psychicPoints: 3, entries: [{ name: 'Bob', points: 3 }] } };
-    expect(newEntries(guessing, revealed)).toEqual(['Bob locked in the marker for the team (+3 for everyone).', 'The target is revealed. Ann scores 3 for the clue.']);
+    expect(said(guessing, revealed)).toEqual(['Bob locked in the marker for the team (+3 for everyone).', 'The target is revealed. Ann scores 3 for the clue.']);
   });
 
   it('says who won and notes an abandoned game', () => {
     const done = state({ phase: 'finished', players: players({ winner: true }) });
-    expect(newEntries(state({ phase: 'reveal' }), done)).toEqual(['The game is over: Ann wins.']);
-    expect(newEntries(state(), state({ phase: 'abandoned' }))).toEqual(['The game was abandoned.']);
+    expect(said(state({ phase: 'reveal' }), done)).toEqual(['The game is over: Ann wins.']);
+    expect(said(state(), state({ phase: 'abandoned' }))).toEqual(['The game was abandoned.']);
     expect(newEntries(null, { phase: 'lobby' })).toEqual([]);
   });
 });
