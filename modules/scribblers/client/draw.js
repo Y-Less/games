@@ -8,38 +8,12 @@
 // fingerprinting), and a flood fill reads the pixels back.  So the buffer is the truth and the canvas is only shown.
 // Depends on: nothing (a browser's ImageData and CanvasRenderingContext2D are enough).
 
-/** The colours a drawing may use, in the order the toolbox shows them; an instruction names one by its place here. */
-export const PALETTE = [
-  '#ffffff',
-  '#c1c1c1',
-  '#ef130b',
-  '#ff7100',
-  '#ffe400',
-  '#00cc00',
-  '#00b2ff',
-  '#231fd3',
-  '#a300ba',
-  '#d37caa',
-  '#a0522d',
-  '#592f2a',
-  '#ecbcb4',
-  '#000000',
-  '#4c4c4c',
-  '#740b07',
-  '#c23800',
-  '#e8a200',
-  '#005510',
-  '#00569e',
-  '#0e0865',
-  '#550069',
-  '#a75574',
-  '#63300d',
-  '#492f31',
-  '#d1a3a4',
-];
+// The palette and the colour white are the protocol's, not the canvas's: they are in ../drawing.js, beside the
+// instructions that name a colour by its place in them.  They are passed on from here so that a component drawing on
+// the board needs only this file.
+import { PALETTE, WHITE } from '../drawing.js';
 
-/** White: what the board starts as, and what the rubber draws with. */
-export const WHITE = 0;
+export { PALETTE, WHITE };
 
 /**
  * A palette colour as red, green and blue.

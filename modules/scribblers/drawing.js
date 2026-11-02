@@ -15,8 +15,45 @@
 
 /** The drawing board's own coordinate space, which every instruction speaks. */
 export const BOARD = { width: 1600, height: 900 };
+
+/**
+ * The colours a drawing may use, in the order the toolbox shows them: an instruction names one by its place here, which
+ * is what scribble.rs's protocol does too (it saves sending three numbers where one will do).  The bright thirteen come
+ * first, then their darker twins.
+ */
+export const PALETTE = [
+  '#ffffff',
+  '#c1c1c1',
+  '#ef130b',
+  '#ff7100',
+  '#ffe400',
+  '#00cc00',
+  '#00b2ff',
+  '#231fd3',
+  '#a300ba',
+  '#d37caa',
+  '#a0522d',
+  '#592f2a',
+  '#ecbcb4',
+  '#000000',
+  '#4c4c4c',
+  '#740b07',
+  '#c23800',
+  '#e8a200',
+  '#005510',
+  '#00569e',
+  '#0e0865',
+  '#550069',
+  '#a75574',
+  '#63300d',
+  '#492f31',
+  '#d1a3a4',
+];
+
+/** White: what the board starts as, and what the rubber draws with. */
+export const WHITE = 0;
 /** How many colours the palette has (an instruction names a colour by its place in it). */
-export const COLOURS = 26;
+export const COLOURS = PALETTE.length;
 /** The thinnest and thickest a stroke may be, in board units. */
 export const BRUSH = { min: 8, max: 32 };
 /** How far outside the board a stroke may reach (a pen dragged past the edge). */
