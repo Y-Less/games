@@ -89,7 +89,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   assert.deepEqual(await ann.send('resume'), { ok: true, code: null });
   assert.equal(ann.state, null, 'no game to resume');
   assert.equal((await ann.send('join', { code: 'nonsense' })).ok, false);
-  assert.match((await ann.send('join', { code: 'boss-aware-you' })).error, /No game has that code/);
+  assert.equal((await ann.send('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
 
   const created = await ann.send('create', { turnsEach: 1 });
   assert.ok(created.ok);
@@ -168,10 +168,10 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
     for (const p of players) {
       const board = (await p.until((s) => s.phase === 'reveal' && s.turn === turn, 'the reveal')).scoreboard;
       assert.equal(board.rounds.length, turn, 'every view has the history');
-      assert.equal(board.rounds.at(-1).label, `Turn ${turn}: ${accounts.find((a) => a.id === hinter.state.you).name}`);
+      assert.deepEqual(board.rounds.at(-1).label, { key: 'scoreboard.turn', params: { n: turn, name: accounts.find((a) => a.id === hinter.state.you).name } });
       assert.equal(board.rounds.at(-1).deltas[guessing[0].state.you], 9);
       assert.equal(board.rounds.at(-1).deltas[hinter.state.you], 3);
-      assert.equal(board.rounds.at(-1).notes[hinter.state.you], '1 found it');
+      assert.deepEqual(board.rounds.at(-1).notes[hinter.state.you], { key: 'notes.found', params: { count: 1 } });
       assert.equal(board.players.find((x) => x.isMe).id, p.state.you);
       for (const bp of board.players) {
         assert.equal(bp.score, p.state.players.find((x) => x.id === bp.id).score);
@@ -357,7 +357,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   const board = revealed.scoreboard;
   assert.equal(board.rounds.length, 1);
   assert.deepEqual(board.rounds[0].deltas, { [guesser.state.you]: 5, [hinter.state.you]: 3 });
-  assert.equal(board.rounds[0].notes[guesser.state.you], 'exact in round 1');
+  assert.deepEqual(board.rounds[0].notes[guesser.state.you], [{ key: 'notes.exact', params: { round: 1 } }]);
   await first.close();
   const saved = JSON.parse(fs.readFileSync(roomsFile, 'utf8'));
   assert.equal(saved[0].history.length, 1, 'saved to disk');
@@ -396,7 +396,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   const legacy = await peek(third);
   const { rounds, players } = legacy.bob.scoreboard;
   assert.equal(rounds.length, 1);
-  assert.equal(rounds[0].label, 'Earlier turns');
+  assert.deepEqual(rounds[0].label, { key: 'scoreboard.earlier' });
   for (const p of players) assert.equal(rounds.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score, 'old rooms still add up');
   assert.equal(legacy.bob.phase, 'reveal');
   await third.close();

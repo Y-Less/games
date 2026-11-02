@@ -320,9 +320,13 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   const v = view(3);
   assert.equal(v.scoreboard.rounds.length, 1);
   assert.deepEqual(v.scoreboard.rounds[0], {
-    label: 'Turn 1: player 1',
+    label: { key: 'scoreboard.turn', params: { n: 1, name: 'player 1' } },
     deltas: { 1: 3, 2: 9, 3: 2 },
-    notes: { 1: '1 found it', 2: 'exact in round 1, exact in round 2', 3: 'close in round 1' },
+    notes: {
+      1: { key: 'notes.found', params: { count: 1 } },
+      2: [{ key: 'notes.exact', params: { round: 1 } }, { key: 'notes.exact', params: { round: 2 } }],
+      3: [{ key: 'notes.close', params: { round: 1 } }],
+    },
   });
   assert.deepEqual(v.scoreboard.players.map((p) => [p.id, p.score, p.isMe]), [[1, 3, false], [2, 9, false], [3, 2, true]]);
   assert.equal(v.scoreboard.lowIsBetter, false);
@@ -338,8 +342,8 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
   game.guess(room, 1, 'A1');
   game.guess(room, 3, 'A1');
   game.advance(room, 2, Math.random, nameOf);
-  assert.equal(view(1).scoreboard.rounds[1].label, 'Turn 2: player 2');
-  assert.equal(view(1).scoreboard.rounds[1].notes[2], 'nobody found it');
+  assert.deepEqual(view(1).scoreboard.rounds[1].label, { key: 'scoreboard.turn', params: { n: 2, name: 'player 2' } });
+  assert.deepEqual(view(1).scoreboard.rounds[1].notes[2], { key: 'notes.found', params: { count: 0 } });
   assert.deepEqual(sums(view(1)), Object.fromEntries(room.players.map((p) => [p.id, p.score])));
 });
 
@@ -369,7 +373,7 @@ test('migrate: an old room without a history gets one, with the earlier points a
   room.players[0].score = 3;
   delete room.history;
   game.migrate(room);
-  assert.deepEqual(room.history, [{ label: 'Earlier turns', deltas: { 1: 3, 2: 9 }, notes: {} }]);
+  assert.deepEqual(room.history, [{ label: { key: 'scoreboard.earlier' }, deltas: { 1: 3, 2: 9 }, notes: {} }]);
   const v = game.viewFor(room, 2);
   assert.equal(v.scoreboard.rounds.length, 1);
   game.migrate(room);
@@ -461,7 +465,7 @@ test('kick refuses a finished game and removes nobody', () => {
   })();
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'gameOverNobodyToRemove' });
   assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 

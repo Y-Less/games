@@ -155,12 +155,13 @@ export function checkRun(states, what = 'run') {
  * @param {{ready: Function}} game  the game module (its ready(room, id, rng) is called per player)
  * @param {object} room  the room, in the reveal phase for this to do anything
  * @param {() => number} rng  random source passed through to the game (the next turn picks a tint)
- * @returns {{ok: boolean, error?: string}} the last reply from game.ready, or a failure if nobody was ready
+ * @returns {{ok: boolean, error?: string}} the last reply from game.ready, or the refusal code for a room with no
+ *   scores to close, if nobody was ready
  *
  * Side effects: marks every player ready in the room, which can start the next turn (mutates the room).
  */
 export function readyAll(game, room, rng) {
-  let last = { ok: false, error: 'nobody' };
+  let last = { ok: false, error: 'noScoresToClose' };
   for (const p of [...room.players]) {
     if (room.phase !== 'reveal') break;
     last = game.ready(room, p.id, rng);

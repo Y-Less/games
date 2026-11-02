@@ -33,7 +33,7 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   assert.equal(room.phase, 'finished');
   const before = JSON.stringify(room);
   assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, replaced: false, changed: false });
-  assert.deepEqual(game.removeHuman(room, 999, Math.random), { ok: false, error: 'You are not in this game.' }, 'a stranger is told so, and nothing changes');
+  assert.deepEqual(game.removeHuman(room, 999, Math.random), { ok: false, error: 'notInGame' }, 'a stranger is told so, and nothing changes');
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.isLive(room), false);
 });
@@ -95,13 +95,13 @@ test('a hinter who leaves at the reveal does not hold the others up; at the seco
 test('advancing from the lobby, or from a phase with a stranger, is refused with a reason', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
-  assert.match(game.advance(room, 1, Math.random).error, /nothing to continue/);
+  assert.equal(game.advance(room, 1, Math.random).error, 'nothingToContinue');
   assert.equal(game.guess(room, 2, 'A1').ok, false);
   assert.equal(game.setHint(room, 1, 'x').ok, false);
   game.start(room, 1, first);
   assert.equal(game.addHuman(room, 2).ok, true, 'a player already in is told ok');
-  assert.match(game.addHuman(room, 3).error, /already started/);
-  assert.match(game.guess(room, 3, 'A1').error, /not in this game/);
+  assert.equal(game.addHuman(room, 3).error, 'thatGameStarted');
+  assert.equal(game.guess(room, 3, 'A1').error, 'notInGame');
 });
 
 test('viewFor a finished game gives placements and shows the tint', () => {
@@ -143,7 +143,7 @@ test('sockets: the host cannot send anyone away once the game has ended; the res
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
   const reply = await ann.call('kick', { userId: bob.id });
-  assert.deepEqual(reply, { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(reply, { ok: false, error: 'gameOverNobodyToRemove' });
   await sleep(50);
   assert.equal(ann.state.players.length, 2, 'the final standings still list both');
   assert.equal(ann.state.phase, 'finished');

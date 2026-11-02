@@ -79,7 +79,7 @@ test('two people try for the last seat: exactly one gets it', async (t) => {
   const [x, y, z] = await Promise.all(['xan', 'yul', 'zed'].map((n) => site.person(n).open()));
   const replies = await Promise.all([x, y, z].map((p) => p.call('join', { code: g.code })));
   assert.equal(replies.filter((r) => r.ok).length, 1, 'one seat, one winner');
-  assert.equal(replies.filter((r) => !r.ok).every((r) => /full/.test(r.error)), true);
+  assert.equal(replies.filter((r) => !r.ok).every((r) => r.error === 'gameFull'), true);
   await sleep(40);
   assert.equal(g.host.state.players.length, 8);
   const losers = [x, y, z].filter((_, i) => !replies[i].ok);
@@ -217,7 +217,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   await until(() => ann.state === null && annTab.state === null, 'both tabs sent out');
   await until(() => bob.state.hostId === bob.id && bob.state.players.length === 1, 'bob hosts');
   assert.equal((await annTab.call('start', {})).ok, false);
-  assert.equal((await annTab.call('guess', { cell: 'A1' })).error, 'You are not in a game.');
+  assert.equal((await annTab.call('guess', { cell: 'A1' })).error, 'notInAnyGame');
 
   // The last person leaves: the room is gone, even for a second socket that is still attached to it.
   const bobTab = await bob.twin();
@@ -226,7 +226,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   assert.equal((await bob.call('leave', {})).ok, true);
   await until(() => bob.state === null && bobTab.state === null, 'room gone for both tabs');
   for (const p of [ann, bob, bobTab]) {
-    assert.deepEqual(await p.call('join', { code: g.code }), { ok: false, error: 'No game has that code.' });
+    assert.deepEqual(await p.call('join', { code: g.code }), { ok: false, error: 'noGameWithCode' });
     for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { userId: 1 }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
       const reply = await p.call(event, payload);
       assert.equal(reply.ok, false, event);
@@ -249,12 +249,12 @@ test('leaving a game, or finishing it, frees a player; one live game per account
   const annTab = await ann.twin();
   const refusal = await annTab.call('create', {});
   assert.equal(refusal.ok, false);
-  assert.match(refusal.error, /already in the game/);
-  assert.match(refusal.error, new RegExp(g.code));
+  assert.equal(refusal.error, 'alreadyInGameStart');
+  assert.equal(refusal.params.code, g.code, 'the refusal names the game they are already in');
   await until(() => annTab.state?.code === g.code, 'the second tab is attached to the existing game');
   const refusedJoin = await ann.call('join', { code: dan.code });
   assert.equal(refusedJoin.ok, false);
-  assert.match(refusedJoin.error, /already in the game/);
+  assert.equal(refusedJoin.error, 'alreadyInGameJoin');
   assert.equal((await ann.call('resume', { code: dan.code })).ok, false);
   assert.equal(other.state.players.length, 1, 'dan\'s room is untouched');
   // Joining your own game again is fine, and does not duplicate you.
@@ -268,7 +268,7 @@ test('leaving a game, or finishing it, frees a player; one live game per account
   assert.equal((await bob.call('join', { code: dan.code })).ok, false);
   // A newcomer cannot join a started game.
   const late = await site.person('late').open();
-  assert.match((await late.call('join', { code: g.code })).error, /already started/);
+  assert.equal((await late.call('join', { code: g.code })).error, 'thatGameStarted');
 
   // One of two leaves: a computer player takes their place and the leaver is free at once to start or join something else.
   assert.equal((await bob.call('leave', {})).ok, true);

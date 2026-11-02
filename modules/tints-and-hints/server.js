@@ -65,7 +65,7 @@ export default function (ctx) {
       try {
         ctx.achievements?.collect(id, key, items);
       } catch (error) {
-        ctx.log('could not collect squares:', error.message);
+        ctx.log('could not collect squares', error.message);
       }
     };
     for (const { id, cell } of room.result.entries) {

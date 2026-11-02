@@ -14,7 +14,8 @@ import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell }
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { MARKER_COLOURS, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
@@ -205,7 +206,7 @@ export function setSettings(room, id, settings = {}) {
  * Side effects: none.
  */
 export function playAgain() {
-  return fail('Start a new game from the menu.');
+  return fail('startFromMenu');
 }
 
 /**
@@ -221,11 +222,13 @@ export function playAgain() {
  */
 export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
-  if (!player) return fail('You are not in this game.');
-  if (room.phase !== 'lobby') return fail('Colours can only be chosen before the game starts.');
-  const problem = markerProblem(colour, room.players.filter((p) => p.id !== id).map((p) => p.colour), canCustom);
-  if (problem) return fail(problem);
-  player.colour = normaliseMarker(colour);
+  if (!player) return fail('notInGame');
+  if (room.phase !== 'lobby') return fail('coloursBeforeStart');
+  const wanted = normaliseMarker(colour);
+  if (!wanted) return fail('notAColour');
+  if (!canCustom && !MARKER_COLOURS.includes(wanted)) return fail('colourIsUnlock');
+  if (room.players.some((p) => p.id !== id && p.colour === wanted)) return fail('colourTaken');
+  player.colour = wanted;
   return ok();
 }
 
@@ -240,10 +243,10 @@ export function setColour(room, id, colour, canCustom = false) {
  * Side effects: sets room.turnsEach.
  */
 export function setTurnsEach(room, id, turnsEach) {
-  if (id !== room.hostId) return fail('Only the host can change the settings.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
+  if (id !== room.hostId) return fail('hostOnlySettings');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (!Number.isInteger(turnsEach) || turnsEach < TURNS_EACH.min || turnsEach > TURNS_EACH.max) {
-    return fail(`Choose between ${TURNS_EACH.min} and ${TURNS_EACH.max} turns each.`);
+    return fail('turnsEach', { min: TURNS_EACH.min, max: TURNS_EACH.max });
   }
   room.turnsEach = turnsEach;
   return ok();
@@ -282,9 +285,9 @@ function startTurn(room, rng) {
  * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function start(room, id, rng) {
-  if (id !== room.hostId) return fail('Only the host can start the game.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
-  if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
+  if (id !== room.hostId) return fail('hostOnlyStart');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
+  if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   room.turnsTotal = room.turnsEach * room.players.length;
   room.turn = 0;
   room.collected = null;
@@ -314,9 +317,9 @@ export function start(room, id, rng) {
  * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function setHint(room, id, text) {
-  if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('You cannot give a hint now.');
+  if (id !== room.hinter || !['guessing1', 'guessing2'].includes(room.phase)) return fail('cannotHintNow');
   const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, HINT_LENGTH);
-  if (room.phase === 'guessing1' && !clean) return fail('The first hint is needed: type one before anyone guesses.');
+  if (room.phase === 'guessing1' && !clean) return fail('firstHintNeeded');
   room.hints[room.phase === 'guessing1' ? 'first' : 'second'] = clean;
   return ok();
 }
@@ -333,13 +336,13 @@ export function setHint(room, id, text) {
  * Side effects: adds to room.first or room.second.
  */
 export function guess(room, id, cell) {
-  if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('It is not time to guess.');
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (id === room.hinter) return fail('You are giving the hint, so you cannot guess.');
-  if (room.phase === 'guessing1' && !room.hints.first) return fail('Wait for the first hint.');
-  if (!isCell(cell)) return fail('That is not a square on the grid.');
+  if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('notTimeToGuess');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (id === room.hinter) return fail('hinterCannotGuess');
+  if (room.phase === 'guessing1' && !room.hints.first) return fail('waitForFirstHint');
+  if (!isCell(cell)) return fail('notASquare');
   const list = room.phase === 'guessing1' ? room.first : room.second;
-  if (list.some((g) => g.id === id)) return fail('You have already guessed. Wait for the others.');
+  if (list.some((g) => g.id === id)) return fail('alreadyGuessed');
   list.push({ id, cell });
   return ok();
 }
@@ -415,20 +418,20 @@ function scoreTurn(room, nameOf = String) {
 function recordHistory(room, nameOf, found) {
   const deltas = {};
   const notes = {};
-  /** Describes one scoring guess for the history note, such as 'exact in round 1'. */
-  const phrase = (kind, round) => `${kind} in round ${round}`;
+  /** Describes one scoring guess for the history note, as a message ("exact in round 1"). */
+  const phrase = (kind, round) => msg(`notes.${kind}`, { round });
   for (const p of guessers(room)) {
     const mine = room.result.entries.filter((e) => e.id === p.id);
     if (!mine.length) continue;
     deltas[p.id] = mine.reduce((sum, e) => sum + e.points, 0);
     const scored = mine.filter((e) => e.kind !== 'miss').map((e) => phrase(e.kind, e.round));
-    notes[p.id] = scored.length ? scored.join(', ') : 'missed';
+    notes[p.id] = scored.length ? scored : msg('notes.missed'); // a list of messages: the client joins it as its language joins lists
   }
   if (playerOf(room, room.hinter)) {
     deltas[room.hinter] = room.result.hinterPoints;
-    notes[room.hinter] = found ? `${found} found it` : 'nobody found it';
+    notes[room.hinter] = msg('notes.found', { count: found });
   }
-  room.history.push({ label: `Turn ${room.turn + 1}: ${nameOf(room.hinter)}`, deltas, notes });
+  room.history.push({ label: msg('scoreboard.turn', { n: room.turn + 1, name: nameOf(room.hinter) }), deltas, notes });
 }
 
 /**
@@ -462,7 +465,7 @@ export function migrate(room, nameOf) {
   if (!Array.isArray(room.history)) room.history = [];
   const totals = totalsFromRounds(room.history, room.players.map((p) => p.id));
   const missing = Object.fromEntries(room.players.map((p) => [p.id, p.score - totals[p.id]]).filter(([, diff]) => diff !== 0));
-  if (Object.keys(missing).length) room.history.unshift({ label: 'Earlier turns', deltas: missing, notes: {} });
+  if (Object.keys(missing).length) room.history.unshift({ label: msg('scoreboard.earlier'), deltas: missing, notes: {} });
   return room;
 }
 
@@ -500,10 +503,10 @@ function finishTurn(room, rng) {
  */
 export function advance(room, id, rng, nameOf = String) {
   nameOf = namer(room, nameOf);
-  if (room.phase === 'reveal') return fail('Close the scores to carry on.');
-  if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('There is nothing to continue.');
-  if (id !== room.hinter) return fail('Only the hinter can continue.');
-  if (!allGuessed(room)) return fail('Wait for everyone to guess.');
+  if (room.phase === 'reveal') return fail('closeScoresToCarryOn');
+  if (!['guessing1', 'guessing2'].includes(room.phase)) return fail('nothingToContinue');
+  if (id !== room.hinter) return fail('hinterOnlyContinue');
+  if (!allGuessed(room)) return fail('waitForEveryoneToGuess');
   if (room.phase === 'guessing1') room.phase = 'guessing2';
   else {
     scoreTurn(room, nameOf);
@@ -535,8 +538,8 @@ const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id))
  * Side effects: adds the person to room.ready; may end the turn (see finishTurn).
  */
 export function ready(room, id, rng) {
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (room.phase !== 'reveal') return fail('There are no scores to close.');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (room.phase !== 'reveal') return fail('noScoresToClose');
   if (!room.ready.includes(id)) room.ready.push(id);
   return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
 }
@@ -551,7 +554,7 @@ export function ready(room, id, rng) {
  * Side effects: ends the turn (see finishTurn).
  */
 export function forceNext(room, rng) {
-  if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
+  if (room.phase !== 'reveal') return fail('nothingToMoveOn');
   return ok({ finished: finishTurn(room, rng) });
 }
 

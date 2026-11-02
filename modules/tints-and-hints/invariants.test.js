@@ -50,7 +50,7 @@ function playRandomGame(seed) {
   for (let i = 0; i < 6; i++) {
     const p = pick(rng, room.players);
     const result = game.setColour(room, p.id, pick(rng, game.COLOURS));
-    if (!result.ok) assert.match(result.error, /colour/i);
+    if (!result.ok) assert.ok(['notAColour', 'colourIsUnlock', 'colourTaken'].includes(result.error), `a colour was refused with ${result.error}`);
     check('colour');
   }
   illegal('a non-host changing the turns', () => game.setTurnsEach(room, 999, 2));

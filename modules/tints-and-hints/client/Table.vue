@@ -12,6 +12,7 @@ import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { cellColour } from '../grid.js';
 import Board from './Board.vue';
@@ -23,8 +24,8 @@ const props = defineProps({
   log: { type: Array, default: () => [] },
 });
 
-// Wording for each kind of guess result.
-const kindText = { exact: 'Exactly right', close: 'Close', miss: 'Missed' };
+const { t, text, list } = useGameText();
+
 // The square chosen on the grid but not yet locked in.
 const picked = ref(null);
 // The hinter's hint text as typed.
@@ -45,7 +46,7 @@ const ended = computed(() => phase.value === 'finished' || phase.value === 'aban
 // The guessing round number: 2 in the second round, otherwise 1.
 const round = computed(() => (phase.value === 'guessing2' ? 2 : 1));
 // The hinter's name, with a fallback while they are not in the list.
-const hinterName = computed(() => s.value.players.find((p) => p.id === s.value.hinter)?.name ?? 'The hinter');
+const hinterName = computed(() => s.value.players.find((p) => p.id === s.value.hinter)?.name ?? t('table.theHinter'));
 // Everyone except the hinter.
 const guessers = computed(() => s.value.players.filter((p) => p.id !== s.value.hinter));
 // How many guessers have locked in a guess this round.
@@ -116,30 +117,31 @@ async function saveHint() {
 // ---- the words in the Status box ----
 // The one-line headline for the Status box describing what is happening now.
 const headline = computed(() => {
-  if (phase.value === 'abandoned') return 'The game was abandoned.';
-  if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
-  if (phase.value === 'reveal') return `The tint was ${s.value.tint}. ${s.value.result?.hinterName ?? hinterName.value} scores ${s.value.result?.hinterPoints ?? 0} for the hints.`;
-  if (isHinter.value) return hintGiven.value ? 'Your turn to hint: describe your tint without naming the square.' : 'Your turn to hint: type a first hint describing your tint (without naming the square). Nobody can guess until you do.';
-  if (!hintGiven.value) return `Waiting for ${hinterName.value}'s first hint.`;
-  if (mine.value?.guessed) return `Guess locked in. Waiting for the others (${guessedCount.value} of ${guessers.value.length}).`;
-  return round.value === 1 ? 'Your turn: listen to the hint and guess the tint.' : 'Here is a second hint. Where would you guess now?';
+  if (phase.value === 'abandoned') return t('status.abandoned');
+  if (phase.value === 'finished') return t('status.wins', { names: list(winners.value), score: standings.value[0].score }, winners.value.length);
+  if (phase.value === 'reveal') return t('reveal.summary', { cell: s.value.tint, name: s.value.result?.hinterName ?? hinterName.value, points: s.value.result?.hinterPoints ?? 0 });
+  if (isHinter.value) return hintGiven.value ? t('status.hintAgain') : t('status.hintFirst');
+  if (!hintGiven.value) return t('status.waitingFirstHint', { name: hinterName.value });
+  if (mine.value?.guessed) return t('status.lockedIn', { guessed: guessedCount.value, total: guessers.value.length });
+  return round.value === 1 ? t('status.guessFirst') : t('status.guessSecond');
 });
 // True when it is your move (hint or guess), which highlights the Status box.
 const mineNow = computed(() => guessing.value && (isHinter.value || canGuess.value)); // a guesser's turn starts once the first hint is in
 // Extra Status lines for the current phase (strings, or { text, tone } objects).
 const lines = computed(() => {
-  if (phase.value === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
-  if (phase.value === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];
+  if (phase.value === 'abandoned') return [{ text: t('status.abandonedNote'), tone: 'muted' }, t('status.leaveToMenu')];
+  if (phase.value === 'finished') return [{ text: t('status.finishedNote'), tone: 'muted' }];
   if (phase.value === 'reveal') {
+    const names = list(waitingFor.value);
     return [
-      'Every guess is on the grid.',
+      t('status.everyGuess'),
       mine.value?.ready
-        ? { text: `Waiting for ${waitingFor.value.join(', ')} to be ready${lastTurn.value ? ' for the final scores' : ' for the next turn'}.`, tone: 'muted' }
-        : { text: 'Close the scores when you are ready to carry on.', tone: 'mine' },
+        ? { text: lastTurn.value ? t('status.waitingReadyFinal', { names }) : t('status.waitingReadyNext', { names }), tone: 'muted' }
+        : { text: t('status.closeScores'), tone: 'mine' },
     ];
   }
-  if (isHinter.value) return [`${guessedCount.value} of ${guessers.value.length} have guessed.`];
-  return mine.value?.guessed ? [] : [{ text: picked.value ? `You have chosen ${picked.value}: lock it in when you are ready.` : 'Click a square on the grid.', tone: 'muted' }];
+  if (isHinter.value) return [t('status.guessedCount', { guessed: guessedCount.value, total: guessers.value.length })];
+  return mine.value?.guessed ? [] : [{ text: picked.value ? t('status.chosen', { cell: picked.value }) : t('status.clickSquare'), tone: 'muted' }];
 });
 
 // ---- fitting the room: the grid is sized from the area the frame gives the table ----
@@ -169,8 +171,8 @@ const opened = computed(() => s.value.players.find((p) => p.id === openId.value)
 // Returns a short phrase for what a player is doing this turn ('' once the game has ended).
 const stageOf = (p) => {
   if (ended.value) return '';
-  if (p.id === s.value.hinter) return 'the hinter this turn';
-  if (guessing.value) return p.guessed ? 'has guessed' : 'still to guess';
+  if (p.id === s.value.hinter) return t('popup.hinterNow');
+  if (guessing.value) return p.guessed ? t('popup.hasGuessed') : t('popup.stillToGuess');
   return '';
 };
 // Grid style making each slim bar span the right number of columns for the number of others.
@@ -182,19 +184,19 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     <template #scorebar>
       <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :awaiting="reveal && !mine?.ready" :waiting="waitingFor" :sticky="false" v-bind="scoreProps" @continue="send('ready')">
         <template #round>
-          <section v-if="state.result" class="reveal stack" aria-label="This turn">
+          <section v-if="state.result" class="reveal stack" :aria-label="t('table.thisTurn')">
             <div class="row">
-              <span class="swatch small" :style="{ background: cellColour(state.result.tint) }" role="img" :aria-label="`The tint was ${state.result.tint}`">{{ state.result.tint }}</span>
+              <span class="swatch small" :style="{ background: cellColour(state.result.tint) }" role="img" :aria-label="t('reveal.tintWas', { cell: state.result.tint })">{{ state.result.tint }}</span>
               <div class="stack">
-                <strong>The tint was {{ state.result.tint }}.</strong>
-                <span class="muted">{{ state.result.hinterName }} scores {{ state.result.hinterPoints }} for the hints.</span>
+                <strong>{{ t('reveal.tintWas', { cell: state.result.tint }) }}</strong>
+                <span class="muted">{{ t('reveal.hinterScores', { name: state.result.hinterName, points: state.result.hinterPoints }) }}</span>
               </div>
             </div>
             <ul class="entries">
               <li v-for="(e, i) in state.result.entries" :key="i" class="row">
                 <span class="name">{{ e.name }}</span>
-                <span class="muted">round {{ e.round }}, {{ e.cell }}</span>
-                <span :class="e.kind">{{ kindText[e.kind] }}</span>
+                <span class="muted">{{ t('reveal.entry', { round: e.round, cell: e.cell }) }}</span>
+                <span :class="e.kind">{{ t(`reveal.kind.${e.kind}`) }}</span>
                 <strong>+{{ e.points }}</strong>
               </li>
             </ul>
@@ -207,15 +209,15 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
           <template v-if="opened.ai">
-            <dt>Plays</dt>
+            <dt>{{ t('popup.plays') }}</dt>
             <dd>{{ opened.ai.name }}</dd>
           </template>
-          <dt>Score</dt>
+          <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
-          <dt>Colour</dt>
+          <dt>{{ t('popup.colour') }}</dt>
           <dd><span class="dot" :style="{ background: opened.colour }" /></dd>
           <template v-if="stageOf(opened)">
-            <dt>Now</dt>
+            <dt>{{ t('popup.now') }}</dt>
             <dd>{{ stageOf(opened) }}</dd>
           </template>
         </dl>
@@ -225,7 +227,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <Board :guesses="state.guesses" :players="state.players" :target="state.tint" :selected="picked" :disabled="!canGuess" :cell="dims(area).cell" @pick="pick" />
         </div>
 
-        <aside class="side" :style="{ gridColumn: `span ${area.columns - dims(area).span}` }" aria-label="Hints and guesses">
+        <aside class="side" :style="{ gridColumn: `span ${area.columns - dims(area).span}` }" :aria-label="t('table.hintsAndGuesses')">
           <!-- The same blocks in every phase and for every role, so nothing moves: a block with nothing to show is empty. -->
           <div class="block swatch-row">
             <span
@@ -233,33 +235,33 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
               class="swatch"
               :style="{ background: cellColour(state.tint) }"
               role="img"
-              :aria-label="isHinter && guessing ? `Your tint is ${state.tint}` : `The tint was ${state.tint}`"
+              :aria-label="isHinter && guessing ? t('table.yourTint', { cell: state.tint }) : t('reveal.tintWas', { cell: state.tint })"
               >{{ state.tint }}</span
             >
             <span v-else-if="guessing" class="swatch unknown" :style="picked ? { background: cellColour(picked) } : null">{{ picked ?? '??' }}</span>
             <span v-else class="swatch empty" />
             <p class="caption muted">
-              <template v-if="isHinter && guessing">The secret tint only you can see.</template>
-              <template v-else-if="guessing">Your current choice.</template>
-              <template v-else-if="state.tint">The tint of this turn.</template>
+              <template v-if="isHinter && guessing">{{ t('table.captionSecret') }}</template>
+              <template v-else-if="guessing">{{ t('table.captionChoice') }}</template>
+              <template v-else-if="state.tint">{{ t('table.captionTint') }}</template>
             </p>
           </div>
 
           <div class="block action">
             <form v-if="isHinter && guessing" class="hint row" @submit.prevent="saveHint">
-              <input v-model="hintText" maxlength="80" :placeholder="round === 1 ? 'Type your first hint' : 'Optional: a second hint'" aria-label="Hint" @input="hintSaved = false" />
-              <button type="submit" :disabled="round === 1 && !hintText.trim()">{{ hintSaved ? 'Sent' : 'Send hint' }}</button>
+              <input v-model="hintText" maxlength="80" :placeholder="round === 1 ? t('table.firstHint') : t('table.secondHint')" :aria-label="t('table.hint')" @input="hintSaved = false" />
+              <button type="submit" :disabled="round === 1 && !hintText.trim()">{{ hintSaved ? t('table.sent') : t('table.sendHint') }}</button>
             </form>
-            <button v-else-if="canGuess" class="primary wide" :disabled="!picked" @click="lockIn">Lock in guess</button>
+            <button v-else-if="canGuess" class="primary wide" :disabled="!picked" @click="lockIn">{{ t('table.lockIn') }}</button>
           </div>
 
           <div class="block action">
             <button v-if="isHinter && guessing" class="primary wide" :disabled="!allGuessed" @click="send('advance')">
-              {{ round === 1 ? 'Continue to the second round' : 'Reveal the tint' }}
+              {{ round === 1 ? t('table.secondRound') : t('table.revealTint') }}
             </button>
           </div>
 
-          <ol v-if="state.phase === 'finished'" class="standings" aria-label="Final scores">
+          <ol v-if="state.phase === 'finished'" class="standings" :aria-label="t('scoreboard.final')">
             <li v-for="p in standings" :key="p.id" :class="{ top: p.winner }">
               <span class="place">{{ p.placement }}</span>
               <span class="who">{{ p.name }}</span>
@@ -267,37 +269,37 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
             </li>
           </ol>
           <p class="legend muted">
-            Dotted rings are first guesses, solid rings are second guesses.
-            <span v-if="mine" class="mark"><span class="dot" :style="{ background: mine.colour }" />your colour</span>
+            {{ t('table.legend') }}
+            <span v-if="mine" class="mark"><span class="dot" :style="{ background: mine.colour }" />{{ t('table.yourColour') }}</span>
           </p>
         </aside>
       </div>
     </template>
 
     <template #others>
-      <ul v-if="others.length" class="bars" aria-label="Players">
+      <ul v-if="others.length" class="bars" :aria-label="t('table.players')">
         <li v-for="p in others" :key="p.id" class="bar" :class="{ away: !p.online, hinter: p.id === state.hinter && !ended }" :style="barStyle">
           <span class="dot" :style="{ background: p.colour }" />
           <strong class="who">{{ p.name }}</strong>
-          <span v-if="p.id === state.hinter && !ended" class="tag hint-tag">hinter</span>
-          <span v-else-if="guessing && p.guessed" class="tag done">guessed</span>
-          <span v-if="!p.online" class="tag away">away</span>
+          <span v-if="p.id === state.hinter && !ended" class="tag hint-tag">{{ t('table.hinterTag') }}</span>
+          <span v-else-if="guessing && p.guessed" class="tag done">{{ t('table.guessedTag') }}</span>
+          <span v-if="!p.online" class="tag away">{{ t('common.away') }}</span>
           <span class="score">{{ p.score }}</span>
         </li>
       </ul>
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has happened yet." v-slot="{ entry }">{{ entry }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingYet')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="headline" :mine="mineNow" :turn="guessing && isHinter" :lines="lines">
         <template #facts>
-          <strong v-if="!ended">Turn {{ state.turn }} of {{ state.turnsTotal }}</strong>
-          <strong v-else>Game over</strong>
-          <span v-if="guessing">Round {{ round }} of 2</span>
-          <span v-if="!ended">Hinter: {{ hinterName }}</span>
+          <strong v-if="!ended">{{ t('facts.turn', { n: state.turn, total: state.turnsTotal }) }}</strong>
+          <strong v-else>{{ t('facts.gameOver') }}</strong>
+          <span v-if="guessing">{{ t('facts.round', { n: round }) }}</span>
+          <span v-if="!ended">{{ t('facts.hinter', { name: hinterName }) }}</span>
         </template>
         <p v-if="guessing && !isHinter" class="hint-text" :class="{ hidden: !hint }">&ldquo;{{ hint }}&rdquo;</p>
       </GameStatus>

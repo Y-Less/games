@@ -7,6 +7,7 @@
 // for the second. It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
 // table gives it and never changes size while the game is played.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { COLS, ROWS, cellColour } from '../grid.js';
 import { GAP, HEAD } from './layout.js';
 
@@ -19,6 +20,7 @@ const props = defineProps({
   cell: { type: Number, default: 28 },
 });
 const emit = defineEmits(['pick']);
+const { t } = useGameText();
 
 // Players keyed by id, for looking up a guess's colour and name.
 const byId = computed(() => new Map(props.players.map((p) => [p.id, p])));
@@ -28,11 +30,16 @@ const markers = computed(() => {
   for (const g of props.guesses) (map[g.cell] ??= []).push({ ...g, colour: byId.value.get(g.id)?.colour ?? '#fff', name: byId.value.get(g.id)?.name ?? '' });
   return map;
 });
+// What each square with something on it (the tint, a guess) has to say, worked out once for the whole grid rather than
+// per square: the grid is 1,248 squares and every one of them is labelled twice.
+const extras = computed(() => {
+  const out = {};
+  for (const [cell, here] of Object.entries(markers.value)) out[cell] = here.map((m) => t('board.guess', { name: m.name, round: m.round }));
+  if (props.target) (out[props.target] ??= []).unshift(t('board.theTint'));
+  return out;
+});
 // Returns the accessible label for a square: its name, whether it is the tint, and each guess made on it.
-const label = (cell) => {
-  const here = markers.value[cell] ?? [];
-  return [cell, props.target === cell ? 'the tint' : '', ...here.map((m) => `${m.name} round ${m.round}`)].filter(Boolean).join(', ');
-};
+const label = (cell) => [cell, ...(extras.value[cell] ?? [])].join(', ');
 // CSS custom properties that size the grid, labels, gaps and the guess rings from `cell`.
 const style = computed(() => ({
   '--cell': `${props.cell}px`,
@@ -44,7 +51,7 @@ const style = computed(() => ({
 </script>
 
 <template>
-  <div class="board" role="group" aria-label="Colour grid" :style="style">
+  <div class="board" role="group" :aria-label="t('board.label')" :style="style">
     <span class="head" />
     <span v-for="c in COLS" :key="c" class="head">{{ c }}</span>
     <template v-for="r in ROWS" :key="r">

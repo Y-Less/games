@@ -12,6 +12,7 @@ grid.js            the 52 x 24 colour grid: square names, colours, "close" test 
                    rooms saved with the old grid are renamed by `migrate`, marked by `room.grid = 5`)
 game.js            the rules as pure functions over a plain room object (no sockets, no files)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, personalised views, statistics
+locales/en.json    every word a player reads, merged under `tints-and-hints.` (see MODULES.md, "Languages")
 ai/                the computer players (registry, the random AI, README)
 bots.test.js       computer-player tests
 client/            Vue 3 components: TintsAndHints (root), Entry, Lobby, Round, Board, Scores, Final
@@ -29,9 +30,17 @@ server.test.js     end-to-end tests against the real site (whole game, abandonme
 
 ## Socket protocol
 
-Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance` (the hinter closing a round of guessing), `ready` (at the reveal: this person closed the scores pop-up).
+Client to server (each takes a payload and an acknowledgement `{ ok }` or `{ ok: false, error, params? }`, where
+`error` is a refusal code looked up under `errors.` in this game's locale file and then the site's, never a sentence): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance` (the hinter closing a round of guessing), `ready` (at the reveal: this person closed the scores pop-up).
 
 Server to client: `state`, a view personalised for that account (or `null` when not in a game). The hidden target is only in the hinter's view until the reveal.
+
+Every word in a view is a message (`{ key, params? }`, see `shared/messages.js`), which the client puts into the player's
+language: a scoreboard round's `label` (`scoreboard.turn` with `{ n, name }`, or `scoreboard.earlier` for the points of a
+room saved before the history was kept) and its `notes` (the hinter's `notes.found` with a numeric `count`; a guesser's
+list of `notes.exact` / `notes.close` messages, which the client joins as its language joins lists, or `notes.missed`).
+Players' hints and names stay as they are: they are what people typed. The "Recent moves" list is the client's own
+(`client/moveLog.js`) and is messages too.
 
 ## Computer players
 

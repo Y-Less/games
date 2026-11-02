@@ -9,6 +9,7 @@ import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import { newEntries } from './moveLog.js';
 import Table from './Table.vue';
@@ -20,7 +21,9 @@ const props = defineProps({
   setSearch: { type: Function, default: () => {} },
 });
 
-const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
+const { t } = useGameText();
+
+const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next (messages, see moveLog.js)
 /**
  * Works the "Recent moves" list out from the change between one state and the next.
  *
@@ -38,18 +41,18 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning shown when leaving mid-game ('' when leaving is harmless).
-  leaveConfirm: (state) => ['guessing1', 'guessing2', 'reveal'].includes(state.phase) ? 'You will not be able to come back.' : '',
+  leaveConfirm: (state) => (['guessing1', 'guessing2', 'reveal'].includes(state.phase) ? t('leaveConfirm') : ''),
   onState,
 });
 </script>
 
 <template>
   <div class="tints stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Tints and Hints"
-      intro="Describe a secret colour, and see how close your friends can get. You get a code to share."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

@@ -98,7 +98,7 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.equal(room.players.length, 5);
   assert.equal(game.fillWithBots(room, 1, 99).ok, true);
   assert.equal(room.players.length, game.MAX_PLAYERS, 'never over the maximum');
-  assert.match(game.addBot(room, 1).error, /full/);
+  assert.equal(game.addBot(room, 1).error, 'gameFull');
   assert.equal(new Set(room.players.map((p) => p.name ?? p.id)).size, room.players.length, 'every seat has its own name');
   checkRoom(room);
   assert.equal(game.addHuman(room, 3).ok, false, 'a full table of computers still turns people away');
@@ -225,7 +225,7 @@ test('removing a computer player: in the lobby it goes; in a game it stays, beca
   game.start(room, 1, seededRng(8));
   const count = room.players.length;
   const botOf = () => room.players.find((p) => p.kind === 'bot' && p.id !== room.hinter);
-  assert.deepEqual(game.removeBot(room, room.hostId, botOf().id, rng), { ok: false, error: 'Computer players can only be removed in the lobby.' });
+  assert.deepEqual(game.removeBot(room, room.hostId, botOf().id, rng), { ok: false, error: 'botsRemoveLobbyOnly' });
   assert.equal(room.players.length, count);
   checkRoom(room);
   playOut(room, rng);
@@ -358,7 +358,7 @@ test('the host cannot remove a computer player mid-game, and the computers never
   await ann.call('start');
   await until(() => ann.state.phase === 'guessing1');
   const [first] = ann.state.players.filter((p) => p.bot);
-  assert.deepEqual(await ann.call('removeBot', { seat: first.id }), { ok: false, error: 'Computer players can only be removed in the lobby.' });
+  assert.deepEqual(await ann.call('removeBot', { seat: first.id }), { ok: false, error: 'botsRemoveLobbyOnly' });
   await sleep(50);
   assert.equal(ann.state.players.length, 4, 'the computer players stay: their turns are part of the game');
   assert.ok(['guessing1', 'guessing2', 'reveal'].includes(ann.state.phase));
@@ -402,7 +402,7 @@ test('only the host can use the computer-player events, and a game with people a
   await sleep(30);
   const again = await ann.call('join', { code });
   assert.equal(again.ok, false);
-  assert.match(again.error, /No game has that code/);
+  assert.equal(again.error, 'noGameWithCode');
 });
 
 test('computers stay on time: a game of two people and a computer moves on by itself between their actions', async (t) => {

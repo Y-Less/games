@@ -143,7 +143,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   }
   for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { userId: bob.id }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
     const reply = await eve.call(event, payload);
-    assert.deepEqual(reply, { ok: false, error: 'You are not in a game.' }, event);
+    assert.deepEqual(reply, { ok: false, error: 'notInAnyGame' }, event);
   }
   assert.equal((await bob.call('start', {})).ok, false, 'only the host starts');
   assert.equal((await bob.call('settings', { turnsEach: 3 })).ok, false, 'only the host changes the settings');
