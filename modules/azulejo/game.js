@@ -8,7 +8,7 @@
 // (the discards), a factory display, the centre, a pattern line, a wall or a floor line. The bag's contents and order
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { msg } from '../../shared/messages.js';
+import { msg, refusal } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
@@ -158,9 +158,10 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * Side effects: none on shared state: it only builds and returns a new room.
  */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
-  if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
+  if (!SIZES.includes(size)) throw refusal('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS }); // reachable: the host's `seats` comes from the client
+
   const normalised = normaliseSettings(settings);
-  if (!normalised.ok) throw new Error(normalised.error);
+  if (!normalised.ok) throw refusal(normalised.error, normalised.params);
   const room = {
     code,
     hostId,

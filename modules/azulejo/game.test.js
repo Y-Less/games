@@ -5,6 +5,17 @@ import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { MARKER, bonuses, emptyWall, floorPenalty, wallColour, wallColumn } from './rules.js';
 import { assertInvariants, playingRoom, seeded, setTable, setWall, viewLeaks } from './testing.js';
+import { refusalReply } from '../../shared/messages.js';
+
+/** What `run` threw (the test fails if it did not throw): assert.throws does not hand the error back. */
+function caught(run) {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  return assert.fail('expected a refusal');
+}
 
 const SIZES = [2, 3, 4, 5];
 const snapshot = (room) => JSON.stringify(room);
@@ -55,8 +66,12 @@ test('creating a room: sizes 2 to 5 only, the host in seat 0, free wall off by d
     assert.deepEqual(room.settings, { freeWall: false });
   }
   assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
-  for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) assert.throws(() => mk(bad));
-  assert.throws(() => mk(3, { settings: { freeWall: 'yes' } }));
+  // The host's size comes straight from the client, so a bad one must refuse with a code the player can read in their
+  // own language, never with the developer's sentence (see refusalReply in shared/messages.js).
+  for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) {
+    assert.deepEqual(refusalReply(caught(() => mk(bad))), { ok: false, error: 'playersRange', params: { min: 2, max: 5 } }, String(bad));
+  }
+  assert.deepEqual(refusalReply(caught(() => mk(3, { settings: { freeWall: 'yes' } }))), { ok: false, error: 'freeWallSetting' });
   assert.equal(mk(3, { settings: { freeWall: true } }).settings.freeWall, true);
 });
 

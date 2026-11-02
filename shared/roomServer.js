@@ -19,6 +19,7 @@
 // Depends on: node:fs and node:path only; the rules module, ctx and clock are injected through createRoomServer arguments.
 import fs from 'node:fs';
 import path from 'node:path';
+import { refusalReply } from './messages.js';
 
 // Retention and timing: how long to keep a finished room, then an unfinished one (kept longer: players may return to a
 // paused game), how often to sweep for old rooms, and how long to debounce saves.
@@ -532,7 +533,7 @@ export function createRoomServer(ctx, options) {
         });
       } catch (error) {
         ctx.log('create refused:', error.message); // a rules bug would surface here too, so keep a trace of it
-        return { ok: false, error: error.message };
+        return refusalReply(error); // a refusal the rules threw keeps its code; anything else is a bug, and is a plain server error
       }
       leaveAllRooms(userId);
       rooms.set(room.code, room);

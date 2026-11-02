@@ -12,7 +12,7 @@ import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
-import { cardMsg, msg, suitMsg } from '../../shared/messages.js';
+import { cardMsg, msg, refusal, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
@@ -114,7 +114,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const seatCount = settings.seats ?? DEFAULT_SEATS;
-  if (!isSeatCount(seatCount)) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} players.`);
+  if (!isSeatCount(seatCount)) throw refusal('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
   const normalised = normaliseSettings(settings);
   const room = {
     code,
@@ -126,7 +126,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
     createdAt: now,
     updatedAt: now,
   };
-  if (!normalised.ok) throw new Error(normalised.error);
+  if (!normalised.ok) throw refusal(normalised.error, normalised.params);
   resetGame(room);
   return room;
 }

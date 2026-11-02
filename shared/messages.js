@@ -37,3 +37,31 @@ export const cardMsg = (card) => (isJoker(card) ? msg(`cards.joker.${isRed(card)
  * Side effects: none.
  */
 export const suitMsg = (suit) => msg(`cards.suit.${suit}`);
+
+/** A refusal code: letters and digits, as a key under `errors.` is written. */
+const CODE = /^[a-zA-Z][a-zA-Z0-9]*$/;
+
+/**
+ * The Error `game.createRoom` throws to refuse a request (a bad number of players, say). Its message is a refusal code
+ * and it may carry the values the words need, so the server can answer the client as it answers any other refusal.
+ * @param {string} code  a key under `errors.` in the game's locale file or the site's
+ * @param {object} [params]  the values the text needs
+ * @returns {Error}
+ * Side effects: none.
+ */
+export function refusal(code, params) {
+  const error = new Error(code);
+  error.refusal = true;
+  if (params) error.params = params;
+  return error;
+}
+
+/**
+ * The reply for an Error thrown out of `createRoom`: its own code when it is a refusal, otherwise a plain server error
+ * (a rules bug must not show the player a developer's sentence, in English or at all).
+ * @param {Error} error  what was thrown
+ * @returns {{ ok: false, error: string, params?: object }}
+ * Side effects: none.
+ */
+export const refusalReply = (error) =>
+  error?.refusal && CODE.test(error.message) ? { ok: false, error: error.message, ...(error.params ? { params: error.params } : {}) } : { ok: false, error: 'serverError' };
