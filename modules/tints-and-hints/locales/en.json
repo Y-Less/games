@@ -116,9 +116,6 @@
     "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
   },
   "errors": {
-    "notAColour": "That is not a colour.",
-    "colourIsUnlock": "Any colour is an unlock in the shop. Choose one of the standard colours.",
-    "colourTaken": "Someone else has that colour.",
     "cannotHintNow": "You cannot give a hint now.",
     "firstHintNeeded": "The first hint is needed: type one before anyone guesses.",
     "hinterCannotGuess": "You are giving the hint, so you cannot guess.",

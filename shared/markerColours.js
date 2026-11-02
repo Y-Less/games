@@ -13,7 +13,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 /**
  * Canonicalises a colour to six-digit lower-case hex.
  * @param {unknown} value  a candidate colour
- * @returns {string|null} the lower-case "#rrggbb" string, or null when it is not one
+ * @returns {string|null} the refusal code (a key under `errors.` in the site's locale files), or null when the colour is free
  * Side effects: none.
  */
 export const normaliseMarker = (value) => (typeof value === 'string' && HEX.test(value) ? value.toLowerCase() : null);
@@ -45,8 +45,8 @@ export function startingMarker(preferred, taken, canCustom = false) {
  */
 export function markerProblem(colour, taken, canCustom) {
   const wanted = normaliseMarker(colour);
-  if (!wanted) return 'That is not a colour.';
-  if (!canCustom && !MARKER_COLOURS.includes(wanted)) return 'Any colour is an unlock in the shop. Choose one of the standard colours.';
-  if (taken.includes(wanted)) return 'Someone else has that colour.';
+  if (!wanted) return 'notAColour';
+  if (!canCustom && !MARKER_COLOURS.includes(wanted)) return 'colourIsUnlock';
+  if (taken.includes(wanted)) return 'colourTaken';
   return null;
 }

@@ -426,6 +426,9 @@
     "alreadyInGameJoin": "You are already in the game {code}. Leave it to join another.",
     "alreadyInGameStart": "You are already in the game {code}. Leave it to start another.",
     "thatGameFinished": "That game has finished.",
-    "typeInviteCode": "Type an invite code."
+    "typeInviteCode": "Type an invite code.",
+    "notAColour": "That is not a colour.",
+    "colourIsUnlock": "Any colour is an unlock in the shop. Choose one of the standard colours.",
+    "colourTaken": "Someone else has that colour."
   }
 }

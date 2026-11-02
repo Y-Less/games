@@ -14,7 +14,7 @@ import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell }
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { MARKER_COLOURS, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
@@ -224,11 +224,9 @@ export function setColour(room, id, colour, canCustom = false) {
   const player = playerOf(room, id);
   if (!player) return fail('notInGame');
   if (room.phase !== 'lobby') return fail('coloursBeforeStart');
-  const wanted = normaliseMarker(colour);
-  if (!wanted) return fail('notAColour');
-  if (!canCustom && !MARKER_COLOURS.includes(wanted)) return fail('colourIsUnlock');
-  if (room.players.some((p) => p.id !== id && p.colour === wanted)) return fail('colourTaken');
-  player.colour = wanted;
+  const problem = markerProblem(colour, room.players.filter((p) => p.id !== id).map((p) => p.colour), canCustom);
+  if (problem) return fail(problem);
+  player.colour = normaliseMarker(colour);
   return ok();
 }
 

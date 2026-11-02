@@ -25,9 +25,9 @@ test('a new player gets their default if they may use it and it is free, otherwi
 
 test('choosing a colour: valid, allowed for this player, and not taken', () => {
   assert.equal(markerProblem('#ff2d95', [], false), null);
-  assert.equal(markerProblem('#FF2D95', ['#ff2d95'], false), 'Someone else has that colour.');
-  assert.match(markerProblem('#123456', [], false), /unlock/);
+  assert.equal(markerProblem('#FF2D95', ['#ff2d95'], false), 'colourTaken');
+  assert.equal(markerProblem('#123456', [], false), 'colourIsUnlock');
   assert.equal(markerProblem('#123456', [], true), null);
-  assert.equal(markerProblem('#123456', ['#123456'], true), 'Someone else has that colour.');
-  assert.match(markerProblem('blue', [], true), /not a colour/);
+  assert.equal(markerProblem('#123456', ['#123456'], true), 'colourTaken');
+  assert.equal(markerProblem('blue', [], true), 'notAColour');
 });
