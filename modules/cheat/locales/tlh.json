@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "name": "nepwI'",
+    "description": "wejvo' Soch QujwI'pu'vaD nep nav Quj: So'taHvIS navmeylIj tIlan 'ej patlh lugh chaH 'e' yImaq, vaj Hoch yIwoD. yIvIt pagh yInep, 'ej nepbogh QujwI' DaHarchugh yIjach. juppu' pagh De'wI' QujwI'pu' tItlhej."
+  },
+  "entry": {
+    "noun": "nep Quj",
+    "intro": "wejvo' Soch QujwI'pu'. So'taHvIS navmey tIlan, 'ej patlh lugh chaH 'e' yImaq: yIvIt pagh yInep. nepbogh QujwI' DaHarchugh yIjach. quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "deal": "{players} QujwI'pu': {packs}, {cardsEach} navmey Hoch.",
+    "dealExtra": "{players} QujwI'pu': {packs}, {cardsEach} navmey Hoch ('ej wa' latlh Suq {count} QujwI'). | {players} QujwI'pu': {packs}, {cardsEach} navmey Hoch ('ej wa' latlh luSuq {count} QujwI'pu').",
+    "packs": {
+      "1": "wa' nav ghom",
+      "2": "cha' nav ghommey"
+    }
+  },
+  "rank": {
+    "A": "wa'",
+    "2": "cha'",
+    "3": "wej",
+    "4": "loS",
+    "5": "vagh",
+    "6": "jav",
+    "7": "Soch",
+    "8": "chorgh",
+    "9": "Hut",
+    "10": "wa'maH",
+    "J": "mang",
+    "Q": "voDleH be'",
+    "K": "voDleH"
+  },
+  "status": {
+    "wins": "Hoch nav woD {name} 'ej yay chav.",
+    "lastCards": "navmey Qav lanpu' {name}. \"bInep!\" yIjatlh, pagh \"qaHar\" yIjatlh.",
+    "yourLastPlay": "vanglIj Qav 'oH: lulajmeH latlhpu' loSlu'.",
+    "waitingDecide": "{name} vang Qav luwuqmeH latlhpu' loSlu'.",
+    "yourTurn": "Qu'lIj: wa'vo' {max} navmey tIlan 'ej {rank} tImaq.",
+    "waitingFor": "{rank} lan {name} 'e' loSlu'.",
+    "atMost": "{max} navmey pagh puS DalanlaH.",
+    "playing": "{rank} 'oH 'e' DamaqtaHvIS {count} nav Dalan. | {rank} chaH 'e' DamaqtaHvIS {count} navmey Dalan.",
+    "pick": "DalanmeH navmey tIwIv, ghIq raSDaq SeHwI' yIlo'. Damaqbogh patlh chaHnISbe'.",
+    "callLie": "{accused} nep 'e' maq {caller}: nep teH, vaj {count} nav tlhap {picker}. | {accused} nep 'e' maq {caller}: nep teH, vaj {count} navmey tlhap {picker}.",
+    "callTrue": "{accused} nep 'e' maq {caller}: vIt ghaH, vaj {count} nav tlhap {picker}. | {accused} nep 'e' maq {caller}: vIt, vaj {count} navmey tlhap {picker}."
+  },
+  "table": {
+    "rankToClaim": "maqlu'meH patlh",
+    "gameOver": "Quj rIn",
+    "claim": "yImaq",
+    "pile": "chIm nav HuD | nav HuD: {count} nav | nav HuD: {count} navmey",
+    "empty": "chIm",
+    "turnedOver": "DaH 'angpu'bogh navmey",
+    "lastPlay": "{rank} 'oH 'e' maqtaHvIS {count} nav lan {name}. | {rank} chaH 'e' maqtaHvIS {count} navmey lan {name}.",
+    "play": "{rank} yIjatlh | {count} nav yIlan, {rank} yIjatlh | {count} navmey tIlan, {rank} yIjatlh",
+    "cheat": "bInep!",
+    "believe": "qaHar"
+  },
+  "facts": {
+    "claiming": "maqlu': {rank}",
+    "pile": "HuD: {n}"
+  },
+  "popup": {
+    "liesTold": "nepmey",
+    "caughtLying": "neptaHvIS tu'lu'",
+    "calls": "jachmey (lugh)",
+    "callsValue": "{made} ({correct})"
+  },
+  "log": {
+    "dealt": "navmey nobta'lu'.",
+    "played": "{rank} 'oH 'e' maqtaHvIS {count} nav lan {name}. | {rank} chaH 'e' maqtaHvIS {count} navmey lan {name}.",
+    "callLie": "{accused} nep 'e' maq {caller}: nep teH, vaj {count} nav tlhap {picker}. | {accused} nep 'e' maq {caller}: nep teH, vaj {count} navmey tlhap {picker}.",
+    "callTrue": "{accused} nep 'e' maq {caller}: vIt ghaH, vaj {count} nav tlhap {picker}. | {accused} nep 'e' maq {caller}: vIt, vaj {count} navmey tlhap {picker}.",
+    "wins": "Hoch nav woD {name} 'ej yay chav."
+  },
+  "errors": {
+    "playBetween": "wa'vo' {max} navmey tIlan.",
+    "playFromHand": "ghoplIjDaq navmey neH DalanlaH.",
+    "nothingToCall": "DajachmeH pagh tu'lu'.",
+    "callOwnPlay": "vanglIj'e' DajachlaHbe'.",
+    "nothingToAccept": "DalajmeH vang Qav tu'lu'be'.",
+    "acceptOwnPlay": "vanglIj'e' DalajlaHbe'."
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "meta": {
+    "name": "rItlh Qorwagh",
+    "description": "mI'naghmey tIwIv, rItlhlu'bogh Qorwagh yIchenmoH, 'ej wa'maH may'meyDaq ngoQmeylIj tItlha'. cha'vo' vagh QujwI'pu'; quSmey teblaH De'wI' QujwI'pu'."
+  },
+  "entry": {
+    "noun": "Gaudi Quj",
+    "intro": "mI'naghmey tIwIv 'ej wa'maH may'meyDaq rItlhlu'bogh Qorwagh yIchenmoH. cha'vo' vagh QujwI'pu'; quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "colours": {
+    "ruby": "'Iw nagh",
+    "topaz": "jul nagh",
+    "jade": "tI nagh",
+    "sapphire": "chal nagh",
+    "amethyst": "naH nagh"
+  },
+  "die": {
+    "label": "{colour} {shade}"
+  },
+  "units": {
+    "row": "tlhegh",
+    "column": "tlhegh Qam",
+    "pair": "chang'eng",
+    "set": "ghom",
+    "die": "mI'nagh"
+  },
+  "patterns": {
+    "0": {
+      "0": "po rItlh",
+      "1": "rItlh mIS"
+    },
+    "1": {
+      "0": "Duj wovmoHwI'mey",
+      "1": "naghHom qach"
+    },
+    "2": {
+      "0": "bIQ jot",
+      "1": "jev Qorwagh"
+    },
+    "3": {
+      "0": "SuS 'angwI'",
+      "1": "naH yer lojmIt"
+    },
+    "4": {
+      "0": "jIrwI'Hom",
+      "1": "lalDan Qorwagh"
+    },
+    "5": {
+      "0": "wab 'IH",
+      "1": "pe'lu'bogh baS"
+    },
+    "6": {
+      "0": "lojmIt Dung wov",
+      "1": "wov pe'wI'"
+    },
+    "7": {
+      "0": "He 'angwI'",
+      "1": "tI chenmoHlu'bogh"
+    },
+    "8": {
+      "0": "tIHom",
+      "1": "meQmoHwI'"
+    },
+    "9": {
+      "0": "bIQ'a' woDpu'bogh",
+      "1": "tI ngaq"
+    },
+    "10": {
+      "0": "tel 'ay'",
+      "1": "He mIS"
+    },
+    "11": {
+      "0": "bIQ Qorwagh",
+      "1": "bom Qorwagh"
+    }
+  },
+  "tools": {
+    "lathe": {
+      "name": "jIrwI'",
+      "text": "wIv ghomDaq mI'nagh Hurgh yIchoH, wa' Dung pagh wa' bIng. 1 mojlaHbe' 6, 'ej 6 mojlaHbe' 1.",
+      "how": "wIv ghom mI'nagh yIwIv, ghIq wa' yIchel pagh wa' yIteq."
+    },
+    "exchange": {
+      "name": "mechwI'",
+      "text": "may' tlheghDaq mI'nagh, wIv ghomDaq mI'nagh je tImech.",
+      "how": "wIv ghom mI'nagh yIwIv, ghIq may' tlhegh mI'nagh yIwIv."
+    },
+    "refire": {
+      "name": "meQmoHqa'wI'",
+      "text": "wIv ghomDaq wa' mI'nagh yIjIrmoHqa'.",
+      "how": "wIv ghom mI'nagh yIwIv."
+    },
+    "kiln": {
+      "name": "meQmoHwI' tIn",
+      "text": "wIv ghomDaq Hoch mI'nagh yIjIrmoHqa'. may'vamDaq Qu'lIj cha'DIchDaq neH, 'ej mI'nagh Dalanpa'.",
+      "how": "yIlaj neH."
+    },
+    "mirror": {
+      "name": "Dop choHwI'",
+      "text": "wIv ghomDaq mI'nagh Dop pIm yI'ang (1 6 je, 2 5 je, 3 4 je).",
+      "how": "wIv ghom mI'nagh yIwIv."
+    },
+    "slide": {
+      "name": "vIHmoHwI'",
+      "text": "QorwaghlIjDaq latlh DaqDaq wa' mI'nagh yIvIHmoH; Hoch lan chut yIlob.",
+      "how": "DavIHmoHbogh mI'nagh yIwIv, ghIq 'oHvaD Daq chu' yIwIv."
+    },
+    "twin": {
+      "name": "chang'eng vIHmoHwI'",
+      "text": "QorwaghlIjDaq cha' mI'nagh tIvIHmoHchu', wa' ghIq latlh; Hoch lan chut yIlob.",
+      "how": "mI'nagh Daq chu'Daj je yIwIv, ghIq mI'nagh cha'DIch DaqDaj je yIwIv."
+    },
+    "tint": {
+      "name": "rItlh buSHa'wI'",
+      "text": "QorwaghlIjDaq wa' mI'nagh yIvIHmoH; Daq rItlh yIbuSHa' ('ach Hurghmey jIlmey je toghlu'taH).",
+      "how": "DavIHmoHbogh mI'nagh yIwIv, ghIq 'oHvaD Daq chu' yIwIv."
+    },
+    "gauge": {
+      "name": "Hurgh buSHa'wI'",
+      "text": "QorwaghlIjDaq wa' mI'nagh yIvIHmoH; Daq Hurgh yIbuSHa' ('ach rItlhmey jIlmey je toghlu'taH).",
+      "how": "DavIHmoHbogh mI'nagh yIwIv, ghIq 'oHvaD Daq chu' yIwIv."
+    },
+    "echo": {
+      "name": "tlhegh tlha'wI'",
+      "text": "QorwaghlIjDaq wa' pagh cha' mI'nagh tIvIHmoH: wa' rItlh neH, may' tlheghDaq qaSbogh rItlh. Hoch lan chut yIlob.",
+      "how": "mI'nagh Daq chu'Daj je yIwIv ('ej rItlh rap ghajbogh mI'nagh cha'DIch DaqDaj je)."
+    },
+    "free-pane": {
+      "name": "Daq tlhab",
+      "text": "'oH lajbogh Hoch DaqDaq wIv ghom mI'nagh yIlan, jIl Hutlhbogh Daq je (rItlh rap Hurgh rap joq ghajbogh jIlmey toghlu'taH). Qu'vamvaD mI'naghlIj 'oH.",
+      "how": "wIv ghom mI'nagh yIwIv, ghIq Daq yIwIv."
+    },
+    "swift-hand": {
+      "name": "ghop nom",
+      "text": "may'Daq Qu'lIj wa'DIchDaq, vamvo' tugh latlh Qu' naQ yItlhap (latlh mI'nagh yIwIv, 'ej DaneHchugh quv naghmey law' yIlo'). ghIq may'Daq Qu'lIj cha'DIch yIlon.",
+      "how": "yIlaj neH, ghIq motlh Qu'vam yIrInmoH: SIbI' tagh Qu' chellIj."
+    }
+  },
+  "objectives": {
+    "rainbow-rows": {
+      "name": "rItlh pIm tlheghmey",
+      "text": "rItlh qaSqa'be'bogh tlheghmey."
+    },
+    "rainbow-columns": {
+      "name": "rItlh pIm tlheghmey Qam",
+      "text": "rItlh qaSqa'be'bogh tlheghmey Qam."
+    },
+    "tonal-rows": {
+      "name": "Hurgh pIm tlheghmey",
+      "text": "Hurgh qaSqa'be'bogh tlheghmey."
+    },
+    "tonal-columns": {
+      "name": "Hurgh pIm tlheghmey Qam",
+      "text": "Hurgh qaSqa'be'bogh tlheghmey Qam."
+    },
+    "pale-pairs": {
+      "name": "wov chang'engmey",
+      "text": "QorwaghDaq Dat 1 2 je chang'engmey."
+    },
+    "middle-pairs": {
+      "name": "botlh chang'engmey",
+      "text": "QorwaghDaq Dat 3 4 je chang'engmey."
+    },
+    "deep-pairs": {
+      "name": "Hurgh chang'engmey",
+      "text": "QorwaghDaq Dat 5 6 je chang'engmey."
+    },
+    "full-spectrum": {
+      "name": "Hurgh naQ",
+      "text": "QorwaghDaq Dat jav Hurghmey Hoch ghajbogh ghommey."
+    },
+    "full-palette": {
+      "name": "rItlh naQ",
+      "text": "QorwaghDaq Dat vagh rItlhmey Hoch ghajbogh ghommey."
+    },
+    "colour-chains": {
+      "name": "rItlh mIrmey",
+      "text": "rItlhDaj ghajbogh mI'nagh Dopvo' Sumbogh Hoch mI'nagh."
+    }
+  },
+  "notes": {
+    "lathe": "{shade}Daq {colour} mI'nagh choHpu'",
+    "exchange": "may' tlhegh mI'nagh wIv ghom mI'nagh je mechpu'",
+    "refire": "{colour} mI'nagh jIrmoHqa'pu'",
+    "kiln": "wIv ghomDaq Hoch mI'nagh jIrmoHqa'pu'",
+    "mirror": "{colour} mI'nagh Dop pIm 'angpu'",
+    "slide": "QorwaghDajDaq mI'nagh vIHmoHpu'",
+    "twin": "QorwaghDajDaq cha' mI'nagh vIHmoHpu'",
+    "tint": "rItlh buSHa'taHvIS mI'nagh vIHmoHpu'",
+    "gauge": "Hurgh buSHa'taHvIS mI'nagh vIHmoHpu'",
+    "echo": "QorwaghDajDaq {colour} mI'naghmey vIHmoHpu'",
+    "swift-hand": "DaH latlh Qu' tlhap 'ej Qu'Daj cha'DIch lon"
+  },
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "players": "QujwI'pu' (quSmey)",
+    "playerCount": "{n} QujwI'pu'",
+    "dice": "ngaSwI'Daq {dice} mI'naghmey, rItlhvaD {each}: wa'maH may'mey poQbogh 'ar nIb.",
+    "badPrivate": "pegh ngoQ mI' qab",
+    "badPrivateDefault": "(motlh: chu'Ha'lu')",
+    "badPrivateOn": "chut puS lo'lu': 'angbogh vay' vuvbe'lu', 'ej wej mI'mey neH ghaj pegh rItlhlIj Hoch mI'nagh.",
+    "badPrivateOff": "chut motlh lo'lu': QorwaghlIjDaq rItlhvetlh ghajbogh Hoch mI'nagh Hurgh toghlu' 'ej chel'eghlu'."
+  },
+  "windows": {
+    "title": "QorwaghlIj yIwIv",
+    "choose": "Qorwaghvam yIwIv",
+    "deal": "QujvamvaD nobta'lu'bogh navmey",
+    "tokens": "{count} quv nagh | {count} quv naghmey"
+  },
+  "board": {
+    "yourWindow": "QorwaghlIj",
+    "favourTokens": "quv naghmey",
+    "favour": "{n} quv",
+    "pool": "wIv ghom",
+    "track": "may' tlhegh"
+  },
+  "space": {
+    "colour": "{colour} Daq",
+    "shade": "{shade}vaD Daq",
+    "blank": "Daq chIm",
+    "label": "{wants}, tlhegh {row}, tlhegh Qam {column}",
+    "labelDie": "{wants}, tlhegh {row}, tlhegh Qam {column}, {colour} {shade} 'uch"
+  },
+  "card": {
+    "tools": "jan navmey",
+    "objectives": "'anglu'bogh ngoQmey",
+    "private": "pegh ngoQ",
+    "rate": "{unit}vaD {points}",
+    "youHave": "{n} Daghaj",
+    "costs": "{n} DIllu'",
+    "costUsed": "lo'lu'pu': DaH cha' DIllu'",
+    "costFresh": "wej lo'lu': wa' DIllu'",
+    "clickToUse": "janvam Dalo'meH yIwIv",
+    "tokensOnCard": "navvamDaq {count} nagh | navvamDaq {count} naghmey"
+  },
+  "actions": {
+    "endTurn": "Qu' yIrInmoH",
+    "undoTurn": "Qu' yIruchHa'",
+    "undoTitle": "taghDI' Qu'vam, ghu'Daj yIcheghmoH",
+    "raise": "wa' yIchel",
+    "lower": "wa' yIteq",
+    "useTool": "{name} yIlo'"
+  },
+  "popup": {
+    "skipping": "Qu' 2 lon",
+    "window": "{name} Qorwagh",
+    "summary": "{tokens} naghmey · {empty} chIm · mI' {score}",
+    "chosenYou": "Qorwagh DawIvpu'. wIvpu'DI' Hoch, 'anglu'.",
+    "chosenThem": "Qorwagh wIvpu'. wIvpu'DI' Hoch, 'anglu'.",
+    "choosingYou": "Qorwagh DawIvtaH.",
+    "choosingThem": "Qorwagh wIvtaH."
+  },
+  "facts": {
+    "bag": "ngaSwI'Daq {count} mI'nagh ratlh | ngaSwI'Daq {count} mI'naghmey ratlh",
+    "first": "QujwI' wa'DIch: {name}",
+    "badPrivate": "pegh ngoQ mI' qab",
+    "order": "may'vamDaq Qu' mIw"
+  },
+  "scores": {
+    "round": "may' {n}",
+    "privateRound": "pegh ngoQmey",
+    "wins": "yay chav",
+    "secret": "+{n} pegh",
+    "provisionalTitle": "mI'mey wej Qav.",
+    "provisionalText": "'anglu'bogh ngoQmey, quv naghmey, Daqmey chIm je lutogh. Quj rIn 'e' chellu' pegh ngoQmey, 'ej ngugh ghajwI' neH legh Hoch. may' wa'Daq ghoS Hoch taghmeH naghmey, cha'maH Daqmey chIm teqlu'pu'.",
+    "finalNote": "pegh ngoQmey ghaj mI'mey Qav (tlhegh Qav)."
+  },
+  "final": {
+    "winner": "charghwI' wIghaj",
+    "shared": "yay lu'uch Hoch",
+    "result": "{points} mI'mey ghaj {names} 'ej yay chav. | {points} mI'mey lughaj {names}: yay lu'uch Hoch.",
+    "playerN": "QujwI' {n}",
+    "player": "QujwI'",
+    "private": "pegh",
+    "tokens": "quv naghmey",
+    "empty": "Daqmey chIm",
+    "rankWinner": "charghwI'",
+    "ruleNote": "pegh ngoQ chut: {rule}. rapchugh mI'mey, pegh ngoQ qellu'; ghIq quv naghmey; ghIq may' QavDaq Qav vangbogh ghaH.",
+    "ruleBad": "pegh ngoQ mI' qab (rItlh mI'naghvaD wej neH)",
+    "ruleNormal": "rItlh ghajbogh Hoch mI'nagh Hurgh toghlu' 'ej chel'eghlu'",
+    "playAgain": "yIQujqa'",
+    "hostAgain": "latlh Quj taghlaH che'wI', pagh mejlaH (nIH Dung).",
+    "seeScores": "mI'mey yIlegh"
+  },
+  "private": {
+    "ruleBad": "chu'lu' pegh ngoQ mI' qab: 'angbogh vay' vuvbe'lu', 'ej wej mI'mey neH ghaj pegh rItlhlIj Hoch mI'nagh.",
+    "ruleNormal": "QorwaghlIjDaq rItlhvam ghajbogh Hoch mI'nagh Hurgh toghlu'.",
+    "pointsBad": "mI'naghvaD wej",
+    "pointsNormal": "mI'HomvaD wa'",
+    "textBad": "wej mI'mey neH ghaj rItlhlIj Hoch mI'nagh.",
+    "textNormal": "HurghDaj mI' Suq rItlhlIj Hoch mI'nagh.",
+    "soFar": "{text} DaH {points}."
+  },
+  "hints": {
+    "tool": "{name}: {text} chay': {how}",
+    "objective": "{name}: {text} {rate}.",
+    "objectiveMine": "{name}: {text} {rate}. {sets} Daghaj: {points} mI'mey.",
+    "private": "pegh ngoQlIj: {colour}. {rule}"
+  },
+  "status": {
+    "over": "rIn Quj.",
+    "chooseWindow": "QorwaghlIj yIwIv.",
+    "chosenWaiting": "bIwIvpu'. {names} loSlu'…",
+    "theOthers": "latlhpu'",
+    "turnFirst": "Qu'lIj wa'DIch: {die}; {tool}. bIbelDI' \"Qu' yIrInmoH\" yIwIv.",
+    "turnSecond": "Qu'lIj cha'DIch: {die}; {tool}. bIbelDI' \"Qu' yIrInmoH\" yIwIv.",
+    "turnExtra": "Qu'lIj chel: {die}; {tool}. bIbelDI' \"Qu' yIrInmoH\" yIwIv.",
+    "diePlace": "mI'nagh yIlan",
+    "diePlaced": "lanlu'pu' mI'naghlIj",
+    "toolMay": "jan Dalo'laH",
+    "toolUsed": "lo'lu'pu' janlIj",
+    "notPlaced": "wej mI'nagh Dalan.",
+    "privateWindows": "{colour} 'oH pegh ngoQlIj'e'. {rule} rInpa' Quj SoH neH 'oH DaleghlaH.",
+    "chooseInfo": "rap poHDaq wIv Hoch, 'ej Hoch wIv lutu'lu'pa' latlh wIvmey leghlaH pagh. quv naghmey law' nob Qatlhbogh Qorwagh.",
+    "seatChosen": "{name}: wIvpu'",
+    "seatChoosing": "{name}: wIvtaH…",
+    "toolInUse": "{name} ({count} quv nagh DIllu'): {how} | {name} ({count} quv naghmey DIllu'): {how}",
+    "clickDie": "wIv ghomDaq mI'nagh yIwIv, ghIq QorwaghlIjDaq wovbogh Daq yIwIv.",
+    "extraTurn": "Qu' chel (ghop nom): Qu' naQ chu' 'oH, vaj latlh mI'nagh yIwIv 'ej DaneHchugh quv naghmey law' yIlo'. lonlu' may'Daq Qu'lIj cha'DIch.",
+    "swiftActive": "vumtaH ghop nom: Qu'vam DarInmoHDI', SIbI' Qu' chel Datlhap, 'ej lonlu' may'Daq Qu'lIj cha'DIch.",
+    "undoHint": "\"Qu' yIrInmoH\" DawIvpa' DaqechHa'laH: Hoch Qu'vam cheghmoH \"Qu' yIruchHa'\".",
+    "yourWindow": "QorwaghlIj: {count} Daq chIm, mI' wej Qav {score}. | QorwaghlIj: {count} Daqmey chIm, mI' wej Qav {score}.",
+    "provisional": "rInpa' Quj wej Qav mI'mey: wej toghlu' pegh ngoQmey.",
+    "privatePlaying": "pegh ngoQlIj, {colour} (DaH {points} mI'mey): {rule} rInpa' Quj SoH neH 'oH DaleghlaH."
+  },
+  "tool": {
+    "moved": "{total}vo' {done} mI'naghmey vIHmoHlu'pu'.",
+    "movedNext": "{total}vo' {done} mI'naghmey vIHmoHlu'pu'; DaH nuqDaq ghoS yIwIv.",
+    "range": "{min}vo' {max}",
+    "exchangeStep": "{pool}; {track}.",
+    "poolChosen": "wIvlu'pu' wIv ghom mI'nagh",
+    "choosePool": "wIv ghom mI'nagh yIwIv",
+    "trackChosen": "wIvlu'pu' may' tlhegh mI'nagh",
+    "chooseTrack": "DaH may' tlheghDaq mI'nagh",
+    "freeSpace": "DaH 'oHvaD Daq yIwIv.",
+    "choosePoolDie": "wIv ghom mI'nagh yIwIv.",
+    "nothingMore": "DawIvmeH latlh tu'lu'be'.",
+    "dieChosen": "wIvlu'pu' mI'nagh.",
+    "chooseFromPool": "wIv ghomDaq mI'nagh yIwIv."
+  },
+  "log": {
+    "empty": "wej qaS vay'.",
+    "takeOver": "mejpu'bogh QujwI' qa' {name}",
+    "begin": "cherlu'pu' Qorwaghmey. tagh may' wa'.",
+    "extraTurn": "Qu' chel tlhap {name}",
+    "skipTurn": "Qu'Daj cha'DIch lon {name}",
+    "roundOver": "rIn may' {n}.",
+    "placed": "tlhegh {row}, tlhegh Qam {column}Daq {colour} {shade} lan {name}",
+    "usedTool": "{tool} lo' {name} ({count} nagh) | {tool} lo' {name} ({count} naghmey)",
+    "usedToolNote": "{tool} lo' {name}: {note} ({count} nagh) | {tool} lo' {name}: {note} ({count} naghmey)",
+    "gameOver": "rIn Quj. yay chav {names}. | rIn Quj. yay lu'uch Hoch {names}."
+  },
+  "errors": {
+    "badPrivateSetting": "pegh ngoQ mI' qab chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "notTimeToChoose": "Qorwagh wIvmeH poH 'oHbe'.",
+    "alreadyChosen": "QorwaghlIj DawIvpu'.",
+    "chooseOwnWindow": "loS QorwaghmeylIj wa' yIwIv.",
+    "nothingToUndo": "Qu'vamDaq DaruchHa'meH pagh tu'lu'.",
+    "alreadyPlaced": "Qu'vamDaq mI'nagh Dalanpu'.",
+    "noSuchTool": "QujvamDaq janvetlh tu'lu'be'.",
+    "toolUsedAlready": "Qu'vamDaq jan Dalo'pu'.",
+    "notEnoughTokens": "{count} quv nagh DIl janvetlh 'ej {have} Daghaj. | {count} quv naghmey DIl janvetlh 'ej {have} Daghaj.",
+    "noPoolDie": "wIv ghomvo' mI'nagh yIwIv.",
+    "noTrackDie": "may' tlheghvo' mI'nagh yIwIv.",
+    "raiseOrLower": "wa' Hurgh yIchel pagh wa' Hurgh yIteq.",
+    "shadeLimit": "Dung ghoSlaHbe' 6, 'ej bIng ghoSlaHbe' 1.",
+    "kilnSecondTurn": "may'Daq Qu'lIj cha'DIchDaq neH lo'lu'laH meQmoHwI' tIn.",
+    "kilnBeforePlacing": "mI'nagh Dalanpa' lo'lu'nIS meQmoHwI' tIn.",
+    "poolEmpty": "wIv ghomDaq mI'naghmey tu'lu'be'.",
+    "noColourOnTrack": "may' tlheghDaq {colour} mI'nagh tu'lu'be'.",
+    "swiftFirstTurn": "may'Daq Qu'lIj wa'DIchDaq neH lo'lu'laH ghop nom.",
+    "alreadyExtraTurn": "Qu' chel DatlhaptaH.",
+    "moveExactly": "wa' mI'nagh yIvIHmoHchu'. | {count} mI'naghmey tIvIHmoHchu'.",
+    "moveRange": "{min}vo' {max} mI'naghmey tIvIHmoH.",
+    "moveNeedsSpaces": "mI'nagh tlhaplu'meH Daq, 'ej 'oH lanlu'meH Daq, poQ Hoch vIH.",
+    "moveOnce": "wa'logh neH vIHmoHlu'laH mI'nagh.",
+    "sameColour": "rItlh rap ghajnIS cha' mI'nagh.",
+    "noSuchSpace": "Daqvetlh tu'lu'be'.",
+    "spaceTaken": "mI'nagh 'uchtaH Daqvetlh.",
+    "needsColour": "{colour} mI'nagh poQ Daqvetlh.",
+    "needsShade": "{shade} 'angbogh mI'nagh poQ Daqvetlh.",
+    "firstDieEdge": "HeH DaqDaq ghoSnIS mI'naghlIj wa'DIch.",
+    "mustTouch": "QorwaghlIjDaq tu'lu'bogh mI'nagh SumnIS mI'nagh (Dopmey je toghlu').",
+    "colourBeside": "latlh {colour} mI'nagh retlhDaq ba'laHbe' {colour} mI'nagh.",
+    "shadeBeside": "{shade} 'angbogh latlh mI'nagh retlhDaq ba'laHbe' {shade} 'angbogh mI'nagh.",
+    "noDieThere": "DavIHmoHmeH DaqvetlhDaq mI'nagh tu'lu'be'.",
+    "differentSpace": "Daq pImDaq mI'nagh yIvIHmoH.",
+    "toolNoPoolDie": "wIv ghom mI'nagh lo'be' janvam.",
+    "othersTurn": "{name} Qu' 'oH.",
+    "choosePoolFirst": "wa'DIch wIv ghomvo' mI'nagh yIwIv.",
+    "clickDieFirst": "wa'DIch QorwaghlIjDaq DavIHmoHqangbogh mI'nagh yIwIv.",
+    "dieAlreadyMoved": "vIHmoHlu'pu' mI'naghvetlh.",
+    "secondDieColour": "{colour} 'oHnIS mI'nagh cha'DIch'e'."
+  }
+}

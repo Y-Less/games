@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "name": "rItlhmey ngoDHommey je",
+    "description": "mu'mey puSDaq pegh rItlh yIDel, 'ej rItlh DaqmeyDaq 'ar SumchoH juppu'lI' yIlegh."
+  },
+  "entry": {
+    "noun": "rItlh Quj",
+    "intro": "pegh rItlh yIDel, 'ej 'ar SumchoH juppu'lI' yIlegh. DangeHmeH mu' DaHev."
+  },
+  "leaveConfirm": "bIcheghlaHbe'.",
+  "lobby": {
+    "yourColour": "'angwI'lIj rItlh",
+    "chooseColour": "'angwI' rItlh {colour} yIwIv",
+    "chooseAnyColour": "'angwI' rItlh vay' yIwIv",
+    "unlockColour": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv.",
+    "fewerTurns": "Qu'mey puS",
+    "moreTurns": "Qu'mey law'",
+    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "turnCount": "{count} Qu' | {count} Qu'mey",
+    "turnsInAll": "{players} tu'lu'DI' {turns} Hoch. ngoDHommey nob Hoch."
+  },
+  "table": {
+    "thisTurn": "Qu'vam",
+    "hintsAndGuesses": "ngoDHommey loymey je",
+    "theHinter": "ghojmoHwI'",
+    "yourTint": "{cell} 'oH rItlhlIj'e'",
+    "captionSecret": "SoH neH DaleghlaHbogh pegh rItlh.",
+    "captionChoice": "DaH DawIvbogh.",
+    "captionTint": "Qu'vam rItlh.",
+    "firstHint": "ngoDHomlIj wa'DIch yIghItlh",
+    "secondHint": "DaneHchugh: ngoDHom cha'DIch",
+    "hint": "ngoDHom",
+    "sent": "ngeHlu'pu'",
+    "sendHint": "ngoDHom yIngeH",
+    "lockIn": "loy yIngaQmoH",
+    "secondRound": "may' cha'DIchDaq yItaH",
+    "revealTint": "rItlh yI'ang",
+    "legend": "loymey wa'DIch 'oS pe'lu'bogh HeH tlheghmey; loymey cha'DIch 'oS naQbogh HeH tlheghmey.",
+    "yourColour": "rItlhlIj",
+    "hinterTag": "ghojmoHwI'",
+    "guessedTag": "loypu'"
+  },
+  "popup": {
+    "colour": "rItlh",
+    "hinterNow": "Qu'vamDaq ghojmoHwI'",
+    "hasGuessed": "loypu'",
+    "stillToGuess": "wej loy"
+  },
+  "facts": {
+    "round": "may' {n}/2",
+    "hinter": "ghojmoHwI': {name}"
+  },
+  "status": {
+    "hintFirst": "bIghojmoHmeH Qu'lIj: rItlhlIj Delbogh ngoDHom wa'DIch yIghItlh (Daq yIpongQo'). bIghItlhpa' loylaH pagh.",
+    "hintAgain": "bIghojmoHmeH Qu'lIj: Daq DaponglaHbe' 'ach rItlhlIj yIDel.",
+    "waitingFirstHint": "{name} ngoDHom wa'DIch loSlu'.",
+    "lockedIn": "ngaQmoHlu'pu' loy. latlhpu' loSlu' ({total}vo' {guessed}).",
+    "guessFirst": "Qu'lIj: ngoDHom yIQoy 'ej rItlh yIloy.",
+    "guessSecond": "ngoDHom cha'DIch 'oH. DaH nuqDaq Daloy?",
+    "leaveToMenu": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo'.",
+    "finishedNote": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo', pagh Hoch Qu' Daleghqa'meH mI' tlheghDaq \"Hoch may'\" yIlo'.",
+    "everyGuess": "rItlh DaqmeyDaq Hoch loy.",
+    "waitingReadyNext": "Qu' vebvaD luruchrupmeH {names} loSlu'.",
+    "waitingReadyFinal": "mI'mey QavvaD luruchrupmeH {names} loSlu'.",
+    "guessedCount": "{total}vo' {guessed} loypu'.",
+    "chosen": "{cell} DawIvpu': bIruchrupDI' yIngaQmoH.",
+    "clickSquare": "rItlh DaqmeyDaq wa' Daq yIwIv."
+  },
+  "reveal": {
+    "tintWas": "{cell} 'oH rItlh'e'.",
+    "hinterScores": "ngoDHommeymo' {points} Suq {name}.",
+    "summary": "{cell} 'oH rItlh'e'. ngoDHommeymo' {points} Suq {name}.",
+    "entry": "may' {round}, {cell}",
+    "kind": {
+      "exact": "lughchu'",
+      "close": "Sum",
+      "miss": "lujpu'"
+    }
+  },
+  "board": {
+    "label": "rItlh Daqmey",
+    "theTint": "rItlh",
+    "guess": "{name} may' {round}"
+  },
+  "scoreboard": {
+    "turn": "Qu' {n}: {name}",
+    "earlier": "Qu'mey wa'DIch"
+  },
+  "notes": {
+    "exact": "may' {round}Daq lughchu'",
+    "close": "may' {round}Daq Sum",
+    "found": "Sampu' pagh | Sampu' {count} | Sampu' {count}"
+  },
+  "log": {
+    "turnStart": "{total}vo' Qu' {n}: ghojmoHwI' ghaH {name}'e'.",
+    "secondRound": "may' cha'DIch: ngoDHom cha'DIchmo' yIloyqa'.",
+    "firstHint": "“{text}” ngoDHom nob {name}.",
+    "secondHint": "“{text}” ngoDHom cha'DIch nob {name}.",
+    "guessed": "loypu' {name}.",
+    "guess": "may' {round}Daq {cell} loy {name}: {kind} (+{points}).",
+    "kind": {
+      "exact": "lughchu'",
+      "close": "Sum",
+      "miss": "lujpu'"
+    }
+  },
+  "errors": {
+    "cannotHintNow": "DaH ngoDHom DanoblaHbe'.",
+    "firstHintNeeded": "ngoDHom wa'DIch poQlu': loylu'pa' yIghItlh.",
+    "hinterCannotGuess": "bIghojmoHmo' bIloylaHbe'.",
+    "waitForFirstHint": "ngoDHom wa'DIch yIloS.",
+    "notASquare": "rItlh DaqmeyDaq Daq 'oHbe'.",
+    "closeScoresToCarryOn": "bItaHmeH mI'mey yISoQmoH.",
+    "nothingToContinue": "DataHmeH pagh tu'lu'.",
+    "hinterOnlyContinue": "taHlaH ghojmoHwI' neH.",
+    "waitForEveryoneToGuess": "loy Hoch 'e' yIloS."
+  }
+}

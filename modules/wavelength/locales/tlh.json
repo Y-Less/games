@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "name": "jIrwI'",
+    "description": "cha' Dopmey joj So'lu'bogh Daq 'oSbogh ngoDHom yInob, ghIq 'ar Sum jIrwI' lujIrmoHbogh juppu'lI' yIlegh."
+  },
+  "entry": {
+    "noun": "jIrwI' Quj",
+    "intro": "cha' Dopmey joj So'lu'bogh DaqvaD ngoDHom yInob, 'ej 'ar Sum jIrwI' lujIrmoHbogh juppu'lI' yIlegh. DangeHmeH mu' DaHev."
+  },
+  "leaveConfirm": "bIcheghlaHbe'.",
+  "lobby": {
+    "yourColour": "'angwI'lIj rItlh",
+    "chooseColour": "'angwI' rItlh {colour} yIwIv",
+    "ownColour": "rItlhlIj'e'",
+    "anyColour": "rItlh vay'",
+    "chooseAnyColour": "'angwI' rItlh vay' yIwIv",
+    "unlockColours": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv.",
+    "howYouPlay": "chay' bIQuj",
+    "mode": "Quj mIw",
+    "solo": "nIteb Hoch",
+    "soloText": "jIrwI'Daj jIrmoH Hoch loywI'. mI' law'qu' Suq Sumqu'bogh loy.",
+    "team": "wa' ghom",
+    "teamText": "wa' 'angwI' lughaj loywI'pu'; ghomtaHvIS luvIHmoH, 'ej ngaQmoHlaH Hoch. mI' rap Suq Hoch.",
+    "hostChooses": "wIv che'wI'.",
+    "fewerTurns": "Qu'mey puS",
+    "moreTurns": "Qu'mey law'",
+    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "totalTurns": "{players} QujwI'pu' tu'lu'DI' {turns} Qu'mey Hoch. qeSwI' moj Hoch."
+  },
+  "dial": {
+    "label": "{left}vo' {right}Daq jIrwI'",
+    "slider": "{left}vo' {right}Daq jIrwI' yIjIrmoH"
+  },
+  "table": {
+    "psychicTag": "qeSwI'",
+    "guessedTag": "loypu'",
+    "sideLabel": "ngoDHom loy je",
+    "teamMarkerNote": "Hoch ghomvaD wa' 'angwI'.",
+    "bandsLegend": "wej 'ay'mey ghaj DoS: loS, wej, cha' mI'mey.",
+    "yourColour": "rItlhlIj",
+    "cluePsychic": "{name} ngoDHom",
+    "onlyYouSeeTarget": "SoH neH DoS DaleghlaH.",
+    "clueWillAppear": "naDev 'ang'egh ngoDHom.",
+    "cluePlaceholder": "ngoDHomlIj yIghItlh",
+    "clueLabel": "ngoDHom",
+    "sendClue": "ngoDHom yIngeH",
+    "lockIn": "yIngaQmoH",
+    "lockInGuess": "loy yIngaQmoH",
+    "thePsychic": "qeSwI'",
+    "yourTeam": "ghomlIj"
+  },
+  "facts": {
+    "psychic": "qeSwI': {name}"
+  },
+  "popup": {
+    "colour": "rItlh",
+    "stagePsychic": "Qu'vamDaq qeSwI'",
+    "hasGuessed": "loypu'",
+    "stillToGuess": "wej loy"
+  },
+  "status": {
+    "teamFinal": "{max}vo' {score} mI'mey Suq ghomlIj.",
+    "teamTurn": "Qu'vammo' {points} Suq ghomlIj.",
+    "psychicScores": "ngoDHommo' {points} Suq {name}.",
+    "youArePsychic": "qeSwI' SoH: jIrwI'lIjDaq 'anglu' DoS. 'oH 'oSbogh ngoDHom yIghItlh; mI'mey, jIrwI' mu'mey je yIlo'Qo'.",
+    "waitingClue": "{name} ngoDHom loSlu'.",
+    "psychicTeam": "ngeHlu'pu' ngoDHomlIj. 'angwI' vIHmoHtaH ghomlIj. 'anglu'DI' neH DaleghlaH.",
+    "teamMove": "boQochbe'taHvIS 'angwI' yIvIHmoH, ghIq ngaQmoHlaH Hoch.",
+    "psychicWaiting": "ngeHlu'pu' ngoDHomlIj. loy Hoch 'e' loSlu' ({total}vo' {n}).",
+    "guessLocked": "ngaQmoHlu'pu' loy. latlhpu' loSlu' ({total}vo' {n}).",
+    "guessNow": "Qu'lIj: ngoDHom yIlaD 'ej DoS DaHarbogh DaqDaq jIrwI' yIjIrmoH.",
+    "leaveHint": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo'.",
+    "finishedHint": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo', pagh Hoch Qu' Daleghqa'meH mI' tlheghDaq \"Hoch may'\" yIlo'.",
+    "everyGuess": "jIrwI'Daq Hoch loy.",
+    "waitingNext": "Qu' vebvaD luruchrupmeH {names} loSlu'.",
+    "waitingFinal": "mI'mey QavvaD luruchrupmeH {names} loSlu'.",
+    "waitTeamLock": "ngaQmoH ghomlIj 'e' yIloS.",
+    "teamDrag": "jIrwI' yIlIS, pagh lISwI' yIlo'. vIHbogh 'angwI' legh Hoch.",
+    "guessedCount": "{total}vo' {n} loypu'.",
+    "dragHint": "jIrwI' yIlIS, pagh bIngDaq lISwI' yIlo'.",
+    "lockHint": "bIruchrupDI' yIngaQmoH."
+  },
+  "reveal": {
+    "label": "Qu'vam",
+    "clueLine": "{name} ngoDHom: “{clue}” · {points} Suq {name}.",
+    "teamLocked": "ghomvaD ngaQmoHpu' {name}: HochvaD +{points}.",
+    "bullseye": "DoS botlh",
+    "inTarget": "DoSDaq",
+    "missed": "lujpu'"
+  },
+  "log": {
+    "turnStart": "{total}vo' Qu' {n}: qeSwI' ghaH {name}'e', {left} {right} je joj.",
+    "clue": "“{clue}” ngoDHom nob {name}.",
+    "guessed": "loypu' {name}.",
+    "teamLock": "ghomvaD 'angwI' ngaQmoHpu' {name} (HochvaD +{points}).",
+    "bullseye": "DoS botlh qIp {name} (+{points}).",
+    "inTarget": "DoSDaq paw {name} (+{points}).",
+    "missed": "lujpu' {name} (+{points}).",
+    "reveal": "'anglu' DoS. ngoDHommo' {points} Suq {name}.",
+    "abandoned": "lonlu'pu' Quj."
+  },
+  "turnLabel": "Qu' {n}: {name}",
+  "notes": {
+    "bullseye": "DoS botlh",
+    "inTarget": "DoSDaq",
+    "psychic": "qeSwI'"
+  },
+  "errors": {
+    "notAMode": "Quj mIw 'oHbe'.",
+    "clueGiven": "nobta'lu' ngoDHom.",
+    "psychicOnlyClue": "ngoDHom nob qeSwI' neH.",
+    "typeClue": "wa'DIch ngoDHom yIghItlh.",
+    "teamOneMarker": "wa' 'angwI' ghaj ghomlIj: boQochbe'taHvIS yIvIHmoH, ghIq yIngaQmoH.",
+    "psychicCannotGuess": "qeSwI' SoHmo' bIloylaHbe'.",
+    "dialRange": "cha' HeHmey joj DaqDaq jIrwI' yIjIrmoH.",
+    "notATeamGame": "ghom QujmeH Quj 'oHbe' Qujvam'e'.",
+    "psychicTeamMarker": "qeSwI' SoH: 'angwI' vIHmoH ghomlIj.",
+    "markerRange": "cha' HeHmey joj DaqDaq 'angwI' yIvIHmoH.",
+    "moveMarkerFirst": "wa'DIch 'angwI' yIvIHmoH."
+  }
+}

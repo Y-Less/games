@@ -1,0 +1,183 @@
+{
+  "meta": {
+    "name": "naghHom tlheghmey",
+    "description": "mI' naghHommeyvo' tlheghmey boqmey je tIchenmoH, 'ej wa'DIch 'uchwI'lIj DachImmoHmeH Hoch raS yIlISqa'. cha'vo' jav QujwI'pu'; quSmey teblaH De'wI' QujwI'pu', 'ej naghHom ghom DawIvlaH."
+  },
+  "entry": {
+    "noun": "Rummikub Quj",
+    "intro": "mI' naghHommeyvo' tlheghmey boqmey je tIchenmoH, Hoch raS yIlISqa' 'ej wa'DIch 'uchwI'lIj yIchImmoH. cha'vo' jav QujwI'pu'; quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "seats": "QujwI'pu' (quSmey)",
+    "players": "{count} QujwI' | {count} QujwI'pu'",
+    "fewer": "{setting} puS",
+    "more": "{setting} law'",
+    "range": "{hint} ({min}vo' {max})",
+    "seconds": "{count} lup | {count} lupmey",
+    "off": "chu'Ha'lu'",
+    "coloursInPlay": "lo'lu'bogh rItlhmey",
+    "coloursNumbers": "{colours} rItlhmey, wa'vo' {numbers} mI'mey",
+    "tiles": "{total} naghHommey ({colours} x {numbers} x 2).",
+    "tilesWild": "{total} naghHommey ({colours} x {numbers} x 2 + {count} tojwI'). | {total} naghHommey ({colours} x {numbers} x 2 + {count} tojwI'pu').",
+    "deal": "{hand} Hev Hoch QujwI'; ngaSwI'Daq tagh {pool}.",
+    "handNeeds": "({min} pagh law' naghHommey poQ 'uchwI'.)",
+    "hints": {
+      "numbers": "wa'vo' mI'vamDaq ghoS naghHommey.",
+      "colours": "wa' rItlh 'ej wa' Dop ghaj Hoch.",
+      "wildcards": "Hoch naghHom 'oSbogh tojwI'pu'.",
+      "rounds": "may'meyDaq chel'egh mI'mey.",
+      "meld": "raS Dalo'laHpa' naghHommeylIjvo' poQlu'.",
+      "timer": "rInDI', naghHom tlhap QujwI'.",
+      "playOnMeld": "ghom wa'DIchlIj DalanDI', Qu' rapDaq Hoch raS DalISlaH; Qu' vebDaq neH ghobe'."
+    }
+  },
+  "settings": {
+    "numbers": "rItlhvaD mI'mey",
+    "colours": "rItlhmey",
+    "wildcards": "tojwI'pu'",
+    "rounds": "may'mey",
+    "meld": "ghom wa'DIch (mI'mey)",
+    "timer": "Qu' poH juvwI'",
+    "playOnMeld": "ghom wa'DIch ghIq yItaH"
+  },
+  "colours": {
+    "red": "'Iw rItlh",
+    "blue": "chal rItlh",
+    "orange": "jul rItlh",
+    "black": "qIj",
+    "green": "tI rItlh",
+    "purple": "naH rItlh",
+    "teal": "bIQ rItlh",
+    "pink": "Doq wov"
+  },
+  "tiles": {
+    "name": "{colour} {number}",
+    "wildcard": "tojwI'",
+    "wildcardStanding": "{text} 'oSbogh tojwI'",
+    "new": "chu'"
+  },
+  "table": {
+    "empty": "chIm raS.",
+    "emptyMine": "chIm raS. 'uchwI'lIjvo' ghom wa'DIch yIchenmoH.",
+    "run": "tlhegh, {value}",
+    "group": "boq, {value}",
+    "addToSet": "ghom {n}Daq wIvlu'bogh naghHommey tIchel",
+    "yourRack": "'uchwI'lIj",
+    "rackCount": "({count} naghHom) | ({count} naghHommey)",
+    "sortRack": "'uchwI' yIlIS",
+    "runsTitle": "rItlh, ghIq mI': tlheghmeyvaD QaQ",
+    "groupsTitle": "mI', ghIq rItlh: boqmeyvaD QaQ",
+    "runs": "tlheghmey",
+    "groups": "boqmey",
+    "rackEmpty": "chIm 'uchwI'lIj.",
+    "newSet": "ghom chu' yItagh",
+    "newSetDrop": "ghom chu': naDev naghHommey tIlan",
+    "resetTurn": "Qu' yItaghqa'",
+    "drawTitle": "ngaSwI'vo' naghHom yItlhap 'ej Qu'lIj yIrInmoH",
+    "passTitle": "chIm ngaSwI': yIjegh",
+    "draw": "naghHom yItlhap",
+    "pass": "yIjegh",
+    "endTurn": "Qu' yIrInmoH"
+  },
+  "facts": {
+    "roundOf": "may' {n}/{total}",
+    "poolTitle": "ngaSwI'Daq {count} naghHom | ngaSwI'Daq {count} naghHommey",
+    "pool": "ngaSwI'Daq {count}",
+    "meld": "ghom wa'DIch: {n} mI'mey",
+    "meldWithPoints": "ghom wa'DIch: {n} mI'mey ({points} Daghaj)",
+    "timeLeft": "Qu'vamDaq ratlhbogh poH",
+    "secondsLeft": "{n} lup ratlh"
+  },
+  "popup": {
+    "tilesInRack": "'uchwI'Daq naghHommey",
+    "firstMeld": "ghom wa'DIch",
+    "made": "chenmoHpu'",
+    "notYet": "wej",
+    "turn": "Qu'",
+    "playingNow": "DaH Quj",
+    "waiting": "loStaH"
+  },
+  "summary": {
+    "wentOut": "rInpu' {names}.",
+    "blocked": "vanglaH pagh. 'uchwI' puSqu' ghaj {names}.",
+    "noTilesLeft": "naghHom ratlhbe'",
+    "pointsOfTiles": "naghHommeyDaq {n} mI'mey"
+  },
+  "status": {
+    "yourMove": "'uchwI'lIjvo' raSDaq naghHommey tIvIHmoH, pagh raS yIlIS. pagh naghHom yItlhap.",
+    "makeMeld": "naghHommeylIjvo' {meld} pagh law' mI'mey ghajbogh ghom wa'DIch yIchenmoH, pagh naghHom yItlhap.",
+    "makeMeldOpen": "naghHommeylIjvo' {meld} pagh law' mI'mey ghajbogh ghom wa'DIch yIchenmoH, ghIq Hoch raS yIlo'; pagh naghHom yItlhap.",
+    "readyPlayed": "ruchrup: {count} naghHom lanlu'pu'. | ruchrup: {count} naghHommey lanlu'pu'.",
+    "readyMeld": "ruchrup: {points} mI'mey ghaj ghom wa'DIch.",
+    "readyMeldOpen": "ruchrup: {points} mI'mey ghaj ghom wa'DIch, 'ej poS raS.",
+    "wins": "Quj chargh {name}!",
+    "shareWin": "yay lu'uch Hoch {names}.",
+    "roundOver": "rIn may' {n}.",
+    "playing": "Quj {name}",
+    "waitingFor": "{names} loSlu'",
+    "closeScores": "bItaHmeH mI'mey yISoQmoH.",
+    "ready": "ruchrup: {names}",
+    "readyNobody": "ruchrup: wej vay'",
+    "startedWith": "{count} naghHom ghajtaHvIS tagh Hoch QujwI'. | {count} naghHommey ghajtaHvIS tagh Hoch QujwI'.",
+    "waitingHostAgain": "Qujqa'meH che'wI' loSlu'."
+  },
+  "hints": {
+    "notThere": "pa' naghHomvetlh tu'lu'be'.",
+    "jokerStays": "'oSbogh naghHom DatammoHpa', raSDaq ratlh tojwI'.",
+    "frozen": "ghom wa'DIchlIj Dalanpa', raSDaq ghommey choHlu'laHbe'.",
+    "staysOnTable": "raSDaq ratlhpu'bogh naghHom raSDaq ratlhnIS.",
+    "noSuchSet": "ghomvetlh tu'lu'be'.",
+    "runSplit": "{n} cha'DIchDaq pe'lu' tlhegh.",
+    "jokerReplaced": "tamlu'pu' tojwI': ghomDaj'e' ghoSpu', vaj Qu'vamDaq ghomDaq yIlo'."
+  },
+  "notes": {
+    "tilesLeft": "{count} naghHom ratlh ({points}) | {count} naghHommey ratlh ({points})",
+    "wentOut": "rInpu'",
+    "lowestRack": "'uchwI' puSqu' ({points})"
+  },
+  "log": {
+    "takesOver": "mejpu'bogh QujwI' qa' {name}",
+    "begins": "tagh Quj: {count} may', {tiles} naghHommey. | tagh Quj: {count} may'mey, {tiles} naghHommey.",
+    "roundStarts": "may' {n}: wa'DIch Quj {name}. {hand} naghHommey Hoch, ngaSwI'Daq {inPool}.",
+    "melded": "{count} naghHom lan {name} ({points} mI'mey) | {count} naghHommey lan {name} ({points} mI'mey)",
+    "played": "{count} naghHom lan {name} | {count} naghHommey lan {name}",
+    "drew": "naghHom tlhap {name}",
+    "drewTimeout": "naghHom tlhap {name} (rIn poH)",
+    "passed": "jegh {name}",
+    "passedTimeout": "jegh {name} (rIn poH)",
+    "wentOut": "rInpu' {name} 'ej may' {n} chargh.",
+    "blocked": "vanglaH pagh. 'uchwI' puSqu'mo' may' {n} chargh {names}. | vanglaH pagh. 'uchwI' puSqu'mo' may' {n} lu'uch Hoch {names}.",
+    "gameOver": "rIn Quj: yay chav {names}. | rIn Quj: yay lu'uch Hoch {names}."
+  },
+  "errors": {
+    "fewNumbersColours": "mI'mey rItlhmey je puSqu'mo' chenlaH tlhegh boq joq pagh. {min} mI'mey pagh {min} rItlhmey yIwIv.",
+    "tooFewTiles": "{tiles} naghHommey neH tu'lu'; {players} QujwI'pu'vaD 'uchwI'mey lo'laH nobmeH puSqu' (HochvaD {min} pagh law', 'ej ngaSwI' rap tIn). mI'mey, rItlhmey, tojwI'pu' joq tIchel, pagh QujwI'pu' tIteq.",
+    "settingNotNumber": "mI' 'oHnIS {setting}'e'.",
+    "playOnMeldSetting": "ghom wa'DIch ghIq taH wIv chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "runOneColour": "wa' rItlh neH ghaj tlhegh.",
+    "runRepeats": "mI' qaSqa'moHlaHbe' tlhegh.",
+    "runTooLong": "{max} naghHommey Dung nI'laHbe' tlhegh.",
+    "runGap": "mI'meyvetlh rarlaHbe' tojwI'pu': Hop law'.",
+    "groupOneNumber": "wa' mI' neH ghaj boq.",
+    "groupColours": "Hoch naghHomvaD rItlh pIm poQ boq.",
+    "groupTooBig": "{max} naghHommey Dung ghajlaHbe' boq (rItlhvaD wa').",
+    "setTooSmall": "{min} pagh law' naghHommey poQ ghom.",
+    "notASet": "naghHom ghom 'oHbe'.",
+    "onlyJokers": "tojwI'pu' neH ghajlaHbe' ghom.",
+    "notRunOrGroup": "tlhegh boq joq chenmoHbe' naghHommeyvetlh.",
+    "notASetKind": "tlhegh (wa' rItlh, tlha'chuqbogh mI'mey) pagh boq (wa' mI', rItlhmey pIm) 'oH ghom'e'.",
+    "jokerTaken": "raSDaq tojwI' vIHmoHlu' neH: wa'DIch 'oSbogh naghHom yItammoH.",
+    "notATableLayout": "raS mIw 'oHbe'.",
+    "tileTwice": "mIwvetlhDaq cha'logh qaS wa' naghHom.",
+    "tilesMissing": "raSvo' naghHom Hutlhlu': raSDaq ratlhnIS Hoch. | raSvo' {count} naghHommey Hutlhlu': raSDaq ratlhnIS Hoch.",
+    "onlyFromRack": "'uchwI'lIjvo' naghHommey neH DachellaH.",
+    "nothingAdded": "naghHom Dachelbe'pu'. naghHom yItlhap.",
+    "setProblem": "ghom {n}: {reason}",
+    "meldShortOpen": "naghHommeylIjvo' ghommey chu'Daq {meld} pagh law' mI'mey ghajnIS ghom wa'DIchlIj; {points} neH ghaj vam.",
+    "meldUsesTable": "ghom wa'DIchlIj Dalanpa', raSDaq naghHommey Dalo'laHbe'.",
+    "meldShort": "naghHommeylIjvo' {meld} pagh law' mI'mey ghajnIS ghom wa'DIchlIj; {points} neH ghaj vam.",
+    "noTimeLimit": "poH veH tu'lu'be'.",
+    "nothingToDo": "ta'lu'meH pagh tu'lu'."
+  }
+}

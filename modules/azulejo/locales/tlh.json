@@ -1,0 +1,158 @@
+{
+  "meta": {
+    "name": "rItlh reD",
+    "description": "chenmoHwI' cha'wI'meyvo' rItlhlu'bogh naghHommey tIwIv 'ej reD 'IH yIchenmoH. cha'vo' vagh QujwI'pu'; quSmey teblaH De'wI' QujwI'pu'."
+  },
+  "entry": {
+    "noun": "Azulejo Quj",
+    "intro": "cha'wI'meyvo' rItlhlu'bogh naghHommey tIwIv 'ej reD 'IH yIchenmoH. cha'vo' vagh QujwI'pu'; quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "freeWall": "reD tlhab",
+  "colour": {
+    "0": "chal rItlh",
+    "1": "jul rItlh",
+    "2": "yav rItlh",
+    "3": "tI rItlh",
+    "4": "naH rItlh"
+  },
+  "tiles": "{count} {colour}",
+  "source": {
+    "centre": "botlh",
+    "factory": "chenmoHwI' {n}"
+  },
+  "player": "QujwI' {n}",
+  "bonuses": "nobmey",
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "players": "QujwI'pu' (quSmey)",
+    "playerCount": "{n} QujwI'pu'",
+    "plates": "{plates} cha'wI'mey; {perPlate} naghHommey ghaj Hoch. {tiles} naghHommey ngaS ngaSwI' ({perColour} Hoch rItlhvaD).",
+    "offByDefault": "(motlh: chu'Ha'lu')",
+    "freeWallOn": "chIm reD taghDI' Quj. mI' Suq tlheghDI', tlheghvetlhDaq naghHomvaD tlhegh Qam wIv ghajwI'. tlheghDaq joq tlhegh QamDaq joq not qaSqa' rItlh. rItlhvetlhvaD tlhegh Qam tlhab ghajtaHvIS tlhegh neH, lo'lu'laH.",
+    "freeWallOff": "reD motlh: tlhegh Dung rur Hoch tlhegh 'ach wa' Daq vIHpu', 'ej Hoch tlheghDaq wa' Daq motlh ghaj Hoch rItlh."
+  },
+  "status": {
+    "chooseColumn": "reD naghHom: tlhegh {row}Daq {colour} naghHomlIjvaD tlhegh Qam yIwIv.",
+    "waitingColumns": "reD naghHom: tlhegh Qam luwIvmeH {names} loSlu'…",
+    "yourTurn": "Qu'lIj: cha'wI'Daq, pagh botlhDaq, rItlh yIwIv.",
+    "chooseWhere": "DaH nuqDaq ghoS {count} {colour} yIwIv: wovbogh tlhegh, pagh yav.",
+    "clickPlace": "reDlIj tlhegh {row}Daq wovbogh Daqmey wa' yIwIv.",
+    "pointAtLine": "qaSbogh DaleghmeH tlheghDaq yIqIm. lo'laHlu' tI rItlh tlheghmey; reH lo'laHlu' yav.",
+    "takeTiles": "wa' cha'wI'vo', pagh botlhvo', wa' rItlh Hoch naghHom yItlhap.",
+    "firstPlayer": "QujwI' wa'DIch: {name}. wa'DIch 'angwI': {marker}.",
+    "selected": "{source}vo' {count} {colour}.",
+    "selectedMarker": "{source}vo' {count} {colour}, wa'DIch 'angwI' je (yav Daq tlhap 'ej may' vebDaq wa'DIch SoH)."
+  },
+  "marker": {
+    "centre": "botlhDaq",
+    "taken": "tlhaplu'pu'",
+    "with": "{name} ghaj"
+  },
+  "preview": {
+    "floor": "yavDaq ghoS Hoch {count} {colour}.",
+    "line": "{count} {colour}vo' tlhegh {line}Daq ghoS {put}.",
+    "lineComplete": "{count} {colour}vo' tlhegh {line}Daq ghoS {put}, 'ej naQmoH.",
+    "spill": "yavDaq pum {count} naghHom. | yavDaq pum {count} naghHommey.",
+    "marker": "wa'DIch 'angwI' je Datlhap.",
+    "cost": "yavmo' {cost} latlh DaDIlnIS ({total} Hoch).",
+    "noCost": "yav bIj chu' pagh."
+  },
+  "table": {
+    "floorTitle": "yav tlheghDaq Hoch tIlan",
+    "bonusNote": "Quj rIn nobmey chel tlhegh Qav, vaj mI' Qav rap Hoch.",
+    "finalResult": "Qav ghu'",
+    "winner": "{points} mI'mey ghaj {names} 'ej yay chav. | {points} mI'mey lughaj {names}: yay lu'uch Hoch.",
+    "player": "QujwI'",
+    "beforeBonuses": "nobmey chelpa'",
+    "rows": "tlheghmey (+{bonus})",
+    "columns": "tlheghmey Qam (+{bonus})",
+    "colours": "rItlhmey (+{bonus})",
+    "bonuses": "nobmey",
+    "place": "patlh",
+    "winnerPlace": "charghwI'",
+    "tiesNote": "rapchugh mI'mey, tlheghmey naQ law'qu' ghajbogh ghaH yay chav; rapqu'chugh, yay lu'uch Hoch.",
+    "waitingHost": "Qujqa'meH, pagh mejmeH (nIH Dung), che'wI' loSlu'.",
+    "chooseAnother": "latlh rItlh yIwIv"
+  },
+  "facts": {
+    "round": "may' {n}",
+    "inBag": "ngaSwI'Daq {count}",
+    "lidTitle": "SoQwI'Daq {count} naghHom | SoQwI'Daq {count} naghHommey",
+    "lid": "SoQwI':"
+  },
+  "board": {
+    "label": "{name} reD",
+    "toMove": "vangnIS",
+    "firstNext": "may' vebDaq wa'DIch",
+    "firstNextTitle": "may' veb tagh",
+    "scoreTitle": "{count} mI' ghaj {name} | {count} mI'mey ghaj {name}",
+    "patternLines": "'IH tlheghmey",
+    "line": "tlhegh {n}: {capacity}vo' {count} naghHommey",
+    "wall": "reD",
+    "wallFree": "reD (tlhab)",
+    "putTile": "tlhegh {row}, tlhegh Qam {col}Daq naghHom yIlan",
+    "floorLine": "yav tlhegh",
+    "floor": "yav"
+  },
+  "workshop": {
+    "plates": "chenmoHwI' cha'wI'mey",
+    "fromFactory": "chenmoHwI' {n}vo' {count} {colour}",
+    "fromCentre": "botlhvo' {count} {colour}",
+    "withMarker": "{count} {colour} (wa'DIch 'angwI' je)",
+    "empty": "chIm",
+    "centre": "botlh",
+    "markerTitle": "botlhvo' wa'DIch tlhapbogh QujwI' tlhap 'angwI'vam (yav Daq DIl) 'ej may' veb tagh.",
+    "onlyMarker": "'angwI' neH.",
+    "nothingHere": "naDev pagh."
+  },
+  "tile": {
+    "marker": "wa'DIch 'angwI'",
+    "placeFor": "{name} (Daq)"
+  },
+  "tiling": {
+    "label": "may' {n} reD naghHom",
+    "title": "reD naghHom, may' {n}",
+    "chip": "tlhegh {row}: {count} mI' | tlhegh {row}: {count} mI'mey",
+    "noneFull": "naQ pagh tlhegh",
+    "dropped": "({count} tlhegh naQ Daq Hutlh) | ({count} tlheghmey naQ Daq luHutlh)",
+    "floorLost": "yav -{lost}",
+    "floorNone": "yav 0"
+  },
+  "notes": {
+    "floor": "yav -{lost}",
+    "rowsComplete": "tlhegh naQ | {count} tlheghmey naQ",
+    "noRoom": "reDDaq tlhegh naQvaD Daq pagh",
+    "rows": "{count} tlhegh | {count} tlheghmey",
+    "columns": "{count} tlhegh Qam | {count} tlheghmey Qam",
+    "sets": "{count} rItlh ghom | {count} rItlh ghommey",
+    "noBonuses": "nobmey pagh"
+  },
+  "log": {
+    "takesOver": "mejpu'bogh QujwI' qa' {name}",
+    "begins": "tagh Quj. wa'DIch vang {name}.",
+    "round": "may' {n}: QujwI' wa'DIch ghaH {name}'e'.",
+    "took": "{source}vo' {tiles} tlhap {name}: {result}",
+    "tookMarker": "{source}vo' {tiles} wa'DIch 'angwI' je tlhap {name}: {result}",
+    "allToFloor": "yavDaq Hoch",
+    "onLine": "tlhegh {line}Daq {placed}",
+    "onLineSpill": "tlhegh {line}Daq {placed}, yavDaq {overflow}",
+    "scored": "{points} Suq {name}",
+    "scoredLost": "{points} Suq {name}, ghIq yavmo' {lost} chIl",
+    "roundOverRow": "rIn may' {n}, 'ej naQ tlhegh.",
+    "gameOver": "rIn Quj. yay chav {names}. | rIn Quj. yay lu'uch Hoch {names}."
+  },
+  "errors": {
+    "freeWallSetting": "reD tlhab wIv chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "chooseSource": "chenmoHwI' cha'wI', pagh botlh, yIwIv.",
+    "chooseColour": "rItlh yIwIv.",
+    "noColourInSource": "{source}Daq {colour} tu'lu'be'.",
+    "noSuchLine": "'IH tlheghvetlh tu'lu'be'.",
+    "lineFull": "naQpu' tlhegh {line}.",
+    "lineHolds": "{colour} 'uchtaH tlhegh {line}.",
+    "rowHasColour": "reDlIj tlhegh {row}Daq {colour} tu'lu'.",
+    "noFreeColumn": "reDlIj tlhegh {row}Daq tlhegh Qam tlhab Hutlh {colour}.",
+    "notTimeToPlace": "reDDaq naghHom lanmeH poH 'oHbe'.",
+    "nothingToPlace": "reDDaq DalanmeH pagh Daghaj.",
+    "chooseHighlighted": "tlhegh {row}Daq wovbogh tlheghmey Qam wa' yIwIv."
+  }
+}

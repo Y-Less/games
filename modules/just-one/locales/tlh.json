@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "name": "wa' neH",
+    "description": "pegh mu'vaD wa' mu' ngoDHom ghItlh Hoch, loywI' neH. rapbogh ngoDHommey luqIllu'. mu' SamlaH'a' loywI'? 'ej ngoDHom pov nuq?"
+  },
+  "entry": {
+    "noun": "wa' neH Quj",
+    "intro": "leghlaHbe'bogh loywI' pegh mu'vaD wa' mu' ngoDHommey tIghItlh. rapbogh ngoDHommey luqIllu'. DangeHmeH mu' DaHev."
+  },
+  "leaveConfirm": "bIcheghlaHbe'.",
+  "settings": {
+    "length": "Quj poH",
+    "fewerTurns": "Qu'mey puS",
+    "moreTurns": "Qu'mey law'",
+    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "total": "{players} QujwI'pu' tu'lu'DI' {count} Qu' Hoch. loywI' moj Hoch. | {players} QujwI'pu' tu'lu'DI' {count} Qu'mey Hoch. loywI' moj Hoch."
+  },
+  "scoreboard": {
+    "turn": "Qu' {n}: {name}"
+  },
+  "notes": {
+    "guessedIt": "loychu'",
+    "passed": "jeghpu'",
+    "bestHint": "ngoDHom pov"
+  },
+  "table": {
+    "secretWord": "pegh mu'",
+    "secretWordHidden": "pegh mu' (DaleghlaHbe')",
+    "clues": "ngoDHommey",
+    "theClues": "ngoDHommey",
+    "cluePlaceholder": "wa' mu'",
+    "yourClue": "ngoDHomlIj",
+    "sendClue": "ngoDHom yIngeH",
+    "thinking": "ghItlhlu'taH ngoDHommey. nuq 'oH mu''e' yIqel.",
+    "whoWritten": "'Iv ghItlhpu'",
+    "allCancelled": "qIllu'pu' Hoch ngoDHom.",
+    "writerCancelled": "{name} · qIllu'pu'",
+    "writerBest": "{name} · ngoDHom pov",
+    "guessPlaceholder": "wa' loylIj",
+    "yourGuess": "loylIj",
+    "guess": "yIloy",
+    "pass": "yIjegh",
+    "guessedRight": "“{guess}” loy {name}, 'ej lugh.",
+    "guesserTag": "loywI'",
+    "writtenTag": "ghItlhlu'pu'",
+    "cancelledTag": "qIllu'pu'",
+    "bestTag": "ngoDHom pov"
+  },
+  "facts": {
+    "guesser": "loywI': {name}"
+  },
+  "popup": {
+    "guesser": "Qu'vamDaq loywI'",
+    "written": "ngoDHom ghItlhpu'",
+    "toWrite": "wej ngoDHom ghItlh"
+  },
+  "reveal": {
+    "label": "Qu'vam",
+    "wordWas": "{word} 'oH mu''e'",
+    "passed": "jeghpu' {name}.",
+    "guessedRight": "“{guess}” loy {name}: lugh (+{points}).",
+    "guessedWrong": "“{guess}” loy {name}: lughbe'.",
+    "bestHint": "ngoDHom pov ghItlh {name} (+{points})."
+  },
+  "status": {
+    "revealPassed": "jeghpu' {name}. {word} 'oH mu''e'.",
+    "revealGuessed": "“{guess}” loy {name}. {word} 'oH mu''e'.",
+    "revealBest": "Sampu' {name}! pov {best} ngoDHom.",
+    "revealNoHint": "Sampu' {name}! qIllu'pu' Hoch ngoDHom.",
+    "guesserWriting": "loywI' SoH. ngoDHommey lughItlh latlhpu' ({total}vo' {written}).",
+    "write": "“{word}”vaD wa' mu' ngoDHom yIghItlh. mu' rap ghItlhchugh latlh, luqIllu' cha'.",
+    "clueSent": "ngeHlu'pu' ngoDHom. latlhpu' loSlu' ({total}vo' {written}).",
+    "yourGuess": "Qu'lIj: ngoDHommey tIlaD 'ej mu' yIloy, pagh yIjegh.",
+    "guessing": "loylI' {name}.",
+    "pickBest": "lugh! DaH ngoDHom pov yIwIv.",
+    "choosing": "mu' Sampu' {name}, 'ej ngoDHom pov wIvlI'.",
+    "leaveToMenu": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo'.",
+    "finishedNote": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo', pagh Hoch Qu' Daleghqa'meH mI' tlheghDaq \"Hoch may'\" yIlo'.",
+    "waitingReadyNext": "Qu' vebvaD luruchrupmeH {names} loSlu'.",
+    "waitingReadyFinal": "mI'mey QavvaD luruchrupmeH {names} loSlu'.",
+    "ownCancelled": "qIllu'pu' ngoDHomlIj: latlh rur.",
+    "scoring": "lughDI': SoHvaD {guesser} mI'mey, 'ej ngoDHom pov ghItlhwI'vaD {bestHint}. lughbe'DI' pagh bIjeghDI', Suqlu' pagh.",
+    "clickBest": "QaHqu'bogh ngoDHom yIwIv."
+  },
+  "log": {
+    "turnStart": "{total}vo' Qu' {n}: loywI' ghaH {name}'e'. ngoDHom ghItlh Hoch latlh.",
+    "written": "ngoDHom ghItlhpu' {name}.",
+    "cluesIn": "DaH tu'lu' ngoDHommey. rap pagh. | DaH tu'lu' ngoDHommey. rap {count}, 'ej qIllu'. | DaH tu'lu' ngoDHommey. rap {count}, 'ej luqIllu'.",
+    "passed": "jeghpu' {name}.",
+    "guessed": "“{guess}” loy {name}.",
+    "bestHint": "pov {best} ngoDHom (+{points}). {score} Suq {name}.",
+    "noHints": "{score} Suq {name}. wIvlu'meH ngoDHom ratlhbe'.",
+    "wordWas": "“{word}” 'oH mu''e'.",
+    "abandoned": "lonlu'pu' Quj."
+  },
+  "errors": {
+    "cluesIn": "DaH tu'lu' ngoDHommey.",
+    "guesserNoClue": "bIloytaHmo' ngoDHom DaghItlhbe'.",
+    "alreadyClued": "ngoDHomlIj DangeHpu'.",
+    "typeClue": "wa'DIch ngoDHomlIj yIghItlh.",
+    "clueTooLong": "{max} ghItlhmey pagh puS ghaj ngoDHom.",
+    "clueOneWord": "wa' mu' 'oH ngoDHom'e'.",
+    "clueIsTheWord": "mu' 'oH, pagh mu' 'ay' 'oH.",
+    "guesserOnlyGuesses": "loy loywI' neH.",
+    "typeGuess": "yIloy, pagh yIjegh.",
+    "guesserOnlyPasses": "jeghlaH loywI' neH.",
+    "noBestYet": "wej wIvlu'meH ngoDHom pov tu'lu'.",
+    "guesserOnlyPicks": "ngoDHom pov wIvlaH loywI' neH.",
+    "pickAHint": "ngoDHommey wa' yIwIv."
+  }
+}

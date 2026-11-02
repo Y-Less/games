@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "name": "maqbogh may'Hommey",
+    "description": "wejvo' Soch QujwI'pu'vaD whist: 'ar may'Hommey Datlhap 'e' yImaqchu'; Hoch may'Daq choH nIv Segh. juppu' pagh De'wI' QujwI'pu' tItlhej."
+  },
+  "entry": {
+    "noun": "maq Quj",
+    "intro": "wejvo' Soch QujwI'pu'vaD whist: 'ar may'Hommey Datlhap 'e' yImaqchu'."
+  },
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "options": "Quj wIvmey",
+    "seats": "quSmey 'ar",
+    "full": "naQ: Sochvo' wa'Daq 'ej chegh (wa'maHloS may'mey)",
+    "short": "Sochvo' wa'Daq neH (Soch may'mey)",
+    "missPoints": "tlhapbogh may'Hommey Suq lujwI'",
+    "missPointsNote": "(latlh mIwDaq pagh Suq lujwI')",
+    "instantWin": "Sochmo' yay nom",
+    "instantWinNote": "(may' wa'DIchDaq pagh may' QavDaq Soch yImaq 'ej Hoch Soch may'Hommey yItlhap: Hoch Quj Dachargh)",
+    "jokers": "tojwI'pu'",
+    "jokersNote": "(nav ghomDaq chellu' cha' tojwI'pu': wa'DIch bIlanchugh, pagh Segh Datlha'laHbe'chugh, may'Hom chargh tojwI'; 'ach may'Hom rapDaq lanlu'chugh latlh tojwI', luj cha')",
+    "hints": "chupmey",
+    "hintsNote": "(navmeylIjvaD maq chup; SoH yInabmeH yIchu'Ha')",
+    "scoring": "Damaqbogh mI' Dachu'chu'chugh, wa'maH 'ej Damaqbogh mI' je DaSuq. {rounds} may'mey Hoch."
+  },
+  "noTrumps": "nIv Segh pagh",
+  "instantWin": "yay nom",
+  "round": {
+    "label": "may' {n}: {count} nav, {trump} | may' {n}: {count} navmey, {trump}",
+    "note": "maq {bid}, tlhap {taken}"
+  },
+  "table": {
+    "nominating": "maqlI'…",
+    "dealer": "nobwI'",
+    "notYetNominated": "wej maq",
+    "nominated": "maq {bid}",
+    "nominatedWon": "maq {bid} · chargh {tricks}",
+    "yourNomination": "maqlIj",
+    "forbiddenTitle": "nobwI' SoHmo' vam DamaqlaHbe'",
+    "suggestedTitle": "navmeylIjvaD chuplu'"
+  },
+  "status": {
+    "yourTurnNominate": "Qu'lIj: 'ar may'Hommey Datlhap 'e' yImaq.",
+    "waitingNominate": "maq {name} 'e' loSlu'.",
+    "winsTrick": "may'Hom chargh {name}.",
+    "yourTurnPlay": "Qu'lIj: nav yIlan.",
+    "waitingPlay": "lan {name} 'e' loSlu'.",
+    "waitingReady": "may' vebvaD luruchrupmeH {names} loSlu'.",
+    "roundOver": "rIn may': bItaHmeH mI'mey yISoQmoH.",
+    "winsInstantly": "DaH yay chav {name}!",
+    "suggestion": "navmeylIjvaD chuplu'bogh maq: {n} (wovmoHlu').",
+    "dealerForbidden": "nobwI' SoH, vaj {number} DamaqlaHbe': {cards} lujatlh Hoch maqmey, may'Hommey 'ar je, 'ej lujnIS vay'.",
+    "dealerFree": "nobwI' SoH. {cards} pagh law' may'Hommey lumaqpu' latlhpu', vaj Hoch mI' chaw'lu'.",
+    "dealerLast": "nob 'ej Qav maq {name}: {number} maqlaHbe'.",
+    "followSuit": "lanlu'laHbe' Hurghbogh navmey: Segh Datlha'nIS.",
+    "instantHow": "Soch maqpu' 'ej {round}Daq Hoch Soch may'Hommey chargh."
+  },
+  "facts": {
+    "cardsEach": "{count} nav Hoch | {count} navmey Hoch",
+    "dealer": "nobwI': {name}",
+    "youNominated": "{bid} Damaq",
+    "youNominatedWon": "{bid} Damaq · {tricks} Dachargh",
+    "notNominated": "wej bImaq",
+    "trumps": "nIv Segh:",
+    "trumpsTitle": "may'vamDaq nIv Segh: {trump}",
+    "nominatedTotal": "{count} may'Homvo' {total} maqlu' | {count} may'Hommeyvo' {total} maqlu'"
+  },
+  "popup": {
+    "dealer": "nobwI'",
+    "yes": "HISlaH",
+    "no": "ghobe'",
+    "nomination": "maq",
+    "choosing": "wIvlI'…",
+    "notYet": "wej"
+  },
+  "result": {
+    "player": "QujwI'",
+    "nominated": "maqlu'",
+    "won": "charghlu'",
+    "points": "mI'mey",
+    "instantWin": "yay nom!",
+    "hit": "lughchu'",
+    "missed": "lujpu'"
+  },
+  "final": {
+    "winsInstantly": "DaH yay chav {name}!",
+    "instantExplain": "Soch maqpu' {name} 'ej Hoch Soch may'Hommey chargh, vaj naDev mev Quj, Hoch mI'mey vuvbe'. DaH mI'meychaj lutlha' Hoch latlh.",
+    "youWon": "majQa': yay Daghaj.",
+    "computer": "(De'wI')"
+  },
+  "log": {
+    "roundTrumps": "may' {n}: {count} nav Hoch, nIv Segh ghaH {trump}'e'. | may' {n}: {count} navmey Hoch, nIv Segh ghaH {trump}'e'.",
+    "roundNoTrumps": "may' {n}: {count} nav Hoch, nIv Segh pagh. | may' {n}: {count} navmey Hoch, nIv Segh pagh.",
+    "nominated": "{bid} maq {name}.",
+    "played": "{card} lan {name}.",
+    "jokersCancel": "lanlu'pu' cha' tojwI'pu', vaj luj cha'.",
+    "secondJokerWins": "wa'DIch lanlu'bogh tojwI' jey cha'DIch tojwI'.",
+    "wonTrick": "may'Hom chargh {name}.",
+    "roundOver": "rIn may' {n}.",
+    "gameOver": "rIn Quj."
+  },
+  "errors": {
+    "lengthSetting": "Quj: wa'maHloS may'mey naQ, pagh Sochvo' wa'Daq neH.",
+    "missPointsSetting": "mI' Suq wIvvetlh chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "instantWinSetting": "yay nom wIvvetlh chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "jokersSetting": "tojwI'pu' wIv chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "hintsSetting": "chupmey wIv chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "notTimeToNominate": "maqmeH poH 'oHbe'.",
+    "notYourTurnToNominate": "bImaqmeH Qu'lIj 'oHbe'.",
+    "nominateRange": "paghvo' {max} mI' naQ yImaq.",
+    "dealerForbidden": "nobwI' SoHmo' {number} DamaqlaHbe': {cards} jatlh Hoch, may'Hommey 'ar je, vaj lujnIS vay'.",
+    "followSuit": "Segh Datlha'nIS ({suit}).",
+    "jokerOnlyWhenVoid": "Segh Datlha'laHbe'DI' neH tojwI' DalanlaH ({suit})."
+  }
+}

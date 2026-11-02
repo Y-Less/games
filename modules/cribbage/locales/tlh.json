@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "name": "mI' raS",
+    "description": "cha'vo' vagh QujwI'pu'vaD nav Quj qan; quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "entry": {
+    "noun": "Cribbage Quj",
+    "intro": "cha'vo' vagh QujwI'pu'vaD Cribbage; quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "hand": "may' {n}",
+  "lobby": {
+    "share": "mu'vam yI'ang (rI' He DatlhapmeH yIwIv). che'wI' taghpa' tebnIS Hoch quS (DaneHchugh De'wI' QujwI'pu' tIchel).",
+    "game": "Quj",
+    "seats": "quSmey",
+    "playTo": "mI' ngoQ",
+    "deal": {
+      "2": "cha' QujwI'pu': jav navmey Hoch, cha' ngaSwI'Daq.",
+      "3": "wej QujwI'pu': vagh navmey Hoch, wa' nav Hoch ngaSwI'Daq, 'ej nav ghomvo' wa' latlh.",
+      "4": "loS QujwI'pu': vagh navmey Hoch, wa' nav Hoch ngaSwI'Daq.",
+      "5": "vagh QujwI'pu': vagh navmey Hoch, wa' ngaSwI'Daq, 'ach loS neH Hev nobwI' 'ej pagh chel."
+    }
+  },
+  "table": {
+    "dealer": "nobwI'",
+    "dealerDiscarded": "nobwI', woDpu'",
+    "dealerChoosing": "nobwI', wIvlI'",
+    "discarded": "woDpu'",
+    "choosing": "wIvlI'",
+    "dealerTitle": "nobwI'",
+    "play": "lan",
+    "count": "togh",
+    "countLabel": "togh",
+    "sendToBox": "ngaSwI'Daq yIngeH",
+    "deck": "nav ghom",
+    "deckLabel": "nav ghom",
+    "starter": "taghwI'",
+    "starterLabel": "taghwI'",
+    "box": "ngaSwI'",
+    "boxLabel": "ngaSwI'",
+    "scoring": "mI' Suq",
+    "nothingScored": "may'vamDaq wej Suqlu' vay'.",
+    "playAgain": "yIQujqa' (loSmeH pa'Daq)"
+  },
+  "facts": {
+    "hand": "may' {n}",
+    "youDeal": "bInob",
+    "deals": "nob {name}",
+    "firstTo": "{n} wa'DIch",
+    "deck": "nav ghom: {count}",
+    "yourBox": "ngaSwI'lIj: {count}",
+    "box": "{name} ngaSwI': {count}"
+  },
+  "popup": {
+    "cardsInHand": "ghopDaq {count} nav | ghopDaq {count} navmey",
+    "youDiscarded": "ngaSwI'Daq navmey Dalanpu'",
+    "youChoosing": "ngaSwI'vaD navmey DawIvtaH",
+    "discarded": "ngaSwI'Daq navmey lanpu'",
+    "choosing": "ngaSwI'vaD navmey wIvtaH",
+    "youDeal": "nobwI' SoH: ngaSwI' Daghaj",
+    "deals": "nobwI': ngaSwI' ghaj",
+    "boxYours": "ngaSwI': Daghaj",
+    "boxOf": "ngaSwI': {name} ghaj",
+    "pegs": "'angwI'mey: {score}Daq wa'DIch, {back}Daq cha'DIch"
+  },
+  "status": {
+    "youWin": "{name} (SoH) yay chav!",
+    "chooseForYourBox": "ngaSwI'lIjvaD {count} nav yIwIv. | ngaSwI'lIjvaD {count} navmey tIwIv.",
+    "chooseForBox": "{name} ngaSwI'vaD {count} nav yIwIv. | {name} ngaSwI'vaD {count} navmey tIwIv.",
+    "yourTurnChoose": "Qu'lIj: nav yIwIv.",
+    "yourTurn": "Qu'lIj.",
+    "toPlay": "lan {name}.",
+    "closeScores": "may' vebvaD bIruchrupDI' mI'mey yISoQmoH.",
+    "chosen": "{count}vo' {chosen} wIvlu'pu': tIwIv, ghIq ngaSwI'Daq yIngeH.",
+    "countRestarted": "0Daq taghqa'pu' togh.",
+    "nothingPlayed": "wej lanlu' vay'.",
+    "standing": "{place}. {name}: {score}",
+    "standingYou": "{place}. {name} (SoH): {score}",
+    "skunk": "ram! {line} bIngDaq rIn {names}."
+  },
+  "show": {
+    "you": "{name} (SoH)",
+    "hand": "{who}: navmey",
+    "crib": "{who}: ngaSwI'",
+    "nothing": "toghmeH pagh tu'lu': pagh may'.",
+    "after": "{score}Daq ghaH {name}'e'."
+  },
+  "board": {
+    "label": "{target}vaD mI' raS: {scores}",
+    "score": "{name} {score}"
+  },
+  "scoring": {
+    "fifteen": "vaghmaH",
+    "pair": "chang'eng",
+    "pairRoyal": "wej rap",
+    "doublePairRoyal": "loS rap",
+    "run": "{count} tlhegh",
+    "flushFive": "vagh Segh rap",
+    "flushFour": "loS Segh rap",
+    "nobs": "Segh mang",
+    "heels": "taghwI' mang",
+    "thirtyOne": "wejmaHwa'",
+    "go": "yIjaH",
+    "lastCard": "nav Qav"
+  },
+  "log": {
+    "scored": "{name}: {what}mo' {points}",
+    "go": "{name}: yIjaH"
+  },
+  "errors": {
+    "targetScore": "{targets} wa' 'oHnIS ngoQ mI''e'.",
+    "notTimeToDiscard": "woDmeH poH 'oHbe'.",
+    "alreadyDiscarded": "bIwoDpu'.",
+    "chooseForBox": "ngaSwI'vaD {count} nav yIwIv. | ngaSwI'vaD {count} navmey tIwIv.",
+    "cardsNotInHand": "ghoplIjDaq navmeyvetlh tu'lu'be'.",
+    "overThirtyOne": "wejmaHwa' Dung ghoS togh: vam DalanlaHbe'.",
+    "nothingToBeReadyFor": "bIruchrupmeH pagh tu'lu'.",
+    "noBotMove": "vanglaHbe' De'wI' QujwI'."
+  }
+}

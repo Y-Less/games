@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "name": "tIqmey",
+    "description": "wejvo' Soch QujwI'pu'vaD may'Hom Quj qan: tIqmey 'etlh voDleH be' je tItlhapQo', pagh maS yIbach. juppu' pagh De'wI' QujwI'pu' tItlhej."
+  },
+  "entry": {
+    "noun": "tIq Quj",
+    "intro": "wejvo' Soch QujwI'pu' (motlh loS), wa' nav ghom, 'ej yay chav mI' puSqu' ghajbogh ghaH. quSmey chIm teblaH De'wI' QujwI'pu'."
+  },
+  "lobby": {
+    "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
+    "deal": "{players} QujwI'pu': {cardsEach} navmey Hoch, {removed}, {passCount} navmey yIngeH.",
+    "removed": "teqlu' {cards}",
+    "noneRemoved": "teqlu' pagh",
+    "playTo": "mI' ngoQ",
+    "points": "{n} mI'mey",
+    "jack": "tlhapbogh ghaHvaD -5 nob nagh mang",
+    "moon": "maS bach (Hoch tIq 'ej 'etlh voDleH be')",
+    "moonOthers": "+26 Suq Hoch latlh",
+    "moonSelf": "-26 Suq bachwI'"
+  },
+  "number": {
+    "3": "wej",
+    "4": "loS",
+    "5": "vagh",
+    "6": "jav",
+    "7": "Soch"
+  },
+  "hand": "may' {n}",
+  "shotMoon": "maS bachpu'",
+  "pass": {
+    "none": "may'vamDaq ngeHlu'be'",
+    "across": "Dop latlhvaD {count} navmey ngeHlu'",
+    "side": "{side}Daq {count} navmey ngeHlu'",
+    "sideFar": "{side}Daq {count} navmey ngeHlu' ({distance} Daqmey)",
+    "left": "poS",
+    "right": "nIH"
+  },
+  "status": {
+    "tie": "rap: yay luchav {names}.",
+    "wins": "{score} mI'mey ghaj {name} 'ej yay chav.",
+    "waitingOthersChoose": "navmey luwIvmeH latlhpu' loSlu'.",
+    "choose": "{label}: {name}vaD {count} navmey tIwIv.",
+    "takesTrick": "may'Hom tlhap {name}.",
+    "leadOpening": "{card} Daghaj: yIlan.",
+    "yourTurn": "Qu'lIj: nav yIlan.",
+    "waitingFor": "{name} loSlu'.",
+    "waitingReady": "may' vebvaD luruchrupmeH {names} loSlu'.",
+    "handOver": "rIn may' {n}: bItaHmeH mI'mey yISoQmoH.",
+    "pick": "{count} navmey tIwIv, ghIq raSDaq SeHwI' yIlo' ({count}vo' {chosen} wIvlu'pu').",
+    "receive": "{name}vo' {count} navmey DaHev.",
+    "claimable": "navmeylIj jeylaH pagh: latlh may'Hom DachIllaHbe'. DatlhapmeH \"Hoch yItlhap\" yIlo'.",
+    "received": "tI rItlh HeH ghaj DaHevpu'bogh navmey.",
+    "lastTrick": "may'Hom Qav: tlhappu' {name}.",
+    "moonSelf": "maS bachpu' {name} 'ej -{points} Suq.",
+    "moonOthers": "maS bachpu' {name}: +{points} Suq Hoch latlh."
+  },
+  "table": {
+    "thisHand": "may'vam",
+    "passed": "ngeHpu'",
+    "choosing": "wIvlI'",
+    "tricks": "{count} may'Hom | {count} may'Hommey",
+    "hearts": "{count} tIq | {count} tIqmey",
+    "queen": ", 'etlh voDleH be'",
+    "jack": ", nagh mang",
+    "claimAll": "Hoch yItlhap",
+    "passThese": "{count}vo' {chosen} navmey tIngeH"
+  },
+  "facts": {
+    "hand": "may' {n}",
+    "trick": "may'Hom {n}/{total}",
+    "heartsBroken": "ghorlu'pu' tIqmey",
+    "heartsNotBroken": "wej ghorlu' tIqmey",
+    "playTo": "{n} ngoQ",
+    "jack": "nagh mang: -5"
+  },
+  "popup": {
+    "tricksTaken": "may'Hommey tlhaplu'pu'",
+    "heartsTaken": "tIqmey tlhaplu'pu'",
+    "pointsThisHand": "may'vam mI'mey",
+    "passing": "ngeHlu'",
+    "hasChosen": "wIvpu'",
+    "stillChoosing": "wIvtaH"
+  },
+  "log": {
+    "dealt": "nobta'lu' may' {n}.",
+    "passed": "ngeHlu'pu' navmey.",
+    "played": "{card} lan {name}.",
+    "takesTrick": "may'Hom tlhap {name}.",
+    "claims": "ratlhbogh {count} may'Hom tlhap {name}. | ratlhbogh {count} may'Hommey tlhap {name}.",
+    "handOver": "rIn may' {n}."
+  },
+  "errors": {
+    "targetScore": "{targets} wa' 'oHnIS ngoQ mI''e'.",
+    "jackSetting": "nagh mang wIv chu'lu'nIS pagh chu'Ha'lu'nIS.",
+    "moonSetting": "maS bach: Hoch latlhvaD +26, pagh bachwI'vaD -26.",
+    "notTimeToPass": "navmey ngeHmeH poH 'oHbe'.",
+    "alreadyPassed": "navmeylIj DangeHpu'.",
+    "chooseExactly": "DangeHmeH {count} navmey pIm tIwIv.",
+    "passFromHand": "ghoplIjDaq navmey neH DangeHlaH.",
+    "mustLead": "{card} DalannIS.",
+    "heartsNotBroken": "wej ghorlu' tIqmey.",
+    "followSuit": "Segh Datlha'nIS ({suit}).",
+    "noPointsFirstTrick": "may'Hom wa'DIchDaq mI' pagh.",
+    "claimWhenLeading": "bIlanmeH Qu'lIj 'oHDI' neH DatlhaplaH.",
+    "claimCouldLose": "may'Hom DachIllaH: pa' nav nIv."
+  }
+}
