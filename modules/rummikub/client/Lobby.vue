@@ -8,11 +8,13 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { LIMITS, MIN_DEAL, startProblem } from '../rules.js';
 import { TILE_COLOURS } from './colours.js';
 import Tile from './Tile.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, text } = useGameText();
 
 // True if you are the host (only the host may change the rules).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -42,14 +44,10 @@ const problem = computed(() => startProblem(s.value, props.state.size));
 // The turn limits offered, in seconds (0 means no limit).
 const timerChoices = [0, 30, 60, 90, 120, 180, 300];
 
-// The numeric rules shown as spin boxes: the key in the settings, its label and a short explanation.
-const fields = [
-  { key: 'numbers', label: 'Numbers per colour', hint: 'Tiles run from 1 up to this number.' },
-  { key: 'colours', label: 'Colours', hint: 'Each colour has its own hue and shape.' },
-  { key: 'wildcards', label: 'Wildcards', hint: 'Jokers that stand for any tile.' },
-  { key: 'rounds', label: 'Rounds', hint: 'Scores add up over the rounds.' },
-  { key: 'meld', label: 'First meld (points)', hint: 'Needed from your own tiles before you may use the table.' },
-];
+// The numeric rules shown as spin boxes: the key in the settings, with its name and short explanation in the player's language.
+const fields = computed(() => ['numbers', 'colours', 'wildcards', 'rounds', 'meld'].map((key) => ({ key, label: t(`settings.${key}`), hint: t(`lobby.hints.${key}`) })));
+// How many tiles start in the pool with the current settings.
+const pool = computed(() => total.value - hand.value * props.state.size);
 
 /**
  * A number was typed into a rule's box: send it, or put the stored value back if what was typed is not a number.
@@ -72,7 +70,7 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
 <template>
   <div class="stack lobby-wrap">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -86,9 +84,9 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Players (seats)</legend>
+          <legend class="muted">{{ t('lobby.seats') }}</legend>
           <div class="row">
             <button
               v-for="n in state.limits.sizes"
@@ -96,10 +94,10 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
               :class="{ primary: state.size === n }"
               :aria-pressed="state.size === n"
               :disabled="seated > n"
-              :title="seated > n ? 'Remove some players first' : ''"
+              :title="seated > n ? t('lobby.removeFirst') : ''"
               @click="send('size', { seats: n })"
             >
-              {{ n }} players
+              {{ t('lobby.players', { count: n }, n) }}
             </button>
           </div>
         </fieldset>
@@ -108,36 +106,36 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
           <div v-for="f in fields" :key="f.key" class="field">
             <label :for="`opt-${f.key}`">{{ f.label }}</label>
             <div class="spin">
-              <button class="quiet" :disabled="!isHost || s[f.key] <= LIMITS[f.key][0]" :aria-label="`Fewer ${f.label}`" @click="bump(f.key, -1)">-</button>
+              <button class="quiet" :disabled="!isHost || s[f.key] <= LIMITS[f.key][0]" :aria-label="t('lobby.fewer', { setting: f.label })" @click="bump(f.key, -1)">-</button>
               <input :id="`opt-${f.key}`" type="number" :min="LIMITS[f.key][0]" :max="LIMITS[f.key][1]" :value="s[f.key]" :disabled="!isHost" @change="change(f.key, $event)" />
-              <button class="quiet" :disabled="!isHost || s[f.key] >= LIMITS[f.key][1]" :aria-label="`More ${f.label}`" @click="bump(f.key, 1)">+</button>
+              <button class="quiet" :disabled="!isHost || s[f.key] >= LIMITS[f.key][1]" :aria-label="t('lobby.more', { setting: f.label })" @click="bump(f.key, 1)">+</button>
             </div>
-            <small class="muted">{{ f.hint }} ({{ LIMITS[f.key][0] }} to {{ LIMITS[f.key][1] }})</small>
+            <small class="muted">{{ t('lobby.range', { hint: f.hint, min: LIMITS[f.key][0], max: LIMITS[f.key][1] }) }}</small>
           </div>
           <div class="field">
-            <label for="opt-timer">Turn timer</label>
+            <label for="opt-timer">{{ t('settings.timer') }}</label>
             <select id="opt-timer" :value="s.timer" :disabled="!isHost" @change="send('settings', { timer: Number($event.target.value) })">
-              <option v-for="t in timerChoices" :key="t" :value="t">{{ t ? `${t} seconds` : 'Off' }}</option>
+              <option v-for="secs in timerChoices" :key="secs" :value="secs">{{ secs ? t('lobby.seconds', { count: secs }, secs) : t('lobby.off') }}</option>
             </select>
-            <small class="muted">When it runs out the player draws a tile.</small>
+            <small class="muted">{{ t('lobby.hints.timer') }}</small>
           </div>
           <div class="field">
-            <label for="opt-playOnMeld">Play on after melding</label>
+            <label for="opt-playOnMeld">{{ t('settings.playOnMeld') }}</label>
             <input id="opt-playOnMeld" type="checkbox" :checked="s.playOnMeld" :disabled="!isHost" @change="send('settings', { playOnMeld: $event.target.checked })" />
-            <small class="muted">Once your first meld is laid you may rearrange the whole table in the same turn, not from your next.</small>
+            <small class="muted">{{ t('lobby.hints.playOnMeld') }}</small>
           </div>
         </div>
 
-        <div class="colours" aria-label="The colours in play">
-          <Tile v-for="(c, i) in TILE_COLOURS.slice(0, s.colours)" :key="c.name" :settings="s" :id="i * s.numbers + Math.min(s.numbers, 7) - 1" size="sm" :interactive="false" :title="c.name" />
-          <span class="muted small">{{ s.colours }} colours, numbers 1 to {{ s.numbers }}</span>
+        <div class="colours" :aria-label="t('lobby.coloursInPlay')">
+          <Tile v-for="(c, i) in TILE_COLOURS.slice(0, s.colours)" :key="c.key" :settings="s" :id="i * s.numbers + Math.min(s.numbers, 7) - 1" size="sm" :interactive="false" :title="t(`colours.${c.key}`)" />
+          <span class="muted small">{{ t('lobby.coloursNumbers', { colours: s.colours, numbers: s.numbers }) }}</span>
         </div>
         <p class="muted small" role="status">
-          {{ total }} tiles ({{ s.colours }} x {{ s.numbers }} x 2<template v-if="s.wildcards"> + {{ s.wildcards }} {{ s.wildcards === 1 ? 'wildcard' : 'wildcards' }}</template>).
-          <template v-if="!problem">Each player gets {{ hand }}; {{ total - hand * state.size }} start in the pool.</template>
+          {{ s.wildcards ? t('lobby.tilesWild', { total, colours: s.colours, numbers: s.numbers, count: s.wildcards }, s.wildcards) : t('lobby.tiles', { total, colours: s.colours, numbers: s.numbers }) }}
+          <template v-if="!problem">{{ t('lobby.deal', { hand, pool }) }}</template>
         </p>
-        <p v-if="problem" class="problem" role="alert">{{ problem }} (A hand needs at least {{ MIN_DEAL }} tiles.)</p>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p v-if="problem" class="problem" role="alert">{{ text(problem) }} {{ t('lobby.handNeeds', { min: MIN_DEAL }) }}</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

@@ -11,8 +11,12 @@
 // is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty). The round ends when someone empties
 // their rack, or when the pool is empty and everyone has passed in a row. A game is `settings.rounds` rounds.
 //
+// Nothing here is a sentence: a refusal is `fail(code, params)` (a key under `errors.` in this game's locale file or the
+// site's) and anything a client shows - a scoreboard round's label and notes, a log line - is a message `{ key, params }`
+// from shared/messages.js, which the client puts into the player's language.
+//
 // Depends on rules.js (tiles, sets, checkPlay), tally.js (statistics counters), ai/index.js (the computer players' logics) and
-// the shared helpers in shared/ (seats, scores, move log, tally, ai). bot.js and server.js build on this file, never the reverse.
+// the shared helpers in shared/ (seats, scores, move log, tally, ai, messages). bot.js and server.js build on this file, never the reverse.
 import { assignAIs, describeAI, pickAI, aiById } from '../../shared/ai.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { AIS } from './ai/index.js';
@@ -31,6 +35,7 @@ import {
   totalTiles,
 } from './rules.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
+import { msg } from '../../shared/messages.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
@@ -49,8 +54,8 @@ const isObject = (value) => Boolean(value) && typeof value === 'object' && !Arra
 /** Is the game still going (lobby, a round, or between rounds)? A finished game is not live, so people may leave it. Takes the room; returns a boolean; no side effects. */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
-/** The name at a seat for the log ("Someone" if the seat is empty). Takes (room, seat); returns a string; no side effects. */
-export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
+/** The name at a seat for a log line: the name, or the site's "Someone" message for an empty seat. Takes (room, seat); no side effects. */
+export const seatName = (room, seat) => room.seats[seat]?.name ?? msg('common.someone');
 /** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)? Takes the room; returns a boolean; no side effects. */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
@@ -86,13 +91,13 @@ export { normaliseSettings };
  * @param {object} [args.settings]  the host's rule choices (checked by normaliseSettings)
  * @param {number} args.now  the clock, in milliseconds
  * @returns {object} the room
- * @throws {Error} if the size or a setting is not allowed (the message is safe to show)
+ * @throws {Error} if the size or a setting is not allowed (a developer's message: the client never sees it)
  * Side effects: none (builds and returns a new room object).
  */
 export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
-  if (!normalised.ok) throw new Error(normalised.error);
+  if (!normalised.ok) throw new Error(`a setting is not allowed: ${normalised.error.key}`);
   const room = {
     code,
     hostId,
@@ -142,13 +147,24 @@ function resetGame(room) {
 }
 
 /**
- * Adds a line to the room's log, keeping only the latest 60. Side effect: mutates room.log.
+ * Adds a line to the room's log, keeping only the latest 60. A line is `{ seat, key, params }`: a message (see
+ * shared/messages.js) the client puts into the player's language. Side effect: mutates room.log.
  *
  * @param {object} room
  * @param {number | null} seat  the seat the line is about, or null for the table as a whole
- * @param {string} text
+ * @param {string} key  the locale key of the line, under `log.`
+ * @param {object} [params]  the values the words need (a name may itself be a message)
  */
-const addLog = (room, seat, text) => addMove(room, { seat, text });
+const addLog = (room, seat, key, params) => addMove(room, { seat, ...msg(key, params) });
+
+/**
+ * A refusal from the rules (rules.js returns its errors as messages under `errors.`) as the code and params a client is sent.
+ *
+ * @param {{ key: string, params?: object }} message  the rules' error
+ * @returns {{ ok: false, error: string, params?: object }}
+ * Side effects: none.
+ */
+const refuse = (message) => fail(message.key.slice('errors.'.length), message.params);
 
 // ---- seats and settings ----
 
@@ -164,7 +180,7 @@ const seats = createSeatRules({
   /** Gives the replacement computer player its AI and tells the table (mutates the room's log). */
   takeOver(room, bot, seat, rng) {
     const taken = { ...bot, ai: pickAI(AIS, rng).id };
-    addLog(room, seat, `${taken.name} takes over from a player who left`);
+    addLog(room, seat, 'log.takesOver', { name: taken.name });
     return taken;
   },
   /** If the person who left was the last one the between-rounds screen was waiting for, the next round starts. */
@@ -187,7 +203,7 @@ export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
-  if (!next.ok) return next;
+  if (!next.ok) return refuse(next.error);
   room.settings = next.settings;
   return ok();
 }
@@ -204,9 +220,9 @@ export function setSettings(room, userId, input) {
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (!SIZES.includes(size)) return fail(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
+  if (!SIZES.includes(size)) return fail('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS });
   const seated = room.seats.filter(Boolean);
-  if (seated.length > size) return fail('Remove some players before choosing fewer seats.');
+  if (seated.length > size) return fail('removeBeforeFewerSeats');
   room.size = size;
   room.seats = [...seated, ...Array.from({ length: size - seated.length }, () => null)];
   resetGame(room);
@@ -228,15 +244,15 @@ export function setSize(room, userId, size) {
 export function start(room, userId, rng, now) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  if (!humanSeats(room).length) return fail('needPerson');
   const tooSmall = startProblem(room.settings, room.size);
-  if (tooSmall) return fail(tooSmall);
+  if (tooSmall) return refuse(tooSmall);
   resetGame(room);
   room.first = Math.floor(rng() * room.size);
   room.phase = 'playing';
   const s = room.settings;
-  addLog(room, null, `The game begins: ${s.rounds} ${s.rounds === 1 ? 'round' : 'rounds'}, ${totalTiles(s)} tiles.`);
+  addLog(room, null, 'log.begins', { count: s.rounds, tiles: totalTiles(s) });
   startRound(room, rng, now);
   // every computer player chooses its logic for the whole game (after the deal, so the deal does not depend on it)
   const botSeats = room.seats.flatMap((seat, i) => (isBot(seat) ? [i] : []));
@@ -282,7 +298,7 @@ function startRound(room, rng, now) {
   room.phase = 'playing';
   room.moves++;
   setDeadline(room, now);
-  addLog(room, null, `Round ${room.round}: ${seatName(room, room.first)} plays first. ${hand} tiles each, ${room.pool.length} in the pool.`);
+  addLog(room, null, 'log.roundStarts', { n: room.round, name: seatName(room, room.first), hand, inPool: room.pool.length });
 }
 
 // ---- playing ----
@@ -335,8 +351,8 @@ function nextTurn(room, now) {
  * Side effects: on success changes room.table, the rack, room.melded, room.idle, room.lastPlay, the tally and the log, then ends the turn or the round; nothing changes on failure.
  */
 export function play(room, seat, args, now) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
   const { table } = isObject(args) ? args : {};
   const result = checkPlay(room.settings, {
     before: room.table,
@@ -345,7 +361,7 @@ export function play(room, seat, args, now) {
     melded: room.melded[seat],
     meld: room.settings.meld,
   });
-  if (!result.ok) return fail(result.error);
+  if (!result.ok) return refuse(result.error);
   const added = new Set(result.added);
   const oldTable = room.table;
   room.table = result.sets;
@@ -355,7 +371,7 @@ export function play(room, seat, args, now) {
   room.melded[seat] = true;
   room.idle = 0;
   room.lastPlay = { seat, ids: [...result.added] };
-  addLog(room, seat, `${seatName(room, seat)} ${first ? 'melded' : 'played'} ${result.added.length} ${result.added.length === 1 ? 'tile' : 'tiles'}${first ? ` (${result.points} points)` : ''}`);
+  addLog(room, seat, first ? 'log.melded' : 'log.played', { name: seatName(room, seat), count: result.added.length, points: result.points });
   if (!room.racks[seat].length) return finishRound(room, 'out', [seat], now);
   nextTurn(room, now);
   return ok({ added: result.added.length });
@@ -368,13 +384,13 @@ export function play(room, seat, args, now) {
  * @param {object} room  mutated
  * @param {number} seat  who is drawing (must hold the turn)
  * @param {number} now  the clock, in milliseconds
- * @param {string} [reason]  text added to the log line, such as " (out of time)"
+ * @param {boolean} [timedOut]  true when the turn timer ran out, which the log line says
  * @returns {{ ok: boolean, error?: string }}
  * Side effects: moves a tile from the pool to the rack (or counts a pass), updates the tally, log and idle count, then ends the turn or the round.
  */
-export function draw(room, seat, now, reason = '') {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
+export function draw(room, seat, now, timedOut = false) {
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
   if (room.pool.length) {
     const tile = room.pool.pop();
     room.racks[seat].push(tile);
@@ -384,10 +400,10 @@ export function draw(room, seat, now, reason = '') {
     noteRack(room, seat);
     tallyDraw(room.tally[seat]);
     room.idle = 0;
-    addLog(room, seat, `${seatName(room, seat)} drew a tile${reason}`);
+    addLog(room, seat, timedOut ? 'log.drewTimeout' : 'log.drew', { name: seatName(room, seat) });
   } else {
     room.idle++;
-    addLog(room, seat, `${seatName(room, seat)} passed${reason}`);
+    addLog(room, seat, timedOut ? 'log.passedTimeout' : 'log.passed', { name: seatName(room, seat) });
   }
   room.lastPlay = null;
   if (!room.pool.length && room.idle >= room.size) return finishRound(room, 'blocked', null, now);
@@ -404,8 +420,8 @@ export function draw(room, seat, now, reason = '') {
  * Side effects: as draw() on success; nothing changes on failure.
  */
 export function timeout(room, now) {
-  if (room.phase !== 'playing' || room.deadline === null || now < room.deadline) return fail('There is no time limit to enforce.');
-  return draw(room, room.turn, now, ' (out of time)');
+  if (room.phase !== 'playing' || room.deadline === null || now < room.deadline) return fail('noTimeLimit');
+  return draw(room, room.turn, now, true);
 }
 
 // ---- the end of a round and of the game ----
@@ -437,18 +453,19 @@ function finishRound(room, reason, winnersIn, now) {
     const lost = totals[i] - best;
     deltas[i] = -lost;
     pot += lost;
-    notes[i] = `${room.racks[i].length} ${room.racks[i].length === 1 ? 'tile' : 'tiles'} left (${totals[i]})`;
+    notes[i] = msg('notes.tilesLeft', { count: room.racks[i].length, points: totals[i] });
   }
   const share = Math.floor(pot / winners.length);
   for (const w of winners) {
     deltas[w] = share;
-    notes[w] = reason === 'out' ? 'went out' : `lowest rack (${totals[w]})`;
+    notes[w] = reason === 'out' ? msg('notes.wentOut') : msg('notes.lowestRack', { points: totals[w] });
     bump(room.tally[w], 'roundsWon'); // not `++`: a room saved before this counter existed has no such key
   }
   for (let i = 0; i < room.size; i++) room.scores[i] += deltas[i];
-  room.history.push({ label: `Round ${room.round}`, deltas, notes });
+  room.history.push({ label: msg('round', { n: room.round }), deltas, notes });
   room.lastRound = { round: room.round, reason, winners, racks: room.racks.map((r) => [...r]), totals, deltas };
-  addLog(room, null, reason === 'out' ? `${seatName(room, winners[0])} went out and wins round ${room.round}.` : `Nobody can move. ${winners.map((w) => seatName(room, w)).join(' and ')} ${winners.length > 1 ? 'share' : 'wins'} round ${room.round} with the lowest rack.`);
+  if (reason === 'out') addLog(room, null, 'log.wentOut', { name: seatName(room, winners[0]), n: room.round });
+  else addLog(room, null, 'log.blocked', { names: winners.map((w) => seatName(room, w)), count: winners.length, n: room.round });
   room.turn = null;
   room.deadline = null;
   room.lastPlay = null;
@@ -472,7 +489,7 @@ function finishGame(room) {
   room.winners = winnersOf(scores).map(Number).sort((a, b) => a - b);
   room.final = { players: room.seats.map((seat, i) => ({ seat: i, name: seat?.name ?? `Player ${i + 1}`, total: room.scores[i], placement: place[i] })) };
   room.phase = 'finished';
-  addLog(room, null, `The game is over. ${room.winners.map((w) => room.final.players[w].name).join(' and ')} ${room.winners.length > 1 ? 'share the win' : 'wins'}.`);
+  addLog(room, null, 'log.gameOver', { names: room.winners.map((w) => room.final.players[w].name), count: room.winners.length });
   return ok({ roundOver: true, gameOver: true });
 }
 
@@ -487,8 +504,8 @@ function finishGame(room) {
  * Side effects: adds the seat to room.ready and may start the next round.
  */
 export function next(room, seat, rng, now) {
-  if (room.phase !== 'between') return fail('There is no round to start.');
-  if (!isHuman(room.seats[seat])) return fail('You are not in this game.');
+  if (room.phase !== 'between') return fail('noRoundToStart');
+  if (!isHuman(room.seats[seat])) return fail('notInGame');
   if (!room.ready.includes(seat)) room.ready.push(seat);
   advanceIfReady(room, rng, now);
   return ok();
@@ -531,7 +548,7 @@ function startNextRound(room, rng, now) {
  * Side effects: starts the next round (deals, logs, resets the timer) on success.
  */
 export function forceNext(room, rng, now) {
-  if (room.phase !== 'between') return fail('There is no round to start.');
+  if (room.phase !== 'between') return fail('noRoundToStart');
   startNextRound(room, rng, now);
   return ok();
 }
@@ -548,7 +565,7 @@ export function forceNext(room, rng, now) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   resetGame(room);
   room.phase = 'lobby';
   return ok();

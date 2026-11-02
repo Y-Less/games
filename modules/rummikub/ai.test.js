@@ -154,7 +154,7 @@ for (const id of IDS) {
         // one seat plays this AI, the others are a mix, so it meets every kind of opponent
         const lineup = Array.from({ length: players }, (_, i) => (i === 0 ? id : IDS[(i + index) % IDS.length]));
         const { room, rng, error } = botRoom(lineup, { seed: players * 10 + index, settings });
-        if (error) return assert.match(error, /too few|no run or group/);
+        if (error) return assert.ok(['tooFewTiles', 'fewNumbersColours'].includes(error), error);
         playOut(room, rng, `${id} ${players}p settings ${index}`);
         assert.ok(room.winners.length >= 1);
         games++;

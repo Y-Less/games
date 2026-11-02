@@ -7,6 +7,7 @@
 // Slots: none.
 // Emits: update:sortMode, pick(id), drop-selected(target), drop-tiles(target), drag-start-tile(event, id) and drag-end-tile().
 // Side effects: none beyond the emits.
+import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';
 
 defineProps({
@@ -21,15 +22,16 @@ defineProps({
   span: { type: Number, required: true },
 });
 defineEmits(['update:sortMode', 'pick', 'drop-selected', 'drop-tiles', 'drag-start-tile', 'drag-end-tile']);
+const { t } = useGameText();
 </script>
 
 <template>
-  <section class="rack-panel" :class="{ mine: myTurn }" aria-label="Your rack" :style="{ gridColumn: `span ${span}` }">
+  <section class="rack-panel" :class="{ mine: myTurn }" :aria-label="t('table.yourRack')" :style="{ gridColumn: `span ${span}` }">
     <div class="rack-head">
-      <strong>Your rack<span class="muted"> ({{ count }} {{ count === 1 ? 'tile' : 'tiles' }})</span></strong>
-      <div class="seg" role="group" aria-label="Sort the rack">
-        <button :class="{ primary: sortMode === 'run' }" :aria-pressed="sortMode === 'run'" title="Colour, then number: good for runs" @click="$emit('update:sortMode', 'run')">Runs</button>
-        <button :class="{ primary: sortMode === 'group' }" :aria-pressed="sortMode === 'group'" title="Number, then colour: good for groups" @click="$emit('update:sortMode', 'group')">Groups</button>
+      <strong>{{ t('table.yourRack') }}<span class="muted"> {{ t('table.rackCount', { count }, count) }}</span></strong>
+      <div class="seg" role="group" :aria-label="t('table.sortRack')">
+        <button :class="{ primary: sortMode === 'run' }" :aria-pressed="sortMode === 'run'" :title="t('table.runsTitle')" @click="$emit('update:sortMode', 'run')">{{ t('table.runs') }}</button>
+        <button :class="{ primary: sortMode === 'group' }" :aria-pressed="sortMode === 'group'" :title="t('table.groupsTitle')" @click="$emit('update:sortMode', 'group')">{{ t('table.groups') }}</button>
       </div>
     </div>
     <div
@@ -52,7 +54,7 @@ defineEmits(['update:sortMode', 'pick', 'drop-selected', 'drop-tiles', 'drag-sta
         @dragstart="$emit('drag-start-tile', $event, id)"
         @dragend="$emit('drag-end-tile')"
       />
-      <span v-if="!tiles.length" class="muted">Your rack is empty.</span>
+      <span v-if="!tiles.length" class="muted">{{ t('table.rackEmpty') }}</span>
     </div>
   </section>
 </template>

@@ -2,6 +2,7 @@
 // whose turn it is, who is ready between rounds. Nothing here changes anything.
 import { computed } from 'vue';
 import { dealSize } from '../rules.js';
+import { msg } from '../../../shared/messages.js';
 
 /**
  * The facts about the round that the whole table shares.
@@ -42,14 +43,15 @@ export function useRoundView(getState) {
   const hand = computed(() => dealSize(s.value, state.value.size));
 
   /**
-   * The name of a seat, or "Someone" when it is empty.
+   * The name of a seat: the name itself, or the site's "Someone" message when the seat is empty. Put into words with
+   * `text()` (src/useGameText.js), which leaves a plain name as it is.
    *
    * @param {number} seat  a seat number
-   * @returns {string} the player's name
+   * @returns {string | {key: string}} the player's name, or a message
    *
    * Side effects: none.
    */
-  const nameOf = (seat) => state.value.seats[seat]?.name ?? 'Someone';
+  const nameOf = (seat) => state.value.seats[seat]?.name ?? msg('common.someone');
 
   return { state, s, finished, between, me, myTurn, melded, isHost, readyNames, waitingNames, scorePlayers, youReady, hand, nameOf };
 }

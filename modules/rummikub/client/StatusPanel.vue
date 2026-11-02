@@ -8,6 +8,7 @@
 // Emits: again (Play again).
 // Side effects: none beyond the emit.
 import GameStatus from '../../../src/components/GameStatus.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   headline: { type: String, required: true },
@@ -24,19 +25,20 @@ defineProps({
   isHost: { type: Boolean, default: false },
 });
 defineEmits(['again']);
+const { t } = useGameText();
 </script>
 
 <template>
   <GameStatus :headline="headline" :mine="mine" :lines="lines">
     <template #facts>
-      <strong>Round {{ round }}<template v-if="rounds > 1"> of {{ rounds }}</template></strong>
-      <span class="pool" :title="`${poolCount} tiles in the pool`"><span class="back" aria-hidden="true"></span>{{ poolCount }} in the pool</span>
-      <span>First meld: {{ meld }} points<template v-if="showPoints"> (you have {{ points }})</template></span>
-      <span v-if="secondsLeft !== null" class="timer" :class="{ low: secondsLeft <= 10 }" aria-label="Time left this turn">{{ secondsLeft }}s left</span>
+      <strong>{{ rounds > 1 ? t('facts.roundOf', { n: round, total: rounds }) : t('round', { n: round }) }}</strong>
+      <span class="pool" :title="t('facts.poolTitle', { count: poolCount }, poolCount)"><span class="back" aria-hidden="true"></span>{{ t('facts.pool', { count: poolCount }) }}</span>
+      <span>{{ showPoints ? t('facts.meldWithPoints', { n: meld, points }) : t('facts.meld', { n: meld }) }}</span>
+      <span v-if="secondsLeft !== null" class="timer" :class="{ low: secondsLeft <= 10 }" :aria-label="t('facts.timeLeft')">{{ t('facts.secondsLeft', { n: secondsLeft }) }}</span>
     </template>
     <div v-if="finished" class="row">
-      <button v-if="isHost" class="primary" @click="$emit('again')">Play again</button>
-      <span v-else class="muted">Waiting for the host to play again.</span>
+      <button v-if="isHost" class="primary" @click="$emit('again')">{{ t('table.playAgain') }}</button>
+      <span v-else class="muted">{{ t('status.waitingHostAgain') }}</span>
     </div>
   </GameStatus>
 </template>

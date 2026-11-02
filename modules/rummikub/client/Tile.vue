@@ -5,6 +5,7 @@
 // Props: settings, id, size, selected, fresh, recent, drawn, locked, stands and interactive (each described beside its declaration).
 // Emits: none (the parent listens to the native click and drag events on it). Slots: none. Side effects: none.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { tileOf } from '../rules.js';
 import { SHAPES, colourInfo } from './colours.js';
 
@@ -20,17 +21,18 @@ const props = defineProps({
   stands: { type: Object, default: null }, // { number, colour, text? } for a wildcard; text is what to show (for example "3/6")
   interactive: { type: Boolean, default: true },
 });
+const { t } = useGameText();
 
 // The tile's facts (number, colour, joker flag) looked up from its id.
 const tile = computed(() => tileOf(props.settings, props.id));
-// The colour's name, hue and shape, or null for a wildcard.
+// The colour's name key, hue and shape, or null for a wildcard.
 const info = computed(() => (tile.value.joker ? null : colourInfo(tile.value.colour)));
 // The drawing instructions for the colour's shape, or null for a wildcard.
 const shape = computed(() => (info.value ? SHAPES[info.value.shape] : null));
 // The accessible name read out for the tile (for example "Red 7" or "Wildcard standing for 3/6").
 const label = computed(() => {
-  if (tile.value.joker) return props.stands ? `Wildcard standing for ${props.stands.text ?? props.stands.number}` : 'Wildcard';
-  return `${info.value.name} ${tile.value.number}`;
+  if (tile.value.joker) return props.stands ? t('tiles.wildcardStanding', { text: props.stands.text ?? props.stands.number }) : t('tiles.wildcard');
+  return t('tiles.name', { colour: t(`colours.${info.value.key}`), number: tile.value.number });
 });
 </script>
 
@@ -55,6 +57,7 @@ const label = computed(() => {
       </svg>
       <span v-if="stands" class="as">{{ stands.text ?? stands.number }}</span>
     </template>
+    <!-- the "new" tag on the tile you drew: a word, so it is drawn rather than written into the stylesheet -->
     <template v-else>
       <span class="num">{{ tile.number }}</span>
       <svg class="shape" viewBox="0 0 12 12" aria-hidden="true">
@@ -63,6 +66,7 @@ const label = computed(() => {
         <polygon v-else :points="shape.points" />
       </svg>
     </template>
+    <span v-if="drawn" class="tag" aria-hidden="true">{{ t('tiles.new') }}</span>
   </span>
 </template>
 
@@ -137,8 +141,7 @@ const label = computed(() => {
 .drawn {
   box-shadow: 0 0 0 2px #fff7d6, 0 0 0.5rem 0.1rem var(--amber);
 }
-.drawn::after {
-  content: 'new';
+.tag {
   position: absolute;
   top: -0.5rem;
   right: -0.4rem;

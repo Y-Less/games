@@ -10,6 +10,8 @@ import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, protot
 import { bestPlay } from './testing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// The game's own words, to check that a refusal names a code this game has English for (never a sentence).
+const messages = JSON.parse(fs.readFileSync(path.join(here, 'locales', 'en.json'), 'utf8'));
 const launch = (t, options = {}) => launchModule(t, { id: 'rummikub', moduleDir: here, ...options });
 const fast = (range = '0-3', wait = '60000') => {
   process.env.RUMMIKUB_BOT_DELAY = range;
@@ -89,7 +91,7 @@ test('an invalid play is refused with a clear message and changes nothing; a val
   const rack = mover.state.rack;
   const bad = await mover.call('play', { table: [[rack[0], rack[1], rack[2]]] });
   assert.equal(bad.ok, false);
-  assert.ok(bad.error.length > 5);
+  assert.ok(Object.hasOwn(messages.errors, bad.error), `a refusal code this game has words for: ${bad.error}`);
   assert.equal((await other.call('play', { table: [] })).ok, false, 'not your turn');
   assert.equal((await other.call('draw')).ok, false, 'not your turn');
   assert.equal(JSON.stringify(mover.state.table) + mover.state.rack.join(), before);
@@ -214,7 +216,7 @@ test('a game that cannot be dealt is refused at the start with a message', async
   await ann.call('fillBots');
   const reply = await ann.call('start');
   assert.equal(reply.ok, false);
-  assert.match(reply.error, /too few/);
+  assert.equal(reply.error, 'tooFewTiles', 'a refusal code, not a sentence');
   assert.equal(ann.state.phase, 'lobby');
 });
 
@@ -305,7 +307,8 @@ test('the turn timer draws for a player who runs out of time', async (t) => {
   const counts = ann.state.seats.map((x) => x.count);
   await until(() => ann.state.turn !== first, 'the timer to pass the turn', { timeout: 20000, step: 100 });
   assert.equal(ann.state.seats[first].count, counts[first] + 1, 'a tile was drawn for them');
-  assert.ok(ann.state.log.some((l) => l.text.includes('out of time')));
+  assert.ok(ann.state.log.some((l) => l.key === 'log.drewTimeout' || l.key === 'log.passedTimeout'), 'the log says the turn ran out');
+  assert.ok(ann.state.log.every((l) => typeof l.key === 'string'), 'every log line is a message');
 });
 
 test('a restart loses nothing: the room, its settings and the computer players carry on', async (t) => {

@@ -4,6 +4,7 @@
 //   settings (the tile settings), you (your seat number, or -1 for a spectator).
 // Emits: none. Slots: none. Side effects: none.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';
 
 const props = defineProps({
@@ -12,27 +13,28 @@ const props = defineProps({
   settings: { type: Object, required: true },
   you: { type: Number, default: -1 },
 });
+const { t, text, list } = useGameText();
 // The sentence saying who won the round and how (went out, or lowest rack when nobody could play).
 const headline = computed(() => {
-  const names = props.lastRound.winners.map((w) => props.seats[w]?.name ?? 'Someone').join(' and ');
-  return props.lastRound.reason === 'out' ? `${names} went out.` : `Nobody could play. ${names} had the lowest rack.`;
+  const names = list(props.lastRound.winners.map((w) => text(props.seats[w]?.name ?? { key: 'common.someone' })));
+  return t(props.lastRound.reason === 'out' ? 'summary.wentOut' : 'summary.blocked', { names });
 });
 // Formats a score change with an explicit plus sign for gains ("+5", "-12", "0").
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
 </script>
 
 <template>
-  <div class="summary" role="group" :aria-label="`Round ${lastRound.round}`">
-    <h4>Round {{ lastRound.round }}</h4>
+  <div class="summary" role="group" :aria-label="t('round', { n: lastRound.round })">
+    <h4>{{ t('round', { n: lastRound.round }) }}</h4>
     <p class="headline">{{ headline }}</p>
     <ul>
       <li v-for="(rack, seat) in lastRound.racks" :key="seat" :class="{ me: seat === you, won: lastRound.winners.includes(seat) }">
-        <strong class="name">{{ seats[seat]?.name }}</strong>
+        <strong class="name">{{ seats[seat]?.name }}<span v-if="seat === you" class="mine"> {{ $t('common.youBracketed') }}</span></strong>
         <span class="rack">
           <Tile v-for="id in rack" :key="id" :settings="settings" :id="id" size="sm" :interactive="false" />
-          <span v-if="!rack.length" class="muted">no tiles left</span>
+          <span v-if="!rack.length" class="muted">{{ t('summary.noTilesLeft') }}</span>
         </span>
-        <span class="total muted">{{ lastRound.totals[seat] }} points of tiles</span>
+        <span class="total muted">{{ t('summary.pointsOfTiles', { n: lastRound.totals[seat] }) }}</span>
         <b class="delta">{{ signed(lastRound.deltas[seat]) }}</b>
       </li>
     </ul>
@@ -66,8 +68,7 @@ li {
 li.won {
   border-color: var(--moss);
 }
-li.me .name::after {
-  content: ' (you)';
+li.me .name .mine {
   font-weight: 400;
   color: var(--muted);
 }

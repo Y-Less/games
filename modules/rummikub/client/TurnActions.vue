@@ -6,6 +6,8 @@
 // Slots: none.
 // Emits: drop-selected(target), drop-tiles(target), undo, reset, draw and end.
 // Side effects: none beyond the emits.
+import { useGameText } from '../../../src/useGameText.js';
+
 defineProps({
   myTurn: { type: Boolean, default: false },
   targeting: { type: Boolean, default: false },
@@ -16,6 +18,7 @@ defineProps({
   canEnd: { type: Boolean, default: false },
 });
 defineEmits(['drop-selected', 'drop-tiles', 'undo', 'reset', 'draw', 'end']);
+const { t } = useGameText();
 </script>
 
 <template>
@@ -26,22 +29,22 @@ defineEmits(['drop-selected', 'drop-tiles', 'undo', 'reset', 'draw', 'end']);
       role="button"
       :tabindex="myTurn ? 0 : -1"
       :aria-disabled="myTurn ? undefined : 'true'"
-      aria-label="Start a new set"
+      :aria-label="t('table.newSet')"
       @click="$emit('drop-selected', { type: 'new' })"
       @keydown.enter.prevent="$emit('drop-selected', { type: 'new' })"
       @keydown.space.prevent="$emit('drop-selected', { type: 'new' })"
       @dragover.prevent
       @drop.prevent="$emit('drop-tiles', { type: 'new' })"
     >
-      <span class="muted">New set: drop tiles here</span>
+      <span class="muted">{{ t('table.newSetDrop') }}</span>
     </div>
     <div class="buttons">
-      <button :disabled="!myTurn || !canUndo" @click="$emit('undo')">Undo</button>
-      <button :disabled="!myTurn || !changed" @click="$emit('reset')">Reset turn</button>
-      <button :disabled="!myTurn || busy" :title="poolCount ? 'Take a tile from the pool and end your turn' : 'The pool is empty: pass'" @click="$emit('draw')">
-        {{ poolCount ? 'Draw a tile' : 'Pass' }}
+      <button :disabled="!myTurn || !canUndo" @click="$emit('undo')">{{ $t('common.undo') }}</button>
+      <button :disabled="!myTurn || !changed" @click="$emit('reset')">{{ t('table.resetTurn') }}</button>
+      <button :disabled="!myTurn || busy" :title="poolCount ? t('table.drawTitle') : t('table.passTitle')" @click="$emit('draw')">
+        {{ poolCount ? t('table.draw') : t('table.pass') }}
       </button>
-      <button class="primary" :disabled="!canEnd" @click="$emit('end')">End turn</button>
+      <button class="primary" :disabled="!canEnd" @click="$emit('end')">{{ t('table.endTurn') }}</button>
     </div>
   </div>
 </template>

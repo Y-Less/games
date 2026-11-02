@@ -8,6 +8,7 @@
 // Emits: pick(id), drop-selected(target) and drop-tiles(target) with a target like { type: 'set', index } or { type: 'new' },
 //   and drag-start-tile(event, id) and drag-end-tile().
 // Side effects: none beyond the emits.
+import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';
 
 defineProps({
@@ -23,30 +24,28 @@ defineProps({
   canAddTo: { type: Function, required: true },
 });
 defineEmits(['pick', 'drop-selected', 'drop-tiles', 'drag-start-tile', 'drag-end-tile']);
+const { t, text } = useGameText();
 
 /**
- * The words under a set: its check result, or what is wrong with it.
+ * The words under a set: its check result, or what is wrong with it (the rules' message, in the player's language).
  *
  * @param {object} set  a shown set
  * @returns {string} e.g. "Run, 12" or the error
  *
  * Side effects: none.
  */
-const setLabel = (set) => {
-  if (!set.result.ok) return set.result.error;
-  return `${set.result.kind === 'run' ? 'Run' : 'Group'}, ${set.result.value}`;
-};
+const setLabel = (set) => (set.result.ok ? t(set.result.kind === 'run' ? 'table.run' : 'table.group', { value: set.result.value }) : text(set.result.error));
 </script>
 
 <template>
   <section
     class="felt"
     :class="{ dropping: myTurn && dropHint }"
-    aria-label="The table"
+    :aria-label="t('table.label')"
     @dragover.prevent
     @drop.prevent="$emit('drop-tiles', { type: 'new' })"
   >
-    <div v-if="!sets.length" class="muted empty">The table is empty. {{ myTurn ? 'Make a first set from your rack.' : '' }}</div>
+    <div v-if="!sets.length" class="muted empty">{{ myTurn ? t('table.emptyMine') : t('table.empty') }}</div>
     <div class="sets">
       <div
         v-for="set in sets"
@@ -80,7 +79,7 @@ const setLabel = (set) => {
             :class="{ ready: canAddTo(set) }"
             :tabindex="canAddTo(set) ? 0 : -1"
             :aria-hidden="canAddTo(set) ? undefined : 'true'"
-            :aria-label="`Add the selected tiles to set ${set.index + 1}`"
+            :aria-label="t('table.addToSet', { n: set.index + 1 })"
             @click.stop="$emit('drop-selected', { type: 'set', index: set.index })"
           >+</button>
         </div>

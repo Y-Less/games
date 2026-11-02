@@ -7,6 +7,7 @@
 // Emits: none (closing is handled by the popup's own events inside popupProps).
 // Side effects: none.
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   popupProps: { type: Object, default: null },
@@ -15,19 +16,20 @@ defineProps({
   playing: { type: Boolean, default: false },
   turn: { type: Number, default: -1 },
 });
+const { t } = useGameText();
 </script>
 
 <template>
   <PlayerPopup v-if="popupProps" v-bind="popupProps">
     <dl v-if="opened" class="facts">
-      <dt>Tiles in rack</dt>
+      <dt>{{ t('popup.tilesInRack') }}</dt>
       <dd>{{ opened.count }}</dd>
-      <dt>First meld</dt>
-      <dd>{{ opened.melded ? 'made' : 'not yet' }}</dd>
-      <dt>Score</dt>
+      <dt>{{ t('popup.firstMeld') }}</dt>
+      <dd>{{ opened.melded ? t('popup.made') : t('popup.notYet') }}</dd>
+      <dt>{{ t('popup.score') }}</dt>
       <dd>{{ score }}</dd>
-      <dt>Turn</dt>
-      <dd>{{ playing && turn === opened.seat ? 'playing now' : 'waiting' }}</dd>
+      <dt>{{ t('popup.turn') }}</dt>
+      <dd>{{ playing && turn === opened.seat ? t('popup.playingNow') : t('popup.waiting') }}</dd>
     </dl>
   </PlayerPopup>
 </template>

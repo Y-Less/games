@@ -3,10 +3,11 @@
 // only touch this copy; the server is told nothing until you end the turn.
 import { computed, ref, watch } from 'vue';
 import { pinnedJokers } from '../rules.js';
+import { msg } from '../../../shared/messages.js';
 import { JOKER_STAYS, canMove, moveTiles, placedThisTurn, releaseJokers, sameArrangement, sortRack, splitRunAtDuplicate, startArrangement, turnStatus } from './arrangement.js';
 
-// The refusal shown when someone tries to touch the sets already on the table before their first meld.
-const FROZEN = 'Until your first meld the sets already on the table cannot be changed.';
+// The refusal shown when someone tries to touch the sets already on the table before their first meld, as a message.
+const FROZEN = msg('hints.frozen');
 
 /**
  * The working copy.
@@ -23,7 +24,7 @@ export function useWorkingCopy(view) {
   const arr = ref(startArrangement(view.state.table, view.state.rack)); // the arrangement being built this turn
   const undoStack = ref([]); // earlier arrangements, newest last, for Undo
   const selected = ref([]); // ids of the tiles currently selected by clicking
-  const hint = ref(''); // the latest refusal or note about a move (empty for none)
+  const hint = ref(null); // the latest refusal or note about a move, as a message (null for none)
   const sortMode = ref('run'); // how the rack is ordered: 'run' (colour first) or 'group' (number first)
 
   /**
@@ -37,7 +38,7 @@ export function useWorkingCopy(view) {
     arr.value = startArrangement(view.state.table, view.state.rack);
     undoStack.value = [];
     selected.value = [];
-    hint.value = '';
+    hint.value = null;
   }
   // A new table (another player moved, a new round, a seat change) invalidates the half-built layout. The key is one string:
   // a getter returning a fresh array would count every server push as a change (Vue compares the getter's result by
@@ -141,13 +142,13 @@ export function useWorkingCopy(view) {
       hint.value = problem;
       return false;
     }
-    hint.value = '';
+    hint.value = null;
     remember();
     const moved = moveTiles(arr.value, ids, target);
     const split = ids.length === 1 ? splitRunAtDuplicate(view.s, arr.value, moved, ids[0]) : null;
     const released = releaseJokers(view.s, split?.arr ?? moved, pinned.value);
-    if (split) hint.value = `The run was split at the second ${split.number}.`;
-    if (released.freed.length > (moved.freed?.length ?? 0)) hint.value = 'The joker is replaced: it has moved to a set of its own, so use it in a set this turn.';
+    if (split) hint.value = msg('hints.runSplit', { n: split.number });
+    if (released.freed.length > (moved.freed?.length ?? 0)) hint.value = msg('hints.jokerReplaced');
     arr.value = released;
     selected.value = [];
     return true;
@@ -166,7 +167,7 @@ export function useWorkingCopy(view) {
       hint.value = fixedJokers.value.has(id) ? JOKER_STAYS : FROZEN;
       return;
     }
-    hint.value = '';
+    hint.value = null;
     selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id];
   }
   /**
@@ -192,7 +193,7 @@ export function useWorkingCopy(view) {
     if (!last) return;
     arr.value = last.arr;
     selected.value = [];
-    hint.value = '';
+    hint.value = null;
   }
 
   return { arr, undoStack, selected, hint, sortMode, status, changed, fresh, recent, rackTiles, unlocked, pinned, fixedJokers, shownSets, frozenSet, canAddTo, lockedTile, stands, reset, undo, place, pick, dropSelected };

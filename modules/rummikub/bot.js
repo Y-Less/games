@@ -8,6 +8,7 @@
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
 import { aiById } from '../../shared/ai.js';
+import { fail } from '../../shared/seats.js';
 
 /**
  * The AI of a seat (the first, 'standard', for a seat without one: rooms saved before there were several).
@@ -81,7 +82,7 @@ export function chooseTurn(room, seat, options) {
  */
 export function runPending(room, rng, now) {
   const action = pendingAction(room);
-  if (!action) return { ok: false, error: 'Nothing to do.' };
+  if (!action) return fail('nothingToDo');
   const choice = chooseTurn(room, action.seat, { rng });
   if (choice.type === 'play') {
     const result = game.play(room, action.seat, { table: choice.table }, now);

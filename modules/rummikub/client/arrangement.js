@@ -2,6 +2,7 @@
 // An arrangement is { sets: [[id, ...], ...], rack: [id, ...], freed: [id, ...] }: what the table and the rack would be if
 // the player ended their turn now, and the jokers that have been swapped out of their sets this turn. Every function returns a new arrangement and leaves its argument alone.
 import { checkPlay, fitsJoker, isJoker, orderedSet, resolveSet, tileOf } from '../rules.js';
+import { msg } from '../../../shared/messages.js';
 
 /**
  * The arrangement at the start of a turn: a copy of the table and of the rack, with no jokers freed yet.
@@ -51,7 +52,8 @@ export function locate(arr, id) {
  * @param {{type: string, index?: number}} target  where they are going: 'rack', 'new' or 'set' (with `index`)
  * @param {{before: number[][], melded: boolean, fixed?: Set<number>}} rules  the table at the start of the turn, whether the
  *   player has made their first meld, and the ids of table jokers that may not be moved
- * @returns {string|null} the reason the move is refused, or null if it is allowed
+ * @returns {{key: string, params?: object}|null} the reason the move is refused as a message (shared/messages.js), or
+ *   null if it is allowed
  *
  * Side effects: none.
  */
@@ -60,15 +62,15 @@ export function canMove(arr, ids, target, { before, melded, fixed = new Set() })
   const frozen = (set) => !melded && set.some((id) => old.has(id));
   for (const id of ids) {
     const at = locate(arr, id);
-    if (!at) return 'That tile is not there.';
+    if (!at) return msg('hints.notThere');
     if (fixed.has(id)) return JOKER_STAYS;
-    if (!melded && old.has(id)) return 'Until your first meld the sets already on the table cannot be changed.';
-    if (target.type === 'rack' && old.has(id)) return 'A tile that was on the table has to stay on it.';
+    if (!melded && old.has(id)) return msg('hints.frozen');
+    if (target.type === 'rack' && old.has(id)) return msg('hints.staysOnTable');
   }
   if (target.type === 'set') {
     const set = arr.sets[target.index];
-    if (!set) return 'There is no such set.';
-    if (frozen(set)) return 'Until your first meld the sets already on the table cannot be changed.';
+    if (!set) return msg('hints.noSuchSet');
+    if (frozen(set)) return msg('hints.frozen');
   }
   return null;
 }
@@ -130,8 +132,8 @@ export function splitRunAtDuplicate(s, prev, next, id) {
   return { arr: { ...next, sets }, number: tile.number };
 }
 
-// The refusal shown when someone tries to move a joker that is pinned to the table (see canMove).
-export const JOKER_STAYS = 'A joker on the table stays where it is until you swap in the tile it stands for.';
+// The refusal shown when someone tries to move a joker that is pinned to the table (see canMove), as a message.
+export const JOKER_STAYS = msg('hints.jokerStays');
 
 /**
  * A joker that was on the table is replaced as soon as a tile it could stand for is in its set: it moves out into a new group
@@ -227,9 +229,9 @@ export const sameArrangement = (a, b) => JSON.stringify(a.sets) === JSON.stringi
  * @param {object} s  the game settings
  * @param {{arr: object, before: number[][], rack: number[], melded: boolean, meld: number}} state  the arrangement, the table and
  *   rack at the start of the turn, whether the player has already melded, and the points the first meld needs
- * @returns {{ok: boolean, error: string, sets: object[], placed: number, badSets: number, points: number}} the verdict, the
- *   refusal text (empty when ok), each set's description, tiles placed, count of invalid sets and the points of new sets
- *   (0 once melded, as they no longer matter)
+ * @returns {{ok: boolean, error: object|null, sets: object[], placed: number, badSets: number, points: number}} the verdict,
+ *   the refusal as a message (null when ok), each set's description, tiles placed, count of invalid sets and the points of
+ *   new sets (0 once melded, as they no longer matter)
  *
  * Side effects: none.
  */
@@ -239,5 +241,5 @@ export function turnStatus(s, { arr, before, rack, melded, meld }) {
   const placed = placedThisTurn(arr, before).size;
   const badSets = sets.filter((r) => !r.ok).length;
   const points = melded ? 0 : sets.reduce((sum, r, i) => (r.ok && !arr.sets[i].some((id) => before.flat().includes(id)) ? sum + r.value : sum), 0);
-  return { ok: check.ok, error: check.ok ? '' : check.error, sets, placed, badSets, points };
+  return { ok: check.ok, error: check.ok ? null : check.error, sets, placed, badSets, points };
 }

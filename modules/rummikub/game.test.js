@@ -33,7 +33,7 @@ test('creating and configuring a room', () => {
   assert.equal(room.settings.colours, 5, 'a refused change leaves the settings alone');
   assert.equal(game.setSize(room, 1, 6).ok, true);
   assert.equal(room.seats.length, 6);
-  assert.equal(game.setSize(room, 1, 7).ok, false);
+  assert.deepEqual(game.setSize(room, 1, 7), { ok: false, error: 'playersRange', params: { min: 2, max: 6 } });
   assert.equal(game.setSize(room, 1, 1).ok, false);
 });
 
@@ -66,7 +66,7 @@ test('starting: the deal, the pool, and refusing games that cannot be played', (
   game.fillWithBots(small, 1);
   const refused = game.start(small, 1, Math.random, Date.now());
   assert.equal(refused.ok, false);
-  assert.match(refused.error, /too few/);
+  assert.deepEqual(refused, { ok: false, error: 'tooFewTiles', params: { tiles: 12, players: 6, min: 6 } });
   assert.equal(small.phase, 'lobby');
   const fewer = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 10, colours: 4, wildcards: 2 } });
   game.fillWithBots(fewer, 1);
@@ -75,10 +75,10 @@ test('starting: the deal, the pool, and refusing games that cannot be played', (
   assert.ok(fewer.pool.length >= 11);
   assert.equal(game.start(fewer, 1, Math.random, Date.now()).ok, false, 'already started');
   const empty = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
-  assert.equal(game.start(empty, 1, Math.random, Date.now()).ok, false, 'empty seats');
+  assert.equal(game.start(empty, 1, Math.random, Date.now()).error, 'seatsNeedPlayers', 'empty seats');
   const impossible = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2, settings: { numbers: 2, colours: 2, wildcards: 8 } });
   game.fillWithBots(impossible, 1);
-  assert.match(game.start(impossible, 1, Math.random, Date.now()).error, /no run or group/);
+  assert.equal(game.start(impossible, 1, Math.random, Date.now()).error, 'fewNumbersColours');
 });
 
 test('turns: only the player to move can act, and a refused play changes nothing', () => {
@@ -86,8 +86,8 @@ test('turns: only the player to move can act, and a refused play changes nothing
   const mover = room.turn;
   const other = (mover + 1) % 3;
   const snapshot = JSON.stringify(room);
-  assert.equal(game.draw(room, other, Date.now()).ok, false);
-  assert.equal(game.play(room, other, { table: [] }, Date.now()).ok, false);
+  assert.equal(game.draw(room, other, Date.now()).error, 'notYourTurn');
+  assert.equal(game.play(room, other, { table: [] }, Date.now()).error, 'notYourTurn');
   assert.equal(game.play(room, mover, { table: [[room.racks[mover][0]]] }, Date.now()).ok, false);
   assert.equal(game.play(room, mover, 'garbage', Date.now()).ok, false);
   assert.equal(game.play(room, mover, {}, Date.now()).ok, false);
@@ -131,6 +131,11 @@ test('going out wins the round: the winner gains the others\' racks, the others 
   assert.deepEqual(room.winners, [0]);
   assert.equal(room.lastRound.reason, 'out');
   assert.deepEqual(room.lastRound.racks[1].length, 3);
+  assert.deepEqual(room.history[0].label, { key: 'round', params: { n: 1 } }, 'the round label is a message');
+  assert.deepEqual(room.history[0].notes[0], { key: 'notes.wentOut' });
+  assert.deepEqual(room.history[0].notes[1], { key: 'notes.tilesLeft', params: { count: 3, points: 36 } });
+  assert.ok(room.log.every((line) => typeof line.key === 'string' && line.text === undefined), 'every log line is a message');
+  assert.deepEqual(room.log.at(-1), { seat: null, key: 'log.gameOver', params: { names: ['p1'], count: 1 } });
   assertInvariants(room);
 });
 
@@ -259,11 +264,12 @@ test('the turn timer: nothing before the deadline, then a draw', () => {
   const mover = room.turn;
   assert.equal(game.timeout(room, room.deadline - 1).ok, false);
   assert.equal(game.timeout(room, room.deadline).ok, true);
+  assert.equal(room.log.at(-1).key, 'log.drewTimeout', 'the log line says the turn ran out');
   assert.equal(room.racks[mover].length, 15);
   assert.notEqual(room.turn, mover);
   const off = playingRoom(2, { seed: 3 });
   assert.equal(off.room.deadline, null);
-  assert.equal(game.timeout(off.room, Date.now() + 1e9).ok, false);
+  assert.equal(game.timeout(off.room, Date.now() + 1e9).error, 'noTimeLimit');
 });
 
 test('a human who leaves mid-game is replaced by a computer player who keeps the rack', () => {

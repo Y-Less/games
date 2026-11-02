@@ -12,8 +12,11 @@
 // where a joker stands for any tile that makes the set valid. The order of a set on the table does not matter: the rules
 // work out which tile each joker stands for (`resolveSet`) and the server stores sets in that canonical order.
 //
-// Depends on nothing: it is imported by game.js, search.js, tally.js, the AIs and the client. Every function here is pure
-// (it never changes its arguments) unless a comment says otherwise, which is what lets the AIs call them thousands of times.
+// Depends on shared/messages.js alone: it is imported by game.js, search.js, tally.js, the AIs and the client. Every
+// function here is pure (it never changes its arguments) unless a comment says otherwise, which is what lets the AIs
+// call them thousands of times. Nothing here is a sentence: a refusal's `error` is a message ({ key, params }, see
+// shared/messages.js), which the client puts into words and the server turns into a refusal code.
+import { msg } from '../../shared/messages.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
@@ -34,9 +37,12 @@ export const LIMITS = {
 const MIN_TIMER = 15; // seconds; a timer shorter than this (but not off) is raised to it
 export const DEFAULT_SETTINGS = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0, playOnMeld: false };
 
-export const COLOUR_NAMES = ['Red', 'Blue', 'Orange', 'Black', 'Green', 'Purple', 'Teal', 'Pink'];
+/** The key of each colour under `colours.` in the locale files, indexed by a tile's colour number. */
+export const COLOUR_KEYS = ['red', 'blue', 'orange', 'black', 'green', 'purple', 'teal', 'pink'];
+/** A colour's name as a message. Takes the colour number (out of range: the first colour); returns a message; no side effects. */
+export const colourMsg = (colour) => msg(`colours.${COLOUR_KEYS[colour] ?? COLOUR_KEYS[0]}`);
 
-// The shape of every rejection in this file: { ok: false, error } with a message that can be shown to the player.
+// The shape of every rejection in this file: { ok: false, error } where `error` is a message (shared/messages.js).
 const fail = (error) => ({ ok: false, error });
 const isInt = Number.isSafeInteger;
 
@@ -71,10 +77,10 @@ export const tileValue = (s, id) => (isJoker(s, id) ? JOKER_VALUE : tileOf(s, id
 // The total rack-penalty points of a list of tile ids.
 export const rackValue = (s, ids) => ids.reduce((sum, id) => sum + tileValue(s, id), 0);
 
-// A readable name for a tile, for messages and the log, e.g. "Red 7" or "a joker".
+// A tile's name as a message, e.g. "Red 7" or "Wildcard". Takes (s, id); returns a message; no side effects.
 export const tileName = (s, id) => {
   const t = tileOf(s, id);
-  return t.joker ? 'a joker' : `${COLOUR_NAMES[t.colour]} ${t.number}`;
+  return t.joker ? msg('tiles.wildcard') : msg('tiles.name', { colour: colourMsg(t.colour), number: t.number });
 };
 
 // ---- the deal ----
@@ -95,15 +101,13 @@ export const dealSize = (s, players) => Math.min(HAND_SIZE, Math.floor(totalTile
  *
  * @param {object} s  settings
  * @param {number} players  how many players there would be
- * @returns {string | null} a message for the host, or null when the game can start
+ * @returns {{ key: string, params?: object } | null} a message for the host, or null when the game can start
  * Side effects: none.
  */
 export function startProblem(s, players) {
-  if (s.numbers < MIN_SET && s.colours < MIN_SET) return 'With so few numbers and colours no run or group can be made. Choose at least 3 numbers or 3 colours.';
+  if (s.numbers < MIN_SET && s.colours < MIN_SET) return msg('errors.fewNumbersColours', { min: MIN_SET });
   const hand = dealSize(s, players);
-  if (hand < MIN_DEAL) {
-    return `There are only ${totalTiles(s)} tiles, too few to deal ${players} players a playable hand (at least ${MIN_DEAL} each, with a pool as big). Add numbers, colours or wildcards, or remove players.`;
-  }
+  if (hand < MIN_DEAL) return msg('errors.tooFewTiles', { tiles: totalTiles(s), players, min: MIN_DEAL });
   return null;
 }
 
@@ -123,17 +127,16 @@ const clamp = (value, [low, high]) => Math.min(high, Math.max(low, value));
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...DEFAULT_SETTINGS, ...current };
   if (input === null || typeof input !== 'object' || Array.isArray(input)) return { ok: true, settings: next };
-  const labels = { numbers: 'Numbers per colour', colours: 'Colours', wildcards: 'Wildcards', rounds: 'Rounds', meld: 'First meld points', timer: 'Turn timer' };
   for (const key of Object.keys(LIMITS)) {
     if (!Object.hasOwn(input, key) || input[key] === undefined) continue;
     const value = input[key];
-    if (typeof value !== 'number' || !Number.isFinite(value)) return fail(`${labels[key]} must be a number.`);
+    if (typeof value !== 'number' || !Number.isFinite(value)) return fail(msg('errors.settingNotNumber', { setting: msg(`settings.${key}`) }));
     let n = clamp(Math.round(value), LIMITS[key]);
     if (key === 'timer' && n > 0) n = Math.max(MIN_TIMER, n);
     next[key] = n;
   }
   if (Object.hasOwn(input, 'playOnMeld') && input.playOnMeld !== undefined) {
-    if (typeof input.playOnMeld !== 'boolean') return fail('Play on after melding must be on or off.');
+    if (typeof input.playOnMeld !== 'boolean') return fail(msg('errors.playOnMeldSetting'));
     next.playOnMeld = input.playOnMeld;
   }
   return { ok: true, settings: next };
@@ -149,19 +152,19 @@ const sortedKey = (ids) => [...ids].sort((a, b) => a - b).join(',');
  *
  * @param {object} s  settings
  * @param {Array<{ id: number, joker: boolean, colour: number | null, number: number | null }>} tiles  tiles with tileOf data
- * @returns {object} { ok: true, kind: 'run', items, value } or { ok: false, error }
+ * @returns {object} { ok: true, kind: 'run', items, value } or { ok: false, error } (the error is a message)
  * Side effects: none.
  */
 function asRun(s, tiles) {
   const reals = tiles.filter((t) => !t.joker);
-  if (reals.some((t) => t.colour !== reals[0].colour)) return fail('A run is all one colour.');
+  if (reals.some((t) => t.colour !== reals[0].colour)) return fail(msg('errors.runOneColour'));
   const numbers = reals.map((t) => t.number);
-  if (new Set(numbers).size !== numbers.length) return fail('A run cannot repeat a number.');
+  if (new Set(numbers).size !== numbers.length) return fail(msg('errors.runRepeats'));
   const len = tiles.length;
-  if (len > s.numbers) return fail(`A run cannot be longer than ${s.numbers} tiles.`);
+  if (len > s.numbers) return fail(msg('errors.runTooLong', { max: s.numbers }));
   const low = Math.min(...numbers);
   const high = Math.max(...numbers);
-  if (high - low + 1 > len) return fail('Those numbers are too far apart for the jokers to bridge.');
+  if (high - low + 1 > len) return fail(msg('errors.runGap'));
   // The highest start gives the most points to jokers that could go at either end.
   const start = Math.min(low, s.numbers - len + 1);
   const byNumber = new Map(reals.map((t) => [t.number, t]));
@@ -181,15 +184,15 @@ function asRun(s, tiles) {
  *
  * @param {object} s  settings
  * @param {Array<{ id: number, joker: boolean, colour: number | null, number: number | null }>} tiles  tiles with tileOf data
- * @returns {object} { ok: true, kind: 'group', items, value } or { ok: false, error }
+ * @returns {object} { ok: true, kind: 'group', items, value } or { ok: false, error } (the error is a message)
  * Side effects: none.
  */
 function asGroup(s, tiles) {
   const reals = tiles.filter((t) => !t.joker);
-  if (reals.some((t) => t.number !== reals[0].number)) return fail('A group is all one number.');
+  if (reals.some((t) => t.number !== reals[0].number)) return fail(msg('errors.groupOneNumber'));
   const colours = reals.map((t) => t.colour);
-  if (new Set(colours).size !== colours.length) return fail('A group needs a different colour for every tile.');
-  if (tiles.length > s.colours) return fail(`A group cannot have more than ${s.colours} tiles (one per colour).`);
+  if (new Set(colours).size !== colours.length) return fail(msg('errors.groupColours'));
+  if (tiles.length > s.colours) return fail(msg('errors.groupTooBig', { max: s.colours }));
   const number = reals[0].number;
   const items = [...reals].sort((a, b) => a.colour - b.colour).map((t) => ({ id: t.id, joker: false, colour: t.colour, number }));
   for (const t of tiles.filter((x) => x.joker)) items.push({ id: t.id, joker: true, colour: null, number });
@@ -209,10 +212,10 @@ function asGroup(s, tiles) {
  * Side effects: none.
  */
 export function resolveSet(s, ids) {
-  if (!Array.isArray(ids) || ids.length < MIN_SET) return fail(`A set needs at least ${MIN_SET} tiles.`);
-  if (ids.some((id) => !validTile(s, id)) || new Set(ids).size !== ids.length) return fail('That is not a set of tiles.');
+  if (!Array.isArray(ids) || ids.length < MIN_SET) return fail(msg('errors.setTooSmall', { min: MIN_SET }));
+  if (ids.some((id) => !validTile(s, id)) || new Set(ids).size !== ids.length) return fail(msg('errors.notASet'));
   const tiles = ids.map((id) => ({ id, ...tileOf(s, id) }));
-  if (!tiles.some((t) => !t.joker)) return fail('A set cannot be made only of jokers.');
+  if (!tiles.some((t) => !t.joker)) return fail(msg('errors.onlyJokers'));
   const run = asRun(s, tiles);
   const group = asGroup(s, tiles);
   if (run.ok && group.ok) return group.value > run.value ? group : run;
@@ -221,8 +224,8 @@ export function resolveSet(s, ids) {
   const reals = tiles.filter((t) => !t.joker);
   if (reals.length > 1 && reals.every((t) => t.colour === reals[0].colour)) return run;
   if (reals.length > 1 && reals.every((t) => t.number === reals[0].number)) return group;
-  if (reals.length === 1) return fail('Those tiles do not make a run or a group.');
-  return fail('A set is a run (one colour, consecutive numbers) or a group (one number, different colours).');
+  if (reals.length === 1) return fail(msg('errors.notRunOrGroup'));
+  return fail(msg('errors.notASetKind'));
 }
 
 // ---- jokers that are already on the table ----
@@ -292,7 +295,7 @@ export const fitsJoker = (s, id, options) => !isJoker(s, id) && options.some((op
 const jokerStays = (s, set, jokerId, was) => jokerOptions(s, set, jokerId).some((now) => was.some((option) => sameTile(now, option)));
 
 // The message for a joker that has left its place without being swapped for the tile it stood for.
-const JOKER_TAKEN = 'A joker on the table cannot just be moved: swap in the tile it stands for first.';
+const JOKER_TAKEN = msg('errors.jokerTaken');
 
 /**
  * The rule for jokers already on the table: each must still be in a set where it could stand for what it stood for, or have
@@ -303,7 +306,7 @@ const JOKER_TAKEN = 'A joker on the table cannot just be moved: swap in the tile
  * @param {number[][]} before  the table at the start of the turn
  * @param {number[][]} proposed  the table the player wants
  * @param {Set<number>} oldSet  every tile id on the table before
- * @returns {string | null} the error to show, or null when every joker is accounted for
+ * @returns {{ key: string, params?: object } | null} the error as a message, or null when every joker is accounted for
  * Side effects: none.
  */
 function jokerProblem(s, before, proposed, oldSet) {
@@ -362,23 +365,23 @@ const isIdList = (s, list) => Array.isArray(list) && list.every((id) => validTil
  */
 export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SETTINGS.meld }) {
   const max = totalTiles(s);
-  if (!Array.isArray(proposed) || proposed.length > max || proposed.some((set) => !isIdList(s, set))) return fail('That is not a table layout.');
+  if (!Array.isArray(proposed) || proposed.length > max || proposed.some((set) => !isIdList(s, set))) return fail(msg('errors.notATableLayout'));
   const flat = proposed.flat();
-  if (flat.length > max || new Set(flat).size !== flat.length) return fail('A tile appears twice in that layout.');
+  if (flat.length > max || new Set(flat).size !== flat.length) return fail(msg('errors.tileTwice'));
   const proposedIds = new Set(flat);
   const oldIds = before.flat();
   const missing = oldIds.filter((id) => !proposedIds.has(id));
-  if (missing.length) return fail(`${missing.length === 1 ? 'A tile' : `${missing.length} tiles`} from the table ${missing.length === 1 ? 'is' : 'are'} missing: everything on the table must stay on it.`);
+  if (missing.length) return fail(msg('errors.tilesMissing', { count: missing.length }));
   const oldSet = new Set(oldIds);
   const mine = new Set(rack);
   const added = flat.filter((id) => !oldSet.has(id));
-  if (added.some((id) => !mine.has(id))) return fail('You can only add tiles from your own rack.');
-  if (!added.length) return fail('You have not added any tiles. Draw a tile instead.');
+  if (added.some((id) => !mine.has(id))) return fail(msg('errors.onlyFromRack'));
+  if (!added.length) return fail(msg('errors.nothingAdded'));
 
   const sets = [];
   for (let i = 0; i < proposed.length; i++) {
     const resolved = resolveSet(s, proposed[i]);
-    if (!resolved.ok) return fail(`Set ${i + 1}: ${resolved.error}`);
+    if (!resolved.ok) return fail(msg('errors.setProblem', { n: i + 1, reason: resolved.error }));
     sets.push(resolved);
   }
 
@@ -388,7 +391,7 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
   let points = 0;
   if (!melded && s.playOnMeld) {
     for (const resolved of sets) if (!resolved.items.some((item) => oldSet.has(item.id))) points += resolved.value;
-    if (points < meld) return fail(`Your first meld must be worth at least ${meld} points from new sets of your own tiles; those are worth ${points}.`);
+    if (points < meld) return fail(msg('errors.meldShortOpen', { meld, points }));
   } else if (!melded) {
     // The old sets must be exactly as they were; the rest are the player's own new sets.
     const untouched = new Map();
@@ -397,11 +400,11 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
       const key = sortedKey(resolved.items.map((item) => item.id));
       if (untouched.get(key) > 0) untouched.set(key, untouched.get(key) - 1);
       else {
-        if (resolved.items.some((item) => oldSet.has(item.id))) return fail('Before your first meld you cannot use tiles that are already on the table.');
+        if (resolved.items.some((item) => oldSet.has(item.id))) return fail(msg('errors.meldUsesTable'));
         points += resolved.value;
       }
     }
-    if (points < meld) return fail(`Your first meld must be worth at least ${meld} points from your own tiles; this one is worth ${points}.`);
+    if (points < meld) return fail(msg('errors.meldShort', { meld, points }));
   }
   return { ok: true, sets: sets.map((r) => r.items.map((i) => i.id)), added, points };
 }

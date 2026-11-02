@@ -1,14 +1,18 @@
 // Tile colours: a distinct hue AND a distinct shape for each of the (up to eight) colours, so colour is never the only clue.
-// Shapes are drawn in a 12 x 12 box. TILE_COLOURS is indexed by a tile's colour number; the game's settings decide how many are used.
+// Shapes are drawn in a 12 x 12 box. TILE_COLOURS is indexed by a tile's colour number; the game's settings decide how many
+// are used. A colour's `key` is its name's key under `colours.` in the locale files (COLOUR_KEYS in ../rules.js), never a
+// name: the name itself is looked up in the player's language.
+import { COLOUR_KEYS } from '../rules.js';
+
 export const TILE_COLOURS = [
-  { name: 'Red', hue: '#cf3326', shape: 'circle' },
-  { name: 'Blue', hue: '#1f62d1', shape: 'triangle' },
-  { name: 'Orange', hue: '#d97a06', shape: 'square' },
-  { name: 'Black', hue: '#23232b', shape: 'diamond' },
-  { name: 'Green', hue: '#1f8f48', shape: 'star' },
-  { name: 'Purple', hue: '#7e3fc2', shape: 'cross' },
-  { name: 'Teal', hue: '#0e8f9b', shape: 'pentagon' },
-  { name: 'Pink', hue: '#d63f93', shape: 'hexagon' },
+  { key: COLOUR_KEYS[0], hue: '#cf3326', shape: 'circle' },
+  { key: COLOUR_KEYS[1], hue: '#1f62d1', shape: 'triangle' },
+  { key: COLOUR_KEYS[2], hue: '#d97a06', shape: 'square' },
+  { key: COLOUR_KEYS[3], hue: '#23232b', shape: 'diamond' },
+  { key: COLOUR_KEYS[4], hue: '#1f8f48', shape: 'star' },
+  { key: COLOUR_KEYS[5], hue: '#7e3fc2', shape: 'cross' },
+  { key: COLOUR_KEYS[6], hue: '#0e8f9b', shape: 'pentagon' },
+  { key: COLOUR_KEYS[7], hue: '#d63f93', shape: 'hexagon' },
 ];
 
 // The outline of each shape named in TILE_COLOURS, in the 12 x 12 box: a circle as [cx, cy, r], a rectangle as [x, y, width,
@@ -25,10 +29,10 @@ export const SHAPES = {
 };
 
 /**
- * Looks up a colour's name, hue and shape.
+ * Looks up a colour's name key, hue and shape.
  *
  * @param {number} colour  a colour index (falls back to the first colour, red, if it is out of range)
- * @returns {{name: string, hue: string, shape: string}} the colour's entry in TILE_COLOURS
+ * @returns {{key: string, hue: string, shape: string}} the colour's entry in TILE_COLOURS
  *
  * Side effects: none.
  */

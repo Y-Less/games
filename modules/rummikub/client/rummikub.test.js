@@ -7,6 +7,10 @@ import { canMove, moveTiles, placedThisTurn, releaseJokers, sortRack, splitRunAt
 import Lobby from './Lobby.vue';
 import Rummikub from './Rummikub.vue';
 import Table from './Table.vue';
+import { messageText } from '../../../src/messageText.js';
+
+// A message the server (or the pure rules) sent, in English, as the table draws it.
+const words = (message) => messageText(message, 'rummikub');
 
 const STD = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0 };
 const tile = (s, colour, number, copy = 0) => copy * s.colours * s.numbers + colour * s.numbers + number - 1;
@@ -75,9 +79,9 @@ describe('arrangement helpers', () => {
 
   it('forbids sending table tiles back to the rack, and touching old sets before the first meld', () => {
     const arr = startArrangement(table, rack);
-    expect(canMove(arr, [t(0, 3)], { type: 'rack' }, { before: table, melded: true })).toMatch(/stay on it/);
-    expect(canMove(arr, [t(0, 3)], { type: 'new' }, { before: table, melded: false })).toMatch(/first meld/);
-    expect(canMove(arr, [t(0, 6)], { type: 'set', index: 0 }, { before: table, melded: false })).toMatch(/first meld/);
+    expect(canMove(arr, [t(0, 3)], { type: 'rack' }, { before: table, melded: true })).toEqual({ key: 'hints.staysOnTable' });
+    expect(canMove(arr, [t(0, 3)], { type: 'new' }, { before: table, melded: false })).toEqual({ key: 'hints.frozen' });
+    expect(canMove(arr, [t(0, 6)], { type: 'set', index: 0 }, { before: table, melded: false })).toEqual({ key: 'hints.frozen' });
     expect(canMove(arr, [t(0, 6)], { type: 'set', index: 0 }, { before: table, melded: true })).toBeNull();
     expect(canMove(arr, [t(0, 6)], { type: 'new' }, { before: table, melded: false })).toBeNull();
   });
@@ -94,7 +98,8 @@ describe('arrangement helpers', () => {
     expect(placedThisTurn(arr, table)).toEqual(new Set([t(1, 9), t(2, 9), t(3, 9)]));
     const status = turnStatus(STD, { arr, before: table, rack, melded: false, meld: 30 });
     expect(status.ok).toBe(false);
-    expect(status.error).toMatch(/at least 30/);
+    expect(status.error).toEqual({ key: 'errors.meldShort', params: { meld: 30, points: 27 } });
+    expect(words(status.error)).toMatch(/at least 30/);
     expect(status.points).toBe(27);
     const ok = turnStatus(STD, { arr, before: table, rack, melded: true, meld: 30 });
     expect(ok.ok).toBe(true);
@@ -110,7 +115,7 @@ describe('the play field', () => {
   it('shows the pool count and whose turn it is (tile counts are in the player popups)', () => {
     const { w } = mountTable(state());
     expect(w.text()).toContain('in the pool');
-    expect(w.text()).toContain('Your turn');
+    expect(w.text()).toContain("It's your turn");
     expect(w.text()).not.toContain('2 tiles');
     expect(w.findAll('[data-rack] .tile')).toHaveLength(5);
   });
@@ -353,8 +358,8 @@ describe('the play field', () => {
     expect(status).toContain('Round 1');
     expect(status).toContain('in the pool');
     expect(status).toContain('First meld: 30 points');
-    expect(status).toContain('Your turn');
-    for (const text of ['in the pool', 'Your turn', 'First meld']) expect(w.find('.main').text()).not.toContain(text);
+    expect(status).toContain("It's your turn");
+    for (const text of ['in the pool', "It's your turn", 'First meld']) expect(w.find('.main').text()).not.toContain(text);
     for (const id of [t(0, 10), t(0, 11)]) await rackTile(w, id).trigger('click');
     await w.find('.set.new').trigger('click');
     expect(w.find('.box.status').text()).toMatch(/needs|least|three|3/i); // the live message about the layout
@@ -474,7 +479,7 @@ describe('the shell', () => {
 
   it('resumes with the invite code and shows server errors', async () => {
     const socket = fakeSocket(true);
-    socket.emit = vi.fn((event, payload, ack) => ack?.({ ok: false, error: 'No game has that code.' }));
+    socket.emit = vi.fn((event, payload, ack) => ack?.({ ok: false, error: 'noGameWithCode' })); // a code: the client puts it into words
     const w = mount(Rummikub, { props: { socket, search: '?a-b-c' } });
     expect(socket.emit).toHaveBeenCalledWith('resume', { code: 'a-b-c' }, expect.any(Function));
     socket.handlers.state(null);
@@ -492,7 +497,7 @@ describe('jokers that are already on the table', () => {
   it('cannot be moved, but the other tiles in their set can', () => {
     const arr = startArrangement(startTable, [t(0, 6), t(1, 9)]);
     const fixed = new Set([J0]);
-    expect(canMove(arr, [J0], { type: 'new' }, { before: startTable, melded: true, fixed })).toMatch(/joker/);
+    expect(canMove(arr, [J0], { type: 'new' }, { before: startTable, melded: true, fixed })).toEqual({ key: 'hints.jokerStays' });
     expect(canMove(arr, [J0], { type: 'new' }, { before: startTable, melded: true })).toBeNull();
     expect(canMove(arr, [t(0, 4)], { type: 'new' }, { before: startTable, melded: true, fixed })).toBeNull();
   });

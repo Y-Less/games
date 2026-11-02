@@ -16,6 +16,7 @@ import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 import PlayerFacts from './PlayerFacts.vue';
 import RackPanel from './RackPanel.vue';
 import ScoreBar from './ScoreBar.vue';
@@ -30,6 +31,7 @@ import { useTurnClock } from './useTurnClock.js';
 import { useWorkingCopy } from './useWorkingCopy.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, text, list } = useGameText();
 
 // Each composable's returned refs are wrapped in reactive() so the template and the other composables read them without .value.
 // The round view: read-only facts about the game for this player.
@@ -42,8 +44,8 @@ const drag = reactive(useTileDrag(view, copy));
 const actions = reactive(useTurnActions(view, copy, props.send));
 // The turn countdown (null when untimed).
 const { secondsLeft } = useTurnClock(() => props.state);
-// The Status box's words.
-const { headline, lines } = useStatusText(view, copy);
+// The Status box's words (the text helpers come from here, so the composable writes no English of its own).
+const { headline, lines } = useStatusText(view, copy, { t, text, list });
 
 // Another player's details (their tile count and so on) open from their chip in the score bar: one at a time, floating
 // over the top of the main area so that nothing moves.
@@ -130,7 +132,7 @@ const rackRows = (area) => (area.height >= 600 ? 3 : 2);
     </template>
 
     <template #log>
-      <GameLog :entries="state.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="state.log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>

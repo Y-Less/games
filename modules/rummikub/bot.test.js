@@ -86,6 +86,7 @@ test('it draws when it cannot play, and never plays an invalid table', () => {
   const { room } = playingRoom(2, { seed: 1, bots: true });
   position(room, { racks: [[], [t(0, 1), t(1, 4), t(2, 8)]], table: [[t(0, 4), t(0, 5), t(0, 6)]], turn: 1, melded: [false, true] });
   assert.deepEqual(chooseTurn(room, 1, { rng: seeded(1) }), { type: 'draw' });
+  assert.equal(runPending({ ...room, phase: 'between' }, Math.random, Date.now()).error, 'nothingToDo');
   const before = room.racks[1].length;
   runPending(room, Math.random, Date.now());
   assert.equal(room.racks[1].length, before + 1);
@@ -121,7 +122,7 @@ for (const players of [2, 3, 4, 5, 6]) {
       const started = game.start(room, 1, rng, Date.now());
       if (!started.ok) {
         skipped++;
-        assert.match(started.error, /too few|no run or group/);
+        assert.ok(['tooFewTiles', 'fewNumbersColours'].includes(started.error), started.error);
         return;
       }
       let turns = 0;

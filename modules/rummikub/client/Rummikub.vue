@@ -8,6 +8,7 @@
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -17,6 +18,7 @@ const props = defineProps({
   search: { type: String, default: '' },
   setSearch: { type: Function, default: () => {} },
 });
+const { t } = useGameText();
 
 // state is the player's view (null outside a game); loaded is false until the first reply; notice is the latest error text.
 const { state, loaded, notice, initialCode, send } = useGameSocket({
@@ -24,17 +26,17 @@ const { state, loaded, notice, initialCode, send } = useGameSocket({
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning to show before leaving mid-game (a round or the pause between rounds), or '' for no warning.
-  leaveConfirm: (state) => (state.phase === 'playing' || state.phase === 'between' ? 'A computer player takes your seat if you leave.' : ''),
+  leaveConfirm: (state) => (state.phase === 'playing' || state.phase === 'between' ? t('leaveConfirm') : ''),
 });
 </script>
 
 <template>
   <div class="rummikub stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Rummikub"
-      intro="Build runs and groups from numbered tiles, rearrange the whole table and be first to empty your rack. Two to six players; computer players can fill any empty seats."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

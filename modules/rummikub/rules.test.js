@@ -22,6 +22,17 @@ test('tile ids: two copies of each colour and number, then the wildcards', () =>
   assert.ok([...seen.values()].every((n) => n === 2));
 });
 
+test('a set that is refused says why with a message, never a sentence', () => {
+  const refusal = resolveSet(STD, [t(0, 4), t(0, 5)]);
+  assert.equal(refusal.ok, false);
+  assert.deepEqual(refusal.error, { key: 'errors.setTooSmall', params: { min: 3 } });
+  assert.equal(resolveSet(STD, [t(0, 4), t(0, 5), t(1, 6)]).error.key, 'errors.notASetKind');
+  assert.deepEqual(checkPlay(STD, { before: [], rack: [t(0, 1), t(0, 5), t(0, 9)], proposed: [[t(0, 1), t(0, 5), t(0, 9)]], melded: true }).error, {
+    key: 'errors.setProblem',
+    params: { n: 1, reason: { key: 'errors.runGap' } },
+  }, 'a set\'s own refusal is a message inside the one about the layout');
+});
+
 test('runs: consecutive, one colour, at least three, no wrapping', () => {
   assert.equal(resolveSet(STD, [t(0, 4), t(0, 5), t(0, 6)]).kind, 'run');
   assert.equal(resolveSet(STD, [t(0, 6), t(0, 4), t(0, 5)]).ok, true, 'order does not matter');
@@ -86,6 +97,8 @@ test('settings are validated and clamped', () => {
   assert.equal(normaliseSettings({ numbers: 9.6 }).settings.numbers, 10, 'rounded');
   for (const bad of ['9', NaN, Infinity, null, true, {}, []]) assert.equal(normaliseSettings({ numbers: bad }).ok, false, String(bad));
   assert.equal(normaliseSettings({ unknown: 1 }).settings.numbers, 13);
+  assert.deepEqual(normaliseSettings({ numbers: '9' }).error, { key: 'errors.settingNotNumber', params: { setting: { key: 'settings.numbers' } } }, 'the refusal names the setting as a message');
+  assert.equal(normaliseSettings({ playOnMeld: 'yes' }).error.key, 'errors.playOnMeldSetting');
   assert.equal(normaliseSettings({ numbers: 5 }, { ...DEFAULT_SETTINGS, colours: 6 }).settings.colours, 6, 'keeps what it is not told about');
 });
 
@@ -93,8 +106,8 @@ test('the deal: 14 each, fewer when the pool would be smaller than a hand', () =
   assert.equal(dealSize(STD, 6), 14);
   assert.equal(dealSize({ numbers: 10, colours: 4, wildcards: 2 }, 6), 11);
   assert.equal(startProblem(STD, 6), null);
-  assert.match(startProblem({ numbers: 3, colours: 2, wildcards: 0 }, 6), /too few to deal/);
-  assert.ok(startProblem({ numbers: 2, colours: 2, wildcards: 8 }, 2).includes('no run or group'));
+  assert.deepEqual(startProblem({ numbers: 3, colours: 2, wildcards: 0 }, 6), { key: 'errors.tooFewTiles', params: { tiles: 12, players: 6, min: 6 } });
+  assert.equal(startProblem({ numbers: 2, colours: 2, wildcards: 8 }, 2).key, 'errors.fewNumbersColours');
 });
 
 test('rack values: numbers count their number, jokers 30', () => {
@@ -108,7 +121,7 @@ test('first meld: rack tiles only, worth the threshold', () => {
   const rack = [t(0, 10), t(0, 11), t(0, 12), t(1, 2), t(2, 2), t(3, 2)];
   const small = play([], rack, [[t(1, 2), t(2, 2), t(3, 2)]]);
   assert.equal(small.ok, false);
-  assert.match(small.error, /at least 30/);
+  assert.deepEqual(small.error, { key: 'errors.meldShort', params: { meld: 30, points: 6 } });
   const big = play([], rack, [[t(0, 10), t(0, 11), t(0, 12)]]);
   assert.equal(big.ok, true);
   assert.equal(big.points, 33);
@@ -130,7 +143,7 @@ test('first meld: the table cannot be touched', () => {
   assert.equal(play(before, rack, [...before, [t(0, 10), t(0, 11), t(0, 12)]]).ok, true, 'new set beside the old one');
   const extend = play(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(0, 10), t(0, 11), t(0, 12)]]);
   assert.equal(extend.ok, false);
-  assert.match(extend.error, /first meld/);
+  assert.equal(extend.error.key, 'errors.meldUsesTable');
   const split = play(before, rack, [[t(1, 5), t(2, 5)], [t(3, 5), t(0, 5), t(0, 10)]]);
   assert.equal(split.ok, false);
   assert.equal(play(before, rack, [[t(0, 10), t(0, 11), t(0, 12)], before[0]]).ok, true, 'the table in any order');
@@ -168,10 +181,10 @@ test('a play must keep every table tile, use only rack tiles, add something, and
   const before = [[t(0, 3), t(0, 4), t(0, 5)]];
   const rack = [t(1, 3), t(2, 3), t(3, 3)];
   const opts = { melded: true };
-  assert.match(play(before, rack, [[t(1, 3), t(2, 3), t(3, 3)]], opts).error, /missing/);
-  assert.match(play(before, rack, [before[0], [t(1, 3), t(2, 3), t(3, 3, 1)]], opts).error, /own rack/);
-  assert.match(play(before, rack, [before[0]], opts).error, /not added/);
-  assert.match(play(before, rack, [before[0], [t(1, 3), t(2, 3), t(3, 3)], [t(1, 3), t(2, 3), t(3, 3)]], opts).error, /twice/);
+  assert.deepEqual(play(before, rack, [[t(1, 3), t(2, 3), t(3, 3)]], opts).error, { key: 'errors.tilesMissing', params: { count: 3 } });
+  assert.equal(play(before, rack, [before[0], [t(1, 3), t(2, 3), t(3, 3, 1)]], opts).error.key, 'errors.onlyFromRack');
+  assert.equal(play(before, rack, [before[0]], opts).error.key, 'errors.nothingAdded');
+  assert.equal(play(before, rack, [before[0], [t(1, 3), t(2, 3), t(3, 3)], [t(1, 3), t(2, 3), t(3, 3)]], opts).error.key, 'errors.tileTwice');
   assert.equal(play(before, rack, [before[0], [t(1, 3), t(2, 3), t(3, 3)]], opts).ok, true);
   for (const bad of [null, 'x', 5, {}, [null], [[null]], [['a']], [[1.5, 2, 3]], [[-1, 2, 3]], [[999, 2, 3]], [[1, 2, 3], 'x']]) {
     assert.equal(play(before, rack, bad, opts).ok, false, JSON.stringify(bad));
@@ -212,7 +225,7 @@ test('play on after melding: the meld itself must still be worth enough, from se
   const rack = [t(0, 5), t(1, 2), t(2, 2), t(3, 2)];
   const small = playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(1, 2), t(2, 2), t(3, 2)]]);
   assert.equal(small.ok, false);
-  assert.match(small.error, /at least 30.*worth 6/);
+  assert.deepEqual(small.error, { key: 'errors.meldShortOpen', params: { meld: 30, points: 6 } });
   assert.equal(playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)], [t(1, 2), t(2, 2), t(3, 2)]], { meld: 6 }).ok, true, 'a lower threshold');
   assert.equal(playOn(before, rack, [[t(1, 5), t(2, 5), t(3, 5), t(0, 5)]], { melded: true }).ok, true, 'someone who has melded is not asked again');
 });
@@ -260,7 +273,7 @@ test('a joker on the table can only be taken by swapping in a tile it stands for
   const longer = [[t(0, 4), t(0, 5), t(0, 6), J()]];
   const taken2 = turn([t(1, 9), t(2, 9)], [[t(0, 4), t(0, 5), t(0, 6)], [J(), t(1, 9), t(2, 9)]], longer);
   assert.equal(taken2.ok, false, 'a valid run left behind is not a swap');
-  assert.match(taken2.error, /swap in the tile/);
+  assert.equal(taken2.error.key, 'errors.jokerTaken');
 });
 
 test('a joker that stays keeps its value whatever else happens to its set', () => {
