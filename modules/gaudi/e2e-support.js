@@ -96,7 +96,7 @@ export function checkFinal(state) {
   assert.ok(state.winners.every((seat) => final[seat].total === top));
   const rounds = state.scoreboard.rounds;
   assert.equal(rounds.length, 11);
-  assert.equal(rounds.at(-1).label, 'Private objectives');
+  assert.deepEqual(rounds.at(-1).label, { key: 'scores.privateRound' }, 'the last round is the private objectives');
   for (const p of state.scoreboard.players) {
     assert.equal(p.score, final[p.id].total);
     assert.equal(rounds.reduce((sum, r) => sum + r.deltas[p.id], 0), p.score);

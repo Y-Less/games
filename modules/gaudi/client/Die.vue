@@ -4,8 +4,10 @@
 // Props: die ({ c: colour key, v: face 1-6 }), size (px, default 44). Emits: none. Slots: none. Side effects: none.
 import { computed } from 'vue';
 import { COLOUR_HEX, COLOUR_INK, PIPS, SHAPES } from './glyphs.js';
-import { COLOUR_NAMES, COLOUR_SHAPES } from '../rules.js';
+import { COLOUR_SHAPES } from '../rules.js';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 const props = defineProps({
   die: { type: Object, required: true }, // { c, v }
   size: { type: Number, default: 44 },
@@ -15,7 +17,7 @@ const props = defineProps({
 const hex = computed(() => COLOUR_HEX[props.die.c] ?? '#888');
 const ink = computed(() => COLOUR_INK[props.die.c] ?? '#fff');
 const shape = computed(() => SHAPES[COLOUR_SHAPES[props.die.c]]);
-const label = computed(() => `${COLOUR_NAMES[props.die.c]} ${props.die.v}`);
+const label = computed(() => t('die.label', { colour: t(`colours.${props.die.c}`), shade: props.die.v }));
 </script>
 
 <template>

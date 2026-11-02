@@ -1,5 +1,6 @@
 // Guided use of the tool cards: whether one can be used now, starting it, working out its request and sending it.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { startMode } from './toolkit.js';
 
 /**
@@ -12,6 +13,7 @@ import { startMode } from './toolkit.js';
 export function useTools({ s, turn, sel, send }) {
   const { me, myTurn, poolDie } = turn;
   const { selected, mode, message } = sel;
+  const { t, error } = useGameText();
 
   /**
    * Why a tool cannot be used right now, or '' if it can (not your turn, one already used, not enough favour tokens...).
@@ -20,10 +22,10 @@ export function useTools({ s, turn, sel, send }) {
    * Side effects: none.
    */
   const toolBlock = (tool) => {
-    if (s.value.phase !== 'playing') return 'The game is not being played.';
-    if (!myTurn.value) return 'Not your turn.';
-    if (s.value.turn.toolUsed) return 'You have already used a tool this turn.';
-    if ((me.value?.tokens ?? 0) < tool.cost) return `You need ${tool.cost} favour ${tool.cost === 1 ? 'token' : 'tokens'}; you have ${me.value?.tokens ?? 0}.`;
+    if (s.value.phase !== 'playing') return t('errors.notPlaying');
+    if (!myTurn.value) return t('errors.notYourTurn');
+    if (s.value.turn.toolUsed) return t('errors.toolUsedAlready');
+    if ((me.value?.tokens ?? 0) < tool.cost) return t('errors.notEnoughTokens', { count: tool.cost, have: me.value?.tokens ?? 0 }, tool.cost);
     return '';
   };
 
@@ -70,7 +72,7 @@ export function useTools({ s, turn, sel, send }) {
     const reply = await send('tool', { tool: m.id, params });
     if (reply.ok) mode.value = null;
     else {
-      message.value = reply.error;
+      message.value = error(reply);
       if (m.kind === 'moves') {
         m.moves = [];
         m.from = null;
@@ -93,11 +95,16 @@ export function useTools({ s, turn, sel, send }) {
   const modeSummary = computed(() => {
     const m = mode.value;
     if (!m) return '';
-    if (m.kind === 'moves') return `${m.moves.length} of ${m.min === m.max ? m.max : `${m.min} to ${m.max}`} dice moved${m.from !== null ? '; now click where it goes' : ''}.`;
-    if (m.kind === 'exchange') return `${m.die != null ? 'Pool die chosen' : 'Choose a pool die'}; ${m.trackDie != null ? 'track die chosen' : 'now a die on the round track'}.`;
-    if (m.kind === 'free') return m.die != null ? 'Now click the space for it.' : 'Choose a pool die.';
-    if (m.kind === 'confirm') return 'Nothing more to choose.';
-    return m.die != null ? 'Die chosen.' : 'Choose a die in the pool.';
+    if (m.kind === 'moves') {
+      const total = m.min === m.max ? String(m.max) : t('tool.range', { min: m.min, max: m.max });
+      return t(m.from !== null ? 'tool.movedNext' : 'tool.moved', { done: m.moves.length, total });
+    }
+    if (m.kind === 'exchange') {
+      return t('tool.exchangeStep', { pool: t(m.die != null ? 'tool.poolChosen' : 'tool.choosePool'), track: t(m.trackDie != null ? 'tool.trackChosen' : 'tool.chooseTrack') });
+    }
+    if (m.kind === 'free') return t(m.die != null ? 'tool.freeSpace' : 'tool.choosePoolDie');
+    if (m.kind === 'confirm') return t('tool.nothingMore');
+    return t(m.die != null ? 'tool.dieChosen' : 'tool.chooseFromPool');
   });
 
   return { toolBlock, startTool, toolParams, applyTool, modeDie, modeSummary };

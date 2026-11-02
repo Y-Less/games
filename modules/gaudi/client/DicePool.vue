@@ -4,8 +4,9 @@
 // Props: pool (dice from the view), chosenIds (ids drawn as chosen), perRow (dice in a row), minHeight (px), dieSize (px).
 // Emits: pick (die) when a die is clicked or Enter is pressed. Side effects: none.
 import Die from './Die.vue';
-import { colourName } from './wording.js';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 defineProps({
   pool: { type: Array, required: true },
   chosenIds: { type: Array, default: () => [] },
@@ -17,7 +18,7 @@ const emit = defineEmits(['pick']);
 </script>
 
 <template>
-  <div class="pool" role="group" aria-label="Draft pool" :style="{ gridTemplateColumns: `repeat(${perRow}, auto)`, minHeight: `${minHeight}px` }">
+  <div class="pool" role="group" :aria-label="t('board.pool')" :style="{ gridTemplateColumns: `repeat(${perRow}, auto)`, minHeight: `${minHeight}px` }">
     <div
       v-for="d in pool"
       :key="d.id"
@@ -25,7 +26,7 @@ const emit = defineEmits(['pick']);
       :class="{ chosen: chosenIds.includes(d.id) }"
       role="button"
       tabindex="0"
-      :aria-label="`${colourName(d.c)} ${d.v}`"
+      :aria-label="t('die.label', { colour: t(`colours.${d.c}`), shade: d.v })"
       @click="emit('pick', d)"
       @keydown.enter.prevent="emit('pick', d)"
     >

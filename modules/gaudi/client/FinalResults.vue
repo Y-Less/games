@@ -4,51 +4,51 @@
 // Props: state (the server's view, finished), winners (the winners' names).
 // Emits: again (the host asks for another game), scores (open the score board pop-up). Side effects: none.
 import { COLOUR_HEX } from './glyphs.js';
-import { colourName, rank } from './wording.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { rank } from './wording.js';
 
 defineProps({ state: { type: Object, required: true }, winners: { type: Array, required: true } });
 const emit = defineEmits(['again', 'scores']);
+const { t, text, list } = useGameText();
 </script>
 
 <template>
   <section class="final">
-    <h3>{{ winners.length > 1 ? 'A shared win' : 'We have a winner' }}</h3>
-    <p class="winner">{{ winners.join(' and ') }} {{ winners.length > 1 ? 'win' : 'wins' }} with {{ state.final.players[state.winners[0]].total }} points.</p>
+    <h3>{{ t(winners.length > 1 ? 'final.shared' : 'final.winner') }}</h3>
+    <p class="winner">{{ t('final.result', { names: list(winners), points: state.final.players[state.winners[0]].total }, winners.length) }}</p>
     <div class="table-scroll">
       <table class="breakdown">
         <thead>
           <tr>
-            <th scope="col">Player</th>
-            <th v-for="o in state.publicObjectives" :key="o.id" scope="col">{{ o.name }}</th>
-            <th scope="col">Private</th>
-            <th scope="col">Favour tokens</th>
-            <th scope="col">Empty spaces</th>
-            <th scope="col">Total</th>
+            <th scope="col">{{ t('final.player') }}</th>
+            <th v-for="o in state.publicObjectives" :key="o.id" scope="col">{{ t(`objectives.${o.id}.name`) }}</th>
+            <th scope="col">{{ t('final.private') }}</th>
+            <th scope="col">{{ t('final.tokens') }}</th>
+            <th scope="col">{{ t('final.empty') }}</th>
+            <th scope="col">{{ $t('scoreboard.total') }}</th>
             <th scope="col" />
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in state.final.players" :key="row.seat" :class="{ win: state.winners.includes(row.seat), me: row.seat === state.you }">
-            <th scope="row">{{ row.name }}<span v-if="row.seat === state.you" class="muted"> (you)</span></th>
+            <th scope="row">{{ text(row.name) }}<span v-if="row.seat === state.you" class="muted"> {{ $t('common.youBracketed') }}</span></th>
             <td v-for="p in row.publics" :key="p.id">{{ p.points }}<small class="muted"> ({{ p.sets }})</small></td>
             <td>
-              <span class="dot" :style="{ background: COLOUR_HEX[row.privateColour] }" />{{ colourName(row.privateColour) }}: <strong>{{ row.privatePoints }}</strong>
+              <span class="dot" :style="{ background: COLOUR_HEX[row.privateColour] }" />{{ t(`colours.${row.privateColour}`) }}: <strong>{{ row.privatePoints }}</strong>
             </td>
             <td>+{{ row.tokens }}</td>
             <td>-{{ row.empty }}</td>
             <td><strong>{{ row.total }}</strong></td>
-            <td>{{ rank(row) }}</td>
+            <td>{{ rank(t, row) }}</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="muted small">
-      Private objective rule: {{ state.badPrivate ? 'bad private scoring (a flat 3 per die of the colour)' : 'the shade of every die of the colour, added up' }}. Ties are broken by private objective, then favour tokens, then whoever moved last in the final round.
-    </p>
+    <p class="muted small">{{ t('final.ruleNote', { rule: t(state.badPrivate ? 'final.ruleBad' : 'final.ruleNormal') }) }}</p>
     <div class="row">
-      <button v-if="state.hostSeat === state.you" class="primary" @click="emit('again')">Play again</button>
-      <span v-else class="muted">The host can start another game, or leave (top right).</span>
-      <button @click="emit('scores')">See the scores</button>
+      <button v-if="state.hostSeat === state.you" class="primary" @click="emit('again')">{{ t('final.playAgain') }}</button>
+      <span v-else class="muted">{{ t('final.hostAgain') }}</span>
+      <button @click="emit('scores')">{{ t('final.seeScores') }}</button>
     </div>
   </section>
 </template>

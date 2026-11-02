@@ -8,6 +8,7 @@
 // Emits: cell (index), pool (die), track (die), end, undo, cancel, apply (extra parameters). All are passed straight on from
 // the window, pool, buttons and track. Side effects: none.
 import DicePool from './DicePool.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import RoundTrack from './RoundTrack.vue';
 import TokenDot from './TokenDot.vue';
 import TurnActions from './TurnActions.vue';
@@ -30,14 +31,15 @@ defineProps({
   sizes: { type: Object, required: true },
 });
 const emit = defineEmits(['cell', 'pool', 'track', 'end', 'undo', 'cancel', 'apply']);
+const { t } = useGameText();
 </script>
 
 <template>
   <section class="mine" :class="{ turn: myTurn }">
     <div class="head">
-      <strong>{{ me?.name }}</strong><span class="muted">(you)</span>
-      <span class="muted wname">{{ me?.window?.name }}</span>
-      <span class="tokens" title="Favour tokens"><TokenDot v-for="n in me?.tokens ?? 0" :key="n" /><b>{{ me?.tokens }}</b> favour</span>
+      <strong>{{ me?.name }}</strong><span class="muted">{{ $t('common.youBracketed') }}</span>
+      <span class="muted wname">{{ me?.window ? t(`patterns.${me.window.pid}`) : '' }}</span>
+      <span class="tokens" :title="t('board.favourTokens')"><TokenDot v-for="n in me?.tokens ?? 0" :key="n" /><b>{{ t('board.favour', { n: me?.tokens ?? 0 }) }}</b></span>
     </div>
     <div class="play">
       <WindowGrid
@@ -50,7 +52,7 @@ const emit = defineEmits(['cell', 'pool', 'track', 'end', 'undo', 'cancel', 'app
         :chosen="highlight.chosen"
         :titles="highlight.titles"
         :interactive="myTurn"
-        label="Your window"
+        :label="t('board.yourWindow')"
         @cell="emit('cell', $event)"
       />
 

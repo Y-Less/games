@@ -24,12 +24,12 @@ const TOOL_KINDS = {
 /**
  * A fresh guided-use state for a tool.
  *
- * @param {{ id: string, name: string, cost: number, how: string }} tool  a tool card from the view
+ * @param {{ id: string, cost: number }} tool  a tool card from the view (its words are read from its id, see the locale file)
  * @param {(object | null)[]} grid  the player's window now (slide tools preview their moves on a copy of it)
  * @returns {object} the kind of guidance, the choices made so far (none) and the window to preview on
  * Side effects: none (the grid is shared, not copied: slide moves replace m.grid rather than editing it).
  */
 export function startMode(tool, grid) {
   const def = TOOL_KINDS[tool.id] ?? { kind: 'confirm' };
-  return { id: tool.id, name: tool.name, cost: tool.cost, how: tool.how, ...def, die: null, trackDie: null, from: null, moves: [], grid };
+  return { id: tool.id, cost: tool.cost, ...def, die: null, trackDie: null, from: null, moves: [], grid };
 }

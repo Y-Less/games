@@ -6,8 +6,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 /**
  * Is this player the host? Only the host may change the rules and the seats.
@@ -48,13 +50,13 @@ const seated = computed(() => props.state.seats.filter(Boolean).length);
  * @returns {string}
  * Side effects: none.
  */
-const diceLine = computed(() => `${10 * (2 * props.state.size + 1)} dice in the bag, ${2 * (2 * props.state.size + 1)} of each colour`);
+const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * props.state.size + 1), each: 2 * (2 * props.state.size + 1) }));
 </script>
 
 <template>
   <div class="stack lobby-wrap">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -68,9 +70,9 @@ const diceLine = computed(() => `${10 * (2 * props.state.size + 1)} dice in the 
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Players (seats)</legend>
+          <legend class="muted">{{ t('lobby.players') }}</legend>
           <div class="row">
             <button
               v-for="n in state.limits.sizes"
@@ -78,23 +80,20 @@ const diceLine = computed(() => `${10 * (2 * props.state.size + 1)} dice in the 
               :class="{ primary: state.size === n }"
               :aria-pressed="state.size === n"
               :disabled="seated > n"
-              :title="seated > n ? 'Remove some players first' : ''"
+              :title="seated > n ? t('lobby.removeFirst') : ''"
               @click="send('size', { seats: n })"
             >
-              {{ n }} players
+              {{ t('lobby.playerCount', { n }) }}
             </button>
           </div>
-          <p class="muted small">{{ diceLine }}: exactly what ten rounds use.</p>
+          <p class="muted small">{{ diceLine }}</p>
         </fieldset>
         <label class="check">
           <input type="checkbox" :checked="state.settings.badPrivate" :disabled="!isHost" @change="send('settings', { badPrivate: $event.target.checked })" />
-          <span><strong>Bad private scoring</strong> (off by default)</span>
+          <span><strong>{{ t('lobby.badPrivate') }}</strong> {{ t('lobby.badPrivateDefault') }}</span>
         </label>
-        <p class="muted small rule-note" role="status">
-          <template v-if="state.settings.badPrivate">The weaker rule applies: each die of your private colour is worth a flat 3 points, whatever it shows.</template>
-          <template v-else>The normal rule applies: your private colour scores the shade of every die of that colour in your window, added up.</template>
-        </p>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p class="muted small rule-note" role="status">{{ t(state.settings.badPrivate ? 'lobby.badPrivateOn' : 'lobby.badPrivateOff') }}</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

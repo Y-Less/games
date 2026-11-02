@@ -4,7 +4,9 @@
 // use, or null), dieSize (px), chosenId (the track die chosen for Exchange, or null).
 // Emits: pick (die) when a die on the track is clicked. Side effects: none.
 import Die from './Die.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 defineProps({
   slots: { type: Array, required: true },
   round: { type: Number, default: 1 },
@@ -16,8 +18,8 @@ const emit = defineEmits(['pick']);
 </script>
 
 <template>
-  <div class="track" role="group" aria-label="Round track">
-    <div v-for="(dice, i) in slots" :key="i" class="slot" :class="{ now: i + 1 === round && !finished }" :title="`Round ${i + 1}`">
+  <div class="track" role="group" :aria-label="t('board.track')">
+    <div v-for="(dice, i) in slots" :key="i" class="slot" :class="{ now: i + 1 === round && !finished }" :title="t('scores.round', { n: i + 1 })">
       <span class="muted n">{{ i + 1 }}</span>
       <div class="slot-dice">
         <div v-for="d in dice ?? []" :key="d.id" class="track-die" :class="{ chosen: mode?.trackDie === d.id, live: mode?.kind === 'exchange' }" :role="mode?.kind === 'exchange' ? 'button' : undefined" @click="emit('pick', d)">

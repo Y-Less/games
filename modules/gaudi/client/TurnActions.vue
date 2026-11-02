@@ -5,6 +5,9 @@
 // toolParams (what the tool would send, null while something is still to be chosen).
 // Emits: end, undo, cancel (no payload); apply (extra parameters, e.g. { delta: 1 }) to send the tool.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
+
+const { t } = useGameText();
 defineProps({
   myTurn: { type: Boolean, default: false },
   canUndo: { type: Boolean, default: false },
@@ -17,13 +20,13 @@ const emit = defineEmits(['end', 'undo', 'cancel', 'apply']);
 
 <template>
   <div class="actions">
-    <button class="primary" :disabled="!myTurn" @click="emit('end')">End turn</button>
-    <button :disabled="!myTurn || !canUndo" title="Take this whole turn back to how it began" @click="emit('undo')">Undo turn</button>
+    <button class="primary" :disabled="!myTurn" @click="emit('end')">{{ t('actions.endTurn') }}</button>
+    <button :disabled="!myTurn || !canUndo" :title="t('actions.undoTitle')" @click="emit('undo')">{{ t('actions.undoTurn') }}</button>
     <template v-if="mode">
-      <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v >= 6" @click="emit('apply', { delta: 1 })">Raise by one</button>
-      <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v <= 1" @click="emit('apply', { delta: -1 })">Lower by one</button>
-      <button v-if="mode.kind !== 'delta' && mode.kind !== 'free'" class="primary" :disabled="!toolParams" @click="emit('apply', {})">Use {{ mode.name }}</button>
-      <button class="quiet" @click="emit('cancel')">Cancel</button>
+      <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v >= 6" @click="emit('apply', { delta: 1 })">{{ t('actions.raise') }}</button>
+      <button v-if="mode.kind === 'delta'" :disabled="!modeDie || modeDie.v <= 1" @click="emit('apply', { delta: -1 })">{{ t('actions.lower') }}</button>
+      <button v-if="mode.kind !== 'delta' && mode.kind !== 'free'" class="primary" :disabled="!toolParams" @click="emit('apply', {})">{{ t('actions.useTool', { name: t(`tools.${mode.id}.name`) }) }}</button>
+      <button class="quiet" @click="emit('cancel')">{{ $t('common.cancel') }}</button>
     </template>
   </div>
 </template>

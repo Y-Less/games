@@ -3,6 +3,9 @@
 // order chips. Its elements go straight into the box's facts line (there is no wrapper).
 // Props: state (the server's view), windows, finished (Booleans), nameOf (function: seat -> name).
 // Emits: none. Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
+
+const { t } = useGameText();
 defineProps({
   state: { type: Object, required: true },
   windows: { type: Boolean, default: false },
@@ -12,11 +15,11 @@ defineProps({
 </script>
 
 <template>
-  <strong v-if="!windows">Round {{ state.round }} of {{ state.limits.rounds }}</strong>
-  <span v-if="!windows">{{ state.bagCount }} {{ state.bagCount === 1 ? 'die' : 'dice' }} left in the bag</span>
-  <span v-if="!windows">First player: {{ nameOf(state.first) }}</span>
-  <span v-if="state.settings.badPrivate" class="tag">Bad private scoring</span>
-  <ol v-if="!windows && !finished" class="order" aria-label="Turn order this round">
+  <strong v-if="!windows">{{ t('facts.round', { n: state.round, total: state.limits.rounds }) }}</strong>
+  <span v-if="!windows">{{ t('facts.bag', { count: state.bagCount }, state.bagCount) }}</span>
+  <span v-if="!windows">{{ t('facts.first', { name: nameOf(state.first) }) }}</span>
+  <span v-if="state.settings.badPrivate" class="tag">{{ t('facts.badPrivate') }}</span>
+  <ol v-if="!windows && !finished" class="order" :aria-label="t('facts.order')">
     <li
       v-for="(seat, i) in state.order"
       :key="i"

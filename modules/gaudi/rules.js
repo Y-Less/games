@@ -1,7 +1,11 @@
 // The pure rules of Gaudi that need no room, sockets or randomness: colours, window patterns, the placement rules,
 // the public and private objectives and window scoring. The server and the client both import this file (the client
 // uses it to highlight legal spaces and explain illegal ones), so it must not import anything from node.
-// It has no dependencies of its own; game.js, bot.js, the AIs and the client all depend on it. Nothing in it changes state.
+// No word a player reads lives here: a colour is a message (`colourMsg`), a window, tool or objective is named by its id
+// under `patterns.`, `tools.` and `objectives.` in the locale file, and a reason a die cannot go somewhere is a message
+// under `errors.` (see shared/messages.js). It depends only on shared/messages.js; game.js, bot.js, the AIs and the
+// client all depend on it. Nothing in it changes state.
+import { msg } from '../../shared/messages.js';
 
 export const ROWS = 4;
 export const COLS = 5;
@@ -14,8 +18,17 @@ export const MAX_PLAYERS = 5;
 /** The five colours of glass. The letter is how a colour is written in a window pattern. */
 export const COLOURS = ['ruby', 'topaz', 'jade', 'sapphire', 'amethyst'];
 export const COLOUR_LETTERS = { R: 'ruby', T: 'topaz', J: 'jade', S: 'sapphire', A: 'amethyst' };
-export const COLOUR_NAMES = { ruby: 'Ruby', topaz: 'Topaz', jade: 'Jade', sapphire: 'Sapphire', amethyst: 'Amethyst' };
 export const COLOUR_SHAPES = { ruby: 'diamond', topaz: 'circle', jade: 'triangle', sapphire: 'square', amethyst: 'star' };
+
+/**
+ * A colour's name as a message, for a view, a log line or a refusal ("Ruby").
+ *
+ * @param {string} c  a colour of COLOURS
+ * @returns {{ key: string }} the message the client puts into words (the client's own cards use `t('colours.' + c)`)
+ *
+ * Side effects: none.
+ */
+export const colourMsg = (c) => msg(`colours.${c}`);
 
 /**
  * Each round the pool holds two dice per player and one more.
@@ -51,64 +64,65 @@ export const BAD_PRIVATE_POINTS = 3;
 // ---- window patterns ----
 // Twelve double-sided cards, 24 patterns. A pattern is four rows of five characters: '.' is a blank space, a letter
 // (R T J S A) a colour restriction and a digit 1-6 a shade restriction. Difficulty (3-6) is the number of favour
-// tokens the window gives its owner. The two faces of a card are one light and one heavy window.
+// tokens the window gives its owner. The two faces of a card are one light and one heavy window. A window's name is
+// not here: it is `patterns.<card>.<face>` in the locale file, drawn by the client from the pattern's id.
 
 const CARD_DATA = [
   [
-    ['Dawn Rose', 3, ['R....', '.3.T.', '..5..', '.J.2S']],
-    ['Kaleidoscope', 6, ['R4J2S', '3.5.1', 'J6.3A', '5T1S.']],
+    [3, ['R....', '.3.T.', '..5..', '.J.2S']],
+    [6, ['R4J2S', '3.5.1', 'J6.3A', '5T1S.']],
   ],
   [
-    ['Harbour Lights', 4, ['..J..', '3.R.5', '.T.2.', 'S.4.A']],
-    ['Mosaic Court', 5, ['T.4.S', '5J.3.', '.2A.R', '1.S4.']],
+    [4, ['..J..', '3.R.5', '.T.2.', 'S.4.A']],
+    [5, ['T.4.S', '5J.3.', '.2A.R', '1.S4.']],
   ],
   [
-    ['Quiet Pond', 3, ['...S.', '4...J', '.R.3.', '..A..']],
-    ['Stormglass', 6, ['6R.JS', 'T3A.2', '.5T4R', 'J.1S6']],
+    [3, ['...S.', '4...J', '.R.3.', '..A..']],
+    [6, ['6R.JS', 'T3A.2', '.5T4R', 'J.1S6']],
   ],
   [
-    ['Weather Vane', 4, ['A.3.A', '.S.5.', 'J.R.2', '.4.T.']],
-    ['Orchard Gate', 5, ['J2.4T', '.S5.R', 'A.3J.', '6R.A1']],
+    [4, ['A.3.A', '.S.5.', 'J.R.2', '.4.T.']],
+    [5, ['J2.4T', '.S5.R', 'A.3J.', '6R.A1']],
   ],
   [
-    ['Spindle', 3, ['..R..', '.2.4.', 'S...5', '.1T.A']],
-    ['Cathedral Rose', 6, ['S5.4A', '3J.R2', '.T6S.', 'R1A.3']],
+    [3, ['..R..', '.2.4.', 'S...5', '.1T.A']],
+    [6, ['S5.4A', '3J.R2', '.T6S.', 'R1A.3']],
   ],
   [
-    ['Chime', 4, ['T...6', '.A.2.', '4.S..', '.J.R3']],
-    ['Fretwork', 5, ['.4S.J', '2.A5.', 'R3.T4', '.J1.S']],
+    [4, ['T...6', '.A.2.', '4.S..', '.J.R3']],
+    [5, ['.4S.J', '2.A5.', 'R3.T4', '.J1.S']],
   ],
   [
-    ['Fanlight', 3, ['R.S.J', '.....', '.3.5.', '1...6']],
-    ['Prism', 6, ['4T1RS', 'J.5.A', '2R.3T', 'S6J.1']],
+    [3, ['R.S.J', '.....', '.3.5.', '1...6']],
+    [6, ['4T1RS', 'J.5.A', '2R.3T', 'S6J.1']],
   ],
   [
-    ['Compass', 4, ['.J.3.', 'S...A', '.5.R.', '4.T.2']],
-    ['Wickerwork', 5, ['R.2.J', '4S.5A', '.J3.T', 'S.1R.']],
+    [4, ['.J.3.', 'S...A', '.5.R.', '4.T.2']],
+    [5, ['R.2.J', '4S.5A', '.J3.T', 'S.1R.']],
   ],
   [
-    ['Seedling', 3, ['..4..', '.R.S.', 'J...3', '..A..']],
-    ['Kiln', 6, ['A3.S6', '5R4.1', 'J.T2.', '6S.A3']],
+    [3, ['..4..', '.R.S.', 'J...3', '..A..']],
+    [6, ['A3.S6', '5R4.1', 'J.T2.', '6S.A3']],
   ],
   [
-    ['Tidewrack', 4, ['T.5.J', '.2.S.', 'A...6', '.R.4.']],
-    ['Trellis', 5, ['3.R.5', 'S4.J.', '.A6.T', '1.S2.']],
+    [4, ['T.5.J', '.2.S.', 'A...6', '.R.4.']],
+    [5, ['3.R.5', 'S4.J.', '.A6.T', '1.S2.']],
   ],
   [
-    ['Feather', 3, ['.S.4.', 'J...2', '.R.T.', '5...A']],
-    ['Labyrinth', 6, ['R6.3A', '2J5.S', 'T.4R1', '.S3A.']],
+    [3, ['.S.4.', 'J...2', '.R.T.', '5...A']],
+    [6, ['R6.3A', '2J5.S', 'T.4R1', '.S3A.']],
   ],
   [
-    ['Mirror Pool', 4, ['S.4.S', '.J.J.', '3.R.3', '.A.T.']],
-    ['Chorus Window', 5, ['5.A.T', 'J4.2R', '.S6.3', 'A.1J.']],
+    [4, ['S.4.S', '.J.J.', '3.R.3', '.A.T.']],
+    [5, ['5.A.T', 'J4.2R', '.S6.3', 'A.1J.']],
   ],
 ];
 
 export const PATTERNS = {};
 export const PATTERN_CARDS = CARD_DATA.map((faces, card) => ({
   card,
-  faces: faces.map(([name, difficulty, rows], face) => {
-    const pattern = { pid: `${card}.${face}`, card, face, name, difficulty, rows, cells: rows.join('').split('') };
+  faces: faces.map(([difficulty, rows], face) => {
+    const pattern = { pid: `${card}.${face}`, card, face, difficulty, rows, cells: rows.join('').split('') };
     PATTERNS[pattern.pid] = pattern;
     return pattern;
   }),
@@ -119,7 +133,7 @@ export const PATTERN_IDS = Object.keys(PATTERNS);
  * The window pattern with this id.
  *
  * @param {unknown} pid  an id such as '3.1' (card 3, face 1); anything else is allowed and gives null
- * @returns {object | null} { pid, card, face, name, difficulty, rows, cells }, or null if there is no such pattern
+ * @returns {object | null} { pid, card, face, difficulty, rows, cells }, or null if there is no such pattern
  *
  * Why Object.hasOwn: a client-supplied id such as 'constructor' must not find a property of the prototype.
  *
@@ -232,26 +246,27 @@ export const emptySpaces = (grid) => grid.filter((d) => !d).length;
  * @param {number} index    the space to try
  * @param {object} die      { c, v }
  * @param {{ ignoreColour?: boolean, ignoreShade?: boolean, ignoreTouch?: boolean }} [options]  rules to relax
- * @returns {string | null} a sentence the client can show, or null when the placement is legal
+ * @returns {{ key: string, params?: object } | null} the reason as a message under `errors.` (the client shows it, the
+ *   server turns it into a refusal code), or null when the placement is legal
  *
  * Side effects: none.
  */
 export function cellProblem(grid, pattern, index, die, options = {}) {
-  if (!Number.isInteger(index) || index < 0 || index >= CELLS) return 'There is no such space.';
-  if (grid[index]) return 'That space already holds a die.';
+  if (!Number.isInteger(index) || index < 0 || index >= CELLS) return msg('errors.noSuchSpace');
+  if (grid[index]) return msg('errors.spaceTaken');
   const wanted = restrictionOf(pattern.cells[index]);
-  if (wanted?.colour && !options.ignoreColour && die.c !== wanted.colour) return `That space needs a ${COLOUR_NAMES[wanted.colour]} die.`;
-  if (wanted?.shade && !options.ignoreShade && die.v !== wanted.shade) return `That space needs a die showing ${wanted.shade}.`;
+  if (wanted?.colour && !options.ignoreColour && die.c !== wanted.colour) return msg('errors.needsColour', { colour: colourMsg(wanted.colour) });
+  if (wanted?.shade && !options.ignoreShade && die.v !== wanted.shade) return msg('errors.needsShade', { shade: wanted.shade });
   if (!options.ignoreTouch) {
     if (!grid.some(Boolean)) {
-      if (!isEdge(index)) return 'Your first die must go on an edge or corner space.';
+      if (!isEdge(index)) return msg('errors.firstDieEdge');
     } else if (!SURROUNDING[index].some((n) => grid[n])) {
-      return 'A die must touch a die already in your window (diagonally counts).';
+      return msg('errors.mustTouch');
     }
   }
   for (const n of ORTHOGONAL[index]) {
-    if (grid[n]?.c === die.c) return `A ${COLOUR_NAMES[die.c]} die cannot sit beside another ${COLOUR_NAMES[die.c]} die.`;
-    if (grid[n]?.v === die.v) return `A die showing ${die.v} cannot sit beside another die showing ${die.v}.`;
+    if (grid[n]?.c === die.c) return msg('errors.colourBeside', { colour: colourMsg(die.c) });
+    if (grid[n]?.v === die.v) return msg('errors.shadeBeside', { shade: die.v });
   }
   return null;
 }
@@ -264,14 +279,14 @@ export function cellProblem(grid, pattern, index, die, options = {}) {
  * @param {number} from  the space the die is on
  * @param {number} to    the space it would move to
  * @param {object} [options]  rules to relax (see cellProblem)
- * @returns {string | null} the reason it cannot move, or null when it can
+ * @returns {{ key: string, params?: object } | null} the reason it cannot move as a message, or null when it can
  *
  * Side effects: none (the window is copied, not changed).
  */
 export function moveProblem(grid, pattern, from, to, options = {}) {
-  if (!Number.isInteger(from) || from < 0 || from >= CELLS || !grid[from]) return 'There is no die on that space to move.';
-  if (!Number.isInteger(to) || to < 0 || to >= CELLS) return 'There is no such space.';
-  if (from === to) return 'Move the die to a different space.';
+  if (!Number.isInteger(from) || from < 0 || from >= CELLS || !grid[from]) return msg('errors.noDieThere');
+  if (!Number.isInteger(to) || to < 0 || to >= CELLS) return msg('errors.noSuchSpace');
+  if (from === to) return msg('errors.differentSpace');
   const lifted = grid.slice();
   lifted[from] = null;
   return cellProblem(lifted, pattern, to, grid[from], options);
@@ -405,26 +420,26 @@ const countWhere = (grid, test) => diceIn(grid).filter(test).length;
 const shadePair = (a, b) => (grid) => Math.min(countWhere(grid, (d) => d.v === a), countWhere(grid, (d) => d.v === b));
 
 /**
- * Ten public objectives. `sets(grid)` is how many times it is completed; each is worth `points`. `max` is the most times a window can
- * complete it: a window holds only CELLS dice, so a set of all six shades can be made at most CELLS / 6 times.
+ * Ten public objectives. `sets(grid)` is how many times it is completed; each is worth `points` per `unit` (a word the
+ * client reads from `units.<unit>`). `max` is the most times a window can complete it: a window holds only CELLS dice,
+ * so a set of all six shades can be made at most CELLS / 6 times. The name and the rule a player reads are not here:
+ * they are `objectives.<id>.name` and `.text` in the locale file, drawn by the client from the id.
  */
 export const OBJECTIVES = [
-  { id: 'rainbow-rows', name: 'Rainbow rows', points: 6, unit: 'row', max: ROWS, text: 'Rows with no colour repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'c')).length },
-  { id: 'rainbow-columns', name: 'Rainbow columns', points: 5, unit: 'column', max: COLS, text: 'Columns with no colour repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'c')).length },
-  { id: 'tonal-rows', name: 'Tonal rows', points: 5, unit: 'row', max: ROWS, text: 'Rows with no shade repeated.', sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'v')).length },
-  { id: 'tonal-columns', name: 'Tonal columns', points: 4, unit: 'column', max: COLS, text: 'Columns with no shade repeated.', sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'v')).length },
-  { id: 'pale-pairs', name: 'Pale pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 1 and a 2, anywhere in the window.', sets: shadePair(1, 2) },
-  { id: 'middle-pairs', name: 'Middle pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 3 and a 4, anywhere in the window.', sets: shadePair(3, 4) },
-  { id: 'deep-pairs', name: 'Deep pairs', points: 2, unit: 'pair', max: CELLS / 2, text: 'Pairs of a 5 and a 6, anywhere in the window.', sets: shadePair(5, 6) },
-  { id: 'full-spectrum', name: 'Full spectrum', points: 5, unit: 'set', max: Math.floor(CELLS / SHADES.length), text: 'Sets of all six shades, anywhere in the window.', sets: (g) => Math.min(...SHADES.map((s) => countWhere(g, (d) => d.v === s))) },
-  { id: 'full-palette', name: 'Full palette', points: 4, unit: 'set', max: Math.floor(CELLS / COLOURS.length), text: 'Sets of all five colours, anywhere in the window.', sets: (g) => Math.min(...COLOURS.map((c) => countWhere(g, (d) => d.c === c))) },
+  { id: 'rainbow-rows', points: 6, unit: 'row', max: ROWS, sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'c')).length },
+  { id: 'rainbow-columns', points: 5, unit: 'column', max: COLS, sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'c')).length },
+  { id: 'tonal-rows', points: 5, unit: 'row', max: ROWS, sets: (g) => lines(rowCells, ROWS).filter((c) => allDifferent(g, c, 'v')).length },
+  { id: 'tonal-columns', points: 4, unit: 'column', max: COLS, sets: (g) => lines(colCells, COLS).filter((c) => allDifferent(g, c, 'v')).length },
+  { id: 'pale-pairs', points: 2, unit: 'pair', max: CELLS / 2, sets: shadePair(1, 2) },
+  { id: 'middle-pairs', points: 2, unit: 'pair', max: CELLS / 2, sets: shadePair(3, 4) },
+  { id: 'deep-pairs', points: 2, unit: 'pair', max: CELLS / 2, sets: shadePair(5, 6) },
+  { id: 'full-spectrum', points: 5, unit: 'set', max: Math.floor(CELLS / SHADES.length), sets: (g) => Math.min(...SHADES.map((s) => countWhere(g, (d) => d.v === s))) },
+  { id: 'full-palette', points: 4, unit: 'set', max: Math.floor(CELLS / COLOURS.length), sets: (g) => Math.min(...COLOURS.map((c) => countWhere(g, (d) => d.c === c))) },
   {
     id: 'colour-chains',
-    name: 'Colour chains',
     points: 1,
     unit: 'die',
     max: CELLS,
-    text: 'Each die that touches a die of its own colour diagonally.',
     sets: (g) => g.filter((d, i) => d && SURROUNDING[i].some((n) => !ORTHOGONAL[i].includes(n) && g[n]?.c === d.c)).length,
   },
 ];

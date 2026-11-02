@@ -3,13 +3,15 @@
 // Props: objectives (from the view), deal (Boolean). Emits: hint (text) as the cards do. Side effects: none.
 import CardSection from './CardSection.vue';
 import ObjectiveCard from './ObjectiveCard.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 defineProps({ objectives: { type: Array, required: true }, deal: { type: Boolean, default: false } });
 const emit = defineEmits(['hint']);
 </script>
 
 <template>
-  <CardSection label="Public objectives" :deal="deal">
+  <CardSection :label="t('card.objectives')" :deal="deal">
     <ObjectiveCard v-for="o in objectives" :key="o.id" :objective="o" :deal="deal" @hint="emit('hint', $event)" />
   </CardSection>
 </template>

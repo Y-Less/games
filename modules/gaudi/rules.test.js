@@ -1,6 +1,7 @@
 // The pure rules: window patterns, the dice bag formula, placement rules and objective scoring by hand.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   BAD_PRIVATE_POINTS,
   CELLS,
@@ -33,6 +34,12 @@ import { die, seeded } from './testing.js';
 const blank = patternOf('0.0'); // 'R....' '.3.T.' '..5..' '.J.2S'
 const free = { cells: Array(CELLS).fill('.') }; // a window with no restrictions at all
 const at = (r, c) => r * COLS + c;
+// The game's English, which is the only place a window, a tool or an objective is named.
+const words = JSON.parse(readFileSync(new URL('./locales/en.json', import.meta.url), 'utf8'));
+// The name a window pattern is shown under ('3.1' is card 3, face 1).
+const windowName = (pid) => words.patterns[pid.split('.')[0]]?.[pid.split('.')[1]];
+// The code of a refused placement, without its `errors.` prefix; null when it was allowed.
+const why = (problem) => (problem === null ? null : problem.key.replace(/^errors\./, ''));
 const put = (grid, r, c, colour, shade) => (grid[at(r, c)] = die(colour, shade, r * 10 + c));
 
 test('there are twelve double-sided cards, 24 well-formed patterns', () => {
@@ -40,10 +47,11 @@ test('there are twelve double-sided cards, 24 well-formed patterns', () => {
   assert.ok(PATTERN_IDS.length >= 24);
   assert.equal(new Set(PATTERN_IDS).size, PATTERN_IDS.length, 'unique ids');
   for (const card of PATTERN_CARDS) assert.equal(card.faces.length, 2);
-  const names = Object.values(PATTERNS).map((p) => p.name);
+  const names = PATTERN_IDS.map(windowName);
+  assert.ok(names.every(Boolean), 'every window is named in the locale file');
   assert.equal(new Set(names).size, names.length, 'unique names');
   for (const pattern of Object.values(PATTERNS)) {
-    const label = `${pattern.name} (${pattern.pid})`;
+    const label = `${windowName(pattern.pid)} (${pattern.pid})`;
     assert.equal(pattern.rows.length, ROWS, label);
     assert.ok(pattern.rows.every((row) => row.length === COLS), `${label}: five columns`);
     assert.equal(pattern.cells.length, CELLS, label);
@@ -56,12 +64,12 @@ test('there are twelve double-sided cards, 24 well-formed patterns', () => {
 test('every pattern can be completely and legally filled with unlimited dice', () => {
   for (const pattern of Object.values(PATTERNS)) {
     const grid = solvePattern(pattern);
-    assert.ok(grid, `${pattern.name} has a complete filling`);
+    assert.ok(grid, `${pattern.pid} has a complete filling`);
     // Rebuild it die by die, in a legal order, through the real placement rule.
     const built = emptyGrid();
     for (let placed = 0; placed < CELLS; placed++) {
       const next = [...Array(CELLS).keys()].find((i) => !built[i] && cellProblem(built, pattern, i, grid[i]) === null);
-      assert.notEqual(next, undefined, `${pattern.name}: never stuck when filling it in`);
+      assert.notEqual(next, undefined, `${pattern.pid}: never stuck when filling it in`);
       built[next] = grid[next];
     }
     assert.equal(built.filter(Boolean).length, CELLS);
@@ -72,8 +80,8 @@ test('difficulty follows how restricted a window is, and the two faces of a card
   const count = (p) => p.cells.filter((c) => c !== '.').length;
   for (const pattern of Object.values(PATTERNS)) {
     const n = count(pattern);
-    if (pattern.difficulty === 3) assert.ok(n <= 8, pattern.name);
-    if (pattern.difficulty === 6) assert.ok(n >= 15, pattern.name);
+    if (pattern.difficulty === 3) assert.ok(n <= 8, pattern.pid);
+    if (pattern.difficulty === 6) assert.ok(n >= 15, pattern.pid);
   }
   for (const card of PATTERN_CARDS) assert.notEqual(card.faces[0].difficulty, card.faces[1].difficulty);
 });
@@ -134,7 +142,7 @@ test('the first die goes on an edge or corner, and never in the middle', () => {
     const edge = i < COLS || i >= CELLS - COLS || i % COLS === 0 || i % COLS === COLS - 1;
     assert.equal(cellProblem(grid, free, i, d) === null, edge, `space ${i}`);
   }
-  assert.match(cellProblem(grid, free, at(1, 2), d), /edge or corner/);
+  assert.equal(why(cellProblem(grid, free, at(1, 2), d)), 'firstDieEdge');
 });
 
 test('later dice must touch a placed die, sideways or diagonally', () => {
@@ -143,32 +151,32 @@ test('later dice must touch a placed die, sideways or diagonally', () => {
   const d = die('jade', 5);
   const legal = legalCells(grid, free, d);
   assert.deepEqual(legal.sort((a, b) => a - b), [at(0, 1), at(1, 0), at(1, 1)]);
-  assert.match(cellProblem(grid, free, at(2, 2), d), /touch/);
-  assert.match(cellProblem(grid, free, at(0, 0), d), /already holds/);
+  assert.equal(why(cellProblem(grid, free, at(2, 2), d)), 'mustTouch');
+  assert.equal(why(cellProblem(grid, free, at(0, 0), d)), 'spaceTaken');
 });
 
 test('colour and shade restrictions are enforced; blank spaces take anything', () => {
   const grid = emptyGrid();
   const ruby = die('ruby', 2);
   assert.equal(cellProblem(grid, blank, at(0, 0), ruby), null, 'R accepts ruby (a corner)');
-  assert.match(cellProblem(grid, blank, at(0, 0), die('jade', 2)), /needs a Ruby die/);
+  assert.deepEqual(cellProblem(grid, blank, at(0, 0), die('jade', 2)), { key: 'errors.needsColour', params: { colour: { key: 'colours.ruby' } } }, 'it says which colour the space needs');
   assert.equal(cellProblem(grid, blank, at(0, 1), die('jade', 2)), null, 'blank edge space');
   put(grid, 0, 1, 'jade', 4); // something to touch
-  assert.match(cellProblem(grid, blank, at(1, 1), die('ruby', 4)), /showing 3/, 'a 3 space');
+  assert.deepEqual(cellProblem(grid, blank, at(1, 1), die('ruby', 4)), { key: 'errors.needsShade', params: { shade: 3 } }, 'a 3 space');
   assert.equal(cellProblem(grid, blank, at(1, 1), die('ruby', 3)), null);
-  assert.match(cellProblem(grid, blank, at(1, 1), die('ruby', 5)), /showing 3/);
+  assert.deepEqual(cellProblem(grid, blank, at(1, 1), die('ruby', 5)), { key: 'errors.needsShade', params: { shade: 3 } });
 });
 
 test('no like colour or like shade directly beside a die, but diagonals are fine', () => {
   const grid = emptyGrid();
   put(grid, 0, 0, 'ruby', 3);
-  assert.match(cellProblem(grid, free, at(0, 1), die('ruby', 5)), /Ruby die cannot sit beside/);
-  assert.match(cellProblem(grid, free, at(1, 0), die('jade', 3)), /showing 3 cannot sit beside/);
+  assert.deepEqual(cellProblem(grid, free, at(0, 1), die('ruby', 5)), { key: 'errors.colourBeside', params: { colour: { key: 'colours.ruby' } } });
+  assert.deepEqual(cellProblem(grid, free, at(1, 0), die('jade', 3)), { key: 'errors.shadeBeside', params: { shade: 3 } });
   assert.equal(cellProblem(grid, free, at(1, 1), die('ruby', 3)), null, 'diagonal: same colour and same shade are fine');
   put(grid, 1, 1, 'ruby', 3);
-  assert.match(cellProblem(grid, free, at(1, 2), die('topaz', 3)), /showing 3/);
-  assert.match(cellProblem(grid, free, at(2, 1), die('ruby', 1)), /Ruby/);
-  assert.match(cellProblem(grid, free, at(0, 1), die('topaz', 3)), /showing 3/);
+  assert.equal(why(cellProblem(grid, free, at(1, 2), die('topaz', 3))), 'shadeBeside');
+  assert.deepEqual(cellProblem(grid, free, at(2, 1), die('ruby', 1)), { key: 'errors.colourBeside', params: { colour: { key: 'colours.ruby' } } });
+  assert.equal(why(cellProblem(grid, free, at(0, 1), die('topaz', 3))), 'shadeBeside');
   assert.equal(cellProblem(grid, free, at(0, 1), die('topaz', 4)), null);
 });
 
@@ -176,33 +184,32 @@ test('every combination of the rules, one at a time (table-driven)', () => {
   // [description, window setup, space, die, options, expected problem or null]
   const cases = [
     ['restriction ok, touching ok', [[0, 0, 'jade', 5]], at(0, 1), die('ruby', 2), {}, null],
-    ['first die in the middle', [], at(2, 2), die('ruby', 2), {}, 'edge'],
+    ['first die in the middle', [], at(2, 2), die('ruby', 2), {}, 'firstDieEdge'],
     ['first die in the middle, ignoring touching', [], at(2, 2), die('ruby', 2), { ignoreTouch: true }, null],
-    ['touching ignored but like colour beside', [[2, 2, 'ruby', 4]], at(2, 3), die('ruby', 1), { ignoreTouch: true }, 'cannot sit beside'],
-    ['not touching', [[0, 0, 'jade', 5]], at(3, 4), die('ruby', 2), {}, 'touch'],
+    ['touching ignored but like colour beside', [[2, 2, 'ruby', 4]], at(2, 3), die('ruby', 1), { ignoreTouch: true }, 'colourBeside'],
+    ['not touching', [[0, 0, 'jade', 5]], at(3, 4), die('ruby', 2), {}, 'mustTouch'],
     ['not touching but ignoreTouch', [[0, 0, 'jade', 5]], at(3, 4), die('ruby', 2), { ignoreTouch: true }, null],
   ];
   for (const [label, setup, space, d, options, expected] of cases) {
     const grid = emptyGrid();
     for (const [r, c, colour, shade] of setup) put(grid, r, c, colour, shade);
     const problem = cellProblem(grid, free, space, d, options);
-    if (expected === null) assert.equal(problem, null, label);
-    else assert.match(problem ?? '', new RegExp(expected), label);
+    assert.equal(why(problem), expected, label);
   }
   // ignoreColour / ignoreShade against a pattern that has both kinds of restriction
   const grid = emptyGrid();
   put(grid, 0, 0, 'ruby', 6);
   // blank pattern row 1: '.3.T.'; (1,1) wants a 3, (1,3) wants topaz
-  assert.match(cellProblem(grid, blank, at(1, 1), die('jade', 4)), /showing 3/);
+  assert.equal(why(cellProblem(grid, blank, at(1, 1), die('jade', 4))), 'needsShade');
   assert.equal(cellProblem(grid, blank, at(1, 1), die('jade', 4), { ignoreShade: true }), null);
-  assert.match(cellProblem(grid, blank, at(1, 1), die('jade', 4), { ignoreColour: true }), /showing 3/);
+  assert.equal(why(cellProblem(grid, blank, at(1, 1), die('jade', 4), { ignoreColour: true })), 'needsShade');
   put(grid, 0, 3, 'amethyst', 2);
-  assert.match(cellProblem(grid, blank, at(1, 3), die('jade', 4)), /needs a Topaz/);
+  assert.deepEqual(cellProblem(grid, blank, at(1, 3), die('jade', 4)), { key: 'errors.needsColour', params: { colour: { key: 'colours.topaz' } } });
   assert.equal(cellProblem(grid, blank, at(1, 3), die('jade', 4), { ignoreColour: true }), null);
-  assert.match(cellProblem(grid, blank, at(1, 3), die('jade', 4), { ignoreShade: true }), /Topaz/);
-  assert.match(cellProblem(grid, blank, at(1, 3), die('amethyst', 4), { ignoreColour: true }), /Amethyst die cannot sit beside/, 'neighbours still count');
-  assert.match(cellProblem(grid, blank, 99, die('jade', 4)), /no such space/);
-  assert.match(cellProblem(grid, blank, 1.5, die('jade', 4)), /no such space/);
+  assert.deepEqual(cellProblem(grid, blank, at(1, 3), die('jade', 4), { ignoreShade: true }), { key: 'errors.needsColour', params: { colour: { key: 'colours.topaz' } } });
+  assert.deepEqual(cellProblem(grid, blank, at(1, 3), die('amethyst', 4), { ignoreColour: true }), { key: 'errors.colourBeside', params: { colour: { key: 'colours.amethyst' } } }, 'neighbours still count');
+  assert.equal(why(cellProblem(grid, blank, 99, die('jade', 4))), 'noSuchSpace');
+  assert.equal(why(cellProblem(grid, blank, 1.5, die('jade', 4))), 'noSuchSpace');
 });
 
 test('moving a die: the die lifts first, so it is not its own neighbour', () => {
@@ -210,12 +217,12 @@ test('moving a die: the die lifts first, so it is not its own neighbour', () => 
   put(grid, 0, 0, 'ruby', 1);
   put(grid, 0, 1, 'jade', 2);
   assert.equal(moveProblem(grid, free, at(0, 1), at(1, 1)), null, 'still touches (0,0) diagonally');
-  assert.match(moveProblem(grid, free, at(0, 1), at(3, 4)), /touch/);
-  assert.match(moveProblem(grid, free, at(0, 1), at(0, 1)), /different space/);
-  assert.match(moveProblem(grid, free, at(2, 2), at(2, 3)), /no die/);
-  assert.match(moveProblem(grid, free, at(0, 0), at(0, 1)), /already holds/);
+  assert.equal(why(moveProblem(grid, free, at(0, 1), at(3, 4))), 'mustTouch');
+  assert.equal(why(moveProblem(grid, free, at(0, 1), at(0, 1))), 'differentSpace');
+  assert.equal(why(moveProblem(grid, free, at(2, 2), at(2, 3))), 'noDieThere');
+  assert.equal(why(moveProblem(grid, free, at(0, 0), at(0, 1))), 'spaceTaken');
   assert.equal(moveProblem(grid, free, at(0, 0), at(1, 0)), null, 'next to the jade die at (0,1)? (1,0) touches it diagonally');
-  assert.match(moveProblem(grid, free, 'x', 1), /no die/);
+  assert.equal(why(moveProblem(grid, free, 'x', 1)), 'noDieThere');
 });
 
 test('a dead space cannot take any die', () => {
@@ -242,8 +249,9 @@ const fromRows = (rows) => {
 test('there are ten public objectives with distinct names and positive values', () => {
   assert.equal(OBJECTIVES.length, 10);
   assert.equal(new Set(OBJECTIVES.map((o) => o.id)).size, 10);
-  assert.equal(new Set(OBJECTIVES.map((o) => o.name)).size, 10);
-  for (const o of OBJECTIVES) assert.ok(o.points > 0 && o.text && o.unit);
+  assert.equal(new Set(OBJECTIVES.map((o) => words.objectives[o.id]?.name)).size, 10, 'each is named in the locale file, all differently');
+  for (const o of OBJECTIVES) assert.ok(o.points > 0 && o.unit && words.objectives[o.id].text, o.id);
+  for (const o of OBJECTIVES) assert.ok(words.units[o.unit], `${o.unit} is a word`);
   for (const o of OBJECTIVES) assert.deepEqual(objectivePoints(o.id, emptyGrid()), { sets: 0, points: 0 });
 });
 

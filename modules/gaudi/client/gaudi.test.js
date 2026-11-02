@@ -8,6 +8,13 @@ import Gaudi from './Gaudi.vue';
 import { tableSizes } from './layout.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
+import { messageText } from '../../../src/messageText.js';
+
+// A message the server sent (a card's words, a log line), in English, as the table draws it.
+const words = (value) => messageText(value, 'gaudi');
+// The words on a tool or objective card, which the client draws from the card's id.
+const toolWords = (tool, part) => words({ key: `tools.${tool.id}.${part}` });
+const objectiveText = (objective) => words({ key: `objectives.${objective.id}.text` });
 
 // ---- helpers: real server views, so the tests follow the real state shape ----
 const lobbyRoom = (size = 4) => game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', size });
@@ -199,7 +206,7 @@ describe('Gaudi table: choosing windows', () => {
     expect(w.findAll('.option').every((o) => o.classes('locked'))).toBe(true);
     expect(w.findAll('.option')[1].classes('picked')).toBe(true);
     expect(button(w, 'Choose this window').attributes('disabled')).toBeDefined(); // the choice is made
-    expect(w.find('.headline').text()).toContain('Waiting for p2, p3');
+    expect(w.find('.headline').text()).toContain('Waiting for p2 and p3');
     expect(w.find('.game-status').text()).toContain('ann: has chosen');
     expect(w.find('.game-status').text()).toContain('p2: choosing');
     await w.findAll('.option')[3].trigger('click');
@@ -221,7 +228,7 @@ describe('Gaudi table: choosing windows', () => {
     expect(w.findAll('.deal .tool')).toHaveLength(3);
     expect(w.find('.game-status').text()).toContain('Your private objective is');
     await w.findAll('.deal .tool')[0].trigger('mouseenter');
-    expect(w.find('.game-status').text()).toContain(view.tools[0].text);
+    expect(w.find('.game-status').text()).toContain(toolWords(view.tools[0], 'text'));
     const other = mountTable(game.viewFor(room, 2)).w;
     expect(other.find('.deal .private').text()).not.toBe(w.find('.deal .private').text());
   });
@@ -428,11 +435,15 @@ describe('Gaudi table: playing', () => {
 
   it('lists the other players and the recent log', () => {
     const { view } = playView({ n: 3 });
-    const { w } = mountTable({ ...view, log: [{ seat: 0, text: 'ann did a thing' }, { seat: 1, text: 'p2 did another' }] });
+    const log = [
+      { seat: 0, key: 'log.extraTurn', params: { name: 'p1' } },
+      { seat: 1, key: 'log.placed', params: { name: 'p2', colour: { key: 'colours.ruby' }, shade: 4, row: 1, column: 2 } },
+    ];
+    const { w } = mountTable({ ...view, log });
     expect(w.text()).toContain('p2');
     expect(w.text()).toContain('p3');
     const items = w.findAll('.box.log .game-log li');
-    expect(items.map((i) => i.text())).toEqual(['p2 did another', 'ann did a thing']);
+    expect(items.map((i) => i.text())).toEqual(['p2 placed a Ruby 4 at row 1, column 2', 'p1 takes an extra turn']);
     expect(items[1].find('.own').exists()).toBe(true);
     expect(items[0].find('.own').exists()).toBe(false);
   });
@@ -441,9 +452,10 @@ describe('Gaudi table: playing', () => {
     const { view } = playView();
     const { w } = mountTable(view);
     expect(w.findComponent({ name: 'ScoreBoard' }).props('roundPopups')).toBe(false);
-    await w.setProps({ state: { ...view, scoreboard: { ...view.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    const round = { label: { key: 'scores.round', params: { n: 1 } }, deltas: {}, notes: {} };
+    await w.setProps({ state: { ...view, scoreboard: { ...view.scoreboard, rounds: [round] } } });
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-    await w.setProps({ state: { ...view, phase: 'finished', winners: [0], scoreboard: { ...view.scoreboard, rounds: [{ label: 'Round 1', deltas: {}, notes: {} }] } } });
+    await w.setProps({ state: { ...view, phase: 'finished', winners: [0], scoreboard: { ...view.scoreboard, rounds: [round] } } });
     await flushPromises();
     expect(document.body.textContent).toContain('Final scores');
   });
@@ -503,12 +515,12 @@ describe('Gaudi table: playing', () => {
     const { view } = playView({ tools: ['kiln', 'lathe', 'slide'] });
     const { w } = mountTable(view);
     await w.findAll('.tool')[1].trigger('mouseenter');
-    expect(w.find('.game-status').text()).toContain(view.tools[1].text);
-    expect(w.find('.game-status').text()).toContain(view.tools[1].how);
+    expect(w.find('.game-status').text()).toContain(toolWords(view.tools[1], 'text'));
+    expect(w.find('.game-status').text()).toContain(toolWords(view.tools[1], 'how'));
     await w.findAll('.tool')[1].trigger('mouseleave');
-    expect(w.find('.game-status').text()).not.toContain(view.tools[1].how);
+    expect(w.find('.game-status').text()).not.toContain(toolWords(view.tools[1], 'how'));
     await w.findAll('.objective')[0].trigger('mouseenter');
-    expect(w.find('.game-status').text()).toContain(view.publicObjectives[0].text);
+    expect(w.find('.game-status').text()).toContain(objectiveText(view.publicObjectives[0]));
   });
 
   it('copes with a spectator view and an empty pool', () => {
@@ -707,10 +719,10 @@ describe('Gaudi table: Swift Hand, end to end against the real rules', () => {
     const { view } = playView({ turnSeat: 1 });
     const { w } = mountTable({ ...view, turn: { ...view.turn, canUndo: true } });
     expect(button(w, 'Undo turn').attributes('disabled')).toBeDefined();
-    const mine = mountTable({ ...playView().view, turn: { ...playView().view.turn, canUndo: true } }, makeSend({ ok: false, error: 'There is nothing to undo this turn.' }));
+    const mine = mountTable({ ...playView().view, turn: { ...playView().view.turn, canUndo: true } }, makeSend({ ok: false, error: 'nothingToUndo' }));
     await button(mine.w, 'Undo turn').trigger('click');
     await flushPromises();
-    expect(mine.w.find('.game-status .warn').text()).toContain('nothing to undo');
+    expect(mine.w.find('.game-status .warn').text()).toBe('There is nothing to undo this turn.');
   });
 
   it('cancelling the tool changes nothing, and the second turn is then skipped after using it', async () => {

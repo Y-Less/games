@@ -3,8 +3,10 @@
 // Props: objective (card from the view), deal (Boolean, the windows phase: no personal count yet).
 // Emits: hint (text, or '' when the pointer or focus leaves) for the Status box. Side effects: none.
 import CardFrame from './CardFrame.vue';
-import { objectiveHint } from './wording.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { objectiveHint, objectiveRate } from './wording.js';
 
+const { t } = useGameText();
 defineProps({ objective: { type: Object, required: true }, deal: { type: Boolean, default: false } });
 const emit = defineEmits(['hint']);
 </script>
@@ -12,14 +14,14 @@ const emit = defineEmits(['hint']);
 <template>
   <CardFrame
     class="objective"
-    :heading="objective.name"
-    :text="objective.text"
+    :heading="t(`objectives.${objective.id}.name`)"
+    :text="t(`objectives.${objective.id}.text`)"
     tabindex="0"
-    @mouseenter="emit('hint', objectiveHint(objective))"
+    @mouseenter="emit('hint', objectiveHint(t, objective))"
     @mouseleave="emit('hint', '')"
-    @focus="emit('hint', objectiveHint(objective))"
+    @focus="emit('hint', objectiveHint(t, objective))"
     @blur="emit('hint', '')"
   >
-    <template #cost>{{ objective.points }} per {{ objective.unit }}<template v-if="!deal && objective.mine"> · you {{ objective.mine.sets }}</template></template>
+    <template #cost>{{ objectiveRate(t, objective) }}<template v-if="!deal && objective.mine"> · {{ t('card.youHave', { n: objective.mine.sets }) }}</template></template>
   </CardFrame>
 </template>

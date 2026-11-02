@@ -10,7 +10,9 @@ import PrivateObjective from './PrivateObjective.vue';
 import ToolCards from './ToolCards.vue';
 import TokenDot from './TokenDot.vue';
 import WindowGrid from './WindowGrid.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 const props = defineProps({
   state: { type: Object, required: true },
   optionCell: { type: Number, required: true },
@@ -43,7 +45,7 @@ const pick = (pid) => {
 </script>
 
 <template>
-  <section class="windows-phase" aria-label="Choose your window">
+  <section class="windows-phase" :aria-label="t('windows.title')">
     <div v-if="state.options.length" class="options">
       <div
         v-for="o in state.options"
@@ -55,17 +57,17 @@ const pick = (pid) => {
         @click="pick(o.pid)"
         @keydown.enter.prevent="pick(o.pid)"
       >
-        <WindowGrid :rows="o.rows" :cell="optionCell" :label="o.name" />
+        <WindowGrid :rows="o.rows" :cell="optionCell" :label="t(`patterns.${o.pid}`)" />
         <div class="option-info">
-          <strong>{{ o.name }}</strong>
-          <span class="tokens" :title="`${o.difficulty} favour tokens`"><TokenDot v-for="n in o.difficulty" :key="n" />{{ o.difficulty }} favour tokens</span>
+          <strong>{{ t(`patterns.${o.pid}`) }}</strong>
+          <span class="tokens" :title="t('windows.tokens', { count: o.difficulty }, o.difficulty)"><TokenDot v-for="n in o.difficulty" :key="n" />{{ t('windows.tokens', { count: o.difficulty }, o.difficulty) }}</span>
         </div>
       </div>
     </div>
     <div class="row choose-row">
-      <button class="primary" :disabled="!picked || Boolean(state.chosen)" @click="chooseWindow">Choose this window</button>
+      <button class="primary" :disabled="!picked || Boolean(state.chosen)" @click="chooseWindow">{{ t('windows.choose') }}</button>
     </div>
-    <div v-if="state.privateObjective" class="deal" aria-label="The cards dealt for this game">
+    <div v-if="state.privateObjective" class="deal" :aria-label="t('windows.deal')">
       <ToolCards :tools="state.tools" deal @hint="emit('hint', $event)" />
       <ObjectiveCards :objectives="state.publicObjectives" deal @hint="emit('hint', $event)" />
       <PrivateObjective :colour="state.privateObjective.colour" :bad-private="Boolean(state.badPrivate)" @hint="emit('hint', $event)" />

@@ -2,6 +2,7 @@
 // state of its own and sends nothing.
 import { computed } from 'vue';
 import { CELLS } from '../rules.js';
+import { messageText } from '../../../src/messageText.js';
 
 /**
  * The facts about the current phase and turn, as computed values.
@@ -31,12 +32,14 @@ export function useTurnState(s) {
   // One entry per round: the dice left over from it, or null while it has not been played.
   const trackSlots = computed(() => Array.from({ length: s.value.limits.rounds }, (_, i) => s.value.track?.[i] ?? null));
   /**
-   * The name of a seat for the Status box ("Someone" if it is empty).
+   * The name of a seat for the Status box (the site's "Someone" if it is empty). It is words, not a message, because it
+   * goes into sentences as a parameter; messageText is used rather than useGameText so that this stays a plain function
+   * that can be called outside a component.
    * @param {number} seat  the seat number
    * @returns {string}
    * Side effects: none.
    */
-  const nameOf = (seat) => s.value.seats[seat]?.name ?? 'Someone';
+  const nameOf = (seat) => s.value.seats[seat]?.name ?? messageText({ key: 'common.someone' });
   // The winners' names.
   const winners = computed(() => (s.value.winners ?? []).map(nameOf));
   /**

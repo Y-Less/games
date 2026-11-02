@@ -6,8 +6,10 @@
 // Side effects: none.
 import CardFrame from './CardFrame.vue';
 import TokenDot from './TokenDot.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { toolHint } from './wording.js';
 
+const { t } = useGameText();
 defineProps({
   tool: { type: Object, required: true },
   interactive: { type: Boolean, default: false },
@@ -21,24 +23,24 @@ const emit = defineEmits(['start', 'hint']);
   <CardFrame
     class="tool"
     :class="{ static: !interactive, active, usable: interactive && !block }"
-    :heading="tool.name"
-    :text="tool.text"
-    :cost-title="interactive ? (tool.spent ? 'Used before: it now costs 2' : 'Not used yet: it costs 1') : undefined"
+    :heading="t(`tools.${tool.id}.name`)"
+    :text="t(`tools.${tool.id}.text`)"
+    :cost-title="interactive ? t(tool.spent ? 'card.costUsed' : 'card.costFresh') : undefined"
     :role="interactive ? 'button' : undefined"
     tabindex="0"
-    :title="interactive ? block || 'Click to use this tool' : undefined"
+    :title="interactive ? block || t('card.clickToUse') : undefined"
     @click="interactive && emit('start', tool)"
     @keydown.enter.prevent="interactive && emit('start', tool)"
-    @mouseenter="emit('hint', toolHint(tool))"
+    @mouseenter="emit('hint', toolHint(t, tool))"
     @mouseleave="emit('hint', '')"
-    @focus="emit('hint', toolHint(tool))"
+    @focus="emit('hint', toolHint(t, tool))"
     @blur="emit('hint', '')"
   >
     <template #cost>
       <template v-if="interactive">
-        <TokenDot v-for="n in tool.spent" :key="n" class="spent" :title="`${tool.spent} ${tool.spent === 1 ? 'token' : 'tokens'} on this card`" />
+        <TokenDot v-for="n in tool.spent" :key="n" class="spent" :title="t('card.tokensOnCard', { count: tool.spent }, tool.spent)" />
       </template>
-      costs {{ tool.cost }}
+      {{ t('card.costs', { n: tool.cost }) }}
     </template>
   </CardFrame>
 </template>

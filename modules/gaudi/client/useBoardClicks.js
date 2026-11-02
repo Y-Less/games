@@ -2,7 +2,7 @@
 // space (a placement, Free Pane, or the moves of a slide tool). The rules themselves live in ../rules.js.
 import { computed } from 'vue';
 import { CELLS, cellProblem, moveProblem } from '../rules.js';
-import { colourName } from './wording.js';
+import { useGameText } from '../../../src/useGameText.js';
 
 /**
  * The click handling of the table.
@@ -14,6 +14,9 @@ import { colourName } from './wording.js';
 export function useBoardClicks({ s, turn, sel, applyTool, send }) {
   const { me, myTurn, canPlace, pattern, nameOf, poolDie, emptyGrid } = turn;
   const { selected, mode, message } = sel;
+  const { t, text, error } = useGameText();
+  // Whoever the table is waiting for, for the line shown when you click too early.
+  const notYours = () => t('errors.othersTurn', { name: nameOf(s.value.turn?.seat) });
 
   /**
    * The window shown as yours: the preview of a slide tool when one is in use, otherwise the real one.
@@ -44,7 +47,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
         for (let i = 0; i < CELLS; i++) {
           const problem = moveProblem(grid, pattern.value, m.from, i, m.options);
           if (problem === null) out.legal.push(i);
-          else out.titles[i] = problem;
+          else out.titles[i] = text(problem);
         }
       }
       return out;
@@ -55,7 +58,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
       for (let i = 0; i < CELLS; i++) {
         const problem = cellProblem(grid, pattern.value, i, die, m?.options ?? {});
         if (problem === null) out.legal.push(i);
-        else out.titles[i] = problem;
+        else out.titles[i] = text(problem);
       }
     }
     return out;
@@ -73,11 +76,11 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
     const m = mode.value;
     if (m) {
       if (['delta', 'pool', 'exchange', 'free'].includes(m.kind)) m.die = m.die === die.id ? null : die.id;
-      else message.value = 'This tool does not use a pool die.';
+      else message.value = t('errors.toolNoPoolDie');
       return;
     }
-    if (!myTurn.value) return void (message.value = `It is ${nameOf(s.value.turn?.seat)}'s turn.`);
-    if (!canPlace.value) return void (message.value = 'You have already placed a die this turn.');
+    if (!myTurn.value) return void (message.value = notYours());
+    if (!canPlace.value) return void (message.value = t('errors.alreadyPlaced'));
     selected.value = selected.value === die.id ? null : die.id;
   }
 
@@ -101,20 +104,20 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
    */
   async function clickCell(index) {
     message.value = '';
-    if (!myTurn.value) return void (message.value = `It is ${nameOf(s.value.turn?.seat)}'s turn.`);
+    if (!myTurn.value) return void (message.value = notYours());
     const m = mode.value;
     if (m?.kind === 'moves') return clickMoveCell(m, index);
     const dieId = m?.kind === 'free' ? m.die : m ? null : selected.value;
-    if (m && m.kind !== 'free') return void (message.value = m.how);
+    if (m && m.kind !== 'free') return void (message.value = t(`tools.${m.id}.how`));
     const die = dieId == null ? null : poolDie(dieId);
-    if (!die) return void (message.value = canPlace.value || m ? 'Choose a die from the pool first.' : 'You have already placed a die this turn.');
+    if (!die) return void (message.value = t(canPlace.value || m ? 'errors.choosePoolFirst' : 'errors.alreadyPlaced'));
     const problem = cellProblem(myGrid.value, pattern.value, index, die, m?.options ?? {});
-    if (problem) return void (message.value = problem);
+    if (problem) return void (message.value = text(problem));
     const reply = m ? await send('tool', { tool: m.id, params: { die: die.id, cell: index } }) : await send('place', { die: die.id, cell: index });
     if (reply.ok) {
       selected.value = null;
       mode.value = null;
-    } else message.value = reply.error;
+    } else message.value = error(reply);
   }
 
   /**
@@ -128,10 +131,10 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
   function clickMoveCell(m, index) {
     const grid = m.grid;
     if (m.from === null) {
-      if (!grid[index]) return void (message.value = 'First click the die in your window that you want to move.');
-      if (m.moves.some((mv) => mv.to === index)) return void (message.value = 'That die has already been moved.');
+      if (!grid[index]) return void (message.value = t('errors.clickDieFirst'));
+      if (m.moves.some((mv) => mv.to === index)) return void (message.value = t('errors.dieAlreadyMoved'));
       const first = m.moves.length ? grid[m.moves[0].to] : null;
-      if (m.sameColour && first && grid[index].c !== first.c) return void (message.value = `The second die must also be ${colourName(first.c)}.`);
+      if (m.sameColour && first && grid[index].c !== first.c) return void (message.value = t('errors.secondDieColour', { colour: t(`colours.${first.c}`) }));
       m.from = index;
       return;
     }
@@ -140,7 +143,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
       return;
     }
     const problem = moveProblem(grid, pattern.value, m.from, index, m.options);
-    if (problem) return void (message.value = problem);
+    if (problem) return void (message.value = text(problem));
     const next = grid.slice();
     next[index] = next[m.from];
     next[m.from] = null;

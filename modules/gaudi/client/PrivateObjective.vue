@@ -9,8 +9,10 @@ import CardFrame from './CardFrame.vue';
 import CardSection from './CardSection.vue';
 import { COLOUR_HEX, SHAPES } from './glyphs.js';
 import { COLOUR_SHAPES } from '../rules.js';
-import { colourName, privateRule, privateSummary } from './wording.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { privateRule, privateSummary } from './wording.js';
 
+const { t } = useGameText();
 const props = defineProps({
   colour: { type: String, required: true },
   points: { type: Number, default: 0 },
@@ -19,16 +21,16 @@ const props = defineProps({
 });
 const emit = defineEmits(['hint']);
 
-const summary = computed(() => privateSummary(props.badPrivate));
-const text = computed(() => (props.showPoints ? `${summary.value.text} ${props.points} so far.` : summary.value.text));
-const hint = () => `Your private objective: ${colourName(props.colour)}. ${privateRule(props.badPrivate)}`;
+const summary = computed(() => privateSummary(t, props.badPrivate));
+const text = computed(() => (props.showPoints ? t('private.soFar', { text: summary.value.text, points: props.points }) : summary.value.text));
+const hint = () => t('hints.private', { colour: t(`colours.${props.colour}`), rule: privateRule(t, props.badPrivate) });
 </script>
 
 <template>
-  <CardSection label="Private objective">
+  <CardSection :label="t('card.private')">
     <CardFrame
       class="private"
-      :heading="colourName(colour)"
+      :heading="t(`colours.${colour}`)"
       :text="text"
       tabindex="0"
       @mouseenter="emit('hint', hint())"

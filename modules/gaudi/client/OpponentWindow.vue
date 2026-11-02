@@ -5,8 +5,10 @@
 // player (the opened seat, yours too), isMe (Boolean), windows (Boolean, the windows phase), cell (px size of a space).
 // Emits: none. Side effects: none (the pop-up closes itself through popupProps).
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import WindowGrid from './WindowGrid.vue';
 
+const { t } = useGameText();
 defineProps({
   popupProps: { type: Object, default: null },
   seat: { type: Object, default: null },
@@ -21,14 +23,14 @@ defineProps({
   <PlayerPopup v-if="popupProps" v-bind="popupProps">
     <section v-if="seat" class="popup-window">
       <div class="head">
-        <span v-if="seat.skipping" class="tag">skips turn 2</span>
-        <span class="muted wname">{{ seat.window.name }}</span>
+        <span v-if="seat.skipping" class="tag">{{ t('popup.skipping') }}</span>
+        <span class="muted wname">{{ t(`patterns.${seat.window.pid}`) }}</span>
       </div>
-      <WindowGrid :rows="seat.window.rows" :grid="seat.window.grid" :cell="cell" :label="`${seat.name}'s window`" />
-      <p class="muted small">{{ seat.tokens }} tokens · {{ seat.empty }} empty · score {{ seat.score }}</p>
+      <WindowGrid :rows="seat.window.rows" :grid="seat.window.grid" :cell="cell" :label="t('popup.window', { name: seat.name })" />
+      <p class="muted small">{{ t('popup.summary', { tokens: seat.tokens, empty: seat.empty, score: seat.score }) }}</p>
     </section>
-    <p v-else-if="player?.picked && windows" class="muted small">{{ isMe ? 'You have chosen a window.' : 'Has chosen a window.' }} It stays hidden until everyone has chosen.</p>
-    <p v-else class="muted small">{{ isMe ? 'You are still choosing a window.' : 'Still choosing a window.' }}</p>
+    <p v-else-if="player?.picked && windows" class="muted small">{{ t(isMe ? 'popup.chosenYou' : 'popup.chosenThem') }}</p>
+    <p v-else class="muted small">{{ t(isMe ? 'popup.choosingYou' : 'popup.choosingThem') }}</p>
   </PlayerPopup>
 </template>
 

@@ -10,6 +10,7 @@ import { computed, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import FinalResults from './FinalResults.vue';
 import MovesLog from './MovesLog.vue';
 import ObjectiveCards from './ObjectiveCards.vue';
@@ -28,6 +29,7 @@ import { useTools } from './useTools.js';
 import { useTurnState } from './useTurnState.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, error } = useGameText();
 
 const board = ref(null); // the ScoreBoard, so the final screen's "See the scores" button can open its pop-up
 const hint = ref(''); // what the tool or objective under the pointer does (shown in Status)
@@ -57,7 +59,7 @@ const chosenIds = computed(() => [selected.value, mode.value?.die].filter((id) =
 async function undoTurn() {
   const reply = await props.send('undo');
   sel.clear();
-  message.value = reply.ok ? '' : reply.error;
+  message.value = reply.ok ? '' : error(reply);
 }
 
 /**
@@ -67,7 +69,7 @@ async function undoTurn() {
  */
 async function endTurn() {
   const reply = await props.send('end');
-  if (!reply.ok) message.value = reply.error;
+  if (!reply.ok) message.value = error(reply);
 }
 
 /**
@@ -85,9 +87,9 @@ const dims = (area) => tableSizes(area, { poolMax: poolMax.value, finished: fini
       <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" :round-popups="false" v-bind="scoreProps">
         <template #round>
           <p v-if="!finished" class="provisional" role="note">
-            <strong>Provisional scores.</strong> They count public objectives, favour tokens and empty spaces. Private objectives are added at the end, and each is shown only to its owner until then. Round 1 includes everyone's starting tokens less their 20 empty spaces.
+            <strong>{{ t('scores.provisionalTitle') }}</strong> {{ t('scores.provisionalText') }}
           </p>
-          <p v-else class="provisional" role="note">Final scores include the private objectives (the last row).</p>
+          <p v-else class="provisional" role="note">{{ t('scores.finalNote') }}</p>
         </template>
       </ScoreBoard>
     </template>

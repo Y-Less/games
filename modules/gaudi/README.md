@@ -25,12 +25,16 @@ the sum of the shades of the dice of your secret colour. On: each such die is wo
 ## Files
 
 - `rules.js` pure rules shared with the client: window patterns (12 double-sided cards, 24 windows), placement rules,
-  the ten public objectives, scoring.
+  the ten public objectives, scoring. It holds no words: `cellProblem` and `moveProblem` return a message under
+  `errors.` (or null), a colour's name is `colourMsg(c)`, and a window or an objective is named by its id in the locale
+  file.
+- `locales/en.json` every word a player reads (see "Languages" below).
 - `game.js` the room, seats, windows phase, rounds and turns, the twelve tools, final scoring, views and statistics. A turn never ends by itself: the server keeps a snapshot of the table as the turn began (saved with the room, never sent) so that `undo` can take the whole turn back until End turn. Faces rolled by Re-fire and the Great Kiln go on a per-turn roll list (`room.rolls`) that undo does not clear, so undoing and using the tool again gives the same result (no free re-rolls).
 - `bot.js` the computer players (window choice, placement scoring, rare tool use).
 - `server.js` the thin socket layer on the shared room server (`shared/roomServer.js`): it adds the `size`, `window`, `place`, `tool`, `end` and `undo` events and the computer timer; rooms, invite codes, persistence and statistics are shared. `GAUDI_BOT_DELAY=min-max` (milliseconds, default `600-1400`) changes how long computers wait.
 - `client/` the Vue screens: `Gaudi.vue` (connection), `Lobby.vue`, `Table.vue` (the game), `WindowGrid.vue`,
-  `Die.vue` (a die with pips and a per-colour shape), `toolkit.js` (how each tool is guided), `glyphs.js`.
+  `Die.vue` (a die with pips and a per-colour shape), `toolkit.js` (how each tool is guided), `glyphs.js`,
+  `wording.js` (the few phrasings shared between components, each built with the caller's `t`).
 - `testing.js`, `e2e-support.js` helpers for the tests.
 
 ## Design notes
@@ -47,9 +51,28 @@ the sum of the shades of the dice of your secret colour. On: each such die is wo
   spectrum, Full palette and Colour chains.
 - Hidden information: the bag, other players' unchosen windows (and, until everybody has chosen, their choice) and
   private objectives never leave the server until the game is over.
-- Scoreboard: the bar shows provisional scores (no private objective). The history has one `Round N` entry per round
-  (the change in provisional score; round 1 includes the starting tokens less 20 empty spaces) and a last
-  `Private objectives` entry that makes the totals the true final scores.
+- Scoreboard: the bar shows provisional scores (no private objective). The history has one entry per round
+  (`label` is the message `scores.round` with `{ n }`; the change in provisional score, where round 1 includes the
+  starting tokens less 20 empty spaces) and a last `scores.privateRound` entry that makes the totals the true final
+  scores, whose `notes` mark the winners with `scores.wins`. While a game is on, the viewer's own chip carries the
+  note `scores.secret` with their hidden points.
+
+## Languages
+
+Nothing the server sends is a sentence (see MODULES.md, "Languages"). What that means here:
+
+- **Refusals** are codes: `fail('kilnSecondTurn')`, `fail('notEnoughTokens', { count, have })`, and the placement rules'
+  own reasons (`needsColour`, `mustTouch`, `colourBeside`, ...) travel as messages that `placeDie` and `useTool` turn
+  into codes. The English for each is `errors.<code>` in `locales/en.json`, or the site's file for the shared ones
+  (`notYourTurn`, `notPlaying`, `needPerson`, `seatsNeedPlayers`, `playersRange`, `removeBeforeFewerSeats`, `notOver`).
+- **Log entries** are `{ seat, key, params }` (`log.placed`, `log.usedTool`, `log.usedToolNote`, `log.extraTurn`,
+  `log.skipTurn`, `log.roundOver`, `log.gameOver`, `log.begin`, `log.takeOver`); a tool's note is a message of its own
+  (`notes.<tool id>`) passed in as a parameter, and `count` is the favour tokens paid, which picks the plural.
+- **Cards are sent as ids, not words.** `tools[]` is `{ id, spent, cost }` and `publicObjectives[]` is
+  `{ id, points, unit, mine }`; a seat's `window` and the windows offered carry `pid` but no name. The client draws the
+  words from the id: `tools.<id>.name` / `.text` / `.how`, `objectives.<id>.name` / `.text`, `patterns.<card>.<face>`
+  and `units.<unit>`. A colour is `colours.<colour>` and a die is read out as `die.label`.
+- The final table's `name` is the player's name, or the message `final.playerN` for a seat nobody holds.
 
 ## Tests
 

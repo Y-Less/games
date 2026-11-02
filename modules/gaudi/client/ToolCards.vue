@@ -5,7 +5,9 @@
 // Emits: start (tool), hint (text) as the cards do. Side effects: none.
 import CardSection from './CardSection.vue';
 import ToolCard from './ToolCard.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 defineProps({
   tools: { type: Array, required: true },
   deal: { type: Boolean, default: false },
@@ -16,7 +18,7 @@ const emit = defineEmits(['start', 'hint']);
 </script>
 
 <template>
-  <CardSection label="Tool cards" :deal="deal">
+  <CardSection :label="t('card.tools')" :deal="deal">
     <ToolCard v-for="tool in tools" :key="tool.id" :tool="tool" :interactive="!deal" :active="activeId === tool.id" :block="blockOf(tool)" @start="emit('start', $event)" @hint="emit('hint', $event)" />
   </CardSection>
 </template>

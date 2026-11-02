@@ -1,0 +1,331 @@
+{
+  "entry": {
+    "noun": "game of Gaudi",
+    "intro": "Draft dice and build a stained-glass window over ten rounds. Two to five players; computer players can fill any empty seats."
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "colours": {
+    "ruby": "Ruby",
+    "topaz": "Topaz",
+    "jade": "Jade",
+    "sapphire": "Sapphire",
+    "amethyst": "Amethyst"
+  },
+  "die": {
+    "label": "{colour} {shade}"
+  },
+  "units": {
+    "row": "row",
+    "column": "column",
+    "pair": "pair",
+    "set": "set",
+    "die": "die"
+  },
+  "patterns": {
+    "0": { "0": "Dawn Rose", "1": "Kaleidoscope" },
+    "1": { "0": "Harbour Lights", "1": "Mosaic Court" },
+    "2": { "0": "Quiet Pond", "1": "Stormglass" },
+    "3": { "0": "Weather Vane", "1": "Orchard Gate" },
+    "4": { "0": "Spindle", "1": "Cathedral Rose" },
+    "5": { "0": "Chime", "1": "Fretwork" },
+    "6": { "0": "Fanlight", "1": "Prism" },
+    "7": { "0": "Compass", "1": "Wickerwork" },
+    "8": { "0": "Seedling", "1": "Kiln" },
+    "9": { "0": "Tidewrack", "1": "Trellis" },
+    "10": { "0": "Feather", "1": "Labyrinth" },
+    "11": { "0": "Mirror Pool", "1": "Chorus Window" }
+  },
+  "tools": {
+    "lathe": {
+      "name": "Lathe",
+      "text": "Change a die in the pool by one shade, up or down. A 6 cannot become a 1, nor a 1 a 6.",
+      "how": "Choose a pool die, then raise or lower it."
+    },
+    "exchange": {
+      "name": "Exchange",
+      "text": "Swap a die from the pool with a die on the round track.",
+      "how": "Choose a pool die, then a die on the round track."
+    },
+    "refire": {
+      "name": "Re-fire",
+      "text": "Roll one die in the pool again.",
+      "how": "Choose a pool die."
+    },
+    "kiln": {
+      "name": "Great Kiln",
+      "text": "Roll every die in the pool again. Only on your second turn of the round, before you place a die.",
+      "how": "Just confirm."
+    },
+    "mirror": {
+      "name": "Mirror",
+      "text": "Turn a die in the pool over to its opposite face (1 and 6, 2 and 5, 3 and 4).",
+      "how": "Choose a pool die."
+    },
+    "slide": {
+      "name": "Slide Rule",
+      "text": "Move one die in your window to another space, obeying every placement rule.",
+      "how": "Click the die to move, then the space to move it to."
+    },
+    "twin": {
+      "name": "Twin Slide",
+      "text": "Move exactly two dice in your window, one after the other, obeying every placement rule.",
+      "how": "Click a die and its new space, then a second die and its space."
+    },
+    "tint": {
+      "name": "Tint Shifter",
+      "text": "Move one die in your window, ignoring the colour of the space it moves to (shades and neighbours still count).",
+      "how": "Click the die to move, then the space to move it to."
+    },
+    "gauge": {
+      "name": "Gauge Breaker",
+      "text": "Move one die in your window, ignoring the shade of the space it moves to (colours and neighbours still count).",
+      "how": "Click the die to move, then the space to move it to."
+    },
+    "echo": {
+      "name": "Track Echo",
+      "text": "Move one or two dice in your window, all of one colour that also appears on the round track, obeying every placement rule.",
+      "how": "Click a die and its new space (and a second die of the same colour and its space)."
+    },
+    "free-pane": {
+      "name": "Free Pane",
+      "text": "Place a die from the pool on any space that accepts it, even one that touches nothing (neighbours of the same colour or shade still count). This is your die for the turn.",
+      "how": "Choose a pool die, then the space."
+    },
+    "swift-hand": {
+      "name": "Swift Hand",
+      "text": "On your first turn of a round, take a second full turn straight after this one (choose another die, use more favour tokens if you wish). You then skip your second turn of the round.",
+      "how": "Just confirm, then finish this turn as usual: your extra turn starts at once."
+    }
+  },
+  "objectives": {
+    "rainbow-rows": { "name": "Rainbow rows", "text": "Rows with no colour repeated." },
+    "rainbow-columns": { "name": "Rainbow columns", "text": "Columns with no colour repeated." },
+    "tonal-rows": { "name": "Tonal rows", "text": "Rows with no shade repeated." },
+    "tonal-columns": { "name": "Tonal columns", "text": "Columns with no shade repeated." },
+    "pale-pairs": { "name": "Pale pairs", "text": "Pairs of a 1 and a 2, anywhere in the window." },
+    "middle-pairs": { "name": "Middle pairs", "text": "Pairs of a 3 and a 4, anywhere in the window." },
+    "deep-pairs": { "name": "Deep pairs", "text": "Pairs of a 5 and a 6, anywhere in the window." },
+    "full-spectrum": { "name": "Full spectrum", "text": "Sets of all six shades, anywhere in the window." },
+    "full-palette": { "name": "Full palette", "text": "Sets of all five colours, anywhere in the window." },
+    "colour-chains": { "name": "Colour chains", "text": "Each die that touches a die of its own colour diagonally." }
+  },
+  "notes": {
+    "lathe": "changed a {colour} die to {shade}",
+    "exchange": "swapped a pool die with one from the round track",
+    "refire": "re-fired a {colour} die",
+    "kiln": "re-fired every die in the pool",
+    "mirror": "turned a {colour} die over",
+    "slide": "slid a die in their window",
+    "twin": "slid two dice in their window",
+    "tint": "shifted a die, ignoring colour",
+    "gauge": "shifted a die, ignoring shade",
+    "echo": "moved {colour} dice in their window",
+    "swift-hand": "will take an extra turn now, and skip their second turn"
+  },
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
+    "rules": "Rules for this game",
+    "players": "Players (seats)",
+    "playerCount": "{n} players",
+    "removeFirst": "Remove some players first",
+    "dice": "{dice} dice in the bag, {each} of each colour: exactly what ten rounds use.",
+    "badPrivate": "Bad private scoring",
+    "badPrivateDefault": "(off by default)",
+    "badPrivateOn": "The weaker rule applies: each die of your private colour is worth a flat 3 points, whatever it shows.",
+    "badPrivateOff": "The normal rule applies: your private colour scores the shade of every die of that colour in your window, added up.",
+    "hostOnly": "Only the host can change these."
+  },
+  "windows": {
+    "title": "Choose your window",
+    "choose": "Choose this window",
+    "deal": "The cards dealt for this game",
+    "tokens": "{count} favour token | {count} favour tokens"
+  },
+  "board": {
+    "yourWindow": "Your window",
+    "favourTokens": "Favour tokens",
+    "favour": "{n} favour",
+    "pool": "Draft pool",
+    "track": "Round track"
+  },
+  "space": {
+    "colour": "{colour} space",
+    "shade": "space for a {shade}",
+    "blank": "blank space",
+    "label": "{wants}, row {row}, column {column}",
+    "labelDie": "{wants}, row {row}, column {column}, holds a {colour} {shade}"
+  },
+  "card": {
+    "tools": "Tool cards",
+    "objectives": "Public objectives",
+    "private": "Private objective",
+    "rate": "{points} per {unit}",
+    "youHave": "you {n}",
+    "costs": "costs {n}",
+    "costUsed": "Used before: it now costs 2",
+    "costFresh": "Not used yet: it costs 1",
+    "clickToUse": "Click to use this tool",
+    "tokensOnCard": "{count} token on this card | {count} tokens on this card"
+  },
+  "actions": {
+    "endTurn": "End turn",
+    "undoTurn": "Undo turn",
+    "undoTitle": "Take this whole turn back to how it began",
+    "raise": "Raise by one",
+    "lower": "Lower by one",
+    "useTool": "Use {name}"
+  },
+  "popup": {
+    "skipping": "skips turn 2",
+    "window": "{name}'s window",
+    "summary": "{tokens} tokens · {empty} empty · score {score}",
+    "chosenYou": "You have chosen a window. It stays hidden until everyone has chosen.",
+    "chosenThem": "Has chosen a window. It stays hidden until everyone has chosen.",
+    "choosingYou": "You are still choosing a window.",
+    "choosingThem": "Still choosing a window."
+  },
+  "facts": {
+    "round": "Round {n} of {total}",
+    "bag": "{count} die left in the bag | {count} dice left in the bag",
+    "first": "First player: {name}",
+    "badPrivate": "Bad private scoring",
+    "order": "Turn order this round"
+  },
+  "scores": {
+    "round": "Round {n}",
+    "privateRound": "Private objectives",
+    "wins": "wins",
+    "secret": "+{n} secret",
+    "provisionalTitle": "Provisional scores.",
+    "provisionalText": "They count public objectives, favour tokens and empty spaces. Private objectives are added at the end, and each is shown only to its owner until then. Round 1 includes everyone's starting tokens less their 20 empty spaces.",
+    "finalNote": "Final scores include the private objectives (the last row)."
+  },
+  "final": {
+    "winner": "We have a winner",
+    "shared": "A shared win",
+    "result": "{names} wins with {points} points. | {names} share the win with {points} points.",
+    "playerN": "Player {n}",
+    "player": "Player",
+    "private": "Private",
+    "tokens": "Favour tokens",
+    "empty": "Empty spaces",
+    "rankWinner": "Winner",
+    "ruleNote": "Private objective rule: {rule}. Ties are broken by private objective, then favour tokens, then whoever moved last in the final round.",
+    "ruleBad": "bad private scoring (a flat 3 per die of the colour)",
+    "ruleNormal": "the shade of every die of the colour, added up",
+    "playAgain": "Play again",
+    "hostAgain": "The host can start another game, or leave (top right).",
+    "seeScores": "See the scores"
+  },
+  "private": {
+    "ruleBad": "Bad private scoring is on: each of your private-colour dice is worth a flat 3, whatever it shows.",
+    "ruleNormal": "Each die of this colour in your window scores its shade (pips).",
+    "pointsBad": "3 per die",
+    "pointsNormal": "1 per pip",
+    "textBad": "Each die of your colour scores a flat 3.",
+    "textNormal": "Each die of your colour scores its shade.",
+    "soFar": "{text} {points} so far."
+  },
+  "hints": {
+    "tool": "{name}: {text} How: {how}",
+    "objective": "{name}: {text} {rate}.",
+    "objectiveMine": "{name}: {text} {rate}. You have {sets}: {points} points.",
+    "private": "Your private objective: {colour}. {rule}"
+  },
+  "status": {
+    "over": "The game is over.",
+    "chooseWindow": "Choose your window.",
+    "chosenWaiting": "You have chosen. Waiting for {names}…",
+    "theOthers": "the others",
+    "waitingFor": "Waiting for {name}…",
+    "turnFirst": "Your first turn: {die}; {tool}. Click End turn when you are happy.",
+    "turnSecond": "Your second turn: {die}; {tool}. Click End turn when you are happy.",
+    "turnExtra": "Your extra turn: {die}; {tool}. Click End turn when you are happy.",
+    "diePlace": "place a die",
+    "diePlaced": "your die is placed",
+    "toolMay": "you may use a tool",
+    "toolUsed": "your tool is used",
+    "notPlaced": "You have not placed a die yet.",
+    "privateWindows": "Your private objective is {colour}. {rule} Only you can see it until the end.",
+    "chooseInfo": "Everyone chooses at the same time, and nobody sees the others' choices until all are in. A harder window gives more favour tokens.",
+    "seatChosen": "{name}: has chosen",
+    "seatChoosing": "{name}: choosing…",
+    "toolInUse": "{name} (costs {count} favour token): {how} | {name} (costs {count} favour tokens): {how}",
+    "clickDie": "Click a die in the pool, then a highlighted space in your window.",
+    "extraTurn": "Extra turn (Swift Hand): a whole new turn, so choose another die and use more favour tokens if you wish. Your second turn of the round is skipped.",
+    "swiftActive": "Swift Hand is active: when you end this turn you take an extra turn straight away, and your second turn of the round is skipped.",
+    "undoHint": "You can change your mind until you click End turn: Undo turn takes this whole turn back.",
+    "yourWindow": "Your window: {count} empty space, provisional score {score}. | Your window: {count} empty spaces, provisional score {score}.",
+    "provisional": "Scores are provisional until the end: private objectives are not counted yet.",
+    "privatePlaying": "Your private objective, {colour} ({points} points so far): {rule} Only you can see it until the end."
+  },
+  "tool": {
+    "moved": "{done} of {total} dice moved.",
+    "movedNext": "{done} of {total} dice moved; now click where it goes.",
+    "range": "{min} to {max}",
+    "exchangeStep": "{pool}; {track}.",
+    "poolChosen": "Pool die chosen",
+    "choosePool": "Choose a pool die",
+    "trackChosen": "track die chosen",
+    "chooseTrack": "now a die on the round track",
+    "freeSpace": "Now click the space for it.",
+    "choosePoolDie": "Choose a pool die.",
+    "nothingMore": "Nothing more to choose.",
+    "dieChosen": "Die chosen.",
+    "chooseFromPool": "Choose a die in the pool."
+  },
+  "log": {
+    "empty": "Nothing has happened yet.",
+    "takeOver": "{name} takes over from a player who left",
+    "begin": "The windows are set. Round 1 begins.",
+    "extraTurn": "{name} takes an extra turn",
+    "skipTurn": "{name} skips their second turn",
+    "roundOver": "Round {n} is over.",
+    "placed": "{name} placed a {colour} {shade} at row {row}, column {column}",
+    "usedTool": "{name} used {tool} ({count} token) | {name} used {tool} ({count} tokens)",
+    "usedToolNote": "{name} used {tool}: {note} ({count} token) | {name} used {tool}: {note} ({count} tokens)",
+    "gameOver": "The game is over. {names} wins. | The game is over. {names} share the win."
+  },
+  "errors": {
+    "badPrivateSetting": "Bad private scoring must be on or off.",
+    "notTimeToChoose": "It is not time to choose a window.",
+    "alreadyChosen": "You have already chosen your window.",
+    "chooseOwnWindow": "Choose one of your four windows.",
+    "nothingToUndo": "There is nothing to undo this turn.",
+    "alreadyPlaced": "You have already placed a die this turn.",
+    "noSuchTool": "That tool is not in this game.",
+    "toolUsedAlready": "You have already used a tool this turn.",
+    "notEnoughTokens": "That tool costs {count} favour token and you have {have}. | That tool costs {count} favour tokens and you have {have}.",
+    "noPoolDie": "Choose a die from the pool.",
+    "noTrackDie": "Choose a die from the round track.",
+    "raiseOrLower": "Choose to raise or to lower the shade by one.",
+    "shadeLimit": "A 6 cannot go up and a 1 cannot go down.",
+    "kilnSecondTurn": "The Great Kiln can only be used on your second turn of a round.",
+    "kilnBeforePlacing": "The Great Kiln has to be used before you place a die.",
+    "poolEmpty": "There are no dice in the pool.",
+    "noColourOnTrack": "There is no {colour} die on the round track.",
+    "swiftFirstTurn": "Swift Hand can only be used on your first turn of a round.",
+    "alreadyExtraTurn": "You are already taking an extra turn.",
+    "moveExactly": "Move exactly one die. | Move exactly {count} dice.",
+    "moveRange": "Move {min} to {max} dice.",
+    "moveNeedsSpaces": "Each move needs a space to take a die from and a space to put it on.",
+    "moveOnce": "A die can only be moved once.",
+    "sameColour": "Both dice must be the same colour.",
+    "noSuchSpace": "There is no such space.",
+    "spaceTaken": "That space already holds a die.",
+    "needsColour": "That space needs a {colour} die.",
+    "needsShade": "That space needs a die showing {shade}.",
+    "firstDieEdge": "Your first die must go on an edge or corner space.",
+    "mustTouch": "A die must touch a die already in your window (diagonally counts).",
+    "colourBeside": "A {colour} die cannot sit beside another {colour} die.",
+    "shadeBeside": "A die showing {shade} cannot sit beside another die showing {shade}.",
+    "noDieThere": "There is no die on that space to move.",
+    "differentSpace": "Move the die to a different space.",
+    "toolNoPoolDie": "This tool does not use a pool die.",
+    "othersTurn": "It is {name}'s turn.",
+    "choosePoolFirst": "Choose a die from the pool first.",
+    "clickDieFirst": "First click the die in your window that you want to move.",
+    "dieAlreadyMoved": "That die has already been moved.",
+    "secondDieColour": "The second die must also be {colour}."
+  }
+}

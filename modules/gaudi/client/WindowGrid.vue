@@ -6,7 +6,9 @@
 import Die from './Die.vue';
 import { COLOUR_HEX, PIPS, SHAPES } from './glyphs.js';
 import { CELLS, COLOUR_SHAPES, COLS, restrictionOf } from '../rules.js';
+import { useGameText } from '../../../src/useGameText.js';
 
+const { t } = useGameText();
 const props = defineProps({
   rows: { type: Array, required: true }, // four strings of five characters
   grid: { type: Array, default: () => Array(CELLS).fill(null) }, // CELLS dice or nulls
@@ -16,7 +18,7 @@ const props = defineProps({
   chosen: { type: Array, default: () => [] }, // indexes shown as selected
   titles: { type: Object, default: () => ({}) }, // index -> explanation shown on hover
   interactive: { type: Boolean, default: false },
-  label: { type: String, default: 'Window' },
+  label: { type: String, required: true }, // already in the player's language: every caller translates it
 });
 const emit = defineEmits(['cell']);
 
@@ -62,8 +64,10 @@ const classes = (i) => ({
  * Side effects: none.
  */
 const describe = (i) => {
-  const wants = colourOf(i) ? `${colourOf(i)} space` : shadeOf(i) ? `space for a ${shadeOf(i)}` : 'blank space';
-  return `${wants}, row ${Math.floor(i / COLS) + 1}, column ${(i % COLS) + 1}${props.grid[i] ? `, holds a ${props.grid[i].c} ${props.grid[i].v}` : ''}`;
+  const wants = colourOf(i) ? t('space.colour', { colour: t(`colours.${colourOf(i)}`) }) : shadeOf(i) ? t('space.shade', { shade: shadeOf(i) }) : t('space.blank');
+  const where = { wants, row: Math.floor(i / COLS) + 1, column: (i % COLS) + 1 };
+  const die = props.grid[i];
+  return die ? t('space.labelDie', { ...where, colour: t(`colours.${die.c}`), shade: die.v }) : t('space.label', where);
 };
 /**
  * Tells the parent that a space was clicked (or chosen by the keyboard).
