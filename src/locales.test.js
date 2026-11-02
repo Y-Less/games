@@ -26,10 +26,21 @@ function leaves(tree, prefix = '') {
   return Object.entries(tree ?? {}).flatMap(([key, value]) => (value && typeof value === 'object' ? leaves(value, `${prefix}${key}.`) : [[`${prefix}${key}`, value]]));
 }
 
-/** The named placeholders in a message ("{name} took {n}" -> ['n', 'name']), ignoring vue-i18n's literal escapes. */
-const placeholders = (text) => [...String(text).matchAll(/\{\s*([A-Za-z_]\w*)\s*\}/g)].map((m) => m[1]).sort();
+/**
+ * The named placeholders a message uses ("{name} took {n}" -> ['n', 'name']), ignoring vue-i18n's literal escapes.
+ * Which names, not how many times: a language that gives a count one form where English gives two naturally mentions
+ * the number once rather than twice, and that is right, not a loss.
+ */
+const placeholders = (text) => [...new Set([...String(text).matchAll(/\{\s*([A-Za-z_]\w*)\s*\}/g)].map((m) => m[1]))].sort();
 /** How many forms a message offers for a count ("one | many" -> 2). */
 const formCount = (text) => String(text).split('|').length;
+
+/**
+ * Keys a language may hold that no English file does: the names the server defines (a game's name and description, its
+ * statistics labels and achievements, the site's achievements, shop items, avatar parts). English for these comes from
+ * the server itself through src/catalogueText.js, so only a translation ever names them.
+ */
+const CATALOGUE = /^(meta\.(name|description)|stats\.[\w-]+|achievements\.\w+\.(name|text|one)|siteAchievements\.\w+\.(name|text|one)|shop\.[\w:-]+|avatar\.(slots\.\w+|options\.\w+\.[\w-]+))$/;
 
 const english = filesFor(FALLBACK);
 const others = LANGUAGES.filter((lang) => lang !== FALLBACK);
@@ -41,8 +52,9 @@ it('English is the language everything else is measured against', () => {
 
 describe.runIf(others.length).each(others)('the %s translation', (lang) => {
   const files = filesFor(lang);
-  // How many forms this language may give a count: as many as its own rules use, or English's two.
-  const mostForms = Math.max(2, PLURAL_FORMS[lang]?.length ?? 0);
+  // How many forms this language may give a count: as many as its own rules use, or as many as the English offers for
+  // that key (English uses three where a count of none deserves its own wording).
+  const ownForms = PLURAL_FORMS[lang]?.length ?? 0;
 
   it('translates units the site actually has', () => {
     expect(Object.keys(files).filter((unit) => !english[unit])).toEqual([]);
@@ -52,7 +64,7 @@ describe.runIf(others.length).each(others)('the %s translation', (lang) => {
     const unknown = [];
     for (const [unit, messages] of Object.entries(files)) {
       const known = new Set(leaves(english[unit] ?? {}).map(([key]) => key));
-      for (const [key] of leaves(messages)) if (!known.has(key)) unknown.push(`${unit}: ${key}`);
+      for (const [key] of leaves(messages)) if (!known.has(key) && !CATALOGUE.test(key)) unknown.push(`${unit}: ${key}`);
     }
     expect(unknown).toEqual([]);
   });
@@ -76,9 +88,15 @@ describe.runIf(others.length).each(others)('the %s translation', (lang) => {
     expect(lost).toEqual([]);
   });
 
-  it('gives a count no more forms than the language uses', () => {
+  it('gives a count no more forms than the language or the English uses', () => {
     const tooMany = [];
-    for (const [unit, messages] of Object.entries(files)) for (const [key, value] of leaves(messages)) if (formCount(value) > mostForms) tooMany.push(`${unit}: ${key} has ${formCount(value)} forms, and ${lang} uses at most ${mostForms}`);
+    for (const [unit, messages] of Object.entries(files)) {
+      const source = Object.fromEntries(leaves(english[unit] ?? {}));
+      for (const [key, value] of leaves(messages)) {
+        const most = Math.max(2, ownForms, typeof source[key] === 'string' ? formCount(source[key]) : 0);
+        if (formCount(value) > most) tooMany.push(`${unit}: ${key} has ${formCount(value)} forms, and at most ${most} are used here`);
+      }
+    }
     expect(tooMany).toEqual([]);
   });
 
