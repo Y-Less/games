@@ -114,7 +114,13 @@
       "name": "Que?",
       "text": "Draw a word that nobody guesses, {n} times",
       "one": "Draw a word that nobody guesses",
-      "levels": "hard",
+      "levels": [
+        1,
+        10,
+        25,
+        50,
+        100
+      ],
       "stat": "nobodyGot"
     },
     {
