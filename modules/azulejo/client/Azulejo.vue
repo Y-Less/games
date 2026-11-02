@@ -13,6 +13,7 @@
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -22,23 +23,24 @@ const props = defineProps({
   search: { type: String, default: '' },
   setSearch: { type: Function, default: () => {} },
 });
+const { t } = useGameText();
 
 const { state, loaded, notice, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning to show before leaving mid-game, or '' for no warning.
-  leaveConfirm: (state) => state.phase === 'playing' || state.phase === 'tiling' ? 'A computer player takes your seat if you leave.' : '',
+  leaveConfirm: (state) => (state.phase === 'playing' || state.phase === 'tiling' ? t('leaveConfirm') : ''),
 });
 </script>
 
 <template>
   <div class="azulejo stack">
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game of Azulejo"
-      intro="Draft painted tiles from the display plates and build a patterned wall. Two to five players; computer players can fill any empty seats."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :initial-code="initialCode"
       :error="notice"
       @create="send('create')"

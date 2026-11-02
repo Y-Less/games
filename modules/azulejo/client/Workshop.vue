@@ -14,7 +14,7 @@
 // Slots: none.
 // Side effects: keeps local hover state only (to highlight the matching tiles); emits `pick` on click.
 import { computed, ref } from 'vue';
-import { COLOUR_NAMES } from '../rules.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';
 
 const props = defineProps({
@@ -27,7 +27,10 @@ const props = defineProps({
   centreHeight: { type: Number, default: 0 }, // a fixed height for the centre box (pixels); 0 lets the CSS decide
 });
 const emit = defineEmits(['pick']);
+const { t } = useGameText();
 
+// The name of a colour, for the tiles' labels.
+const colourName = (c) => t(`colour.${c}`);
 // Which group the pointer or keyboard focus is on; all matching tiles light up so the group is clear.
 const hovered = ref(null); // { source, colour }
 // The centre's tiles sorted by colour so equal tiles sit together.
@@ -54,7 +57,7 @@ function over(source, colour) {
 
 <template>
   <div class="workshop">
-    <div class="plates" role="group" aria-label="Factory displays">
+    <div class="plates" role="group" :aria-label="t('workshop.plates')">
       <div v-for="(tiles, f) in factories" :key="f" class="plate" :class="{ empty: empty(tiles) }" :style="{ '--p': `${plate}px` }">
         <span class="num" aria-hidden="true">{{ f + 1 }}</span>
         <div class="plate-tiles">
@@ -65,9 +68,9 @@ function over(source, colour) {
             class="pick"
             :class="{ sel: isSel(f, c), same: isHover(f, c), dim: selected && !isSel(f, c) }"
             :disabled="!active"
-            :aria-label="`${count(tiles, c)} ${COLOUR_NAMES[c]} from factory ${f + 1}`"
+            :aria-label="t('workshop.fromFactory', { count: count(tiles, c), colour: colourName(c), n: f + 1 })"
             :aria-pressed="isSel(f, c)"
-            :title="`${count(tiles, c)} ${COLOUR_NAMES[c]}`"
+            :title="t('tiles', { count: count(tiles, c), colour: colourName(c) })"
             @click="emit('pick', { source: f, colour: c })"
             @mouseenter="over(f, c)"
             @mouseleave="over(null)"
@@ -77,14 +80,14 @@ function over(source, colour) {
             <Tile :colour="c" :size="plate * 0.46" />
           </button>
         </div>
-        <span v-if="empty(tiles)" class="gone muted">empty</span>
+        <span v-if="empty(tiles)" class="gone muted">{{ t('workshop.empty') }}</span>
       </div>
     </div>
 
-    <div class="centre" role="group" aria-label="The centre" :class="{ empty: !centre.length && !markerInCentre }" :style="centreHeight ? { height: `${centreHeight}px` } : null">
-      <h3>The centre</h3>
+    <div class="centre" role="group" :aria-label="t('workshop.centre')" :class="{ empty: !centre.length && !markerInCentre }" :style="centreHeight ? { height: `${centreHeight}px` } : null">
+      <h3>{{ t('workshop.centre') }}</h3>
       <div class="centre-tiles">
-        <span v-if="markerInCentre" class="marker" title="The first player to take from the centre takes this marker (it costs a floor slot) and starts the next round.">
+        <span v-if="markerInCentre" class="marker" :title="t('workshop.markerTitle')">
           <Tile :colour="-1" :size="plate * 0.55" />
         </span>
         <button
@@ -94,9 +97,9 @@ function over(source, colour) {
           class="pick"
           :class="{ sel: isSel('centre', c), same: isHover('centre', c), dim: selected && !isSel('centre', c) }"
           :disabled="!active"
-          :aria-label="`${count(centre, c)} ${COLOUR_NAMES[c]} from the centre`"
+          :aria-label="t('workshop.fromCentre', { count: count(centre, c), colour: colourName(c) })"
           :aria-pressed="isSel('centre', c)"
-          :title="`${count(centre, c)} ${COLOUR_NAMES[c]}${markerInCentre ? ' (and the first-player marker)' : ''}`"
+          :title="t(markerInCentre ? 'workshop.withMarker' : 'tiles', { count: count(centre, c), colour: colourName(c) })"
           @click="emit('pick', { source: 'centre', colour: c })"
           @mouseenter="over('centre', c)"
           @mouseleave="over(null)"
@@ -105,7 +108,7 @@ function over(source, colour) {
         >
           <Tile :colour="c" :size="plate * 0.55" />
         </button>
-        <span v-if="!centre.length" class="muted small">{{ markerInCentre ? 'Only the marker.' : 'Nothing here.' }}</span>
+        <span v-if="!centre.length" class="muted small">{{ markerInCentre ? t('workshop.onlyMarker') : t('workshop.nothingHere') }}</span>
       </div>
     </div>
   </div>

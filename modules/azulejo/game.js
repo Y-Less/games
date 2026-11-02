@@ -8,6 +8,7 @@
 // (the discards), a factory display, the centre, a pattern line, a wall or a floor line. The bag's contents and order
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { msg } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
@@ -15,7 +16,6 @@ import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyTake } from './tally.js';
 import {
-  COLOUR_NAMES,
   COLOURS,
   FACTORY_TILES,
   FLOOR_SLOTS,
@@ -26,6 +26,7 @@ import {
   SIZE,
   TILES,
   bonuses,
+  colourMsg,
   columnsFor,
   completeColumns,
   completeRows,
@@ -38,10 +39,11 @@ import {
   lineCapacity,
   lineProblem,
   rowComplete,
+  sourceMsg,
   sourceTiles,
   takesMarker,
   tileScore,
-  tilesText,
+  tilesMsg,
 } from './rules.js';
 
 export { MAX_PLAYERS, MIN_PLAYERS, factoryCount, takesMarker };
@@ -78,15 +80,15 @@ const isInt = Number.isInteger;
  */
 export const isLive = (room) => LIVE.includes(room.phase);
 /**
- * The name to show for a seat in the log ("Someone" for an empty seat).
+ * The name to show for a seat in the log (the site's "Someone" for an empty seat).
  *
  * @param {object} room  the room
  * @param {number} seat  the seat index
- * @returns {string} the name
+ * @returns {string | { key: string }} the name, or a message for an empty seat
  *
  * Side effects: none.
  */
-export const seatName = (room, seat) => room.seats[seat]?.name ?? 'Someone';
+export const seatName = (room, seat) => room.seats[seat]?.name ?? msg('common.someone');
 
 /**
  * In-place Fisher-Yates shuffle.
@@ -133,7 +135,7 @@ export function makeBag(rng) {
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (isObject(input) && input.freeWall !== undefined) {
-    if (typeof input.freeWall !== 'boolean') return fail('The free wall option must be on or off.');
+    if (typeof input.freeWall !== 'boolean') return fail('freeWallSetting');
     next.freeWall = input.freeWall;
   }
   return ok({ settings: next });
@@ -150,7 +152,8 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {object} [args.settings]  settings to validate (see normaliseSettings)
  * @param {number} args.now  the creation time in milliseconds
  * @returns {object} the room
- * @throws {Error} if the size or the settings are invalid (the message is shown to the player)
+ * @throws {Error} if the size or the settings are invalid (the message reaches the player as the refusal: a settings
+ *   problem is its code, which the client puts into words)
  *
  * Side effects: none on shared state: it only builds and returns a new room.
  */
@@ -209,14 +212,16 @@ function resetGame(room) {
 }
 
 /**
- * Adds a line to the game log (the newest 60 are kept).
+ * Adds a line to the game log (the newest 60 are kept). A line is a message under the game's `log.*` keys (see
+ * shared/messages.js), which the client puts into words.
  * Side effects: mutates `room.log`.
  *
  * @param {object} room
  * @param {number | null} seat  the seat the line is about, or null for the table as a whole
- * @param {string} text
+ * @param {string} key  the locale key of the line
+ * @param {object} [params]  the values the line needs
  */
-const addLog = (room, seat, text) => addMove(room, { seat, text });
+const addLog = (room, seat, key, params) => addMove(room, { seat, ...msg(key, params) });
 
 // ---- seats and settings ----
 
@@ -251,7 +256,7 @@ const seats = createSeatRules({
    * @returns {object} the seat object to store
    */
   takeOver: (room, bot, seat, rng) => {
-    addLog(room, seat, `${bot.name} takes over from a player who left`);
+    addLog(room, seat, 'log.takesOver', { name: bot.name });
     return { ...bot, ai: pickAI(AIS, rng).id };
   },
 });
@@ -287,9 +292,9 @@ export function setSettings(room, userId, input) {
 export function setSize(room, userId, size) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (!SIZES.includes(size)) return fail(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
+  if (!SIZES.includes(size)) return fail('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS });
   const seated = room.seats.filter(Boolean);
-  if (seated.length > size) return fail('Remove some players before choosing fewer seats.');
+  if (seated.length > size) return fail('removeBeforeFewerSeats');
   room.size = size;
   room.seats = [...seated, ...Array.from({ length: size - seated.length }, () => null)];
   resetGame(room);
@@ -311,13 +316,13 @@ export function setSize(room, userId, size) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  if (!humanSeats(room).length) return fail('needPerson');
   resetGame(room);
   room.bag = makeBag(rng);
   room.first = Math.floor(rng() * room.size);
   room.phase = 'playing';
-  addLog(room, null, `The game begins. ${seatName(room, room.first)} goes first.`);
+  addLog(room, null, 'log.begins', { name: seatName(room, room.first) });
   startRound(room, rng);
   // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
   const bots = botSeats(room);
@@ -369,7 +374,7 @@ function startRound(room, rng) {
   room.markerInCentre = true;
   room.nextFirst = null;
   room.turn = room.first;
-  addLog(room, null, `Round ${room.round}: ${seatName(room, room.first)} is the first player.`);
+  addLog(room, null, 'log.round', { n: room.round, name: seatName(room, room.first) });
 }
 
 // ---- taking and placing ----
@@ -384,15 +389,6 @@ function startRound(room, rng) {
  * Side effects: none.
  */
 const validSource = (room, source) => source === 'centre' || (isInt(source) && source >= 0 && source < room.factories.length);
-/**
- * The name of a source for the log and for error messages.
- *
- * @param {'centre' | number} source  'centre' or a factory index
- * @returns {string} e.g. "the centre" or "factory 3"
- *
- * Side effects: none.
- */
-const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${source + 1}`);
 
 /**
  * Every move the seat could make.
@@ -442,17 +438,17 @@ const roundOver = (room) => room.centre.length === 0 && room.factories.every((f)
  * @returns {{ ok: boolean, error?: string }} an error never names hidden information
  */
 export function takeTiles(room, seat, args, rng) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
   const { source, colour, line } = isObject(args) ? args : {};
-  if (!validSource(room, source)) return fail('Choose a factory display or the centre.');
-  if (!isInt(colour) || colour < 0 || colour >= COLOURS.length) return fail('Choose a colour.');
+  if (!validSource(room, source)) return fail('chooseSource');
+  if (!isInt(colour) || colour < 0 || colour >= COLOURS.length) return fail('chooseColour');
   const tiles = sourceTiles(room, source);
   const count = countOf(tiles, colour);
-  if (!count) return fail(`There is no ${COLOUR_NAMES[colour]} in ${sourceName(source)}.`);
+  if (!count) return fail('noColourInSource', { colour: colourMsg(colour), source: sourceMsg(source) });
   if (line !== 'floor') {
     const problem = lineProblem(room.lines[seat], room.walls[seat], line, colour, room.settings.freeWall);
-    if (problem) return fail(problem);
+    if (problem) return fail(problem.key.slice('errors.'.length), problem.params);
   }
 
   // Take them: the rest of a factory slides into the centre.
@@ -485,8 +481,11 @@ export function takeTiles(room, seat, args, rng) {
   }
   const placed = count - overflow;
   tallyTake(room.tally[seat], { taken: count, dropped: overflow + (markerOnFloor ? 1 : 0), floorBefore, floorAfter: floor.length });
-  const result = line === 'floor' ? 'all to the floor' : `${placed} on line ${line + 1}${overflow ? `, ${overflow} to the floor` : ''}`;
-  addLog(room, seat, `${seatName(room, seat)} took ${tilesText(count, colour)} from ${sourceName(source)}${marker ? ' and the first-player marker' : ''}: ${result}`);
+  let result;
+  if (line === 'floor') result = msg('log.allToFloor');
+  else if (overflow) result = msg('log.onLineSpill', { placed, line: line + 1, overflow });
+  else result = msg('log.onLine', { placed, line: line + 1 });
+  addLog(room, seat, marker ? 'log.tookMarker' : 'log.took', { name: seatName(room, seat), tiles: tilesMsg(count, colour), source: sourceMsg(source), result });
 
   if (roundOver(room)) startTiling(room, rng);
   else room.turn = (seat + 1) % room.size;
@@ -575,11 +574,11 @@ function advanceTiling(room, seat) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function chooseColumn(room, seat, args, rng) {
-  if (room.phase !== 'tiling') return fail('It is not time to place a tile on the wall.');
+  if (room.phase !== 'tiling') return fail('notTimeToPlace');
   const pending = room.pending[seat];
-  if (!pending) return fail('You have nothing to place on the wall.');
+  if (!pending) return fail('nothingToPlace');
   const { col } = isObject(args) ? args : {};
-  if (!isInt(col) || !pending.columns.includes(col)) return fail(`Choose one of the highlighted columns in row ${pending.row + 1}.`);
+  if (!isInt(col) || !pending.columns.includes(col)) return fail('chooseHighlighted', { row: pending.row + 1 });
   placeOnWall(room, seat, pending.row, col);
   room.pending[seat] = null;
   room.tiling[seat].cursor++;
@@ -602,8 +601,9 @@ function settleTiling(room, rng) {
 
 /**
  * Ends the tiling phase: applies each seat's floor penalty (the score never drops below 0), empties the floors into the
- * lid, records the round in the history and log, then either ends the game (somebody completed a row) or starts the next
- * round with the player who took the marker first.
+ * lid, records the round in the history (its label and notes are messages, a note being a list of them: the floor loss,
+ * the rows completed, a line that found no place) and log, then either ends the game (somebody completed a row) or
+ * starts the next round with the player who took the marker first.
  * Side effects: mutates `room` (scores, tally, floors, lid, history, lastTiling, phase, log; may finish the game).
  *
  * @param {object} room
@@ -626,21 +626,21 @@ function finishTiling(room, rng) {
     bump(room.tally[seat], 'floorPenalties', lost); // bump, not +=: a room saved before this counter existed has no key
     deltas[seat] = after - before;
     const parts = [];
-    if (lost) parts.push(`floor -${lost}`); // only when points were really lost: a score already at 0 loses nothing
-    if (t.newRows) parts.push(t.newRows > 1 ? `${t.newRows} rows complete` : 'row complete');
-    if (t.dropped.length) parts.push('no room on the wall for a full line');
-    if (parts.length) notes[seat] = parts.join(', ');
+    if (lost) parts.push(msg('notes.floor', { lost })); // only when points were really lost: a score already at 0 loses nothing
+    if (t.newRows) parts.push(msg('notes.rowsComplete', { count: t.newRows }));
+    if (t.dropped.length) parts.push(msg('notes.noRoom'));
+    if (parts.length) notes[seat] = parts;
     summary.push({ seat, placed: t.placed, dropped: t.dropped, gained: t.gained, penalty, lost, before, after });
-    addLog(room, seat, `${seatName(room, seat)} scored ${t.gained}${penalty ? `, then lost ${lost} to the floor` : ''}`);
+    addLog(room, seat, penalty ? 'log.scoredLost' : 'log.scored', { name: seatName(room, seat), points: t.gained, lost });
   }
   room.playedRounds++;
-  room.history.push({ label: `Round ${room.round}`, deltas, notes });
+  room.history.push({ label: msg('round', { n: room.round }), deltas, notes });
   room.lastTiling = { round: room.round, players: summary };
   room.tiling = [];
   room.pending = [];
   room.phase = 'playing';
   if (room.walls.some((_, seat) => completeRows(room.walls[seat]) > 0)) {
-    addLog(room, null, `Round ${room.round} is over, and a row is complete.`);
+    addLog(room, null, 'log.roundOverRow', { n: room.round });
     return finishGame(room);
   }
   room.first = room.nextFirst ?? room.first;
@@ -651,7 +651,7 @@ function finishTiling(room, rng) {
 
 /**
  * Ends the game: adds each wall's end-of-game bonuses (rows, columns, colour sets), ranks the players (score, then complete
- * rows) and records the winners.
+ * rows) and records the winners. The bonus round's notes are messages (a list of the bonuses earned, or "no bonuses").
  * Side effects: mutates `room` (scores, history, final, winners, phase, turn, log).
  *
  * @param {object} room
@@ -665,13 +665,13 @@ function finishGame(room) {
     room.scores[i] = before + b.points;
     deltas[i] = b.points;
     const parts = [];
-    if (b.rows) parts.push(`${b.rows} ${b.rows === 1 ? 'row' : 'rows'}`);
-    if (b.columns) parts.push(`${b.columns} ${b.columns === 1 ? 'column' : 'columns'}`);
-    if (b.sets) parts.push(`${b.sets} colour ${b.sets === 1 ? 'set' : 'sets'}`);
-    notes[i] = parts.length ? parts.join(', ') : 'no bonuses';
-    return { seat: i, name: seat?.name ?? `Player ${i + 1}`, before, rows: b.rows, columns: b.columns, sets: b.sets, bonus: b.points, total: room.scores[i] };
+    if (b.rows) parts.push(msg('notes.rows', { count: b.rows }));
+    if (b.columns) parts.push(msg('notes.columns', { count: b.columns }));
+    if (b.sets) parts.push(msg('notes.sets', { count: b.sets }));
+    notes[i] = parts.length ? parts : msg('notes.noBonuses');
+    return { seat: i, name: seat?.name ?? msg('player', { n: i + 1 }), before, rows: b.rows, columns: b.columns, sets: b.sets, bonus: b.points, total: room.scores[i] };
   });
-  room.history.push({ label: 'Bonuses', deltas, notes });
+  room.history.push({ label: msg('bonuses'), deltas, notes });
   // Highest score, then the most complete rows; placements() orders a combined number (rows never reach 100).
   const ranking = Object.fromEntries(rows.map((r) => [r.seat, r.total * 100 + r.rows]));
   const place = placements(ranking);
@@ -680,7 +680,7 @@ function finishGame(room) {
   room.final = { players: rows };
   room.phase = 'finished';
   room.turn = null;
-  addLog(room, null, `The game is over. ${room.winners.map((s) => rows[s].name).join(' and ')} ${room.winners.length > 1 ? 'share the win' : 'wins'}.`);
+  addLog(room, null, 'log.gameOver', { names: room.winners.map((s) => rows[s].name), count: room.winners.length });
 }
 
 /**
@@ -695,7 +695,7 @@ function finishGame(room) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   resetGame(room);
   for (const seat of room.seats) if (isBot(seat)) delete seat.ai; // a new game picks new AIs
   room.phase = 'lobby';

@@ -24,6 +24,7 @@ line has no legal column left (an earlier tile of the same phase took it) its ti
 - `bot.js` the computer players (value of every legal move, column choice).
 - `server.js` the socket layer: rooms, codes, persistence, bot timers, statistics.
 - `client/` the Vue screens (lobby, table, tiles drawn in SVG).
+- `locales/en.json` every word a player reads (see MODULES.md, "Languages"); `rules.md` is the rules in English.
 - tests: `rules.test.js`, `game.test.js`, `bot.test.js`, `invariants.test.js`, `e2e.test.js`, `robustness.test.js`,
   `lifecycle.test.js`; helpers `testing.js` and `e2e-support.js`.
 
@@ -31,6 +32,12 @@ line has no legal column left (an earlier tile of the same phase took it) its ti
 
 - The wall-tiling phase happens instantly on the server (a `tiling` phase exists only while a free-wall player must
   choose a column). The view carries `lastTiling`, a per-player summary of the round, so the client can show it.
+- Nothing the server sends is a sentence. A refusal is a code (`errors.` in `locales/en.json`, or the site's) with the
+  values its words need: `{ ok: false, error: 'noColourInSource', params: { colour, source } }`, where a param may itself
+  be a message. Everything else a player reads is a message, `{ key, params? }` from `shared/messages.js`: a log line
+  (`{ seat, key, params }`), a scoreboard round's `label` (`round` with `{ n }`, then `bonuses`) and its `notes` (a list
+  of messages per seat, or one message), a pattern line's reason from `lineProblem`, and a seat's name in `final.players`
+  when the seat is empty. The client turns them into the player's language with `text()` and `error()`.
 - Statistics: `floorPenalties` is the points actually lost to the floor (a score cannot go below 0, so that can be less
   than the penalty shown). `rowsCompleted`, `columnsCompleted` and `colourSetsCompleted` are counted on the final wall.
 - Environment: `AZULEJO_BOT_DELAY=min-max` (milliseconds) changes the computer players' thinking time.

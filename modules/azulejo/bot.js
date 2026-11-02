@@ -100,8 +100,9 @@ export function runPending(room, rng) {
   else {
     const move = chooseMove(room, action.seat, rng);
     action.move = move;
-    result = move ? game.takeTiles(room, action.seat, move, rng) : { ok: false, error: 'no legal move' };
+    if (!move) throw new Error('A computer player found no legal move'); // a bug: the server logs it and retries
+    result = game.takeTiles(room, action.seat, move, rng);
   }
-  if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
+  if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`); // the refusal's code, for the log
   return action;
 }

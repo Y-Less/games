@@ -118,11 +118,11 @@ export function assertInvariants(room, label = '') {
     const sum = room.history.reduce((total, h) => total + h.deltas[seat], 0);
     assert.equal(sum, room.scores[seat], `${where}: seat ${seat} score = the sum of the history`);
   }
-  assert.equal(room.history.filter((h) => h.label !== 'Bonuses').length, room.playedRounds, `${where}: one history entry per round`);
+  assert.equal(room.history.filter((h) => h.label.key !== 'bonuses').length, room.playedRounds, `${where}: one history entry per round`);
   if (room.phase === 'finished') {
-    assert.equal(room.history.at(-1).label, 'Bonuses');
+    assert.equal(room.history.at(-1).label.key, 'bonuses');
     assert.ok(room.walls.some((w) => w.some((row) => row.every((c) => c !== null))) || room.factories.every((f) => !f.length), `${where}: ended with a complete row`);
-  } else assert.ok(room.history.every((h) => h.label !== 'Bonuses'));
+  } else assert.ok(room.history.every((h) => h.label.key !== 'bonuses'));
   if (room.phase === 'playing') assert.ok(room.turn >= 0 && room.turn < n, `${where}: a turn`);
   if (room.phase === 'tiling') assert.ok(room.pending.some(Boolean), `${where}: tiling only waits for a choice`);
 }

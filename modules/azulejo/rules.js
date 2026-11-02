@@ -5,11 +5,13 @@
 // first-player marker. A wall is 5 rows of 5 cells, each a colour number or null. Pattern line i (0..4) holds i + 1 tiles
 // and is { colour: number | null, count: number }.
 
-// Depends on nothing: this file is the base the game, the AIs, the tests and the client all build on.
+// Depends on shared/messages.js only (the words for a colour, a source and a refusal are messages the client translates):
+// this file is the base the game, the AIs, the tests and the client all build on.
+import { msg } from '../../shared/messages.js';
 
-// The five colours (as numbers), their display names, and the size of the wall and of every pattern-line set.
+// The five colours (as numbers: 0 Cobalt, 1 Saffron, 2 Terracotta, 3 Verdigris, 4 Plum; their names are the game's
+// `colour.<n>` keys), and the size of the wall and of every pattern-line set.
 export const COLOURS = [0, 1, 2, 3, 4];
-export const COLOUR_NAMES = ['Cobalt', 'Saffron', 'Terracotta', 'Verdigris', 'Plum'];
 export const SIZE = 5;
 // 20 tiles of each colour make the 100 in the bag; a factory display holds four.
 export const PER_COLOUR = 20;
@@ -129,26 +131,56 @@ export function columnsFor(wall, row, colour, free) {
 }
 
 /**
- * Why a colour cannot go on a pattern line (a sentence for the player), or null when it can. A line that is already
- * full is not available.
+ * The name of a colour as a message (the game's `colour.<n>` keys, see shared/messages.js).
+ *
+ * @param {number} colour  a colour number 0..4
+ * @returns {{ key: string }} the message
+ *
+ * Side effects: none.
+ */
+export const colourMsg = (colour) => msg(`colour.${colour}`);
+
+/**
+ * The name of a source as a message ("the centre", "factory 3"), for the log and for refusals.
+ *
+ * @param {'centre' | number} source  'centre' or a factory index
+ * @returns {{ key: string, params?: object }} the message
+ *
+ * Side effects: none.
+ */
+export const sourceMsg = (source) => (source === 'centre' ? msg('source.centre') : msg('source.factory', { n: source + 1 }));
+
+/**
+ * A colour-and-count as a message, e.g. "3 Cobalt" (for the log).
+ *
+ * @param {number} count  how many tiles
+ * @param {number} colour  their colour
+ * @returns {{ key: string, params: object }} the message
+ *
+ * Side effects: none.
+ */
+export const tilesMsg = (count, colour) => msg('tiles', { count, colour: colourMsg(colour) });
+
+/**
+ * Why a colour cannot go on a pattern line (a message under the game's `errors.` keys, which the server turns into a
+ * refusal and the client into words), or null when it can. A line that is already full is not available.
  *
  * @param {{ colour: number | null, count: number }[]} lines  the player's pattern lines
  * @param {(number | null)[][]} wall  the player's wall
  * @param {number} line  the pattern line asked about (checked to be an integer 0..4)
  * @param {number} colour  the colour to put there
  * @param {boolean} free  true on a free wall (default false)
- * @returns {string | null} the reason, or null when the move is allowed
+ * @returns {{ key: string, params?: object } | null} the reason, or null when the move is allowed
  *
  * Side effects: none.
  */
 export function lineProblem(lines, wall, line, colour, free = false) {
-  if (!Number.isInteger(line) || line < 0 || line >= SIZE) return 'There is no such pattern line.';
+  if (!Number.isInteger(line) || line < 0 || line >= SIZE) return msg('errors.noSuchLine');
   const have = lines[line];
-  const name = COLOUR_NAMES[colour];
-  if (have.count >= lineCapacity(line)) return `Line ${line + 1} is already full.`;
-  if (have.count > 0 && have.colour !== colour) return `Line ${line + 1} already holds ${COLOUR_NAMES[have.colour]}.`;
-  if (rowHas(wall, line, colour)) return `Row ${line + 1} of your wall already has ${name}.`;
-  if (!columnsFor(wall, line, colour, free).length) return `${name} has no free column left in row ${line + 1} of your wall.`;
+  if (have.count >= lineCapacity(line)) return msg('errors.lineFull', { line: line + 1 });
+  if (have.count > 0 && have.colour !== colour) return msg('errors.lineHolds', { line: line + 1, colour: colourMsg(have.colour) });
+  if (rowHas(wall, line, colour)) return msg('errors.rowHasColour', { row: line + 1, colour: colourMsg(colour) });
+  if (!columnsFor(wall, line, colour, free).length) return msg('errors.noFreeColumn', { row: line + 1, colour: colourMsg(colour) });
   return null;
 }
 
@@ -333,14 +365,3 @@ export function isDeadCell(wall, row, col) {
   if (wall[row][col] !== null) return false;
   return !COLOURS.some((colour) => !rowHas(wall, row, colour) && !colHas(wall, col, colour));
 }
-
-/**
- * The text of a colour-and-count, e.g. "3 Cobalt" (for the log).
- *
- * @param {number} count  how many tiles
- * @param {number} colour  their colour
- * @returns {string} the text
- *
- * Side effects: none.
- */
-export const tilesText = (count, colour) => `${count} ${COLOUR_NAMES[colour]}`;

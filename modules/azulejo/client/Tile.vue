@@ -10,7 +10,7 @@
 // Emits: none. Slots: none.
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
-import { COLOUR_NAMES } from '../rules.js';
+import { useGameText } from '../../../src/useGameText.js';
 import { TILE_STYLE } from './tiles.js';
 
 const props = defineProps({
@@ -18,14 +18,15 @@ const props = defineProps({
   size: { type: Number, default: 40 },
   ghost: { type: Boolean, default: false },
 });
+const { t } = useGameText();
 // The palette for this colour; falls back to colour 0 so an unexpected index still draws something.
 const style = computed(() => TILE_STYLE[props.colour] ?? TILE_STYLE[0]);
-// Accessible name of the tile (also its tooltip title).
-const label = computed(() => (props.colour === -1 ? 'First-player marker' : COLOUR_NAMES[props.colour]));
+// Accessible name of the tile (also its tooltip title): the marker, or the colour's name (an unknown colour is named as colour 0, as it is drawn).
+const label = computed(() => (props.colour === -1 ? t('tile.marker') : t(`colour.${TILE_STYLE[props.colour] ? props.colour : 0}`)));
 </script>
 
 <template>
-  <svg class="tile" :class="{ ghost }" :width="size" :height="size" viewBox="0 0 40 40" role="img" :aria-label="ghost ? `${label} (place for)` : label">
+  <svg class="tile" :class="{ ghost }" :width="size" :height="size" viewBox="0 0 40 40" role="img" :aria-label="ghost ? t('tile.placeFor', { name: label }) : label">
     <title>{{ label }}</title>
     <template v-if="colour === -1">
       <circle cx="20" cy="20" r="17" :fill="style.base" :stroke="style.dark" stroke-width="2" />

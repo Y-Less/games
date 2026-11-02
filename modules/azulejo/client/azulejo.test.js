@@ -10,7 +10,11 @@ import Board from './Board.vue';
 import Tile from './Tile.vue';
 import { boardCell, boardSize, plateLayout } from './layout.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
+import { messageText } from '../../../src/messageText.js';
 import TilingSummary from './TilingSummary.vue';
+
+// A message from the server (a log line, a round label, a note) as this game's words.
+const words = (message) => messageText(message, 'azulejo');
 
 // (The shared test kit imports the database, which a browser-style test cannot load, so the few helpers are repeated.)
 function seeded(seed) {
@@ -104,7 +108,7 @@ describe('Azulejo shell', () => {
     await w.find('input').setValue('boss-aware-you');
     await w.find('form').trigger('submit');
     expect(socket.emit).toHaveBeenCalledWith('join', { code: 'boss-aware-you' }, expect.any(Function));
-    socket.emit = vi.fn((e, p, ack) => ack({ ok: false, error: 'No such game.' }));
+    socket.emit = vi.fn((e, p, ack) => ack({ ok: false, error: 'noSuchGame' })); // the server sends the code, not the words
     await button(w, 'Start a new').trigger('click');
     await flushPromises();
     expect(w.find('[role=alert]').text()).toBe('No such game.');
@@ -192,6 +196,10 @@ describe('Azulejo table: playing', () => {
     expect(w.findAll('.lid-count')).toHaveLength(5);
     expect(w.findComponent({ name: 'ScoreBoard' }).exists()).toBe(true);
     expect(w.find('[aria-label="Recent moves"]').exists()).toBe(true);
+    // The log the server sends is messages, which the box puts into the player's words.
+    expect(view.log.map((line) => line.key)).toEqual(['log.begins', 'log.round']);
+    expect(words(view.log[0])).toMatch(/goes first\.$/);
+    expect(w.find('[aria-label="Recent moves"]').text()).toContain(words(view.log.at(-1)));
     expect(w.find('[aria-label="Status"]').exists()).toBe(true);
     expect(w.find('[data-fits-window]').exists()).toBe(true);
   });
@@ -315,12 +323,13 @@ describe('Azulejo table: playing', () => {
     expect(send).toHaveBeenCalledWith('move', { source: 'centre', colour: 2, line: 1 });
   });
 
-  it('keeps the selection and shows the error when the server refuses', async () => {
-    const { w } = mountTable(playView().view, makeSend({ ok: false, error: 'Not allowed.' }));
+  it('keeps the selection and puts the refusal code into words', async () => {
+    // The server refuses with a code and the values its words need; the table shows the player the sentence.
+    const { w } = mountTable(playView().view, makeSend({ ok: false, error: 'lineFull', params: { line: 1 } }));
     await plateTile(w, 0).trigger('click');
     await lineButtons(w)[0].trigger('click');
     await flushPromises();
-    expect(w.find('.game-status .line.warn').text()).toBe('Not allowed.');
+    expect(w.find('.game-status .line.warn').text()).toBe('Line 1 is already full.');
     expect(plateTile(w, 0).classes('sel')).toBe(true);
   });
 
@@ -397,8 +406,8 @@ describe('Azulejo table: playing', () => {
   it('shows each round beside the running total in the all-rounds table', async () => {
     const { view } = playView();
     const rounds = [
-      { label: 'Round 1', deltas: { 0: 4, 1: 2 } },
-      { label: 'Round 2', deltas: { 0: -1, 1: 5 } },
+      { label: { key: 'round', params: { n: 1 } }, deltas: { 0: 4, 1: 2 } },
+      { label: { key: 'round', params: { n: 2 } }, deltas: { 0: -1, 1: 5 } },
     ];
     const { w } = mountTable({ ...view, scoreboard: { ...view.scoreboard, rounds } }, makeSend(), true);
     w.findComponent({ name: 'ScoreBoard' }).vm.show();
@@ -442,6 +451,9 @@ describe('Azulejo table: finished', () => {
     const { w, send } = mountTable(view);
     expect(w.find('.headline').text()).toContain('game is over');
     expect(w.find('.final h3').text()).toBe('Final result');
+    // The scoreboard's rounds are messages: the rounds played, then the end-of-game bonuses.
+    expect(view.scoreboard.rounds.at(-1).label).toEqual({ key: 'bonuses' });
+    expect(view.scoreboard.rounds[0].label).toEqual({ key: 'round', params: { n: 1 } });
     expect(w.findAll('.breakdown tbody tr')).toHaveLength(2);
     expect(w.findAll('.breakdown tbody tr').filter((r) => r.classes('win')).length).toBe(view.winners.length);
     expect(w.find('.workshop').exists()).toBe(false);

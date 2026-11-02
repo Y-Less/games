@@ -17,7 +17,9 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
-import { COLOUR_NAMES, COLOURS, floorPenaltyAfter, lineProblem, previewTake } from '../rules.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { ordinalText } from '../../../src/messageText.js';
+import { COLOURS, COLUMN_BONUS, ROW_BONUS, SET_BONUS, floorPenaltyAfter, lineProblem, previewTake } from '../rules.js';
 import Board from './Board.vue';
 import { boardCell, plateLayout } from './layout.js';
 import Tile from './Tile.vue';
@@ -25,7 +27,10 @@ import TilingSummary from './TilingSummary.vue';
 import Workshop from './Workshop.vue';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, text, error, list } = useGameText();
 
+// The end-of-game bonuses, for the final table's headings.
+const bonusPoints = { rows: ROW_BONUS, columns: COLUMN_BONUS, sets: SET_BONUS };
 // Shorthand for the view, so templates and helpers stay short.
 const s = computed(() => props.state);
 // True once the game is over.
@@ -34,8 +39,10 @@ const finished = computed(() => s.value.phase === 'finished');
 const free = computed(() => s.value.settings.freeWall);
 // The viewer's own seat record, or null for a spectator.
 const me = computed(() => s.value.seats[s.value.you] ?? null);
-// Returns the display name of a seat, or 'Someone' if it is empty.
-const nameOf = (seat) => s.value.seats[seat]?.name ?? 'Someone';
+// Returns the display name of a seat, or the site's "Someone" if it is empty.
+const nameOf = (seat) => s.value.seats[seat]?.name ?? t('common.someone');
+// The name of a tile colour.
+const colourName = (colour) => t(`colour.${colour}`);
 // True when it is the viewer's turn to take tiles.
 const myTurn = computed(() => s.value.phase === 'playing' && s.value.turn === s.value.you);
 // True when the viewer is the host (may remove players and restart).
@@ -58,8 +65,8 @@ watch(
 // ---- the chosen group, and what each line would do with it ----
 // Returns the tile array for a plate index or 'centre'.
 const sourceTiles = (source) => (source === 'centre' ? s.value.centre : (s.value.factories[source] ?? []));
-// Returns a readable name for a tile source, for messages.
-const sourceName = (source) => (source === 'centre' ? 'the centre' : `factory ${source + 1}`);
+// Returns a readable name for a tile source, for the status lines.
+const sourceName = (source) => (source === 'centre' ? t('source.centre') : t('source.factory', { n: source + 1 }));
 // How many tiles are in the selected group (0 if nothing is selected).
 const selCount = computed(() => (sel.value ? sourceTiles(sel.value.source).filter((c) => c === sel.value.colour).length : 0));
 // True if taking the selected group also takes the first-player marker (taking from the centre first).
@@ -67,23 +74,24 @@ const takesMarker = computed(() => Boolean(sel.value) && sel.value.source === 'c
 
 /**
  * Explains in words what placing the selected group on a line (or the floor) would do, using the shared rules preview.
+ * Each part is a whole sentence of its own, so a translator may reorder the words inside it.
  * @param {number|string} line  Line index 0-4, or 'floor'.
- * @returns {string} A sentence for tooltips and the status box.
+ * @returns {string} The sentences for tooltips and the status box.
  * Side effects: none.
  */
 function describe(line) {
   const preview = previewTake({ lines: me.value.lines, floor: me.value.floor }, { count: selCount.value, line, marker: takesMarker.value });
-  const name = COLOUR_NAMES[sel.value.colour];
+  const colour = colourName(sel.value.colour);
   const parts = [];
-  if (line === 'floor') parts.push(`All ${selCount.value} ${name} go to the floor`);
+  if (line === 'floor') parts.push(t('preview.floor', { count: selCount.value, colour }));
   else {
-    parts.push(`${preview.put} of ${selCount.value} ${name} go on line ${line + 1}${preview.completes ? ', completing it' : ''}`);
-    if (preview.overflow) parts.push(`${preview.overflow} spill to the floor`);
+    parts.push(t(preview.completes ? 'preview.lineComplete' : 'preview.line', { put: preview.put, count: selCount.value, colour, line: line + 1 }));
+    if (preview.overflow) parts.push(t('preview.spill', { count: preview.overflow }, preview.overflow));
   }
-  if (takesMarker.value) parts.push('you also take the first-player marker');
+  if (takesMarker.value) parts.push(t('preview.marker'));
   const cost = preview.extraPenalty;
-  parts.push(cost ? `the floor will cost you ${cost} more (${floorPenaltyAfter(me.value.floor.length, preview)} in all)` : 'no new floor penalty');
-  return `${parts.join('; ')}.`;
+  parts.push(cost ? t('preview.cost', { cost, total: floorPenaltyAfter(me.value.floor.length, preview) }) : t('preview.noCost'));
+  return parts.join(' ');
 }
 
 // Per-line { ok, title } hints for the selected group: title is the reason it is refused, or what it would do. Null when not choosing.
@@ -91,7 +99,7 @@ const lineHints = computed(() => {
   if (!sel.value || !myTurn.value || !me.value) return null;
   return Array.from({ length: 5 }, (_, i) => {
     const problem = lineProblem(me.value.lines, me.value.wall, i, sel.value.colour, free.value);
-    return { ok: problem === null, title: problem ?? describe(i) };
+    return { ok: problem === null, title: problem ? text(problem) : describe(i) };
   });
 });
 // True when the floor line can be clicked (a group is selected on the viewer's turn).
@@ -127,7 +135,7 @@ async function place(line) {
     sel.value = null;
     hover.value = null;
     message.value = '';
-  } else message.value = reply.error ?? '';
+  } else message.value = error(reply);
 }
 /**
  * Handles a click on a pattern line: places the group if allowed, else shows why not.
@@ -151,38 +159,39 @@ const chooseColumn = (col) => props.send('column', { col });
 const choosing = computed(() => s.value.choosing ?? []);
 // The headline of the Status box: what is happening and what the viewer should do.
 const status = computed(() => {
-  if (finished.value) return 'The game is over.';
+  if (finished.value) return t('status.gameOver');
   if (s.value.phase === 'tiling') {
-    if (s.value.choice) return `Wall-tiling: choose the column for your ${COLOUR_NAMES[s.value.choice.colour]} tile in row ${s.value.choice.row + 1}.`;
-    return `Wall-tiling: waiting for ${choosing.value.map(nameOf).join(', ')} to choose a column…`;
+    if (s.value.choice) return t('status.chooseColumn', { colour: colourName(s.value.choice.colour), row: s.value.choice.row + 1 });
+    return t('status.waitingColumns', { names: list(choosing.value.map(nameOf)) });
   }
-  if (!myTurn.value) return `Waiting for ${nameOf(s.value.turn)}…`;
-  if (!sel.value) return 'Your turn: click a colour on a plate or in the centre.';
-  return `Now choose where the ${selCount.value} ${COLOUR_NAMES[sel.value.colour]} go: a highlighted line, or the floor.`;
+  if (!myTurn.value) return t('status.waitingFor', { name: nameOf(s.value.turn) });
+  if (!sel.value) return t('status.yourTurn');
+  return t('status.chooseWhere', { count: selCount.value, colour: colourName(sel.value.colour) });
 });
 // The further lines of the Status box, most useful first.
 // (Returns the list of detail lines: strings or { text, tone }.)
 const statusLines = computed(() => {
   const lines = [];
   if (sel.value) lines.push({ text: selectedLine.value, tone: 'mine' });
-  if (choose.value) lines.push({ text: `Click one of the highlighted places in row ${choose.value.row + 1} of your wall.`, tone: 'mine' });
+  if (choose.value) lines.push({ text: t('status.clickPlace', { row: choose.value.row + 1 }), tone: 'mine' });
   if (message.value) lines.push({ text: message.value, tone: 'warn' });
   else if (preview.value) lines.push(preview.value);
-  else if (sel.value && myTurn.value) lines.push({ text: 'Point at a line to see what would happen. Green lines are allowed; the floor always is.', tone: 'muted' });
-  else if (myTurn.value && !choose.value) lines.push({ text: 'Take every tile of one colour from one plate, or from the centre.', tone: 'muted' });
-  lines.push({ text: `First player: ${nameOf(s.value.first)}. First-player marker: ${marker.value}.`, tone: 'muted' });
+  else if (sel.value && myTurn.value) lines.push({ text: t('status.pointAtLine'), tone: 'muted' });
+  else if (myTurn.value && !choose.value) lines.push({ text: t('status.takeTiles'), tone: 'muted' });
+  lines.push({ text: t('status.firstPlayer', { name: nameOf(s.value.first), marker: marker.value }), tone: 'muted' });
   return lines;
 });
 // Describes the current selection in a sentence ('' when nothing is selected).
 const selectedLine = computed(() => {
   if (!sel.value) return '';
-  return `${selCount.value} ${COLOUR_NAMES[sel.value.colour]} from ${sourceName(sel.value.source)}${takesMarker.value ? ', with the first-player marker (it takes a floor slot and makes you first next round)' : ''}.`;
+  const params = { count: selCount.value, colour: colourName(sel.value.colour), source: sourceName(sel.value.source) };
+  return t(takesMarker.value ? 'status.selectedMarker' : 'status.selected', params);
 });
 // Says where the first-player marker is now: in the centre, taken, or with a named player.
 const marker = computed(() => {
   const seat = s.value.seats.findIndex((x) => x && x.floor.includes(-1));
-  if (s.value.markerInCentre) return 'in the centre';
-  return seat === -1 ? 'taken' : `with ${nameOf(seat)}`;
+  if (s.value.markerInCentre) return t('marker.centre');
+  return seat === -1 ? t('marker.taken') : t('marker.with', { name: nameOf(seat) });
 });
 // Seat index holding the marker on their floor, or -1.
 const markerHolder = computed(() => s.value.seats.findIndex((x) => x && x.floor.includes(-1)));
@@ -218,8 +227,8 @@ const openedBoard = computed(() => (openId.value === null ? null : (s.value.seat
 // ---- end ----
 // Names of the winners (several when shared).
 const winners = computed(() => (s.value.winners ?? []).map(nameOf));
-// Returns the label for a final placement ('Winner', '2nd', ...).
-const rankText = (row) => (row.placement === 1 ? 'Winner' : ['', '1st', '2nd', '3rd', '4th', '5th'][row.placement] ?? `${row.placement}th`);
+// Returns the label for a final placement (the winner, or the place as the language writes it: "2nd").
+const rankText = (row) => (row.placement === 1 ? t('table.winnerPlace') : ordinalText(row.placement));
 // Total tiles in the box lid (discarded tiles), shown in the status facts.
 const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
 </script>
@@ -230,7 +239,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
       <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="false" :finished="finished" :sticky="false" v-bind="scoreProps" running>
         <template #round>
           <TilingSummary v-if="state.lastTiling" :tiling="state.lastTiling" :seats="state.seats" :you="state.you" />
-          <p v-if="finished" class="note">The last row adds the end-of-game bonuses, so each total equals the final score.</p>
+          <p v-if="finished" class="note">{{ t('table.bonusNote') }}</p>
         </template>
       </ScoreBoard>
     </template>
@@ -251,7 +260,7 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
             :next-first="markerHolder === state.you"
             :line-hints="lineHints"
             :floor-open="floorOpen"
-            floor-title="Put them all on the floor line"
+            :floor-title="t('table.floorTitle')"
             :choose="choose"
             :highlight-row="choose ? choose.row : -1"
             :preview-line="hover"
@@ -268,19 +277,19 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
           </section>
 
           <section v-else-if="state.final" class="panel final">
-            <h3>Final result</h3>
-            <p class="winner">{{ winners.join(' and ') }} {{ winners.length > 1 ? 'share the win' : 'wins' }} with {{ state.final.players[state.winners[0]].total }} points.</p>
+            <h3>{{ t('table.finalResult') }}</h3>
+            <p class="winner">{{ t('table.winner', { names: list(winners), points: state.final.players[state.winners[0]].total }, winners.length) }}</p>
             <table class="breakdown">
               <thead>
                 <tr>
-                  <th scope="col">Player</th>
-                  <th scope="col">Before bonuses</th>
-                  <th scope="col">Rows (+2)</th>
-                  <th scope="col">Columns (+7)</th>
-                  <th scope="col">Colours (+10)</th>
-                  <th scope="col">Bonuses</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Place</th>
+                  <th scope="col">{{ t('table.player') }}</th>
+                  <th scope="col">{{ t('table.beforeBonuses') }}</th>
+                  <th scope="col">{{ t('table.rows', { bonus: bonusPoints.rows }) }}</th>
+                  <th scope="col">{{ t('table.columns', { bonus: bonusPoints.columns }) }}</th>
+                  <th scope="col">{{ t('table.colours', { bonus: bonusPoints.sets }) }}</th>
+                  <th scope="col">{{ t('table.bonuses') }}</th>
+                  <th scope="col">{{ t('scoreboard.total') }}</th>
+                  <th scope="col">{{ t('table.place') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -298,10 +307,10 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
                 </tr>
               </tbody>
             </table>
-            <p class="muted small">Ties are broken by the most complete rows; if still tied, the win is shared.</p>
+            <p class="muted small">{{ t('table.tiesNote') }}</p>
             <div class="row">
-              <button v-if="isHost" class="primary" @click="send('again')">Play again</button>
-              <span v-else class="muted">Waiting for the host to play again, or leave (top right).</span>
+              <button v-if="isHost" class="primary" @click="send('again')">{{ t('table.playAgain') }}</button>
+              <span v-else class="muted">{{ t('table.waitingHost') }}</span>
             </div>
           </section>
         </div>
@@ -309,21 +318,21 @@ const lidTotal = computed(() => s.value.lid.reduce((a, b) => a + b, 0));
     </template>
 
     <template #log>
-      <GameLog :entries="s.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="s.log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="status" :mine="(myTurn && !finished) || Boolean(choose)" :lines="statusLines">
         <template #facts>
-          <strong>Round {{ state.round }}</strong>
-          <span>{{ state.bagCount }} in the bag</span>
-          <span class="lid" :title="`${lidTotal} tiles in the lid`">
-            Lid:
+          <strong>{{ t('facts.round', { n: state.round }) }}</strong>
+          <span>{{ t('facts.inBag', { count: state.bagCount }) }}</span>
+          <span class="lid" :title="t('facts.lidTitle', { count: lidTotal }, lidTotal)">
+            {{ t('facts.lid') }}
             <span v-for="c in COLOURS" :key="c" class="lid-count"><Tile :colour="c" :size="16" />{{ state.lid[c] }}</span>
           </span>
-          <span v-if="free" class="tag free-note">Free wall</span>
+          <span v-if="free" class="tag free-note">{{ t('freeWall') }}</span>
         </template>
-        <div v-if="sel" class="row"><button class="quiet" @click="sel = null">Choose another colour</button></div>
+        <div v-if="sel" class="row"><button class="quiet" @click="sel = null">{{ t('table.chooseAnother') }}</button></div>
       </GameStatus>
     </template>
   </GameFrame>

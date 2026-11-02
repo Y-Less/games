@@ -186,7 +186,7 @@ test('hostile people cannot steal a turn, act out of turn or pick a source that 
   const move = simpleMove(mover.state);
   const stolen = await other.call('move', move);
   assert.equal(stolen.ok, false);
-  assert.match(stolen.error, /not your turn/);
+  assert.equal(stolen.error, 'notYourTurn');
   const empty = await mover.call('move', { source: 'centre', colour: 0, line: 0 });
   assert.equal(empty.ok, false, 'the centre is empty at the start');
   const ok = await mover.call('move', move);

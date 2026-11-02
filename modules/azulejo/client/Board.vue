@@ -23,6 +23,7 @@
 // Slots: none.
 // Side effects: none beyond the emits above (pure rendering otherwise).
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { SIZE, wallColour } from '../rules.js';
 import Tile from './Tile.vue';
 import { PENALTY_LABEL } from './tiles.js';
@@ -43,6 +44,7 @@ const props = defineProps({
   previewLine: { type: [Number, String], default: null },
 });
 const emit = defineEmits(['line', 'floor', 'column', 'hover']);
+const { t } = useGameText();
 
 // The indexes 0..SIZE-1, used for pattern lines and for wall rows and columns alike.
 const rows = Array.from({ length: SIZE }, (_, i) => i);
@@ -59,19 +61,19 @@ const floorSlots = computed(() => Array.from({ length: 7 }, (_, i) => props.seat
 </script>
 
 <template>
-  <section class="board" :class="{ turn: current, mine: isMe, away: !seat.bot && !seat.online }" :style="{ '--t': `${cell}px` }" :aria-label="`${seat.name}'s board`">
+  <section class="board" :class="{ turn: current, mine: isMe, away: !seat.bot && !seat.online }" :style="{ '--t': `${cell}px` }" :aria-label="t('board.label', { name: seat.name })">
     <header class="head">
       <strong class="who">{{ seat.name }}</strong>
-      <span v-if="isMe" class="tag">you</span>
-      <span v-if="seat.bot" class="tag bot">computer</span>
-      <span v-else-if="!seat.online" class="tag away">away</span>
-      <span v-if="current" class="tag turn-tag">to move</span>
-      <span v-if="nextFirst" class="tag first" title="Starts the next round">first next round</span>
-      <span class="score" :title="`${seat.name} has ${seat.score} points`">{{ seat.score }}</span>
+      <span v-if="isMe" class="tag">{{ t('common.you') }}</span>
+      <span v-if="seat.bot" class="tag bot">{{ t('common.computer') }}</span>
+      <span v-else-if="!seat.online" class="tag away">{{ t('common.away') }}</span>
+      <span v-if="current" class="tag turn-tag">{{ t('board.toMove') }}</span>
+      <span v-if="nextFirst" class="tag first" :title="t('board.firstNextTitle')">{{ t('board.firstNext') }}</span>
+      <span class="score" :title="t('board.scoreTitle', { name: seat.name, count: seat.score }, seat.score)">{{ seat.score }}</span>
     </header>
 
     <div class="grid">
-      <div class="lines" role="group" aria-label="Pattern lines">
+      <div class="lines" role="group" :aria-label="t('board.patternLines')">
         <component
           :is="hint(i) ? 'button' : 'div'"
           v-for="i in rows"
@@ -86,7 +88,7 @@ const floorSlots = computed(() => Array.from({ length: 7 }, (_, i) => props.seat
           :type="hint(i) ? 'button' : undefined"
           :title="hint(i)?.title"
           :aria-disabled="hint(i) ? !hint(i).ok : undefined"
-          :aria-label="`Line ${i + 1}: ${seat.lines[i].count} of ${i + 1} tiles`"
+          :aria-label="t('board.line', { n: i + 1, count: seat.lines[i].count, capacity: i + 1 })"
           @click="hint(i) && emit('line', i)"
           @mouseenter="hint(i) && emit('hover', i)"
           @mouseleave="hint(i) && emit('hover', null)"
@@ -100,10 +102,10 @@ const floorSlots = computed(() => Array.from({ length: 7 }, (_, i) => props.seat
         </component>
       </div>
 
-      <div class="wall" role="group" :aria-label="free ? 'Wall (free)' : 'Wall'" :class="{ choosing: Boolean(choose) }">
+      <div class="wall" role="group" :aria-label="free ? t('board.wallFree') : t('board.wall')" :class="{ choosing: Boolean(choose) }">
         <div v-for="r in rows" :key="r" class="wall-row" :class="{ marked: highlightRow === r }">
           <template v-for="c in rows" :key="c">
-            <button v-if="isChoice(r, c)" type="button" class="spot choice" :aria-label="`Put the tile in row ${r + 1}, column ${c + 1}`" @click="emit('column', c)">
+            <button v-if="isChoice(r, c)" type="button" class="spot choice" :aria-label="t('board.putTile', { row: r + 1, col: c + 1 })" @click="emit('column', c)">
               <Tile :colour="choose.colour" :size="cell - 6" ghost />
             </button>
             <span v-else class="spot" :class="{ filled: seat.wall[r][c] !== null }">
@@ -121,14 +123,14 @@ const floorSlots = computed(() => Array.from({ length: 7 }, (_, i) => props.seat
       :class="{ open: floorOpen, preview: previewLine === 'floor' }"
       :type="floorOpen ? 'button' : undefined"
       :title="floorOpen ? floorTitle : undefined"
-      aria-label="Floor line"
+      :aria-label="t('board.floorLine')"
       @click="floorOpen && emit('floor')"
       @mouseenter="floorOpen && emit('hover', 'floor')"
       @mouseleave="floorOpen && emit('hover', null)"
       @focus="floorOpen && emit('hover', 'floor')"
       @blur="floorOpen && emit('hover', null)"
     >
-      <span class="floor-label">Floor</span>
+      <span class="floor-label">{{ t('board.floor') }}</span>
       <span v-for="(slot, i) in floorSlots" :key="i" class="fslot">
         <span class="fbox"><Tile v-if="slot !== null" :colour="slot" :size="cell * 0.62" /></span>
         <span class="pen">{{ PENALTY_LABEL[i] }}</span>

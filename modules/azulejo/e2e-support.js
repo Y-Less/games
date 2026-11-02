@@ -103,8 +103,8 @@ export function checkFinal(state) {
   const best = Math.max(...final.map((r) => r.total * 100 + r.rows));
   assert.deepEqual(state.winners, final.filter((r) => r.total * 100 + r.rows === best).map((r) => r.seat));
   const rounds = state.scoreboard.rounds;
-  assert.equal(rounds.at(-1).label, 'Bonuses');
-  rounds.slice(0, -1).forEach((r, i) => assert.equal(r.label, `Round ${i + 1}`));
+  assert.deepEqual(rounds.at(-1).label, { key: 'bonuses' });
+  rounds.slice(0, -1).forEach((r, i) => assert.deepEqual(r.label, { key: 'round', params: { n: i + 1 } }));
   for (const p of state.scoreboard.players) {
     assert.equal(p.score, final[p.id].total, 'the sticky bar shows the final score');
     assert.equal(state.seats[p.id].score, p.score);

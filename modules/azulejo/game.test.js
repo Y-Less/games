@@ -8,11 +8,17 @@ import { assertInvariants, playingRoom, seeded, setTable, setWall, viewLeaks } f
 
 const SIZES = [2, 3, 4, 5];
 const snapshot = (room) => JSON.stringify(room);
-const failsAtomically = (room, action, pattern) => {
+// A history label or note as the rules make it: a message, { key, params? } (see shared/messages.js).
+const msg = (key, params) => (params ? { key, params } : { key });
+const round = (n) => msg('round', { n });
+const BONUSES = msg('bonuses');
+// A refusal is a code (`errors.` in the game's locale file) and the values its words need, never a sentence.
+const failsAtomically = (room, action, code) => {
   const before = snapshot(room);
   const result = action();
   assert.equal(result.ok, false);
-  if (pattern) assert.match(result.error, pattern);
+  if (typeof code === 'string') assert.equal(result.error, code);
+  else if (code) assert.deepEqual({ error: result.error, params: result.params }, code);
   assert.equal(snapshot(room), before, 'a failed action changes nothing');
   return result;
 };
@@ -217,35 +223,36 @@ test('when the bag runs out the lid is shuffled back in; if both run out play go
   finishRound(none.room, none.rng);
   assert.equal(none.room.phase, 'finished');
   assert.equal(none.room.round, 1);
-  assert.equal(none.room.history.at(-1).label, 'Bonuses');
+  assert.deepEqual(none.room.history.at(-1).label, BONUSES);
 });
 
 // ---- taking tiles ----
 
-test('every illegal take is refused, atomically, with a sentence that gives nothing away', () => {
+test('every illegal take is refused, atomically, with a code that gives nothing away', () => {
   const { room } = playingRoom(3, { seed: 4 });
   setTable(room, { factories: [[0, 0, 1, 2], [3, 3, 3, 4], [1, 1, 2, 2]], centre: [4, 4], turn: 0 });
   const take = (seat, args) => () => game.takeTiles(room, seat, args, Math.random);
-  failsAtomically(room, take(1, { source: 0, colour: 0, line: 0 }), /not your turn/);
-  failsAtomically(room, take(0, { source: 9, colour: 0, line: 0 }), /factory display or the centre/);
-  failsAtomically(room, take(0, { source: -1, colour: 0, line: 0 }), /factory display or the centre/);
-  failsAtomically(room, take(0, { source: 'x', colour: 0, line: 0 }), /factory display or the centre/);
-  failsAtomically(room, take(0, { source: 0.5, colour: 0, line: 0 }), /factory display or the centre/);
-  failsAtomically(room, take(0, { source: 0, colour: 5, line: 0 }), /Choose a colour/);
-  failsAtomically(room, take(0, { source: 0, colour: '0', line: 0 }), /Choose a colour/);
-  failsAtomically(room, take(0, { source: 0, colour: 3, line: 0 }), /no Verdigris in factory 1/);
-  failsAtomically(room, take(0, { source: 'centre', colour: 0, line: 0 }), /no Cobalt in the centre/);
-  failsAtomically(room, take(0, { source: 0, colour: 0, line: 5 }), /no such pattern line/);
-  failsAtomically(room, take(0, { source: 0, colour: 0, line: -1 }), /no such pattern line/);
-  failsAtomically(room, take(0, { source: 0, colour: 0, line: 'floors' }), /no such pattern line/);
-  failsAtomically(room, take(0, { source: 0, colour: 0 }), /no such pattern line/);
-  failsAtomically(room, () => game.takeTiles(room, 0, null, Math.random), /factory display or the centre/);
-  failsAtomically(room, () => game.takeTiles(room, 0, 'x', Math.random), /factory display or the centre/);
-  failsAtomically(room, () => game.takeTiles(room, 7, { source: 0, colour: 0, line: 0 }, Math.random), /not your turn/);
+  failsAtomically(room, take(1, { source: 0, colour: 0, line: 0 }), 'notYourTurn');
+  failsAtomically(room, take(0, { source: 9, colour: 0, line: 0 }), 'chooseSource');
+  failsAtomically(room, take(0, { source: -1, colour: 0, line: 0 }), 'chooseSource');
+  failsAtomically(room, take(0, { source: 'x', colour: 0, line: 0 }), 'chooseSource');
+  failsAtomically(room, take(0, { source: 0.5, colour: 0, line: 0 }), 'chooseSource');
+  failsAtomically(room, take(0, { source: 0, colour: 5, line: 0 }), 'chooseColour');
+  failsAtomically(room, take(0, { source: 0, colour: '0', line: 0 }), 'chooseColour');
+  // The refusal names the colour and the source as messages, so it says the same in every language.
+  failsAtomically(room, take(0, { source: 0, colour: 3, line: 0 }), { error: 'noColourInSource', params: { colour: msg('colour.3'), source: msg('source.factory', { n: 1 }) } });
+  failsAtomically(room, take(0, { source: 'centre', colour: 0, line: 0 }), { error: 'noColourInSource', params: { colour: msg('colour.0'), source: msg('source.centre') } });
+  failsAtomically(room, take(0, { source: 0, colour: 0, line: 5 }), 'noSuchLine');
+  failsAtomically(room, take(0, { source: 0, colour: 0, line: -1 }), 'noSuchLine');
+  failsAtomically(room, take(0, { source: 0, colour: 0, line: 'floors' }), 'noSuchLine');
+  failsAtomically(room, take(0, { source: 0, colour: 0 }), 'noSuchLine');
+  failsAtomically(room, () => game.takeTiles(room, 0, null, Math.random), 'chooseSource');
+  failsAtomically(room, () => game.takeTiles(room, 0, 'x', Math.random), 'chooseSource');
+  failsAtomically(room, () => game.takeTiles(room, 7, { source: 0, colour: 0, line: 0 }, Math.random), 'notYourTurn');
   room.phase = 'finished';
-  failsAtomically(room, take(0, { source: 0, colour: 0, line: 0 }), /not being played/);
+  failsAtomically(room, take(0, { source: 0, colour: 0, line: 0 }), 'notPlaying');
   room.phase = 'lobby';
-  failsAtomically(room, take(0, { source: 0, colour: 0, line: 0 }), /not being played/);
+  failsAtomically(room, take(0, { source: 0, colour: 0, line: 0 }), 'notPlaying');
 });
 
 test('placing: empty or same colour only, not on a full line, not where the wall row has the colour', () => {
@@ -255,10 +262,10 @@ test('placing: empty or same colour only, not on a full line, not where the wall
   room.lines[0][2] = { colour: 0, count: 3 };
   room.walls[0][3][wallColumn(3, 2)] = 2; // colour 2 already in wall row 4 (index 3)
   const take = (args) => () => game.takeTiles(room, 0, args, Math.random);
-  failsAtomically(room, take({ source: 0, colour: 0, line: 1 }), /Line 2 already holds Saffron/);
-  failsAtomically(room, take({ source: 0, colour: 1, line: 2 }), /Line 3 is already full|Line 3 already holds Cobalt/);
-  failsAtomically(room, take({ source: 0, colour: 0, line: 2 }), /already full/);
-  failsAtomically(room, take({ source: 1, colour: 2, line: 3 }), /Row 4 of your wall already has Terracotta/);
+  failsAtomically(room, take({ source: 0, colour: 0, line: 1 }), { error: 'lineHolds', params: { line: 2, colour: msg('colour.1') } });
+  assert.ok(['lineFull', 'lineHolds'].includes(failsAtomically(room, take({ source: 0, colour: 1, line: 2 })).error), 'line 3 is full of another colour');
+  failsAtomically(room, take({ source: 0, colour: 0, line: 2 }), 'lineFull');
+  failsAtomically(room, take({ source: 1, colour: 2, line: 3 }), { error: 'rowHasColour', params: { row: 4, colour: msg('colour.2') } });
   assert.equal(game.legalMoves(room, 0).some((m) => m.source === 1 && m.colour === 2 && m.line === 3), false);
   assert.equal(game.legalMoves(room, 0).some((m) => m.source === 1 && m.colour === 2 && m.line === 'floor'), true, 'the floor is always legal');
   assert.equal(game.takeTiles(room, 0, { source: 1, colour: 2, line: 4 }, Math.random).ok, true, 'but another line is fine');
@@ -318,7 +325,7 @@ test('a full pattern line takes no more tiles, even of its own colour', () => {
   const { room } = playingRoom(2, { seed: 4 });
   setTable(room, { factories: [[1, 1, 0, 0]], centre: [], turn: 0 });
   room.lines[0][1] = { colour: 1, count: 2 };
-  failsAtomically(room, () => game.takeTiles(room, 0, { source: 0, colour: 1, line: 1 }, Math.random), /already full/);
+  failsAtomically(room, () => game.takeTiles(room, 0, { source: 0, colour: 1, line: 1 }, Math.random), 'lineFull');
   assert.equal(game.takeTiles(room, 0, { source: 0, colour: 1, line: 'floor' }, Math.random).ok, true);
 });
 
@@ -348,7 +355,7 @@ test('the marker: the first take from the centre takes it onto the floor line, a
   assert.deepEqual(room.floors[1], [], 'and the floor line was emptied');
   // Seat 0 and seat 1 each completed line 2 (1 point) and seat 1 lost 1 for the marker; seat 2 lost 1 for the tile.
   assert.deepEqual(room.history[0].deltas, { 0: 1, 1: 0, 2: 0 });
-  assert.equal(room.history[0].notes[1], 'floor -1');
+  assert.deepEqual(room.history[0].notes[1], [msg('notes.floor', { lost: 1 })]);
 });
 
 test('only the first player to take from the centre gets the marker', () => {
@@ -416,7 +423,7 @@ test('wall-tiling: full lines move their rightmost tile to the wall, score, the 
   // Lid: two Plum from line 3, the floor tiles 0,1,2 and 0,0,0,0.
   const counts = [0, 1, 2, 3, 4].map((c) => room.lid.filter((x) => x === c).length);
   assert.deepEqual(counts, [1 + 4, 1, 1, 0, 2]);
-  assert.deepEqual(room.history[0], { label: 'Round 1', deltas: { 0: 1, 1: -1 }, notes: { 0: 'floor -4', 1: 'floor -2' } });
+  assert.deepEqual(room.history[0], { label: round(1), deltas: { 0: 1, 1: -1 }, notes: { 0: [msg('notes.floor', { lost: 4 })], 1: [msg('notes.floor', { lost: 2 })] } });
   assert.deepEqual(room.tally.map((t) => t.floorPenalties), [4, 2], 'points actually lost to the floor');
   assert.equal(room.round, 2);
   assert.equal(room.phase, 'playing');
@@ -466,7 +473,7 @@ test('the score never goes below 0, and the history records the change actually 
   finishRound(room, rng);
   assert.deepEqual(room.scores, [0, 0]);
   assert.deepEqual(room.history[0].deltas, { 0: -2, 1: 0 });
-  assert.deepEqual(room.history[0].notes, { 0: 'floor -2' });
+  assert.deepEqual(room.history[0].notes, { 0: [msg('notes.floor', { lost: 2 })] });
 });
 
 test('a room saved before the floor-penalty counter existed does not end up with NaN', () => {
@@ -507,12 +514,12 @@ test('the game does not end while no row is complete, and ends after the round i
   assert.equal(done.room.round, 1);
   // The tile scores 5, the row bonus is +2.
   assert.deepEqual(done.room.scores, [4 + 5 + 2, 4]);
-  assert.deepEqual(done.room.history.map((h) => h.label), ['Round 1', 'Bonuses']);
+  assert.deepEqual(done.room.history.map((h) => h.label), [round(1), BONUSES]);
   assert.deepEqual(done.room.history[0].deltas, { 0: 5, 1: 0 });
-  assert.equal(done.room.history[0].notes[0], 'row complete');
+  assert.deepEqual(done.room.history[0].notes[0], [msg('notes.rowsComplete', { count: 1 })]);
   assert.deepEqual(done.room.history[1].deltas, { 0: 2, 1: 0 });
-  assert.equal(done.room.history[1].notes[0], '1 row');
-  assert.equal(done.room.history[1].notes[1], 'no bonuses');
+  assert.deepEqual(done.room.history[1].notes[0], [msg('notes.rows', { count: 1 })]);
+  assert.deepEqual(done.room.history[1].notes[1], msg('notes.noBonuses'));
   assert.deepEqual(done.room.winners, [0]);
   assert.equal(done.room.turn, null);
   assert.equal(game.takeTiles(done.room, 0, { source: 0, colour: 0, line: 0 }, Math.random).ok, false, 'no moves after the end');
@@ -526,8 +533,8 @@ test('the game ends when two players complete rows in the same round, and a row 
   room.lines[2][4] = { colour: wallColour(4, 1), count: 5 };
   finishRound(room, rng);
   assert.equal(room.phase, 'finished');
-  assert.equal(room.history[0].notes[0], 'row complete');
-  assert.equal(room.history[0].notes[2], 'row complete');
+  assert.deepEqual(room.history[0].notes[0], [msg('notes.rowsComplete', { count: 1 })]);
+  assert.deepEqual(room.history[0].notes[2], [msg('notes.rowsComplete', { count: 1 })]);
   assert.equal(room.final.players[0].rows, 1);
   assert.equal(room.final.players[2].rows, 1);
 });
@@ -543,7 +550,7 @@ test('end-of-game bonuses: +2 per row, +7 per column, +10 per colour: a full wal
   assert.equal(room.history[0].deltas[0], 10);
   assert.deepEqual(room.final.players[0], { seat: 0, name: 'p1', before: 30, rows: 5, columns: 5, sets: 5, bonus: 2 * 5 + 7 * 5 + 10 * 5, total: 30 + 95, placement: 1 });
   assert.equal(room.scores[0], 125);
-  assert.equal(room.history[1].notes[0], '5 rows, 5 columns, 5 colour sets');
+  assert.deepEqual(room.history[1].notes[0], [msg('notes.rows', { count: 5 }), msg('notes.columns', { count: 5 }), msg('notes.sets', { count: 5 })]);
 });
 
 test('bonuses from columns and colour sets alone', () => {
@@ -628,14 +635,14 @@ test('free wall: the rules for a line use rows and columns, not fixed places', (
   assert.equal(room.walls.every((w) => w.flat().every((c) => c === null)), true, 'a blank wall');
   room.walls[0][2] = [0, 2, null, null, null];
   const take = (args) => () => game.takeTiles(room, 0, args, Math.random);
-  failsAtomically(room, take({ source: 0, colour: 2, line: 2 }), /Row 3 of your wall already has Terracotta/);
+  failsAtomically(room, take({ source: 0, colour: 2, line: 2 }), { error: 'rowHasColour', params: { row: 3, colour: msg('colour.2') } });
   assert.equal(game.takeTiles(room, 0, { source: 0, colour: 2, line: 1 }, Math.random).ok, true, 'a free wall allows it in another row');
   // A colour that has no free column left in the row: row 4 full of other colours except one column holding colour 1 above.
   const blocked = playingRoom(2, { seed: 4, free: true });
   setTable(blocked.room, { factories: [[1, 1, 0, 0]], centre: [], turn: 0 });
   blocked.room.walls[0][3] = [0, 2, 3, 4, null];
   blocked.room.walls[0][0][4] = 1;
-  failsAtomically(blocked.room, () => game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 3 }, Math.random), /Saffron has no free column left in row 4/);
+  failsAtomically(blocked.room, () => game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 3 }, Math.random), { error: 'noFreeColumn', params: { row: 4, colour: msg('colour.1') } });
   assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 0, line: 3 }, Math.random).ok, false, 'colour 0 is in that row');
   assert.equal(game.takeTiles(blocked.room, 0, { source: 0, colour: 1, line: 2 }, Math.random).ok, true);
 });
@@ -690,7 +697,7 @@ test('free wall: a full line with no legal column left goes to the lid and score
   assert.equal(room.walls[0][2][4], null);
   assert.equal(room.scores[0], 0);
   assert.equal(room.lid.filter((c) => c === 1).length, 3);
-  assert.match(room.history[0].notes[0], /no room on the wall/);
+  assert.ok(room.history[0].notes[0].some((n) => n.key === 'notes.noRoom'), 'the note says a full line found no place');
 });
 
 test('free wall: an earlier tile of the same phase can use up the last place of a later row', () => {
@@ -772,9 +779,9 @@ test('the scoreboard history sums to the scores after every round of a whole gam
     }
   }
   assert.equal(room.phase, 'finished');
-  assert.equal(room.history.at(-1).label, 'Bonuses');
+  assert.deepEqual(room.history.at(-1).label, BONUSES);
   assert.equal(room.history.length, room.playedRounds + 1);
-  assert.deepEqual(room.history.slice(0, -1).map((h) => h.label), Array.from({ length: room.playedRounds }, (_, i) => `Round ${i + 1}`));
+  assert.deepEqual(room.history.slice(0, -1).map((h) => h.label), Array.from({ length: room.playedRounds }, (_, i) => round(i + 1)));
   assert.ok(rounds >= 6);
   assertInvariants(room, 'finished random game');
 });

@@ -106,17 +106,18 @@ test('which line a colour may go on', () => {
   const lines = emptyLines();
   for (let line = 0; line < 5; line++) assert.equal(lineProblem(lines, wall, line, 2), null, 'an empty line takes any colour');
   lines[2] = { colour: 1, count: 2 };
-  assert.match(lineProblem(lines, wall, 2, 2), /already holds Saffron/);
+  // The reason is a message, an `errors.` key with the values its words need (see shared/messages.js).
+  assert.deepEqual(lineProblem(lines, wall, 2, 2), { key: 'errors.lineHolds', params: { line: 3, colour: { key: 'colour.1' } } });
   assert.equal(lineProblem(lines, wall, 2, 1), null, 'the same colour');
   lines[2].count = 3;
-  assert.match(lineProblem(lines, wall, 2, 1), /already full/);
-  assert.match(lineProblem(lines, wall, 5, 1), /no such/);
-  assert.match(lineProblem(lines, wall, -1, 1), /no such/);
-  assert.match(lineProblem(lines, wall, 1.5, 1), /no such/);
-  assert.match(lineProblem(lines, wall, '1', 1), /no such/);
+  assert.deepEqual(lineProblem(lines, wall, 2, 1), { key: 'errors.lineFull', params: { line: 3 } });
+  assert.deepEqual(lineProblem(lines, wall, 5, 1), { key: 'errors.noSuchLine' });
+  assert.deepEqual(lineProblem(lines, wall, -1, 1), { key: 'errors.noSuchLine' });
+  assert.deepEqual(lineProblem(lines, wall, 1.5, 1), { key: 'errors.noSuchLine' });
+  assert.deepEqual(lineProblem(lines, wall, '1', 1), { key: 'errors.noSuchLine' });
   // The wall row already has the colour.
   wall[3][wallColumn(3, 4)] = 4;
-  assert.match(lineProblem(lines, wall, 3, 4), /Row 4 of your wall already has Plum/);
+  assert.deepEqual(lineProblem(lines, wall, 3, 4), { key: 'errors.rowHasColour', params: { row: 4, colour: { key: 'colour.4' } } });
   assert.equal(lineProblem(lines, wall, 3, 3), null);
   assert.equal(lineProblem(lines, wall, 4, 4), null, 'other rows are not affected');
 });

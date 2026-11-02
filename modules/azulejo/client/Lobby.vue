@@ -11,8 +11,11 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
+import { FACTORY_TILES, PER_COLOUR } from '../rules.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // True when this player is the host and so may change settings.
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -38,7 +41,7 @@ const plates = computed(() => 2 * props.state.size + 1);
 <template>
   <div class="stack lobby-wrap">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -52,9 +55,9 @@ const plates = computed(() => 2 * props.state.size + 1);
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Players (seats)</legend>
+          <legend class="muted">{{ t('lobby.players') }}</legend>
           <div class="row">
             <button
               v-for="n in state.limits.sizes"
@@ -62,23 +65,20 @@ const plates = computed(() => 2 * props.state.size + 1);
               :class="{ primary: state.size === n }"
               :aria-pressed="state.size === n"
               :disabled="seated > n"
-              :title="seated > n ? 'Remove some players first' : ''"
+              :title="seated > n ? t('lobby.removeFirst') : ''"
               @click="send('size', { seats: n })"
             >
-              {{ n }} players
+              {{ t('lobby.playerCount', { n }) }}
             </button>
           </div>
-          <p class="muted small">{{ plates }} display plates of four tiles each, from a bag of 100 tiles (20 of each colour).</p>
+          <p class="muted small">{{ t('lobby.plates', { plates, perPlate: FACTORY_TILES, tiles: state.limits.tiles, perColour: PER_COLOUR }) }}</p>
         </fieldset>
         <label class="check">
           <input type="checkbox" :checked="state.settings.freeWall" :disabled="!isHost" @change="send('settings', { freeWall: $event.target.checked })" />
-          <span><strong>Free wall</strong> (off by default)</span>
+          <span><strong>{{ t('freeWall') }}</strong> {{ t('lobby.offByDefault') }}</span>
         </label>
-        <p class="muted small rule-note" role="status">
-          <template v-if="state.settings.freeWall">The wall starts blank. When a line scores, its owner chooses the column for the tile in that row; no colour may repeat in a row or a column. A line can only be used while its row still has a free column for that colour.</template>
-          <template v-else>The standard wall: every row is the row above shifted one place, and each colour has one fixed place in every row.</template>
-        </p>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p class="muted small rule-note" role="status">{{ state.settings.freeWall ? t('lobby.freeWallOn') : t('lobby.freeWallOff') }}</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

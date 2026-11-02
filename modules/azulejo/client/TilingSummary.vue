@@ -8,6 +8,7 @@
 //   you     {number}  the viewer's seat, to highlight their row (default -1: nobody).
 // Emits: none. Slots: none.
 // Side effects: none (pure rendering).
+import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';
 
 defineProps({
@@ -15,24 +16,23 @@ defineProps({
   seats: { type: Array, required: true },
   you: { type: Number, default: -1 },
 });
-// Returns the human-readable (1-based) name of a zero-based wall row, for tooltips.
-const rowName = (row) => `row ${row + 1}`;
+const { t } = useGameText();
 </script>
 
 <template>
-  <div class="summary" role="group" :aria-label="`Wall-tiling of round ${tiling.round}`">
-    <h4>Wall-tiling, round {{ tiling.round }}</h4>
+  <div class="summary" role="group" :aria-label="t('tiling.label', { n: tiling.round })">
+    <h4>{{ t('tiling.title', { n: tiling.round }) }}</h4>
     <ul>
       <li v-for="p in tiling.players" :key="p.seat" :class="{ me: p.seat === you }">
         <strong class="name">{{ seats[p.seat]?.name }}</strong>
         <span class="placed">
-          <span v-for="t in p.placed" :key="t.row" class="chip" :title="`${rowName(t.row)}: ${t.points} ${t.points === 1 ? 'point' : 'points'}`">
-            <Tile :colour="t.colour" :size="20" /><b>+{{ t.points }}</b>
+          <span v-for="tile in p.placed" :key="tile.row" class="chip" :title="t('tiling.chip', { row: tile.row + 1, count: tile.points }, tile.points)">
+            <Tile :colour="tile.colour" :size="20" /><b>+{{ tile.points }}</b>
           </span>
-          <span v-if="!p.placed.length" class="muted">no line was full</span>
-          <span v-if="p.dropped.length" class="muted">({{ p.dropped.length }} full {{ p.dropped.length === 1 ? 'line' : 'lines' }} found no place)</span>
+          <span v-if="!p.placed.length" class="muted">{{ t('tiling.noneFull') }}</span>
+          <span v-if="p.dropped.length" class="muted">{{ t('tiling.dropped', { count: p.dropped.length }, p.dropped.length) }}</span>
         </span>
-        <span class="floor" :class="{ none: !p.penalty }">floor {{ p.penalty ? `-${p.lost}` : '0' }}</span>
+        <span class="floor" :class="{ none: !p.penalty }">{{ p.penalty ? t('tiling.floorLost', { lost: p.lost }) : t('tiling.floorNone') }}</span>
         <span class="after">{{ p.before }} → <strong>{{ p.after }}</strong></span>
       </li>
     </ul>
