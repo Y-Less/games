@@ -2,11 +2,19 @@
 // The Achievements page: for the site and then for each game, every achievement with the level you have reached and how far
 // you are towards the next. The rules for levels are in shared/achievements.js; the server works out the numbers.
 // Props: none. Emits: none. Slots: none.
-// Depends on: api.js (GET /api/achievements) and session.js. Side effects: one request on mount.
+// Depends on: api.js (GET /api/achievements), session.js, catalogueText.js (the names and texts a language may translate)
+// and messageText.js (intlLocale). Side effects: one request on mount.
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
+import { catalogue } from '../catalogueText.js';
+import { intlLocale } from '../messageText.js';
 import { session } from '../session.js';
 
+/** The section that is the site's own rather than a game's (server/achievements.js). */
+const SITE_SECTION = 'global';
+
+const { t } = useI18n();
 const sections = ref(null); // the server's sections once loaded (null while loading)
 const failed = ref(''); // the error text if loading failed
 
@@ -20,8 +28,8 @@ onMounted(async () => {
   }
 });
 
-// Returns n formatted with UK thousands separators.
-const number = (n) => n.toLocaleString('en-GB');
+// Returns n in the language's digits and grouping.
+const number = (n) => n.toLocaleString(intlLocale());
 // Returns progress (0 to 1) as a whole percentage, rounded down.
 const percent = (progress) => Math.floor(progress * 100);
 // Returns true when achievement `a` is at its top level.
@@ -34,39 +42,52 @@ const single = (a) => a.maxLevel === 1; // one level: you have it or you do not,
 const unlocked = (section) => section.achievements.reduce((sum, a) => sum + a.level, 0);
 // Returns the total of levels available across a section's achievements.
 const possible = (section) => section.achievements.reduce((sum, a) => sum + a.maxLevel, 0);
+// Returns a section's heading: the site's own words for its section, a game's name for the rest.
+const sectionName = (section) => (section.id === SITE_SECTION ? t('achievements.site') : catalogue.gameName(section));
+// Returns an achievement's name in the language.
+const name = (section, a) => catalogue.achievementName(section.id, a);
+// Returns what a level ({ n, text }) of an achievement asks for, in the language.
+const goal = (section, a, level) => catalogue.achievementText(section.id, a, level.n, level.text);
+// Returns the badge text beside an achievement's name.
+function badge(a) {
+  if (hidden(a)) return t('achievements.locked');
+  if (single(a)) return t('achievements.unlocked');
+  if (done(a)) return t('achievements.complete');
+  return t('achievements.level', { level: a.level });
+}
 </script>
 
 <template>
   <section class="stack achievements">
-    <h1>Achievements for {{ session.user.displayName }}</h1>
+    <h1>{{ t('achievements.title', { name: session.user.displayName }) }}</h1>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
-    <p v-else-if="!sections" class="muted">Loading…</p>
+    <p v-else-if="!sections" class="muted">{{ t('common.loading') }}</p>
 
     <template v-else>
-    <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="`${section.name} achievements`">
+    <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="t('achievements.sectionLabel', { name: sectionName(section) })">
       <header class="heading">
-        <h2>{{ section.name }}</h2>
-        <span class="muted tally">{{ unlocked(section) }} of {{ possible(section) }} levels</span>
+        <h2>{{ sectionName(section) }}</h2>
+        <span class="muted tally">{{ t('achievements.tally', { unlocked: number(unlocked(section)), possible: number(possible(section)) }) }}</span>
       </header>
       <ul class="boxes">
         <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a), locked: hidden(a) }" :data-achievement="a.id">
           <div class="top">
-            <h3>{{ hidden(a) ? '???' : a.name }}</h3>
-            <span class="level" :title="`${a.level} of ${a.maxLevel} levels`">{{ hidden(a) ? 'Locked' : single(a) ? 'Unlocked' : done(a) ? 'Complete' : `Level ${a.level}` }}</span>
+            <h3>{{ hidden(a) ? t('achievements.secret') : name(section, a) }}</h3>
+            <span class="level" :title="t('achievements.levelsTitle', { level: a.level, max: a.maxLevel })">{{ badge(a) }}</span>
           </div>
-          <p v-if="hidden(a)" class="goal">???</p>
+          <p v-if="hidden(a)" class="goal">{{ t('achievements.secret') }}</p>
           <template v-else>
           <ol v-if="!single(a)" class="pips" aria-hidden="true">
             <li v-for="(l, i) in a.levels" :key="i" :class="{ on: l.done }" />
           </ol>
-          <p v-if="single(a)" class="goal">{{ a.levels[0].text }}</p>
-          <p v-else-if="a.next" class="goal">Level {{ a.level + 1 }}: {{ a.next.text }}</p>
-          <p v-else class="goal">Level {{ a.maxLevel }}: {{ a.current.text }}</p>
-          <div v-if="!single(a)" class="bar" role="progressbar" :aria-valuenow="percent(a.progress)" aria-valuemin="0" aria-valuemax="100" :aria-label="`${a.name}: progress towards the next level`">
+          <p v-if="single(a)" class="goal">{{ goal(section, a, a.levels[0]) }}</p>
+          <p v-else-if="a.next" class="goal">{{ t('achievements.levelGoal', { level: a.level + 1, text: goal(section, a, a.next) }) }}</p>
+          <p v-else class="goal">{{ t('achievements.levelGoal', { level: a.maxLevel, text: goal(section, a, a.current) }) }}</p>
+          <div v-if="!single(a)" class="bar" role="progressbar" :aria-valuenow="percent(a.progress)" aria-valuemin="0" aria-valuemax="100" :aria-label="t('achievements.progressLabel', { name: name(section, a) })">
             <i :style="{ width: `${percent(a.progress)}%` }" />
           </div>
           <p v-if="!single(a)" class="count muted">
-            <template v-if="a.next">{{ number(a.value) }} / {{ number(a.next.n) }}</template>
+            <template v-if="a.next">{{ t('achievements.countOf', { value: number(a.value), target: number(a.next.n) }) }}</template>
             <template v-else>{{ number(a.value) }}</template>
           </p>
           </template>

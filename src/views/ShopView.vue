@@ -3,8 +3,9 @@
 // backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
 // Props: none (the tab comes from the route). Emits: none. Slots: none.
-// Depends on: shopStore.js (listing, buy), profileApi.js (use an item), session.js, appearance.js, shared/avatar.js and the
-// preview components. Side effects: refreshes the shop on mount; buying spends coins; using an item saves the profile.
+// Depends on: shopStore.js (listing, buy), profileApi.js (use an item), session.js, appearance.js, catalogueText.js (item
+// and avatar part names a language may translate), shared/avatar.js and the preview components.
+// Side effects: refreshes the shop on mount; buying spends coins; using an item saves the profile.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { AVATAR_SLOTS, normaliseAvatar } from '../../shared/avatar.js';
@@ -12,30 +13,32 @@ import AvatarFigure from '../components/AvatarFigure.vue';
 import BackgroundFx from '../components/BackgroundFx.vue';
 import StyledName from '../components/StyledName.vue';
 import { animationsPlaying, backgroundCss, cardBackCss } from '../appearance.js';
+import { catalogue } from '../catalogueText.js';
 import { updateProfile } from '../profileApi.js';
 import { session } from '../session.js';
 import { buy, refreshShop } from '../shopStore.js';
 
-// The shop's tabs: the URL slug, the label and the kinds of item (and, for avatars, the slots) listed under each.
+// The shop's tabs: the URL slug, the key of the label and the kinds of item listed under each, with the key of each
+// section's title (an avatar section is titled by its slot, which the catalogue names).
 const TABS = [
   {
     slug: 'names',
-    label: 'Names',
-    sections: [{ type: 'name-style', title: 'Styles' }, { type: 'name-animation', title: 'Animations' }],
+    label: 'shop.tabs.names',
+    sections: [{ type: 'name-style', title: 'shop.sections.styles' }, { type: 'name-animation', title: 'shop.sections.animations' }],
   },
   {
     slug: 'backgrounds',
-    label: 'Backgrounds',
-    sections: [{ type: 'background', title: 'Pictures' }, { type: 'background-animation', title: 'Animations' }],
+    label: 'shop.tabs.backgrounds',
+    sections: [{ type: 'background', title: 'shop.sections.pictures' }, { type: 'background-animation', title: 'shop.sections.animations' }],
   },
   {
     slug: 'themes',
-    label: 'Themes',
-    sections: [{ type: 'site-theme', title: 'Colours' }, { type: 'site-font', title: 'Fonts' }],
+    label: 'shop.tabs.themes',
+    sections: [{ type: 'site-theme', title: 'shop.sections.colours' }, { type: 'site-font', title: 'shop.sections.fonts' }],
   },
-  { slug: 'card-backs', label: 'Card backs', sections: [{ type: 'card-back' }] },
-  { slug: 'avatar', label: 'Avatar', sections: AVATAR_SLOTS.map(({ slot, label }) => ({ type: 'avatar', slot, title: label })) },
-  { slug: 'unlocks', label: 'Unlocks', sections: [{ type: 'unlock' }] },
+  { slug: 'card-backs', label: 'shop.tabs.cardBacks', sections: [{ type: 'card-back' }] },
+  { slug: 'avatar', label: 'shop.tabs.avatar', sections: AVATAR_SLOTS.map((slot) => ({ type: 'avatar', slot: slot.slot, slotDefinition: slot })) },
+  { slug: 'unlocks', label: 'shop.tabs.unlocks', sections: [{ type: 'unlock' }] },
 ];
 const route = useRoute();
 // The tab named in the address (the first one for /shop on its own).
@@ -115,22 +118,26 @@ function use(item) {
 <template>
   <section class="stack shop">
     <header class="top">
-      <h1>Shop</h1>
-      <p class="coins" aria-live="polite"><span class="coin" aria-hidden="true" /> <strong>{{ balance }}</strong> gold</p>
+      <h1>{{ $t('shop.title') }}</h1>
+      <p class="coins" aria-live="polite">
+        <span class="coin" aria-hidden="true" />
+        <i18n-t keypath="shop.goldBalance" tag="span"><template #n><strong>{{ balance }}</strong></template></i18n-t>
+      </p>
     </header>
-    <p v-if="!animationsPlaying() && current.sections.length > 1" class="muted motion" role="status">
-      Animations are paused, so these previews stand still. To play them, choose "Always play" in your <RouterLink to="/profile">profile</RouterLink>.
-    </p>
+    <i18n-t v-if="!animationsPlaying() && current.sections.length > 1" keypath="shop.paused" tag="p" class="muted motion" role="status">
+      <template #option>{{ $t('profile.alwaysPlay') }}</template>
+      <template #profile><RouterLink to="/profile">{{ $t('shop.profileLink') }}</RouterLink></template>
+    </i18n-t>
     <p v-if="problem" class="bad" role="alert">{{ problem }}</p>
 
-    <div class="tabs" role="tablist" aria-label="What to browse">
-      <RouterLink v-for="t in TABS" :key="t.slug" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.slug }" :aria-selected="tab === t.slug">{{ t.label }}</RouterLink>
+    <div class="tabs" role="tablist" :aria-label="$t('shop.browse')">
+      <RouterLink v-for="t in TABS" :key="t.slug" :to="`/shop/${t.slug}`" role="tab" class="tab" :class="{ on: tab === t.slug }" :aria-selected="tab === t.slug">{{ $t(t.label) }}</RouterLink>
     </div>
 
-    <p v-if="!session.shop" class="panel">Loading…</p>
+    <p v-if="!session.shop" class="panel">{{ $t('common.loading') }}</p>
     <template v-else>
       <section v-for="section in sections" :key="section.slot ?? section.type" class="group">
-        <h2 v-if="current.sections.length > 1" class="group-title">{{ section.title }}</h2>
+        <h2 v-if="current.sections.length > 1" class="group-title">{{ section.title ? $t(section.title) : catalogue.avatarSlotLabel(section.slotDefinition) }}</h2>
         <ul class="items">
           <li v-for="item in section.items" :key="item.id" class="item panel" :class="{ on: equipped(item) }" :data-item="item.id">
         <div class="preview">
@@ -144,14 +151,14 @@ function use(item) {
           <span v-else-if="item.type === 'site-font'" class="font-sample" :style="{ fontFamily: item.display }">Aa</span>
           <span v-else class="unlock" aria-hidden="true">★</span>
         </div>
-        <strong class="name">{{ item.name }}</strong>
-        <span v-if="item.type === 'name-animation' && item.part !== 'none'" class="kind">{{ item.part === 'border' ? 'Moves the border' : 'Moves the background' }}</span>
-        <span v-else-if="item.type === 'background-animation' && key(item) === 'gradient'" class="kind">Slides your gradient</span>
-        <span v-if="item.owned && equipped(item)" class="state">In use</span>
-        <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">Use</button>
-        <span v-else-if="item.owned" class="state">Unlocked</span>
-        <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? `You need ${item.price - balance} more gold` : undefined" @click="purchase(item)">
-          Buy for {{ item.price }}
+        <strong class="name">{{ catalogue.shopItemName(item) }}</strong>
+        <span v-if="item.type === 'name-animation' && item.part !== 'none'" class="kind">{{ item.part === 'border' ? $t('shop.movesBorder') : $t('shop.movesBackground') }}</span>
+        <span v-else-if="item.type === 'background-animation' && key(item) === 'gradient'" class="kind">{{ $t('shop.slidesGradient') }}</span>
+        <span v-if="item.owned && equipped(item)" class="state">{{ $t('shop.inUse') }}</span>
+        <button v-else-if="item.owned && item.type !== 'unlock'" :disabled="busy === item.id" @click="use(item)">{{ $t('shop.use') }}</button>
+        <span v-else-if="item.owned" class="state">{{ $t('shop.unlocked') }}</span>
+        <button v-else class="primary" :disabled="busy === item.id || balance < item.price" :title="balance < item.price ? $t('shop.short', { n: item.price - balance }) : undefined" @click="purchase(item)">
+          {{ $t('shop.buyFor', { price: item.price }) }}
         </button>
           </li>
         </ul>

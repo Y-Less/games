@@ -97,6 +97,19 @@ describe('the Help button', () => {
   });
 });
 
+describe('the site name', () => {
+  it('carries its line underneath, inside the link home', async () => {
+    session.ready = true;
+    session.user = { id: 1, displayName: 'Ann' };
+    await router.replace('/');
+    w = mount(App, { global: { plugins: [router] } });
+    const brand = w.find('a.brand');
+    expect(brand.attributes('href')).toBe('/');
+    expect(brand.find('.brand-name').text()).toBe('Game Hub');
+    expect(brand.find('.tagline').text()).toBe('Play with yourself, and others.');
+  });
+});
+
 describe('the account menu', () => {
   it('shows your name in your own style and animation', async () => {
     session.ready = true;

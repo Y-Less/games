@@ -24,22 +24,22 @@ const emit = defineEmits(['addBot', 'removeBot', 'kick', 'fillBots']);
 
 <template>
   <section class="panel stack">
-    <h3>Players ({{ players.length }} of {{ max }})</h3>
+    <h3>{{ $t('lobby.playersCount', { count: players.length, max }) }}</h3>
     <ul class="players">
       <li v-for="p in players" :key="p.id" class="row">
         <slot name="lead" :player="p" />
-        <span class="name">{{ p.name }}<span v-if="p.id === you" class="muted"> (you)</span></span>
-        <span v-if="p.bot" class="muted bot-tag"><BotIcon :size="16" /> computer</span>
-        <span v-if="p.id === hostId" class="muted">host</span>
-        <span v-if="!p.online" class="muted">away</span>
-        <button v-if="isHost && p.bot" class="quiet" @click="emit('removeBot', p.id)">Remove</button>
-        <button v-else-if="isHost && p.id !== you" class="quiet" @click="emit('kick', p.id)">Remove</button>
+        <span class="name">{{ p.name }}<span v-if="p.id === you" class="muted"> {{ $t('common.youBracketed') }}</span></span>
+        <span v-if="p.bot" class="muted bot-tag"><BotIcon :size="16" /> {{ $t('common.computer') }}</span>
+        <span v-if="p.id === hostId" class="muted">{{ $t('common.host') }}</span>
+        <span v-if="!p.online" class="muted">{{ $t('common.away') }}</span>
+        <button v-if="isHost && p.bot" class="quiet" @click="emit('removeBot', p.id)">{{ $t('common.remove') }}</button>
+        <button v-else-if="isHost && p.id !== you" class="quiet" @click="emit('kick', p.id)">{{ $t('common.remove') }}</button>
       </li>
     </ul>
     <div v-if="isHost" class="row bots">
-      <button :disabled="players.length >= max" @click="emit('addBot')">Add a computer player</button>
-      <button v-if="players.length < min" @click="emit('fillBots', min)">Fill up to {{ min }} players with computer players</button>
-      <span v-if="players.length >= max" class="muted">The table is full ({{ max }} players).</span>
+      <button :disabled="players.length >= max" @click="emit('addBot')">{{ $t('lobby.addBot') }}</button>
+      <button v-if="players.length < min" @click="emit('fillBots', min)">{{ $t('lobby.fillUpTo', { count: min }, min) }}</button>
+      <span v-if="players.length >= max" class="muted">{{ $t('lobby.tableFull', { count: max }, max) }}</span>
     </div>
     <slot />
   </section>

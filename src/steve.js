@@ -1,10 +1,15 @@
 // A secret for people who open the browser's console: it prints a banner, and the function the banner names unlocks the
-// global "Steve's Achievement" for whoever is signed in.
+// global "Steve's Achievement" for whoever is signed in. What it says back comes from the site's locale file (steve.*),
+// in the language the site is showing.
 import banner from './steve.txt?raw';
 import { api } from './api.js';
+import { i18n } from './i18n.js';
 
 // The ASCII banner printed to the console (trailing whitespace removed).
 export const STEVE_BANNER = banner.trimEnd();
+
+// The site's words, in whatever language it is showing (this runs outside any component, so it reads the instance).
+const t = (key, params) => i18n.global.t(key, params ?? {});
 
 /**
  * Asks the server to unlock the achievement. Returns what to tell the person who typed it in the console.
@@ -15,9 +20,9 @@ export const STEVE_BANNER = banner.trimEnd();
 export async function claimSteve(call = api) {
   try {
     await call('POST', '/api/achievements/steve', {}); // (the site refuses a POST that is not JSON)
-    return "Steve's Achievement is yours.";
+    return t('steve.yours');
   } catch (error) {
-    return `Sign in first, then try again. (${error.message})`;
+    return t('steve.signInFirst', { reason: error.message });
   }
 }
 

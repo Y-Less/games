@@ -308,6 +308,32 @@ describe('ProfileView animations', () => {
 });
 });
 
+describe('ProfileView language', () => {
+  const select = (w) => w.find('select[aria-label="Language"]');
+
+  it('offers the browser and every language the site has, starting from the saved choice', () => {
+    const w = make();
+    expect(select(w).element.value).toBe(''); // no saved choice: follow the browser
+    const options = select(w).findAll('option').map((o) => [o.element.value, o.text()]);
+    expect(options[0]).toEqual(['', 'Follow my browser']);
+    expect(options).toContainEqual(['en', 'English']); // each language named in itself
+    expect(make({ ...baseUser(), language: 'en' }).find('select[aria-label="Language"]').element.value).toBe('en');
+  });
+
+  it('saves a language, and saves null to follow the browser again', async () => {
+    const w = make();
+    await select(w).setValue('en');
+    await flushPromises();
+    expect(lastCall()[0]).toBe('/api/me');
+    expect(lastBody()).toEqual({ language: 'en' });
+    expect(session.user.language).toBe('en');
+    expect(status().text()).toBe('Language saved.');
+    await select(w).setValue('');
+    await flushPromises();
+    expect(lastBody()).toEqual({ language: null });
+  });
+});
+
 describe('ProfileView marker colour', () => {
   const swatch = (w, colour) => w.find(`button[aria-label="Marker colour ${colour}"]`);
 

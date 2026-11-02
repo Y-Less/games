@@ -68,6 +68,8 @@ describe('AchievementsView', () => {
     await make();
     expect(wrapper.text()).toContain('Achievements for Ann');
     expect(wrapper.findAll('[data-section]').map((s) => s.attributes('data-section'))).toEqual(['global', 'hearts']);
+    // The site's own section is headed in the site's words; a game's by its name, which a language may translate.
+    expect(wrapper.find('[data-section="global"] h2').text()).toBe('Game Hub');
     expect(wrapper.find('[data-section="hearts"] h2').text()).toBe('Hearts');
     expect(wrapper.findAll('[data-section="hearts"] [data-achievement]')).toHaveLength(2);
   });

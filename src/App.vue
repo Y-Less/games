@@ -96,7 +96,10 @@ async function leaveSite() {
   <div class="site">
     <BackgroundFx fixed :effect="session.user?.backgroundAnimation" :background="session.user?.background" :intensity="session.user?.effectIntensity" :speed="session.user?.effectSpeed" />
     <header class="bar">
-      <RouterLink to="/" class="brand">{{ $t('nav.brand') }}</RouterLink>
+      <RouterLink to="/" class="brand">
+        <span class="brand-name">{{ $t('nav.brand') }}</span>
+        <span class="tagline muted">{{ $t('nav.tagline') }}</span>
+      </RouterLink>
       <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" :aria-label="$t('nav.main')">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">{{ $t('nav.games') }}</RouterLink>
         <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">{{ $t('nav.stats') }}</RouterLink>
@@ -164,12 +167,24 @@ async function leaveSite() {
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
+/* The site's name with its line underneath: one link, stacked, whose height is the bar's own, so nothing else moves. */
 .brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
   font-family: var(--display);
-  font-size: 1.3rem;
   font-weight: 650;
   color: var(--amber);
   text-decoration: none;
+}
+.brand-name {
+  font-size: 1.3rem;
+}
+.brand .tagline {
+  font-size: 0.72rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
 .links {
   display: flex;
@@ -233,6 +248,12 @@ async function leaveSite() {
 }
 .confirm p {
   margin: 0 0 0.6rem;
+}
+/* A narrower bar needs the room more than the line under the name does; the name itself stays until 640px. */
+@media (max-width: 900px) {
+  .brand .tagline {
+    display: none;
+  }
 }
 @media (max-width: 640px) {
   .bar {

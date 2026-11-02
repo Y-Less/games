@@ -1,13 +1,18 @@
 <script setup>
 // The statistics page: your totals, each game's figures and its leaderboard, and your recent games.
 // Props: none. Emits: none. Slots: none.
-// Depends on: api.js (GET /api/stats/me and /api/stats/leaderboard/<game>), session.js and StyledName.vue.
+// Depends on: api.js (GET /api/stats/me and /api/stats/leaderboard/<game>), session.js, catalogueText.js (game names and
+// stat labels a language may translate), messageText.js (intlLocale) and StyledName.vue.
 // Side effects: requests on mount.
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import StyledName from '../components/StyledName.vue';
 import { api } from '../api.js';
+import { catalogue } from '../catalogueText.js';
+import { intlLocale } from '../messageText.js';
 import { session } from '../session.js';
 
+const { t } = useI18n();
 const stats = ref(null); // your stats once loaded
 const failed = ref(''); // the error text if loading failed
 const boards = ref({}); // game id -> leaderboard rows
@@ -24,62 +29,72 @@ onMounted(async () => {
   }
 });
 
-// Returns a 0 to 1 fraction as a whole-number percentage string.
-const percent = (n) => `${Math.round(n * 100)}%`;
-// Returns a timestamp (ms) as a UK-style date and time.
-const when = (ms) => new Date(ms).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-// Display word for each result.
-const outcomeLabel = { win: 'Won', loss: 'Lost', draw: 'Drew' };
+// Returns a number in the language's digits and grouping.
+const number = (n) => n.toLocaleString(intlLocale());
+// Returns a 0 to 1 fraction as a whole-number percentage, as the language writes one.
+const percent = (n) => new Intl.NumberFormat(intlLocale(), { style: 'percent', maximumFractionDigits: 0 }).format(n);
+// Returns a timestamp (ms) as a date and time in the language.
+const when = (ms) => new Date(ms).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' });
+// Returns the name of a game from a stats row ({ game: id, name }) in the language.
+const gameName = (row) => catalogue.gameName({ id: row.game, name: row.name });
+// Returns the won / lost (/ drawn) figures of a game as one line.
+const record = (game) => (game.draws ? t('stats.wonLostDrawnValues', { wins: number(game.wins), losses: number(game.losses), draws: number(game.draws) }) : t('stats.wonLostValues', { wins: number(game.wins), losses: number(game.losses) }));
+// Returns a recent game's player count, with its score when there is one ("4 players, 12 points").
+function recentFacts(game) {
+  const players = t('stats.players', { count: game.players }, game.players);
+  if (game.score === null) return players;
+  return t('stats.playersAndPoints', { players, points: t('stats.points', { count: game.score }, game.score) });
+}
 </script>
 
 <template>
   <section class="stack stats">
-    <h1>Statistics for {{ session.user.displayName }}</h1>
+    <h1>{{ t('stats.title', { name: session.user.displayName }) }}</h1>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
-    <p v-else-if="!stats" class="muted">Loading…</p>
+    <p v-else-if="!stats" class="muted">{{ t('common.loading') }}</p>
 
     <template v-else>
       <div class="totals">
-        <div class="panel tile"><strong>{{ stats.summary.played }}</strong><span class="muted">Games played</span></div>
-        <div class="panel tile"><strong>{{ stats.summary.wins }}</strong><span class="muted">Wins</span></div>
-        <div class="panel tile"><strong>{{ stats.summary.losses }}</strong><span class="muted">Losses</span></div>
-        <div v-if="stats.summary.draws" class="panel tile"><strong>{{ stats.summary.draws }}</strong><span class="muted">Draws</span></div>
-        <div class="panel tile"><strong>{{ percent(stats.summary.winRate) }}</strong><span class="muted">Win rate</span></div>
+        <div class="panel tile"><strong>{{ number(stats.summary.played) }}</strong><span class="muted">{{ t('stats.gamesPlayed') }}</span></div>
+        <div class="panel tile"><strong>{{ number(stats.summary.wins) }}</strong><span class="muted">{{ t('stats.wins') }}</span></div>
+        <div class="panel tile"><strong>{{ number(stats.summary.losses) }}</strong><span class="muted">{{ t('stats.losses') }}</span></div>
+        <div v-if="stats.summary.draws" class="panel tile"><strong>{{ number(stats.summary.draws) }}</strong><span class="muted">{{ t('stats.draws') }}</span></div>
+        <div class="panel tile"><strong>{{ percent(stats.summary.winRate) }}</strong><span class="muted">{{ t('stats.winRate') }}</span></div>
       </div>
 
-      <p v-if="!stats.perGame.length" class="panel">You haven't finished a game yet. Go and play one!</p>
+      <p v-if="!stats.perGame.length" class="panel">{{ t('stats.none') }}</p>
 
       <div v-for="game in stats.perGame" :key="game.game" class="panel stack">
-        <h2>{{ game.name }}</h2>
+        <h2>{{ gameName(game) }}</h2>
         <table class="figures">
           <tbody>
-            <tr><th>Played</th><td>{{ game.played }}</td></tr>
-            <tr><th>Won / lost<span v-if="game.draws"> / drawn</span></th><td>{{ game.wins }} / {{ game.losses }}<span v-if="game.draws"> / {{ game.draws }}</span></td></tr>
-            <tr><th>Win rate</th><td>{{ percent(game.winRate) }}</td></tr>
-            <tr v-if="game.totalScore !== null"><th>Total score</th><td>{{ game.totalScore }}</td></tr>
-            <tr v-if="game.bestScore !== null"><th>Best score</th><td>{{ game.bestScore }}</td></tr>
-            <tr v-for="extra in game.extras.filter((e) => !e.hidden)" :key="extra.key"><th>{{ extra.label }}</th><td>{{ extra.value }}</td></tr>
+            <tr><th>{{ t('stats.played') }}</th><td>{{ number(game.played) }}</td></tr>
+            <tr><th>{{ game.draws ? t('stats.wonLostDrawn') : t('stats.wonLost') }}</th><td>{{ record(game) }}</td></tr>
+            <tr><th>{{ t('stats.winRate') }}</th><td>{{ percent(game.winRate) }}</td></tr>
+            <tr v-if="game.totalScore !== null"><th>{{ t('stats.totalScore') }}</th><td>{{ number(game.totalScore) }}</td></tr>
+            <tr v-if="game.bestScore !== null"><th>{{ t('stats.bestScore') }}</th><td>{{ number(game.bestScore) }}</td></tr>
+            <tr v-for="extra in game.extras.filter((e) => !e.hidden)" :key="extra.key"><th>{{ catalogue.statLabel(game.game, extra) }}</th><td>{{ number(extra.value) }}</td></tr>
           </tbody>
         </table>
         <template v-if="boards[game.game]?.length">
-          <h3>Most wins</h3>
+          <h3>{{ t('stats.mostWins') }}</h3>
           <ol class="board">
             <li v-for="row in boards[game.game]" :key="row.userId" :class="{ me: row.userId === session.user.id }">
-              <StyledName :name="row.name" :user-id="row.userId" /> <span class="muted">{{ row.wins }} won from {{ row.played }}</span>
+              <StyledName :name="row.name" :user-id="row.userId" /> <span class="muted">{{ t('stats.wonFrom', { wins: number(row.wins), played: number(row.played) }) }}</span>
             </li>
           </ol>
         </template>
       </div>
 
       <div v-if="stats.recent.length" class="panel stack">
-        <h2>Recent games</h2>
+        <h2>{{ t('stats.recent') }}</h2>
         <table>
           <tbody>
             <tr v-for="(game, i) in stats.recent" :key="i">
               <td>{{ when(game.finishedAt) }}</td>
-              <td>{{ game.name }}</td>
-              <td :class="game.outcome">{{ outcomeLabel[game.outcome] }}</td>
-              <td class="muted">{{ game.players }} players<span v-if="game.score !== null">, {{ game.score }} points</span></td>
+              <td>{{ gameName(game) }}</td>
+              <td :class="game.outcome">{{ t(`stats.outcome.${game.outcome}`) }}</td>
+              <td class="muted">{{ recentFacts(game) }}</td>
             </tr>
           </tbody>
         </table>

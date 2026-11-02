@@ -40,30 +40,30 @@ async function submit() {
 
 <template>
   <section class="auth">
-    <h1>Game Hub</h1>
-    <p class="muted">Sign in to play, or make an account. Your statistics and background are saved with it.</p>
+    <h1>{{ $t('nav.brand') }}</h1>
+    <p class="muted">{{ $t('auth.intro') }}</p>
 
     <form class="panel stack" @submit.prevent="submit">
       <div class="tabs" role="tablist">
-        <button type="button" role="tab" :aria-selected="mode === 'login'" :class="{ primary: mode === 'login' }" @click="mode = 'login'">Sign in</button>
-        <button type="button" role="tab" :aria-selected="mode === 'register'" :class="{ primary: mode === 'register' }" @click="mode = 'register'">New account</button>
+        <button type="button" role="tab" :aria-selected="mode === 'login'" :class="{ primary: mode === 'login' }" @click="mode = 'login'">{{ $t('auth.signIn') }}</button>
+        <button type="button" role="tab" :aria-selected="mode === 'register'" :class="{ primary: mode === 'register' }" @click="mode = 'register'">{{ $t('auth.newAccount') }}</button>
       </div>
 
       <div>
-        <label for="username">Username</label>
+        <label for="username">{{ $t('auth.username') }}</label>
         <input id="username" v-model="username" autocomplete="username" maxlength="20" autocapitalize="none" spellcheck="false" autofocus />
       </div>
       <div v-if="mode === 'register'">
-        <label for="display">Display name <span class="muted">(shown to other players; you can change it later)</span></label>
-        <input id="display" v-model="displayName" maxlength="20" :placeholder="username || 'Same as your username'" autocomplete="nickname" />
+        <label for="display">{{ $t('auth.displayName') }} <span class="muted">{{ $t('auth.displayNameHint') }}</span></label>
+        <input id="display" v-model="displayName" maxlength="20" :placeholder="username || $t('auth.sameAsUsername')" autocomplete="nickname" />
       </div>
       <div>
-        <label for="password">Password <span v-if="mode === 'register'" class="muted">(at least 8 characters)</span></label>
+        <label for="password">{{ $t('auth.password') }} <span v-if="mode === 'register'" class="muted">{{ $t('auth.passwordHint') }}</span></label>
         <input id="password" v-model="password" type="password" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" />
       </div>
 
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <button class="primary" :disabled="busy || !username || !password">{{ mode === 'login' ? 'Sign in' : 'Create account' }}</button>
+      <button class="primary" :disabled="busy || !username || !password">{{ mode === 'login' ? $t('auth.signIn') : $t('auth.createAccount') }}</button>
     </form>
   </section>
 </template>
