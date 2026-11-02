@@ -11,8 +11,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // Every seat in order: a person or computer player, or an empty seat (null in the view) waiting to be filled.
 const seats = computed(() =>
@@ -29,18 +31,13 @@ const targets = computed(() => props.state.limits.targets);
 // The seat counts the host can choose, from the server's minimum to its maximum.
 const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
 // One sentence describing the deal for the chosen seat count (cribbage deals differently for 2, 3, 4 and 5 players).
-const dealing = computed(() => {
-  if (props.state.seatCount === 2) return 'Two players: six cards each, two to the box.';
-  if (props.state.seatCount === 3) return 'Three players: five cards each, one card each to the box, and one more from the deck.';
-  if (props.state.seatCount === 4) return 'Four players: five cards each, one card each to the box.';
-  return 'Five players: five cards each, one to the box, but the dealer is dealt only four and adds nothing.';
-});
+const dealing = computed(() => t(`lobby.deal.${props.state.seatCount}`));
 </script>
 
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share this code (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -54,13 +51,13 @@ const dealing = computed(() => {
       @start="send('start')"
     >
       <template #settings>
-        <h3>Game</h3>
+        <h3>{{ t('lobby.game') }}</h3>
         <div class="row">
-          <span class="muted label">Seats</span>
+          <span class="muted label">{{ t('lobby.seats') }}</span>
           <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="!state.isHost || n < taken" :aria-pressed="state.seatCount === n" @click="send('settings', { seats: n })">{{ n }}</button>
         </div>
         <div class="row">
-          <span class="muted label">Play to</span>
+          <span class="muted label">{{ t('lobby.playTo') }}</span>
           <button v-for="t in targets" :key="t" :class="{ primary: state.target === t }" :disabled="!state.isHost" :aria-pressed="state.target === t" @click="send('settings', { target: t })">{{ t }}</button>
         </div>
         <p class="muted small">{{ dealing }}</p>

@@ -44,7 +44,13 @@ const play = (room, seat, card) => {
   const result = game.playCard(room, seat, card);
   assert.ok(result.ok, result.error);
 };
-const logText = (room) => room.log.map((l) => l.text);
+// A log line as a comparable shape: a line is `{ seat, points, key, params }`, a message the client puts into words
+// (see shared/messages.js), so a test names the keys rather than any English. `what` is the `scoring.*` key a scoring
+// line names, and `count` its parameter (the length of a run), or null.
+const logShape = (line) => ({ seat: line.seat, key: line.key, what: line.params?.what?.key ?? null, count: line.params?.what?.params?.count ?? null, points: line.points });
+const logShapes = (room) => room.log.map(logShape);
+/** The names the log lines were written about, in order (every line names the player it is about). */
+const logNames = (room) => room.log.map((l) => l.params.name);
 
 test('lobby: seats, settings, computer players and starting', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex' });
@@ -165,7 +171,7 @@ test('a jack as the starter gives the dealer two for his heels', () => {
   for (let i = 0; i < 3; i++) assert.ok(game.discard(room, i, [room.hands[i][0]], () => 0).ok);
   assert.equal(room.starter, 'JH');
   assert.equal(room.seats[room.dealer].score, 2);
-  assert.ok(logText(room).some((t) => /his heels for 2/.test(t)));
+  assert.ok(logShapes(room).some((l) => l.seat === room.dealer && l.what === 'scoring.heels' && l.points === 2));
   room.seats.forEach((s, i) => i !== room.dealer && assert.equal(s.score, 0));
 });
 
@@ -178,10 +184,14 @@ test('the play, two players: go, then last card, and the lead after a go', () =>
   play(room, 1, '10D');
   assert.equal(room.play.count, 0, 'the count started again');
   assert.equal(room.play.turn, 0, 'the player after the last to play leads');
-  assert.deepEqual(logText(room), [`${room.seats[0].name}: go`, `${room.seats[1].name}: go for 1`]);
+  assert.deepEqual(logShapes(room), [
+    { seat: 0, key: 'log.go', what: null, count: null, points: 0 },
+    { seat: 1, key: 'log.scored', what: 'scoring.go', count: null, points: 1 },
+  ]);
+  assert.deepEqual(logNames(room), [room.seats[0].name, room.seats[1].name]);
   assert.equal(room.seats[1].stats.pegPoints, 1);
   play(room, 0, '5C');
-  assert.ok(logText(room).includes(`${room.seats[0].name}: last card for 1`));
+  assert.ok(logShapes(room).some((l) => l.seat === 0 && l.what === 'scoring.lastCard' && l.points === 1));
   assert.equal(room.phase, 'show');
   assert.equal(room.seats[0].stats.pegPoints, 1);
 });
@@ -193,8 +203,8 @@ test('thirty-one scores two and no go point, and the next player leads', () => {
   play(room, 1, '5D');
   play(room, 0, '6C');
   assert.equal(room.seats[0].stats.pegPoints, 2);
-  assert.ok(logText(room).some((t) => /thirty-one for 2/.test(t)));
-  assert.ok(!logText(room).some((t) => /go|last card/.test(t)), 'no go or last card after thirty-one');
+  assert.ok(logShapes(room).some((l) => l.what === 'scoring.thirtyOne' && l.points === 2));
+  assert.ok(!logShapes(room).some((l) => l.key === 'log.go' || ['scoring.go', 'scoring.lastCard'].includes(l.what)), 'no go or last card after thirty-one');
   assert.equal(room.phase, 'show');
 });
 
@@ -214,8 +224,8 @@ test('three players: players who cannot play are passed, the last to play gets t
   assert.equal(room.seats[2].stats.pegPoints, 2, 'a pair');
   play(room, 0, '9C');
   assert.equal(room.play.count, 0, 'nobody could play: the count restarted');
-  assert.ok(logText(room).includes(`${room.seats[2].name}: go`));
-  assert.ok(logText(room).includes(`${room.seats[0].name}: go for 1`));
+  assert.ok(logShapes(room).some((l) => l.seat === 2 && l.key === 'log.go'));
+  assert.ok(logShapes(room).some((l) => l.seat === 0 && l.what === 'scoring.go' && l.points === 1));
   assert.equal(room.play.turn, 2, 'leads: next player after the last to play with cards (seat 1 has none)');
   play(room, 2, '4C');
   play(room, 0, 'KS');
@@ -229,7 +239,7 @@ test('four players: one player cannot play but the others carry on', () => {
   play(room, 2, 'KD');
   play(room, 3, '9C');
   assert.equal(room.play.turn, 1, 'seat 0 cannot play a six at 29, so seat 1 goes again');
-  assert.ok(logText(room).includes(`${room.seats[0].name}: go`));
+  assert.ok(logShapes(room).some((l) => l.seat === 0 && l.key === 'log.go'));
   play(room, 1, '2D');
   assert.equal(room.seats[1].stats.pegPoints, 2, 'thirty-one');
   assert.equal(room.play.turn, 0);
@@ -251,7 +261,7 @@ test('the play scores fifteens, pairs and runs as they happen', () => {
   play(second, 0, '4C');
   play(second, 1, '5D');
   assert.equal(second.seats[1].score, 5, 'a run of three and fifteen');
-  assert.ok(logText(second).includes(`${second.seats[1].name}: run of 3 for 3`));
+  assert.ok(logShapes(second).some((l) => l.seat === 1 && l.what === 'scoring.run' && l.count === 3 && l.points === 3));
 });
 
 test('the game ends the instant the target is reached in the play', () => {
@@ -408,7 +418,7 @@ test('whole games with computer players end with one winner, and the history add
       const sums = room.seats.map((_, i) => room.history.reduce((total, hand) => total + (hand.deltas[i] ?? 0), 0));
       assert.deepEqual(sums, room.seats.map((s) => s.score));
       assert.equal(room.history.length, room.handNo);
-      assert.deepEqual(room.history.map((h) => h.label), room.history.map((_, i) => `Hand ${i + 1}`));
+      assert.deepEqual(room.history.map((h) => h.label), room.history.map((_, i) => ({ key: 'hand', params: { n: i + 1 } })));
       const view = game.viewFor(room, 1);
       assert.deepEqual(view.scoreboard.rounds, room.history);
       assert.deepEqual(view.scoreboard.players.map((p) => p.score), room.seats.map((s) => s.score));

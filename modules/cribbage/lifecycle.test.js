@@ -200,7 +200,7 @@ test('a room that disappears under connected sockets leaves them cleanly out', a
   for (const event of ['start', 'addBot', 'fillBots', 'settings', 'kick', 'play', 'discard', 'ready', 'again', 'removeBot']) {
     const reply = await twin.call(event, { seat: 1, card: 'AS', cards: ['AS', 'KS'], target: 61 });
     assert.equal(reply.ok, false, event);
-    assert.match(reply.error, /not in a game/, event);
+    assert.equal(reply.error, 'notInAnyGame', event);
   }
   assert.equal((await bob.call('join', { code })).ok, false, 'the code is dead');
   assert.deepEqual(await twin.call('resume', {}), { ok: true, code: null });
@@ -215,10 +215,11 @@ test('one live game per account: a second create or join is refused, and leaving
   const second = (await cat.call('create', {})).code;
   const again = await ann.call('create', {});
   assert.equal(again.ok, false);
-  assert.match(again.error, new RegExp(first));
+  assert.equal(again.error, 'alreadyInGameStart');
+  assert.equal(again.params.code, first, 'the refusal names the game they are already in');
   const hop = await ann.call('join', { code: second });
   assert.equal(hop.ok, false);
-  assert.match(hop.error, /already in the game/);
+  assert.equal(hop.error, 'alreadyInGameJoin');
   assert.equal((await ann.call('resume', { code: second })).ok, false);
   assert.equal(ann.state.code, first);
   assert.equal(cat.state.seats.filter(Boolean).length, 1);

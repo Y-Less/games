@@ -8,11 +8,15 @@
 // The join / leave / kick / computer-player rules are the shared ones (shared/seats.js); this file adds what is
 // particular to Cribbage. Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
 //
-// Depends on shared/ (cards, ai, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting) and ./tally.js.
+// Nothing here is a sentence: a refusal is a code under `errors.` (the game's locale file first, then the site's) and
+// anything the client shows (a log line, a scoreboard label, a scoring item) is a message from shared/messages.js.
+//
+// Depends on shared/ (cards, ai, messages, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting) and ./tally.js.
 import { textFrom } from '../../shared/input.js';
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { msg } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, asHost } from '../../shared/seats.js';
@@ -60,9 +64,6 @@ const byRank = (a, b) => PIPS.indexOf(rankOf(a)) - PIPS.indexOf(rankOf(b)) || a.
  * Side effects: none.
  */
 export const sortCards = (cards) => [...cards].sort(byRank);
-
-/** The message for a seat count outside MIN_SEATS to MAX_SEATS. */
-const seatsProblem = `A game has ${MIN_SEATS} to ${MAX_SEATS} seats.`;
 
 /**
  * The fields every occupied seat carries for this game, all at their starting values.
@@ -122,13 +123,13 @@ function fitName(room, raw) {
  * @param {{ target?: number, seats?: number }} [args.settings]  how far to play (61 or 121) and how many seats (2 to 5)
  * @param {number} args.now       the clock, in milliseconds
  * @returns {object} the new room
- * @throws {Error} with a message for the person if a setting is not allowed
+ * @throws {Error} (a developer's message) if a setting is not allowed
  * Side effects: none outside the room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const { target = 121, seats: count = DEFAULT_SEATS } = settings;
-  if (!TARGETS.includes(target)) throw new Error('Play to 61 or 121.');
-  if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(seatsProblem);
+  if (!TARGETS.includes(target)) throw new Error(`Play to ${TARGETS.join(' or ')}.`);
+  if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} seats.`);
   return {
     code,
     hostId,
@@ -176,6 +177,8 @@ export const isLive = (room) => room.phase !== 'finished';
  */
 export function migrate(room) {
   const old = room.seatCount !== undefined || room.botsMade !== undefined || room.seats.some((s) => s && s.kind === undefined);
+  // A hand under way when the log became messages may still hold `{ text }` lines, which the client cannot put into words.
+  if (Array.isArray(room.log) && room.log.some((line) => typeof line?.key !== 'string')) room.log = room.log.filter((line) => typeof line?.key === 'string');
   if (!old) return room;
   room.seats = room.seats.map((s) => {
     if (!s || s.kind) return s;
@@ -271,10 +274,10 @@ export function fillWithBots(room, userId) {
 export function setSettings(room, userId, { target, seats: count } = {}) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (target !== undefined && !TARGETS.includes(target)) return fail('Play to 61 or 121.');
+  if (target !== undefined && !TARGETS.includes(target)) return fail('targetScore', { targets: TARGETS.join(', ') });
   if (count !== undefined) {
-    if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) return fail(seatsProblem);
-    if (count < room.seats.filter(Boolean).length) return fail('Remove a player first: that would leave too few seats.');
+    if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
+    if (count < room.seats.filter(Boolean).length) return fail('removePlayerFirst');
     if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
     room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
   }
@@ -285,18 +288,20 @@ export function setSettings(room, userId, { target, seats: count } = {}) {
 // ---- scoring and the log ----
 
 /**
- * Adds a line to the room's log (the "Recent moves" box), keeping only the latest LOG_LIMIT lines.
+ * Adds a line to the room's log (the "Recent moves" box), keeping only the latest LOG_LIMIT lines. A line is
+ * `{ seat, points, key, params }`: a message (see shared/messages.js) the client puts into words, with who it is about
+ * and what it scored.
  *
  * Side effects: appends to room.log and may trim it.
  *
  * @param {object} room
  * @param {number} seat    who the line is about
- * @param {string} text    what happened
+ * @param {{ key: string, params?: object }} message  what happened, under the game's `log.*` keys
  * @param {number} [points]  points scored by it (0 for none)
  * @returns {void}
  */
-function log(room, seat, text, points = 0) {
-  addMove(room, { seat, text, points }, LOG_LIMIT);
+function log(room, seat, message, points = 0) {
+  addMove(room, { seat, points, ...message }, LOG_LIMIT);
 }
 
 /**
@@ -308,7 +313,7 @@ function log(room, seat, text, points = 0) {
  * @returns {void}
  */
 function commitHand(room) {
-  room.history.push({ label: `Hand ${room.handNo}`, deltas: room.handDeltas });
+  room.history.push({ label: msg('hand', { n: room.handNo }), deltas: room.handDeltas });
   room.handDeltas = {};
 }
 
@@ -337,7 +342,8 @@ function finish(room, seat) {
  *
  * @param {object} room
  * @param {number} seat  who scores
- * @param {{ label: string, points: number }[]} entries  what they score, in order
+ * @param {{ label: { key: string, params?: object }, points: number }[]} entries  what they score, in order; `label` is a message (a
+ *   `scoring.*` key) that the log line carries as its `what`
  * @param {{ pegging?: boolean, quiet?: boolean }} [options]  `pegging` counts the points as pegged in the play; `quiet` leaves them out of the log
  * @returns {void}
  */
@@ -354,7 +360,7 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
     s.score = Math.min(room.target, s.score + entry.points);
     room.handDeltas[seat] = (room.handDeltas[seat] ?? 0) + s.score - before;
     if (pegging) bump(s.stats, 'pegPoints', entry.points);
-    if (!quiet) log(room, seat, `${s.name}: ${entry.label.toLowerCase()} for ${entry.points}`, entry.points);
+    if (!quiet) log(room, seat, msg('log.scored', { name: s.name, what: entry.label, points: entry.points }), entry.points);
     if (s.score >= room.target) finish(room, seat);
   }
 }
@@ -406,8 +412,8 @@ function deal(room, rng) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('Fill every seat first (add computer players if you like).');
-  if (!humanSeats(room).length) return fail('At least one person must play.');
+  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  if (!humanSeats(room).length) return fail('needPerson');
   for (const s of room.seats) Object.assign(s, { score: 0, back: 0 });
   room.winner = null;
   room.handNo = 0;
@@ -450,7 +456,7 @@ function assignBotAIs(room, rng) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over yet.');
+  if (room.phase !== 'finished') return fail('notOver');
   room.seats = room.seats.map((s) => (isHuman(s) || isBot(s) ? s : null));
   for (const s of room.seats.filter(Boolean)) {
     Object.assign(s, gameFields());
@@ -472,12 +478,12 @@ export function playAgain(room, userId) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function discard(room, seat, cards, rng) {
-  if (room.phase !== 'discard') return fail('It is not time to discard.');
+  if (room.phase !== 'discard') return fail('notTimeToDiscard');
   const s = room.seats[seat];
   const { discards } = dealRules(room.seats.length, seat === room.dealer);
-  if (s.discarded) return fail('You have already discarded.');
-  if (!Array.isArray(cards) || cards.length !== discards) return fail(`Choose ${discards} card${discards === 1 ? '' : 's'} for the box.`);
-  if (!cards.every(isCard) || new Set(cards).size !== cards.length || !cards.every((c) => room.hands[seat].includes(c))) return fail('Those cards are not in your hand.');
+  if (s.discarded) return fail('alreadyDiscarded');
+  if (!Array.isArray(cards) || cards.length !== discards) return fail('chooseForBox', { count: discards });
+  if (!cards.every(isCard) || new Set(cards).size !== cards.length || !cards.every((c) => room.hands[seat].includes(c))) return fail('cardsNotInHand');
   room.hands[seat] = room.hands[seat].filter((c) => !cards.includes(c));
   room.crib.push(...cards);
   tallyDiscard(s.stats, cards, seat === room.dealer);
@@ -501,7 +507,7 @@ function beginPlay(room, rng) {
   room.starter = room.deck.splice(Math.floor(rng() * room.deck.length), 1)[0];
   room.phase = 'play';
   room.play = { count: 0, sequence: [], turn: (room.dealer + 1) % room.seats.length, last: null, said: [], previous: [] };
-  if (rankOf(room.starter) === 'J') award(room, room.dealer, [{ label: 'His heels', points: HEELS_POINTS }]);
+  if (rankOf(room.starter) === 'J') award(room, room.dealer, [{ label: msg('scoring.heels'), points: HEELS_POINTS }]);
 }
 
 // ---- the play (pegging) ----
@@ -551,11 +557,11 @@ function resetSequence(room) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function playCard(room, seat, card) {
-  if (room.phase !== 'play') return fail('It is not time to play a card.');
+  if (room.phase !== 'play') return fail('notTimeToPlay');
   const p = room.play;
-  if (p.turn !== seat) return fail('It is not your turn.');
-  if (!isCard(card) || !room.hands[seat].includes(card)) return fail('That card is not in your hand.');
-  if (p.count + pipValue(card) > 31) return fail('That would take the count over 31.');
+  if (p.turn !== seat) return fail('notYourTurn');
+  if (!isCard(card) || !room.hands[seat].includes(card)) return fail('notInHand');
+  if (p.count + pipValue(card) > 31) return fail('overThirtyOne');
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   p.sequence.push({ seat, card });
   p.count += pipValue(card);
@@ -591,12 +597,12 @@ function afterPlay(room, from) {
       }
       if (!p.said.includes(seat) && seat !== p.last) {
         p.said.push(seat);
-        log(room, seat, `${room.seats[seat].name}: go`);
+        log(room, seat, msg('log.go', { name: room.seats[seat].name }));
       }
     }
     // Nobody can play: the last to play pegs one for go, or for the last card if every hand is now empty.
     const anyLeft = room.seats.some((_, seat) => hasCards(room, seat));
-    award(room, p.last, [{ label: anyLeft ? 'Go' : 'Last card', points: 1 }], { pegging: true });
+    award(room, p.last, [{ label: msg(anyLeft ? 'scoring.go' : 'scoring.lastCard'), points: 1 }], { pegging: true });
     if (room.phase === 'finished') return;
     resetSequence(room);
   }
@@ -633,7 +639,7 @@ function startShow(room) {
     const { total, items } = scoreHand(cards, room.starter, { crib: kind === 'crib' });
     const heels = seat === room.dealer && rankOf(room.starter) === 'J' ? HEELS_POINTS : 0; // the dealer's heels come with their hand and box
     tallyShown(room.seats[seat].stats, kind, { total, items }, heels);
-    award(room, seat, [{ label: kind, points: total }], { quiet: true });
+    award(room, seat, [{ label: null, points: total }], { quiet: true }); // quiet, so no label: the show itself lists the items
     room.show.entries.push({ kind, seat, cards, items, total, after: room.seats[seat].score });
     if (room.phase === 'finished') return;
   }
@@ -687,7 +693,7 @@ export const waitingForReady = (room) => room.phase === 'show';
  * Side effects: as nextHand.
  */
 export function forceNextHand(room, rng) {
-  if (!waitingForReady(room)) return fail('The hand is not over.');
+  if (!waitingForReady(room)) return fail('handNotOver');
   nextHand(room, rng);
   return ok();
 }
@@ -703,7 +709,7 @@ export function forceNextHand(room, rng) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function ready(room, seat, rng) {
-  if (room.phase !== 'show') return fail('There is nothing to be ready for.');
+  if (room.phase !== 'show') return fail('nothingToBeReadyFor');
   room.seats[seat].ready = true;
   advanceIfReady(room, rng);
   return ok();
@@ -818,7 +824,7 @@ function chooseSafely(room, seat, choose, isValid, lastResort) {
  */
 export function botMove(room, rng) {
   const pending = pendingBot(room);
-  if (!pending) return fail('No computer player has a move.');
+  if (!pending) return fail('noBotMove');
   const { seat, kind } = pending;
   if (kind === 'discard') {
     const context = discardContext(room, seat, rng);

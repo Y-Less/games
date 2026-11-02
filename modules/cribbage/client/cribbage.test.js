@@ -2,9 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
+import { messageText } from '../../../src/messageText.js';
 import Cribbage from './Cribbage.vue';
 import Lobby from './Lobby.vue';
+import ShowHands from './ShowHands.vue';
 import Table from './Table.vue';
+
+/** The words a message from the server reads as, in this game's language ('cribbage' first, then the site's keys). */
+const words = (message) => messageText(message, 'cribbage');
 
 function seeded(seed = 1) {
   let a = seed;
@@ -114,6 +119,50 @@ describe('Cribbage table in the standard frame', () => {
     await status.findAll('.body button')[0].trigger('click');
     expect(send).toHaveBeenCalledWith('again');
     expect(noLeave(w)).toBe(true);
+  });
+});
+
+describe('Cribbage words from the locale file', () => {
+  /** Plays the whole pegging out, so there is a log of scores and a show to count. */
+  function playedOut(seats = 2) {
+    const r = pegging(seats);
+    for (let guard = 0; r.phase === 'play' && guard < 100; guard++) {
+      const legal = game.playableCards(r, r.play.turn);
+      expect(game.playCard(r, r.play.turn, legal[0]).ok).toBe(true);
+    }
+    expect(r.phase).toBe('show');
+    return r;
+  }
+
+  it("draws the server's log lines as sentences, and the server never sends English", () => {
+    const r = playedOut();
+    expect(r.log.length).toBeGreaterThan(0);
+    for (const entry of r.log) {
+      expect(typeof entry.key).toBe('string'); // a message { seat, points, key, params }, never a finished sentence
+      expect(entry.text).toBeUndefined();
+      expect(words(entry)).not.toBe(entry.key); // the key has English behind it
+    }
+    const log = mount(Table, { props: { state: game.viewFor(r, 1), send: makeSend() } }).find('.box.log').text();
+    for (const entry of r.log) expect(log).toContain(words(entry));
+  });
+
+  it('names every scoring item of the show through its message', () => {
+    const r = playedOut();
+    const items = r.show.entries.flatMap((e) => e.items);
+    expect(items.length).toBeGreaterThan(0);
+    const shown = mount(ShowHands, { props: { state: game.viewFor(r, 1) } }).text();
+    for (const item of items) {
+      expect(typeof item.label.key).toBe('string');
+      expect(shown).toContain(words(item.label));
+    }
+  });
+
+  it('labels each hand of the scoreboard with a message, not a sentence', () => {
+    const r = playedOut();
+    game.ready(r, 0, seeded(4));
+    const [round] = game.viewFor(r, 1).scoreboard.rounds;
+    expect(round.label).toEqual({ key: 'hand', params: { n: 1 } });
+    expect(words(round.label)).toBe('Hand 1');
   });
 });
 

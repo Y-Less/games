@@ -1,0 +1,120 @@
+{
+  "entry": {
+    "noun": "game of Cribbage",
+    "intro": "Cribbage for two to five players, with computer players to fill any empty seat."
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "hand": "Hand {n}",
+  "lobby": {
+    "share": "Share this code (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.",
+    "game": "Game",
+    "seats": "Seats",
+    "playTo": "Play to",
+    "deal": {
+      "2": "Two players: six cards each, two to the box.",
+      "3": "Three players: five cards each, one card each to the box, and one more from the deck.",
+      "4": "Four players: five cards each, one card each to the box.",
+      "5": "Five players: five cards each, one to the box, but the dealer is dealt only four and adds nothing."
+    }
+  },
+  "table": {
+    "dealer": "dealer",
+    "dealerDiscarded": "dealer, discarded",
+    "dealerChoosing": "dealer, choosing",
+    "discarded": "discarded",
+    "choosing": "choosing",
+    "dealerTitle": "Dealer",
+    "play": "The play",
+    "count": "The count",
+    "countLabel": "Count",
+    "sendToBox": "Send to the box",
+    "yourHand": "Your hand",
+    "deck": "The deck",
+    "deckLabel": "Deck",
+    "starter": "The starter",
+    "starterLabel": "Starter",
+    "box": "The box",
+    "boxLabel": "Box",
+    "scoring": "Scoring",
+    "nothingScored": "Nothing scored yet this hand.",
+    "playAgain": "Play again (back to the lobby)",
+    "seeScores": "See the scores"
+  },
+  "facts": {
+    "hand": "Hand {n}",
+    "youDeal": "You deal",
+    "deals": "{name} deals",
+    "firstTo": "First to {n}",
+    "deck": "Deck: {count}",
+    "yourBox": "Your box: {count}",
+    "box": "{name}'s box: {count}"
+  },
+  "popup": {
+    "cardsInHand": "{count} card in hand | {count} cards in hand",
+    "youDiscarded": "You have put cards in the box",
+    "youChoosing": "You are still choosing cards for the box",
+    "discarded": "Has put cards in the box",
+    "choosing": "Still choosing cards for the box",
+    "youDeal": "You are the dealer: the box is yours",
+    "deals": "The dealer: the box is theirs",
+    "boxYours": "Box: yours",
+    "boxOf": "Box: {name}'s",
+    "pegs": "Pegs: front on {score}, back on {back}"
+  },
+  "status": {
+    "youWin": "{name} (you) wins!",
+    "chooseForYourBox": "Choose {count} card for your box. | Choose {count} cards for your box.",
+    "chooseForBox": "Choose {count} card for {name}'s box. | Choose {count} cards for {name}'s box.",
+    "yourTurnChoose": "Your turn: choose a card.",
+    "yourTurn": "Your turn.",
+    "toPlay": "{name} to play.",
+    "closeScores": "Close the scores pop-up when you are ready for the next hand.",
+    "chosen": "{chosen} of {count} chosen: pick them, then press Send to the box.",
+    "countRestarted": "The count has started again at 0.",
+    "nothingPlayed": "Nothing has been played yet.",
+    "standing": "{place}. {name}: {score}",
+    "standingYou": "{place}. {name} (you): {score}",
+    "skunk": "Skunk! {names} finished below {line}.",
+    "hostAgain": "You can start another game.",
+    "againHost": "The host can start another game."
+  },
+  "show": {
+    "you": "{name} (you)",
+    "hand": "{who}: hand",
+    "crib": "{who}: the box",
+    "nothing": "Nothing to count: a hand of nought.",
+    "after": "{name} is on {score}."
+  },
+  "board": {
+    "label": "Cribbage board to {target}: {scores}",
+    "score": "{name} {score}"
+  },
+  "scoring": {
+    "fifteen": "fifteen",
+    "pair": "pair",
+    "pairRoyal": "pair royal",
+    "doublePairRoyal": "double pair royal",
+    "run": "run of {count}",
+    "flushFive": "flush of five",
+    "flushFour": "flush of four",
+    "nobs": "his nobs",
+    "heels": "his heels",
+    "thirtyOne": "thirty-one",
+    "go": "go",
+    "lastCard": "last card"
+  },
+  "log": {
+    "scored": "{name}: {what} for {points}",
+    "go": "{name}: go"
+  },
+  "errors": {
+    "targetScore": "The target score must be one of {targets}.",
+    "notTimeToDiscard": "It is not time to discard.",
+    "alreadyDiscarded": "You have already discarded.",
+    "chooseForBox": "Choose {count} card for the box. | Choose {count} cards for the box.",
+    "cardsNotInHand": "Those cards are not in your hand.",
+    "overThirtyOne": "That would take the count over 31.",
+    "nothingToBeReadyFor": "There is nothing to be ready for.",
+    "noBotMove": "No computer player has a move."
+  }
+}

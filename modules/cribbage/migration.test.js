@@ -80,6 +80,19 @@ test('migrate: an old-shape room becomes a current one and plays on to the end',
   playToTheEnd(migrated, seeded(7));
 });
 
+test('migrate: log lines saved as English are dropped, and message lines are kept', () => {
+  const room = startedRoom();
+  room.log = [
+    { seat: 0, text: 'Ann: fifteen two for 2', points: 2 }, // saved before the log became messages: the client cannot word it
+    { seat: 1, points: 1, key: 'log.scored', params: { name: 'Robin', what: { key: 'scoring.go' }, points: 1 } },
+  ];
+  const migrated = game.migrate(JSON.parse(JSON.stringify(room)));
+  assert.deepEqual(migrated.log.map((l) => l.key), ['log.scored'], 'only lines the client can put into words survive');
+  assert.deepEqual(game.viewFor(migrated, 1).log, migrated.log);
+  const current = game.migrate(startedRoom());
+  assert.deepEqual(current.log.map((l) => typeof l.key), current.log.map(() => 'string'), 'a current room keeps every line');
+});
+
 test('migrate: lobby rooms are padded with empty seats, people who left stay as markers, and current rooms are untouched', () => {
   const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
   const padded = game.migrate(asOldRoom(lobby));
@@ -160,6 +173,6 @@ test('kick: refused once the game is over, and nothing changes', () => {
   room.winner = 0;
   const refused = game.kick(room, 1, 1, Math.random);
   assert.equal(refused.ok, false);
-  assert.match(refused.error, /over/);
+  assert.equal(refused.error, 'gameOverNobodyToRemove');
   assert.equal(room.seats[1].kind, 'human', 'nothing changed');
 });

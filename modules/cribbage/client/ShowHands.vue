@@ -7,24 +7,28 @@
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { rankOf, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
+import { useGameText } from '../../../src/useGameText.js';
 import CardRow from './CardRow.vue';
 import { seatColour } from './colours.js';
 
 const props = defineProps({ state: { type: Object, required: true } });
+const { t, text } = useGameText();
 
 // The hands to show, in order ([] when there is no show yet).
 const entries = computed(() => props.state.show?.entries ?? []);
-// Returns the cards as short text, each as rank then suit symbol, separated by spaces.
-const text = (cards) => cards.map((c) => `${rankOf(c)}${SUIT_SYMBOLS[suitOf(c)]}`).join(' ');
-// Returns the name of a seat.
-const nameOf = (seat) => props.state.seats[seat].name;
+// Returns the cards as short symbols, each as rank then suit symbol, separated by spaces (no words in any language).
+const cardSymbols = (cards) => cards.map((c) => `${rankOf(c)}${SUIT_SYMBOLS[suitOf(c)]}`).join(' ');
+// Returns the name of a seat, marked "(you)" for the viewer.
+const nameOf = (seat) => (seat === props.state.you ? t('show.you', { name: props.state.seats[seat].name }) : props.state.seats[seat].name);
+// The heading of one entry: whose hand (or box) it is.
+const titleOf = (entry) => t(entry.kind === 'crib' ? 'show.crib' : 'show.hand', { who: nameOf(entry.seat) });
 </script>
 
 <template>
   <div class="show stack">
     <div v-for="entry in entries" :key="`${entry.kind}-${entry.seat}`" class="entry" :style="{ borderLeftColor: seatColour(entry.seat) }">
       <h3>
-        <span class="title">{{ nameOf(entry.seat) }}<span v-if="entry.seat === state.you" class="muted"> (you)</span>: {{ entry.kind === 'crib' ? 'the box' : 'hand' }}</span>
+        <span class="title">{{ titleOf(entry) }}</span>
         <strong class="total">{{ entry.total }}</strong>
       </h3>
       <div class="laid">
@@ -34,13 +38,13 @@ const nameOf = (seat) => props.state.seats[seat].name;
       </div>
       <ul v-if="entry.items.length" class="items">
         <li v-for="(item, i) in entry.items" :key="i">
-          <span class="what">{{ item.label }}</span>
-          <span class="which muted">{{ text(item.cards) }}</span>
+          <span class="what">{{ text(item.label) }}</span>
+          <span class="which muted">{{ cardSymbols(item.cards) }}</span>
           <strong class="pts">{{ item.points }}</strong>
         </li>
       </ul>
-      <p v-else class="muted nothing">Nothing to count: a hand of nought.</p>
-      <p class="muted after">{{ nameOf(entry.seat) }} is on {{ entry.after }}.</p>
+      <p v-else class="muted nothing">{{ t('show.nothing') }}</p>
+      <p class="muted after">{{ t('show.after', { name: state.seats[entry.seat].name, score: entry.after }) }}</p>
     </div>
   </div>
 </template>

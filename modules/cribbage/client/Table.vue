@@ -21,11 +21,13 @@ import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Board from './Board.vue';
 import ShowHands from './ShowHands.vue';
 import { seatColour } from './colours.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t, text, list } = useGameText();
 
 // The cards chosen for the box during the discard phase (card codes).
 const picked = ref([]);
@@ -51,8 +53,9 @@ const seatAt = (rel) => seats.value[(me.value + rel) % seats.value.length];
  */
 const oppNote = (seat) => {
   const dealing = seat.seat === s.value.dealer;
-  if (phase.value === 'discard') return `${dealing ? 'dealer, ' : ''}${seat.discarded ? 'discarded' : 'choosing'}`;
-  return dealing ? 'dealer' : '';
+  if (phase.value !== 'discard') return dealing ? t('table.dealer') : '';
+  if (dealing) return t(seat.discarded ? 'table.dealerDiscarded' : 'table.dealerChoosing');
+  return t(seat.discarded ? 'table.discarded' : 'table.choosing');
 };
 // The others, clockwise from you (the player after you first), face down.
 const opponents = computed(() =>
@@ -77,8 +80,6 @@ const myTurn = computed(() => turn.value === me.value);
 const playable = computed(() => new Set(s.value.play?.playable ?? []));
 // How many cards the viewer still has to put in the box (0 when done or not discarding).
 const need = computed(() => s.value.need);
-// Words for whose box it is: 'your' or the dealer's name with 's.
-const cribOwner = computed(() => (youDeal.value ? 'your' : `${dealer.value.name}'s`));
 // Names of those who have not yet discarded.
 const waitingFor = computed(() => seats.value.filter((x) => !x.discarded).map((x) => x.name));
 // The winner's seat record once finished, else null.
@@ -145,21 +146,31 @@ const opened = computed(() => seats.value.find((o) => o.seat === openId.value) ?
  * Side effects: none.
  */
 const detailLines = (o) => {
-  const lines = [`${o.cards} ${o.cards === 1 ? 'card' : 'cards'} in hand`];
+  const lines = [t('popup.cardsInHand', { count: o.cards }, o.cards)];
   const mine = o.seat === me.value;
-  if (phase.value === 'discard') lines.push(mine ? (o.discarded ? 'You have put cards in the box' : 'You are still choosing cards for the box') : o.discarded ? 'Has put cards in the box' : 'Still choosing cards for the box');
-  lines.push(o.seat === s.value.dealer ? (mine ? 'You are the dealer: the box is yours' : 'The dealer: the box is theirs') : `Box: ${cribOwner.value}`);
-  lines.push(`Pegs: front on ${o.score}, back on ${o.back}`);
+  if (phase.value === 'discard') {
+    if (mine) lines.push(t(o.discarded ? 'popup.youDiscarded' : 'popup.youChoosing'));
+    else lines.push(t(o.discarded ? 'popup.discarded' : 'popup.choosing'));
+  }
+  if (o.seat === s.value.dealer) lines.push(t(mine ? 'popup.youDeal' : 'popup.deals'));
+  else lines.push(youDeal.value ? t('popup.boxYours') : t('popup.boxOf', { name: dealer.value.name }));
+  lines.push(t('popup.pegs', { score: o.score, back: o.back }));
   return lines;
 };
 
 // ---- the words, all of them in the Status box ----
 // The Status box headline: whose move it is, or what the viewer must do.
 const status = computed(() => {
-  if (finished.value) return `${winner.value.name}${winner.value.seat === me.value ? ' (you)' : ''} wins!`;
-  if (phase.value === 'discard') return need.value ? `Choose ${need.value} card${need.value === 1 ? '' : 's'} for ${cribOwner.value} box.` : `Waiting for ${waitingFor.value.join(', ')}…`;
-  if (inPlay.value) return myTurn.value ? (playable.value.size ? 'Your turn: choose a card.' : 'Your turn.') : `${seats.value[turn.value].name} to play.`;
-  if (phase.value === 'show') return you.value.ready ? `Waiting for ${waitingForReady.value.join(', ')}…` : 'Close the scores pop-up when you are ready for the next hand.';
+  if (finished.value) return t(winner.value.seat === me.value ? 'status.youWin' : 'scoreboard.wins', { name: winner.value.name });
+  if (phase.value === 'discard') {
+    if (!need.value) return t('scoreboard.waitingFor', { names: list(waitingFor.value) });
+    return youDeal.value ? t('status.chooseForYourBox', { count: need.value }, need.value) : t('status.chooseForBox', { count: need.value, name: dealer.value.name }, need.value);
+  }
+  if (inPlay.value) {
+    if (!myTurn.value) return t('status.toPlay', { name: seats.value[turn.value].name });
+    return t(playable.value.size ? 'status.yourTurnChoose' : 'status.yourTurn');
+  }
+  if (phase.value === 'show') return you.value.ready ? t('scoreboard.waitingFor', { names: list(waitingForReady.value) }) : t('status.closeScores');
   return '';
 });
 // True when the viewer has something to do (highlights the Status box).
@@ -167,15 +178,15 @@ const mine = computed(() => !finished.value && ((phase.value === 'discard' && Bo
 // The extra Status lines, each { text, tone }: discard progress, the count restarting, and the final standings.
 const statusLines = computed(() => {
   const lines = [];
-  if (phase.value === 'discard' && need.value) lines.push({ text: `${picked.value.length} of ${need.value} chosen: pick them, then press Send to the box.`, tone: 'muted' });
+  if (phase.value === 'discard' && need.value) lines.push({ text: t('status.chosen', { chosen: picked.value.length, count: need.value }), tone: 'muted' });
   if (inPlay.value) {
     const { sequence, previous } = s.value.play;
-    if (!sequence.length) lines.push({ text: previous.length ? 'The count has started again at 0.' : 'Nothing has been played yet.', tone: 'muted' });
+    if (!sequence.length) lines.push({ text: t(previous.length ? 'status.countRestarted' : 'status.nothingPlayed'), tone: 'muted' });
   }
   if (finished.value) {
-    for (const x of standings.value) lines.push({ text: `${x.place}. ${x.name}${x.seat === me.value ? ' (you)' : ''}: ${x.score}`, tone: x.place === 1 ? 'mine' : '' });
-    if (skunked.value.length) lines.push({ text: `Skunk! ${skunked.value.map((x) => x.name).join(' and ')} finished below ${s.value.skunkLine}.`, tone: 'muted' });
-    lines.push({ text: s.value.isHost ? 'You can start another game.' : 'The host can start another game.', tone: 'muted' });
+    for (const x of standings.value) lines.push({ text: t(x.seat === me.value ? 'status.standingYou' : 'status.standing', { place: x.place, name: x.name, score: x.score }), tone: x.place === 1 ? 'mine' : '' });
+    if (skunked.value.length) lines.push({ text: t('status.skunk', { names: list(skunked.value.map((x) => x.name)), line: s.value.skunkLine }), tone: 'muted' });
+    lines.push({ text: t(s.value.isHost ? 'status.hostAgain' : 'status.againHost'), tone: 'muted' });
   }
   return lines;
 });
@@ -223,17 +234,17 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
           <div v-if="opened" class="seat-details">
             <p class="key">
               <span class="chip" :style="{ background: seatColour(opened.seat) }" />
-              <span v-if="opened.seat === state.dealer" class="badge" title="Dealer">D</span>
+              <span v-if="opened.seat === state.dealer" class="badge" :title="t('table.dealerTitle')">D</span>
             </p>
             <p v-for="line in detailLines(opened)" :key="line">{{ line }}</p>
           </div>
         </PlayerPopup>
         <div class="mine-col" :style="{ gridColumn: `span ${area.mainSpan}` }">
-          <section class="zone" aria-label="The play" :style="room(area)">
+          <section class="zone" :aria-label="t('table.play')" :style="room(area)">
             <OpponentHands :opponents="opponents" :max="6" :base="28" />
             <template v-if="inPlay">
-              <div class="count" aria-label="The count">
-                <span class="muted">Count</span>
+              <div class="count" :aria-label="t('table.count')">
+                <span class="muted">{{ t('table.countLabel') }}</span>
                 <strong>{{ state.play.count }}</strong>
               </div>
               <div class="seq" :class="{ dim: !sequence.length }" :style="{ '--w': `${dims(area).peg}px` }">
@@ -244,12 +255,12 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
               </div>
             </template>
             <div v-else-if="phase === 'discard' && need" class="send">
-              <button class="primary" :disabled="picked.length !== need" @click="discard">Send to the box</button>
+              <button class="primary" :disabled="picked.length !== need" @click="discard">{{ t('table.sendToBox') }}</button>
             </div>
           </section>
 
           <section class="hand-area" :style="{ '--w': `${dims(area).hand}px` }">
-            <div class="hand" aria-label="Your hand">
+            <div class="hand" :aria-label="t('table.yourHand')">
               <PlayingCard
                 v-for="card in state.hand"
                 :key="card"
@@ -268,22 +279,22 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
             <Board :seats="state.seats" :target="state.target" :skunk-line="state.skunkLine" :you="state.you" />
           </div>
           <div class="piles" :style="{ '--w': `${dims(area).pile}px`, height: `${dims(area).pilesHeight}px` }">
-            <div class="pile" aria-label="The deck">
+            <div class="pile" :aria-label="t('table.deck')">
               <div class="slot-box"><PlayingCard :card="null" size="sm" /></div>
-              <small class="muted">Deck</small>
+              <small class="muted">{{ t('table.deckLabel') }}</small>
             </div>
-            <div class="pile" aria-label="The starter">
+            <div class="pile" :aria-label="t('table.starter')">
               <div class="slot-box">
                 <PlayingCard v-if="state.starter" :card="state.starter" size="sm" />
                 <PlayingCard v-else :card="null" size="sm" class="faded" />
               </div>
-              <small class="muted">Starter</small>
+              <small class="muted">{{ t('table.starterLabel') }}</small>
             </div>
-            <div class="pile" aria-label="The box">
+            <div class="pile" :aria-label="t('table.box')">
               <div class="slot-box crib">
                 <PlayingCard v-for="n in Math.max(state.cribCount, 1)" :key="n" :card="null" size="sm" :class="{ faded: !state.cribCount }" />
               </div>
-              <small class="muted">Box</small>
+              <small class="muted">{{ t('table.boxLabel') }}</small>
             </div>
           </div>
         </div>
@@ -291,23 +302,23 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
     </template>
 
     <template #log>
-      <GameLog :entries="state.log" newest-first label="Scoring" empty="Nothing scored yet this hand." v-slot="{ entry }">
-        <span class="entry"><span class="dot" :style="{ background: seatColour(entry.seat) }" />{{ entry.text }}</span>
+      <GameLog :entries="state.log" newest-first :label="t('table.scoring')" :empty="t('table.nothingScored')" v-slot="{ entry }">
+        <span class="entry"><span class="dot" :style="{ background: seatColour(entry.seat) }" />{{ text(entry) }}</span>
       </GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="status" :mine="mine" :popup="false" :lines="statusLines">
         <template #facts>
-          <strong>Hand {{ state.handNo }}</strong>
-          <span class="dealer"><span class="badge" title="Dealer">D</span>{{ youDeal ? 'You deal' : `${dealer.name} deals` }}</span>
-          <span>First to {{ state.target }}</span>
-          <span>Deck: {{ state.deckCount }}</span>
-          <span>{{ youDeal ? 'Your' : `${dealer.name}'s` }} box: {{ state.cribCount }}</span>
+          <strong>{{ t('facts.hand', { n: state.handNo }) }}</strong>
+          <span class="dealer"><span class="badge" :title="t('table.dealerTitle')">D</span>{{ youDeal ? t('facts.youDeal') : t('facts.deals', { name: dealer.name }) }}</span>
+          <span>{{ t('facts.firstTo', { n: state.target }) }}</span>
+          <span>{{ t('facts.deck', { count: state.deckCount }) }}</span>
+          <span>{{ youDeal ? t('facts.yourBox', { count: state.cribCount }) : t('facts.box', { name: dealer.name, count: state.cribCount }) }}</span>
         </template>
         <div v-if="finished" class="row">
-          <button v-if="state.isHost" class="primary" @click="send('again')">Play again (back to the lobby)</button>
-          <button @click="scoreboard.show()">See the scores</button>
+          <button v-if="state.isHost" class="primary" @click="send('again')">{{ t('table.playAgain') }}</button>
+          <button @click="scoreboard.show()">{{ t('table.seeScores') }}</button>
         </div>
       </GameStatus>
     </template>

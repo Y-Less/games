@@ -265,7 +265,7 @@ test('lobby rules: host only, full seats, a full room and a started room refuse 
   assert.equal((await fourth.join(code)).ok, false, 'already started');
   assert.equal((await host.call('create')).ok, false, 'already in a game');
   assert.equal((await host.call('join', { code: 'not a code' })).ok, false);
-  assert.match((await host.call('join', { code: 'boss-aware-you' })).error, /already in the game/);
+  assert.equal((await host.call('join', { code: 'boss-aware-you' })).error, 'alreadyInGameJoin');
   assert.equal((await fourth.call('resume', { code: 'boss-aware-you' })).ok, false, 'no such game');
 });
 

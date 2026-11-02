@@ -10,8 +10,10 @@
 // Emits: none. Slots: none.
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { seatColour } from './colours.js';
 
+const { t, list } = useGameText();
 const props = defineProps({
   seats: { type: Array, required: true }, // [{ seat, name, score, back }]
   target: { type: Number, required: true },
@@ -81,11 +83,11 @@ const pegs = computed(() =>
   ]),
 );
 // Text summary of the scores, for the board's accessible label.
-const label = computed(() => props.seats.map((s) => `${s.name} ${s.score}`).join(', '));
+const label = computed(() => t('board.label', { target: props.target, scores: list(props.seats.map((s) => t('board.score', { name: s.name, score: s.score }))) }));
 </script>
 
 <template>
-  <svg class="board" :viewBox="`0 0 ${width} ${height}`" role="img" :aria-label="`Cribbage board to ${target}: ${label}`">
+  <svg class="board" :viewBox="`0 0 ${width} ${height}`" role="img" :aria-label="label">
     <rect x="1" y="1" :width="width - 2" :height="height - 2" rx="8" class="wood" />
     <text v-for="m in markers" :key="m.h" :x="m.x" :y="m.y" class="num">{{ m.h }}</text>
     <circle

@@ -1,6 +1,9 @@
 // Cribbage counting: the show (hands and the crib) and the play (pegging). Pure functions over cards such as "5H".
-// Depends on shared/cards.js only; game.js and the AIs build on it.
+// Each scoring item carries a `label`: a message (shared/messages.js) under the game's `scoring.*` keys, which the
+// client puts into words in the show and in the log.
+// Depends on shared/cards.js and shared/messages.js only; game.js and the AIs build on it.
 import { rankOf, rankValue, suitOf } from '../../shared/cards.js';
+import { msg } from '../../shared/messages.js';
 
 /**
  * What a card is worth towards fifteens and the running count: ace 1, court cards 10.
@@ -68,7 +71,7 @@ export const HEELS_POINTS = 2;
 
 /**
  * Scores a four-card hand (or crib) with the starter. Returns { total, items }, where each item is
- * { kind: 'fifteen' | 'pair' | 'run' | 'flush' | 'nobs', cards, points, label }.
+ * { kind: 'fifteen' | 'pair' | 'run' | 'flush' | 'nobs', cards, points, label } (`label` a `scoring.*` message).
  * A flush in the crib counts only when the starter matches as well.
  *
  * @param {string[]} hand  the four cards held (or the four crib cards)
@@ -84,38 +87,38 @@ export function scoreHand(hand, starter, { crib = false } = {}) {
   for (let size = 2; size <= all.length; size++) {
     for (const indexes of subsets(all.length, size)) {
       const cards = indexes.map((i) => all[i]);
-      if (cards.reduce((sum, card) => sum + pipValue(card), 0) === 15) items.push({ kind: 'fifteen', cards, points: 2, label: 'Fifteen' });
+      if (cards.reduce((sum, card) => sum + pipValue(card), 0) === 15) items.push({ kind: 'fifteen', cards, points: 2, label: msg('scoring.fifteen') });
     }
   }
   for (const [a, b] of subsets(all.length, 2)) {
-    if (rankOf(all[a]) === rankOf(all[b])) items.push({ kind: 'pair', cards: [all[a], all[b]], points: 2, label: 'Pair' });
+    if (rankOf(all[a]) === rankOf(all[b])) items.push({ kind: 'pair', cards: [all[a], all[b]], points: 2, label: msg('scoring.pair') });
   }
   // Only the longest runs score (a run of four does not also count its threes), so stop at the first size that has any.
   for (let size = all.length; size >= 3; size--) {
     const runs = subsets(all.length, size).map((indexes) => indexes.map((i) => all[i])).filter(isRun);
     if (runs.length) {
-      for (const cards of runs) items.push({ kind: 'run', cards, points: size, label: `Run of ${size}` });
+      for (const cards of runs) items.push({ kind: 'run', cards, points: size, label: msg('scoring.run', { count: size }) });
       break;
     }
   }
   if (hand.every((card) => suitOf(card) === suitOf(hand[0]))) {
-    if (suitOf(starter) === suitOf(hand[0])) items.push({ kind: 'flush', cards: all, points: 5, label: 'Flush of five' });
-    else if (!crib) items.push({ kind: 'flush', cards: [...hand], points: 4, label: 'Flush of four' });
+    if (suitOf(starter) === suitOf(hand[0])) items.push({ kind: 'flush', cards: all, points: 5, label: msg('scoring.flushFive') });
+    else if (!crib) items.push({ kind: 'flush', cards: [...hand], points: 4, label: msg('scoring.flushFour') });
   }
   const nobs = hand.find((card) => rankOf(card) === 'J' && suitOf(card) === suitOf(starter));
-  if (nobs) items.push({ kind: 'nobs', cards: [nobs], points: 1, label: 'His nobs' });
+  if (nobs) items.push({ kind: 'nobs', cards: [nobs], points: 1, label: msg('scoring.nobs') });
 
   return { total: items.reduce((sum, item) => sum + item.points, 0), items };
 }
 
-/** Names for the number of equal ranks at the end of the play. */
-const PAIR_LABELS = { 2: 'Pair', 3: 'Pair royal', 4: 'Double pair royal' };
+/** The message keys naming the number of equal ranks at the end of the play. */
+const PAIR_LABELS = { 2: 'scoring.pair', 3: 'scoring.pairRoyal', 4: 'scoring.doublePairRoyal' };
 /** Points for the number of equal ranks at the end of the play: each pair among them scores 2. */
 const PAIR_POINTS = { 2: 2, 3: 6, 4: 12 };
 
 /**
  * Scores the card just played in the current sequence of the play (the last card of `sequence`).
- * Returns { count, total, items } with items { kind: 'fifteen' | 'thirty-one' | 'pair' | 'run', points, label }.
+ * Returns { count, total, items } with items { kind: 'fifteen' | 'thirty-one' | 'pair' | 'run', points, label } (`label` a `scoring.*` message).
  *
  * @param {string[]} sequence  the cards played since the count last reset, in order
  * @returns {{ count: number, total: number, items: object[] }} the running count, the points, and what earned them
@@ -124,19 +127,19 @@ const PAIR_POINTS = { 2: 2, 3: 6, 4: 12 };
 export function scorePlay(sequence) {
   const count = sequence.reduce((sum, card) => sum + pipValue(card), 0);
   const items = [];
-  if (count === 15) items.push({ kind: 'fifteen', points: 2, label: 'Fifteen' });
-  if (count === 31) items.push({ kind: 'thirty-one', points: 2, label: 'Thirty-one' });
+  if (count === 15) items.push({ kind: 'fifteen', points: 2, label: msg('scoring.fifteen') });
+  if (count === 31) items.push({ kind: 'thirty-one', points: 2, label: msg('scoring.thirtyOne') });
 
   const last = sequence[sequence.length - 1];
   let same = 1;
   // Count how many cards at the end share the last card's rank (at most four exist).
   while (same < sequence.length && same < 4 && rankOf(sequence[sequence.length - 1 - same]) === rankOf(last)) same++;
-  if (same >= 2) items.push({ kind: 'pair', points: PAIR_POINTS[same], label: PAIR_LABELS[same] });
+  if (same >= 2) items.push({ kind: 'pair', points: PAIR_POINTS[same], label: msg(PAIR_LABELS[same]) });
 
   // A run counts the longest tail of the sequence that is a run, in any order.
   for (let size = sequence.length; size >= 3; size--) {
     if (isRun(sequence.slice(-size))) {
-      items.push({ kind: 'run', points: size, label: `Run of ${size}` });
+      items.push({ kind: 'run', points: size, label: msg('scoring.run', { count: size }) });
       break;
     }
   }

@@ -13,6 +13,7 @@
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -22,21 +23,22 @@ const props = defineProps({
   search: { type: String, default: '' },
   setSearch: { type: Function, default: () => {} },
 });
+const { t } = useGameText();
 
 const { state, loaded, busy, notice, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning to show before leaving mid-game, or '' for no warning.
-  leaveConfirm: (state) => state.phase !== 'lobby' && state.phase !== 'finished' ? 'A computer player takes your seat if you leave.' : '',
+  leaveConfirm: (state) => (state.phase !== 'lobby' && state.phase !== 'finished' ? t('leaveConfirm') : ''),
 });
 </script>
 
 <template>
   <div class="cribbage stack">
     <ErrorToast v-if="loaded && state && notice" :text="notice" />
-    <p v-if="!loaded" class="muted">Loading your game…</p>
-    <RoomEntry v-else-if="!state" noun="game" intro="Cribbage for two to four players, with computer players to fill any empty seat." :busy="busy" :error="notice" :initial-code="search.replace(/^\?/, '')" @create="send('create')" @join="(code) => send('join', { code })" />
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
+    <RoomEntry v-else-if="!state" :noun="t('entry.noun')" :intro="t('entry.intro')" :busy="busy" :error="notice" :initial-code="search.replace(/^\?/, '')" @create="send('create')" @join="(code) => send('join', { code })" />
 
     <template v-else>
       <Lobby v-if="state.phase === 'lobby'" :state="state" :send="send" />
