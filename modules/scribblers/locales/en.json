@@ -1,0 +1,132 @@
+{
+  "entry": {
+    "noun": "game of Scribblers",
+    "intro": "Take turns drawing a secret word while everybody else races to guess it. The sooner you get it the more you score, and the drawer scores what the guessers do. You get a code to share."
+  },
+  "leaveConfirm": "You will not be able to come back.",
+  "settings": {
+    "title": "Game options",
+    "rounds": "Rounds",
+    "drawTime": "Time to draw",
+    "wordChoices": "Words to choose from",
+    "value": {
+      "rounds": "{n} round | {n} rounds",
+      "drawTime": "{n} seconds",
+      "wordChoices": "{n} word | {n} words"
+    },
+    "less": {
+      "rounds": "Fewer rounds",
+      "drawTime": "Less time to draw",
+      "wordChoices": "Fewer words to choose from"
+    },
+    "more": {
+      "rounds": "More rounds",
+      "drawTime": "More time to draw",
+      "wordChoices": "More words to choose from"
+    },
+    "total": "{count} turn in all with {players} players. Everybody draws once a round. | {count} turns in all with {players} players. Everybody draws once a round."
+  },
+  "board": {
+    "label": "The drawing board"
+  },
+  "toolbox": {
+    "colours": "Colours",
+    "colour": "Colour {n}",
+    "tools": "Tools",
+    "pen": "Pen (Q)",
+    "rubber": "Rubber (E)",
+    "fill": "Fill (W)",
+    "widths": "Brush sizes",
+    "width": "Brush of {n}",
+    "board": "The board",
+    "undo": "Undo the last stroke (Ctrl+Z)",
+    "clear": "Clear the board"
+  },
+  "panel": {
+    "title": "Guesses",
+    "nothingYet": "Nothing yet.",
+    "guessPlaceholder": "Your guess",
+    "sayPlaceholder": "Say something",
+    "send": "Send",
+    "close": "so close!",
+    "gotIt": "{name} has the word!"
+  },
+  "word": {
+    "choosing": "{name} is choosing a word",
+    "yourChoice": "Choose a word to draw",
+    "letters": "{count} letter | {count} letters",
+    "seconds": "{count}s | {count}s",
+    "yours": "The word you are drawing",
+    "sofar": "The word so far"
+  },
+  "choice": {
+    "label": "The words to choose from",
+    "pick": "Choose a word to draw",
+    "orWait": "One is chosen for you if you wait."
+  },
+  "reveal": {
+    "label": "The word",
+    "wordWas": "The word was “{word}”",
+    "points": "+{n}",
+    "nobody": "Nobody scored."
+  },
+  "status": {
+    "roundOver": "Round {n} of {of} is over.",
+    "wordWas": "The word was “{word}”.",
+    "turnOver": "The turn is over.",
+    "yourChoice": "Your turn: choose a word to draw.",
+    "choosing": "{name} is choosing a word.",
+    "youDraw": "Your turn: draw “{word}”.",
+    "youGotIt": "You have the word. Sit tight.",
+    "guess": "{name} is drawing. Type what you think it is.",
+    "finishedNote": "The scores are final.",
+    "waitingReady": "Waiting for {names}.",
+    "drawerLeft": "The drawer left, so the turn does not count.",
+    "gotItCount": "{count} player got the word. | {count} players got the word.",
+    "nobodyGotIt": "Nobody got the word.",
+    "gotSoFar": "{count} of {total} have it so far.",
+    "waitForTheRest": "The turn ends when everybody has it, or the time runs out.",
+    "typeYourGuess": "Guess as often as you like: a wrong guess costs nothing."
+  },
+  "facts": {
+    "drawer": "Drawing: {name}"
+  },
+  "popup": {
+    "lastTurn": "Last turn",
+    "choosing": "Choosing a word",
+    "drawing": "Drawing",
+    "gotIt": "Has the word",
+    "guessing": "Still guessing"
+  },
+  "log": {
+    "turnStart": "Turn {n} of {of}: {name} draws.",
+    "drawing": "{name} starts drawing.",
+    "gotIt": "{name} got the word.",
+    "points": "{names}.",
+    "playerPoints": "{name} scores {n}",
+    "nobodyGotIt": "Nobody got the word.",
+    "wordWas": "The word was “{word}”.",
+    "roundOver": "Round {n} of {of} is over.",
+    "drawerLeft": "{name} left, so the turn was given up."
+  },
+  "notes": {
+    "drew": "drew “{word}”"
+  },
+  "scoreboard": {
+    "round": "Round {n} of {of}"
+  },
+  "errors": {
+    "notChoosing": "There is no word to choose now.",
+    "drawerOnlyChooses": "Only the drawer chooses the word.",
+    "pickAWord": "Choose one of the words you were offered.",
+    "noHintDue": "There is no letter to show.",
+    "typeGuess": "Type a guess first.",
+    "tooFast": "Slow down a moment.",
+    "nothingToSkip": "There is no turn to give up.",
+    "notYourTurnToDraw": "It is not your turn to draw.",
+    "badDrawing": "That is not something that can be drawn.",
+    "rounds": "Play from {min} to {max} rounds.",
+    "drawTime": "A drawing lasts from {min} to {max} seconds.",
+    "wordChoices": "The drawer chooses from {min} to {max} words."
+  }
+}

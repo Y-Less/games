@@ -1,0 +1,81 @@
+{
+  "id": "scribblers",
+  "name": "Scribblers",
+  "description": "One player draws a secret word while everybody else races to guess it. The sooner you get it, the more you score, and the drawer scores what the guessers do.",
+  "minPlayers": 2,
+  "maxPlayers": 12,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "wordsDrawn", "label": "Words drawn", "agg": "sum" },
+    { "key": "wordsGuessed", "label": "Words guessed", "agg": "sum" },
+    { "key": "firstGuesses", "label": "Words you guessed first", "agg": "sum" },
+    { "key": "bestTurn", "label": "Best single turn", "agg": "max" },
+    { "key": "everyoneGot", "label": "Drawings everybody guessed", "agg": "sum", "hidden": true },
+    { "key": "nobodyGot", "label": "Drawings nobody guessed", "agg": "sum", "hidden": true },
+    { "key": "cleanSweep", "label": "Games where you guessed every word", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "drawn",
+      "name": "Sketch artist",
+      "text": "Draw {n} words",
+      "one": "Draw a word",
+      "levels": "easy",
+      "stat": "wordsDrawn"
+    },
+    {
+      "key": "guessed",
+      "name": "Mind reader",
+      "text": "Guess {n} words",
+      "one": "Guess a word",
+      "levels": "easy",
+      "stat": "wordsGuessed"
+    },
+    {
+      "key": "first",
+      "name": "Quick off the mark",
+      "text": "Be the first to guess the word {n} times",
+      "one": "Be the first to guess the word",
+      "levels": "medium",
+      "stat": "firstGuesses"
+    },
+    {
+      "key": "crowd",
+      "name": "Crowd pleaser",
+      "text": "Draw a word that everybody guesses, {n} times",
+      "one": "Draw a word that everybody guesses",
+      "levels": "hard",
+      "stat": "everyoneGot"
+    },
+    {
+      "key": "abstract",
+      "name": "Abstract art",
+      "text": "Draw a word that nobody guesses, {n} times",
+      "one": "Draw a word that nobody guesses",
+      "levels": "medium",
+      "stat": "nobodyGot"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points in total",
+      "levels": "easy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "bullseye",
+      "name": "Straight away",
+      "text": "Score {n} on a single turn",
+      "levels": [120, 160, 200, 230, 255],
+      "stat": "bestTurn"
+    },
+    {
+      "key": "sweep",
+      "name": "Clean sweep",
+      "text": "Guess the word on every one of your turns in a game",
+      "levels": "unlock",
+      "stat": "cleanSweep"
+    }
+  ]
+}

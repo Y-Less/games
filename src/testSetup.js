@@ -8,6 +8,23 @@ import { GAME_ID } from './useGameText.js';
 
 config.global.plugins = [...(config.global.plugins ?? []), i18n];
 
+// jsdom has no canvas, and asking it for one logs "Not implemented", which the render-everything tests count as a
+// failure.  This much of a 2D context is enough for a game that draws (Scribblers) to run against a buffer of pixels
+// in a test: nothing is shown, but every line of the drawing code is exercised.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = function getContext() {
+    const canvas = this;
+    return {
+      canvas,
+      fillStyle: '#ffffff',
+      fillRect() {},
+      clearRect() {},
+      putImageData() {},
+      getImageData: (x, y, width, height) => ({ data: new Uint8ClampedArray(Math.max(1, width) * Math.max(1, height) * 4), width: Math.max(1, width), height: Math.max(1, height) }),
+    };
+  };
+}
+
 beforeEach(() => {
   const file = (expect.getState().testPath ?? '').replace(/\\/g, '/');
   const game = file.match(/modules\/([^/]+)\/client\//)?.[1] ?? null;

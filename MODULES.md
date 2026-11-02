@@ -82,10 +82,17 @@ handles `create`, `join`/`resume`, `leave`, `kick` and the lobby events (`settin
 - `game`: the rules module (`createRoom`, `viewFor`, `statsPlayers`, `isLive`, the seat rules and so on; the full list is
   in the header of `createRoomServer`).
 - `pickSettings(payload)`: the settings it accepts from a client.
-- `nextAction(room, rng, now)`: what the server must do by itself next, as `{ key?, wait, run }` or `null` (a computer
+- `nextAction(room, rng, now, { online })`: what the server must do by itself next, as `{ key?, wait, run }` or `null` (a computer
   move, the pause after a trick, the wait for everyone to close the score pop-up).  The same `key` keeps its timer instead
-  of restarting it.  A `run` that throws is retried up to three times with a doubling pause.
-- `registerEvents({ on, act, userId, rng, now })`: the game's own socket events.
+  of restarting it.  A `run` that throws is retried up to three times with a doubling pause.  `online(id)` says who is
+  connected, read afresh whenever it is called, for a game that gives up on somebody who has gone (Scribblers ends a turn
+  whose drawer has left).  A connection going is not itself a change to a room, so such a check only happens when the
+  room next changes or a timer fires.
+- `registerEvents({ on, act, userId, socket, rng, now, roomOf, relay })`: the game's own socket events.  `roomOf()` is the room
+  this socket is in; `relay(room, event, payload, { except })` sends an event straight to the room's people, for a stream
+  no view can carry.  A view is the whole state of a room, sent to everybody on every change, so a game whose data is far
+  too large or too frequent for that (the thousands of strokes of a drawing: see `modules/scribblers`) keeps it out of the
+  room, relays it as it is made, and hands the lot to anybody who arrives in the middle.
 
 Seat rules are shared too.  Games with numbered seats build theirs with `createSeatRules` (`shared/seats.js`); games that
 keep a list of players use `createRosterRules` (`shared/roster.js`).  Both give you `addHuman`, `removeHuman`, `addBot`,
@@ -309,7 +316,9 @@ them), and its `client/render-all.test.js` draws every one of them with the real
 `walkViews` (`shared/renderWalk.js`), failing on any error or Vue warning: a state the table cannot draw is a crash a
 player would meet.  A new game should have both.  The robustness tests (`modules/<id>/robustness.test.js`) throw
 garbage at every socket event in every phase; `handledSocketEvents` in the test kit lists the events a server handles so
-that a new event cannot go untested.
+that a new event cannot go untested.  jsdom has no canvas, so `src/testSetup.js` gives it enough of a 2D context for a
+game that draws to run against a buffer of pixels in a test (Scribblers' `client/draw.test.js` tests the drawing itself
+on such a buffer, with no canvas at all).
 
 ## Card games
 
@@ -431,6 +440,13 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `NoticePopup` | the generic small pop-up over the top of the page: slot content, `active`, `duration`, `autoHide` (false: stays until OK), OK button, `name` (extra class), `row` (stack two). `YourTurnPopup` and the achievement unlocks are built on it |
 | `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
+
+Two helpers beside them, imported from `modules/<id>/client/` as `../../../src/<name>.js`:
+
+| | |
+| --- | --- |
+| `useTurnClock(getState)` | counts the seconds down from the `remaining` milliseconds a view carries, re-anchoring to the local clock on every new view, so a game never depends on the server's clock agreeing with the player's (Rummikub, Scribblers) |
+| `usePlayerPopup(...)` | which player's details are open, and the host's removal (see `PlayerPopup` above) |
 
 Before writing a new screen for a game, check whether one of these already does the job; if you build something that
 two games would want, put it here and add it to this list.

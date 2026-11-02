@@ -27,7 +27,7 @@ import { useRoundView } from './useRoundView.js';
 import { useStatusText } from './useStatusText.js';
 import { useTileDrag } from './useTileDrag.js';
 import { useTurnActions } from './useTurnActions.js';
-import { useTurnClock } from './useTurnClock.js';
+import { useTurnClock } from '../../../src/useTurnClock.js';
 import { useWorkingCopy } from './useWorkingCopy.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
