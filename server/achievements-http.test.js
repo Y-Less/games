@@ -43,15 +43,17 @@ const PAD = manifest('pad', {
 
 async function setup(t) {
   const modulesDir = writeModules(t, { pad: { 'module.json': PAD, 'server.js': SERVER }, quiet: { 'module.json': manifest('quiet'), 'server.js': 'export default function () {}' } });
-  const { client, base } = await withSite(t, { modulesDir, shopLocked: true }); // (an account that owns the whole shop has already unlocked "Customised")
-  const c = client();
-  await register(c, 'runner', 'password1');
+  const env = await withSite(t, { modulesDir, shopLocked: true }); // (an account that owns the whole shop has already unlocked "Customised")
+  const { base } = env;
+  const c = env.client();
+  const { data } = await register(c, 'runner', 'password1');
+  const user = data.user;
   await c.post('/api/achievements/seen', { items: [{ id: 'global.welcome', level: 1 }] }); // the welcome pop-up has been dealt with: the tests below count what they cause
   const socket = c.socket('/pad');
   await connected(socket);
   const sections = async () => (await c.get('/api/achievements')).data.sections;
   const find = async (id) => (await sections()).flatMap((s) => s.achievements).find((a) => a.id === id);
-  return { c, socket, sections, find, base };
+  return { c, socket, sections, find, base, site: env.site, user };
 }
 
 test('the page lists the global achievements, then the games that have some, and drops unusable definitions', async (t) => {
@@ -62,7 +64,7 @@ test('the page lists the global achievements, then the games that have some, and
   assert.deepEqual(list[2].achievements.map((a) => a.key), ['played', 'won']);
   assert.deepEqual(list[1].achievements[0].levels.map((l) => l.n), [1, 10, 25, 50, 150], 'played is medium');
   assert.deepEqual(list[1].achievements[1].levels.map((l) => l.n), [1, 5, 10, 25, 50], 'won is hard');
-  assert.deepEqual(list[0].achievements.map((a) => a.key), ['welcome', 'games', 'wins', 'persistent', 'cards', 'slow', 'pieces', 'spent', 'indecisive', 'customised', 'steve', 'everygame']);
+  assert.deepEqual(list[0].achievements.map((a) => a.key), ['welcome', 'games', 'wins', 'persistent', 'cards', 'slow', 'pieces', 'spent', 'indecisive', 'customised', 'steve', 'everygame', 'klingon', 'fashionable', 'shed']);
 });
 
 test('it needs a signed-in player', async (t) => {
@@ -175,4 +177,36 @@ test('Persistent counts lost games, with its own wording', async (t) => {
   assert.equal(persistent.levels[0].text, 'You just lost the game (1 time)');
   assert.equal(persistent.levels[1].text, 'You just lost the game (10 times)');
   assert.equal((await find('global.games')).value, 1);
+});
+
+test("Qapla': choosing Klingon unlocks it there and then, and keeps it when the language changes back", async (t) => {
+  const { c, find } = await setup(t);
+  assert.equal((await find('global.klingon')).level, 0, 'not for somebody who has never chosen it');
+  assert.equal((await c.patch('/api/me', { language: 'fr' })).status, 200);
+  assert.equal((await find('global.klingon')).level, 0, 'nor for another language');
+  assert.equal((await c.patch('/api/me', { language: 'tlh' })).status, 200);
+  assert.equal((await find('global.klingon')).level, 1, 'the moment it is chosen, without waiting for a game to end');
+  assert.equal((await c.patch('/api/me', { language: null })).status, 200);
+  assert.equal((await find('global.klingon')).level, 1, 'and an unlock once earned is not taken away again');
+});
+
+test('Fashionable counts the things bought, and the free starting choices are not among them', async (t) => {
+  const { c, find, site, user } = await setup(t);
+  site.db.prepare("INSERT INTO coin_ledger (user_id, amount, reason, created_at) VALUES (?, 5000, 'test', 0)").run(user.id);
+  assert.equal((await find('global.fashionable')).value, 0, 'the free background and card back everybody starts with do not count');
+  assert.equal((await c.post('/api/shop/buy', { item: 'bg:ocean' })).status, 200);
+  assert.equal((await find('global.fashionable')).value, 1);
+  assert.equal((await c.post('/api/shop/buy', { item: 'bg:dusk' })).status, 200);
+  const bought = await find('global.fashionable');
+  assert.equal(bought.value, 2);
+  assert.equal(bought.level, 1, 'the first level is one purchase');
+  assert.deepEqual(bought.levels.map((l) => l.n), [1, 10, 25, 100, 200], 'and the top level asks for more than the shop sells today');
+});
+
+test('Out in the shed counts minutes on the site, and the statistics page shows the same time', async (t) => {
+  const { c, find } = await setup(t);
+  const mine = async () => (await c.get('/api/stats/me')).data.summary;
+  assert.equal(typeof (await mine()).onlineSeconds, 'number', 'the page always has a figure to show');
+  assert.equal((await find('global.shed')).value, 0, 'and nobody has a minute before they have spent one');
+  assert.deepEqual((await find('global.shed')).levels.map((l) => l.n), [100, 500, 1000, 2500, 5000]);
 });

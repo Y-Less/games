@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 import { createAuth } from './auth.js';
 import { createAchievements } from './achievements.js';
 import { createCoins } from './coins.js';
+import { createPresence } from './presence.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
 import { registerRoutes } from './routes/index.js';
@@ -45,7 +46,19 @@ export async function startSite(options = {}) {
   let moduleList = [];
   const listGames = () => moduleList;
   // (io is made below, before anything can be recorded or played)
-  const achievements = createAchievements(db, { listGames, statsFor: (userId) => stats.forUser(userId), notify: (userId) => io.to(`user:${userId}`).emit('achievements'), measures: { member: () => 1, coinsSpent: coins.spent, customised: shop.customised } });
+  const presence = createPresence(db);
+  const achievements = createAchievements(db, {
+    listGames,
+    statsFor: (userId) => stats.forUser(userId),
+    notify: (userId) => io.to(`user:${userId}`).emit('achievements'),
+    measures: {
+      member: () => 1,
+      coinsSpent: coins.spent,
+      customised: shop.customised,
+      purchases: (userId) => shop.purchases(userId),
+      onlineMinutes: (userId) => presence.minutes(userId),
+    },
+  });
   const stats = createStats(db, listGames, {
     // Bot accounts take part in games but never earn coins. There is no minimum number of people: beating
     // computer players pays the same as beating people.
@@ -59,13 +72,13 @@ export async function startSite(options = {}) {
   app.set('trust proxy', process.env.TRUST_PROXY ? 1 : false);
   const server = http.createServer(app);
   const io = new Server(server);
-  attachSiteSocket(io, auth);
+  attachSiteSocket(io, auth, { presence, onAway: (userId) => achievements.settle(userId) });
 
   const modules = await loadModules({ dir: modulesDir, io, app, auth, stats, achievements, dataDir, owns: shop.owns, log });
   moduleList = modules.list();
   for (const meta of moduleList) for (const problem of achievements.problems(meta)) log(`Achievement problem: ${problem}`);
 
-  registerRoutes(app, { auth, achievements, coins, shop, stats, modules, uploads, canUse, listGames, distDir });
+  registerRoutes(app, { auth, achievements, coins, shop, stats, presence, modules, uploads, canUse, listGames, distDir });
 
   const sweep = setInterval(() => auth.deleteExpiredSessions(), 60 * 60 * 1000);
   sweep.unref();
@@ -86,6 +99,7 @@ export async function startSite(options = {}) {
      * Side effects: stops the sweep, disposes the modules, closes the sockets, connections and database.
      */
     async close() {
+      presence.flush(); // whoever is still connected keeps the time they have built up
       clearInterval(sweep);
       await modules.dispose();
       await new Promise((resolve) => io.close(resolve)); // also closes the HTTP server

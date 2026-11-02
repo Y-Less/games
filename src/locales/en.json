@@ -193,7 +193,8 @@
     },
     "players": "{count} player | {count} players",
     "points": "{count} point | {count} points",
-    "playersAndPoints": "{players}, {points}"
+    "playersAndPoints": "{players}, {points}",
+    "online": "Time on the site"
   },
   "achievements": {
     "title": "Achievements for {name}",
@@ -345,8 +346,6 @@
     "option": "{slot}: {name}"
   },
   "unlocks": {
-    "many": "{count} achievements unlocked!",
-    "manyLine": "+{coins} gold. See them on the Achievements page.",
     "one": "Achievement unlocked: {name}",
     "oneLine": "{game}: {text}",
     "oneLineLevel": "{game}, level {level}: {text}",

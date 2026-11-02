@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { allItems, categoryOf, choicesChanged, itemById, paidCategories } from './shop.js';
 import { png, register, withSite } from './fixtures/testkit.js';
+import { COINS_PER_LEVEL } from '../shared/achievements.js';
 
 async function shopSite(t, { coins = 0 } = {}) {
   const env = await withSite(t, { shopLocked: true });
@@ -49,7 +50,8 @@ test('buying takes the price, and the item can then be used', async (t) => {
   assert.equal((await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } })).status, 403);
   const bought = await c.post('/api/shop/buy', { item: 'bg:ocean' });
   assert.equal(bought.status, 200);
-  assert.equal(bought.data.balance, 200);
+  // 700 less the 500 it costs, and then the 100 that "Fashionable" pays for a first purchase.
+  assert.equal(bought.data.balance, 700 - 500 + COINS_PER_LEVEL);
   assert.equal((await c.get('/api/shop')).data.items.find((i) => i.id === 'bg:ocean').owned, true);
   const changed = await c.patch('/api/me', { background: { type: 'preset', value: 'ocean' } });
   assert.equal(changed.status, 200);
@@ -63,7 +65,7 @@ test('buying is refused when it cannot be afforded, is already owned, or is not 
   assert.equal((await c.post('/api/shop/buy', { item: 'bg:night' })).status, 409, 'a free item is already yours');
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 200);
   assert.equal((await c.post('/api/shop/buy', { item: 'cb:teal' })).status, 409);
-  assert.equal((await c.get('/api/shop')).data.balance, 199, 'an item is only paid for once');
+  assert.equal((await c.get('/api/shop')).data.balance, 499 - 300 + COINS_PER_LEVEL, 'an item is only paid for once (and the first one unlocks "Fashionable")');
   for (const item of ['nothing', '', null, 7, { id: 'bg:ocean' }, undefined]) {
     assert.equal((await c.post('/api/shop/buy', { item })).status, 404, JSON.stringify(item));
   }

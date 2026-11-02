@@ -5,17 +5,16 @@
 // Side effects: opens the achievement feed (site socket) when a user signs in and stops it on sign-out; marks shown unlocks as seen
 //   via the feed's `shown()` when the player clicks OK.
 // The pop-ups for achievement unlocks (see achievementFeed.js), one after another near the top of the page. They stay
-// until OK is clicked (they do not hide themselves). When many arrive together (the first visit after achievements began paying out, say) they
-// are shown as one pop-up with the total, so nobody has to click through a long line of them.
-import { computed, ref, watch } from 'vue';
+// until OK is clicked (they do not hide themselves). However many arrive together, each gets its own pop-up: the point
+// of one is to say what was unlocked, which a count of them would not.
+import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { feed, shown, startFeed, stopFeed } from '../achievementFeed.js';
 import { catalogue } from '../catalogueText.js';
 import { session } from '../session.js';
 import NoticePopup from './NoticePopup.vue';
 
-const MOST_ONE_BY_ONE = 3; // more queued unlocks than this are merged into a single summary pop-up
-const current = ref(null); // the unlocks in the pop-up being shown
+const current = ref(null); // the unlock in the pop-up being shown, or null when none is
 
 watch(() => session.user?.id, (id) => {
   if (id) startFeed();
@@ -25,27 +24,24 @@ watch(() => session.user?.id, (id) => {
   }
 }, { immediate: true });
 
-// Takes the next pop-up when none is showing.
+// Takes the next pop-up when none is showing. However many arrive at once, they are shown one after another: each
+// says what was unlocked, which a count of them would not.
 watch(() => [feed.queue.length, current.value], () => {
   if (current.value || !feed.queue.length) return;
-  current.value = feed.queue.length > MOST_ONE_BY_ONE ? [...feed.queue] : [feed.queue[0]];
+  current.value = feed.queue[0];
 }, { immediate: true, deep: true });
 
 /**
- * Called when the pop-up closes: records its unlocks as shown so they leave the queue, letting the next pop-up appear.
+ * Called when the pop-up closes: records its unlock as shown so it leaves the queue, letting the next one appear.
  * @returns {void}
  * Side effects: clears `current` and updates the feed via shown().
  */
 function closed() {
-  const done = current.value ?? [];
+  const done = current.value;
   current.value = null;
-  shown(done);
+  if (done) shown([done]);
 }
 
-// True when the current pop-up is a merged summary of several unlocks.
-const many = computed(() => (current.value?.length ?? 0) > 1);
-// Total coins earned across the unlocks in the current pop-up.
-const coins = computed(() => (current.value ?? []).reduce((sum, u) => sum + u.coins, 0));
 const { t, n: number } = useI18n();
 /**
  * The pop-up's words for one unlock, in the player's language (the server's English is the fallback).
@@ -62,16 +58,10 @@ function wordsFor(unlock) {
 </script>
 
 <template>
-  <NoticePopup v-if="current" :key="current.map((u) => `${u.id}:${u.level}`).join()" :active="true" :auto-hide="false" :row="1" name="achievement" @close="closed">
-    <template v-if="many">
-      <strong class="title">{{ t('unlocks.many', { count: current.length }) }}</strong>
-      <span class="line">{{ t('unlocks.manyLine', { coins: number(coins) }) }}</span>
-    </template>
-    <template v-else>
-      <strong class="title">{{ t('unlocks.one', { name: wordsFor(current[0]).name }) }}</strong>
-      <span class="line">{{ wordsFor(current[0]).line }}</span>
-      <span class="line reward">{{ t('unlocks.reward', { coins: number(current[0].coins) }) }}</span>
-    </template>
+  <NoticePopup v-if="current" :key="`${current.id}:${current.level}`" :active="true" :auto-hide="false" :row="1" name="achievement" @close="closed">
+    <strong class="title">{{ t('unlocks.one', { name: wordsFor(current).name }) }}</strong>
+    <span class="line">{{ wordsFor(current).line }}</span>
+    <span class="line reward">{{ t('unlocks.reward', { coins: number(current.coins) }) }}</span>
   </NoticePopup>
 </template>
 

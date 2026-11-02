@@ -3,8 +3,8 @@
 // Props: none. Emits: none. Slots: none.
 // Depends on: api.js (GET /api/stats/me and /api/stats/leaderboard/<game>), session.js, catalogueText.js (game names and
 // stat labels a language may translate), messageText.js (intlLocale) and StyledName.vue.
-// Side effects: requests on mount.
-import { onMounted, ref } from 'vue';
+// Side effects: requests on mount; runs a one-second timer while the page is open, to keep the time on the site ticking.
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import StyledName from '../components/StyledName.vue';
 import { api } from '../api.js';
@@ -17,10 +17,20 @@ const stats = ref(null); // your stats once loaded
 const failed = ref(''); // the error text if loading failed
 const boards = ref({}); // game id -> leaderboard rows
 
+// Time on the site keeps counting while the page is open. The server's figure is right when it arrives; after that the
+// page adds the seconds it has watched go by, rather than asking again every second. It is an estimate between loads,
+// and a reload settles it against the server.
+const arrived = ref(0); // when the server's figure reached us, by this machine's clock
+const now = ref(Date.now());
+let ticker = null;
+const onlineSeconds = computed(() => (stats.value?.summary.onlineSeconds ?? 0) + (arrived.value ? Math.max(0, Math.floor((now.value - arrived.value) / 1000)) : 0));
+
 // Loads your stats and then one leaderboard per game you have played. Side effects: sets stats, boards or failed.
 onMounted(async () => {
   try {
     stats.value = await api('GET', '/api/stats/me');
+    arrived.value = Date.now();
+    ticker = setInterval(() => (now.value = Date.now()), 1000);
     for (const game of stats.value.perGame) {
       boards.value[game.game] = (await api('GET', `/api/stats/leaderboard/${game.game}`)).leaderboard;
     }
@@ -28,6 +38,7 @@ onMounted(async () => {
     failed.value = e.message;
   }
 });
+onBeforeUnmount(() => clearInterval(ticker));
 
 // Returns a number in the language's digits and grouping.
 const number = (n) => n.toLocaleString(intlLocale());
@@ -35,6 +46,17 @@ const number = (n) => n.toLocaleString(intlLocale());
 const percent = (n) => new Intl.NumberFormat(intlLocale(), { style: 'percent', maximumFractionDigits: 0 }).format(n);
 // Returns a timestamp (ms) as a date and time in the language.
 const when = (ms) => new Date(ms).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' });
+/**
+ * A length of time as hh:mm:ss, with as many hours as it takes (102:04:09 after a long winter).
+ * @param {number} seconds  whole seconds
+ * @returns {string}
+ * Side effects: none.
+ */
+function clock(seconds) {
+  const whole = Math.max(0, Math.floor(seconds || 0));
+  const parts = [Math.floor(whole / 3600), Math.floor(whole / 60) % 60, whole % 60];
+  return parts.map((part, i) => String(part).padStart(i === 0 ? 2 : 2, '0')).join(':');
+}
 // Returns the name of a game from a stats row ({ game: id, name }) in the language.
 const gameName = (row) => catalogue.gameName({ id: row.game, name: row.name });
 // Returns the won / lost (/ drawn) figures of a game as one line.
@@ -60,6 +82,7 @@ function recentFacts(game) {
         <div class="panel tile"><strong>{{ number(stats.summary.losses) }}</strong><span class="muted">{{ t('stats.losses') }}</span></div>
         <div v-if="stats.summary.draws" class="panel tile"><strong>{{ number(stats.summary.draws) }}</strong><span class="muted">{{ t('stats.draws') }}</span></div>
         <div class="panel tile"><strong>{{ percent(stats.summary.winRate) }}</strong><span class="muted">{{ t('stats.winRate') }}</span></div>
+        <div class="panel tile"><strong class="clock">{{ clock(onlineSeconds) }}</strong><span class="muted">{{ t('stats.online') }}</span></div>
       </div>
 
       <p v-if="!stats.perGame.length" class="panel">{{ t('stats.none') }}</p>
@@ -124,6 +147,9 @@ function recentFacts(game) {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+.tile strong.clock {
+  font-variant-numeric: tabular-nums;
 }
 .tile strong {
   font-family: var(--display);

@@ -7,7 +7,8 @@ import { handler, tokenOf } from './http.js';
  * @param {import('express').Router} api  the router mounted at /api
  * @param {{ auth: object, achievements: object, uploads: object, requireUser: import('express').RequestHandler }} deps
  * @returns {void}
- * Side effects: adds routes; a profile change may delete the user's old uploaded pictures and add to "Indecisive".
+ * Side effects: adds routes; a profile change may delete the user's old uploaded pictures, add to "Indecisive" and
+ * settle the achievements that a setting can unlock (choosing Klingon).
  */
 export function registerProfileRoutes(api, { auth, achievements, uploads, requireUser }) {
   api.patch('/me', requireUser, handler(async (req, res) => {
@@ -17,6 +18,8 @@ export function registerProfileRoutes(api, { auth, achievements, uploads, requir
     if (cardBack !== undefined && user.cardBack.type !== 'image') uploads.removeImages('cb', user.id);
     const changed = choicesChanged(req.user, user);
     if (changed) achievements.add('site', user.id, 'global.indecisive', changed); // "Indecisive": every shop item put on, from the shop or the profile
+    if (user.language === 'tlh') achievements.raise('site', user.id, 'global.klingon', 1); // "Qapla'": chosen Klingon, and it stays chosen
+    achievements.settle(user.id); // a setting can unlock something by itself, without waiting for a game to end
     res.json({ user });
   }));
 

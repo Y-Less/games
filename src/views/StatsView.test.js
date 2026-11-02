@@ -8,7 +8,7 @@ function reply(body, status = 200) {
   return { ok: status >= 200 && status < 300, status, text: async () => text };
 }
 
-const summary = { played: 12, wins: 5, losses: 6, draws: 1, winRate: 0.4166 };
+const summary = { played: 12, wins: 5, losses: 6, draws: 1, winRate: 0.4166, onlineSeconds: 3 * 3600 + 7 * 60 + 9 };
 const perGame = [
   {
     game: 'hearts', name: 'Hearts', played: 8, wins: 3, losses: 5, draws: 0, winRate: 0.375, totalScore: 120, bestScore: 4,
@@ -65,7 +65,7 @@ describe('StatsView', () => {
     serve();
     const w = await make();
     const tiles = w.findAll('.tile').map((t) => [t.find('span').text(), t.find('strong').text()]);
-    expect(tiles).toEqual([['Games played', '12'], ['Wins', '5'], ['Losses', '6'], ['Draws', '1'], ['Win rate', '42%']]);
+    expect(tiles).toEqual([['Games played', '12'], ['Wins', '5'], ['Losses', '6'], ['Draws', '1'], ['Win rate', '42%'], ['Time on the site', '03:07:09']]);
   });
 
   it('hides the Draws tile when there are none', async () => {
@@ -146,3 +146,34 @@ describe('StatsView', () => {
     expect(w.find('[role="alert"]').text()).toBe('Something went wrong (502).');
   });
 });
+
+  it('shows time on the site as hours, minutes and seconds, counting past a day', async () => {
+    serve({ summary: { ...summary, onlineSeconds: 50 * 3600 + 4 * 60 + 5 }, perGame, recent });
+    const w = await make();
+    const online = w.findAll('.tile').find((tile) => tile.find('span').text() === 'Time on the site');
+    expect(online.find('strong').text()).toBe('50:04:05'); // hours keep counting rather than rolling into days
+  });
+
+  it('keeps counting while the page is open, and stops counting once it is closed', async () => {
+    vi.useFakeTimers();
+    try {
+      serve({ summary: { ...summary, onlineSeconds: 59 }, perGame, recent });
+      const w = await make();
+      const shown = () => w.findAll('.tile').find((tile) => tile.find('span').text() === 'Time on the site').find('strong').text();
+      expect(shown()).toBe('00:00:59');
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(shown()).toBe('00:01:02', 'three seconds of watching the page were added to the server figure');
+      const ticks = vi.getTimerCount();
+      w.unmount();
+      expect(vi.getTimerCount()).toBeLessThan(ticks); // the timer is given up with the page
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows no time at all as a clock at zero, not as blank', async () => {
+    serve({ summary: { ...summary, onlineSeconds: 0 }, perGame, recent });
+    const w = await make();
+    const online = w.findAll('.tile').find((tile) => tile.find('span').text() === 'Time on the site');
+    expect(online.find('strong').text()).toBe('00:00:00');
+  });

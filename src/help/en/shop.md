@@ -1,6 +1,6 @@
 # Shop
 
-Spend the gold you win on ways to make the site your own. You get 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd, and more for unlocking achievements.
+Spend the gold you win on ways to make the site your own. You get 100 for coming 1st in a game, 50 for 2nd and 20 for 3rd, and more for unlocking achievements.  I am also open to bribes.
 
 Anything you own can be put on straight from here with **Use**. Animations are paused for people who have chosen to pause them in their profile, so those previews stand still.
 

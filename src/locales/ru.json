@@ -193,7 +193,8 @@
     },
     "players": "{count} игрок | {count} игрока | {count} игроков",
     "points": "{count} очко | {count} очка | {count} очков",
-    "playersAndPoints": "{players}, {points}"
+    "playersAndPoints": "{players}, {points}",
+    "online": "Время на сайте"
   },
   "achievements": {
     "title": "Достижения: {name}",
@@ -345,8 +346,6 @@
     "option": "{slot}: {name}"
   },
   "unlocks": {
-    "many": "Открыто достижений: {count}!",
-    "manyLine": "+{coins} золота. Смотрите их на странице достижений.",
     "one": "Достижение открыто: {name}",
     "oneLine": "{game}: {text}",
     "oneLineLevel": "{game}, уровень {level}: {text}",

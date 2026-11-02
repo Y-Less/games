@@ -75,6 +75,12 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
   { key: 'steve', name: "Steve's Achievement", text: "Claim Steve's reward", levels: GLOBAL_TIERS.unlock },
   { key: 'everygame', name: 'Master of all', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
+  // Saved progress, not a measure of the setting as it stands: having once chosen Klingon is not undone by changing back.
+  { key: 'klingon', name: "Qapla'", text: 'Choose Klingon as your language', levels: GLOBAL_TIERS.unlock },
+  // The top level asks for more than the shop currently sells; more is to come, and an achievement nobody can finish yet
+  // is better than one that has to be renumbered later.
+  { key: 'fashionable', name: 'Fashionable', text: 'Buy {n} things in the shop', one: 'Buy something in the shop', levels: GLOBAL_TIERS.hard, measure: 'purchases' },
+  { key: 'shed', name: 'Out in the shed', text: 'Spend {n} minutes on the site', levels: [100, 500, 1000, 2500, 5000], measure: 'onlineMinutes' },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */

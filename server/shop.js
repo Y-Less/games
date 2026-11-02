@@ -189,7 +189,7 @@ export function checkSettings(db, userId, { background, cardBack, nameStyle, ava
 /**
  * The shop's operations on a database.
  * @param {import('node:sqlite').DatabaseSync} db
- * @returns {{ owns: Function, customised: Function, listing: Function, buy: Function }}
+ * @returns {{ owns: Function, customised: Function, purchases: Function, listing: Function, buy: Function }}
  * Side effects: none until a method is called.
  */
 export function createShop(db) {
@@ -212,6 +212,20 @@ export function createShop(db) {
           .flatMap((row) => (byId.get(row.item_id)?.price > 0 ? [categoryOf(byId.get(row.item_id))] : [])),
       );
       return paidCategories().every((category) => bought.has(category)) ? 1 : 0;
+    },
+
+    /**
+     * How many things a person has bought, counting only what costs coins: the free starting choices are granted, not
+     * chosen, and an item taken off sale still counts, because they did buy it.
+     * @param {number} userId
+     * @returns {number}
+     * Side effects: none.
+     */
+    purchases(userId) {
+      return db
+        .prepare('SELECT item_id FROM owned_items WHERE user_id = ?')
+        .all(userId)
+        .filter((row) => (byId.get(row.item_id)?.price ?? 0) > 0).length;
     },
 
     /**

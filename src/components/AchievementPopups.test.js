@@ -94,14 +94,20 @@ describe('AchievementPopups', () => {
     expect(document.body.querySelectorAll('.achievement')).toHaveLength(1);
   });
 
-  it('shows many that arrive together as one pop-up with the total', async () => {
-    await arrive([1, 2, 3, 4, 5].map((n) => unlock('global.cards', n)));
-    expect(popup().textContent).toContain('5 achievements unlocked!');
-    expect(popup().textContent).toContain('+5,000 gold');
-    popup().querySelector('button').click();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(seenPosts()[0].items).toHaveLength(5);
-    expect(popup()).toBeNull();
+  it('shows many that arrive together one after another, each named, never as a count of them', async () => {
+    const names = ['Played cards', 'Shot the moon', 'Fibber', 'Hoarder', 'Out in the shed'];
+    await arrive(names.map((name, i) => unlock(`global.a${i}`, 1, name)));
+    for (const [i, name] of names.entries()) {
+      expect(popup(), `pop-up ${i + 1} of ${names.length}`).not.toBeNull();
+      expect(popup().textContent).toContain(name);
+      expect(popup().textContent).not.toMatch(/achievements unlocked/); // never a summary
+      expect(document.body.querySelectorAll('.achievement')).toHaveLength(1); // and only ever one on screen
+      popup().querySelector('button').click();
+      await vi.advanceTimersByTimeAsync(0);
+      await flushPromises();
+    }
+    expect(popup()).toBeNull('every one was shown and dismissed');
+    expect(seenPosts().flatMap((post) => post.items)).toHaveLength(names.length);
   });
 
   it('does not queue the same unlock twice, and stops and forgets when the person signs out', async () => {

@@ -193,7 +193,8 @@
     },
     "players": "{count} QujwI' | {count} QujwI'pu'",
     "points": "{count} mI' | {count} mI'mey",
-    "playersAndPoints": "{players}, {points}"
+    "playersAndPoints": "{players}, {points}",
+    "online": "naDev poH"
   },
   "achievements": {
     "title": "{name} ta'mey",
@@ -345,8 +346,6 @@
     "option": "{slot}: {name}"
   },
   "unlocks": {
-    "many": "{count} ta'mey poSmoHlu'pu'!",
-    "manyLine": "+{coins} Huch. ta'mey DaqDaq tIlegh.",
     "one": "ta' poSmoHlu': {name}",
     "oneLine": "{game}: {text}",
     "oneLineLevel": "{game}, patlh {level}: {text}",

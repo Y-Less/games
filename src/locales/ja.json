@@ -193,7 +193,8 @@
     },
     "players": "{count}人",
     "points": "{count}点",
-    "playersAndPoints": "{players}、{points}"
+    "playersAndPoints": "{players}、{points}",
+    "online": "サイト滞在時間"
   },
   "achievements": {
     "title": "{name}の実績",
@@ -358,8 +359,6 @@
     }
   },
   "unlocks": {
-    "many": "実績を{count}個解放しました！",
-    "manyLine": "+{coins}ゴールド。実績ページで見られます。",
     "one": "実績を解放：{name}",
     "oneLine": "{game}：{text}",
     "oneLineLevel": "{game} レベル{level}：{text}",
@@ -538,6 +537,19 @@
     "everygame": {
       "name": "全ゲーム制覇",
       "text": "すべてのゲームで1回以上勝つ"
+    },
+    "klingon": {
+      "name": "Qapla'",
+      "text": "言語にクリンゴン語を選ぶ"
+    },
+    "fashionable": {
+      "name": "おしゃれ",
+      "text": "ショップで{n}個買う",
+      "one": "ショップで何か買う"
+    },
+    "shed": {
+      "name": "小屋にこもる",
+      "text": "サイトで{n}分過ごす"
     }
   }
 }
