@@ -9,7 +9,6 @@
 import { GOLD, NOBLE_POINTS, TOKEN_KINDS } from './rules.js';
 
 export const COLOURS = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx'];
-export const COLOUR_NAMES = ['Diamond', 'Sapphire', 'Emerald', 'Ruby', 'Onyx'];
 export { GOLD, TOKEN_KINDS };
 
 // Each pattern: [prestige, [cost by distance from the card's own colour: 0 = own colour, 1.. = following colours]].
@@ -89,7 +88,8 @@ export const cardsOfLevel = (level) => CARDS.filter((c) => c.level === level);
  */
 export const isCardId = (id) => typeof id === 'string' && Object.hasOwn(CARD_BY_ID, id);
 
-// Noble tiles: each needs a number of card bonuses in two or three colours.
+// Noble tiles: each needs a number of card bonuses in two or three colours. A noble's name is not here: it is a word a
+// player reads, so it lives in the locale files under `nobles.<id>` (see MODULES.md, "Languages").
 const [D, S, E, R, O] = [0, 1, 2, 3, 4];
 /**
  * Builds a noble tile's requirements from a { colour: count } spec (a plain copy, so each tile owns its object).
@@ -102,17 +102,17 @@ const [D, S, E, R, O] = [0, 1, 2, 3, 4];
 const need = (spec) => Object.fromEntries(Object.entries(spec).map(([k, v]) => [k, v]));
 export const NOBLES = Object.freeze(
   [
-    ['n1', 'The Archivist', need({ [D]: 4, [S]: 4 })],
-    ['n2', 'The Harbourmaster', need({ [S]: 4, [E]: 4 })],
-    ['n3', 'The Herbalist', need({ [E]: 4, [R]: 4 })],
-    ['n4', 'The Furnace-Keeper', need({ [R]: 4, [O]: 4 })],
-    ['n5', 'The Night Warden', need({ [O]: 4, [D]: 4 })],
-    ['n6', 'The Lapidary', need({ [D]: 3, [S]: 3, [E]: 3 })],
-    ['n7', 'The Cartographer', need({ [S]: 3, [E]: 3, [R]: 3 })],
-    ['n8', 'The Alchemist', need({ [E]: 3, [R]: 3, [O]: 3 })],
-    ['n9', 'The Lamplighter', need({ [R]: 3, [O]: 3, [D]: 3 })],
-    ['n10', 'The Weigher of Stones', need({ [O]: 3, [D]: 3, [S]: 3 })],
-  ].map(([id, name, requires]) => Object.freeze({ id, name, points: NOBLE_POINTS, requires: Object.freeze(requires) })),
+    ['n1', need({ [D]: 4, [S]: 4 })],
+    ['n2', need({ [S]: 4, [E]: 4 })],
+    ['n3', need({ [E]: 4, [R]: 4 })],
+    ['n4', need({ [R]: 4, [O]: 4 })],
+    ['n5', need({ [O]: 4, [D]: 4 })],
+    ['n6', need({ [D]: 3, [S]: 3, [E]: 3 })],
+    ['n7', need({ [S]: 3, [E]: 3, [R]: 3 })],
+    ['n8', need({ [E]: 3, [R]: 3, [O]: 3 })],
+    ['n9', need({ [R]: 3, [O]: 3, [D]: 3 })],
+    ['n10', need({ [O]: 3, [D]: 3, [S]: 3 })],
+  ].map(([id, requires]) => Object.freeze({ id, points: NOBLE_POINTS, requires: Object.freeze(requires) })),
 );
 export const NOBLE_BY_ID = Object.freeze(Object.fromEntries(NOBLES.map((n) => [n.id, n])));
 /**

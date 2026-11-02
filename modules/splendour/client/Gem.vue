@@ -5,7 +5,8 @@
 // One gem drawn in SVG: its own shape and colour. `size` is in pixels at the normal text size (it scales with the em, so the
 // whole table can be scaled to the window by changing its font size). With `count` the number is written on the gem (costs, tokens).
 import { computed } from 'vue';
-import { GEM_FILL, GEM_INK, GEM_NAMES, GEM_SHAPES, GEM_STROKE, SHAPES } from './gems.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { GEM_FILL, GEM_INK, GEM_KEYS, GEM_SHAPES, GEM_STROKE, SHAPES } from './gems.js';
 
 const props = defineProps({
   colour: { type: Number, required: true }, // 0 to 4, or 5 for Gold
@@ -13,10 +14,12 @@ const props = defineProps({
   count: { type: [Number, String], default: null },
   faded: { type: Boolean, default: false },
 });
+const { t } = useGameText();
+
 // The SVG outline and facet paths for this colour's shape.
 const shape = computed(() => SHAPES[GEM_SHAPES[props.colour]]);
 // The accessible label: the gem's name, preceded by the count when one is shown.
-const label = computed(() => (props.count === null ? GEM_NAMES[props.colour] : `${props.count} ${GEM_NAMES[props.colour]}`));
+const label = computed(() => (props.count === null ? t(`gems.${GEM_KEYS[props.colour]}`) : t('facts.gemCount', { count: props.count, gem: t(`gems.${GEM_KEYS[props.colour]}`) })));
 </script>
 
 <template>

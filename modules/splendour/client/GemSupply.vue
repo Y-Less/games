@@ -3,8 +3,9 @@
 // Props: supply (six counts), picks (the gem colours chosen so far), size (the gem size in px).
 // Emits: pick(colour) when a gem stack is clicked. Slots: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
 import Gem from './Gem.vue';
-import { GEM_NAMES } from './gems.js';
+import { GEM_KEYS } from './gems.js';
 
 defineProps({
   supply: { type: Array, required: true },
@@ -12,11 +13,14 @@ defineProps({
   size: { type: Number, required: true },
 });
 defineEmits(['pick']);
+const { t } = useGameText();
+// The name of a gem colour, from the locale file.
+const gemName = (c) => t(`gems.${GEM_KEYS[c]}`);
 </script>
 
 <template>
-  <section class="supply" aria-label="The gem supply">
-    <span class="row-title">Supply</span>
+  <section class="supply" :aria-label="t('table.supplyLabel')">
+    <span class="row-title">{{ t('table.supply') }}</span>
     <div class="stacks">
       <button
         v-for="c in [0, 1, 2, 3, 4]"
@@ -24,16 +28,16 @@ defineEmits(['pick']);
         class="stack-btn"
         :class="{ picked: picks.includes(c) }"
         :aria-pressed="picks.includes(c)"
-        :aria-label="`${GEM_NAMES[c]}: ${supply[c]} left`"
+        :aria-label="t('table.stackLabel', { gem: gemName(c), count: supply[c] }, supply[c])"
         @click="$emit('pick', c)"
       >
         <Gem :colour="c" :size="size" :count="supply[c]" :faded="supply[c] === 0" />
         <span v-if="picks.filter((x) => x === c).length" class="badge">{{ picks.filter((x) => x === c).length }}</span>
-        <small class="muted">{{ GEM_NAMES[c] }}</small>
+        <small class="muted">{{ gemName(c) }}</small>
       </button>
-      <span class="stack-btn gold" :title="'Gold is wild. You gain it by reserving a card.'">
+      <span class="stack-btn gold" :title="t('table.goldTitle')">
         <Gem :colour="5" :size="size" :count="supply[5]" :faded="supply[5] === 0" />
-        <small class="muted">Gold</small>
+        <small class="muted">{{ gemName(5) }}</small>
       </span>
     </div>
   </section>

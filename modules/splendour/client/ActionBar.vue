@@ -6,6 +6,8 @@
 // Emits: pass. Slots: none.
 // Side effects: the buttons call buy, reserve, cancel, setGold, confirmTake, clearPicks, confirmGive and clear on the
 //   composables they are given.
+import { useGameText } from '../../../src/useGameText.js';
+
 defineProps({
   view: { type: Object, required: true },
   card: { type: Object, required: true },
@@ -15,38 +17,39 @@ defineProps({
   canPass: { type: Boolean, default: false },
 });
 defineEmits(['pass']);
+const { t, text } = useGameText();
 </script>
 
 <template>
   <!-- Returning tokens: the confirm button; the tokens above are the selector -->
   <template v-if="view.pendingMine?.type === 'return'">
-    <button class="primary" :disabled="give.giveTotal !== view.pendingMine.count || shared.busy" @click="give.confirmGive">Return {{ give.giveTotal }} of {{ view.pendingMine.count }}</button>
-    <button v-if="give.giveTotal" class="quiet" @click="give.clear">Clear</button>
+    <button class="primary" :disabled="give.giveTotal !== view.pendingMine.count || shared.busy" @click="give.confirmGive">{{ t('table.returnCount', { done: give.giveTotal, count: view.pendingMine.count }) }}</button>
+    <button v-if="give.giveTotal" class="quiet" @click="give.clear">{{ t('table.clear') }}</button>
   </template>
   <!-- A card is selected -->
   <template v-else-if="shared.sel?.kind === 'card'">
-    <button class="primary" :disabled="!card.quote || !view.myTurn || shared.busy" :title="!view.myTurn ? card.reserveWhy : !card.quote ? 'You cannot afford this card' : ''" @click="card.buy">Buy this card</button>
-    <button v-if="!card.inReserve" :disabled="!card.canReserve || shared.busy" :title="card.reserveWhy" @click="card.reserve">Reserve<template v-if="card.goldLeft"> (+1 Gold)</template><template v-else> (no Gold left)</template></button>
+    <button class="primary" :disabled="!card.quote || !view.myTurn || shared.busy" :title="!view.myTurn ? text(card.reserveWhy) : !card.quote ? t('table.cannotAffordTitle') : ''" @click="card.buy">{{ t('table.buy') }}</button>
+    <button v-if="!card.inReserve" :disabled="!card.canReserve || shared.busy" :title="text(card.reserveWhy)" @click="card.reserve">{{ card.goldLeft ? t('table.reserveGold') : t('table.reserveNoGold') }}</button>
     <span v-if="card.quote && card.quote.maxGold > card.quote.minGold" class="gold-choice">
-      <span class="muted">Gold:</span>
-      <button class="quiet" :disabled="card.goldUsed <= card.quote.minGold" aria-label="Use less Gold" @click="card.setGold(card.goldUsed - 1)">−</button>
+      <span class="muted">{{ t('table.goldLabel') }}</span>
+      <button class="quiet" :disabled="card.goldUsed <= card.quote.minGold" :aria-label="t('table.lessGold')" @click="card.setGold(card.goldUsed - 1)">&minus;</button>
       <b>{{ card.goldUsed }}</b>
-      <button class="quiet" :disabled="card.goldUsed >= card.quote.maxGold" aria-label="Use more Gold" @click="card.setGold(card.goldUsed + 1)">+</button>
+      <button class="quiet" :disabled="card.goldUsed >= card.quote.maxGold" :aria-label="t('table.moreGold')" @click="card.setGold(card.goldUsed + 1)">+</button>
     </span>
-    <button class="quiet" @click="card.cancel">Cancel</button>
+    <button class="quiet" @click="card.cancel">{{ t('common.cancel') }}</button>
   </template>
   <!-- A pile is selected -->
   <template v-else-if="shared.sel?.kind === 'deck'">
-    <button class="primary" :disabled="!card.canReserve || shared.busy" :title="card.reserveWhy" @click="card.reserve">Reserve the top card</button>
-    <button class="quiet" @click="card.cancel">Cancel</button>
+    <button class="primary" :disabled="!card.canReserve || shared.busy" :title="text(card.reserveWhy)" @click="card.reserve">{{ t('table.reserveTop') }}</button>
+    <button class="quiet" @click="card.cancel">{{ t('common.cancel') }}</button>
   </template>
   <!-- Taking gems: the gems are chosen in the supply -->
   <template v-else-if="!view.pendingMine && !view.finished">
     <template v-if="shared.picks.length">
-      <button class="primary" :disabled="!take.takeCheck.ok || !view.myTurn || shared.busy" @click="take.confirmTake">Take {{ shared.picks.length }} {{ shared.picks.length === 1 ? 'gem' : 'gems' }}</button>
-      <button class="quiet" @click="take.clearPicks">Clear</button>
+      <button class="primary" :disabled="!take.takeCheck.ok || !view.myTurn || shared.busy" @click="take.confirmTake">{{ t('table.takeCount', { count: shared.picks.length }, shared.picks.length) }}</button>
+      <button class="quiet" @click="take.clearPicks">{{ t('table.clear') }}</button>
     </template>
-    <button v-if="canPass" @click="$emit('pass')">Pass (nothing else is possible)</button>
+    <button v-if="canPass" @click="$emit('pass')">{{ t('table.pass') }}</button>
   </template>
 </template>
 

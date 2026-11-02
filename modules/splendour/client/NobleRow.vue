@@ -5,6 +5,7 @@
 //   choosing (true while you must choose a noble), canPick (function: is this noble one of your choices).
 // Emits: pick(id) when a highlighted noble is clicked. Slots: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
 import NobleTile from './NobleTile.vue';
 
 defineProps({
@@ -14,14 +15,15 @@ defineProps({
   canPick: { type: Function, required: true },
 });
 defineEmits(['pick']);
+const { t } = useGameText();
 </script>
 
 <template>
-  <div class="nobles" aria-label="Nobles">
-    <span class="row-title">Nobles</span>
+  <div class="nobles" :aria-label="t('table.nobles')">
+    <span class="row-title">{{ t('table.nobles') }}</span>
     <div class="noble-row noble-grid" style="grid-template-columns: repeat(2, 5.8em)">
       <NobleTile v-for="n in nobles" :key="n" :noble="n" :bonuses="bonuses" :clickable="canPick(n)" :highlight="canPick(n)" :dimmed="choosing && !canPick(n)" @pick="$emit('pick', n)" />
-      <span v-if="!nobles.length" class="muted">All the nobles have visited.</span>
+      <span v-if="!nobles.length" class="muted">{{ t('table.noNobles') }}</span>
     </div>
   </div>
 </template>

@@ -117,7 +117,7 @@ test('taking three different gems', () => {
 test('taking gems: wrong turn, repeats, bad colours, wrong counts and empty colours are refused', () => {
   const room = fresh(3);
   const before = JSON.stringify(room);
-  assert.match(game.takeGems(room, 1, [D, S, E]).error, /not your turn/);
+  assert.equal(game.takeGems(room, 1, [D, S, E]).error, 'notYourTurn');
   for (const bad of [[D, D, S], [D, S], [D], [], [D, S, E, R], [D, S, 5], [D, S, -1], [D, S, 1.5], [D, S, '2'], 'DSE', null, undefined, { 0: 0 }, [D, S, null]]) {
     assert.equal(game.takeGems(room, 0, bad).ok, false, JSON.stringify(bad));
   }
@@ -187,7 +187,7 @@ test('reserving a face-up card: gold, replacement from the deck, the limit of th
   assert.equal(room.players[0].reserved.at(-1).blind, true);
   game.takeGems(room, 1, [D, S, E]);
   assert.equal(room.players[0].reserved.length, 3);
-  assert.match(game.reserveCard(room, 0, { card: room.board[1][0] }).error, /3 cards/);
+  assert.deepEqual(game.reserveCard(room, 0, { card: room.board[1][0] }), { ok: false, error: 'reserveLimit', params: { count: 3 } });
   assert.equal(game.reserveCard(room, 0, { level: 1 }).ok, false);
   checkInvariants(room);
 });
@@ -213,7 +213,7 @@ test('reserving blind takes the top card of the pile; an empty pile or bad level
   assert.equal(room.decks[2].length, 25);
   for (const bad of [0, 4, '1', null, undefined, 1.5, [1]]) assert.equal(game.reserveCard(room, 1, { level: bad }).ok, false);
   room.decks[3] = [];
-  assert.match(game.reserveCard(room, 1, { level: 3 }).error, /empty/);
+  assert.equal(game.reserveCard(room, 1, { level: 3 }).error, 'pileEmpty');
   assert.equal(game.reserveCard(room, 1, { card: 'nope' }).ok, false);
   assert.equal(game.reserveCard(room, 1, { card: 7 }).ok, false);
   assert.equal(game.reserveCard(room, 1, {}).ok, false);
@@ -247,12 +247,12 @@ test('buying: the discount from bonuses, paid tokens return to the supply, the t
 test('buying: cannot afford, wrong turn, not on the table, bad ids', () => {
   const room = fresh(2);
   const id = room.board[3][0];
-  assert.match(game.buyCard(room, 0, id).error, /afford/);
-  assert.match(game.buyCard(room, 1, id).error, /not your turn/);
+  assert.equal(game.buyCard(room, 0, id).error, 'cannotAfford');
+  assert.equal(game.buyCard(room, 1, id).error, 'notYourTurn');
   for (const bad of ['c91', 7, null, undefined, 'constructor', {}, []]) assert.equal(game.buyCard(room, 0, bad).ok, false);
   const hidden = room.decks[1][0];
   setTokens(room, 0, T(7, 7, 7, 7, 7));
-  assert.match(game.buyCard(room, 0, hidden).error, /not on the table/);
+  assert.equal(game.buyCard(room, 0, hidden).error, 'cardNotAvailable');
   assert.equal(game.buyCard(room, 0, room.board[1][0]).ok, true);
 });
 
@@ -367,7 +367,7 @@ test('the token limit: going over ten makes the player return exactly the excess
   assert.equal(game.takeGems(room, 0, [D, S, O]).ok, true);
   assert.deepEqual(room.pending, { type: 'return', seat: 0, count: 1 });
   assert.equal(room.turn, 0, 'the turn has not passed');
-  assert.match(game.takeGems(room, 0, [D, S, E]).error, /return/);
+  assert.equal(game.takeGems(room, 0, [D, S, E]).error, 'returnFirst');
   assert.equal(game.takeGems(room, 1, [D, S, E]).ok, false);
   assert.equal(game.returnTokens(room, 1, T(1)).ok, false, 'not your turn');
   for (const bad of [T(), T(2), T(0, 0, 0, 0, 0, 1), T(0, 0, 0, 0, 2), [1], 'x', null, T(-1, 2), T(0.5, 0.5), [...T(1), 0]]) {
@@ -382,7 +382,7 @@ test('the token limit: going over ten makes the player return exactly the excess
 
 test('returning is refused when nothing needs returning; gold may be returned', () => {
   const room = fresh(2);
-  assert.match(game.returnTokens(room, 0, T(1)).error, /do not have to/);
+  assert.equal(game.returnTokens(room, 0, T(1)).error, 'nothingToReturn');
   setTokens(room, 0, T(3, 3, 3, 0, 0, 0));
   room.players[0].tokens[G] = 1;
   room.supply[G]--;
@@ -425,7 +425,7 @@ test('a noble visits at the end of the turn when the bonuses are enough, and cou
   assert.equal(room.players[0].tally.noblesVisited, 1);
   assert.equal(room.turn, 1);
   assert.equal(room.roundDeltas[0], 3);
-  assert.match(room.roundNotes[0].join(), /noble visited/);
+  assert.deepEqual(room.roundNotes[0].at(-1), { key: 'notes.nobleVisited' });
   checkInvariants(room);
 });
 
@@ -677,9 +677,9 @@ test('the history: a round per full turn of every seat, with prestige gained and
   assert.equal(room.history.length, 1);
   assert.equal(room.round, 2);
   assert.deepEqual(room.history[0].deltas, { 0: 1, 1: 0 });
-  assert.equal(room.history[0].label, 'Round 1');
-  assert.match(room.history[0].notes[0], /bought a level 1 card \(1 point\)/);
-  assert.match(room.history[0].notes[1], /reserved a level 2 card/);
+  assert.deepEqual(room.history[0].label, { key: 'round', params: { n: 1 } });
+  assert.deepEqual(room.history[0].notes[0], [{ key: 'notes.boughtPoints', params: { level: 1, count: 1 } }]);
+  assert.deepEqual(room.history[0].notes[1], [{ key: 'notes.reserved', params: { level: 2 } }]);
   const view = game.viewFor(room, 1);
   assert.equal(view.scoreboard.rounds.length, 1);
   assert.equal(view.scoreboard.lowIsBetter, false);

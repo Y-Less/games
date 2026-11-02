@@ -5,6 +5,7 @@
 // Slots: none.
 // Emits: none (clicks go straight to the card and noble choices it is given).
 // Side effects: clicking a card, a pile or a noble calls the matching function on `card` or `noble`.
+import { useGameText } from '../../../src/useGameText.js';
 import CardRows from './CardRows.vue';
 import NobleRow from './NobleRow.vue';
 
@@ -14,10 +15,11 @@ defineProps({
   card: { type: Object, required: true },
   noble: { type: Object, required: true },
 });
+const { t } = useGameText();
 </script>
 
 <template>
-  <section class="market" aria-label="The cards">
+  <section class="market" :aria-label="t('table.marketLabel')">
     <NobleRow :nobles="state.nobles" :bonuses="view.bonuses" :choosing="noble.choosingNoble" :can-pick="noble.canPickNoble" @pick="noble.chooseNoble" />
     <CardRows
       :board="state.board"

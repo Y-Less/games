@@ -15,11 +15,11 @@ export const noTokens = () => [0, 0, 0, 0, 0, 0];
  * Side effects: none (creates refs only; nothing is mutated until a composable writes to them).
  *
  * @returns {object} picks (gem colours chosen to take), sel ({ kind: 'card', id } or { kind: 'deck', level } or null),
- *   message (a warning for the Status box), payGold (Gold chosen by hand, or null), giveBack (tokens marked to give
- *   back) and busy (a request is on its way)
+ *   message (a warning for the Status box, as a message or null), payGold (Gold chosen by hand, or null), giveBack
+ *   (tokens marked to give back) and busy (a request is on its way)
  */
 export function createChoiceState() {
-  return { picks: ref([]), sel: ref(null), message: ref(''), payGold: ref(null), giveBack: ref(noTokens()), busy: ref(false) };
+  return { picks: ref([]), sel: ref(null), message: ref(null), payGold: ref(null), giveBack: ref(noTokens()), busy: ref(false) };
 }
 
 /**
@@ -39,7 +39,7 @@ export function useChoiceReset(view, shared) {
       shared.picks = [];
       shared.giveBack = noTokens();
       shared.payGold = null;
-      shared.message = '';
+      shared.message = null;
     },
   );
 }

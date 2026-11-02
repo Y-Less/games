@@ -8,6 +8,7 @@
 // The numbers every part of Splendour agrees on (the token limit, the supply, the cost calculation...) are in rules.js;
 // the seat and lobby rules (joining, leaving, kicking, computer players) are the shared ones in shared/seats.js.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
+import { msg } from '../../shared/messages.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
@@ -142,11 +143,11 @@ export function payment(player, card) {
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (input?.target !== undefined) {
-    if (!TARGETS.includes(input.target)) return fail(`The target prestige must be ${TARGETS.slice(0, -1).join(', ')} or ${TARGETS.at(-1)}.`);
+    if (!TARGETS.includes(input.target)) return fail('targetPrestige', { targets: TARGETS.join(', ') });
     next.target = input.target;
   }
   if (input?.seats !== undefined) {
-    if (!SEAT_COUNTS.includes(input.seats)) return fail('A game is for 2, 3 or 4 players.');
+    if (!SEAT_COUNTS.includes(input.seats)) return fail('playersRange', { min: SEAT_COUNTS[0], max: SEAT_COUNTS.at(-1) });
     next.seats = input.seats;
   }
   return ok({ settings: next });
@@ -167,7 +168,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
-  if (!normalised.ok) throw new Error(normalised.error);
+  if (!normalised.ok) throw new Error(`invalid settings: ${normalised.error}`);
   const room = {
     code,
     hostId,
@@ -258,7 +259,7 @@ export function setSettings(room, userId, input) {
   if (!next.ok) return next;
   if (next.settings.seats !== room.seats.length) {
     const occupied = room.seats.filter(Boolean);
-    if (occupied.length > next.settings.seats) return fail(`There are already ${occupied.length} players seated. Remove someone first.`);
+    if (occupied.length > next.settings.seats) return fail('removeBeforeFewerSeats');
     room.seats = [...occupied, ...Array(next.settings.seats - occupied.length).fill(null)];
   }
   room.settings = next.settings;
@@ -299,8 +300,8 @@ export function shuffle(list, rng) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  if (!humanSeats(room).length) return fail('needPerson');
   resetGame(room);
   room.seats = shuffle(room.seats, rng); // so that the first player is not always the host
   const n = room.seats.length;
@@ -345,9 +346,9 @@ function logEntry(room, seat, entry) {
  * @returns {{ ok: false, error: string } | null} the refusal, or null if the seat may act
  */
 function checkTurn(room, seat) {
-  if (room.phase !== 'playing') return fail('The game is not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
-  if (room.pending) return fail(room.pending.type === 'return' ? 'You must return tokens first.' : 'You must choose a noble first.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
+  if (room.pending) return fail(room.pending.type === 'return' ? 'returnFirst' : 'chooseNobleFirst');
   return null;
 }
 
@@ -371,10 +372,10 @@ const givePoints = (room, seat, points) => {
  *
  * @param {object} room
  * @param {number} seat   the seat the note is about
- * @param {string} text   the note, for example the name of a card bought
+ * @param {{ key: string, params?: object }} entry  the note as a message (see shared/messages.js), e.g. a card bought
  * @returns {number} the new length of that seat's notes (the result of push; callers ignore it)
  */
-const note = (room, seat, text) => room.roundNotes[seat].push(text);
+const note = (room, seat, entry) => room.roundNotes[seat].push(entry);
 
 /**
  * After any action: too many tokens, then nobles, then the end of the turn.
@@ -441,7 +442,7 @@ function takeNoble(room, seat, id) {
   player.nobles.push(id);
   tallyNoble(player.tally);
   givePoints(room, seat, NOBLE_BY_ID[id].points);
-  note(room, seat, 'noble visited');
+  note(room, seat, msg('notes.nobleVisited'));
   logEntry(room, seat, { kind: 'noble', noble: id });
 }
 
@@ -468,9 +469,9 @@ function endTurn(room, seat) {
   }
   // The round is complete: every player has had one turn.
   room.history.push({
-    label: `Round ${room.round}`,
+    label: msg('round', { n: room.round }),
     deltas: Object.fromEntries(room.roundDeltas.map((points, i) => [i, points])),
-    notes: Object.fromEntries(room.roundNotes.map((texts, i) => [i, texts.join(', ')])),
+    notes: Object.fromEntries(room.roundNotes.map((entries, i) => [i, entries.length ? [...entries] : null])),
   });
   room.roundDeltas = Array(n).fill(0);
   room.roundNotes = Array.from({ length: n }, () => []);
@@ -524,19 +525,19 @@ function finish(room) {
 export function takeGems(room, seat, colours) {
   const problem = checkTurn(room, seat);
   if (problem) return problem;
-  if (!Array.isArray(colours) || colours.length < 1 || colours.length > 3) return fail('Take up to three gems of different colours.');
-  if (!colours.every((c) => Number.isInteger(c) && c >= 0 && c < 5)) return fail('That is not a gem colour.');
-  if (new Set(colours).size !== colours.length) return fail('Gems taken together must all be different colours.');
-  if (colours.some((c) => room.supply[c] < 1)) return fail('There are none of that colour left.');
+  if (!Array.isArray(colours) || colours.length < 1 || colours.length > 3) return fail('takeUpToThree');
+  if (!colours.every((c) => Number.isInteger(c) && c >= 0 && c < 5)) return fail('notAGemColour');
+  if (new Set(colours).size !== colours.length) return fail('gemsMustDiffer');
+  if (colours.some((c) => room.supply[c] < 1)) return fail('noneOfThatColour');
   const available = [0, 1, 2, 3, 4].filter((c) => room.supply[c] > 0).length;
-  if (available >= 3 && colours.length !== 3) return fail('Take three gems of three different colours.');
+  if (available >= 3 && colours.length !== 3) return fail('takeThreeDifferent');
   const player = room.players[seat];
   for (const c of colours) {
     room.supply[c]--;
     player.tokens[c]++;
   }
   room.passStreak = 0;
-  note(room, seat, `took ${colours.length} ${colours.length === 1 ? 'gem' : 'gems'}`);
+  note(room, seat, msg('notes.tookGems', { count: colours.length }));
   logEntry(room, seat, { kind: 'take', colours: [...colours] });
   afterAction(room, seat);
   return ok();
@@ -555,12 +556,12 @@ export function takeGems(room, seat, colours) {
 export function takeTwo(room, seat, colour) {
   const problem = checkTurn(room, seat);
   if (problem) return problem;
-  if (!Number.isInteger(colour) || colour < 0 || colour >= 5) return fail('That is not a gem colour.');
-  if (room.supply[colour] < 4) return fail('You can only take two of a colour when at least four are left.');
+  if (!Number.isInteger(colour) || colour < 0 || colour >= 5) return fail('notAGemColour');
+  if (room.supply[colour] < 4) return fail('needFourForPair');
   room.supply[colour] -= 2;
   room.players[seat].tokens[colour] += 2;
   room.passStreak = 0;
-  note(room, seat, 'took 2 gems');
+  note(room, seat, msg('notes.tookGems', { count: 2 }));
   logEntry(room, seat, { kind: 'take2', colour });
   afterAction(room, seat);
   return ok();
@@ -580,20 +581,20 @@ export function reserveCard(room, seat, target) {
   const problem = checkTurn(room, seat);
   if (problem) return problem;
   const player = room.players[seat];
-  if (player.reserved.length >= MAX_RESERVED) return fail(`You can only reserve ${MAX_RESERVED} cards.`);
+  if (player.reserved.length >= MAX_RESERVED) return fail('reserveLimit', { count: MAX_RESERVED });
   let entry;
   let level;
   if (target?.card !== undefined) {
-    if (!isCardId(target.card)) return fail('That is not a card.');
+    if (!isCardId(target.card)) return fail('notACard');
     level = CARD_BY_ID[target.card].level;
     const slot = room.board[level].indexOf(target.card);
-    if (slot === -1) return fail('That card is not on the table.');
+    if (slot === -1) return fail('cardNotOnTable');
     room.board[level][slot] = room.decks[level].pop() ?? null;
     entry = { card: target.card, blind: false };
   } else {
     level = target?.level;
-    if (!LEVELS.includes(level)) return fail('Choose a card or a level.');
-    if (!room.decks[level].length) return fail('That pile is empty.');
+    if (!LEVELS.includes(level)) return fail('chooseCardOrLevel');
+    if (!room.decks[level].length) return fail('pileEmpty');
     entry = { card: room.decks[level].pop(), blind: true };
   }
   player.reserved.push(entry);
@@ -604,7 +605,7 @@ export function reserveCard(room, seat, target) {
     player.tokens[GOLD]++;
   }
   room.passStreak = 0;
-  note(room, seat, `reserved a level ${level} card`);
+  note(room, seat, msg('notes.reserved', { level }));
   logEntry(room, seat, { kind: 'reserve', level, card: entry.blind ? null : entry.card, gold });
   afterAction(room, seat);
   return ok();
@@ -624,20 +625,20 @@ export function reserveCard(room, seat, target) {
 export function buyCard(room, seat, id, pay) {
   const problem = checkTurn(room, seat);
   if (problem) return problem;
-  if (!isCardId(id)) return fail('That is not a card.');
+  if (!isCardId(id)) return fail('notACard');
   const card = CARD_BY_ID[id];
   const player = room.players[seat];
   const reservedAt = player.reserved.findIndex((r) => r.card === id);
   const slot = room.board[card.level].indexOf(id);
-  if (reservedAt === -1 && slot === -1) return fail('That card is not on the table or in your reserve.');
+  if (reservedAt === -1 && slot === -1) return fail('cardNotAvailable');
   const quote = payment(player, card);
-  if (!quote) return fail('You cannot afford that card.');
+  if (!quote) return fail('cannotAfford');
   let paid = quote.pay;
   if (pay !== undefined && pay !== null) {
-    if (!isTokenArray(pay)) return fail('That is not a valid payment.');
+    if (!isTokenArray(pay)) return fail('invalidPayment');
     const shortfall = sum(quote.need.map((n, c) => n - pay[c]));
     const valid = pay.every((p, c) => p <= player.tokens[c]) && quote.need.every((n, c) => pay[c] <= n) && shortfall === pay[GOLD];
-    if (!valid) return fail('That payment does not match the cost of the card.');
+    if (!valid) return fail('paymentMismatch');
     paid = [...pay];
   }
   for (let c = 0; c < 6; c++) {
@@ -650,7 +651,7 @@ export function buyCard(room, seat, id, pay) {
   tallyBuy(player.tally, card);
   givePoints(room, seat, card.points);
   room.passStreak = 0;
-  note(room, seat, `bought a level ${card.level} card${card.points ? ` (${card.points} ${card.points === 1 ? 'point' : 'points'})` : ''}`);
+  note(room, seat, card.points ? msg('notes.boughtPoints', { level: card.level, count: card.points }) : msg('notes.bought', { level: card.level }));
   logEntry(room, seat, { kind: 'buy', card: id, level: card.level, paid, fromReserve: reservedAt !== -1 });
   afterAction(room, seat);
   return ok();
@@ -668,12 +669,12 @@ export function buyCard(room, seat, id, pay) {
  */
 export function returnTokens(room, seat, give) {
   const pending = room.pending;
-  if (room.phase !== 'playing' || room.turn !== seat) return fail('It is not your turn.');
-  if (pending?.type !== 'return') return fail('You do not have to return any tokens.');
-  if (!isTokenArray(give)) return fail('That is not a valid set of tokens.');
+  if (room.phase !== 'playing' || room.turn !== seat) return fail('notYourTurn');
+  if (pending?.type !== 'return') return fail('nothingToReturn');
+  if (!isTokenArray(give)) return fail('invalidTokens');
   const player = room.players[seat];
-  if (give.some((g, c) => g > player.tokens[c])) return fail('You cannot return tokens you do not have.');
-  if (sum(give) !== pending.count) return fail(`Return exactly ${pending.count} ${pending.count === 1 ? 'token' : 'tokens'}.`);
+  if (give.some((g, c) => g > player.tokens[c])) return fail('tokensNotHeld');
+  if (sum(give) !== pending.count) return fail('returnExactly', { count: pending.count });
   for (let c = 0; c < 6; c++) {
     player.tokens[c] -= give[c];
     room.supply[c] += give[c];
@@ -697,9 +698,9 @@ export function returnTokens(room, seat, give) {
  */
 export function chooseNoble(room, seat, id) {
   const pending = room.pending;
-  if (room.phase !== 'playing' || room.turn !== seat) return fail('It is not your turn.');
-  if (pending?.type !== 'noble') return fail('There is no noble to choose.');
-  if (!isNobleId(id) || !pending.options.includes(id)) return fail('That noble is not visiting you.');
+  if (room.phase !== 'playing' || room.turn !== seat) return fail('notYourTurn');
+  if (pending?.type !== 'noble') return fail('noNobleToChoose');
+  if (!isNobleId(id) || !pending.options.includes(id)) return fail('nobleNotVisiting');
   room.pending = null;
   takeNoble(room, seat, id);
   endTurn(room, seat);
@@ -758,9 +759,9 @@ export function legalMoves(room, seat) {
 export function passTurn(room, seat) {
   const problem = checkTurn(room, seat);
   if (problem) return problem;
-  if (legalMoves(room, seat).length) return fail('You can only pass when there is nothing else you can do.');
+  if (legalMoves(room, seat).length) return fail('passOnlyIfStuck');
   room.passStreak++;
-  note(room, seat, 'passed');
+  note(room, seat, msg('notes.passed'));
   logEntry(room, seat, { kind: 'pass' });
   afterAction(room, seat);
   return ok();
@@ -789,7 +790,7 @@ export function applyMove(room, seat, move) {
     case 'pass':
       return passTurn(room, seat);
     default:
-      return fail('Unknown move.');
+      return fail('unknownMove');
   }
 }
 
@@ -805,7 +806,7 @@ export function applyMove(room, seat, move) {
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   resetGame(room);
   room.phase = 'lobby';
   return ok();

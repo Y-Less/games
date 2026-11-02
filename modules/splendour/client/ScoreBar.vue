@@ -8,6 +8,7 @@
 // Side effects: none beyond the emits.
 import { ref } from 'vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   state: { type: Object, required: true },
@@ -15,6 +16,7 @@ defineProps({
   isHost: { type: Boolean, default: false },
 });
 const emit = defineEmits(['again']);
+const { t } = useGameText();
 
 // Template ref to the ScoreBoard component, so show() and close() can reach it.
 const board = ref(null);
@@ -37,8 +39,8 @@ defineExpose({
 <template>
   <ScoreBoard ref="board" :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :target="state.scoreboard.target" :finished="finished" :sticky="false" :round-popups="false">
     <template #footer>
-      <button class="primary" data-autofocus @click="board.close()">{{ finished ? 'Close' : 'Continue' }}</button>
-      <button v-if="finished && isHost" @click="emit('again'); board.close()">Play again</button>
+      <button class="primary" data-autofocus @click="board.close()">{{ finished ? t('common.close') : t('scoreboard.continue') }}</button>
+      <button v-if="finished && isHost" @click="emit('again'); board.close()">{{ t('table.playAgain') }}</button>
     </template>
   </ScoreBoard>
 </template>

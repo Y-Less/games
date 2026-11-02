@@ -9,11 +9,12 @@
 // Slots: actions (shown at the bottom of a large board, for the action buttons).
 // Side effects: none beyond the emits.
 import { computed } from 'vue';
-import { NOBLE_BY_ID, CARD_BY_ID } from '../cards.js';
+import { useGameText } from '../../../src/useGameText.js';
+import { CARD_BY_ID } from '../cards.js';
 import { MAX_RESERVED, MAX_TOKENS, NOBLE_POINTS, needOf as costAfterBonuses } from '../rules.js';
 import CardFace from './CardFace.vue';
 import Gem from './Gem.vue';
-import { GEM_NAMES } from './gems.js';
+import { GEM_KEYS } from './gems.js';
 
 const props = defineProps({
   seat: { type: Object, required: true },
@@ -28,6 +29,11 @@ const props = defineProps({
   give: { type: Array, default: () => [0, 0, 0, 0, 0, 0] }, // how many of each token are marked to give back
 });
 defineEmits(['pick', 'token']);
+const { t } = useGameText();
+
+// The name of a gem colour, and of a noble, from the locale file.
+const gemName = (c) => t(`gems.${GEM_KEYS[c]}`);
+const nobleName = (id) => t(`nobles.${id}`);
 
 // How many tokens this player holds in all, Gold included.
 const total = computed(() => props.seat.tokens.reduce((a, b) => a + b, 0));
@@ -42,17 +48,17 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
 </script>
 
 <template>
-  <section class="board panel" :class="{ me: isMe, turn: isTurn, large }" :style="{ '--gem': `${gem}px` }" :aria-label="`${seat.name}'s board`">
+  <section class="board panel" :class="{ me: isMe, turn: isTurn, large }" :style="{ '--gem': `${gem}px` }" :aria-label="t('facts.board', { name: seat.name })">
     <div class="left">
       <header class="head">
         <strong class="name" :title="seat.name">{{ seat.name }}</strong>
-        <span v-if="isMe" class="tag mine">you</span>
-        <span v-else-if="seat.bot" class="tag" :title="seat.ai ? `Computer player: ${seat.ai.name}` : 'Computer player'">cpu</span>
-        <span v-else-if="!seat.online" class="tag away">away</span>
-        <span class="prestige" :title="`${seat.prestige} prestige`"><b>{{ seat.prestige }}</b><small>pts</small></span>
+        <span v-if="isMe" class="tag mine">{{ t('common.you') }}</span>
+        <span v-else-if="seat.bot" class="tag" :title="seat.ai ? t('facts.aiTitle', { name: seat.ai.name }) : t('common.computerPlayer')">{{ t('facts.cpu') }}</span>
+        <span v-else-if="!seat.online" class="tag away">{{ t('common.away') }}</span>
+        <span class="prestige" :title="t('facts.prestigeTitle', { n: seat.prestige })"><b>{{ seat.prestige }}</b><small>{{ t('facts.pts') }}</small></span>
       </header>
-      <div class="row-block" :title="`Tokens (${total}/${MAX_TOKENS})`">
-        <span class="label">Tokens <small>{{ total }}/{{ MAX_TOKENS }}</small></span>
+      <div class="row-block" :title="t('facts.tokensTitle', { held: total, max: MAX_TOKENS })">
+        <span class="label">{{ t('facts.tokens') }} <small>{{ total }}/{{ MAX_TOKENS }}</small></span>
         <span class="gems">
           <template v-for="(n, c) in seat.tokens" :key="c">
             <button
@@ -61,7 +67,7 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
               :class="{ picked: give[c] > 0 }"
               :disabled="n === 0"
               :aria-pressed="give[c] > 0"
-              :aria-label="`Give back ${GEM_NAMES[c]}: you hold ${n}, ${give[c]} marked`"
+              :aria-label="t('facts.giveBack', { gem: gemName(c), held: n, marked: give[c] })"
               @click="$emit('token', c)"
             >
               <Gem :colour="c" :size="gem" :count="n" :faded="n === 0" />
@@ -71,15 +77,15 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
           </template>
         </span>
       </div>
-      <div class="row-block" :title="`Card bonuses (${seat.bought} ${seat.bought === 1 ? 'card' : 'cards'})`">
-        <span class="label">Cards <small>{{ seat.bought }}</small></span>
+      <div class="row-block" :title="t('facts.cardsTitle', { count: seat.bought }, seat.bought)">
+        <span class="label">{{ t('facts.cards') }} <small>{{ seat.bought }}</small></span>
         <span class="gems">
           <span v-for="(n, c) in seat.bonuses" :key="c" class="held"><Gem :colour="c" :size="gem" :count="n" :faded="n === 0" /></span>
-          <span v-for="n in seat.nobles" :key="n" class="noble-badge" :title="NOBLE_BY_ID[n].name" :aria-label="`Noble: ${NOBLE_BY_ID[n].name}`">&#9819;{{ NOBLE_POINTS }}</span>
+          <span v-for="n in seat.nobles" :key="n" class="noble-badge" :title="nobleName(n)" :aria-label="t('facts.nobleBadge', { name: nobleName(n) })">&#9819;{{ NOBLE_POINTS }}</span>
         </span>
       </div>
     </div>
-    <div class="reserved" :aria-label="`Reserved cards (${seat.reserved.length}/${MAX_RESERVED})`" :title="`Reserved (${seat.reserved.length}/${MAX_RESERVED})`">
+    <div class="reserved" :aria-label="t('facts.reservedLabel', { held: seat.reserved.length, max: MAX_RESERVED })" :title="t('facts.reservedTitle', { held: seat.reserved.length, max: MAX_RESERVED })">
       <template v-for="(r, i) in seat.reserved" :key="r.card ?? `hidden-${i}`">
         <CardFace
           v-if="r.card"

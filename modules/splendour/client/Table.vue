@@ -7,6 +7,7 @@
 // Side effects: sends actions through `send`; opens and closes the scoreboard pop-up and the player pop-up.
 import { computed, reactive, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { createChoiceState, useChoiceReset } from './choiceState.js';
 import LogEntries from './LogEntries.vue';
@@ -24,6 +25,7 @@ import { useStatusLines } from './useStatusLines.js';
 import { useTokenReturn } from './useTokenReturn.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { text } = useGameText();
 
 // Template ref to the ScoreBar, so the scoreboard pop-up can be opened and closed from here.
 const board = ref(null);
@@ -37,6 +39,11 @@ const give = reactive(useTokenReturn(view, shared, props.send));
 const ending = reactive(useEnding(view));
 const { banner, statusLines } = useStatusLines({ view, ending, shared, take, card });
 useChoiceReset(view, shared);
+// The composables above say everything in messages (shared/messages.js); the Status box wants the words themselves.
+const headline = computed(() => text(banner.value));
+const lines = computed(() => statusLines.value.map((line) => ({ tone: line.tone, text: text(line.text) })));
+// The final standings with every name in words (an empty seat's name is a message).
+const standings = computed(() => ending.standings.map((place) => ({ ...place, name: text(place.name) })));
 
 // Other players' boards: hidden until you click their name in the score bar, one at a time, over the main area (nothing moves).
 const { openId, scoreProps, popupProps } = usePlayerPopup({
@@ -78,12 +85,12 @@ const fs = (area) => ({ fontSize: `${fontSize(area)}px` });
     <template #status>
       <StatusPanel
         :state="state"
-        :banner="banner"
-        :lines="statusLines"
+        :banner="headline"
+        :lines="lines"
         :mine="Boolean(view.myTurn || view.pendingMine)"
         :finished="view.finished"
         :is-host="ending.isHost"
-        :standings="ending.standings"
+        :standings="standings"
         @again="send('again')"
         @show-scores="board.show()"
       />

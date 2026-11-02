@@ -1,6 +1,8 @@
-// Tests for the Splendour table's composables, on small hand-made views.
+// Tests for the Splendour table's composables, on small hand-made views. The composables say everything in messages
+// (shared/messages.js), so `words` puts one into English exactly as the table does.
 import { describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
+import { messageText } from '../../../src/messageText.js';
 import { createChoiceState } from './choiceState.js';
 import { useTableView } from './tableView.js';
 import { useCardChoice } from './useCardChoice.js';
@@ -31,6 +33,7 @@ const setup = (state, send = vi.fn(() => Promise.resolve({ ok: true }))) => {
   return { view, shared, send };
 };
 const ref = (value) => reactive({ value });
+const words = (message) => messageText(message, 'splendour');
 
 describe('useGemTake', () => {
   it('picks three different gems, then refuses a fourth', () => {
@@ -42,7 +45,7 @@ describe('useGemTake', () => {
     take.clickGem(2);
     expect(take.takeCheck.ok).toBe(true);
     take.clickGem(3);
-    expect(shared.message).toContain('at most three');
+    expect(words(shared.message)).toContain('at most three');
     expect(shared.picks).toEqual([0, 1, 2]);
   });
 
@@ -56,7 +59,7 @@ describe('useGemTake', () => {
     expect(shared.picks).toEqual([4]); // from a pair, another colour starts again
     shared.picks = [];
     take.clickGem(4);
-    expect(shared.message).toContain('no ');
+    expect(words(shared.message)).toContain('no ');
   });
 
   it('sends the take and clears the picks, keeping them on a refusal', async () => {
@@ -74,7 +77,7 @@ describe('useGemTake', () => {
   it('says it is not your turn', () => {
     const { view, shared, send } = setup(ref(makeState({ turn: 1 })));
     reactive(useGemTake(view, shared, send)).clickGem(0);
-    expect(shared.message).toBe('It is not your turn.');
+    expect(words(shared.message)).toBe('It is not your turn.');
   });
 });
 
@@ -109,7 +112,7 @@ describe('useCardChoice', () => {
     const { view, shared, send } = setup(ref(makeState({ turn: 1 })));
     const card = reactive(useCardChoice(view, shared, send));
     expect(card.canReserve).toBeFalsy();
-    expect(card.reserveWhy).toBe('It is not your turn.');
+    expect(words(card.reserveWhy)).toBe('It is not your turn.');
   });
 });
 
@@ -143,8 +146,8 @@ describe('useEnding', () => {
     const { view } = setup(state);
     const ending = reactive(useEnding(view));
     expect(ending.standings.map((x) => x.name)).toEqual(['Bob', 'Ann']);
-    expect(ending.tieNote).toContain('fewer cards');
-    expect(ending.endNote).toContain('round limit');
+    expect(words(ending.tieNote)).toContain('fewer cards');
+    expect(words(ending.endNote)).toContain('round limit');
     expect(ending.isHost).toBe(true);
     expect(ending.iWon).toBe(false);
   });

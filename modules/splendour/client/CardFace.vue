@@ -7,8 +7,9 @@
 // Emits: pick (the card was clicked while clickable). Slots: none.
 // Side effects: none beyond the emit.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { CARD_BY_ID } from '../cards.js';
-import { GEM_FILL, GEM_NAMES } from './gems.js';
+import { GEM_FILL, GEM_KEYS } from './gems.js';
 import Gem from './Gem.vue';
 
 const props = defineProps({
@@ -23,6 +24,7 @@ const props = defineProps({
   count: { type: Number, default: null }, // for a pile: how many cards are left
 });
 defineEmits(['pick']);
+const { t, list } = useGameText();
 
 // Static card data (level, points, bonus, cost) for a face-up card, or null for a card back.
 const info = computed(() => (props.card ? CARD_BY_ID[props.card] : null));
@@ -32,9 +34,10 @@ const costs = computed(() => (info.value ? info.value.cost.flatMap((n, c) => (n 
 const tint = computed(() => (info.value ? GEM_FILL[info.value.bonus] : '#3a4d57'));
 // The accessible description of the card (or of a card back), including what is left to pay.
 const description = computed(() => {
-  if (!info.value) return `A face-down level ${props.level} card`;
-  const cost = costs.value.map((c) => `${c.left}${c.left !== c.cost ? ` (of ${c.cost})` : ''} ${GEM_NAMES[c.colour]}`).join(', ');
-  return `Level ${info.value.level} card: ${info.value.points} prestige, gives a ${GEM_NAMES[info.value.bonus]} bonus. Cost ${cost}.`;
+  if (!info.value) return t('facts.faceDownCard', { level: props.level });
+  const gem = (colour) => t(`gems.${GEM_KEYS[colour]}`);
+  const cost = list(costs.value.map((c) => (c.left !== c.cost ? t('facts.costDiscounted', { left: c.left, cost: c.cost, gem: gem(c.colour) }) : t('facts.gemCount', { count: c.left, gem: gem(c.colour) }, c.left))));
+  return t('facts.cardFull', { level: info.value.level, points: info.value.points, bonus: gem(info.value.bonus), cost });
 });
 </script>
 
@@ -60,11 +63,11 @@ const description = computed(() => {
           <small v-if="c.left !== c.cost" class="was">{{ c.cost }}</small>
         </span>
       </span>
-      <span v-if="affordable" class="can">can buy</span>
+      <span v-if="affordable" class="can">{{ t('facts.canBuy') }}</span>
     </template>
     <template v-else>
       <span class="level" aria-hidden="true">{{ 'I'.repeat(level) }}</span>
-      <span v-if="count !== null" class="pile">{{ count }} left</span>
+      <span v-if="count !== null" class="pile">{{ t('facts.cardsLeft', { count }, count) }}</span>
     </template>
   </component>
 </template>

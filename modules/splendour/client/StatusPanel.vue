@@ -6,6 +6,7 @@
 // Emits: again (Play again) and show-scores (open the scoreboard pop-up). Slots: none (fills GameStatus's facts slot).
 // Side effects: none beyond the emits.
 import GameStatus from '../../../src/components/GameStatus.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 defineProps({
   state: { type: Object, required: true },
@@ -17,6 +18,7 @@ defineProps({
   standings: { type: Array, default: () => [] },
 });
 defineEmits(['again', 'show-scores']);
+const { t, list } = useGameText();
 // Card levels in display order, top first, for the piles' counts in the facts.
 const levels = [3, 2, 1];
 </script>
@@ -24,20 +26,20 @@ const levels = [3, 2, 1];
 <template>
   <GameStatus :headline="banner" :mine="mine" :lines="lines">
     <template #facts>
-      <strong>Round {{ state.round }}</strong>
-      <span>First to {{ state.settings.target }} prestige</span>
-      <span>Piles left: {{ levels.map((l) => `${state.decks[l]} (level ${l})`).join(', ') }}</span>
+      <strong>{{ t('round', { n: state.round }) }}</strong>
+      <span>{{ t('facts.target', { n: state.settings.target }) }}</span>
+      <span>{{ t('facts.piles', { piles: list(levels.map((l) => t('facts.pileCount', { count: state.decks[l], level: l }))) }) }}</span>
     </template>
     <template v-if="finished">
       <ol class="standings">
         <li v-for="x in standings" :key="x.seat">
-          <b>{{ x.name }}</b> <span>{{ x.prestige }} prestige</span> <span class="muted">{{ x.cards }} {{ x.cards === 1 ? 'card' : 'cards' }}, {{ x.nobles }} {{ x.nobles === 1 ? 'noble' : 'nobles' }}</span>
+          <b>{{ x.name }}</b> <span>{{ t('facts.prestigeCount', { n: x.prestige }) }}</span> <span class="muted">{{ list([t('facts.cardsCount', { count: x.cards }, x.cards), t('facts.noblesCount', { count: x.nobles }, x.nobles)]) }}</span>
         </li>
       </ol>
       <div class="end-actions">
-        <button v-if="isHost" class="primary" @click="$emit('again')">Play again</button>
-        <span v-else class="muted">Waiting for the host to start another game, or leave (top right).</span>
-        <button @click="$emit('show-scores')">Show the scores</button>
+        <button v-if="isHost" class="primary" @click="$emit('again')">{{ t('table.playAgain') }}</button>
+        <span v-else class="muted">{{ t('status.waitingHost') }}</span>
+        <button @click="$emit('show-scores')">{{ t('table.showScores') }}</button>
       </div>
     </template>
   </GameStatus>

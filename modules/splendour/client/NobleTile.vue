@@ -5,9 +5,10 @@
 // Emits: pick (the tile was clicked while clickable). Slots: none.
 // Side effects: none beyond the emit.
 import { computed } from 'vue';
+import { useGameText } from '../../../src/useGameText.js';
 import { NOBLE_BY_ID } from '../cards.js';
 import Gem from './Gem.vue';
-import { GEM_NAMES } from './gems.js';
+import { GEM_KEYS } from './gems.js';
 
 const props = defineProps({
   noble: { type: String, required: true },
@@ -18,13 +19,16 @@ const props = defineProps({
   bonuses: { type: Array, default: null }, // the viewer's bonuses, to show how close they are
 });
 defineEmits(['pick']);
+const { t, list } = useGameText();
 
-// Static noble data (name, points, requirements).
+// The noble's name is a word a player reads, so it comes from the locale file, not from the card set.
+const name = computed(() => t(`nobles.${props.noble}`));
+// Static noble data (points, requirements).
 const info = computed(() => NOBLE_BY_ID[props.noble]);
 // The requirements as { colour, count } pairs (the data keys them by colour as strings).
 const needs = computed(() => Object.entries(info.value.requires).map(([colour, count]) => ({ colour: Number(colour), count })));
 // The accessible description, with a "Choose" prefix when the tile can be clicked.
-const description = computed(() => `${props.clickable ? 'Choose ' : ''}${info.value.name}: worth ${info.value.points} prestige. Needs ${needs.value.map((n) => `${n.count} ${GEM_NAMES[n.colour]}`).join(', ')} cards.`);
+const description = computed(() => t(props.clickable ? 'facts.nobleChoose' : 'facts.noble', { name: name.value, points: info.value.points, needs: list(needs.value.map((n) => t('facts.gemCount', { count: n.count, gem: t(`gems.${GEM_KEYS[n.colour]}`) }, n.count))) }));
 </script>
 
 <template>
@@ -34,7 +38,7 @@ const description = computed(() => `${props.clickable ? 'Choose ' : ''}${info.va
       <rect x="3" y="19" width="18" height="2.4" rx="1" fill="#c8603f" />
     </svg>
     <b class="points">{{ info.points }}</b>
-    <span class="name">{{ info.name }}</span>
+    <span class="name">{{ name }}</span>
     <span class="needs">
       <span v-for="n in needs" :key="n.colour" class="need" :class="{ met: bonuses && bonuses[n.colour] >= n.count }">
         <Gem :colour="n.colour" :size="small ? 15 : 18" :count="n.count" />

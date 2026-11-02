@@ -7,8 +7,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // True when this player is the host (only they can change options).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -23,6 +25,8 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
+// The usual target: its button says so.
+const USUAL_TARGET = 15;
 // Returns the index of the first empty seat (-1 if full), where a computer player is added.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
 // How many seats are taken, by people or computer players.
@@ -34,7 +38,7 @@ const change = (settings) => props.send('settings', settings);
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -48,9 +52,9 @@ const change = (settings) => props.send('settings', settings);
       @start="send('start')"
     >
       <template #settings>
-        <h3>Rules for this game</h3>
+        <h3>{{ t('lobby.rules') }}</h3>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Number of players</legend>
+          <legend class="muted">{{ t('lobby.players') }}</legend>
           <div class="row">
             <button
               v-for="n in state.limits.seatCounts"
@@ -60,19 +64,19 @@ const change = (settings) => props.send('settings', settings);
               :disabled="occupied > n"
               @click="change({ seats: n })"
             >
-              {{ n }} players
+              {{ t('lobby.playerCount', { count: n }, n) }}
             </button>
           </div>
         </fieldset>
         <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">Play to (prestige points)</legend>
+          <legend class="muted">{{ t('lobby.playTo') }}</legend>
           <div class="row">
-            <button v-for="t in state.limits.targets" :key="t" :class="{ primary: state.settings.target === t }" :aria-pressed="state.settings.target === t" @click="change({ target: t })">
-              {{ t }}<template v-if="t === 15"> (usual)</template>
+            <button v-for="target in state.limits.targets" :key="target" :class="{ primary: state.settings.target === target }" :aria-pressed="state.settings.target === target" @click="change({ target })">
+              {{ target === USUAL_TARGET ? t('lobby.targetUsual', { n: target }) : target }}
             </button>
           </div>
         </fieldset>
-        <p v-if="!isHost" class="muted">Only the host can change these.</p>
+        <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
   </div>

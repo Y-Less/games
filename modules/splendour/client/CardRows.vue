@@ -5,6 +5,7 @@
 //   needOf (function: a card's cost to you), selectedCard (id or null), selectedLevel (level of the selected pile or null).
 // Emits: pick-card(id) and pick-deck(level). Slots: none.
 // Side effects: none.
+import { useGameText } from '../../../src/useGameText.js';
 import CardFace from './CardFace.vue';
 
 defineProps({
@@ -16,19 +17,20 @@ defineProps({
   selectedLevel: { type: Number, default: null },
 });
 defineEmits(['pick-card', 'pick-deck']);
+const { t } = useGameText();
 // Card levels in display order, top row first.
 const levels = [3, 2, 1];
 </script>
 
 <template>
   <div class="levels">
-    <div v-for="level in levels" :key="level" class="level-row" :aria-label="`Level ${level} cards`">
+    <div v-for="level in levels" :key="level" class="level-row" :aria-label="t('facts.levelRow', { level })">
       <button
         class="pile-button"
         :class="{ chosen: selectedLevel === level }"
         :disabled="!decks[level]"
-        :title="`Reserve the top card of the level ${level} pile without seeing it`"
-        :aria-label="`Level ${level} pile, ${decks[level]} cards. Select to reserve the top card.`"
+        :title="t('facts.pileTitle', { level })"
+        :aria-label="t('facts.pileLabel', { level, count: decks[level] }, decks[level])"
         @click="$emit('pick-deck', level)"
       >
         <CardFace :level="level" :count="decks[level]" />

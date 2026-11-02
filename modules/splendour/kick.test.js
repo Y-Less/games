@@ -48,7 +48,7 @@ test('rules: the host can remove a person in any phase but the last: a computer 
     const result = game.kick(room, 1, at, Math.random);
     if (phase === 'finished') {
       assert.equal(result.ok, false, phase);
-      assert.match(result.error, /over/);
+      assert.equal(result.error, 'gameOverNobodyToRemove');
       assert.equal(JSON.stringify(room), before);
     } else {
       assert.equal(result.ok, true, phase);

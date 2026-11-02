@@ -9,7 +9,9 @@ the genre, with its own names, card set and artwork), with optional computer pla
 ```
 module.json    menu entry (1 to 4 people), and the statistics this game reports
 rules.md       the player-facing rules
-cards.js       the card set: gem colours, 90 development cards and 10 nobles, generated from cost patterns
+cards.js       the card set: gem colours, 90 development cards and 10 nobles, generated from cost patterns (numbers and
+               ids only: a gem's and a noble's name are words a player reads, so they live in locales/)
+locales/       every word a player sees, by language (en.json; see MODULES.md, "Languages")
 game.js        the rules as pure functions over a plain room object (no sockets, no files), and each player's view
 bot.js         runs the computer players: builds the plain-data situation, asks the seat's AI, checks the answer is legal
 ai/            the AIs (one file each, index.js exports AIS): standard, sharp, noble-hunter, engine-builder, rusher, blocker, random.
@@ -34,5 +36,7 @@ client/        Vue 3: Splendour (root), Lobby, Table, and the drawn pieces Gem, 
   ends and is scored normally (so a game can never run for ever).
 - Seat order is shuffled at the start. A round is one turn for every seat; the game ends after the round in which
   someone reached the target. Placing: prestige, then fewer cards bought, ties share the place.
-- Scoreboard rounds hold the prestige each seat gained in the round, with a note such as "bought a level 2 card (2
-  points), noble visited".
+- Scoreboard rounds hold the prestige each seat gained in the round. A round's `label` is the message `round` and a
+  seat's `notes` is a list of messages (`notes.*`, e.g. `boughtPoints` and `nobleVisited`), or null when that seat did
+  nothing worth a note; the client joins the list the way the language joins lists ("bought a level 2 card (2 points)
+  and noble visited"). A refusal is a code under `errors.`, never a sentence.

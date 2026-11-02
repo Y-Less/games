@@ -1,6 +1,7 @@
 // What the Splendour table knows about the game from the server's view, for the player looking at it: whose turn it is, what
 // they hold, what a card costs them. Nothing here changes anything; every value follows the state it is given.
 import { computed } from 'vue';
+import { msg } from '../../../shared/messages.js';
 import { CARD_BY_ID } from '../cards.js';
 import { needOf as costAfterBonuses } from '../rules.js';
 
@@ -43,13 +44,13 @@ export function useTableView(getState) {
   const supply = computed(() => s.value.supply);
 
   /**
-   * The name of a seat, or "Someone" when it is empty.
+   * The name of a seat, or the site's "Someone" (as a message) when it is empty.
    *
    * @param {number} seat  a seat number
-   * @returns {string} the player's name
+   * @returns {string | { key: string }} the player's name, or a message for an empty seat
    * Side effects: none.
    */
-  const nameOf = (seat) => s.value.seats[seat]?.name ?? 'Someone';
+  const nameOf = (seat) => s.value.seats[seat]?.name ?? msg('common.someone');
   /**
    * What a card costs this player after their discounts (the shared calculation in rules.js).
    *

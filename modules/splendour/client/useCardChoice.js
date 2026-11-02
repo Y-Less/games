@@ -1,6 +1,7 @@
 // Choosing a card (or a pile) to buy or reserve at the Splendour table: the selection, what it would cost this player,
 // and the buy and reserve requests.
 import { computed, watch } from 'vue';
+import { msg } from '../../../shared/messages.js';
 import { CARD_BY_ID } from '../cards.js';
 import { MAX_RESERVED } from '../rules.js';
 import { sum } from './tableView.js';
@@ -14,7 +15,7 @@ import { sum } from './tableView.js';
  * @param {object} view    the table view (reactive)
  * @param {object} shared  the shared choice state (reactive)
  * @param {Function} send  sends an action to the server and resolves with its reply
- * @returns {object} selectedCard, selectedLevel (the level of the selected pile, or null), selectedInfo, inReserve, quote, goldUsed, payPlan, missing, canReserve, reserveWhy,
+ * @returns {object} selectedCard, selectedLevel (the level of the selected pile, or null), selectedInfo, inReserve, quote, goldUsed, payPlan, missing, canReserve, reserveWhy (a message),
  *   goldLeft, pickCard(id), pickDeck(level), setGold(n), cancel(), buy(), reserve()
  */
 export function useCardChoice(view, shared, send) {
@@ -51,11 +52,11 @@ export function useCardChoice(view, shared, send) {
   });
   // True when it is your turn and you have room in your reserve.
   const canReserve = computed(() => view.myTurn && view.me && view.me.reserved.length < MAX_RESERVED);
-  // Why you cannot reserve right now ('' when you can).
+  // Why you cannot reserve right now, as a message (null when you can).
   const reserveWhy = computed(() => {
-    if (!view.myTurn) return view.s.pending ? 'Finish your current choice first.' : 'It is not your turn.';
-    if (view.me.reserved.length >= MAX_RESERVED) return 'You already have three reserved cards.';
-    return '';
+    if (!view.myTurn) return view.s.pending ? msg('status.finishFirst') : msg('errors.notYourTurn');
+    if (view.me.reserved.length >= MAX_RESERVED) return msg('status.reserveFull', { count: MAX_RESERVED });
+    return null;
   });
   // True when the supply still has Gold (a reserve takes one).
   const goldLeft = computed(() => view.supply[5] > 0);
@@ -68,7 +69,7 @@ export function useCardChoice(view, shared, send) {
    * Side effects: sets the shared sel, and clears picks, message and payGold.
    */
   function pickCard(id) {
-    shared.message = '';
+    shared.message = null;
     shared.picks = [];
     shared.payGold = null;
     shared.sel = selectedCard.value === id ? null : { kind: 'card', id };
@@ -81,7 +82,7 @@ export function useCardChoice(view, shared, send) {
    * Side effects: sets the shared sel, and clears picks and message.
    */
   function pickDeck(level) {
-    shared.message = '';
+    shared.message = null;
     shared.picks = [];
     shared.sel = shared.sel?.kind === 'deck' && shared.sel.level === level ? null : { kind: 'deck', level };
   }
