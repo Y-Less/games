@@ -7,7 +7,8 @@
 // attributes listed below) with two or more letters in a row. What counts as text in a script or a .js file: a string
 // literal of three or more words that starts with a capital letter or ends in punctuation, which is what a sentence
 // looks like and a CSS class list or a key does not. Comments, imports, console output and thrown Errors (for
-// developers, not players) are left out.
+// developers, not players) are left out, as is a module's own operator log (ctx.log), which the shared room server's
+// identical lines never faced because a shared file belongs to no unit.
 import { describe, expect, it } from 'vitest';
 import siteMessages from './locales/en.json';
 
@@ -70,7 +71,7 @@ function hardCodedInTemplate(template) {
 function hardCodedInScript(script) {
   const found = [];
   for (const line of stripComments(script).split('\n')) {
-    if (/^\s*import\b|import\.meta\.glob|console\.|throw new |new Error\(|assert\.|\bError\(`/.test(line)) continue;
+    if (/^\s*import\b|import\.meta\.glob|console\.|\bctx\.log\(|throw new |new Error\(|assert\.|\bError\(`/.test(line)) continue;
     for (const [, text] of line.matchAll(/(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)/g).map((m) => [m[0], m[1] ?? m[2] ?? m[3]])) {
       const words = text.replace(/\$\{[^}]*\}/g, 'x').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
       if (words.length >= 3 && (/^[A-Z]/.test(text.trim()) || /[.!?:]$/.test(text.trim()))) found.push(text);
