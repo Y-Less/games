@@ -7,6 +7,12 @@ import { ASPECT, CAPTION, barSpan, fitCards, handCard } from './layout.js';
 import { newEntries, roundNumber } from './moveLog.js';
 import { statusFor, styleName } from './status.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
+import { messageText } from '../../../src/messageText.js';
+
+// status.js and moveLog.js write messages, not sentences; these put one into English, as the components do.
+const words = (value) => messageText(value, 'dixnt');
+// A Status line is a message, or { text: message, tone }.
+const lineWords = (line) => words(line?.tone ? line.text : line);
 
 // ---- a state shaped like the server's view ----
 const player = (id, name, extra = {}) => ({ id, name, score: 0, turns: 0, waiting: false, connected: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, ...extra });
@@ -98,43 +104,43 @@ describe('Dixnt layout sums', () => {
 
 describe('Dixnt Status words', () => {
   it('tells the chooser what to do, and the others who is choosing', () => {
-    expect(statusFor(view({ phase: 'word' })).headline).toMatch(/choose a word/);
+    expect(words(statusFor(view({ phase: 'word' })).headline)).toMatch(/choose a word/);
     expect(statusFor(view({ phase: 'word' })).mine).toBe(true);
     const other = statusFor(asBob({ phase: 'word', players: view().players.map((p) => p) }));
-    expect(other.headline).toBe('Ann is choosing a word…');
+    expect(words(other.headline)).toBe('Ann is choosing a word…');
     expect(other.mine).toBe(false);
   });
 
   it('covers picking: play, played and the imposter', () => {
-    expect(statusFor(asBob()).headline).toMatch(/play the card that fits/i);
-    expect(statusFor(asBob({ wordHidden: true, word: null })).headline).toMatch(/did not see the word/);
+    expect(words(statusFor(asBob()).headline)).toMatch(/play the card that fits/i);
+    expect(words(statusFor(asBob({ wordHidden: true, word: null })).headline)).toMatch(/did not see the word/);
     const played = statusFor(asBob({}, { myPick: 3 }));
-    expect(played.headline).toBe('Card played.');
-    expect(played.lines.map((l) => l.text ?? l).join(' ')).toMatch(/swap it/);
+    expect(words(played.headline)).toBe('Card played.');
+    expect(played.lines.map(lineWords).join(' ')).toMatch(/swap it/);
   });
 
   it('covers voting by style and the results', () => {
-    expect(statusFor(asBob({ phase: 'voting' })).headline).toMatch(/vote for the player/);
-    expect(statusFor(asBob({ phase: 'voting' }, { myVote: 'cy' })).headline).toMatch(/vote is in/);
-    expect(statusFor(view({ phase: 'voting', judging: 'favourite' }, { myVote: null })).headline).toMatch(/pick the card you like best/);
-    expect(statusFor(asBob({ phase: 'voting', judging: 'chooser' })).headline).toBe('Ann will decide who was in the dark.');
+    expect(words(statusFor(asBob({ phase: 'voting' })).headline)).toMatch(/vote for the player/);
+    expect(words(statusFor(asBob({ phase: 'voting' }, { myVote: 'cy' })).headline)).toMatch(/vote is in/);
+    expect(words(statusFor(view({ phase: 'voting', judging: 'favourite' }, { myVote: null })).headline)).toMatch(/pick the card you like best/);
+    expect(words(statusFor(asBob({ phase: 'voting', judging: 'chooser' })).headline)).toBe('Ann will decide who was in the dark.');
     const results = { judging: 'everyone', imposterId: 'cy', groupCorrect: true, votes: { bob: 'cy' }, tally: { cy: 1, ann: 0, bob: 0, di: 0 }, deltas: {} };
     const done = statusFor(view({ phase: 'results', results }));
-    expect(done.headline).toBe('Cy was the imposter!');
-    expect(done.lines.map((l) => l.text ?? l).join(' ')).toMatch(/Votes for Cy: Bob/);
+    expect(words(done.headline)).toBe('Cy was the imposter!');
+    expect(done.lines.map(lineWords).join(' ')).toMatch(/Votes for Cy: Bob/);
   });
 
   it('names the winner at the end, with the way on for the host and for the others', () => {
     const over = (isHost) => statusFor(view({ phase: 'finished', winners: ['bob'], completedRounds: 4 }), { isHost });
-    expect(over(true).headline).toBe('Bob wins!');
-    expect(over(true).lines.map((l) => l.text).join(' ')).toMatch(/Back to the lobby/);
-    expect(over(false).lines.map((l) => l.text).join(' ')).toMatch(/Waiting for the host/);
-    expect(styleName('favourite')).toBe('Favourite card');
+    expect(words(over(true).headline)).toBe('Bob wins!');
+    expect(over(true).lines.map(lineWords).join(' ')).toMatch(/Back to the lobby/);
+    expect(over(false).lines.map(lineWords).join(' ')).toMatch(/Waiting for the host/);
+    expect(words(styleName('favourite'))).toBe('Favourite card');
   });
 });
 
 describe('Dixnt move log', () => {
-  const stepped = (before, after) => newEntries(before, after);
+  const stepped = (before, after) => newEntries(before, after).map(words);
   it('notes each round, the word, every card played and every vote, and the result', () => {
     const word = view({ phase: 'word' });
     expect(stepped(null, word)).toEqual(['Round 1: Ann is choosing a word.']);

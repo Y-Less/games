@@ -11,6 +11,7 @@
 // dialog); keeps local word/hints/busy state, cleared when you stop being the chooser; focuses the word box when you
 // become the chooser.
 import { computed, nextTick, ref, watch } from 'vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 import { CONTROLS, GAP, fitCards, handCard } from '../layout.js';
 import FinishedPanel from './FinishedPanel.vue';
@@ -22,6 +23,7 @@ const props = defineProps({
   height: { type: Number, required: true },
 });
 
+const { t } = useGameText();
 const { isHost, players, send, store } = useDixnt();
 // The current state.
 const state = computed(() => store.state);
@@ -98,7 +100,7 @@ const nextChooser = computed(() => {
  * Side effects: shows a confirm dialog; sends `endGame` if confirmed (scores are reset).
  */
 async function endGame() {
-  if (window.confirm('End the game and return everyone to the lobby? Scores are reset.')) await send('endGame');
+  if (window.confirm(t('table.confirmEnd'))) await send('endGame');
 }
 /**
  * Host only: abandons the current round (no points) and moves to the next chooser, after asking.
@@ -106,7 +108,7 @@ async function endGame() {
  * Side effects: shows a confirm dialog; sends `abortRound` if confirmed.
  */
 async function skipRound() {
-  if (window.confirm('Abandon this round (no points) and move on to the next word-chooser?')) await send('abortRound');
+  if (window.confirm(t('table.confirmSkip'))) await send('abortRound');
 }
 </script>
 
@@ -114,7 +116,7 @@ async function skipRound() {
   <div class="arena" :style="{ gridTemplateRows: rows }">
     <div class="table-zone">
       <FinishedPanel v-if="finished" />
-      <div v-else-if="choosing && hints.length" class="ideas" aria-label="Ideas for a word">
+      <div v-else-if="choosing && hints.length" class="ideas" :aria-label="t('table.ideas')">
         <button v-for="hint in hints" :key="hint" type="button" class="chip" :class="{ picked: word === hint }" @click="word = hint">{{ hint }}</button>
       </div>
       <Table v-else :card-width="cards.width" :card-height="cards.height" :count="inRound" :columns="cards.columns" />
@@ -122,19 +124,19 @@ async function skipRound() {
 
     <div class="controls">
       <form v-if="choosing" class="word" @submit.prevent="submit">
-        <input ref="input" v-model="word" maxlength="60" placeholder="Your word or phrase" aria-label="Your word or phrase" />
-        <button type="button" @click="getHints">{{ hints.length ? 'More ideas' : 'Give me ideas' }}</button>
-        <button class="primary" :disabled="!word.trim() || busy">Lock it in</button>
+        <input ref="input" v-model="word" maxlength="60" :placeholder="t('table.wordPlaceholder')" :aria-label="t('table.wordPlaceholder')" />
+        <button type="button" @click="getHints">{{ t(hints.length ? 'table.moreIdeas' : 'table.giveIdeas') }}</button>
+        <button class="primary" :disabled="!word.trim() || busy">{{ t('table.lockIn') }}</button>
       </form>
       <template v-else-if="phase === 'results'">
-        <button v-if="isLastRound" class="primary" @click="send('nextRound')">That was the last round: see the final scores</button>
-        <button v-else class="primary" @click="send('nextRound')">Next round: {{ nextChooser }} chooses the word</button>
+        <button v-if="isLastRound" class="primary" @click="send('nextRound')">{{ t('table.lastRound') }}</button>
+        <button v-else class="primary" @click="send('nextRound')">{{ t('table.nextRound', { name: nextChooser }) }}</button>
       </template>
-      <button v-else-if="finished && isHost" class="primary" @click="send('endGame')">Back to the lobby</button>
+      <button v-else-if="finished && isHost" class="primary" @click="send('endGame')">{{ t('table.backToLobby') }}</button>
       <span class="spacer" />
       <div v-if="isHost && !finished" class="host">
-        <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipRound">Skip round</button>
-        <button class="quiet" @click="endGame">End game</button>
+        <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipRound">{{ t('table.skipRound') }}</button>
+        <button class="quiet" @click="endGame">{{ t('table.endGame') }}</button>
       </div>
     </div>
 

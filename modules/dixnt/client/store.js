@@ -22,14 +22,15 @@ export const cardUrl = (cardId, size = 'medium') => `/assets/dixnt/cards/${size}
 
 /**
  * Creates the game store: reactive state fed by the server's `state` events, plus the actions the components use.
- * @param {{ socket: object, user: object, search: string, setSearch: (search: string) => void }} options
+ * @param {{ socket: object, user: object, search: string, setSearch: (search: string) => void, error: (reply: object) => string }} options
  *   socket is the site's socket; user the signed-in user; search the page's query string (an invite code may be in it);
- *   setSearch puts the current game code in the address bar.
+ *   setSearch puts the current game code in the address bar; error turns a server refusal into words in the player's
+ *   language (useGameText's `error`), because nothing outside a locale file writes any.
  * @returns {object} { store, user, send, showToast, goHome, createGame, join, players, nameOf, chooser, isHost, cardUrl, dispose }.
  * Side effects: listens to the socket's connect, disconnect and state events (removed by `dispose()`); emits resume,
  * lookup and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
  */
-export function createStore({ socket, user, search, setSearch }) {
+export function createStore({ socket, user, search, setSearch, error }) {
   const store = reactive({
     connected: socket.connected,
     checkedSession: false, // true once the server has said whether we are already in a game
@@ -66,7 +67,7 @@ export function createStore({ socket, user, search, setSearch }) {
   function send(event, payload = {}, { quiet = false } = {}) {
     return new Promise((resolve) => {
       socket.emit(event, payload, (reply) => {
-        if (reply && !reply.ok && !quiet) showToast(reply.error);
+        if (reply && !reply.ok && !quiet) showToast(error(reply));
         resolve(reply ?? { ok: false });
       });
     });
@@ -111,7 +112,8 @@ export function createStore({ socket, user, search, setSearch }) {
     store.log = !state || state.phase === 'lobby' ? [] : [...store.log, ...newEntries(store.state, state)].slice(-200);
     // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per round.
     if (state && store.state?.phase === 'word' && state.phase === 'picking') {
-      store.wordPopup = { word: state.wordHidden ? '???' : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden), at: Date.now() };
+      // `hidden` says the viewer is the one kept in the dark; the pop-up itself writes what they see instead.
+      store.wordPopup = { word: state.wordHidden ? null : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden), at: Date.now() };
     }
     store.state = state;
     // Back in the lobby (a new game is about to start), nothing from the last game may be left to show: the word popup is

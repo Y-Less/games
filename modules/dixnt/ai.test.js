@@ -177,9 +177,10 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
     for (let seed = 1; seed <= 150; seed++) {
       const game = playGame(Array(players).fill(ai), { seed, judging: 'everyone', roundsEach: 3 });
       for (const round of game.s.history) {
+        // The notes a view carries are messages: `{ key: 'notes.imposterCaught' }` and friends.
         for (const note of Object.values(round.notes)) {
-          if (note.startsWith('imposter')) rounds++;
-          if (note === 'imposter, caught') caught++;
+          if (note.key.startsWith('notes.imposter')) rounds++;
+          if (note.key === 'notes.imposterCaught') caught++;
         }
       }
     }

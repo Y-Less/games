@@ -9,6 +9,7 @@
 // Emits: none. Slots: none.
 // Side effects: sets store.zoom to open the card viewer; the Play button sends a `playCard` request.
 import { computed } from 'vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 import CardImg from './CardImg.vue';
 
@@ -17,6 +18,7 @@ defineProps({
   cardHeight: { type: Number, required: true },
 });
 
+const { t } = useGameText();
 const { send, store } = useDixnt();
 
 // The current state.
@@ -27,7 +29,8 @@ const canPlay = computed(() => state.value.phase === 'picking' && !state.value.m
 /**
  * Builds the buttons the card viewer shows for one of your cards: a Play button while cards are being played.
  * @param {number} cardId  The card showing in the viewer.
- * @returns {Array<{label: string, primary: boolean, run: () => any}>} The actions (empty when you cannot play).
+ * @returns {Array<{label: string, primary: boolean, run: () => any}>} The actions (empty when you cannot play);
+ *   each label is already in the player's language.
  * Side effects: none (the `run` callback sends `playCard` unless that card is already the one played).
  */
 function actionsFor(cardId) {
@@ -35,7 +38,7 @@ function actionsFor(cardId) {
   if (canPlay.value) {
     const chosen = state.value.me.myPick === cardId;
     actions.push({
-      label: chosen ? 'Already played' : state.value.me.myPick === null ? 'Play this card' : 'Play this one instead',
+      label: t(chosen ? 'table.alreadyPlayed' : state.value.me.myPick === null ? 'table.playThis' : 'table.playInstead'),
       primary: true,
       run: () => !chosen && send('playCard', { cardId }),
     });
@@ -55,18 +58,18 @@ function open(cardId) {
 </script>
 
 <template>
-  <section class="hand" aria-label="Your hand" :style="{ '--card-w': `${cardWidth}px`, '--card-h': `${cardHeight}px` }">
+  <section class="hand" :aria-label="t('table.yourHand')" :style="{ '--card-w': `${cardWidth}px`, '--card-h': `${cardHeight}px` }">
     <div class="cards">
       <button
         v-for="cardId in state.me.hand"
         :key="cardId"
         class="slot"
         :class="{ played: state.phase === 'picking' && state.me.myPick === cardId, dim: state.phase === 'picking' && state.me.myPick !== null && state.me.myPick !== cardId }"
-        :aria-label="`Card ${cardId}${state.phase === 'picking' && state.me.myPick === cardId ? ', played' : ''}`"
+        :aria-label="t(state.phase === 'picking' && state.me.myPick === cardId ? 'table.cardPlayed' : 'table.card', { id: cardId })"
         @click="open(cardId)"
       >
         <CardImg :card-id="cardId" size="small" />
-        <span v-if="state.phase === 'picking' && state.me.myPick === cardId" class="badge">Played</span>
+        <span v-if="state.phase === 'picking' && state.me.myPick === cardId" class="badge">{{ t('table.played') }}</span>
       </button>
     </div>
   </section>

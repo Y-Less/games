@@ -6,8 +6,10 @@
 //   size    {string}  image size folder to load (default 'medium'; the hand uses 'small').
 // Emits: none. Slots: none.
 // Side effects: none (the browser fetches the image).
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
+const { t } = useGameText();
 const { cardUrl } = useDixnt();
 
 defineProps({
@@ -17,7 +19,7 @@ defineProps({
 </script>
 
 <template>
-  <img class="card-img" :src="cardUrl(cardId, size)" :alt="`Card ${cardId}`" loading="lazy" draggable="false" />
+  <img class="card-img" :src="cardUrl(cardId, size)" :alt="t('table.card', { id: cardId })" loading="lazy" draggable="false" />
 </template>
 
 <style scoped>

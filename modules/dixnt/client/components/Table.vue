@@ -13,6 +13,7 @@
 // Side effects: sets store.zoom to open the card viewer; sends `vote` requests (after a confirm dialog when a single
 // decision ends the round).
 import { computed } from 'vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 import { CAPTION } from '../layout.js';
 import CardImg from './CardImg.vue';
@@ -24,6 +25,7 @@ const props = defineProps({
   columns: { type: Number, required: true }, // how many fit in a row
 });
 
+const { t, list } = useGameText();
 const { nameOf, send, store } = useDixnt();
 
 // The current state.
@@ -48,17 +50,17 @@ const votersFor = (playerId) =>
 /**
  * Builds the tooltip for a card's vote count: the number of votes and who cast them.
  * @param {string} playerId  The player whose card it is.
- * @returns {string} For example '2 votes: Ann, Bo'; '' in the favourite style, which has no vote counts.
+ * @returns {string} For example '2 votes: Ann and Bo'; '' in the favourite style, which has no vote counts.
  * Side effects: none.
  */
 function voteSummary(playerId) {
   if (results.value.judging === 'favourite') return '';
   const count = results.value.tally[playerId];
   const names = votersFor(playerId);
-  return `${count} vote${count === 1 ? '' : 's'}${names.length ? `: ${names.join(', ')}` : ''}`;
+  return names.length ? t('table.votesBy', { count, names: list(names) }, count) : t('table.votes', { count }, count);
 }
 // Returns the short vote count under a card ('1 vote', '3 votes'; '' in the favourite style).
-const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : `${results.value.tally[playerId]} vote${results.value.tally[playerId] === 1 ? '' : 's'}`);
+const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : t('table.votes', { count: results.value.tally[playerId] }, results.value.tally[playerId]));
 
 /**
  * Casts a vote (or the chooser's decision) for a player. Votes in the 'everyone' style can be changed, but a chooser's
@@ -69,10 +71,7 @@ const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : `$
  */
 function castVote(playerId) {
   if (state.value.judging !== 'everyone') {
-    const question =
-      state.value.judging === 'favourite'
-        ? `Pick ${nameOf(playerId)}’s card as your favourite? This ends the round.`
-        : `Decide that ${nameOf(playerId)} was in the dark? This ends the round.`;
+    const question = t(state.value.judging === 'favourite' ? 'table.confirmFavourite' : 'table.confirmDecide', { name: nameOf(playerId) });
     if (!window.confirm(question)) return;
   }
   send('vote', { targetId: playerId });
@@ -81,7 +80,7 @@ function castVote(playerId) {
 // Returns true if the viewer can currently vote for this player's card.
 const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
 // Returns the label of the vote button under a card, depending on the style and whether it is your pick.
-const voteLabel = (playerId) => (state.value.me.myVote === playerId ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : 'Vote');
+const voteLabel = (playerId) => t(state.value.me.myVote === playerId ? 'table.yourPick' : state.value.judging === 'favourite' ? 'table.pickThis' : 'table.vote');
 
 /**
  * Builds the buttons the card viewer shows for a card on the table: a vote button if you can vote for its owner.
@@ -93,7 +92,8 @@ function actionsFor(cardId) {
   const entry = state.value.table.find((e) => e.cardId === cardId);
   if (!entry || !canVoteFor(entry.playerId)) return [];
   const picked = state.value.me.myVote === entry.playerId;
-  return [{ label: picked ? 'Your pick' : state.value.judging === 'favourite' ? 'Pick this one' : `Vote for ${nameOf(entry.playerId)}`, primary: true, run: () => !picked && castVote(entry.playerId) }];
+  const label = picked ? t('table.yourPick') : state.value.judging === 'favourite' ? t('table.pickThis') : t('table.voteFor', { name: nameOf(entry.playerId) });
+  return [{ label, primary: true, run: () => !picked && castVote(entry.playerId) }];
 }
 
 /**
@@ -121,13 +121,13 @@ function zoom(cardId) {
           winner: results && results.winnerId === entry.playerId,
         }"
       >
-        <button class="art" :aria-label="`Look closer at ${nameOf(entry.playerId)}'s card`" @click="zoom(entry.cardId)">
+        <button class="art" :aria-label="t('table.lookCloser', { name: nameOf(entry.playerId) })" @click="zoom(entry.cardId)">
           <CardImg :card-id="entry.cardId" />
-          <span v-if="results && results.imposterId === entry.playerId" class="stamp">Imposter</span>
-          <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">Favourite</span>
+          <span v-if="results && results.imposterId === entry.playerId" class="stamp">{{ t('table.imposter') }}</span>
+          <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">{{ t('table.favourite') }}</span>
         </button>
         <figcaption>
-          <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.me.id" class="muted"> (you)</span></strong>
+          <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.me.id" class="muted"> {{ $t('common.youBracketed') }}</span></strong>
           <button v-if="canVoteFor(entry.playerId)" class="vote" :class="{ primary: state.me.myVote === entry.playerId }" @click="castVote(entry.playerId)">
             {{ voteLabel(entry.playerId) }}
           </button>
@@ -137,7 +137,7 @@ function zoom(cardId) {
     </template>
     <template v-else>
       <figure v-for="(slot, i) in slots" :key="i" class="played">
-        <div class="art slot" :class="{ down: slot.down, empty: !slot.down }" :aria-label="slot.down ? 'A card played face down' : 'A card still to be played'">
+        <div class="art slot" :class="{ down: slot.down, empty: !slot.down }" :aria-label="t(slot.down ? 'table.faceDown' : 'table.toPlay')">
           <span v-if="slot.down" class="card-back back" />
         </div>
         <figcaption />

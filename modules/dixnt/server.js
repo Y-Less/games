@@ -11,6 +11,7 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { msg } from '../../shared/messages.js';
 import { placements } from '../../shared/scores.js';
 import { Game, GameError, MAX_NAME_LENGTH, tokenFor, userIdOf } from './game.js';
 import { newTally, statsExtras, tallyRound } from './tally.js';
@@ -102,7 +103,8 @@ export default function (ctx) {
    * The cards grouped into categories. cards/categories.json lists the categories; only cards whose image exists
    * are offered. Without that file every card is one "All cards" category. The answer is cached for five seconds.
    *
-   * @returns {{ key: string, label: string, description: string, ids: number[] }[]}
+   * @returns {{ key: string, label: string | object, description: string, ids: number[] }[]} the label of the
+   *          made-up "all cards" category is a message; the labels in categories.json are content and stay as they are
    * Side effects: reads cards/categories.json and the card folder; refreshes the five-second cache.
    */
   let categoryCache = { at: 0, value: [] };
@@ -117,7 +119,7 @@ export default function (ctx) {
     }
     let value;
     if (!Array.isArray(defined)) {
-      value = present.size ? [{ key: 'all', label: 'All cards', description: '', ids: [...present] }] : [];
+      value = present.size ? [{ key: 'all', label: msg('lobby.allCards'), description: '', ids: [...present] }] : [];
     } else {
       value = defined
         .map((c) => ({ key: c.key, label: c.label, description: c.description ?? '', ids: c.ids.filter((id) => present.has(id)) }))
@@ -174,7 +176,7 @@ export default function (ctx) {
       fs.copyFileSync(gamesFile, target);
       return target;
     } catch (error) {
-      ctx.log('could not keep a copy of the damaged games file:', error.message);
+      ctx.log(`could not keep a copy of the damaged games file: ${error.message}`);
       return null;
     }
   }
@@ -192,7 +194,7 @@ export default function (ctx) {
     try {
       text = fs.readFileSync(gamesFile, 'utf8');
     } catch (error) {
-      if (error.code !== 'ENOENT') ctx.log('could not read the saved games:', error.message);
+      if (error.code !== 'ENOENT') ctx.log(`could not read the saved games: ${error.message}`);
       return; // no saved games yet
     }
     let saved;
@@ -201,7 +203,8 @@ export default function (ctx) {
       if (!saved || typeof saved.games !== 'object' || Array.isArray(saved.games)) throw new Error('it does not contain a games object');
     } catch (error) {
       const copy = keepCorruptCopy();
-      ctx.log(`the saved games file is corrupt (${error.message}); starting with no games${copy ? `, a copy is in ${copy}` : ''}`);
+      const where = copy ? `, a copy is in ${copy}` : '';
+      ctx.log(`the saved games file is corrupt (${error.message}); starting with no games${where}`);
       return;
     }
     let damaged = 0;
@@ -213,7 +216,7 @@ export default function (ctx) {
       } catch (error) {
         games.delete(code);
         damaged++;
-        ctx.log(`could not restore the saved game ${code}:`, error.message);
+        ctx.log(`could not restore the saved game ${code}: ${error.message}`);
       }
     }
     if (damaged) ctx.log(`${damaged} saved game(s) could not be restored; a copy of the file is in ${keepCorruptCopy()}`);
@@ -253,7 +256,7 @@ export default function (ctx) {
       try {
         saveNow();
       } catch (error) {
-        ctx.log('could not save the games:', error.message);
+        ctx.log(`could not save the games: ${error.message}`);
       }
     }, 300);
   }
@@ -294,7 +297,7 @@ export default function (ctx) {
         // so a passing problem does not leave a table with a computer player waiting for ever.
         const count = (failures.get(code) ?? 0) + 1;
         failures.set(code, count);
-        ctx.log(`a computer move failed (${count}):`, error);
+        ctx.log(`a computer move failed (attempt ${count})`, error);
         if (count <= MAX_RETRIES) {
           const retry = setTimeout(() => {
             timers.delete(code);
@@ -390,7 +393,7 @@ export default function (ctx) {
     try {
       ctx.stats.record({ code, players });
     } catch (error) {
-      ctx.log('could not record the statistics:', error.message);
+      ctx.log(`could not record the statistics: ${error.message}`);
     }
   }
 
@@ -408,7 +411,7 @@ export default function (ctx) {
       try {
         ctx.achievements?.collect(userId, 'art', p.hand);
       } catch (error) {
-        ctx.log('could not collect cards:', error.message);
+        ctx.log(`could not collect cards: ${error.message}`);
       }
     }
   }
@@ -517,10 +520,11 @@ export default function (ctx) {
       reply({ ok: true, ...(fn() ?? {}) });
     } catch (error) {
       if (error instanceof GameError) {
-        reply({ ok: false, error: error.message });
+        // GameError carries the refusal code and its values; the client looks the words up (src/messageText.js).
+        reply(error.params ? { ok: false, error: error.message, params: error.params } : { ok: false, error: error.message });
       } else {
         ctx.log(error);
-        reply({ ok: false, error: 'Something went wrong on the server.' });
+        reply({ ok: false, error: 'serverError' });
       }
     }
     for (const code of new Set([before, sessions.get(socket.id)?.code])) {
@@ -552,7 +556,7 @@ export default function (ctx) {
     socket.on(event, (payload, ack) =>
       respond(socket, ack, () => {
         const player = playerOf(socket);
-        if (!player) throw new GameError('You are not in this game.');
+        if (!player) throw new GameError('notInGame');
         return run(player, payload ?? {}, gameOf(socket));
       }),
     );
@@ -566,7 +570,7 @@ export default function (ctx) {
   const requireGame = (rawCode) => {
     const code = ctx.codes.normalise(rawCode);
     const entry = code && games.get(code);
-    if (!entry) throw new GameError('There is no game with that code.');
+    if (!entry) throw new GameError('noGameWithCode');
     return { code, entry };
   };
 
@@ -612,7 +616,7 @@ export default function (ctx) {
           const mine = [...games].filter(([, e]) => e.game.s.phase !== 'finished' && e.game.findByToken(token)).sort((a, b) => b[1].touched - a[1].touched);
           code = mine[0]?.[0] ?? '';
         }
-        if (!code || !games.get(code)?.game.findByToken(token)) throw new GameError('Please join the game.');
+        if (!code || !games.get(code)?.game.findByToken(token)) throw new GameError('joinFirst');
         sessions.set(socket.id, { code });
         return { code };
       }),
@@ -621,7 +625,7 @@ export default function (ctx) {
     // Start a new game with this account as its host.
     socket.on('create', (payload, ack) =>
       respond(socket, ack, () => {
-        if (games.size >= MAX_GAMES) throw new GameError('There are too many games running. Please try again later.');
+        if (games.size >= MAX_GAMES) throw new GameError('tooManyGames');
         const { code, entry } = createGame();
         try {
           entry.game.addPlayer(nameInGame(entry.game, user.name), token);
@@ -694,7 +698,7 @@ export default function (ctx) {
       try {
         saveNow();
       } catch (error) {
-        ctx.log('could not save the games:', error.message);
+        ctx.log(`could not save the games: ${error.message}`);
       }
     },
   };

@@ -144,7 +144,7 @@ test('submitWord refuses cleanly when nobody else is in the round', () => {
   const { game } = started(3);
   for (const p of game.s.players) if (p.id !== game.s.chooserId) p.waiting = true;
   const before = JSON.stringify(game.s);
-  assert.throws(() => game.submitWord(game.s.chooserId, 'lonely'), (e) => e instanceof GameError && /nobody else/i.test(e.message));
+  assert.throws(() => game.submitWord(game.s.chooserId, 'lonely'), (e) => e instanceof GameError && e.message === 'nobodyToPlay');
   assert.equal(JSON.stringify(game.s), before, 'nothing changed');
 });
 
@@ -182,7 +182,7 @@ test('the host cannot remove anyone from a finished game, but people can still l
   const { game, host, people } = started(3);
   game.s.phase = 'finished';
   for (const call of [() => game.removePlayer(host.id, people[1].id), () => game.leave(host.id, people[1].id)]) {
-    assert.throws(call, (e) => e instanceof GameError && e.message === 'The game is over: there is nobody to remove.');
+    assert.throws(call, (e) => e instanceof GameError && e.message === 'gameOverNobodyToRemove');
   }
   assert.equal(game.s.players.length, 3);
   game.leave(people[1].id, people[1].id);

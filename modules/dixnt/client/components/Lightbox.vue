@@ -7,9 +7,11 @@
 // Side effects: sets store.zoom (to step or close); listens to window keydown while mounted (removed on unmount);
 // runs the chosen action's `run` callback.
 import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 import CardImg from './CardImg.vue';
 
+const { t, text } = useGameText();
 const { store } = useDixnt();
 
 // Closes the viewer.
@@ -68,13 +70,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <template>
   <Teleport to="body">
     <div v-if="store.zoom" class="backdrop" @click.self="close">
-      <div class="viewer" role="dialog" aria-modal="true" aria-label="Card preview">
+      <div class="viewer" role="dialog" aria-modal="true" :aria-label="t('table.cardPreview')">
         <div class="stage">
-          <button v-if="canStep" class="nav" aria-label="Previous card" @click="step(-1)">‹</button>
+          <button v-if="canStep" class="nav" :aria-label="t('table.previousCard')" @click="step(-1)">‹</button>
           <CardImg :card-id="store.zoom.cardId" size="medium" class="big" />
-          <button v-if="canStep" class="nav" aria-label="Next card" @click="step(1)">›</button>
+          <button v-if="canStep" class="nav" :aria-label="t('table.nextCard')" @click="step(1)">›</button>
         </div>
-        <p v-if="canStep" class="muted count">{{ position + 1 }} of {{ cards.length }}</p>
+        <p v-if="canStep" class="muted count">{{ t('table.position', { n: position + 1, total: cards.length }) }}</p>
         <div class="actions">
           <button
             v-for="action in actions"
@@ -82,9 +84,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             :class="{ primary: action.primary }"
             @click="run(action)"
           >
-            {{ action.label }}
+            {{ text(action.label) }}
           </button>
-          <button class="quiet" @click="close">Close</button>
+          <button class="quiet" @click="close">{{ $t('common.close') }}</button>
         </div>
       </div>
     </div>

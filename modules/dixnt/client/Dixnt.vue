@@ -19,6 +19,7 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { useLeave } from '../../../src/playBar.js';
+import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { createStore } from './store.js';
 import { DIXNT_KEY } from './useDixnt.js';
@@ -37,7 +38,9 @@ const props = defineProps({
   setSearch: { type: Function, required: true },
 });
 
-const dixnt = createStore({ socket: props.socket, user: props.user, search: props.search, setSearch: props.setSearch });
+const { t, text, error, list } = useGameText();
+// The store answers a refusal with words, so it is given the game's own error helper (it is not a component itself).
+const dixnt = createStore({ socket: props.socket, user: props.user, search: props.search, setSearch: props.setSearch, error });
 provide(DIXNT_KEY, dixnt);
 onBeforeUnmount(() => dixnt.dispose());
 
@@ -62,20 +65,23 @@ const opened = computed(() => state.value?.players.find((p) => p.id === openId.v
 // Returns what a player is doing in this phase, in words, for their pop-up ('' if nothing to say).
 const stageOf = (p) => {
   const phase = state.value.phase;
-  if (p.waiting) return 'waiting for the next round';
-  if (phase === 'word') return p.isChooser ? 'choosing the word' : 'waiting for the word';
-  if (phase === 'picking') return p.hasPlayed ? 'has played a card' : 'still choosing a card';
-  if (phase === 'voting') return p.hasVoted ? 'has voted' : 'still to vote';
-  return p.isChooser ? 'the chooser' : '';
+  if (p.waiting) return t('popup.waiting');
+  if (phase === 'word') return t(p.isChooser ? 'popup.choosingWord' : 'popup.waitingForWord');
+  if (phase === 'picking') return t(p.hasPlayed ? 'popup.hasPlayed' : 'popup.stillChoosing');
+  if (phase === 'voting') return t(p.hasVoted ? 'popup.hasVoted' : 'popup.stillToVote');
+  return p.isChooser ? t('popup.theChooser') : '';
 };
-// The Status box content: the phase's text from status.js, plus a warning line naming anyone who is away.
+// The Status box content: the phase's messages from status.js put into words, plus a warning line naming anyone who
+// is away. GameStatus wants strings, so every message is translated here, where the game's locale file is in reach.
 const status = computed(() => {
   const s = statusFor(state.value, { isHost: isHost.value });
   const away = state.value.players.filter((p) => !p.connected).map((p) => p.name);
-  return away.length ? { ...s, lines: [...s.lines, { text: `Away: ${away.join(', ')}.`, tone: 'warn' }] } : s;
+  const lines = s.lines.map((line) => (line?.tone ? { text: text(line.text), tone: line.tone } : text(line)));
+  if (away.length) lines.push({ text: t('status.away', { names: list(away) }), tone: 'warn' });
+  return { headline: text(s.headline), mine: s.mine, lines };
 });
-// The word as this viewer sees it: '???' for the one player kept in the dark.
-const word = computed(() => (state.value.wordHidden ? '???' : state.value.word));
+// The word as this viewer sees it: the stand-in for the one player kept in the dark.
+const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
 
 // "Leave game" lives in the site's header, whenever you are in a game. Mid-game it asks first: a computer player takes
 // over your seat if anyone else is still playing, otherwise your score is lost.
@@ -89,13 +95,13 @@ useLeave({
   },
   confirmText: computed(() => {
     if (!state.value || ['lobby', 'finished'].includes(state.value.phase)) return '';
-    return takenOver.value ? 'A computer player will take over your seat and your score.' : 'Your score will be lost.';
+    return t(takenOver.value ? 'leave.takenOver' : 'leave.scoreLost');
   }),
 });
 </script>
 
 <template>
-  <div v-if="!store.checkedSession" class="splash muted">Connecting…</div>
+  <div v-if="!store.checkedSession" class="splash muted">{{ $t('play.connecting') }}</div>
   <HomeScreen v-else-if="!state" />
 
   <div v-else-if="state.phase === 'lobby'" class="game">
@@ -114,10 +120,10 @@ useLeave({
       >
         <template #round>
           <p v-if="results" class="summary" role="status">
-            <template v-if="results.judging === 'favourite'">{{ nameOf(state.chooserId) }} picked {{ nameOf(results.winnerId) }}’s card.</template>
+            <template v-if="results.judging === 'favourite'">{{ t('reveal.favourite', { chooser: nameOf(state.chooserId), winner: nameOf(results.winnerId) }) }}</template>
             <template v-else>
-              {{ nameOf(results.imposterId) }} was the imposter.
-              {{ results.judging === 'chooser' ? (results.groupCorrect ? 'The chooser spotted them.' : 'The chooser was fooled.') : results.groupCorrect ? 'The group found them.' : 'The group was fooled.' }}
+              {{ t('reveal.imposter', { name: nameOf(results.imposterId) }) }}
+              {{ t(results.judging === 'chooser' ? (results.groupCorrect ? 'reveal.chooserSpotted' : 'reveal.chooserFooled') : results.groupCorrect ? 'reveal.groupFound' : 'reveal.groupFooled') }}
             </template>
           </p>
         </template>
@@ -127,12 +133,12 @@ useLeave({
     <template #main="area">
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
-          <dt>Score</dt>
+          <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
-          <dt>Turns as chooser</dt>
+          <dt>{{ t('popup.turns') }}</dt>
           <dd>{{ opened.turns }}</dd>
           <template v-if="stageOf(opened)">
-            <dt>Now</dt>
+            <dt>{{ t('popup.now') }}</dt>
             <dd>{{ stageOf(opened) }}</dd>
           </template>
         </dl>
@@ -141,19 +147,19 @@ useLeave({
     </template>
 
     <template #log>
-      <GameLog :entries="store.log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry }}</GameLog>
+      <GameLog :entries="store.log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="status.headline" :mine="status.mine" :turn="status.mine && Boolean(state.me?.isChooser)" :lines="status.lines">
         <template #facts>
-          <strong v-if="state.phase === 'finished'">Game over</strong>
-          <strong v-else>Round {{ roundNumber(state) }} of {{ state.totalRounds }}</strong>
-          <span>{{ styleName(state.judging) }}</span>
-          <span v-if="state.phase !== 'finished'">Chooser: {{ nameOf(state.chooserId) }}</span>
-          <span v-if="word" class="word">Word: <strong>{{ word }}</strong></span>
-          <span>Deck {{ state.drawCount }} / discard {{ state.discardCount }}</span>
-          <span class="muted">Code {{ state.code }}</span>
+          <strong v-if="state.phase === 'finished'">{{ t('facts.gameOver') }}</strong>
+          <strong v-else>{{ t('facts.round', { n: roundNumber(state), total: state.totalRounds }) }}</strong>
+          <span>{{ text(styleName(state.judging)) }}</span>
+          <span v-if="state.phase !== 'finished'">{{ t('facts.chooser', { name: nameOf(state.chooserId) }) }}</span>
+          <span v-if="word" class="word">{{ t('facts.word', { word }) }}</span>
+          <span>{{ t('facts.deck', { draw: state.drawCount, discard: state.discardCount }) }}</span>
+          <span class="muted">{{ t('facts.code', { code: state.code }) }}</span>
         </template>
       </GameStatus>
     </template>
@@ -163,7 +169,7 @@ useLeave({
   <WordPopup v-if="state && state.phase !== 'lobby'" />
 
   <Teleport to="body">
-    <div v-if="store.state && !store.connected" class="offline" role="status">Connection lost. Trying to reconnect…</div>
+    <div v-if="store.state && !store.connected" class="offline" role="status">{{ t('table.offline') }}</div>
     <div v-if="store.state && store.toast" class="toast" role="status">{{ store.toast }}</div>
   </Teleport>
 </template>

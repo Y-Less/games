@@ -6,14 +6,16 @@
 // Side effects: sends `create` or `join` requests (through the store) one at a time; `busy` disables the form meanwhile.
 import { computed, ref } from 'vue';
 import RoomEntry from '../../../../src/components/RoomEntry.vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
+const { t } = useGameText();
 const { createGame, join, store, user } = useDixnt();
 
 // True while a create or join request is in flight, so the buttons cannot be pressed twice.
 const busy = ref(false);
 // An invite link (or a game we were removed from) points at a code that is filled in for us.
-const missing = computed(() => (store.code && store.codeExists === false ? 'That game does not exist any more. Ask your friend for a fresh link.' : ''));
+const missing = computed(() => (store.code && store.codeExists === false ? t('entry.gameGone') : ''));
 
 /**
  * Runs a create or join request unless one is already running, keeping the form busy meanwhile.
@@ -31,8 +33,8 @@ async function run(task) {
 
 <template>
   <RoomEntry
-    noun="game"
-    :intro="`One of you is in the dark. Can the rest of you work out who? You will play as ${user.displayName}.`"
+    :noun="t('entry.noun')"
+    :intro="t('entry.intro', { name: user.displayName })"
     :initial-code="store.code"
     :busy="busy"
     :error="missing"

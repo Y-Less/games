@@ -149,7 +149,7 @@ test('categories: bad selections are refused, and only the host may choose', () 
 test('categories: starting needs enough cards in the chosen categories', () => {
   const { game, host } = lobby(['A', 'B', 'C', 'D', 'E', 'F']); // 6 players x 8 cards = 48
   game.setCategories(host.id, ['games']); // only 10 cards
-  assert.throws(() => game.start(host.id), /not enough cards/);
+  assert.throws(() => game.start(host.id), (error) => error instanceof GameError && error.message === 'notEnoughCards');
   game.setCategories(host.id, ['fantasy', 'food']);
   game.start(host.id);
   assert.equal(game.s.phase, 'word');

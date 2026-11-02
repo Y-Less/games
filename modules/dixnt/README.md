@@ -14,20 +14,48 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
   passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.
 - `bots/bot.js` an optional stand-alone bot player that signs in as an account (see below).
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
-- `hints.txt` the word and phrase suggestions for the chooser.
+- `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
+- `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
 - `*.test.js` the rules tests (`game`, `judging`, `rounds`, `favourite`, `history`, `bots`) and `e2e.test.js`, `lifecycle.test.js`
   and friends, which run the real site.
 
 ## Scoreboard
 
 Every completed round is appended to `history` in the room state (saved in `games.json`):
-`{ label: 'Round N', deltas: { playerId: points }, notes: { playerId: 'chooser' | 'imposter, caught' | ... } }`.
+`{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
+(`{ key, params? }`, see `shared/messages.js`), never English: `msg('round.label', { n })` or `msg('round.earlier')`
+for the label, and one of `notes.chooser`, `notes.cardPicked`, `notes.chooserCardPicked`, `notes.imposterCaught`,
+`notes.imposterFooledAll`, `notes.chooserSpotted`, `notes.chooserFooled` for a note. `ScoreBoard` and `ScoreTable`
+put them into the player's language.
 Abandoned (skipped) rounds are not recorded and do not use up a number. Every player's view carries the standard
 scoreboard (`view.scoreboard`, see `shared/scores.js`: players with `isMe` and `away`, `rounds`, `lowIsBetter: false`,
 no target), drawn by the shared `<ScoreBoard>`: a sticky bar, and a pop-up after every round and at the end. Choices:
 a player who leaves is removed from every history row (the table always adds up to the scores of the players still
 in the game); late joiners appear with 0 and a zero in earlier rounds; returning to the lobby clears scores and
-history. A saved room from before the history existed loads with its scores shown as one "Earlier rounds" row.
+history. A saved room from before the history existed loads with its scores shown as one `round.earlier` row. A room saved
+before the labels and notes became messages holds English strings there; the client shows a plain string as it is, so
+those rows keep their original wording.
+
+## Languages
+
+Every word a player sees comes from `locales/en.json` (`../../MODULES.md`, "Languages"). Nothing the server sends is a
+sentence:
+
+- **Refusals.** `Game` throws a `GameError` whose `message` is a refusal **code** and whose `params` are the values
+  that text needs; `server.js` answers `{ ok: false, error: <code>, params? }` (it used to answer with an English
+  sentence). A code is looked up under `errors.` in `locales/en.json` first and `src/locales/en.json` second, so
+  Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`, `joinFirst` ...) sit beside the
+  shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `turnsEach`, `noGameWithCode` ...). An unexpected throw
+  becomes `serverError`.
+- **Text in a view.** The scoreboard's round labels and notes are messages (above), and so is the label of the
+  made-up "all cards" category (`lobby.allCards`) used when there is no `categories.json`. The labels and
+  descriptions *in* `categories.json`, the hints in `hints.txt`, the chooser's word, the card pictures and the
+  computer players' names are content and stay as they are.
+- **On the client.** Every component calls `useGameText()`. `status.js` and `moveLog.js` build messages rather than
+  words (the root component draws them with `text()`), and `createStore` is given the game's `error` helper so a
+  refusal reaches the toast in the player's language.
+- The external bot (`bots/bot.js`) is an operator tool, so it prints the refusal code it was sent rather than
+  translating it, just as the server's own `ctx.log` lines stay English for whoever runs the site.
 
 ## Cards
 

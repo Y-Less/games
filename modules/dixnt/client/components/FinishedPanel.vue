@@ -6,8 +6,10 @@
 // Side effects: none (pure rendering from the store).
 import { computed } from 'vue';
 import { placements } from '../../../../shared/scores.js';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
+const { t, list } = useGameText();
 const { players, store } = useDixnt();
 
 // The current state (the game is finished, so it is never null here).
@@ -20,18 +22,17 @@ const standings = computed(() => {
 });
 // The winning players (several if tied).
 const winners = computed(() => players.value.filter((p) => state.value.winners.includes(p.id)));
-// The winners' names as prose: 'A', or 'A, B and C'.
-const winnerNames = computed(() => {
-  const names = winners.value.map((p) => p.name);
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
-});
+// The winners' names as prose, joined the way the language joins a list: 'A', or 'A, B and C'.
+const winnerNames = computed(() => list(winners.value.map((p) => p.name)));
+// The heading: a tie names them all, one winner is named on their own.
+const headline = computed(() => (winners.value.length > 1 ? t('finished.tie', { names: winnerNames.value }) : t('scoreboard.wins', { name: winnerNames.value })));
 </script>
 
 <template>
-  <section class="finished" aria-label="Game over">
-    <h2>{{ winners.length > 1 ? `It's a tie! ${winnerNames} win` : `${winnerNames} wins!` }}</h2>
-    <p v-if="winners.length" class="muted">with {{ winners[0].score }} points</p>
-    <h3>Final scores</h3>
+  <section class="finished" :aria-label="t('facts.gameOver')">
+    <h2>{{ headline }}</h2>
+    <p v-if="winners.length" class="muted">{{ t('finished.withPoints', { count: winners[0].score }, winners[0].score) }}</p>
+    <h3>{{ $t('scoreboard.final') }}</h3>
     <ol class="standings">
       <li v-for="p in standings" :key="p.id" :class="{ top: state.winners.includes(p.id) }">
         <span class="place">{{ p.place }}</span>

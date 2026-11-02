@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cardUrl, createStore } from './store.js';
+import { errorText } from '../../../src/messageText.js';
+
+// The store is handed the game's own error helper, as the root component hands it one (nothing here writes English).
+const error = (reply) => errorText(reply, 'dixnt');
 
 /** A minimal fake of the socket.io client: records handlers and emits, and lets a test trigger events. */
 function fakeSocket({ connected = false, replies = {} } = {}) {
@@ -26,7 +30,7 @@ let created;
 
 function make({ socket = fakeSocket(), search = '' } = {}) {
   setSearch = vi.fn();
-  const api = createStore({ socket, user, search, setSearch });
+  const api = createStore({ socket, user, search, setSearch, error });
   created = api;
   return { api, socket };
 }
@@ -81,7 +85,7 @@ describe('connection handling', () => {
   });
 
   it('looks the code up when resuming fails, quietly', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: false, error: 'No game.' }, lookup: { exists: true } } });
+    const socket = fakeSocket({ replies: { resume: { ok: false, error: 'noGameWithCode' }, lookup: { exists: true } } });
     const { api } = make({ socket, search: '?boss-aware-you' });
     socket.trigger('connect');
     await settle();
@@ -198,15 +202,22 @@ describe('actions', () => {
     ]);
   });
 
-  it('send resolves with the reply and toasts an error', async () => {
-    const socket = fakeSocket({ replies: { play: { ok: false, error: 'Not your turn.' } } });
+  it("send resolves with the reply and toasts an error, in the player's language", async () => {
+    const socket = fakeSocket({ replies: { play: { ok: false, error: 'notYourTurn' } } });
     const { api } = make({ socket });
-    expect(await api.send('play', { card: 1 })).toEqual({ ok: false, error: 'Not your turn.' });
-    expect(api.store.toast).toBe('Not your turn.');
+    expect(await api.send('play', { card: 1 })).toEqual({ ok: false, error: 'notYourTurn' });
+    expect(api.store.toast).toBe('It is not your turn.');
+  });
+
+  it("puts the refusal's values into the words it shows", async () => {
+    const socket = fakeSocket({ replies: { set: { ok: false, error: 'handSizeRange', params: { min: 3, max: 12 } } } });
+    const { api } = make({ socket });
+    await api.send('set', { size: 99 });
+    expect(api.store.toast).toBe('Hand size must be between 3 and 12.');
   });
 
   it('send stays quiet when asked to, and treats a missing reply as a failure', async () => {
-    const socket = fakeSocket({ replies: { play: { ok: false, error: 'No.' } } });
+    const socket = fakeSocket({ replies: { play: { ok: false, error: 'notPlaying' } } });
     const { api } = make({ socket });
     await api.send('play', {}, { quiet: true });
     expect(api.store.toast).toBe('');

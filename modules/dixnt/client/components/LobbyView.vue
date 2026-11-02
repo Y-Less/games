@@ -1,14 +1,18 @@
 <script setup>
 // Dixnt lobby: the invite code, the players (the host can remove people and add computer players), and the host's
 // settings: play style, card categories, hand size and number of rounds. Everyone else sees them read-only.
+// Every word comes from a locale file (the game's own first, then the site's); a category's label may be a message
+// the server sent, so it is drawn with text().
 //
 // Props: none. Emits: none. Slots: none.
 // Side effects: sends addBot, fillBots, removeBot, removePlayer, setJudging, setCategories, setHandSize, setRounds and
 // start requests (through the store).
 import { computed } from 'vue';
 import InviteCode from '../../../../src/components/InviteCode.vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
+const { t, text } = useGameText();
 const { isHost, players, send, store } = useDixnt();
 // The current state.
 const state = computed(() => store.state);
@@ -22,24 +26,14 @@ const cardsNeeded = computed(() => players.value.length * state.value.handSize);
 const enoughCards = computed(() => state.value.availableCards >= cardsNeeded.value);
 // The categories currently in the deck.
 const selected = computed(() => state.value.categories.filter((c) => c.selected));
+// The names of the chosen categories, as the language joins a list.
+const selectedNames = computed(() => selected.value.map((c) => text(c.label)).join(', '));
 
 // The three play styles with their titles and rule text (which quotes the current point values).
 const judgingOptions = computed(() => [
-  {
-    mode: 'everyone',
-    title: 'Everyone votes',
-    text: `Everybody votes for who was in the dark. If the group spots them, each player who voted for them scores ${state.value.pointsPerVote}. If the group is fooled, the imposter scores ${state.value.pointsPerVote} for every player who missed them.`,
-  },
-  {
-    mode: 'chooser',
-    title: 'Only the chooser decides',
-    text: `Only the word-chooser guesses who was in the dark. Guess right and the chooser scores ${state.value.pointsChooserCorrect}. Get fooled and the imposter scores ${state.value.pointsFooledChooser}.`,
-  },
-  {
-    mode: 'favourite',
-    title: 'Favourite card (no imposter)',
-    text: `Everybody sees the word and nobody has to bluff. The chooser picks the card they like best, and the player who played it scores ${state.value.pointsFavourite}.`,
-  },
+  { mode: 'everyone', title: t('judging.everyone.title'), text: t('judging.everyone.text', { perVote: state.value.pointsPerVote }) },
+  { mode: 'chooser', title: t('judging.chooser.title'), text: t('judging.chooser.text', { correct: state.value.pointsChooserCorrect, fooled: state.value.pointsFooledChooser }) },
+  { mode: 'favourite', title: t('judging.favourite.title'), text: t('judging.favourite.text', { points: state.value.pointsFavourite }) },
 ]);
 // The option for the style in use (shown to non-hosts).
 const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode === state.value.judging));
@@ -58,42 +52,39 @@ function toggleCategory(key) {
 
 <template>
   <section class="panel stack">
-    <h2>Waiting for players</h2>
-    <p class="muted">
-      Friends can join with the game code on the start screen, or with your invite link. You need at least
-      {{ state.minPlayers }} players.
-    </p>
+    <h2>{{ $t('lobby.title') }}</h2>
+    <p class="muted">{{ t('lobby.share', { min: state.minPlayers }) }}</p>
     <div class="row"><InviteCode :code="state.code" /></div>
   </section>
 
   <section class="panel stack">
-    <h2>Players</h2>
-    <ul class="seats" aria-label="Players in this game">
+    <h2>{{ t('lobby.players') }}</h2>
+    <ul class="seats" :aria-label="t('lobby.playersLabel')">
       <li v-for="p in players" :key="p.id" class="seat" :class="{ bot: p.bot, me: p.id === state.me.id, away: !p.connected }">
         <span class="who">
           {{ p.name }}
-          <span v-if="p.id === state.me.id" class="tag">you</span>
-          <span v-if="p.id === state.hostId" class="tag">host</span>
-          <span v-if="p.bot" class="tag bot">computer</span>
-          <span v-if="!p.bot && !p.connected" class="tag away">away</span>
+          <span v-if="p.id === state.me.id" class="tag">{{ $t('common.you') }}</span>
+          <span v-if="p.id === state.hostId" class="tag">{{ $t('common.host') }}</span>
+          <span v-if="p.bot" class="tag bot">{{ $t('common.computer') }}</span>
+          <span v-if="!p.bot && !p.connected" class="tag away">{{ $t('common.away') }}</span>
         </span>
-        <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { targetId: p.id })">Remove</button>
-        <button v-else-if="isHost && p.id !== state.me.id" class="quiet" @click="send('removePlayer', { targetId: p.id })">Remove</button>
+        <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { targetId: p.id })">{{ $t('common.remove') }}</button>
+        <button v-else-if="isHost && p.id !== state.me.id" class="quiet" @click="send('removePlayer', { targetId: p.id })">{{ $t('common.remove') }}</button>
       </li>
     </ul>
     <div v-if="isHost" class="row">
-      <button :disabled="full" @click="send('addBot')">Add a computer player</button>
+      <button :disabled="full" @click="send('addBot')">{{ $t('lobby.addBot') }}</button>
       <button v-if="missingPlayers > 0" @click="send('fillBots', { count: state.minPlayers })">
-        Fill up to {{ state.minPlayers }} players with computer players
+        {{ t('lobby.fillUpTo', { count: state.minPlayers }, state.minPlayers) }}
       </button>
-      <span v-if="full" class="muted">The table is full ({{ state.maxPlayers }} players).</span>
+      <span v-if="full" class="muted">{{ t('lobby.tableFull', { count: state.maxPlayers }, state.maxPlayers) }}</span>
     </div>
   </section>
 
   <section class="panel stack">
-    <h2>Play style</h2>
+    <h2>{{ t('lobby.playStyle') }}</h2>
     <template v-if="isHost">
-      <div class="options" role="radiogroup" aria-label="Play style">
+      <div class="options" role="radiogroup" :aria-label="t('lobby.playStyle')">
         <label v-for="option in judgingOptions" :key="option.mode" class="option" :class="{ on: state.judging === option.mode }">
           <input
             type="radio"
@@ -115,28 +106,28 @@ function toggleCategory(key) {
   </section>
 
   <section class="panel stack">
-    <h2>Card categories</h2>
+    <h2>{{ t('lobby.categories') }}</h2>
     <template v-if="isHost">
-      <p class="muted">Pick which kinds of cards go into the deck.</p>
+      <p class="muted">{{ t('lobby.pickCategories') }}</p>
       <div class="categories">
         <label v-for="c in state.categories" :key="c.key" class="category" :class="{ on: c.selected }">
           <input type="checkbox" :checked="c.selected" @change="toggleCategory(c.key)" />
           <span>
-            <strong>{{ c.label }}</strong>
+            <strong>{{ text(c.label) }}</strong>
             <span class="muted">{{ c.description }}</span>
-            <span class="count">{{ c.count }} cards</span>
+            <span class="count">{{ t('lobby.cardCount', { count: c.count }, c.count) }}</span>
           </span>
         </label>
       </div>
     </template>
     <p v-else class="muted">
-      <template v-if="selected.length">{{ selected.map((c) => c.label).join(', ') }}</template>
-      <template v-else>No categories available</template>
+      <template v-if="selected.length">{{ selectedNames }}</template>
+      <template v-else>{{ t('lobby.noCategories') }}</template>
     </p>
     <p class="muted">
-      {{ state.availableCards }} cards in the deck.
+      {{ t('lobby.deckSize', { count: state.availableCards }, state.availableCards) }}
       <span v-if="!enoughCards" class="warn">
-        That isn't enough for {{ players.length }} players with {{ state.handSize }} cards each ({{ cardsNeeded }} needed).
+        {{ t('lobby.notEnoughCards', { players: players.length, handSize: state.handSize, needed: cardsNeeded }) }}
       </span>
     </p>
   </section>
@@ -144,7 +135,7 @@ function toggleCategory(key) {
   <section class="panel stack">
     <template v-if="isHost">
       <label class="row">
-        Cards per hand
+        {{ t('lobby.handSize') }}
         <input
           type="number"
           class="num"
@@ -155,7 +146,7 @@ function toggleCategory(key) {
         />
       </label>
       <label class="row">
-        Times each player chooses the word
+        {{ t('lobby.roundsEach') }}
         <input
           type="number"
           class="num"
@@ -166,32 +157,35 @@ function toggleCategory(key) {
         />
       </label>
       <p class="muted">
-        The game ends once everyone has chosen {{ state.roundsEach }} time{{ state.roundsEach === 1 ? '' : 's' }}: that is
-        {{ players.length * state.roundsEach }} round{{ players.length * state.roundsEach === 1 ? '' : 's' }} with
-        {{ players.length }} player{{ players.length === 1 ? '' : 's' }}.
+        {{
+          t('lobby.gameLength', {
+            times: t('lobby.times', { count: state.roundsEach }, state.roundsEach),
+            rounds: t('lobby.rounds', { count: players.length * state.roundsEach }, players.length * state.roundsEach),
+            players: t('lobby.playerCount', { count: players.length }, players.length),
+          })
+        }}
       </p>
       <button class="primary" :disabled="missingPlayers > 0 || !enoughCards" @click="send('start')">
-        <template v-if="missingPlayers > 0">Need {{ missingPlayers }} more player{{ missingPlayers === 1 ? '' : 's' }}</template>
-        <template v-else-if="!enoughCards">Choose more categories</template>
-        <template v-else>Start the game</template>
+        <template v-if="missingPlayers > 0">{{ t('lobby.needMore', { count: missingPlayers }, missingPlayers) }}</template>
+        <template v-else-if="!enoughCards">{{ t('lobby.chooseMoreCategories') }}</template>
+        <template v-else>{{ $t('lobby.start') }}</template>
       </button>
     </template>
     <p v-else class="muted">
-      Waiting for the host to start the game. Hands will be {{ state.handSize }} cards, and everyone chooses the word
-      {{ state.roundsEach }} time{{ state.roundsEach === 1 ? '' : 's' }}.
+      {{ t('lobby.waitingToStart', { handSize: state.handSize, times: t('lobby.times', { count: state.roundsEach }, state.roundsEach) }) }}
     </p>
   </section>
 
   <section class="panel rules">
-    <h3>How it works</h3>
+    <h3>{{ t('lobby.howItWorks') }}</h3>
     <ol>
-      <li>Each round one player thinks of a word or phrase and types it in.</li>
-      <li v-if="state.judging === 'favourite'">Everyone else sees it and plays the card from their hand that best fits the word.</li>
-      <li v-else>Everyone else sees it, except one random player who just sees ???.</li>
-      <li v-if="state.judging !== 'favourite'">They all play the card from their hand that best fits the word. The player in the dark has to bluff.</li>
-      <li>The cards and the word are revealed. Talk it through and justify your choices.</li>
-      <li v-if="state.judging === 'favourite'">Then the chooser picks their favourite card, and that player scores {{ state.pointsFavourite }}.</li>
-      <li v-else>Then the vote: {{ state.judging === 'chooser' ? 'the chooser decides who they think was in the dark.' : 'everyone votes for who they think was in the dark.' }}</li>
+      <li>{{ t('lobby.rule.word') }}</li>
+      <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.everyoneSees') }}</li>
+      <li v-else>{{ t('lobby.rule.oneInTheDark', { hidden: t('table.hiddenWord') }) }}</li>
+      <li v-if="state.judging !== 'favourite'">{{ t('lobby.rule.bluff') }}</li>
+      <li>{{ t('lobby.rule.reveal') }}</li>
+      <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.favourite', { points: state.pointsFavourite }) }}</li>
+      <li v-else>{{ t(state.judging === 'chooser' ? 'lobby.rule.chooserDecides' : 'lobby.rule.everyoneVotes') }}</li>
     </ol>
   </section>
 </template>

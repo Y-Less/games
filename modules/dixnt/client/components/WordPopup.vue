@@ -6,8 +6,10 @@
 // Props: none. Emits: none. Slots: none.
 // Side effects: watches store.wordPopup; sets a timer to hide itself (cleared on hide, on a new popup and on unmount).
 import { onBeforeUnmount, ref, watch } from 'vue';
+import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
+const { t } = useGameText();
 const { store } = useDixnt();
 const SHOWN_MS = 4000; // how long the popup stays up, in milliseconds
 // The popup being shown ({ word, hidden, ... }), or null.
@@ -39,8 +41,8 @@ onBeforeUnmount(() => clearTimeout(timer));
 <template>
   <Transition name="fade">
     <button v-if="shown" class="word-popup" :class="{ dark: shown.hidden }" role="status" aria-live="polite" @click="hide">
-      <span class="label">{{ shown.hidden ? 'The word has been chosen, but you cannot see it' : 'The word is' }}</span>
-      <span class="word">{{ shown.word }}</span>
+      <span class="label">{{ t(shown.hidden ? 'table.wordChosenHidden' : 'table.wordIs') }}</span>
+      <span class="word">{{ shown.hidden ? t('table.hiddenWord') : shown.word }}</span>
     </button>
   </Transition>
 </template>

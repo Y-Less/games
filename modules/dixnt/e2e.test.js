@@ -281,7 +281,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   const final = ann.state;
   assert.ok(final.winners.length >= 1);
   assertScoreboard(players, 4);
-  assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), ['Round 1', 'Round 2', 'Round 3', 'Round 4']);
+  assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), [1, 2, 3, 4].map((n) => ({ key: 'round.label', params: { n } })));
 
   // Reconnecting restores the player given the game's code; without one, a finished game is not resumed (back from the menu starts afresh).
   const before = bob.me().score;
@@ -449,7 +449,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   for (const p of players) if (p.state.voteTargets.length) await p.call('vote', { targetId: p.state.voteTargets[0] });
   await until(() => players.every((p) => p.state?.phase === 'results'), 'the results');
   assertScoreboard(players, 1);
-  assert.equal(ann.state.scoreboard.rounds[0].label, 'Round 1', 'the skipped round does not use up a number');
+  assert.deepEqual(ann.state.scoreboard.rounds[0].label, { key: 'round.label', params: { n: 1 } }, 'the skipped round does not use up a number');
   const history = ann.state.scoreboard.rounds;
   const code = ann.code;
   const cookies = players.map((p) => p.cookie);
@@ -480,7 +480,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   fs.writeFileSync(file, JSON.stringify(saved));
   const third = await reload('from the old save');
   assertScoreboard(third.again, 1);
-  assert.equal(third.again[0].state.scoreboard.rounds[0].label, 'Earlier rounds');
+  assert.deepEqual(third.again[0].state.scoreboard.rounds[0].label, { key: 'round.earlier' });
   assert.equal((await third.again[0].call('nextRound')).ok, true, 'the game carries on');
   t.after(() => fs.rmSync(first.dataDir, { recursive: true, force: true })); // after the sites have stopped
 });
@@ -585,7 +585,7 @@ test('bots can only join an existing game, and they sign back in as the same acc
   assert.equal((await run(['--name', 'Robin'])).code, 1, '--join is required');
   const missing = await run(['--join', 'no-such-game', '--name', 'Robin']);
   assert.equal(missing.code, 1);
-  assert.match(missing.output, /no game with that code/i);
+  assert.match(missing.output, /noGameWithCode/, 'the bot prints the refusal code the server sent');
   assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 1, 'the bot account was made, and no game');
 
   const host = await person('host').open();

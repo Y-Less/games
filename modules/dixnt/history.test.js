@@ -56,10 +56,10 @@ test('every completed round is added to the history, with notes, and the totals 
     const rounds = game.viewFor(host.id).scoreboard.rounds;
     assert.equal(rounds.length, i);
     const last = rounds.at(-1);
-    assert.equal(last.label, `Round ${i}`);
+    assert.deepEqual(last.label, { key: 'round.label', params: { n: i } });
     assert.deepEqual(last.deltas, game.s.results.deltas);
-    assert.equal(last.notes[chooserId], 'chooser');
-    assert.match(last.notes[game.s.imposterId], /^imposter, (caught|fooled all)$/);
+    assert.deepEqual(last.notes[chooserId], { key: 'notes.chooser' });
+    assert.ok(['notes.imposterCaught', 'notes.imposterFooledAll'].includes(last.notes[game.s.imposterId].key));
     assertAddsUp(game);
     game.nextRound(host.id);
   }
@@ -114,7 +114,7 @@ test('abandoned rounds are not recorded, and labels count completed rounds only'
   game.abortRound(host.id);
   assert.equal(game.s.history.length, 1);
   playRound(game);
-  assert.deepEqual(game.s.history.map((r) => r.label), ['Round 1', 'Round 2']);
+  assert.deepEqual(game.s.history.map((r) => r.label), [{ key: 'round.label', params: { n: 1 } }, { key: 'round.label', params: { n: 2 } }]);
   assertAddsUp(game);
 });
 
@@ -126,8 +126,8 @@ test('every judging style records its own notes and still adds up', () => {
     playRound(game, { right: false });
     const { notes, deltas } = game.s.history[0];
     assert.equal(Object.values(deltas).reduce((a, b) => a + b, 0) > 0, true);
-    if (judging === 'chooser') assert.equal(notes[chooserId], 'chooser, fooled');
-    else assert.ok(Object.values(notes).includes('card picked'));
+    if (judging === 'chooser') assert.deepEqual(notes[chooserId], { key: 'notes.chooserFooled' });
+    else assert.ok(Object.values(notes).some((note) => note.key === 'notes.cardPicked'));
     assertAddsUp(game);
   }
 });
@@ -171,10 +171,10 @@ test('older saves without a history still load: existing scores become one "Earl
   const loaded = newGame(old);
   const { rounds } = loaded.viewFor(host.id).scoreboard;
   assert.equal(rounds.length, 1);
-  assert.equal(rounds[0].label, 'Earlier rounds');
+  assert.deepEqual(rounds[0].label, { key: 'round.earlier' });
   assertAddsUp(loaded);
   playRound(loaded);
-  assert.deepEqual(loaded.s.history.map((r) => r.label), ['Earlier rounds', 'Round 2']);
+  assert.deepEqual(loaded.s.history.map((r) => r.label), [{ key: 'round.earlier' }, { key: 'round.label', params: { n: 2 } }]);
   assertAddsUp(loaded);
 
   const lobby = newGame({ phase: 'lobby', players: [] });

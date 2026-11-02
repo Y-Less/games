@@ -32,6 +32,7 @@
 
 import { numberFrom, textFrom } from '../../shared/input.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { msg } from '../../shared/messages.js';
 import { winnersOf } from '../../shared/scores.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 
@@ -63,18 +64,32 @@ const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 /** The phases in which a round is under way (or its results are showing), so a seat taken over has something to play. */
 const ROUND_PHASES = ['word', 'picking', 'voting', 'results'];
 
-/** The error the rules throw for anything a player did wrong; its message is safe to show to that player. */
-export class GameError extends Error {}
+/**
+ * The error the rules throw for anything a player did wrong. Its `message` is the refusal code (looked up under
+ * `errors.` in the game's locale file and then the site's) and `params` the values that text needs; nothing in here
+ * is ever a sentence, so the player reads it in their own language.
+ */
+export class GameError extends Error {
+  /**
+   * @param {string} code  the refusal code
+   * @param {object} [params]  the values the words need
+   */
+  constructor(code, params) {
+    super(code);
+    this.params = params;
+  }
+}
 
 /**
  * Refuses an action by throwing a GameError.
  *
- * @param {string} message  what to tell the player
+ * @param {string} code  the refusal code (under `errors.` in the game's locale file, else the site's)
+ * @param {object} [params]  the values that text needs
  * @returns {never}
  * Side effects: always throws.
  */
-const fail = (message) => {
-  throw new GameError(message);
+const fail = (code, params) => {
+  throw new GameError(code, params);
 };
 
 /**
@@ -155,7 +170,7 @@ export class Game {
   constructor({ getCategories, getCardIds, hints = [], rng, saved = null }) {
     if (typeof rng !== 'function') throw new TypeError('A Game needs an rng: the rules never use Math.random themselves.');
     this.getCategories =
-      getCategories ?? (() => [{ key: 'all', label: 'All cards', description: '', ids: getCardIds ? getCardIds() : [] }]);
+      getCategories ?? (() => [{ key: 'all', label: msg('lobby.allCards'), description: '', ids: getCardIds ? getCardIds() : [] }]);
     this.hints = hints;
     this.rng = rng;
     this.hintPool = [];
@@ -252,7 +267,7 @@ export class Game {
     if (Array.isArray(saved?.history)) return;
     s.history = [];
     if (s.phase !== 'lobby' && s.players.some((p) => p.score)) {
-      s.history.push({ label: 'Earlier rounds', deltas: Object.fromEntries(s.players.map((p) => [p.id, p.score])), notes: {} });
+      s.history.push({ label: msg('round.earlier'), deltas: Object.fromEntries(s.players.map((p) => [p.id, p.score])), notes: {} });
     }
   }
 
@@ -292,7 +307,7 @@ export class Game {
    * Side effects: throws a GameError if there is no such seat.
    */
   requirePlayer(id) {
-    return this.player(id) ?? fail('You are not in this game.');
+    return this.player(id) ?? fail('notInGame');
   }
 
   /**
@@ -429,11 +444,11 @@ export class Game {
    */
   addPlayer(name, token) {
     const clean = textFrom(name).trim().replace(/\s+/g, ' ');
-    if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
-    if (!clean) fail('Please enter a name.');
-    if (clean.length > MAX_NAME_LENGTH) fail(`Names can be at most ${MAX_NAME_LENGTH} characters.`);
+    if (this.s.players.length >= MAX_PLAYERS) fail('maxPlayers', { max: MAX_PLAYERS });
+    if (!clean) fail('enterName');
+    if (clean.length > MAX_NAME_LENGTH) fail('nameTooLong', { max: MAX_NAME_LENGTH });
     if (this.s.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
-      fail('Someone is already using that name.');
+      fail('nameTaken');
     }
     const player = {
       id: this.newSeatId(),
@@ -472,7 +487,7 @@ export class Game {
    */
   setAI(id, aiId) {
     const player = this.requirePlayer(id);
-    if (!AIS.some((ai) => ai.id === aiId)) fail('Unknown AI.');
+    if (!AIS.some((ai) => ai.id === aiId)) fail('unknownAI');
     player.ai = aiId;
   }
 
@@ -520,9 +535,9 @@ export class Game {
    * Side effects: adds a seat. Throws a GameError outside the lobby, for a non-host, or if the game is full.
    */
   addBot(byId) {
-    if (!this.isHost(byId)) fail('Only the host can add computer players.');
-    if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
-    if (this.s.players.length >= MAX_PLAYERS) fail(`A game can have at most ${MAX_PLAYERS} players.`);
+    if (!this.isHost(byId)) fail('hostOnlyAddBots');
+    if (this.s.phase !== 'lobby') fail('botsLobbyOnly');
+    if (this.s.players.length >= MAX_PLAYERS) fail('maxPlayers', { max: MAX_PLAYERS });
     const bot = this.newBot();
     this.s.players.push(bot);
     return { id: bot.id };
@@ -537,8 +552,8 @@ export class Game {
    * Side effects: adds seats. Throws a GameError outside the lobby or for a non-host.
    */
   fillWithBots(byId, target = MIN_PLAYERS) {
-    if (!this.isHost(byId)) fail('Only the host can add computer players.');
-    if (this.s.phase !== 'lobby') fail('Computer players can only be added in the lobby.');
+    if (!this.isHost(byId)) fail('hostOnlyAddBots');
+    if (this.s.phase !== 'lobby') fail('botsLobbyOnly');
     const wanted = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(numberFrom(target)) || MIN_PLAYERS));
     while (this.s.players.length < wanted) this.s.players.push(this.newBot());
   }
@@ -552,10 +567,10 @@ export class Game {
    * Side effects: removes a seat. Throws a GameError outside the lobby, for a non-host or if the seat is a person.
    */
   removeBot(byId, targetId) {
-    if (!this.isHost(byId)) fail('Only the host can remove computer players.');
-    if (this.s.phase !== 'lobby') fail('Computer players can only be removed in the lobby.');
+    if (!this.isHost(byId)) fail('hostOnlyRemoveBots');
+    if (this.s.phase !== 'lobby') fail('botsRemoveLobbyOnly');
     const index = this.s.players.findIndex((p) => p.id === targetId && isBot(p));
-    if (index < 0) fail('That is not a computer player.');
+    if (index < 0) fail('notAComputer');
     this.s.players.splice(index, 1);
   }
 
@@ -569,9 +584,9 @@ export class Game {
    * Side effects: throws a GameError if the removal is not allowed.
    */
   requireMayRemove(byId, targetId) {
-    if (byId !== targetId && !this.isHost(byId)) fail('Only the host can remove other players.');
-    if (byId !== targetId && this.s.phase === 'finished') fail('The game is over: there is nobody to remove.');
-    return this.player(targetId) ?? fail('That player is not in the game.');
+    if (byId !== targetId && !this.isHost(byId)) fail('hostOnlyRemove');
+    if (byId !== targetId && this.s.phase === 'finished') fail('gameOverNobodyToRemove');
+    return this.player(targetId) ?? fail('playerNotInGame');
   }
 
   /**
@@ -696,11 +711,11 @@ export class Game {
    * Side effects: sets s.handSize. Throws a GameError outside the lobby, for a non-host or an out-of-range size.
    */
   setHandSize(byId, size) {
-    if (!this.isHost(byId)) fail('Only the host can change the hand size.');
-    if (this.s.phase !== 'lobby') fail('The hand size can only be changed in the lobby.');
+    if (!this.isHost(byId)) fail('hostOnlySettings');
+    if (this.s.phase !== 'lobby') fail('settingsBeforeStart');
     const n = Math.round(numberFrom(size));
     if (!(n >= MIN_HAND_SIZE && n <= MAX_HAND_SIZE)) {
-      fail(`Hand size must be between ${MIN_HAND_SIZE} and ${MAX_HAND_SIZE}.`);
+      fail('handSizeRange', { min: MIN_HAND_SIZE, max: MAX_HAND_SIZE });
     }
     this.s.handSize = n;
   }
@@ -712,11 +727,11 @@ export class Game {
    * Side effects: sets s.roundsEach. Throws a GameError outside the lobby, for a non-host or an out-of-range count.
    */
   setRounds(byId, count) {
-    if (!this.isHost(byId)) fail('Only the host can change the number of rounds.');
-    if (this.s.phase !== 'lobby') fail('The number of rounds can only be changed in the lobby.');
+    if (!this.isHost(byId)) fail('hostOnlySettings');
+    if (this.s.phase !== 'lobby') fail('settingsBeforeStart');
     const n = Math.round(numberFrom(count));
     if (!(n >= MIN_ROUNDS_EACH && n <= MAX_ROUNDS_EACH)) {
-      fail(`Each player can choose the word between ${MIN_ROUNDS_EACH} and ${MAX_ROUNDS_EACH} times.`);
+      fail('turnsEach', { min: MIN_ROUNDS_EACH, max: MAX_ROUNDS_EACH });
     }
     this.s.roundsEach = n;
   }
@@ -728,9 +743,9 @@ export class Game {
    * Side effects: sets s.judging. Throws a GameError outside the lobby, for a non-host or an unknown mode.
    */
   setJudging(byId, mode) {
-    if (!this.isHost(byId)) fail('Only the host can change how rounds are judged.');
-    if (this.s.phase !== 'lobby') fail('The judging method can only be changed in the lobby.');
-    if (!JUDGING_MODES.includes(mode)) fail('Unknown judging method.');
+    if (!this.isHost(byId)) fail('hostOnlySettings');
+    if (this.s.phase !== 'lobby') fail('settingsBeforeStart');
+    if (!JUDGING_MODES.includes(mode)) fail('unknownJudging');
     this.s.judging = mode;
   }
 
@@ -742,12 +757,12 @@ export class Game {
    * for an unknown key or for an empty choice.
    */
   setCategories(byId, keys) {
-    if (!this.isHost(byId)) fail('Only the host can choose the categories.');
-    if (this.s.phase !== 'lobby') fail('The categories can only be changed in the lobby.');
+    if (!this.isHost(byId)) fail('hostOnlySettings');
+    if (this.s.phase !== 'lobby') fail('settingsBeforeStart');
     const known = this.getCategories();
     const wanted = [...new Set(Array.isArray(keys) ? keys : [])];
-    if (wanted.some((key) => !known.some((c) => c.key === key))) fail('Unknown category.');
-    if (!wanted.length) fail('Pick at least one category.');
+    if (wanted.some((key) => !known.some((c) => c.key === key))) fail('unknownCategory');
+    if (!wanted.length) fail('needCategory');
     this.s.categories = known.filter((c) => wanted.includes(c.key)).map((c) => c.key); // keep the standard order
   }
 
@@ -762,13 +777,13 @@ export class Game {
    */
   start(byId) {
     const s = this.s;
-    if (!this.isHost(byId)) fail('Only the host can start the game.');
-    if (s.phase !== 'lobby') fail('The game has already started.');
-    if (s.players.length < MIN_PLAYERS) fail(`You need at least ${MIN_PLAYERS} players.`);
+    if (!this.isHost(byId)) fail('hostOnlyStart');
+    if (s.phase !== 'lobby') fail('alreadyStarted');
+    if (s.players.length < MIN_PLAYERS) fail('minPlayers', { min: MIN_PLAYERS });
     this.normaliseSettings();
     const cardIds = this.availableIds();
     if (cardIds.length < s.players.length * s.handSize) {
-      fail('There are not enough cards in the chosen categories for that many players. Choose more categories.');
+      fail('notEnoughCards');
     }
     s.draw = shuffle([...cardIds], this.rng);
     s.discard = [];
@@ -797,7 +812,7 @@ export class Game {
    */
   returnToLobby(byId = null) {
     const s = this.s;
-    if (byId && !this.isHost(byId)) fail('Only the host can end the game.');
+    if (byId && !this.isHost(byId)) fail('hostOnlyEnd');
     Object.assign(s, {
       phase: 'lobby',
       round: 0,
@@ -863,8 +878,8 @@ export class Game {
    * Side effects: starts a new round. Throws a GameError for a non-host or when no round is under way.
    */
   abortRound(byId) {
-    if (!this.isHost(byId)) fail('Only the host can skip a round.');
-    if (!['word', 'picking', 'voting'].includes(this.s.phase)) fail('There is no round to skip.');
+    if (!this.isHost(byId)) fail('hostOnlySkip');
+    if (!['word', 'picking', 'voting'].includes(this.s.phase)) fail('noRoundToSkip');
     this.startRound();
   }
 
@@ -893,13 +908,13 @@ export class Game {
    */
   submitWord(id, word) {
     const s = this.s;
-    if (s.phase !== 'word') fail('It is not time to choose a word.');
-    if (id !== s.chooserId) fail('Only the chooser can pick the word.');
+    if (s.phase !== 'word') fail('notTimeToChooseWord');
+    if (id !== s.chooserId) fail('chooserOnlyWord');
     const clean = textFrom(word).trim().replace(/\s+/g, ' ');
-    if (!clean) fail('Type a word or phrase first.');
-    if (clean.length > MAX_WORD_LENGTH) fail(`Keep it to ${MAX_WORD_LENGTH} characters or fewer.`);
+    if (!clean) fail('typeWord');
+    if (clean.length > MAX_WORD_LENGTH) fail('wordTooLong', { max: MAX_WORD_LENGTH });
     const candidates = this.cardPlayers();
-    if (!candidates.length) fail('Nobody else is in this round to play a card.');
+    if (!candidates.length) fail('nobodyToPlay');
     s.word = clean;
     // In the favourite style nobody is kept in the dark, so there is no imposter.
     s.imposterId = s.judging === 'favourite' ? null : candidates[Math.floor(this.rng() * candidates.length)].id;
@@ -917,10 +932,10 @@ export class Game {
    */
   playCard(id, cardId) {
     const s = this.s;
-    if (s.phase !== 'picking') fail('It is not time to play a card.');
+    if (s.phase !== 'picking') fail('notTimeToPlay');
     const player = this.requirePlayer(id);
-    if (player.waiting || id === s.chooserId) fail('You do not play a card this round.');
-    if (!player.hand.includes(cardId)) fail('That card is not in your hand.');
+    if (player.waiting || id === s.chooserId) fail('notPlayingThisRound');
+    if (!player.hand.includes(cardId)) fail('notInHand');
     s.picks[id] = cardId;
     if (this.cardPlayers().every((p) => p.id in s.picks)) this.openVoting();
   }
@@ -949,12 +964,12 @@ export class Game {
    */
   vote(id, targetId) {
     const s = this.s;
-    if (s.phase !== 'voting') fail('It is not time to vote.');
+    if (s.phase !== 'voting') fail('notTimeToVote');
     const voter = this.requirePlayer(id);
-    if (voter.waiting) fail('You are waiting for the next round.');
-    if (s.judging !== 'everyone' && id !== s.chooserId) fail('In this game only the word-chooser votes.');
-    if (id === targetId) fail('You cannot vote for yourself.');
-    if (!this.cardPlayers().some((p) => p.id === targetId)) fail('You can only vote for someone who played a card.');
+    if (voter.waiting) fail('waitingNextRound');
+    if (s.judging !== 'everyone' && id !== s.chooserId) fail('chooserOnlyVotes');
+    if (id === targetId) fail('voteSelf');
+    if (!this.cardPlayers().some((p) => p.id === targetId)) fail('voteCardPlayer');
     s.votes[id] = targetId;
     if (this.voters().every((p) => p.id in s.votes)) this.resolveVotes();
   }
@@ -1050,18 +1065,19 @@ export class Game {
    * @param {string} outcome.judging         the play style
    * @param {boolean} [outcome.groupCorrect] whether the imposter was caught
    * @param {string} [outcome.winnerId]      the favourite style's winner
-   * @returns {Object<string, string>} playerId -> remark
+   * @returns {Object<string, object>} playerId -> remark (a message, see shared/messages.js)
     * Side effects: none.
    */
   roundNotes({ judging, groupCorrect, winnerId }) {
     const s = this.s;
     const notes = {};
-    if (s.chooserId) notes[s.chooserId] = 'chooser';
+    if (s.chooserId) notes[s.chooserId] = msg('notes.chooser');
     if (judging === 'favourite') {
-      if (winnerId) notes[winnerId] = notes[winnerId] ? `${notes[winnerId]}, card picked` : 'card picked';
+      // The chooser never plays a card, so the only remark the winner can already have is the chooser's own.
+      if (winnerId) notes[winnerId] = notes[winnerId] ? msg('notes.chooserCardPicked') : msg('notes.cardPicked');
     } else if (s.imposterId) {
-      notes[s.imposterId] = groupCorrect ? 'imposter, caught' : 'imposter, fooled all';
-      if (judging === 'chooser') notes[s.chooserId] = groupCorrect ? 'chooser, spotted it' : 'chooser, fooled';
+      notes[s.imposterId] = msg(groupCorrect ? 'notes.imposterCaught' : 'notes.imposterFooledAll');
+      if (judging === 'chooser') notes[s.chooserId] = msg(groupCorrect ? 'notes.chooserSpotted' : 'notes.chooserFooled');
     }
     return notes;
   }
@@ -1070,7 +1086,7 @@ export class Game {
    * Records a finished round (abandoned rounds never get here): it counts as a turn for the chooser, goes into
    * the scoreboard history, and the results are shown.
    *
-   * @param {Object<string, string>} [notes]  the scoreboard remarks from roundNotes
+   * @param {Object<string, object>} [notes]  the scoreboard remarks from roundNotes (messages)
    * @returns {void}
    * Side effects: increments the chooser's turns and s.completed, adds a history row and enters 'results'.
    */
@@ -1079,7 +1095,7 @@ export class Game {
     const chooser = this.player(s.chooserId);
     if (chooser) chooser.turns = (chooser.turns ?? 0) + 1;
     s.completed++;
-    s.history.push({ label: `Round ${s.completed}`, deltas: { ...s.results.deltas }, notes });
+    s.history.push({ label: msg('round.label', { n: s.completed }), deltas: { ...s.results.deltas }, notes });
     s.phase = 'results';
   }
 
@@ -1092,7 +1108,7 @@ export class Game {
    */
   nextRound(id) {
     const s = this.s;
-    if (s.phase !== 'results') fail('The round is not over yet.');
+    if (s.phase !== 'results') fail('roundNotOver');
     this.requirePlayer(id);
     // Played cards go to the discard pile; startRound() then tops everyone's hand back up.
     for (const p of this.inRound()) {

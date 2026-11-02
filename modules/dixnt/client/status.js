@@ -1,22 +1,23 @@
 // The words of the Status box: what is happening and what you should do next, worked out from the game's state.
-// Returns { headline, mine, lines } for GameStatus. All instruction and turn text of the game lives here.
-
-// Joins names into prose: 'A', 'A and B', 'A, B and C' ('' for none).
-const list = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? ''));
+// Nothing in here is a sentence: the headline and every line's text is a message (`{ key, params }`, see
+// shared/messages.js) under the game's `status.*` keys, which the root component puts into the player's language with
+// `text()`. Returns { headline, mine, lines } for GameStatus. All instruction and turn text of the game lives here.
+import { msg } from '../../../shared/messages.js';
 
 /**
  * Works out what the Status box should say for the current state: the headline, whether it is the viewer's move, and
  * the extra lines, which depend on the phase (word, picking, voting, results, finished) and the judging style.
  * @param {object} state  The viewer's personalised game state.
  * @param {{isHost?: boolean}} [options]  isHost adds the host's instruction at the end of the game.
- * @returns {{headline: string, mine: boolean, lines: Array<string | {text: string, tone: string}>}} Content for GameStatus.
+ * @returns {{headline: object | string, mine: boolean, lines: Array<object | {text: object, tone: string}>}} Content
+ *   for GameStatus, with every piece of text a message.
  * Side effects: none.
  */
 export function statusFor(state, { isHost = false } = {}) {
   const me = state.me;
   const players = state.players;
   const chooser = players.find((p) => p.isChooser);
-  const chooserName = chooser?.name ?? 'The chooser';
+  const chooserName = chooser?.name ?? msg('status.theChooser');
   const inRound = players.filter((p) => !p.waiting);
   const waitingOnCards = inRound.filter((p) => !p.isChooser && !p.hasPlayed).map((p) => p.name);
   const waitingOnVotes = inRound.filter((p) => !p.hasVoted).map((p) => p.name);
@@ -28,24 +29,24 @@ export function statusFor(state, { isHost = false } = {}) {
   if (state.phase === 'word') {
     if (me.isChooser) {
       return {
-        headline: 'Your turn: choose a word or phrase.',
+        headline: msg('status.chooseWord'),
         mine: true,
-        lines: [muted(state.judging === 'favourite' ? 'Everyone will see it. Pick something open to interpretation.' : 'Everyone else will see it, except one random player who sees ??? and has to bluff. Pick something open to interpretation.')],
+        lines: [muted(state.judging === 'favourite' ? msg('status.chooseWordFavourite') : msg('status.chooseWordImposter', { hidden: msg('table.hiddenWord') }))],
       };
     }
-    return { headline: `${chooserName} is choosing a word…`, mine: false, lines: [muted('While you wait, have a look at your hand.')] };
+    return { headline: msg('status.choosing', { name: chooserName }), mine: false, lines: [muted(msg('status.lookAtHand'))] };
   }
 
   if (state.phase === 'picking') {
-    const waiting = waitingOnCards.length ? `Waiting for ${list(waitingOnCards)}…` : '';
-    if (me.waiting) return { headline: 'You joined mid-round, so you will be dealt in next round.', mine: false, lines: [] };
-    if (me.isChooser) return { headline: waiting || 'Everyone has played.', mine: false, lines: [muted('This is your word. Waiting for everyone to play a card.')] };
-    if (me.myPick !== null) return { headline: 'Card played.', mine: false, lines: [muted('You can swap it until everyone has played.'), ...(waiting ? [waiting] : [])] };
-    if (state.wordHidden) return { headline: 'Your turn: you did not see the word. Play a card that could fit, and blend in.', mine: true, lines: [muted('Click a card in your hand to look closer and play it.'), ...(waiting ? [waiting] : [])] };
+    const waiting = waitingOnCards.length ? msg('status.waitingFor', { names: waitingOnCards }) : null;
+    if (me.waiting) return { headline: msg('status.joinedMidRound'), mine: false, lines: [] };
+    if (me.isChooser) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
+    if (me.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
+    if (state.wordHidden) return { headline: msg('status.playInTheDark'), mine: true, lines: [muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])] };
     return {
-      headline: 'Your turn: play the card that fits the word best.',
+      headline: msg('status.playCard'),
       mine: true,
-      lines: [muted(state.judging === 'favourite' ? 'The chooser will pick their favourite.' : 'One player cannot see this word.'), muted('Click a card in your hand to look closer and play it.'), ...(waiting ? [waiting] : [])],
+      lines: [muted(state.judging === 'favourite' ? msg('status.chooserPicks') : msg('status.oneInTheDark')), muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])],
     };
   }
 
@@ -54,31 +55,34 @@ export function statusFor(state, { isHost = false } = {}) {
       const fav = state.judging === 'favourite';
       if (me.isChooser) {
         return {
-          headline: me.myVote === null ? (fav ? 'Your turn: pick the card you like best.' : 'Your turn: who was in the dark?') : fav ? 'You have picked.' : 'You have decided.',
+          headline: me.myVote === null ? msg(fav ? 'status.pickFavourite' : 'status.decide') : msg(fav ? 'status.picked' : 'status.decided'),
           mine: me.myVote === null,
           lines: [
             muted(
               fav
-                ? `Listen to everyone explain why their card fits the word. That player scores ${state.pointsFavourite}.`
-                : `Guess right and you score ${state.pointsChooserCorrect}. If you are fooled, the imposter scores ${state.pointsFooledChooser}.`,
+                ? msg('status.listenFavourite', { points: state.pointsFavourite })
+                : msg('status.guessRight', { correct: state.pointsChooserCorrect, fooled: state.pointsFooledChooser }),
             ),
           ],
         };
       }
       return {
-        headline: fav ? `${chooserName} will pick their favourite.` : `${chooserName} will decide who was in the dark.`,
+        headline: msg(fav ? 'status.willPickFavourite' : 'status.willDecide', { name: chooserName }),
         mine: false,
-        lines: [muted(fav ? `Explain why your card fits the word. If ${chooserName} picks yours you score ${state.pointsFavourite}.` : `Explain why your card fits the word. If ${chooserName} is fooled, the imposter scores ${state.pointsFooledChooser}.`)],
+        lines: [
+          muted(
+            fav
+              ? msg('status.explainFavourite', { name: chooserName, points: state.pointsFavourite })
+              : msg('status.explainDecide', { name: chooserName, points: state.pointsFooledChooser }),
+          ),
+        ],
       };
     }
-    if (me.waiting) return { headline: 'You will join in next round.', mine: false, lines: [] };
+    if (me.waiting) return { headline: msg('status.joinNextRound'), mine: false, lines: [] };
     return {
-      headline: me.myVote === null ? 'Your turn: vote for the player who did not see the word.' : 'Your vote is in. You can still change it.',
+      headline: msg(me.myVote === null ? 'status.vote' : 'status.voteIn'),
       mine: me.myVote === null,
-      lines: [
-        ...(waitingOnVotes.length ? [`Still to vote: ${list(waitingOnVotes)}.`] : []),
-        muted('Explain why you chose your card and listen to the others. The round ends when the last vote is in.'),
-      ],
+      lines: [...(waitingOnVotes.length ? [msg('status.stillToVote', { names: waitingOnVotes })] : []), muted(msg('status.explainVote'))],
     };
   }
 
@@ -88,28 +92,43 @@ export function statusFor(state, { isHost = false } = {}) {
     const gained = (id) => r.deltas?.[id] ?? 0;
     const further = [];
     if (r.judging === 'favourite') {
-      return { headline: `${nameOf(state.chooserId)} picked ${nameOf(r.winnerId)}’s card.`, mine: false, lines: [`${nameOf(r.winnerId)} scores ${state.pointsFavourite}.`, muted(`Played cards are discarded and everyone draws back up to ${state.handSize} cards.`)] };
+      return {
+        headline: msg('status.favouritePicked', { chooser: nameOf(state.chooserId), winner: nameOf(r.winnerId) }),
+        mine: false,
+        lines: [msg('status.scores', { name: nameOf(r.winnerId), points: state.pointsFavourite }), muted(msg('status.discardAndDraw', { handSize: state.handSize }))],
+      };
     }
     if (r.judging === 'chooser') {
-      further.push(r.groupCorrect ? `${nameOf(state.chooserId)} guessed right and scores ${state.pointsChooserCorrect}.` : `${nameOf(state.chooserId)} was fooled! ${nameOf(r.imposterId)} scores ${state.pointsFooledChooser}.`);
+      further.push(
+        r.groupCorrect
+          ? msg('status.chooserRight', { name: nameOf(state.chooserId), points: state.pointsChooserCorrect })
+          : msg('status.chooserFooled', { chooser: nameOf(state.chooserId), imposter: nameOf(r.imposterId), points: state.pointsFooledChooser }),
+      );
     } else {
-      further.push(r.groupCorrect ? `The group found them. Everyone who voted for them scores ${state.pointsPerVote}.` : `The group was fooled! ${nameOf(r.imposterId)} scores ${gained(r.imposterId)} (${state.pointsPerVote} for each player who missed them).`);
+      further.push(
+        r.groupCorrect
+          ? msg('status.groupFound', { points: state.pointsPerVote })
+          : msg('status.groupFooled', { name: nameOf(r.imposterId), points: gained(r.imposterId), each: state.pointsPerVote }),
+      );
     }
     if (r.judging === 'everyone') {
-      const given = players.filter((p) => (r.tally?.[p.id] ?? 0) > 0).map((p) => `${p.name}: ${list(Object.entries(r.votes ?? {}).filter(([, target]) => target === p.id).map(([voter]) => nameOf(voter)))}`);
-      if (given.length) further.push(muted(`Votes for ${given.join('; ')}.`));
+      // One line per player who was voted for, so no sentence is built out of pieces.
+      for (const p of players.filter((q) => (r.tally?.[q.id] ?? 0) > 0)) {
+        const voters = Object.entries(r.votes ?? {}).filter(([, target]) => target === p.id).map(([voter]) => nameOf(voter));
+        further.push(muted(msg('status.votesFor', { name: p.name, voters })));
+      }
     }
-    return { headline: `${nameOf(r.imposterId)} was the imposter!`, mine: false, lines: further };
+    return { headline: msg('status.wasImposter', { name: nameOf(r.imposterId) }), mine: false, lines: further };
   }
 
   if (state.phase === 'finished') {
     const winners = players.filter((p) => state.winners.includes(p.id)).map((p) => p.name);
     return {
-      headline: winners.length > 1 ? `It is a tie! ${list(winners)} win.` : `${winners[0] ?? 'Nobody'} wins!`,
+      headline: winners.length > 1 ? msg('status.tie', { names: winners }) : msg('scoreboard.wins', { name: winners[0] ?? msg('status.nobody') }),
       mine: false,
       lines: [
-        muted(`Game over after ${state.completedRounds} round${state.completedRounds === 1 ? '' : 's'}.`),
-        isHost ? { text: 'Press "Back to the lobby" to play again, or leave (top right).', tone: 'muted' } : muted('Waiting for the host to take everyone back to the lobby, or leave (top right).'),
+        muted(msg('status.gameOverAfter', { count: state.completedRounds })),
+        muted(msg(isHost ? 'status.hostAgain' : 'status.waitingHost')),
       ],
     };
   }
@@ -117,9 +136,9 @@ export function statusFor(state, { isHost = false } = {}) {
 }
 
 /**
- * Names a judging style for the Status facts (an unknown style is shown as it is).
+ * Names a judging style for the Status facts, as a message (an unknown style comes back as it is).
  * @param {string} judging  'everyone', 'chooser' or 'favourite'.
- * @returns {string} The label to show.
+ * @returns {object | string} The message to show, or the raw style if it is not one of the three.
  * Side effects: none.
  */
-export const styleName = (judging) => ({ everyone: 'Everyone votes', chooser: 'Only the chooser decides', favourite: 'Favourite card' })[judging] ?? judging;
+export const styleName = (judging) => (['everyone', 'chooser', 'favourite'].includes(judging) ? msg(`judging.${judging}.short`) : judging);

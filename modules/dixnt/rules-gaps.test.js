@@ -6,7 +6,8 @@ import { Game, GameError, MAX_NAME_LENGTH, MAX_WORD_LENGTH, POINTS_PER_VOTE } fr
 import { seeded } from '../../shared/testkit.js';
 
 const ids = (n, from = 1) => Array.from({ length: n }, (_, i) => from + i);
-const refuses = (fn, pattern) => assert.throws(fn, (error) => error instanceof GameError && (!pattern || pattern.test(error.message)));
+// A GameError's message is the refusal code (see game.js), never English; `code` is the one expected.
+const refuses = (fn, code) => assert.throws(fn, (error) => error instanceof GameError && (!code || error.message === code));
 
 function setup(names, { cards = 100, handSize = 4, roundsEach = 5, judging = 'everyone', seed = 3 } = {}) {
   const game = new Game({ getCardIds: () => ids(cards), hints: ['h1', 'h2', 'h3', 'h4', 'h5'], rng: seeded(seed) });
@@ -66,7 +67,7 @@ test('a saved game from an older version is brought up to date', () => {
   assert.equal(loaded.s.judging, 'everyone');
   assert.deepEqual(loaded.s.categories, ['all']);
   assert.equal(loaded.s.history.length, 1);
-  assert.equal(loaded.s.history[0].label, 'Earlier rounds');
+  assert.deepEqual(loaded.s.history[0].label, { key: 'round.earlier' });
   assert.deepEqual(loaded.s.history[0].deltas, { [a.id]: 300, [b.id]: 100, [c.id]: 0 });
   // Without scores there is nothing to explain, and in a lobby neither.
   const quiet = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [], saved: { ...saved, history: undefined, players: saved.players.map((p) => ({ ...p, score: 0 })) } });
@@ -110,32 +111,32 @@ test('starting needs enough cards for everyone, and the host to be asking', () =
   const game = new Game({ getCardIds: () => ids(20), hints: [], rng: seeded(1) });
   const players = ['A', 'B', 'C', 'D'].map((n) => game.addPlayer(n, n));
   game.setHandSize(players[0].id, 6);
-  refuses(() => game.start(players[0].id), /not enough cards/);
+  refuses(() => game.start(players[0].id), 'notEnoughCards');
   game.setHandSize(players[0].id, 5);
-  refuses(() => game.start(players[1].id), /host/);
+  refuses(() => game.start(players[1].id), 'hostOnlyStart');
   game.start(players[0].id);
-  refuses(() => game.start(players[0].id), /already started/);
+  refuses(() => game.start(players[0].id), 'alreadyStarted');
   const small = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
   small.addPlayer('A', 'A');
   small.addPlayer('B', 'B');
-  refuses(() => small.start(small.s.hostId), /at least 3/);
+  refuses(() => small.start(small.s.hostId), 'minPlayers');
 });
 
 test('names: blank, too long and duplicate (in any case) are refused; the settings are lobby-only', () => {
   const game = new Game({ rng: Math.random, getCardIds: () => ids(50), hints: [] });
-  refuses(() => game.addPlayer('   ', 't'), /name/);
-  refuses(() => game.addPlayer(undefined, 't'), /name/);
-  refuses(() => game.addPlayer('x'.repeat(MAX_NAME_LENGTH + 1), 't'), /at most/);
+  refuses(() => game.addPlayer('   ', 't'), 'enterName');
+  refuses(() => game.addPlayer(undefined, 't'), 'enterName');
+  refuses(() => game.addPlayer('x'.repeat(MAX_NAME_LENGTH + 1), 't'), 'nameTooLong');
   const ann = game.addPlayer('  Ann   Lee ', 't1');
   assert.equal(ann.name, 'Ann Lee', 'whitespace is tidied');
-  refuses(() => game.addPlayer('ANN lee', 't2'), /already using/);
+  refuses(() => game.addPlayer('ANN lee', 't2'), 'nameTaken');
   game.addPlayer('Bob', 't3');
   game.addPlayer('Cat', 't4');
   game.start(ann.id);
   for (const call of [() => game.setHandSize(ann.id, 5), () => game.setRounds(ann.id, 2), () => game.setJudging(ann.id, 'chooser'), () => game.setCategories(ann.id, ['all'])]) {
-    refuses(call, /lobby/);
+    refuses(call, 'settingsBeforeStart');
   }
-  refuses(() => game.returnToLobby('someone else'), /host/);
+  refuses(() => game.returnToLobby('someone else'), 'hostOnlyEnd');
 });
 
 test('settings accept numeric strings and fractions by rounding, and refuse anything outside the range', () => {
@@ -150,26 +151,26 @@ test('settings accept numeric strings and fractions by rounding, and refuse anyt
   for (const bad of [NaN, 'abc', undefined, null, Infinity, -1, [], {}, 2.4, 12.6]) {
     if (bad === null) continue; // Number(null) is 0, which is out of range too
     const before = game.s.handSize;
-    refuses(() => game.setHandSize(host, bad), /between/);
+    refuses(() => game.setHandSize(host, bad), 'handSizeRange');
     assert.equal(game.s.handSize, before);
   }
-  for (const bad of [0, 11, 'x', NaN, undefined, null]) refuses(() => game.setRounds(host, bad), /between/);
-  refuses(() => game.setJudging(host, 'dice'), /Unknown/);
-  refuses(() => game.setCategories(host, 'all'), /at least one/);
-  refuses(() => game.setCategories(host, ['all', 'all', 'nope']), /Unknown/);
+  for (const bad of [0, 11, 'x', NaN, undefined, null]) refuses(() => game.setRounds(host, bad), 'turnsEach');
+  refuses(() => game.setJudging(host, 'dice'), 'unknownJudging');
+  refuses(() => game.setCategories(host, 'all'), 'needCategory');
+  refuses(() => game.setCategories(host, ['all', 'all', 'nope']), 'unknownCategory');
 });
 
 test('words: tidied, limited, and only the chooser at the right moment', () => {
   const { game, players } = setup(['A', 'B', 'C']);
   const chooser = game.s.chooserId;
   const other = players.find((p) => p.id !== chooser).id;
-  refuses(() => game.submitWord(other, 'x'), /Only the chooser/);
-  refuses(() => game.submitWord(chooser, '   '), /Type a word/);
-  refuses(() => game.submitWord(chooser, undefined), /Type a word/);
-  refuses(() => game.submitWord(chooser, 'y'.repeat(MAX_WORD_LENGTH + 1)), /characters or fewer/);
+  refuses(() => game.submitWord(other, 'x'), 'chooserOnlyWord');
+  refuses(() => game.submitWord(chooser, '   '), 'typeWord');
+  refuses(() => game.submitWord(chooser, undefined), 'typeWord');
+  refuses(() => game.submitWord(chooser, 'y'.repeat(MAX_WORD_LENGTH + 1)), 'wordTooLong');
   game.submitWord(chooser, `  two    words\n  here `);
   assert.equal(game.s.word, 'two words here');
-  refuses(() => game.submitWord(chooser, 'again'), /not time/);
+  refuses(() => game.submitWord(chooser, 'again'), 'notTimeToChooseWord');
 });
 
 test('playing a card: waiting players and the chooser cannot, strangers cannot, changing your pick is allowed until the last card', () => {
@@ -177,12 +178,12 @@ test('playing a card: waiting players and the chooser cannot, strangers cannot, 
   const chooser = game.s.chooserId;
   const [p1, p2, p3] = players.filter((p) => p.id !== chooser);
   game.submitWord(chooser, 'w');
-  refuses(() => game.playCard(chooser, game.player(chooser).hand[0]), /do not play/);
-  refuses(() => game.playCard('stranger', 1), /not in this game/);
-  refuses(() => game.playCard(p1.id, p2.hand[0]), /not in your hand/);
+  refuses(() => game.playCard(chooser, game.player(chooser).hand[0]), 'notPlayingThisRound');
+  refuses(() => game.playCard('stranger', 1), 'notInGame');
+  refuses(() => game.playCard(p1.id, p2.hand[0]), 'notInHand');
   const late = game.addPlayer('Late', 'tok-late');
   assert.equal(late.waiting, true);
-  refuses(() => game.playCard(late.id, 1), /do not play/);
+  refuses(() => game.playCard(late.id, 1), 'notPlayingThisRound');
   game.playCard(p1.id, p1.hand[0]);
   game.playCard(p1.id, p1.hand[1]);
   assert.equal(game.s.picks[p1.id], p1.hand[1], 'the second pick replaced the first');
@@ -190,8 +191,8 @@ test('playing a card: waiting players and the chooser cannot, strangers cannot, 
   game.playCard(p3.id, p3.hand[0]);
   assert.equal(game.s.phase, 'voting');
   assert.equal(game.s.tableOrder.length, 3, 'the late joiner has no card on the table');
-  refuses(() => game.playCard(p1.id, p1.hand[0]), /not time/);
-  refuses(() => game.vote(late.id, p1.id), /waiting/);
+  refuses(() => game.playCard(p1.id, p1.hand[0]), 'notTimeToPlay');
+  refuses(() => game.vote(late.id, p1.id), 'waitingNextRound');
 });
 
 test('"everyone" judging: a tie for most votes is a miss for the group, and the imposter earns per voter fooled', () => {
@@ -243,7 +244,7 @@ test('"chooser" and "favourite" judging allow only the chooser to vote and score
     playRoundTo(game, 'voting');
     const s = game.s;
     const other = players.find((p) => p.id !== s.chooserId);
-    refuses(() => game.vote(other.id, s.chooserId), /only the word-chooser votes/);
+    refuses(() => game.vote(other.id, s.chooserId), 'chooserOnlyVotes');
     const [first] = game.cardPlayers();
     game.vote(s.chooserId, first.id);
     assert.equal(s.phase, 'results');
@@ -261,26 +262,26 @@ test('"chooser" and "favourite" judging allow only the chooser to vote and score
 test('voting rules: not before the cards are in, never for yourself, a non-card-player, or twice for a different result after the end', () => {
   const { game, players } = setup(['A', 'B', 'C']);
   const chooser = game.s.chooserId;
-  refuses(() => game.vote(chooser, players[0].id), /not time to vote/);
+  refuses(() => game.vote(chooser, players[0].id), 'notTimeToVote');
   playRoundTo(game, 'voting');
   const [p1, p2] = game.cardPlayers();
-  refuses(() => game.vote(p1.id, p1.id), /yourself/);
-  refuses(() => game.vote(p1.id, chooser), /played a card/);
-  refuses(() => game.vote(p1.id, 'nobody'), /played a card/);
-  refuses(() => game.vote('stranger', p1.id), /not in this game/);
+  refuses(() => game.vote(p1.id, p1.id), 'voteSelf');
+  refuses(() => game.vote(p1.id, chooser), 'voteCardPlayer');
+  refuses(() => game.vote(p1.id, 'nobody'), 'voteCardPlayer');
+  refuses(() => game.vote('stranger', p1.id), 'notInGame');
   game.vote(p1.id, p2.id);
   game.vote(p1.id, chooser === p2.id ? p1.id : p2.id === chooser ? p1.id : p2.id);
   game.vote(p2.id, p1.id);
   game.vote(chooser, p1.id);
   assert.equal(game.s.phase, 'results');
-  refuses(() => game.vote(p1.id, p2.id), /not time to vote/);
-  refuses(() => game.abortRound(game.s.hostId), /no round to skip/);
+  refuses(() => game.vote(p1.id, p2.id), 'notTimeToVote');
+  refuses(() => game.abortRound(game.s.hostId), 'noRoundToSkip');
 });
 
 test('skipping a round gives nobody a turn, a score or a history row, and the next chooser follows', () => {
   const { game, host } = setup(['A', 'B', 'C'], { roundsEach: 1 });
   const first = game.s.chooserId;
-  refuses(() => game.abortRound(game.s.players[1].id), /host/);
+  refuses(() => game.abortRound(game.s.players[1].id), 'hostOnlySkip');
   game.abortRound(host);
   assert.notEqual(game.s.chooserId, first);
   assert.equal(game.s.round, 2);
@@ -311,8 +312,8 @@ test('a leaver is wiped from the history, their cards are discarded, and chooser
   assert.ok(game.s.history.every((r) => !(leaver.id in r.deltas) && !(leaver.id in r.notes)));
   assert.equal(game.s.discard.length, discardBefore + heldCards.length);
   for (const p of game.s.players) assert.equal(game.s.history.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score);
-  refuses(() => game.removePlayer(players[2].id, players[3].id), /host/);
-  refuses(() => game.removePlayer(host, 'nobody'), /not in the game/);
+  refuses(() => game.removePlayer(players[2].id, players[3].id), 'hostOnlyRemove');
+  refuses(() => game.removePlayer(host, 'nobody'), 'playerNotInGame');
   // The turn counts: nobody who still owes a turn is skipped.
   const owing = game.s.players.filter((p) => p.turns < game.s.roundsEach).map((p) => p.id);
   if (owing.length) assert.ok(owing.includes(game.s.chooserId));
