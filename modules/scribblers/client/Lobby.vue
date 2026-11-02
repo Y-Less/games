@@ -2,7 +2,7 @@
 // The waiting room: the invite code, the player list (PlayerListPanel), and the host's game options.
 // Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>).  Emits: none.  Slots: none.
 // Side effects: the buttons send 'settings' and 'start'; the player list sends 'addBot', 'removeBot', 'kick' and 'fillBots'.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
 import { useGameText } from '../../../src/useGameText.js';
@@ -35,6 +35,23 @@ const options = computed(() => [
  * Side effects: sends a 'settings' request.
  */
 const change = (option, by) => props.send('settings', { [option.key]: Math.min(option.bounds.max, Math.max(option.bounds.min, option.value + by)) });
+
+// Words of your own: anybody may add them, they are drawn from in this game, and they are kept for later games too.
+const word = ref('');
+// There is no room for another word in this game.
+const wordsFull = computed(() => props.state.customWords.length >= props.state.limits.customWords);
+
+/**
+ * Sends the word that has been typed, if any.
+ * @returns {Promise<object> | void} the server's reply
+ * Side effects: sends 'addWord' and empties the box.
+ */
+function addWord() {
+  const typed = word.value.trim();
+  if (!typed) return;
+  word.value = '';
+  return props.send('addWord', { text: typed });
+}
 </script>
 
 <template>
@@ -59,6 +76,19 @@ const change = (option, by) => props.send('settings', { [option.key]: Math.min(o
     />
 
     <section class="panel stack">
+      <h3>{{ t('words.title') }}</h3>
+      <p class="muted">{{ t('words.intro', { saved: state.savedWords }) }}</p>
+      <form class="row" @submit.prevent="addWord">
+        <input v-model="word" type="text" autocomplete="off" :maxlength="state.limits.wordLength" :disabled="wordsFull" :placeholder="t('words.placeholder')" :aria-label="t('words.placeholder')" />
+        <button type="submit" :disabled="wordsFull || !word.trim()">{{ t('words.add') }}</button>
+      </form>
+      <ul v-if="state.customWords.length" class="words" :aria-label="t('words.added')">
+        <li v-for="added in state.customWords" :key="added">{{ added }}</li>
+      </ul>
+      <p v-if="wordsFull" class="muted">{{ t('words.full', { max: state.limits.customWords }) }}</p>
+    </section>
+
+    <section class="panel stack">
       <h3>{{ t('settings.title') }}</h3>
       <div v-for="option in options" :key="option.key" class="row option">
         <span class="label">{{ t(`settings.${option.key}`) }}</span>
@@ -77,6 +107,21 @@ const change = (option, by) => props.send('settings', { [option.key]: Math.min(o
 </template>
 
 <style scoped>
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.words li {
+  padding: 0.1rem 0.5rem;
+  background: color-mix(in srgb, var(--bg-raised) 85%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
 .option {
   align-items: center;
   gap: 0.5rem;

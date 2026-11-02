@@ -378,6 +378,113 @@ test('a room saved before a change still loads', () => {
   assert.doesNotThrow(() => game.viewFor(room, 1, { now: NOW }));
 });
 
+// ---- words the players add themselves ----
+
+test('anybody at the table may add a word, and it is counted for them', () => {
+  const room = lobby(3);
+  assert.equal(game.addWord(room, 2, 'Space Hopper').ok, true);
+  assert.deepEqual(room.customWords, ['space hopper'], 'kept as it is compared: lower case');
+  assert.equal(room.players.find((p) => p.id === 2).wordsAdded, 1);
+  assert.equal(room.players.find((p) => p.id === 1).wordsAdded, 0, 'and only for them');
+  assert.equal(game.addWord(room, 99, 'intruder').ok, false, 'but not by somebody who is not in the game');
+});
+
+test('the same word twice is accepted quietly, and counted once', () => {
+  const room = lobby(2);
+  assert.equal(game.addWord(room, 1, 'kettle').ok, true);
+  const again = game.addWord(room, 1, 'KETTLE');
+  assert.equal(again.ok, true, 'nobody has to remember what they typed');
+  assert.equal(again.word, undefined, 'but nothing was added');
+  assert.deepEqual(room.customWords, ['kettle']);
+  assert.equal(room.players[0].wordsAdded, 1);
+});
+
+test('a word that cannot be drawn or typed is refused', () => {
+  const room = lobby(2);
+  for (const [text, error] of [
+    ['', 'typeWord'],
+    ['   ', 'typeWord'],
+    ['x'.repeat(30), 'wordTooLong'],
+    ['<script>', 'wordLetters'],
+    ['-start', 'wordLetters'],
+    ['ok!', 'wordLetters'],
+  ]) {
+    const refused = game.addWord(room, 1, text);
+    assert.equal(refused.ok, false, text);
+    assert.equal(refused.error, error, text);
+  }
+  assert.deepEqual(room.customWords, []);
+  assert.equal(game.addWord(room, 1, "Anne's hat").ok, true, 'an apostrophe is a word');
+  assert.equal(game.addWord(room, 1, 'ice cream').ok, true, 'and so is a space');
+});
+
+test('a game takes only so many words, and only before it starts', () => {
+  const room = lobby(2);
+  const max = game.viewFor(room, 1, { now: NOW }).limits.customWords;
+  assert.ok(max >= 10, 'a game holds a sensible number of them');
+  for (let n = 0; n < max; n++) assert.equal(game.addWord(room, 1, `word${n}`).ok, true, `word ${n}`);
+  const full = game.addWord(room, 1, 'one too many');
+  assert.equal(full.ok, false);
+  assert.equal(full.error, 'wordsFull');
+  assert.equal(game.start(room, 1, seeded(1), NOW).ok, true);
+  assert.equal(game.addWord(room, 1, 'late').error, 'wordsBeforeStart');
+});
+
+test('a word somebody added is one of the words offered, until it has been played', () => {
+  const room = lobby(2);
+  assert.equal(game.addWord(room, 1, 'space hopper').ok, true);
+  const rng = seeded(7);
+  assert.equal(game.start(room, 1, rng, NOW).ok, true);
+  assert.ok(room.choices.includes('space hopper'), `offered ${JSON.stringify(room.choices)}`);
+  const n = room.choices.indexOf('space hopper');
+  assert.equal(game.chooseWord(room, room.drawer, n, NOW).ok, true);
+  assert.equal(game.timeUp(room, rng, room.deadline, String).ok, true);
+  assert.equal(game.nextTurn(room, rng, NOW, String).ok, true);
+  assert.ok(!room.choices.includes('space hopper'), 'and not again, now it has been drawn');
+});
+
+test('words saved from earlier games are offered too', () => {
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Player 1', settings: { rounds: 1 }, added: ['space hopper', 'space hopper', ''], now: NOW });
+  assert.deepEqual(room.added, ['space hopper'], 'tidied as they are taken in');
+  assert.equal(game.addHuman(room, 2, 'Player 2').ok, true);
+  assert.equal(game.start(room, 1, seeded(8), NOW).ok, true);
+  assert.ok(room.choices.includes('space hopper'));
+});
+
+test('choosing one of the rude words counts, but having it chosen for you does not', () => {
+  const room = lobby(2);
+  const rng = seeded(9);
+  assert.equal(game.start(room, 1, rng, NOW).ok, true);
+  const drawer = () => room.players.find((p) => p.id === room.drawer);
+  room.choices = ['boobs', 'kettle'];
+  assert.equal(game.chooseWord(room, room.drawer, 0, NOW).ok, true);
+  assert.equal(drawer().juvenilePicks, 1, 'they went for it');
+
+  assert.equal(game.timeUp(room, rng, room.deadline, String).ok, true);
+  assert.equal(game.nextTurn(room, rng, NOW, String).ok, true);
+  const next = room.players.find((p) => p.id === room.drawer);
+  room.choices = ['penis', 'kettle'];
+  room.preChoice = 0;
+  assert.equal(game.timeUp(room, rng, room.deadline, String).ok, true, 'the clock chooses');
+  assert.equal(room.word, 'penis');
+  assert.equal(next.juvenilePicks ?? 0, 0, 'which is not a choice at all');
+});
+
+test('every guess is counted, right or wrong, and talk is not', () => {
+  const { room, word, guessers } = drawing(3);
+  const guesser = room.players.find((p) => p.id === guessers[0]);
+  assert.equal(game.guess(room, guessers[0], 'nonsense', NOW).ok, true);
+  assert.equal(game.guess(room, guessers[0], `${word}s`, NOW).ok, true);
+  assert.equal(guesser.guesses, 2);
+  assert.equal(game.guess(room, guessers[0], word, NOW).quality, 'exact');
+  assert.equal(guesser.guesses, 3, 'the right one counts too');
+  assert.equal(game.guess(room, guessers[0], 'that was easy', NOW + 4000).quality, 'chat');
+  assert.equal(guesser.guesses, 3, 'but talking afterwards is not guessing');
+  const drawerPlayer = room.players.find((p) => p.id === room.drawer);
+  assert.equal(game.guess(room, room.drawer, 'you got it', NOW).quality, 'chat');
+  assert.equal(drawerPlayer.guesses ?? 0, 0, 'and nor is the drawer talking');
+});
+
 test('playing again is not offered: a new game is started from the menu', () => {
   assert.equal(game.playAgain().ok, false);
 });

@@ -68,11 +68,12 @@ const STROKE_GAP_MS = 150;
 
 /**
  * A new, empty drawing.
- * @returns {{ ops: object[], groups: number[], lastAt: number }} the instructions, where each stroke begins, and when
- *   the last instruction arrived
+ * @returns {{ ops: object[], groups: number[], lastAt: number, lastFillAt: number }} the instructions, where each
+ *   stroke begins, when the last instruction arrived, and when the last fill did (which the socket layer watches for
+ *   the "Arrgh!" achievement: a fill undone a moment later)
  * Side effects: none.
  */
-export const newDrawing = () => ({ ops: [], groups: [], lastAt: 0 });
+export const newDrawing = () => ({ ops: [], groups: [], lastAt: 0, lastFillAt: 0 });
 
 /**
  * A whole number from an untrusted value, or null.
@@ -139,6 +140,7 @@ export function addOps(drawing, ops, now) {
     const fresh = op.t === 'fill' || now - drawing.lastAt > STROKE_GAP_MS || drawing.ops.at(-1)?.t === 'fill';
     if (fresh) drawing.groups.push(drawing.ops.length);
     drawing.lastAt = now;
+    if (op.t === 'fill') drawing.lastFillAt = now;
     drawing.ops.push(op);
     kept.push(op);
   }

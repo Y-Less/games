@@ -24,6 +24,11 @@ Everybody draws once a round, and the game is three rounds by default.  The scor
   the drawer as to them; one nobody gets is worth nothing.
 - Guessing costs nothing, so guess as often as you like.
 
+## Words of your own
+
+Anybody at the table can add words in the waiting room, and one of the words the drawer is offered each turn is one of
+them while any are left unplayed.  They are kept for later games too, so a word added once keeps coming back.
+
 ## While you are drawing
 
 The drawer can talk to the people who have already guessed, and they to each other, without the ones still guessing
@@ -31,5 +36,6 @@ seeing it.  Keys: **Q** pen, **W** paint bucket, **E** rubber, **1** to **4** br
 
 ## If somebody leaves
 
-A person who leaves is replaced at the table so the scores still add up, and a turn whose drawer has gone is given up:
-nobody scores and play moves on.
+A person who leaves is replaced by a computer player, in their place and with their score, so nobody's turns are lost:
+it draws and guesses like anybody else.  A drawer who has simply vanished mid-turn (their connection dropped) has the
+turn given up instead: nobody scores and play moves on.

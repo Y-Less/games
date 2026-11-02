@@ -67,6 +67,32 @@ export function pickWords(count, used, rng, language = DEFAULT_LANGUAGE) {
   return picked;
 }
 
+// ---------- words the players add themselves ----------
+
+/** The longest a word somebody adds may be, and how many a room will hold (game.js checks both). */
+export const CUSTOM_LENGTH = 24;
+export const CUSTOM_WORDS = 60;
+
+/** What a word somebody adds may be made of: letters (of any language), digits, spaces, hyphens and apostrophes. */
+export const CUSTOM_WORD = /^[\p{L}\p{N}][\p{L}\p{N} '’-]*$/u;
+
+/**
+ * The ten words of the "Had to be done" achievement (module.json, "juvenile"): the ones a table of grown adults cannot
+ * be trusted with.  They are in words/en.txt like any other word, so a drawer may simply be offered one; the
+ * achievement is for the drawer who then *picks* it rather than taking one of the others on offer, which is a choice
+ * rather than an accident.  Ten of the list's least drawable abstractions came out when they went in, so the list is
+ * still a round 5,000.
+ */
+export const JUVENILE = ['arse', 'bollocks', 'boobs', 'bum', 'cum', 'dick', 'fart', 'nipples', 'penis', 'willy'];
+
+/**
+ * Is this one of the juvenile ten?  Compared like a guess, so "Boobs" and "boobs" are the same word.
+ * @param {string} word  the word
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const isJuvenile = (word) => JUVENILE.includes(cleanText(word));
+
 /**
  * Strips what should not change whether a guess counts: capitals, accents, spaces, hyphens, and underscores, so that
  * "Pac-Man" and "pac man" are the same word.  (scribble.rs does the same before comparing.)

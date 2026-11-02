@@ -7,13 +7,60 @@
   "category": "party",
   "rules": "rules.md",
   "stats": [
-    { "key": "wordsDrawn", "label": "Words drawn", "agg": "sum" },
-    { "key": "wordsGuessed", "label": "Words guessed", "agg": "sum" },
-    { "key": "firstGuesses", "label": "Words you guessed first", "agg": "sum" },
-    { "key": "bestTurn", "label": "Best single turn", "agg": "max" },
-    { "key": "everyoneGot", "label": "Drawings everybody guessed", "agg": "sum", "hidden": true },
-    { "key": "nobodyGot", "label": "Drawings nobody guessed", "agg": "sum", "hidden": true },
-    { "key": "cleanSweep", "label": "Games where you guessed every word", "agg": "sum", "hidden": true }
+    {
+      "key": "wordsDrawn",
+      "label": "Words drawn",
+      "agg": "sum"
+    },
+    {
+      "key": "wordsGuessed",
+      "label": "Words guessed",
+      "agg": "sum"
+    },
+    {
+      "key": "firstGuesses",
+      "label": "Words you guessed first",
+      "agg": "sum"
+    },
+    {
+      "key": "guesses",
+      "label": "Guesses made",
+      "agg": "sum"
+    },
+    {
+      "key": "wordsAdded",
+      "label": "Words added to the game",
+      "agg": "sum"
+    },
+    {
+      "key": "bestTurn",
+      "label": "Best single turn",
+      "agg": "max"
+    },
+    {
+      "key": "everyoneGot",
+      "label": "Drawings everybody guessed",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "nobodyGot",
+      "label": "Drawings nobody guessed",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "cleanSweep",
+      "label": "Games where you guessed every word",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "juvenilePicks",
+      "label": "Rude words you chose to draw",
+      "agg": "sum",
+      "hidden": true
+    }
   ],
   "achievements": [
     {
@@ -33,6 +80,20 @@
       "stat": "wordsGuessed"
     },
     {
+      "key": "typist",
+      "name": "Trigger finger",
+      "text": "Make {n} guesses",
+      "one": "Make a guess",
+      "levels": [
+        400,
+        2000,
+        4000,
+        10000,
+        20000
+      ],
+      "stat": "guesses"
+    },
+    {
       "key": "first",
       "name": "Quick off the mark",
       "text": "Be the first to guess the word {n} times",
@@ -50,7 +111,7 @@
     },
     {
       "key": "abstract",
-      "name": "Abstract art",
+      "name": "Que?",
       "text": "Draw a word that nobody guesses, {n} times",
       "one": "Draw a word that nobody guesses",
       "levels": "medium",
@@ -67,7 +128,13 @@
       "key": "bullseye",
       "name": "Straight away",
       "text": "Score {n} on a single turn",
-      "levels": [120, 160, 200, 230, 255],
+      "levels": [
+        120,
+        160,
+        200,
+        230,
+        255
+      ],
       "stat": "bestTurn"
     },
     {
@@ -76,6 +143,27 @@
       "text": "Guess the word on every one of your turns in a game",
       "levels": "unlock",
       "stat": "cleanSweep"
+    },
+    {
+      "key": "wordsmith",
+      "name": "Dictionary corner",
+      "text": "Add {n} words of your own to the game",
+      "one": "Add a word of your own to the game",
+      "levels": "easy",
+      "stat": "wordsAdded"
+    },
+    {
+      "key": "arrgh",
+      "name": "Arrgh!",
+      "text": "Fill the board, then undo it within five seconds",
+      "levels": "unlock"
+    },
+    {
+      "key": "juvenile",
+      "name": "Had to be done",
+      "text": "Choose one of the rude words to draw",
+      "levels": "unlock",
+      "stat": "juvenilePicks"
     }
   ]
 }

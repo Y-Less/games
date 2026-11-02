@@ -26,8 +26,14 @@
 // not do itself: an AI is a function of plain data, with no clock and no network.  Nothing else about a computer
 // player is special - its guesses go through the same rules as anybody's.
 //
+// **Words the players add** are kept here too: a word added in a lobby is used in that game and saved under the
+// module's data folder, so it is offered in later games as well.  The rules never touch a file, so they are given the
+// saved words when a room is made.
+//
 // Depends on shared/roomServer.js (the room server and its timing helpers), ./game.js (the rules), ./drawing.js (the
 // canvas and what may go on it) and ./picture.js (a word turned into something to draw).
+import fs from 'node:fs';
+import path from 'node:path';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from './drawing.js';
 import * as game from './game.js';
@@ -35,6 +41,10 @@ import { drawingFor, testPicture } from './picture.js';
 
 /** How long the server waits between one message-full of a computer player's picture and the next (milliseconds). */
 const STROKE_PAUSE = 120;
+/** How soon after filling the board somebody has to undo it to have thought better of it ("Arrgh!", milliseconds). */
+const ARRGH_MS = 5000;
+/** How many words added by players are kept from one game to the next. */
+const KEEP_WORDS = 500;
 
 /**
  * Where a computer player's pictures come from.
@@ -87,6 +97,44 @@ function readDelays() {
 export default function (ctx) {
   const delays = readDelays();
   const pictureFor = pictureSource();
+  const wordsFile = path.join(ctx.dataDir, 'added-words.json');
+
+  /**
+   * The words people have added in earlier games, read once.  An unreadable file is logged and treated as none: a word
+   * list is not worth refusing to start a game over.
+   * @returns {string[]} the words, oldest first
+   * Side effects: reads the file, and may log.
+   */
+  function readWords() {
+    try {
+      const saved = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
+      return (Array.isArray(saved?.words) ? saved.words : []).filter((word) => typeof word === 'string');
+    } catch (error) {
+      if (error.code !== 'ENOENT') ctx.log('could not read the added words:', error.message);
+      return [];
+    }
+  }
+
+  const addedWords = readWords();
+
+  /**
+   * Keeps a word somebody added, for this game and for the ones after it.  The newest KEEP_WORDS are kept, written
+   * atomically (a temporary file renamed over the real one) so that a crash mid-write leaves the old list whole.
+   * @param {string} word  the word, as the rules accepted it
+   * @returns {void}
+   * Side effects: adds to `addedWords` and rewrites the file; a failure is logged, never thrown.
+   */
+  function rememberWord(word) {
+    if (addedWords.includes(word)) return;
+    addedWords.push(word);
+    if (addedWords.length > KEEP_WORDS) addedWords.splice(0, addedWords.length - KEEP_WORDS);
+    try {
+      fs.writeFileSync(`${wordsFile}.tmp`, JSON.stringify({ words: addedWords }));
+      fs.renameSync(`${wordsFile}.tmp`, wordsFile);
+    } catch (error) {
+      ctx.log('could not save the added words:', error.message);
+    }
+  }
   /** An account's display name (for people who have left the room, and for rooms saved before names were kept). */
   const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
   /** The drawing of each room that is being drawn: code -> { key: '<round>:<turn>', drawing }.  Never saved. */
@@ -159,7 +207,7 @@ export default function (ctx) {
     members: (room) => room.players,
     kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
     viewOptions: (room, userId, now) => ({ nameOf, now: now() }),
-    createArgs: () => ({ chooseMs: delays.chooseMs, betweenMs: delays.betweenMs }),
+    createArgs: () => ({ chooseMs: delays.chooseMs, betweenMs: delays.betweenMs, added: addedWords }),
     migrate: (room) => game.migrate(room, nameOf),
     /**
      * Forgets the drawing of a room that is not being drawn (between rounds, in the lobby, once it is over), so that no
@@ -252,6 +300,18 @@ export default function (ctx) {
       on('guess', ({ text }) => act((room) => game.guess(room, userId, text, now())));
       on('ready', () => act((room) => game.ready(room, userId, rng, now())));
 
+      // A word somebody adds in the lobby is used in this game and kept for the ones after it.
+      on('addWord', ({ text }) => {
+        let added = null;
+        const reply = act((room) => {
+          const outcome = game.addWord(room, userId, text);
+          if (outcome.ok && outcome.word) added = outcome.word;
+          return outcome;
+        });
+        if (added) rememberWord(added);
+        return reply;
+      });
+
       /**
        * The room this socket is drawing in, or a refusal to send back.
        * @returns {{ room: object } | { error: object }}
@@ -313,7 +373,17 @@ export default function (ctx) {
         const { room, error } = drawingRoom();
         if (error) return error;
         const drawing = canvasOf(room);
+        // "Arrgh!": the fill went everywhere, and the drawer thought better of it within a few seconds.
+        const regret = drawing.lastFillAt > 0 && now() - drawing.lastFillAt <= ARRGH_MS;
         if (undo(drawing)) sendCanvas(room, drawing.ops, true);
+        if (regret) {
+          drawing.lastFillAt = 0; // once per fill, not once per undo
+          try {
+            ctx.achievements.add(userId, 'arrgh');
+          } catch (error) {
+            ctx.log('could not record Arrgh!:', error.message);
+          }
+        }
         return { ok: true };
       });
 

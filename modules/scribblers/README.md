@@ -36,6 +36,18 @@ icons, whose artwork has a licence of its own.
 | `server.js` | the socket layer: the shared room server, the clock work of a turn, and the stroke relay |
 | `client/` | the table: the board (`Board.vue`, `draw.js`), the toolbox, the guesses panel, the word bar |
 
+## Words of your own
+
+Anybody in a lobby may add words (`addWord`), which are kept on the room *and* saved under the module's data folder
+(`added-words.json`, the newest 500), so a word added once is offered in later games as well.  The rules never touch a
+file, so `server.js` hands the saved words to `createRoom`, which keeps them on the room as `added`.  One of the words
+the drawer is offered each turn comes from them while any are left unplayed: a word added to a game is a word somebody
+wants to see drawn, and among five thousand others it would never come up.
+
+Ten of the words in `words/en.txt` are the juvenile ones of the "Had to be done" achievement (`JUVENILE` in
+`words.js`).  They are in the list like any other word, so a drawer may simply be offered one; the achievement is for
+the drawer who *picks* it, which `chooseWord` tells apart from the clock choosing for them (`manual`).
+
 ## Why the drawing is not in the view
 
 Every other game in the hub sends each player the whole state of the room on every change.  A drawing is thousands of
@@ -47,6 +59,16 @@ instructions a turn, so it would be sent again on every guess.  Instead:
 - `undo` and `clear` send the board again, as scribble.rs does, because a client cannot be trusted to unpick a stroke.
 
 The instructions are in the board's own 1600 x 900 space, whatever size the canvas is on the screen.
+
+## Achievements
+
+Most of them are worked out from the recorded results, so they count games played before they existed: the counters are
+in `tally.js` and declared in `module.json`.  Two are not plain counters:
+
+- **Had to be done** counts `juvenilePicks`, which only a drawer choosing one of the juvenile ten raises (not the clock
+  choosing it for them).
+- **Arrgh!** is saved progress rather than a stat (`ctx.achievements.add(userId, 'arrgh')` in `server.js`), because what
+  it watches - a flood fill undone within five seconds - happens on the canvas, which the rules never see.
 
 ## Playing with the timings
 

@@ -3,6 +3,8 @@
 // middle of a turn, and undo and clear redrawing it for everybody.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
@@ -261,6 +263,65 @@ test('a game of computer players plays itself: they choose a word, draw it, and 
   const guesses = ann.state.feed.filter((line) => line.id !== ann.id);
   assert.ok(guesses.every((line) => line.text.length > 0 || line.kind === 'correct'));
   assert.ok(guesses.some((line) => [...line.text].length === ann.state.hints.length || line.kind === 'correct'), 'a guess of the right length');
+});
+
+test('Arrgh: filling the board and undoing it a moment later is noticed, and a plain undo is not', async (t) => {
+  const { people } = await table(t, ['ann', 'bob']);
+  const { drawer } = split(people);
+  assert.equal((await drawer.call('word', { n: 0 })).ok, true);
+  await until(() => drawer.state?.phase === 'drawing', 'the drawing starts');
+
+  /** The level this account has reached on one of Scribblers' achievements. */
+  const level = async (key) => {
+    const { data } = await drawer.http('GET', '/api/achievements');
+    const found = data.sections.flatMap((section) => section.achievements).find((a) => a.id === `scribblers.${key}`);
+    return found?.level ?? 0;
+  };
+
+  assert.equal((await drawer.call('line', line())).ok, true);
+  assert.equal((await drawer.call('undo')).ok, true);
+  await sleep(100);
+  assert.equal(await level('arrgh'), 0, 'undoing a stroke is just undoing a stroke');
+
+  assert.equal((await drawer.call('fill', { x: 800, y: 450, c: 5 })).ok, true);
+  assert.equal((await drawer.call('undo')).ok, true);
+  await until(async () => (await level('arrgh')) === 1, 'the fill was thought better of');
+  assert.equal((await drawer.call('undo')).ok, true);
+  await sleep(100);
+  assert.equal(await level('arrgh'), 1, 'and it is a one-off, not one for every undo after a fill');
+});
+
+test('a word somebody adds is drawn from in this game and kept for the next one', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scribblers-words-'));
+  const first = await launchModule(t, { id: 'scribblers', moduleDir: here, dataDir, keep: true });
+  const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => first.person(n).open()));
+  const created = await ann.call('create', { rounds: 1, drawTime: 30, wordChoices: 2 });
+  assert.equal((await bob.call('join', { code: created.code })).ok, true);
+  await until(() => ann.state?.players.length === 2, 'two players');
+
+  assert.equal((await bob.call('addWord', { text: 'Space Hopper' })).ok, true, 'anybody may add one');
+  assert.equal((await bob.call('addWord', { text: '  ' })).ok, false);
+  assert.equal((await bob.call('addWord', { text: '<script>' })).ok, false);
+  await until(() => ann.state?.customWords.includes('space hopper'), 'everybody sees it in the lobby');
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => [ann, bob].some((p) => p.state?.youDraw), 'the first drawer is choosing');
+  const drawer = [ann, bob].find((p) => p.state.youDraw);
+  assert.ok(drawer.state.choices.includes('space hopper'), `offered ${JSON.stringify(drawer.state.choices)}`);
+  await sleep(250); // the word is saved as it is added, but give the write a moment
+  await first.stop();
+
+  // A new site on the same data folder: the word is still in the game, for a game nobody added it to.
+  const second = await launchModule(t, { id: 'scribblers', moduleDir: here, dataDir, keep: true });
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const [cat, dan] = await Promise.all(['cat', 'dan'].map((n) => second.person(n).open()));
+  const again = await cat.call('create', { rounds: 1, drawTime: 30, wordChoices: 2 });
+  assert.equal((await dan.call('join', { code: again.code })).ok, true);
+  await until(() => cat.state?.players.length === 2, 'two more players');
+  assert.equal(cat.state.savedWords, 1, 'the saved word is counted in the lobby');
+  assert.equal((await cat.call('start')).ok, true);
+  await until(() => [cat, dan].some((p) => p.state?.youDraw), 'choosing again');
+  const nextDrawer = [cat, dan].find((p) => p.state.youDraw);
+  assert.ok(nextDrawer.state.choices.includes('space hopper'), `offered ${JSON.stringify(nextDrawer.state.choices)}`);
 });
 
 test('the lobby options are the host business, and the game needs two players', async (t) => {

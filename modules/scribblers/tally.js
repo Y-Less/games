@@ -4,7 +4,7 @@
 import { bump, extrasOf, freshTally, peak } from '../../shared/tally.js';
 
 // The counters kept on every player.
-export const STAT_KEYS = ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'everyoneGot', 'nobodyGot', 'bestTurn', 'turnsGuessing'];
+export const STAT_KEYS = ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'everyoneGot', 'nobodyGot', 'bestTurn', 'turnsGuessing', 'guesses', 'wordsAdded', 'juvenilePicks'];
 /**
  * A fresh set of zeroed counters for a new player.
  * @returns {object} one zero per STAT_KEYS entry
@@ -14,6 +14,27 @@ export const newCounters = () => freshTally(STAT_KEYS);
 
 /** The fewest turns as a guesser that make "guessed every word" worth anything. */
 export const MIN_PERFECT_TURNS = 3;
+
+/**
+ * Counts a guess, right or wrong: every one a person types while somebody is drawing (not what they say between
+ * turns, which is talk rather than guessing).
+ *
+ * @param {object} player  the player holding the counters
+ * @returns {void}
+ * Side effects: increments the player's `guesses`.
+ */
+export const tallyGuess = (player) => bump(player, 'guesses');
+
+/**
+ * Counts a word somebody added to the game themselves, and a drawer picking one of the juvenile ten (see words.js,
+ * JUVENILE: the "Had to be done" achievement).
+ *
+ * @param {object} player  the player holding the counters
+ * @param {'added' | 'juvenile'} what  which of the two
+ * @returns {void}
+ * Side effects: increments one of the player's counters.
+ */
+export const tallyWord = (player, what) => bump(player, what === 'juvenile' ? 'juvenilePicks' : 'wordsAdded');
 
 /**
  * Counts a turn as it is scored.
@@ -54,7 +75,7 @@ export function tallyTurn({ drawer, guessed, guessers, reason, average }) {
 export function statsExtras(player) {
   const turns = player.turnsGuessing ?? 0;
   return {
-    ...extrasOf(player, ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'everyoneGot', 'nobodyGot', 'bestTurn']),
+    ...extrasOf(player, ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'everyoneGot', 'nobodyGot', 'bestTurn', 'guesses', 'wordsAdded', 'juvenilePicks']),
     cleanSweep: turns >= MIN_PERFECT_TURNS && player.wordsGuessed === turns ? 1 : 0,
   };
 }

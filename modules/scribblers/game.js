@@ -24,8 +24,8 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
-import { newCounters, statsExtras, tallyTurn } from './tally.js';
-import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from './words.js';
+import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
+import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from './words.js';
 
 // Table size: two can play (one draws, one guesses), and twelve is as many guesses as the panel can show.
 export const MIN_PLAYERS = 2;
@@ -134,11 +134,12 @@ const makePlayer = (room, base) => ({ ...base, score: 0, lastScore: 0, roundStar
  * @param {object} [args.settings]  what the host chose when creating it ({ rounds, drawTime, wordChoices }); an invalid
  *   setting is left at its default
  * @param {string} [args.language]  which word list to draw from (the host's language, if there is a list for it)
+ * @param {string[]} [args.added]  words people added in earlier games, which the socket layer keeps (see server.js)
  * @param {number} args.now         the time to stamp it with
  * @returns {object} the room, in the lobby
  * Side effects: none outside the new room.
  */
-export function createRoom({ code, hostId, hostName, settings = {}, language = DEFAULT_LANGUAGE, chooseMs = CHOOSE_MS, betweenMs = BETWEEN_MS, now }) {
+export function createRoom({ code, hostId, hostName, settings = {}, language = DEFAULT_LANGUAGE, added = [], chooseMs = CHOOSE_MS, betweenMs = BETWEEN_MS, now }) {
   const room = {
     code,
     hostId,
@@ -169,6 +170,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     reveal: null, // between turns: { word, drawer, reason, points }
     ready: [], // between rounds: the people who have closed the scores
     used: [], // the words played this game
+    customWords: [], // words the players added in this room's lobby
+    added: Array.isArray(added) ? [...new Set(added.map((word) => textFrom(word).trim()).filter(Boolean))].slice(0, CUSTOM_WORDS * 4) : [], // words added in earlier games, from the socket layer
     history: [], // one entry per round, for the scoreboard
     recorded: false,
     createdAt: now,
@@ -217,6 +220,34 @@ export function setSettings(room, id, settings = {}) {
     room[key] = value;
   }
   return ok();
+}
+
+/**
+ * Somebody adds a word of their own to the game, in the lobby.  Anybody at the table may: it is their game.  A word
+ * already in the room (or already saved from an earlier game) is accepted quietly without being added twice, so
+ * nobody has to remember what they typed.
+ *
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is adding it
+ * @param {string} text  the word as typed
+ * @returns {{ ok: boolean, word?: string, error?: string, params?: object }} `word` is what was added (absent when it
+ *   was already there)
+ * Side effects: pushes onto room.customWords and counts it for the player.
+ */
+export function addWord(room, id, text) {
+  if (room.phase !== 'lobby') return fail('wordsBeforeStart');
+  const player = playerOf(room, id);
+  if (!player) return fail('notInGame');
+  const clean = textFrom(text).replace(/\s+/g, ' ').trim();
+  if (!clean) return fail('typeWord');
+  if ([...clean].length > CUSTOM_LENGTH) return fail('wordTooLong', { max: CUSTOM_LENGTH });
+  if (!CUSTOM_WORD.test(clean)) return fail('wordLetters');
+  const word = clean.toLowerCase();
+  if (room.customWords.length >= CUSTOM_WORDS) return fail('wordsFull', { max: CUSTOM_WORDS });
+  if (room.customWords.includes(word) || room.added.includes(word)) return ok();
+  room.customWords.push(word);
+  tallyWord(player, 'added');
+  return ok({ word });
 }
 
 /**
@@ -286,7 +317,11 @@ function shuffled(items, rng) {
  */
 function beginTurn(room, rng, now) {
   room.drawer = room.order[room.turn] ?? null;
-  room.choices = pickWords(room.wordChoices, room.used, rng, room.language);
+  // One of the words on offer comes from the words people have added, while there are any left unplayed: a word added
+  // to a game is a word somebody wants to see drawn, and it would never come up among five thousand others.
+  const mine = [...(room.customWords ?? []), ...(room.added ?? [])].filter((word) => !room.used.includes(word));
+  const own = mine.length ? [mine[Math.min(mine.length - 1, Math.floor(rng() * mine.length))]] : [];
+  room.choices = shuffled([...own, ...pickWords(room.wordChoices - own.length, [...room.used, ...own], rng, room.language)], rng);
   room.preChoice = Math.min(room.choices.length - 1, Math.floor(rng() * room.choices.length));
   room.word = null;
   room.hints = [];
@@ -322,10 +357,13 @@ function hintCount(word) {
  * @param {number | string} id  who is choosing (must be the drawer)
  * @param {number} n  which word, as its place in the list the drawer was shown
  * @param {number} now  the clock, for the drawing deadline
+ * @param {object} [options]
+ * @param {boolean} [options.manual]  false when the clock chose for them, which is not a choice and so counts for no
+ *   achievement (see tallyWord and module.json, "juvenile")
  * @returns {{ ok: boolean, error?: string }}
  * Side effects: sets word, used, hints, hintsLeft, hintsTotal, deadline, nextHintAt and phase ('drawing').
  */
-export function chooseWord(room, id, n, now) {
+export function chooseWord(room, id, n, now, { manual = true } = {}) {
   if (room.phase !== 'choosing') return fail('notChoosing');
   if (id !== room.drawer) return fail('drawerOnlyChooses');
   const place = numberFrom(n);
@@ -335,6 +373,7 @@ export function chooseWord(room, id, n, now) {
   room.used.push(word);
   const drawer = playerOf(room, room.drawer);
   if (drawer) drawer.drewThisRound = word;
+  if (drawer && manual && isJuvenile(word)) tallyWord(drawer, 'juvenile');
   room.choices = [];
   room.hints = [...word].map((ch) => ({ ch, fixed: ALWAYS_SHOWN.includes(ch), shown: ALWAYS_SHOWN.includes(ch) }));
   room.hintsTotal = hintCount(word);
@@ -426,6 +465,7 @@ export function guess(room, id, text, now) {
   }
   const quality = guessQuality(clean, room.word);
   player.tries = (player.tries ?? 0) + 1;
+  tallyGuess(player);
   if (quality === 'exact') {
     const points = guesserPoints(room, now);
     room.guessed.push({ id, points });
@@ -613,7 +653,7 @@ const unready = (room) => humans(room).filter((p) => !(room.ready ?? []).include
  * Side effects: as chooseWord, endTurn or nextTurn, whichever the phase calls for.
  */
 export function timeUp(room, rng, now, nameOf = String) {
-  if (room.phase === 'choosing') return chooseWord(room, room.drawer, room.preChoice, now);
+  if (room.phase === 'choosing') return chooseWord(room, room.drawer, room.preChoice, now, { manual: false });
   if (room.phase === 'drawing') {
     endTurn(room, 'timeUp', now);
     return ok();
@@ -678,6 +718,8 @@ function takeOver(room, oldId, bot, rng = Math.random) {
 export function migrate(room, nameOf) {
   migratePlayers(room, nameOf);
   room.used ??= [];
+  room.customWords ??= [];
+  room.added ??= [];
   room.order ??= [];
   room.guessed ??= [];
   room.feed ??= [];
@@ -834,7 +876,9 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     drawTime: room.drawTime,
     players: room.players.map((p) => playerView(room, p, { online, final, nameOf })),
     scoreboard: scoreboardView(room, userId, { online, nameOf }),
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES },
+    customWords: room.phase === 'lobby' ? [...(room.customWords ?? [])] : [],
+    savedWords: (room.added ?? []).length,
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, customWords: CUSTOM_WORDS, wordLength: CUSTOM_LENGTH },
     settings: { rounds: room.rounds, drawTime: room.drawTime, wordChoices: room.wordChoices },
   };
 }

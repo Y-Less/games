@@ -33,6 +33,7 @@ const EVENTS = {
   start: [],
   again: [],
   word: ['n'],
+  addWord: ['text'],
   guess: ['text'],
   ready: [],
   line: ['x', 'y', 'x2', 'y2', 'c', 'w'],
@@ -130,6 +131,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
       const guesser = members.find((p) => p !== drawer) ?? bob;
       const extra = {
         word: [{ n: 0 }, { n: 1 }, { n: -1 }, { n: 99 }, { n: '0' }, { n: 0.5 }],
+        addWord: [{ text: 'space hopper' }, { text: '' }, { text: 'x'.repeat(40) }, { text: '<script>alert(1)</script>' }, { text: "Anne's hat" }],
         guess: [{ text: 'house' }, { text: '   ' }, { text: 'x'.repeat(200) }, { text: 'two words here' }],
         line: [{ x: 0, y: 0, x2: 10, y2: 10, c: 0, w: 8 }, { x: -9999, y: 9999, x2: 0, y2: 0, c: 25, w: 32 }, { c: 26 }, { w: 1000 }],
         fill: [{ x: 5, y: 5, c: 3 }, { x: -1, y: 5, c: 3 }, { x: 1600, y: 900, c: 3 }],
@@ -146,7 +148,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
         acks += await fuzzEvent(who, event, fields, { secrets: hiddenWord, extra: extra ?? [] });
         assert.equal((await eve.call('resume', {})).ok !== 'timeout', true, 'the server is still answering');
         // These events can take the table apart, so the phase is set up again before the next attacker.
-        if (['create', 'leave', 'start', 'kick', 'join', 'resume', 'removeBot', 'fillBots', 'addBot', 'word', 'guess', 'ready'].includes(event)) await arrange(phase);
+        if (['create', 'leave', 'start', 'kick', 'join', 'resume', 'removeBot', 'fillBots', 'addBot', 'word', 'guess', 'ready', 'addWord'].includes(event)) await arrange(phase);
       }
     }
   }

@@ -127,6 +127,19 @@
     "badDrawing": "That is not something that can be drawn.",
     "rounds": "Play from {min} to {max} rounds.",
     "drawTime": "A drawing lasts from {min} to {max} seconds.",
-    "wordChoices": "The drawer chooses from {min} to {max} words."
+    "wordChoices": "The drawer chooses from {min} to {max} words.",
+    "typeWord": "Type a word first.",
+    "wordTooLong": "A word can be up to {max} characters.",
+    "wordLetters": "A word can have letters, numbers, spaces and hyphens in it.",
+    "wordsFull": "This game already has {max} words of its own.",
+    "wordsBeforeStart": "Words can only be added before the game starts."
+  },
+  "words": {
+    "title": "Words of your own",
+    "intro": "Add words for the table to draw. They are used in this game and kept for later ones; {saved} have been saved so far.",
+    "placeholder": "A word to draw",
+    "add": "Add",
+    "added": "The words added to this game",
+    "full": "That is as many words as one game takes ({max})."
   }
 }
