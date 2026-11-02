@@ -1,6 +1,6 @@
 # Nomination Whist simulations
 
-Run everything from the `platform` folder. Both runners use every core but one and are seeded: the same seed and options
+Run everything from the `platform` folder.  Both runners use every core but one and are seeded: the same seed and options
 give the same results.
 
 ## Whole games between AIs: `tourney.js`
@@ -9,17 +9,17 @@ give the same results.
 node modules/nomination-whist/sim/tourney.js --games 100000 --ai standard,counter,cautious,optimist
 ```
 
-`--ai` has one entry per seat (3 to 7 seats; AI ids are listed by `--help`). Seats are rotated from game to game and the
-first dealer is random, so position favours nobody. It plays the full 7..1,1..7 game (`--short` for 7..1), with 10 for
+`--ai` has one entry per seat (3 to 7 seats; AI ids are listed by `--help`).  Seats are rotated from game to game and the
+first dealer is random, so position favours nobody.  It plays the full 7..1,1..7 game (`--short` for 7..1), with 10 for
 making a nomination plus the nomination, one point per trick on a miss, and the instant win (nominate 7 and take all 7
-tricks in the first or last round wins the game on the spot; `--no-instant-win` turns it off). The table shows each AI's
+tricks in the first or last round wins the game on the spot; `--no-instant-win` turns it off).  The table shows each AI's
 mean score, win share (ties split), nomination hit rate, average nomination and tricks, and instant wins.
 
 `--jokers` shuffles the two Jokers in (see `rules.md`; the rules live in `../trick.js`).
 
 About 4,000 games a second with the quick AIs on a 24-thread machine; `sharp` is far slower.
 
-- `game.js` plays a round or a whole game with any AIs and an optional `observe` callback for every decision. AI contexts
+- `game.js` plays a round or a whole game with any AIs and an optional `observe` callback for every decision.  AI contexts
   are those of the live game plus `scores`, `round` and `rounds`.
 - `tournament.js` totals a range of games per AI (what the workers run, and what the tests call).
 
@@ -35,9 +35,9 @@ node modules/nomination-whist/sim/run.js --deals 20_000_000 --players 3-7 --out 
 node modules/nomination-whist/sim/train-bids.js --players 3-7 --in sim-out/whist                  # writes models/bidding.json
 ```
 
-For each player count (3 to 7), number of cards and trump suit, the table holds the chance of taking each number of tricks
+For each player count (3 to 7), number of cards, and trump suit, the table holds the chance of taking each number of tricks
 for a hand of a given estimated worth (the Standard AI's `estimateTricks`, in quarters of a trick), smoothed over
-neighbouring estimates where the data is thin. The `lut` AI (`ai/lut.js`) nominates the allowed number with the best expected
+neighbouring estimates where the data is thin.  The `lut` AI (`ai/lut.js`) nominates the allowed number with the best expected
 score from that row, so the dealer's forbidden number and the scoring options are applied when it plays. `lut` is in the
 simulation AI list (`ais.js`) but not in the live game's (`ai/index.js`) yet.
 
@@ -56,7 +56,7 @@ node modules/nomination-whist/sim/train-bids.js --jokers --players 3-7 --in sim-
 ```
 
 `run.js --jokers` shuffles the two Jokers in, gives the AIs `jokers: true` in their contexts, and uses the game's own
-Joker-aware trick winner and legal cards. The `hand` and `bids` tables (what the bidding table is trained from) count every hand,
+Joker-aware trick winner and legal cards.  The `hand` and `bids` tables (what the bidding table is trained from) count every hand,
 Jokers included; the per-card tables (`card`, `cardSuit`, `cardTrumps`, `play`) are keyed by the 52 cards, so the Jokers are left
 out of them, and `--dump` writes a Joker as byte 254. `--jokers` is part of the run's saved options, so `--resume` needs it again
 and a run without it is untouched. `lut` reads `bidding-jokers.json` when the game has Jokers and `bidding.json` otherwise; if
@@ -68,19 +68,19 @@ the Jokers file is missing, a Jokers game falls back to Standard's estimate (nev
 node modules/nomination-whist/sim/train-play.js --players 3-7 --iterations 3 --deals 20_000_000 --fresh
 ```
 
-Self-play learning of a card-play lookup table. Every seat plays the current table (Standard's play to start with), a few
+Self-play learning of a card-play lookup table.  Every seat plays the current table (Standard's play to start with), a few
 plays are replaced by a random legal card (`--epsilon`), and only those random plays are recorded, with the points the round
-turned out to be worth to the player (a random card is the only unbiased way to measure what a play is worth). Averaging
+turned out to be worth to the player (a random card is the only unbiased way to measure what a play is worth).  Averaging
 gives a value for each key from `play-features.js`: my need and slack, players after me, trumps or not, who is winning the
 trick and whether they want it, how many players after me want a trick or have made their number, and the card's role,
-whether it beats the table, whether it is a trump and how many unseen cards outrank it. The table (`models/play.json` and
+whether it beats the table, whether it is a trump and how many unseen cards outrank it.  The table (`models/play.json` and
 `play.bin`, 3.8 MB, a fine and a coarse level) is read by `ai/lut.js`; without the files the AI plays as Standard does.
 
-**Result so far:** it does not help. After 20 million deals per iteration, with 30% and then 3% random plays, the table
+**Result so far:** it does not help.  After 20 million deals per iteration, with 30% and then 3% random plays, the table
 plays no better than Standard's rules, and worse than Lookup's bidding table with Standard play (4 players: 94.3 against
-Standard's 95.0, where bidding alone scores 97.1 against 95.7), and extra iterations do not change that. So no `play.*`
-files are committed. Likely reasons: the keys do not say which cards the hand keeps for later (so a "good" play now may
-wreck the rest of the hand), they ignore the scores, and Standard's rules already play these situations well. Next steps
+Standard's 95.0, where bidding alone scores 97.1 against 95.7), and extra iterations do not change that.  So no `play.*`
+files are committed.  Likely reasons: the keys do not say which cards the hand keeps for later (so a "good" play now may
+wreck the rest of the hand), they ignore the scores, and Standard's rules already play these situations well.  Next steps
 worth trying are a richer hand description in the key, or a play AI that targets rivals directly using the scores.
 
 ## The bidding table with table state: `train-bids-context.js` and `models/bidding-context.json`
@@ -94,22 +94,22 @@ The same idea as the plain bidding table, but each cell also knows where you sit
 - **key**: Standard's estimate of the hand in quarters of a trick; in a one-card round the card itself.
 - **unclaimed**: the cards dealt minus the tricks the players before have already nominated (clamped to -2): a hand is worth
   more when they nominated low.
-- **after**: exactly how many players still nominate after you (0 is the dealer). The first to nominate leads the first
+- **after**: exactly how many players still nominate after you (0 is the dealer).  The first to nominate leads the first
   trick, and the dealer plays last, so this is your table position.
 
 Why the card itself in a one-card round: with 3 players and no trumps, whoever leads wins unless one of the two other cards is
-a higher card of the same suit, which for even a deuce is only 42% likely. So the leader should nominate 1 whatever the card
-(winning 58% or more beats the 50% break-even); `sim.test.js` checks the table says so for all 52 cards. It does not hold with
+a higher card of the same suit, which for even a deuce is only 42% likely.  So the leader should nominate 1 whatever the card
+(winning 58% or more beats the 50% break-even); `sim.test.js` checks the table says so for all 52 cards.  It does not hold with
 trumps: a low side card leading in a 3-player trump round wins about 26% of the time.
 
 The `lutc` AI reads the table (falling back to the plain one for cells nobody reached), and the suggested nomination shown to
-people on their turn comes from it. Over 10 million games of `lutc` against `lut` (standard card play, 2 million per player
+people on their turn comes from it.  Over 10 million games of `lutc` against `lut` (standard card play, 2 million per player
 count, odd counts split between both seat mixes), `lutc` wins at every count; its mean score is higher by about 3.5 at 3
 players, 4.0 at 4, 2.7 at 5, 1.6 at 6 and 1.2 at 7 (for example, 4 players: 99.9 against 95.9, win share 28.7% against 21.3%).
 
 Games with the strongest card player, `lutc-sharp` against `lut-sharp` in `tourney.js`, run at only about 38 games a second
 (Sharp simulates inside every card it plays), roughly 500 times slower than the others, so those comparisons use thousands of
-games, not millions. With Sharp's card play on every seat (20,000 games at 3 and 4 players, 10,000 at 5 to 7), `lutc-sharp`
+games, not millions.  With Sharp's card play on every seat (20,000 games at 3 and 4 players, 10,000 at 5 to 7), `lutc-sharp`
 still beats `lut-sharp` at every count, by about the same margins: 3.0 at 3 players, 3.5 at 4, 2.4 at 5, 1.3 at 6 and 1.0 at 7
 (4 players: 100.9 against 97.4, win share 28.2% against 21.8%), so the table trained on Standard's play carries over to strong play.
 
@@ -122,9 +122,9 @@ node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 10
 ```
 
 `lutc` (and the suggested nomination) read `bidding-context-jokers.json` when the game has Jokers and `bidding-context.json`
-when it does not; the two files are trained separately and neither affects the other. In a one-card round the key can be a
+when it does not; the two files are trained separately and neither affects the other.  In a one-card round the key can be a
 Joker, whose chance of taking the trick leading is far above a deuce's. `lutc-plain` is `lutc` held to the no-Jokers table even
-in a Jokers game, the baseline for the Jokers table. Without a Jokers table file the suggestion is simply not offered in a Jokers game.
+in a Jokers game, the baseline for the Jokers table.  Without a Jokers table file the suggestion is simply not offered in a Jokers game.
 
 ## The bid-value table: `train-values.js` and `models/bidding-values.json`
 
@@ -134,11 +134,11 @@ node modules/nomination-whist/sim/train-values.js --players 3-7 --deals 200_000_
 ```
 
 The earlier tables estimate how many tricks a hand tends to take if it nominates the usual number and plays to it, then score
-each nomination against that one distribution. That is wrong whenever the nomination changes how you play: nominating 1 with the
-queen of trumps and a deuce, and nominating 0 and trying to duck, are different games. This table learns what **each nomination is
+each nomination against that one distribution.  That is wrong whenever the nomination changes how you play: nominating 1 with the
+queen of trumps and a deuce, and nominating 0 and trying to duck, are different games.  This table learns what **each nomination is
 worth**: every deal is played with the table's best nomination by all the seats but one, which nominates a random allowed number
 instead, then everybody plays to what they nominated (Standard's card play), and for every nomination of every seat the cell of
-the decision, the number nominated and the tricks taken are counted. A nomination made by the table depends only on its cell and
+the decision, the number nominated, and the tricks taken are counted.  A nomination made by the table depends only on its cell and
 the others are random, so the average for a nomination in a cell is what it is worth there.
 
 The cell (`value-features.js`):
@@ -152,7 +152,7 @@ The cell (`value-features.js`):
 
 Each entry is the chance of hitting the nomination and the tricks taken on a miss, so the AI (`lutv`) scores a nomination as
 `pHit x (10 + n) + tricks on a miss` (or without the last part if a miss scores nothing) and nominates the best allowed number;
-it falls back to `lutc` where the table has no entry. Two iterations (the second playing the first's table) gave the same result.
+it falls back to `lutc` where the table has no entry.  Two iterations (the second playing the first's table) gave the same result.
 
 Over 200,000 games per player count against `lutc` (standard card play): 3 players 92.3 against 90.0, 4 players 98.7 against 96.5,
 5 players 103.6 against 100.1, 6 players 107.2 against 104.5, 7 players 109.9 against 107.5. For the queen of trumps with a
@@ -185,19 +185,19 @@ every card of the hand.
   The first layer is, in effect, a set of weights on every card value.
 - **What it says** (`hand-model.js`): for each nomination 0 to 7, the chance of hitting it exactly and the tricks taken on a
   miss, so a nomination is worth `chance x (10 + n) + tricks on a miss`, as in the bid-value table. `lutv` nominates the allowed
-  number worth most, and the suggested nomination is the same number. Without a model file `lutv` uses the bid-value table
+  number worth most, and the suggested nomination is the same number.  Without a model file `lutv` uses the bid-value table
   (`lutvTable`, AI id `lutv-table`), which it still falls back to.
 - **How it learns** (`hand-collect.js`, `train-hand.js`): every deal is played with the model's best nomination by all the seats
-  but one, which nominates a random allowed number, then everybody plays to what they nominated (Standard's card play). Every
+  but one, which nominates a random allowed number, then everybody plays to what they nominated (Standard's card play).  Every
   nomination of every seat is an example (features, number, tricks taken), and the network is trained on them as they arrive
   (a logistic loss on the hit, a squared loss on the tricks taken on a miss, Adam, a learning rate that decays within each
-  iteration). A nomination made by the model depends only on its features, and the others are random, so the example shows
-  what that nomination is worth for those features. The first iteration's opponents use the bid-value table.
+  iteration).  A nomination made by the model depends only on its features, and the others are random, so the example shows
+  what that nomination is worth for those features.  The first iteration's opponents use the bid-value table.
 
 **Result:** on the same 50 million nominations the table's predicted points are off by 3.87 (root mean square) and the
 model's by 3.68, and over 60,000 games per player count against `lutv-table` the model scores 95.2 against 91.5 at 3 players,
 102.3 against 97.9 at 4, 106.6 against 102.1 at 5, 110.2 against 105.6 at 6 and 113.1 against 108.4 at 7. It was as good after
-the first iteration as after the fourth. For the lone king of hearts with three small cards (4 players, first to nominate) it
+the first iteration as after the fourth.  For the lone king of hearts with three small cards (4 players, first to nominate) it
 values nominating 1 at 8.9 points and nominating 0 at 1.9.
 
 For games with the Jokers it is trained separately (`hand-values-jokers.json`, one iteration of 10 million deals with the Jokers shuffled
@@ -209,7 +209,7 @@ Jokers setting, and so does the suggested nomination.
 ## The last chance (`ai/endgame.js`)
 
 In the last round with the instant win on, a player who cannot win on points (even 17, the most a round gives, leaves them behind
-the best of the others) can only win by nominating 7 and taking all 7 tricks, so there is nothing to lose. This is not a rule that
+the best of the others) can only win by nominating 7 and taking all 7 tricks, so there is nothing to lose.  This is not a rule that
 forces a nomination: every card's weight in the hand estimate is turned up (`LAST_CHANCE_BOOST`, added in `estimateTricks`, and
 `countTricks`), so even a mediocre hand reads as very strong. **If those boosted weights give a nomination of 7, the player nominates
 7 and then plays for every trick; if they do not (a dealer who may not nominate 7, say) the boost is dropped and the player nominates

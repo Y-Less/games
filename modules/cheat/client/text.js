@@ -1,5 +1,5 @@
 // Wording shared by the "Recent moves" list (log.js) and the Status box (Table.vue), so that the same fact is always
-// written the same way. Everything is a message (shared/messages.js) that the table puts into words with `text()`.
+// written the same way.  Everything is a message (shared/messages.js) that the table puts into words with `text()`.
 import { msg } from '../../../shared/messages.js';
 
 /** The keys for what a call of "Cheat!" turned up: the log says "calls ... picks up", the Status box "called ... picked up". */
@@ -24,7 +24,7 @@ export function callMsg(call, nameOf, where = 'log') {
 }
 
 /**
- * Which copy of a card (first, second...) sits at a position in a hand. A hand can hold two copies of a card (two packs),
+ * Which copy of a card (first, second...) sits at a position in a hand.  A hand can hold two copies of a card (two packs),
  * so a card is picked by its position among equal ones.
  *
  * @param {string[]} hand  the cards in hand order

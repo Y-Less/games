@@ -1,8 +1,8 @@
 <script setup>
 // The end of the game: who won and a table breaking every player's score down, with the rules for private objectives and ties.
-// It scrolls inside itself if it is too big, so the page never grows. Attributes from the parent (the grid column) land on the box.
+// It scrolls inside itself if it is too big, so the page never grows.  Attributes from the parent (the grid column) land on the box.
 // Props: state (the server's view, finished), winners (the winners' names).
-// Emits: again (the host asks for another game), scores (open the score board pop-up). Side effects: none.
+// Emits: again (the host asks for another game), scores (open the score board pop-up).  Side effects: none.
 import { COLOUR_HEX } from './glyphs.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { rank } from './wording.js';

@@ -1,5 +1,5 @@
 // Rules-level gaps found by reading game.js against the existing tests: names, settings edges, leaving after the
-// game, returning to the lobby and kicking.
+// game, returning to the lobby, and kicking.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';

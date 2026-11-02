@@ -1,4 +1,4 @@
-// "Sharp": the strongest computer player. Every placement is valued as expected points:
+// "Sharp": the strongest computer player.  Every placement is valued as expected points:
 //   - the private objective (the shade of a die of its secret colour, or the flat 3 on "bad private scoring"),
 //   - progress on the public objectives (finished sets exactly, unfinished ones by how far along they are, and a
 //     penalty for breaking a row or column that was going well),
@@ -7,7 +7,7 @@
 //     space now is rewarded and shutting a neighbour in (or making a dead space) is charged,
 //   - a one-move look at what is left: the placements still possible with the other dice in the pool.
 // A favour token is worth one point at the end, so a tool is used only when it improves the best placement by more than
-// that. The window is chosen by tokens gained against the empty spaces its restrictions are expected to leave.
+// that.  The window is chosen by tokens gained against the empty spaces its restrictions are expected to leave.
 import { CELLS, ORTHOGONAL, legalCells, patternOf } from '../rules.js';
 import { chooseStep, fillChance, newDeadSpaces, privateOf, publicPotential, withDie } from './common.js';
 
@@ -53,7 +53,7 @@ export default {
     }, null).pid;
   },
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -85,7 +85,7 @@ export default {
         return { pattern, publicBefore: publicPotential(s, grid), privateBefore: privateOf(s, grid), chance: grid.map((_, i) => fillChance(grid, pattern, i)) };
       },
       /**
-       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * How good it is to put `die` on `cell` for this AI: higher is better.  Its own measure of a placement; see the
        * file header for what it values.
        *
        * @param {object} s     the snapshot

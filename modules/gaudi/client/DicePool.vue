@@ -1,8 +1,8 @@
 <script setup>
-// The draft pool: the dice still to be taken this round, as a grid of buttons. The room kept for it is fixed (enough rows for
+// The draft pool: the dice still to be taken this round, as a grid of buttons.  The room kept for it is fixed (enough rows for
 // the biggest possible pool), so nothing moves as dice are taken.
 // Props: pool (dice from the view), chosenIds (ids drawn as chosen), perRow (dice in a row), minHeight (px), dieSize (px).
-// Emits: pick (die) when a die is clicked or Enter is pressed. Side effects: none.
+// Emits: pick (die) when a die is clicked or Enter is pressed.  Side effects: none.
 import Die from './Die.vue';
 import { useGameText } from '../../../src/useGameText.js';
 

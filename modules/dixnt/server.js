@@ -4,7 +4,7 @@
 //   DIXNT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
 //
 // This module does not use createRoomServer (shared/roomServer.js): Dixnt is not seat-based (people join by code, keep
-// their seat if they leave mid-game, and a computer player can take it over), so it has its own small server. It
+// their seat if they leave mid-game, and a computer player can take it over), so it has its own small server.  It
 // follows the same house style: randomness is injected (ctx.rng, defaulting to Math.random here and nowhere else) and
 // the clock is Date.now.
 import { numberFrom, textFrom } from '../../shared/input.js';
@@ -72,7 +72,7 @@ function readBotDelay() {
  * @param {object} ctx  what the platform gives a module: io, mount, dataDir, codes, stats, achievements, log, and
  *                      optionally `rng` (a () => [0, 1) generator; defaults to Math.random)
  * @returns {{ dispose: () => void }} stops the timers and saves the games
- * Side effects: mounts /cards, loads the saved games, registers the socket handlers and starts the hourly sweep.
+ * Side effects: mounts /cards, loads the saved games, registers the socket handlers, and starts the hourly sweep.
  */
 export default function (ctx) {
   const rng = ctx.rng ?? Math.random; // the one place the default generator is chosen; the rules get it injected
@@ -101,7 +101,7 @@ export default function (ctx) {
 
   /**
    * The cards grouped into categories. cards/categories.json lists the categories; only cards whose image exists
-   * are offered. Without that file every card is one "All cards" category. The answer is cached for five seconds.
+   * are offered.  Without that file every card is one "All cards" category.  The answer is cached for five seconds.
    *
    * @returns {{ key: string, label: string | object, description: string, ids: number[] }[]} the label of the
    *          made-up "all cards" category is a message; the labels in categories.json are content and stay as they are
@@ -182,8 +182,8 @@ export default function (ctx) {
   }
 
   /**
-   * Loads the saved games from games.json, skipping ones nobody has touched for two weeks. A missing file just means
-   * there are no games yet. A file that cannot be parsed, or a game in it that cannot be restored, is logged and the
+   * Loads the saved games from games.json, skipping ones nobody has touched for two weeks.  A missing file just means
+   * there are no games yet.  A file that cannot be parsed, or a game in it that cannot be restored, is logged and the
    * file is copied to games.json.corrupt, so the damage is noticed and nothing is lost when the next save happens.
    *
    * @returns {void}
@@ -229,7 +229,7 @@ export default function (ctx) {
    * Writes every game to games.json straight away (to a temporary file first, then renamed over it).
    *
    * @returns {void}
-   * Side effects: writes files and cancels a pending scheduled save. Throws if the disk write fails.
+   * Side effects: writes files and cancels a pending scheduled save.  Throws if the disk write fails.
    */
   function saveNow() {
     clearTimeout(saveTimer);
@@ -279,7 +279,7 @@ export default function (ctx) {
    *
    * @param {string} code  the invite code
    * @returns {void}
-   * Side effects: replaces the game's timer; when it fires it plays a move, updates the statistics, broadcasts and saves.
+   * Side effects: replaces the game's timer; when it fires it plays a move, updates the statistics, broadcasts, and saves.
    */
   function schedule(code) {
     clearTimeout(timers.get(code));
@@ -367,7 +367,7 @@ export default function (ctx) {
   }
 
   /**
-   * Reports a finished game (winners, places, scores and the extra counters) to the platform's statistics.
+   * Reports a finished game (winners, places, scores, and the extra counters) to the platform's statistics.
    *
    * @param {object} entry  a game's entry in `games`
    * @param {string} code   the invite code (the game's identity in the statistics)
@@ -417,13 +417,13 @@ export default function (ctx) {
   }
 
   /**
-   * Keeps the statistics in step with the game after every change. Hands only change when cards are dealt, which
+   * Keeps the statistics in step with the game after every change.  Hands only change when cards are dealt, which
    * happens when a round starts, so the cards are collected once per round rather than after every action.
    *
    * @param {string} code   the invite code
    * @param {object} entry  a game's entry in `games`
    * @returns {void}
-   * Side effects: may collect cards, count a round, reset the tally (in the lobby) or record a finished game.
+   * Side effects: may collect cards, count a round, reset the tally (in the lobby), or record a finished game.
    */
   function track(code, entry) {
     const s = entry.game.s;
@@ -447,7 +447,7 @@ export default function (ctx) {
   }
 
   // ---- connections ----
-  // socket.id -> { code }: which game a connection is in. A player can have several sockets (phone and laptop).
+  // socket.id -> { code }: which game a connection is in.  A player can have several sockets (phone and laptop).
   const sessions = new Map();
 
   /**
@@ -510,7 +510,7 @@ export default function (ctx) {
    * @param {Function | any} ack  the client's acknowledgement callback (ignored if it is not a function)
    * @param {() => object | void} fn  does the work; may return extra fields for the answer and may throw a GameError
    * @returns {void}
-   * Side effects: replies, may discard a game with no people left, broadcasts and schedules a save. Other errors are
+   * Side effects: replies, may discard a game with no people left, broadcasts, and schedules a save.  Other errors are
    * logged and the client is told something went wrong.
    */
   function respond(socket, ack, fn) {
@@ -594,19 +594,19 @@ export default function (ctx) {
     return base;
   }
 
-  // One set of handlers per connection. Each event below is a request from the client; most go through action() so
+  // One set of handlers per connection.  Each event below is a request from the client; most go through action() so
   // they need a seat in the game, and every one answers through respond().
   ctx.io.on('connection', (socket) => {
     const user = socket.data.user;
     const token = tokenFor(user);
 
-    // Does a game with this code exist? (An invite link asks before showing the join button.)
+    // Does a game with this code exist?  (An invite link asks before showing the join button.)
     socket.on('lookup', (payload, ack) => {
       const code = ctx.codes.normalise(payload?.code);
       if (typeof ack === 'function') ack({ ok: true, code, exists: Boolean(code && games.has(code)) });
     });
 
-    // Reconnect: succeeds only if this account is still a player in that game. Without a code, the account's most
+    // Reconnect: succeeds only if this account is still a player in that game.  Without a code, the account's most
     // recently used unfinished game is chosen.
     socket.on('resume', (payload, ack) =>
       respond(socket, ack, () => {

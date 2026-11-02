@@ -39,7 +39,7 @@ const playCtx = (hand, sequence = [], extra = {}) => ({
   ...extra,
 });
 
-/** Every seat is a computer player; `ais` names each seat's AI. Returns the finished room. */
+/** Every seat is a computer player; `ais` names each seat's AI.  Returns the finished room. */
 function allBotGame(ais, { seed = 1, target = 61 } = {}) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target, seats: ais.length } });
   game.fillWithBots(room, 1);
@@ -229,7 +229,7 @@ test('tournament: sharp beats standard, and standard beats random', () => {
   assert.ok(sharpRandom.wins.sharp > sharpRandom.wins.random * 3, report[2]);
 });
 
-// ---- assignment, persistence and the view ----
+// ---- assignment, persistence, and the view ----
 
 function newRoom(seats = 4, seed = 4) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats } });

@@ -1,5 +1,5 @@
 <script setup>
-// Final screen of Nomination Whist: winner banner, ranked standings and a host-only "Play again" button.
+// Final screen of Nomination Whist: winner banner, ranked standings, and a host-only "Play again" button.
 // Props: state {Object, required} the player's view of the finished game; send {Function, required} sends a request to the server.
 // Emits: none (talks to the server via `send('again')`).
 // Slots: none.
@@ -13,7 +13,7 @@ const { t, list } = useGameText();
 
 // True when this player is the host (only they may restart).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
-// Map of seat -> finishing place (1 = best). An instant winner is forced to first and the others are ranked below them.
+// Map of seat -> finishing place (1 = best).  An instant winner is forced to first and the others are ranked below them.
 const places = computed(() => {
   // Returns a seat -> place map for the given seats, ranked by score.
   const all = (seats) => placements(Object.fromEntries(seats.map((s) => [s.seat, s.score])));

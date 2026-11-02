@@ -5,7 +5,7 @@
 import { computed } from 'vue';
 
 /**
- * The headline, the live message about your layout and the lines for between rounds.
+ * The headline, the live message about your layout, and the lines for between rounds.
  *
  * Side effects: none (computed values only).
  *

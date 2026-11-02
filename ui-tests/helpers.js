@@ -1,10 +1,10 @@
 // Shared plumbing for the browser UI tests (node:test + puppeteer-core).
 //
-// A test file calls createWorld() once (in `before`) and world.close() in `after`. A world is the real site started
+// A test file calls createWorld() once (in `before`) and world.close() in `after`.  A world is the real site started
 // in this process on a spare port with a temporary data folder and fast computer players, plus one headless Chrome.
 // Every simulated person is a User with a browser context of their own, so their cookies never mix.
 //
-// Chrome is found at CHROME_PATH, or in the usual Windows/macOS/Linux places. The built client (dist/) must exist: the
+// Chrome is found at CHROME_PATH, or in the usual Windows/macOS/Linux places.  The built client (dist/) must exist: the
 // helper runs `npm run build` once if it does not.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -268,7 +268,7 @@ export class User {
     );
   }
 
-  /** Fills in the New account form and submits it. Leaves the page wherever the site sends the new user. */
+  /** Fills in the New account form and submits it.  Leaves the page wherever the site sends the new user. */
   async register(username, { displayName = '', password = PASSWORD, expectUrl = true } = {}) {
     await this.waitForSelector('#username');
     await this.clickButton('New account', { exact: true });
@@ -326,7 +326,7 @@ export class User {
 }
 
 /**
- * Starts the site and Chrome. `env` adds or overrides environment variables read by the modules. Every account made in the
+ * Starts the site and Chrome. `env` adds or overrides environment variables read by the modules.  Every account made in the
  * world owns everything that is for sale (so tests that are not about the shop can choose any background, card back ...);
  * pass `shopLocked: true` for a test of the shop itself, where new accounts own only the free things, and
  * `achievementPopups: true` for a test that wants the unlock pop-ups to show.
@@ -397,7 +397,7 @@ export async function createWorld({ suite = 'ui', env = {}, shopLocked = false, 
 
 /**
  * Plays a game as a human: repeats `act()` (which clicks something and returns true, or returns false when there is
- * nothing to do yet) until `finished()` is true. Throws after `timeout` ms.
+ * nothing to do yet) until `finished()` is true.  Throws after `timeout` ms.
  */
 export async function drive({ act, finished, timeout = 90000, what = 'the game' }) {
   const deadline = Date.now() + timeout;

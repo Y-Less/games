@@ -1,5 +1,5 @@
-// The socket layer for Hearts. The rules live in game.js; the rooms, saving, views, joining and the lobby events are
-// the shared room server (shared/roomServer.js). This file says what is particular to Hearts: its settings, its own
+// The socket layer for Hearts.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are
+// the shared room server (shared/roomServer.js).  This file says what is particular to Hearts: its settings, its own
 // socket events (pass, play, claim, next), and what the server has to do by itself (a computer move, the end of a trick,
 // the wait for everyone to close the score pop-up between hands).
 //
@@ -13,7 +13,7 @@ import * as game from './game.js';
 /**
  * Reads the Hearts timings from the environment.
  *
- * @returns {{ bot: { min: number, max: number }, trick: number, nextWait: number }} computer-player range, trick pause and
+ * @returns {{ bot: { min: number, max: number }, trick: number, nextWait: number }} computer-player range, trick pause, and
  *   between-hands wait, all in milliseconds
  *
  * Side effects: none (reads process.env).

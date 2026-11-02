@@ -1,4 +1,4 @@
-// Unit tests for accounts: validation, hashing, sessions, throttling and the cookie helpers (no HTTP involved).
+// Unit tests for accounts: validation, hashing, sessions, throttling, and the cookie helpers (no HTTP involved).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';

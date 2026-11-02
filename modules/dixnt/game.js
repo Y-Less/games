@@ -1,33 +1,33 @@
-// Pure game rules for the Dixnt game. No networking in here, so it is easy to test.
+// Pure game rules for the Dixnt game.  No networking in here, so it is easy to test.
 //
 // Round flow:  word -> picking -> voting -> results -> (next round) word ...
 //   word        the chooser types a word or phrase
 //   picking     everyone except the chooser plays a card; one random player (the imposter) sees "???"
-//   voting      all cards and the real word are shown. The group talks, and anyone can vote at any time
-//               (changing their vote until the last vote is in). The round ends once everyone has voted.
+//   voting      all cards and the real word are shown.  The group talks, and anyone can vote at any time
+//               (changing their vote until the last vote is in).  The round ends once everyone has voted.
 //   results     the imposter is revealed and points are awarded
 //
 // Three play styles (the 'judging' setting), chosen by the host in the lobby:
-//   'everyone'  every player votes. The group is correct only if the imposter has strictly the most votes (a tie
-//               counts as wrong). If correct, each player who voted for the imposter scores POINTS_PER_VOTE. If
+//   'everyone'  every player votes.  The group is correct only if the imposter has strictly the most votes (a tie
+//               counts as wrong).  If correct, each player who voted for the imposter scores POINTS_PER_VOTE.  If
 //               wrong, the imposter scores POINTS_PER_VOTE for each other player who didn't vote for them.
-//   'chooser'   only the word-chooser votes. If they spot the imposter the chooser scores
+//   'chooser'   only the word-chooser votes.  If they spot the imposter the chooser scores
 //               CHOOSER_CORRECT_POINTS; if they are fooled the imposter scores CHOOSER_FOOLED_POINTS.
-//   'favourite' no imposter: everybody sees the word, and the chooser just picks the card they like best. The
+//   'favourite' no imposter: everybody sees the word, and the chooser just picks the card they like best.  The
 //               player who played it scores FAVOURITE_POINTS.
 //
 // The deck is built from the categories the host selects (cards come in categories; see getCategories below).
 //
 // Length: the game ends once every player has chosen the word `roundsEach` times (a round only counts as a turn
-// once it has been completed). Then the phase becomes 'finished' and the host can return everyone to the lobby.
+// once it has been completed).  Then the phase becomes 'finished' and the host can return everyone to the lobby.
 //
-// Randomness: nothing in this file calls Math.random. Every random choice (shuffles, the imposter, seat ids, the AIs'
+// Randomness: nothing in this file calls Math.random.  Every random choice (shuffles, the imposter, seat ids, the AIs'
 // fallbacks) goes through the `rng` the caller passes to the Game, so a test can make a whole game deterministic.
 // The server passes Math.random (or its own injected generator); see server.js.
 //
 // Seats: a seat is { id, kind, token, name, score, turns, hand, waiting, ai? }. `kind` is 'human' (an account) or
-// 'bot' (a computer player). Saves from before `kind` existed marked computer players with `bot: true`; the
-// constructor migrates those (see migrateSeats), so old saved rooms keep working. The view sent to clients still
+// 'bot' (a computer player).  Saves from before `kind` existed marked computer players with `bot: true`; the
+// constructor migrates those (see migrateSeats), so old saved rooms keep working.  The view sent to clients still
 // says `bot: true/false` for each seat, because that is the client's vocabulary.
 
 import { numberFrom, textFrom } from '../../shared/input.js';
@@ -65,7 +65,7 @@ const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 const ROUND_PHASES = ['word', 'picking', 'voting', 'results'];
 
 /**
- * The error the rules throw for anything a player did wrong. Its `message` is the refusal code (looked up under
+ * The error the rules throw for anything a player did wrong.  Its `message` is the refusal code (looked up under
  * `errors.` in the game's locale file and then the site's) and `params` the values that text needs; nothing in here
  * is ever a sentence, so the player reads it in their own language.
  */
@@ -162,7 +162,7 @@ export class Game {
    *        the cards currently available, grouped into categories
    * @param {() => number[]} [options.getCardIds] shortcut for a single category containing every card
    * @param {string[]} options.hints word/phrase suggestions for the chooser
-   * @param {() => number} options.rng a random number generator returning [0, 1). Required: the rules never use
+   * @param {() => number} options.rng a random number generator returning [0, 1).  Required: the rules never use
    *        Math.random themselves.
    * @param {object} [options.saved] a previously saved state (see toJSON)
    * Side effects: migrates and normalises `saved` in place (older saves are brought up to date).
@@ -193,7 +193,7 @@ export class Game {
   static blankState() {
     return {
       phase: 'lobby',
-      // { id, kind: 'human' | 'bot', token, name, score, turns, hand: number[], waiting: boolean, ai?: string }. A
+      // { id, kind: 'human' | 'bot', token, name, score, turns, hand: number[], waiting: boolean, ai?: string }.  A
       // computer player has kind 'bot', no account (its token is 'bot:<n>', which no user token can match) and, once a
       // game starts, the id of its AI.
       players: [],
@@ -205,7 +205,7 @@ export class Game {
       roundsEach: DEFAULT_ROUNDS_EACH, // how many times every player chooses the word
       completed: 0, // rounds finished so far (abandoned rounds don't count)
       // One entry per completed round, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
-      // Shown to everyone as the standard scoreboard. A player who leaves is removed from every entry, so the
+      // Shown to everyone as the standard scoreboard.  A player who leaves is removed from every entry, so the
       // table always adds up to the scores of the players still in the game.
       history: [],
       pointScale: 1, // 1 when points are the small numbers of today; a game saved with hundreds has none and is scaled down
@@ -225,7 +225,7 @@ export class Game {
 
   /**
    * Brings the seats of an older save up to date: a seat marked `bot: true` becomes `kind: 'bot'`, and every other
-   * seat becomes `kind: 'human'`. Safe to run on seats that are already migrated.
+   * seat becomes `kind: 'human'`.  Safe to run on seats that are already migrated.
    *
    * @returns {void}
    * Side effects: edits the seat objects in this.s.players (removing the old `bot` flag).
@@ -340,8 +340,8 @@ export class Game {
   }
 
   /**
-   * Is the round waiting for this player to do something? The chooser while the word is chosen, everybody still to play
-   * a card, then everybody still to vote. The scoreboard shows it as `current` and the site's `global.slow` clock
+   * Is the round waiting for this player to do something?  The chooser while the word is chosen, everybody still to play
+   * a card, then everybody still to vote.  The scoreboard shows it as `current` and the site's `global.slow` clock
    * reads it, so it must mean "it is your move", not "it is your round".
    *
    * @param {object} p  a seat
@@ -394,7 +394,7 @@ export class Game {
    * Keeps the deck in step with the cards on disk: new cards join the draw pile, missing ones vanish.
    *
    * @returns {void}
-   * Side effects: edits the draw pile, discard pile and every hand; may shuffle the draw pile.
+   * Side effects: edits the draw pile, discard pile, and every hand; may shuffle the draw pile.
    */
   syncCards() {
     const available = new Set(this.availableIds());
@@ -434,12 +434,12 @@ export class Game {
   // ---------- players and lobby ----------
 
   /**
-   * Seats a person. In a game that has started they wait for the next round.
+   * Seats a person.  In a game that has started they wait for the next round.
    *
    * @param {string} name   their display name (cleaned, and checked for length and for clashes)
    * @param {string} token  their account token
    * @returns {object} the new seat
-   * Side effects: adds a seat; the first person to sit becomes the host. Throws a GameError if the game is full or
+   * Side effects: adds a seat; the first person to sit becomes the host.  Throws a GameError if the game is full or
    * the name is unusable.
    */
   addPlayer(name, token) {
@@ -477,13 +477,13 @@ export class Game {
 
   /**
    * A bot running as its own process (bots/bot.js, signed in as an account) says which AI it plays with, when it joins
-   * and again at the start of every game. Stored on the seat and shown to everyone as { id, name } for that seat only.
+   * and again at the start of every game.  Stored on the seat and shown to everyone as { id, name } for that seat only.
    * Built-in computer players never call this: the game deals them an AI itself when it starts.
    *
    * @param {string} id    the seat id of the caller
    * @param {string} aiId  the id of one of the AIs in ./ai
    * @returns {void}
-   * Side effects: sets `ai` on the seat. Throws a GameError for an unknown AI or seat.
+   * Side effects: sets `ai` on the seat.  Throws a GameError for an unknown AI or seat.
    */
   setAI(id, aiId) {
     const player = this.requirePlayer(id);
@@ -512,7 +512,7 @@ export class Game {
   }
 
   /**
-   * A fresh computer-player seat (it gets an AI when a game starts, or when it takes over mid-game). It is not yet
+   * A fresh computer-player seat (it gets an AI when a game starts, or when it takes over mid-game).  It is not yet
    * added to the game.
    *
    * @returns {object} a seat with kind 'bot' and a name nobody else is using
@@ -532,7 +532,7 @@ export class Game {
    *
    * @param {string} byId  the seat id of the caller (must be the host)
    * @returns {{ id: string }} the new seat's id
-   * Side effects: adds a seat. Throws a GameError outside the lobby, for a non-host, or if the game is full.
+   * Side effects: adds a seat.  Throws a GameError outside the lobby, for a non-host, or if the game is full.
    */
   addBot(byId) {
     if (!this.isHost(byId)) fail('hostOnlyAddBots');
@@ -549,7 +549,7 @@ export class Game {
    * @param {string} byId     the seat id of the caller (must be the host)
    * @param {number} [target] how many players there should be; clamped between MIN_PLAYERS and MAX_PLAYERS
    * @returns {void}
-   * Side effects: adds seats. Throws a GameError outside the lobby or for a non-host.
+   * Side effects: adds seats.  Throws a GameError outside the lobby or for a non-host.
    */
   fillWithBots(byId, target = MIN_PLAYERS) {
     if (!this.isHost(byId)) fail('hostOnlyAddBots');
@@ -564,7 +564,7 @@ export class Game {
    * @param {string} byId      the seat id of the caller (must be the host)
    * @param {string} targetId  the seat id of the computer player
    * @returns {void}
-   * Side effects: removes a seat. Throws a GameError outside the lobby, for a non-host or if the seat is a person.
+   * Side effects: removes a seat.  Throws a GameError outside the lobby, for a non-host or if the seat is a person.
    */
   removeBot(byId, targetId) {
     if (!this.isHost(byId)) fail('hostOnlyRemoveBots');
@@ -590,16 +590,16 @@ export class Game {
   }
 
   /**
-   * A person leaves, or the host removes someone. While a round is on (or its results are showing) a computer player
-   * takes over a person's seat, keeping their hand, score and turns, so the game carries on at any size as long as
-   * another person is still there. In every other case (lobby, finished game, a late joiner still waiting, a computer
+   * A person leaves, or the host removes someone.  While a round is on (or its results are showing) a computer player
+   * takes over a person's seat, keeping their hand, score, and turns, so the game carries on at any size as long as
+   * another person is still there.  In every other case (lobby, finished game, a late joiner still waiting, a computer
    * player, or nobody else left) the seat is simply removed, as removePlayer does.
    *
    * @param {string} byId      the seat id of the caller
    * @param {string} targetId  the seat id of the person leaving
    * @returns {void}
    * Side effects: either converts the seat to a computer player (the host moves to another person if it was theirs)
-   * or removes it (see removePlayer). Throws a GameError if the caller may not do this.
+   * or removes it (see removePlayer).  Throws a GameError if the caller may not do this.
    */
   leave(byId, targetId) {
     const s = this.s;
@@ -612,15 +612,15 @@ export class Game {
   }
 
   /**
-   * Takes a player out of the game outright. The round carries on without them whenever it can (see repairRound); it
+   * Takes a player out of the game outright.  The round carries on without them whenever it can (see repairRound); it
    * is abandoned only if it genuinely cannot continue, and the game goes back to the lobby if fewer than MIN_PLAYERS
-   * are left. A finished game is left as it is (the others keep the final standings), whoever leaves.
+   * are left.  A finished game is left as it is (the others keep the final standings), whoever leaves.
    *
    * @param {string} byId      the seat id of the caller
    * @param {string} targetId  the seat id to remove
    * @returns {void}
    * Side effects: removes the seat, returns its hand to the discard pile, edits the scoreboard history, may move the
-   * host, and may move the round on, end it, or send the game to the lobby. Throws a GameError if the caller may not
+   * host, and may move the round on, end it, or send the game to the lobby.  Throws a GameError if the caller may not
    * remove that player.
    */
   removePlayer(byId, targetId) {
@@ -654,15 +654,15 @@ export class Game {
   }
 
   /**
-   * Fixes up the round in progress after a player in it has been removed. The round carries on if it can: their card
+   * Fixes up the round in progress after a player in it has been removed.  The round carries on if it can: their card
    * and vote are taken off the table, and if everyone who is left has now played (or voted) the round moves on at once.
    * It is abandoned (moving to the next chooser, scoring nothing) only when it needs the person who went: the chooser,
-   * the imposter (who alone saw "???"), the favourite or the accused in the results, or when too few card players are
+   * the imposter (who alone saw "???"), the favourite, or the accused in the results, or when too few card players are
    * left to hold a vote.
    *
    * @param {object} removed  the seat that has just been removed (it is no longer in s.players)
    * @returns {void}
-   * Side effects: edits picks, votes, tableOrder and results; may open voting, resolve the votes or call advance().
+   * Side effects: edits picks, votes, tableOrder, and results; may open voting, resolve the votes, or call advance().
    */
   repairRound(removed) {
     const s = this.s;
@@ -689,7 +689,7 @@ export class Game {
   }
 
   /**
-   * Can the current round go on now that `removed` has gone? (See repairRound for what it needs.)
+   * Can the current round go on now that `removed` has gone?  (See repairRound for what it needs.)
    *
    * @param {object} removed  the seat that has just been removed
    * @returns {boolean} false if the round cannot continue and must be abandoned
@@ -708,7 +708,7 @@ export class Game {
    * @param {string} byId  the seat id of the caller (must be the host)
    * @param {number} size  the new hand size
    * @returns {void}
-   * Side effects: sets s.handSize. Throws a GameError outside the lobby, for a non-host or an out-of-range size.
+   * Side effects: sets s.handSize.  Throws a GameError outside the lobby, for a non-host, or an out-of-range size.
    */
   setHandSize(byId, size) {
     if (!this.isHost(byId)) fail('hostOnlySettings');
@@ -724,7 +724,7 @@ export class Game {
    * @param {string} byId   the seat id of the caller (must be the host)
    * @param {number} count  how many times each player chooses the word
    * @returns {void}
-   * Side effects: sets s.roundsEach. Throws a GameError outside the lobby, for a non-host or an out-of-range count.
+   * Side effects: sets s.roundsEach.  Throws a GameError outside the lobby, for a non-host, or an out-of-range count.
    */
   setRounds(byId, count) {
     if (!this.isHost(byId)) fail('hostOnlySettings');
@@ -740,7 +740,7 @@ export class Game {
    * @param {string} byId  the seat id of the caller (must be the host)
    * @param {string} mode  one of JUDGING_MODES
    * @returns {void}
-   * Side effects: sets s.judging. Throws a GameError outside the lobby, for a non-host or an unknown mode.
+   * Side effects: sets s.judging.  Throws a GameError outside the lobby, for a non-host, or an unknown mode.
    */
   setJudging(byId, mode) {
     if (!this.isHost(byId)) fail('hostOnlySettings');
@@ -753,8 +753,8 @@ export class Game {
    * @param {string} byId   the seat id of the caller (must be the host)
    * @param {string[]} keys the category keys to use
    * @returns {void}
-   * Side effects: sets s.categories (in the standard order). Throws a GameError outside the lobby, for a non-host,
-   * for an unknown key or for an empty choice.
+   * Side effects: sets s.categories (in the standard order).  Throws a GameError outside the lobby, for a non-host,
+   * for an unknown key, or for an empty choice.
    */
   setCategories(byId, keys) {
     if (!this.isHost(byId)) fail('hostOnlySettings');
@@ -767,13 +767,13 @@ export class Game {
   }
 
   /**
-   * Starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs and begins
+   * Starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs, and begins
    * the first round.
    *
    * @param {string} byId  the seat id of the caller (must be the host)
    * @returns {void}
-   * Side effects: resets scores, turns, hands, history and the deck, and enters the 'word' phase. Throws a GameError
-   * for a non-host, a game that has started, too few players or too few cards.
+   * Side effects: resets scores, turns, hands, history, and the deck, and enters the 'word' phase.  Throws a GameError
+   * for a non-host, a game that has started, too few players, or too few cards.
    */
   start(byId) {
     const s = this.s;
@@ -808,7 +808,7 @@ export class Game {
    *
    * @param {string | null} [byId]  the seat id of the caller (must be the host); null when the rules do it themselves
    * @returns {void}
-   * Side effects: resets the round, the deck, scores, hands and history. Throws a GameError for a non-host.
+   * Side effects: resets the round, the deck, scores, hands, and history.  Throws a GameError for a non-host.
    */
   returnToLobby(byId = null) {
     const s = this.s;
@@ -843,7 +843,7 @@ export class Game {
    * Begins a round: everyone joins in, the next chooser is picked and everybody's hand is topped up.
    *
    * @returns {void}
-   * Side effects: increments s.round, picks s.chooserId, clears the table and enters the 'word' phase.
+   * Side effects: increments s.round, picks s.chooserId, clears the table, and enters the 'word' phase.
    */
   startRound() {
     const s = this.s;
@@ -875,7 +875,7 @@ export class Game {
    *
    * @param {string} byId  the seat id of the caller (must be the host)
    * @returns {void}
-   * Side effects: starts a new round. Throws a GameError for a non-host or when no round is under way.
+   * Side effects: starts a new round.  Throws a GameError for a non-host or when no round is under way.
    */
   abortRound(byId) {
     if (!this.isHost(byId)) fail('hostOnlySkip');
@@ -903,7 +903,7 @@ export class Game {
    * @param {string} id    the seat id of the caller (must be the chooser)
    * @param {string} word  the word or phrase
    * @returns {void}
-   * Side effects: sets s.word and s.imposterId and enters the 'picking' phase. Throws a GameError out of turn, for a
+   * Side effects: sets s.word and s.imposterId and enters the 'picking' phase.  Throws a GameError out of turn, for a
    * non-chooser, an empty or over-long word, or if nobody else is in the round to play a card (nothing is changed).
    */
   submitWord(id, word) {
@@ -922,12 +922,12 @@ export class Game {
   }
 
   /**
-   * A player puts a card from their hand on the table. When the last card is down, voting opens.
+   * A player puts a card from their hand on the table.  When the last card is down, voting opens.
    *
    * @param {string} id      the seat id of the caller
    * @param {number} cardId  the card to play
    * @returns {void}
-   * Side effects: records the pick (a player may change it until the last card is in) and may open voting. Throws a
+   * Side effects: records the pick (a player may change it until the last card is in) and may open voting.  Throws a
    * GameError out of turn, for the chooser or a waiting player, or for a card not in the hand.
    */
   playCard(id, cardId) {
@@ -944,7 +944,7 @@ export class Game {
    * Lays the cards out in a random order and opens voting.
    *
    * @returns {void}
-   * Side effects: sets s.tableOrder, clears s.votes and enters the 'voting' phase.
+   * Side effects: sets s.tableOrder, clears s.votes, and enters the 'voting' phase.
    */
   openVoting() {
     const s = this.s;
@@ -954,12 +954,12 @@ export class Game {
   }
 
   /**
-   * A player votes (or changes their vote). When the last needed vote is in, the round is resolved.
+   * A player votes (or changes their vote).  When the last needed vote is in, the round is resolved.
    *
    * @param {string} id        the seat id of the voter
    * @param {string} targetId  the seat id of the player whose card they suspect (or, when favouring, like best)
    * @returns {void}
-   * Side effects: records the vote and may resolve the round. Throws a GameError out of turn, for someone who may not
+   * Side effects: records the vote and may resolve the round.  Throws a GameError out of turn, for someone who may not
    * vote, a vote for oneself, or a vote for someone who played no card.
    */
   vote(id, targetId) {
@@ -985,7 +985,7 @@ export class Game {
   }
 
   /**
-   * Scores the round according to the play style (everyone, chooser or favourite) and shows the results.
+   * Scores the round according to the play style (everyone, chooser, or favourite) and shows the results.
    *
    * @returns {void}
    * Side effects: changes scores, s.results, the history, the chooser's turns, and enters the 'results' phase.
@@ -1088,7 +1088,7 @@ export class Game {
    *
    * @param {Object<string, object>} [notes]  the scoreboard remarks from roundNotes (messages)
    * @returns {void}
-   * Side effects: increments the chooser's turns and s.completed, adds a history row and enters 'results'.
+   * Side effects: increments the chooser's turns and s.completed, adds a history row, and enters 'results'.
    */
   completeRound(notes = {}) {
     const s = this.s;
@@ -1104,7 +1104,7 @@ export class Game {
    *
    * @param {string} id  the seat id of the caller (any player)
    * @returns {void}
-   * Side effects: moves cards to the discard pile, then as advance. Throws a GameError if the round is not over.
+   * Side effects: moves cards to the discard pile, then as advance.  Throws a GameError if the round is not over.
    */
   nextRound(id) {
     const s = this.s;
@@ -1175,7 +1175,7 @@ export class Game {
   }
 
   /**
-   * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }. Computer players
+   * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }.  Computer players
    * never start the game or move on from the results: the host does that, so they can never hold a game up.
    *
    * @returns {{ type: 'word' | 'card' | 'vote', id: string } | null}
@@ -1219,12 +1219,12 @@ export class Game {
   }
 
   /**
-   * Plays one pending computer move. Each decision is made from that seat's own view (viewFor), so a computer player
+   * Plays one pending computer move.  Each decision is made from that seat's own view (viewFor), so a computer player
    * knows only what a person in the same seat would: its hand, the clue (unless it is the imposter), the table.
    *
    * @param {{ type: string, id: string } | null} [action]  the move to play (default: whatever is pending)
    * @returns {boolean} false if there was nothing to do
-   * Side effects: submits a word, plays a card or votes, as that seat.
+   * Side effects: submits a word, plays a card, or votes, as that seat.
    */
   runBotAction(action = this.pendingBotAction()) {
     if (!action) return false;
@@ -1286,7 +1286,7 @@ export class Game {
   }
 
   /**
-   * The viewer's own seat: their hand, pick and vote, and whether they were the imposter (only once that is revealed).
+   * The viewer's own seat: their hand, pick, and vote, and whether they were the imposter (only once that is revealed).
    *
    * @param {object} me  the viewer's player
    * @returns {object}

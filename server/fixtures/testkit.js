@@ -1,6 +1,6 @@
 // Shared helpers for the server tests: temporary folders, a running site, a cookie-keeping HTTP client, sample images
-// and a writer for throw-away game modules. Not a test file itself.
-// Depends on: ../index.js (startSite), ../shop.js (allItems), socket.io-client and Node's fs, http, os and path.
+// and a writer for throw-away game modules.  Not a test file itself.
+// Depends on: ../index.js (startSite), ../shop.js (allItems), socket.io-client, and Node's fs, http, os, and path.
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -142,7 +142,7 @@ export function unlockEverything(db) {
 }
 
 /**
- * Starts a real site on a spare port in its own data folder. Options: modulesDir, distDir, env (set only while the
+ * Starts a real site on a spare port in its own data folder.  Options: modulesDir, distDir, env (set only while the
  * site starts, for TRUST_PROXY), dataDir, port, shopLocked (new accounts own nothing that is for sale).
  * @param {import('node:test').TestContext} t  the running test (the site is closed when it ends)
  * @param {{ modulesDir?: string, distDir?: string, env?: Record<string, string>, dataDir?: string, port?: number, shopLocked?: boolean }} [options]  as above
@@ -191,7 +191,7 @@ export async function withSite(t, options = {}) {
   });
 
   /**
-   * A tiny cookie-keeping HTTP client. Every call resolves to { status, data, headers }.
+   * A tiny cookie-keeping HTTP client.  Every call resolves to { status, data, headers }.
    * @returns {{ get: Function, post: Function, patch: Function, call: Function, raw: Function, cookie: () => string, setCookie: (value: string) => void, socket: (namespace: string) => object }}
    * Side effects: none until used; its requests set the cookie it keeps, and its sockets are closed when the test ends.
    */
@@ -259,7 +259,7 @@ export const connected = (socket) =>
     socket.once('connect_error', reject);
   });
 
-// Resolves with the error once a socket is refused; rejects if it connects. Side effects: none.
+// Resolves with the error once a socket is refused; rejects if it connects.  Side effects: none.
 export const refused = (socket) =>
   new Promise((resolve, reject) => {
     socket.once('connect', () => reject(new Error('the socket should have been refused')));

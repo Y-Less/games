@@ -1,7 +1,7 @@
 <script setup>
-// The Hearts lobby: the invite code, the seat list (shared SeatLobby) and the host's rules (number of players, target score,
+// The Hearts lobby: the invite code, the seat list (shared SeatLobby), and the host's rules (number of players, target score,
 // Jack of Diamonds, how shooting the moon scores).
-// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none.
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>).  Emits: none.
 // Slots: none (it fills SeatLobby's `settings` slot).
 // Side effects: the buttons and checkbox send 'settings'; the seat list sends 'addBot', 'removeBot', 'fillBots', 'kick', 'start'.
 import { computed } from 'vue';

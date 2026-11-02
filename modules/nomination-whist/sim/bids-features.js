@@ -2,7 +2,7 @@
 //   key        the hand: the Standard AI's estimate of its tricks in quarters; for a one-card round the card itself, because
 //              there the card and where you sit decide everything (see below)
 //   unclaimed  how many tricks the players before have left unclaimed, because a hand is worth more when they nominated low
-//   after      the exact number of players still to nominate after you. The first to nominate leads the first trick, and
+//   after      the exact number of players still to nominate after you.  The first to nominate leads the first trick, and
 //              the dealer nominates last and plays last, so this is your table position
 // Used by the collector and trainer (bids-collect.js, train-bids-context.js) and by the AI (ai/lut.js), so they cannot disagree.
 //

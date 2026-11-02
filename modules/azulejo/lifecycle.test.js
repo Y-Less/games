@@ -1,5 +1,5 @@
 // Azulejo over real sockets: simultaneous actions, one account on two sockets, disconnects, hosts leaving, rooms
-// disappearing under connected sockets, kicking, the one-game-per-account rule and leaving during the tiling phase.
+// disappearing under connected sockets, kicking, the one-game-per-account rule, and leaving during the tiling phase.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -12,7 +12,7 @@ const launch = (t) => launchModule(t, { id: 'azulejo', moduleDir: here });
 const oks = (replies) => replies.filter((r) => r.ok === true).length;
 const gameStats = (stats) => stats.perGame.find((g) => g.name === 'Azulejo');
 
-/** Ann (host), Bob and one computer player, started. */
+/** Ann (host), Bob, and one computer player, started. */
 async function started(t, { seats = 3, freeWall = false } = {}) {
   fast();
   const site = await launch(t);

@@ -1,16 +1,16 @@
 <script setup>
-// File: the player-details dialog opened from a score chip. Depends on: ../profiles.js (profileOf), AvatarFigure.vue, BotIcon.vue,
+// File: the player-details dialog opened from a score chip.  Depends on: ../profiles.js (profileOf), AvatarFigure.vue, BotIcon.vue,
 //   StyledName.vue.
 // Props: player ({ id, name, bot?, away?, isHost?, userId? }), canRemove (Boolean), error (String), anchor (Object|null, the chip element).
 // Emits: remove (after the host confirms).  Slots: default (the game's own panel about this player).
 // Side effects: reads layout (offsetParent, bounding rects) to position itself; resets its confirmation step on player or error change.
 // The standard dialog opened from a player's chip in the score bar (see usePlayerPopup.js, which owns the opening and
-// closing): a floating panel, centred at the top of the game's main area, over the table so that nothing moves. It
+// closing): a floating panel, centred at the top of the game's main area, over the table so that nothing moves.  It
 // shows who the player is (name, a computer icon for computer players, whether they are away, a "host" badge) and,
-// for the host, a "Remove player" button (or "Remove computer player") with an inline confirmation step. The default
+// for the host, a "Remove player" button (or "Remove computer player") with an inline confirmation step.  The default
 // slot is the game's own panel: whatever else is worth knowing about that player (their board, cards, tokens ...).
 // Give it `player` ({ id, name, bot?, away?, isHost? }), `canRemove` (true for the host looking at someone else) and
-// `error` (the reason the last removal was refused, if any). It emits `remove` once the host has confirmed.
+// `error` (the reason the last removal was refused, if any).  It emits `remove` once the host has confirmed.
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { profileOf } from '../profiles.js';
 import { useGameText } from '../useGameText.js';

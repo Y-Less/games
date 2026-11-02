@@ -1,7 +1,7 @@
 // The last round with the instant win on: if you cannot win on points, the only way to win the game is to nominate 7 and
-// then win all 7 tricks, so with a mediocre hand there is nothing to lose by going for it. This is not a rule that forces a
+// then win all 7 tricks, so with a mediocre hand there is nothing to lose by going for it.  This is not a rule that forces a
 // nomination: every card's weight is turned up so that the hand reads as very strong, and if the AI's usual judgement, given
-// those weights, would nominate 7, it does (and then plays to win every trick it needs). If it would nominate anything else
+// those weights, would nominate 7, it does (and then plays to win every trick it needs).  If it would nominate anything else
 // (a dealer who may not nominate 7, say), the boost is dropped and it nominates as usual: a 6 can no more win the game than a 0.
 
 /** The most one round can give anybody: 10 for a hit plus a nomination of 7. */
@@ -11,10 +11,10 @@ export const MOST_POINTS_IN_A_ROUND = 17;
 export const LAST_CHANCE_BOOST = 1;
 
 /**
- * Whether this player, nominating now, can no longer win on points. It needs the round's context: `instantWin` (this round can
+ * Whether this player, nominating now, can no longer win on points.  It needs the round's context: `instantWin` (this round can
  * end the game that way), `round` and `rounds` (so that it is the last round), `scores` (everybody's total before this round)
- * and `seat`. Even the most a round can give (17) must leave you behind the best of the others, who cannot score less than
- * nothing. Without the context (a simulation of single deals, say) it is false.
+ *, and `seat`.  Even the most a round can give (17) must leave you behind the best of the others, who cannot score less than
+ * nothing.  Without the context (a simulation of single deals, say) it is false.
  *
  * @param {object} ctx  the nomination context
  * @param {boolean} ctx.instantWin  whether a nomination of 7 that is made wins the game

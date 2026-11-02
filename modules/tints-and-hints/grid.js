@@ -1,14 +1,14 @@
 // Depends on nothing (no imports), so the browser can load it too.
 // The colour grid, shared by the server (what counts as a close guess) and the client (drawing it).
-// 52 columns by 24 rows. A square is a column name and a row number, such as "M9" or "AC14". Columns are named A to Z
+// 52 columns by 24 rows.  A square is a column name and a row number, such as "M9" or "AC14".  Columns are named A to Z
 // and then AA to AZ, and run round the colour wheel in equal steps; rows are numbered 1 to 24, from very dark and muted
-// (1) through vivid (about 13 to 15) to pale (24). Names are a run of letters followed by digits, so they are never
+// (1) through vivid (about 13 to 15) to pale (24).  Names are a run of letters followed by digits, so they are never
 // ambiguous.
 //
 // Colours are worked out in OKLCH, a space built so that equal steps look equal to the eye (its lightness is already
 // the cube root of linear light, so it is spread by how bright things look, not by the sRGB gamma of about 2.2).
 //   - Columns go round the hue in equal steps (360 / 52 degrees), starting at a red.
-//   - Rows rise in lightness in equal steps, from dark (0.34) to pale (0.94). The chroma is a fraction of the most that
+//   - Rows rise in lightness in equal steps, from dark (0.34) to pale (0.94).  The chroma is a fraction of the most that
 //     sRGB can show at that lightness and hue (eased along the row, see below): greyish at the top, rising to the fullest colour by about row 13,
 //     and then limited only by the gamut, which is what makes the paler rows pastel.
 // Every colour is a plain sRGB hex string, so it is the same in every browser.
@@ -91,8 +91,8 @@ function hexOf(L, chroma, hue) {
   return '#' + rgb.map((v) => Math.round(Math.min(1, Math.max(0, encode(Math.max(0, v)))) * 255).toString(16).padStart(2, '0')).join('');
 }
 // The most chroma sRGB can show peaks sharply at the corners of its gamut (the primaries and secondaries), which would
-// show up as creases across the rows. So along each row the limit is eased: the lowest limit within SMOOTH column either
-// way, then averaged over the same width. That can only come out at or under the real limit, so every colour stays
+// show up as creases across the rows.  So along each row the limit is eased: the lowest limit within SMOOTH column either
+// way, then averaged over the same width.  That can only come out at or under the real limit, so every colour stays
 // inside sRGB, and it changes smoothly from one hue to the next.
 const SMOOTH = 1;
 /**
@@ -106,7 +106,7 @@ const SMOOTH = 1;
  */
 const ringAt = (list, i) => list[((i % list.length) + list.length) % list.length];
 /**
- * Smooths a ring of per-column chroma limits: a minimum filter then an average of the same width. The minimum keeps
+ * Smooths a ring of per-column chroma limits: a minimum filter then an average of the same width.  The minimum keeps
  * the result at or under the true limit (so still in gamut); the average removes the creases the minimum leaves.
  *
  * @param {number[]} limits  the true maximum chroma of each column, in order
@@ -175,7 +175,7 @@ export const cellName = (col, row) => COLS[col] + ROWS[row];
 export const isCell = (cell) => parseCell(cell) !== null;
 
 /**
- * The colour of a square. The square must be valid (check with isCell first), or this throws.
+ * The colour of a square.  The square must be valid (check with isCell first), or this throws.
  *
  * @param {string} cell  a valid square name
  * @returns {string} an sRGB hex colour
@@ -188,7 +188,7 @@ export function cellColour(cell) {
 }
 
 /**
- * Within one square of the target, diagonals included. The hue does not wrap round from the last column to the first.
+ * Within one square of the target, diagonals included.  The hue does not wrap round from the last column to the first.
  *
  * @param {string} cell  the guessed square
  * @param {string} target  the secret square
@@ -204,7 +204,7 @@ export function isClose(cell, target) {
 
 /**
  * The name, in the 48 x 24 grid, of a square from the old 24 x 10 grid ("M4": columns A to X, rows 0 to 9), or null.
- * Used to migrate saved data from before the grid grew: columns double, rows double and move down 4.
+ * Used to migrate saved data from before the grid grew: columns double, rows double, and move down 4.
  *
  * @param {string} cell  an old-grid square name
  * @returns {string|null} the equivalent name, or null if it is not an old-grid square
@@ -247,11 +247,11 @@ export function fromV4Cell(cell) {
 }
 
 // ---------- 4 x 4 groups, for the computer players ----------
-// The grid is cut into blocks of 4 columns by 4 rows (13 by 6, 16 squares each). Each block has a plain-words colour
+// The grid is cut into blocks of 4 columns by 4 rows (13 by 6, 16 squares each).  Each block has a plain-words colour
 // description, such as "fir tree" or "ballet shoes", which a computer hinter gives and a computer guesser looks up.
 export const GROUP_SIZE = 4;
 // By object, not by colour name: one row per 27.7 degrees of the colour wheel from red, each with its five bands from
-// very dark to pale (the bands are the grid's rows 1-4, 5-8, 9-12, 13-16, 17-20 and 21-24).
+// very dark to pale (the bands are the grid's rows 1-4, 5-8, 9-12, 13-16, 17-20, and 21-24).
 const DESCRIPTIONS = [
   ['dried blood', 'brick dust', 'claret', 'fire engine', 'coral', 'blush'],
   ['dark chocolate', 'coffee', 'rust', 'pumpkin', 'apricot', 'peach'],
@@ -282,7 +282,7 @@ function groupOf(cell) {
 }
 
 /**
- * The description of a block, an object of a similar colour, e.g. "fir tree". Every block has a different one.
+ * The description of a block, an object of a similar colour, e.g. "fir tree".  Every block has a different one.
  *
  * @param {{col: number, row: number}} block  block indexes from 0
  * @returns {string} the description

@@ -1,15 +1,15 @@
 <script setup>
 // The Azulejo table: the display plates and the centre, your board (prominent) and everyone else's beside it, the
-// scoreboard, a log, the wall-tiling summary and the final breakdown. The server sends the view; every action is one
+// scoreboard, a log, the wall-tiling summary, and the final breakdown.  The server sends the view; every action is one
 // request: `move` (take a colour group and place it) or `column` (free wall only).
 //
 // Props:
-//   state  {Object}    required. The player's view of the game (phases playing, tiling, finished).
+//   state  {Object}    required.  The player's view of the game (phases playing, tiling, finished).
 //   send   {Function}  required. send(action, payload) returns a promise of { ok, error? } from the server.
 // Emits: none.
-// Slots: none (fills GameFrame's scorebar, main, log and status slots).
-// Side effects: sends `move`, `column`, `again`, `kick` and `removeBot` requests; keeps local selection/hover/message
-// state, cleared whenever the round, turn or phase changes; the player pop-up composable manages its own state.
+// Slots: none (fills GameFrame's scorebar, main, log, and status slots).
+// Side effects: sends `move`, `column`, `again`, `kick`, and `removeBot` requests; keeps local selection/hover/message
+// state, cleared whenever the round, turn, or phase changes; the player pop-up composable manages its own state.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -94,7 +94,7 @@ function describe(line) {
   return parts.join(' ');
 }
 
-// Per-line { ok, title } hints for the selected group: title is the reason it is refused, or what it would do. Null when not choosing.
+// Per-line { ok, title } hints for the selected group: title is the reason it is refused, or what it would do.  Null when not choosing.
 const lineHints = computed(() => {
   if (!sel.value || !myTurn.value || !me.value) return null;
   return Array.from({ length: 5 }, (_, i) => {
@@ -126,7 +126,7 @@ function pick({ source, colour }) {
  * Sends the selected group to a line (or the floor); on success clears the selection, otherwise shows the server's reason.
  * @param {number|string} line  Line index 0-4, or 'floor'.
  * @returns {Promise<void>}
- * Side effects: sends a `move` request; updates `sel`, `hover` and `message`.
+ * Side effects: sends a `move` request; updates `sel`, `hover`, and `message`.
  */
 async function place(line) {
   if (!sel.value) return;
@@ -201,7 +201,7 @@ const markerHolder = computed(() => s.value.seats.findIndex((x) => x && x.floor.
 const choose = computed(() => (s.value.phase === 'tiling' ? s.value.choice : null));
 
 // ---- fitting the room: everything is sized from the area the frame gives the table ----
-// Returns all the sizes derived from the frame's area: board cell, plate size, centre height and the pop-up board cell.
+// Returns all the sizes derived from the frame's area: board cell, plate size, centre height, and the pop-up board cell.
 // Pure: it only reads the area and the number of plates.
 const dims = (area) => {
   const { left, right } = area; // the frame's two columns, shared with the bars and the boxes below

@@ -1,8 +1,8 @@
-// The rules of Wavelength, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Wavelength, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
 //
 // A turn: the psychic sees a hidden target on a dial (0 is the left end, 100 the right) and gives a clue; everyone else
-// turns the dial to where they think it is. Once every guesser has locked in a guess the target is revealed and scored.
+// turns the dial to where they think it is.  Once every guesser has locked in a guess the target is revealed and scored.
 //
 // Depends on: shared/ (scores, tally, ai, markerColours, seats, roster) for the common room rules, ./ai (computer players),
 // ./scoring.js (the bands), ./spectra.js (the spectra and their example clues) and ./tally.js (the statistics counters).
@@ -28,11 +28,11 @@ export const MAX_PLAYERS = 8;
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 /** The longest clue, in characters; longer ones are cut (so a clue cannot swamp the table). */
 export const CLUE_LENGTH = 80;
-/** `solo`: everyone guesses alone. `team`: the guessers share one marker, move it together and lock it in. */
+/** `solo`: everyone guesses alone. `team`: the guessers share one marker, move it together, and lock it in. */
 const MODES = ['solo', 'team'];
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 // The scoring numbers (the bands, the most a turn can score, what a team must average to win) live in scoring.js so that the
-// client can import them too. They are re-exported here so everything about the rules can still be had from game.js.
+// client can import them too.  They are re-exported here so everything about the rules can still be had from game.js.
 export { BANDS, MAX_TURN_POINTS, TEAM_WIN_TURN_POINTS, maxScore, teamWinScore } from './scoring.js';
 /** The hidden target is always somewhere its whole outer band fits on the dial. */
 export const TARGET_RANGE = { min: 13, max: 87 };
@@ -87,8 +87,8 @@ const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 const guessers = (room) => room.players.filter((p) => p.id !== room.psychic);
 
 /**
- * Gives a bare player ({ kind, id, name }) the fields Wavelength keeps for everybody: the score, the statistics counters and
- * a marker colour. A computer player gets the first colour nobody has; a person gets the colour they prefer (`extras.colour`,
+ * Gives a bare player ({ kind, id, name }) the fields Wavelength keeps for everybody: the score, the statistics counters, and
+ * a marker colour.  A computer player gets the first colour nobody has; a person gets the colour they prefer (`extras.colour`,
  * already checked to be one they may use) if it is free, otherwise the first free one.
  *
  * @param {object} room     the room the player is about to join (read for the colours already taken; not changed)
@@ -174,7 +174,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     mode: 'solo',
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
-    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name and (once started) an ai id
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
     psychic: null,
     spectrum: null, // { id, left, right } of this turn (copied, so that a saved room never depends on the list)
     used: [], // the spectra already played this game
@@ -195,7 +195,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.  Somebody who leaves mid-game is replaced by
  * a computer player in their place, so no turn is lost (see takeOver).
  */
 const roster = createRosterRules({
@@ -210,7 +210,7 @@ const roster = createRosterRules({
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
 /**
- * The host changes the settings. Only the settings that are given are changed.
+ * The host changes the settings.  Only the settings that are given are changed.
  *
  * @param {object} room
  * @param {number} id        who is asking (must be the host)
@@ -229,7 +229,7 @@ export function setSettings(room, id, settings = {}) {
 }
 
 /**
- * Wavelength has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
+ * Wavelength has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
  *
  * @returns {{ ok: false, error: string }} always a refusal (the code of a message under `errors.`)
  *
@@ -300,14 +300,14 @@ export function setMode(room, id, mode) {
 
 /**
  * Sets up the next turn: the next person in the list becomes psychic, and a spectrum nobody has played this game (until all
- * have been used, then the list starts again) and a target are drawn. The target stays inside TARGET_RANGE so that the
+ * have been used, then the list starts again) and a target are drawn.  The target stays inside TARGET_RANGE so that the
  * whole outer band always fits on the dial.
  *
  * @param {object} room  the room to set up
  * @param {() => number} rng  random source for the spectrum and the target
  * @returns {void}
  *
- * Side effects: changes the psychic, nextIdx, used, spectrum, target and phase, and clears the clue, marker, guesses, result and ready list.
+ * Side effects: changes the psychic, nextIdx, used, spectrum, target, and phase, and clears the clue, marker, guesses, result and ready list.
  */
 function startTurn(room, rng) {
   room.psychic = room.players[room.nextIdx].id;
@@ -335,7 +335,7 @@ function startTurn(room, rng) {
  * The host starts the game: works out how many turns there will be, picks the first psychic, the first spectrum and target,
  * and gives every computer player an AI for the whole game.
  *
- * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the target and the AIs.
+ * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the target, and the AIs.
  *
  * @param {object} room
  * @param {number} id            who is asking (must be the host)
@@ -359,7 +359,7 @@ export function start(room, id, rng) {
 }
 
 /**
- * The psychic gives the clue, which opens the guessing. Whitespace is tidied and the clue cut to CLUE_LENGTH.
+ * The psychic gives the clue, which opens the guessing.  Whitespace is tidied and the clue cut to CLUE_LENGTH.
  *
  * @param {object} room  the room (must be in the clue phase)
  * @param {number} id  who is asking (must be the psychic)
@@ -379,7 +379,7 @@ export function setClue(room, id, text) {
 }
 
 /**
- * A guesser (solo mode) locks in a position on the dial. When the last guesser has done so the turn is scored.
+ * A guesser (solo mode) locks in a position on the dial.  When the last guesser has done so the turn is scored.
  *
  * @param {object} room  the room (must be in the guessing phase, in solo mode)
  * @param {number} id  who is guessing (not the psychic)
@@ -439,7 +439,7 @@ export function setMarker(room, id, position) {
 }
 
 /**
- * Team mode: any guesser locks the marker in where it is, which scores it for everyone. Every guesser gets the same position.
+ * Team mode: any guesser locks the marker in where it is, which scores it for everyone.  Every guesser gets the same position.
  *
  * @param {object} room  the room (team mode, guessing phase, marker already placed)
  * @param {number} id  who is locking it in (not the psychic)
@@ -459,7 +459,7 @@ export function lockIn(room, id, nameOf = String) {
 }
 
 /**
- * Scores the turn and opens the reveal. Each guesser scores for where they guessed; the psychic scores the average of the
+ * Scores the turn and opens the reveal.  Each guesser scores for where they guessed; the psychic scores the average of the
  * guessers' points (rounded), which rewards a clue that lets most people land near the target.
  *
  * @param {object} room  the room, with every guess in
@@ -492,7 +492,7 @@ function scoreTurn(room, nameOf = String) {
 
 /**
  * Appends the finished turn to room.history (the standard round shape of shared/scores.js), whose label and notes are
- * messages for the client to put into words (shared/messages.js). This only happens when
+ * messages for the client to put into words (shared/messages.js).  This only happens when
  * the turn is scored, i.e. at the reveal, so the history never shows anything the players have yet to see.
  * A turn that is skipped because its psychic left is never scored and so appends nothing.
  *
@@ -520,7 +520,7 @@ function recordHistory(room, nameOf) {
  * Brings a saved room up to date: players saved with `bot: true` become `kind: 'bot'` (and people saved without a name get
  * one from `nameOf`), and fields added since are filled in.
  *
- * Side effect: mutates the room. Running it twice changes nothing more.
+ * Side effect: mutates the room.  Running it twice changes nothing more.
  *
  * @param {object} room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
@@ -568,7 +568,7 @@ function finishTurn(room, rng) {
 const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
 
 /**
- * At the reveal, a person has closed the scores pop-up and is ready for the next turn. Once every person is ready
+ * At the reveal, a person has closed the scores pop-up and is ready for the next turn.  Once every person is ready
  * (computer players always are) the next turn starts, or the game finishes after the last one.
  *
  * @param {object} room  the room (must be at the reveal)
@@ -611,9 +611,9 @@ export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
  * Wavelength's part of a computer player taking the place of a person who left a game under way (the roster has already
- * put it in the list, with the person's score, counters and colour): it gets an AI, everything that named the person now
+ * put it in the list, with the person's score, counters, and colour): it gets an AI, everything that named the person now
  * names it (their turn as psychic, their guess, the team lock, the ready list, the history), and if the reveal was only
- * waiting for that person the next turn starts. Anything it now has to do (a clue, a guess) is picked up by pendingBotAction.
+ * waiting for that person the next turn starts.  Anything it now has to do (a clue, a guess) is picked up by pendingBotAction.
  *
  * Side effects: mutates the room (the bot, psychic, guesses, lockedBy, ready, result, history) and may start the next turn.
  *
@@ -652,7 +652,7 @@ export function standings(room) {
 }
 
 /**
- * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only. A team
+ * The statistics for a finished game, in the shape of ctx.stats.record.  Computer players are not accounts: people only.  A team
  * shares one score: it wins when it averaged at least the outer band a turn (see scoring.js), and loses otherwise.
  *
  * @param {object} room  a finished room (not changed)
@@ -739,7 +739,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
 }
 
 /**
- * What one person may see. Only the psychic knows the target until the reveal, and nobody sees anyone else's guess
+ * What one person may see.  Only the psychic knows the target until the reveal, and nobody sees anyone else's guess
  * until then either.
  *
  * @param {object} room  not changed
@@ -785,7 +785,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
 // ---------- computer players ----------
 
 /**
- * The next thing a computer player has to do, or null: { type: 'clue' | 'guess', id }. Computer players never move on
+ * The next thing a computer player has to do, or null: { type: 'clue' | 'guess', id }.  Computer players never move on
  * from the reveal: that is up to the people (or the server's timeout), so a computer player cannot hold the game up or
  * rush people past their results.
  *
@@ -811,8 +811,8 @@ export function pendingBotAction(room) {
 }
 
 /**
- * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser
- * never sees the target. An AI that throws or answers with something illegal is replaced by a random legal choice.
+ * Plays one pending computer move.  The decision is made from that seat's own view (viewFor), so a computer guesser
+ * never sees the target.  An AI that throws or answers with something illegal is replaced by a random legal choice.
  *
  * @param {object} room  the room
  * @param {() => number} rng  random source handed to the AI

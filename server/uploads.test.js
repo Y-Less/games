@@ -1,4 +1,4 @@
-// Uploaded pictures (backgrounds and card backs): size limit, type checks, replacement, ownership and how they are served.
+// Uploaded pictures (backgrounds and card backs): size limit, type checks, replacement, ownership, and how they are served.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

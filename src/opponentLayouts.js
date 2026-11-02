@@ -1,5 +1,5 @@
-// Where each opponent's face-down hand goes at a card table, by the number of opponents (see OpponentHands.vue). The
-// opponents are numbered clockwise from you (the player after you is 0). Left is listed bottom to top, the top row left
+// Where each opponent's face-down hand goes at a card table, by the number of opponents (see OpponentHands.vue).  The
+// opponents are numbered clockwise from you (the player after you is 0).  Left is listed bottom to top, the top row left
 // to right, and right top to bottom, which is clockwise round the table.
 // Depends on: nothing (read by OpponentHands.vue).
 // Shape: { [opponentCount]: { left: number[], top: number[], right: number[] } } of opponent indexes.

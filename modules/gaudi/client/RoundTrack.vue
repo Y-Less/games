@@ -1,8 +1,8 @@
 <script setup>
-// The round track: one slot per round holding the dice left over from that round. Exchange can take a die from it.
+// The round track: one slot per round holding the dice left over from that round.  Exchange can take a die from it.
 // Props: slots (array of dice arrays or null, one per round), round (the current round), finished (Boolean), mode (the tool in
 // use, or null), dieSize (px), chosenId (the track die chosen for Exchange, or null).
-// Emits: pick (die) when a die on the track is clicked. Side effects: none.
+// Emits: pick (die) when a die on the track is clicked.  Side effects: none.
 import Die from './Die.vue';
 import { useGameText } from '../../../src/useGameText.js';
 

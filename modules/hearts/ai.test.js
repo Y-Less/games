@@ -281,7 +281,7 @@ test('sharp flushes the Queen out safely and never leads a high spade that would
 });
 
 test('sharp holds back its high hearts and the Queen while one other player owns every point so far', () => {
-  // Seat 0 has taken five hearts and nobody else has taken a point: a moon is possible. Seat 0 is winning this trick and
+  // Seat 0 has taken five hearts and nobody else has taken a point: a moon is possible.  Seat 0 is winning this trick and
   // seat 2 cannot follow diamonds: giving them more points would help the moon, so the hearts and the Queen stay home.
   const base = {
     seat: 2,
@@ -317,7 +317,7 @@ test('sharp beats standard in a tournament of seeded games', () => {
   assert.ok(mixed.subjectScore < mixed.fieldScore, 'sharp does best against a mixed table too');
 });
 
-// ---- assigning, saving and restoring AIs ----
+// ---- assigning, saving, and restoring AIs ----
 
 /** Turns the human in seat 0 into a computer too (after the game has started), so that the game plays itself. */
 function allBots(room, ai) {

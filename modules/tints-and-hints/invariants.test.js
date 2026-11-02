@@ -17,7 +17,7 @@ const near = (cell, rng) => {
 };
 const snapshot = (room) => JSON.stringify(room);
 
-/** Plays one random game and returns what it saw. Every action is checked; an illegal one must change nothing. */
+/** Plays one random game and returns what it saw.  Every action is checked; an illegal one must change nothing. */
 function playRandomGame(seed) {
   const rng = seeded(seed);
   let nextId = 1;

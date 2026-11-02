@@ -1,5 +1,5 @@
 // Messages and refusals: what the server hands a client instead of a sentence (see shared/messages.js and MODULES.md,
-// Languages). The client turns these into words, so what matters here is that the shapes are right and that nothing a
+// Languages).  The client turns these into words, so what matters here is that the shapes are right and that nothing a
 // developer wrote can reach a player as it stands.
 import test from 'node:test';
 import assert from 'node:assert/strict';

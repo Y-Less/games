@@ -1,7 +1,7 @@
 // Garbage in: every socket event Cheat handles gets malformed payloads (with and without an ack, from members, a
-// non-member and a second socket) in the lobby, during play, during the final check and after the game. The server must
-// stay up, answer with a structured failure or a harmless success, keep the game valid, never leak a hand and finish a
-// normal game afterwards. (Hearts' robustness test is the model; the shape is the same for every card game.)
+// non-member and a second socket) in the lobby, during play, during the final check, and after the game.  The server must
+// stay up, answer with a structured failure or a harmless success, keep the game valid, never leak a hand, and finish a
+// normal game afterwards.  (Hearts' robustness test is the model; the shape is the same for every card game.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';

@@ -1,5 +1,5 @@
 // What a person can choose on their profile: the preset backgrounds and card backs, the animation level ranges, and the
-// checks that turn whatever a client sends into the clean value that is stored. (The browser does not repeat these
+// checks that turn whatever a client sends into the clean value that is stored.  (The browser does not repeat these
 // checks: it is told the presets by /api/config and the server is the only judge, so this is a server-side file.)
 import { numberFrom } from '../shared/input.js';
 import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
@@ -22,7 +22,7 @@ export const BACKGROUND_PRESETS = {
   pine: 'linear-gradient(170deg, #0b1611 0%, #111d19 100%)',
 };
 
-/** Card-back designs (CSS backgrounds). Card games draw every face-down card with the signed-in user's choice. */
+/** Card-back designs (CSS backgrounds).  Card games draw every face-down card with the signed-in user's choice. */
 export const CARD_BACK_PRESETS = {
   crimson:
     'repeating-linear-gradient(45deg, #8a2433 0 7px, #6b1a27 7px 14px), #6b1a27',
@@ -101,7 +101,7 @@ export function cleanNameStyle(input) {
 }
 
 /**
- * Checks the play-animations setting: true (always), false (never) or null (follow the device's own motion setting).
+ * Checks the play-animations setting: true (always), false (never), or null (follow the device's own motion setting).
  * @param {*} input  what the client sent
  * @returns {boolean | null}
  * @throws {AuthError} 400 for anything else

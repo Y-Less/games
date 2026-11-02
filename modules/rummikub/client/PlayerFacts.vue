@@ -1,6 +1,6 @@
 <script setup>
-// Another player's details (their tile count, first meld, score and whether it is their turn), in the panel of the standard
-// player pop-up that opens from their chip in the score bar. It floats over the main area, so nothing moves.
+// Another player's details (their tile count, first meld, score, and whether it is their turn), in the panel of the standard
+// player pop-up that opens from their chip in the score bar.  It floats over the main area, so nothing moves.
 // Props: popupProps (what usePlayerPopup gives the popup, or null when none is open), opened (the opened seat's view, or
 //   null), score (their score), playing (the game is in play), turn (whose turn it is).
 // Slots: none.

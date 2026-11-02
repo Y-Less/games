@@ -23,7 +23,7 @@ PATTERNS['test.mix'] = { pid: 'test.mix', card: 99, face: 1, name: 'Test mix', d
 
 const snapshot = (room) => JSON.stringify(room);
 
-/** A started game of n people where seat 0 is to move with a hand-picked pool, window and tokens. */
+/** A started game of n people where seat 0 is to move with a hand-picked pool, window, and tokens. */
 function lab(n = 2, { pid = 'test.blank', pool = [], tokens = 5, tools = ['lathe', 'exchange', 'refire'], seed = 3 } = {}) {
   const { room, rng } = playingRoom(n, { seed });
   for (let seat = 0; seat < n; seat++) setWindow(room, seat, pid);
@@ -635,7 +635,7 @@ test('tie-break 2: equal points, the higher private objective wins', () => {
   for (const bad of [false, true]) {
     const room = endRoom(3, { badPrivate: bad });
     room.privateColours = ['jade', 'ruby', 'topaz'];
-    // Seat 0 has a jade 6 (private); seat 1 an amethyst 6 (not its colour). Tokens even the totals out.
+    // Seat 0 has a jade 6 (private); seat 1 an amethyst 6 (not its colour).  Tokens even the totals out.
     fillWindow(room, 0, [[0, 0, 'jade', 6]]);
     fillWindow(room, 1, [[0, 0, 'amethyst', 6]]);
     const worth = bad ? 3 : 6;

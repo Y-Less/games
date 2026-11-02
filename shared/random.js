@@ -1,4 +1,4 @@
-// Small random-number helpers shared by the rules, the computer players and the tests. Nothing here calls Math.random
+// Small random-number helpers shared by the rules, the computer players, and the tests.  Nothing here calls Math.random
 // by itself: every function takes the `rng` it should use (a () => number in [0, 1)) so a game can be replayed from a seed.
 // (shuffle lives in cards.js, next to the decks it shuffles.)
 // Depends on: nothing (pure, no imports).
@@ -36,7 +36,7 @@ export function pickOne(list, rng) {
 
 /**
  * Chooses an item that has not been used yet; once every item has been used the memory is cleared and the choice starts
- * again from the whole list. Used for words, spectra and prompts that should not repeat until they have all been seen.
+ * again from the whole list.  Used for words, spectra and prompts that should not repeat until they have all been seen.
  * @template T
  * @param {T[]} list  every possible item
  * @param {T[]} used  the items already chosen (saved with the room); mutated

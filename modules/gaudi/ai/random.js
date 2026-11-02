@@ -17,7 +17,7 @@ export default {
    */
   chooseWindow: (options, rng) => pickOne(options, rng),
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -27,7 +27,7 @@ export default {
    * Side effects: none (other than advancing rng); the caller applies the returned step.
    */
   chooseStep(state, seat, rng) {
-    // One die per turn; stop once it is placed. (Random never uses a tool, so there is nothing else to try.)
+    // One die per turn; stop once it is placed.  (Random never uses a tool, so there is nothing else to try.)
     if (state.turn.placements >= 1) return { type: 'end' };
     const options = placementsOf(state, seat);
     if (!options.length) return { type: 'end' };

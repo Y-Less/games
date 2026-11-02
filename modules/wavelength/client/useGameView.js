@@ -1,5 +1,5 @@
 // What the Wavelength table knows about the game from the server's view, for the player looking at it: the phase, the
-// roles, who has guessed, the standings and the markers to draw. Nothing here changes anything.
+// roles, who has guessed, the standings, and the markers to draw.  Nothing here changes anything.
 // The few words it works out (a missing player's name, the psychic, the team's marker) come from the game's locale file
 // through useGameText (src/useGameText.js), so they read in the player's language.
 import { computed } from 'vue';
@@ -12,19 +12,19 @@ export const TEAM_MARKER = '#ffd400';
  * The facts about the game that the whole table shares.
  * Each is a computed value, so components re-render only when the part of the view they read changes.
  *
- * Side effects: none (computed values only; nothing is mutated, emitted or listened to).
+ * Side effects: none (computed values only; nothing is mutated, emitted, or listened to).
  *
  * @param {() => object} getState  returns the current server view (read inside computed values, so it stays reactive)
  * @returns {object} computed values: state, team, phase, isPsychic, clueTime, guessing, playing, ended, reveal, psychicName,
  *   guessers, guessedCount, mine, others, lastTurn, waitingFor, canGuess, standings, winners, myGuess, popupMarkers; and
- *   the functions nameOf(id), colourOf(id) and teamPin()
+ *   the functions nameOf(id), colourOf(id), and teamPin()
  */
 export function useGameView(getState) {
   const { t } = useGameText();
   // The server view itself.
   const state = computed(getState);
-  const team = computed(() => state.value.mode === 'team'); // the guessers share one marker, move it together and lock it in
-  // The current phase: lobby, clue, guessing, reveal, finished or abandoned.
+  const team = computed(() => state.value.mode === 'team'); // the guessers share one marker, move it together, and lock it in
+  // The current phase: lobby, clue, guessing, reveal, finished, or abandoned.
   const phase = computed(() => state.value.phase);
   // True if you are this turn's psychic (you can see the target but not guess).
   const isPsychic = computed(() => state.value.psychic === state.value.you);

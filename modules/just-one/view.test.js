@@ -1,6 +1,6 @@
 // What viewFor sends (see game.js) for each person and a stranger along whole seeded games with computers: the same views
 // every time for a seed, a scoreboard that lists everybody and marks only those the game is waiting for, and a fixed set of
-// parts. (These used to pin a SHA-1 of every view, which also pinned every computer decision and every field, so a
+// parts.  (These used to pin a SHA-1 of every view, which also pinned every computer decision and every field, so a
 // legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';

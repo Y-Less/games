@@ -1,6 +1,6 @@
 <script setup>
 // The panel beside the dial (under it on a narrow screen): the clue, the one action of the moment, the final scores and
-// the legend. The same blocks in every phase and for every role, so nothing moves: a block with nothing to show is empty.
+// the legend.  The same blocks in every phase and for every role, so nothing moves: a block with nothing to show is empty.
 // Props: state (the server view), view (the reactive game view), guess (the reactive guessing state), span (how many frame
 //   columns it takes).
 // Slots: none.

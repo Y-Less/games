@@ -1,5 +1,5 @@
 // Garbage in: every socket event of Tints and Hints, in every phase that is cheap to reach, from members and strangers,
-// is sent malformed payloads. The server must stay up, answer every time with a structured failure or a harmless
+// is sent malformed payloads.  The server must stay up, answer every time with a structured failure or a harmless
 // success, keep the game consistent, never reveal the hidden tint, and still be able to finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';

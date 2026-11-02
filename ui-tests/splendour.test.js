@@ -87,7 +87,7 @@ test('playing a whole game by clicking gems and cards: no pop-up between rounds,
     if (card && !document.querySelector('.supply .stack-btn.picked')) return card;
     return [...document.querySelectorAll('.supply button.stack-btn')].find((b) => b.getAttribute('aria-pressed') === 'false' && !/: 0 left/.test(b.getAttribute('aria-label')));
   };
-  // The boxes of the main areas, the page's overflow and the shell's scale, sampled all game long: each must only ever
+  // The boxes of the main areas, the page's overflow, and the shell's scale, sampled all game long: each must only ever
   // have one value (the recent-moves box in particular must not grow as moves are made).
   const seen = {};
   const probe = () =>

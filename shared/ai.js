@@ -1,5 +1,5 @@
 // Computer-player "AIs": each module keeps a list of named decision-making styles under modules/<id>/ai/.
-// When a game starts, every bot is given one of them for the whole game. This file only handles the registry
+// When a game starts, every bot is given one of them for the whole game.  This file only handles the registry
 // and the choosing; what an AI actually decides is defined by each game (see MODULES.md, "Computer players").
 //
 // An AI is a plain object: { id, name, description, weight?, ...game-specific decision functions }.

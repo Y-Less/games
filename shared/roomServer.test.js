@@ -1,5 +1,5 @@
 // Tests for the parts of shared/roomServer.js that need no sockets: a game's "what next" going wrong must never leave a room
-// stuck or throw out of a timer. (The rest of the room server is exercised through each module's own tests.)
+// stuck or throw out of a timer.  (The rest of the room server is exercised through each module's own tests.)
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
@@ -130,7 +130,7 @@ function fakeSocket(userId) {
 
 test('leaving a finished list game, or starting another one, leaves the finished room as old as it was', async (t) => {
   // The roster rules leave a finished game alone (the standings keep everybody) and say `changed: false`; the room server
-  // must then not stamp, save or re-send the room, or a finished room would be kept young for ever by its players moving on.
+  // must then not stamp, save, or re-send the room, or a finished room would be kept young for ever by its players moving on.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
   const old = { code: 'a-b-c', phase: 'finished', updatedAt: 1000, players: [{ kind: 'human', id: 7, name: 'Ann' }] };
   fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([old]));
@@ -209,7 +209,7 @@ test('the hourly sweep sends anybody still looking at a discarded room back to t
 
 test('a room already stale when the server starts is swept during start-up, not left to crash it', (t) => {
   // The start-up sweep runs while createRoomServer is still building its closure, so anything it reaches has to exist
-  // by then. A stale room with a person in it reaches detach, and through it every helper detach uses: a module whose
+  // by then.  A stale room with a person in it reaches detach, and through it every helper detach uses: a module whose
   // saved games had gone cold would otherwise fail to load at all, taking the whole game off the site.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
   const now = 10 * 24 * 60 * 60 * 1000; // ten days in, so a week-old room is well past its keep

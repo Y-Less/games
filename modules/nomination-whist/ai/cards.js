@@ -1,4 +1,4 @@
-// Card helpers shared by the Nomination Whist AIs. Pure functions over cards such as "QS", with no room or sockets.
+// Card helpers shared by the Nomination Whist AIs.  Pure functions over cards such as "QS", with no room or sockets.
 import { deckFor, isJoker, JOKERS, rankValue, suitOf } from '../../../shared/cards.js';
 import { winningCard } from '../trick.js';
 
@@ -33,8 +33,8 @@ export const highest = (cards, trump) => cards.reduce((a, b) => (strength(b, tru
 export const lowest = (cards, trump) => cards.reduce((a, b) => (strength(b, trump) < strength(a, trump) ? b : a));
 
 /**
- * No higher card of its suit is still out there: everything higher is in the hand or already played. A Joker is a
- * master unless the other Joker is still out (it could cancel it, or beat it if it led). When the Jokers are in play (`jokers`),
+ * No higher card of its suit is still out there: everything higher is in the hand or already played.  A Joker is a
+ * master unless the other Joker is still out (it could cancel it, or beat it if it led).  When the Jokers are in play (`jokers`),
  * no other card is a master while a Joker is still out.
  *
  * @param {string} card  the card to test

@@ -1,11 +1,11 @@
-// 'Standard': the original Hearts computer player. Leads low, ducks tricks that carry points, flushes out the Queen of
+// 'Standard': the original Hearts computer player.  Leads low, ducks tricks that carry points, flushes out the Queen of
 // Spades with low spades, dumps the Queen and high hearts when it cannot follow suit, and (rarely) chases every point
 // when its hand is overwhelming.
 import { rankValue, suitOf } from '../../../shared/cards.js';
 import { JACK, QUEEN, avoiding, highest, isHeart, isPointCard, lowest, passSize, playedSet, seatsIn } from './util.js';
 
 /**
- * Strong enough to try for all the points? Very rare: this is a gamble that only an overwhelming hand justifies. The
+ * Strong enough to try for all the points?  Very rare: this is a gamble that only an overwhelming hand justifies.  The
  * bar (written for 13 cards: five hearts, six kings or aces) scales with the number of cards in the hand.
  * @param {string[]} hand  the cards held (before passing).
  * @returns {boolean} true if the hand is overwhelming enough to go for the moon.
@@ -20,8 +20,8 @@ export function wantsMoon(hand) {
 
 /**
  * The cards to pass (3, or 2 with 6 or 7 players): the dangerous ones (Queen of Spades, high spades, high hearts), then
- * the highest others. A moon-worthy hand passes its lowest cards instead, keeping the strength.
- * @param {object} ctx  AI context (see index.js); uses hand, settings and passCount.
+ * the highest others.  A moon-worthy hand passes its lowest cards instead, keeping the strength.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings, and passCount.
  * @returns {string[]} the cards to pass.
  * Side effects: none.
  */
@@ -30,7 +30,7 @@ export function passStandard(ctx) {
   const count = passSize(ctx);
   if (wantsMoon(hand)) return [...hand].sort((a, b) => rankValue(a) - rankValue(b)).slice(0, count);
   const spades = hand.filter((c) => suitOf(c) === 'S');
-  // How much this card wants to be passed (higher = worse to keep). A long spade suit makes the Queen's spades safe to keep.
+  // How much this card wants to be passed (higher = worse to keep).  A long spade suit makes the Queen's spades safe to keep.
   const danger = (card) => {
     if (card === QUEEN) return 100;
     if (settings?.jackOfDiamonds && card === JACK) return -100;
@@ -43,9 +43,9 @@ export function passStandard(ctx) {
 }
 
 /**
- * Standard play: lead low and safe, duck point tricks, and when void dump the most dangerous card. When this seat has
+ * Standard play: lead low and safe, duck point tricks, and when void dump the most dangerous card.  When this seat has
  * bid the moon (ctx.chasingMoon) it does the reverse and wins tricks.
- * @param {object} ctx  AI context (see index.js); uses legal, trick, seat, hand, settings, chasingMoon, taken and rng.
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, seat, hand, settings, chasingMoon, taken, and rng.
  * @returns {string} one card from ctx.legal.
  * Side effects: advances ctx.rng (random choice between equally low leads).
  */

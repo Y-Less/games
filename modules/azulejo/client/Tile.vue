@@ -1,13 +1,13 @@
 <script setup>
-// One tile, drawn in SVG. Every colour has its own pattern so that colour is never the only clue:
+// One tile, drawn in SVG.  Every colour has its own pattern so that colour is never the only clue:
 // 0 Cobalt: nested diamonds, 1 Saffron: a sun, 2 Terracotta: a four-petal flower, 3 Verdigris: a lattice, 4 Plum: waves.
 // colour -1 is the first-player marker (a golden medallion). `ghost` draws a faint hint of the tile that belongs somewhere.
 //
 // Props:
-//   colour  {number}   required. Tile colour index 0-4, or -1 for the first-player marker.
+//   colour  {number}   required.  Tile colour index 0-4, or -1 for the first-player marker.
 //   size    {number}   width and height in pixels (default 40).
 //   ghost   {boolean}  draw faintly, as a placeholder hint (default false).
-// Emits: none. Slots: none.
+// Emits: none.  Slots: none.
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';

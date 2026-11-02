@@ -1,5 +1,5 @@
 <script setup>
-// The row of buttons under the pool: End turn, Undo turn and, while a tool is in use, that tool's own buttons. The row has a
+// The row of buttons under the pool: End turn, Undo turn and, while a tool is in use, that tool's own buttons.  The row has a
 // fixed height, so buttons appearing never move anything.
 // Props: myTurn (Boolean), canUndo (Boolean), mode (the tool in use, or null), modeDie (the pool die chosen for it, or null),
 // toolParams (what the tool would send, null while something is still to be chosen).

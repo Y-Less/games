@@ -4,14 +4,14 @@
 //   { kind: 'human', id: <account id>, name }   a person,
 //   { kind: 'bot', id: 'bot:<n>', name, ai }    a computer player (`replaced: true` when it took over from a person),
 //   { kind: 'gone', id: null, name }            a person who left after the game ended (kept so the final scores make sense).
-// Every occupied seat also carries this game's own fields: score, back (the back peg), ready, discarded and stats.
+// Every occupied seat also carries this game's own fields: score, back (the back peg), ready, discarded, and stats.
 // The join / leave / kick / computer-player rules are the shared ones (shared/seats.js); this file adds what is
-// particular to Cribbage. Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
+// particular to Cribbage.  Functions that can fail return { ok: false, error }; the rest return { ok: true, ... }.
 //
 // Nothing here is a sentence: a refusal is a code under `errors.` (the game's locale file first, then the site's) and
 // anything the client shows (a log line, a scoreboard label, a scoring item) is a message from shared/messages.js.
 //
-// Depends on shared/ (cards, ai, messages, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting) and ./tally.js.
+// Depends on shared/ (cards, ai, messages, moveLog, scores, seats, tally), ./ai (computer players), ./scoring.js (counting), and ./tally.js.
 import { textFrom } from '../../shared/input.js';
 import { fullDeck, isCard, rankOf, shuffle } from '../../shared/cards.js';
 import { AIS } from './ai/index.js';
@@ -157,7 +157,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 }
 
 /**
- * Is the game still going (or yet to start)? A finished game is not resumed and is thrown away sooner.
+ * Is the game still going (or yet to start)?  A finished game is not resumed and is thrown away sooner.
  *
  * @param {object} room
  * @returns {boolean}
@@ -166,8 +166,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 export const isLive = (room) => room.phase !== 'finished';
 
 /**
- * Brings a room saved in the old shape up to date when the server loads it. The old shape had seats as a packed list of
- * { userId, bot, botId, left, ... } (no empty seats), `seatCount` and `botsMade`. Rooms already in the new shape are
+ * Brings a room saved in the old shape up to date when the server loads it.  The old shape had seats as a packed list of
+ * { userId, bot, botId, left, ... } (no empty seats), `seatCount`, and `botsMade`.  Rooms already in the new shape are
  * returned untouched, so this is safe to run on every load.
  *
  * Side effects: mutates and returns the room it is given.
@@ -198,7 +198,7 @@ export function migrate(room) {
 // ---- seats and settings ----
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones. In Cribbage a person who leaves in the
+ * The seat rules (join, leave, kick, computer players) are the shared ones.  In Cribbage a person who leaves in the
  * middle of a game is replaced by a computer player that keeps their name, pegs and cards and gets an AI of its own;
  * a person who leaves after the game is kept as a 'gone' marker so the scores still make sense; and if they were the
  * only person the show was waiting for, the next hand is dealt.
@@ -262,7 +262,7 @@ export function fillWithBots(room, userId) {
 }
 
 /**
- * The host changes how far to play and/or how many seats there are. Lobby only.
+ * The host changes how far to play and/or how many seats there are.  Lobby only.
  *
  * Side effects: may change the room's target and grow or shrink its seats (shrinking closes up gaps if it has to).
  *
@@ -288,7 +288,7 @@ export function setSettings(room, userId, { target, seats: count } = {}) {
 // ---- scoring and the log ----
 
 /**
- * Adds a line to the room's log (the "Recent moves" box), keeping only the latest LOG_LIMIT lines. A line is
+ * Adds a line to the room's log (the "Recent moves" box), keeping only the latest LOG_LIMIT lines.  A line is
  * `{ seat, points, key, params }`: a message (see shared/messages.js) the client puts into words, with who it is about
  * and what it scored.
  *
@@ -305,7 +305,7 @@ function log(room, seat, message, points = 0) {
 }
 
 /**
- * Closes the hand's entry in the history: what each seat scored in it (pegging, heels, hands and box).
+ * Closes the hand's entry in the history: what each seat scored in it (pegging, heels, hands, and box).
  *
  * Side effects: appends to room.history and clears room.handDeltas.
  *
@@ -320,7 +320,7 @@ function commitHand(room) {
 /**
  * Ends the game with this seat as the winner.
  *
- * Side effects: sets the phase to 'finished', records the winner, clears the play and closes the hand's history entry.
+ * Side effects: sets the phase to 'finished', records the winner, clears the play, and closes the hand's history entry.
  *
  * @param {object} room
  * @param {number} seat  the winning seat
@@ -334,11 +334,11 @@ function finish(room, seat) {
 }
 
 /**
- * Pegs points for a seat. The back peg moves to where the front peg was, but only when something is actually scored (a
+ * Pegs points for a seat.  The back peg moves to where the front peg was, but only when something is actually scored (a
  * zero-point award leaves both pegs, so the board still shows the last real move); the game ends the moment the target
  * is reached, and any remaining entries are not scored.
  *
- * Side effects: changes the seat's score, back peg and tally, the hand's deltas and the log, and may finish the game.
+ * Side effects: changes the seat's score, back peg, and tally, the hand's deltas and the log, and may finish the game.
  *
  * @param {object} room
  * @param {number} seat  who scores
@@ -368,10 +368,10 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
 // ---- dealing ----
 
 /**
- * Deals a new hand: shuffles, deals each seat its cards, sets the box aside and starts the discard phase.
+ * Deals a new hand: shuffles, deals each seat its cards, sets the box aside, and starts the discard phase.
  *
- * Side effects: replaces the deck, hands, box and per-hand state, bumps room.handNo and every seat's handsPlayed tally,
- * and resets each seat's ready / discarded flags. Uses rng for the shuffle.
+ * Side effects: replaces the deck, hands, box, and per-hand state, bumps room.handNo and every seat's handsPlayed tally,
+ * and resets each seat's ready / discarded flags.  Uses rng for the shuffle.
  *
  * @param {object} room
  * @param {() => number} rng
@@ -399,10 +399,10 @@ function deal(room, rng) {
 }
 
 /**
- * The host starts the game: every seat must be filled and at least one must be a person. The pegs go back to the start,
+ * The host starts the game: every seat must be filled and at least one must be a person.  The pegs go back to the start,
  * a dealer is chosen at random, the first hand is dealt and each computer player picks its AI.
  *
- * Side effects: mutates the room (deals, assigns AIs); uses rng for the dealer, the shuffle and the AIs.
+ * Side effects: mutates the room (deals, assigns AIs); uses rng for the dealer, the shuffle, and the AIs.
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
@@ -467,7 +467,7 @@ export function playAgain(room, userId) {
 }
 
 /**
- * A seat puts its discards into the box. When every seat has discarded, the starter is cut and the play begins.
+ * A seat puts its discards into the box.  When every seat has discarded, the starter is cut and the play begins.
  *
  * Side effects: moves the cards from the hand to the box, updates the tally, and may begin the play (using rng for the cut).
  *
@@ -493,7 +493,7 @@ export function discard(room, seat, cards, rng) {
 }
 
 /**
- * Cuts the starter and starts the play (pegging). Turning up a jack scores two for the dealer ("his heels").
+ * Cuts the starter and starts the play (pegging).  Turning up a jack scores two for the dealer ("his heels").
  *
  * Side effects: sorts the box, snapshots the kept hands, takes the starter from the deck, sets the phase to 'play' and may score.
  *
@@ -547,7 +547,7 @@ function resetSequence(room) {
 }
 
 /**
- * A seat plays a card in the pegging. It is scored, and the turn passes on (or the play or game ends).
+ * A seat plays a card in the pegging.  It is scored, and the turn passes on (or the play or game ends).
  *
  * Side effects: moves the card from the hand to the sequence, scores points, and may end the play or the game.
  *
@@ -813,7 +813,7 @@ function chooseSafely(room, seat, choose, isValid, lastResort) {
 }
 
 /**
- * Makes the pending computer player's move. An AI that answers illegally (or throws) is overruled by the standard one,
+ * Makes the pending computer player's move.  An AI that answers illegally (or throws) is overruled by the standard one,
  * and if that fails too a plain legal move is made instead.
  *
  * Side effects: plays or discards for the computer player (see discard and playCard).
@@ -888,11 +888,11 @@ function seatView(room, i, online) {
 
 /**
  * The viewer's hand and the cards on the table: the crib and deck sizes (never their contents), the starter, the play so far
- * and the scoring being shown.
+ *, and the scoring being shown.
  *
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
- * @returns {object} `hand`, `need`, `cribCount`, `deckCount`, `starter`, `play` and `show`
+ * @returns {object} `hand`, `need`, `cribCount`, `deckCount`, `starter`, `play`, and `show`
  * Side effects: none.
  */
 function handView(room, me) {
@@ -910,7 +910,7 @@ function handView(room, me) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js): the players, the deals scored so far and the target.
+ * The standard scoreboard (shared/scores.js): the players, the deals scored so far, and the target.
  *
  * @param {object} room  not changed
  * @param {number} me  the viewer's seat, or -1
@@ -929,7 +929,7 @@ function scoreboardView(room, me, online) {
 }
 
 /**
- * What one person may see. Other players' hands and discards stay hidden until the show. In the lobby an empty seat is
+ * What one person may see.  Other players' hands and discards stay hidden until the show.  In the lobby an empty seat is
  * null; once the game has started every seat is filled (or, after the game, marked as left).
  *
  * @param {object} room
@@ -961,7 +961,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
 }
 
 /**
- * The result of a finished game for ctx.stats.record: people only (computer players, replaced people and people who
+ * The result of a finished game for ctx.stats.record: people only (computer players, replaced people, and people who
  * have left are not recorded).
  *
  * @param {object} room  a finished room

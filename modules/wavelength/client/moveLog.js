@@ -1,5 +1,5 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
-// with the one before, and what changed becomes a line. Nothing here needs the server to keep a log.
+// with the one before, and what changed becomes a line.  Nothing here needs the server to keep a log.
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by the
 // table when it is drawn, so the list reads in the player's language whenever they switch.
 import { msg } from '../../../shared/messages.js';

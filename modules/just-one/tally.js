@@ -1,5 +1,5 @@
-// What Just One counts about each player for the statistics and achievements (see module.json "stats"). The counters live on
-// the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
+// What Just One counts about each player for the statistics and achievements (see module.json "stats").  The counters live on
+// the player.  The game calls tallyTurn once a turn is scored; nothing here changes the game.
 // Depends on shared/tally.js for the counter helpers.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
@@ -23,7 +23,7 @@ export const MIN_PERFECT_TURNS = 2;
  * A "hive mind" is a turn in which every clue was cancelled.
  * @param {object} turn  { guesser, best, correct, clues } as above
  * @returns {void}
- * Side effects: increments counters on the guesser, best-hint writer and clue writers (the player objects).
+ * Side effects: increments counters on the guesser, best-hint writer, and clue writers (the player objects).
  */
 export function tallyTurn({ guesser, best, correct, clues }) {
   if (guesser) {

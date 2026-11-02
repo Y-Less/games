@@ -1,4 +1,4 @@
-// Pure chance: any legal discard, any legal card. Depends on ./helpers.js. Used for testing and as the weakest opponent.
+// Pure chance: any legal discard, any legal card.  Depends on ./helpers.js.  Used for testing and as the weakest opponent.
 import { legalPlays, sample, splits } from './helpers.js';
 
 export const random = {

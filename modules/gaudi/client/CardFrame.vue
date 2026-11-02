@@ -1,10 +1,10 @@
 <script setup>
 // The look shared by the tool and objective cards: a name, a cost or points line on the right of it, and one line of text
-// below. Attributes given by the parent (class, role, tabindex, title, listeners) land on the card itself.
+// below.  Attributes given by the parent (class, role, tabindex, title, listeners) land on the card itself.
 // Props: heading (the card's name), text (the one line of rules), costTitle (hover title of the cost, optional).
 // Slots: cost (what goes in the cost span: tokens, "costs 1", "3 per set"), icon (optional picture at the left, which must be
 //   no taller than the two lines of text so the card keeps the same size).
-// Emits: none. Side effects: none.
+// Emits: none.  Side effects: none.
 defineProps({ heading: { type: String, required: true }, text: { type: String, default: '' }, costTitle: { type: String, default: undefined } });
 </script>
 

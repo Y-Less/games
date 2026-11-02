@@ -1,5 +1,5 @@
 // Garbage in: every socket event of Just One, in every phase that is cheap to reach, from members and strangers, is sent
-// malformed payloads. The server must stay up, answer every time with a structured failure or a harmless success, keep the
+// malformed payloads.  The server must stay up, answer every time with a structured failure or a harmless success, keep the
 // game consistent, never show the guesser the word or anybody the clues too early, and still be able to finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';

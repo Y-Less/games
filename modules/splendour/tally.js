@@ -1,5 +1,5 @@
-// What Splendour counts about each player for the statistics and achievements (see module.json "stats"). The counters live
-// on the player. The game calls these as things happen in a turn; nothing here changes the game.
+// What Splendour counts about each player for the statistics and achievements (see module.json "stats").  The counters live
+// on the player.  The game calls these as things happen in a turn; nothing here changes the game.
 //
 // Depends on: ../../shared/tally.js (bump, freshTally).
 import { bump, freshTally } from '../../shared/tally.js';

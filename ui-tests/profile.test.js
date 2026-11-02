@@ -1,4 +1,4 @@
-// The profile page: name, backgrounds, card backs and password, all through the UI.
+// The profile page: name, backgrounds, card backs, and password, all through the UI.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

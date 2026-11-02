@@ -1,10 +1,10 @@
-// Avatars: a little figure built from layered parts (skin, hair, eyes, a hat ...), shown in a player's pop-up. This file is
+// Avatars: a little figure built from layered parts (skin, hair, eyes, a hat ...), shown in a player's pop-up.  This file is
 // the catalogue, shared by the server (which lists the priced parts in the shop and refuses parts a player has not bought)
-// and the client (src/avatarArt.js draws each part). An avatar is one chosen option id per slot, e.g. { skin: 'tan', hair: 'curly' }.
+// and the client (src/avatarArt.js draws each part).  An avatar is one chosen option id per slot, e.g. { skin: 'tan', hair: 'curly' }.
 //
-// An option has an `id`, a `name` and a `price` in coins (0 = free for everyone). Colour options also have `colour`, and a
+// An option has an `id`, a `name`, and a `price` in coins (0 = free for everyone).  Colour options also have `colour`, and a
 // backdrop may have `gradient` (two colours) instead.
-// Depends on: nothing (pure data); consumed by server/shop.js, server/profile.js and src/avatarArt.js.
+// Depends on: nothing (pure data); consumed by server/shop.js, server/profile.js, and src/avatarArt.js.
 
 export const AVATAR_SLOTS = [
   {

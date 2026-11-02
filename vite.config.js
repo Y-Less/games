@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
-// In development the Vite dev server (5173) proxies the API, sockets and uploaded files to the Node server (3000).
+// In development the Vite dev server (5173) proxies the API, sockets, and uploaded files to the Node server (3000).
 // Game modules live in modules/<id>/ and are loaded by the shell with import.meta.glob, so Vite's root is this folder.
 export default defineConfig({
   plugins: [vue()],

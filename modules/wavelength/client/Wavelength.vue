@@ -1,9 +1,9 @@
 <script setup>
-// Wavelength: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
+// Wavelength: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 // Props: socket (the platform's socket), user (the signed-in user or null), search (the page's query string, which may carry an
 //   invite code), setSearch (updates the query string).
-// Emits: none. Slots: none.
+// Emits: none.  Slots: none.
 // Side effects: useGameSocket subscribes to the socket's state events and calls onState for each; leaving mid-game asks for
 //   confirmation; RoomEntry's create and join send requests.
 import { ref } from 'vue';

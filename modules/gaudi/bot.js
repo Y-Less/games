@@ -1,6 +1,6 @@
-// The computer players of Gaudi. They only ever make moves the rules allow (the same game functions check them). How a
+// The computer players of Gaudi.  They only ever make moves the rules allow (the same game functions check them).  How a
 // computer chooses is up to its AI (see ai/): each bot seat has one, picked when the game starts and stored on the seat
-// (`seat.ai`). A seat with no AI, or an unknown one, plays as the first ("standard").
+// (`seat.ai`).  A seat with no AI, or an unknown one, plays as the first ("standard").
 //
 // Depends on game.js for the rules (every move goes through them) and the seat helpers (isBot, aiOf).
 import * as game from './game.js';
@@ -30,7 +30,7 @@ export function pendingAction(room) {
  * What an AI may see from a seat: the public table and its own secrets, never the bag or anyone else's colour or choices.
  *
  * The result is a deep copy (structuredClone), so an AI can never change the room by accident, nor keep a reference into
- * it. (No AI changes its state: they only read it and copy what they want to try.) It is called `botSnapshot` so that it is
+ * it.  (No AI changes its state: they only read it and copy what they want to try.) It is called `botSnapshot` so that it is
  * not confused with `room.snapshot`, the scores at the end of the last round.
  *
  * @param {object} room  the room being played
@@ -61,7 +61,7 @@ export function botSnapshot(room, seat) {
 }
 
 /**
- * One decision for the seat whose turn it is, by that seat's AI. Changes nothing.
+ * One decision for the seat whose turn it is, by that seat's AI.  Changes nothing.
  *
  * @param {object} room  the room being played
  * @param {number} seat  the seat whose turn it is
@@ -83,7 +83,7 @@ export function botStep(room, seat, rng) {
  * @returns {object | null} the action (with `step` set for a turn), or null if there was nothing to do
  * @throws {Error} if the AI chose a move the rules refuse (a bug in the AI; the server logs it and tries again later)
  *
- * Side effects: mutates room (through the game functions: window choice, placement, tool use or end of turn).
+ * Side effects: mutates room (through the game functions: window choice, placement, tool use, or end of turn).
  */
 export function runPending(room, rng) {
   const action = pendingAction(room);

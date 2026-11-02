@@ -1,5 +1,5 @@
-// State-validity checks shared by the Tints and Hints robustness, lifecycle and invariant tests (not a test itself).
-// Depends on node:assert, grid.js (isCell) and game.js (the limits and palette). Nothing here changes any game state.
+// State-validity checks shared by the Tints and Hints robustness, lifecycle, and invariant tests (not a test itself).
+// Depends on node:assert, grid.js (isCell), and game.js (the limits and palette).  Nothing here changes any game state.
 import assert from 'node:assert/strict';
 import { isCell } from './grid.js';
 import { COLOURS, HINT_LENGTH, MAX_PLAYERS, TURNS_EACH } from './game.js';

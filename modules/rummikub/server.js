@@ -1,5 +1,5 @@
-// The socket layer for Rummikub. The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
-// joining and the lobby events are the shared room server (shared/roomServer.js). This file says what is particular to
+// The socket layer for Rummikub.  The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
+// joining and the lobby events are the shared room server (shared/roomServer.js).  This file says what is particular to
 // Rummikub: its settings, its own socket events (play, draw, next, size) and what the server has to do by itself (a
 // computer move, a turn timer running out, the wait between rounds).
 //
@@ -44,7 +44,7 @@ export default function (ctx) {
     viewOptions: (room, userId, now) => ({ now: now() }),
     /**
      * The next thing the server does by itself, in this order of priority: a computer move; a turn timer running out; the
-     * wait between rounds. Returns null when the game is waiting for a person.
+     * wait between rounds.  Returns null when the game is waiting for a person.
      */
     nextAction(room, rng, now) {
       if (bot.pendingAction(room)) return { wait: botWait(delays.bot, rng), run: () => bot.runPending(room, rng, now()) };

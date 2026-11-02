@@ -1,4 +1,4 @@
-// The pure rules of Azulejo: the fixed wall, line legality, floor penalties, tile scoring and bonuses.
+// The pure rules of Azulejo: the fixed wall, line legality, floor penalties, tile scoring, and bonuses.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

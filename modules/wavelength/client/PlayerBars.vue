@@ -1,5 +1,5 @@
 <script setup>
-// The slim bars for the other players, on the frame's own columns: name, colour, role tag and score.
+// The slim bars for the other players, on the frame's own columns: name, colour, role tag, and score.
 // Props: players (the other players), psychic (the psychic's id), ended (the game is over), guessing (guessing is in
 //   progress), team (a team game, where nobody guesses alone).
 // Slots: none.

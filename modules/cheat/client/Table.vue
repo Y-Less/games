@@ -1,16 +1,16 @@
 <script setup>
 // The card table for Cheat, in the standard GameFrame: the score bar on top (the score is the cards each player still
 // holds); the table (the other seats' face-down hands at the edges, the pile and the rank to claim in the middle, your
-// hand along the bottom); and the Recent moves and Status boxes. Every word about what is happening is in Status. The
+// hand along the bottom); and the Recent moves and Status boxes.  Every word about what is happening is in Status.  The
 // table is drawn at one design size and scaled by the window, so nothing changes size or position during a game.
 //
 // Props:
-//   state  {Object}    required. The player's view of the game (phases playing, check, finished).
+//   state  {Object}    required.  The player's view of the game (phases playing, check, finished).
 //   send   {Function}  required. send(action, payload) returns a promise of { ok, error? }.
 //   log    {Array}     Recent moves as messages (see log.js and shared/messages.js), kept by the page.
 // Emits: none.
-// Slots: none (fills GameFrame's scorebar, main, log and status slots).
-// Side effects: sends play, call, accept, again, kick and removeBot requests; keeps local picks/message/sending state
+// Slots: none (fills GameFrame's scorebar, main, log, and status slots).
+// Side effects: sends play, call, accept, again, kick, and removeBot requests; keeps local picks/message/sending state
 // (picks and message are cleared when the phase or play count changes, and picks are pruned when the hand changes);
 // reads the document's root font size to scale the table.
 import { computed, ref, watch } from 'vue';
@@ -168,7 +168,7 @@ function pickAt(card, index) {
 }
 
 /**
- * Sends a table action (play, call or accept) unless one is already in flight.
+ * Sends a table action (play, call, or accept) unless one is already in flight.
  * @param {string} event  The request name.
  * @param {Object} [payload]  Request data (the picked cards for 'play').
  * @returns {Promise<void>}

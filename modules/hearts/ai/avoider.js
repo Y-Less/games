@@ -1,4 +1,4 @@
-// 'Avoider': avoid points at all costs. Passes hearts, the Queen and high spades, ducks every trick it can, and when it
+// 'Avoider': avoid points at all costs.  Passes hearts, the Queen, and high spades, ducks every trick it can, and when it
 // cannot follow suit it dumps its penalty cards (always safe: a player who cannot follow can never win the trick).
 // It also holds its high hearts back while only one player has taken points (see pointTakers): dumping them on the
 // lone point-taker could hand them the moon, so it sheds other cards first.
@@ -7,7 +7,7 @@ import { JACK, QUEEN, avoiding, bySuit, highest, isHeart, lowest, passSize, play
 
 /**
  * Chooses the cards the Avoider passes on: the ones most likely to cost it points if kept.
- * @param {object} ctx  AI context (see index.js); uses hand, settings (jackOfDiamonds) and passCount.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings (jackOfDiamonds), and passCount.
  * @returns {string[]} the cards to pass, highest "danger" first, passSize(ctx) of them.
  * Side effects: none.
  */
@@ -15,7 +15,7 @@ function passAvoider(ctx) {
   const { hand, settings } = ctx;
   const spades = bySuit(hand, 'S');
   const hasQueen = hand.includes(QUEEN);
-  // How badly this card wants to be passed: higher is worse to keep. The Queen is only safe with a long spade suit to protect it.
+  // How badly this card wants to be passed: higher is worse to keep.  The Queen is only safe with a long spade suit to protect it.
   const danger = (card) => {
     const rank = rankValue(card);
     if (card === QUEEN) return hasQueen && spades.length >= 6 ? 20 : 100;
@@ -32,7 +32,7 @@ function passAvoider(ctx) {
 /**
  * Chooses the card the Avoider plays: duck whenever possible, dump penalty cards when void, and never feed a lone
  * point-taker hearts (that could hand them the moon).
- * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat, settings, taken and history.
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat, settings, taken, and history.
  * @returns {string} one card from ctx.legal.
  * Side effects: none.
  */
@@ -64,7 +64,7 @@ function playAvoider(ctx) {
     return last ? highest(avoiding(following, (c) => c === QUEEN)) : lowest(avoiding(following, (c) => c === QUEEN));
   }
 
-  // Cannot follow suit: dump. The Queen first, then the highest heart, then spades that could catch the Queen. While a
+  // Cannot follow suit: dump.  The Queen first, then the highest heart, then spades that could catch the Queen.  While a
   // single player owns every point so far, that player is likely to be winning this trick, so feeding them hearts
   // risks a moon: shed other high cards instead (when it has nothing else to play, it dumps them anyway).
   const takers = pointTakers(ctx);

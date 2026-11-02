@@ -1,8 +1,8 @@
-// Achievements (see shared/achievements.js). A player's value for each one is either worked out from their recorded results
-// (an achievement with a `stat`) or is progress a game saves with add() / raise(). This file keeps the saved progress, pays
+// Achievements (see shared/achievements.js).  A player's value for each one is either worked out from their recorded results
+// (an achievement with a `stat`) or is progress a game saves with add() / raise().  This file keeps the saved progress, pays
 // the coins for levels reached and builds what the Achievements page shows; which achievements exist is in achievementRegistry.js.
 // Depends on: shared/achievements.js (levels, rewards, text), ./achievementRegistry.js, ./collections.js, ./coins.js and
-// ./db.js (transaction), plus the achievement_progress, achievement_awards and users tables.
+// ./db.js (transaction), plus the achievement_progress, achievement_awards, and users tables.
 import { BUILTIN_STATS, TIERS, describe, levelInfo, levelReward, levelText } from '../shared/achievements.js';
 import { createRegistry, fullId, GLOBAL } from './achievementRegistry.js';
 import { createCollections } from './collections.js';
@@ -17,7 +17,7 @@ import { transaction } from './db.js';
  *   new unlocks to be shown. measures maps a definition's `measure` name to a function giving a player's current number
  *   (members, coins spent, shop customisation: things that are neither results nor saved progress).
  * @returns {{ add: Function, raise: Function, collect: Function, get: Function, forUser: Function, forGame: Function, problems: Function, settle: Function, pending: Function, seen: Function }}
- * Side effects: prepares statements; the returned operations write progress, awards and coins, and call `notify`.
+ * Side effects: prepares statements; the returned operations write progress, awards, and coins, and call `notify`.
  */
 export function createAchievements(db, { listGames, statsFor, notify = () => {}, measures = {} }) {
   const coins = createCoins(db);
@@ -38,7 +38,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
   /**
    * Whether the value is worked out from the recorded results, rather than being progress a game saves.
    * @param {object} definition  an achievement definition
-   * @returns {boolean} true for stat, sum, wonEvery and measure achievements
+   * @returns {boolean} true for stat, sum, wonEvery, and measure achievements
    */
   const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery || definition.measure);
   // A player's saved progress for a full id, or 0 when there is none.
@@ -123,7 +123,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
    * @param {string} key  the achievement key
    * @param {(current: number) => number} next  works out the new value from the current one
    * @returns {{ before: number, after: number, level: number, unlocked: boolean } | null} null for a computer player
-   * Side effects: writes the progress; on a new level, inserts an award, pays coins and calls `notify`.
+   * Side effects: writes the progress; on a new level, inserts an award, pays coins, and calls `notify`.
    */
   function change(game, userId, key, next) {
     const { id, definition } = resolve(game, key);
@@ -300,7 +300,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
       collect: (userId, key, items) => collect(game, userId, key, items),
       // get: the current value of a key, bare or global.
       get: (userId, key) => get(userId, fullId(game, key)),
-      /** Counts cards a person has just played towards the global Played cards achievement, if the move (`outcome`) was allowed. Returns the outcome. */
+      /** Counts cards a person has just played towards the global Played cards achievement, if the move (`outcome`) was allowed.  Returns the outcome. */
       cardsPlayed: (userId, outcome, count) => {
         if (outcome?.ok) add(game, userId, 'global.cards', count);
         return outcome;

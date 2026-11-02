@@ -1,10 +1,10 @@
 <script setup>
-// The factory displays (round plates) and the centre. Click any tile to choose every tile of that colour on that plate
-// (or in the centre). Everything here is public.
+// The factory displays (round plates) and the centre.  Click any tile to choose every tile of that colour on that plate
+// (or in the centre).  Everything here is public.
 //
 // Props:
-//   factories      {Array}          required. One array of tile colours per display plate.
-//   centre         {Array}          required. Tile colours currently in the centre.
+//   factories      {Array}          required.  One array of tile colours per display plate.
+//   centre         {Array}          required.  Tile colours currently in the centre.
 //   markerInCentre {boolean}        the first-player marker is still in the centre.
 //   selected       {Object|null}    the chosen group { source: number | 'centre', colour }, for highlighting.
 //   active         {boolean}        it is the viewer's turn, so tiles are clickable.

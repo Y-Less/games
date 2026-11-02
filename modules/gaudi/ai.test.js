@@ -1,5 +1,5 @@
 // The Gaudi computer players' AIs: the registry, legality at every size, what each one is for, a seeded tournament,
-// and how an AI is assigned, saved and shown.
+// and how an AI is assigned, saved, and shown.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -25,7 +25,7 @@ const cells = (overrides = {}) => Array.from({ length: 20 }, (_, i) => overrides
 PATTERNS['ai.blank'] = { pid: 'ai.blank', card: 98, face: 0, name: 'AI blank', difficulty: 3, rows: [], cells: cells() };
 PATTERNS['ai.hole'] = { pid: 'ai.hole', card: 98, face: 1, name: 'AI hole', difficulty: 3, rows: [], cells: cells({ [at(1, 2)]: 'R' }) };
 
-/** A started two-person game with seat 0 to move, a hand-picked window, pool, tools and tokens. */
+/** A started two-person game with seat 0 to move, a hand-picked window, pool, tools, and tokens. */
 function lab({ pid = 'ai.blank', pool = [], tokens = 5, tools = ['lathe', 'mirror', 'refire'], colour = 'ruby', publicIds = ['deep-pairs', 'full-palette', 'colour-chains'], grid = [], badPrivate = false } = {}) {
   const { room } = playingRoom(2, { seed: 5 });
   room.settings.badPrivate = badPrivate;
@@ -183,7 +183,7 @@ test('tool user spends tokens where standard keeps them, and takes the hardest w
 });
 
 test('tidy never boxes in a space that needs a ruby, and takes the easiest window', () => {
-  // Row 2, column 3 needs a Ruby die. A Ruby placed beside it would leave it impossible to fill.
+  // Row 2, column 3 needs a Ruby die.  A Ruby placed beside it would leave it impossible to fill.
   const room = lab({ pid: 'ai.hole', grid: [[0, 4, 'jade', 1, 900]], pool: [die('ruby', 4, 1)] });
   const pattern = patternOf('ai.hole');
   const placed = new Set();

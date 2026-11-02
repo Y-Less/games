@@ -1,9 +1,9 @@
 <script setup>
 // Props: socket {Object, required} platform socket; user {Object|null} signed-in user; search {String} current URL query string;
-// setSearch {Function} updates the URL query string. Emits: none. Slots: none.
+// setSearch {Function} updates the URL query string.  Emits: none.  Slots: none.
 // Side effects: useGameSocket subscribes to the socket's `state` events and syncs the invite code with the URL;
 // onState rewrites the local Recent moves log (kept to the last 200 lines) on every state.
-// Tints and Hints: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
+// Tints and Hints: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';

@@ -134,7 +134,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     await user.page.evaluate(() => window.dispatchEvent(new Event('resize')));
     await new Promise((r) => setTimeout(r, 400));
     assert.equal(await user.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight), 0, 'the page does not scroll');
-    // Outer edges: score bar, own board, plates panel and both bottom boxes.
+    // Outer edges: score bar, own board, plates panel, and both bottom boxes.
     const bar = await rect('.score-bar');
     const mine = await rect('.mine-col');
     const right = await rect('.right-col');

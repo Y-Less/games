@@ -58,7 +58,7 @@ export function estimateTricks(hand, trump, players, boost = 0) {
 
 /**
  * Whether a 7-card hand is realistically capable of taking every trick: a run of the top trumps from the ace down
- * (six of them, or five when every other card is a trump or an ace). The estimate above is too cautious to say this.
+ * (six of them, or five when every other card is a trump or an ace).  The estimate above is too cautious to say this.
  *
  * @param {string[]} hand  the player's cards
  * @param {string | null} trump  the trump suit, or null for none (then it is never possible)
@@ -75,7 +75,7 @@ export function canTakeAllSeven(hand, trump) {
 }
 
 /**
- * The nomination a computer player makes: its estimate, or the nearest number it is allowed. When `instantWin` is true
+ * The nomination a computer player makes: its estimate, or the nearest number it is allowed.  When `instantWin` is true
  * (the round can be won outright by taking all 7 tricks), a hand that can realistically do so nominates 7.
  *
  * @param {object} ctx  nomination context: hand, trump, players, allowed, instantWin, rng, plus the endgame fields
@@ -90,7 +90,7 @@ export function chooseNomination(ctx) {
 
 /**
  * The card a computer player plays. `legal` is what it may play, `trick` the cards on the table so far (in order),
- * `played` every card seen this round, `need` how many more tricks it nominated than it has won. While it needs
+ * `played` every card seen this round, `need` how many more tricks it nominated than it has won.  While it needs
  * tricks it wins them (sure winners first, the cheapest card that beats the table otherwise); once it has enough
  * it ducks, and sheds its most dangerous cards when it cannot follow suit.
  *

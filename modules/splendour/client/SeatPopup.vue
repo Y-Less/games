@@ -1,6 +1,6 @@
 <script setup>
 // The pop-up over the middle of the table that shows another player's board (or your own summary) when their name is
-// clicked in the score bar. Nothing else on the table moves.
+// clicked in the score bar.  Nothing else on the table moves.
 // Props: popupProps (what usePlayerPopup gives the popup, or null when none is open), seat (the opened seat's view, or null),
 //   you (your seat number), turn (whose turn it is), finished (the game is over), gem (gem size in px).
 // Slots: none.

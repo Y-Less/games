@@ -1,4 +1,4 @@
-// The dial's geometry, the layout sums and the "Recent moves" of Wavelength.
+// The dial's geometry, the layout sums, and the "Recent moves" of Wavelength.
 import { describe, expect, it } from 'vitest';
 import { messageText } from '../../../src/messageText.js';
 import { VIEW, angleOf, pointAt, positionAt, targetWedges, wedgePath } from './dial.js';

@@ -1,4 +1,4 @@
-// "Sharp": the strongest computer player. It values a whole position rather than a single tile:
+// "Sharp": the strongest computer player.  It values a whole position rather than a single tile:
 //   - the points its full pattern lines will score when the wall is tiled (in row order, as the rules do it),
 //   - minus the real floor penalty, so a move that overflows is priced exactly,
 //   - plus a discounted share for lines that are part-built and can still be finished,
@@ -7,14 +7,14 @@
 // It chooses by looking ahead: the best few moves by that measure are each played out to the end of the round (everyone
 // else taking the quick, sensible option), and the resulting boards are compared, so the floor risk of later turns and
 // the cost of what it leaves the opponents are priced in rather than guessed.
-// It also decides when the game should end. A row completed this round ends the game, so if finishing one leaves it
+// It also decides when the game should end.  A row completed this round ends the game, so if finishing one leaves it
 // ahead after the bonuses it goes for it; if it would be behind it declines and builds columns and sets instead, which
 // is why games between sharp players are not all five rounds long.
 // Depends on: ../rules.js (scoring, bonuses, floor, wall helpers) and ./common.js (copyWall, take previews, column choosing).
 import { COLOURS, COLUMN_BONUS, FLOOR_SLOTS, ROW_BONUS, SET_BONUS, SIZE, bonuses, columnsFor, countOf, floorPenalty, lineCapacity, rowComplete, tileScore } from '../rules.js';
 import { bestColumnBy, chooseColumnBy, copyWall, takeOf, tilesLeft } from './common.js';
 
-// Tuning constants. LONG_GAME discounts bonuses that are not yet earned, because the game may end before they are;
+// Tuning constants.  LONG_GAME discounts bonuses that are not yet earned, because the game may end before they are;
 // MARGIN_PAYS is the reward per point of lead when ending the game (capped in evaluate); CANDIDATES and PLAYOUTS bound
 // the search so a move takes milliseconds; RIVAL_SHARE stops it from ignoring what a move gives the opponents,
 // while still caring more about its own board.
@@ -100,7 +100,7 @@ function evaluate(state, seat, boards, chance) {
   const projs = boards.map((b, p) => project(state.walls[p], b.lines, free));
   const penalties = boards.map((b) => floorPenalty({ length: b.floor }));
   const totals = projs.map((pr, p) => Math.max(0, state.scores[p] + pr.gain - penalties[p]));
-  // `mine`: this seat would end the game; `ends`: anybody would. Once the game is ending, unearned bonuses stop counting.
+  // `mine`: this seat would end the game; `ends`: anybody would.  Once the game is ending, unearned bonuses stop counting.
   const mine = anyRow(projs[seat].wall);
   const ends = projs.some((pr) => anyRow(pr.wall));
   // Projected final totals (score plus every bonus), for judging whether ending the game would win it.
@@ -121,7 +121,7 @@ function evaluate(state, seat, boards, chance) {
     });
     value += bonuses(pr.wall).points + (ends ? 0 : LONG_GAME * potential(pr.wall));
     if (p === seat && mine) {
-      // Ending the game: good only if it is won. Behind, it is better to keep it going.
+      // Ending the game: good only if it is won.  Behind, it is better to keep it going.
       // The margin over the best rival decides the reward (a lead of up to 10 counts) or the penalty (a deficit of up to 12).
       const margin = finals[seat] - Math.max(...finals.filter((_, q) => q !== seat));
       value += margin > 0 ? 3 + MARGIN_PAYS * Math.min(margin, 10) : -(2 + 0.5 * Math.min(-margin, 12));
@@ -161,7 +161,7 @@ function sandbox(state) {
 
 /**
  * Plays a move on a sandbox (the same take as the rules, on the cheap copy).
- * Side effects: mutates `box` (the sources, the marker and seat `p`'s board).
+ * Side effects: mutates `box` (the sources, the marker, and seat `p`'s board).
  *
  * @param {object} box  from sandbox()
  * @param {number} p    the seat taking
@@ -366,7 +366,7 @@ export default {
    * Side effects: none, apart from drawing from `rng`.
    */
   chooseColumn(state, seat, pending, rng) {
-    // The tile score, plus the change in unearned-bonus potential: a column that builds towards a row, column or set wins.
+    // The tile score, plus the change in unearned-bonus potential: a column that builds towards a row, column, or set wins.
     return chooseColumnBy(state, seat, pending, rng, (wall, col) => tileScore(wall, pending.row, col) + LONG_GAME * (potential(wall) - potential(state.walls[seat])));
   },
 };

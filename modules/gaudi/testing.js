@@ -1,5 +1,5 @@
 // Helpers shared by the Gaudi tests (not used by the game itself).
-// Depends on game.js (the rules, driven directly), bot.js (botStep), ai/standard.js (window choice) and rules.js (constants).
+// Depends on game.js (the rules, driven directly), bot.js (botStep), ai/standard.js (window choice), and rules.js (constants).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
@@ -62,7 +62,7 @@ export function setWindow(room, seat, pid) {
 }
 
 /**
- * Every die in the game, wherever it is: bag, pool, round track and windows.
+ * Every die in the game, wherever it is: bag, pool, round track, and windows.
  *
  * @param {object} room  the room to look through
  * @returns {object[]} every die, once each
@@ -116,7 +116,7 @@ export function assertInvariants(room, label = '') {
 }
 
 /**
- * One computer-style decision for whoever has to act, whatever kind of seat it is. Returns false when the game is over.
+ * One computer-style decision for whoever has to act, whatever kind of seat it is.  Returns false when the game is over.
  *
  * @param {object} room  the room being played
  * @param {() => number} rng  random source returning [0, 1)

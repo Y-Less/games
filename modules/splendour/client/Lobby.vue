@@ -1,5 +1,5 @@
 <script setup>
-// Splendour lobby: invite code, seat list (via SeatLobby) and the host's game options.
+// Splendour lobby: invite code, seat list (via SeatLobby), and the host's game options.
 // Props: state (the lobby view of the game), send (sends a request to the server).
 // Emits: none (all actions go through `send`: addBot, removeBot, fillBots, kick, start, settings).
 // Slots: none (fills SeatLobby's `settings` slot).

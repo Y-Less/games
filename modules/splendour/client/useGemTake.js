@@ -1,4 +1,4 @@
-// Choosing gems to take from the supply at the Splendour table, and sending the choice. Everything it says is a message
+// Choosing gems to take from the supply at the Splendour table, and sending the choice.  Everything it says is a message
 // (`{ key, params }`, see shared/messages.js) that the table puts into the player's language with `text()`.
 import { computed } from 'vue';
 import { msg } from '../../../shared/messages.js';
@@ -7,7 +7,7 @@ import { gemMsg } from './gems.js';
 /**
  * Gem taking.
  *
- * Side effects: clickGem changes the shared picks, sel and message; confirmTake sends 'take' or 'takeTwo' and clears the picks on success.
+ * Side effects: clickGem changes the shared picks, sel, and message; confirmTake sends 'take' or 'takeTwo' and clears the picks on success.
  *
  * @param {object} view    the table view (reactive)
  * @param {object} shared  the shared choice state (reactive)

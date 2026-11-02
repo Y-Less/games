@@ -1,6 +1,6 @@
-// Plays a range of whole games between named AIs and totals what each AI did. Used by tourney.js (the command-line runner,
-// one range per worker job) and by the tests. The same seed and range always give the same totals.
-// Depends on: ais.js (the AIs by id), game.js (playGame) and rng.js (seeding).
+// Plays a range of whole games between named AIs and totals what each AI did.  Used by tourney.js (the command-line runner,
+// one range per worker job) and by the tests.  The same seed and range always give the same totals.
+// Depends on: ais.js (the AIs by id), game.js (playGame), and rng.js (seeding).
 import { SIM_AIS } from './ais.js';
 import { playGame } from './game.js';
 import { mixSeed, mulberry32 } from './rng.js';

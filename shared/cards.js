@@ -1,6 +1,6 @@
-// A standard 52-card deck, shared by every card game (server and client). A card is a short string: rank then suit,
-// such as "QS" (queen of spades), "10H", "AC". Ranks run 2..10, J, Q, K, A; suits are C D H S.
-// Games that use Jokers add the two in `JOKERS` ("JK1" black, "JK2" red) with `deckFor(true)`. A Joker belongs to no real
+// A standard 52-card deck, shared by every card game (server and client).  A card is a short string: rank then suit,
+// such as "QS" (queen of spades), "10H", "AC".  Ranks run 2..10, J, Q, K, A; suits are C D H S.
+// Games that use Jokers add the two in `JOKERS` ("JK1" black, "JK2" red) with `deckFor(true)`.  A Joker belongs to no real
 // suit (`suitOf` gives "J", which is none of SUITS) and ranks above the ace; what a Joker does in a trick is up to the game.
 // Depends on: nothing (pure, no imports).
 export const SUITS = ['C', 'D', 'H', 'S'];
@@ -20,7 +20,7 @@ export const suitOf = (card) => (isJoker(card) ? 'J' : card.slice(-1));
 // Returns a card's rank string ("2".."10", J, Q, K, A) by dropping the suit letter; a Joker gives "JK".
 export const rankOf = (card) => card.slice(0, -1);
 /**
- * Hand display order: the trump suit first if there is one, then hearts, spades, diamonds and clubs (the Jokers last),
+ * Hand display order: the trump suit first if there is one, then hearts, spades, diamonds, and clubs (the Jokers last),
  * each suit high to low, so that the highest card is at the left, at the back of the fan.
  * @param {string[]} cards  the hand to order
  * @param {string|null} [trump]  suit letter to put first, or null for the default order
@@ -28,7 +28,7 @@ export const rankOf = (card) => card.slice(0, -1);
  * Side effects: none.
  */
 export const rankValue = (card) => (isJoker(card) ? 15 : RANKS.indexOf(rankOf(card)) + 2);
-// True for hearts, diamonds and the red Joker (JK2).
+// True for hearts, diamonds, and the red Joker (JK2).
 export const isRed = (card) => card === 'JK2' || suitOf(card) === 'D' || suitOf(card) === 'H';
 // True when `value` is a string naming a real (non-Joker) card such as "10H"; used to validate client input.
 export const isCard = (value) => typeof value === 'string' && /^(?:[2-9]|10|[JQKA])[CDHS]$/.test(value);
@@ -68,7 +68,7 @@ export function shuffle(cards, rng) {
 // Default left-to-right suit order for a displayed hand ('J' stands for the Jokers).
 const DISPLAY_SUITS = ['H', 'S', 'D', 'C', 'J'];
 /**
- * Orders cards for a hand: the trump suit first if there is one, then hearts, spades, diamonds and clubs (the Jokers last),
+ * Orders cards for a hand: the trump suit first if there is one, then hearts, spades, diamonds, and clubs (the Jokers last),
  * each suit high to low, so that the highest card is at the left, at the back of the fan.
  * @param {string[]} cards  the hand to order
  * @param {string|null} [trump]  suit letter to put first, or null for the default order

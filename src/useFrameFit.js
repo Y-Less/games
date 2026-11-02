@@ -1,5 +1,5 @@
 // Fits a game to the window: the game is drawn at its natural size, and if that is taller than the room below the
-// title it is scaled down (never up) so the page does not need to scroll while playing. The natural height only ever
+// title it is scaled down (never up) so the page does not need to scroll while playing.  The natural height only ever
 // grows within a window size, so the scale settles instead of bouncing as panels come and go.
 // Depends on: vue only (plus the browser's ResizeObserver and MutationObserver).
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -59,7 +59,7 @@ export function useFrameFit() {
     fit();
   }
 
-  // Starts listening once the DOM exists. Side effects: adds the resize listener and creates the ResizeObserver.
+  // Starts listening once the DOM exists.  Side effects: adds the resize listener and creates the ResizeObserver.
   onMounted(() => {
     window.addEventListener('resize', refit);
     observer = new ResizeObserver(fit);
@@ -88,7 +88,7 @@ export function useFrameFit() {
     }
   });
 
-  /** Stops listening when the page goes away. Side effects: removes the resize listener, disconnects both observers. */
+  /** Stops listening when the page goes away.  Side effects: removes the resize listener, disconnects both observers. */
   onBeforeUnmount(() => {
     window.removeEventListener('resize', refit);
     waiting?.disconnect();

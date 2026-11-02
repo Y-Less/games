@@ -1,4 +1,4 @@
-// Site-level behaviour: the client app fallback, unknown routes, shutdown and running several sites side by side.
+// Site-level behaviour: the client app fallback, unknown routes, shutdown, and running several sites side by side.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

@@ -1,5 +1,5 @@
 // Room-code tidying, shared by the server (codes.js) and every client: "Boss Aware You", "?boss-aware-you" or a
-// pasted invite link all become "boss-aware-you". Returns '' when the text is not a three-word code.
+// pasted invite link all become "boss-aware-you".  Returns '' when the text is not a three-word code.
 // Depends on: nothing (pure, no imports).
 // The only shape a valid code takes: three lower-case words joined by hyphens.
 const SHAPE = /^[a-z]+(-[a-z]+){2}$/;

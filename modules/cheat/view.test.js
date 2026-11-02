@@ -1,5 +1,5 @@
 // What viewFor sends (see game.js) along whole seeded games of computers: the same views every time for a seed, nothing a
-// stranger may not see, and a fixed set of parts. (These used to pin a SHA-1 of every view, which also pinned every computer
+// stranger may not see, and a fixed set of parts.  (These used to pin a SHA-1 of every view, which also pinned every computer
 // decision, so a better AI broke them without any view changing.)
 import test from 'node:test';
 import assert from 'node:assert/strict';

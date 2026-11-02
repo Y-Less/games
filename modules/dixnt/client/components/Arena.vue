@@ -1,12 +1,12 @@
 <script setup>
 // The main area of a Dixnt game, in three fixed zones that never move between phases: the table of played cards on
 // top, a one-line zone of controls (the chooser's word, the next-round button, the host's buttons), and your hand along
-// the bottom. Every size comes from the room the frame gives (`width` x `height`), never from the game.
+// the bottom.  Every size comes from the room the frame gives (`width` x `height`), never from the game.
 //
 // Props:
-//   width   {number}  required. Width of the main area in pixels.
-//   height  {number}  required. Height of the main area in pixels.
-// Emits: none. Slots: none.
+//   width   {number}  required.  Width of the main area in pixels.
+//   height  {number}  required.  Height of the main area in pixels.
+// Emits: none.  Slots: none.
 // Side effects: sends submitWord, hints, nextRound, endGame and abortRound requests (the last two after a confirm
 // dialog); keeps local word/hints/busy state, cleared when you stop being the chooser; focuses the word box when you
 // become the chooser.
@@ -27,7 +27,7 @@ const { t } = useGameText();
 const { isHost, players, send, store } = useDixnt();
 // The current state.
 const state = computed(() => store.state);
-// The current phase: lobby, word, picking, voting, results or finished.
+// The current phase: lobby, word, picking, voting, results, or finished.
 const phase = computed(() => state.value.phase);
 // True once the game is over.
 const finished = computed(() => phase.value === 'finished');

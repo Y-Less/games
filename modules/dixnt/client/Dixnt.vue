@@ -1,15 +1,15 @@
 <script setup>
-// Dixnt: the root component. It creates the game store (see store.js) and provides it to every component below, then
+// Dixnt: the root component.  It creates the game store (see store.js) and provides it to every component below, then
 // chooses the screen: the start screen, the lobby, or the table (in the standard GameFrame, with the score bar, the
-// play area, the Recent moves and the Status box). Also owns the player pop-up and the "Leave game" button's behaviour.
+// play area, the Recent moves, and the Status box).  Also owns the player pop-up and the "Leave game" button's behaviour.
 //
 // Props:
-//   socket     {Object}    required. The platform's socket connection for this game.
-//   user       {Object}    required. The signed-in user.
+//   socket     {Object}    required.  The platform's socket connection for this game.
+//   user       {Object}    required.  The signed-in user.
 //   search     {string}    the page's current query string, used to pick up an invite code.
-//   setSearch  {Function}  required. Updates the page's query string (puts the game code in the address bar).
+//   setSearch  {Function}  required.  Updates the page's query string (puts the game code in the address bar).
 // Emits: none.
-// Slots: none (fills GameFrame's scorebar, main, log and status slots).
+// Slots: none (fills GameFrame's scorebar, main, log, and status slots).
 // Side effects: creates the store, which listens to the socket (detached when this component unmounts); provides the
 // store under DIXNT_KEY; sends `removePlayer` (host's Remove) and `leave` requests; registers the site's leave button.
 import { computed, onBeforeUnmount, provide } from 'vue';
@@ -53,7 +53,7 @@ const results = computed(() => (state.value?.phase === 'results' ? state.value.r
 const nameOf = dixnt.nameOf;
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
-// button: the way to get rid of someone who has gone away). The scoreboard's ids are the players' ids.
+// button: the way to get rid of someone who has gone away).  The scoreboard's ids are the players' ids.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => state.value?.scoreboard.players ?? [],
   hostId: () => state.value?.hostId ?? null,
@@ -72,7 +72,7 @@ const stageOf = (p) => {
   return p.isChooser ? t('popup.theChooser') : '';
 };
 // The Status box content: the phase's messages from status.js put into words, plus a warning line naming anyone who
-// is away. GameStatus wants strings, so every message is translated here, where the game's locale file is in reach.
+// is away.  GameStatus wants strings, so every message is translated here, where the game's locale file is in reach.
 const status = computed(() => {
   const s = statusFor(state.value, { isHost: isHost.value });
   const away = state.value.players.filter((p) => !p.connected).map((p) => p.name);
@@ -83,7 +83,7 @@ const status = computed(() => {
 // The word as this viewer sees it: the stand-in for the one player kept in the dark.
 const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
 
-// "Leave game" lives in the site's header, whenever you are in a game. Mid-game it asks first: a computer player takes
+// "Leave game" lives in the site's header, whenever you are in a game.  Mid-game it asks first: a computer player takes
 // over your seat if anyone else is still playing, otherwise your score is lost.
 // True when leaving would hand the seat to a computer player (another human is still playing), rather than lose the score.
 const takenOver = computed(() => Boolean(state.value) && !state.value.me.waiting && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id));

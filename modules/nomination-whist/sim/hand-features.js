@@ -1,4 +1,4 @@
-// What the hand model (hand-model.js) sees of a nomination decision, as a vector of numbers. Unlike the bid-value table's
+// What the hand model (hand-model.js) sees of a nomination decision, as a vector of numbers.  Unlike the bid-value table's
 // key, which squeezes a hand of three or more cards into one estimate, this describes EVERY card in the hand, so the
 // model can weigh a lone king of trumps differently from a hand that merely adds up to the same estimate.
 //
@@ -90,7 +90,7 @@ export function handFeatures(ctx, out = new Float32Array(INPUTS)) {
   out[37] = aceKings / n;
   out[38] = backedQueens / n;
 
-  // One-hot players, cards and position; the claimed/unclaimed figures tell the model how crowded the bidding already is.
+  // One-hot players, cards, and position; the claimed/unclaimed figures tell the model how crowded the bidding already is.
   out[39 + Math.min(4, Math.max(0, players - 3))] = 1;
   out[44 + Math.min(6, Math.max(0, cards - 1))] = 1;
   let claimed = 0;

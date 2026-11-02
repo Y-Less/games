@@ -1,7 +1,7 @@
 // Plays whole games of Nomination Whist (all the rounds, with scores) for the tournament runner and for AIs that need to
-// know the state of the table. It follows the rules in ../rules.md through the live game's own helpers (schedule, trump
+// know the state of the table.  It follows the rules in ../rules.md through the live game's own helpers (schedule, trump
 // order, scoring, the dealer's forbidden number, trick winner), and gives the AIs the same contexts as game.js does,
-// plus the score situation: `scores` (everybody's total before this round), `round` (0-based) and `rounds` (in the game).
+// plus the score situation: `scores` (everybody's total before this round), `round` (0-based), and `rounds` (in the game).
 import { deckFor, shuffle, sortHand } from '../../../shared/cards.js';
 import { AIS } from '../ai/index.js';
 import { legalCards } from '../trick.js';
@@ -18,7 +18,7 @@ export const isInstantWinRound = (schedule, round) => schedule[round] === INSTAN
 
 // Standard is the fallback for any AI that returns an illegal nomination or card, as in the live game.
 const standard = AIS.find((ai) => ai.id === 'standard');
-/** The cards of `hand` that may be played to `trick` (a list of { seat, card }), by the game's own rule. Pure. */
+/** The cards of `hand` that may be played to `trick` (a list of { seat, card }), by the game's own rule.  Pure. */
 const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card));
 
 /**

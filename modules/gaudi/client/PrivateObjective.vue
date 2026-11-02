@@ -1,9 +1,9 @@
 <script setup>
 // Your private objective, laid out like a public objective card under its own heading: a chip showing its colour and shape,
-// its name, what a die is worth at the top right and a one-line description. On the table the description ends with the
+// its name, what a die is worth at the top right and a one-line description.  On the table the description ends with the
 // points so far.
 // Props: colour (a colour key), points (number so far), showPoints (Boolean), badPrivate (Boolean, the scoring setting).
-// Emits: hint (text, or '' when the pointer or focus leaves) for the Status box. Side effects: none.
+// Emits: hint (text, or '' when the pointer or focus leaves) for the Status box.  Side effects: none.
 import { computed } from 'vue';
 import CardFrame from './CardFrame.vue';
 import CardSection from './CardSection.vue';

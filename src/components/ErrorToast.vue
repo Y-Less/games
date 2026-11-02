@@ -1,10 +1,10 @@
 <script setup>
-// File: the shared error toast shown by games. Depends on: the --danger, --bg-raised and --hub-bar-height / --fit-zoom CSS variables.
+// File: the shared error toast shown by games.  Depends on: the --danger, --bg-raised and --hub-bar-height / --fit-zoom CSS variables.
 // Props: text (String, required, the message to show).
 // Emits: none.  Slots: none.
 // Side effects: none (the toast is position: fixed, so it never affects the layout around it).
 // The error message a game shows when the server refuses a request: a toast over the top of the game rather than a line
-// in it (an error must not push the whole table down). The game decides when to show it, e.g. `v-if="notice"`.
+// in it (an error must not push the whole table down).  The game decides when to show it, e.g. `v-if="notice"`.
 defineProps({ text: { type: String, required: true } });
 </script>
 

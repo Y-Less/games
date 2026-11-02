@@ -1,9 +1,9 @@
 <script setup>
-// The nobles column of the market: the nobles still to visit, two to a row. While you must choose a noble, the ones on
+// The nobles column of the market: the nobles still to visit, two to a row.  While you must choose a noble, the ones on
 // offer are highlighted and clickable and the rest are dimmed.
 // Props: nobles (noble ids still on the table), bonuses (your five card bonuses, for the progress on each tile),
 //   choosing (true while you must choose a noble), canPick (function: is this noble one of your choices).
-// Emits: pick(id) when a highlighted noble is clicked. Slots: none.
+// Emits: pick(id) when a highlighted noble is clicked.  Slots: none.
 // Side effects: none.
 import { useGameText } from '../../../src/useGameText.js';
 import NobleTile from './NobleTile.vue';

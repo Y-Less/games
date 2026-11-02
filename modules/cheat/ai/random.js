@@ -1,4 +1,4 @@
-// A computer player that plays at random, for testing: one to four random cards, and a call now and then. No dependencies.
+// A computer player that plays at random, for testing: one to four random cards, and a call now and then.  No dependencies.
 
 export const random = {
   id: 'random',

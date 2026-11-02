@@ -1,6 +1,6 @@
 // Times how long a player keeps a game waiting on their turn, for the "took over 10 minutes to take a turn" achievement.
 // Every game sends each player a `state` view whose scoreboard says whose turn it is (`current`) for the player the view
-// is for (`isMe`), so this watches those views rather than each game's rules. It watches one connection: a player who
+// is for (`isMe`), so this watches those views rather than each game's rules.  It watches one connection: a player who
 // disconnects loses the clock, so only a turn taken while online counts.
 // Depends on: nothing (the clock is injectable so tests need no real waiting).
 

@@ -1,6 +1,6 @@
 // The plumbing every room-based game client shares: the latest personalised `state` from the module's socket, the
 // error toast, the "busy" flag, joining or resuming a room on every (re)connection, the header's "Leave game" button,
-// and tidying up when the client unmounts. A game's top component calls `useGameSocket` once from its setup and keeps
+// and tidying up when the client unmounts.  A game's top component calls `useGameSocket` once from its setup and keeps
 // only what is its own (its log of recent moves, its screens).
 // Depends on: vue and playBar.js (useLeave); the socket itself is passed in by the caller.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -50,7 +50,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   let invite = initialCode; // used once, by the first `resume`
 
   /**
-   * Sends one request to the server and waits for its answer. A request the server never answers (its handler threw
+   * Sends one request to the server and waits for its answer.  A request the server never answers (its handler threw
    * before replying, or the connection dropped mid-way) is given up after ACK_TIMEOUT_MS, so `busy` cannot stick and
    * disable every button for good.
    *
@@ -86,7 +86,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   });
 
   /**
-   * Asks the server to put this socket back into its room (or into the one the invite link names). Runs on every
+   * Asks the server to put this socket back into its room (or into the one the invite link names).  Runs on every
    * (re)connection; the invite is used only the first time.
    *
    * Side effects: emits `resume`.
@@ -102,7 +102,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   /**
    * The server sent a new view of the room (null when not in one).
    *
-   * Side effects: calls the game's `onState`, replaces `state`, marks it loaded and updates the address bar.
+   * Side effects: calls the game's `onState`, replaces `state`, marks it loaded, and updates the address bar.
    *
    * @param {object | null} next  the new view of the room
    * @returns {void}

@@ -1,8 +1,8 @@
 // Sizes for the Wavelength table, worked out from the room available (never from the game, so nothing moves while
-// playing). All numbers are pixels.
+// playing).  All numbers are pixels.
 import { VIEW } from './dial.js';
 
-// The thresholds and fixed heights below drive dialSpan, dialWidth and dialLayout.
+// The thresholds and fixed heights below drive dialSpan, dialWidth, and dialLayout.
 export const NARROW = 640; // below this the dial takes the whole width and the clue panel goes under it
 const BELOW_DIAL = 118; // the two ends and the slider under the dial, and the gaps between them
 const PANEL = 170; // the height the clue panel needs when it goes under the dial

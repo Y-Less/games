@@ -1,10 +1,10 @@
 <script setup>
-// File: the computer-player marker icon. Depends on: nothing (inline SVG only).
+// File: the computer-player marker icon.  Depends on: nothing (inline SVG only).
 // Props: size (Number|String, px square; null means 1em), label (String, accessible name and tooltip).
 // Emits: none.  Slots: none.
 // Side effects: none.
 // A small robot-head glyph marking a computer player, the same size wherever it appears (it takes `size` px square, or
-// 1em by default), so a row never changes width because one seat is a computer. It is an image with the label
+// 1em by default), so a row never changes width because one seat is a computer.  It is an image with the label
 // "Computer player" (override with `label`).
 import { useGameText } from '../useGameText.js';
 

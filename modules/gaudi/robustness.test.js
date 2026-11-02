@@ -1,6 +1,6 @@
 // Garbage in: every socket event Gaudi handles gets malformed payloads (with and without an ack, from members,
-// non-members and a second socket) in the lobby and in every phase of a game. The server must stay up, answer with a
-// structured failure or a harmless success, keep the game state valid, never leak anything hidden and finish a
+// non-members and a second socket) in the lobby and in every phase of a game.  The server must stay up, answer with a
+// structured failure or a harmless success, keep the game state valid, never leak anything hidden, and finish a
 // normal game afterwards.
 import test from 'node:test';
 import assert from 'node:assert/strict';

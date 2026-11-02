@@ -1,15 +1,15 @@
 <script setup>
-// The cards played this round, large, in the main area. Each card has a fixed caption under it (the player's name,
-// then the vote button or the votes it got), so the table is the same size in every phase. While people are still
-// choosing, a face-down card marks each one who has played and a dashed slot each who has not. Click a card to look
+// The cards played this round, large, in the main area.  Each card has a fixed caption under it (the player's name,
+// then the vote button or the votes it got), so the table is the same size in every phase.  While people are still
+// choosing, a face-down card marks each one who has played and a dashed slot each who has not.  Click a card to look
 // closer (the viewer steps through the whole table).
 //
 // Props:
-//   cardWidth   {number}  required. Card width in pixels.
-//   cardHeight  {number}  required. Card height in pixels.
-//   count       {number}  required. How many cards the table is sized for: everyone in the round.
-//   columns     {number}  required. How many cards fit in a row.
-// Emits: none. Slots: none.
+//   cardWidth   {number}  required.  Card width in pixels.
+//   cardHeight  {number}  required.  Card height in pixels.
+//   count       {number}  required.  How many cards the table is sized for: everyone in the round.
+//   columns     {number}  required.  How many cards fit in a row.
+// Emits: none.  Slots: none.
 // Side effects: sets store.zoom to open the card viewer; sends `vote` requests (after a confirm dialog when a single
 // decision ends the round).
 import { computed } from 'vue';
@@ -63,7 +63,7 @@ function voteSummary(playerId) {
 const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : t('table.votes', { count: results.value.tally[playerId] }, results.value.tally[playerId]));
 
 /**
- * Casts a vote (or the chooser's decision) for a player. Votes in the 'everyone' style can be changed, but a chooser's
+ * Casts a vote (or the chooser's decision) for a player.  Votes in the 'everyone' style can be changed, but a chooser's
  * decision ends the round, so that asks first.
  * @param {string} playerId  The player voted for.
  * @returns {void}

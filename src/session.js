@@ -1,5 +1,5 @@
-// Who is signed in: loading the session at start-up, signing in, registering and signing out. The state itself is in
-// sessionState.js, the API calls in api.js, the page's look in appearance.js, the shop in shopStore.js and profile
+// Who is signed in: loading the session at start-up, signing in, registering, and signing out.  The state itself is in
+// sessionState.js, the API calls in api.js, the page's look in appearance.js, the shop in shopStore.js, and profile
 // changes in profileApi.js.
 import { api, onUnauthorised } from './api.js';
 import { applyUserLook } from './appearance.js';
@@ -40,7 +40,7 @@ export function setUser(user) {
 }
 
 /**
- * Loads the game list, the presets and the signed-in user (if any).
+ * Loads the game list, the presets, and the signed-in user (if any).
  * @returns {Promise<void>}
  * Side effects: sets the session; session.ready becomes true even when loading fails (which then throws).
  */

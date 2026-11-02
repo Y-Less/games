@@ -1,4 +1,4 @@
-// The rules of Hearts: legal plays, passing, tricks, scoring, the end of the game and the computer players.
+// The rules of Hearts: legal plays, passing, tricks, scoring, the end of the game, and the computer players.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fullDeck, suitOf } from '../../shared/cards.js';
@@ -47,7 +47,7 @@ const botsOnly = (settings, rng) => {
   return room;
 };
 
-/** Turns every seat into a computer and plays the whole game, checking every move. Returns the finished room. */
+/** Turns every seat into a computer and plays the whole game, checking every move.  Returns the finished room. */
 function simulate(settings, seed) {
   const rng = seeded(seed);
   const room = g.createRoom({ now: 0, code: 'x-y-z', hostId: 1, hostName: 'Ann', settings });

@@ -16,7 +16,7 @@ import { maxScore } from '../scoring.js';
  */
 export function useStatusText(view, guess) {
   const { t, list } = useGameText();
-  // The Status box's title for this phase, role and mode.
+  // The Status box's title for this phase, role, and mode.
   const headline = computed(() => {
     const { state } = view;
     if (view.phase === 'abandoned') return t('status.abandoned');

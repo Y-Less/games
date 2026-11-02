@@ -1,5 +1,5 @@
 // Turns what the server sends into words: a message `{ key, params }` (see shared/messages.js) becomes text in the
-// current language, looked up in the game's own messages first and then the site's. Usable outside components (api.js);
+// current language, looked up in the game's own messages first and then the site's.  Usable outside components (api.js);
 // inside one, useGameText.js wraps it with the game's id.
 // Depends on: ./i18n.js (the instance) and shared/messages.js (isMessage).
 import { isMessage } from '../shared/messages.js';
@@ -83,7 +83,7 @@ export function messageText(value, game = null) {
 
 /**
  * The words for a refusal: `{ error, params }` as the server sends it, with the code looked up under `errors.` (the
- * game's first). A code nobody wrote is shown as it is, so a stray sentence still reaches the player.
+ * game's first).  A code nobody wrote is shown as it is, so a stray sentence still reaches the player.
  * @param {{ error?: string, params?: object } | null | undefined} reply
  * @param {string | null} [game]
  * @returns {string}

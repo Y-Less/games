@@ -1,8 +1,8 @@
 <script setup>
-// The persistent facts line of the Status box: round, dice left in the bag, first player, the scoring setting and the turn
-// order chips. Its elements go straight into the box's facts line (there is no wrapper).
+// The persistent facts line of the Status box: round, dice left in the bag, first player, the scoring setting, and the turn
+// order chips.  Its elements go straight into the box's facts line (there is no wrapper).
 // Props: state (the server's view), windows, finished (Booleans), nameOf (function: seat -> name).
-// Emits: none. Side effects: none.
+// Emits: none.  Side effects: none.
 import { useGameText } from '../../../src/useGameText.js';
 
 const { t } = useGameText();

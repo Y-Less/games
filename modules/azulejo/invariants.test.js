@@ -85,7 +85,7 @@ test('random (not computer) play also keeps every invariant, including a lot of 
         assert.equal(game.chooseColumn(room, seat, { col: cols[Math.floor(rng() * cols.length)] }, rng).ok, true);
       } else {
         const moves = game.legalMoves(room, room.turn);
-        // Half the time only the floor: stress the lid, the marker and the zero-score clamp.
+        // Half the time only the floor: stress the lid, the marker, and the zero-score clamp.
         const pool = rng() < 0.5 ? moves.filter((m) => m.line === 'floor') : moves;
         assert.equal(game.takeTiles(room, room.turn, pool[Math.floor(rng() * pool.length)], rng).ok, true);
       }

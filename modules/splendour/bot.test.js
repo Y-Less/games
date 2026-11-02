@@ -181,7 +181,7 @@ test('views are clean at every step of a game with a person seated', () => {
 
 test('a game in which nobody can move ends instead of hanging', () => {
   const room = botsOnly(2, () => 0.5);
-  // A contrived position (so token and card conservation are not asserted): nothing to take, reserve or buy.
+  // A contrived position (so token and card conservation are not asserted): nothing to take, reserve, or buy.
   for (const l of [1, 2, 3]) {
     room.decks[l] = [];
     room.board[l] = [null, null, null, null];

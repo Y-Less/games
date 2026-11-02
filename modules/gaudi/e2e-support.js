@@ -18,7 +18,7 @@ export const fast = (range = '0-3') => {
 
 /**
  * Does whatever this person has to do right now, the simplest legal way: the hardest window, the first legal placement
- * of any pool die, otherwise end the turn. It never uses a tool.
+ * of any pool die, otherwise end the turn.  It never uses a tool.
  *
  * @param {{ state: object | null, call: (event: string, payload?: object) => Promise<{ ok: boolean, error?: string }> }} person  a test client
  * @returns {Promise<boolean>} true if it acted, false when it was not this person's move

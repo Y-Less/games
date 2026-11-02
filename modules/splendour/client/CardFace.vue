@@ -4,7 +4,7 @@
 // Props: card (card id, or null for a back), level (level of a card back), need (five counts still to pay after the owner's
 //   bonuses, or null for the full cost), affordable, selected, clickable, dimmed, small (booleans for the look and behaviour),
 //   count (cards left, for a pile).
-// Emits: pick (the card was clicked while clickable). Slots: none.
+// Emits: pick (the card was clicked while clickable).  Slots: none.
 // Side effects: none beyond the emit.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';

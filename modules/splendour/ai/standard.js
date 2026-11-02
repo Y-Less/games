@@ -1,4 +1,4 @@
-// "Standard": the original Splendour computer player. A sensible all-rounder that scores every legal move from the
+// "Standard": the original Splendour computer player.  A sensible all-rounder that scores every legal move from the
 // value of the cards on the table (points, discounts, progress towards a noble) and how close it is to affording them.
 // Other AIs (noble-hunter, blocker) build on its scoreMoves export, and bot.js falls back on it when an AI misbehaves.
 //
@@ -29,7 +29,7 @@ function cardValue(s, card) {
 }
 
 /**
- * Could any opponent buy this card right now? (If so, reserving it may be worth the turn.)
+ * Could any opponent buy this card right now?  (If so, reserving it may be worth the turn.)
  *
  * Side effects: none.
  *

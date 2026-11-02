@@ -1,8 +1,8 @@
 <script setup>
-// A titled group of cards (Tool cards, Public objectives): a small heading and the cards below it. In the right-hand column
+// A titled group of cards (Tool cards, Public objectives): a small heading and the cards below it.  In the right-hand column
 // the cards stack; with `deal` (the windows phase) they sit three to a row.
-// Props: label (heading and aria-label), deal (Boolean, three to a row). Slots: default (the cards).
-// Emits: none. Side effects: none.
+// Props: label (heading and aria-label), deal (Boolean, three to a row).  Slots: default (the cards).
+// Emits: none.  Side effects: none.
 defineProps({ label: { type: String, required: true }, deal: { type: Boolean, default: false } });
 </script>
 

@@ -1,5 +1,5 @@
 <script setup>
-// The clue box: the psychic's clue in big letters, or a caption saying what will appear. Its height is fixed, and it is
+// The clue box: the psychic's clue in big letters, or a caption saying what will appear.  Its height is fixed, and it is
 // there in every phase for every role, so nothing moves.
 // Props: clue (the clue, or an empty string), psychicName, isPsychic (you are the psychic), playing (a turn is in play).
 // Slots: none.

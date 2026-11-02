@@ -4,10 +4,10 @@
 //
 // Props:
 //   seats      {Array}   required. [{ seat, name, score, back }]: the front peg sits on `score`, the back peg on `back`.
-//   target     {number}  required. The winning score (the last hole); the track has target / 30 rows.
+//   target     {number}  required.  The winning score (the last hole); the track has target / 30 rows.
 //   skunkLine  {number}  the score marking the skunk line, or null for none.
 //   you        {number}  the viewer's seat, to emphasise their front peg (default -1).
-// Emits: none. Slots: none.
+// Emits: none.  Slots: none.
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
@@ -39,7 +39,7 @@ const width = PAD * 2 + (SLOTS - 1) * STEP;
 const height = computed(() => PAD * 2 + rows.value * rowHeight.value - ROW_GAP + 4);
 
 /**
- * Works out where a hole sits on the board. Even rows run left to right and odd rows right to left, so the track snakes.
+ * Works out where a hole sits on the board.  Even rows run left to right and odd rows right to left, so the track snakes.
  * @param {number} h  Hole number: 0 is the start, `target` the finish.
  * @param {number} lane  The player's lane (their seat index).
  * @returns {{x: number, y: number}} The hole's position in SVG units.

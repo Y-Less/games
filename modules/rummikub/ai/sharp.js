@@ -1,4 +1,4 @@
-// The sharpest computer player. It uses the unlimited table search of the classic player but values tiles differently:
+// The sharpest computer player.  It uses the unlimited table search of the classic player but values tiles differently:
 //   - every tile played is worth the same big amount, so it plays the most tiles it can each turn (and goes out when it can);
 //   - a joker costs more than it earns, so it is held back unless it takes part in a play of several tiles, or it lets the
 //     player go out, or an opponent is close to going out (then nothing is held back);
@@ -13,7 +13,7 @@ const HOLD = -2500; // a joker is only used when the rest of the play is worth m
 const DANGER = 3; // an opponent with this many tiles or fewer is about to win
 
 /**
- * The value of playing each kind of numbered tile. All are worth about BIG so that the number of tiles dominates; the small
+ * The value of playing each kind of numbered tile.  All are worth about BIG so that the number of tiles dominates; the small
  * extras only break ties.
  *
  * @param {object} s  the room settings (numbers and colours per tile kind)

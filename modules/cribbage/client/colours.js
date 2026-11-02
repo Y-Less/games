@@ -1,4 +1,4 @@
-// One peg colour per seat, shared by the board, the score chips and the lists.
+// One peg colour per seat, shared by the board, the score chips, and the lists.
 /**
  * The peg colours, in seat order.
  * @type {string[]}

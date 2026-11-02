@@ -1,8 +1,8 @@
 <script setup>
-// Dixnt start screen: create a game or join one by code, through the shared RoomEntry form. An invite link's code is
+// Dixnt start screen: create a game or join one by code, through the shared RoomEntry form.  An invite link's code is
 // filled in for you, and a message appears if that game no longer exists.
 //
-// Props: none. Emits: none. Slots: none.
+// Props: none.  Emits: none.  Slots: none.
 // Side effects: sends `create` or `join` requests (through the store) one at a time; `busy` disables the form meanwhile.
 import { computed, ref } from 'vue';
 import RoomEntry from '../../../../src/components/RoomEntry.vue';

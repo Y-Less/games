@@ -2,10 +2,10 @@
 
 Two ways of playing Splendour, played against each other by the game's own rules engine (see `strategies.js`):
 
-- **Engine** builds first. Until it has bought a set number of cards (8 unless stated) it buys the cheapest cards it can, in the colours that will discount the expensive cards it wants later. Then it switches to buying points.
-- **Rush** never builds. It spends its gems on cards worth points (any card worth 1+ points unless stated) from the first turn.
+- **Engine** builds first.  Until it has bought a set number of cards (8 unless stated) it buys the cheapest cards it can, in the colours that will discount the expensive cards it wants later.  Then it switches to buying points.
+- **Rush** never builds.  It spends its gems on cards worth points (any card worth 1+ points unless stated) from the first turn.
 
-They share all of the code for taking gems, reserving, giving tokens back and choosing nobles, and both only aim at cards they could really pay for. The only difference between them is which cards they buy. Every deal was played twice with the players swapping seats, so luck of the deal and the advantage of going first cancel out. Wins that tie count as halves. Run `node modules/splendour/sim/run.js <experiment>` to repeat any of this (`head`, `sizes`, `rushes`, `mirror`, `tables`, `strength`, `scan`).
+They share all of the code for taking gems, reserving, giving tokens back, and choosing nobles, and both only aim at cards they could really pay for.  The only difference between them is which cards they buy.  Every deal was played twice with the players swapping seats, so luck of the deal and the advantage of going first cancel out.  Wins that tie count as halves.  Run `node modules/splendour/sim/run.js <experiment>` to repeat any of this (`head`, `sizes`, `rushes`, `mirror`, `tables`, `strength`, `scan`).
 
 ## The deck matches the real game on average
 
@@ -18,7 +18,7 @@ Compared card by card with the published real card list (two open-source copies 
 | Level 3: 20 cards | cost 10.75, points 4.00 | identical |
 | Whole deck | 585 gems, 140 points | 580 gems, 140 points |
 
-The only difference is that the real level 2 has ten cost-8 cards where this version has five (and more cost-7 ones). The real nobles could not be fetched, so they are unchecked: this version has five 4+4 and five 3+3+3 tiles, all worth 3.
+The only difference is that the real level 2 has ten cost-8 cards where this version has five (and more cost-7 ones).  The real nobles could not be fetched, so they are unchecked: this version has five 4+4 and five 3+3+3 tiles, all worth 3.
 
 ## Main result (two players, 12,000 games per row)
 
@@ -48,11 +48,11 @@ Win rate of Engine (8 cards first) against Rush, two players, 6,000 games per ce
 | 19 | 81.6% | 93.8% |
 | 20 | 83.6% | 95.1% |
 
-The Engine gains about 6 points of win rate for every point added to the target. Against a Rush that buys any card with points (including the cheap 1-point cards), they are even at **13 points**. Against a Rush that only buys 2+ point cards they are even at **10**. Rush that buys only 3+ point cards loses at every target (Engine wins 75% at 10, 95% at 15).
+The Engine gains about 6 points of win rate for every point added to the target.  Against a Rush that buys any card with points (including the cheap 1-point cards), they are even at **13 points**.  Against a Rush that only buys 2+ point cards they are even at **10**.  Rush that buys only 3+ point cards loses at every target (Engine wins 75% at 10, 95% at 15).
 
 ## How long to build the engine
 
-Win rate against Rush (1+), two players, 5,000 games per cell. Size 0 is Rush itself.
+Win rate against Rush (1+), two players, 5,000 games per cell.  Size 0 is Rush itself.
 
 | cards built first | 10 points | 15 points | 20 points |
 | ---: | ---: | ---: | ---: |
@@ -69,7 +69,7 @@ The best amount of building rises with the target: none at 10, about 8 at 15, 12
 ## Other checks
 
 - **Going first** is worth 51 to 53% (mirror matches, 6,000 games per cell), at every target and for both strategies, so it does not distort the results.
-- **More players** (each deal in every seating). Engine and Rush win about the same share at 12 to 13 points; at 15 the Engine side leads clearly:
+- **More players** (each deal in every seating).  Engine and Rush win about the same share at 12 to 13 points; at 15 the Engine side leads clearly:
 
   | table | target | Engine wins (per player) | Rush wins (per player) |
   | --- | ---: | ---: | ---: |
@@ -81,7 +81,7 @@ The best amount of building rises with the target: none at 10, about 8 at 15, 12
 
 ## Limits of this
 
-- Both players are simple rules of thumb, not expert humans. The strongest computer player beats each of them about 70% of the time or more, so the results show how the two *plans* compare, not how the best players would fare. A skilled Rush player who reserves cards to block, times purchases and uses gold well would do better than this one.
+- Both players are simple rules of thumb, not expert humans.  The strongest computer player beats each of them about 70% of the time or more, so the results show how the two *plans* compare, not how the best players would fare.  A skilled Rush player who reserves cards to block, times purchases and uses gold well would do better than this one.
 - "Rush" has to be defined somehow, and the answer is sensitive to it (see the table above: buying 1+ point cards or 2+ point cards moves the even point from 13 to 10 points).
-- The Engine's 8-card switch point is a round number. At 15 points anything from 6 to 10 is about as good.
+- The Engine's 8-card switch point is a round number.  At 15 points anything from 6 to 10 is about as good.
 - Most results are for two players.

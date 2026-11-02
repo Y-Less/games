@@ -1,5 +1,5 @@
 // The parts of a trick-taking game that are the same in every one of them: whose turn follows a play, and what following suit
-// and winning a trick mean for ordinary cards. Pure functions of seats and card strings ("QH", "10S"), with no room or sockets.
+// and winning a trick mean for ordinary cards.  Pure functions of seats and card strings ("QH", "10S"), with no room or sockets.
 // The rules that differ (the opening card and "no points on the first trick" in Hearts, the Jokers in Nomination Whist) stay in
 // the game that has them.
 // Depends on: ./cards.js (rankValue, suitOf).

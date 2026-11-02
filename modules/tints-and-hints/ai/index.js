@@ -1,4 +1,4 @@
-// The Tints and Hints computer players. Each AI is a plain object { id, name, description, weight } with two decision
+// The Tints and Hints computer players.  Each AI is a plain object { id, name, description, weight } with two decision
 // functions that take plain data and return a plain answer (see MODULES.md, "Computer players"):
 //
 //   hint({ round, tint }, rng)       -> the hint text (tint is the hinter's own secret square: the only secret it has)

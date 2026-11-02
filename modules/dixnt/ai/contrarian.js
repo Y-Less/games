@@ -1,4 +1,4 @@
-// Deliberately hard to read. It gives vague clues, plays cards that only half fit the word (so nobody can tell
+// Deliberately hard to read.  It gives vague clues, plays cards that only half fit the word (so nobody can tell
 // a bluff from a real play), and suspects whoever played the card that fits the clue a little too well.
 // Depends on ./util.js for the clue-to-category fit scoring; uses only the caller's rng.
 import { best, clueStrength, fitter, pick } from './util.js';

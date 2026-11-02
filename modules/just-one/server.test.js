@@ -1,4 +1,4 @@
-// Just One against the real site: accounts over HTTP, a game over sockets, what each person is sent, computer players and the
+// Just One against the real site: accounts over HTTP, a game over sockets, what each person is sent, computer players, and the
 // statistics a finished game records.
 import test from 'node:test';
 import assert from 'node:assert/strict';

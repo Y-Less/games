@@ -1,4 +1,4 @@
-// One worker thread: plays a chunk of deals and sends the counts back. The chunk number fixes the seed and which
+// One worker thread: plays a chunk of deals and sends the counts back.  The chunk number fixes the seed and which
 // scenarios it covers, so a chunk always gives the same answer wherever and whenever it is run.
 // Depends on: engine.js (playDeal), tables.js (Stats), rng.js. run.js starts one of these per core.
 import { parentPort } from 'node:worker_threads';

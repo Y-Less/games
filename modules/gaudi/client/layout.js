@@ -1,5 +1,5 @@
 // Sizes for the Gaudi table, worked out from the room the frame gives it (never from the game, so nothing moves while
-// playing). All numbers are pixels. The constants are the parts of a window that do not scale with its space size.
+// playing).  All numbers are pixels.  The constants are the parts of a window that do not scale with its space size.
 import { COLS, ROWS } from '../rules.js';
 
 const WINDOW_FIXED = 26; // padding, border and the gaps between the spaces of a row

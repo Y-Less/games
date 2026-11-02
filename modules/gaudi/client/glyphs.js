@@ -1,5 +1,5 @@
 // Drawing data shared by the dice and the window spaces: the colours' hex values, the outline of each shape (so colour
-// is never the only clue) and where the pips go. Everything is drawn in a 40 x 40 box. Which colour has which shape and
+// is never the only clue) and where the pips go.  Everything is drawn in a 40 x 40 box.  Which colour has which shape and
 // the pattern letters are rules, not drawing: they come from ../rules.js (COLOUR_SHAPES, COLOUR_LETTERS); a colour's
 // name is a word, so it comes from the locale file (`colours.<colour>`).
 // Pure data: exports only constants, so there are no functions and no side effects.

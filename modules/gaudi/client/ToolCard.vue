@@ -1,6 +1,6 @@
 <script setup>
-// One tool card. Interactive (your table): a button that starts guided use of the tool, greyed when it cannot be used now,
-// with the favour tokens already on it. Not interactive (the windows phase): a plain card that only explains itself.
+// One tool card.  Interactive (your table): a button that starts guided use of the tool, greyed when it cannot be used now,
+// with the favour tokens already on it.  Not interactive (the windows phase): a plain card that only explains itself.
 // Props: tool (card from the view), interactive (Boolean), active (Boolean, the tool in use), block (why it cannot be used, '' if it can).
 // Emits: start (tool) when clicked or Enter is pressed; hint (text, or '' when the pointer or focus leaves) for the Status box.
 // Side effects: none.

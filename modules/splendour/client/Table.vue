@@ -1,9 +1,9 @@
 <script setup>
-// The table: a thin composer on the standard frame. The score bar, the market (nobles and cards), your board with the gem
-// supply, the other players' pop-up, the log and the Status box are components; what you are choosing (gems, a card, tokens
+// The table: a thin composer on the standard frame.  The score bar, the market (nobles and cards), your board with the gem
+// supply, the other players' pop-up, the log, and the Status box are components; what you are choosing (gems, a card, tokens
 // to return) lives in the use*.js composables beside them.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply).
-// Emits: none. Slots: none (fills GameFrame's slots).
+// Emits: none.  Slots: none (fills GameFrame's slots).
 // Side effects: sends actions through `send`; opens and closes the scoreboard pop-up and the player pop-up.
 import { computed, reactive, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -100,7 +100,7 @@ const fs = (area) => ({ fontSize: `${fontSize(area)}px` });
 
 <style scoped>
 /* Everything in the arena is sized in em: the font size is set from the area the frame gives the table (see layout.js),
-   so the layout is one fixed shape on the frame's grid. Nothing here depends on how much has happened in the game. */
+   so the layout is one fixed shape on the frame's grid.  Nothing here depends on how much has happened in the game. */
 .arena {
   grid-column: 1 / -1;
   height: 100%;

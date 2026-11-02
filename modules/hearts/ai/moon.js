@@ -1,4 +1,4 @@
-// 'Moon': always tries to shoot the moon. It passes its weakest cards and keeps long, strong suits, wins tricks (above all
+// 'Moon': always tries to shoot the moon.  It passes its weakest cards and keeps long, strong suits, wins tricks (above all
 // those that carry hearts or the Queen of Spades), never gives a heart away and, once the attempt is clearly dead
 // (somebody else has taken a point card, or too many tricks are out of reach), plays like the standard AI.
 import { rankValue, suitOf } from '../../../shared/cards.js';
@@ -26,8 +26,8 @@ export function sureTricks(ctx, know = observe(ctx)) {
 }
 
 /**
- * Is the attempt still alive? Only while nobody else has taken a point card, and the tricks to come look winnable.
- * @param {object} ctx  AI context (see index.js); uses seat, taken, trick, legal and tricksPlayed.
+ * Is the attempt still alive?  Only while nobody else has taken a point card, and the tricks to come look winnable.
+ * @param {object} ctx  AI context (see index.js); uses seat, taken, trick, legal, and tricksPlayed.
  * @param {object} [know]  card-counting result from observe(ctx), computed if omitted.
  * @returns {boolean} false once the moon is out of reach.
  * Side effects: none.
@@ -69,7 +69,7 @@ function passMoon(ctx) {
 
 /**
  * Plays to win every trick that carries points; once the attempt is dead (moonAlive false) it plays like standard.
- * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat and taken.
+ * @param {object} ctx  AI context (see index.js); uses legal, trick, hand, seat, and taken.
  * @returns {string} one card from ctx.legal.
  * Side effects: none.
  */

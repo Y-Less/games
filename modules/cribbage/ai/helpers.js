@@ -1,4 +1,4 @@
-// Shared building blocks for the cribbage AIs. Everything here is a pure function of plain data (cards such as "5H").
+// Shared building blocks for the cribbage AIs.  Everything here is a pure function of plain data (cards such as "5H").
 // Depends on shared/cards.js and ../scoring.js.
 import { fullDeck } from '../../../shared/cards.js';
 import { pipValue, scoreHand, scorePlay } from '../scoring.js';
@@ -94,7 +94,7 @@ export const legalPlays = (hand, count) => hand.filter((card) => count + pipValu
 
 /**
  * Roughly what the next player might score in reply to `card`: opponents' cards are drawn from `unseen`, and the
- * opponent has `held` of them. Returns { reply, stuck }: the expected points of their best reply, and the chance they
+ * opponent has `held` of them.  Returns { reply, stuck }: the expected points of their best reply, and the chance they
  * have nothing playable at all (so the play ends and the last card earns a go).
  *
  * @param {string[]} sequence  the cards played since the count last reset

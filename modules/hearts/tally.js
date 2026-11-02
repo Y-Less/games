@@ -1,4 +1,4 @@
-// What Hearts counts about each player for the statistics and achievements (see module.json "stats"). The game calls
+// What Hearts counts about each player for the statistics and achievements (see module.json "stats").  The game calls
 // tallyHand once a hand is scored; nothing here changes the game.
 import { bump, freshTally } from '../../shared/tally.js';
 import { HAND_POINTS } from './deals.js';

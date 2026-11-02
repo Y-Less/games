@@ -1,12 +1,12 @@
 <script setup>
 // The Wavelength table, for every phase of a game: the score bar, the dial (big), the clue and guess controls beside
-// it, slim bars for the other players, and the two standard boxes along the bottom. The psychic sees the hidden target
+// it, slim bars for the other players, and the two standard boxes along the bottom.  The psychic sees the hidden target
 // and gives a clue, everyone else turns the dial to where they think it is, then the target is revealed.
 // This file only composes: what the game looks like to you is in useGameView.js, clueing and guessing in useGuessing.js,
 // the words in useStatusText.js, and each area of the screen is its own component.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply), log (the
 //   recent moves, as lines of text).
-// Emits: none. Slots: none (it fills GameFrame's slots itself).
+// Emits: none.  Slots: none (it fills GameFrame's slots itself).
 // Side effects: sends actions through `send`; opens and closes the scoreboard and player pop-ups.
 import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -34,13 +34,13 @@ const { t, text } = useGameText();
 // Each composable's returned refs are wrapped in reactive() so the template and the other composables read them without .value.
 // The game view: read-only facts about the game for this player.
 const view = reactive(useGameView(() => props.state));
-// Clueing and guessing: the dial position being turned, the clue being typed and what is sent.
+// Clueing and guessing: the dial position being turned, the clue being typed, and what is sent.
 const guess = reactive(useGuessing(view, props.send));
 // The Status box's words.
 const { headline, mineNow, lines } = useStatusText(view, guess);
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
-// button). The scoreboard's ids are the accounts' ids.
+// button).  The scoreboard's ids are the accounts' ids.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => props.state.scoreboard.players,
   hostId: () => props.state.hostId,

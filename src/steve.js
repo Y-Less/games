@@ -1,5 +1,5 @@
 // A secret for people who open the browser's console: it prints a banner, and the function the banner names unlocks the
-// global "Steve's Achievement" for whoever is signed in. What it says back comes from the site's locale file (steve.*),
+// global "Steve's Achievement" for whoever is signed in.  What it says back comes from the site's locale file (steve.*),
 // in the language the site is showing.
 import banner from './steve.txt?raw';
 import { api } from './api.js';
@@ -12,7 +12,7 @@ export const STEVE_BANNER = banner.trimEnd();
 const t = (key, params) => i18n.global.t(key, params ?? {});
 
 /**
- * Asks the server to unlock the achievement. Returns what to tell the person who typed it in the console.
+ * Asks the server to unlock the achievement.  Returns what to tell the person who typed it in the console.
  * @param {Function} [call]  the API caller (api by default; replaceable in tests)
  * @returns {Promise<string>}  a message for the console: success, or a hint to sign in
  * Side effects: one POST to /api/achievements/steve.

@@ -1,4 +1,4 @@
-// The rules of Nomination Whist, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Nomination Whist, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a refusal code (a key under
 // `errors.` in the game's own locale file or the site's, see shared/seats.js); anything else a client will show is a
 // message, { key, params } from shared/messages.js, never a sentence.
@@ -7,7 +7,7 @@
 //
 // Seats run clockwise: the player to your left is seat + 1, so play and nominations go round in increasing seat order.
 // A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>',
-// name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
+// name }), a person who left after the game ended ({ kind: 'gone', name }), or null (empty, lobby only).
 import { deckFor, isJoker, shuffle, sortHand } from '../../shared/cards.js';
 import { msg, suitMsg } from '../../shared/messages.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
@@ -33,7 +33,7 @@ export const HIT_BONUS = 10;
 export const INSTANT_WIN_TRICKS = FULL_HAND;
 export { STAT_KEYS };
 /**
- * Whether the instant win is on. Games saved before the option existed have it on.
+ * Whether the instant win is on.  Games saved before the option existed have it on.
  *
  * @param {object} settings  the room's settings
  * @returns {boolean} false only if the setting was explicitly turned off
@@ -41,7 +41,7 @@ export { STAT_KEYS };
  */
 export const instantWinOn = (settings) => settings.instantWin !== false;
 /**
- * Whether the nomination hint is on. Games saved before the option existed have hints on.
+ * Whether the nomination hint is on.  Games saved before the option existed have hints on.
  *
  * @param {object} settings  the room's settings
  * @returns {boolean} false only if the setting was explicitly turned off
@@ -55,14 +55,14 @@ const LIVE = ['lobby', 'nominating', 'playing', 'roundEnd'];
 const MID_GAME = ['nominating', 'playing', 'roundEnd'];
 
 /**
- * Is the game still going (not finished)? Finished rooms are kept for a day, live ones for a week.
+ * Is the game still going (not finished)?  Finished rooms are kept for a day, live ones for a week.
  *
  * @param {object} room  the room (not changed)
  * @returns {boolean} true unless the game has finished
  * Side effects: none.
  */
 export const isLive = (room) => LIVE.includes(room.phase);
-// The seat vocabulary is shared (shared/seats.js); it is re-exported because the server, the AIs and the tests import it from here.
+// The seat vocabulary is shared (shared/seats.js); it is re-exported because the server, the AIs, and the tests import it from here.
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 
 // ---- the shape of a game ----
@@ -144,7 +144,7 @@ export const dealerFor = (firstDealer, round, seats) => (firstDealer + round) % 
 export const forbiddenNomination = (cards, othersTotal) => (cards - othersTotal >= 0 ? cards - othersTotal : null);
 
 /**
- * What a player scores in a round. Exactly right: 10 plus the nomination. A miss: the tricks taken, or nothing.
+ * What a player scores in a round.  Exactly right: 10 plus the nomination.  A miss: the tricks taken, or nothing.
  *
  * @param {number} bid  the nomination
  * @param {number} taken  the tricks won
@@ -244,7 +244,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 }
 
 /**
- * Puts the game state back to the start (scores, tallies, history and the round's cards), keeping seats and settings.
+ * Puts the game state back to the start (scores, tallies, history, and the round's cards), keeping seats and settings.
  *
  * @param {object} room  mutates every game field
  * @returns {void}
@@ -275,7 +275,7 @@ function resetGame(room) {
 // ---- seats and settings ----
 
 /**
- * The seat rules (joining, leaving, kicking and the computer players) are the shared ones from shared/seats.js. What is
+ * The seat rules (joining, leaving, kicking and the computer players) are the shared ones from shared/seats.js.  What is
  * particular to Nomination Whist:
  *   - "mid-game" is any phase from nominating to the round-end pop-up;
  *   - a person who leaves mid-game is replaced by a computer player that picks its own AI (takeOver);
@@ -311,7 +311,7 @@ function resizeSeats(room, count) {
 }
 
 /**
- * The host changes the game's settings (lobby only). Changing the number of seats resizes the table and resets the game.
+ * The host changes the game's settings (lobby only).  Changing the number of seats resizes the table and resets the game.
  *
  * @param {object} room    mutates room.settings, and room.seats and the scores if the seat count changes
  * @param {*} userId       the account asking; must be the host
@@ -335,11 +335,11 @@ export function setSettings(room, userId, input) {
 // ---- rounds ----
 
 /**
- * The host starts the game: picks the first dealer, deals round one and gives every computer player its AI.
+ * The host starts the game: picks the first dealer, deals round one, and gives every computer player its AI.
  *
  * @param {object} room  mutates the whole room (resets it, deals, sets the phase to 'nominating')
  * @param {*} userId     the account asking; must be the host
- * @param {() => number} rng  random numbers for the dealer, the deal and the AIs
+ * @param {() => number} rng  random numbers for the dealer, the deal, and the AIs
  * @returns {{ ok: boolean, error?: string }}
  */
 export function start(room, userId, rng) {
@@ -437,7 +437,7 @@ export function allowedNominations(room, seat) {
 }
 
 /**
- * A seat nominates the number of tricks it will take. After the dealer the round moves to play.
+ * A seat nominates the number of tricks it will take.  After the dealer the round moves to play.
  *
  * @param {object} room  mutates nominations, turn and (after the dealer) phase
  * @param {number} seat  the nominating seat
@@ -532,7 +532,7 @@ export function trickWinner(trick, trump) {
 /**
  * Gives a finished trick to its winner, who leads next; after the last trick the round is scored.
  *
- * @param {object} room  mutates taken, lastTrick, trick, tricksPlayed and turn (and, via endRound, the scores and phase)
+ * @param {object} room  mutates taken, lastTrick, trick, tricksPlayed, and turn (and, via endRound, the scores and phase)
  * @returns {{ ok: boolean, error?: string, winner?: number, roundOver?: boolean }}
  * Side effects: as described; the room is unchanged when there is no finished trick.
  */
@@ -556,7 +556,7 @@ export function resolveTrick(room) {
  * Scores the round: adds the points, records the tallies and history, and decides what comes next (an instant win or the last
  * round finishes the game; otherwise the round-end pop-up).
  *
- * @param {object} room  mutates scores, tally, history, phase, winners, instantWin and ready
+ * @param {object} room  mutates scores, tally, history, phase, winners, instantWin, and ready
  * @returns {void}
  * Side effects: as described.
  */
@@ -683,7 +683,7 @@ export function playAgain(room, userId) {
 }
 
 /**
- * What the statistics should record for a finished game: one entry per human still seated. An instant winner is placed first
+ * What the statistics should record for a finished game: one entry per human still seated.  An instant winner is placed first
  * whatever the totals.
  *
  * @param {object} room  a finished room (not changed)
@@ -812,8 +812,8 @@ export function botPlay(room, seat, rng) {
 /**
  * The nomination the bid-value table suggests to the person whose turn it is to nominate: the allowed number (so never the
  * dealer's forbidden one) that was worth most in simulated games from their own cards, their table position and what the
- * players before them have nominated, with the player then playing to it. From the table learned for games with or without
- * the Jokers (falling back to the table-aware one where it has nothing). Null at any other time, so nobody is told it early,
+ * players before them have nominated, with the player then playing to it.  From the table learned for games with or without
+ * the Jokers (falling back to the table-aware one where it has nothing).  Null at any other time, so nobody is told it early,
  * and always null when the host has turned hints off.
  *
  * @param {object} room  not changed
@@ -846,7 +846,7 @@ export function botNominate(room, seat, rng) {
 }
 
 /**
- * Performs a pending action. Returns the action, or null if there was nothing to do.
+ * Performs a pending action.  Returns the action, or null if there was nothing to do.
  *
  * @param {object} room  mutated by the nomination, play or trick resolution
  * @param {() => number} rng  random numbers for the AI
@@ -869,7 +869,7 @@ export function runPending(room, rng) {
 // ---- what each player may see ----
 
 /**
- * The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows. The round's `label` and each
+ * The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows.  The round's `label` and each
  * player's note ("bid 2, took 1") are messages (shared/messages.js), put into words by the client.
  *
  * @param {object} room  not changed
@@ -926,10 +926,10 @@ function seatView(room, i, online) {
 }
 
 /**
- * The round being played: its number, size, trump and dealer.
+ * The round being played: its number, size, trump, and dealer.
  *
  * @param {object} room  not changed
- * @returns {object} number, total, cards, trump, dealer and label
+ * @returns {object} number, total, cards, trump, dealer, and label
  * Side effects: none.
  */
 function roundView(room) {
@@ -969,7 +969,7 @@ function playView(room, me) {
 
 /**
  * The standard scoreboard (shared/scores.js): the players (with who is ready between rounds, and the instant winner
- * noted), the rounds scored so far, and that high scores win. The site reads `current` from here (its `global.slow`
+ * noted), the rounds scored so far, and that high scores win.  The site reads `current` from here (its `global.slow`
  * clock), so it is built on the server like every other game's.
  *
  * @param {object} room  not changed

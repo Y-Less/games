@@ -1,9 +1,9 @@
 <script setup>
 // Props: colour (0 to 4, or 5 for Gold), size (px at the normal text size), count (number written on the gem, or null),
 //   faded (draw it dimmed).
-// Emits: none. Slots: none. Side effects: none.
+// Emits: none.  Slots: none.  Side effects: none.
 // One gem drawn in SVG: its own shape and colour. `size` is in pixels at the normal text size (it scales with the em, so the
-// whole table can be scaled to the window by changing its font size). With `count` the number is written on the gem (costs, tokens).
+// whole table can be scaled to the window by changing its font size).  With `count` the number is written on the gem (costs, tokens).
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { GEM_FILL, GEM_INK, GEM_KEYS, GEM_SHAPES, GEM_STROKE, SHAPES } from './gems.js';

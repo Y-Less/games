@@ -1,12 +1,12 @@
 // The site is translatable, and stays so: every word a player can see comes from a locale file, every key a component or
-// a server asks for exists in English, and every key in English is asked for by something. This test reads the source
-// itself (through Vite's raw imports), so it needs no browser and runs with the rest of the client tests. One case per
+// a server asks for exists in English, and every key in English is asked for by something.  This test reads the source
+// itself (through Vite's raw imports), so it needs no browser and runs with the rest of the client tests.  One case per
 // unit (the site, then each game), so a game can be checked on its own: `vitest run src/i18n.test.js -t hearts`.
 //
 // What counts as text in a template: a text node, or a static `title`, `aria-label`, `placeholder` (and the other
-// attributes listed below) with two or more letters in a row. What counts as text in a script or a .js file: a string
+// attributes listed below) with two or more letters in a row.  What counts as text in a script or a .js file: a string
 // literal of three or more words that starts with a capital letter or ends in punctuation, which is what a sentence
-// looks like and a CSS class list or a key does not. Comments, imports, console output and thrown Errors (for
+// looks like and a CSS class list or a key does not.  Comments, imports, console output, and thrown Errors (for
 // developers, not players) are left out, as is a module's own operator log (ctx.log), which the shared room server's
 // identical lines never faced because a shared file belongs to no unit.
 import { describe, expect, it } from 'vitest';
@@ -16,7 +16,7 @@ const moduleMessages = import.meta.glob('../modules/*/locales/en.json', { eager:
 const sources = import.meta.glob(['./**/*.{vue,js}', '../modules/*/client/**/*.{vue,js}', '../modules/*/*.js', '../shared/*.js', '../server/**/*.js'], { query: '?raw', import: 'default', eager: true });
 
 /**
- * Source files whose English is not the interface: tests, test kits and fixtures (for developers), and a game's content
+ * Source files whose English is not the interface: tests, test kits, and fixtures (for developers), and a game's content
  * (Just One's word list, Wavelength's spectra), which is translated as content, not as keys.
  */
 const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|views\.js|fixtures\/|\/sim\/|\/arena\.js|\/testing\.js|\/words\.js|\/spectra\.js)$/;
@@ -84,7 +84,7 @@ function hardCodedInScript(script) {
 }
 
 /**
- * The static keys a file asks for: t/$t/te/named-style lookups, server messages (msg) and refusal codes (fail, AuthError,
+ * The static keys a file asks for: t/$t/te/named-style lookups, server messages (msg), and refusal codes (fail, AuthError,
  * ShopError, `error: '...'`) are `keys`, which must exist; every other quoted literal is a `literal`, which may name a key
  * indirectly (a table of keys picked by a value, say); and a template literal's start is a `prefix` (`t(\`pass.${side}\`)`).
  */

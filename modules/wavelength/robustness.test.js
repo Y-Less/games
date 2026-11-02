@@ -1,5 +1,5 @@
 // Garbage in: every socket event of Wavelength, in every phase and both modes that are cheap to reach, from members and
-// strangers, is sent malformed payloads. The server must stay up, answer every time with a structured failure or a
+// strangers, is sent malformed payloads.  The server must stay up, answer every time with a structured failure or a
 // harmless success, keep the game consistent, never reveal the hidden target, and still be able to finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';

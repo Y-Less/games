@@ -1,9 +1,9 @@
 <script setup>
 // One player's board: pattern lines (a staircase, filling from the right), the wall with faint ghost tiles showing
-// where each colour belongs, and the floor line with its penalties. Yours is clickable while you are placing tiles.
+// where each colour belongs, and the floor line with its penalties.  Yours is clickable while you are placing tiles.
 //
 // Props:
-//   seat          {Object}         required. A seat from the view: { name, bot, online, score, lines, wall, floor, penalty }.
+//   seat          {Object}         required.  A seat from the view: { name, bot, online, score, lines, wall, floor, penalty }.
 //   cell          {number}         tile cell size in pixels; everything on the board scales from it (default 44).
 //   isMe          {boolean}        this is the viewer's own board.
 //   current       {boolean}        it is this player's turn (highlights the board).

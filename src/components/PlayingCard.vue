@@ -1,10 +1,10 @@
 <script setup>
-// File: one playing card drawn in CSS. Depends on: ../../shared/cards.js (names, ranks, suits, colours).
+// File: one playing card drawn in CSS.  Depends on: ../../shared/cards.js (names, ranks, suits, colours).
 // Props: card (String|null, e.g. "QS"; null is face-down), size ('sm'|'md'|'lg'), clickable, disabled, selected, dimmed, trump (Boolean).
 // Emits: pick (when clickable and clicked).  Slots: none.
 // Side effects: none.
 // A playing card drawn in CSS. `card` is a string such as "QS" (see shared/cards.js); pass null for a face-down card,
-// which shows the viewer's chosen card back. With `clickable` it is a button and emits `pick`.
+// which shows the viewer's chosen card back.  With `clickable` it is a button and emits `pick`.
 import { computed } from 'vue';
 import { cardMsg } from '../../shared/messages.js';
 import { useGameText } from '../useGameText.js';

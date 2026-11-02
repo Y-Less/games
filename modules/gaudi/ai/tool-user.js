@@ -1,4 +1,4 @@
-// "Tool user": spends its favour tokens freely. It takes the hardest window (the most tokens), and each turn it checks
+// "Tool user": spends its favour tokens freely.  It takes the hardest window (the most tokens), and each turn it checks
 // whether turning a die over, shifting it a shade, swapping it with one from the round track or placing it anywhere
 // (Free Pane) gives a better placement than the best plain one, and uses the tool when it does, down to its last token.
 import { chooseStep } from './common.js';
@@ -27,7 +27,7 @@ export default {
     }, null).pid;
   },
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -47,7 +47,7 @@ export default {
       exchange: true,
       noise: 0,
       /**
-       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * How good it is to put `die` on `cell` for this AI: higher is better.  Its own measure of a placement; see the
        * file header for what it values.
        *
        * @param {object} s     the snapshot

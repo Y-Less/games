@@ -1,4 +1,4 @@
-// Short-sighted: the best-scoring hand now, and the most points from each card as it is played. Ignores the crib completely.
+// Short-sighted: the best-scoring hand now, and the most points from each card as it is played.  Ignores the crib completely.
 // Depends on ../scoring.js and ./helpers.js.
 import { pipValue, scorePlay } from '../scoring.js';
 import { averageHandScore, splits, unseenFrom } from './helpers.js';

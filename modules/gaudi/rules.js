@@ -1,10 +1,10 @@
-// The pure rules of Gaudi that need no room, sockets or randomness: colours, window patterns, the placement rules,
-// the public and private objectives and window scoring. The server and the client both import this file (the client
+// The pure rules of Gaudi that need no room, sockets, or randomness: colours, window patterns, the placement rules,
+// the public and private objectives and window scoring.  The server and the client both import this file (the client
 // uses it to highlight legal spaces and explain illegal ones), so it must not import anything from node.
-// No word a player reads lives here: a colour is a message (`colourMsg`), a window, tool or objective is named by its id
-// under `patterns.`, `tools.` and `objectives.` in the locale file, and a reason a die cannot go somewhere is a message
-// under `errors.` (see shared/messages.js). It depends only on shared/messages.js; game.js, bot.js, the AIs and the
-// client all depend on it. Nothing in it changes state.
+// No word a player reads lives here: a colour is a message (`colourMsg`), a window, tool, or objective is named by its id
+// under `patterns.`, `tools.`, and `objectives.` in the locale file, and a reason a die cannot go somewhere is a message
+// under `errors.` (see shared/messages.js).  It depends only on shared/messages.js; game.js, bot.js, the AIs, and the
+// client all depend on it.  Nothing in it changes state.
 import { msg } from '../../shared/messages.js';
 
 export const ROWS = 4;
@@ -15,13 +15,13 @@ export const ROUNDS = 10;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 5;
 
-/** The five colours of glass. The letter is how a colour is written in a window pattern. */
+/** The five colours of glass.  The letter is how a colour is written in a window pattern. */
 export const COLOURS = ['ruby', 'topaz', 'jade', 'sapphire', 'amethyst'];
 export const COLOUR_LETTERS = { R: 'ruby', T: 'topaz', J: 'jade', S: 'sapphire', A: 'amethyst' };
 export const COLOUR_SHAPES = { ruby: 'diamond', topaz: 'circle', jade: 'triangle', sapphire: 'square', amethyst: 'star' };
 
 /**
- * A colour's name as a message, for a view, a log line or a refusal ("Ruby").
+ * A colour's name as a message, for a view, a log line, or a refusal ("Ruby").
  *
  * @param {string} c  a colour of COLOURS
  * @returns {{ key: string }} the message the client puts into words (the client's own cards use `t('colours.' + c)`)
@@ -62,9 +62,9 @@ export const dicePerColour = (players) => bagSize(players) / COLOURS.length;
 export const BAD_PRIVATE_POINTS = 3;
 
 // ---- window patterns ----
-// Twelve double-sided cards, 24 patterns. A pattern is four rows of five characters: '.' is a blank space, a letter
-// (R T J S A) a colour restriction and a digit 1-6 a shade restriction. Difficulty (3-6) is the number of favour
-// tokens the window gives its owner. The two faces of a card are one light and one heavy window. A window's name is
+// Twelve double-sided cards, 24 patterns.  A pattern is four rows of five characters: '.' is a blank space, a letter
+// (R T J S A) a colour restriction and a digit 1-6 a shade restriction.  Difficulty (3-6) is the number of favour
+// tokens the window gives its owner.  The two faces of a card are one light and one heavy window.  A window's name is
 // not here: it is `patterns.<card>.<face>` in the locale file, drawn by the client from the pattern's id.
 
 const CARD_DATA = [
@@ -176,7 +176,7 @@ export const rowOf = (index) => Math.floor(index / COLS);
  */
 export const colOf = (index) => index % COLS;
 /**
- * Is this space on the edge of the window (including the corners)? The first die must go on one.
+ * Is this space on the edge of the window (including the corners)?  The first die must go on one.
  *
  * @param {number} index  the space
  * @returns {boolean} true on the edge
@@ -237,9 +237,9 @@ export const diceIn = (grid) => grid.filter(Boolean);
 export const emptySpaces = (grid) => grid.filter((d) => !d).length;
 
 /**
- * Why `die` cannot go on space `index` of a window, or null when it can. Options relax one rule each:
+ * Why `die` cannot go on space `index` of a window, or null when it can.  Options relax one rule each:
  * `ignoreColour` and `ignoreShade` skip the space's own restriction of that kind; `ignoreTouch` skips the rule that a
- * die must touch the dice already placed (and that the first one is on an edge). The like-beside-like rule is never relaxed.
+ * die must touch the dice already placed (and that the first one is on an edge).  The like-beside-like rule is never relaxed.
  *
  * @param {(object | null)[]} grid  the window
  * @param {object} pattern  its pattern (see patternOf)
@@ -272,7 +272,7 @@ export function cellProblem(grid, pattern, index, die, options = {}) {
 }
 
 /**
- * Why the die in `from` cannot be moved to `to`, or null. The die is lifted first, so it cannot count as its own neighbour.
+ * Why the die in `from` cannot be moved to `to`, or null.  The die is lifted first, so it cannot count as its own neighbour.
  *
  * @param {(object | null)[]} grid  the window
  * @param {object} pattern  its pattern
@@ -306,7 +306,7 @@ export function moveProblem(grid, pattern, from, to, options = {}) {
 export const legalCells = (grid, pattern, die, options) => grid.flatMap((_, i) => (cellProblem(grid, pattern, i, die, options) === null ? [i] : []));
 
 /**
- * True if no die at all could ever go on this space (ignoring touching and the first-die rule). Every colour-and-shade
+ * True if no die at all could ever go on this space (ignoring touching and the first-die rule).  Every colour-and-shade
  * face the space allows is blocked by a neighbour of the same colour or shade.
  *
  * @param {(object | null)[]} grid  the window
@@ -328,7 +328,7 @@ export function isDeadSpace(grid, pattern, index) {
 }
 
 /**
- * A complete valid filling of a pattern with unlimited dice, or null. Used by the tests to prove patterns are playable.
+ * A complete valid filling of a pattern with unlimited dice, or null.  Used by the tests to prove patterns are playable.
  * It fills in space order with backtracking, so only earlier neighbours need checking.
  *
  * @param {object} pattern  the pattern to fill
@@ -422,7 +422,7 @@ const shadePair = (a, b) => (grid) => Math.min(countWhere(grid, (d) => d.v === a
 /**
  * Ten public objectives. `sets(grid)` is how many times it is completed; each is worth `points` per `unit` (a word the
  * client reads from `units.<unit>`). `max` is the most times a window can complete it: a window holds only CELLS dice,
- * so a set of all six shades can be made at most CELLS / 6 times. The name and the rule a player reads are not here:
+ * so a set of all six shades can be made at most CELLS / 6 times.  The name and the rule a player reads are not here:
  * they are `objectives.<id>.name` and `.text` in the locale file, drawn by the client from the id.
  */
 export const OBJECTIVES = [
@@ -471,7 +471,7 @@ export const objectiveOf = (id) => OBJECTIVES.find((o) => o.id === id) ?? null;
  * @param {(object | null)[]} grid  the window
  * @returns {{ sets: number, points: number }} how many times it is completed and the points that earns
  *
- * Side effects: none. (Throws if id is unknown.)
+ * Side effects: none.  (Throws if id is unknown.)
  */
 export function objectivePoints(id, grid) {
   const objective = objectiveOf(id);
@@ -480,7 +480,7 @@ export function objectivePoints(id, grid) {
 }
 
 /**
- * The private objective: by default the shades of every die of your secret colour, added up. With "bad private
+ * The private objective: by default the shades of every die of your secret colour, added up.  With "bad private
  * scoring" every such die is worth a flat 3 whatever it shows.
  *
  * @param {(object | null)[]} grid  the window

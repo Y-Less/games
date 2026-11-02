@@ -1,15 +1,15 @@
 <script setup>
-// File: the fixed-height scrolling list of game events. Depends on: Vue only.
+// File: the fixed-height scrolling list of game events.  Depends on: Vue only.
 // Props: entries (Array, oldest first), newestFirst (Boolean), label (String, accessible name), empty (String, text when no entries),
 //   fresh (Number, how many newest entries are drawn at full strength).
 // Emits: none.  Slots: default (scoped { entry, index, old }, draws one entry).
 // Exposes: toNewest().
 // Side effects: sets the scrollTop of its own box (on mount, on new entries while the player is at the newest end, and on toNewest()).
-// A list of what has happened in a game (scoring, recent actions...) that never changes the size of the page. The box
+// A list of what has happened in a game (scoring, recent actions...) that never changes the size of the page.  The box
 // has a fixed height (--log-height, 9rem unless the parent says otherwise, or the parent can make it a flex child with
 // `flex: 1 1 0`), scrolls inside itself, and keeps the newest entry in view unless the player has scrolled away from it.
 //
-// `entries` are in the order they happened (oldest first). With `newest-first` the newest is shown at the top instead.
+// `entries` are in the order they happened (oldest first).  With `newest-first` the newest is shown at the top instead.
 // The default slot draws one entry: <GameLog :entries="log" v-slot="{ entry, index, old }">...</GameLog>.
 import { nextTick, onMounted, ref, watch, computed } from 'vue';
 import { useGameText } from '../useGameText.js';

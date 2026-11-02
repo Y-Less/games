@@ -1,6 +1,6 @@
-// The secret words of Just One, each with the clues people tend to give for it, strongest first. The computer players use
+// The secret words of Just One, each with the clues people tend to give for it, strongest first.  The computer players use
 // the lists: as a clue-giver one says a word from the list of the secret word, and as a guesser one looks for the word whose
-// lists the visible clues come from. A person may give any clue at all. Depends on nothing.
+// lists the visible clues come from.  A person may give any clue at all.  Depends on nothing.
 
 // Builds one entry from a word and its space-separated usual clues, strongest first.
 const w = (word, related) => ({ word, related: related.split(' ') });
@@ -100,7 +100,7 @@ export const WORDS = [
   w('detective', 'clue mystery holmes crime magnifying investigate case murder'),
   w('knight', 'armour sword castle horse shield medieval arthur lance'),
   w('cowboy', 'horse hat boots wild west lasso sheriff ranch'),
-  // sport, music and fun
+  // sport, music, and fun
   w('football', 'goal kick pitch team referee striker match penalty'),
   w('tennis', 'racket net serve court wimbledon ball match love'),
   w('swimming', 'pool water stroke goggles lane dive wet float'),

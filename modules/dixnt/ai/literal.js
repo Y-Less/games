@@ -1,5 +1,5 @@
 // Takes the clue at face value: plays the card whose category suits the word best, and suspects the card that
-// suits it least. Knows nothing about the other players, and bluffs at random when it cannot see the word.
+// suits it least.  Knows nothing about the other players, and bluffs at random when it cannot see the word.
 // Depends on ./util.js for the clue-to-category fit scoring; uses only the caller's rng.
 import { best, clueStrength, fitter, pick } from './util.js';
 

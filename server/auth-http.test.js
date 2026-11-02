@@ -1,4 +1,4 @@
-// The account endpoints over real HTTP: validation, cookies, JSON-only changes, body limits, throttling and sessions.
+// The account endpoints over real HTTP: validation, cookies, JSON-only changes, body limits, throttling, and sessions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ask, connected, refused, register, withSite } from './fixtures/testkit.js';

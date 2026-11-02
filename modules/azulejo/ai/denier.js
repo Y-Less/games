@@ -1,5 +1,5 @@
-// "Denier": plays against the table. It values tiles an opponent needs to finish a pattern line (and so score on the
-// wall): taking the last of a colour they are building leaves them to overflow on to their floor. Its own board comes
+// "Denier": plays against the table.  It values tiles an opponent needs to finish a pattern line (and so score on the
+// wall): taking the last of a colour they are building leaves them to overflow on to their floor.  Its own board comes
 // second, but it will not drop tiles on the floor for nothing.
 // Depends on: ../rules.js (line sizes and tile scores) and ./common.js (take previews, tile counts, column choosing).
 import { lineCapacity, tileScore } from '../rules.js';

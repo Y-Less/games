@@ -1,8 +1,8 @@
-// What Wavelength counts about each player for the statistics and achievements (see module.json "stats"). The counters live
-// on the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
+// What Wavelength counts about each player for the statistics and achievements (see module.json "stats").  The counters live
+// on the player.  The game calls tallyTurn once a turn is scored; nothing here changes the game.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
-// Depends on shared/tally.js for the counter helpers. Every function here either builds counters or bumps them on players.
+// Depends on shared/tally.js for the counter helpers.  Every function here either builds counters or bumps them on players.
 
 /** The statistic counters Wavelength keeps per player. */
 export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues', 'guesses', 'missDistance'];

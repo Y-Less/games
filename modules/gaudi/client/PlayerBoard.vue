@@ -5,8 +5,8 @@
 // highlight ({ legal, pick, chosen, titles } from useBoardClicks), pool (dice), chosenIds (pool die ids drawn as chosen),
 // canUndo (Boolean), mode (tool in use or null), modeDie, toolParams (see TurnActions), slots (the round track), round (number),
 // sizes ({ cell, die, perRow, poolHeight, trackDie } in px, from layout.js).
-// Emits: cell (index), pool (die), track (die), end, undo, cancel, apply (extra parameters). All are passed straight on from
-// the window, pool, buttons and track. Side effects: none.
+// Emits: cell (index), pool (die), track (die), end, undo, cancel, apply (extra parameters).  All are passed straight on from
+// the window, pool, buttons, and track.  Side effects: none.
 import DicePool from './DicePool.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import RoundTrack from './RoundTrack.vue';

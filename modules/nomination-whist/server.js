@@ -1,5 +1,5 @@
-// The socket layer for Nomination Whist. The rules live in game.js; the rooms, saving, views, joining and the lobby events
-// are the shared room server (shared/roomServer.js). This file says what is particular to this game: its settings, its own
+// The socket layer for Nomination Whist.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events
+// are the shared room server (shared/roomServer.js).  This file says what is particular to this game: its settings, its own
 // socket events (nominate, play, next), and what the server has to do by itself (a computer move, the end of a trick, the
 // wait for everyone to close the score pop-up between rounds).
 //
@@ -14,7 +14,7 @@ import * as game from './game.js';
  * Reads the Nomination Whist timings from the environment.
  *
  * @returns {{ bot: { min: number, max: number }, trick: number, nextWait: number }} the computer-player delay range, the
- *   trick pause and the between-rounds wait, all in milliseconds
+ *   trick pause, and the between-rounds wait, all in milliseconds
  * Side effects: none (reads the environment).
  */
 function readDelays() {
@@ -55,7 +55,7 @@ export default function (ctx) {
       return null;
     },
     /**
-     * The game's own socket events: nominating, playing a card and closing the round-end pop-up.
+     * The game's own socket events: nominating, playing a card, and closing the round-end pop-up.
      *
      * @param {object} helpers  from the shared room server
      * @param {Function} helpers.act  runs a change against the sender's room and seat, then saves and broadcasts

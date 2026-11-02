@@ -1,9 +1,9 @@
-// Coins: the site's own currency. They are earned by finishing a game in the top three and spent in the shop; they can
-// never be bought or given between players. Every change is a row in coin_ledger, and the balance is the sum of a
+// Coins: the site's own currency.  They are earned by finishing a game in the top three and spent in the shop; they can
+// never be bought or given between players.  Every change is a row in coin_ledger, and the balance is the sum of a
 // user's rows, so there is always a record of where each coin came from.
-// Depends on: the coin_ledger, result_players, results and users tables (see db.js).
+// Depends on: the coin_ledger, result_players, results, and users tables (see db.js).
 
-/** Coins for a finished game, by placement (1 = best). Tied players share a placement, so they share its prize. */
+/** Coins for a finished game, by placement (1 = best).  Tied players share a placement, so they share its prize. */
 const PLACEMENT_PRIZES = { 1: 100, 2: 50, 3: 20 };
 
 /**
@@ -18,10 +18,10 @@ export function prizeFor({ placement, outcome }) {
 }
 
 /**
- * The coin operations on a database. None of them opens a transaction, so callers may group them with other writes.
+ * The coin operations on a database.  None of them opens a transaction, so callers may group them with other writes.
  * @param {import('node:sqlite').DatabaseSync} db  the site database
- * @returns {object} balance, spent, history, awardPlacement, creditPastResults, award and spend (documented below)
- * Side effects: prepares statements; the returned operations write rows to coin_ledger (balance, spent and history only read).
+ * @returns {object} balance, spent, history, awardPlacement, creditPastResults, award, and spend (documented below)
+ * Side effects: prepares statements; the returned operations write rows to coin_ledger (balance, spent, and history only read).
  */
 export function createCoins(db) {
   const insert = db.prepare('INSERT OR IGNORE INTO coin_ledger (user_id, amount, reason, result_id, created_at) VALUES (?, ?, ?, ?, ?)');
@@ -71,7 +71,7 @@ export function createCoins(db) {
 
     /**
      * The start-up step for a site that had games before coins: pays every person (not computer accounts) for the games
-     * already recorded that they were not paid for, dated when each game finished. Safe to run on every start: a game that
+     * already recorded that they were not paid for, dated when each game finished.  Safe to run on every start: a game that
      * has paid is skipped, so it only ever adds what is missing.
      * @returns {{ games: number, coins: number }} how many payments were made and their total
      * Side effects: inserts coin_ledger rows.
@@ -113,7 +113,7 @@ export function createCoins(db) {
     },
 
     /**
-     * Takes coins for a purchase. Throws when the balance would go below zero.
+     * Takes coins for a purchase.  Throws when the balance would go below zero.
      * @param {number} userId  the buyer
      * @param {number} amount  the price, a whole number (0 does nothing)
      * @param {string} reason  what it was for, recorded in the ledger

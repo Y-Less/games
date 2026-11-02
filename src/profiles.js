@@ -1,5 +1,5 @@
 // What the site knows about other players' looks (their name style and avatar), fetched in batches from
-// /api/players and kept for a minute, so a score bar of six chips costs one request. Your own profile is read from the
+// /api/players and kept for a minute, so a score bar of six chips costs one request.  Your own profile is read from the
 // session instead, so a change you make shows at once.
 // Depends on: vue, api.js and session.js (for your own profile).
 import { reactive } from 'vue';
@@ -16,7 +16,7 @@ let timer = null; // the pending batch timer, or null
 /**
  * Fetches the profiles asked for since the last batch.
  * @returns {Promise<void>}
- * Side effects: one request; fills `profiles`; clears the wanted set and the timer. A failed request is ignored.
+ * Side effects: one request; fills `profiles`; clears the wanted set and the timer.  A failed request is ignored.
  */
 async function fetchWanted() {
   timer = null;
@@ -32,7 +32,7 @@ async function fetchWanted() {
 }
 
 /**
- * The public profile of a user ({ displayName, nameStyle, avatar }), or null until it has arrived. Asks for it when missing or old.
+ * The public profile of a user ({ displayName, nameStyle, avatar }), or null until it has arrived.  Asks for it when missing or old.
  * @param {number} userId
  * @returns {object | null}
  * Side effects: may queue a batched request.
@@ -52,7 +52,7 @@ export function profileOf(userId) {
 /**
  * Forgets everything fetched (after signing out, and in tests).
  * @returns {void}
- * Side effects: empties the cache, the wanted set and the pending timer.
+ * Side effects: empties the cache, the wanted set, and the pending timer.
  */
 export function clearProfiles() {
   for (const id of Object.keys(profiles)) delete profiles[id];

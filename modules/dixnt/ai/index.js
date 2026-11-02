@@ -1,6 +1,6 @@
-// The Dixnt computer players. Each AI is a plain object { id, name, description, weight } plus three decision
+// The Dixnt computer players.  Each AI is a plain object { id, name, description, weight } plus three decision
 // functions that take plain data and return a plain answer, so they work the same in the bot process, in a test and
-// anywhere else. None of them touches the network, the clock or Math.random: the `rng` argument is the only randomness.
+// anywhere else.  None of them touches the network, the clock or Math.random: the `rng` argument is the only randomness.
 //
 //   chooseWord({ hints: string[], hand: number[], cards, round, judging }, rng)           -> one of `hints`
 //   playCard({ word: string | null, hand: number[], cards, round, judging }, rng)         -> one of `hand`

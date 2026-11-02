@@ -1,5 +1,5 @@
-// The "Recent moves" list of Nomination Whist. The server sends the state, not a history, so the list is worked out
-// here from what changed between one state and the next: a new round, a nomination, a card played, a trick won. Each
+// The "Recent moves" list of Nomination Whist.  The server sends the state, not a history, so the list is worked out
+// here from what changed between one state and the next: a new round, a nomination, a card played, a trick won.  Each
 // line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by the
 // table when it is drawn, so the list reads in the player's language whenever they change it.
 import { isJoker } from '../../../shared/cards.js';

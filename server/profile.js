@@ -1,5 +1,5 @@
 // The profile: how a users row becomes what the site shows (publicUser, publicProfile) and how a profile change is
-// checked and saved. Every setting is one row of SETTINGS, so adding one means adding a row (and its column in db.js).
+// checked and saved.  Every setting is one row of SETTINGS, so adding one means adding a row (and its column in db.js).
 import { textFrom } from '../shared/input.js';
 import { normaliseAvatar } from '../shared/avatar.js';
 import { isBackgroundAnimation } from '../shared/animations.js';
@@ -89,7 +89,7 @@ export const SETTINGS = [
   { key: 'markerColour', column: 'marker_colour', gated: true, clean: cleanMarkerColour, store: asIs },
   { key: 'siteTheme', column: 'site_theme', gated: true, clean: (input) => cleanChoice(input, isSiteTheme, 'invalidSiteTheme'), store: asIs },
   { key: 'siteFont', column: 'site_font', gated: true, clean: (input) => cleanChoice(input, isSiteFont, 'invalidSiteFont'), store: asIs },
-  // The site's language: a tag the client has files for, or null to follow the browser. The server keeps no list of
+  // The site's language: a tag the client has files for, or null to follow the browser.  The server keeps no list of
   // languages (the client finds its own files), so any well-formed tag is accepted.
   { key: 'language', column: 'language', clean: (input) => (input === null ? null : cleanChoice(input, isLanguageTag, 'invalidLanguage')), store: asIs },
   { key: 'playAnimations', column: 'animations_choice', clean: cleanPlayAnimations, store: (play) => (play === null ? null : play ? 1 : 0) },

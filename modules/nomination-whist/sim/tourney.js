@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Plays whole games of Nomination Whist between AIs, on every core, and reports how each AI did. Run it from the platform
+// Plays whole games of Nomination Whist between AIs, on every core, and reports how each AI did.  Run it from the platform
 // folder:  node modules/nomination-whist/sim/tourney.js --games 20000 --ai sharp,standard,counter,random
-// The AI list is one entry per seat (so its length is the number of players). Seats are rotated game by game, and the
-// first dealer is random, so position does not favour anybody. The same seed and options give the same results.
-// Depends on: tournament.js (playGames, byId, blank) and game.js for the schedules. This file is both the command-line
+// The AI list is one entry per seat (so its length is the number of players).  Seats are rotated game by game, and the
+// first dealer is random, so position does not favour anybody.  The same seed and options give the same results.
+// Depends on: tournament.js (playGames, byId, blank) and game.js for the schedules.  This file is both the command-line
 // entry point (main thread) and the worker script (the `!isMainThread` branch below).
 import os from 'node:os';
 import { parseArgs } from 'node:util';
@@ -52,7 +52,7 @@ if (!isMainThread) {
   const unknown = names.find((n) => !byId.has(n));
   if (unknown) throw new Error(`Unknown AI "${unknown}" (use ${[...byId.keys()].join(', ')})`);
   if (names.length < MIN_SEATS || names.length > MAX_SEATS) throw new Error(`--ai needs ${MIN_SEATS} to ${MAX_SEATS} entries`);
-  /** Parses a number from the command line, allowing underscores (5_000). Pure. */
+  /** Parses a number from the command line, allowing underscores (5_000).  Pure. */
   const num = (text) => Number(String(text).replaceAll('_', ''));
   const games = num(opts.games);
   const chunk = num(opts.chunk);
@@ -78,14 +78,14 @@ if (!isMainThread) {
     const fraction = gamesDone / games;
     const rate = gamesDone / ((now - started) / 1000);
     const eta = rate > 0 ? Math.round((games - gamesDone) / rate) : 0;
-    /** Formats seconds as h:mm:ss for the ETA. Pure. */
+    /** Formats seconds as h:mm:ss for the ETA.  Pure. */
     const clock = (secs) => `${Math.floor(secs / 3600)}:${String(Math.floor(secs / 60) % 60).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
     const filled = Math.round(fraction * 30);
     const line = `[${'#'.repeat(filled)}${'-'.repeat(30 - filled)}] ${(100 * fraction).toFixed(1).padStart(5)}%  ${Math.round(gamesDone).toLocaleString('en-GB')}/${games.toLocaleString('en-GB')} games  ${Math.round(rate).toLocaleString('en-GB')}/s  ETA ${clock(eta)}`;
     process.stderr.write(process.stderr.isTTY ? `\r${line}\x1b[K${final ? '\n' : ''}` : `${line}\n`);
   };
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs.length) }, () => new Worker(fileURLToPath(import.meta.url), { workerData: base }));
-  /** Hands `worker` the next job, or terminates it when none are left. Side effects: posts a message or terminates the worker. */
+  /** Hands `worker` the next job, or terminates it when none are left.  Side effects: posts a message or terminates the worker. */
   const give = (worker) => (next < jobs.length ? worker.postMessage(jobs[next++]) : worker.terminate());
   await new Promise((resolve) => {
     for (const worker of workers) {

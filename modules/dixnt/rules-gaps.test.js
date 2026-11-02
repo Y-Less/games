@@ -1,5 +1,5 @@
 // Branches of game.js that the other tests do not reach: saved games from older versions, the last player leaving,
-// late joiners, ties, deck reshuffles, chooser order after leaves and the exact refusals of each action.
+// late joiners, ties, deck reshuffles, chooser order after leaves, and the exact refusals of each action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, GameError, MAX_NAME_LENGTH, MAX_WORD_LENGTH, POINTS_PER_VOTE } from './game.js';

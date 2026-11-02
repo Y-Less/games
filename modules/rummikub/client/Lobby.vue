@@ -1,10 +1,10 @@
 <script setup>
 // The Rummikub lobby: the invite code, the seats, and the host's rules for this game (seat count, tile settings, first meld,
-// turn timer) with a start button supplied by SeatLobby. Non-hosts see the rules but cannot change them.
+// turn timer) with a start button supplied by SeatLobby.  Non-hosts see the rules but cannot change them.
 // Props: state (the server view: code, seats, you, hostSeat, settings, size, deal, limits), send (sends an action to the server).
 // Emits: none (everything goes through `send`).
 // Slots: none (it fills SeatLobby's `settings` slot itself).
-// Side effects: change and bump send 'settings' requests; the template's buttons send add/remove bot, kick, size and start.
+// Side effects: change and bump send 'settings' requests; the template's buttons send add/remove bot, kick, size, and start.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
@@ -18,7 +18,7 @@ const { t, text } = useGameText();
 
 // True if you are the host (only the host may change the rules).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
-// The seats in the shape SeatLobby wants: id, name, kind (empty, bot or human), host and you flags, and whether a human is away.
+// The seats in the shape SeatLobby wants: id, name, kind (empty, bot, or human), host and you flags, and whether a human is away.
 const seats = computed(() =>
   props.state.seats.map((seat, i) => ({
     id: i,

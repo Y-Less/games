@@ -28,7 +28,7 @@ const makeState = (extra = {}) => ({
  *
  * @param {object} holder  a reactive { state }
  * @param {Function} send  the send function
- * @returns {object} the wrapper, the reactive view and guessing state
+ * @returns {object} the wrapper, the reactive view, and guessing state
  */
 function setup(holder, send = vi.fn(() => Promise.resolve({ ok: true }))) {
   const out = {};

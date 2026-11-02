@@ -3,7 +3,7 @@ import { clearedCookie, sessionCookie } from '../auth.js';
 import { handler, tokenOf } from './http.js';
 
 /**
- * Registers POST /auth/register, /auth/login, /auth/logout and GET /me.
+ * Registers POST /auth/register, /auth/login, /auth/logout, and GET /me.
  * @param {import('express').Router} api  the router mounted at /api
  * @param {{ auth: object, achievements: object }} deps
  * @returns {void}

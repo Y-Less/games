@@ -1,4 +1,4 @@
-// How a Splendour game ended: who won, the standings and the notes explaining a tie or an early finish. The notes are
+// How a Splendour game ended: who won, the standings and the notes explaining a tie or an early finish.  The notes are
 // messages (`{ key, params }`, see shared/messages.js) that the table puts into words with `text()`.
 import { computed } from 'vue';
 import { msg } from '../../../shared/messages.js';
@@ -10,7 +10,7 @@ const END_NOTES = { limit: 'status.endLimit', stalled: 'status.endStalled' };
  * The end-of-game facts (meaningful once the game is finished; all safe to read before then).
  *
  * @param {object} view  the table view (reactive)
- * @returns {object} winners, iWon, standings, isHost, endNote and tieNote (the last two messages, or null)
+ * @returns {object} winners, iWon, standings, isHost, endNote, and tieNote (the last two messages, or null)
  *
  * Side effects: none (creates computed values only).
  */

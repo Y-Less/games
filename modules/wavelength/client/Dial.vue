@@ -1,7 +1,7 @@
 <script setup>
-// The Wavelength dial: a half circle between two opposites. Drag on it (or use the slider under it, which also works
-// with a keyboard) to turn the needle. When the target is known it is drawn as three bands; at the reveal every
-// guess is drawn as a marker in its player's colour. Sized by the `width` it is given, never by what it shows.
+// The Wavelength dial: a half circle between two opposites.  Drag on it (or use the slider under it, which also works
+// with a keyboard) to turn the needle.  When the target is known it is drawn as three bands; at the reveal every
+// guess is drawn as a marker in its player's colour.  Sized by the `width` it is given, never by what it shows.
 // Props: left and right (the two ends' words), target (the hidden target position, or null), bands (the scoring bands, each
 //   { within, points }), guesses (markers to draw: { id, position, colour, name }), selected (the needle's position, or null),
 //   colour (the needle's colour), interactive (it can be turned), width (px), reserveSlider (keep the slider's room when not interactive).
@@ -80,7 +80,7 @@ function down(event) {
   svg.value.setPointerCapture?.(event.pointerId);
   turnTo(event);
 }
-// The pointer moved: turns the dial only while dragging. Returns false or nothing; the value is unused.
+// The pointer moved: turns the dial only while dragging.  Returns false or nothing; the value is unused.
 const move = (event) => dragging.value && turnTo(event);
 /**
  * The pointer was released or cancelled: stop dragging.

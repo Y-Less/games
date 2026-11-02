@@ -1,16 +1,16 @@
 <script setup>
 // The play field, in the standard frame: the score bar on top; the table of sets (wide) with your rack, the New set
-// area and the turn buttons directly under it; and the two boxes along the bottom, Recent moves and Status. Everything
+// area and the turn buttons directly under it; and the two boxes along the bottom, Recent moves and Status.  Everything
 // that is said (whose turn it is, the round, the pool, the first-meld target, the live check of your layout) is in Status,
-// so nothing in the play area grows, shrinks or moves while the game is played.
-// The table is a list of sets; your rack sits below. During your turn you build a working copy of the table (move tiles by
+// so nothing in the play area grows, shrinks, or moves while the game is played.
+// The table is a list of sets; your rack sits below.  During your turn you build a working copy of the table (move tiles by
 // dragging them, or by clicking tiles and then clicking where they should go) and press End turn, which sends the whole
 // layout to the server; the server makes the same check as the buttons here and answers with the new state, or refuses
-// and leaves everything as it was. Undo and Reset turn only touch the working copy.
-// This file only composes: the working copy, dragging, the timer, the sent actions and the words are in the use*.js files,
+// and leaves everything as it was.  Undo and Reset turn only touch the working copy.
+// This file only composes: the working copy, dragging, the timer, the sent actions, and the words are in the use*.js files,
 // and each area of the screen is its own component.
 // Props: state (the server's view of the game), send (sends an action to the server, resolves with its reply).
-// Emits: none. Slots: none (it fills GameFrame's slots itself).
+// Emits: none.  Slots: none (it fills GameFrame's slots itself).
 // Side effects: sends actions through `send`; opens and closes the scoreboard and player pop-ups.
 import { computed, reactive } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';

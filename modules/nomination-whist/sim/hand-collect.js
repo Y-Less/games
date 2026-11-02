@@ -1,8 +1,8 @@
-// Collects the examples the hand model (hand-model.js) learns from. Deals are played with every seat nominating what the
+// Collects the examples the hand model (hand-model.js) learns from.  Deals are played with every seat nominating what the
 // current model says is best (or, before there is one, what the bid-value table says), except that one seat in each deal,
 // chosen at random, nominates a random allowed number, and then everyone plays to what they nominated (Standard's card
-// play). Every nomination of every seat becomes an example: the features of the decision (hand-features.js), the number
-// nominated and the tricks that player went on to take. A nomination made by the model depends only on its features, and
+// play).  Every nomination of every seat becomes an example: the features of the decision (hand-features.js), the number
+// nominated and the tricks that player went on to take.  A nomination made by the model depends only on its features, and
 // the others are random, so what an example shows is what that nomination is worth for those features, whatever the hand
 // would "naturally" have nominated.
 // Runs in worker threads: `collectDeals` is the unit of work, and this file is the worker's entry point.
@@ -20,7 +20,7 @@ import { bestByValue, expectedPoints, valueModel, valueRow } from './value-model
 /**
  * Plays `size` deals (players, cards and trump chosen at random from the seed and chunk).
  * `table` is the bid-value table (the opponents' play before there is a hand model, and the yardstick for how well each
- * predicts the points). Returns the examples as typed arrays: features (INPUTS each), the number nominated, the tricks
+ * predicts the points).  Returns the examples as typed arrays: features (INPUTS each), the number nominated, the tricks
  * taken, whether it was the random seat, and what the table predicted for it (NaN where it knows nothing).
  * @param {{ model: object | null, table: object | null, seed: number, chunk: number, size: number, players: number[], jokers?: boolean }} job  `model` is the hand model so far, `players` the table sizes to pick from
  * @returns {{ n: number, x: Float32Array, bid: Uint8Array, taken: Uint8Array, explorer: Uint8Array, table: Float32Array, deals: number }} the examples as parallel typed arrays

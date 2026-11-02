@@ -138,7 +138,7 @@ function assertNoLeaks(person) {
   }
 }
 
-/** Plays one move for a person if it is their turn (or moves the round on). Returns what it did, or null. */
+/** Plays one move for a person if it is their turn (or moves the round on).  Returns what it did, or null. */
 async function move(p, { next = false } = {}) {
   const s = p.state;
   if (!s || s.you < 0) return null;
@@ -575,7 +575,7 @@ function findFile(dir, name) {
 }
 
 /**
- * Ann (seat 0), Bob (seat 1) and a computer player (seat 2, the dealer) in a short game. The saved room is rewritten across a
+ * Ann (seat 0), Bob (seat 1), and a computer player (seat 2, the dealer) in a short game.  The saved room is rewritten across a
  * restart so that Ann holds the seven top hearts (the first round's trumps) and so wins every trick she plays.
  */
 async function riggedFirstRound(t, { instantWin }) {

@@ -1,8 +1,8 @@
 <script setup>
-// The shop: spend the gold you win (100, 50 and 20 for coming 1st, 2nd and 3rd in a game) on name styles,
-// backgrounds, card backs and avatar parts. Anything you own can be put on straight from here. Each tab has its own
+// The shop: spend the gold you win (100, 50 and 20 for coming 1st, 2nd, and 3rd in a game) on name styles,
+// backgrounds, card backs, and avatar parts.  Anything you own can be put on straight from here.  Each tab has its own
 // address (/shop/avatar ...), so Back and Forward move between them and a tab can be linked to.
-// Props: none (the tab comes from the route). Emits: none. Slots: none.
+// Props: none (the tab comes from the route).  Emits: none.  Slots: none.
 // Depends on: shopStore.js (listing, buy), profileApi.js (use an item), session.js, appearance.js, catalogueText.js (item
 // and avatar part names a language may translate), shared/avatar.js and the preview components.
 // Side effects: refreshes the shop on mount; buying spends coins; using an item saves the profile.
@@ -18,7 +18,7 @@ import { updateProfile } from '../profileApi.js';
 import { session } from '../session.js';
 import { buy, refreshShop } from '../shopStore.js';
 
-// The shop's tabs: the URL slug, the key of the label and the kinds of item listed under each, with the key of each
+// The shop's tabs: the URL slug, the key of the label, and the kinds of item listed under each, with the key of each
 // section's title (an avatar section is titled by its slot, which the catalogue names).
 const TABS = [
   {

@@ -1,4 +1,4 @@
-// Card metadata for the AIs, as plain data. The site only knows which category each card belongs to, so that is all
+// Card metadata for the AIs, as plain data.  The site only knows which category each card belongs to, so that is all
 // there is: { categoryOf: { [cardId]: categoryKey }, categories: { [key]: { label, description } } }.
 // Depends on nothing; the server builds the info once from cards/categories.json and hands it to every AI decision.
 

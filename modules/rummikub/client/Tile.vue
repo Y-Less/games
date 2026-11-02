@@ -1,9 +1,9 @@
 <script setup>
-// One Rummikub tile: the number in the colour's hue with the colour's own shape beneath it. A wildcard is a dark tile with a
-// star-burst. It is a span with the button role, not a <button>, because Firefox will not start a drag from a button.
+// One Rummikub tile: the number in the colour's hue with the colour's own shape beneath it.  A wildcard is a dark tile with a
+// star-burst.  It is a span with the button role, not a <button>, because Firefox will not start a drag from a button.
 // `stands` (for a wildcard inside a set) shows what the wildcard has been worked out to stand for.
-// Props: settings, id, size, selected, fresh, recent, drawn, locked, stands and interactive (each described beside its declaration).
-// Emits: none (the parent listens to the native click and drag events on it). Slots: none. Side effects: none.
+// Props: settings, id, size, selected, fresh, recent, drawn, locked, stands, and interactive (each described beside its declaration).
+// Emits: none (the parent listens to the native click and drag events on it).  Slots: none.  Side effects: none.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { tileOf } from '../rules.js';
@@ -25,7 +25,7 @@ const { t } = useGameText();
 
 // The tile's facts (number, colour, joker flag) looked up from its id.
 const tile = computed(() => tileOf(props.settings, props.id));
-// The colour's name key, hue and shape, or null for a wildcard.
+// The colour's name key, hue, and shape, or null for a wildcard.
 const info = computed(() => (tile.value.joker ? null : colourInfo(tile.value.colour)));
 // The drawing instructions for the colour's shape, or null for a wildcard.
 const shape = computed(() => (info.value ? SHAPES[info.value.shape] : null));

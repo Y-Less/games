@@ -1,5 +1,5 @@
-// The socket layer for Wavelength. The rules live in game.js; the rooms, saving, views, joining and the lobby events are the
-// shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js. This file says what
+// The socket layer for Wavelength.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are the
+// shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js.  This file says what
 // is particular to Wavelength: its settings (turns each, solo or team), its own socket events (colour, mode, marker, lock,
 // clue, guess, ready) and what the server has to do by itself (a computer move, or moving on from the reveal when somebody
 // has not closed the scores).
@@ -54,7 +54,7 @@ export default function (ctx) {
     viewOptions: (room, userId) => ({ nameOf, canCustom: ctx.markers.canCustom(userId) }),
     migrate: (room) => game.migrate(room, nameOf),
     /**
-     * A computer move, or moving on from the reveal: whichever the room is in now. A move that does nothing is reported as a
+     * A computer move, or moving on from the reveal: whichever the room is in now.  A move that does nothing is reported as a
      * failure (it would otherwise be repeated for ever), so the room server's retry-with-a-pause takes over.
      *
      * @param {object} room  the room to look at
@@ -74,7 +74,7 @@ export default function (ctx) {
           },
         };
       }
-      // Somebody has not closed the scores (away, or gone): move on without them. The wait is not restarted when somebody
+      // Somebody has not closed the scores (away, or gone): move on without them.  The wait is not restarted when somebody
       // closes the pop-up: the same turn's timer keeps running.
       if (game.waitingForReady(room)) {
         return {

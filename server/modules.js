@@ -1,10 +1,10 @@
-// Finds and starts the game modules in modules/<id>/. See MODULES.md for the contract.
+// Finds and starts the game modules in modules/<id>/.  See MODULES.md for the contract.
 //
 //   modules/<id>/module.json   { id, name, description, minPlayers, maxPlayers, category, rules, stats, achievements }
 //   modules/<id>/server.js     export default function (ctx) { ... }   (the rules and the socket handlers)
 //   modules/<id>/client/index.js   a Vue component, loaded by the site into its play field
 // Depends on: express (static assets), ./auth.js (sessions), ./codes.js, ./turnClock.js, and shared/achievements.js and
-// shared/markerColours.js. The loaded module receives a `ctx` object built here (see loadModules).
+// shared/markerColours.js.  The loaded module receives a `ctx` object built here (see loadModules).
 import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ function withStandardAchievements(own) {
  * @param {string} dir  the modules directory
  * @param {string} folder  the module's folder name, which must equal the manifest's id
  * @returns {object} { id, name, description, minPlayers, maxPlayers, category, rules, stats, achievements }
- * Side effects: reads module.json; throws if it is missing, malformed or its id does not match the folder.
+ * Side effects: reads module.json; throws if it is missing, malformed, or its id does not match the folder.
  */
 function readManifest(dir, folder) {
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, folder, 'module.json'), 'utf8'));
@@ -56,7 +56,7 @@ function readManifest(dir, folder) {
 }
 
 /**
- * Loads every module and starts its server half. A module that fails to load is logged and skipped, not fatal.
+ * Loads every module and starts its server half.  A module that fails to load is logged and skipped, not fatal.
  * @param {object} options
  * @param {string} options.dir  the modules directory
  * @param {import('socket.io').Server} options.io  the socket server; each module gets the namespace `/<id>`
@@ -138,10 +138,10 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
   }
 
   return {
-    /** The loaded modules' manifests, sorted by name. Side effects: none. */
+    /** The loaded modules' manifests, sorted by name.  Side effects: none. */
     list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
     /**
-     * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder. With a
+     * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder.  With a
      * language, a translation next to the rules file (rules.md -> rules.fr.md) is preferred when there is one.
      * @param {string} id  the module id
      * @param {string} [lang]  a language tag such as 'fr' or 'pt-BR' ('' or anything that is not a tag: the original)

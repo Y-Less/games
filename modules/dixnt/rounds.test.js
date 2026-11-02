@@ -20,7 +20,7 @@ function setup(names, roundsEach) {
   return { game, players, host };
 }
 
-/** Plays one complete round (word, cards, the chooser's verdict). Returns the chooser's id. */
+/** Plays one complete round (word, cards, the chooser's verdict).  Returns the chooser's id. */
 function playRound(game, { guessRight = true } = {}) {
   const s = game.s;
   const chooserId = s.chooserId;

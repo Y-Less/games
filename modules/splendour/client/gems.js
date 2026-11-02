@@ -1,5 +1,5 @@
-// Colours and shapes of the five gems and Gold (index 5). Every gem has its own SHAPE as well as its own colour,
-// so the game can be played without telling colours apart. The names themselves are words a player reads, so they are
+// Colours and shapes of the five gems and Gold (index 5).  Every gem has its own SHAPE as well as its own colour,
+// so the game can be played without telling colours apart.  The names themselves are words a player reads, so they are
 // not here: GEM_KEYS gives each gem's key under `gems.` in the locale files (see MODULES.md, "Languages").
 import { msg } from '../../../shared/messages.js';
 
@@ -15,7 +15,7 @@ export const GEM_KEYS = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx', 'gold
 export const gemMsg = (colour) => msg(`gems.${GEM_KEYS[colour]}`);
 
 /**
- * "{count} {gem}" as a message, for the lists of gems in a payment, a cost or a noble's requirement.
+ * "{count} {gem}" as a message, for the lists of gems in a payment, a cost, or a noble's requirement.
  * @param {number} count  how many
  * @param {number} colour  0 to 4, or 5 for Gold
  * @returns {{ key: string, params: object }}

@@ -3,7 +3,7 @@
 // Props: state (the server view: code, players, you, hostId, mode, turnsEach, limits), send (sends an action to the server).
 // Emits: none (everything goes through `send`).
 // Slots: none (it fills PlayerListPanel's `lead` slot with each player's colour chip).
-// Side effects: the template's buttons send add/remove bot, kick, colour, mode, settings and start requests.
+// Side effects: the template's buttons send add/remove bot, kick, colour, mode, settings, and start requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';

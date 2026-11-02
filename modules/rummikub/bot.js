@@ -1,9 +1,9 @@
-// The computer players of Rummikub. A computer player only ever sends the server the same kind of request a person
+// The computer players of Rummikub.  A computer player only ever sends the server the same kind of request a person
 // would (a whole proposed table, or a draw), and the same rules.checkPlay judges it; if its logic ever produced
 // something that check refuses, the computer simply draws, so a game always goes on.
 //
 // Each computer seat has an AI (see ai/): a named way of choosing a turn, picked when the game starts and kept in
-// room.seats[seat].ai. The search they share lives in search.js; this file chooses the AI, builds the situation it may
+// room.seats[seat].ai.  The search they share lives in search.js; this file chooses the AI, builds the situation it may
 // see (its own rack, the table, the others' rack sizes: never their tiles) and applies its choice.
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
@@ -22,7 +22,7 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats?.[seat]?.ai);
 
 /**
  * What a seat's AI is allowed to know, as plain data: the settings, the table, its own rack, how many tiles the others
- * hold and how many are left in the pool. Other racks and the pool's order are never in it, so an AI cannot peek even by
+ * hold and how many are left in the pool.  Other racks and the pool's order are never in it, so an AI cannot peek even by
  * accident; the search in search.js reads the same fields a room has (settings, table, melded, racks[seat]).
  *
  * @param {object} room  not changed
@@ -57,7 +57,7 @@ export function pendingAction(room) {
 }
 
 /**
- * What the seat's own AI would do now: play a whole proposed table, or draw. Does not change the room.
+ * What the seat's own AI would do now: play a whole proposed table, or draw.  Does not change the room.
  *
  * @param {object} room
  * @param {number} seat
@@ -73,7 +73,7 @@ export function chooseTurn(room, seat, options) {
 
 /**
  * Does what pendingAction says: plays the AI's choice, or draws if there is none or the server's check refuses it (so a
- * game always goes on). Side effect: mutates the room.
+ * game always goes on).  Side effect: mutates the room.
  *
  * @param {object} room
  * @param {() => number} rng  random numbers for the AI

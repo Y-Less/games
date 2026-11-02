@@ -1,7 +1,7 @@
-// "Engine builder": the long game. Early on it buys the cheapest cards it can to build up a discount in every colour
+// "Engine builder": the long game.  Early on it buys the cheapest cards it can to build up a discount in every colour
 // (so that later cards cost almost nothing), and only once the engine is running does it go for the big point cards.
 //
-// Depends on: ../cards.js (card data) and ./lib.js (situation helpers). It does not reuse standard.js, so that it stays a
+// Depends on: ../cards.js (card data) and ./lib.js (situation helpers).  It does not reuse standard.js, so that it stays a
 // distinct style of play.
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, boardCards, me, overflowOf, payment, peakNeeds, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
@@ -11,7 +11,7 @@ import { GOLD, boardCards, me, overflowOf, payment, peakNeeds, pickBest, returnB
 const ENGINE_SIZE = 9;
 
 /**
- * Is the engine still being built? True until nine cards are bought or the player has 8 prestige.
+ * Is the engine still being built?  True until nine cards are bought or the player has 8 prestige.
  *
  * Side effects: none.
  *
@@ -40,8 +40,8 @@ function chooseMove(s, rng) {
   const ranked = targetsOf(s)
     .map((t) => ({
       ...t,
-      // While building, level 3 cards come last (-9): they cost too much to be an engine piece. Otherwise the fewer gems in
-      // total (and the nearer to affordable) the better, with a little for points. Afterwards: points per missing gem.
+      // While building, level 3 cards come last (-9): they cost too much to be an engine piece.  Otherwise the fewer gems in
+      // total (and the nearer to affordable) the better, with a little for points.  Afterwards: points per missing gem.
       aim: build ? (t.card.level === 3 ? -9 : 3 - sum(t.need) * 0.5 - t.short * 0.9 + t.card.points * 0.3) : (t.card.points * 2 + 0.5) / (t.short + 1),
     }))
     .sort((a, b) => b.aim - a.aim);

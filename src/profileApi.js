@@ -1,4 +1,4 @@
-// Changing your own profile: settings, pictures and password. The server's reply (the new user) becomes the session's user.
+// Changing your own profile: settings, pictures, and password.  The server's reply (the new user) becomes the session's user.
 // Depends on: api.js (requests) and session.js (setUser).
 import { api, uploadImage } from './api.js';
 import { setUser } from './session.js';

@@ -1,14 +1,14 @@
-// The rules of Just One, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Just One, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in the game's
 // locale file or the site's (see MODULES.md, Languages); anything else the client shows is a message (shared/messages.js).
 //
-// A turn: one player, the guesser, does not see the secret word. Everybody else sees it and secretly writes a one-word clue.
-// Clues that match are cancelled. The guesser sees the clues that are left and makes one guess. If it is right they pick
+// A turn: one player, the guesser, does not see the secret word.  Everybody else sees it and secretly writes a one-word clue.
+// Clues that match are cancelled.  The guesser sees the clues that are left and makes one guess.  If it is right they pick
 // the best hint from them, and only the guesser and the writer of that hint score.
 //
 // Depends on: shared/scores.js (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer
 // player choice), shared/seats.js (result helpers), shared/messages.js (scoreboard labels and notes), shared/roster.js (lobby and player-list rules), ./ai/index.js (the
-// computer players), ./tally.js (per-player counters) and ./words.js (the word list and clue matching).
+// computer players), ./tally.js (per-player counters), and ./words.js (the word list and clue matching).
 import { textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
@@ -122,7 +122,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     players: [],
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
-    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name and (once started) an ai id
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
     guesser: null,
     word: null,
     used: [], // the words already played this game
@@ -143,7 +143,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.  Somebody who leaves mid-game is replaced by
  * a computer player in their place, so no turn is lost (see takeOver).
  * Side effects: each rule it provides mutates the room's player list.
  */
@@ -158,7 +158,7 @@ const roster = createRosterRules({
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
 /**
- * The host changes the settings. Only the settings that are given are changed.
+ * The host changes the settings.  Only the settings that are given are changed.
  *
  * @param {object} room
  * @param {number} id        who is asking (must be the host)
@@ -172,7 +172,7 @@ export function setSettings(room, id, settings = {}) {
 }
 
 /**
- * Just One has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
+ * Just One has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
  *
  * @returns {{ ok: false, error: string }}
  * Side effects: none.
@@ -206,7 +206,7 @@ export function setTurnsEach(room, id, turnsEach) {
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source for the word
  * @returns {void}
- * Side effects: sets guesser, nextIdx, used, word, clues, cancelled, order, guess, best, result, ready and phase ('clues').
+ * Side effects: sets guesser, nextIdx, used, word, clues, cancelled, order, guess, best, result, ready, and phase ('clues').
  */
 function startTurn(room, rng) {
   room.guesser = room.players[room.nextIdx].id;
@@ -234,7 +234,7 @@ function startTurn(room, rng) {
  * The host starts the game: works out how many turns there will be, picks the first guesser and the first word, and gives
  * every computer player an AI for the whole game.
  *
- * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the word and the AIs.
+ * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the word, and the AIs.
  *
  * @param {object} room
  * @param {number} id            who is asking (must be the host)
@@ -259,7 +259,7 @@ export function start(room, id, rng) {
 }
 
 /**
- * Why a clue is not allowed for this word, or null. A clue must be a single word (letters, digits, apostrophes and hyphens),
+ * Why a clue is not allowed for this word, or null.  A clue must be a single word (letters, digits, apostrophes, and hyphens),
  * and may not be the secret word or contain it or be contained in it (compared by normal(), so plurals count as the same).
  * The containment test only applies from three letters up so that short clues such as "a" or "it" are not wrongly refused.
  * @param {string} text  the trimmed clue
@@ -276,7 +276,7 @@ export function clueProblem(text, word) {
 }
 
 /**
- * The writer's clue: one word. Once everybody has written theirs, matching clues are cancelled and the guessing begins.
+ * The writer's clue: one word.  Once everybody has written theirs, matching clues are cancelled and the guessing begins.
  * @param {object} room  the room (mutated)
  * @param {number | string} id  the writer
  * @param {string} text  the clue as typed
@@ -301,11 +301,11 @@ export function submitClue(room, id, text, rng) {
 
 /**
  * Cancels the clues that match each other and shows the rest to the guesser, in a shuffled order (so that the order does not
- * reveal who wrote what). Every clue in a matching group is cancelled, including the first, which is the Just One rule.
+ * reveal who wrote what).  Every clue in a matching group is cancelled, including the first, which is the Just One rule.
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source for the shuffle (Fisher-Yates)
  * @returns {void}
- * Side effects: sets room.cancelled, room.order and room.phase ('guessing').
+ * Side effects: sets room.cancelled, room.order, and room.phase ('guessing').
  */
 function openGuessing(room, rng) {
   const count = new Map();
@@ -321,7 +321,7 @@ function openGuessing(room, rng) {
 }
 
 /**
- * Do two texts count as the same word (ignoring case, punctuation and a plural s)?
+ * Do two texts count as the same word (ignoring case, punctuation, and a plural s)?
  * @param {string} a  one text
  * @param {string} b  the other
  * @returns {boolean} true if normal() makes them equal
@@ -330,7 +330,7 @@ function openGuessing(room, rng) {
 const sameWord = (a, b) => normal(a) === normal(b);
 
 /**
- * The guesser's one guess. If it is right and any clues are left they go on to pick the best hint.
+ * The guesser's one guess.  If it is right and any clues are left they go on to pick the best hint.
  * @param {object} room  the room (mutated)
  * @param {number | string} id  who is guessing (must be the guesser)
  * @param {string} text  the guess as typed (whitespace collapsed, cut to GUESS_LENGTH)
@@ -391,7 +391,7 @@ export function chooseBest(room, id, n, nameOf = String) {
  * @param {(id: *) => string} [nameOf]  name lookup for the history label
  * @returns {void}
  * The history entry's label and notes are messages (shared/messages.js), put into words by the client.
- * Side effects: changes scores, bumps statistics counters (tallyTurn), sets room.result, pushes room.history, clears ready and sets phase 'reveal'.
+ * Side effects: changes scores, bumps statistics counters (tallyTurn), sets room.result, pushes room.history, clears ready, and sets phase 'reveal'.
  */
 function scoreTurn(room, nameOf = String) {
   const guesser = playerOf(room, room.guesser);
@@ -431,7 +431,7 @@ function scoreTurn(room, nameOf = String) {
  * Brings a saved room up to date: players saved with `bot: true` become `kind: 'bot'` (and people saved without a name get
  * one from `nameOf`), and fields added since are filled in.
  *
- * Side effect: mutates the room. Running it twice changes nothing more.
+ * Side effect: mutates the room.  Running it twice changes nothing more.
  *
  * @param {object} room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
@@ -513,7 +513,7 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * Just One's part of a computer player taking the place of a person who left a game under way (the roster has already put
  * it in the list, with the person's score and counters): it gets an AI, everything that named the person now names it
  * (their turn as guesser, their clue, the guesser's list, the ready list, the history), and if the reveal was only waiting
- * for that person the next turn starts. Anything it now has to do (write a clue, guess) is picked up by pendingBotAction.
+ * for that person the next turn starts.  Anything it now has to do (write a clue, guess) is picked up by pendingBotAction.
  *
  * Side effects: mutates the room (the bot, guesser, clues, cancelled, order, best, ready, result, history) and may start the next turn.
  *
@@ -553,7 +553,7 @@ export function standings(room) {
 }
 
 /**
- * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only.
+ * The statistics for a finished game, in the shape of ctx.stats.record.  Computer players are not accounts: people only.
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}
@@ -569,7 +569,7 @@ export function statsPlayers(room) {
 }
 
 /**
- * The clues a viewer may see. While the clues are being written a writer sees only their own; the guesser sees the clues that
+ * The clues a viewer may see.  While the clues are being written a writer sees only their own; the guesser sees the clues that
  * were not cancelled, without their writers; everybody else sees every clue with its writer and whether it was cancelled (the
  * cancelled ones too); after the reveal everybody sees the lot.
  *
@@ -654,9 +654,9 @@ function scoreboardView(room, userId, { nameOf, online }) {
 }
 
 /**
- * What one person may see. The guesser never sees the word until the reveal, and sees only the clues that were not cancelled
- * (without their writers). Everyone else sees the word, and, once all the clues are in, every clue with its writer and
- * whether it was cancelled. While the clues are being written nobody sees anybody else's.
+ * What one person may see.  The guesser never sees the word until the reveal, and sees only the clues that were not cancelled
+ * (without their writers).  Everyone else sees the word, and, once all the clues are in, every clue with its writer and
+ * whether it was cancelled.  While the clues are being written nobody sees anybody else's.
  *
  * @param {object} room  not changed
  * @param {number} userId  the account looking
@@ -693,7 +693,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true } =
 // ---------- computer players ----------
 
 /**
- * The next thing a computer player has to do, or null: { type: 'clue' | 'guess' | 'best', id }. Computer players never move on
+ * The next thing a computer player has to do, or null: { type: 'clue' | 'guess' | 'best', id }.  Computer players never move on
  * from the reveal: that is up to the people (or the server's timeout).
  * @param {object} room  the room (not changed)
  * @returns {{ type: 'clue' | 'guess' | 'best', id: number | string } | null} the action, or null if no computer player is waiting
@@ -712,8 +712,8 @@ export function pendingBotAction(room) {
 }
 
 /**
- * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser never sees
- * the word. An AI that throws or answers with something illegal is replaced by a legal choice.
+ * Plays one pending computer move.  The decision is made from that seat's own view (viewFor), so a computer guesser never sees
+ * the word.  An AI that throws or answers with something illegal is replaced by a legal choice.
  * @param {object} room  the room (mutated by the move played)
  * @param {() => number} rng  random source handed to the AI
  * @param {object | null} [action]  the move to play (default: pendingBotAction)

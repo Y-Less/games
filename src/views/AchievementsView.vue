@@ -1,9 +1,9 @@
 <script setup>
 // The Achievements page: for the site and then for each game, every achievement with the level you have reached and how far
-// you are towards the next. The rules for levels are in shared/achievements.js; the server works out the numbers.
-// Props: none. Emits: none. Slots: none.
+// you are towards the next.  The rules for levels are in shared/achievements.js; the server works out the numbers.
+// Props: none.  Emits: none.  Slots: none.
 // Depends on: api.js (GET /api/achievements), session.js, catalogueText.js (the names and texts a language may translate)
-// and messageText.js (intlLocale). Side effects: one request on mount.
+// and messageText.js (intlLocale).  Side effects: one request on mount.
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
@@ -18,7 +18,7 @@ const { t } = useI18n();
 const sections = ref(null); // the server's sections once loaded (null while loading)
 const failed = ref(''); // the error text if loading failed
 
-// Loads the achievements. Side effects: sets sections, or failed.
+// Loads the achievements.  Side effects: sets sections, or failed.
 onMounted(async () => {
   try {
     const data = await api('GET', '/api/achievements');

@@ -1,8 +1,8 @@
 <script setup>
-// The site shell: the header (title, menu, Help, Leave game, sign out), the routed page, the help pop-up and the
+// The site shell: the header (title, menu, Help, Leave game, sign out), the routed page, the help pop-up, and the
 // achievement pop-ups.
-// Props: none. Emits: none. Slots: none (the page is rendered by <RouterView>).
-// Depends on: vue-router, session.js, shopStore.js, profiles.js, playBar.js, pageHelp.js, markdown.js and the shared components.
+// Props: none.  Emits: none.  Slots: none (the page is rendered by <RouterView>).
+// Depends on: vue-router, session.js, shopStore.js, profiles.js, playBar.js, pageHelp.js, markdown.js, and the shared components.
 // Side effects: refreshes the shop on every page change; closes the help pop-up on navigation; signing out clears the
 // profile cache and navigates to the sign-in page.
 import { computed, ref, watch } from 'vue';
@@ -82,7 +82,7 @@ async function doLeave() {
  * Signs out and goes to the sign-in page.
  * @returns {Promise<void>}
  * Side effects: ends the session, forgets the other players' cached looks (so the next account does not see them),
- * closes the menu and navigates.
+ * closes the menu, and navigates.
  */
 async function leaveSite() {
   menuOpen.value = false;

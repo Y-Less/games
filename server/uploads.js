@@ -1,5 +1,5 @@
 // Uploaded pictures (backgrounds and card backs): what is accepted, how they are stored under <dataDir>/uploads and how
-// they are served. The routes that receive them are in routes/uploads.js.
+// they are served.  The routes that receive them are in routes/uploads.js.
 // Depends on: express (serving), node:crypto (random names), node:fs/node:path, and ./errors.js (AuthError).
 import express from 'express';
 import crypto from 'node:crypto';

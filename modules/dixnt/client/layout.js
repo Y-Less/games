@@ -1,14 +1,14 @@
 // Sizes for the Dixnt table, worked out from the room available (never from the game's progress, so nothing moves
-// while playing). All numbers are pixels.
+// while playing).  All numbers are pixels.
 // Shared by Arena.vue and the components under it: pure sizing helpers for cards on the table and in the hand.
 export const ASPECT = 640 / 936; // a card's width over its height
 export const CAPTION = 32; // the fixed room under each card on the table: one line with the player's name and the vote button or vote count
-export const CONTROLS = 38; // the fixed-height zone for the word entry, the next-round button and the host's buttons
+export const CONTROLS = 38; // the fixed-height zone for the word entry, the next-round button, and the host's buttons
 export const GAP = 8; // the space between the three zones of the arena (table, controls, hand)
 
 /**
  * Finds the biggest card for `count` cards on the table, in 1 to 3 rows, inside `width` x `height` (each card also needs
- * CAPTION under it). Every row count is tried because the best grid depends on the shape of the room.
+ * CAPTION under it).  Every row count is tried because the best grid depends on the shape of the room.
  * @param {number} count  How many cards the table is sized for (at least 1 is assumed).
  * @param {number} width  Available width in pixels.
  * @param {number} height  Available height in pixels.

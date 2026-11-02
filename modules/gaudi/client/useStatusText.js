@@ -45,7 +45,7 @@ export function useStatusText({ s, turn, sel, tools, hint }) {
   const myPrivateRule = computed(() => privateRule(t, s.value.badPrivate));
   /**
    * Every line of the Status box, with its tone, for the phase the game is in.
-   * @returns {{ text: string, tone: string }[]} tone is 'warn', 'mine' or 'muted' and only picks the colour
+   * @returns {{ text: string, tone: string }[]} tone is 'warn', 'mine' or 'muted', and only picks the colour
    * Side effects: none.
    */
   const statusLines = computed(() => {

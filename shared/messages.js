@@ -1,6 +1,6 @@
 // Words the server sends to a client are never sentences: they are messages, `{ key, params? }`, that the client turns into
-// the player's language (src/messageText.js looks the key up in the game's own locale file first, then the site's). A
-// refusal's `error` is such a key too (under `errors.`). Params may themselves be messages (a card's name, say) or lists
+// the player's language (src/messageText.js looks the key up in the game's own locale file first, then the site's).  A
+// refusal's `error` is such a key too (under `errors.`).  Params may themselves be messages (a card's name, say) or lists
 // of them, and a numeric `count` param also picks the plural form.
 // Depends on: ./cards.js (for the card and suit messages).
 import { isJoker, isRed, rankOf, suitOf } from './cards.js';
@@ -32,7 +32,7 @@ export const cardMsg = (card) => (isJoker(card) ? msg(`cards.joker.${isRed(card)
 
 /**
  * The name of a suit as a message ("hearts").
- * @param {string} suit  'C', 'D', 'H' or 'S'
+ * @param {string} suit  'C', 'D', 'H', or 'S'
  * @returns {{ key: string }}
  * Side effects: none.
  */
@@ -42,7 +42,7 @@ export const suitMsg = (suit) => msg(`cards.suit.${suit}`);
 const CODE = /^[a-zA-Z][a-zA-Z0-9]*$/;
 
 /**
- * The Error `game.createRoom` throws to refuse a request (a bad number of players, say). Its message is a refusal code
+ * The Error `game.createRoom` throws to refuse a request (a bad number of players, say).  Its message is a refusal code
  * and it may carry the values the words need, so the server can answer the client as it answers any other refusal.
  * @param {string} code  a key under `errors.` in the game's locale file or the site's
  * @param {object} [params]  the values the text needs

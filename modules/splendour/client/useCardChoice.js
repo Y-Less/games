@@ -9,7 +9,7 @@ import { sum } from './tableView.js';
 /**
  * Card choosing.
  *
- * Side effects: pickCard and pickDeck change the shared sel, picks, message and payGold; buy and reserve send requests and
+ * Side effects: pickCard and pickDeck change the shared sel, picks, message, and payGold; buy and reserve send requests and
  * clear the selection on success; a watcher drops a selected card that has left the table or the reserve.
  *
  * @param {object} view    the table view (reactive)
@@ -66,7 +66,7 @@ export function useCardChoice(view, shared, send) {
    *
    * @param {string} id  a card id
    * @returns {void}
-   * Side effects: sets the shared sel, and clears picks, message and payGold.
+   * Side effects: sets the shared sel, and clears picks, message, and payGold.
    */
   function pickCard(id) {
     shared.message = null;

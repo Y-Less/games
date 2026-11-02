@@ -1,8 +1,8 @@
 <script setup>
 // The home page: the available games, grouped by category, each linking to its table.
-// Props: none. Emits: none. Slots: none.
+// Props: none.  Emits: none.  Slots: none.
 // Depends on: session.js (session.games, from /api/config), catalogueText.js (the names a language may translate) and
-// vue-i18n. Side effects: none.
+// vue-i18n.  Side effects: none.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
@@ -13,7 +13,7 @@ const { t } = useI18n();
 // The folder a game is installed in, named in the empty-menu text.
 const MODULES_FOLDER = 'modules';
 
-// The games grouped by category, in order of first appearance: [{ key, games }]. The heading for each is looked up in
+// The games grouped by category, in order of first appearance: [{ key, games }].  The heading for each is looked up in
 // the template (catalogue.categoryLabel), so it follows the language.
 const groups = computed(() => {
   const byCategory = new Map();

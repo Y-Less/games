@@ -1,9 +1,9 @@
-// The rules of Splendour, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Splendour, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
 //
-// Tokens are arrays of six counts: Diamond, Sapphire, Emerald, Ruby, Onyx, then Gold (index 5). A seat holds a human
-// ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>', name }) or null
-// (empty, lobby only). Seat order is turn order; it is shuffled when the game starts.
+// Tokens are arrays of six counts: Diamond, Sapphire, Emerald, Ruby, Onyx, then Gold (index 5).  A seat holds a human
+// ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>', name }), or null
+// (empty, lobby only).  Seat order is turn order; it is shuffled when the game starts.
 //
 // The numbers every part of Splendour agrees on (the token limit, the supply, the cost calculation...) are in rules.js;
 // the seat and lobby rules (joining, leaving, kicking, computer players) are the shared ones in shared/seats.js.
@@ -25,14 +25,14 @@ const BOARD_SLOTS = 4;
 export const MAX_ROUNDS = 100; // a safety net: a game nobody can win ends after this many rounds
 export { STAT_KEYS };
 export const BOT_NAMES = ['Aurelia', 'Cormac', 'Thessaly', 'Ludo', 'Perpetua', 'Ansel', 'Odile', 'Marcus', 'Wren', 'Isidore'];
-// Re-exported for the server, the computer players and the tests, which import them from here.
+// Re-exported for the server, the computer players, and the tests, which import them from here.
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 
 /** The phases in which a room is still going (a finished game is not resumed). */
 const LIVE = ['lobby', 'playing'];
 
 /**
- * Is this room still in play (the lobby or a game being played)? A person can be in only one such room at a time.
+ * Is this room still in play (the lobby or a game being played)?  A person can be in only one such room at a time.
  *
  * Side effects: none.
  *
@@ -61,7 +61,7 @@ const sum = (list) => list.reduce((a, b) => a + b, 0);
 const emptyTokens = () => [0, 0, 0, 0, 0, 0];
 
 /**
- * Is this a sensible token count (a whole number from 0 to 1000)? Used to validate what a client sends.
+ * Is this a sensible token count (a whole number from 0 to 1000)?  Used to validate what a client sends.
  *
  * Side effects: none.
  *
@@ -71,7 +71,7 @@ const emptyTokens = () => [0, 0, 0, 0, 0, 0];
 const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= 1000;
 
 /**
- * Is this a list of six sensible token counts? Used to validate payments and returned tokens a client sends.
+ * Is this a list of six sensible token counts?  Used to validate payments and returned tokens a client sends.
  *
  * Side effects: none.
  *
@@ -113,7 +113,7 @@ export const prestigeOf = (player) => sum(player.bought.map((id) => CARD_BY_ID[i
 export const tokenTotal = (player) => sum(player.tokens);
 
 /**
- * What buying a card would take: null if it cannot be afforded, else the default payment and the range of Gold. (The cost
+ * What buying a card would take: null if it cannot be afforded, else the default payment and the range of Gold.  (The cost
  * calculation itself is the shared one in rules.js.)
  *
  * Side effects: none.
@@ -184,7 +184,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 }
 
 /**
- * Puts everything that belongs to one game back to its empty state (the seats, host and settings are kept).
+ * Puts everything that belongs to one game back to its empty state (the seats, host, and settings are kept).
  *
  * Side effects: mutates `room`.
  *
@@ -217,7 +217,7 @@ function resetGame(room) {
 // ---- seats and settings ----
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones. In Splendour a person who leaves mid-game is
+ * The seat rules (join, leave, kick, computer players) are the shared ones.  In Splendour a person who leaves mid-game is
  * replaced by a computer player, and that computer player picks its AI there and then (recorded in room.ais).
  */
 const seats = createSeatRules({
@@ -242,7 +242,7 @@ const seats = createSeatRules({
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 /**
- * The host changes the target prestige or the number of seats (lobby only). Shrinking the table keeps everyone seated,
+ * The host changes the target prestige or the number of seats (lobby only).  Shrinking the table keeps everyone seated,
  * packed to the front, and refuses if too many are seated.
  *
  * Side effects: mutates room.settings and, if the seat count changes, room.seats.
@@ -337,7 +337,7 @@ function logEntry(room, seat, entry) {
 }
 
 /**
- * Is this seat allowed to start an action now? It must be playing, on turn, with nothing pending.
+ * Is this seat allowed to start an action now?  It must be playing, on turn, with nothing pending.
  *
  * Side effects: none.
  *
@@ -428,9 +428,9 @@ function visitNobles(room, seat) {
 }
 
 /**
- * A noble visits a player: it leaves the table, joins the player and scores its points.
+ * A noble visits a player: it leaves the table, joins the player, and scores its points.
  *
- * Side effects: mutates room.nobles, the player, the round points, the notes and the log.
+ * Side effects: mutates room.nobles, the player, the round points, the notes, and the log.
  *
  * @param {object} room
  * @param {number} seat
@@ -448,7 +448,7 @@ function takeNoble(room, seat, id) {
 
 /**
  * Ends a seat's turn: marks the final round if the target has been reached, passes the turn on and, after the last seat,
- * records the round and finishes the game if it is over (target reached, stalemate or the round limit).
+ * records the round and finishes the game if it is over (target reached, stalemate, or the round limit).
  *
  * Side effects: mutates `room` (pending, finalRound, turn, history, round, and possibly the phase).
  *
@@ -498,7 +498,7 @@ const rankKey = (player) => prestigeOf(player) * 1000 - player.bought.length;
 /**
  * Ends the game and decides the winners (everyone tied for first place).
  *
- * Side effects: mutates room.phase, turn, pending and winners.
+ * Side effects: mutates room.phase, turn, pending, and winners.
  *
  * @param {object} room
  */
@@ -834,7 +834,7 @@ export function statsPlayers(room) {
 // ---- what each player may see ----
 
 /**
- * One occupied seat as the table shows it. Before the game starts that is just who is sitting there; afterwards it includes
+ * One occupied seat as the table shows it.  Before the game starts that is just who is sitting there; afterwards it includes
  * tokens, bonuses, nobles and reserved cards (a reserved card is face down to everybody but its owner).
  *
  * Side effects: none.
@@ -892,7 +892,7 @@ function scoreboardView(room, me, online) {
 
 /**
  * The public table once the game has started: tokens, the cards on show, the sizes of the draw piles (never their order),
- * nobles, the turn, the log and the standings.
+ * nobles, the turn, the log, and the standings.
  *
  * Side effects: none.
  *
@@ -937,8 +937,8 @@ function affordView(room, me) {
 }
 
 /**
- * Everything one account may know. A reserved card is only ever sent to the player who holds it (until it is bought): to
- * everyone else it is face down, showing only its level. (Computer players are told the face-up ones too, as a person could
+ * Everything one account may know.  A reserved card is only ever sent to the player who holds it (until it is bought): to
+ * everyone else it is face down, showing only its level.  (Computer players are told the face-up ones too, as a person could
  * remember them: see bot.js.)
  * The draw piles are sent as counts only.
  *

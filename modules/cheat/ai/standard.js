@@ -1,13 +1,13 @@
-// The Cheat computer players that think. They differ in how readily they cheat and how readily they call:
+// The Cheat computer players that think.  They differ in how readily they cheat and how readily they call:
 //
 //   play({ hand, rank, pileSize, handSizes, decks, maxPlay, rng, ... })  -> one to four cards from the hand
 //   call({ hand, last, pileSize, handSizes, decks, final, rng, ... })    -> true to call "Cheat!" on the last play
 //
 // The random numbers come inside the context (ctx.rng), as in every other game's AIs; nothing is passed as a second argument.
-// An honest play puts down every card of the rank claimed (up to four). With none, a player must cheat, and puts down the
-// cards that are cheapest to lose. Calling is certain when the last play claims more cards than can exist outside the caller's
+// An honest play puts down every card of the rank claimed (up to four).  With none, a player must cheat, and puts down the
+// cards that are cheapest to lose.  Calling is certain when the last play claims more cards than can exist outside the caller's
 // own hand; otherwise it is a matter of how big the claim is, how big the pile is that a wrong call would pick up, and whether
-// the player who made it is nearly out. Depends on ./lib.js only.
+// the player who made it is nearly out.  Depends on ./lib.js only.
 import { impossible, junk, ofRank } from './lib.js';
 
 /**

@@ -1,7 +1,7 @@
 <script setup>
-// The waiting room: the invite code, the player list (PlayerListPanel) and the host's game options.
-// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none. Slots: none.
-// Side effects: the buttons send 'settings' and 'start'; the player list sends 'addBot', 'removeBot', 'kick' and 'fillBots'.
+// The waiting room: the invite code, the player list (PlayerListPanel), and the host's game options.
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>).  Emits: none.  Slots: none.
+// Side effects: the buttons send 'settings' and 'start'; the player list sends 'addBot', 'removeBot', 'kick', and 'fillBots'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';

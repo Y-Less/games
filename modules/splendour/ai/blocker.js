@@ -1,8 +1,8 @@
-// "Blocker": plays like the standard player, but watches the other seats. It reserves the cards an opponent is about to
+// "Blocker": plays like the standard player, but watches the other seats.  It reserves the cards an opponent is about to
 // buy (especially point cards that would put them on the target), buys those cards itself when it can, and keeps nobles
 // out of reach by taking the cards an opponent needs to complete one.
 //
-// Depends on: ../cards.js (card and noble data), ../rules.js (NOBLE_POINTS), ./lib.js (situation helpers) and ./standard.js
+// Depends on: ../cards.js (card and noble data), ../rules.js (NOBLE_POINTS), ./lib.js (situation helpers), and ./standard.js
 // (scoreMoves, whose scores it adjusts rather than replacing).
 import { CARD_BY_ID } from '../cards.js';
 import { NOBLE_POINTS } from '../rules.js';

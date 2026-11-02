@@ -1,7 +1,7 @@
 <script setup>
-// One public objective card: its name, its points per set and its rule. On your table it also says how many sets you have.
+// One public objective card: its name, its points per set, and its rule.  On your table it also says how many sets you have.
 // Props: objective (card from the view), deal (Boolean, the windows phase: no personal count yet).
-// Emits: hint (text, or '' when the pointer or focus leaves) for the Status box. Side effects: none.
+// Emits: hint (text, or '' when the pointer or focus leaves) for the Status box.  Side effects: none.
 import CardFrame from './CardFrame.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { objectiveHint, objectiveRate } from './wording.js';

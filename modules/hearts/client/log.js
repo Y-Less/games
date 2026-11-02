@@ -1,8 +1,8 @@
-// The "Recent moves" list for Hearts. The server sends the table as it is, not a history, so the client keeps one: every
+// The "Recent moves" list for Hearts.  The server sends the table as it is, not a history, so the client keeps one: every
 // state that arrives is compared with the one before it, and what changed (cards played, a trick taken, a new hand) is
-// added as a line. Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put
-// into words by the table when it is drawn, so the list reads in the player's language whenever they switch. The list
-// starts when the page does (a reload shows moves from then on). It lives outside the table component so that every
+// added as a line.  Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put
+// into words by the table when it is drawn, so the list reads in the player's language whenever they switch.  The list
+// starts when the page does (a reload shows moves from then on).  It lives outside the table component so that every
 // state is looked at, even when several arrive before the page redraws.
 import { cardMsg, msg } from '../../../shared/messages.js';
 
@@ -26,7 +26,7 @@ const nameOf = (state, seat) => state.seats[seat]?.name ?? msg('common.someone')
 const same = (a, b) => a.seat === b.seat && a.card === b.card;
 
 /**
- * The log after `next` arrives, given the log so far and the previous state (null when there was none). It is empty when
+ * The log after `next` arrives, given the log so far and the previous state (null when there was none).  It is empty when
  * there is no game, a lobby, or a different game from before; otherwise it is the old log plus lines for what changed, kept to
  * the last LIMIT lines.
  * @param {object[]} log  the lines so far (messages)

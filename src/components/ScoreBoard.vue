@@ -1,5 +1,5 @@
 <script setup>
-// File: the standard scoreboard (score chips bar plus rounds pop-up). Depends on: ../../shared/scores.js, BotIcon.vue,
+// File: the standard scoreboard (score chips bar plus rounds pop-up).  Depends on: ../../shared/scores.js, BotIcon.vue,
 //   GameModal.vue, ScoreTable.vue, ../nameLook.js.
 // Props: players, rounds, lowIsBetter, target, finished, autoOpen, roundPopups, running, splitTotals, sticky, waiting, awaiting,
 //   hasDetails, openDetails (see the comments on each below).
@@ -12,15 +12,15 @@
 //   - a large pop-up with every round so far, which opens by itself after each round (unless `roundPopups` is false, for
 //     games whose rounds mean little) and again at the end,
 //     and any time from the "All rounds" button.
-// Give it the standard shape from shared/scores.js. Slots: #round (extra detail about the round that has just
+// Give it the standard shape from shared/scores.js.  Slots: #round (extra detail about the round that has just
 // finished, shown above the table in the pop-up) and #footer (replaces the default Continue button).
-// Closing the pop-up that a round ending opened (its Continue button, Close, Esc or a click outside) emits `continue`:
-// that is how a person says they are ready for the next round, so games need no separate button for it. Pass
+// Closing the pop-up that a round ending opened (its Continue button, Close, Esc, or a click outside) emits `continue`:
+// that is how a person says they are ready for the next round, so games need no separate button for it.  Pass
 // `waiting` (the names of people still to close it) to show "Waiting for ..." in the footer, `awaiting` (true while
 // this person still has to close it) to bring it back if they reload or it was missed, and a boolean `ready` on a
 // player to show a tick on their chip once they have.
 // A player with `current: true` (whose turn it is, or who is leading the round) gets a bright glowing chip, with
-// aria-current, drawn without changing the chip's size. A player with `bot: true` gets a small computer icon (BotIcon) on their chip. Games that can show more about each
+// aria-current, drawn without changing the chip's size.  A player with `bot: true` gets a small computer icon (BotIcon) on their chip.  Games that can show more about each
 // player (their own board, say) pass `hasDetails`, a function (playerId) => boolean: those chips become buttons that
 // emit `details` with the player's id on a click, or with null when that player's details (`openDetails`) are already open,
 // and `hover` (with the id) and `unhover` as the pointer enters and leaves the chip (usePlayerPopup turns these into the pop-up).

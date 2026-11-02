@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Turns the counts from run.js into the bidding lookup table: for every player count, cards dealt and trump suit, the
-// chance of each number of tricks given the Standard AI's estimate of the hand (in quarters of a trick). The AI picks the
+// Turns the counts from run.js into the bidding lookup table: for every player count, cards dealt, and trump suit, the
+// chance of each number of tricks given the Standard AI's estimate of the hand (in quarters of a trick).  The AI picks the
 // nomination with the best expected score from that row (ai/lut.js), so the dealer's forbidden number and the scoring
-// options are applied at play time and are not baked in. Run from the platform folder:
+// options are applied at play time and are not baked in.  Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids.js --players 3-7 --in sim-out/whist --out modules/nomination-whist/sim/models/bidding.json
 // With --jokers it reads a run.js --jokers run and writes models/bidding-jokers.json (the table for games with the two Jokers).
-// Depends on: tables.js (the count layout) and export.js (loadCounts, to read what run.js saved). A top-level script:
+// Depends on: tables.js (the count layout) and export.js (loadCounts, to read what run.js saved).  A top-level script:
 // importing it builds the table.
 import fs from 'node:fs';
 import path from 'node:path';

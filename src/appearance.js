@@ -5,7 +5,7 @@ import { siteVariables } from '../shared/siteThemes.js';
 import { session } from './sessionState.js';
 
 /**
- * The CSS image for a background setting. Anything unrecognised falls back to the default night sky.
+ * The CSS image for a background setting.  Anything unrecognised falls back to the default night sky.
  * @param {object} background  { type: 'preset'|'colour'|'gradient'|'image', ... }
  * @param {Record<string, string>} [presets]  the preset backgrounds by name
  * @returns {string}
@@ -20,7 +20,7 @@ export function backgroundCss(background, presets = session.presets) {
 }
 
 /**
- * The CSS background for a card back. Card games draw every face-down card with this (see .card-back in style.css).
+ * The CSS background for a card back.  Card games draw every face-down card with this (see .card-back in style.css).
  * @param {object} cardBack  { type: 'preset'|'image', ... }
  * @param {Record<string, string>} [presets]  the preset card backs by name
  * @returns {string}

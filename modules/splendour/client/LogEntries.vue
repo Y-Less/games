@@ -2,7 +2,7 @@
 // The game log: the recent moves, newest first, with gems drawn in line.
 // Props: entries (the log from the server view), you (your seat number, to highlight your own moves), nameOf (function: a
 //   seat's name, which may be a message for an empty seat).
-// Emits: none. Slots: none (fills GameLog's default slot for each entry).
+// Emits: none.  Slots: none (fills GameLog's default slot for each entry).
 // Side effects: none.
 // A line such as "took <gem><gem>" is one sentence with the gems drawn inside it, so it is written as one key with the
 // gems as named slots (vue-i18n's <i18n-t>), never as words glued around them: a translator may put them anywhere.

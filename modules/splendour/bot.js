@@ -1,18 +1,18 @@
-// The computer players for Splendour. Each bot seat has one AI (see ai/), chosen when the game starts and stored in
-// room.ais, keyed by the bot's seat id. This file turns a room into the plain-data situation an AI works from (only what
+// The computer players for Splendour.  Each bot seat has one AI (see ai/), chosen when the game starts and stored in
+// room.ais, keyed by the bot's seat id.  This file turns a room into the plain-data situation an AI works from (only what
 // a person at the table could see: never the order of the draw piles or anyone's face-down reserve), asks the AI for a
 // decision and checks that it is legal.
 //
 // Every move is chosen from game.legalMoves, so a computer player can never make an illegal move.
 //
-// Depends on: ../../shared/ai.js (aiById), ./cards.js (LEVELS), ./game.js (the rules) and ./ai/index.js (the AIs).
+// Depends on: ../../shared/ai.js (aiById), ./cards.js (LEVELS), ./game.js (the rules), and ./ai/index.js (the AIs).
 import { aiById } from '../../shared/ai.js';
 import { LEVELS } from './cards.js';
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
 
 /**
- * The AI a seat plays with. Rooms saved before AIs existed have none recorded, and fall back to the first (standard).
+ * The AI a seat plays with.  Rooms saved before AIs existed have none recorded, and fall back to the first (standard).
  *
  * Side effects: none.
  *
@@ -54,7 +54,7 @@ export function situation(room, seat, extra = {}) {
       nobles: p.nobles.length,
       reservedCount: p.reserved.length,
       // A bot knows its own reserves and every other player's reserve that was taken face up from the table (`!r.blind`),
-      // as a person could remember them (a human is not sent them by game.js `viewFor`). Blind reserves stay secret.
+      // as a person could remember them (a human is not sent them by game.js `viewFor`).  Blind reserves stay secret.
       reserved: p.reserved.filter((r) => i === seat || !r.blind).map((r) => r.card),
     })),
     moves: [],
@@ -143,7 +143,7 @@ export function pendingAction(room) {
 /**
  * A computer player finishes its turn: the move, then any tokens to return and any noble to choose.
  *
- * Side effects: mutates `room`. Throws if the AI's choice is refused (which would be a bug).
+ * Side effects: mutates `room`.  Throws if the AI's choice is refused (which would be a bug).
  *
  * @param {object} room
  * @param {number} seat
@@ -166,8 +166,8 @@ export function playTurn(room, seat, rng) {
 }
 
 // ---- test and benchmark hook ----
-// This is NOT part of the game. The tests and the simulations set the environment variable SPLENDOUR_AI so that every
-// computer player uses the same AI for the whole game, which makes runs repeatable. A real server never sets it.
+// This is NOT part of the game.  The tests and the simulations set the environment variable SPLENDOUR_AI so that every
+// computer player uses the same AI for the whole game, which makes runs repeatable.  A real server never sets it.
 
 /**
  * Reads the SPLENDOUR_AI test/benchmark hook.
@@ -182,7 +182,7 @@ export function forcedAIFromEnv(wanted = process.env.SPLENDOUR_AI) {
 }
 
 /**
- * Starts a game and then makes every computer player use one AI. Test/benchmark hook only (see above); it replaces
+ * Starts a game and then makes every computer player use one AI.  Test/benchmark hook only (see above); it replaces
  * game.start for the 'start' event when SPLENDOUR_AI is set.
  *
  * Side effects: mutates `room` (as game.start does, then overwrites room.ais).

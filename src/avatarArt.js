@@ -1,7 +1,7 @@
 // Draws an avatar (see shared/avatar.js) as SVG, layer by layer on a 100 x 100 canvas: backdrop, hair behind, clothes,
-// neck, head, hair in front, eyes, mouth, glasses, hat. Every piece is built from our own catalogue (the colours come
+// neck, head, hair in front, eyes, mouth, glasses, hat.  Every piece is built from our own catalogue (the colours come
 // from it and the part ids are checked against it), never from text a player typed, so the markup is safe to inject.
-// Depends on: shared/avatar.js (the catalogue and normaliseAvatar). Pure string building, no DOM access.
+// Depends on: shared/avatar.js (the catalogue and normaliseAvatar).  Pure string building, no DOM access.
 // Each table below maps a catalogue option id to a function returning an SVG fragment; most take the colour `c`.
 import { avatarOption, normaliseAvatar } from '../shared/avatar.js';
 
@@ -158,7 +158,7 @@ const COVERING = new Set(['cap', 'beanie', 'bucket', 'santa', 'cowboy', 'wizard'
 let counter = 0;
 
 /**
- * The SVG contents (to put inside an <svg viewBox="0 0 100 100">) for an avatar. Anything unknown is drawn as the default.
+ * The SVG contents (to put inside an <svg viewBox="0 0 100 100">) for an avatar.  Anything unknown is drawn as the default.
  * @param {object} input  the avatar choices ({ skin, hair, hairColour, top, topColour, eyes, mouth, glasses, hat, backdrop, facialHair })
  * @returns {string}  SVG markup built only from catalogue values, so it is safe to inject
  * Side effects: increments the module's id counter (so gradient and clip ids are unique per call).
@@ -205,7 +205,7 @@ let robotCounter = 0;
 
 /**
  * The SVG contents for the computer players' avatar: a classic square tin robot, head and shoulders like the people, with an
- * aerial, a dark screen of glowing eyes, a grille mouth, bolts and a panel of lights on its chest. It is fixed art, so there
+ * aerial, a dark screen of glowing eyes, a grille mouth, bolts, and a panel of lights on its chest.  It is fixed art, so there
  * is nothing to choose and nothing to escape; only the gradient ids are made fresh so that several on a page never share one.
  * The background colour comes from `seed` (any text, such as the computer player's id and name): every robot has its own,
  * and the same one always has the same.

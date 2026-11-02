@@ -1,5 +1,5 @@
 // What the Splendour table knows about the game from the server's view, for the player looking at it: whose turn it is, what
-// they hold, what a card costs them. Nothing here changes anything; every value follows the state it is given.
+// they hold, what a card costs them.  Nothing here changes anything; every value follows the state it is given.
 import { computed } from 'vue';
 import { msg } from '../../../shared/messages.js';
 import { CARD_BY_ID } from '../cards.js';
@@ -34,7 +34,7 @@ export function useTableView(getState) {
   const turnIsMine = computed(() => s.value.phase === 'playing' && s.value.turn === s.value.you);
   // The choice the server is waiting for you to make (return tokens, pick a noble), or null.
   const pendingMine = computed(() => (s.value.pending && s.value.pending.seat === s.value.you ? s.value.pending : null));
-  // True when it is your turn and nothing is pending, i.e. you may take, buy or reserve.
+  // True when it is your turn and nothing is pending, i.e. you may take, buy, or reserve.
   const myTurn = computed(() => turnIsMine.value && !s.value.pending);
   // Your discounts, one per gem colour.
   const bonuses = computed(() => me.value?.bonuses ?? [0, 0, 0, 0, 0]);

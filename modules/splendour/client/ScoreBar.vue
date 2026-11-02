@@ -1,7 +1,7 @@
 <script setup>
 // The score bar at the top of the table, with the scoreboard pop-up it opens.
 // Props: state (the server view, for the scoreboard), finished (the game is over), isHost (you may start another game).
-// Emits: again (the host chose Play again in the scoreboard pop-up). Other attributes (the player pop-up's props and
+// Emits: again (the host chose Play again in the scoreboard pop-up).  Other attributes (the player pop-up's props and
 //   events) fall through to the scoreboard.
 // Exposes: show() and close() for the scoreboard pop-up.
 // Slots: none.

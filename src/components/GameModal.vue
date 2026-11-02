@@ -1,12 +1,12 @@
 <script setup>
-// File: the shared large pop-up dialog. Depends on: Vue only (document focus and keydown).
+// File: the shared large pop-up dialog.  Depends on: Vue only (document focus and keydown).
 // Props: open (Boolean), title (String), size ('md'|'lg'|'xl'), closable (Boolean, false ignores Esc and backdrop clicks).
 // Emits: update:open(false) and close, when the player dismisses it.
 // Slots: default (body), footer (buttons).
 // Side effects: while open, adds a document keydown listener (removed on close and unmount), remembers the previously focused
 //   element and moves focus into the dialog, then restores focus to it on close.
 // A large pop-up for any game: dims the page, traps Esc/backdrop clicks, and keeps focus inside while it is open.
-// Slots: default (the body), #footer (buttons). Use v-model:open (or the `close` event).
+// Slots: default (the body), #footer (buttons).  Use v-model:open (or the `close` event).
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({

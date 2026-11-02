@@ -2,11 +2,11 @@
 // Tints and Hints. seats.js does the same job for games with numbered seats (Hearts, Cheat...); the two files speak the
 // same vocabulary (addHuman, removeHuman, addBot, removeBot, fillWithBots, kick) so that shared/roomServer.js can drive
 // either, and both hand a seat to a computer player when a person leaves a game that is under way, so that nobody's
-// turns are lost. Where the games differ is only how a room stores its people:
+// turns are lost.  Where the games differ is only how a room stores its people:
 //
 //   room.players[i]  a person { kind: 'human', id: <account id>, name } or a computer player
 //                    { kind: 'bot', id: 'bot:<n>', name } (games add their own fields: score, colour, `ai`, counters...)
-//                    in the order they joined. There are no empty seats: the list grows in the lobby and only shrinks
+//                    in the order they joined.  There are no empty seats: the list grows in the lobby and only shrinks
 //                    there; in a game a person who leaves is replaced, in place, by a computer player.
 //   room.hostId      the account id of the host
 //   room.phase       'lobby' while people are arriving; anything else once the game has started
@@ -22,7 +22,7 @@ export { isBot, isHuman };
 
 /**
  * Renames one player's id wherever a room's scoreboard history refers to it (the `deltas` and `notes` of every round), so
- * that the totals still add up after a computer player has taken a person's place. Games rename their own fields themselves.
+ * that the totals still add up after a computer player has taken a person's place.  Games rename their own fields themselves.
  *
  * @param {{ history?: Array<{ deltas: object, notes: object }> }} room  the room to change
  * @param {number | string} oldId
@@ -42,7 +42,7 @@ export function renameInHistory(room, oldId, newId) {
 }
 
 /**
- * The index of a person's place in the list, or -1 if they are not in the room. (Games with a list have no fixed seats,
+ * The index of a person's place in the list, or -1 if they are not in the room.  (Games with a list have no fixed seats,
  * so this is only "where do they appear in the join order"; it exists so roomServer's `act` can tell members from strangers.)
  *
  * @param {object} room
@@ -85,7 +85,7 @@ const playerNames = (room) => room.players.filter((p) => typeof p.name === 'stri
  * a player with `bot: true` becomes `kind: 'bot'`, every other one `kind: 'human'`, and a person who was saved without a
  * name (names used to be looked up from the account each time) is given one by `nameOf` if it can.
  *
- * Side effects: mutates every player of the room, and sets room.nextBot if it was missing. Running it again changes nothing.
+ * Side effects: mutates every player of the room, and sets room.nextBot if it was missing.  Running it again changes nothing.
  *
  * @param {object} room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
@@ -119,9 +119,9 @@ export function migratePlayers(room, nameOf = () => undefined) {
  *   It may read the room (to pick a colour nobody has) but must not add the player to it.
  * @param {(room: object, oldId: number | string, bot: object, rng: () => number) => void} [config.takeOver]  runs after a
  *   computer player has taken the place of a person who left a game under way: `bot` is already in the list where the
- *   person was, with their score, counters and colour but the new id and name. The game gives it an AI, renames the
+ *   person was, with their score, counters and colour but the new id and name.  The game gives it an AI, renames the
  *   person's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory does the
- *   scoreboard history) and moves on if the game was only waiting for that person. The default does nothing.
+ *   scoreboard history) and moves on if the game was only waiting for that person.  The default does nothing.
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
  */
 export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {} }) {
@@ -139,7 +139,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   }
 
   /**
-   * Adds a person to the end of the list. Joining twice is harmless, and the game must still be in the lobby for a newcomer.
+   * Adds a person to the end of the list.  Joining twice is harmless, and the game must still be in the lobby for a newcomer.
    *
    * Side effect: pushes the new player onto room.players.
    *
@@ -160,10 +160,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   }
 
   /**
-   * Takes a person out of the list, whoever asked. In the lobby they simply go. In a game that is under way a computer
-   * player takes their place (same slot, same score; see config.takeOver), so no turn is lost. A game that is over is left
+   * Takes a person out of the list, whoever asked.  In the lobby they simply go.  In a game that is under way a computer
+   * player takes their place (same slot, same score; see config.takeOver), so no turn is lost.  A game that is over is left
    * alone (they stay on the final standings) and the result says `changed: false`, so the room server does not treat it as
-   * a change. If they were the host the next person becomes host.
+   * a change.  If they were the host the next person becomes host.
    *
    * Side effects: splices or replaces an entry of room.players, may change room.hostId and whatever takeOver changes.
    *
@@ -194,7 +194,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   }
 
   /**
-   * A person leaves (or is removed by the host). In the lobby they simply go; in a game a computer player takes their
+   * A person leaves (or is removed by the host).  In the lobby they simply go; in a game a computer player takes their
    * place; after a game ends nothing changes (`changed: false`).
    *
    * @param {object} room
@@ -283,7 +283,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
 
   /**
    * The host removes another person, at any time before the game is over: in the lobby they go, and in a game a computer
-   * player takes their place (as when someone leaves). A finished game has nobody to remove. The result names the person
+   * player takes their place (as when someone leaves).  A finished game has nobody to remove.  The result names the person
    * so the server can send them home.
    *
    * @param {object} room

@@ -1,5 +1,5 @@
-// The socket layer for Gaudi. The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
-// joining and the lobby events are the shared room server (shared/roomServer.js). This file says what is particular to
+// The socket layer for Gaudi.  The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
+// joining and the lobby events are the shared room server (shared/roomServer.js).  This file says what is particular to
 // Gaudi: its one setting, its own socket events (size, window, place, tool, end, undo) and what the server has to do by
 // itself (a computer player's move).
 //

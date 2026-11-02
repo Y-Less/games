@@ -1,11 +1,11 @@
-// "Sharp": the strongest computer player. It scores a position for every seat by prestige, discounts (the engine), the
-// gems that will actually be spent, progress towards nobles and how close the best card is to being affordable. For each
+// "Sharp": the strongest computer player.  It scores a position for every seat by prestige, discounts (the engine), the
+// gems that will actually be spent, progress towards nobles and how close the best card is to being affordable.  For each
 // legal move it plays the move on a copy of the table, lets every opponent reply with their own best move, and keeps the
-// move that leaves it best placed against the strongest opponent. That one look ahead is what makes it deny cards and
-// nobles, give back the right tokens and spend Gold well. It also plays the end of the game exactly: once somebody
+// move that leaves it best placed against the strongest opponent.  That one look ahead is what makes it deny cards and
+// nobles, give back the right tokens, and spend Gold well.  It also plays the end of the game exactly: once somebody
 // reaches the target (or it could), it only counts who would win when the round is played out.
 //
-// It works on the plain situation described in lib.js, so it knows nothing about the draw piles. When it buys or
+// It works on the plain situation described in lib.js, so it knows nothing about the draw piles.  When it buys or
 // reserves a card in its imagination the gap on the table is left empty rather than guessed at.
 //
 // Depends on: ../cards.js (card and noble data) and ./lib.js (situation helpers).
@@ -22,7 +22,7 @@ import { GOLD, MAX_TOKENS, nobleList, nobleGap, needOf, payment, sum } from './l
 const W = { bonus: 1.8, token: 0.2, gold: 0.5, noble: 1.0, ready: 0.3, rival: 0.75 };
 
 /**
- * A copy of a situation player that can be changed safely (its token, bonus and reserve lists are copied).
+ * A copy of a situation player that can be changed safely (its token, bonus, and reserve lists are copied).
  *
  * Side effects: none.
  *
@@ -82,7 +82,7 @@ function context(s) {
 
 /**
  * What a seat's position is worth, in roughly "points": prestige, the next cards it could buy, tokens that will be
- * spent, discounts, Gold and progress towards nobles.
+ * spent, discounts, Gold, and progress towards nobles.
  *
  * Side effects: none.
  *
@@ -96,7 +96,7 @@ function evalSeat(s, i, ctx) {
   const need = [0, 0, 0, 0, 0];
   let first = 0;
   let second = 0;
-  /** Folds one card into the seat's colour needs and its two most ready-to-buy cards (updates need, first and second). */
+  /** Folds one card into the seat's colour needs and its two most ready-to-buy cards (updates need, first, and second). */
   const consider = (id) => {
     const card = CARD_BY_ID[id];
     const needed = needOf(card, p.bonuses);
@@ -112,7 +112,7 @@ function evalSeat(s, i, ctx) {
   };
   for (const id of boardIds(s)) consider(id);
   for (const id of p.reserved) consider(id);
-  // Prestige is the real score. The best card counts fully and the runner-up at 0.4, because only one can be bought per turn.
+  // Prestige is the real score.  The best card counts fully and the runner-up at 0.4, because only one can be bought per turn.
   let value = p.prestige * ctx.pointWeight + (first + second * 0.4) * W.ready;
   for (let c = 0; c < 5; c++) {
     const have = p.tokens[c];
@@ -195,7 +195,7 @@ function dropTokens(s, i, count) {
  *
  * @param {object} s     the situation
  * @param {number} i     the seat playing
- * @param {object} move  a take, takeTwo, reserve or buy move
+ * @param {object} move  a take, takeTwo, reserve, or buy move
  * @returns {object} a new situation
  */
 function apply(s, i, move) {
@@ -286,7 +286,7 @@ function reply(s, i, seat, ending, ctx) {
     if (ending && move.type !== 'buy') continue;
     const after = apply(s, i, move);
     // In the last round only a purchase can change the score, and the game's own tie-break is fewest cards, so rank by prestige
-    // then by fewest cards. Otherwise assume a self-interested opponent who also (a little) spoils our position.
+    // then by fewest cards.  Otherwise assume a self-interested opponent who also (a little) spoils our position.
     const value = ending ? after.players[i].prestige * 1000 - after.players[i].bought : evalSeat(after, i, ctx) - 0.35 * evalSeat(after, seat, ctx);
     if (value > bestValue) {
       best = after;

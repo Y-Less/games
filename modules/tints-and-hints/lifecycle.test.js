@@ -1,5 +1,5 @@
 // Concurrency and lifecycle for Tints and Hints, against the real site: simultaneous actions, several sockets for one
-// account, disconnects and reconnects in every phase, the host going away, rooms vanishing and one game per account.
+// account, disconnects and reconnects in every phase, the host going away, rooms vanishing, and one game per account.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';

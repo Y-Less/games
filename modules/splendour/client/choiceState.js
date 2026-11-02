@@ -1,4 +1,4 @@
-// The choices a player is part-way through making at the Splendour table, shared by the gem, card and token-return
+// The choices a player is part-way through making at the Splendour table, shared by the gem, card, and token-return
 // composables (choosing one kind of thing clears the others).
 import { ref, watch } from 'vue';
 
@@ -23,16 +23,16 @@ export function createChoiceState() {
 }
 
 /**
- * Forgets half-made choices whenever the turn, the round or the kind of pending choice changes.
+ * Forgets half-made choices whenever the turn, the round, or the kind of pending choice changes.
  *
- * Side effects: a watcher that resets picks, giveBack, payGold and message on the shared state.
+ * Side effects: a watcher that resets picks, giveBack, payGold, and message on the shared state.
  *
  * @param {object} view    the table view (reactive)
  * @param {object} shared  the shared choice state (reactive)
  * @returns {void}
  */
 export function useChoiceReset(view, shared) {
-  // A key that changes whenever the turn, round or pending choice does; any such change makes half-made picks stale.
+  // A key that changes whenever the turn, round, or pending choice does; any such change makes half-made picks stale.
   watch(
     () => `${view.s.turn}:${view.s.round}:${view.s.pending?.type ?? ''}`,
     () => {

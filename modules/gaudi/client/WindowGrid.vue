@@ -1,8 +1,8 @@
 <script setup>
 // A window: four rows of five spaces showing each space's restriction (a tinted colour with its shape, or faint pips)
-// and the dice placed on it. It can highlight spaces (legal ones, ones to pick) and tell the parent which was clicked.
+// and the dice placed on it.  It can highlight spaces (legal ones, ones to pick) and tell the parent which was clicked.
 // Props: rows, grid, cell, legal, pick, chosen, titles, interactive, label (each described beside its definition below).
-// Emits: cell (index of the space clicked, or chosen with Enter or Space, when interactive). Slots: none. Side effects: none.
+// Emits: cell (index of the space clicked, or chosen with Enter or Space, when interactive).  Slots: none.  Side effects: none.
 import Die from './Die.vue';
 import { COLOUR_HEX, PIPS, SHAPES } from './glyphs.js';
 import { CELLS, COLOUR_SHAPES, COLS, restrictionOf } from '../rules.js';
@@ -23,7 +23,7 @@ const props = defineProps({
 const emit = defineEmits(['cell']);
 
 /**
- * The pattern character of a space ('.' for a blank one, a colour letter or a shade digit).
+ * The pattern character of a space ('.' for a blank one, a colour letter, or a shade digit).
  * @param {number} i  the space, 0 to CELLS - 1
  * @returns {string} the character
  * Side effects: none.
@@ -44,7 +44,7 @@ const colourOf = (i) => restrictionOf(char(i))?.colour ?? null;
  */
 const shadeOf = (i) => restrictionOf(char(i))?.shade ?? null;
 /**
- * The CSS classes of a space: whether it is highlighted as legal, pickable or chosen, and what it holds or asks for.
+ * The CSS classes of a space: whether it is highlighted as legal, pickable, or chosen, and what it holds or asks for.
  * @param {number} i  the space
  * @returns {Record<string, boolean>} class name -> whether it applies
  * Side effects: none.

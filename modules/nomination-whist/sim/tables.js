@@ -1,9 +1,9 @@
-// The counts a simulation collects. Every table is a dense array of Float64 counts indexed by a few small whole-number
+// The counts a simulation collects.  Every table is a dense array of Float64 counts indexed by a few small whole-number
 // keys (row-major, in the order of `SPEC`), so two runs add together cell by cell: that is how the worker threads'
 // results are merged, and how a run is checkpointed and resumed.
 //
 // Keys are always small numbers: players is stored as players - 3, cards as cards - 1, trump as an index into TRUMPS,
-// card as an index into DECK, and so on (see `coordsOf`/`indexOf`). The CSV export (export.js) turns them back into words.
+// card as an index into DECK, and so on (see `coordsOf`/`indexOf`).  The CSV export (export.js) turns them back into words.
 // Depends only on shared/cards.js; engine.js fills the tables, export.js writes them out.
 import { fullDeck } from '../../../shared/cards.js';
 
@@ -22,7 +22,7 @@ const BASE = [['players', MAX_PLAYERS - MIN_PLAYERS + 1], ['cards', MAX_CARDS], 
 
 /**
  * The tables. `n` counts how often a situation came up, `won` how often it ended in the card winning a trick (or, for
- * `bids`, `hit` how often the nomination was made exactly). Keys are listed in index order.
+ * `bids`, `hit` how often the nomination was made exactly).  Keys are listed in index order.
  *
  *  card        every card dealt:           players, cards, trump, card
  *  cardSuit    ... and how its hand is shaped: + suitLen (cards of its suit you hold, 1-7), higherHeld (cards of that
@@ -43,7 +43,7 @@ export const SPEC = {
   bids: { keys: [...BASE, ['estimate', ESTIMATE_BUCKETS], ['nomination', MAX_CARDS + 1]], values: ['n', 'hit'] },
 };
 
-/** The number of cells a table spec has: the product of its key sizes. Pure. */
+/** The number of cells a table spec has: the product of its key sizes.  Pure. */
 const sizeOf = (spec) => spec.keys.reduce((product, [, size]) => product * size, 1);
 
 /**
@@ -178,7 +178,7 @@ export class Stats {
     return stats;
   }
 
-  /** All the count arrays in SPEC order (the order toFloats and fromFloats rely on). Pure. */
+  /** All the count arrays in SPEC order (the order toFloats and fromFloats rely on).  Pure. */
   #arrays() {
     return Object.entries(SPEC).flatMap(([name, spec]) => spec.values.map((value) => this.tables[name][value]));
   }

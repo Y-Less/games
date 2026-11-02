@@ -1,5 +1,5 @@
 // Splendour simulations: do the two ways of playing (build an engine of cheap cards first, or spend gems on points from the
-// start) do better at different target scores? Run it with
+// start) do better at different target scores?  Run it with
 //
 //   node modules/splendour/sim/run.js <experiment> [deals]
 //
@@ -12,7 +12,7 @@
 //   scan      Engine against Rush at every target from 10 to 20 (the game only offers 10, 15 and 20)
 //
 // Every deal is played twice, with the two strategies swapping seats, so that neither luck of the deal nor the advantage of
-// going first can favour one of them. Wins that are shared count as a fraction.
+// going first can favour one of them.  Wins that are shared count as a fraction.
 //
 // Depends on: ../ai/index.js (the strongest AI, for the "strength" experiment), ./strategies.js, ./play.js and
 // ../../../shared/testkit.js (seeded).
@@ -126,7 +126,7 @@ const describe = (side) =>
   `${mean(side.prestige, side.games).toFixed(1)} pts, ${mean(side.cards, side.games).toFixed(1)} cards (${mean(side.l1, side.games).toFixed(1)}/${mean(side.l2, side.games).toFixed(1)}/${mean(side.l3, side.games).toFixed(1)} by level, ${mean(side.zero, side.games).toFixed(1)} worth nothing), ${mean(side.nobles, side.games).toFixed(2)} nobles`;
 
 /**
- * Experiment "head": Engine against Rush at each target. Prints a table.
+ * Experiment "head": Engine against Rush at each target.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *
@@ -143,7 +143,7 @@ function head(deals) {
 }
 
 /**
- * Experiment "sizes": how many cards the Engine should build first. Prints a table.
+ * Experiment "sizes": how many cards the Engine should build first.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *
@@ -169,7 +169,7 @@ function sizes(deals) {
 }
 
 /**
- * Experiment "rushes": the Engine against each kind of Rush. Prints a table.
+ * Experiment "rushes": the Engine against each kind of Rush.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *
@@ -185,7 +185,7 @@ function rushes(deals) {
 }
 
 /**
- * Experiment "mirror": each strategy against itself, to measure the value of going first. Prints a table.
+ * Experiment "mirror": each strategy against itself, to measure the value of going first.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *
@@ -202,7 +202,7 @@ function mirror(deals) {
 }
 
 /**
- * Experiment "tables": Engine and Rush sharing a table of three or four. Prints a table.
+ * Experiment "tables": Engine and Rush sharing a table of three or four.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *
@@ -239,7 +239,7 @@ function tables(deals) {
 }
 
 /**
- * Experiment "strength": both strategies against the module's strongest AI. Prints a table.
+ * Experiment "strength": both strategies against the module's strongest AI.  Prints a table.
  *
  * Side effects: plays many games (slow) and writes the table to the console.
  *

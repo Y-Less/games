@@ -1,8 +1,8 @@
-// Collects the data the card-play table is learned from. Deals are played with every seat following the same policy (the
+// Collects the data the card-play table is learned from.  Deals are played with every seat following the same policy (the
 // current table, or the Standard AI's play when there is none), except that some of the time a seat plays a random legal
-// card instead. Those random plays are the ones recorded: because the card was picked at random, how the round turned out
+// card instead.  Those random plays are the ones recorded: because the card was picked at random, how the round turned out
 // is an unbiased measure of what that kind of play is worth in that situation (a card chosen by a policy would be chosen
-// because of things the table cannot see). Each is added to the cell of its key with the points the round was worth.
+// because of things the table cannot see).  Each is added to the cell of its key with the points the round was worth.
 // Runs in worker threads: `collectChunk` is the unit of work, and this file is also the worker's entry point.
 import { parentPort, workerData } from 'node:worker_threads';
 import { lut } from '../ai/lut.js';
@@ -29,7 +29,7 @@ export const emptyTotals = () => ({
 });
 
 /**
- * Plays `size` deals (players, cards and trump chosen at random, all from the seed and chunk number) and returns the totals.
+ * Plays `size` deals (players, cards, and trump chosen at random, all from the seed and chunk number) and returns the totals.
  * @param {{ model: object | null, seed: number, chunk: number, size: number, players: number[], epsilon: number }} job  `epsilon` is the chance a seat plays a random legal card
  * @returns {object} the totals (see emptyTotals)
  * Side effects: none (the RNG is local to the chunk).

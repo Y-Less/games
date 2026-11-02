@@ -1,4 +1,4 @@
-// The game menu, the game page shell and the Help dialog.
+// The game menu, the game page shell, and the Help dialog.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

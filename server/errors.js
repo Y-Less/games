@@ -1,4 +1,4 @@
-// The site's own error types. A route turns one of these into a JSON reply with its status (see routes/errorHandler.js).
+// The site's own error types.  A route turns one of these into a JSON reply with its status (see routes/errorHandler.js).
 
 /** A refused request: `message` is shown to the person, `status` is the HTTP status code of the reply. */
 export class AuthError extends Error {

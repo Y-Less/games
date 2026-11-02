@@ -2,8 +2,8 @@
 // The show: each hand (and the box) laid out with the starter and an itemised count.
 //
 // Props:
-//   state  {Object}  required. The view during the show: show.entries ({ kind, seat, cards, items, total, after }), starter, seats, you.
-// Emits: none. Slots: none.
+//   state  {Object}  required.  The view during the show: show.entries ({ kind, seat, cards, items, total, after }), starter, seats, you.
+// Emits: none.  Slots: none.
 // Side effects: none (pure rendering).
 import { computed } from 'vue';
 import { rankOf, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';

@@ -1,5 +1,5 @@
 // Giving a clue and turning the dial at the Wavelength table: where this person has turned it before locking in, the clue
-// they are typing, the needle and markers to draw, and what is sent. In a team game every move of the shared marker goes to
+// they are typing, the needle and markers to draw, and what is sent.  In a team game every move of the shared marker goes to
 // the server, throttled.
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { TEAM_MARKER } from './useGameView.js';
@@ -10,7 +10,7 @@ export const SEND_EVERY = 60; // team: at most about 15 marker moves a second
 /**
  * Guessing and clueing.
  *
- * Side effects: turn, lockIn and sendClue send 'marker', 'lock', 'guess' and 'clue' requests; the pending team marker
+ * Side effects: turn, lockIn, and sendClue send 'marker', 'lock', 'guess', and 'clue' requests; the pending team marker
  * move is sent on timers, which are cleared before the component unmounts; picked and clueText are cleared whenever the
  * turn or phase changes.
  *
@@ -22,7 +22,7 @@ export function useGuessing(view, send) {
   const picked = ref(null); // where this person has turned the dial, before locking it in
   const clueText = ref(''); // the clue being typed (psychic only)
 
-  // The needle to draw. Solo: your own needle. Team: the shared marker, which the psychic does not see until the reveal.
+  // The needle to draw.  Solo: your own needle.  Team: the shared marker, which the psychic does not see until the reveal.
   const needle = computed(() => {
     if (!view.team) return view.canGuess ? picked.value : view.guessing ? view.myGuess : null; // at the reveal your guess is a marker on the rim instead
     return view.canGuess ? picked.value ?? view.state.marker : null;
@@ -53,7 +53,7 @@ export function useGuessing(view, send) {
    *
    * @returns {void} nothing
    *
-   * Side effects: cancels the pending send timer, updates the throttle bookkeeping and sends a 'marker' request.
+   * Side effects: cancels the pending send timer, updates the throttle bookkeeping, and sends a 'marker' request.
    */
   function flush() {
     clearTimeout(sendTimer);

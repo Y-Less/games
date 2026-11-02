@@ -1,5 +1,5 @@
 // The computer-player AIs: the registry, that every AI plays legal and finished games, the habit that gives each one its
-// character, a seeded tournament, and how the choice of AI is made, stored and shown.
+// character, a seeded tournament, and how the choice of AI is made, stored, and shown.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -322,7 +322,7 @@ test('every AI beats random head to head', { timeout: 300000 }, () => {
   console.log(`vs random, 2 players, 60 games: ${rows.join(', ')}`);
 });
 
-// ---- choosing, storing and showing an AI ----
+// ---- choosing, storing, and showing an AI ----
 
 const lobby = (seats = 4) => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats } });

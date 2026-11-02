@@ -1,7 +1,7 @@
 // Achievement routes: the list, the secret one, and the pop-ups waiting to be shown.
 
 /**
- * Registers GET /achievements, POST /achievements/steve, GET /achievements/pending and POST /achievements/seen.
+ * Registers GET /achievements, POST /achievements/steve, GET /achievements/pending, and POST /achievements/seen.
  * @param {import('express').Router} api  the router mounted at /api
  * @param {{ achievements: object, requireUser: import('express').RequestHandler }} deps
  * @returns {void}

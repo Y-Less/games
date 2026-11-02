@@ -1,5 +1,5 @@
 <script setup>
-// File: the header Help dialog. Depends on: nothing beyond the window keydown event.
+// File: the header Help dialog.  Depends on: nothing beyond the window keydown event.
 // Props: html (String|null, pre-rendered safe Markdown HTML; null while loading), title (String, the dialog's name; 'Help' by default).
 // Emits: close (Close button, Escape, or a click on the backdrop).
 // Slots: none.

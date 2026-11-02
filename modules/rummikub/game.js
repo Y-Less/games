@@ -1,15 +1,15 @@
-// The rules of a Rummikub room, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of a Rummikub room, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }; an error never names hidden information.
 //
-// Seats 0..size-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
-// ({ kind: 'bot', id: 'bot:<n>', name }) or null (empty, lobby only).
+// Seats 0..size-1 run clockwise.  A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
+// ({ kind: 'bot', id: 'bot:<n>', name }), or null (empty, lobby only).
 //
 // Every tile is an integer id (see rules.js) and is in exactly one place: the pool (face down, order secret), a rack
 // (hidden from the other players) or a set on the table. `racks[seat]` and `pool` are the only secrets.
 //
 // A round: everybody is dealt tiles; on their turn a player either plays (sends the whole table as they want it, which
-// is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty). The round ends when someone empties
-// their rack, or when the pool is empty and everyone has passed in a row. A game is `settings.rounds` rounds.
+// is checked by rules.checkPlay) or draws one tile (a pass once the pool is empty).  The round ends when someone empties
+// their rack, or when the pool is empty and everyone has passed in a row.  A game is `settings.rounds` rounds.
 //
 // Nothing here is a sentence: a refusal is `fail(code, params)` (a key under `errors.` in this game's locale file or the
 // site's) and anything a client shows - a scoreboard round's label and notes, a log line - is a message `{ key, params }`
@@ -51,12 +51,12 @@ const LIVE = ['lobby', 'playing', 'between'];
 // Whether value is a plain object (not null, not an array): guards the untrusted `args` a client sends.
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-/** Is the game still going (lobby, a round, or between rounds)? A finished game is not live, so people may leave it. Takes the room; returns a boolean; no side effects. */
+/** Is the game still going (lobby, a round, or between rounds)?  A finished game is not live, so people may leave it.  Takes the room; returns a boolean; no side effects. */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
-/** The name at a seat for a log line: the name, or the site's "Someone" message for an empty seat. Takes (room, seat); no side effects. */
+/** The name at a seat for a log line: the name, or the site's "Someone" message for an empty seat.  Takes (room, seat); no side effects. */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? msg('common.someone');
-/** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)? Takes the room; returns a boolean; no side effects. */
+/** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)?  Takes the room; returns a boolean; no side effects. */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
 /**
@@ -115,7 +115,7 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
 
 /**
  * Puts every per-game field back to its starting value (deck, racks, scores, tallies, log...), keeping the seats, host,
- * settings and size. Used when a room is created, resized and played again. Side effect: mutates the room.
+ * settings, and size.  Used when a room is created, resized, and played again.  Side effect: mutates the room.
  *
  * @param {object} room
  */
@@ -148,7 +148,7 @@ function resetGame(room) {
 
 /**
  * Adds a line to the room's log, keeping only the latest 60. A line is `{ seat, key, params }`: a message (see
- * shared/messages.js) the client puts into the player's language. Side effect: mutates room.log.
+ * shared/messages.js) the client puts into the player's language.  Side effect: mutates room.log.
  *
  * @param {object} room
  * @param {number | null} seat  the seat the line is about, or null for the table as a whole
@@ -169,9 +169,9 @@ const refuse = (message) => fail(message.key.slice('errors.'.length), message.pa
 // ---- seats and settings ----
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones (shared/seats.js). In Rummikub a person who
+ * The seat rules (join, leave, kick, computer players) are the shared ones (shared/seats.js).  In Rummikub a person who
  * leaves during a round is replaced by a computer player that picks its AI straight away (a computer added in the lobby
- * picks when the game starts) and keeps the rack; a line in the log says so. If they were the only person the between-
+ * picks when the game starts) and keeps the rack; a line in the log says so.  If they were the only person the between-
  * rounds screen was waiting for, the next round starts.
  */
 const seats = createSeatRules({
@@ -191,7 +191,7 @@ const seats = createSeatRules({
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 /**
- * The host changes the rule options. Lobby only.
+ * The host changes the rule options.  Lobby only.
  *
  * @param {object} room  mutated: room.settings is replaced on success
  * @param {number} userId  who is asking (must be the host)
@@ -209,7 +209,7 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * The host chooses how many seats there are (2-6). People and computer players are kept, in order. Lobby only.
+ * The host chooses how many seats there are (2-6).  People and computer players are kept, in order.  Lobby only.
  *
  * @param {object} room  mutated: seats and size change and the game is reset
  * @param {number} userId  who is asking (must be the host)
@@ -232,7 +232,7 @@ export function setSize(room, userId, size) {
 // ---- starting ----
 
 /**
- * The host starts the game: resets it, deals the first round and lets every computer player choose its AI.
+ * The host starts the game: resets it, deals the first round, and lets every computer player choose its AI.
  *
  * @param {object} room  mutated
  * @param {number} userId  who is asking (must be the host)
@@ -262,7 +262,7 @@ export function start(room, userId, rng, now) {
 }
 
 /**
- * Sets when the current turn runs out (null when the game has no turn timer). Side effect: mutates room.deadline.
+ * Sets when the current turn runs out (null when the game has no turn timer).  Side effect: mutates room.deadline.
  *
  * @param {object} room
  * @param {number} now  the clock, in milliseconds
@@ -272,7 +272,7 @@ function setDeadline(room, now) {
 }
 
 /**
- * Deals a new round: shuffles, gives everybody their rack, clears the table and starts the first player's turn. Side
+ * Deals a new round: shuffles, gives everybody their rack, clears the table, and starts the first player's turn.  Side
  * effect: mutates the room (including its log and move counter).
  *
  * @param {object} room
@@ -325,7 +325,7 @@ function noteRack(room, seat) {
 const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
 
 /**
- * Passes the turn to the next seat, clears that seat's "just drawn" mark and restarts the turn timer. Side effect:
+ * Passes the turn to the next seat, clears that seat's "just drawn" mark and restarts the turn timer.  Side effect:
  * mutates the room.
  *
  * @param {object} room
@@ -340,7 +340,7 @@ function nextTurn(room, now) {
 }
 
 /**
- * The whole turn in one request: `args.table` is every set as the player wants the table to be. The proposal is judged
+ * The whole turn in one request: `args.table` is every set as the player wants the table to be.  The proposal is judged
  * by rules.checkPlay; if it is refused nothing changes.
  *
  * @param {object} room  mutated on success (table, rack, tally, log, turn)
@@ -378,7 +378,7 @@ export function play(room, seat, args, now) {
 }
 
 /**
- * Draws one tile and ends the turn. With the pool empty it is a pass. If every player has passed in a row with the pool
+ * Draws one tile and ends the turn.  With the pool empty it is a pass.  If every player has passed in a row with the pool
  * empty, the round ends as blocked.
  *
  * @param {object} room  mutated
@@ -412,7 +412,7 @@ export function draw(room, seat, now, timedOut = false) {
 }
 
 /**
- * The turn timer ran out: the player draws (or passes). Refused (nothing changes) before the deadline.
+ * The turn timer ran out: the player draws (or passes).  Refused (nothing changes) before the deadline.
  *
  * @param {object} room  mutated on success
  * @param {number} now  the clock, in milliseconds
@@ -427,9 +427,9 @@ export function timeout(room, now) {
 // ---- the end of a round and of the game ----
 
 /**
- * Scores the round. Whoever has the lowest rack total wins it (nobody else can have an empty rack, so the player who goes
- * out, with 0, always wins). Every other player loses what their rack is worth beyond the winner's; the winner collects
- * all of that. Tied winners (a blocked game) share it, rounded down. When someone goes out this is exactly "the winner
+ * Scores the round.  Whoever has the lowest rack total wins it (nobody else can have an empty rack, so the player who goes
+ * out, with 0, always wins).  Every other player loses what their rack is worth beyond the winner's; the winner collects
+ * all of that.  Tied winners (a blocked game) share it, rounded down.  When someone goes out this is exactly "the winner
  * gains the total of the other racks, each other player loses their own".
  *
  * Side effects: mutates the room (scores, history, tally, log, phase); the game ends after the last round.
@@ -477,7 +477,7 @@ function finishRound(room, reason, winnersIn, now) {
 }
 
 /**
- * Ends the game after the last round: works out the winners and placements. Side effect: mutates the room (phase becomes
+ * Ends the game after the last round: works out the winners and placements.  Side effect: mutates the room (phase becomes
  * 'finished').
  *
  * @param {object} room
@@ -512,7 +512,7 @@ export function next(room, seat, rng, now) {
 }
 
 /**
- * Starts the next round if every person is ready for it. Side effect: mutates the room when it starts one.
+ * Starts the next round if every person is ready for it.  Side effect: mutates the room when it starts one.
  *
  * @param {object} room
  * @param {() => number} rng  random numbers for the deal
@@ -527,7 +527,7 @@ function advanceIfReady(room, rng, now) {
 }
 
 /**
- * Moves the first player on by one seat and deals the next round. Side effect: mutates the room.
+ * Moves the first player on by one seat and deals the next round.  Side effect: mutates the room.
  *
  * @param {object} room
  * @param {() => number} rng  random numbers for the deal
@@ -600,7 +600,7 @@ export function allTiles(room) {
   return [...room.pool, ...room.racks.flat(), ...room.table.flat()];
 }
 
-/** How many tiles there are in the room altogether (always totalTiles once a round has been dealt). Takes the room; returns a number; no side effects. */
+/** How many tiles there are in the room altogether (always totalTiles once a round has been dealt).  Takes the room; returns a number; no side effects. */
 export const tileCount = (room) => allTiles(room).length;
 
 /**

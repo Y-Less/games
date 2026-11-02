@@ -1,5 +1,5 @@
 // Sizes for the Tints and Hints table, worked out from the room available (never from the game, so nothing moves while
-// playing). All numbers are pixels.
+// playing).  All numbers are pixels.
 import { COLS, ROWS } from '../grid.js';
 
 // Pixel measurements shared by the grid (Board.vue) and the table's fitting code.

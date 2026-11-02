@@ -1,4 +1,4 @@
-// Achievement unlocks as they happen, wherever on the site the player is. The server tells the player's browser (on the site's
+// Achievement unlocks as they happen, wherever on the site the player is.  The server tells the player's browser (on the site's
 // own socket) that there is something new; the unlocks themselves are fetched from the API, and each is marked as shown once
 // its pop-up has been seen, so a player who was away still gets them the next time they come back.
 // Depends on: vue, socket.io-client, api.js and shopStore.js (the coin balance is refreshed on new unlocks).

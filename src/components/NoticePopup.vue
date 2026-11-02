@@ -1,12 +1,12 @@
 <script setup>
-// File: the generic non-blocking pop-up. Depends on: Vue only.
+// File: the generic non-blocking pop-up.  Depends on: Vue only.
 // Props: active (Boolean), duration (Number, ms), autoHide (Boolean), name (String, extra class), row (Number, vertical slot).
 // Emits: close (closed by timer or OK; not when `active` goes false).  Slots: default (the content).
 // Side effects: schedules a setTimeout to auto-close while shown; clears it on hide and on unmount.
 // A small pop-up over the top of the page: the generic one behind "It's your turn" (YourTurnPopup) and the achievement
-// unlocks. It appears the moment `active` becomes true (or when it is already true as the component first appears), and
+// unlocks.  It appears the moment `active` becomes true (or when it is already true as the component first appears), and
 // goes away by itself after `duration` milliseconds (unless `autoHide` is false, and then it stays until the player clicks
-// OK), or at once when the player clicks OK, or when `active` goes false again. It takes no focus and blocks nothing, so play can carry straight on. The content is the default slot.
+// OK), or at once when the player clicks OK, or when `active` goes false again.  It takes no focus and blocks nothing, so play can carry straight on.  The content is the default slot.
 //   autoHide  false to keep it open until OK (default true: it closes after `duration`)
 //   name      an extra class for the pop-up's box (styling hooks such as "your-turn")
 //   row       0 for the top of the page; 1, 2 ... place it lower so that two pop-ups can show together

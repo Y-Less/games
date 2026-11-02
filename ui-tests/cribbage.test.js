@@ -126,7 +126,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 108
     assert.ok(['', '1'].includes(await user.page.evaluate(() => document.querySelector('.field-frame').style.zoom)), 'the game is not scaled down');
     const frame = await rect('.game-frame');
     assert.ok(frame.bottom <= viewport.height && frame.bottom >= viewport.height - 20, `the frame fills the window: bottom ${frame.bottom} of ${viewport.height}`);
-    // Outer edges: score bar, your side, the board side and both bottom boxes.
+    // Outer edges: score bar, your side, the board side, and both bottom boxes.
     const bar = await rect('.score-bar');
     const mine = await rect('.mine-col');
     const right = await rect('.right-col');

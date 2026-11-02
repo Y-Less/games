@@ -1,4 +1,4 @@
-// "Random": a uniformly random legal move, whatever the position. The easiest opponent, and the baseline the others
+// "Random": a uniformly random legal move, whatever the position.  The easiest opponent, and the baseline the others
 // are measured against.
 //
 // Depends on: ./lib.js (randomReturn only).

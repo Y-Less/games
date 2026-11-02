@@ -1,39 +1,39 @@
 # Rummikub
 
 A tile-rummy game for two to six players with computer players to fill the seats, in the family of the classic
-"build runs and groups, rearrange the table" game. The tiles, colours and shapes are this site's own (CSS/SVG).
+"build runs and groups, rearrange the table" game.  The tiles, colours, and shapes are this site's own (CSS/SVG).
 
-See `rules.md` (shown by the Rules button) for the rules. Decisions worth knowing:
+See `rules.md` (shown by the Rules button) for the rules.  Decisions worth knowing:
 
 - Tiles are integer ids (numbered tiles first, then wildcards; see `rules.js`), so a tile can be tracked anywhere.
 - A turn is one request: `play` sends the complete table the player wants and the server judges it
   (`rules.checkPlay`): all old tiles remain, only rack tiles were added, every set is valid, and before the first meld the
-  old sets are untouched and the new sets (rack tiles only) are worth the threshold. The client's rack is not trusted or needed
+  old sets are untouched and the new sets (rack tiles only) are worth the threshold.  The client's rack is not trusted or needed
   (the rack is the server's); an invalid layout is refused with no change, and "Reset turn" is local to the client.
 - A joker on the table remembers what it stands for (`rules.pinnedJokers`: one tile, or two at the end of a run or in a group of three)
   and cannot be moved; adding a tile it could stand for frees it into a set of its own (`arrangement.releaseJokers`). `checkPlay` enforces
   the same from the final table: each such joker is still in a set where it could be the same tile, or a fitting tile was swapped in
-  from the rack or moved from another set. A duplicate dropped into a run splits it (`arrangement.splitRunAtDuplicate`). The bots leave
+  from the rack or moved from another set.  A duplicate dropped into a run splits it (`arrangement.splitRunAtDuplicate`).  The bots leave
   joker sets alone unless the rack has a tile to swap in.
 - Set order is irrelevant. `rules.resolveSet` decides what each wildcard stands for and the server keeps sets in that order.
 - Deal: 14 each, or `floor(tiles / (players + 1))` when that is smaller; fewer than 6 each is refused when starting.
 - Rounds: the lowest rack wins; losers lose the difference to the winner's rack (equal to their rack when someone goes out).
 - Rounds after the first wait for every person to close the scores pop-up (or 60 s, `RUMMIKUB_ROUND_WAIT`).
-- Turn timer (host option, off by default): when it runs out the player draws (or passes). The server enforces it.
-- Every word a player reads comes from `locales/<lang>.json` (see MODULES.md, "Languages"). The server sends no
+- Turn timer (host option, off by default): when it runs out the player draws (or passes).  The server enforces it.
+- Every word a player reads comes from `locales/<lang>.json` (see MODULES.md, "Languages").  The server sends no
   sentences: a refusal is a code (`fail('tooFewTiles', { tiles, players, min })`, looked up under `errors.` in this
   game's file and then the site's) and anything a view carries is a message `{ key, params }` - a log line
   (`log[i]` is `{ seat, key, params }`, not `{ seat, text }`), a scoreboard round's `label` and `notes`.
   `rules.js` is shared with the client, so its refusals (`checkPlay`, `resolveSet`, `startProblem`) are messages too,
-  which the table draws with `text()`; `game.js` turns them into refusal codes. A tile's colour is a key
-  (`COLOUR_KEYS`, `colours.*`), never a name. Note that `shared/roomServer.js` sends a rule's code without its params,
+  which the table draws with `text()`; `game.js` turns them into refusal codes.  A tile's colour is a key
+  (`COLOUR_KEYS`, `colours.*`), never a name.  Note that `shared/roomServer.js` sends a rule's code without its params,
   so a refusal that reaches a client through `act` shows its text with the params missing.
 
 ## Files
 
 - `locales/en.json` the game's own words, merged under `rummikub.` (a translation is `locales/<lang>.json` beside it).
 - `rules.js` pure rules shared with the client: tiles, set resolving, settings, `checkPlay`.
-- `game.js` the room, seats, rounds and turns, scoring, views and statistics.
+- `game.js` the room, seats, rounds and turns, scoring, views, and statistics.
 - `bot.js` the computer players: a capped search over the whole table (new sets, extensions, rearrangements, jokers).
 - `server.js` the socket layer: rooms, codes, persistence, bot / timer / round timers, statistics.
 - `client/` the Vue screens (lobby, play field with drag-and-drop and click-to-move).

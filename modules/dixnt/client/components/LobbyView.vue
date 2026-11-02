@@ -1,10 +1,10 @@
 <script setup>
 // Dixnt lobby: the invite code, the players (the host can remove people and add computer players), and the host's
-// settings: play style, card categories, hand size and number of rounds. Everyone else sees them read-only.
+// settings: play style, card categories, hand size, and number of rounds.  Everyone else sees them read-only.
 // Every word comes from a locale file (the game's own first, then the site's); a category's label may be a message
 // the server sent, so it is drawn with text().
 //
-// Props: none. Emits: none. Slots: none.
+// Props: none.  Emits: none.  Slots: none.
 // Side effects: sends addBot, fillBots, removeBot, removePlayer, setJudging, setCategories, setHandSize, setRounds and
 // start requests (through the store).
 import { computed } from 'vue';

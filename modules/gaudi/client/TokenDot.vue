@@ -1,6 +1,6 @@
 <script setup>
-// One favour token: a small gold disc. Add class="spent" for the smaller, faded one shown on a tool card that has been used.
-// Props: none. Emits: none. Side effects: none.
+// One favour token: a small gold disc.  Add class="spent" for the smaller, faded one shown on a tool card that has been used.
+// Props: none.  Emits: none.  Side effects: none.
 </script>
 
 <template>

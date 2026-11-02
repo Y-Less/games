@@ -1,4 +1,4 @@
-// The rules of Cheat: the deal, the rank that is claimed each turn, playing and calling, the final check and the end of the game.
+// The rules of Cheat: the deal, the rank that is claimed each turn, playing and calling, the final check, and the end of the game.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seeded } from '../../shared/testkit.js';
@@ -11,7 +11,7 @@ function started(n = 4, seed = 1) {
   assert.equal(g.start(room, 1, seeded(seed)).ok, true);
   return room;
 }
-/** Sets the hands (one array per seat), the turn and the number of plays so far, for a chosen position. */
+/** Sets the hands (one array per seat), the turn, and the number of plays so far, for a chosen position. */
 function stage(room, hands, { turn = 0, plays = 0, pile = [] } = {}) {
   room.hands = hands.map((h) => [...h]);
   room.turn = turn;

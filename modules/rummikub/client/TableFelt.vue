@@ -1,9 +1,9 @@
 <script setup>
-// The table of sets: wide, a fixed height whatever is laid (a long game scrolls inside it). Every set shows its tiles, a
+// The table of sets: wide, a fixed height whatever is laid (a long game scrolls inside it).  Every set shows its tiles, a
 // hidden-until-needed + button and its live check; dropping tiles on the felt starts a new set, on a set adds to it.
 // Props: sets (the shown sets from the working copy), settings (the game's tile settings), selected (selected tile ids),
 //   myTurn (it is your turn), dropHint (show the drop outline while dragging), fresh and recent (Sets of tile ids played
-//   this turn / by the last player), lockedTile(id), stands(item) and canAddTo(set) (functions from the working copy).
+//   this turn / by the last player), lockedTile(id), stands(item), and canAddTo(set) (functions from the working copy).
 // Slots: none.
 // Emits: pick(id), drop-selected(target) and drop-tiles(target) with a target like { type: 'set', index } or { type: 'new' },
 //   and drag-start-tile(event, id) and drag-end-tile().

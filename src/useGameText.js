@@ -1,8 +1,8 @@
-// Words inside a game's components. A module's components call `useGameText()`; its `t('lobby.intro')` reads the game's own
+// Words inside a game's components.  A module's components call `useGameText()`; its `t('lobby.intro')` reads the game's own
 // locale file (modules/<id>/locales/<lang>.json) and falls back to the site's keys, `text(value)` puts a server message
-// into words and `error(reply)` a refusal. The game's id comes from the play view (provide) so no component names it;
+// into words and `error(reply)` a refusal.  The game's id comes from the play view (provide) so no component names it;
 // a shared component (ScoreBoard, say) gets the same answers for whichever game it is drawn in.
-// Depends on: vue (inject), vue-i18n (useI18n) and ./messageText.js.
+// Depends on: vue (inject), vue-i18n (useI18n), and ./messageText.js.
 import { inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { errorText, keyFor, listText, messageText } from './messageText.js';

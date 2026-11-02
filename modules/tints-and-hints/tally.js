@@ -1,5 +1,5 @@
-// What Tints and Hints counts about each player for the statistics and achievements (see module.json "stats"). The counters
-// live on the player. The game calls tallyTurn once a turn is scored; nothing here changes the game.
+// What Tints and Hints counts about each player for the statistics and achievements (see module.json "stats").  The counters
+// live on the player.  The game calls tallyTurn once a turn is scored; nothing here changes the game.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 import { COLS, distance, parseCell } from './grid.js';
 

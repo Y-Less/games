@@ -1,11 +1,11 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
-// with the one before, and what changed becomes a line. Each line is a message (`{ key, params }`, see shared/messages.js)
+// with the one before, and what changed becomes a line.  Each line is a message (`{ key, params }`, see shared/messages.js)
 // under the game's `log.*` keys, put into words by the table when it is drawn, so the list reads in the player's language
-// whenever they switch. Nothing here needs the server to keep a log.
+// whenever they switch.  Nothing here needs the server to keep a log.
 import { msg } from '../../../shared/messages.js';
 
 /**
- * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn). The caller appends
+ * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn).  The caller appends
  * them to its list, so a line is only produced on the one step where its event happens.
  * @param {object | null} prev  the state before (null for the first state received)
  * @param {object | null} next  the state that has just arrived

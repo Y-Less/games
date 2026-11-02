@@ -1,5 +1,5 @@
 // The strongest: it samples the hands it cannot see, plays the rest of the round out many times, and picks the
-// nomination (and later the card) with the best expected score. Following suit, trumps and the order of play are
+// nomination (and later the card) with the best expected score.  Following suit, trumps, and the order of play are
 // all handled by playing the round out with the real rules, so nothing is guessed.
 import { suitOf } from '../../../shared/cards.js';
 import { ledSuit, legalCards } from '../trick.js';
@@ -7,7 +7,7 @@ import { nearestAllowed, unseenCards, winningCard } from './cards.js';
 import { withLastChance } from './endgame.js';
 import { canTakeAllSeven, chooseCard, estimateTricks } from './standard.js';
 
-// Monte Carlo sizes: how many random deals of the unseen cards are played out per decision. More is sharper but slower;
+// Monte Carlo sizes: how many random deals of the unseen cards are played out per decision.  More is sharper but slower;
 // a nomination weighs several candidates once per deal, so it gets fewer samples than a card play.
 const NOMINATE_SAMPLES = 36;
 const PLAY_SAMPLES = 40;
@@ -35,7 +35,7 @@ export function roundPoints(bid, taken, { missPoints = true, instantWin = false,
 
 /**
  * Deals the unseen cards at random to the other seats: `needs` is [{ seat, count, voids }], where `voids` lists suits
- * the seat is known not to hold. Falls back to ignoring voids if they cannot be satisfied.
+ * the seat is known not to hold.  Falls back to ignoring voids if they cannot be satisfied.
  *
  * @param {string[]} unseen  the cards the player cannot see
  * @param {{seat: number, count: number, voids: string[]}[]} needs  the other seats, how many cards each holds and the suits each lacks

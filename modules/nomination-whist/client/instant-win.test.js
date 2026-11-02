@@ -1,4 +1,4 @@
-// The instant win on a 7, as the client shows it: the lobby option, the final pop-up and the scoreboard.
+// The instant win on a 7, as the client shows it: the lobby option, the final pop-up, and the scoreboard.
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import * as game from '../game.js';

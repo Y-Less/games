@@ -1,5 +1,5 @@
 // Animations bought in the shop: effects on a player's name pill, its border or its background (seen by everyone who sees the name) and on their own
-// website background (seen only by them, behind every page and game table). The server lists them as shop items and checks
+// website background (seen only by them, behind every page and game table).  The server lists them as shop items and checks
 // a player owns the one they choose; the client draws them in CSS (src/components/StyledName.vue and BackgroundFx.vue).
 // `none` is the free, still choice in each list.
 // Depends on: nothing (pure data); consumed by server/shop.js and the client's StyledName.vue / BackgroundFx.vue.

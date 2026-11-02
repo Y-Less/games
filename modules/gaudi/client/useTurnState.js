@@ -1,4 +1,4 @@
-// What the view says about whose turn it is and what you may do now. Pure derivations from the server's view: it keeps no
+// What the view says about whose turn it is and what you may do now.  Pure derivations from the server's view: it keeps no
 // state of its own and sends nothing.
 import { computed } from 'vue';
 import { CELLS } from '../rules.js';
@@ -32,7 +32,7 @@ export function useTurnState(s) {
   // One entry per round: the dice left over from it, or null while it has not been played.
   const trackSlots = computed(() => Array.from({ length: s.value.limits.rounds }, (_, i) => s.value.track?.[i] ?? null));
   /**
-   * The name of a seat for the Status box (the site's "Someone" if it is empty). It is words, not a message, because it
+   * The name of a seat for the Status box (the site's "Someone" if it is empty).  It is words, not a message, because it
    * goes into sentences as a parameter; messageText is used rather than useGameText so that this stays a plain function
    * that can be called outside a component.
    * @param {number} seat  the seat number

@@ -1,5 +1,5 @@
 // The working copy of the table that you build during your turn: the sets and your rack as you have arranged them so far,
-// what that arrangement is worth, which tiles are locked, which are selected, and the moves between them. Undo and Reset
+// what that arrangement is worth, which tiles are locked, which are selected, and the moves between them.  Undo and Reset
 // only touch this copy; the server is told nothing until you end the turn.
 import { computed, ref, watch } from 'vue';
 import { pinnedJokers } from '../rules.js';
@@ -12,8 +12,8 @@ const FROZEN = msg('hints.frozen');
 /**
  * The working copy.
  *
- * Side effects: place, pick, dropSelected, undo and reset change the copy, the selection, the undo list and the hint; a
- * watcher resets the copy whenever the server sends a new version, round, phase or seat.
+ * Side effects: place, pick, dropSelected, undo, and reset change the copy, the selection, the undo list, and the hint; a
+ * watcher resets the copy whenever the server sends a new version, round, phase, or seat.
  *
  * @param {object} view  the round view (reactive, from useRoundView)
  * @returns {object} arr, undoStack, selected, hint, sortMode, status, changed, fresh, recent, rackTiles, unlocked, pinned,
@@ -32,7 +32,7 @@ export function useWorkingCopy(view) {
    *
    * @returns {void} nothing
    *
-   * Side effects: replaces `arr` and empties the undo list, the selection and the hint.
+   * Side effects: replaces `arr` and empties the undo list, the selection, and the hint.
    */
   function reset() {
     arr.value = startArrangement(view.state.table, view.state.rack);
@@ -40,7 +40,7 @@ export function useWorkingCopy(view) {
     selected.value = [];
     hint.value = null;
   }
-  // A new table (another player moved, a new round, a seat change) invalidates the half-built layout. The key is one string:
+  // A new table (another player moved, a new round, a seat change) invalidates the half-built layout.  The key is one string:
   // a getter returning a fresh array would count every server push as a change (Vue compares the getter's result by
   // identity), and the server also pushes when somebody connects or disconnects, which must not throw your layout away.
   watch(() => `${view.state.version}:${view.state.round}:${view.state.phase}:${view.state.you}`, reset);
@@ -94,7 +94,7 @@ export function useWorkingCopy(view) {
    */
   const lockedTile = (id) => (!unlocked.value && oldIds.value.has(id)) || fixedJokers.value.has(id);
 
-  // What the table draws: each set with its index, ids, rules verdict, items to draw and frozen flag.
+  // What the table draws: each set with its index, ids, rules verdict, items to draw, and frozen flag.
   const shownSets = computed(() =>
     arr.value.sets.map((ids, index) => {
       const result = status.value.sets[index];
@@ -127,7 +127,7 @@ export function useWorkingCopy(view) {
     undoStack.value.push({ arr: arr.value });
   }
   /**
-   * Moves tiles to a target (a set, the rack or a new set), if the rules allow; otherwise says why in the hint.
+   * Moves tiles to a target (a set, the rack, or a new set), if the rules allow; otherwise says why in the hint.
    *
    * @param {number[]} ids  the tiles to move
    * @param {object} target  { type: 'set', index } or { type: 'rack' } or { type: 'new' }

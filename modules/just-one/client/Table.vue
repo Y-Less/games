@@ -1,12 +1,12 @@
 <script setup>
-// The Just One table, for every phase of a game: the score bar, the secret word (hidden from the guesser), the clues and the
-// controls for the moment, slim bars for the other players, and the two standard boxes along the bottom. The writers see the
+// The Just One table, for every phase of a game: the score bar, the secret word (hidden from the guesser), the clues, and the
+// controls for the moment, slim bars for the other players, and the two standard boxes along the bottom.  The writers see the
 // word and send one-word clues; the guesser sees the clues that were not cancelled, guesses once, and picks the best hint.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves, an array
 // of messages kept by JustOne.vue, see moveLog.js).
-// Emits: none. Slots: none (it fills GameFrame's scorebar, main, others, log and status slots).
-// Side effects: sends 'clue', 'guess', 'pass', 'best', 'ready', 'removeBot' and 'kick' requests; one watcher on the view
+// Emits: none.  Slots: none (it fills GameFrame's scorebar, main, others, log, and status slots).
+// Side effects: sends 'clue', 'guess', 'pass', 'best', 'ready', 'removeBot', and 'kick' requests; one watcher on the view
 // empties the clue and guess boxes when the turn or phase changes.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -109,7 +109,7 @@ const headline = computed(() => {
 });
 // It is your move (highlights the Status box): you can write a clue, or you are the guesser in the guessing or choosing phase.
 const mineNow = computed(() => canWrite.value || (isGuesser.value && (guessing.value || choosing.value)));
-// The further Status lines. Most are { text, tone } where tone only picks the colour; the abandoned case also holds a plain string.
+// The further Status lines.  Most are { text, tone } where tone only picks the colour; the abandoned case also holds a plain string.
 const lines = computed(() => {
   if (phase.value === 'abandoned') return [{ text: t('status.abandonedNote'), tone: 'muted' }, t('status.leaveToMenu')];
   if (phase.value === 'finished') return [{ text: t('status.finishedNote'), tone: 'muted' }];
@@ -127,7 +127,7 @@ const lines = computed(() => {
 });
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
-// button). The scoreboard's ids are the accounts' ids.
+// button).  The scoreboard's ids are the accounts' ids.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => s.value.scoreboard.players,
   hostId: () => s.value.hostId,

@@ -1,5 +1,5 @@
 // Garbage in: every socket event of Dixnt gets malformed payloads (with and without an ack) in every phase that can be
-// reached cheaply, from the host, an ordinary player and an outsider. The server must stay up, answer with a structured
+// reached cheaply, from the host, an ordinary player, and an outsider.  The server must stay up, answer with a structured
 // failure or a harmless success, keep the game valid, leak nothing, and still be able to finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,5 +1,5 @@
 <script setup>
-// Nomination Whist lobby: invite code, seat list (via SeatLobby) and the host's game options.
+// Nomination Whist lobby: invite code, seat list (via SeatLobby), and the host's game options.
 // Props: state {Object, required} the lobby view of the game; send {Function, required} sends a request to the server.
 // Emits: none (all actions go through `send`: addBot, removeBot, fillBots, kick, start, settings).
 // Slots: none (fills SeatLobby's `settings` slot).

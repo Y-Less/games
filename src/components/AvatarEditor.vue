@@ -1,5 +1,5 @@
 <script setup>
-// File: the Profile page's avatar editor. Depends on: ../../shared/avatar.js, ../profileApi.js (updateProfile), ../session.js,
+// File: the Profile page's avatar editor.  Depends on: ../../shared/avatar.js, ../profileApi.js (updateProfile), ../session.js,
 //   ../shopStore.js (owns), AvatarFigure.vue, vue-router (RouterLink).
 // Props: none.  Emits: none.  Slots: none.
 // Side effects: save() sends the avatar to the server through updateProfile; otherwise only local state.
@@ -44,7 +44,7 @@ const lockedCount = computed(() => AVATAR_SLOTS.reduce((n, { slot, options }) =>
 /**
  * Saves the avatar being edited.
  * @returns {Promise<void>}
- * Side effects: updates the profile; sets message, problem and busy.
+ * Side effects: updates the profile; sets message, problem, and busy.
  */
 async function save() {
   message.value = problem.value = '';

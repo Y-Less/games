@@ -1,11 +1,11 @@
 <script setup>
 // Props: state {Object, required} the player's view of the game; send {Function, required} sends a request to the server.
 // Emits: none (requests go through `send`: play, nominate, next, kick, removeBot).
-// Slots: none (fills GameFrame's scorebar, main, log and status slots).
+// Slots: none (fills GameFrame's scorebar, main, log, and status slots).
 // Side effects: watches the state to reset the hint; no timers or listeners of its own (the Recent moves list is kept by the page, see log.js).
 // The game itself, in the standard frame: the score bar on top; the table (the trick in the middle, the nomination buttons in a zone of their own, and your hand along the bottom); and the two
-// boxes along the bottom, Recent moves and Status. Everything that is said (whose turn it is, the round, the trumps,
-// what you may not nominate), and the other players' details open from their chips in the score bar is in Status, so nothing in the play area grows, shrinks or moves while the game is played.
+// boxes along the bottom, Recent moves and Status.  Everything that is said (whose turn it is, the round, the trumps,
+// what you may not nominate), and the other players' details open from their chips in the score bar is in Status, so nothing in the play area grows, shrinks, or moves while the game is played.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -30,7 +30,7 @@ const props = defineProps({
 });
 const { t, text, list } = useGameText();
 
-// A transient warning (why a card cannot be played), cleared whenever the phase, turn or round changes.
+// A transient warning (why a card cannot be played), cleared whenever the phase, turn, or round changes.
 const hint = ref('');
 watch(
   () => [props.state.phase, props.state.turn, props.state.round?.number],
@@ -81,7 +81,7 @@ function noteFor(seat) {
   }
   return props.state.phase === 'nominating' ? t('table.nominated', { bid: seat.bid }) : t('table.nominatedWon', { bid: seat.bid, tricks: seat.tricks });
 }
-// Opponents in the shape OpponentHands expects (name, card count, note, away and current-turn flags).
+// Opponents in the shape OpponentHands expects (name, card count, note, away, and current-turn flags).
 const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s.name, cards: s.cards, note: noteFor(s), away: Boolean(s.away && !s.bot), current: s.seat === props.state.turn })));
 
 // Another player's details (cards in hand, nomination, dealer) open from their chip in the score bar: one at a time,
@@ -137,7 +137,7 @@ const mineNow = computed(
       (props.state.phase === 'playing' && myTurn.value && props.state.turn !== null) ||
       (props.state.phase === 'roundEnd' && !seats.value[you.value].ready)),
 );
-// Extra Status lines: the hint, the suggestion, the dealer's forbidden number and the follow-suit reminder.
+// Extra Status lines: the hint, the suggestion, the dealer's forbidden number, and the follow-suit reminder.
 const statusLines = computed(() => {
   const lines = [];
   if (hint.value) lines.push({ text: hint.value, tone: 'warn' });

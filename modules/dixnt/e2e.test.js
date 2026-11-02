@@ -1,4 +1,4 @@
-// End-to-end tests: the real site on a spare port with the Dixnt module, real accounts, sockets, bot processes and statistics.
+// End-to-end tests: the real site on a spare port with the Dixnt module, real accounts, sockets, bot processes, and statistics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -51,7 +51,7 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
       filter: (source) => !['cards', 'node_modules', '.bot-tokens.json'].includes(path.basename(source)),
     });
   }
-  // The module imports ../../shared/scores.js, ai.js and tally.js, so the copy needs a shared folder beside its modules folder.
+  // The module imports ../../shared/scores.js, ai.js, and tally.js, so the copy needs a shared folder beside its modules folder.
   fs.mkdirSync(path.join(dataDir, 'shared'), { recursive: true });
   // (every non-test shared file: they import one another, so a short list breaks whenever a shared file gains an import)
   for (const file of fs.readdirSync(path.join(here, '..', '..', 'shared'))) {
@@ -138,7 +138,7 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
 
 /**
  * Plays a game to the end. `humans` are the people this test controls (the first is the host, who moves rounds on); any
- * other players (bots) act for themselves. Returns what each finished round showed.
+ * other players (bots) act for themselves.  Returns what each finished round showed.
  */
 async function playToEnd(humans, { vote = (p, round) => p.state.voteTargets[round % p.state.voteTargets.length], log = () => '' } = {}) {
   const [host] = humans;
@@ -486,7 +486,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
 });
 
 /**
- * Plays a whole game against three real bot processes. The human host joins first, picks the settings, then plays
+ * Plays a whole game against three real bot processes.  The human host joins first, picks the settings, then plays
  * (or judges) alongside the bots.
  */
 async function playBotGame(t, { judging, categories }) {

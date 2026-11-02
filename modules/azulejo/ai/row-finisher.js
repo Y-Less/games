@@ -1,4 +1,4 @@
-// "Row finisher": races to complete a horizontal row, which ends the game at the end of that round. It favours the rows
+// "Row finisher": races to complete a horizontal row, which ends the game at the end of that round.  It favours the rows
 // that are already fullest, and the short pattern lines that fill quickly, and it puts up with a little floor.
 // Depends on: ../rules.js (SIZE, line sizes, tile scores) and ./common.js (rowFill, take previews, column choosing).
 import { SIZE, lineCapacity, tileScore } from '../rules.js';
@@ -38,7 +38,7 @@ export default {
         // that completes the row (which ends the game at the end of this round).
         const rowValue = 0.45 * (fill + 1) ** 2 + (fill + 1 === SIZE ? 8 : 0);
         // A finished line: a share of the wall score, the row value, and a bonus for short lines (SIZE - cap), because
-        // they fill quickly and so keep the race going. A part-built line gets half the row value scaled by progress.
+        // they fill quickly and so keep the race going.  A part-built line gets half the row value scaled by progress.
         if (after === cap) value += 0.4 * target.value + rowValue + (SIZE - cap) * 0.3;
         else value += (after / cap) * (0.5 * rowValue) + 0.15 * preview.put;
       }

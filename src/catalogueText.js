@@ -1,5 +1,5 @@
 // Names the server defines in English and a language may override by key: a game's name and description (module.json),
-// its statistics labels and achievements, the site's own achievements, shop items, avatar parts and game categories.
+// its statistics labels and achievements, the site's own achievements, shop items, avatar parts, and game categories.
 // English is the definition itself; another language's file holds a translation under the key, and a missing one falls
 // back to the server's English, so a half-translated catalogue still shows every name.
 //   <game>.meta.name, <game>.meta.description, <game>.stats.<key>, <game>.achievements.<key>.{name,text,one}
@@ -46,7 +46,7 @@ export const catalogue = {
   achievementName: (sectionId, achievement) => named(`${achievementKey(sectionId, achievement.key)}.name`, achievement.name),
   /**
    * What a level of an achievement asks for, with the number put in ("Shoot the moon 5 times"); the `one` text when the
-   * number is 1 and a language gives one. The server's text (already numbered) is the fallback.
+   * number is 1 and a language gives one.  The server's text (already numbered) is the fallback.
    * @param {string} sectionId  @param {{ key: string }} achievement  @param {number} n  the level's number  @param {string} fallback
    * @returns {string}
    */

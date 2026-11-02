@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Learns the hand model (hand-model.js) by self-play, a few rounds of: play lots of deals with one random seat trying a
 // random nomination and the model's best by the others, train the network on every nomination made and what it turned
-// out to be worth, then measure it. Run from the platform folder:
+// out to be worth, then measure it.  Run from the platform folder:
 //   node modules/nomination-whist/sim/train-hand.js --players 3-7 --deals 20_000_000 --iterations 3
 // Writes models/hand-values.json (or hand-values-jokers.json with --jokers) after every iteration.
 // Depends on: hand-collect.js (the worker that plays the deals), hand-features.js and hand-model.js (what is learned),
-// and tourney.js (run in a child process to measure the result). A top-level script: importing it starts training.
+// and tourney.js (run in a child process to measure the result).  A top-level script: importing it starts training.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -47,7 +47,7 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
-/** Parses a command-line number, allowing underscores (20_000_000). Pure. */
+/** Parses a command-line number, allowing underscores (20_000_000).  Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
@@ -105,7 +105,7 @@ function learnFrom(model, trainer, data, lr, rng) {
   }
   const score = { n: 0, modelSq: 0, tableSq: 0, compared: 0, modelSqCompared: 0, bce: 0 };
   let inBatch = 0;
-  /** Takes one Adam step from the gradients summed over the current batch, then clears them. Side effects: updates the model weights, the moments and `inBatch`. */
+  /** Takes one Adam step from the gradients summed over the current batch, then clears them.  Side effects: updates the model weights, the moments, and `inBatch`. */
   const apply = () => {
     state.step++;
     const c1 = 1 - 0.9 ** state.step;
@@ -185,7 +185,7 @@ function learnFrom(model, trainer, data, lr, rng) {
 }
 
 /**
- * Plays the deals in worker threads, training on each chunk as it arrives. Returns the totals of how well it predicted.
+ * Plays the deals in worker threads, training on each chunk as it arrives.  Returns the totals of how well it predicted.
  * The learning rate follows a cosine decay from `--lr` down to 5% of it over the iteration, so it settles at the end.
  * @param {object} model  the network being trained (updated in place)
  * @param {object | null} opponents  the model the workers' seats nominate with, or null to use the bid-value table
@@ -207,7 +207,7 @@ async function iterate(model, opponents, trainer, iteration) {
   let lastDraw = 0;
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./hand-collect.js', import.meta.url)), { workerData: base }));
   await new Promise((resolve) => {
-    /** Gives `worker` the next chunk number, if any are left. Side effects: posts a message. */
+    /** Gives `worker` the next chunk number, if any are left.  Side effects: posts a message. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
       worker.on('message', (data) => {
@@ -239,9 +239,9 @@ async function iterate(model, opponents, trainer, iteration) {
 
 /**
  * Plays the model against the bid-value table in child processes, at every player count, and prints the scores.
- * Seats alternate between the two, so neither benefits from position. Skipped when `--eval-games` is 0.
+ * Seats alternate between the two, so neither benefits from position.  Skipped when `--eval-games` is 0.
  * @returns {void}
- * Side effects: reloads the saved model, runs tourney.js child processes and logs one line; throws if one fails.
+ * Side effects: reloads the saved model, runs tourney.js child processes, and logs one line; throws if one fails.
  */
 function evaluate() {
   const games = num(opts['eval-games']);
@@ -269,7 +269,7 @@ for (let iteration = 0; iteration < num(opts.iterations); iteration++) {
   const totals = await iterate(model, iteration === 0 && !saved ? null : model, trainer, iteration);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, JSON.stringify(modelToJson(model, { trainedOn: { players, jokers, iteration, savedAt: new Date().toISOString() } })));
-  /** Root mean square error from a sum of squares and a count, to three decimals. Pure. */
+  /** Root mean square error from a sum of squares and a count, to three decimals.  Pure. */
   const rmse = (sq, n) => Math.sqrt(sq / n).toFixed(3);
   console.log(
     `iteration ${iteration + 1}: ${totals.n.toLocaleString('en-GB')} nominations, predicted points rmse ${rmse(totals.modelSq, totals.n)}, hit loss ${(totals.bce / totals.n).toFixed(4)}` +

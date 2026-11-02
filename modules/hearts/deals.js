@@ -1,8 +1,8 @@
-// How a Hearts hand is dealt and passed for 3 to 7 players. Pure data and helpers, used by the rules (game.js) and by the
+// How a Hearts hand is dealt and passed for 3 to 7 players.  Pure data and helpers, used by the rules (game.js) and by the
 // computer players (ai/), so there is one place that knows the variants.
 //
 // Cards are removed from the 52-card deck so that everyone gets the same number and the whole remaining deck is dealt.
-// The Queen of Spades, the Jack of Diamonds and every heart are always kept, so a hand is always worth 26 points.
+// The Queen of Spades, the Jack of Diamonds, and every heart are always kept, so a hand is always worth 26 points.
 import { RANKS, fullDeck } from '../../shared/cards.js';
 import { msg } from '../../shared/messages.js';
 
@@ -73,7 +73,7 @@ export const tricksFor = (seats) => dealFor(seats).each;
  */
 export const passCountFor = (seats) => dealFor(seats).pass;
 
-/** Points in a hand once the Queen of Spades (13) and the 13 hearts are counted. A moon is worth this much. */
+/** Points in a hand once the Queen of Spades (13) and the 13 hearts are counted.  A moon is worth this much. */
 export const HAND_POINTS = 26;
 
 /**
@@ -89,7 +89,7 @@ export function offsetFor(seats, handNumber) {
 }
 
 /**
- * Names a pass: 'none', 'left', 'right' (the neighbours), 'across' (exactly opposite) or 'left2', 'left3', 'right2'...
+ * Names a pass: 'none', 'left', 'right' (the neighbours), 'across' (exactly opposite), or 'left2', 'left3', 'right2'...
  * (that many places away, on whichever side is nearer; 'across' when it is equally far both ways).
  * @param {number} seats  number of players.
  * @param {number} offset  places to the left (any integer; reduced modulo seats).
@@ -121,7 +121,7 @@ export function offsetOfDirection(seats, direction) {
 }
 
 /**
- * Everything the table shows about a pass: its name, side and distance, and a sentence for it (a message under the
+ * Everything the table shows about a pass: its name, side, and distance, and a sentence for it (a message under the
  * game's `pass.*` keys, see shared/messages.js).
  * @param {number} seats  number of players.
  * @param {number} offset  places to the left that cards go.

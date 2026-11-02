@@ -1,19 +1,19 @@
-// The socket layer every seated game shares. A game's server.js used to be a ~280 line copy of this file with a few
+// The socket layer every seated game shares.  A game's server.js used to be a ~280 line copy of this file with a few
 // words changed; now it states only what is different about the game (its settings, its own socket events, what the
 // server has to do by itself next) and createRoomServer() does the rest:
 //
 //   - keeps the rooms in memory and saves them under ctx.dataDir (debounced, written atomically);
 //   - throws away old rooms every hour;
 //   - remembers which sockets each account has open and sends every person their own view of the room;
-//   - joins, resumes, creates, leaves and kicks, and the lobby events (settings, addBot, removeBot, fillBots, start, again);
+//   - joins, resumes, creates, leaves, and kicks, and the lobby events (settings, addBot, removeBot, fillBots, start, again);
 //   - runs the game's "next thing the server does by itself" (a computer move, a pause between tricks...) on a timer;
 //   - reports a finished game to the statistics once.
 //
-// Nothing here knows any rules. The game's rules module (`game`) must provide the seat vocabulary described under
+// Nothing here knows any rules.  The game's rules module (`game`) must provide the seat vocabulary described under
 // `options.game` below; seats.js (also shared) implements most of it for games with numbered seats, and roster.js for games that keep a list of players (set options.members and options.kickKey for those).
 //
 // Randomness and the clock are injected (`options.rng`, `options.now`) so a test can make a server deterministic;
-// the defaults (Math.random and Date.now) are chosen once, here, and nowhere else in the shared code or the rules. The same
+// the defaults (Math.random and Date.now) are chosen once, here, and nowhere else in the shared code or the rules.  The same
 // `rng` and `now` reach the rules (start, removeHuman, kick), the game's own socket events (registerEvents gets `rng`),
 // `nextAction(room, rng, now)` and so the computer players, so one seed replays a whole game.
 // Depends on: node:fs and node:path only; the rules module, ctx and clock are injected through createRoomServer arguments.
@@ -96,7 +96,7 @@ export function pickKeys(payload, keys) {
  *
  * @param {object} ctx  the module context the site gives server.js (io, dataDir, log, codes, stats, ...)
  * @param {object} options
- * @param {object} options.game  the rules module. It must export: createRoom({ code, hostId, hostName, settings, ...extra })
+ * @param {object} options.game  the rules module.  It must export: createRoom({ code, hostId, hostName, settings, ...extra })
  *   (the one rule that throws instead of returning { ok: false }: the Error's message is shown to the person, so throw
  *   only what they should read, such as "Play to 61 or 121."),
  *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
@@ -108,13 +108,13 @@ export function pickKeys(payload, keys) {
  * @param {(payload: object) => object} options.pickSettings  keeps only the settings the game accepts from a client message
  * @param {(room: object, rng: () => number, now: () => number) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
  *   must do by itself next, if anything (given the server's `rng` and `now`, to hand to botWait and the computer players): `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
- *   pause...). If `key` is given and the same key is already waiting, the existing timer is kept instead of restarted.
- * @param {(h: object) => void} options.registerEvents  adds the game's own socket events. It is called for every connection
+ *   pause...).  If `key` is given and the same key is already waiting, the existing timer is kept instead of restarted.
+ * @param {(h: object) => void} options.registerEvents  adds the game's own socket events.  It is called for every connection
  *   with { on, act, userId, socket, rng, now } (the server's random numbers and clock, for rules that need them): `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
  *   error handling; `act(rule)` runs rule(room, seat) on the room this socket is in and tells everybody if it worked.
  * @param {(payload: object) => object} [options.createArgs]  extra arguments for game.createRoom beyond the settings
  * @param {(userId: number) => object} [options.playerExtras]  what the server knows about a person that the rules need when they
- *   take a place (for example their preferred marker colour). It is merged into the game.createRoom arguments for the host
+ *   take a place (for example their preferred marker colour).  It is merged into the game.createRoom arguments for the host
  *   and handed to game.addHuman as a fourth argument for everybody who joins.
  * @param {(room: object, userId: number, now: () => number) => object} [options.viewOptions]  extra options for game.viewFor (such as the current
  *   time, or something that depends on who is looking)
@@ -125,14 +125,14 @@ export function pickKeys(payload, keys) {
  * @param {(room: object, userId: number) => object} [options.startRule]  replaces game.start for the 'start' event
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
  * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
- *   anybody (for something the game does once per change, such as handing out achievements). A throw is logged and ignored.
+ *   anybody (for something the game does once per change, such as handing out achievements).  A throw is logged and ignored.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
  * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
  */
 /**
  * A refusal as the client receives it: the rules' code and, when its words need them, the values to put in (see
- * shared/messages.js). Without the values a sentence such as "You need at least {min} players." reaches the player with
+ * shared/messages.js).  Without the values a sentence such as "You need at least {min} players." reaches the player with
  * the gap still in it.
  * @param {{ error: string, params?: object }} outcome  what a rule returned
  * @returns {{ ok: false, error: string, params?: object }}
@@ -153,7 +153,7 @@ export function createRoomServer(ctx, options) {
   let saveTimer = null;
 
   /**
-   * Reads the saved rooms, if any. A missing file is normal; an unreadable file is logged and the rooms start empty; one
+   * Reads the saved rooms, if any.  A missing file is normal; an unreadable file is logged and the rooms start empty; one
    * room that cannot be brought up to date is logged and skipped, so it does not take the others down with it.
    * @returns {void}
    * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room) and may log errors.
@@ -178,7 +178,7 @@ export function createRoomServer(ctx, options) {
 
   /**
    * Writes every room to disk now, atomically (a temporary file renamed over the real one, so a crash mid-write leaves
-   * the old file whole). A failure is logged, never thrown.
+   * the old file whole).  A failure is logged, never thrown.
    * @returns {void}
    * Side effects: clears any pending debounced save, writes `rooms.json`, may log.
    */
@@ -291,7 +291,7 @@ export function createRoomServer(ctx, options) {
 
   /**
    * Works out what the server has to do by itself next for this room and sets the timer for it, replacing any earlier
-   * timer (unless the action says its key is unchanged). If the action throws, the failure is logged and it is tried
+   * timer (unless the action says its key is unchanged).  If the action throws, the failure is logged and it is tried
    * again after a growing pause; after MAX_RETRIES failures in a row the room is left alone until somebody acts (any
    * change to the room, see `changed`, starts the count afresh).
    * The same goes if working out the next action throws, or if telling everybody afterwards does: a bug in one game's rules
@@ -380,10 +380,10 @@ export function createRoomServer(ctx, options) {
 
   /**
    * Call after any change to a room: stamps it, forgets any run of failed scheduled moves (somebody acted, so the room is
-   * worth retrying for), runs the game's afterChange hook, records a finished game, saves, tells everyone and reschedules.
+   * worth retrying for), runs the game's afterChange hook, records a finished game, saves, tells everyone, and reschedules.
    * @param {object} room  the room that changed
    * @returns {void}
-   * Side effects: sets `room.updatedAt`, clears the room's failure count, may mutate the room via `afterChange`, and triggers recording, saving, pushing and scheduling.
+   * Side effects: sets `room.updatedAt`, clears the room's failure count, may mutate the room via `afterChange`, and triggers recording, saving, pushing, and scheduling.
    */
   function changed(room) {
     room.updatedAt = now();
@@ -400,7 +400,7 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
-   * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone. When the rules say the room
+   * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone.  When the rules say the room
    * was left as it was (`changed: false`: a finished list game keeps its standings), nobody is told and nothing is saved, so
    * a finished room is not kept young for ever by its players starting other games.
    * @param {object} room  the room being left
@@ -429,12 +429,12 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
-   * Puts a socket into a room: resumes the person's own live game, or joins the room with the given code. With no code,
+   * Puts a socket into a room: resumes the person's own live game, or joins the room with the given code.  With no code,
    * a person without a live game is shown the menu.
    * @param {object} socket  the connected socket (needs `data.user`)
    * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here
    * @returns {{ ok: boolean, code?: string | null, error?: string }} the ack for the client
-   * Side effects: attaches the socket to a room or emits a null 'state'; joining adds the person to the room, leaves other rooms and calls `changed`.
+   * Side effects: attaches the socket to a room or emits a null 'state'; joining adds the person to the room, leaves other rooms, and calls `changed`.
    */
   function enter(socket, rawCode) {
     const userId = socket.data.user.id;
@@ -491,7 +491,7 @@ export function createRoomServer(ctx, options) {
     const roomOfSocket = () => rooms.get(socket.data.code);
 
     /**
-     * Registers a socket event. The handler gets the payload (always a plain object, never an array or null) and returns
+     * Registers a socket event.  The handler gets the payload (always a plain object, never an array or null) and returns
      * the ack object ({ ok: true } if it returns nothing); a throw is logged and the client gets a generic error.
      * @param {string} event  the socket event name
      * @param {(payload: object) => (object | undefined)} handler  the work to do
@@ -568,7 +568,7 @@ export function createRoomServer(ctx, options) {
       return { ok: true };
     });
 
-    // The host removes someone: the rules refuse a finished game, a missing seat and the host themselves.
+    // The host removes someone: the rules refuse a finished game, a missing seat, and the host themselves.
     on('kick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };

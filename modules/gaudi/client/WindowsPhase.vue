@@ -1,6 +1,6 @@
 <script setup>
 // The first step of the game: everyone picks one of the windows on offer at the same time, with the cards dealt for this game
-// shown below. The pick is kept here until it is confirmed.
+// shown below.  The pick is kept here until it is confirmed.
 // Props: state (the server's view), optionCell (px size of a space in the offered windows), send (sends a request to the server).
 // Emits: hint (text, or '' when the pointer leaves) for the Status box.
 // Side effects: "Choose this window" sends a 'window' request; the pick is cleared once the server accepts it.
@@ -23,7 +23,7 @@ const emit = defineEmits(['hint']);
 const picked = ref(null); // the window chosen but not yet confirmed
 
 /**
- * Sends the window picked in the options. The pick is kept if the server refuses it, and cleared once it is accepted.
+ * Sends the window picked in the options.  The pick is kept if the server refuses it, and cleared once it is accepted.
  * @returns {Promise<void>} resolves when the server has answered (immediately if nothing is picked)
  * Side effects: sends 'window'; clears picked on success.
  */

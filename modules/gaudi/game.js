@@ -1,11 +1,11 @@
-// The rules of Gaudi, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Gaudi, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }; an error never names hidden information.
 //
-// Seats 0..size-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
+// Seats 0..size-1 run clockwise.  A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
 // ({ kind: 'bot', id: 'bot:<n>', name, ai: <id of its AI, set when the game starts> }) or null (empty, lobby only).
 //
-// Dice: { id, c: colour, v: 1-6 }. The bag holds { id, c } only (a die has no face until it is rolled). Every die is in
-// exactly one place: the bag, the pool, a round-track entry or a window. There is no discard pile: every tool keeps
+// Dice: { id, c: colour, v: 1-6 }.  The bag holds { id, c } only (a die has no face until it is rolled).  Every die is in
+// exactly one place: the bag, the pool, a round-track entry, or a window.  There is no discard pile: every tool keeps
 // every die in play, so bag + pool + track + windows is always 10 x (2n + 1).
 //
 // The seat and lobby rules (joining, leaving, kicking, computer players) are the shared ones from shared/seats.js; this
@@ -73,7 +73,7 @@ const LIVE = ['lobby', 'windows', 'playing'];
 const isInt = Number.isInteger;
 
 /**
- * Is this a plain object (not null, not an array)? Used to validate the payloads clients send.
+ * Is this a plain object (not null, not an array)?  Used to validate the payloads clients send.
  *
  * @param {unknown} value  anything
  * @returns {boolean} true for a plain object
@@ -83,7 +83,7 @@ const isInt = Number.isInteger;
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 /**
- * Is the game still going (lobby, choosing windows or playing)? The server keeps live rooms longer and lets a person be
+ * Is the game still going (lobby, choosing windows, or playing)?  The server keeps live rooms longer and lets a person be
  * in only one of them at a time.
  *
  * @param {object} room  the room
@@ -95,7 +95,7 @@ export const isLive = (room) => LIVE.includes(room.phase);
 
 /**
  * The name to show for a seat in a log line: the player's name, or the site's "Someone" (a message) for an empty or
- * unknown seat. A name is text, so it is used as it is; the message is put into words by the client.
+ * unknown seat.  A name is text, so it is used as it is; the message is put into words by the client.
  *
  * @param {object} room  the room
  * @param {number} seat  the seat number
@@ -135,9 +135,9 @@ const rollFace = (rng) => 1 + Math.floor(rng() * 6);
  * The next face of this turn's roll list, for a tool that rolls dice (Re-fire, Great Kiln).
  *
  * Why a list: Undo turn puts the dice back as they were before the roll and refunds the favour tokens, so without this a
- * player could use Re-fire, look at the result, undo and try again for free until they liked it. Every face a turn rolls
+ * player could use Re-fire, look at the result, undo and try again for free until they liked it.  Every face a turn rolls
  * is therefore remembered in `room.rolls`, in order, and Undo only rewinds `room.rollsUsed` to 0: when the same tools are
- * used again after an undo they read the same faces back, so undoing never produces a different outcome. Only faces beyond
+ * used again after an undo they read the same faces back, so undoing never produces a different outcome.  Only faces beyond
  * the ones already seen are rolled afresh (the first time that roll is made).
  *
  * Side effects: may push a new face onto room.rolls, and always advances room.rollsUsed.
@@ -247,10 +247,10 @@ function planMoves(grid, pattern, moves, { min, max, options = {}, sameColour = 
 }
 
 /**
- * The twelve tool cards (three are dealt each game). Each has an id and prepare(room, seat, params, rng), which validates
+ * The twelve tool cards (three are dealt each game).  Each has an id and prepare(room, seat, params, rng), which validates
  * a request without changing anything and returns { error } or { commit(), note }; see useTool for how the two halves are
- * used. Both `error` and `note` are messages (shared/messages.js). The words on the card itself are not here: they are
- * `tools.<id>.name`, `.text` and `.how` in the locale file, drawn by the client from the id.
+ * used.  Both `error` and `note` are messages (shared/messages.js).  The words on the card itself are not here: they are
+ * `tools.<id>.name`, `.text`, and `.how` in the locale file, drawn by the client from the id.
  */
 export const TOOLS = [
   {
@@ -571,7 +571,7 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
 
 /**
  * Puts everything about a game in progress back to "nothing dealt yet" (used when a room is made, when the seats change
- * size, when a game starts and for "play again"). The seats, settings and host are kept.
+ * size, when a game starts and for "play again").  The seats, settings, and host are kept.
  *
  * Side effect: mutates room.
  *
@@ -628,9 +628,9 @@ function addLog(room, seat, line) {
 // ---- seats and settings ----
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones. In Gaudi a person who leaves while windows are
+ * The seat rules (join, leave, kick, computer players) are the shared ones.  In Gaudi a person who leaves while windows are
  * being chosen or the game is being played is replaced by a computer player that picks its own AI at once (lobby bots get
- * theirs when the game starts), and the log says so. Nothing else needs doing when somebody leaves: the next computer move
+ * theirs when the game starts), and the log says so.  Nothing else needs doing when somebody leaves: the next computer move
  * is found by the server from the room itself.
  */
 // (The shared seat rules, configured for Gaudi; addHuman, addBot, etc. below are taken from it.)
@@ -638,7 +638,7 @@ const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'windows' || room.phase === 'playing',
   botNames: BOT_NAMES,
   /**
-   * Called with the computer player about to replace a person who left. Writes the log line and chooses its AI.
+   * Called with the computer player about to replace a person who left.  Writes the log line and chooses its AI.
    *
    * Side effect: mutates room.log (and uses the rng, after the bot's name was chosen, as before).
    *
@@ -668,7 +668,7 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /**
- * The host changes the game's settings. Lobby only.
+ * The host changes the game's settings.  Lobby only.
  *
  * Side effect: mutates room.settings.
  *
@@ -687,7 +687,7 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * The host chooses how many seats there are (2-5). People and computer players are kept, in order. Lobby only.
+ * The host chooses how many seats there are (2-5).  People and computer players are kept, in order.  Lobby only.
  *
  * Side effects: mutates room (the seats and size) and resets the game state.
  *
@@ -711,8 +711,8 @@ export function setSize(room, userId, size) {
 // ---- starting: choosing windows ----
 
 /**
- * The host starts the game: every seat must be filled and at least one must be a person. This deals the window cards, the
- * three tools, the three public objectives and each player's private colour, and gives every computer player its AI.
+ * The host starts the game: every seat must be filled and at least one must be a person.  This deals the window cards, the
+ * three tools, the three public objectives, and each player's private colour, and gives every computer player its AI.
  * Everyone then chooses a window at the same time.
  *
  * Side effects: mutates room (resets the game, deals, moves to the 'windows' phase).
@@ -747,7 +747,7 @@ export function start(room, userId, rng) {
 }
 
 /**
- * A player chooses one of their four windows. When everybody has chosen, the game begins.
+ * A player chooses one of their four windows.  When everybody has chosen, the game begins.
  *
  * Side effects: mutates room.picked; may start the game (see beginGame).
  *
@@ -817,13 +817,13 @@ function startRound(room, rng) {
 
 /**
  * Remembers how the table was when the current turn began, so that the player can take the whole turn back until they
- * press End turn. It holds everything a turn can change (the window, the pool, the round track, the bag, the favour tokens,
- * the tool markers and the tallies, and the Swift Hand skip), including the dice values already rolled, so that undoing
- * is exact. It is saved with the room and never sent to anyone.
+ * press End turn.  It holds everything a turn can change (the window, the pool, the round track, the bag, the favour tokens,
+ * the tool markers, and the tallies, and the Swift Hand skip), including the dice values already rolled, so that undoing
+ * is exact.  It is saved with the room and never sent to anyone.
  *
  * Also starts this turn's roll list empty (see nextFace): faces rolled by tools are remembered for the length of one turn.
  *
- * Side effects: mutates room.undo, room.rolls and room.rollsUsed.
+ * Side effects: mutates room.undo, room.rolls, and room.rollsUsed.
  *
  * @param {object} room  a room with a current turn
  */
@@ -858,8 +858,8 @@ function saveTurnStart(room) {
 const turnChanged = (room) => Boolean(room.turn) && (room.turn.placements > 0 || room.turn.toolUsed);
 
 /**
- * Takes the whole of the current turn back to its start (the player's own turn only; never across End turn). The dice go
- * back as they were, favour tokens are refunded and the log is cut back. The faces the turn has rolled stay on the turn's
+ * Takes the whole of the current turn back to its start (the player's own turn only; never across End turn).  The dice go
+ * back as they were, favour tokens are refunded and the log is cut back.  The faces the turn has rolled stay on the turn's
  * roll list, so doing the same again gives the same result (see nextFace).
  *
  * Side effects: mutates room (window, pool, track, bag, tokens, tally, skip, turn, log, rollsUsed).
@@ -971,7 +971,7 @@ function endRound(room, rng) {
 }
 
 /**
- * Orders the players for the tie-break rules; lower rank is better. Everything is read from the finished windows.
+ * Orders the players for the tie-break rules; lower rank is better.  Everything is read from the finished windows.
  *
  * @param {object} room  a room whose windows are final
  * @returns {{ rows: object[], winners: number[] }} one row per seat (scores, objectives, placement) and the winning seats
@@ -1035,7 +1035,7 @@ function finishGame(room) {
 }
 
 /**
- * How many dice a player may place in one turn. One: Swift Hand gives a whole extra turn instead of a second die.
+ * How many dice a player may place in one turn.  One: Swift Hand gives a whole extra turn instead of a second die.
  *
  * @returns {number} always 1
  *
@@ -1059,7 +1059,7 @@ function myTurn(room, seat) {
 }
 
 /**
- * Moves a die from the pool into a space of a window and counts it. The caller has checked that this is legal.
+ * Moves a die from the pool into a space of a window and counts it.  The caller has checked that this is legal.
  *
  * Side effects: mutates room (pool, the seat's window, turn.placements, tally, log).
  *
@@ -1112,7 +1112,7 @@ export function placeDie(room, seat, args, rng) {
 export const toolCost = (room, index) => (room.spent[index] > 0 ? 2 : 1);
 
 /**
- * The player uses a tool card (one per turn). The request is checked as a whole first and nothing changes unless all of it
+ * The player uses a tool card (one per turn).  The request is checked as a whole first and nothing changes unless all of it
  * is valid; then the favour tokens are paid and the tool takes effect.
  *
  * Side effects: on success mutates room (tokens, spent, turn.toolUsed, tally, log, and whatever the tool changes).
@@ -1146,7 +1146,7 @@ export function useTool(room, seat, args, rng) {
 }
 
 /**
- * The player ends their turn (they may end it without placing a die). The turn passes on; after the last turn of the round
+ * The player ends their turn (they may end it without placing a die).  The turn passes on; after the last turn of the round
  * the round ends, and after the last round the game does.
  *
  * Side effects: see advanceTurn.
@@ -1164,7 +1164,7 @@ export function endTurn(room, seat, rng) {
 }
 
 /**
- * The host sends everyone back to the lobby after a finished game. The seats stay; computer players will pick new AIs.
+ * The host sends everyone back to the lobby after a finished game.  The seats stay; computer players will pick new AIs.
  *
  * Side effects: mutates room (resets the game, removes the bots' AIs, back to the 'lobby' phase).
  *
@@ -1226,7 +1226,7 @@ function windowView(room, seat) {
 }
 
 /**
- * A public objective card: its id and what it is worth. The words are `objectives.<id>.name` and `.text`, which the client
+ * A public objective card: its id and what it is worth.  The words are `objectives.<id>.name` and `.text`, which the client
  * reads from the id.
  *
  * @param {string} id  an objective id
@@ -1240,7 +1240,7 @@ const publicCard = (id) => {
 };
 
 /**
- * Has the game been dealt in this phase (so that windows, scores and dice mean something)?
+ * Has the game been dealt in this phase (so that windows, scores, and dice mean something)?
  *
  * @param {object} room  not changed
  * @returns {boolean} true once play has started
@@ -1278,7 +1278,7 @@ function seatView(room, i, online) {
 }
 
 /**
- * The standard scoreboard (shared/scores.js). While the game is on, the scores are provisional and the viewer sees a note of
+ * The standard scoreboard (shared/scores.js).  While the game is on, the scores are provisional and the viewer sees a note of
  * their own secret points.
  *
  * @param {object} room  not changed
@@ -1291,7 +1291,7 @@ function seatView(room, i, online) {
 function scoreboardView(room, me, online) {
   const started = hasStarted(room);
   const finished = room.phase === 'finished';
-  // One scoreboard entry; the viewer's own entry also shows their secret points so far. Side effects: none.
+  // One scoreboard entry; the viewer's own entry also shows their secret points so far.  Side effects: none.
   const player = (seat, i) => {
     const score = !started ? 0 : finished ? room.final.players[i].total : provisionalOf(room, i);
     const entry = seatScoreboardEntry(seat, i, { score, me, current: room.turn?.seat === i, online });
@@ -1326,7 +1326,7 @@ function windowChoiceView(room, me) {
 }
 
 /**
- * What is dealt before the windows are picked: the tools, the public objectives and the viewer's own private objective (nobody
+ * What is dealt before the windows are picked: the tools, the public objectives, and the viewer's own private objective (nobody
  * else's).
  *
  * @param {object} room  not changed
@@ -1379,7 +1379,7 @@ function playView(room, me) {
  * @param {number} userId  the viewer (a spectator or somebody not seated gets seat -1 and no secrets)
  * @param {object} [options]
  * @param {(id: number) => boolean} [options.online]  whether a person is connected, to show who is away
- * @returns {object} the view the client draws; it never contains the bag, the undo state or the roll list
+ * @returns {object} the view the client draws; it never contains the bag, the undo state, or the roll list
  *
  * Side effects: none.
  */

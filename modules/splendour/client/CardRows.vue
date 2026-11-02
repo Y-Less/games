@@ -3,7 +3,7 @@
 // reserve its top card blind.
 // Props: board (card ids per level, with empty slots), decks (cards left per level), afford (what you can afford, by card id),
 //   needOf (function: a card's cost to you), selectedCard (id or null), selectedLevel (level of the selected pile or null).
-// Emits: pick-card(id) and pick-deck(level). Slots: none.
+// Emits: pick-card(id) and pick-deck(level).  Slots: none.
 // Side effects: none.
 import { useGameText } from '../../../src/useGameText.js';
 import CardFace from './CardFace.vue';

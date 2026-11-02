@@ -1,7 +1,7 @@
-// The strongest AI. It reads the clue like the literal AI, and also reads the table: players who saw the word play
-// cards that cluster around it, so the odd one out is probably the bluffer. Ties are broken by player id rather than
+// The strongest AI.  It reads the clue like the literal AI, and also reads the table: players who saw the word play
+// cards that cluster around it, so the odd one out is probably the bluffer.  Ties are broken by player id rather than
 // at random, so several sharp bots in one game all accuse the same person (the group needs a strict plurality to
-// catch the imposter). A sharp bot that was itself the imposter does the same, which steers the vote onto a decoy.
+// catch the imposter).  A sharp bot that was itself the imposter does the same, which steers the vote onto a decoy.
 // Depends on ./util.js (fit scoring, oddness of table cards); uses the caller's rng only for clue choice and blind play.
 import { best, clueStrength, fitter, oddness, pick } from './util.js';
 

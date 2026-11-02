@@ -1,6 +1,6 @@
 // What the site header shows while a game is being played: the game's title and Help button (which opens its rules) (put there by the play
-// view), and a "Leave game" button that the game itself switches on and describes. A game client calls `useLeave`
-// once from its top component; the header does the rest. Nothing here knows about any particular game.
+// view), and a "Leave game" button that the game itself switches on and describes.  A game client calls `useLeave`
+// once from its top component; the header does the rest.  Nothing here knows about any particular game.
 import { onBeforeUnmount, shallowReactive, unref } from 'vue';
 
 export const playBar = shallowReactive({
@@ -13,7 +13,7 @@ export const playBar = shallowReactive({
 const read = (value) => (typeof value === 'function' ? value() : unref(value));
 
 /**
- * Registers the game's "Leave game" action with the header. Call it from a component's setup; it is removed again when
+ * Registers the game's "Leave game" action with the header.  Call it from a component's setup; it is removed again when
  * that component unmounts.
  * @param {object} options
  * @param {boolean|import('vue').Ref<boolean>|(() => boolean)} [options.canLeave]  whether leaving is possible right now (false hides the button)

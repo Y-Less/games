@@ -1,5 +1,5 @@
 <script setup>
-// File: the waiting room of fixed-seat games. Depends on: Vue only.
+// File: the waiting room of fixed-seat games.  Depends on: Vue only.
 // Props: seats (Array of { id, name, kind, isHost?, isMe?, away? }), isHost, starting (Boolean, disables Start), startLabel,
 //   allowBots (Boolean), title (String).
 // Emits: addBot, removeBot(id), fillBots, kick(id), start: the parent does the sending.
@@ -7,7 +7,7 @@
 // Side effects: none itself; only emits events.
 // The waiting room for a game with a fixed number of seats, some of which computer players can fill.
 // Seats: [{ id, name, kind: 'human' | 'bot' | 'empty', isHost?, isMe?, away? }] in seating order.
-// Emits addBot, removeBot(id), fillBots, kick(id), start. Slot #settings holds the host's game options and
+// Emits addBot, removeBot(id), fillBots, kick(id), start.  Slot #settings holds the host's game options and
 // #footer extra buttons or notes beside Start.
 import { computed } from 'vue';
 import { useGameText } from '../useGameText.js';

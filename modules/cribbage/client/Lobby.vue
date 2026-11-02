@@ -3,11 +3,11 @@
 // score to play to, with a line describing how many cards the chosen seat count deals.
 //
 // Props:
-//   state  {Object}    required. The player's view (phase 'lobby'): code, seats, you, isHost, seatCount, target, limits.
+//   state  {Object}    required.  The player's view (phase 'lobby'): code, seats, you, isHost, seatCount, target, limits.
 //   send   {Function}  required. send(action, payload) asks the server to do something.
 // Emits: none.
 // Slots: none (fills SeatLobby's #settings slot).
-// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start and settings requests.
+// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start, and settings requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';

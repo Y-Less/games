@@ -1,5 +1,5 @@
 // The learned card-play table: for each decision feature key (play-features.js) the average points the round was worth to
-// the player who made that play, plus how to read it, save it and load it. There are two tables of keys, fine (with the
+// the player who made that play, plus how to read it, save it, and load it.  There are two tables of keys, fine (with the
 // state of the other players) and coarse (without), and a play is valued from the fine cell when it has data and from
 // the coarse cell otherwise.
 //

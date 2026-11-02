@@ -1,5 +1,5 @@
-// Built-in computer players: seats in the room that the server plays for itself. Rules first (no sockets), then real
-// sockets: mixed rooms, whole games, a restart in the middle, people leaving, statistics and garbage events.
+// Built-in computer players: seats in the room that the server plays for itself.  Rules first (no sockets), then real
+// sockets: mixed rooms, whole games, a restart in the middle, people leaving, statistics, and garbage events.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

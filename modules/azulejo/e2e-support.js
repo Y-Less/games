@@ -1,11 +1,11 @@
 // Helpers for the Azulejo tests that run against the real site (not part of the game).
-// Depends on: ./rules.js (to recompute the scoring) and shared/testkit.js (sleep). The "person" objects are the shared test clients.
+// Depends on: ./rules.js (to recompute the scoring) and shared/testkit.js (sleep).  The "person" objects are the shared test clients.
 import assert from 'node:assert/strict';
 import { bonuses, lineProblem } from './rules.js';
 import { sleep } from '../../shared/testkit.js';
 
 /**
- * Makes computer players act almost at once, so a test does not wait for the real 600-1400 ms delay. Call before the server starts.
+ * Makes computer players act almost at once, so a test does not wait for the real 600-1400 ms delay.  Call before the server starts.
  *
  * @param {string} range  "min-max" milliseconds (default "0-3")
  *

@@ -1,5 +1,5 @@
 // "Colour collector": chases the end-of-game bonuses rather than the quick points: all five tiles of a colour (10), and
-// full columns (7). It feeds the colours it already has most of and prefers the columns that are fullest.
+// full columns (7).  It feeds the colours it already has most of and prefers the columns that are fullest.
 // Depends on: ../rules.js (scoring and line sizes) and ./common.js (take previews and column choosing).
 import { SIZE, lineCapacity, tileScore } from '../rules.js';
 import { bestColumnBy, chooseColumnBy, colFill, setFill, takeOf } from './common.js';

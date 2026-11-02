@@ -1,4 +1,4 @@
-// The Hearts computer players. Adding one: drop a file in this folder that exports an AI object and add it to the list
+// The Hearts computer players.  Adding one: drop a file in this folder that exports an AI object and add it to the list
 // below (see MODULES.md, "Computer players"). 'standard' must stay first: it is what a bot without a recorded AI uses.
 //
 // An AI is { id, name, description, weight, choosePass(ctx), choosePlay(ctx), bidsMoon?(ctx) }.
@@ -6,7 +6,7 @@
 //   choosePlay(ctx) returns one of ctx.legal.
 // The context is plain data built by game.js (aiContext): seat, hand, legal, trick [{ seat, card }] (the plays so far),
 // history [{ plays, winner }] (finished tricks of this hand), taken (cards won per seat), scores, settings
-// { target, jackOfDiamonds, moon }, heartsBroken, tricksPlayed, handNumber, direction, passed, received, chasingMoon and rng.
+// { target, jackOfDiamonds, moon }, heartsBroken, tricksPlayed, handNumber, direction, passed, received, chasingMoon, and rng.
 // Nothing about other players' hands is ever in it.
 import { defineAIs } from '../../../shared/ai.js';
 import standard from './standard.js';

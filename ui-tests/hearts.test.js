@@ -95,7 +95,7 @@ test('playing a whole hand by clicking cards ends with the scores pop-up and its
     const before = await signature();
     if (!(await user.clickFoundOnTop(finder))) return false; // the hand is a fan of overlapping cards
     // Wait for the table to answer (the card leaves the hand, or the pass is made) before clicking again: a second click
-    // on a card the server has already taken would only be refused. If the server refuses anyway (an error toast, and
+    // on a card the server has already taken would only be refused.  If the server refuses anyway (an error toast, and
     // no change), give up waiting after a moment and look at the table afresh instead of clicking on in a loop.
     await user.page.waitForFunction((was) => `${document.querySelectorAll('.hand button.playing-card').length}:${document.querySelector('.status')?.innerText ?? ''}` !== was, { timeout: 3000, polling: 20 }, before).catch(() => {});
     return true;

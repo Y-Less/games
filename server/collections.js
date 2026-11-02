@@ -1,5 +1,5 @@
 // Collections: for each player and id, which numbered things (cards, say) they have had so far, kept as a bit for every
-// number: number n is bit n of the blob. A collection of a few thousand numbers is a few hundred bytes to a few kilobytes
+// number: number n is bit n of the blob.  A collection of a few thousand numbers is a few hundred bytes to a few kilobytes
 // per player, and a number that has been seen already is answered from memory without touching the database.
 // Depends on: the `achievement_sets` table (see db.js).
 

@@ -1,5 +1,5 @@
 // Helpers shared by the Azulejo tests (not used by the game itself).
-// Depends on: ./game.js and ./bot.js (the things under test), ./rules.js (constants) and shared/testkit.js (seeded rng).
+// Depends on: ./game.js and ./bot.js (the things under test), ./rules.js (constants), and shared/testkit.js (seeded rng).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { chooseColumnFor, chooseMove } from './bot.js';
@@ -40,7 +40,7 @@ export function setWall(room, seat, rows) {
 }
 
 /**
- * Hand-built positions: puts a table in place (nothing is checked for conservation). Anything left out is emptied.
+ * Hand-built positions: puts a table in place (nothing is checked for conservation).  Anything left out is emptied.
  *
  * @param {object} room  the room
  * @param {object} table  what to put on the table
@@ -153,7 +153,7 @@ export function driveStep(room, rng) {
 }
 
 /**
- * Anything in a view that would reveal the bag: its key, its contents or its order.
+ * Anything in a view that would reveal the bag: its key, its contents, or its order.
  *
  * @param {object} room  the room the view was made from
  * @param {object} view  the view to inspect

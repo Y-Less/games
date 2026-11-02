@@ -1,16 +1,16 @@
 <script setup>
-// File: the played-trick area of trick-taking card games. Depends on: ../../shared/cards.js (suitOf), PlayingCard.vue.
+// File: the played-trick area of trick-taking card games.  Depends on: ../../shared/cards.js (suitOf), PlayingCard.vue.
 // Props: seats ([{ key, name }], viewer first), plays ([{ key, card }], in play order), winnerKey (String|Number|null), trump (String,
 //   suit letter), size ('sm'|'md'|'lg'), labels (Boolean, print names on cards).
 // Emits: none.  Slots: default (laid over the middle, for messages).
 // Side effects: none.
 // The trick being played: one permanent slot per seat (the viewer's at the bottom, the others clockwise round from
 // there), the played cards lying on top of each other at jaunty angles, each pushed a little towards its player's side.
-// The angle is worked out from the seat and the card, so it is the same on every render. The area has a fixed size for
+// The angle is worked out from the seat and the card, so it is the same on every render.  The area has a fixed size for
 // its card size whether it holds no cards or all of them, so a card landing never moves or resizes anything: cards are
 // placed with transforms only.
 // `seats` is [{ key, name }] viewer first; `plays` is [{ key, card }] in the order played; `winnerKey` outlines the
-// winning card. `labels` prints each player's name on their card. The default slot is laid over the middle (messages).
+// winning card. `labels` prints each player's name on their card.  The default slot is laid over the middle (messages).
 import { computed } from 'vue';
 import { useGameText } from '../useGameText.js';
 import { suitOf } from '../../shared/cards.js';
@@ -41,7 +41,7 @@ function hash(text) {
 // With more than four seats the cards are spread a little wider, so that every one still shows.
 const spread = computed(() => (props.seats.length > 4 ? 1.4 : 1));
 
-// One entry per seat: its direction (sx, sy) from the centre, the card it has played (or null), play order and tilt in degrees.
+// One entry per seat: its direction (sx, sy) from the centre, the card it has played (or null), play order, and tilt in degrees.
 const slots = computed(() =>
   props.seats.map((seat, i) => {
     const angle = (2 * Math.PI * i) / props.seats.length;

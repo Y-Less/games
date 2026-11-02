@@ -1,6 +1,6 @@
 // Helpers for the socket-level tests: a "person" that plays from nothing but the view the server sends it.
 //
-// Depends on: node:assert, ./kit.js (the card id pattern), ../../shared/testkit.js (sleep) and ./rules.js (shared limits).
+// Depends on: node:assert, ./kit.js (the card id pattern), ../../shared/testkit.js (sleep), and ./rules.js (shared limits).
 import assert from 'node:assert/strict';
 import { ID } from './kit.js';
 import { sleep } from '../../shared/testkit.js';
@@ -102,7 +102,7 @@ export async function playOn(people, done, { timeout = 60000 } = {}) {
 export const playToEnd = (people, options) => playOn(people, () => people.every((p) => p.state?.phase === 'finished'), options);
 
 /**
- * Every card named in a view is one that viewer may see. Throws if one is not.
+ * Every card named in a view is one that viewer may see.  Throws if one is not.
  *
  * Side effects: none, except that it throws an assertion error when a check fails.
  *
@@ -124,7 +124,7 @@ export function assertNoLeaks(view, who = '') {
 
 /**
  * A view must make sense, whatever has been thrown at the server: a known phase, valid settings, tokens and nobles
- * conserved, and no card leaked. Throws if not.
+ * conserved, and no card leaked.  Throws if not.
  *
  * Side effects: none, except that it throws an assertion error when a check fails.
  *

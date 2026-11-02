@@ -1,5 +1,5 @@
 // A computer player that knows nothing about the dial: as the psychic it says any example clue, and as a guesser it
-// turns the dial to a random place (leaning towards the middle, where most targets are). For testing.
+// turns the dial to a random place (leaning towards the middle, where most targets are).  For testing.
 // Depends on nothing: all randomness comes from the `rng` the game passes in.
 
 /**

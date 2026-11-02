@@ -1,6 +1,6 @@
 // The hand model: a small neural network, learned from many simulated deals, that says what each nomination is worth
-// for the exact cards in a hand (see hand-features.js for what it is shown). It replaces the bid-value table's
-// rounded estimate for hands of three or more cards. Its first layer is, in effect, a set of weights on every card value
+// for the exact cards in a hand (see hand-features.js for what it is shown).  It replaces the bid-value table's
+// rounded estimate for hands of three or more cards.  Its first layer is, in effect, a set of weights on every card value
 // (rank, trump or not) and on how the cards fit together; the layers after that combine them.
 //
 // For every number that could be nominated (0 to 7) it gives two things, as the bid-value table does:
@@ -130,7 +130,7 @@ export function bestByHandModel(model, ctx) {
 }
 
 const loaded = {}; // cache of the saved models, keyed by whether the Jokers are in play
-/** Rounds each weight to five decimals, to keep the saved JSON small. Pure. */
+/** Rounds each weight to five decimals, to keep the saved JSON small.  Pure. */
 const round = (array) => Array.from(array, (v) => Math.round(v * 1e5) / 1e5);
 
 /**

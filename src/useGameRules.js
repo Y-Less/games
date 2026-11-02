@@ -1,5 +1,5 @@
 // The Help pop-up of a game: its written rules, fetched when first asked for.
-// Depends on: vue (ref), api.js (the rules request), i18n.js (the language asked for) and markdown.js (renderMarkdown).
+// Depends on: vue (ref), api.js (the rules request), i18n.js (the language asked for), and markdown.js (renderMarkdown).
 import { ref } from 'vue';
 import { api } from './api.js';
 import { i18n } from './i18n.js';

@@ -1,9 +1,9 @@
-// The card set for Splendour: five gem colours, 90 development cards and ten noble tiles, all defined here.
+// The card set for Splendour: five gem colours, 90 development cards, and ten noble tiles, all defined here.
 // The set is generated from a small table of cost patterns, so it is deterministic and perfectly balanced between the
 // colours: every pattern is used once for each bonus colour (rotated round the colour wheel, and mirrored on odd
 // patterns so that neighbouring colours are not always paired in the same way).
 //
-// Depends on: ./rules.js (GOLD, NOBLE_POINTS, TOKEN_KINDS), which it re-exports in part. It has no other imports, so the
+// Depends on: ./rules.js (GOLD, NOBLE_POINTS, TOKEN_KINDS), which it re-exports in part.  It has no other imports, so the
 // browser client can load it too.
 
 import { GOLD, NOBLE_POINTS, TOKEN_KINDS } from './rules.js';
@@ -43,7 +43,7 @@ export const LEVELS = [1, 2, 3];
 
 /**
  * Generates all 90 development cards from PATTERNS: every pattern is used once for each bonus colour, rotated round the
- * colour wheel (and mirrored on odd patterns). Card ids (c01, c02...) follow the order of generation, so they never change.
+ * colour wheel (and mirrored on odd patterns).  Card ids (c01, c02...) follow the order of generation, so they never change.
  *
  * Side effects: none.
  *
@@ -79,7 +79,7 @@ export const CARD_BY_ID = Object.freeze(Object.fromEntries(CARDS.map((c) => [c.i
  */
 export const cardsOfLevel = (level) => CARDS.filter((c) => c.level === level);
 /**
- * Is this a real card id? (Used to validate whatever a client sends; inherited names such as "toString" are refused.)
+ * Is this a real card id?  (Used to validate whatever a client sends; inherited names such as "toString" are refused.)
  *
  * Side effects: none.
  *
@@ -88,7 +88,7 @@ export const cardsOfLevel = (level) => CARDS.filter((c) => c.level === level);
  */
 export const isCardId = (id) => typeof id === 'string' && Object.hasOwn(CARD_BY_ID, id);
 
-// Noble tiles: each needs a number of card bonuses in two or three colours. A noble's name is not here: it is a word a
+// Noble tiles: each needs a number of card bonuses in two or three colours.  A noble's name is not here: it is a word a
 // player reads, so it lives in the locale files under `nobles.<id>` (see MODULES.md, "Languages").
 const [D, S, E, R, O] = [0, 1, 2, 3, 4];
 /**
@@ -116,7 +116,7 @@ export const NOBLES = Object.freeze(
 );
 export const NOBLE_BY_ID = Object.freeze(Object.fromEntries(NOBLES.map((n) => [n.id, n])));
 /**
- * Is this a real noble id? (Validates what a client sends.)
+ * Is this a real noble id?  (Validates what a client sends.)
  *
  * Side effects: none.
  *

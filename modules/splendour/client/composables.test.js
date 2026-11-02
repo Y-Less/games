@@ -1,4 +1,4 @@
-// Tests for the Splendour table's composables, on small hand-made views. The composables say everything in messages
+// Tests for the Splendour table's composables, on small hand-made views.  The composables say everything in messages
 // (shared/messages.js), so `words` puts one into English exactly as the table does.
 import { describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';

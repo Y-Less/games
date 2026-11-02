@@ -1,12 +1,12 @@
 // A test bench for the Hearts AIs: plays whole games of computers against computers with chosen AIs in each seat.
-// Used by ai.test.js; handy from a script too. Depends on game.js (the real rules) and shared/random.js (seeded rng).
+// Used by ai.test.js; handy from a script too.  Depends on game.js (the real rules) and shared/random.js (seeded rng).
 import * as g from './game.js';
 import { seeded } from '../../shared/random.js';
 
 export { seeded };
 
 /**
- * Plays one whole game. `ais` is the AI id for each seat (3 to 7 of them, 4 by default in versus). Every move is checked for legality by the rules
+ * Plays one whole game. `ais` is the AI id for each seat (3 to 7 of them, 4 by default in versus).  Every move is checked for legality by the rules
  * (the game throws on an illegal one).
  * @param {object} options
  * @param {string[]} options.ais  AI id per seat; its length is the seat count.
@@ -14,7 +14,7 @@ export { seeded };
  * @param {object} [options.settings]  overrides for the room settings (target 100, no Jack by default).
  * @param {() => number} [options.rng]  random source, defaults to seeded(seed).
  * @returns {{room: object, hands: {points: number[], moon: (number|null), details: object[]}[], scores: number[]}}
- *   the finished room, a record per hand and the final scores.
+ *   the finished room, a record per hand, and the final scores.
  * Side effects: none outside the throwaway room it creates; advances rng; throws if the game stalls or fails to finish.
  */
 export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
@@ -39,7 +39,7 @@ export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
 
 /**
  * Plays `games` games with `subject` in seat (game number mod seats) and `field` (an AI id, or an array of seats - 1) in the
- * others, rotating the subject's seat so no seat is favoured. Returns the subject's and the field's averages.
+ * others, rotating the subject's seat so no seat is favoured.  Returns the subject's and the field's averages.
  * @param {object} options
  * @param {string} options.subject  AI id under test.
  * @param {string|string[]} options.field  AI id for every other seat, or an array of seats - 1 ids.
@@ -47,7 +47,7 @@ export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
  * @param {object} [options.settings]  room setting overrides.
  * @param {number} [options.seedBase]  first game's seed; each game adds its index.
  * @param {number} [options.seats]  number of players (default 4).
- * @returns {object} totals: games, subjectScore, fieldScore, subjectWins, hands, moons and Jacks for subject and field.
+ * @returns {object} totals: games, subjectScore, fieldScore, subjectWins, hands, moons, and Jacks for subject and field.
  * Side effects: none (runs games in memory).
  */
 export function versus({ subject, field, games, settings = {}, seedBase = 1, seats = 4 }) {

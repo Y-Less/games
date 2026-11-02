@@ -1,4 +1,4 @@
-// The computer-player registry: checking a module's list, choosing by weight, assigning seats and describing an AI.
+// The computer-player registry: checking a module's list, choosing by weight, assigning seats, and describing an AI.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aiById, assignAIs, defineAIs, describeAI, pickAI } from './ai.js';

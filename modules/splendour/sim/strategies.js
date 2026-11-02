@@ -1,16 +1,16 @@
 // Two ways of playing Splendour, for the simulations in this folder (not part of the game).
 //
-// Both use exactly the same gem-taking, reserving, token-returning and noble-choosing code, so that they differ only in the
+// Both use exactly the same gem-taking, reserving, token-returning, and noble-choosing code, so that they differ only in the
 // one thing being tested: which cards they spend their purchases on.
 //
 // Both only aim at cards they could really pay for: the cost after discounts has to fit inside the ten tokens a player may
-// hold and inside what the table can supply of each colour (otherwise they would chase an out-of-reach card for ever). And
+// hold and inside what the table can supply of each colour (otherwise they would chase an out-of-reach card for ever).  And
 // both stay with the card they are working towards until it is bought or taken, unless another becomes much better.
 //
-//   engine(size)   BUILDS first. Until it has bought `size` cards it values every card as a piece of an engine: the cheapest
-//                  ones, in the colours that discount the cards it will want later, and it takes gems to afford them. Once it has
+//   engine(size)   BUILDS first.  Until it has bought `size` cards it values every card as a piece of an engine: the cheapest
+//                  ones, in the colours that discount the cards it will want later, and it takes gems to afford them.  Once it has
 //                  `size` cards it switches to buying points.
-//   rush(points)   never builds. It only buys cards worth at least `points` prestige, from the first turn, and takes gems for
+//   rush(points)   never builds.  It only buys cards worth at least `points` prestige, from the first turn, and takes gems for
 //                  the card with the most points for the gems it is short of.
 //
 // "Buying points" is the same for both: the card with the most prestige, cheapest to reach, as soon as it can be paid for.
@@ -168,7 +168,7 @@ function create({ id, name, engineSize, minPoints, description }) {
     name,
     description,
     chooseMove,
-    // Which tokens to give back: keeps what the three best targets need. (Side effects: updates `memory`, via plan.)
+    // Which tokens to give back: keeps what the three best targets need.  (Side effects: updates `memory`, via plan.)
     chooseReturn: (s) => returnByNeeds(s, peakNeeds(plan(s).ranked.slice(0, 3))),
     // Which noble to take when several visit: the first offered.
     chooseNoble: (s) => s.options[0],

@@ -1,6 +1,6 @@
 // The strongest: expected-value discards (every starter, plus a sampled crib), pegging that looks one reply ahead,
 // and an eye on the board: it grabs a winning peg, and plays safe when an opponent is close to going out.
-// Depends on ../scoring.js, ./helpers.js and the pegging evaluation in ./pegger.js.
+// Depends on ../scoring.js, ./helpers.js, and the pegging evaluation in ./pegger.js.
 import { pipValue, scorePlay } from '../scoring.js';
 import { averageHandScore, cribEstimate, hashedRng, splits, unseenFrom } from './helpers.js';
 import { peggingValues } from './pegger.js';
@@ -52,7 +52,7 @@ export const sharp = {
    * Plays a card that wins the game outright if there is one, otherwise the best pegging value with weights tilted by the score:
    * points matter more when this player is near home, and a reply matters more when a rival is near home.
    *
-   * @param {object} ctx  the play context (see peggingValues), plus scores, me and target
+   * @param {object} ctx  the play context (see peggingValues), plus scores, me, and target
    * @returns {string | null} the card, or null when none can be played
    * Side effects: none.
    */

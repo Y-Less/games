@@ -1,12 +1,12 @@
 <script setup>
 // What the wall-tiling phase of the last round did, for every player: each tile placed and what it scored, the
-// floor penalty, and the new score. Nothing is hidden: this is the same information the walls now show.
+// floor penalty, and the new score.  Nothing is hidden: this is the same information the walls now show.
 //
 // Props:
 //   tiling  {Object}  required. lastTiling from the view: { round, players: [{ seat, placed, dropped, penalty, lost, before, after }] }.
-//   seats   {Array}   required. Seat records (for names), indexed by seat number.
+//   seats   {Array}   required.  Seat records (for names), indexed by seat number.
 //   you     {number}  the viewer's seat, to highlight their row (default -1: nobody).
-// Emits: none. Slots: none.
+// Emits: none.  Slots: none.
 // Side effects: none (pure rendering).
 import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';

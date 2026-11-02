@@ -1,5 +1,5 @@
 // Randomised play of the Just One rules: seeded games where people (and strangers) try legal and illegal actions in any order,
-// leave, and come back. After every action the room and every player's view must be sound, and nobody may see what they
+// leave, and come back.  After every action the room and every player's view must be sound, and nobody may see what they
 // should not.
 import test from 'node:test';
 import assert from 'node:assert/strict';

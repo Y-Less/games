@@ -1,11 +1,11 @@
 <script setup>
 // The Gaudi table, built on the standard GameFrame: the score bar on top; your window (large) with the draft pool, the
-// round track, the tool cards and the objectives in the main area; the other players are chips in the score bar (click a name to see
-// their window over the table); Recent moves and Status along the bottom. The server sends the view; every action is one
-// request. This file only composes: the state lives in the use* composables and each part of the screen is its own component.
+// round track, the tool cards, and the objectives in the main area; the other players are chips in the score bar (click a name to see
+// their window over the table); Recent moves and Status along the bottom.  The server sends the view; every action is one
+// request.  This file only composes: the state lives in the use* composables and each part of the screen is its own component.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>).
-// Emits: none. Side effects: sends requests (through the composables, and 'again' / 'undo' / 'end' from here).
+// Emits: none.  Side effects: sends requests (through the composables, and 'again' / 'undo' / 'end' from here).
 import { computed, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
@@ -46,7 +46,7 @@ const { scoreProps, popupProps, openedPlayer, openedSeat, openedIsMe } = useOpen
 
 /**
  * The pool dice drawn as chosen: the one selected for placing, or the one chosen for the tool in use.
- * @returns {number[]} die ids (zero, one or two)
+ * @returns {number[]} die ids (zero, one, or two)
  * Side effects: none.
  */
 const chosenIds = computed(() => [selected.value, mode.value?.die].filter((id) => id != null));

@@ -1,7 +1,7 @@
 // The words of the Status box: what is happening and what you should do next, worked out from the game's state.
 // Nothing in here is a sentence: the headline and every line's text is a message (`{ key, params }`, see
 // shared/messages.js) under the game's `status.*` keys, which the root component puts into the player's language with
-// `text()`. Returns { headline, mine, lines } for GameStatus. All instruction and turn text of the game lives here.
+// `text()`.  Returns { headline, mine, lines } for GameStatus.  All instruction and turn text of the game lives here.
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -137,7 +137,7 @@ export function statusFor(state, { isHost = false } = {}) {
 
 /**
  * Names a judging style for the Status facts, as a message (an unknown style comes back as it is).
- * @param {string} judging  'everyone', 'chooser' or 'favourite'.
+ * @param {string} judging  'everyone', 'chooser', or 'favourite'.
  * @returns {object | string} The message to show, or the raw style if it is not one of the three.
  * Side effects: none.
  */

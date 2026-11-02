@@ -2,8 +2,8 @@
 import { AuthError } from '../errors.js';
 
 /**
- * Replies to a failed request: an AuthError with its own status, code and params, too large or malformed JSON with 413
- * or 400, anything else with a plain 500 (the error itself is logged, never sent). Every `error` is a key under `errors.`
+ * Replies to a failed request: an AuthError with its own status, code, and params, too large or malformed JSON with 413
+ * or 400, anything else with a plain 500 (the error itself is logged, never sent).  Every `error` is a key under `errors.`
  * in the site's locale files: the client puts it into words (see shared/messages.js).
  * @param {import('express').Express} app
  * @returns {void}

@@ -1,11 +1,11 @@
 // The cell of a nomination decision for the bid-value table (value-model.js): what the table looks up to find out what each
-// possible nomination is worth. It adds two things to the table-state cell of bids-features.js:
-//   - the hand is described exactly when it is small. With one or two cards, a card is its rank and whether it is a trump
-//     (the suit itself does not matter once that is said), and a pair also says whether the two cards share a suit. Standard's
+// possible nomination is worth.  It adds two things to the table-state cell of bids-features.js:
+//   - the hand is described exactly when it is small.  With one or two cards, a card is its rank and whether it is a trump
+//     (the suit itself does not matter once that is said), and a pair also says whether the two cards share a suit.  Standard's
 //     estimate rounds a queen of trumps and a low trump with a lucky side card to the same half-trick, which is how a table
-//     keyed on it came to advise nominating 0 with the queen of trumps. From three cards up the estimate is still used.
+//     keyed on it came to advise nominating 0 with the queen of trumps.  From three cards up the estimate is still used.
 //   - the trump suit does not matter, only whether the round has trumps (`regime`), so each cell gets four times the data.
-// Used by the collector, the trainer and the AI, so they cannot disagree.
+// Used by the collector, the trainer, and the AI, so they cannot disagree.
 // Depends on: bids-features.js (the shared table-state cell) and shared/cards.js.
 import { isJoker, rankValue, suitOf } from '../../../shared/cards.js';
 import { cellOf } from './bids-features.js';
@@ -27,7 +27,7 @@ export const descriptorOf = (card, trump) => (isJoker(card) ? 26 : rankValue(car
 
 /**
  * How many different keys a hand of `cards` cards can have.
- * One card: its descriptor. Two cards: the ordered descriptor pair plus a same-suit flag. Three or more: Standard's estimate in quarters.
+ * One card: its descriptor.  Two cards: the ordered descriptor pair plus a same-suit flag.  Three or more: Standard's estimate in quarters.
  * @param {number} cards  cards in the hand
  * @returns {number} the number of keys
  * Side effects: none.
@@ -60,7 +60,7 @@ function keyOf(ctx, base) {
 }
 
 /**
- * The cell for a nomination: `hand`, `trump`, `players` and the `nominations` so far, as the AIs are given them.
+ * The cell for a nomination: `hand`, `trump`, `players`, and the `nominations` so far, as the AIs are given them.
  * @param {object} ctx  the nominate context
  * @returns {{ key: number, unclaimed: number, after: number, regime: number }} the cell (`regime` is 1 when the round has trumps)
  * Side effects: none.

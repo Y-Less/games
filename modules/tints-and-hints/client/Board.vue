@@ -2,9 +2,9 @@
 // Props: guesses {Array} guesses to draw (id, cell, round); players {Array} players (id, name, colour) used to colour markers;
 // target {String|null} the secret tint's cell, once revealed; selected {String|null} the cell chosen but not yet locked in;
 // disabled {Boolean} true when squares cannot be clicked; cell {Number} side of one square in pixels.
-// Emits: pick(cell) when a square is clicked. Slots: none. Side effects: none.
-// The colour grid. Guesses are drawn as nested rings in each player's colour: dotted for the first round and solid
-// for the second. It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
+// Emits: pick(cell) when a square is clicked.  Slots: none.  Side effects: none.
+// The colour grid.  Guesses are drawn as nested rings in each player's colour: dotted for the first round and solid
+// for the second.  It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
 // table gives it and never changes size while the game is played.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
@@ -40,7 +40,7 @@ const extras = computed(() => {
 });
 // Returns the accessible label for a square: its name, whether it is the tint, and each guess made on it.
 const label = (cell) => [cell, ...(extras.value[cell] ?? [])].join(', ');
-// CSS custom properties that size the grid, labels, gaps and the guess rings from `cell`.
+// CSS custom properties that size the grid, labels, gaps, and the guess rings from `cell`.
 const style = computed(() => ({
   '--cell': `${props.cell}px`,
   '--head': `${HEAD}px`,

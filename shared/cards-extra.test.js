@@ -32,7 +32,7 @@ test('sortHand is stable for equal cards and copes with tiny hands', () => {
   assert.deepEqual(sortHand([]), []);
   assert.deepEqual(sortHand(['7S']), ['7S']);
   assert.deepEqual(sortHand(['9H', '9H', '2C', '9H']), ['9H', '9H', '9H', '2C'], 'duplicates (from several decks) stay together');
-  // Stability: objects that compare equal keep their order. Strings that compare equal are identical, so check with a
+  // Stability: objects that compare equal keep their order.  Strings that compare equal are identical, so check with a
   // wrapper that carries an identity but sorts by the card text.
   const a = new String('5D');
   const b = new String('5D');

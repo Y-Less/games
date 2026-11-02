@@ -1,5 +1,5 @@
-// The socket layer for Tints and Hints. The rules live in game.js; the rooms, saving, views, joining and the lobby events are
-// the shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js. This file says
+// The socket layer for Tints and Hints.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are
+// the shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js.  This file says
 // what is particular to Tints and Hints: its settings (turns each), its own socket events (colour, hint, guess, advance, ready),
 // the achievements for the squares people have guessed, and what the server has to do by itself (a computer move, or moving
 // on from the reveal when somebody has not closed the scores).
@@ -50,7 +50,7 @@ export default function (ctx) {
    * Hands out the collecting achievements for the squares people have now guessed (once for each scored turn, whoever's
    * move scored it).
    *
-   * Side effects: sets room.collected to this turn, and calls ctx.achievements.collect for every person who guessed. A
+   * Side effects: sets room.collected to this turn, and calls ctx.achievements.collect for every person who guessed.  A
    * failure is logged and ignored: it must not stop the game.
    *
    * @param {object} room  the room just changed
@@ -84,7 +84,7 @@ export default function (ctx) {
     migrate: (room) => game.migrate(room, nameOf),
     afterChange: collectSquares,
     /**
-     * A computer move, or moving on from the reveal: whichever the room is in now. A move that does nothing is reported as a
+     * A computer move, or moving on from the reveal: whichever the room is in now.  A move that does nothing is reported as a
      * failure (it would otherwise be repeated for ever), so the room server's retry-with-a-pause takes over.
      *
      * @param {object} room  the room to look at
@@ -104,7 +104,7 @@ export default function (ctx) {
           },
         };
       }
-      // Somebody has not closed the scores (away, or gone): move on without them. The wait is not restarted when somebody
+      // Somebody has not closed the scores (away, or gone): move on without them.  The wait is not restarted when somebody
       // closes the pop-up: the same turn's timer keeps running.
       if (game.waitingForReady(room)) {
         return {

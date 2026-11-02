@@ -1,4 +1,4 @@
-// Cribbage against the real site: accounts over HTTP, games over sockets, computer players, statistics and restarts.
+// Cribbage against the real site: accounts over HTTP, games over sockets, computer players, statistics, and restarts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -96,7 +96,7 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crib
     call(event, payload = {}, socket = this.socket) {
       return new Promise((resolve) => socket.emit(event, payload, resolve));
     }
-    /** A scripted human: discards its first cards, plays its first legal card and presses ready. */
+    /** A scripted human: discards its first cards, plays its first legal card, and presses ready. */
     act(s, socket) {
       if (!s) return;
       const key = `${s.phase}/${s.handNo}/${s.hand.length}/${s.play?.count}/${s.play?.sequence.length}/${s.seats[s.you]?.ready}`;

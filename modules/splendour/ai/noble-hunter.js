@@ -1,7 +1,7 @@
 // "Noble hunter": picks the noble that is closest to visiting and buys the cards of the colours it still needs, since
-// a noble is worth three points for no gems at all. Once no noble is left to chase it plays like the standard player.
+// a noble is worth three points for no gems at all.  Once no noble is left to chase it plays like the standard player.
 //
-// Depends on: ../cards.js (card data), ./lib.js (situation helpers) and ./standard.js (the fallback player and scoreMoves).
+// Depends on: ../cards.js (card data), ./lib.js (situation helpers), and ./standard.js (the fallback player and scoreMoves).
 import { CARD_BY_ID } from '../cards.js';
 import { GOLD, me, nobleGap, nobleList, opponents, overflowOf, payment, pickBest, returnByNeeds, sum, targetsOf } from './lib.js';
 import standard, { scoreMoves } from './standard.js';

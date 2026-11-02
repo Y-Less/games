@@ -1,12 +1,12 @@
 <script setup>
-// File: the create-or-join screen of room games. Depends on: ../../shared/codes.js (normaliseCode).
+// File: the create-or-join screen of room games.  Depends on: ../../shared/codes.js (normaliseCode).
 // Props: noun (String, what the room is called), intro (String), busy (Boolean, disables the buttons), error (String, shown as an alert),
 //   initialCode (String, prefilled from an invite link), createLabel (String, overrides the create button's text).
 // Emits: create (no payload), join(code: String, already normalised).
 // Slots: none.
 // Side effects: none itself; holds the typed code in local state only.
 // The first screen of any room-based game: start a new room, or join one with its three-word code.
-// Emits `create` and `join` (with the tidied code). A code in the address (an invite link) can be passed as `initialCode`.
+// Emits `create` and `join` (with the tidied code).  A code in the address (an invite link) can be passed as `initialCode`.
 import { computed, ref } from 'vue';
 import { normaliseCode } from '../../shared/codes.js';
 import { useGameText } from '../useGameText.js';

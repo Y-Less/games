@@ -1,6 +1,6 @@
 // The weakest computer player: it picks one legal move at random (a random new set or a random tile added to a set on the
-// table), and draws when it has none. Before its first meld it plays random sets until they are worth enough.
-// Depends on ../rules.js (resolveSet to validate a set, checkPlay as the final judge) and the shared random helpers. It
+// table), and draws when it has none.  Before its first meld it plays random sets until they are worth enough.
+// Depends on ../rules.js (resolveSet to validate a set, checkPlay as the final judge) and the shared random helpers.  It
 // never rearranges the table, which is what keeps it weak: it only ever appends a set or a single tile.
 import { checkPlay, resolveSet } from '../rules.js';
 import { shuffle } from '../../../shared/cards.js';

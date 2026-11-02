@@ -1,7 +1,7 @@
-// The font size of the Splendour table. Everything in it is sized in em, so one number scales the whole table: it is the
+// The font size of the Splendour table.  Everything in it is sized in em, so one number scales the whole table: it is the
 // largest font size at which the market (nobles in columns 1-2, cards in 3-8, your board with the supply in 9-12) each fit the width
-// of their columns on the frame's grid and the market fits the height. It depends only on the room the frame gives the
-// table, never on the game, so nothing grows or shrinks while playing. The design sizes are in em.
+// of their columns on the frame's grid and the market fits the height.  It depends only on the room the frame gives the
+// table, never on the game, so nothing grows or shrinks while playing.  The design sizes are in em.
 // Design sizes in em: the width each column group needs and the height of the market, at the table's font size.
 export const DESIGN = { nobles: 12.2, cards: 31, mine: 25.5, height: 29.5 };
 // How many frame columns each group takes (nobles, cards, your board).

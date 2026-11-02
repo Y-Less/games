@@ -1,5 +1,5 @@
 // The look of the site, in two parts that a player chooses separately in the shop: a colour theme (the dark surfaces, lines
-// and accent that every page is drawn with) and a font. The first of each is free and is what everyone starts with. A theme
+// and accent that every page is drawn with) and a font.  The first of each is free and is what everyone starts with.  A theme
 // only sets the CSS variables in `vars` (see src/style.css), and a font sets --display (titles) and --body (everything else).
 // Depends on: nothing (pure data); consumed by server/shop.js and the client (src/appearance.js).
 export const SITE_THEMES = [

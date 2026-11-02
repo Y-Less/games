@@ -1,9 +1,9 @@
-// 'Sharp': the strongest Hearts AI. It counts cards, infers each opponent's void suits from failures to follow, and then
+// 'Sharp': the strongest Hearts AI.  It counts cards, infers each opponent's void suits from failures to follow, and then
 // decides by looking ahead: it deals the unseen cards to the other seats in many plausible ways (respecting known voids
 // and the cards it passed), plays each candidate card out to the end of the hand against a sensible opponent model, and
-// picks the card with the fewest expected penalty points. That one mechanism gives it safe leads, Queen of Spades
+// picks the card with the fewest expected penalty points.  That one mechanism gives it safe leads, Queen of Spades
 // management, dumping penalty cards on whoever is going to win the trick (and so the Queen on the leader of a trick) and
-// the timing of when to win or duck, without any of it being hard-coded. On top of that it has explicit rules for the moon:
+// the timing of when to win or duck, without any of it being hard-coded.  On top of that it has explicit rules for the moon:
 //  - the seats that have taken points are tracked; while exactly one other seat owns every point so far it is a moon
 //    risk, so Sharp does not hand that seat more penalty cards (it keeps its high hearts and the Queen back), and in its
 //    look-ahead that seat is assumed to be chasing, which makes taking a point trick itself (becoming the second owner)
@@ -38,7 +38,7 @@ export const TUNING = {
 
 /**
  * Estimates how many penalty points a hand is likely to cost, so passing can pick the three cards whose removal helps most.
- * Uncovered Queens, high spades and high hearts add risk; short suits subtract it because a void lets the hand dump.
+ * Uncovered Queens, high spades, and high hearts add risk; short suits subtract it because a void lets the hand dump.
  * @param {string[]} hand  the cards that would be kept after passing.
  * @param {object} settings  game settings; jackOfDiamonds makes the Jack reduce risk.
  * @returns {number} a relative risk score (lower is better, not a literal point count).
@@ -83,7 +83,7 @@ function* choices(hand, size, from = 0, chosen = []) {
 /**
  * Sharp's pass: the moon AI's pass with an overwhelming hand, otherwise the choice of cards whose removal leaves the
  * lowest handRisk.
- * @param {object} ctx  AI context (see index.js); uses hand, settings and passCount.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings, and passCount.
  * @returns {string[]} the cards to pass.
  * Side effects: none.
  */
@@ -212,7 +212,7 @@ function modelPlay(sim, seat, legal) {
 }
 
 /**
- * Applies a play to the simulated hand: removes it from the seat's hand, adds it to the trick and updates the flags.
+ * Applies a play to the simulated hand: removes it from the seat's hand, adds it to the trick, and updates the flags.
  * @param {object} sim  look-ahead state (hands, trick, broken, queenGone...).
  * @param {number} seat  the seat playing.
  * @param {string} card  the card played.
@@ -228,7 +228,7 @@ function playCardIn(sim, seat, card) {
 }
 
 /**
- * Resolves the full trick in the simulation: finds the winner and credits them with the hearts, Queen and Jack in it.
+ * Resolves the full trick in the simulation: finds the winner and credits them with the hearts, Queen, and Jack in it.
  * @param {object} sim  look-ahead state.
  * @returns {void}
  * Side effects: mutates sim (hearts, queen, jackTaker, trick, tricks, turn).
@@ -332,7 +332,7 @@ function sampleWorld(ctx, know, rng) {
 }
 
 /**
- * Cards that play identically: neighbours in a suit with no unseen card between them. Keeps the lowest of each run, so
+ * Cards that play identically: neighbours in a suit with no unseen card between them.  Keeps the lowest of each run, so
  * the look-ahead does not waste samples on equivalent candidates.
  * @param {string[]} cards  candidate cards.
  * @param {object} know  card-counting result from observe(ctx).

@@ -1,5 +1,5 @@
-// A pegging specialist: counts the cards still out, plays to leave no easy fifteen, pair or run, and chases go and 31.
-// Depends on ../scoring.js, ./greedy.js (its discard) and ./helpers.js. Also exports peggingValues, which sharp.js tunes.
+// A pegging specialist: counts the cards still out, plays to leave no easy fifteen, pair, or run, and chases go and 31.
+// Depends on ../scoring.js, ./greedy.js (its discard), and ./helpers.js.  Also exports peggingValues, which sharp.js tunes.
 import { pipValue, scorePlay } from '../scoring.js';
 import { greedy } from './greedy.js';
 import { replyOutlook, unseenFrom } from './helpers.js';

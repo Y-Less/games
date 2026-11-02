@@ -1,11 +1,11 @@
-// The rules of Azulejo, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Azulejo, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }; an error never names hidden information.
 //
-// Seats 0..size-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
+// Seats 0..size-1 run clockwise.  A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
 // ({ kind: 'bot', id: 'bot:<n>', name, ai: <id of its AI, set when the game starts> }) or null (empty, lobby only).
 //
-// Tiles are colour numbers 0..4 (see rules.js). Every one of the 100 tiles is in exactly one place: the bag, the lid
-// (the discards), a factory display, the centre, a pattern line, a wall or a floor line. The bag's contents and order
+// Tiles are colour numbers 0..4 (see rules.js).  Every one of the 100 tiles is in exactly one place: the bag, the lid
+// (the discards), a factory display, the centre, a pattern line, a wall, or a floor line.  The bag's contents and order
 // are the only secret, and they never leave the server.
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg, refusal } from '../../shared/messages.js';
@@ -59,7 +59,7 @@ export const BOT_NAMES = ['Isabel', 'Tomas', 'Beatriz', 'Duarte', 'Ines', 'Rui',
 // The phases in which a game is still going on (as opposed to finished).
 const LIVE = ['lobby', 'playing', 'tiling'];
 /**
- * Is this a plain object (not null, not an array)? Payloads from clients are checked with it.
+ * Is this a plain object (not null, not an array)?  Payloads from clients are checked with it.
  *
  * @param {any} value  whatever the client sent
  * @returns {boolean} true for a plain object
@@ -71,7 +71,7 @@ const isObject = (value) => Boolean(value) && typeof value === 'object' && !Arra
 const isInt = Number.isInteger;
 
 /**
- * Is the game still going (in the lobby, being played or being tiled)? Finished games are kept for less time.
+ * Is the game still going (in the lobby, being played, or being tiled)?  Finished games are kept for less time.
  *
  * @param {object} room  the room
  * @returns {boolean} true unless the game has finished
@@ -213,7 +213,7 @@ function resetGame(room) {
 }
 
 /**
- * Adds a line to the game log (the newest 60 are kept). A line is a message under the game's `log.*` keys (see
+ * Adds a line to the game log (the newest 60 are kept).  A line is a message under the game's `log.*` keys (see
  * shared/messages.js), which the client puts into words.
  * Side effects: mutates `room.log`.
  *
@@ -238,9 +238,9 @@ const addLog = (room, seat, key, params) => addMove(room, { seat, ...msg(key, pa
 export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones. In Azulejo a person who leaves while the game
+ * The seat rules (join, leave, kick, computer players) are the shared ones.  In Azulejo a person who leaves while the game
  * is being played (or tiled) is replaced by a computer player that picks its AI straight away (lobby computer players get
- * theirs when the game starts), and the log says so. Nothing else has to happen after somebody leaves.
+ * theirs when the game starts), and the log says so.  Nothing else has to happen after somebody leaves.
  */
 // (Creating the rules has no side effects: the handlers it returns, exported just below, mutate the room they are given.)
 const seats = createSeatRules({
@@ -282,7 +282,7 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * The host chooses how many seats there are (2-5). People and computer players are kept, in order.
+ * The host chooses how many seats there are (2-5).  People and computer players are kept, in order.
  * Side effects: mutates `room` (the seats and the whole game state are reset).
  *
  * @param {object} room
@@ -305,8 +305,8 @@ export function setSize(room, userId, size) {
 // ---- starting ----
 
 /**
- * The host starts the game: shuffles the bag, picks who goes first, deals the first round and gives each computer
- * player its AI. Needs every seat filled and at least one person.
+ * The host starts the game: shuffles the bag, picks who goes first, deals the first round, and gives each computer
+ * player its AI.  Needs every seat filled and at least one person.
  * Side effects: mutates `room` (phase, bag, factories, log, the computer seats' `ai`).
  *
  * @param {object} room
@@ -333,7 +333,7 @@ export function start(room, userId, rng) {
 }
 
 /**
- * Draws one tile blindly from the bag; when the bag is empty the lid is shuffled into it. (Named for the bag because a
+ * Draws one tile blindly from the bag; when the bag is empty the lid is shuffled into it.  (Named for the bag because a
  * "draw" elsewhere in the platform, such as Rummikub's, is a public action.)
  * Side effects: mutates `room.bag` and, when it refills, `room.lid`.
  *
@@ -350,7 +350,7 @@ function drawFromBag(room, rng) {
 }
 
 /**
- * Starts a round: fills every factory display from the bag and makes the first player's turn. If there are no tiles at all
+ * Starts a round: fills every factory display from the bag and makes the first player's turn.  If there are no tiles at all
  * (every one is on a board) the game ends instead.
  * Side effects: mutates `room` (round, factories, centre, marker, turn, log; may finish the game).
  *
@@ -416,7 +416,7 @@ export function legalMoves(room, seat) {
 }
 
 /**
- * Has every tile been taken from the factories and the centre? Then the round is over and the walls are tiled.
+ * Has every tile been taken from the factories and the centre?  Then the round is over and the walls are tiled.
  *
  * @param {object} room  the room
  * @returns {boolean} true when nothing is left to take
@@ -427,8 +427,8 @@ const roundOver = (room) => room.centre.length === 0 && room.factories.every((f)
 
 /**
  * A player takes every tile of one colour from a factory display or the centre and puts them on a pattern line (or the
- * floor). The rest of a factory slides into the centre; taking from the centre first also takes the first-player marker.
- * Tiles that do not fit on the line fall to the floor, and past the floor's seventh slot go to the lid. When the last tile
+ * floor).  The rest of a factory slides into the centre; taking from the centre first also takes the first-player marker.
+ * Tiles that do not fit on the line fall to the floor, and past the floor's seventh slot go to the lid.  When the last tile
  * is taken, the walls are tiled (see startTiling); otherwise the turn passes clockwise.
  * Side effects: mutates `room` (sources, lines, floor, lid, tally, log, turn; may start tiling and the next round).
  *
@@ -652,7 +652,7 @@ function finishTiling(room, rng) {
 
 /**
  * Ends the game: adds each wall's end-of-game bonuses (rows, columns, colour sets), ranks the players (score, then complete
- * rows) and records the winners. The bonus round's notes are messages (a list of the bonuses earned, or "no bonuses").
+ * rows), and records the winners.  The bonus round's notes are messages (a list of the bonuses earned, or "no bonuses").
  * Side effects: mutates `room` (scores, history, final, winners, phase, turn, log).
  *
  * @param {object} room
@@ -732,7 +732,7 @@ export function statsPlayers(room) {
 // ---- what each player may see ----
 
 /**
- * The number of tiles in every place (bag, lid, factories, centre, lines, walls, floors; not the marker). Always 100 in a
+ * The number of tiles in every place (bag, lid, factories, centre, lines, walls, floors; not the marker).  Always 100 in a
  * correct game: used by the tests (tile conservation) and nothing else.
  *
  * @param {object} room  (not changed)
@@ -758,7 +758,7 @@ export function tileCount(room) {
 const lidCounts = (room) => COLOURS.map((colour) => countOf(room.lid, colour));
 
 /**
- * Has the game been dealt in this phase (so that scores, walls and floors mean something)?
+ * Has the game been dealt in this phase (so that scores, walls, and floors mean something)?
  *
  * @param {object} room  not changed
  * @returns {boolean}

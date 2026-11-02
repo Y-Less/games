@@ -4,7 +4,7 @@ import { withLastChance } from './endgame.js';
 import { chooseCard, estimateTricks } from './standard.js';
 
 /**
- * The cautious AI. Under-reading the hand keeps it from being forced into tricks it did not promise; play reuses the
+ * The cautious AI.  Under-reading the hand keeps it from being forced into tricks it did not promise; play reuses the
  * standard card choice, which ducks as soon as the nomination is met.
  */
 export const cautious = {

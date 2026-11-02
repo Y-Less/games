@@ -1,4 +1,4 @@
-// Gaudi against the real site: accounts over HTTP, sockets, computer players on timers, statistics and restarts.
+// Gaudi against the real site: accounts over HTTP, sockets, computer players on timers, statistics, and restarts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

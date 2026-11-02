@@ -1,8 +1,8 @@
 <script setup>
 // How a round ended: who won and why, and every player's leftover tiles (public once the round is over).
-// Props: lastRound (the view's summary of the round: winners, reason and the final racks), seats (all seats, for names),
+// Props: lastRound (the view's summary of the round: winners, reason, and the final racks), seats (all seats, for names),
 //   settings (the tile settings), you (your seat number, or -1 for a spectator).
-// Emits: none. Slots: none. Side effects: none.
+// Emits: none.  Slots: none.  Side effects: none.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';

@@ -1,5 +1,5 @@
 // The last chance: in the last round, with the instant win on, a player who cannot win on points has nothing to lose, because
-// only nominating 7 and taking all 7 tricks can win the game. Every card's weight in the hand estimate is turned up, so the
+// only nominating 7 and taking all 7 tricks can win the game.  Every card's weight in the hand estimate is turned up, so the
 // hand reads as very strong: if that makes the nomination 7, it is 7 (and the player then plays for every trick); if 7 is not
 // allowed (a dealer may be forbidden it) the boost is dropped and the player nominates as usual.
 import test from 'node:test';

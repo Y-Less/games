@@ -1,4 +1,4 @@
-// Statistics unit tests: recording results, per-user summaries, extras aggregation and leaderboards (in-memory database).
+// Statistics unit tests: recording results, per-user summaries, extras aggregation, and leaderboards (in-memory database).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openDatabase, transaction } from './db.js';

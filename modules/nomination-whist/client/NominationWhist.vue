@@ -1,9 +1,9 @@
 <script setup>
 // Props: socket {Object, required} platform socket; user {Object|null} signed-in user; search {String} current URL query string;
-// setSearch {Function} updates the URL query string. Emits: none. Slots: none.
+// setSearch {Function} updates the URL query string.  Emits: none.  Slots: none.
 // Side effects: useGameSocket subscribes to the socket's `state` events and syncs the invite code with the URL for the life of the component;
 // onState keeps the Recent moves list.
-// Nomination Whist: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
+// Nomination Whist: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
@@ -18,7 +18,7 @@ const LOG_KEPT = 120;
 const { t } = useGameText();
 const log = ref([]); // Recent moves, worked out from the states as they arrive (see log.js)
 /**
- * Works the list of recent moves out from each state as it arrives. It lives here, not in the table, so that every state
+ * Works the list of recent moves out from each state as it arrives.  It lives here, not in the table, so that every state
  * is looked at even when several arrive before the page redraws (a computer's play and the trick's end come close together).
  *
  * Side effects: replaces `log`.

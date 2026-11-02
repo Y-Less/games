@@ -2,7 +2,7 @@
 // The group of tool cards: in the right-hand column (clickable) or, with `deal`, in the windows phase (explanations only).
 // Props: tools (from the view), deal (Boolean), activeId (the tool in use, or null), blockOf (function: tool -> why it cannot
 // be used, '' if it can).
-// Emits: start (tool), hint (text) as the cards do. Side effects: none.
+// Emits: start (tool), hint (text) as the cards do.  Side effects: none.
 import CardSection from './CardSection.vue';
 import ToolCard from './ToolCard.vue';
 import { useGameText } from '../../../src/useGameText.js';

@@ -1,5 +1,5 @@
-// Helpers shared by the Hearts AIs. Everything here works on plain data (see the context described in index.js) and
-// knows nothing about rooms or sockets. No Math.random: a game passes its own `rng` in the context.
+// Helpers shared by the Hearts AIs.  Everything here works on plain data (see the context described in index.js) and
+// knows nothing about rooms or sockets.  No Math.random: a game passes its own `rng` in the context.
 import { rankValue, suitOf } from '../../../shared/cards.js';
 import { DEFAULT_SEATS, deckFor, tricksFor } from '../deals.js';
 
@@ -61,7 +61,7 @@ export const highest = (cards) => cards.reduce((a, b) => (rankValue(b) > rankVal
 /**
  * Filters cards down to one suit.
  * @param {string[]} cards  card codes.
- * @param {string} suit  suit letter (C, D, H or S).
+ * @param {string} suit  suit letter (C, D, H, or S).
  * @returns {string[]} the cards of that suit.
  * Side effects: none.
  */
@@ -97,7 +97,7 @@ export const playedSet = (ctx) => new Set([...ctx.taken.flat(), ...ctx.trick.map
 
 /**
  * Card counting from public information only.
- * @param {object} ctx  AI context; uses hand, taken, trick, history, tricksPlayed and seat count.
+ * @param {object} ctx  AI context; uses hand, taken, trick, history, tricksPlayed, and seat count.
  * @returns {{played: Set<string>, unseen: Set<string>, voids: Set<string>[], sizes: number[]}} what can be known
  *   without seeing anybody else's hand:
  *  played   every card gone from play (finished tricks and the table)
@@ -127,7 +127,7 @@ export function observe(ctx) {
 }
 
 /**
- * The seats that have taken a heart or the Queen of Spades this hand. A moon needs this to stay at one seat.
+ * The seats that have taken a heart or the Queen of Spades this hand.  A moon needs this to stay at one seat.
  * @param {object} ctx  AI context; uses taken.
  * @returns {Set<number>} seat indexes that hold at least one point card.
  * Side effects: none.

@@ -480,7 +480,7 @@ describe('Gaudi table: playing', () => {
     expect(w.find('.box.status h3').text()).toBe('Status');
     expect(w.find('.others').exists()).toBe(false);
     expect(w.findAll('.pool-die').length).toBeGreaterThan(0);
-    // the words are all in Status: no status line, hint or error inside the main area
+    // the words are all in Status: no status line, hint, or error inside the main area
     expect(w.find('.main .status').exists()).toBe(false);
     expect(w.find('.main [role=alert]').exists()).toBe(false);
   });
@@ -544,7 +544,7 @@ describe('Gaudi table: playing', () => {
     const { w } = mountTable(view);
     await poolDice(w)[0].trigger('click');
     expect(w.find('.pool-die.chosen').exists()).toBe(true);
-    // The same round, turn index, phase and pool; only the turn is now the extra one.
+    // The same round, turn index, phase, and pool; only the turn is now the extra one.
     await w.setProps({ state: { ...view, turn: { ...view.turn, extra: true } } });
     expect(w.find('.pool-die.chosen').exists()).toBe(false);
   });

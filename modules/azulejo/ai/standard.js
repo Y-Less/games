@@ -1,4 +1,4 @@
-// "Standard": the original computer player. Each legal move is given a value: points a completed line will score on the
+// "Standard": the original computer player.  Each legal move is given a value: points a completed line will score on the
 // wall (with a share of it for a partly built line that can still be finished), minus what the floor will cost, a small
 // credit for the first-player marker, and a little for keeping tiles away from opponents who need them.
 // Depends on: ../rules.js (scoring and wall helpers) and ./common.js (copyWall, take previews, tile counts).
@@ -6,7 +6,7 @@ import { SIZE, columnsFor, isDeadCell, lineCapacity, rowComplete, tileScore } fr
 import { copyWall, takeOf, tilesLeft } from './common.js';
 
 /**
- * How good it is to put a tile of this colour at (row, col) of this wall. Higher is better.
+ * How good it is to put a tile of this colour at (row, col) of this wall.  Higher is better.
  *
  * @param {(number | null)[][]} wall  the wall (not changed)
  * @param {number} row     where the tile goes
@@ -33,7 +33,7 @@ export function columnValue(wall, row, col, colour, free) {
   if (colFill === SIZE) value += 4;
   if (setFill === SIZE) value += 6;
   if (free) {
-    // Every place this tile kills (nothing could ever go there again) costs 4: a dead cell makes a row, column and set
+    // Every place this tile kills (nothing could ever go there again) costs 4: a dead cell makes a row, column, and set
     // permanently incomplete.
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (isDeadCell(next, r, c) && !isDeadCell(wall, r, c)) value -= 4;
   }

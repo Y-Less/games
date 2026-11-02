@@ -34,7 +34,7 @@ function describe(key, value) {
   }
 }
 
-/** The chance as a five-decimal string, or empty when the cell was never seen (`n` is 0). Pure. */
+/** The chance as a five-decimal string, or empty when the cell was never seen (`n` is 0).  Pure. */
 const ratio = (count, n) => (n ? (count / n).toFixed(5) : '');
 
 /**
@@ -68,7 +68,7 @@ export function writeCsvs(stats, dir) {
 }
 
 /**
- * Saves the raw counts and what produced them. `meta` holds the config, the chunks done and the deal count.
+ * Saves the raw counts and what produced them. `meta` holds the config, the chunks done, and the deal count.
  * @param {import('./tables.js').Stats} stats  the counts
  * @param {object} meta  config and progress to record alongside (deals and a timestamp are added)
  * @param {string} dir  checkpoint directory (created if missing)

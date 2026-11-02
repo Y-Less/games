@@ -1,7 +1,7 @@
-// The site's languages. Every language is a set of JSON files found at build time: src/locales/<lang>.json for the site and
+// The site's languages.  Every language is a set of JSON files found at build time: src/locales/<lang>.json for the site and
 // modules/<id>/locales/<lang>.json for each game, merged into one message tree with each game's messages under its id
-// ('hearts.lobby.intro'). English is bundled; any other language is fetched the first time it is chosen. Adding a language
-// is adding those files: nothing else lists them. A game without a translation falls back to English for its own words.
+// ('hearts.lobby.intro').  English is bundled; any other language is fetched the first time it is chosen.  Adding a language
+// is adding those files: nothing else lists them.  A game without a translation falls back to English for its own words.
 // Depends on: vue-i18n and the locale files (via import.meta.glob, so Vite and vitest find them).
 // Side effects: none until setLocale runs (it changes the i18n instance and the document's `lang`).
 import { createI18n } from 'vue-i18n';
@@ -26,7 +26,7 @@ const bundle = (site, modules) => ({ ...site, ...Object.fromEntries(modules) });
 
 // vue-i18n chooses between the forms a message separates with `|` by position, not by the language's own rules: with two
 // forms it takes the second unless the count is 1. That suits English and Klingon, and Japanese needs only one form, but
-// a language with more forms has to say which form belongs to which of its plural categories. List its categories here,
+// a language with more forms has to say which form belongs to which of its plural categories.  List its categories here,
 // in the order a translator writes the forms in, and Intl's own rules do the choosing.
 export const PLURAL_FORMS = {
   ru: ['one', 'few', 'many'], // "1 карта | 2 карты | 5 карт"

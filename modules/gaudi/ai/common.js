@@ -1,4 +1,4 @@
-// Helpers shared by the Gaudi AIs. Plain data in, plain data out: nothing here touches a room, a socket or Math.random.
+// Helpers shared by the Gaudi AIs.  Plain data in, plain data out: nothing here touches a room, a socket, or Math.random.
 //
 // The `state` an AI is given is a read-only snapshot of what the seat deciding could know (never the bag, nor other
 // players' secret colours or window choices):
@@ -158,7 +158,7 @@ function lineProgress(grid, lines, key, points) {
  */
 export function publicPotential(state, grid) {
   let total = 0;
-  /** How many dice in the window satisfy a test. (Side effects: none.) */
+  /** How many dice in the window satisfy a test.  (Side effects: none.) */
   const count = (test) => grid.filter((d) => d && test(d)).length;
   for (const id of state.publicIds) {
     const points = objectiveOf(id).points;
@@ -222,7 +222,7 @@ export function placementsOf(state, seat, options) {
 }
 
 /**
- * The shared shape of a step decision. A `policy` supplies:
+ * The shared shape of a step decision.  A `policy` supplies:
  *   score(state, seat, die, cell, options, context) - how good a placement is (higher is better)
  *   context(state, seat)                              - anything worth working out once per decision (optional)
  *   tools: 'never' | 'stuck' | 'eager'                - when a tool may be used; 'stuck' is only with nothing to place
@@ -261,7 +261,7 @@ export function chooseStep(state, seat, rng, policy) {
       if (!bestPerDie.has(die.id) || score > bestPerDie.get(die.id)) bestPerDie.set(die.id, score);
     }
   }
-  /** The plain placement chosen so far (or ending the turn when nothing fits). Side effects: none. */
+  /** The plain placement chosen so far (or ending the turn when nothing fits).  Side effects: none. */
   const place = () => (best ? { type: 'place', die: best.die, cell: best.cell } : { type: 'end' });
   if (turn.toolUsed || policy.tools === 'never' || !state.tools.length) return place();
   const stuck = !best;

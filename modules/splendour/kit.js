@@ -1,6 +1,6 @@
 // Helpers shared by the Splendour tests (not part of the game): building rooms and checking invariants.
 //
-// Depends on: node:assert, ./game.js (the rules), ./cards.js (card data) and ./rules.js (the shared limits).
+// Depends on: node:assert, ./game.js (the rules), ./cards.js (card data), and ./rules.js (the shared limits).
 import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { CARDS, CARD_BY_ID } from './cards.js';
@@ -55,8 +55,8 @@ export function botsOnly(seats = 4, rng, options) {
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 
 /**
- * Everything that must hold after every action: tokens, cards and nobles conserved, prestige and history consistent,
- * limits respected. Throws an assertion error naming the first thing that does not hold.
+ * Everything that must hold after every action: tokens, cards, and nobles conserved, prestige and history consistent,
+ * limits respected.  Throws an assertion error naming the first thing that does not hold.
  *
  * Side effects: none, except that it throws an assertion error when a check fails.
  *
@@ -116,7 +116,7 @@ export function checkInvariants(room, label = '') {
 }
 
 /**
- * The cards a viewer is allowed to know about: the table, their own reserve, others' face-up reserves and the log.
+ * The cards a viewer is allowed to know about: the table, their own reserve, others' face-up reserves, and the log.
  *
  * Side effects: none.
  *
@@ -133,7 +133,7 @@ export function visibleIds(room, seat) {
 }
 
 /**
- * A view must name no card its viewer may not see (no deck order, no one else's blind reserve). Throws if it does.
+ * A view must name no card its viewer may not see (no deck order, no one else's blind reserve).  Throws if it does.
  *
  * Side effects: none, except that it throws an assertion error when a check fails.
  *

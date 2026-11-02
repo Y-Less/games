@@ -1,6 +1,6 @@
 // What viewFor sends (see game.js) along whole seeded games of computers: the same views every time for a seed, a
 // standard scoreboard whose `current` flag follows the turn (the site's `global.slow` clock reads it), nothing for a
-// stranger, and a fixed set of parts. (These used to pin a SHA-1 of every view, which also pinned every computer
+// stranger, and a fixed set of parts.  (These used to pin a SHA-1 of every view, which also pinned every computer
 // decision and every field, so a legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';

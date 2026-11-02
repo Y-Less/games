@@ -27,8 +27,8 @@ export const cardUrl = (cardId, size = 'medium') => `/assets/dixnt/cards/${size}
  *   setSearch puts the current game code in the address bar; error turns a server refusal into words in the player's
  *   language (useGameText's `error`), because nothing outside a locale file writes any.
  * @returns {object} { store, user, send, showToast, goHome, createGame, join, players, nameOf, chooser, isHost, cardUrl, dispose }.
- * Side effects: listens to the socket's connect, disconnect and state events (removed by `dispose()`); emits resume,
- * lookup and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
+ * Side effects: listens to the socket's connect, disconnect, and state events (removed by `dispose()`); emits resume,
+ * lookup, and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
  */
 export function createStore({ socket, user, search, setSearch, error }) {
   const store = reactive({
@@ -57,7 +57,7 @@ export function createStore({ socket, user, search, setSearch, error }) {
   }
 
   /**
-   * Sends an event to the server and resolves with its reply. Errors are shown as a toast.
+   * Sends an event to the server and resolves with its reply.  Errors are shown as a toast.
    * @param {string} event  The request name.
    * @param {object} [payload]  Request data.
    * @param {{quiet?: boolean}} [options]  quiet suppresses the error toast (for requests whose failure is expected).
@@ -105,7 +105,7 @@ export function createStore({ socket, user, search, setSearch, error }) {
    * Takes in a new personalised state from the server (null when the player is no longer in a game).
    * @param {object | null} state  The new state.
    * @returns {void}
-   * Side effects: updates `store.log`, `wordPopup`, `zoom`, `state` and `code`; calls `setSearch`; looks the code up when
+   * Side effects: updates `store.log`, `wordPopup`, `zoom`, `state`, and `code`; calls `setSearch`; looks the code up when
    * there is no game.
    */
   function onState(state) {

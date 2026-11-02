@@ -1,4 +1,4 @@
-// The usual computer players of Just One. They know the words' usual clues (see words.js). As a writer they say one of the
+// The usual computer players of Just One.  They know the words' usual clues (see words.js).  As a writer they say one of the
 // usual clues of the secret word; as the guesser they look for the word whose usual clues the visible ones come from; and
 // when they have guessed right they pick the clue that is most closely tied to the word.
 //
@@ -6,7 +6,7 @@
 //   guess({ clues, words }, rng)         -> a word from `words`, or '' to pass
 //   best({ word, clues }, rng)           -> the index in `clues` of the best hint
 //
-// Depends on words.js (the usual-clue lists, and normal() to compare clues). Two strategies come from one factory,
+// Depends on words.js (the usual-clue lists, and normal() to compare clues).  Two strategies come from one factory,
 // differing only in which slice of the usual clues they write from and how loosely they guess.
 import { normal, relatedTo } from '../words.js';
 
@@ -27,7 +27,7 @@ export function link(word, clue) {
 const pick = (list, rng) => list[Math.min(list.length - 1, Math.floor(rng() * list.length))];
 
 /**
- * Words best first for these clues (ties in a random order). A word's score is the sum of how strongly each visible clue
+ * Words best first for these clues (ties in a random order).  A word's score is the sum of how strongly each visible clue
  * points to it, so several clues agreeing beat one strong one; words no clue points to are dropped (the caller then passes).
  * @param {string[]} clues  the clues the guesser can see
  * @param {string[]} words  the candidate words

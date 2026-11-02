@@ -1,6 +1,6 @@
 // The client's working copy of a turn, as plain functions (nothing here talks to the server).
 // An arrangement is { sets: [[id, ...], ...], rack: [id, ...], freed: [id, ...] }: what the table and the rack would be if
-// the player ended their turn now, and the jokers that have been swapped out of their sets this turn. Every function returns a new arrangement and leaves its argument alone.
+// the player ended their turn now, and the jokers that have been swapped out of their sets this turn.  Every function returns a new arrangement and leaves its argument alone.
 import { checkPlay, fitsJoker, isJoker, orderedSet, resolveSet, tileOf } from '../rules.js';
 import { msg } from '../../../shared/messages.js';
 
@@ -49,7 +49,7 @@ export function locate(arr, id) {
  *
  * @param {object} arr  the current arrangement
  * @param {number[]} ids  the tiles the player wants to move
- * @param {{type: string, index?: number}} target  where they are going: 'rack', 'new' or 'set' (with `index`)
+ * @param {{type: string, index?: number}} target  where they are going: 'rack', 'new', or 'set' (with `index`)
  * @param {{before: number[][], melded: boolean, fixed?: Set<number>}} rules  the table at the start of the turn, whether the
  *   player has made their first meld, and the ids of table jokers that may not be moved
  * @returns {{key: string, params?: object}|null} the reason the move is refused as a message (shared/messages.js), or
@@ -106,7 +106,7 @@ export function moveTiles(arr, ids, target) {
  * Dropping a second copy of a tile into a run splits the run there: 2 3 4 5 6 and a second 5 become 2 3 4 5 and 5 6. `prev` is
  * the arrangement before one tile (`id`) was moved and `next` the one after; only a run, valid before, that already has a real tile
  * of that colour and number is split (a joker in the run stays on the side of the number it stands for: 3 * 5 6 7 and a second 6
- * make 3 * 5 6 and 6 7). Returns { arr, number } for the split arrangement, or null if nothing was split.
+ * make 3 * 5 6 and 6 7).  Returns { arr, number } for the split arrangement, or null if nothing was split.
  *
  * @param {object} s  the game settings (needed to look tiles up)
  * @param {object} prev  the arrangement before the move
@@ -137,7 +137,7 @@ export const JOKER_STAYS = msg('hints.jokerStays');
 
 /**
  * A joker that was on the table is replaced as soon as a tile it could stand for is in its set: it moves out into a new group
- * of its own, free to be used in any set. `pinned` is pinnedJokers(...) for the table at the start of the turn. Returns the same
+ * of its own, free to be used in any set. `pinned` is pinnedJokers(...) for the table at the start of the turn.  Returns the same
  * arrangement if no joker was replaced.
  *
  * @param {object} s  the game settings

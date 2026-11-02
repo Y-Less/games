@@ -1,13 +1,13 @@
-// What Rummikub counts about each player for the statistics and achievements (see module.json "stats"). The game calls
+// What Rummikub counts about each player for the statistics and achievements (see module.json "stats").  The game calls
 // tallyPlay after a turn that puts tiles down and tallyRack whenever a rack changes; nothing here changes the game.
-// Depends on shared/tally.js (the counter helpers) and rules.js (tile values and the table comparisons). The counters are
+// Depends on shared/tally.js (the counter helpers) and rules.js (tile values and the table comparisons).  The counters are
 // plain numbers on each player's tally object, which is saved with the room.
 import { bump, freshTally, peak } from '../../shared/tally.js';
 import { isJoker, jokersReplaced, rackValue, tilesMoved } from './rules.js';
 
 // The name of every counter kept in a player's tally (see module.json "stats" for how they are shown).
 export const STAT_KEYS = ['roundsWon', 'roundsPlayed', 'tilesPlayed', 'jokersPlayed', 'biggestTurn', 'pointsPlayed', 'tilesMoved', 'jokersReplaced', 'outInOne', 'biggestRack', 'bothJokers', 'turnsDrawn', 'longestSet'];
-// A fresh tally for one player, with every counter at zero. Takes no arguments; returns an object; no side effects.
+// A fresh tally for one player, with every counter at zero.  Takes no arguments; returns an object; no side effects.
 export const newTally = () => freshTally(STAT_KEYS);
 
 /**
@@ -36,7 +36,7 @@ export function tallyPlay(tally, settings, { added, before, after, firstMeld, we
 
 /**
  * Counts what a rack shows: the most tiles it has held, and holding two jokers at once (once a round: `alreadyHadBoth` says
- * whether this round has been counted). Returns whether the player has held both this round.
+ * whether this round has been counted).  Returns whether the player has held both this round.
  *
  * @param {object} tally  the player's tally; counters may be raised
  * @param {object} settings  the room settings
@@ -52,5 +52,5 @@ export function tallyRack(tally, settings, rack, alreadyHadBoth) {
   return alreadyHadBoth || both;
 }
 
-/** Counts a turn spent drawing a tile. Takes (tally); returns nothing useful; side effect: increases tally.turnsDrawn. */
+/** Counts a turn spent drawing a tile.  Takes (tally); returns nothing useful; side effect: increases tally.turnsDrawn. */
 export const tallyDraw = (tally) => bump(tally, 'turnsDrawn');

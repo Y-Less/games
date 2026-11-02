@@ -1,5 +1,5 @@
 // The original computer player: a discard that balances hand against crib, and a pegging rule of thumb.
-// Depends on shared/cards.js, ../scoring.js and ./helpers.js. Its functions are also re-exported by ./index.js and ../bot.js.
+// Depends on shared/cards.js, ../scoring.js, and ./helpers.js.  Its functions are also re-exported by ./index.js and ../bot.js.
 import { fullDeck } from '../../../shared/cards.js';
 import { pipValue, runOrder, scoreHand, scorePlay } from '../scoring.js';
 import { splits } from './helpers.js';
@@ -8,8 +8,8 @@ import { splits } from './helpers.js';
 const CRIB_WEIGHT = 0.8;
 
 /**
- * A rough guide to what a crib containing these discards is worth to whoever owns it. Pairs, fifteens, fives, neighbouring ranks
- * (run material) and a shared suit all add value, the bonuses being roughly their share of a typical crib's score.
+ * A rough guide to what a crib containing these discards is worth to whoever owns it.  Pairs, fifteens, fives, neighbouring ranks
+ * (run material), and a shared suit all add value, the bonuses being roughly their share of a typical crib's score.
  *
  * @param {string[]} discards  one or two cards this player is putting in the crib
  * @returns {number} the estimated points the cards add to the crib
@@ -54,7 +54,7 @@ export function chooseDiscard(hand, { discardCount, isDealer }) {
 }
 
 /**
- * Picks the card to play, or null when none is legal. Prefers points, avoids leaving a count of 5, 10 or 21 (an easy
+ * Picks the card to play, or null when none is legal.  Prefers points, avoids leaving a count of 5, 10 or 21 (an easy
  * fifteen or thirty-one for the next player), and otherwise plays low when leading and high when following.
  * Leading low keeps big cards back; following high gets them out when they are least dangerous.
  *

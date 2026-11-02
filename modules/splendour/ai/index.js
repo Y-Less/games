@@ -1,4 +1,4 @@
-// Every Splendour AI. The first one is the fallback for rooms saved before AIs existed (see shared/ai.js, aiById), so it
+// Every Splendour AI.  The first one is the fallback for rooms saved before AIs existed (see shared/ai.js, aiById), so it
 // must stay the original standard player.
 //
 // Depends on: ../../../shared/ai.js (defineAIs) and every strategy file in this folder.

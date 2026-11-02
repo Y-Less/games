@@ -1,4 +1,4 @@
-// Helpers shared by the Azulejo AIs. Plain data in, plain data out: nothing here touches a room, a socket or Math.random.
+// Helpers shared by the Azulejo AIs.  Plain data in, plain data out: nothing here touches a room, a socket, or Math.random.
 // (Randomness always arrives as an `rng` argument, so a seeded test gets the same game every time.)
 //
 // The `state` an AI is given is a read-only snapshot of the table that a player could see (never the bag's contents):
@@ -172,7 +172,7 @@ export function chooseColumnBy(state, seat, pending, rng, value) {
   const options = pending.columns.map((col) => {
     const next = copyWall(wall);
     next[pending.row][col] = pending.colour;
-    // 4 points per killed place: a dead cell on a free wall can never score or count towards a row, column or set,
+    // 4 points per killed place: a dead cell on a free wall can never score or count towards a row, column, or set,
     // so it is worth more than almost any single tile score.
     return { col, value: value(next, col) - 4 * newDeadCells(wall, next) + rng() * 0.2 };
   });

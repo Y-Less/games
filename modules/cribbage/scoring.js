@@ -1,4 +1,4 @@
-// Cribbage counting: the show (hands and the crib) and the play (pegging). Pure functions over cards such as "5H".
+// Cribbage counting: the show (hands and the crib) and the play (pegging).  Pure functions over cards such as "5H".
 // Each scoring item carries a `label`: a message (shared/messages.js) under the game's `scoring.*` keys, which the
 // client puts into words in the show and in the log.
 // Depends on shared/cards.js and shared/messages.js only; game.js and the AIs build on it.
@@ -19,7 +19,7 @@ export function pipValue(card) {
 }
 
 /**
- * Position in a run: ace low, then 2 to 10, J, Q, K (13). Runs need consecutive positions, and cribbage has no ace-high run.
+ * Position in a run: ace low, then 2 to 10, J, Q, K (13).  Runs need consecutive positions, and cribbage has no ace-high run.
  *
  * @param {string} card  a card such as "AS"
  * @returns {number} 1 to 13
@@ -33,7 +33,7 @@ export const runOrder = (card) => {
 /** Memo of subsets() results by "length:size": hands are scored very often (the AIs score thousands) and the index sets never change. */
 const subsetCache = new Map();
 /**
- * Every set of `size` positions out of `length`, as arrays of indexes. The cached arrays are shared, so callers must not change them.
+ * Every set of `size` positions out of `length`, as arrays of indexes.  The cached arrays are shared, so callers must not change them.
  *
  * @param {number} length  how many positions there are
  * @param {number} size  how many to choose
@@ -55,7 +55,7 @@ function subsets(length, size) {
 }
 
 /**
- * Do these cards, in any order, form one unbroken run of consecutive ranks? (Duplicates break it.)
+ * Do these cards, in any order, form one unbroken run of consecutive ranks?  (Duplicates break it.)
  *
  * @param {string[]} cards  the cards to test
  * @returns {boolean} true for a run
@@ -70,7 +70,7 @@ const isRun = (cards) => {
 export const HEELS_POINTS = 2;
 
 /**
- * Scores a four-card hand (or crib) with the starter. Returns { total, items }, where each item is
+ * Scores a four-card hand (or crib) with the starter.  Returns { total, items }, where each item is
  * { kind: 'fifteen' | 'pair' | 'run' | 'flush' | 'nobs', cards, points, label } (`label` a `scoring.*` message).
  * A flush in the crib counts only when the starter matches as well.
  *

@@ -1,12 +1,12 @@
-// What may be played to a trick and who wins it, in one place for the game, the computer players and the simulator.
+// What may be played to a trick and who wins it, in one place for the game, the computer players, and the simulator.
 // Pure functions of cards, with no room or sockets.
 //
 // Ordinary cards: you must follow the suit led if you can; the highest trump wins the trick, or if there is none, the
-// highest card of the suit led. With the Jokers option there are two more cards, and these rules:
-//   - A Joker may be led. Otherwise it may be played only when you cannot follow suit.
+// highest card of the suit led.  With the Jokers option there are two more cards, and these rules:
+//   - A Joker may be led.  Otherwise it may be played only when you cannot follow suit.
 //   - A Joker wins the trick, even against trumps ...
 //   - ... unless the other Joker is played in the same trick: then they cancel and both lose, and the rest of the trick
-//     is decided as usual. The exception is a trick that a Joker led: the second Joker played on top wins it instead.
+//     is decided as usual.  The exception is a trick that a Joker led: the second Joker played on top wins it instead.
 //   - A Joker that is led leaves no suit to follow: every other card is allowed.
 import { isJoker, suitOf } from '../../shared/cards.js';
 import { bestCard, followCards } from '../../shared/tricks.js';

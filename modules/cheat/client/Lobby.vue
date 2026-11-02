@@ -1,13 +1,13 @@
 <script setup>
 // Cheat lobby: the invite code and seats (via the shared SeatLobby), plus the host's choice of how many players sit
-// (which also decides the number of packs and the deal). Everyone else sees the choice read-only.
+// (which also decides the number of packs and the deal).  Everyone else sees the choice read-only.
 //
 // Props:
-//   state  {Object}    required. The player's view (phase 'lobby'): code, seats, you, hostSeat, seatCount, decks, limits.
+//   state  {Object}    required.  The player's view (phase 'lobby'): code, seats, you, hostSeat, seatCount, decks, limits.
 //   send   {Function}  required. send(action, payload) asks the server to do something.
 // Emits: none.
 // Slots: none (fills SeatLobby's #settings slot).
-// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start and settings requests.
+// Side effects: only through `send`: addBot, removeBot, fillBots, kick, start, and settings requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';

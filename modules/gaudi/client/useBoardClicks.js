@@ -1,5 +1,5 @@
 // What your window and the pool show and do when clicked: the highlighted spaces, clicking a pool die, a track die or a
-// space (a placement, Free Pane, or the moves of a slide tool). The rules themselves live in ../rules.js.
+// space (a placement, Free Pane, or the moves of a slide tool).  The rules themselves live in ../rules.js.
 import { computed } from 'vue';
 import { CELLS, cellProblem, moveProblem } from '../rules.js';
 import { useGameText } from '../../../src/useGameText.js';
@@ -29,7 +29,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
    * Which spaces of your window to mark for what you are doing now: spaces a chosen die may go on (with the reason on the
    * others as a hover title), dice a slide tool can pick up, and where a picked-up die may go.
    * @returns {{ legal: number[], pick: number[], chosen: number[], titles: Record<number, string> }}
-   * Side effects: none (computed; recalculates when the view, selection or tool changes).
+   * Side effects: none (computed; recalculates when the view, selection, or tool changes).
    */
   const highlight = computed(() => {
     const out = { legal: [], pick: [], chosen: [], titles: {} };
@@ -97,7 +97,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
 
   /**
    * A space of your window was clicked: it is part of a slide tool, or the place for the selected pool die (a plain placement,
-   * or Free Pane). Checks the rule on the screen first so that the player is told why, then asks the server.
+   * or Free Pane).  Checks the rule on the screen first so that the player is told why, then asks the server.
    * @param {number} index  the space, 0 to CELLS - 1
    * @returns {Promise<void>} resolves when the request (if any) has been answered
    * Side effects: clears and may set the Status message; may send 'place' or 'tool'; on success clears the selection and tool.
@@ -121,7 +121,7 @@ export function useBoardClicks({ s, turn, sel, applyTool, send }) {
   }
 
   /**
-   * A space was clicked while a slide tool is in use: first the die to move, then where it goes. When the tool has all the
+   * A space was clicked while a slide tool is in use: first the die to move, then where it goes.  When the tool has all the
    * moves it needs, the request is sent.
    * @param {object} m      the tool state from startMode (mutated: from, moves, grid)
    * @param {number} index  the space

@@ -1,7 +1,7 @@
 <script setup>
 // One die: a coloured glass square with its pips, and a shape behind them that is different for every colour so the
 // colours can be told apart without seeing them.
-// Props: die ({ c: colour key, v: face 1-6 }), size (px, default 44). Emits: none. Slots: none. Side effects: none.
+// Props: die ({ c: colour key, v: face 1-6 }), size (px, default 44).  Emits: none.  Slots: none.  Side effects: none.
 import { computed } from 'vue';
 import { COLOUR_HEX, COLOUR_INK, PIPS, SHAPES } from './glyphs.js';
 import { COLOUR_SHAPES } from '../rules.js';
@@ -13,7 +13,7 @@ const props = defineProps({
   size: { type: Number, default: 44 },
 });
 // Each computed below returns one drawing input (fallbacks keep an unknown colour visible rather than throwing).
-// The glass colour, the ink for the pips, the outline of the colour's shape and the words read out for the die.
+// The glass colour, the ink for the pips, the outline of the colour's shape, and the words read out for the die.
 const hex = computed(() => COLOUR_HEX[props.die.c] ?? '#888');
 const ink = computed(() => COLOUR_INK[props.die.c] ?? '#fff');
 const shape = computed(() => SHAPES[COLOUR_SHAPES[props.die.c]]);

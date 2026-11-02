@@ -1,4 +1,4 @@
-// The geometry of the Wavelength dial, with no Vue. A position is 0 (the left end) to 100 (the right end); the dial is a
+// The geometry of the Wavelength dial, with no Vue.  A position is 0 (the left end) to 100 (the right end); the dial is a
 // half circle drawn over the top of its centre, so 0 is at 180 degrees and 100 at 0 degrees.
 
 // The SVG view box of the dial and where its centre and radius sit in it (all in view units).

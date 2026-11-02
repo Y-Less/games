@@ -34,7 +34,7 @@ async function playOn(people, done, limit = 40000) {
   }
 }
 
-/** Ann (host), Bob and two computer players, started and waiting for passes. */
+/** Ann (host), Bob, and two computer players, started and waiting for passes. */
 async function started(t, opts = {}) {
   fast();
   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
@@ -251,7 +251,7 @@ test('a finished game does not block joining another, and a finished seat can be
 });
 
 test('the site still starts when its saved games have gone cold, and sweeps them away', async (t) => {
-  // Every other test here meets data a few seconds old. A real server meets data from last week, and the start-up
+  // Every other test here meets data a few seconds old.  A real server meets data from last week, and the start-up
   // sweep that clears it runs while the room server is still being built: this is the shape that took Hearts off the
   // site entirely, because the module failed to load and nothing after it could list or play the game.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hearts-cold-'));

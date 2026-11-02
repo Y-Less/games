@@ -1,4 +1,4 @@
-// Property-style tests for the Dixnt rules: seeded random legal play (with people joining, leaving and rounds being
+// Property-style tests for the Dixnt rules: seeded random legal play (with people joining, leaving, and rounds being
 // skipped) in every judging mode, checking the invariants of the game after every single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -69,7 +69,7 @@ function check(game, memory, where) {
   }
 }
 
-/** One random thing a person (or the host) could do right now. Returns false when nothing was possible. */
+/** One random thing a person (or the host) could do right now.  Returns false when nothing was possible. */
 function randomAction(game, rng, names) {
   const s = game.s;
   const pick = (list) => list[Math.floor(rng() * list.length)];

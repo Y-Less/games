@@ -1,5 +1,5 @@
-// What the Cheat computer players share. Everything works on the plain-data context that game.js builds (aiContext): the
-// player's own hand and what everybody can see, never other hands or what was really played. Depends on shared/cards.js.
+// What the Cheat computer players share.  Everything works on the plain-data context that game.js builds (aiContext): the
+// player's own hand and what everybody can see, never other hands or what was really played.  Depends on shared/cards.js.
 import { rankOf } from '../../../shared/cards.js';
 
 /**

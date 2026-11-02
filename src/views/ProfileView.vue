@@ -1,8 +1,8 @@
 <script setup>
-// The profile page: display name, animation setting, language, background, card back, marker colour, avatar and password.
-// Props: none. Emits: none. Slots: none.
+// The profile page: display name, animation setting, language, background, card back, marker colour, avatar, and password.
+// Props: none.  Emits: none.  Slots: none.
 // Depends on: profileApi.js (saving), session.js (the signed-in user), shopStore.js (owns: which unlocks you have),
-// appearance.js, i18n.js (the languages on offer), messageText.js (intlLocale), shared/markerColours.js and AvatarEditor.vue.
+// appearance.js, i18n.js (the languages on offer), messageText.js (intlLocale), shared/markerColours.js, and AvatarEditor.vue.
 // Side effects: every change is saved to the server at once and the session's user (and the page's look and language) is
 // replaced by the reply.
 import { computed, ref } from 'vue';
@@ -19,7 +19,7 @@ import { owns } from '../shopStore.js';
 const displayName = ref(session.user.displayName); // the name box's text
 // The saved background setting.
 const current = computed(() => session.user.background);
-// The last success message and the last error message. The success message is a key (translated when shown, so it
+// The last success message and the last error message.  The success message is a key (translated when shown, so it
 // follows a change of language); the error is the server's reason, already in words.
 const message = ref('');
 const problem = ref('');
@@ -65,7 +65,7 @@ const setLevel = (key, event) => attempt(() => updateProfile({ [key]: Number(eve
 const percent = (level) => new Intl.NumberFormat(intlLocale(), { style: 'percent', maximumFractionDigits: 0 }).format(level / 100);
 // The saved language choice for the select: a tag, or '' to follow the browser.
 const languageChoice = computed(() => session.user.language ?? '');
-// Saves the language ('' follows the browser). The page changes language as soon as the reply arrives (setUser applies it).
+// Saves the language ('' follows the browser).  The page changes language as soon as the reply arrives (setUser applies it).
 const setLanguage = (code) => attempt(() => updateProfile({ language: code || null }), 'profile.languageSaved');
 // Saves a background setting object.
 const choose = (background) => attempt(() => updateProfile({ background }), 'profile.backgroundSaved');

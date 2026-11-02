@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Trains the bidding table with table state: for every player count, number of cards and trump suit, the chance of each
+// Trains the bidding table with table state: for every player count, number of cards, and trump suit, the chance of each
 // number of tricks given the hand (its estimated worth, or the card itself in a one-card round), how many tricks the
-// players before have claimed, and exactly how many players still nominate after (your table position). Run from the platform folder:
+// players before have claimed, and exactly how many players still nominate after (your table position).  Run from the platform folder:
 //   node modules/nomination-whist/sim/train-bids-context.js --players 3-7 --deals 50_000_000
 // Writes models/bidding-context.json (or bidding-context-jokers.json with --jokers), which the `lutc` AI (ai/lut.js) reads.
 // Depends on: bids-collect.js (the worker that plays the deals and counts them), bids-features.js (the cell layout, shared
-// with the AI) and ../game.js (TRUMP_ORDER). A top-level script: importing it starts training.
+// with the AI) and ../game.js (TRUMP_ORDER).  A top-level script: importing it starts training.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,7 +41,7 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
-/** Parses a command-line number, allowing underscores (50_000_000). Pure. */
+/** Parses a command-line number, allowing underscores (50_000_000).  Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 // Expands "3-7" or "4,5" into the list of player counts to train for.
 const players = opts.players.split(',').flatMap((part) => {
@@ -68,14 +68,14 @@ async function collect() {
   const started = Date.now();
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./bids-collect.js', import.meta.url)), { workerData: { seed: num(opts.seed), size: chunk, players, jokers } }));
   await new Promise((resolve) => {
-    /** Gives `worker` the next chunk number, if any are left. Side effects: posts a message. */
+    /** Gives `worker` the next chunk number, if any are left.  Side effects: posts a message. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : undefined);
     for (const worker of workers) {
       worker.on('message', ({ counts }) => {
         for (let i = 0; i < CELLS; i++) total[i] += counts[i];
         done++;
         const now = Date.now();
-        /** The progress line: bar, percentage, deals per second and ETA. Pure. */
+        /** The progress line: bar, percentage, deals per second, and ETA.  Pure. */
         const line = () => {
           const rate = (done * chunk) / ((now - started) / 1000);
           const eta = Math.round(((jobs - done) * chunk) / rate);
@@ -112,7 +112,7 @@ async function collect() {
 const countsAt = (total, p, cards, trump, cell) => Array.from({ length: cards + 1 }, (_, t) => total[indexOf(p, cards, trump, cell, t)]);
 
 /**
- * One cell as probabilities. A window of neighbouring estimates and unclaimed counts (same number of players still to
+ * One cell as probabilities.  A window of neighbouring estimates and unclaimed counts (same number of players still to
  * nominate) is widened until at least `minN` hands are in it, and past a width of 3 the other positions join too, at half weight.
  * Returns null for a cell nobody reached and that has no busy neighbours.
  * Why smooth: a rare cell's raw counts are noisy, so it borrows from similar hands (nearby estimates, similar claims),

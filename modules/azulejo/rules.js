@@ -1,12 +1,12 @@
-// The pure rules of Azulejo: colours, the wall, pattern lines, the floor and scoring. No rooms and no sockets, so the
+// The pure rules of Azulejo: colours, the wall, pattern lines, the floor, and scoring.  No rooms and no sockets, so the
 // server, the computer players, the tests and the client (for highlighting and previews) can all share it.
 //
 // Tiles are the colour numbers 0..4. A floor line is an array of slots: a colour number, or MARKER (-1) for the
-// first-player marker. A wall is 5 rows of 5 cells, each a colour number or null. Pattern line i (0..4) holds i + 1 tiles
+// first-player marker.  A wall is 5 rows of 5 cells, each a colour number or null.  Pattern line i (0..4) holds i + 1 tiles
 // and is { colour: number | null, count: number }.
 
-// Depends on shared/messages.js only (the words for a colour, a source and a refusal are messages the client translates):
-// this file is the base the game, the AIs, the tests and the client all build on.
+// Depends on shared/messages.js only (the words for a colour, a source, and a refusal are messages the client translates):
+// this file is the base the game, the AIs, the tests, and the client all build on.
 import { msg } from '../../shared/messages.js';
 
 // The five colours (as numbers: 0 Cobalt, 1 Saffron, 2 Terracotta, 3 Verdigris, 4 Plum; their names are the game's
@@ -22,7 +22,7 @@ export const MAX_PLAYERS = 5;
 // The first-player marker sits in a floor line as this value, so it can never be mistaken for a colour.
 export const MARKER = -1;
 // The points lost for each floor slot, in order (tiles past the seventh cost nothing: they go to the lid).
-// Then the end-of-game bonuses: per complete row, per complete column and per complete colour set.
+// Then the end-of-game bonuses: per complete row, per complete column, and per complete colour set.
 export const FLOOR_PENALTIES = [1, 1, 2, 2, 2, 3, 3];
 export const FLOOR_SLOTS = FLOOR_PENALTIES.length;
 export const ROW_BONUS = 2;
@@ -98,7 +98,7 @@ export const lineCapacity = (line) => line + 1;
  */
 export const rowHas = (wall, row, colour) => wall[row].includes(colour);
 /**
- * Does a wall column already hold a tile of this colour? (Only a free wall has to check this.)
+ * Does a wall column already hold a tile of this colour?  (Only a free wall has to check this.)
  *
  * @param {(number | null)[][]} wall  the wall
  * @param {number} col  the wall column
@@ -110,7 +110,7 @@ export const rowHas = (wall, row, colour) => wall[row].includes(colour);
 export const colHas = (wall, col, colour) => wall.some((r) => r[col] === colour);
 
 /**
- * The columns of a wall row where a tile of this colour could go now. On the fixed wall there is at most one;
+ * The columns of a wall row where a tile of this colour could go now.  On the fixed wall there is at most one;
  * on a free wall it is any empty place whose column does not already hold the colour.
  *
  * @param {(number | null)[][]} wall  the wall (not changed)
@@ -163,7 +163,7 @@ export const tilesMsg = (count, colour) => msg('tiles', { count, colour: colourM
 
 /**
  * Why a colour cannot go on a pattern line (a message under the game's `errors.` keys, which the server turns into a
- * refusal and the client into words), or null when it can. A line that is already full is not available.
+ * refusal and the client into words), or null when it can.  A line that is already full is not available.
  *
  * @param {{ colour: number | null, count: number }[]} lines  the player's pattern lines
  * @param {(number | null)[][]} wall  the player's wall
@@ -185,7 +185,7 @@ export function lineProblem(lines, wall, line, colour, free = false) {
 }
 
 /**
- * The penalty for a floor line. Pure: reads only `floor.length`, so a `{ length }` stand-in works too.
+ * The penalty for a floor line.  Pure: reads only `floor.length`, so a `{ length }` stand-in works too.
  *
  * @param {{ length: number }} floor  the floor slots (slots beyond the seventh cost nothing)
  * @returns {number} the points lost, never negative
@@ -196,7 +196,7 @@ export const floorPenalty = (floor) => FLOOR_PENALTIES.slice(0, floor.length).re
 
 /**
  * The whole floor penalty once the overflow of a previewed take has landed on a floor that already holds
- * `floorLength` slots. The slot count is capped at FLOOR_SLOTS (tiles past the seventh go to the lid, not the floor).
+ * `floorLength` slots.  The slot count is capped at FLOOR_SLOTS (tiles past the seventh go to the lid, not the floor).
  * Used by the computer players and by the client's hint text so both price the floor the same way.
  *
  * @param {number} floorLength  how many slots of the floor are filled before the take
@@ -220,7 +220,7 @@ export const floorPenaltyAfter = (floorLength, preview) =>
 export const countOf = (tiles, colour) => tiles.reduce((n, c) => n + (c === colour ? 1 : 0), 0);
 
 /**
- * The tiles in a source on the table: the centre, or one factory display. Works on a room or on an AI's snapshot (both
+ * The tiles in a source on the table: the centre, or one factory display.  Works on a room or on an AI's snapshot (both
  * have `centre` and `factories`).
  *
  * @param {{ centre: number[], factories: number[][] }} table
@@ -245,7 +245,7 @@ export const takesMarker = (table, source) => source === 'centre' && table.marke
 /**
  * What happens when `count` tiles of one colour are taken: how many fit on `line` (or 'floor' for none), how many go
  * to the floor, how many of those floor tiles are past the seventh slot (to the lid), and the extra penalty the floor
- * line now shows. The marker, if it comes, takes a floor slot before any tiles do.
+ * line now shows.  The marker, if it comes, takes a floor slot before any tiles do.
  *
  * @param {{ lines: object[], floor: number[] }} board  the taker's pattern lines and floor (not changed)
  * @param {{ count: number, line: number | 'floor', marker?: boolean }} take  the take to preview; `marker` is true when the first-player marker comes with it
@@ -267,7 +267,7 @@ export function previewTake({ lines, floor }, { count, line, marker = false }) {
 
 /**
  * The score for a tile just placed at (row, col): 1 for a lone tile, otherwise the length of its horizontal run (if
- * longer than 1) plus the length of its vertical run (if longer than 1). The tile is counted in both runs.
+ * longer than 1) plus the length of its vertical run (if longer than 1).  The tile is counted in both runs.
  *
  * @param {(number | null)[][]} wall  the wall with the tile already placed
  * @param {number} row  the tile's row
@@ -308,7 +308,7 @@ export const rowComplete = (wall, row) => wall[row].every((c) => c !== null);
  */
 export const columnComplete = (wall, col) => wall.every((r) => r[col] !== null);
 /**
- * How many rows of a wall are full. (COLOURS is only used here as the list 0..4 of row numbers.)
+ * How many rows of a wall are full.  (COLOURS is only used here as the list 0..4 of row numbers.)
  *
  * @param {(number | null)[][]} wall  the wall
  * @returns {number} the full rows
@@ -317,7 +317,7 @@ export const columnComplete = (wall, col) => wall.every((r) => r[col] !== null);
  */
 export const completeRows = (wall) => COLOURS.filter((r) => rowComplete(wall, r)).length;
 /**
- * How many columns of a wall are full. (COLOURS is only used here as the list 0..4 of column numbers.)
+ * How many columns of a wall are full.  (COLOURS is only used here as the list 0..4 of column numbers.)
  *
  * @param {(number | null)[][]} wall  the wall
  * @returns {number} the full columns
@@ -336,7 +336,7 @@ export const completeColumns = (wall) => COLOURS.filter((c) => columnComplete(wa
 export const completeSets = (wall) => COLOURS.filter((colour) => wall.flat().filter((c) => c === colour).length === SIZE).length;
 
 /**
- * End-of-game bonuses for one wall: ROW_BONUS per full row, COLUMN_BONUS per full column and SET_BONUS per full colour set.
+ * End-of-game bonuses for one wall: ROW_BONUS per full row, COLUMN_BONUS per full column, and SET_BONUS per full colour set.
  *
  * @param {(number | null)[][]} wall  the wall
  * @returns {{ rows: number, columns: number, sets: number, points: number }} how many of each, and the points they are worth
@@ -352,7 +352,7 @@ export function bonuses(wall) {
 
 /**
  * Is this a position in a free wall where nothing can ever be placed: the cell is empty and every colour is blocked there
- * (by its row or by its column)? Such a cell can never be filled, so it caps the rows, columns and sets through it.
+ * (by its row or by its column)?  Such a cell can never be filled, so it caps the rows, columns, and sets through it.
  *
  * @param {(number | null)[][]} wall  the wall
  * @param {number} row  the cell row

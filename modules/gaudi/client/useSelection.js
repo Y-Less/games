@@ -1,5 +1,5 @@
 // The player's half-made choices on the table: the pool die selected for placing, the tool being used and the message
-// shown in Status. They are cleared whenever the turn moves on, and a chosen die is dropped when it leaves the pool.
+// shown in Status.  They are cleared whenever the turn moves on, and a chosen die is dropped when it leaves the pool.
 import { ref, watch } from 'vue';
 
 /**
@@ -26,7 +26,7 @@ export function useSelection(s, poolDie) {
     mode.value = null;
   };
 
-  // The key names the turn. Swift Hand starts an extra turn for the same player without changing turnIndex, so whether the
+  // The key names the turn.  Swift Hand starts an extra turn for the same player without changing turnIndex, so whether the
   // turn is the extra one is part of the key too (otherwise a die or tool chosen in the first turn would still be selected).
   watch(
     () => `${s.value.round}:${s.value.turnIndex}:${s.value.phase}:${s.value.turn?.extra ? 'extra' : 'normal'}`,

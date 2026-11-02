@@ -2,7 +2,7 @@
 // The score bar at the top of the table, with the scoreboard pop-up it opens (showing the turn's summary).
 // Props: state (the server view), view (the reactive game view, for the ready marks and names).
 // Slots: none.
-// Emits: ready (the scores were closed after a reveal). Other attributes (the player pop-up's props and events) fall
+// Emits: ready (the scores were closed after a reveal).  Other attributes (the player pop-up's props and events) fall
 //   through to the scoreboard.
 // Side effects: none beyond the emit.
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';

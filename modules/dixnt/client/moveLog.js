@@ -1,5 +1,5 @@
 // The "Recent moves" of a game, worked out on the client from the state it already receives: each new state is compared
-// with the one before, and what changed becomes a line. Nothing here needs the server to keep a log.
+// with the one before, and what changed becomes a line.  Nothing here needs the server to keep a log.
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by
 // the component that draws the list, so Recent moves reads in the player's language whenever they switch.
 // Used by store.js, which appends the lines to the Recent moves list.
@@ -7,7 +7,7 @@ import { msg } from '../../../shared/messages.js';
 
 /**
  * Gives the round number as the scoreboard labels it (skipped rounds do not count).
- * @param {object} state  The game state: completedRounds, totalRounds and phase.
+ * @param {object} state  The game state: completedRounds, totalRounds, and phase.
  * @returns {number} The current round (the one just finished while showing results), never above totalRounds.
  * Side effects: none.
  */

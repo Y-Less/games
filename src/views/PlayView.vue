@@ -1,8 +1,8 @@
 <script setup>
-// Hosts one game module inside the site's play field. The module's client half (modules/<id>/client/index.js) is a
+// Hosts one game module inside the site's play field.  The module's client half (modules/<id>/client/index.js) is a
 // Vue component; the shell gives it a connected socket for its own namespace and the signed-in user.
-// Props: game (string, required): the module id from the route. Emits: none. Slots: none.
-// Depends on: session.js, playBar.js, useFrameFit.js, useGameRules.js, useModuleSocket.js, HelpDialog.vue and the modules'
+// Props: game (string, required): the module id from the route.  Emits: none.  Slots: none.
+// Depends on: session.js, playBar.js, useFrameFit.js, useGameRules.js, useModuleSocket.js, HelpDialog.vue, and the modules'
 // client entry points (found with import.meta.glob).
 // Side effects: opens the module's socket; publishes the game's title and Help button to playBar (cleared on unmount);
 // provides the module id (GAME_ID) to everything drawn inside.
@@ -71,7 +71,7 @@ const search = window.location.search; // the address's query string when the pa
 </template>
 
 <style scoped>
-/* The game is played directly on the user's chosen background: no panel, scrim or frame behind it. */
+/* The game is played directly on the user's chosen background: no panel, scrim, or frame behind it. */
 .field-frame {
   min-height: 0;
 }

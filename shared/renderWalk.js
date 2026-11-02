@@ -1,7 +1,7 @@
 // A test helper for the client tests (vitest + jsdom): mounts a game module's root component on a stand-in socket and
 // feeds it every view a whole seeded game produced (see each module's views.js), collecting anything that goes wrong on
 // the way: an error thrown while rendering, a Vue warning (a property read on something that is not there, a bad prop)
-// or a console error. A table that cannot draw some state of a real game is a crash waiting for a player, and this
+// or a console error.  A table that cannot draw some state of a real game is a crash waiting for a player, and this
 // finds it without a browser.
 // Depends on: @vue/test-utils (test-only) and nothing else; the modules' root components take the props PlayView gives them.
 import { flushPromises, mount } from '@vue/test-utils';

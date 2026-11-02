@@ -1,5 +1,5 @@
-// Helpers for the AI tests: play a whole game of computer players, and run a seeded tournament. Not used by the game.
-// Depends on: ./game.js and ./bot.js (to play), shared/arena.js (the round-robin) and shared/testkit.js (seeded rng).
+// Helpers for the AI tests: play a whole game of computer players, and run a seeded tournament.  Not used by the game.
+// Depends on: ./game.js and ./bot.js (to play), shared/arena.js (the round-robin), and shared/testkit.js (seeded rng).
 import * as game from './game.js';
 import * as bot from './bot.js';
 import { roundRobin } from '../../shared/arena.js';

@@ -1,4 +1,4 @@
-// The words of the Splendour table: the Status box's headline and its lines. Nothing here is English: each line is a
+// The words of the Splendour table: the Status box's headline and its lines.  Nothing here is English: each line is a
 // message (`{ key, params }`, see shared/messages.js) that Table.vue puts into the player's language with `text()`.
 import { computed } from 'vue';
 import { msg } from '../../../shared/messages.js';
@@ -21,8 +21,8 @@ export function payParts(pay) {
  * The banner and the Status box lines.
  *
  * @param {object} ctx  reactive parts of the table: view (useTableView), ending (useEnding), shared (choiceState), take
- *   (useGemTake) and card (useCardChoice)
- * @returns {object} banner, lastRound (messages, or null) and statusLines (a list of { text, tone } whose `text` is a message)
+ *   (useGemTake), and card (useCardChoice)
+ * @returns {object} banner, lastRound (messages, or null), and statusLines (a list of { text, tone } whose `text` is a message)
  *
  * Side effects: none (creates computed values only).
  */

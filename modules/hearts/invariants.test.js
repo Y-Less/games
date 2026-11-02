@@ -24,7 +24,7 @@ function newRoom(rng, humans, seats = 3 + Math.floor(rng() * 5)) {
 const cardsInPlay = (room) => [...room.hands.flat(), ...room.taken.flat(), ...room.trick.map((p) => p.card)];
 
 function checkRoom(room, label) {
-  // Cards are conserved: 52 distinct cards in hands, taken piles and the current trick, from the deal to the last trick.
+  // Cards are conserved: 52 distinct cards in hands, taken piles, and the current trick, from the deal to the last trick.
   if (['passing', 'playing', 'handEnd', 'finished'].includes(room.phase)) {
     if (room.phase === 'handEnd' || room.phase === 'finished') {
       assert.deepEqual([...room.taken.flat()].sort(), deckOf(room), `${label}: all cards were taken at the end of the hand`);
@@ -186,7 +186,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
   return room;
 }
 
-/** The first-trick, hearts-broken and follow-suit rules, worked out afresh from the table rather than from game.js. */
+/** The first-trick, hearts-broken, and follow-suit rules, worked out afresh from the table rather than from game.js. */
 function checkPlayRules(room, seat, card, label) {
   const hand = room.hands[seat];
   if (room.trick.length === 0) {

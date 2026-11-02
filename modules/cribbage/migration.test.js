@@ -14,7 +14,7 @@ process.env.CRIBBAGE_BOT_DELAY = '0-2';
 
 /**
  * Turns a current room into the shape the old server saved: packed seats with userId / bot / botId / left, plus
- * seatCount and botsMade. (A JSON round trip, like a real rooms.json.)
+ * seatCount and botsMade.  (A JSON round trip, like a real rooms.json.)
  *
  * @param {object} room  a room in the current shape
  * @returns {object} the same room as the old code would have saved it

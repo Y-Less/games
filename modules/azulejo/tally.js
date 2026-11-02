@@ -1,10 +1,10 @@
-// What Azulejo counts about each player for the statistics and achievements (see module.json "stats"). The game calls
+// What Azulejo counts about each player for the statistics and achievements (see module.json "stats").  The game calls
 // tallyTake after each take of tiles; nothing here changes the game.
 // Depends on: shared/tally.js (the counters) and ./rules.js (FLOOR_SLOTS).
 import { bump, freshTally } from '../../shared/tally.js';
 import { FLOOR_SLOTS } from './rules.js';
 
-// Every counter a player's tally has. Some are counted during the game (tallyTake); the rest are filled in by
+// Every counter a player's tally has.  Some are counted during the game (tallyTake); the rest are filled in by
 // game.statsPlayers from the finished wall.
 export const STAT_KEYS = ['rowsCompleted', 'columnsCompleted', 'colourSetsCompleted', 'floorPenalties', 'roundsPlayed', 'bottomRows', 'tilesTaken', 'tilesDropped', 'floorsFilled', 'gridsFilled', 'wallTiles'];
 /**

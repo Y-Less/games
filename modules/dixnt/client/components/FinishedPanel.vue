@@ -1,8 +1,8 @@
 <script setup>
-// The end of the game, in the place of the table: who won and the final standings. (The way back to the lobby is in
+// The end of the game, in the place of the table: who won and the final standings.  (The way back to the lobby is in
 // the controls zone under it.)
 //
-// Props: none. Emits: none. Slots: none.
+// Props: none.  Emits: none.  Slots: none.
 // Side effects: none (pure rendering from the store).
 import { computed } from 'vue';
 import { placements } from '../../../../shared/scores.js';

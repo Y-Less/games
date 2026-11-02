@@ -1,13 +1,13 @@
-// The rules of Tints and Hints, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Tints and Hints, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error }.
 //
 // A turn: the hinter sees a secret square (the tint) on a colour grid and gives a hint; everyone else guesses the square
-// (round one). The hinter may then give a second hint and everyone guesses again (round two), after which the tint is
+// (round one).  The hinter may then give a second hint and everyone guesses again (round two), after which the tint is
 // revealed and scored: exact and close (neighbouring) squares score, more in round one, and the hinter scores for each
 // guesser who found the exact square.
 //
-// Depends on: ./grid.js (the grid and its geometry), ./tally.js (statistics counters), ./ai (computer players) and shared/
-// (scores, tally, ai, markerColours, seats, roster) for the rules common to all games. Sockets, timers and saving are not
+// Depends on: ./grid.js (the grid and its geometry), ./tally.js (statistics counters), ./ai (computer players), and shared/
+// (scores, tally, ai, markerColours, seats, roster) for the rules common to all games.  Sockets, timers, and saving are not
 // here: server.js drives these rules through shared/roomServer.js.
 import { textFrom } from '../../shared/input.js';
 import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell } from './grid.js';
@@ -31,8 +31,8 @@ export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 export const HINT_LENGTH = 80;
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 /**
- * The scoring table. Guessers: the exact square or a close one (touching it, diagonals included), with more for guessing
- * earlier (round one, before the second hint). The hinter earns hinterPerGuesser for each guesser who found the exact square,
+ * The scoring table.  Guessers: the exact square or a close one (touching it, diagonals included), with more for guessing
+ * earlier (round one, before the second hint).  The hinter earns hinterPerGuesser for each guesser who found the exact square,
  * which rewards hints that are clear without giving the square away.
  */
 export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClose: 1, hinterPerGuesser: 3 };
@@ -97,7 +97,7 @@ const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.fl
 
 /**
  * Gives a bare player ({ kind, id, name }) the fields Tints and Hints keeps for everybody: the score, the statistics counters
- * and a marker colour. A computer player gets the first colour nobody has; a person gets the colour they prefer (`extras.colour`,
+ *, and a marker colour.  A computer player gets the first colour nobody has; a person gets the colour they prefer (`extras.colour`,
  * already checked to be one they may use) if it is free, otherwise the first free one.
  *
  * @param {object} room     the room the player is about to join (read for the colours already taken; not changed)
@@ -150,7 +150,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     nextIdx: 0,
     grid: GRID_VERSION, // 5 = the 52 x 24 grid (4 was 48 x 24, 2 and 3 were 48 x 20); rooms without it were saved with the old 24 x 10 grid (see migrate)
     ready: [], // at the reveal: the people who have closed the scores pop-up
-    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name and (once started) an ai id
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
     hinter: null,
     tint: null,
     hints: { first: '', second: '' },
@@ -169,7 +169,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 }
 
 /**
- * The lobby, joining, leaving and computer-player rules, from shared/roster.js. Somebody who leaves mid-game is replaced by
+ * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.  Somebody who leaves mid-game is replaced by
  * a computer player in their place, so no turn is lost (see takeOver).
  */
 const roster = createRosterRules({
@@ -184,7 +184,7 @@ const roster = createRosterRules({
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
 /**
- * The host changes the settings. Only the settings that are given are changed.
+ * The host changes the settings.  Only the settings that are given are changed.
  *
  * @param {object} room
  * @param {number} id        who is asking (must be the host)
@@ -199,7 +199,7 @@ export function setSettings(room, id, settings = {}) {
 }
 
 /**
- * Tints and Hints has no "play again": a new game is made from the menu. (The shared room server offers the event to every game.)
+ * Tints and Hints has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
  *
  * @returns {{ ok: false, error: string }} always a refusal
  *
@@ -257,7 +257,7 @@ export function setTurnsEach(room, id, turnsEach) {
  * @param {() => number} rng  random source for the tint
  * @returns {void}
  *
- * Side effects: changes the hinter, nextIdx, tint and phase ('guessing1'), and clears the hints, guesses, result and ready list.
+ * Side effects: changes the hinter, nextIdx, tint, and phase ('guessing1'), and clears the hints, guesses, result, and ready list.
  */
 function startTurn(room, rng) {
   room.hinter = room.players[room.nextIdx].id;
@@ -275,11 +275,11 @@ function startTurn(room, rng) {
  * The host starts the game: works out how many turns there will be, picks the first hinter and the first tint, and gives
  * every computer player an AI for the whole game.
  *
- * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the tint and the AIs.
+ * Side effects: changes the phase and everything a turn sets up (see startTurn); uses `rng` for the order, the tint, and the AIs.
  *
  * @param {object} room  the room (must be in the lobby)
  * @param {number} id            who is asking (must be the host)
- * @param {() => number} rng  random source for the order, the tint and the AIs
+ * @param {() => number} rng  random source for the order, the tint, and the AIs
  * @returns {{ ok: boolean, error?: string }} ok, or why not
  */
 export function start(room, id, rng) {
@@ -301,10 +301,10 @@ export function start(room, id, rng) {
 /**
  * The hinter writes a hint for the round that is being played (the first hint in round one, the second in round two).
  *
- * The first hint is required (nobody can guess before it is in), but a second hint is optional. Writing the second hint is
+ * The first hint is required (nobody can guess before it is in), but a second hint is optional.  Writing the second hint is
  * allowed as soon as round two has begun, which is to say after every first guess is in and the hinter has pressed
- * "continue". That is INTENTIONAL, not a loophole: the second hint exists precisely so that the hinter can steer people
- * after seeing where the first round's guesses fell. (The hint of the round being played can also be rewritten until the
+ * "continue".  That is INTENTIONAL, not a loophole: the second hint exists precisely so that the hinter can steer people
+ * after seeing where the first round's guesses fell.  (The hint of the round being played can also be rewritten until the
  * round is closed.) Do not "fix" this by locking the second hint away.
  *
  * Side effect: replaces room.hints.first or room.hints.second.
@@ -323,7 +323,7 @@ export function setHint(room, id, text) {
 }
 
 /**
- * A guesser picks a square for the round being played. Each person guesses once per round and the guess stays hidden from
+ * A guesser picks a square for the round being played.  Each person guesses once per round and the guess stays hidden from
  * the other guessers until the round is closed (see guessesView).
  *
  * @param {object} room  the room (must be in a guessing phase, with the first hint in)
@@ -360,14 +360,14 @@ const allGuessed = (room) => {
 
 /**
  * Scores the turn exactly as the original game did (see README.md for its quirks): each guess scores by whether it is the
- * tint (exact), touches it (close) or neither, with round one worth more; the hinter scores per guesser who found it.
+ * tint (exact), touches it (close), or neither, with round one worth more; the hinter scores per guesser who found it.
  *
  * @param {object} room  the room, with both rounds' guesses in
  * @param {(id: number|string) => string} [nameOf]  names for the history label
  * @returns {void}
  *
  * Side effects: adds points to the players, updates the statistics counters (tallyTurn), sets room.result and appends to
- * room.history. The caller (advance) moves the phase on to the reveal.
+ * room.history.  The caller (advance) moves the phase on to the reveal.
  */
 function scoreTurn(room, nameOf = String) {
   const entries = [];
@@ -401,7 +401,7 @@ function scoreTurn(room, nameOf = String) {
 }
 
 /**
- * Appends the finished turn to room.history (the standard round shape of shared/scores.js). This only happens when
+ * Appends the finished turn to room.history (the standard round shape of shared/scores.js).  This only happens when
  * the turn is scored, i.e. at the reveal, so the history never shows anything the players have yet to see.
  * A turn that is skipped because its hinter left is never scored and so appends nothing (the next entry's number
  * simply jumps ahead, which is honest about the skipped turn).
@@ -438,7 +438,7 @@ function recordHistory(room, nameOf, found) {
  * history, and if the scores are more than the history adds up to (turns scored before the history was kept) the difference
  * becomes one "Earlier turns" entry, so the totals always equal the scores.
  *
- * Side effects: mutates the room (players, squares, grid version, history). Running it twice changes nothing more.
+ * Side effects: mutates the room (players, squares, grid version, history).  Running it twice changes nothing more.
  *
  * @param {object} room  the saved room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
@@ -488,7 +488,7 @@ function finishTurn(room, rng) {
 }
 
 /**
- * Moves on: the hinter closes each round of guessing. (The reveal is closed by everyone, see `ready`.) Closing round one opens
+ * Moves on: the hinter closes each round of guessing.  (The reveal is closed by everyone, see `ready`.) Closing round one opens
  * round two; closing round two scores the turn and opens the reveal.
  *
  * @param {object} room  the room (must be in a guessing phase, with everyone having guessed)
@@ -525,7 +525,7 @@ export function advance(room, id, rng, nameOf = String) {
 const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
 
 /**
- * At the reveal, a person has closed the scores pop-up and is ready for the next turn. Once every person is ready
+ * At the reveal, a person has closed the scores pop-up and is ready for the next turn.  Once every person is ready
  * (computer players always are) the next turn starts, or the game finishes after the last one.
  *
  * @param {object} room  the room (must be at the reveal)
@@ -568,9 +568,9 @@ export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
  * Tints and Hints' part of a computer player taking the place of a person who left a game under way (the roster has
- * already put it in the list, with the person's score, counters and colour): it gets an AI, everything that named the
+ * already put it in the list, with the person's score, counters, and colour): it gets an AI, everything that named the
  * person now names it (their turn as hinter, their guesses, the ready list, the history), and if the reveal was only
- * waiting for that person the next turn starts. Anything it now has to do (a hint, a guess, continuing) is picked up by
+ * waiting for that person the next turn starts.  Anything it now has to do (a hint, a guess, continuing) is picked up by
  * pendingBotAction.
  *
  * Side effects: mutates the room (the bot, hinter, first, second, ready, result, history) and may start the next turn.
@@ -608,7 +608,7 @@ export function standings(room) {
 }
 
 /**
- * The statistics for a finished game, in the shape of ctx.stats.record. Computer players are not accounts: people only.
+ * The statistics for a finished game, in the shape of ctx.stats.record.  Computer players are not accounts: people only.
  *
  * @param {object} room  a finished room (not changed)
  * @returns {{ userId: number, outcome: string, placement: number, score: number, extras: object }[]}  one row per person
@@ -717,7 +717,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
 }
 
 /**
- * What one person may see. Only the hinter knows the target until the reveal, and guesses made in the current round
+ * What one person may see.  Only the hinter knows the target until the reveal, and guesses made in the current round
  * stay hidden from the other guessers until the round is closed.
  *
  * @param {object} room  not changed
@@ -759,7 +759,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
 // ---------- computer players ----------
 
 /**
- * The next thing a computer player has to do, or null: { type: 'hint' | 'guess' | 'advance', id }. Computer players
+ * The next thing a computer player has to do, or null: { type: 'hint' | 'guess' | 'advance', id }.  Computer players
  * never move on from the reveal: that is the hinter's or the host's job, and the host is always a person, so a
  * computer player cannot hold the game up or rush people past their results.
  *
@@ -784,8 +784,8 @@ export function pendingBotAction(room) {
 const ALL_CELLS = COLS.flatMap((c) => ROWS.map((r) => c + r));
 
 /**
- * Plays one pending computer move. The decision is made from that seat's own view (viewFor), so a computer guesser
- * never sees the secret tint. An AI that throws or answers with something illegal is replaced by a random legal choice.
+ * Plays one pending computer move.  The decision is made from that seat's own view (viewFor), so a computer guesser
+ * never sees the secret tint.  An AI that throws or answers with something illegal is replaced by a random legal choice.
  *
  * @param {object} room  the room
  * @param {() => number} rng  random source handed to the AI (and used for the fallback guess)

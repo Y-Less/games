@@ -1,7 +1,7 @@
 // The spectra of Wavelength: two opposites, and a few example clues with the place on the dial each one points to
-// (0 is the left end, 100 the right end). The anchors are only used by the computer players, who cannot read a clue
+// (0 is the left end, 100 the right end).  The anchors are only used by the computer players, who cannot read a clue
 // the way a person does: as the psychic one says the example nearest its target, and as a guesser one turns the dial
-// to the place of the example it recognises. A person may write anything.
+// to the place of the example it recognises.  A person may write anything.
 
 /**
  * Builds one spectrum record from compact [position, text] pairs (keeps the table below to one line per spectrum).

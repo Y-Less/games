@@ -1,13 +1,13 @@
 <script setup>
-// Azulejo: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
+// Azulejo: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 //
 // Props:
-//   socket     {Object}    required. The platform's socket connection for this game.
+//   socket     {Object}    required.  The platform's socket connection for this game.
 //   user       {Object}    the signed-in user, or null (unused here; part of the module contract).
 //   search     {string}    the page's current query string, used to pick up an invite code.
 //   setSearch  {Function}  updates the page's query string (used to put the room code in the address bar).
-// Emits: none. Slots: none.
+// Emits: none.  Slots: none.
 // Side effects: useGameSocket subscribes to the socket, and sends create/join requests when the player chooses to;
 // it also installs a leave confirmation while a game is in progress.
 import ErrorToast from '../../../src/components/ErrorToast.vue';

@@ -1,5 +1,5 @@
 <script setup>
-// File: the animated site-background effects (CSS only). Depends on: Vue only; effect names come from shared/animations.js.
+// File: the animated site-background effects (CSS only).  Depends on: Vue only; effect names come from shared/animations.js.
 // Props: effect (String, which effect or 'none'), fixed (Boolean, cover the whole site), background (Object|null, the player's
 //   background setting, used by the gradient fade), demo (Boolean, shop preview), intensity and speed (Number, percent).
 // Emits: none.  Slots: none.
@@ -20,10 +20,10 @@ const startsAtTop = (next) => next() < 0.5;
 // Returns the fraction (0.15 to 1) of the way from its start to the bottom that a column covers, drawing from `next`.
 const reach = (next) => (next() < 0.5 ? 1 : 0.15 + 0.75 * next());
 
-// The Matrix rain, as in the film: the letters never move. A bright head steps down each column, one row at a time, and the
-// letters it has passed fade away where they stand. A column is one block of text; a mask slides down it in steps to show the
+// The Matrix rain, as in the film: the letters never move.  A bright head steps down each column, one row at a time, and the
+// letters it has passed fade away where they stand.  A column is one block of text; a mask slides down it in steps to show the
 // part the head has just passed (and a second mask shows the head's own, random, glyph), so there is one animation per column
-// and none per letter. The columns are laid out from a fixed seed, so the rain looks the same every time (and in tests).
+// and none per letter.  The columns are laid out from a fixed seed, so the rain looks the same every time (and in tests).
 const GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
 /**
  * Lays out the columns of the main Matrix rain from a fixed seed.
@@ -61,12 +61,12 @@ function rain(count, demo) {
   });
 }
 
-// Matrix A: the first Matrix rain, in which each column of letters slides down the screen (and is rubbed out part-way). The
+// Matrix A: the first Matrix rain, in which each column of letters slides down the screen (and is rubbed out part-way).  The
 // columns are laid out from a fixed seed, like the other Matrix's.
 /**
  * Lays out the columns of Matrix A (sliding, part-erased columns) from a fixed seed.
  * @param {number} count  how many columns
- * @returns {Array<{letters: Array, fade: string, wrap: Object, style: Object}>}  per column: lettered cells, erase animation name, position and CSS variables
+ * @returns {Array<{letters: Array, fade: string, wrap: Object, style: Object}>}  per column: lettered cells, erase animation name, position, and CSS variables
  * Side effects: none.
  */
 function rainSliding(count) {
@@ -79,7 +79,7 @@ function rainSliding(count) {
   return Array.from({ length: count }, (_, i) => {
     const duration = 6 + next() * 8;
     const length = 3 + Math.floor(37 * next() ** 1.5); // from a few letters to a long trail, with more short ones than long
-    // Every letter keeps its own brightness, dim at the back of the column and full at the head. The column is rubbed out
+    // Every letter keeps its own brightness, dim at the back of the column and full at the head.  The column is rubbed out
     // from its bottom upwards (see the erase animations below), and where in its fall that happens is its own.
     const letters = Array.from({ length }, (_, k) => ({
       ch: GLYPHS[Math.floor(next() * GLYPHS.length)],
@@ -121,7 +121,7 @@ const shown = computed(() => props.effect && props.effect !== 'none' && (props.e
 const slidingColumns = computed(() => (props.effect === 'matrix-a' ? rainSliding(props.demo ? 9 : Math.max(12, Math.round((180 * Math.min(100, props.intensity)) / 100))) : []));
 // Columns for the main Matrix (empty for other effects); the count scales with intensity up to 100%.
 const columns = computed(() => (props.effect === 'matrix' ? rain(props.demo ? 9 : Math.max(12, Math.round((90 * Math.min(100, props.intensity)) / 100)), props.demo) : []));
-// Inline style of the effect's root: gradient colours, speed multiplier and intensity (opacity, or the gain filter above 100%).
+// Inline style of the effect's root: gradient colours, speed multiplier, and intensity (opacity, or the gain filter above 100%).
 const style = computed(() => {
   const out = {};
   if (props.effect === 'gradient' && fade.value) Object.assign(out, { '--fx-a': fade.value.from, '--fx-b': fade.value.to, '--fx-angle': `${fade.value.angle}deg` });
@@ -179,7 +179,7 @@ const style = computed(() => {
   --fx-period: 100px;
 }
 /* The layer is one period larger on every side and the stripes repeat every period, so sliding it by exactly one period along
-   the gradient's angle ends where it began. Only a transform moves, which every browser animates. */
+   the gradient's angle ends where it began.  Only a transform moves, which every browser animates. */
 [data-fx='gradient']::before {
   inset: calc(var(--fx-period) * -1);
   background: repeating-linear-gradient(var(--fx-angle), var(--fx-a) 0, var(--fx-b) calc(var(--fx-period) / 2), var(--fx-a) var(--fx-period));
@@ -307,7 +307,7 @@ const style = computed(() => {
   }
 }
 
-/* Fireflies: soft yellow-green lights that drift slowly across the screen and blink, two layers at different speeds. The dots
+/* Fireflies: soft yellow-green lights that drift slowly across the screen and blink, two layers at different speeds.  The dots
    sit in a tile that slides by exactly one tile, so the drift never jumps where it repeats. */
 [data-fx='fireflies']::before {
   --tile: 210px;
@@ -358,7 +358,7 @@ const style = computed(() => {
   }
 }
 
-/* Rain: thin slanted drops falling fast, two layers at different speeds. The layer is turned a little and made larger than the
+/* Rain: thin slanted drops falling fast, two layers at different speeds.  The layer is turned a little and made larger than the
    screen, so the drops lean and still reach every corner. */
 [data-fx='rain']::before,
 [data-fx='rain']::after {
@@ -396,7 +396,7 @@ const style = computed(() => {
   }
 }
 
-/* Slow ribbons of green, blue and pink light. */
+/* Slow ribbons of green, blue, and pink light. */
 [data-fx='aurora']::before {
   inset: -25%;
   background: radial-gradient(40% 28% at 30% 22%, rgb(80 255 170 / 0.3), transparent), radial-gradient(36% 30% at 72% 30%, rgb(120 130 255 / 0.28), transparent),
@@ -409,10 +409,10 @@ const style = computed(() => {
     radial-gradient(30% 34% at 50% 15%, rgb(255 120 200 / 0.45), transparent);
   filter: blur(6px);
 }
-/* Green letters that stay where they are. A column is a block of text (one letter per row). A mask slides down it, one row
+/* Green letters that stay where they are.  A column is a block of text (one letter per row).  A mask slides down it, one row
    every --step, and shows only the part the head has just passed: bright for most of the trail and fading out over the oldest
-   third of it (so the letters look as strong as the intensity slider's 300%). The head's own glyph is a second copy of the
-   column, in white with a glow, masked to the single row the head is on. The column's head takes 70% of --c, then it rests. Nothing is drawn behind the letters, so the player's own background shows through. */
+   third of it (so the letters look as strong as the intensity slider's 300%).  The head's own glyph is a second copy of the
+   column, in white with a glow, masked to the single row the head is on.  The column's head takes 70% of --c, then it rests.  Nothing is drawn behind the letters, so the player's own background shows through. */
 .gain {
   position: absolute;
 }
@@ -483,9 +483,9 @@ const style = computed(() => {
   }
 }
 
-/* Green characters falling in columns. Each letter has its own fixed brightness (dim at the back of the column, bright at the
-   head). At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
-   pops out of existence. Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
+/* Green characters falling in columns.  Each letter has its own fixed brightness (dim at the back of the column, bright at the
+   head).  At its vanishing point a column is rubbed out smoothly from its bottom upwards by a moving mask edge, so it never
+   pops out of existence.  Where that happens differs from column to column (v1 almost at once ... v6 only at the bottom). */
 /* The band of screen a column runs in: it appears at the top of the band and slides out of the bottom, with soft edges. */
 .maw {
   position: absolute;
@@ -540,7 +540,7 @@ const style = computed(() => {
   inherits: false;
   initial-value: -40%;
 }
-/* --fx-cut is how much of the column is already gone, counting up from its bottom. Each set of keyframes holds it at -40%
+/* --fx-cut is how much of the column is already gone, counting up from its bottom.  Each set of keyframes holds it at -40%
    (nothing gone) until the column's vanishing point, then runs it to 100% (all gone) by the percentage given. */
 @keyframes fx-ma-erase-1 {
   0%,

@@ -1,6 +1,6 @@
 // The features of a card-play decision, boiled down to small whole numbers so that the learned play table can be a flat
-// array. Used both by the collector that learns the table (play-collect.js) and by the AI that reads it (ai/lut.js), so the
-// two can never disagree. Pure functions of the AI context (what the game tells every AI): nothing here sees other hands.
+// array.  Used both by the collector that learns the table (play-collect.js) and by the AI that reads it (ai/lut.js), so the
+// two can never disagree.  Pure functions of the AI context (what the game tells every AI): nothing here sees other hands.
 //
 // A decision is described by the situation and by one candidate card:
 //   situation  players, my need (tricks nominated minus won, below 0 = already missed), my slack (tricks I could still lose
@@ -20,7 +20,7 @@ const COARSE_SITUATION = [['players', 5], ['need', 5], ['slack', 4], ['after', 4
 const TABLE = [['winner', 4], ['wantAfter', 3], ['madeAfter', 3]];
 const CARD = [['role', 4], ['beats', 2], ['rank', 4], ['trumpCard', 2]];
 
-/** The number of distinct keys a spec describes: the product of its digit sizes. Pure. */
+/** The number of distinct keys a spec describes: the product of its digit sizes.  Pure. */
 const sizeOf = (spec) => spec.reduce((product, [, size]) => product * size, 1);
 export const SIZES = {
   coarseSituation: sizeOf(COARSE_SITUATION),
@@ -31,9 +31,9 @@ export const SIZES = {
 export const COARSE_CELLS = SIZES.coarseSituation * SIZES.card;
 export const FINE_CELLS = SIZES.coarseSituation * SIZES.table * SIZES.card;
 
-/** Clamps `n` into 0 to `max`. Pure. */
+/** Clamps `n` into 0 to `max`.  Pure. */
 const clip = (n, max) => Math.max(0, Math.min(max, n));
-/** Combines digits into one mixed-radix index (first digit slowest), using the sizes in `spec`. Pure. */
+/** Combines digits into one mixed-radix index (first digit slowest), using the sizes in `spec`.  Pure. */
 const compose = (digits, spec) => digits.reduce((index, digit, i) => index * spec[i][1] + digit, 0);
 
 /** What a player wants from the trick: 0 more tricks needed, 1 has made its number exactly, 2 has missed already. */

@@ -1,20 +1,20 @@
 <script setup>
-// File: the face-down opponent hands around a card table. Depends on: CardFan.vue, PlayingCard.vue, ../opponentLayouts.js.
+// File: the face-down opponent hands around a card table.  Depends on: CardFan.vue, PlayingCard.vue, ../opponentLayouts.js.
 // Props: opponents (Array of { key, name, cards, note?, away?, current? }), max (Number, largest hand size), base (Number, rem of
 //   table height per unit of scale).
 // Emits: none.  Slots: none.
 // Side effects: observes its own box with a ResizeObserver (disconnected on unmount) and reads the root font size.
-// The opponents' face-down hands, with their names, around the edges of a card table. Every card game shows these, laid
+// The opponents' face-down hands, with their names, around the edges of a card table.  Every card game shows these, laid
 // out by how many opponents there are (in clockwise order from you: the player after you first):
 //
 //   1: top centre            4: 2 left, 2 right
 //   2: left, right           5: 2 left, top centre, 2 right
 //   3: left, top, right      6: 2 left, 2 top, 2 right
 //
-// Put it inside the table's `position: relative` area; it fills that area and never takes clicks. Each opponent is
+// Put it inside the table's `position: relative` area; it fills that area and never takes clicks.  Each opponent is
 // { key, name, cards, note?, away?, current? } (`note` is a short line under the name, `current` marks whose turn it
 // is). `max` is the most cards a hand ever holds: the fan's box is that size, so nothing moves as cards are played.
-// The whole thing is scaled to the room, so the same layout fits any desktop window. Side hands are turned on their sides.
+// The whole thing is scaled to the room, so the same layout fits any desktop window.  Side hands are turned on their sides.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useGameText } from '../useGameText.js';
 import CardFan from './CardFan.vue';

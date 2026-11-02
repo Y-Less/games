@@ -1,6 +1,6 @@
-// Built-in computer players for Tints and Hints: seats in the room that the server plays for itself. They exist for
-// testing and have no logic (a random word as a hint, a random square as a guess). Rules first (no sockets), then
-// real sockets: a whole game of one person and computers, removal, people leaving and the statistics.
+// Built-in computer players for Tints and Hints: seats in the room that the server plays for itself.  They exist for
+// testing and have no logic (a random word as a hint, a random square as a guess).  Rules first (no sockets), then
+// real sockets: a whole game of one person and computers, removal, people leaving, and the statistics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';

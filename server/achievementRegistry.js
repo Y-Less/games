@@ -1,5 +1,5 @@
 // Which achievements exist and what to call them: the site's own (shared/achievements.js GLOBAL_ACHIEVEMENTS) and every
-// game's, as listed in its module.json. Knows nothing about players, saved progress or coins.
+// game's, as listed in its module.json.  Knows nothing about players, saved progress, or coins.
 // Depends on: ../shared/achievements.js (the global definitions).
 import { GLOBAL_ACHIEVEMENTS } from '../shared/achievements.js';
 

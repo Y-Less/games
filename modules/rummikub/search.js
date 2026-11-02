@@ -1,14 +1,14 @@
-// The search shared by every Rummikub AI (see ai/). Tiles with the same colour and number are interchangeable, so the
+// The search shared by every Rummikub AI (see ai/).  Tiles with the same colour and number are interchangeable, so the
 // search works on "kinds" (colour, number) with a count of how many copies are on the table (which must all stay on it)
-// and in the rack (which may be played). It builds the table set by set: always starting from the lowest kind that is
-// left, it tries every run and group that begins there (jokers filling gaps or ends), or leaves a rack tile out. The
+// and in the rack (which may be played).  It builds the table set by set: always starting from the lowest kind that is
+// left, it tries every run and group that begins there (jokers filling gaps or ends), or leaves a rack tile out.  The
 // value of a finished table is the points of rack tiles it uses (a joker is worth 30) unless the caller supplies its
 // own `weights`, with memoising of states already seen and a cap on the number of states (a deterministic node count,
 // never the clock), so a turn is always quick and always repeatable.
 //
-// Depends on ./rules.js only (set validation, joker rules and checkPlay). The AIs in ai/ choose how to call these
-// functions (which weights, which joker value, how many table tiles may move); nothing here touches the room. The `room`
-// these functions take is the seat's situation from bot.js (settings, table, melded and the seat's own rack): the same
+// Depends on ./rules.js only (set validation, joker rules, and checkPlay).  The AIs in ai/ choose how to call these
+// functions (which weights, which joker value, how many table tiles may move); nothing here touches the room.  The `room`
+// these functions take is the seat's situation from bot.js (settings, table, melded, and the seat's own rack): the same
 // field names as a room, with nothing of the other players' in it.
 import { JOKER_VALUE, checkPlay, fitsJoker, isJoker, jokerOptions, rackValue, resolveSet, tileOf } from './rules.js';
 
@@ -18,7 +18,7 @@ export const SEARCH_BUDGET = 6000;
 /**
  * Searches for the best table. `need` and `opt` are counts per kind (index colour * numbers + number - 1): copies that
  * must be used and copies that may be. `jn` / `jo` the same for jokers. mode 'rack' values the rack tiles used (jokers 30),
- * mode 'rep' values the numbers the tiles stand for (the first-meld rule). Returns { value, sets } where each set is a
+ * mode 'rep' values the numbers the tiles stand for (the first-meld rule).  Returns { value, sets } where each set is a
  * list of parts ({ k } a tile of that kind, { j } a joker standing for that number), or null when nothing fits.
  *
  * @param {object} s  the room's settings
@@ -48,7 +48,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
 
   /**
    * Uses up one copy of a kind for a set being built, preferring a copy that has to be used (a table tile) over one that
-   * may be (a rack tile). Side effect: lowers need[k] or opt[k]; undo it with give().
+   * may be (a rack tile).  Side effect: lowers need[k] or opt[k]; undo it with give().
    *
    * @param {number} k  the kind (colour * numbers + number - 1)
    * @returns {{ k: number, was: 'need' | 'opt', value: number }} what was taken, and what it adds to the table's value
@@ -63,7 +63,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     return { k, was: 'opt', value: weights ? weights[k] : (k % N) + 1 };
   }
   /**
-   * Uses up one joker, preferring one that has to be used (on the table) over one from the rack. Side effect: lowers jn or
+   * Uses up one joker, preferring one that has to be used (on the table) over one from the rack.  Side effect: lowers jn or
    * jo; undo it with give().
    *
    * @returns {{ k: -1, was: 'need' | 'opt', value: number }} what was taken (k is -1 for a joker) and its value
@@ -77,7 +77,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
     return { k: -1, was: 'opt', value: jokerWeight };
   }
   /**
-   * Puts back what takeKind and takeJoker took, so the search can try another choice. Side effect: raises the counts again.
+   * Puts back what takeKind and takeJoker took, so the search can try another choice.  Side effect: raises the counts again.
    *
    * @param {{ k: number, was: 'need' | 'opt' }[]} taken  the results of those calls
    */
@@ -91,7 +91,7 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
   /**
    * Every set that could start at kind p, being the lowest kind still unused: runs that begin at p (with up to two jokers in
    * front, and jokers filling gaps or extending the end) and groups of one number in different colours whose lowest colour
-   * is p's. Biggest sets first, and fewer jokers first among equals, so the best-looking choices are tried early.
+   * is p's.  Biggest sets first, and fewer jokers first among equals, so the best-looking choices are tried early.
    *
    * @param {number} p  the kind the next set must contain
    * @returns {{ parts: ({ k: number } | { j: number })[], rep: number }[]} each set as its parts (a tile of a kind, or a
@@ -138,9 +138,9 @@ export function solve(s, { need, opt, jn, jo, mode, budget = SEARCH_BUDGET, weig
   }
 
   /**
-   * The depth-first search itself: finds the best way to arrange everything that is left, from kind `start` upwards. Results
-   * are remembered (memo) by position and what remains. Stops, and marks the whole solve as aborted, when the node budget is
-   * spent. Side effects: borrows and returns tiles through takeKind/give; counts nodes.
+   * The depth-first search itself: finds the best way to arrange everything that is left, from kind `start` upwards.  Results
+   * are remembered (memo) by position and what remains.  Stops, and marks the whole solve as aborted, when the node budget is
+   * spent.  Side effects: borrows and returns tiles through takeKind/give; counts nodes.
    *
    * @param {number} start  the lowest kind that might still have copies left
    * @returns {{ value: number, chain: object | null } | null} the best value and the chain of sets giving it, or null when
@@ -218,7 +218,7 @@ export function inventory(s, tableIds, rackIds) {
 }
 
 /**
- * Turns the search's sets (kinds) back into sets of real tile ids. Does not change `inv`.
+ * Turns the search's sets (kinds) back into sets of real tile ids.  Does not change `inv`.
  *
  * @param {object} inv  what inventory() returned
  * @param {object[][]} sets  the sets solve() found
@@ -259,7 +259,7 @@ export function firstLegal(room, seat, attempts, limit = 6) {
  *
  * @param {object} room  not changed
  * @param {number} seat  whose rack to use
- * @param {object} [options]  budget, rackIds (default the whole rack), weights and jokerWeight for solve()
+ * @param {object} [options]  budget, rackIds (default the whole rack), weights, and jokerWeight for solve()
  * @returns {{ value: number, table: number[][] }[]} zero or one attempts (mode 'rep' counts the numbers the tiles stand for,
  *   because that is how the first-meld threshold is scored)
  * Side effects: none.
@@ -274,11 +274,11 @@ export function meldAttempts(room, seat, { budget = SEARCH_BUDGET, rackIds = roo
 
 /**
  * The search with no limit on how much of the table may be rearranged: either the whole table is taken apart and rebuilt, or
- * only new sets are made from the rack. This is what the 'standard' AI has always done.
+ * only new sets are made from the rack.  This is what the 'standard' AI has always done.
  *
  * @param {object} room  not changed
  * @param {number} seat  whose rack to use
- * @param {object} [options]  budget, weights and jokerWeight for solve()
+ * @param {object} [options]  budget, weights, and jokerWeight for solve()
  * @returns {{ value: number, table: number[][] }[]} candidate tables, in no particular order
  * Side effects: none.
  */
@@ -288,7 +288,7 @@ export function standardAttempts(room, seat, { budget = SEARCH_BUDGET, weights =
   const table = room.table;
   if (!room.melded[seat]) return meldAttempts(room, seat, { budget, weights, jokerWeight });
   const attempts = [];
-  // A joker on the table cannot just be moved: it stands for a tile until that tile is swapped in. So a set with a joker is only
+  // A joker on the table cannot just be moved: it stands for a tile until that tile is swapped in.  So a set with a joker is only
   // taken apart if the rack has a tile that fits (the server judges whether the swap was made); otherwise it stays as it is.
   /** Can a set with a joker be taken apart because the rack has a tile the joker could be swapped for? */
   const swappable = (ids) => ids.filter((id) => isJoker(s, id)).some((j) => rack.some((r) => fitsJoker(s, r, jokerOptions(s, ids, j))));
@@ -325,19 +325,19 @@ export function standardPlay(room, seat, options = {}) {
 
 // ---- a limit on how many table tiles may be moved ----
 //
-// "Moving" a table tile means taking it out of the set it is in, or taking its whole set apart. Tiles of a set that is
-// merely added to are not moved. The search chooses which tiles of the table to free (the rest stay put as locked pieces,
+// "Moving" a table tile means taking it out of the set it is in, or taking its whole set apart.  Tiles of a set that is
+// merely added to are not moved.  The search chooses which tiles of the table to free (the rest stay put as locked pieces,
 // which may still be added to), solves for the freed tiles and the rack, and does that for every choice that moves at most
-// `tableTiles` tiles, cheapest choices first. The order of the choices does not depend on the limit, so a bigger limit
+// `tableTiles` tiles, cheapest choices first.  The order of the choices does not depend on the limit, so a bigger limit
 // only ever looks at more choices (after the same ones a smaller limit looked at), and so can never do worse.
 
-// Work caps for shuffleAttempts: nodes per solve, nodes over the whole turn, and table-tile choices tried. Fixed numbers (not
+// Work caps for shuffleAttempts: nodes per solve, nodes over the whole turn, and table-tile choices tried.  Fixed numbers (not
 // time) so a turn is repeatable; they are what keep the biggest table-tile limits affordable.
 export const SHUFFLE_LIMITS = { solveNodes: 800, totalNodes: 20000, combos: 120 };
 
 /**
  * Possible ways to free tiles from one set: keep it whole, free all of it, or (for a run of 4+ or a group of 4) free one or
- * two end/middle tiles so the leftovers are still legal sets. A set holding a joker is only freed if the rack could swap the
+ * two end/middle tiles so the leftovers are still legal sets.  A set holding a joker is only freed if the rack could swap the
  * joker out, since a table joker cannot just be moved.
  *
  * @param {object} s  the room's settings
@@ -384,7 +384,7 @@ function setOptions(s, ids, rack = []) {
 }
 
 /**
- * Could two tiles end up in the same set? True for a joker, the same number, or the same colour within two numbers. Used to
+ * Could two tiles end up in the same set?  True for a joker, the same number, or the same colour within two numbers.  Used to
  * skip table tiles that cannot possibly be of use to the rack.
  *
  * @param {object} a  a tile as returned by tileOf
@@ -462,7 +462,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   // direct[j][k]: could table tile k of set j go with a rack tile (or is a joker about)?
   const direct = tableTiles1.map((tiles) => tiles.map((x) => rackHasJoker || x.joker || rackTiles.some((r) => touches(x, r))));
   /**
-   * Is it worth freeing these tiles? Only if one fits with a rack tile, or with a tile of another set that does.
+   * Is it worth freeing these tiles?  Only if one fits with a rack tile, or with a tile of another set that does.
    *
    * @param {number[]} ids  the tiles that would be freed
    * @param {number} setIndex  the index of the set they come from
@@ -513,7 +513,7 @@ export function shuffleAttempts(room, seat, { tableTiles = 0, solveNodes, totalN
   };
   /**
    * Turns one choice of freed tiles into attempts: tries three orders of building (build then extend locked pieces, extend
-   * then build, extend with plain tiles then build then add jokers) and keeps each result that plays something. Side
+   * then build, extend with plain tiles then build then add jokers) and keeps each result that plays something.  Side
    * effects: adds to `attempts` and counts one evaluation.
    *
    * @param {{ freed: number[], kept: number[][] }[]} chosen  the option picked for each table set

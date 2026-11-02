@@ -1,4 +1,4 @@
-// "Standard": the original computer player. It chooses windows by difficulty, places dice to satisfy restrictions while
+// "Standard": the original computer player.  It chooses windows by difficulty, places dice to satisfy restrictions while
 // keeping future spaces open and chasing the objectives, and uses a tool only when stuck or when it is clearly worth
 // the favour tokens.
 import { legalCells, patternOf, privatePoints, CELLS, COLS, ROWS, restrictionOf } from '../rules.js';
@@ -21,7 +21,7 @@ export function chooseWindow(options, rng) {
 }
 
 /**
- * How good it is to put `die` on `cell`, for this seat. Higher is better.
+ * How good it is to put `die` on `cell`, for this seat.  Higher is better.
  *
  * @param {object} state  the AI's snapshot
  * @param {number} seat   the seat deciding
@@ -156,7 +156,7 @@ export default {
   weight: 4,
   chooseWindow,
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding

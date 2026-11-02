@@ -1,4 +1,4 @@
-// Small helpers shared by the AIs. Nothing here uses Math.random: the caller's `rng` is always passed in.
+// Small helpers shared by the AIs.  Nothing here uses Math.random: the caller's `rng` is always passed in.
 import { themeScores } from './lexicon.js';
 
 /**
@@ -33,7 +33,7 @@ export function best(items, score, rng = null) {
 
 /**
  * How well a clue fits each card: a function cardId -> 0..1, or null when the clue means nothing to the word list
- * (then there is nothing to go on, and callers fall back to guessing). Scores are normalised by the best category so
+ * (then there is nothing to go on, and callers fall back to guessing).  Scores are normalised by the best category so
  * the closest category is 1 whatever the clue's absolute strength.
  * @param {string | null} word  the clue, or null/empty when hidden
  * @param {{ categoryOf: object, categories: object }} cards  card metadata

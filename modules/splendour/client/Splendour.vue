@@ -1,8 +1,8 @@
 <script setup>
 // Props: socket (the platform socket), user (the signed-in user or null), search (the current URL query string),
-//   setSearch (function that updates the URL query string). Emits: none. Slots: none.
+//   setSearch (function that updates the URL query string).  Emits: none.  Slots: none.
 // Side effects: useGameSocket subscribes to the socket's `state` events and syncs the invite code with the URL.
-// Splendour: the screens drawn inside the site's play field. The server sends each player their own view of the game as a
+// Splendour: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
 // `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';

@@ -32,7 +32,7 @@ async function playOn(people, done, limit = 40000) {
   }
 }
 
-/** Ann (host), Bob and two computer players, started and waiting for passes. */
+/** Ann (host), Bob, and two computer players, started and waiting for passes. */
 async function started(t, opts = {}) {
   fast();
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });

@@ -1,9 +1,9 @@
 <script setup>
 // The card viewer: a large look at one card, opened by setting store.zoom ({ cardId, cards?, actions? | actionsFor? }).
 // If the zoom carries the row of cards it came from, you can step through them (buttons or arrow keys); Escape or a
-// click outside closes it. Each action (for example "Play this card") closes the viewer, then runs.
+// click outside closes it.  Each action (for example "Play this card") closes the viewer, then runs.
 //
-// Props: none. Emits: none. Slots: none.
+// Props: none.  Emits: none.  Slots: none.
 // Side effects: sets store.zoom (to step or close); listens to window keydown while mounted (removed on unmount);
 // runs the chosen action's `run` callback.
 import { computed, onBeforeUnmount, onMounted } from 'vue';

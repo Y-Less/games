@@ -1,5 +1,5 @@
-// "Greedy": only the points on offer right now. A move that completes a line is worth the wall score of its tile, less
-// the floor; a move that does not is worth almost nothing. It never plans for bonuses and never blocks anyone.
+// "Greedy": only the points on offer right now.  A move that completes a line is worth the wall score of its tile, less
+// the floor; a move that does not is worth almost nothing.  It never plans for bonuses and never blocks anyone.
 // Depends on: ../rules.js (tile scores) and ./common.js (take previews and column choosing).
 import { tileScore } from '../rules.js';
 import { bestColumnBy, chooseColumnBy, takeOf } from './common.js';
@@ -28,7 +28,7 @@ export default {
       // Only what happens this turn matters: the floor it costs now, and the wall points if a line is finished now.
       let value = -preview.extraPenalty;
       if (move.line !== 'floor') {
-        // A completed line is worth the wall score of its tile (best column) and 0.5 for finishing. A line that is not completed
+        // A completed line is worth the wall score of its tile (best column) and 0.5 for finishing.  A line that is not completed
         // is worth almost nothing (0.1 per tile placed): greedy does not value progress, which is its weakness.
         if (preview.completes) {
           const target = bestColumnBy(state.walls[seat], move.line, move.colour, free, rng, (wall, col) => tileScore(wall, move.line, col));

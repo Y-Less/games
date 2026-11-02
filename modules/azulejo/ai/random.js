@@ -1,5 +1,5 @@
 // "Random": any legal move, chosen uniformly (including the floor), and any legal column.
-// Depends on: ./common.js (pickOne). It is the weakest AI and the baseline the others are measured against.
+// Depends on: ./common.js (pickOne).  It is the weakest AI and the baseline the others are measured against.
 import { pickOne } from './common.js';
 
 export default {

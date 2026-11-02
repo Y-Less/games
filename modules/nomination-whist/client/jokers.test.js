@@ -1,4 +1,4 @@
-// The Jokers option as the client shows it: the lobby setting, the cards in the hand and the log of what happened.
+// The Jokers option as the client shows it: the lobby setting, the cards in the hand, and the log of what happened.
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import * as game from '../game.js';

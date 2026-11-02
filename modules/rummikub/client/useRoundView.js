@@ -1,5 +1,5 @@
 // What the Rummikub table knows about the game from the server's view, for the player looking at it: the settings, the phase,
-// whose turn it is, who is ready between rounds. Nothing here changes anything.
+// whose turn it is, who is ready between rounds.  Nothing here changes anything.
 import { computed } from 'vue';
 import { dealSize } from '../rules.js';
 import { msg } from '../../../shared/messages.js';
@@ -8,7 +8,7 @@ import { msg } from '../../../shared/messages.js';
  * The facts about the round that the whole table shares.
  * Each is a computed value, so components re-render only when the part of the view they read changes.
  *
- * Side effects: none (computed values only; nothing is mutated, emitted or listened to).
+ * Side effects: none (computed values only; nothing is mutated, emitted, or listened to).
  *
  * @param {() => object} getState  returns the current server view (read inside computed values, so it stays reactive)
  * @returns {object} computed values: state, s (the settings), finished, between, me, myTurn, melded, isHost, readyNames,
@@ -43,7 +43,7 @@ export function useRoundView(getState) {
   const hand = computed(() => dealSize(s.value, state.value.size));
 
   /**
-   * The name of a seat: the name itself, or the site's "Someone" message when the seat is empty. Put into words with
+   * The name of a seat: the name itself, or the site's "Someone" message when the seat is empty.  Put into words with
    * `text()` (src/useGameText.js), which leaves a plain name as it is.
    *
    * @param {number} seat  a seat number

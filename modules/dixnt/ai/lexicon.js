@@ -1,6 +1,6 @@
-// A small hand-written word list per card category, used by the AIs that try to match a clue to a card. The only
+// A small hand-written word list per card category, used by the AIs that try to match a clue to a card.  The only
 // card metadata the site has is each card's category (cards/categories.json), so "does this word suit this card"
-// really means "does this word suit this category". Stems are matched as word prefixes ("dragon" matches "dragons").
+// really means "does this word suit this category".  Stems are matched as word prefixes ("dragon" matches "dragons").
 // Category keys that are not listed here are still matched against the words of their own description.
 
 export const THEMES = {

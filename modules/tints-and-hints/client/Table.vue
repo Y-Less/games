@@ -1,7 +1,7 @@
 <script setup>
 // Props: state {Object, required} the player's view of the game; send {Function, required} sends a request to the server
 // (returns a promise of {ok}); log {Array} the Recent moves lines.
-// Emits: none (requests go through `send`: hint, guess, ready, advance, kick, removeBot). Slots: none (fills GameFrame's slots).
+// Emits: none (requests go through `send`: hint, guess, ready, advance, kick, removeBot).  Slots: none (fills GameFrame's slots).
 // Side effects: a watcher resets the picked square and hint text on each new turn or phase; saving a hint or locking in a guess sends to the server.
 // The Tints and Hints table, for every phase of a game: the score bar, the colour grid (big, with square cells), the
 // hint and guess controls beside it, slim bars for the other players, and the two standard boxes along the bottom.
@@ -159,7 +159,7 @@ const dims = (area) => {
 };
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
-// button). The scoreboard's ids are the accounts' ids.
+// button).  The scoreboard's ids are the accounts' ids.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => s.value.scoreboard.players,
   hostId: () => s.value.hostId,

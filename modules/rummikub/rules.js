@@ -1,20 +1,20 @@
 // The pure rules of Rummikub, shared by the server and the client (no sockets, no files, no Vue).
 //
-// Tiles are plain integers, so a tile can be tracked wherever it goes. With `numbers` = N and `colours` = C:
+// Tiles are plain integers, so a tile can be tracked wherever it goes.  With `numbers` = N and `colours` = C:
 //   ids 0 .. 2*C*N - 1   numbered tiles, two copies of every (colour, number): colour = floor((id % (C*N)) / N),
 //                         number = id % N + 1
 //   ids 2*C*N ..          the wildcards (jokers)
 // `s` below is always the game's settings: { numbers, colours, wildcards, ... }.
 //
-// A set on the table is an array of tile ids. A set is valid when it is
+// A set on the table is an array of tile ids.  A set is valid when it is
 //   - a run: three or more tiles of one colour with consecutive numbers (no wrapping from N to 1), or
 //   - a group: three or more tiles of one number in different colours (at most one per colour),
-// where a joker stands for any tile that makes the set valid. The order of a set on the table does not matter: the rules
+// where a joker stands for any tile that makes the set valid.  The order of a set on the table does not matter: the rules
 // work out which tile each joker stands for (`resolveSet`) and the server stores sets in that canonical order.
 //
-// Depends on shared/messages.js alone: it is imported by game.js, search.js, tally.js, the AIs and the client. Every
+// Depends on shared/messages.js alone: it is imported by game.js, search.js, tally.js, the AIs, and the client.  Every
 // function here is pure (it never changes its arguments) unless a comment says otherwise, which is what lets the AIs
-// call them thousands of times. Nothing here is a sentence: a refusal's `error` is a message ({ key, params }, see
+// call them thousands of times.  Nothing here is a sentence: a refusal's `error` is a message ({ key, params }, see
 // shared/messages.js), which the client puts into words and the server turns into a refusal code.
 import { msg } from '../../shared/messages.js';
 
@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS = { numbers: 13, colours: 4, wildcards: 2, rounds:
 
 /** The key of each colour under `colours.` in the locale files, indexed by a tile's colour number. */
 export const COLOUR_KEYS = ['red', 'blue', 'orange', 'black', 'green', 'purple', 'teal', 'pink'];
-/** A colour's name as a message. Takes the colour number (out of range: the first colour); returns a message; no side effects. */
+/** A colour's name as a message.  Takes the colour number (out of range: the first colour); returns a message; no side effects. */
 export const colourMsg = (colour) => msg(`colours.${COLOUR_KEYS[colour] ?? COLOUR_KEYS[0]}`);
 
 // The shape of every rejection in this file: { ok: false, error } where `error` is a message (shared/messages.js).
@@ -72,12 +72,12 @@ export function tileOf(s, id) {
   return { joker: false, colour: Math.floor(within / s.numbers), number: (within % s.numbers) + 1 };
 }
 
-/** The points a tile costs while it is still in a rack (a joker is 30). Takes (s, id), returns a number; no side effects. */
+/** The points a tile costs while it is still in a rack (a joker is 30).  Takes (s, id), returns a number; no side effects. */
 export const tileValue = (s, id) => (isJoker(s, id) ? JOKER_VALUE : tileOf(s, id).number);
 // The total rack-penalty points of a list of tile ids.
 export const rackValue = (s, ids) => ids.reduce((sum, id) => sum + tileValue(s, id), 0);
 
-// A tile's name as a message, e.g. "Red 7" or "Wildcard". Takes (s, id); returns a message; no side effects.
+// A tile's name as a message, e.g. "Red 7" or "Wildcard".  Takes (s, id); returns a message; no side effects.
 export const tileName = (s, id) => {
   const t = tileOf(s, id);
   return t.joker ? msg('tiles.wildcard') : msg('tiles.name', { colour: colourMsg(t.colour), number: t.number });
@@ -117,7 +117,7 @@ export function startProblem(s, players) {
 const clamp = (value, [low, high]) => Math.min(high, Math.max(low, value));
 
 /**
- * Checks and clamps host-chosen settings over `current`. Unknown keys are ignored; a non-number is an error.
+ * Checks and clamps host-chosen settings over `current`.  Unknown keys are ignored; a non-number is an error.
  *
  * @param {object} input  what the host sent (anything; a non-object means "no change")
  * @param {object} [current]  the settings to start from
@@ -200,10 +200,10 @@ function asGroup(s, tiles) {
 }
 
 /**
- * Works out whether these tile ids make a valid set. On success: { ok, kind: 'run' | 'group', items, value } where
+ * Works out whether these tile ids make a valid set.  On success: { ok, kind: 'run' | 'group', items, value } where
  * `items` is the canonical order ([{ id, joker, colour, number }], jokers carrying the colour/number they stand for;
  * a joker in a group has colour null) and `value` is the set's points for the first-meld rule (jokers count as the tile
- * they replace; where a joker could stand at either end of a run the higher reading is used). Otherwise { ok: false, error }.
+ * they replace; where a joker could stand at either end of a run the higher reading is used).  Otherwise { ok: false, error }.
  * When both readings work (a group and a run can be the same tiles with jokers) the more valuable one is returned.
  *
  * @param {object} s  settings
@@ -235,7 +235,7 @@ const sameTile = (a, b) => a.colour === b.colour && a.number === b.number;
 
 /**
  * The tiles a joker in this set could be swapped for: every colour and number that, put in the joker's place, leaves a
- * valid set. Usually one; two for a joker at the end of a run or in a group of three, where either of two tiles fits.
+ * valid set.  Usually one; two for a joker at the end of a run or in a group of three, where either of two tiles fits.
  *
  * @param {object} s  settings
  * @param {number[]} ids  the set, including the joker
@@ -259,7 +259,7 @@ export function jokerOptions(s, ids, jokerId) {
 
 /**
  * The jokers on the table at the start of a turn, each with what it stands for (see jokerOptions): a Map of joker id to
- * options. A joker remembers these for the whole turn, whatever happens to the rest of its set, and can only leave its
+ * options.  A joker remembers these for the whole turn, whatever happens to the rest of its set, and can only leave its
  * place by being swapped for a tile that matches one of them.
  *
  * @param {object} s  settings
@@ -279,7 +279,7 @@ export function pinnedJokers(s, table) {
   return pinned;
 }
 
-/** Whether this tile is one a joker with these options could be swapped for. Takes (s, id, options) from pinnedJokers; returns a boolean; no side effects. */
+/** Whether this tile is one a joker with these options could be swapped for.  Takes (s, id, options) from pinnedJokers; returns a boolean; no side effects. */
 export const fitsJoker = (s, id, options) => !isJoker(s, id) && options.some((option) => sameTile(option, tileOf(s, id)));
 
 /**
@@ -299,8 +299,8 @@ const JOKER_TAKEN = msg('errors.jokerTaken');
 
 /**
  * The rule for jokers already on the table: each must still be in a set where it could stand for what it stood for, or have
- * been swapped for a tile that fits. A fitting tile counts if it came from the rack or has moved to a different set (the
- * table is only judged as it ends, so this is the check that can be made). Returns an error message or null.
+ * been swapped for a tile that fits.  A fitting tile counts if it came from the rack or has moved to a different set (the
+ * table is only judged as it ends, so this is the check that can be made).  Returns an error message or null.
  *
  * @param {object} s  settings
  * @param {number[][]} before  the table at the start of the turn
@@ -353,9 +353,9 @@ const isIdList = (s, list) => Array.isArray(list) && list.every((id) => validTil
  *   melded    whether the player has already made their first meld
  *   meld      the points the first meld needs
  * Every old tile must still be on the table, every new tile must come from the rack, every set must be valid and, until
- * the first meld, the old sets must be untouched and the new sets (rack tiles only) must be worth `meld` points. With the
+ * the first meld, the old sets must be untouched and the new sets (rack tiles only) must be worth `meld` points.  With the
  * `playOnMeld` option the meld is the sets that contain no old tile, and once they are worth `meld` points the rest of the
- * table may be rearranged in the same turn. A joker that was on the table keeps what it stood for (see pinnedJokers).
+ * table may be rearranged in the same turn.  A joker that was on the table keeps what it stood for (see pinnedJokers).
  * Returns { ok, sets (canonical), added: [ids], points (value of the new sets, first meld only) } or { ok: false, error }.
  *
  * @param {object} s  settings
@@ -413,7 +413,7 @@ export function checkPlay(s, { before, rack, proposed, melded, meld = DEFAULT_SE
 
 /**
  * How many jokers a turn took off the table: those that were on it, stood for a tile, and no longer can in the layout
- * the player made, so a tile that fits has replaced them. Call it with a layout checkPlay has accepted.
+ * the player made, so a tile that fits has replaced them.  Call it with a layout checkPlay has accepted.
  *
  * @param {object} s  settings
  * @param {number[][]} before  the table at the start of the turn
@@ -433,7 +433,7 @@ export function jokersReplaced(s, before, proposed) {
 }
 
 /**
- * How many tiles already on the table a turn moved from one group to another. Each old set is taken to carry on as the
+ * How many tiles already on the table a turn moved from one group to another.  Each old set is taken to carry on as the
  * new set that holds most of its tiles; the tiles that ended up anywhere else were moved.
  *
  * @param {number[][]} before  the table at the start of the turn

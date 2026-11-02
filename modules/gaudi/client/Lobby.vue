@@ -1,8 +1,8 @@
 <script setup>
-// The Gaudi lobby: the invite code, the seat list (shared SeatLobby) and the host's rules (table size, bad private scoring).
-// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>). Emits: none.
+// The Gaudi lobby: the invite code, the seat list (shared SeatLobby), and the host's rules (table size, bad private scoring).
+// Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>).  Emits: none.
 // Slots: none (it fills SeatLobby's `settings` slot).
-// Side effects: the buttons and checkbox send 'size', 'settings', 'addBot', 'removeBot', 'fillBots', 'kick' and 'start'.
+// Side effects: the buttons and checkbox send 'size', 'settings', 'addBot', 'removeBot', 'fillBots', 'kick', and 'start'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
@@ -12,7 +12,7 @@ const props = defineProps({ state: { type: Object, required: true }, send: { typ
 const { t } = useGameText();
 
 /**
- * Is this player the host? Only the host may change the rules and the seats.
+ * Is this player the host?  Only the host may change the rules and the seats.
  * @returns {boolean}
  * Side effects: none.
  */

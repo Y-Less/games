@@ -16,7 +16,7 @@ const t = (c, n, copy = 0) => copy * STD.colours * STD.numbers + c * STD.numbers
 /**
  * A real server view for seat 0 (the host) of a hand-built position.
  *
- * @param {object} position  racks, table, melded and turn
+ * @param {object} position  racks, table, melded, and turn
  * @returns {object} the view
  */
 function view({ racks, table = [], melded = [false, false], turn = 0 }) {

@@ -1,6 +1,6 @@
-// Plays whole Splendour games between strategies (see strategies.js), and measures what happened. Not part of the game.
+// Plays whole Splendour games between strategies (see strategies.js), and measures what happened.  Not part of the game.
 //
-// Depends on: ../game.js (the rules), ../bot.js (situation), ../kit.js (botsOnly) and ../cards.js (card data).
+// Depends on: ../game.js (the rules), ../bot.js (situation), ../kit.js (botsOnly), and ../cards.js (card data).
 import * as game from '../game.js';
 import { situation } from '../bot.js';
 import { botsOnly } from '../kit.js';
@@ -13,7 +13,7 @@ import { CARD_BY_ID } from '../cards.js';
  *
  * @param {object} room  a started room
  * @param {number} seat  the seat whose turn (or pending choice) it is
- * @param {object} ai    a strategy with chooseMove, chooseReturn and chooseNoble
+ * @param {object} ai    a strategy with chooseMove, chooseReturn, and chooseNoble
  * @param {() => number} rng
  */
 function takeTurn(room, seat, ai, rng) {
@@ -46,7 +46,7 @@ function takeTurn(room, seat, ai, rng) {
 
 /**
  * Plays one game. `players` is the strategy for each seat, seat 0 going first. `rng` decides the players' choices and `dealRng`
- * the shuffle (they are the same unless a game is to be replayed on the same deal). Returns what happened:
+ * the shuffle (they are the same unless a game is to be replayed on the same deal).  Returns what happened:
  * { winners, rounds, endReason, seats: [{ prestige, cards, byLevel, nobles, reached }] }.
  *
  * Side effects: builds and mutates a private room and advances `rng` and `dealRng`; throws if the game does not end.

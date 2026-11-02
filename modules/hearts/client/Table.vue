@@ -1,14 +1,14 @@
 <script setup>
 // The card table, in the standard GameFrame: the score bar on top; the table itself (the other seats' face-down
 // fans at the edges, the trick in the middle, your hand fanned at the bottom); and the two boxes along the bottom, Recent
-// moves and Status. Every word about what is happening (turns, instructions, hand and trick numbers, the target, the
-// passing direction) is in Status, so the table holds only cards, names and scores. The table is drawn at one design size
+// moves and Status.  Every word about what is happening (turns, instructions, hand and trick numbers, the target, the
+// passing direction) is in Status, so the table holds only cards, names, and scores.  The table is drawn at one design size
 // and scaled by the window (see `scale`), so nothing changes size or position while a game is played.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves as
 // messages, kept by Hearts.vue).
-// Emits: none. Slots: none (it fills GameFrame's scorebar, main, log and status slots).
-// Side effects: sends 'pass', 'play', 'claim', 'next', 'again', 'removeBot' and 'kick' requests; two watchers on the view
+// Emits: none.  Slots: none (it fills GameFrame's scorebar, main, log, and status slots).
+// Side effects: sends 'pass', 'play', 'claim', 'next', 'again', 'removeBot', and 'kick' requests; two watchers on the view
 // clear the chosen pass cards and the warning message when the hand or the turn moves on.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -218,7 +218,7 @@ const takenText = (details) => `${t('table.hearts', { count: details.hearts }, d
 
 // ---- your hand, from 7 to 17 cards ----
 // The flat row (or the fan) of a deal bigger than 13 cards is squeezed into the width of the 13-card hand, and a smaller
-// deal is narrower. The box is fixed for the deal, so nothing moves while cards are played.
+// deal is narrower.  The box is fixed for the deal, so nothing moves while cards are played.
 const CARD_W = 5.8; // rem, a large card
 const ROW_W = 12 * 0.48 * CARD_W + CARD_W + 0.6; // the flat row of 13 cards
 const FAN_SPAN = 12 * 3.6; // degrees from the first card to the last in the 13-card fan
@@ -242,8 +242,8 @@ const handStyle = (fanned) => {
   return { marginLeft: `${(-width / 2).toFixed(2)}rem` };
 };
 // The hand is spread in an arc when it fits: the arc's middle cards stand higher than a flat row's (by its sag), so it
-// needs that much more room between the trick and the bottom edge. The design leaves CLEAR rem there; a window taller
-// than the table can be scaled to (see `scale`) leaves more. The minimised boxes also give the arc its room.
+// needs that much more room between the trick and the bottom edge.  The design leaves CLEAR rem there; a window taller
+// than the table can be scaled to (see `scale`) leaves more.  The minimised boxes also give the arc its room.
 const CLEAR = 2.9; // rem between the lowest played card and the top of a flat hand, in the design
 // How far (rem) the middle cards of the fanned hand stand higher than the flat row's (the arc's sag).
 const arcSag = computed(() => 8 * CARD_W * (1 - Math.cos(((cardsEach.value - 1) / 2) * handLook.value.step * (Math.PI / 180))));
@@ -363,7 +363,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
 </template>
 
 <style scoped>
-/* The table: no panel over the background (the background is the table). Pieces are placed on the frame's edges and
+/* The table: no panel over the background (the background is the table).  Pieces are placed on the frame's edges and
    scaled together by --s, so they never move. */
 .felt {
   grid-column: 1 / -1;

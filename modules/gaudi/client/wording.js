@@ -1,4 +1,4 @@
-// The small pieces of wording the Gaudi table shares between its components and composables. Every one of them is built
+// The small pieces of wording the Gaudi table shares between its components and composables.  Every one of them is built
 // from the game's locale file, so each takes the caller's `t` (from useGameText) as its first argument; nothing here
 // reads or changes any state.
 import { ordinalText } from '../../../src/messageText.js';
@@ -28,7 +28,7 @@ export const privateSummary = (t, badPrivate) => ({
  * What a tool card does, shown in Status while the pointer is on it.
  * @param {Function} t  the caller's translator
  * @param {{ id: string }} tool  a tool card from the view (its words come from its id)
- * @returns {string} one line: name, rule and how to use it
+ * @returns {string} one line: name, rule, and how to use it
  * Side effects: none.
  */
 export const toolHint = (t, tool) => t('hints.tool', { name: t(`tools.${tool.id}.name`), text: t(`tools.${tool.id}.text`), how: t(`tools.${tool.id}.how`) });

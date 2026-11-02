@@ -1,4 +1,4 @@
-// "Rusher": goes for prestige as fast as it can. It buys any card that is worth points as soon as it can afford it,
+// "Rusher": goes for prestige as fast as it can.  It buys any card that is worth points as soon as it can afford it,
 // collects gems for the card with the best points-per-turn, and reserves a card to stop an opponent taking the points.
 //
 // Depends on: ../cards.js (card data) and ./lib.js (situation helpers).
@@ -15,7 +15,7 @@ import { GOLD, me, opponents, overflowOf, payment, peakNeeds, pickBest, returnBy
  */
 function plan(s) {
   const ranked = targetsOf(s)
-    // Points per turn: the card's points (plus 0.2 so a zero-point card still has some aim) over the turns still needed. The
+    // Points per turn: the card's points (plus 0.2 so a zero-point card still has some aim) over the turns still needed.  The
     // exponent 1.2 is gentler than the standard player's 1.3, so a big card that is a little further off still wins.
     .map((t) => ({ ...t, aim: (t.card.points + 0.2) / (t.short + 1) ** 1.2 }))
     .sort((a, b) => b.aim - a.aim);

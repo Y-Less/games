@@ -1,5 +1,5 @@
 // Rummikub over real sockets: a whole game with people and computer players, statistics, garbage for every event,
-// kicks, reconnects, leaving mid-game, one live room per account, restarts, the between-rounds wait and the turn timer.
+// kicks, reconnects, leaving mid-game, one live room per account, restarts, the between-rounds wait, and the turn timer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -19,7 +19,7 @@ const fast = (range = '0-3', wait = '60000') => {
 };
 const gameStats = (stats) => stats.perGame.find((g) => g.name === 'Rummikub');
 
-/** A person does whatever the computer logic would do, from their own view only. Returns true if they acted. */
+/** A person does whatever the computer logic would do, from their own view only.  Returns true if they acted. */
 async function step(person) {
   const s = person.state;
   if (!s) return false;

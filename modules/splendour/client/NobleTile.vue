@@ -2,7 +2,7 @@
 // A noble tile: worth 3 prestige, visits a player whose card bonuses meet the requirement.
 // Props: noble (noble id), clickable (it may be chosen), highlight (it is one of your choices), dimmed (not a choice while
 //   another noble is being chosen), small (compact size), bonuses (the viewer's five bonuses, to show progress, or null).
-// Emits: pick (the tile was clicked while clickable). Slots: none.
+// Emits: pick (the tile was clicked while clickable).  Slots: none.
 // Side effects: none beyond the emit.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';

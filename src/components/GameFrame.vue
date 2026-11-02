@@ -1,5 +1,5 @@
 <script setup>
-// File: the standard layout of every game screen. Depends on: Vue only (browser window size, ResizeObserver, localStorage).
+// File: the standard layout of every game screen.  Depends on: Vue only (browser window size, ResizeObserver, localStorage).
 // Props: mainSpan, logSpan (Number, grid columns out of 12), logTitle, statusTitle (String, box titles).
 // Emits: none.
 // Slots: scorebar, main (scoped: width, height, left, right, gap, mainSpan, columns, minimised), others (same but no minimised),
@@ -17,16 +17,16 @@
 //   +------------------------------------------+
 //
 // The frame is exactly as tall as the room under the site header, so the page never scrolls, and it is sized from the
-// window alone, never from the game: nothing grows or shrinks during play. It draws no panel over the player's chosen
-// background; only the two bottom boxes have (translucent) backgrounds of their own. Slots: scorebar, main, others,
-// log, status. The `main` and `others` slots are given the size of its area ({ width, height } in pixels) so a game can size its
-// pieces to fit it. Both bottom boxes have a minimise button; either one hides the bodies of both boxes (leaving just their
-// titles), which gives the main area the room, and `minimised` is passed to the main slot so that a game can use it (the choice is remembered). The root carries data-fits-window, which tells the play view not to scale the game down.
+// window alone, never from the game: nothing grows or shrinks during play.  It draws no panel over the player's chosen
+// background; only the two bottom boxes have (translucent) backgrounds of their own.  Slots: scorebar, main, others,
+// log, status.  The `main` and `others` slots are given the size of its area ({ width, height } in pixels) so a game can size its
+// pieces to fit it.  Both bottom boxes have a minimise button; either one hides the bodies of both boxes (leaving just their
+// titles), which gives the main area the room, and `minimised` is passed to the main slot so that a game can use it (the choice is remembered).  The root carries data-fits-window, which tells the play view not to scale the game down.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
-  // The frame is a grid of 12 equal columns (--cols). Each row picks its own split on that grid, so the outer edges
+  // The frame is a grid of 12 equal columns (--cols).  Each row picks its own split on that grid, so the outer edges
   // and the gutters line up in every row while the splits may differ.
   mainSpan: { type: Number, default: 7 }, // columns taken by the left part of the main area (the rest go to the right part)
   logSpan: { type: Number, default: 6 }, // columns taken by the Recent moves box (the rest go to Status)
@@ -160,7 +160,7 @@ defineExpose({ measure });
   grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
   grid-template-rows: auto minmax(0, 1fr) auto clamp(6.5rem, 22%, 13rem);
   /* Every row spans the same outer left and right edges, with the same gutters (--gap between columns, row-gap
-     between rows). Each row may split its width differently: the main area uses `split`, the bottom boxes halve it. */
+     between rows).  Each row may split its width differently: the main area uses `split`, the bottom boxes halve it. */
   column-gap: var(--gap, 12px);
   row-gap: 0.5rem;
   min-width: 0;

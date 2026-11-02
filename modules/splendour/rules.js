@@ -5,7 +5,7 @@
 //
 // This file is plain JavaScript with no imports and no node-only code, so the browser client can import it too.
 //
-// Tokens are arrays of six counts: Diamond, Sapphire, Emerald, Ruby, Onyx, then Gold (index GOLD). Bonuses (the discounts
+// Tokens are arrays of six counts: Diamond, Sapphire, Emerald, Ruby, Onyx, then Gold (index GOLD).  Bonuses (the discounts
 // from bought cards) are arrays of five counts, one per gem colour.
 
 /** The number of gem colours (Gold is not one of them). */
@@ -57,7 +57,7 @@ export const needOf = (card, bonuses) => card.cost.map((c, i) => Math.max(0, c -
  * @param {number[]} bonuses  the player's five discounts
  * @param {{ cost: number[] }} card
  * @returns {{ need: number[], pay: number[] } | null} `need` is the cost after discounts (five counts); `pay` is the
- *   default payment (six counts, Gold last). null if the card cannot be afforded. Mutates nothing.
+ *   default payment (six counts, Gold last). null if the card cannot be afforded.  Mutates nothing.
  */
 export function quoteFor(tokens, bonuses, card) {
   const need = needOf(card, bonuses);

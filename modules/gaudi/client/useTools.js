@@ -1,4 +1,4 @@
-// Guided use of the tool cards: whether one can be used now, starting it, working out its request and sending it.
+// Guided use of the tool cards: whether one can be used now, starting it, working out its request, and sending it.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { startMode } from './toolkit.js';
@@ -8,7 +8,7 @@ import { startMode } from './toolkit.js';
  * @param {object} ctx  { s, turn, sel, send }: the view (computed), the useTurnState result, the useSelection result and the
  *   function that sends a request to the server and resolves with { ok, error }
  * @returns {object} toolBlock(tool), startTool(tool), toolParams, applyTool(extra), modeDie, modeSummary
- * Side effects: startTool and applyTool change the selection; applyTool sends a 'tool' request. Nothing is listened to.
+ * Side effects: startTool and applyTool change the selection; applyTool sends a 'tool' request.  Nothing is listened to.
  */
 export function useTools({ s, turn, sel, send }) {
   const { me, myTurn, poolDie } = turn;
@@ -30,7 +30,7 @@ export function useTools({ s, turn, sel, send }) {
   };
 
   /**
-   * A tool card was clicked: begins guided use of it (clicking the same card again cancels). The server checks everything again.
+   * A tool card was clicked: begins guided use of it (clicking the same card again cancels).  The server checks everything again.
    * @param {object} tool  a tool card from the view
    * @returns {void}
    * Side effects: clears and may set the Status message; sets or clears the tool in use and drops the selected die.
@@ -60,7 +60,7 @@ export function useTools({ s, turn, sel, send }) {
   });
 
   /**
-   * Sends the tool being used. A failed slide resets the moves the player made, since the window on screen was only a preview.
+   * Sends the tool being used.  A failed slide resets the moves the player made, since the window on screen was only a preview.
    * @param {object} [extra]  parameters added by the button pressed (such as delta for Lathe)
    * @returns {Promise<void>} resolves when the server has answered
    * Side effects: sends a 'tool' request; on success ends the tool, on failure sets the Status message (and resets a slide's moves).

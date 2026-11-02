@@ -1,4 +1,4 @@
-// What Dixnt counts about each player in a game for the statistics and achievements (see module.json "stats"). The server
+// What Dixnt counts about each player in a game for the statistics and achievements (see module.json "stats").  The server
 // keeps one tally for each person in each game and calls tallyRound once a round is finished; nothing here changes the game.
 // Depends on shared/tally.js for the counter helpers.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';

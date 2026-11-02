@@ -1,5 +1,5 @@
-// The socket layer for Azulejo. The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
-// joining and the lobby events are the shared room server (shared/roomServer.js). This file says what is particular to
+// The socket layer for Azulejo.  The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
+// joining and the lobby events are the shared room server (shared/roomServer.js).  This file says what is particular to
 // Azulejo: its one setting, its own socket events (size, move, column) and what the server does by itself (a computer
 // move or column choice).
 //
@@ -33,7 +33,7 @@ export default function (ctx) {
      */
     createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
     /**
-     * A computer move or column choice, if one is due. The server calls it after every change and schedules what it returns.
+     * A computer move or column choice, if one is due.  The server calls it after every change and schedules what it returns.
      *
      * @param {object} room  the room (not changed here)
      * @param {() => number} rng  random numbers in [0, 1), used for the delay and passed on to the action

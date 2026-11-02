@@ -1,5 +1,5 @@
 // The rules of Azulejo with no sockets: lobby, factories, bag and lid, taking and placing, the floor, the marker,
-// wall-tiling and scoring, the end, bonuses, tie-breaks, the free wall, views and statistics.
+// wall-tiling and scoring, the end, bonuses, tie-breaks, the free wall, views, and statistics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
@@ -37,7 +37,7 @@ const mk = (size = 4, extra = {}) => game.createRoom({ now: 0, code: 'a-b-c', ho
 
 /**
  * A started game of n people where seat 0 is to move and only one tile (colour `last`) is left, on factory 0. Taking it
- * ends the round. Lines, walls and floors are emptied for the caller to fill in.
+ * ends the round.  Lines, walls and floors are emptied for the caller to fill in.
  */
 function endgame(n = 2, { free = false, last = 0, seed = 5 } = {}) {
   const { room, rng } = playingRoom(n, { seed, free });

@@ -1,5 +1,5 @@
-// Game statistics. Modules report finished games with record(); the site turns them into profile stats and leaderboards.
-// Depends on: ./db.js (transaction) and the users, results and result_players tables.
+// Game statistics.  Modules report finished games with record(); the site turns them into profile stats and leaderboards.
+// Depends on: ./db.js (transaction) and the users, results, and result_players tables.
 import { transaction } from './db.js';
 
 const OUTCOMES = ['win', 'loss', 'draw']; // the only results a player can be recorded with (matches the table's CHECK) // the only results a player can be recorded with (matches the table's CHECK)
@@ -22,7 +22,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
   /**
    * Records one finished game.
    * @returns {number | null} the new result id, or null when no known player was in it
-   * Side effects: writes the result, its players and any coin awards in one transaction, then calls `onRecorded`.
+   * Side effects: writes the result, its players, and any coin awards in one transaction, then calls `onRecorded`.
    * An account listed more than once is counted once (the first entry); unknown accounts are ignored.
    * @param {string} game module id
    * @param {{ code?: string, players: Array<{ userId: number, outcome: 'win'|'loss'|'draw', placement?: number, score?: number, extras?: Record<string, number> }> }} result

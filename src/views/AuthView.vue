@@ -1,7 +1,7 @@
 <script setup>
 // The sign-in and registration page (one form, two modes).
-// Props: none. Emits: none. Slots: none.
-// Depends on: session.js (signIn, register, safeNext) and vue-router. Side effects: signs in or registers, then navigates to
+// Props: none.  Emits: none.  Slots: none.
+// Depends on: session.js (signIn, register, safeNext) and vue-router.  Side effects: signs in or registers, then navigates to
 // the page asked for (`?next=`, checked by safeNext so it cannot leave the site).
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -19,7 +19,7 @@ const busy = ref(false);
 /**
  * Submits the form: signs in or registers according to the mode, then goes on to the wanted page.
  * @returns {Promise<void>}
- * Side effects: sets busy and error; changes the session; navigates on success. Ignored while already busy.
+ * Side effects: sets busy and error; changes the session; navigates on success.  Ignored while already busy.
  */
 async function submit() {
   if (busy.value) return;

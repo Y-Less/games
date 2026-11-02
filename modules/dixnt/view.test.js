@@ -1,5 +1,5 @@
 // What Game.viewFor sends, for each seat and for a stranger, along whole seeded games with computer players: the same
-// views every time for a seed, nothing for a stranger, and a fixed set of parts. (These used to pin a SHA-1 of every view,
+// views every time for a seed, nothing for a stranger, and a fixed set of parts.  (These used to pin a SHA-1 of every view,
 // which also pinned every computer decision and every field, so a legitimate change broke them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';

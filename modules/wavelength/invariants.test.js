@@ -1,5 +1,5 @@
 // Randomised play of the Wavelength rules: seeded games where people (and strangers) try legal and illegal actions in
-// any order, leave, and come back, in both modes. After every action the room and every player's view must be sound.
+// any order, leave, and come back, in both modes.  After every action the room and every player's view must be sound.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';

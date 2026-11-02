@@ -1,5 +1,5 @@
-// "Public hunter": plays for the three public objectives on the table, which everyone shares. It counts progress towards
-// sets, rows and columns, not only finished ones, and gives its secret colour little thought.
+// "Public hunter": plays for the three public objectives on the table, which everyone shares.  It counts progress towards
+// sets, rows, and columns, not only finished ones, and gives its secret colour little thought.
 import { patternOf } from '../rules.js';
 import { chooseStep, newDeadSpaces, privateOf, publicPotential, withDie } from './common.js';
 
@@ -26,7 +26,7 @@ export default {
     }, null).pid;
   },
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -43,7 +43,7 @@ export default {
       margin: 2,
       reserve: 2,
       /**
-       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * How good it is to put `die` on `cell` for this AI: higher is better.  Its own measure of a placement; see the
        * file header for what it values.
        *
        * @param {object} s     the snapshot

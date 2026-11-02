@@ -1,9 +1,9 @@
 <script setup>
 // The pop-up that shows another player's window (or yours) over the middle of the table when their name is clicked in the
-// score bar. Before the windows are revealed it only says whether they have chosen.
+// score bar.  Before the windows are revealed it only says whether they have chosen.
 // Props: popupProps (from usePlayerPopup, null when nothing is open), seat (the opened seat if it has a window, else null),
 // player (the opened seat, yours too), isMe (Boolean), windows (Boolean, the windows phase), cell (px size of a space).
-// Emits: none. Side effects: none (the pop-up closes itself through popupProps).
+// Emits: none.  Side effects: none (the pop-up closes itself through popupProps).
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import WindowGrid from './WindowGrid.vue';

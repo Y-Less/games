@@ -1,6 +1,6 @@
 <script setup>
 // Props: state {Object, required} the lobby view of the game; send {Function, required} sends a request to the server.
-// Emits: none (requests go through `send`: addBot, removeBot, fillBots, kick, colour, settings, start). Slots: none.
+// Emits: none (requests go through `send`: addBot, removeBot, fillBots, kick, colour, settings, start).  Slots: none.
 // Side effects: none locally; user actions send requests to the server.
 // The waiting room: the invite code, the player list (PlayerListPanel) with marker colours, and the host's game options.
 import { computed } from 'vue';

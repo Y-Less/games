@@ -1,16 +1,16 @@
 <script setup>
 // The Cribbage table, in the standard GameFrame: the score bar on top; the table (your pegging row and hand on the left,
-// the board with the deck, starter and box on the right); what each opponent holds, shown over the table when you click their chip in the score bar; and the two boxes along the
-// bottom, Recent moves (the scoring) and Status. Every word about what is happening (turns, instructions, the hand
-// number, the dealer, the target, the deck and box counts, the result) is in Status. It is drawn for every phase after
-// the lobby (discarding, pegging, the show and the end), so nothing changes size or position from one to the next.
+// the board with the deck, starter, and box on the right); what each opponent holds, shown over the table when you click their chip in the score bar; and the two boxes along the
+// bottom, Recent moves (the scoring) and Status.  Every word about what is happening (turns, instructions, the hand
+// number, the dealer, the target, the deck and box counts, the result) is in Status.  It is drawn for every phase after
+// the lobby (discarding, pegging, the show, and the end), so nothing changes size or position from one to the next.
 //
 // Props:
-//   state  {Object}    required. The player's view (phases discard, play, show, finished).
+//   state  {Object}    required.  The player's view (phases discard, play, show, finished).
 //   send   {Function}  required. send(action, payload) returns a promise of { ok, error? }.
 // Emits: none.
 // Slots: none (fills GameFrame's scorebar and main slots, and the boxes below them).
-// Side effects: sends play, discard, ready, kick and removeBot requests; keeps local `picked` cards (pruned when the
+// Side effects: sends play, discard, ready, kick, and removeBot requests; keeps local `picked` cards (pruned when the
 // hand changes, cleared when the phase changes); the player pop-up composable manages its own state.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
@@ -35,7 +35,7 @@ const picked = ref([]);
 const scoreboard = ref(null);
 // Shorthand for the view.
 const s = computed(() => props.state);
-// The current phase: discard, play, show or finished.
+// The current phase: discard, play, show, or finished.
 const phase = computed(() => s.value.phase);
 // The viewer's seat index.
 const me = computed(() => s.value.you);
@@ -84,9 +84,9 @@ const need = computed(() => s.value.need);
 const waitingFor = computed(() => seats.value.filter((x) => !x.discarded).map((x) => x.name));
 // The winner's seat record once finished, else null.
 const winner = computed(() => (finished.value ? seats.value[s.value.winner] : null));
-// Final standings: seats with their place, sorted by place then score. Empty until finished.
+// Final standings: seats with their place, sorted by place then score.  Empty until finished.
 const standings = computed(() => (finished.value ? seats.value.map((x) => ({ ...x, place: s.value.placements[x.seat] })).sort((a, b) => a.place - b.place || b.score - a.score) : []));
-// Losers who finished below the skunk line. Empty until finished.
+// Losers who finished below the skunk line.  Empty until finished.
 const skunked = computed(() => (finished.value ? seats.value.filter((x) => x.seat !== s.value.winner && x.score < s.value.skunkLine) : []));
 // The score bar's players, with a ready flag added during the show.
 const scorePlayers = computed(() => s.value.scoreboard.players.map((p) => ({ ...p, ready: phase.value === 'show' && Boolean(seats.value[p.id]?.ready) })));
@@ -197,12 +197,12 @@ const statusLines = computed(() => {
 const dims = (area) => {
   const hand = Math.round(Math.max(52, Math.min(124, (area.height * 0.34) / 1.4))); // width of a card in your hand, px
   const peg = Math.round(hand * 0.8); // width of a card in the pegging row
-  const pile = Math.round(Math.max(40, Math.min(64, area.height * 0.12))); // width of a card in the deck, starter and box
+  const pile = Math.round(Math.max(40, Math.min(64, area.height * 0.12))); // width of a card in the deck, starter, and box
   const pilesHeight = Math.round(pile * 1.4 + 14 + 20);
   return { hand, peg, pile, pilesHeight, boardHeight: Math.max(120, area.height - pilesHeight - 8) };
 };
-// The opponents' hands sit over the pegging zone (above your hand): top centre for one, three or five opponents (so the
-// zone is inset from the top), and left and right for two or more (inset from the sides). A hand is drawn about 0.3 of
+// The opponents' hands sit over the pegging zone (above your hand): top centre for one, three, or five opponents (so the
+// zone is inset from the top), and left and right for two or more (inset from the sides).  A hand is drawn about 0.3 of
 // the zone's height deep (see OpponentHands), so that is how far the pegging row is kept away from each edge.
 const OPPONENT_DEPTH = 0.31; // fraction of the zone's height an opponent's hand takes up
 // Returns the padding that keeps the pegging zone clear of the opponents' hands (top for odd counts, sides for two or more).

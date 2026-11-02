@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Runs Nomination Whist simulations on every core of this machine and collects the counts. Run it from the platform
+// Runs Nomination Whist simulations on every core of this machine and collects the counts.  Run it from the platform
 // folder:  node modules/nomination-whist/sim/run.js --deals 5000000 --out sim-out/whist
-// See README.md for the options, what is counted and how to use it. Ctrl-C stops cleanly: the counts so far are saved
+// See README.md for the options, what is counted and how to use it.  Ctrl-C stops cleanly: the counts so far are saved
 // and `--resume` carries on from there.
 // Depends on: engine.js (seatAIs, POLICIES), export.js (checkpoints and CSVs), tables.js (Stats), worker.js (the job each
-// thread runs). This is a top-level script: importing it starts a run.
+// thread runs).  This is a top-level script: importing it starts a run.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -140,7 +140,7 @@ console.log(
 );
 if (/sharp/.test(config.ai) || config.ai === 'mix') console.log('Note: "sharp" simulates inside every decision and is hundreds of times slower than the other AIs.');
 
-/** Saves the counts so far and the chunks done, so `--resume` can carry on (every fifth chunk, and at the end). Side effects: writes tables.bin and meta.json in the output folder. */
+/** Saves the counts so far and the chunks done, so `--resume` can carry on (every fifth chunk, and at the end).  Side effects: writes tables.bin and meta.json in the output folder. */
 const checkpoint = () => saveCounts(stats, { config, doneChunks: [...done].sort((a, b) => a - b), totalChunks: chunks }, outDir);
 let stopping = false;
 // First Ctrl-C lets running jobs finish and saves; a second one exits at once.
@@ -162,14 +162,14 @@ await new Promise((resolve, reject) => {
   if (!pending.length) return resolve();
   let running = 0;
   const workers = [];
-  /** Ends the pool once the last worker has stopped asking for work. Side effects: terminates every worker and resolves the wait. */
+  /** Ends the pool once the last worker has stopped asking for work.  Side effects: terminates every worker and resolves the wait. */
   const finish = () => {
     if (running === 0) {
       for (const w of workers) w.terminate();
       resolve();
     }
   };
-  /** Gives `worker` the next pending chunk, or retires it when stopping or when nothing is left. Side effects: posts a message or decrements `running`. */
+  /** Gives `worker` the next pending chunk, or retires it when stopping or when nothing is left.  Side effects: posts a message or decrements `running`. */
   const next = (worker) => {
     if (stopping || !pending.length) {
       running--;

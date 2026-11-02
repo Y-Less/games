@@ -5,7 +5,7 @@
 //   settings (the game's tile settings), selected (selected tile ids), myTurn, drawn (the tile just drawn, or null),
 //   playing (the game is in play, so the drawn mark shows), span (how many grid columns it takes).
 // Slots: none.
-// Emits: update:sortMode, pick(id), drop-selected(target), drop-tiles(target), drag-start-tile(event, id) and drag-end-tile().
+// Emits: update:sortMode, pick(id), drop-selected(target), drop-tiles(target), drag-start-tile(event, id), and drag-end-tile().
 // Side effects: none beyond the emits.
 import { useGameText } from '../../../src/useGameText.js';
 import Tile from './Tile.vue';

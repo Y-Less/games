@@ -1,4 +1,4 @@
-// Hearts against the real site: accounts over HTTP, sockets, computer players on timers, statistics and restarts.
+// Hearts against the real site: accounts over HTTP, sockets, computer players on timers, statistics, and restarts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -115,7 +115,7 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
     async stats() {
       return (await this.http('GET', '/api/stats/me')).data;
     }
-    /** Does whatever this player has to do right now. Returns true if it acted. */
+    /** Does whatever this player has to do right now.  Returns true if it acted. */
     async step() {
       const s = this.state;
       if (!s) return false;

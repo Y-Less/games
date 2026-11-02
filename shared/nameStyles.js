@@ -1,5 +1,5 @@
 // Name styles: the small border and background around a player's name, bought in the shop and shown wherever the name
-// appears. The server lists them as shop items and checks a player owns the one they choose; the client draws them
+// appears.  The server lists them as shop items and checks a player owns the one they choose; the client draws them
 // (src/components/StyledName.vue) from the colours here, so a style is one entry in this list.
 //
 // `border` and `fill` are CSS colours. `fill` may also be a gradient. `text` is optional (default: the normal text colour).

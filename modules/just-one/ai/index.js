@@ -1,4 +1,4 @@
-// The Just One computer players. Each AI is a plain object { id, name, description, weight } with three decision functions
+// The Just One computer players.  Each AI is a plain object { id, name, description, weight } with three decision functions
 // that take plain data and return a plain answer (see MODULES.md, "Computer players"):
 //
 //   clue({ word, related }, rng)      -> the clue text (word is the secret word, which a writer knows)

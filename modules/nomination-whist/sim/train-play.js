@@ -5,7 +5,7 @@
 //   node modules/nomination-whist/sim/train-play.js --players 3-7 --iterations 3 --deals 20_000_000
 // The table is saved after every iteration (models/play.json and play.bin), so it can be stopped at any time.
 // Depends on: play-collect.js (the worker that plays the deals), play-features.js and play-model.js (the table layout and
-// files), and tourney.js (run in a child process to measure the result). A top-level script: importing it starts training.
+// files), and tourney.js (run in a child process to measure the result).  A top-level script: importing it starts training.
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import { parseArgs } from 'node:util';
@@ -46,7 +46,7 @@ if (opts.help) {
   console.log(HELP);
   process.exit(0);
 }
-/** Parses a command-line number, allowing underscores (20_000_000). Pure. */
+/** Parses a command-line number, allowing underscores (20_000_000).  Pure. */
 const num = (text) => Number(String(text).replaceAll('_', ''));
 const players = opts.players.split(',').flatMap((part) => {
   const [from, to = from] = part.split('-').map(Number);
@@ -71,7 +71,7 @@ async function collect(model, iteration) {
   const started = Date.now();
   const workers = Array.from({ length: Math.min(num(opts.workers), jobs) }, () => new Worker(fileURLToPath(new URL('./play-collect.js', import.meta.url)), { workerData: base }));
   await new Promise((resolve) => {
-    /** Gives `worker` the next chunk number, or terminates it when none are left. Side effects: posts a message or terminates the worker. */
+    /** Gives `worker` the next chunk number, or terminates it when none are left.  Side effects: posts a message or terminates the worker. */
     const give = (worker) => (next < jobs ? worker.postMessage({ chunk: next++ }) : worker.terminate());
     for (const worker of workers) {
       worker.on('message', ({ totals }) => {
@@ -151,7 +151,7 @@ function evaluate() {
   console.log(`  lut v standard (mean score): ${rows.join(' | ')}`);
 }
 
-// Main loop: collect with the current table (plus random exploration), learn a new table from it, save it and measure it.
+// Main loop: collect with the current table (plus random exploration), learn a new table from it, save it, and measure it.
 let model = opts.fresh ? null : loadPlayModel();
 console.log(`${players.join(',')} players, ${num(opts.iterations)} iterations of ${num(opts.deals).toLocaleString('en-GB')} deals, starting from ${model ? 'the saved table' : "Standard's play"}`);
 for (let iteration = 0; iteration < num(opts.iterations); iteration++) {

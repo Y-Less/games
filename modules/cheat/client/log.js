@@ -1,8 +1,8 @@
-// The "Recent moves" list for Cheat. The server sends the table as it is, not a history, so the client keeps one: every
+// The "Recent moves" list for Cheat.  The server sends the table as it is, not a history, so the client keeps one: every
 // state that arrives is compared with the one before it, and what changed (a play, a call, a pick-up) is added as a line.
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by the
-// table when it is drawn, so the list reads in the player's language whenever they switch. The list starts when the page
-// does. It lives outside the table component so that every state is looked at.
+// table when it is drawn, so the list reads in the player's language whenever they switch.  The list starts when the page
+// does.  It lives outside the table component so that every state is looked at.
 import { msg } from '../../../shared/messages.js';
 import { rankMsg } from './rank.js';
 import { callMsg } from './text.js';

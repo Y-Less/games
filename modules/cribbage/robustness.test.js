@@ -1,6 +1,6 @@
 // Garbage in: every socket event Cribbage handles gets malformed payloads (with and without an ack, from members,
-// non-members and a second socket) in the lobby and in every phase of a game. The server must stay up, answer with a
-// structured failure or a harmless success, keep the game state valid, never leak hidden cards and finish a normal game.
+// non-members and a second socket) in the lobby and in every phase of a game.  The server must stay up, answer with a
+// structured failure or a harmless success, keep the game state valid, never leak hidden cards, and finish a normal game.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';

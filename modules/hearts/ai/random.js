@@ -1,4 +1,4 @@
-// 'Random': a uniformly random legal pass and play. The weakest opponent, for relaxed games.
+// 'Random': a uniformly random legal pass and play.  The weakest opponent, for relaxed games.
 export default {
   id: 'random',
   name: 'Random',
@@ -6,7 +6,7 @@ export default {
   weight: 0.5,
   /**
    * Passes random cards.
-   * @param {object} ctx  AI context; uses hand, rng and passCount (default 3).
+   * @param {object} ctx  AI context; uses hand, rng, and passCount (default 3).
    * @returns {string[]} passCount distinct cards drawn at random from the hand.
    * Side effects: advances ctx.rng.
    */

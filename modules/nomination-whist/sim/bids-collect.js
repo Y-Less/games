@@ -1,6 +1,6 @@
 // Collects the data for the bidding table with table state: deals are played with every seat nominating from the current
 // bidding table and playing as Standard does, and for each nomination the cell of the decision (bids-features.js) is
-// counted against the number of tricks that player went on to take (with the two Jokers shuffled in if `jokers` is set). The nominations that others see are the ones the
+// counted against the number of tricks that player went on to take (with the two Jokers shuffled in if `jokers` is set).  The nominations that others see are the ones the
 // table's own players make, so the table learns what hands are worth against opponents who bid like it.
 // Runs in worker threads: `collectChunk` is the unit of work, and this file is the worker's entry point.
 import { parentPort, workerData } from 'node:worker_threads';

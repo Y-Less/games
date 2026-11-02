@@ -284,7 +284,7 @@ test('rooms survive a restart of the site, and the game can be finished afterwar
   await first.close();
   assert.ok(fs.existsSync(path.join(dataDir, 'modules', ID, 'rooms.json')));
 
-  // The same data folder, a new process-worth of site. The accounts' sessions are in the same database.
+  // The same data folder, a new process-worth of site.  The accounts' sessions are in the same database.
   const second = await launch(t, dataDir);
   assert.ok(second.site.port);
   const relogin = async (name) => {

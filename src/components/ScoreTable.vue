@@ -1,10 +1,10 @@
 <script setup>
-// File: the per-round score table with totals. Depends on: ../../shared/scores.js (placements), StyledName.vue.
+// File: the per-round score table with totals.  Depends on: ../../shared/scores.js (placements), StyledName.vue.
 // Props: players ([{ id, name, score, isMe? }]), rounds ([{ label, deltas, notes? }]), lowIsBetter, target (Number|null),
 //   running (Boolean, running totals), split (Boolean, points and running total in separate columns).
 // Emits: none.  Slots: none.
 // Side effects: none.
-// Every round's scores in a table, with totals. Standard shape: see shared/scores.js.
+// Every round's scores in a table, with totals.  Standard shape: see shared/scores.js.
 import { computed } from 'vue';
 import { ordinalText } from '../messageText.js';
 import { useGameText } from '../useGameText.js';

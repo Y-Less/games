@@ -1,18 +1,18 @@
-// The rules of Cheat, with no sockets or files. A room is a plain object that can be saved as JSON.
+// The rules of Cheat, with no sockets or files.  A room is a plain object that can be saved as JSON.
 // Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in the
 // game's locale file or the site's (see shared/seats.js and shared/messages.js).
 //
-// Three to seven players, all the cards dealt out. Turns go clockwise and each one has a rank to claim, which runs Ace, 2, 3 ...
-// King and round again. On your turn you put one to four cards face down on the pile and say they are all of that rank (they
-// need not be: that is the cheating). Anyone else may call "Cheat!" on the last play before the next one is made. If it was
-// a lie its player picks up the whole pile; if it was true the caller does. The first player to get rid of every card wins,
+// Three to seven players, all the cards dealt out.  Turns go clockwise and each one has a rank to claim, which runs Ace, 2, 3 ...
+// King and round again.  On your turn you put one to four cards face down on the pile and say they are all of that rank (they
+// need not be: that is the cheating).  Anyone else may call "Cheat!" on the last play before the next one is made.  If it was
+// a lie its player picks up the whole pile; if it was true the caller does.  The first player to get rid of every card wins,
 // once nobody has caught their last play out.
 //
-// Seats 0..n-1 run clockwise. A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
+// Seats 0..n-1 run clockwise.  A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player
 // ({ kind: 'bot', id: 'bot:<n>', name, ai }), a person who left after the game ended ({ kind: 'gone', name }, kept so the
 // final standings still make sense) or null (empty, lobby only).
 //
-// Depends on the shared card, seat, AI, score, tally and trick helpers in shared/, and on ./ai and ./tally.js.
+// Depends on the shared card, seat, AI, score, tally, and trick helpers in shared/, and on ./ai and ./tally.js.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -34,7 +34,7 @@ export const BOT_NAMES = DEFAULT_BOT_NAMES;
 /** The phases in which a game is still going on (a finished game is not). */
 const LIVE = ['lobby', 'playing', 'check'];
 
-/** Is this room's game still going on (in the lobby, being played or in the final check)? Pure: reads room.phase only. */
+/** Is this room's game still going on (in the lobby, being played, or in the final check)?  Pure: reads room.phase only. */
 export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 /** Is this a table size the game allows (a whole number from MIN_SEATS to MAX_SEATS)? */
@@ -86,7 +86,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now }) {
 
 /**
  * Clears everything about a game in progress (hands, pile, turn, tallies...), sized for the current number of seats.
- * Side effects: mutates room. Used when a room is created, resized, started and played again.
+ * Side effects: mutates room.  Used when a room is created, resized, started, and played again.
  *
  * @param {object} room  the room to reset in place
  * @returns {void}
@@ -111,7 +111,7 @@ function resetGame(room) {
 // ---- seats and settings ----
 
 /**
- * The seat rules (join, leave, kick, computer players) are the shared ones. In Cheat a person who leaves mid-game (while
+ * The seat rules (join, leave, kick, computer players) are the shared ones.  In Cheat a person who leaves mid-game (while
  * it is being played or in the final check) is replaced by a computer player that gets its own AI; nothing else needs to
  * happen when somebody leaves.
  * Side effects: none at definition; the returned rules mutate the room they are given.
@@ -125,7 +125,7 @@ const seats = createSeatRules({
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 
 /**
- * The host changes the lobby settings (just the number of seats). Everyone stays seated (see resizeSeats).
+ * The host changes the lobby settings (just the number of seats).  Everyone stays seated (see resizeSeats).
  * Side effects: mutates room.
  *
  * @param {object} room
@@ -146,7 +146,7 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * Grows or shrinks the table. Shrinking keeps everyone seated, closing up the gaps in turn order if it has to.
+ * Grows or shrinks the table.  Shrinking keeps everyone seated, closing up the gaps in turn order if it has to.
  * Side effects: mutates room (its seats, and resets the game state).
  *
  * @param {object} room  the room to resize in place
@@ -162,7 +162,7 @@ function resizeSeats(room, count) {
 // ---- starting ----
 
 /**
- * The host deals the cards and starts the game. Every empty seat must be filled, and at least one person must be playing.
+ * The host deals the cards and starts the game.  Every empty seat must be filled, and at least one person must be playing.
  * Computer players choose their AI after the deal, so the deal itself does not depend on it.
  * Side effects: mutates room (hands, turn, phase 'playing', each bot's ai).
  *
@@ -194,7 +194,7 @@ export function start(room, userId, rng) {
 // ---- playing ----
 
 /**
- * Puts one to four cards face down on the pile, claiming they are all of the rank of the turn (they need not be). A player
+ * Puts one to four cards face down on the pile, claiming they are all of the rank of the turn (they need not be).  A player
  * who plays their last card moves the game to the final check instead of winning straight away.
  * Side effects: mutates room (hand, pile, last, tallies, turn, phase).
  *
@@ -231,7 +231,7 @@ export function playCards(room, seat, cards) {
 }
 
 /**
- * Calls "Cheat!" on the last play. Whoever is wrong picks up the pile. In the final check a true call ends the game with
+ * Calls "Cheat!" on the last play.  Whoever is wrong picks up the pile.  In the final check a true call ends the game with
  * the accused player winning, and a caught lie sends the game back to play.
  * Side effects: mutates room (hands, pile, lastCall, tallies, perhaps the phase).
  *
@@ -281,7 +281,7 @@ export function accept(room, seat) {
 }
 
 /**
- * The player who went out wins once everybody else has accepted their last play. Does nothing before that.
+ * The player who went out wins once everybody else has accepted their last play.  Does nothing before that.
  * Side effects: may mutate room (tallies, and finishes the game).
  *
  * @param {object} room  the room to settle
@@ -353,7 +353,7 @@ export function statsPlayers(room) {
 // ---- computer players ----
 
 /**
- * The AI a computer seat plays with. Seats without one get the first, standard AI.
+ * The AI a computer seat plays with.  Seats without one get the first, standard AI.
  *
  * @param {object} room  not changed
  * @param {number} seat  the computer seat
@@ -388,7 +388,7 @@ export function aiContext(room, seat, rng) {
 }
 
 /**
- * The cards a computer player plays: always one to four cards from its hand, chosen by its own AI. If the AI throws or
+ * The cards a computer player plays: always one to four cards from its hand, chosen by its own AI.  If the AI throws or
  * suggests something illegal, the first card of the hand is played instead.
  *
  * @param {object} room  not changed
@@ -437,7 +437,7 @@ export function botCalls(room, seat, rng) {
 }
 
 /**
- * The next thing a computer player has to do, or null when the game waits for a person. A decision about the last play
+ * The next thing a computer player has to do, or null when the game waits for a person.  A decision about the last play
  * comes before a play.
  *
  * @param {object} room  not changed
@@ -458,7 +458,7 @@ export function pendingAction(room) {
 
 /**
  * Performs a pending action.
- * Side effects: mutates room (a call, a decision or a play).
+ * Side effects: mutates room (a call, a decision, or a play).
  *
  * @param {object} room  the room to act on
  * @param {() => number} rng  random numbers for the AI

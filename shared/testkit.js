@@ -1,5 +1,5 @@
 // Helpers for the module tests that run against the real site (used by modules/*/robustness.test.js, lifecycle.test.js
-// and kick.test.js). Not imported by anything that ships: it only exists to keep those tests short and alike.
+// and kick.test.js).  Not imported by anything that ships: it only exists to keep those tests short and alike.
 //
 //   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
 //   const ann = await site.person('ann').open();      // registers an account and connects a socket
@@ -27,7 +27,7 @@ export { seeded } from './random.js';
 
 /**
  * Lists every socket event a module's server handles, sorted: those the module registers in its own server.js plus, if it is
- * built on the shared room server, the standard ones registered in shared/roomServer.js. The robustness tests compare
+ * built on the shared room server, the standard ones registered in shared/roomServer.js.  The robustness tests compare
  * this with the list of events they know how to attack, so a new event cannot go untested.
  * @param {string} moduleDir  the module's folder (the test's own directory)
  * @returns {string[]} the event names, sorted, excluding 'connection' and 'disconnect'
@@ -60,7 +60,7 @@ export async function until(condition, what, { timeout = 20000, step = 5 } = {})
 }
 
 /**
- * Starts the site with only one module (a copy of it, without tests or client). Pass an existing { dataDir } (and
+ * Starts the site with only one module (a copy of it, without tests or client).  Pass an existing { dataDir } (and
  * keep: true) to restart on the same data. `setup(dataDir)` runs before the site starts (dixnt makes fake cards there).
  * @param {import('node:test').TestContext} t  the running test; its `after` hook stops the site and removes the data
  * @param {object} options
@@ -109,7 +109,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
     if (!allowServerErrors) assert.deepEqual(serverErrors(), [], 'the server logged a failure during the test');
   });
 
-  // One test account: its cookie, its sockets and the states it has been sent. Created through `person(name)`.
+  // One test account: its cookie, its sockets, and the states it has been sent.  Created through `person(name)`.
   class Person {
     constructor(name) {
       this.name = name;
@@ -213,7 +213,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
     fire(event, ...args) {
       this.socket.emit(event, ...args);
     }
-    // Closes every socket this person has opened. Returns nothing.
+    // Closes every socket this person has opened.  Returns nothing.
     closeAll() {
       for (const s of this.sockets) s.close();
     }
@@ -246,7 +246,7 @@ const deep = (n) => {
 };
 
 /**
- * Lists values a hostile or broken client might send where the server expects an id, a card, a number or text.
+ * Lists values a hostile or broken client might send where the server expects an id, a card, a number, or text.
  * @returns {Array<[string, unknown]>} pairs of [label, value]
  * Side effects: none.
  */

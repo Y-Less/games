@@ -1,5 +1,5 @@
 // Cribbage over real sockets: simultaneous actions, one account on two sockets, disconnects in every phase, hosts
-// leaving, kicking someone who has gone away, rooms disappearing under connected sockets and one game per account.
+// leaving, kicking someone who has gone away, rooms disappearing under connected sockets, and one game per account.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -28,7 +28,7 @@ async function playOn(people, done, limit = 40000) {
   }
 }
 
-/** Ann (host), Bob and a computer player, started and in the discard phase. */
+/** Ann (host), Bob, and a computer player, started and in the discard phase. */
 async function started(t, { target = 61 } = {}) {
   const site = await launchModule(t, { id: 'cribbage', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));

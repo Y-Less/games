@@ -1,5 +1,5 @@
-// The socket layer for Splendour. The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
-// joining and the lobby events are the shared room server (shared/roomServer.js). This file says what is particular to
+// The socket layer for Splendour.  The rules live in game.js and the computer players in bot.js; the rooms, saving, views,
+// joining and the lobby events are the shared room server (shared/roomServer.js).  This file says what is particular to
 // Splendour: its two settings, its own socket events (take, takeTwo, reserve, buy, giveBack, noble, pass) and when a
 // computer player moves.
 //
@@ -8,7 +8,7 @@
 //   SPLENDOUR_AI          an AI id (see ai/index.js) that every computer player uses instead of a random pick, for repeatable
 //                         runs (a test/benchmark hook: see startWithForcedAI in bot.js)
 //
-// Depends on: ../../shared/roomServer.js (the shared room server), ./game.js (the rules) and ./bot.js (the computer players).
+// Depends on: ../../shared/roomServer.js (the shared room server), ./game.js (the rules), and ./bot.js (the computer players).
 import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 import * as bot from './bot.js';
@@ -41,7 +41,7 @@ export default function (ctx) {
       if (!bot.pendingAction(room)) return null;
       return { wait: botWait(botDelay, rng), run: () => bot.runPending(room, rng) };
     },
-    // Only when the test hook is set: the same AI for every computer player. Otherwise the shared default (game.start) is used.
+    // Only when the test hook is set: the same AI for every computer player.  Otherwise the shared default (game.start) is used.
     startRule: forcedAI ? (room, userId, rng) => bot.startWithForcedAI(room, userId, rng, forcedAI) : undefined,
     /**
      * Splendour's own socket events: each is one move, checked and applied by the rules in game.js.

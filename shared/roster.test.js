@@ -1,4 +1,4 @@
-// Tests for the shared player-list rules (shared/roster.js): joining, computer players, leaving, kicking and loading old rooms.
+// Tests for the shared player-list rules (shared/roster.js): joining, computer players, leaving, kicking, and loading old rooms.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRosterRules, humans, migratePlayers, renameInHistory, seatOf, uniqueName } from './roster.js';

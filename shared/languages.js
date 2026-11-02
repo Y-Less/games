@@ -1,4 +1,4 @@
-// Language tags, as a player's profile and a rules request name them. The site has no fixed list of languages: the client
+// Language tags, as a player's profile and a rules request name them.  The site has no fixed list of languages: the client
 // finds its locale files itself (src/i18n.js), so the server only has to recognise a tag and keep a saved one tidy.
 // Depends on: nothing.
 

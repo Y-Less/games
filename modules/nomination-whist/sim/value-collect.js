@@ -1,8 +1,8 @@
-// Collects the data for the bid-value table. Deals are played with every seat nominating the best-valued number according to
+// Collects the data for the bid-value table.  Deals are played with every seat nominating the best-valued number according to
 // the current table (or the table-aware lookup AI's choice when there is none yet), except that one seat in each deal,
 // chosen at random, nominates a random allowed number instead, and then everyone plays to what they nominated (Standard's
-// card play). For every nomination of every seat the cell of the decision (value-features.js), the number nominated and the
-// tricks that player went on to take are counted. A nomination made by the table depends only on its cell, and the others
+// card play).  For every nomination of every seat the cell of the decision (value-features.js), the number nominated and the
+// tricks that player went on to take are counted.  A nomination made by the table depends only on its cell, and the others
 // are random, so nothing about the hand that the cell cannot see leaks into how a nomination looks: the average for a
 // nomination in a cell is what it is worth there, whatever the hand would "naturally" have nominated.
 // Runs in worker threads: `collectChunk` is the unit of work, and this file is the worker's entry point.
@@ -27,7 +27,7 @@ for (let cards = 1; cards <= MAX_CARDS; cards++) {
 export const TOTAL = total;
 
 /**
- * The index of one count: players, cards, the cell, the number nominated and the tricks taken.
+ * The index of one count: players, cards, the cell, the number nominated, and the tricks taken.
  * @param {number} players  seats at the table (3 to 7)
  * @param {number} cards  cards each (1 to 7)
  * @param {{ key: number, unclaimed: number, after: number, regime: number }} cell  the decision's cell from valueCell
@@ -51,7 +51,7 @@ export function collectChunk({ model, seed, chunk, size, players, jokers = false
   const rng = mulberry32(mixSeed(seed, chunk));
   const counts = new Float64Array(TOTAL);
   let seen = [];
-  /** Remembers a nomination's cell, to be counted against the tricks taken once the deal ends. Side effects: pushes to `seen`. */
+  /** Remembers a nomination's cell, to be counted against the tricks taken once the deal ends.  Side effects: pushes to `seen`. */
   const record = (ctx, bid) => seen.push({ seat: ctx.seat, cell: valueCell(ctx), bid });
   const best = {
     /** Nominates the table's best-valued number (or lutc's choice where the table knows nothing) and records it. */

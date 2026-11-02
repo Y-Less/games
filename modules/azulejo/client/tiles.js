@@ -1,5 +1,5 @@
 // Tile.vue's colour table: the look of the five tiles and the first-player marker (colours chosen for contrast; the
-// pattern on each tile does the rest). Also holds the floor penalty labels.
+// pattern on each tile does the rest).  Also holds the floor penalty labels.
 
 /**
  * Colour palette per tile colour index; key -1 is the first-player marker.

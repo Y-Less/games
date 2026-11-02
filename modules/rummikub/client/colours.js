@@ -1,6 +1,6 @@
 // Tile colours: a distinct hue AND a distinct shape for each of the (up to eight) colours, so colour is never the only clue.
-// Shapes are drawn in a 12 x 12 box. TILE_COLOURS is indexed by a tile's colour number; the game's settings decide how many
-// are used. A colour's `key` is its name's key under `colours.` in the locale files (COLOUR_KEYS in ../rules.js), never a
+// Shapes are drawn in a 12 x 12 box.  TILE_COLOURS is indexed by a tile's colour number; the game's settings decide how many
+// are used.  A colour's `key` is its name's key under `colours.` in the locale files (COLOUR_KEYS in ../rules.js), never a
 // name: the name itself is looked up in the player's language.
 import { COLOUR_KEYS } from '../rules.js';
 
@@ -16,7 +16,7 @@ export const TILE_COLOURS = [
 ];
 
 // The outline of each shape named in TILE_COLOURS, in the 12 x 12 box: a circle as [cx, cy, r], a rectangle as [x, y, width,
-// height] and everything else as an SVG `points` string. Tile.vue draws these.
+// height] and everything else as an SVG `points` string.  Tile.vue draws these.
 export const SHAPES = {
   circle: { circle: [6, 6, 5] },
   triangle: { points: '6,0.8 11.4,11 0.6,11' },
@@ -29,7 +29,7 @@ export const SHAPES = {
 };
 
 /**
- * Looks up a colour's name key, hue and shape.
+ * Looks up a colour's name key, hue, and shape.
  *
  * @param {number} colour  a colour index (falls back to the first colour, red, if it is out of range)
  * @returns {{key: string, hue: string, shape: string}} the colour's entry in TILE_COLOURS

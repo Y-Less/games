@@ -19,7 +19,7 @@ export default {
    */
   chooseWindow: (options, rng) => pickOne(options, rng),
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -36,7 +36,7 @@ export default {
       margin: 1.5,
       reserve: 1,
       /**
-       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * How good it is to put `die` on `cell` for this AI: higher is better.  Its own measure of a placement; see the
        * file header for what it values.
        *
        * @param {object} s     the snapshot

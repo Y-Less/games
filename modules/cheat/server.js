@@ -1,5 +1,5 @@
-// The socket layer for Cheat. The rules live in game.js; the rooms, saving, views, joining and the lobby events are the
-// shared room server (shared/roomServer.js). This file says what is particular to Cheat: its settings (just the number of
+// The socket layer for Cheat.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are the
+// shared room server (shared/roomServer.js).  This file says what is particular to Cheat: its settings (just the number of
 // seats), its own socket events (play, call, accept), and what the server has to do by itself (a computer player's play
 // or its decision about the last play).
 //
@@ -19,9 +19,9 @@ function readDelays() {
 }
 
 /**
- * How long a computer player waits before deciding about the last play. A computer player thinks for a while before it
+ * How long a computer player waits before deciding about the last play.  A computer player thinks for a while before it
  * plays, and a little less before it decides about the last play, so that a person has time to call "Cheat!" first if they
- * want to. The wait is `min * 0.6 + random * (max - min) * 0.5`, which is a botWait over a scaled range.
+ * want to.  The wait is `min * 0.6 + random * (max - min) * 0.5`, which is a botWait over a scaled range.
  *
  * @param {{ min: number, max: number }} range  the computer-player range from readDelays
  * @param {() => number} rng  the server's random numbers
@@ -53,7 +53,7 @@ export default function (ctx) {
       const wait = action.type === 'decide' ? decideWait(delays.bot, rng) : botWait(delays.bot, rng);
       return { key: action.key, wait, run: () => game.runPending(room, rng) };
     },
-    /** Cheat's own socket events: play cards, call "Cheat!" and accept the last play. */
+    /** Cheat's own socket events: play cards, call "Cheat!", and accept the last play. */
     registerEvents({ act, on, userId }) {
       on('play', ({ cards }) => act((room, seat) => ctx.achievements.cardsPlayed(userId, game.playCards(room, seat, cards), Array.isArray(cards) ? cards.length : 0)));
       on('call', () => act((room, seat) => game.callCheat(room, seat)));

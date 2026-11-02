@@ -1,4 +1,4 @@
-// The pure rules: window patterns, the dice bag formula, placement rules and objective scoring by hand.
+// The pure rules: window patterns, the dice bag formula, placement rules, and objective scoring by hand.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -34,7 +34,7 @@ import { die, seeded } from './testing.js';
 const blank = patternOf('0.0'); // 'R....' '.3.T.' '..5..' '.J.2S'
 const free = { cells: Array(CELLS).fill('.') }; // a window with no restrictions at all
 const at = (r, c) => r * COLS + c;
-// The game's English, which is the only place a window, a tool or an objective is named.
+// The game's English, which is the only place a window, a tool, or an objective is named.
 const words = JSON.parse(readFileSync(new URL('./locales/en.json', import.meta.url), 'utf8'));
 // The name a window pattern is shown under ('3.1' is card 3, face 1).
 const windowName = (pid) => words.patterns[pid.split('.')[0]]?.[pid.split('.')[1]];

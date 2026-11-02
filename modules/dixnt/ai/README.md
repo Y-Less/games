@@ -3,22 +3,22 @@
 ## Purpose and how bots get an AI
 
 Dixnt's computer players are built in: the host adds them in the lobby (they are seats in the room, not accounts) and
-the server plays them. The decision logic is in this folder: one file per AI, and `ai/index.js` exports the `AIS` array
-(built with `defineAIs` from `shared/ai.js`). The optional stand-alone bot process (`bots/bot.js`) uses the same code.
+the server plays them.  The decision logic is in this folder: one file per AI, and `ai/index.js` exports the `AIS` array
+(built with `defineAIs` from `shared/ai.js`).  The optional stand-alone bot process (`bots/bot.js`) uses the same code.
 
 - **Choosing.** When a game starts, `Game.start` deals every computer player an AI with `assignAIs(AIS, ids, rng)`
   (weighted random, using the game's rng, so seeded games repeat) and stores its id on the seat; the seat is saved with
-  the room, and a new game deals again. A person who leaves mid-round is replaced by a computer player that gets a random
-  AI with `pickAI`. The external `bots/bot.js` instead picks with `pickAI(AIS)`, or the one named with `--ai ID`, and
+  the room, and a new game deals again.  A person who leaves mid-round is replaced by a computer player that gets a random
+  AI with `pickAI`.  The external `bots/bot.js` instead picks with `pickAI(AIS)`, or the one named with `--ai ID`, and
   tells the server with the `declareAI` event (`game.setAI` refuses unknown ids); built-in bots never use `declareAI`.
 - **View.** `players[].ai` is `{ id, name }` for computer players once a game has started and `null` for people (and
-  for built-in bots in the lobby). A seat saved with an AI that no longer exists falls back to the first AI
+  for built-in bots in the lobby).  A seat saved with an AI that no longer exists falls back to the first AI
   (`standard`); one saved before this feature has none.
 - **What a computer player does.** The server asks `Game.runBotAction()` for the next move after a short wait
-  (`DIXNT_BOT_DELAY`). When it is the chooser, the AI picks one of three hints from the game's list; when cards are being
-  played the AI picks from its hand; when voting the AI picks from the legal targets. Every decision is built from that
-  seat's own view, so the AI never sees more than a person would. If an AI throws or answers with something illegal, a
-  random legal choice is made instead. The game's rng is passed as the `rng` (the external bot passes `Math.random`).
+  (`DIXNT_BOT_DELAY`).  When it is the chooser, the AI picks one of three hints from the game's list; when cards are being
+  played the AI picks from its hand; when voting the AI picks from the legal targets.  Every decision is built from that
+  seat's own view, so the AI never sees more than a person would.  If an AI throws or answers with something illegal, a
+  random legal choice is made instead.  The game's rng is passed as the `rng` (the external bot passes `Math.random`).
 
 ## The AIs
 
@@ -32,34 +32,34 @@ the server plays them. The decision logic is in this folder: one file per AI, an
 
 ## How each one decides
 
-**Standard.** Every decision is a uniform random choice: which hint, which card, whom to accuse. It is the original
-bot. Limitation: it ignores everything it knows.
+**Standard.** Every decision is a uniform random choice: which hint, which card, whom to accuse.  It is the original
+bot.  Limitation: it ignores everything it knows.
 
-**Random.** Makes exactly the same decisions as Standard, since both are random. It is kept as a separate AI so it can
+**Random.** Makes exactly the same decisions as Standard, since both are random.  It is kept as a separate AI so it can
 be asked for by name (`--ai random`) and given a lower weight in the random pick.
 
-**Literal.** Takes the clue at face value. As the chooser it picks the hint it can match most strongly to a card
-category. When playing it chooses the card in its hand whose category suits the clue best. When voting it accuses the
+**Literal.** Takes the clue at face value.  As the chooser it picks the hint it can match most strongly to a card
+category.  When playing it chooses the card in its hand whose category suits the clue best.  When voting it accuses the
 player whose card suits the clue least (in the "favourite" judging style, where the chooser is picking the best card,
-it picks the best fit instead). It knows nothing about the other players. When it is the imposter and cannot see the
+it picks the best fit instead).  It knows nothing about the other players.  When it is the imposter and cannot see the
 word, or when the clue means nothing to its word list, it chooses at random.
 
-**Contrarian.** Deliberately hard to read. As the chooser it picks the hint it can match least. It plays the card that
-fits the clue about halfway, so nobody can tell a bluff from a real play. When voting it accuses whoever played the
-card that fits the clue best (too neat). In the "favourite" style it picks the card that is neither obvious nor off.
+**Contrarian.** Deliberately hard to read.  As the chooser it picks the hint it can match least.  It plays the card that
+fits the clue about halfway, so nobody can tell a bluff from a real play.  When voting it accuses whoever played the
+card that fits the clue best (too neat).  In the "favourite" style it picks the card that is neither obvious nor off.
 It falls back to random when the clue means nothing to it.
 
 **Sharp.** Reads the clue like Literal and also reads the table: players who saw the word play cards that cluster
-around it, so the odd one out is probably the imposter. It scores each suspect by how badly their card fits the clue
+around it, so the odd one out is probably the imposter.  It scores each suspect by how badly their card fits the clue
 plus how different its category is from the other cards on the table (the table part still works when the word list
-does not know the clue). When it cannot see the word it plays a card from the category it holds most of, the likeliest
-to overlap with somebody. Ties are broken by player id rather than at random, so several sharp bots all accuse the
-same person (a group needs a clear plurality to catch the imposter). A sharp imposter does the same, which can steer
-the vote onto a decoy. In the "favourite" style it picks the best fit.
+does not know the clue).  When it cannot see the word it plays a card from the category it holds most of, the likeliest
+to overlap with somebody.  Ties are broken by player id rather than at random, so several sharp bots all accuse the
+same person (a group needs a clear plurality to catch the imposter).  A sharp imposter does the same, which can steer
+the vote onto a decoy.  In the "favourite" style it picks the best fit.
 
 Limitations common to the smart AIs: clue matching uses a hand-written word list (`lexicon.js`) that recognises only
 about 32% of the 1024 hints, and the card metadata (`cards.js`) is category-only, so otherwise they fall back to
-table-based or random choices. No AI tracks vote accuracy across rounds.
+table-based or random choices.  No AI tracks vote accuracy across rounds.
 
 ## How strong are they?
 
@@ -77,12 +77,12 @@ seeded games each:
 - Mixed tables do worse than the all-same ones suggest: a table of 2 sharp and 2 random players caught only 28%,
   because the random players scatter their votes.
 - `ai.test.js` asserts that literal beats random by more than 8 points and sharp beats literal by more than 5 at both
-  table sizes. It also checks that every AI plays complete, legal games in every judging style, and that each AI is
+  table sizes.  It also checks that every AI plays complete, legal games in every judging style, and that each AI is
   repeatable for a given seed.
 
 ## Adding an AI
 
-1. Create `ai/<id>.js` exporting an object `{ id, name, description, weight, chooseWord, playCard, vote }`. The `id` is
+1. Create `ai/<id>.js` exporting an object `{ id, name, description, weight, chooseWord, playCard, vote }`.  The `id` is
    lowercase and unique and is saved with the room. `weight` defaults to 1; `0` keeps it out of the random pick (it can
    still be chosen with `--ai`).
 2. Implement the three functions, each taking one plain-data context and the `rng`, and returning one of the legal
@@ -94,9 +94,9 @@ seeded games each:
      `table` is `[{ playerId, cardId }]`; in the "favourite" style this is the chooser picking the best card.
 
    `cards` is `{ categoryOf, categories }` (category only; see `cards.js`).
-3. Keep it to plain data: no sockets, files or clock, and only what that player may know (their own hand, the visible
-   table, and the clue only if they can see it). Use the supplied `rng` for randomness, never `Math.random`. The
+3. Keep it to plain data: no sockets, files, or clock, and only what that player may know (their own hand, the visible
+   table, and the clue only if they can see it).  Use the supplied `rng` for randomness, never `Math.random`.  The
    helpers in `util.js` (`pick`, `best`, `fitter`, `clueStrength`, `oddness`) and `lexicon.js` are there to reuse.
 4. Add it to the list in `ai/index.js`, keeping `standard` first (the fallback for unknown ids).
-5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour. Neither the server nor the
+5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour.  Neither the server nor the
    external bot needs a change: both use `AIS`, and `--help` lists the new id.

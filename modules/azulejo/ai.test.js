@@ -1,5 +1,5 @@
 // The Azulejo computer players' AIs: the registry, legality at every size, what each one is for, a seeded tournament,
-// and how an AI is assigned, saved and shown.
+// and how an AI is assigned, saved, and shown.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -130,7 +130,7 @@ test('row finisher: completes the row that is nearly full, even for fewer points
 });
 
 test('colour collector: finishes a colour set rather than the bigger tile', () => {
-  // Cobalt (1) is on four rows; a single Saffron on line 1 completes the set. A Verdigris tile elsewhere scores 6.
+  // Cobalt (1) is on four rows; a single Saffron on line 1 completes the set.  A Verdigris tile elsewhere scores 6.
   const room = position((r) => {
     setWall(r, 0, ['....X', '..XX.', '...XX', '....X', 'X....']);
     r.lines[0][1] = { colour: 3, count: 1 };

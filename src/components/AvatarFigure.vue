@@ -1,11 +1,11 @@
 <script setup>
-// File: renders an avatar or robot as inline SVG. Depends on: ../avatarArt.js (markup builders).
+// File: renders an avatar or robot as inline SVG.  Depends on: ../avatarArt.js (markup builders).
 // Props: avatar (Object|null, chosen options), robot (Boolean, draw the computer-player robot), seed (String, picks the robot's
 //   background colour), size (String, CSS width and height), label (String, accessible name; empty hides it from screen readers).
 // Emits: none.  Slots: none.
-// Side effects: none. The markup comes from our own avatarArt.js (never user text), which is why v-html is safe here.
-// A player's avatar (see shared/avatar.js): a square figure of layered parts. Give it the `avatar` (an object of chosen
-// options, or nothing for the default one) and a `size` in CSS units. With `robot` it is the computer players' square robot instead, its background chosen by `seed`. It is decoration, so it is hidden from screen readers
+// Side effects: none.  The markup comes from our own avatarArt.js (never user text), which is why v-html is safe here.
+// A player's avatar (see shared/avatar.js): a square figure of layered parts.  Give it the `avatar` (an object of chosen
+// options, or nothing for the default one) and a `size` in CSS units.  With `robot` it is the computer players' square robot instead, its background chosen by `seed`.  It is decoration, so it is hidden from screen readers
 // unless a `label` is given.
 import { computed } from 'vue';
 import { avatarMarkup, robotMarkup } from '../avatarArt.js';

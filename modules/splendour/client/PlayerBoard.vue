@@ -1,5 +1,5 @@
 <script setup>
-// One player's board: prestige, tokens, card bonuses, nobles and reserved cards.
+// One player's board: prestige, tokens, card bonuses, nobles, and reserved cards.
 // Your own reserved cards are shown and can be picked; other players' are shown face up if they were taken from the table
 // (everyone saw that) and face down if they were reserved blind from a pile.
 // Props: seat (the seat's view: tokens, bonuses, reserved cards, nobles, prestige), isMe, isTurn, interactive (cards can be
@@ -106,7 +106,7 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
 </template>
 
 <style scoped>
-/* A compact board: names, tokens and card bonuses on the left, the three reserve slots on the right. Sizes are in em
+/* A compact board: names, tokens, and card bonuses on the left, the three reserve slots on the right.  Sizes are in em
    so the table scales with the window; the height never depends on what the player holds. */
 .board {
   display: flex;
@@ -222,7 +222,7 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
 .board.large .reserved {
   justify-content: space-between;
 }
-/* the bottom row of your own board: the buttons for what you are doing. Its height is always reserved. */
+/* the bottom row of your own board: the buttons for what you are doing.  Its height is always reserved. */
 .actions {
   grid-column: 1 / -1;
   display: flex;

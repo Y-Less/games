@@ -1,6 +1,6 @@
-// Layout stability: the areas that hold cards must not grow, shrink or jump while a game is played. Playing a card
+// Layout stability: the areas that hold cards must not grow, shrink, or jump while a game is played.  Playing a card
 // takes it out of your hand, lands it in the trick, changes the status line and so on, and none of that may move the
-// rest of the page. For Hearts, Cribbage and Nomination Whist this plays a whole hand (or round) against computer
+// rest of the page.  For Hearts, Cribbage and Nomination Whist this plays a whole hand (or round) against computer
 // players while a recorder inside the page samples the bounding boxes of the main areas every few milliseconds, then
 // asserts that each area only ever had one size and one position.
 //
@@ -95,7 +95,7 @@ const finishedModal = (user) => async () => /^Scores after/.test(await user.moda
 // Two common desktop window sizes: every game must fit both without scrolling the page.
 const VIEWPORTS = [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }];
 
-/** At the start of a Hearts hand (passing): every hand, the trick circle, the pass button and your hand are apart. */
+/** At the start of a Hearts hand (passing): every hand, the trick circle, the pass button, and your hand are apart. */
 async function assertHeartsTable(user, seats) {
   const boxes = await user.page.evaluate(() => {
     const r = (el) => {
@@ -318,7 +318,7 @@ test(`Nomination Whist at ${at}: the trick, nomination zone, hand and both botto
   })(t);
 });
 
-// Gaudi and Azulejo: the "recent actions" list used to grow line by line as the game went on. It must now be a box of
+// Gaudi and Azulejo: the "recent actions" list used to grow line by line as the game went on.  It must now be a box of
 // one size, whatever has happened so far, and the newest entry must stay in view inside it.
 const gaudiFinder = () => {
   const confirm = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Choose this window');
@@ -372,7 +372,7 @@ const rummikubFinder = () => [...document.querySelectorAll('.actions button')].f
 /**
  * Plays a whole game as a human who only ever clicks what `finder` returns (closing every pop-up on the way) while the
  * boxes of `areas` are sampled. `ready` is a regular expression for the text that shows the game proper has begun, and
- * `finished(user)` says when it is over. The result screen is not sampled (`stopWhen`): it is allowed to differ.
+ * `finished(user)` says when it is over.  The result screen is not sampled (`stopWhen`): it is allowed to differ.
  */
 function wholeGameLayout({ name, path, finder, ready, finished, areas, stopWhen, newest, allowOverflow = false, timeout = 280000, lobby = null }) {
   test(`${name} at ${at}: ${areas.length} areas keep one size and position through a whole game${allowOverflow ? '' : ', and the page does not scroll'}`, { timeout }, async (t) => {
@@ -408,8 +408,8 @@ function wholeGameLayout({ name, path, finder, ready, finished, areas, stopWhen,
   });
 }
 
-// The "recent actions" lists of Gaudi and Azulejo used to grow line by line as the game went on. Each is now a box of
-// one size whatever has happened so far, with the newest entry (the first) in view. Gaudi is a tall page that cannot be
+// The "recent actions" lists of Gaudi and Azulejo used to grow line by line as the game went on.  Each is now a box of
+// one size whatever has happened so far, with the newest entry (the first) in view.  Gaudi is a tall page that cannot be
 // scaled to fit the window, so for it only stability is checked, not that the page does not scroll.
 const finalShown = (user) => user.page.$('section.final').then(Boolean);
 wholeGameLayout({
@@ -517,7 +517,7 @@ test(`Dixnt at ${at}: the table, controls and hand zones keep one size and posit
       return user.clickFound(() => [...document.querySelectorAll('button.primary')].find((b) => /^(Next round|That was the last round)/.test(b.innerText.trim())));
     };
     await drive({ act, finished: () => user.page.$('.standings').then(Boolean), what: 'a game of Dixnt', timeout: 150000 });
-    // Every zone keeps its size AND its position through word, picking, voting and results, and the page never scrolls.
+    // Every zone keeps its size AND its position through word, picking, voting, and results, and the page never scrolls.
     // (The word pop-up floats over the play area and takes no room; the table itself may be replaced by the ideas.)
     assertStable('dixnt', await stopRecording(user), { tolerateMissing: 100000 });
     const edges = await user.page.evaluate(() => {
@@ -530,7 +530,7 @@ test(`Dixnt at ${at}: the table, controls and hand zones keep one size and posit
 });
 
 
-// Tints and Hints has no computer players, so two people play a two-turn game; the first person's page is sampled. The
+// Tints and Hints has no computer players, so two people play a two-turn game; the first person's page is sampled.  The
 // turn panel differs by role and phase, but the board under it and the score bar must keep one size, and the hint line
 // is always there (empty until the hint arrives), so the hint appearing does not push the board down.
 test(`Tints and Hints at ${at}: every zone keeps one size and position through a two-player game, and the page does not scroll`, { timeout: 150000 }, async (t) => {
@@ -573,7 +573,7 @@ test(`Tints and Hints at ${at}: every zone keeps one size and position through a
       return u.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
     };
     await drive({ act: async () => (await Promise.all(all.map(step))).some(Boolean), finished: async () => seen.has('Final scores'), timeout: 120000, what: 'Tints and Hints' });
-    // Every zone keeps its size and its position through hints, guesses and the reveal, and the page never scrolls.
+    // Every zone keeps its size and its position through hints, guesses, and the reveal, and the page never scrolls.
     assertStable('tints-and-hints', await stopRecording(host), { tolerateMissing: 100000 });
   })(t);
 });

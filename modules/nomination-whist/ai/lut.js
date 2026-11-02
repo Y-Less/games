@@ -1,8 +1,8 @@
-// Plays from lookup tables learned by simulation (modules/nomination-whist/sim). The bidding table gives, for every player
-// count, number of cards and trump suit, the chance of each number of tricks for a hand of a given estimated worth; the AI
-// nominates the allowed number with the best expected score. The play table gives the average points of each kind of play
-// in each situation (my need, the state of the other players, the card), and the AI plays the best one. Without a table
-// file it plays as Standard does. Depends on the helpers in ./cards.js, ./endgame.js, ./sharp.js (roundPoints) and
+// Plays from lookup tables learned by simulation (modules/nomination-whist/sim).  The bidding table gives, for every player
+// count, number of cards, and trump suit, the chance of each number of tricks for a hand of a given estimated worth; the AI
+// nominates the allowed number with the best expected score.  The play table gives the average points of each kind of play
+// in each situation (my need, the state of the other players, the card), and the AI plays the best one.  Without a table
+// file it plays as Standard does.  Depends on the helpers in ./cards.js, ./endgame.js, ./sharp.js (roundPoints) and
 // ./standard.js, and on the learned tables and models under ../sim (read from disk, once, on first use).
 import fs from 'node:fs';
 import { cellOf } from '../sim/bids-features.js';
@@ -27,7 +27,7 @@ const CONTEXT_FILES = {
 };
 
 /**
- * Loads (once) the bidding table with table state for games with or without the Jokers, or null if there is none. The two
+ * Loads (once) the bidding table with table state for games with or without the Jokers, or null if there is none.  The two
  * are separate tables because a Joker is worth most of a trick and changes what every other hand is worth.
  *
  * @param {boolean} [jokers=false]  whether the game uses the Jokers
@@ -74,7 +74,7 @@ export function playModel(set) {
 }
 
 /**
- * Loads (once) the plain bidding table for games with or without the Jokers, or null if there is none. They are separate
+ * Loads (once) the plain bidding table for games with or without the Jokers, or null if there is none.  They are separate
  * tables, trained apart, because a Joker is worth most of a trick and changes what every other hand is worth.
  * `reload` clears what was loaded (both), for tests and for use after retraining.
  *
@@ -98,7 +98,7 @@ export function biddingModel(jokers = false, reload = false) {
 
 /**
  * Replaces what `biddingModel` has loaded for games with (`jokers` true) or without the Jokers: a table to use, null for none,
- * or undefined to read the file again. For tests.
+ * or undefined to read the file again.  For tests.
  *
  * @param {boolean} jokers  which setting's table to replace
  * @param {object | null | undefined} model  the table, null for none, or undefined to clear the cache
@@ -111,7 +111,7 @@ export function useBiddingModel(jokers, model) {
 }
 
 /**
- * The chance of each number of tricks (index 0 to cards) for this hand, or null if the table has no row for it. The hand is
+ * The chance of each number of tricks (index 0 to cards) for this hand, or null if the table has no row for it.  The hand is
  * reduced to Standard's estimate, bucketed, and the row for that bucket (the last one if it is off the end) is returned.
  *
  * @param {object} model  the plain bidding table
@@ -165,7 +165,7 @@ function guess({ hand, trump, players, allowed, rng }, boost) {
  * @param {object} ctx  the nomination context
  * @param {number} boost  extra weight for every card, 0 for none
  * @returns {number} the nomination
- * Side effects: may load the table from disk once. A Jokers game reads bidding-jokers.json, never the jokerless table (a
+ * Side effects: may load the table from disk once.  A Jokers game reads bidding-jokers.json, never the jokerless table (a
  * Joker changes what every hand is worth); if that file is missing Standard's estimate is used instead.
  */
 function lutPlain(ctx, boost) {
@@ -190,7 +190,7 @@ function lutcChoice(ctx, boost) {
   return chances ? bestNomination(chances, ctx.allowed, ctx.missPoints ?? true) : lutPlain(ctx, 0);
 }
 
-/** Lookup that also reads the nominations made before it: a hand is worth more when the players before nominated low. Not offered to players (weight 0), kept as a fallback layer. */
+/** Lookup that also reads the nominations made before it: a hand is worth more when the players before nominated low.  Not offered to players (weight 0), kept as a fallback layer. */
 export const lutc = {
   id: 'lutc',
   name: 'Lookup (table-aware)',
@@ -220,8 +220,8 @@ export const lutc = {
 
 /**
  * Nominates by what each nomination is actually worth: the hand model (sim/hand-model.js), a network learned from millions
- * of simulated deals that is shown every card of the hand, the table position and what the players before nominated, and
- * gives the chance of hitting each number and the tricks taken on a miss, with the player playing to the nomination. Where
+ * of simulated deals that is shown every card of the hand, the table position, and what the players before nominated, and
+ * gives the chance of hitting each number and the tricks taken on a miss, with the player playing to the nomination.  Where
  * it has no model it uses `lutvTable`, the older bid-value table, which squeezes a hand of three or more cards into one
  * estimate.
  */
@@ -272,7 +272,7 @@ function valueChoice(ctx) {
  * The older bid-value table's nomination: the table (sim/value-model.js) holds, for the exact cards of a hand of one or two
  * cards (or the estimate of a bigger one), the table position and what the players before nominated, how often each
  * possible nomination was then hit and how many tricks were taken on a miss, with the player playing to the nomination.
- * Where the table has nothing it falls back to `lutc`. Kept as the fallback for `lutv`, and as the yardstick the hand model
+ * Where the table has nothing it falls back to `lutc`.  Kept as the fallback for `lutv`, and as the yardstick the hand model
  * is measured against.
  */
 export const lutvTable = {
@@ -305,7 +305,7 @@ export const lutvTable = {
   play: (ctx) => lut.play(ctx),
 };
 
-/** The plain lookup AI: nominates from the estimate-bucketed bidding table and plays from the learned play table. Not offered to players (weight 0). */
+/** The plain lookup AI: nominates from the estimate-bucketed bidding table and plays from the learned play table.  Not offered to players (weight 0). */
 export const lut = {
   id: 'lut',
   name: 'Lookup',

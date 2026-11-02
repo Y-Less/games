@@ -1,9 +1,9 @@
 <script setup>
 // Azulejo lobby: shows the invite code and the seats (via the shared SeatLobby), and lets the host pick the number of
-// seats and whether the wall is "free". Everyone else sees the settings read-only.
+// seats and whether the wall is "free".  Everyone else sees the settings read-only.
 //
 // Props:
-//   state  {Object}    required. The player's view of the game (phase 'lobby'): code, seats, you, hostSeat, size, limits, settings.
+//   state  {Object}    required.  The player's view of the game (phase 'lobby'): code, seats, you, hostSeat, size, limits, settings.
 //   send   {Function}  required. send(action, payload) asks the server to do something.
 // Emits: none.
 // Slots: none (fills SeatLobby's #settings slot).

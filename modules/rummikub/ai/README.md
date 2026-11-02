@@ -4,19 +4,19 @@
 
 A Rummikub computer player is not a single fixed program: each one plays with an AI, a named way of choosing its turn.
 The shared registry helpers live in `shared/ai.js`; this folder holds the Rummikub AIs and `ai/index.js` lists them in
-the exported `AIS` array. The search they use is in `search.js`, and `bot.js` picks the seat's AI, asks it for a play
-and sends it through the same rules check (`rules.checkPlay`) a person's move goes through. If a plan is ever refused,
+the exported `AIS` array.  The search they use is in `search.js`, and `bot.js` picks the seat's AI, asks it for a play
+and sends it through the same rules check (`rules.checkPlay`) a person's move goes through.  If a plan is ever refused,
 or an AI has no plan, the computer simply draws, so a game always goes on.
 
 - **At game start.** `game.start` deals, then calls `assignAIs(AIS, botSeats, rng)` with the game's own seeded `rng`.
-  Every bot seat gets one AI by weighted random pick (`shared/ai.js`), and keeps it for the whole game. The id is
-  stored on the seat (`room.seats[i].ai`), so it survives a restart. A new game draws again.
+  Every bot seat gets one AI by weighted random pick (`shared/ai.js`), and keeps it for the whole game.  The id is
+  stored on the seat (`room.seats[i].ai`), so it survives a restart.  A new game draws again.
 - **Replacement bots.** When a person leaves a game in progress, the bot that takes the seat picks with
-  `pickAI(AIS, rng)` at that moment. In the lobby nothing is chosen.
+  `pickAI(AIS, rng)` at that moment.  In the lobby nothing is chosen.
 - **Old rooms.** A seat with no `ai`, or one naming an AI that no longer exists, falls back to the first AI in the list
-  (`standard`, via `aiById`). That is why `standard` must stay first.
+  (`standard`, via `aiById`).  That is why `standard` must stay first.
 - **View.** Once the game has started, the view gives each bot seat `seats[].ai = { id, name, description }` (from
-  `describeAI`). People's seats have none, and the decision functions are never sent.
+  `describeAI`).  People's seats have none, and the decision functions are never sent.
 
 ## The AIs
 
@@ -32,34 +32,34 @@ or an AI has no plan, the computer simply draws, so a game always goes on.
 ## How each one decides
 
 **Classic (`standard`).** Before its first meld it looks for new sets from its own rack that together reach the meld
-threshold. After that it considers two things: taking every tile on the table plus its rack and rebuilding the whole
-table to use as many rack points as possible (a joker counts as 30), and making new sets from the rack alone. It tries
-the best-scoring candidates in order and plays the first one the rules accept. It values points, not tile count, so it
-will happily leave small tiles in its rack. Its search stops at 6000 nodes (`SEARCH_BUDGET`); on a big table that cap is
-hit and the answer may be poor. That behaviour is kept as the original bot's.
+threshold.  After that it considers two things: taking every tile on the table plus its rack and rebuilding the whole
+table to use as many rack points as possible (a joker counts as 30), and making new sets from the rack alone.  It tries
+the best-scoring candidates in order and plays the first one the rules accept.  It values points, not tile count, so it
+will happily leave small tiles in its rack.  Its search stops at 6000 nodes (`SEARCH_BUDGET`); on a big table that cap is
+hit and the answer may be poor.  That behaviour is kept as the original bot's.
 
-**Tidy, Rearranger and Juggler (`shuffler-5`, `-10`, `-20`).** These share one implementation (`shuffler.js`) and
-differ only in the table-tile budget (`tableTiles`). Before melding they behave like Classic. Afterwards they choose
+**Tidy, Rearranger, and Juggler (`shuffler-5`, `-10`, `-20`).** These share one implementation (`shuffler.js`) and
+differ only in the table-tile budget (`tableTiles`).  Before melding they behave like Classic.  Afterwards they choose
 which table tiles to free (taking a tile out of its set, or taking a whole set apart), solve for the freed tiles plus
-the rack, add leftover rack tiles to the sets left in place, and keep the best legal result. They try the cheapest
+the rack, add leftover rack tiles to the sets left in place, and keep the best legal result.  They try the cheapest
 choices first, in an order that does not depend on the budget, so a bigger budget only ever looks at more choices after
-the same ones a smaller budget looked at. A tile counts as moved when it is taken out of its set or its whole set is
-taken apart, so the budget slightly over-charges, but consistently. Limitations: they cannot find a play that needs
+the same ones a smaller budget looked at.  A tile counts as moved when it is taken out of its set or its whole set is
+taken apart, so the budget slightly over-charges, but consistently.  Limitations: they cannot find a play that needs
 more table tiles moved than the budget, and the search is bounded (see below), so a huge table may be only partly
-explored. They value points like Classic.
+explored.  They value points like Classic.
 
 **Sharp (`sharp`).** It uses the unlimited search of Classic and also every way of moving up to 20 table tiles, but it
-scores differently. Every tile played is worth the same large amount, so it plays the most tiles it can and goes out
-when it can. Among equal plays it prefers to get rid of awkward tiles near the ends of the number range and keep the
-flexible middle ones. A joker is held back unless it is part of a play of at least four tiles, lets it go out, or is
-the only way to make its first meld. If an opponent has three tiles or fewer left, or the pool is empty, it stops
-holding jokers back and plays high tiles first. Limitations: it still draws when only a joker would make a small play
+scores differently.  Every tile played is worth the same large amount, so it plays the most tiles it can and goes out
+when it can.  Among equal plays it prefers to get rid of awkward tiles near the ends of the number range and keep the
+flexible middle ones.  A joker is held back unless it is part of a play of at least four tiles, lets it go out, or is
+the only way to make its first meld.  If an opponent has three tiles or fewer left, or the pool is empty, it stops
+holding jokers back and plays high tiles first.  Limitations: it still draws when only a joker would make a small play
 possible, and it is only as thorough as the search limits allow.
 
 **Random (`random`).** Before its first meld it picks random disjoint three-tile sets from its rack until they reach
-the meld threshold, and draws if it cannot. After that it lists every new three-tile set from its rack and every single
+the meld threshold, and draws if it cannot.  After that it lists every new three-tile set from its rack and every single
 rack tile that can be added to a set on the table, and plays one of them at random, so it plays at most one set or one
-tile per turn. It never rearranges the table. If it has no legal move it draws. When no `rng` is supplied it uses a
+tile per turn.  It never rearranges the table.  If it has no legal move it draws.  When no `rng` is supplied it uses a
 small seeded generator, so a game stays repeatable.
 
 ## How strong are they?
@@ -80,29 +80,29 @@ A separate 180-game offline run gave: sharp 0.267 win rate with a score of 34.2,
 
 - Sharp is the clear winner and Random is clearly last. `ai.test.js` asserts that every other AI beats Random on tiles
   played, score and win rate, and that Random wins under 10% of games.
-- Full games are too noisy to show a clean 5 < 10 < 20 ordering. The budget shows up more clearly on single positions.
+- Full games are too noisy to show a clean 5 < 10 < 20 ordering.  The budget shows up more clearly on single positions.
   On 210 real-game positions the points played at budgets 5, 10 and 20 were 2759, 2782 and 2798, so a bigger budget is
-  never worse (the test asserts this position by position). On a constructed position that needs 8 table tiles moved,
+  never worse (the test asserts this position by position).  On a constructed position that needs 8 table tiles moved,
   budget 5 draws while 10 and 20 play (so does Classic).
 - Classic scores low because its search hits the 6000-node cap on big tables; that is kept as the original behaviour.
-- Search is bounded by node counts, not the clock: 800 nodes per solve, 20,000 per turn and 120 choices considered
+- Search is bounded by node counts, not the clock: 800 nodes per solve, 20,000 per turn, and 120 choices considered
   (`SHUFFLE_LIMITS`), so a turn is quick and repeatable for a given position.
 
 ## Adding an AI
 
-1. Create `ai/<id>.js` with a default export `{ id, name, description, weight, plan }`. The `id` is lowercase and
+1. Create `ai/<id>.js` with a default export `{ id, name, description, weight, plan }`.  The `id` is lowercase and
    unique, and is saved in rooms, so do not rename it casually. `weight` defaults to 1; `0` keeps it out of the random
    pool (it can still be set by id in tests).
 2. `plan(situation, seat, options)` returns `{ table, added, value }` (the whole proposed table as arrays of tile ids,
    and how many rack tiles it plays) or `null` to draw. `options` carries `rng` (a `() => number` in [0, 1); required,
-   never `Math.random`, so seeded games and tests repeat) and may carry `budget`. Keep the file free of sockets and
+   never `Math.random`, so seeded games and tests repeat) and may carry `budget`.  Keep the file free of sockets and
    files, and make `plan` a pure function of its arguments: anything to remember must be in the room.
 3. The `situation` (built by `situation(room, seat)` in `bot.js`) is all the seat may know: `settings`, `table`,
    `melded`, its own rack as `racks[seat]` (the other entries are `null`), the other racks only as `rackCounts`, and
-   `poolCount`. Other players' tiles and the pool's order are not in it, so an AI cannot peek. The plan is checked by
+   `poolCount`.  Other players' tiles and the pool's order are not in it, so an AI cannot peek.  The plan is checked by
    `rules.checkPlay` anyway.
 4. Reuse `search.js` (`standardAttempts`, `shuffleAttempts`, `meldAttempts`, `firstLegal`) and the helpers in `rules.js`
-   rather than writing a new search, and bound any work by node counts, not the clock. To add another budget level,
+   rather than writing a new search, and bound any work by node counts, not the clock.  To add another budget level,
    call `makeShuffler({ id, name, description, tableTiles })` from `shuffler.js`.
 5. Add it to the list in `ai/index.js`, keeping `standard` first (the fallback for old rooms).
 6. Update `ai.test.js`: the `IDS` list and the registry test, so the new AI is also played in the whole-game and

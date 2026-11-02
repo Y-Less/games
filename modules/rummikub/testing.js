@@ -8,8 +8,8 @@ import { seeded } from '../../shared/testkit.js';
 
 export { seeded };
 
-// Tile ids by meaning: tile(s, colour, number, copy) takes the settings, a 0-based colour, a 1-based number and the copy (0 or
-// 1); joker(s, i) the i-th joker. Both return an id; no side effects.
+// Tile ids by meaning: tile(s, colour, number, copy) takes the settings, a 0-based colour, a 1-based number, and the copy (0 or
+// 1); joker(s, i) the i-th joker.  Both return an id; no side effects.
 export const tile = (s, colour, number, copy = 0) => copy * s.colours * s.numbers + colour * s.numbers + number - 1;
 // See tile() above: the id of the i-th joker.
 export const joker = (s, i = 0) => numberedCount(s) + i;

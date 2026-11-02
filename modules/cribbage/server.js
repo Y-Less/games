@@ -1,5 +1,5 @@
-// The socket layer for Cribbage. The rules live in game.js; the rooms, saving, views, joining and the lobby events are
-// the shared room server (shared/roomServer.js). This file says what is particular to Cribbage: its settings (how far to
+// The socket layer for Cribbage.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are
+// the shared room server (shared/roomServer.js).  This file says what is particular to Cribbage: its settings (how far to
 // play and how many seats), its own socket events (discard, play, ready), and what the server has to do by itself (a
 // computer player's move after a short think, and the wait for everyone to close the show between hands).
 //
@@ -29,7 +29,7 @@ export default function (ctx) {
     migrate: game.migrate,
     /**
      * A computer player's move after a short think, if one has something to do; otherwise, during the show, the wait
-     * for everyone to close it (the same hand's timer keeps running when somebody closes it). The move is made by
+     * for everyone to close it (the same hand's timer keeps running when somebody closes it).  The move is made by
      * game.botMove, which never trusts an AI (a throwing or illegal AI is overruled), and a move that still fails is
      * thrown so the shared server logs it and tries again a little later instead of leaving the game stuck.
      */

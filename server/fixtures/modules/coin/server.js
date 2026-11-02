@@ -1,4 +1,4 @@
-// Test fixture: a "game" with one action. Whoever flips records a result for themselves.
+// Test fixture: a "game" with one action.  Whoever flips records a result for themselves.
 // Depends on: only the `ctx` the site's module loader (server/modules.js) passes in (io, stats).
 
 /**

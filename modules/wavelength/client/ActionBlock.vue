@@ -4,7 +4,7 @@
 // Props: clueText (v-model: the clue being typed), isPsychic, clueTime (the clue is due), canGuess (you can guess), team
 //   (a team game), ready (something is chosen on the dial, so locking in is allowed).
 // Slots: none.
-// Emits: update:clueText, send-clue and lock-in.
+// Emits: update:clueText, send-clue, and lock-in.
 // Side effects: none beyond the emits.
 import { useGameText } from '../../../src/useGameText.js';
 

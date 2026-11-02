@@ -1,4 +1,4 @@
-// The score-bar chips open the standard player pop-up (src/components/PlayerPopup.vue). This composable holds which
+// The score-bar chips open the standard player pop-up (src/components/PlayerPopup.vue).  This composable holds which
 // player's pop-up is open and does the opening and closing, so every game behaves alike:
 //   - hovering a player's chip (yours too: your own summary) opens their pop-up, one at a time, and it closes shortly after the pointer leaves
 //     both the chip and the pop-up (so the pointer can cross to the pop-up, to press Remove);
@@ -21,7 +21,7 @@ import { useGameText } from './useGameText.js';
 export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
 
 /**
- * Holds which player's pop-up is open, and the hover, click, Esc and click-outside rules for opening and closing it.
+ * Holds which player's pop-up is open, and the hover, click, Esc, and click-outside rules for opening and closing it.
  * Call from a game client's setup.
  * @param {object} options
  * @param {() => Array<object>} options.players  the scoreboard players ({ id, name, bot?, away?, isMe? ... })
@@ -42,7 +42,7 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   let pinned = false; // opened by a click, so moving the pointer away does not close it
   let timer = null;
   const LEAVE_DELAY = 300; // ms the pointer may spend between the chip and the pop-up
-  // Stops a pending close-after-leave. Returns nothing.
+  // Stops a pending close-after-leave.  Returns nothing.
   const cancelClose = () => {
     clearTimeout(timer);
     timer = null;
@@ -58,7 +58,7 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     return p ? { ...p, isHost: hostId() !== null && p.id === hostId() } : null;
   });
 
-  // Opens the pop-up for `id` (null or unknown closes it). Side effects: clears error; closing also unpins and cancels the timer.
+  // Opens the pop-up for `id` (null or unknown closes it).  Side effects: clears error; closing also unpins and cancels the timer.
   function open(id) {
     error.value = '';
     openId.value = id === null || !hasDetails(id) ? null : id;
@@ -67,17 +67,17 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
       cancelClose();
     }
   }
-  // Closes the pop-up. Returns nothing.
+  // Closes the pop-up.  Returns nothing.
   const close = () => open(null);
 
   // Hovering a chip shows its pop-up; leaving the chip or the pop-up closes it after a moment unless it was pinned.
-  // Pointer enters a chip (or the pop-up, with id = the open one). `chip` is the element to anchor under. Side effects: may open.
+  // Pointer enters a chip (or the pop-up, with id = the open one). `chip` is the element to anchor under.  Side effects: may open.
   function hover(id, chip = null) {
     cancelClose();
     if (chip) anchor.value = chip;
     if (openId.value !== id) open(id);
   }
-  // Pointer leaves: closes after LEAVE_DELAY unless pinned. Side effects: schedules a timer.
+  // Pointer leaves: closes after LEAVE_DELAY unless pinned.  Side effects: schedules a timer.
   function unhover() {
     cancelClose();
     if (pinned || openId.value === null) return;
@@ -87,7 +87,7 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     }, LEAVE_DELAY);
   }
   // A click on a chip: the first pins its pop-up open, the next one closes it.
-  // `id` null means a click on the pop-up's own chip area: toggle pin. Side effects: may open, pin or close.
+  // `id` null means a click on the pop-up's own chip area: toggle pin.  Side effects: may open, pin, or close.
   function click(id, chip = null) {
     cancelClose();
     if (chip) anchor.value = chip;
@@ -105,7 +105,7 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     if (!now && openId.value !== null) close();
   });
 
-  // Asks the game to remove the open player (host only, never yourself). Side effects: calls `remove`; sets error on refusal, else closes.
+  // Asks the game to remove the open player (host only, never yourself).  Side effects: calls `remove`; sets error on refusal, else closes.
   async function removeSelected() {
     const target = selected.value;
     if (!target || target.isMe || !isHost() || !remove) return;
@@ -124,11 +124,11 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   // swapped out of the page (the Remove button turning into its confirmation) by the time this runs.
   // Returns true when the event came from a chip or the pop-up.
   const inside = (event) => (event.composedPath?.() ?? [event.target]).some((el) => el?.matches?.(POPUP_INSIDE));
-  // Document click handler: closes when the click was outside. Returns nothing.
+  // Document click handler: closes when the click was outside.  Returns nothing.
   const onOutside = (event) => {
     if (openId.value !== null && !inside(event)) close();
   };
-  // Window keydown handler: Esc closes. Returns nothing.
+  // Window keydown handler: Esc closes.  Returns nothing.
   const onKey = (event) => {
     if (event.key === 'Escape' && openId.value !== null) close();
   };

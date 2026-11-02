@@ -1,4 +1,4 @@
-// Knows whose crib it is: keeps what helps its own crib, and starves an opponent's crib of fives, pairs and runs.
+// Knows whose crib it is: keeps what helps its own crib, and starves an opponent's crib of fives, pairs, and runs.
 // Depends on ./helpers.js (hand and crib estimates) and ./standard.js (it pegs exactly as the standard player does).
 import { averageHandScore, cribEstimate, hashedRng, splits, unseenFrom } from './helpers.js';
 import { standard } from './standard.js';

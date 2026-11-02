@@ -1,10 +1,10 @@
-// The usual computer players: they know the example clues of a spectrum (see spectra.js). As the psychic they say the
-// example nearest the hidden spot. As a guesser they turn the dial to the place of the example the clue matches, with
+// The usual computer players: they know the example clues of a spectrum (see spectra.js).  As the psychic they say the
+// example nearest the hidden spot.  As a guesser they turn the dial to the place of the example the clue matches, with
 // some wobble, or near the middle when the clue is not one they know (such as a person's own words).
 //
 //   clue({ target, anchors }, rng)               -> the clue text
 //   guess({ clue, anchors }, rng)                -> a position from 0 to 100
-// Depends on nothing; the anchors and rng are passed in. The two variants differ only in `wobble` (steadiness of hand).
+// Depends on nothing; the anchors and rng are passed in.  The two variants differ only in `wobble` (steadiness of hand).
 
 /**
  * Builds a computer player that knows the spectrum's example clues, with a given amount of dial wobble.
@@ -39,7 +39,7 @@ export function makeStandard({ id, name, description, weight, wobble }) {
      */
     clue: ({ target, anchors }) => anchors.reduce((best, a) => (Math.abs(a.position - target) < Math.abs(best.position - target) ? a : best)).text,
     /**
-     * Turns the dial to the position of the example the clue matches, plus wobble. An unrecognised clue (a person's own
+     * Turns the dial to the position of the example the clue matches, plus wobble.  An unrecognised clue (a person's own
      * words, which this AI cannot interpret) falls back to the middle with double wobble, since the middle minimises the
      * worst-case error when nothing is known.
      *

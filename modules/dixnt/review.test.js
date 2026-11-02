@@ -1,6 +1,6 @@
 // Fixes from the code review: a player leaving mid-round no longer abandons it needlessly, submitWord cannot throw on an
 // empty round, ids come from the injected rng, cards are collected once per round, a corrupt games.json is kept and
-// logged, a finished game cannot have people removed, and seats say kind: 'bot'. The first group drives the rules
+// logged, a finished game cannot have people removed, and seats say kind: 'bot'.  The first group drives the rules
 // (game.js) directly; the second drives the real server module (server.js) with a fake socket layer.
 import test from 'node:test';
 import assert from 'node:assert/strict';

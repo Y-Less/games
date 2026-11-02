@@ -1,5 +1,5 @@
-// What Cheat counts about each player for the statistics and achievements (see module.json "stats"). The game calls these as
-// plays and calls are made; nothing here changes the game. Depends on shared/cards.js and shared/tally.js.
+// What Cheat counts about each player for the statistics and achievements (see module.json "stats").  The game calls these as
+// plays and calls are made; nothing here changes the game.  Depends on shared/cards.js and shared/tally.js.
 import { RANKS, SUITS } from '../../shared/cards.js';
 import { bump, freshTally } from '../../shared/tally.js';
 
@@ -20,7 +20,7 @@ export const PUBLIC_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect
 export const BRAZEN_COUNT = 4;
 
 /**
- * Counts a play of `count` cards, which was a lie or not. An honest play counts for nothing.
+ * Counts a play of `count` cards, which was a lie or not.  An honest play counts for nothing.
  * Side effects: mutates the tally.
  *
  * @param {object} tally  the player's counters

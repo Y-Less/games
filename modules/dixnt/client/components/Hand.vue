@@ -1,12 +1,12 @@
 <script setup>
-// Your hand, along the bottom of the main area. The zone is a fixed size (the cards are sized for a full hand), so it
-// never changes between phases or as cards are played. Click a card to look closer; while cards are being played the
+// Your hand, along the bottom of the main area.  The zone is a fixed size (the cards are sized for a full hand), so it
+// never changes between phases or as cards are played.  Click a card to look closer; while cards are being played the
 // closer look has the Play button.
 //
 // Props:
-//   cardWidth   {number}  required. Card width in pixels.
-//   cardHeight  {number}  required. Card height in pixels.
-// Emits: none. Slots: none.
+//   cardWidth   {number}  required.  Card width in pixels.
+//   cardHeight  {number}  required.  Card height in pixels.
+// Emits: none.  Slots: none.
 // Side effects: sets store.zoom to open the card viewer; the Play button sends a `playCard` request.
 import { computed } from 'vue';
 import { useGameText } from '../../../../src/useGameText.js';

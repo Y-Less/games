@@ -1,8 +1,8 @@
-// Every translation is checked against the English it stands in for. A language file may leave a key out, because the
+// Every translation is checked against the English it stands in for.  A language file may leave a key out, because the
 // English then shows through, but it may not invent one, lose a value's placeholders, or give a count fewer forms than
-// the language needs. Each language is its own case, so `vitest run src/locales.test.js -t ja` checks one of them.
+// the language needs.  Each language is its own case, so `vitest run src/locales.test.js -t ja` checks one of them.
 //
-// What is NOT checked here: whether the words are any good. That is for a reader of the language.
+// What is NOT checked here: whether the words are any good.  That is for a reader of the language.
 import { describe, expect, it } from 'vitest';
 import { FALLBACK, LANGUAGES, PLURAL_FORMS } from './i18n.js';
 
@@ -37,7 +37,7 @@ const formCount = (text) => String(text).split('|').length;
 
 /**
  * Keys a language may hold that no English file does: the names the server defines (a game's name and description, its
- * statistics labels and achievements, the site's achievements, shop items, avatar parts). English for these comes from
+ * statistics labels and achievements, the site's achievements, shop items, avatar parts).  English for these comes from
  * the server itself through src/catalogueText.js, so only a translation ever names them.
  */
 const CATALOGUE = /^(meta\.(name|description)|stats\.[\w-]+|achievements\.\w+\.(name|text|one)|siteAchievements\.\w+\.(name|text|one)|shop\.[\w:-]+|avatar\.(slots\.\w+|options\.\w+\.[\w-]+))$/;
@@ -102,7 +102,7 @@ describe.runIf(others.length).each(others)('the %s translation', (lang) => {
 
   it('says something wherever the English pluralises, so a count never reads as the wrong form', () => {
     // A language with its own rules (Russian) must give every plural message its full set of forms; one with a single
-    // form (Japanese) may give one. What it may not do is offer fewer forms than it has categories.
+    // form (Japanese) may give one.  What it may not do is offer fewer forms than it has categories.
     const needed = PLURAL_FORMS[lang]?.length ?? 0;
     if (!needed) return;
     const short = [];

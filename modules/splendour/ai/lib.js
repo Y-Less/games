@@ -1,4 +1,4 @@
-// Helpers shared by the Splendour AIs. Everything here works on the plain-data "situation" that bot.js builds (see
+// Helpers shared by the Splendour AIs.  Everything here works on the plain-data "situation" that bot.js builds (see
 // bot.js, `situation`), never on a room, so an AI cannot see the draw piles or anyone's face-down reserve.
 //
 // A situation looks like:
@@ -154,7 +154,7 @@ export function returnByNeeds(s, needs) {
     let cheapest = Infinity;
     for (let c = 0; c < 6; c++) {
       if (tokens[c] < 1) continue;
-      // The lowest "cost of losing it" goes back first. Gold is the most valuable token (it is wild), so it goes last (30);
+      // The lowest "cost of losing it" goes back first.  Gold is the most valuable token (it is wild), so it goes last (30);
       // a colour held no more than is needed comes next (10 + how much is needed, so the scarcer need is kept longer); a
       // genuine surplus is cheap, and the biggest pile is the cheapest of all, hence the negative slope.
       const cost = c === GOLD ? 30 : tokens[c] <= needs[c] ? 10 + needs[c] : 1 - tokens[c] * 0.1;

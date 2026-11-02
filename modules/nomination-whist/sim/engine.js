@@ -1,8 +1,8 @@
 // Plays one deal of Nomination Whist from the first nomination to the last trick, with computer players on every seat,
-// and records what happened in a `Stats` (tables.js). It builds the same decision contexts the real game gives its AIs
+// and records what happened in a `Stats` (tables.js).  It builds the same decision contexts the real game gives its AIs
 // (`nominateContext` and `playContext` in ../game.js; sim.test.js checks they agree), so the real AIs can be used as they are.
 //
-// A deal is any combination of players, cards each and trump suit, not just the ones the 14-round schedule produces,
+// A deal is any combination of players, cards each, and trump suit, not just the ones the 14-round schedule produces,
 // so the tables cover every case.
 import { deckFor, shuffle, sortHand, suitOf, rankValue, SUITS } from '../../../shared/cards.js';
 import { pickAI } from '../../../shared/ai.js';
@@ -23,7 +23,7 @@ export const POLICIES = ['mix', 'contest', ...AIS.map((ai) => ai.id)];
 
 /**
  * The AI for each seat of one deal. `policy` is a comma-separated list of AI ids (seat n uses entry n, repeating),
- * `mix` (each seat gets a random AI, by the game's own weights) or `contest` (see above).
+ * `mix` (each seat gets a random AI, by the game's own weights), or `contest` (see above).
  * @param {string} policy  the seat policy
  * @param {number} players  seats at the table
  * @param {() => number} rng  random source, used only by `mix`
@@ -62,9 +62,9 @@ export const legalOf = (hand, trick) => legalCards(hand, trick.map((p) => p.card
 
 /**
  * Plays one deal and adds what it saw to `stats`.
- * With `jokers` on, the two Jokers are shuffled in and the AIs' contexts say so (the rules are those of ../trick.js). The per-card
+ * With `jokers` on, the two Jokers are shuffled in and the AIs' contexts say so (the rules are those of ../trick.js).  The per-card
  * tables (`card`, `cardSuit`, `cardTrumps`, `play`) are keyed by the 52 cards, so Jokers are left out of them; the `hand` and
- * `bids` tables count every hand, Jokers or not. In the hands dump a Joker is written as `JOKER_BYTE`.
+ * `bids` tables count every hand, Jokers or not.  In the hands dump a Joker is written as `JOKER_BYTE`.
  * @param {{ players: number, cards: number, trump: 'H'|'C'|'D'|'S'|'N', policy: string, instantWin?: boolean, missPoints?: boolean, jokers?: boolean }} deal
  * @param {() => number} rng
  * @param {import('./tables.js').Stats} stats

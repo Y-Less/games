@@ -1,5 +1,5 @@
 // An optional stand-alone bot player (the lobby's built-in computer players need none of this: the server plays them).
-// This one signs in as an account, so it is a person seat played by a program. It is a completely separate process that talks to the site over the same HTTP and
+// This one signs in as an account, so it is a person seat played by a program.  It is a completely separate process that talks to the site over the same HTTP and
 // Socket.IO API as the browser client, so you can run as many as you like.
 //
 //   node modules/dixnt/bots/bot.js --join boss-aware-you --name Robin
@@ -13,7 +13,7 @@
 //   - when cards are being played the AI chooses a card from its hand
 //   - when voting the AI chooses whom to accuse (if the game's judging method lets it vote at all)
 // It can only join an existing game, and it does not start the game or move on to the next round: a human does that.
-// Depends on socket.io-client, shared/ai.js (AI selection) and ../ai/ (the decision functions); it is run directly
+// Depends on socket.io-client, shared/ai.js (AI selection), and ../ai/ (the decision functions); it is run directly
 // and is never imported, so everything below runs at load time.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -125,7 +125,7 @@ async function post(url, body) {
 /**
  * Logs in with the remembered password, registering the account first if it does not exist yet.
  * @returns {Promise<string | null>} the session cookie to send on the socket
- * Side effects: HTTP requests to the site; may register an account and write the token file. Throws if the account exists but its password is unknown.
+ * Side effects: HTTP requests to the site; may register an account and write the token file.  Throws if the account exists but its password is unknown.
  */
 async function signIn() {
   const stored = readPasswords()[name];
@@ -163,7 +163,7 @@ let imposterRound = null; // the round in which this bot could not see the word,
 /**
  * Chooses an AI for a new game and tells the server (and so the other players) which one it is.
  * @returns {Promise<void>} resolves once the server has answered
- * Side effects: sets the module's `ai`, sends declareAI over the socket and logs the choice.
+ * Side effects: sets the module's `ai`, sends declareAI over the socket, and logs the choice.
  */
 async function chooseAI() {
   ai = options.ai ? aiById(AIS, options.ai) : pickAI(AIS, Math.random);
@@ -190,7 +190,7 @@ let acting = false; // only one decision at a time
 const decided = new Set(); // "round:phase" keys we have already acted on, so a state refresh can't make us act twice
 
 /**
- * Runs on every (re)connection: resumes the seat in the game or joins it, loads the cards and declares the AI.
+ * Runs on every (re)connection: resumes the seat in the game or joins it, loads the cards, and declares the AI.
  * @returns {Promise<void>} resolves when set up; exits the process if the game cannot be joined
  * Side effects: socket events (resume/join/declareAI), an HTTP request for the cards, logging, may call process.exit.
  */
@@ -282,7 +282,7 @@ function decide(decision, options, input) {
 }
 
 /**
- * As chooser, fetches the hint words from the server, lets the AI pick one and submits it.
+ * As chooser, fetches the hint words from the server, lets the AI pick one, and submits it.
  * @returns {Promise<void>} resolves when submitted or when it failed (the failure is logged)
  * Side effects: socket events (hints, submitWord) and logging.
  */

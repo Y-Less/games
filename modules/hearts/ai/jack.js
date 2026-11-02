@@ -1,7 +1,7 @@
 // 'Jack hunter': goes after the Jack of Diamonds (-5) whenever that option is on, and otherwise plays like the standard
-// AI. It keeps its diamonds when passing, and whenever the Jack is still out and it holds a diamond it looks ahead (as
+// AI.  It keeps its diamonds when passing, and whenever the Jack is still out and it holds a diamond it looks ahead (as
 // Sharp does) valuing the Jack far above its real -5, which makes it lead diamonds to flush the Jack out, play its own
-// Jack only when it will win the trick, and take a trick that holds the Jack even at the cost of a few hearts. When
+// Jack only when it will win the trick, and take a trick that holds the Jack even at the cost of a few hearts.  When
 // the option is off it is exactly the standard AI.
 import { rankValue, suitOf } from '../../../shared/cards.js';
 import { JACK, bySuit, passSize } from './util.js';
@@ -13,7 +13,7 @@ const HUNGER = 16; // what the Jack is worth to this AI when choosing a card
 
 /**
  * Passes like the standard AI, but keeps diamonds when the Jack of Diamonds option is on so there is something to hunt with.
- * @param {object} ctx  AI context (see index.js); uses hand, settings and passCount.
+ * @param {object} ctx  AI context (see index.js); uses hand, settings, and passCount.
  * @returns {string[]} the cards to pass.
  * Side effects: none.
  */
@@ -31,7 +31,7 @@ function passJack(ctx) {
 
 /**
  * Plays by look-ahead with an inflated Jack value while the Jack is still out and a diamond is legal; otherwise standard.
- * @param {object} ctx  AI context (see index.js); uses legal, settings and taken.
+ * @param {object} ctx  AI context (see index.js); uses legal, settings, and taken.
  * @returns {string} one card from ctx.legal.
  * Side effects: none.
  */

@@ -1,4 +1,4 @@
-// "Tidy": cares about nothing but a full window. It never makes a space that no die could fill, prefers placements that
+// "Tidy": cares about nothing but a full window.  It never makes a space that no die could fill, prefers placements that
 // leave every neighbouring space with as many options as possible, fills the awkward restricted spaces first, picks the
 // easiest window, and spends a favour token only when it has no legal placement at all.
 import { ORTHOGONAL, patternOf } from '../rules.js';
@@ -26,7 +26,7 @@ export default {
     }, null).pid;
   },
   /**
-   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn. Changes nothing.
+   * Decides one step of this computer player's turn: place a die, use a tool, or end the turn.  Changes nothing.
    *
    * @param {object} state  the read-only snapshot described in common.js
    * @param {number} seat   the seat deciding
@@ -40,7 +40,7 @@ export default {
       // Tokens are only worth spending to rescue a stuck turn; a tidy window never needs a tool otherwise.
       tools: 'stuck',
       /**
-       * How good it is to put `die` on `cell` for this AI: higher is better. Its own measure of a placement; see the
+       * How good it is to put `die` on `cell` for this AI: higher is better.  Its own measure of a placement; see the
        * file header for what it values.
        *
        * @param {object} s     the snapshot

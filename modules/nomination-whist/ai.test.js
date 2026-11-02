@@ -278,7 +278,7 @@ test('tournament: sharp beats standard, and standard beats random', () => {
   assert.ok(six.standard.mean > six.random.mean && six.standard.mean > six.optimist.mean, show(six));
 });
 
-// ---- assignment, persistence and the view ----
+// ---- assignment, persistence, and the view ----
 
 function started(seats = 4, seed = 4) {
   const room = fullRoom(seats);

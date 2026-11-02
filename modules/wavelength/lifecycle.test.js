@@ -43,7 +43,7 @@ test('rooms survive a restart of the site: a guess made before it still counts, 
   await first.stop();
   assert.ok(fs.existsSync(path.join(dataDir, 'site', 'modules', ID, 'rooms.json')));
 
-  // The same data folder, a new process-worth of site. The accounts' sessions are in the same database.
+  // The same data folder, a new process-worth of site.  The accounts' sessions are in the same database.
   const second = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); // registered last, so it runs after the site has closed
   const open = async (name) => {

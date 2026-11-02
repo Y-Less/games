@@ -1,13 +1,13 @@
-// The computer players of Azulejo. They only ever make moves the rules allow (game.legalMoves lists them and the same
-// game functions check them). How a computer chooses is up to its AI (see ai/): each bot seat has one, picked when the
-// game starts and stored on the seat (`seat.ai`). A seat with no AI, or an unknown one, plays as the first ("standard").
+// The computer players of Azulejo.  They only ever make moves the rules allow (game.legalMoves lists them and the same
+// game functions check them).  How a computer chooses is up to its AI (see ai/): each bot seat has one, picked when the
+// game starts and stored on the seat (`seat.ai`).  A seat with no AI, or an unknown one, plays as the first ("standard").
 //
 // Randomness is always passed in as `rng` (the server and the tests inject it); there is no default.
 // Depends on: ./game.js (the rules, the seat and AI lookups) and ./rules.js (COLOURS); the AIs themselves are in ./ai/.
 import * as game from './game.js';
 import { COLOURS } from './rules.js';
 
-// Is this seat a computer player? (Re-exported from the shared seat rules via game.js.)
+// Is this seat a computer player?  (Re-exported from the shared seat rules via game.js.)
 const isBot = game.isBot;
 
 /**
@@ -15,7 +15,7 @@ const isBot = game.isBot;
  *
  * @param {object} room  the room (not changed)
  * @returns {{ type: 'column' | 'move', seat: number } | null} null when the game is waiting for a person (or is not
- *   being played). While tiling, a computer with a pending column choice goes first; while playing, it is whoever's turn it is.
+ *   being played).  While tiling, a computer with a pending column choice goes first; while playing, it is whoever's turn it is.
  *
  * Side effects: none.
  */

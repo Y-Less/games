@@ -1,5 +1,5 @@
-// What Cribbage counts about each player for the statistics and achievements (see module.json "stats"). The counters live
-// on the seat. The game calls these as cards are discarded and as a deal is shown and finished; nothing here changes the game.
+// What Cribbage counts about each player for the statistics and achievements (see module.json "stats").  The counters live
+// on the seat.  The game calls these as cards are discarded and as a deal is shown and finished; nothing here changes the game.
 // Depends on shared/cards.js and shared/tally.js.
 import { rankOf } from '../../shared/cards.js';
 import { bump, freshTally, peak } from '../../shared/tally.js';
@@ -52,7 +52,7 @@ export function tallyShown(tally, kind, { total, items }, heels = 0) {
 }
 
 /**
- * Counts a deal in which the dealer scored nothing at all: from the play, the heels, their hand or their box (a "nineteen", the
+ * Counts a deal in which the dealer scored nothing at all: from the play, the heels, their hand, or their box (a "nineteen", the
  * cribbage name for a hand that cannot be scored as 19).
  * Side effects: mutates the tally.
  *

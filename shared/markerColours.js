@@ -1,6 +1,6 @@
 // Marker colours: the colour a player's pieces, rings and needles have in games that give each player one (Tints and
-// Hints, Wavelength). Everyone may choose from the free palette; any other colour is an unlock in the shop
-// ("marker-colour"). A player may save a default, which a game uses when they join, if nobody has it already.
+// Hints, Wavelength).  Everyone may choose from the free palette; any other colour is an unlock in the shop
+// ("marker-colour").  A player may save a default, which a game uses when they join, if nobody has it already.
 // The free palette every player may use without buying anything.
 // Depends on: nothing (pure, no imports); used by server/profile.js and the marker-colour games.
 export const MARKER_COLOURS = ['#ffffff', '#000000', '#808080', '#ff2d95', '#00e5ff', '#ffd400', '#7cff3a', '#6a00ff'];

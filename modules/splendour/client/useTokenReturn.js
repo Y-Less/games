@@ -7,7 +7,7 @@ import { sum } from './tableView.js';
 /**
  * Token return and noble choice.
  *
- * Side effects: addGive, removeGive, clickToken and clear change the shared giveBack; confirmGive sends 'giveBack' and
+ * Side effects: addGive, removeGive, clickToken, and clear change the shared giveBack; confirmGive sends 'giveBack' and
  * clears it on success; chooseNoble sends 'noble'.
  *
  * @param {object} view    the table view (reactive)
