@@ -9,7 +9,6 @@
   },
   "lobby": {
     "share": "Friends can join with the game code on the start screen, or with your invite link. You need at least {min} players.",
-    "players": "Players",
     "playersLabel": "Players in this game",
     "allCards": "All cards",
     "playStyle": "Play style",
@@ -79,9 +78,7 @@
     "groupFooled": "The group was fooled."
   },
   "popup": {
-    "score": "Score",
     "turns": "Turns as chooser",
-    "now": "Now",
     "waiting": "waiting for the next round",
     "choosingWord": "choosing the word",
     "waitingForWord": "waiting for the word",
@@ -92,8 +89,6 @@
     "theChooser": "the chooser"
   },
   "facts": {
-    "gameOver": "Game over",
-    "round": "Round {n} of {total}",
     "chooser": "Chooser: {name}",
     "word": "Word: {word}",
     "deck": "Deck {draw} / discard {discard}",
@@ -101,7 +96,6 @@
   },
   "table": {
     "hiddenWord": "???",
-    "nothingPlayed": "Nothing has been played yet.",
     "offline": "Connection lost. Trying to reconnect…",
     "ideas": "Ideas for a word",
     "wordPlaceholder": "Your word or phrase",
@@ -115,7 +109,6 @@
     "endGame": "End game",
     "confirmEnd": "End the game and return everyone to the lobby? Scores are reset.",
     "confirmSkip": "Abandon this round (no points) and move on to the next word-chooser?",
-    "yourHand": "Your hand",
     "card": "Card {id}",
     "cardPlayed": "Card {id}, played",
     "played": "Played",
@@ -205,8 +198,7 @@
     "allOnTable": "All the cards are on the table.",
     "favourite": "{chooser} picked {winner}’s card.",
     "imposterCaught": "{name} was the imposter. They were found out.",
-    "imposterFooled": "{name} was the imposter. They fooled the table.",
-    "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
+    "imposterFooled": "{name} was the imposter. They fooled the table."
   },
   "errors": {
     "enterName": "Please enter a name.",

@@ -239,7 +239,13 @@
     "seatsToFill": "{count} more seat to fill. | {count} more seats to fill.",
     "playersCount": "Players ({count} of {max})",
     "fillUpTo": "Fill up to {count} player with computer players | Fill up to {count} players with computer players",
-    "tableFull": "The table is full ({count} player). | The table is full ({count} players)."
+    "tableFull": "The table is full ({count} player). | The table is full ({count} players).",
+    "hostOnly": "Only the host can change these.",
+    "length": "Length of the game",
+    "players": "Players",
+    "removeFirst": "Remove some players first",
+    "rules": "Rules for this game",
+    "share": "Share this code, or the invite link, with your friends."
   },
   "invite": {
     "copy": "Copy invite link",
@@ -256,7 +262,15 @@
     "recentActions": "Recent actions"
   },
   "status": {
-    "yourTurn": "It's your turn"
+    "yourTurn": "It's your turn",
+    "abandoned": "The game was abandoned.",
+    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
+    "againHost": "The host can start another game.",
+    "closeScores": "Close the scores when you are ready to carry on.",
+    "gameOver": "The game is over.",
+    "hostAgain": "You can start another game.",
+    "waitingFor": "Waiting for {name}…",
+    "wins": "{names} wins with {score} points. | {names} win with {score} points."
   },
   "scoreboard": {
     "label": "Scores",
@@ -281,7 +295,11 @@
     "details": "{name}'s details",
     "removeButton": "Remove {noun}",
     "removeConfirm": "Remove {name} from the game?",
-    "yesRemove": "Yes, remove"
+    "yesRemove": "Yes, remove",
+    "cardsInHand": "Cards in hand",
+    "now": "Now",
+    "plays": "Plays",
+    "score": "Score"
   },
   "cards": {
     "name": "{rank} of {suit}",
@@ -430,5 +448,27 @@
     "notAColour": "That is not a colour.",
     "colourIsUnlock": "Any colour is an unlock in the shop. Choose one of the standard colours.",
     "colourTaken": "Someone else has that colour."
+  },
+  "facts": {
+    "gameOver": "Game over",
+    "round": "Round {n} of {total}",
+    "turn": "Turn {n} of {total}"
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "log": {
+    "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
+  },
+  "notes": {
+    "missed": "missed"
+  },
+  "round": "Round {n}",
+  "table": {
+    "label": "The table",
+    "nothingPlayed": "Nothing has been played yet.",
+    "nothingYet": "Nothing has happened yet.",
+    "playAgain": "Play again",
+    "players": "Players",
+    "seeScores": "See the scores",
+    "yourHand": "Your hand"
   }
 }

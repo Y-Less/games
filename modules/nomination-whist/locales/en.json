@@ -3,12 +3,10 @@
     "noun": "game of Nomination Whist",
     "intro": "Oh Hell-style whist for 3 to 7 players: nominate exactly how many tricks you will win."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
     "options": "Game options",
     "seats": "Number of seats",
-    "length": "Length of the game",
     "full": "Full: 7 down to 1 and back (14 rounds)",
     "short": "7 down to 1 only (7 rounds)",
     "missPoints": "Misses score the tricks taken",
@@ -35,10 +33,7 @@
     "nominatedWon": "nominated {bid} · won {tricks}",
     "yourNomination": "Your nomination",
     "forbiddenTitle": "You cannot nominate this as the dealer",
-    "suggestedTitle": "Suggested for your hand",
-    "yourHand": "Your hand",
-    "nothingPlayed": "Nothing has been played yet.",
-    "playAgain": "Play again"
+    "suggestedTitle": "Suggested for your hand"
   },
   "status": {
     "yourTurnNominate": "Your turn: nominate how many tricks you will win.",
@@ -49,17 +44,14 @@
     "waitingReady": "Waiting for {names} to be ready for the next round.",
     "roundOver": "The round is over: close the scores to carry on.",
     "winsInstantly": "{name} wins the game instantly!",
-    "gameOver": "The game is over.",
     "suggestion": "Suggested nomination for your hand: {n} (highlighted).",
     "dealerForbidden": "You are the dealer, so you cannot nominate {number}: the nominations would total {cards}, the number of tricks, and somebody has to miss.",
     "dealerFree": "You are the dealer. The others have already nominated at least {cards} tricks between them, so any number is allowed.",
     "dealerLast": "{name} deals and nominates last: they cannot nominate {number}.",
     "followSuit": "Dimmed cards cannot be played: you must follow suit.",
-    "instantHow": "They nominated 7 and won all 7 tricks in {round}.",
-    "againHost": "The host can start another game."
+    "instantHow": "They nominated 7 and won all 7 tricks in {round}."
   },
   "facts": {
-    "round": "Round {n} of {total}",
     "cardsEach": "{count} card each | {count} cards each",
     "dealer": "Dealer: {name}",
     "youNominated": "You nominated {bid}",
@@ -73,11 +65,9 @@
     "dealer": "Dealer",
     "yes": "yes",
     "no": "no",
-    "cardsInHand": "Cards in hand",
     "nomination": "Nomination",
     "choosing": "choosing…",
-    "notYet": "not yet",
-    "score": "Score"
+    "notYet": "not yet"
   },
   "result": {
     "player": "Player",

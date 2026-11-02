@@ -3,13 +3,9 @@
     "noun": "game of Rummikub",
     "intro": "Build runs and groups from numbered tiles, rearrange the whole table and be first to empty your rack. Two to six players; computer players can fill any empty seats."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
-  "round": "Round {n}",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "rules": "Rules for this game",
     "seats": "Players (seats)",
-    "removeFirst": "Remove some players first",
     "players": "{count} player | {count} players",
     "fewer": "Fewer {setting}",
     "more": "More {setting}",
@@ -22,7 +18,6 @@
     "tilesWild": "{total} tiles ({colours} x {numbers} x 2 + {count} wildcard). | {total} tiles ({colours} x {numbers} x 2 + {count} wildcards).",
     "deal": "Each player gets {hand}; {pool} start in the pool.",
     "handNeeds": "(A hand needs at least {min} tiles.)",
-    "hostOnly": "Only the host can change these.",
     "hints": {
       "numbers": "Tiles run from 1 up to this number.",
       "colours": "Each colour has its own hue and shape.",
@@ -59,7 +54,6 @@
     "new": "new"
   },
   "table": {
-    "label": "The table",
     "empty": "The table is empty.",
     "emptyMine": "The table is empty. Make a first set from your rack.",
     "run": "Run, {value}",
@@ -80,9 +74,7 @@
     "passTitle": "The pool is empty: pass",
     "draw": "Draw a tile",
     "pass": "Pass",
-    "endTurn": "End turn",
-    "nothingPlayed": "Nothing has been played yet.",
-    "playAgain": "Play again"
+    "endTurn": "End turn"
   },
   "facts": {
     "roundOf": "Round {n} of {total}",
@@ -98,7 +90,6 @@
     "firstMeld": "First meld",
     "made": "made",
     "notYet": "not yet",
-    "score": "Score",
     "turn": "Turn",
     "playingNow": "playing now",
     "waiting": "waiting"

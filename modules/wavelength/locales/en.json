@@ -5,7 +5,6 @@
   },
   "leaveConfirm": "You will not be able to come back.",
   "lobby": {
-    "share": "Share this code, or the invite link, with your friends.",
     "yourColour": "Your marker colour",
     "chooseColour": "Choose marker colour {colour}",
     "ownColour": "Your own colour",
@@ -19,7 +18,6 @@
     "team": "One team",
     "teamText": "The guessers share one marker, move it together and anyone locks it in. Everyone scores the same.",
     "hostChooses": "The host chooses.",
-    "length": "Length of the game",
     "fewerTurns": "Fewer turns",
     "moreTurns": "More turns",
     "turnsEach": "{count} turn each | {count} turns each",
@@ -30,7 +28,6 @@
     "slider": "Turn the dial from {left} to {right}"
   },
   "table": {
-    "players": "Players",
     "psychicTag": "psychic",
     "guessedTag": "guessed",
     "sideLabel": "Clue and guess",
@@ -45,28 +42,20 @@
     "sendClue": "Send clue",
     "lockIn": "Lock in",
     "lockInGuess": "Lock in guess",
-    "nothingYet": "Nothing has happened yet.",
     "thePsychic": "The psychic",
     "yourTeam": "Your team"
   },
   "facts": {
-    "turn": "Turn {n} of {total}",
-    "gameOver": "Game over",
     "psychic": "Psychic: {name}"
   },
   "popup": {
-    "plays": "Plays",
-    "score": "Score",
     "colour": "Colour",
-    "now": "Now",
     "stagePsychic": "the psychic this turn",
     "hasGuessed": "has guessed",
     "stillToGuess": "still to guess"
   },
   "status": {
-    "abandoned": "The game was abandoned.",
     "teamFinal": "Your team scored {score} of {max} points.",
-    "wins": "{names} wins with {score} points. | {names} win with {score} points.",
     "teamTurn": "Your team scores {points} for this turn.",
     "psychicScores": "{name} scores {points} for the clue.",
     "youArePsychic": "You are the psychic: the target is shown on your dial. Type a clue that points to it, without numbers or the words on the dial.",
@@ -76,13 +65,11 @@
     "psychicWaiting": "Your clue is in. Waiting for everyone to guess ({n} of {total}).",
     "guessLocked": "Guess locked in. Waiting for the others ({n} of {total}).",
     "guessNow": "Your turn: read the clue and turn the dial to where you think the target is.",
-    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
     "leaveHint": "Use Leave game (top right) to go back to the menu.",
     "finishedHint": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every turn again.",
     "everyGuess": "Every guess is on the dial.",
     "waitingNext": "Waiting for {names} to be ready for the next turn.",
     "waitingFinal": "Waiting for {names} to be ready for the final scores.",
-    "closeScores": "Close the scores when you are ready to carry on.",
     "waitTeamLock": "Wait for your team to lock in.",
     "teamDrag": "Drag on the dial, or use the slider. Everyone sees the marker move.",
     "guessedCount": "{n} of {total} have guessed.",
@@ -106,14 +93,12 @@
     "inTarget": "{name} landed in the target (+{points}).",
     "missed": "{name} missed (+{points}).",
     "reveal": "The target is revealed. {name} scores {points} for the clue.",
-    "gameOver": "The game is over: {names} wins. | The game is over: {names} win.",
     "abandoned": "The game was abandoned."
   },
   "turnLabel": "Turn {n}: {name}",
   "notes": {
     "bullseye": "bullseye",
     "inTarget": "in the target",
-    "missed": "missed",
     "psychic": "psychic"
   },
   "errors": {

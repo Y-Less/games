@@ -3,11 +3,8 @@
     "noun": "game of Hearts",
     "intro": "Three to seven players (four is usual), one deck, and the lowest score wins. Computer players can fill any empty seats."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "rules": "Rules for this game",
-    "players": "Players",
     "deal": "{players} players: {cardsEach} cards each, {removed}, pass {passCount} cards.",
     "removed": "{cards} removed",
     "noneRemoved": "none removed",
@@ -16,8 +13,7 @@
     "jack": "Jack of Diamonds is worth -5 to whoever takes it",
     "moon": "Shooting the moon (all the hearts and the Queen of Spades)",
     "moonOthers": "Everyone else scores +26",
-    "moonSelf": "The shooter scores -26",
-    "hostOnly": "Only the host can change these."
+    "moonSelf": "The shooter scores -26"
   },
   "number": {
     "3": "Three",
@@ -52,14 +48,10 @@
     "claimable": "No one can beat your cards: you cannot lose another trick. Press Claim all to take them.",
     "received": "The cards you received are outlined in green.",
     "lastTrick": "Last trick: {name} took it.",
-    "hostAgain": "You can start another game.",
-    "againHost": "The host can start another game.",
     "moonSelf": "{name} shot the moon and scores -{points}.",
     "moonOthers": "{name} shot the moon: everyone else scores +{points}."
   },
   "table": {
-    "label": "The table",
-    "yourHand": "Your hand",
     "thisHand": "This hand",
     "passed": "passed",
     "choosing": "choosing",
@@ -68,10 +60,7 @@
     "queen": ", Queen of Spades",
     "jack": ", Jack of Diamonds",
     "claimAll": "Claim all",
-    "passThese": "Pass these {chosen} of {count} cards",
-    "nothingPlayed": "Nothing has been played yet.",
-    "playAgain": "Play again",
-    "seeScores": "See the scores"
+    "passThese": "Pass these {chosen} of {count} cards"
   },
   "facts": {
     "hand": "Hand {n}",
@@ -82,8 +71,6 @@
     "jack": "Jack of Diamonds: -5"
   },
   "popup": {
-    "score": "Score",
-    "cardsInHand": "Cards in hand",
     "tricksTaken": "Tricks taken",
     "heartsTaken": "Hearts taken",
     "pointsThisHand": "Points this hand",
@@ -97,8 +84,7 @@
     "played": "{name} played the {card}.",
     "takesTrick": "{name} takes the trick.",
     "claims": "{name} claims the remaining {count} trick. | {name} claims the remaining {count} tricks.",
-    "handOver": "Hand {n} is over.",
-    "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
+    "handOver": "Hand {n} is over."
   },
   "errors": {
     "targetScore": "The target score must be one of {targets}.",

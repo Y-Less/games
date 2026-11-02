@@ -3,7 +3,6 @@
     "noun": "game of Gaudi",
     "intro": "Draft dice and build a stained-glass window over ten rounds. Two to five players; computer players can fill any empty seats."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
   "colours": {
     "ruby": "Ruby",
     "topaz": "Topaz",
@@ -22,18 +21,54 @@
     "die": "die"
   },
   "patterns": {
-    "0": { "0": "Dawn Rose", "1": "Kaleidoscope" },
-    "1": { "0": "Harbour Lights", "1": "Mosaic Court" },
-    "2": { "0": "Quiet Pond", "1": "Stormglass" },
-    "3": { "0": "Weather Vane", "1": "Orchard Gate" },
-    "4": { "0": "Spindle", "1": "Cathedral Rose" },
-    "5": { "0": "Chime", "1": "Fretwork" },
-    "6": { "0": "Fanlight", "1": "Prism" },
-    "7": { "0": "Compass", "1": "Wickerwork" },
-    "8": { "0": "Seedling", "1": "Kiln" },
-    "9": { "0": "Tidewrack", "1": "Trellis" },
-    "10": { "0": "Feather", "1": "Labyrinth" },
-    "11": { "0": "Mirror Pool", "1": "Chorus Window" }
+    "0": {
+      "0": "Dawn Rose",
+      "1": "Kaleidoscope"
+    },
+    "1": {
+      "0": "Harbour Lights",
+      "1": "Mosaic Court"
+    },
+    "2": {
+      "0": "Quiet Pond",
+      "1": "Stormglass"
+    },
+    "3": {
+      "0": "Weather Vane",
+      "1": "Orchard Gate"
+    },
+    "4": {
+      "0": "Spindle",
+      "1": "Cathedral Rose"
+    },
+    "5": {
+      "0": "Chime",
+      "1": "Fretwork"
+    },
+    "6": {
+      "0": "Fanlight",
+      "1": "Prism"
+    },
+    "7": {
+      "0": "Compass",
+      "1": "Wickerwork"
+    },
+    "8": {
+      "0": "Seedling",
+      "1": "Kiln"
+    },
+    "9": {
+      "0": "Tidewrack",
+      "1": "Trellis"
+    },
+    "10": {
+      "0": "Feather",
+      "1": "Labyrinth"
+    },
+    "11": {
+      "0": "Mirror Pool",
+      "1": "Chorus Window"
+    }
   },
   "tools": {
     "lathe": {
@@ -98,16 +133,46 @@
     }
   },
   "objectives": {
-    "rainbow-rows": { "name": "Rainbow rows", "text": "Rows with no colour repeated." },
-    "rainbow-columns": { "name": "Rainbow columns", "text": "Columns with no colour repeated." },
-    "tonal-rows": { "name": "Tonal rows", "text": "Rows with no shade repeated." },
-    "tonal-columns": { "name": "Tonal columns", "text": "Columns with no shade repeated." },
-    "pale-pairs": { "name": "Pale pairs", "text": "Pairs of a 1 and a 2, anywhere in the window." },
-    "middle-pairs": { "name": "Middle pairs", "text": "Pairs of a 3 and a 4, anywhere in the window." },
-    "deep-pairs": { "name": "Deep pairs", "text": "Pairs of a 5 and a 6, anywhere in the window." },
-    "full-spectrum": { "name": "Full spectrum", "text": "Sets of all six shades, anywhere in the window." },
-    "full-palette": { "name": "Full palette", "text": "Sets of all five colours, anywhere in the window." },
-    "colour-chains": { "name": "Colour chains", "text": "Each die that touches a die of its own colour diagonally." }
+    "rainbow-rows": {
+      "name": "Rainbow rows",
+      "text": "Rows with no colour repeated."
+    },
+    "rainbow-columns": {
+      "name": "Rainbow columns",
+      "text": "Columns with no colour repeated."
+    },
+    "tonal-rows": {
+      "name": "Tonal rows",
+      "text": "Rows with no shade repeated."
+    },
+    "tonal-columns": {
+      "name": "Tonal columns",
+      "text": "Columns with no shade repeated."
+    },
+    "pale-pairs": {
+      "name": "Pale pairs",
+      "text": "Pairs of a 1 and a 2, anywhere in the window."
+    },
+    "middle-pairs": {
+      "name": "Middle pairs",
+      "text": "Pairs of a 3 and a 4, anywhere in the window."
+    },
+    "deep-pairs": {
+      "name": "Deep pairs",
+      "text": "Pairs of a 5 and a 6, anywhere in the window."
+    },
+    "full-spectrum": {
+      "name": "Full spectrum",
+      "text": "Sets of all six shades, anywhere in the window."
+    },
+    "full-palette": {
+      "name": "Full palette",
+      "text": "Sets of all five colours, anywhere in the window."
+    },
+    "colour-chains": {
+      "name": "Colour chains",
+      "text": "Each die that touches a die of its own colour diagonally."
+    }
   },
   "notes": {
     "lathe": "changed a {colour} die to {shade}",
@@ -124,16 +189,13 @@
   },
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "rules": "Rules for this game",
     "players": "Players (seats)",
     "playerCount": "{n} players",
-    "removeFirst": "Remove some players first",
     "dice": "{dice} dice in the bag, {each} of each colour: exactly what ten rounds use.",
     "badPrivate": "Bad private scoring",
     "badPrivateDefault": "(off by default)",
     "badPrivateOn": "The weaker rule applies: each die of your private colour is worth a flat 3 points, whatever it shows.",
-    "badPrivateOff": "The normal rule applies: your private colour scores the shade of every die of that colour in your window, added up.",
-    "hostOnly": "Only the host can change these."
+    "badPrivateOff": "The normal rule applies: your private colour scores the shade of every die of that colour in your window, added up."
   },
   "windows": {
     "title": "Choose your window",
@@ -185,7 +247,6 @@
     "choosingThem": "Still choosing a window."
   },
   "facts": {
-    "round": "Round {n} of {total}",
     "bag": "{count} die left in the bag | {count} dice left in the bag",
     "first": "First player: {name}",
     "badPrivate": "Bad private scoring",
@@ -237,7 +298,6 @@
     "chooseWindow": "Choose your window.",
     "chosenWaiting": "You have chosen. Waiting for {names}…",
     "theOthers": "the others",
-    "waitingFor": "Waiting for {name}…",
     "turnFirst": "Your first turn: {die}; {tool}. Click End turn when you are happy.",
     "turnSecond": "Your second turn: {die}; {tool}. Click End turn when you are happy.",
     "turnExtra": "Your extra turn: {die}; {tool}. Click End turn when you are happy.",

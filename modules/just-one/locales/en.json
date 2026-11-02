@@ -4,9 +4,6 @@
     "intro": "Write one-word clues for a secret word that the guesser cannot see. The clues that match are cancelled. You get a code to share."
   },
   "leaveConfirm": "You will not be able to come back.",
-  "lobby": {
-    "share": "Share this code, or the invite link, with your friends."
-  },
   "settings": {
     "length": "Length of the game",
     "fewerTurns": "Fewer turns",
@@ -20,7 +17,6 @@
   "notes": {
     "guessedIt": "guessed it",
     "passed": "passed",
-    "missed": "missed",
     "bestHint": "best hint"
   },
   "table": {
@@ -41,22 +37,15 @@
     "guess": "Guess",
     "pass": "Pass",
     "guessedRight": "{name} guessed “{guess}”, and it is right.",
-    "players": "Players",
     "guesserTag": "guesser",
     "writtenTag": "written",
     "cancelledTag": "cancelled",
-    "bestTag": "best hint",
-    "nothingYet": "Nothing has happened yet."
+    "bestTag": "best hint"
   },
   "facts": {
-    "turn": "Turn {n} of {total}",
-    "gameOver": "Game over",
     "guesser": "Guesser: {name}"
   },
   "popup": {
-    "plays": "Plays",
-    "score": "Score",
-    "now": "Now",
     "guesser": "the guesser this turn",
     "written": "has written a clue",
     "toWrite": "still to write a clue"
@@ -70,8 +59,6 @@
     "bestHint": "{name} wrote the best hint (+{points})."
   },
   "status": {
-    "abandoned": "The game was abandoned.",
-    "wins": "{names} wins with {score} points. | {names} win with {score} points.",
     "revealPassed": "{name} passed. The word was {word}.",
     "revealGuessed": "{name} guessed “{guess}”. The word was {word}.",
     "revealBest": "{name} got it! {best}'s hint was the best.",
@@ -83,12 +70,10 @@
     "guessing": "{name} is guessing.",
     "pickBest": "Right! Now pick the best hint.",
     "choosing": "{name} found the word, and is picking the best hint.",
-    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
     "leaveToMenu": "Use Leave game (top right) to go back to the menu.",
     "finishedNote": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every turn again.",
     "waitingReadyNext": "Waiting for {names} to be ready for the next turn.",
     "waitingReadyFinal": "Waiting for {names} to be ready for the final scores.",
-    "closeScores": "Close the scores when you are ready to carry on.",
     "ownCancelled": "Your clue was cancelled: it matched another one.",
     "scoring": "Right: {guesser} points for you, and {bestHint} for the writer of the best hint. Wrong or pass: nobody scores.",
     "clickBest": "Click the clue that helped you most."
@@ -102,7 +87,6 @@
     "bestHint": "{best}'s hint was the best (+{points}). {name} scores {score}.",
     "noHints": "{name} scores {score}. No hints were left to pick from.",
     "wordWas": "The word was “{word}”.",
-    "gameOver": "The game is over: {names} wins. | The game is over: {names} win.",
     "abandoned": "The game was abandoned."
   },
   "errors": {

@@ -3,7 +3,6 @@
     "noun": "game of Azulejo",
     "intro": "Draft painted tiles from the display plates and build a patterned wall. Two to five players; computer players can fill any empty seats."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
   "freeWall": "Free wall",
   "colour": {
     "0": "Cobalt",
@@ -18,25 +17,19 @@
     "factory": "factory {n}"
   },
   "player": "Player {n}",
-  "round": "Round {n}",
   "bonuses": "Bonuses",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "rules": "Rules for this game",
     "players": "Players (seats)",
-    "removeFirst": "Remove some players first",
     "playerCount": "{n} players",
     "plates": "{plates} display plates of {perPlate} tiles each, from a bag of {tiles} tiles ({perColour} of each colour).",
     "offByDefault": "(off by default)",
     "freeWallOn": "The wall starts blank. When a line scores, its owner chooses the column for the tile in that row; no colour may repeat in a row or a column. A line can only be used while its row still has a free column for that colour.",
-    "freeWallOff": "The standard wall: every row is the row above shifted one place, and each colour has one fixed place in every row.",
-    "hostOnly": "Only the host can change these."
+    "freeWallOff": "The standard wall: every row is the row above shifted one place, and each colour has one fixed place in every row."
   },
   "status": {
-    "gameOver": "The game is over.",
     "chooseColumn": "Wall-tiling: choose the column for your {colour} tile in row {row}.",
     "waitingColumns": "Wall-tiling: waiting for {names} to choose a column…",
-    "waitingFor": "Waiting for {name}…",
     "yourTurn": "Your turn: click a colour on a plate or in the centre.",
     "chooseWhere": "Now choose where the {count} {colour} go: a highlighted line, or the floor.",
     "clickPlace": "Click one of the highlighted places in row {row} of your wall.",
@@ -74,9 +67,7 @@
     "place": "Place",
     "winnerPlace": "Winner",
     "tiesNote": "Ties are broken by the most complete rows; if still tied, the win is shared.",
-    "playAgain": "Play again",
     "waitingHost": "Waiting for the host to play again, or leave (top right).",
-    "nothingPlayed": "Nothing has been played yet.",
     "chooseAnother": "Choose another colour"
   },
   "facts": {

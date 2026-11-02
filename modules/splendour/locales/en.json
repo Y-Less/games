@@ -3,16 +3,12 @@
     "noun": "game of Splendour",
     "intro": "Two to four players collect gems, buy cards and win the favour of nobles. Computer players can fill any empty seats."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
-  "round": "Round {n}",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "rules": "Rules for this game",
     "players": "Number of players",
     "playerCount": "{count} player | {count} players",
     "playTo": "Play to (prestige points)",
-    "targetUsual": "{n} (usual)",
-    "hostOnly": "Only the host can change these."
+    "targetUsual": "{n} (usual)"
   },
   "gems": {
     "diamond": "Diamond",
@@ -54,7 +50,6 @@
     "reserveTop": "Reserve the top card",
     "takeCount": "Take {count} gem | Take {count} gems",
     "pass": "Pass (nothing else is possible)",
-    "playAgain": "Play again",
     "showScores": "Show the scores"
   },
   "facts": {
@@ -94,13 +89,11 @@
     "winner": "{name} wins with {prestige} prestige!",
     "winnerYou": "{name} (you) wins with {prestige} prestige!",
     "sharedWin": "A shared win: {names} with {prestige} prestige.",
-    "gameOver": "The game is over.",
     "returnTokens": "You have more than {max} tokens: return {count}.",
     "chooseNoble": "Choose a noble: click the one you want in the market.",
     "theirReturn": "{name} is returning tokens.",
     "theirNoble": "{name} is choosing a noble.",
     "myTurn": "Your turn: take gems, reserve a card or buy a card.",
-    "waitingFor": "Waiting for {name}…",
     "lastRound": "{name} reached {target}: this is the last round, so everyone gets the same number of turns.",
     "returnHelp": "You may hold only {max} tokens. Click your own tokens to mark the {count} you want to give back, then press Return. | You may hold only {max} tokens. Click your own tokens to mark the {count} you want to give back, then press Return.",
     "nobleHelp": "Several nobles would like to visit you, but only one can. Click the highlighted noble you choose in the market (each is worth {points} prestige).",

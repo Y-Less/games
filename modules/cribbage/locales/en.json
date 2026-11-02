@@ -3,7 +3,6 @@
     "noun": "game of Cribbage",
     "intro": "Cribbage for two to five players, with computer players to fill any empty seat."
   },
-  "leaveConfirm": "A computer player takes your seat if you leave.",
   "hand": "Hand {n}",
   "lobby": {
     "share": "Share this code (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.",
@@ -28,7 +27,6 @@
     "count": "The count",
     "countLabel": "Count",
     "sendToBox": "Send to the box",
-    "yourHand": "Your hand",
     "deck": "The deck",
     "deckLabel": "Deck",
     "starter": "The starter",
@@ -37,8 +35,7 @@
     "boxLabel": "Box",
     "scoring": "Scoring",
     "nothingScored": "Nothing scored yet this hand.",
-    "playAgain": "Play again (back to the lobby)",
-    "seeScores": "See the scores"
+    "playAgain": "Play again (back to the lobby)"
   },
   "facts": {
     "hand": "Hand {n}",
@@ -74,9 +71,7 @@
     "nothingPlayed": "Nothing has been played yet.",
     "standing": "{place}. {name}: {score}",
     "standingYou": "{place}. {name} (you): {score}",
-    "skunk": "Skunk! {names} finished below {line}.",
-    "hostAgain": "You can start another game.",
-    "againHost": "The host can start another game."
+    "skunk": "Skunk! {names} finished below {line}."
   },
   "show": {
     "you": "{name} (you)",

@@ -5,12 +5,10 @@
   },
   "leaveConfirm": "You will not be able to come back.",
   "lobby": {
-    "share": "Share this code, or the invite link, with your friends.",
     "yourColour": "Your marker colour",
     "chooseColour": "Choose marker colour {colour}",
     "chooseAnyColour": "Choose any marker colour",
     "unlockColour": "Unlock any colour in the shop. Set your usual one under Profile.",
-    "length": "Length of the game",
     "fewerTurns": "Fewer turns",
     "moreTurns": "More turns",
     "turnsEach": "{count} turn each | {count} turns each",
@@ -20,7 +18,6 @@
   "table": {
     "thisTurn": "This turn",
     "hintsAndGuesses": "Hints and guesses",
-    "players": "Players",
     "theHinter": "The hinter",
     "yourTint": "Your tint is {cell}",
     "captionSecret": "The secret tint only you can see.",
@@ -37,40 +34,30 @@
     "legend": "Dotted rings are first guesses, solid rings are second guesses.",
     "yourColour": "your colour",
     "hinterTag": "hinter",
-    "guessedTag": "guessed",
-    "nothingYet": "Nothing has happened yet."
+    "guessedTag": "guessed"
   },
   "popup": {
-    "plays": "Plays",
-    "score": "Score",
     "colour": "Colour",
-    "now": "Now",
     "hinterNow": "the hinter this turn",
     "hasGuessed": "has guessed",
     "stillToGuess": "still to guess"
   },
   "facts": {
-    "turn": "Turn {n} of {total}",
-    "gameOver": "Game over",
     "round": "Round {n} of 2",
     "hinter": "Hinter: {name}"
   },
   "status": {
-    "abandoned": "The game was abandoned.",
-    "wins": "{names} wins with {score} points. | {names} win with {score} points.",
     "hintFirst": "Your turn to hint: type a first hint describing your tint (without naming the square). Nobody can guess until you do.",
     "hintAgain": "Your turn to hint: describe your tint without naming the square.",
     "waitingFirstHint": "Waiting for {name}'s first hint.",
     "lockedIn": "Guess locked in. Waiting for the others ({guessed} of {total}).",
     "guessFirst": "Your turn: listen to the hint and guess the tint.",
     "guessSecond": "Here is a second hint. Where would you guess now?",
-    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
     "leaveToMenu": "Use Leave game (top right) to go back to the menu.",
     "finishedNote": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every turn again.",
     "everyGuess": "Every guess is on the grid.",
     "waitingReadyNext": "Waiting for {names} to be ready for the next turn.",
     "waitingReadyFinal": "Waiting for {names} to be ready for the final scores.",
-    "closeScores": "Close the scores when you are ready to carry on.",
     "guessedCount": "{guessed} of {total} have guessed.",
     "chosen": "You have chosen {cell}: lock it in when you are ready.",
     "clickSquare": "Click a square on the grid."
@@ -98,7 +85,6 @@
   "notes": {
     "exact": "exact in round {round}",
     "close": "close in round {round}",
-    "missed": "missed",
     "found": "nobody found it | {count} found it | {count} found it"
   },
   "log": {
@@ -112,8 +98,7 @@
       "exact": "exactly right",
       "close": "close",
       "miss": "missed"
-    },
-    "gameOver": "The game is over: {names} wins. | The game is over: {names} win."
+    }
   },
   "errors": {
     "cannotHintNow": "You cannot give a hint now.",
