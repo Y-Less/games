@@ -1,5 +1,6 @@
-// shared/trivia.js is the cache of questions from The Trivia API that any game can draw on.  No test here touches the
-// network: every store is given a fake fetch that counts the requests it was asked to make.
+// shared/trivia.js is the cache of questions any game can draw on, from The Trivia API and from the site's own
+// question bank.  No test here touches the network or a database: every store is given a fake fetch that counts the
+// requests it was asked to make, and a fake bank that counts what was drawn from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CACHE_SIZE, createTriviaStore, prepare } from './trivia.js';
@@ -19,16 +20,17 @@ const apiQuestion = (n) => ({
 });
 
 /**
- * A fake fetch that answers with fresh questions every time.
- * @param {object} [options] `repeat` makes it answer with the same questions over and over, `fail` with an error, and
- *   `status` with that HTTP status
+ * A fake fetch that answers with fresh questions every time, and says how many questions the API has when asked.
+ * @param {object} [options] `repeat` makes it answer with the same questions over and over, `fail` with an error,
+ *   `status` with that HTTP status, and `count` is how many questions it claims to have
  * @returns {Function} the fake, carrying `calls` (every URL it was given)
  */
-function fakeFetch({ repeat = false, fail = false, status = 200 } = {}) {
+function fakeFetch({ repeat = false, fail = false, status = 200, count = 1000 } = {}) {
   let next = 0;
   const fetchImpl = async (url) => {
     fetchImpl.calls.push(String(url));
     if (fail) throw new Error('offline');
+    if (String(url).includes('/count')) return { ok: status === 200, status, json: async () => ({ count }) };
     const limit = Number(new URL(String(url)).searchParams.get('limit'));
     const body = Array.from({ length: limit }, () => apiQuestion(repeat ? 1 : next++));
     return { ok: status === 200, status, json: async () => body };
@@ -36,6 +38,57 @@ function fakeFetch({ repeat = false, fail = false, status = 200 } = {}) {
   fetchImpl.calls = [];
   return fetchImpl;
 }
+
+/** Every URL the fake fetch was asked for that was a request for questions, not for how many there are. */
+const questionCalls = (fetchImpl) => fetchImpl.calls.filter((url) => !url.includes('/count'));
+
+/**
+ * A fake question bank: `held` questions of its own, numbered apart from the API's so a test can tell them apart.
+ * @param {number} held  how many questions it has
+ * @param {object} [options] `fail` makes every call throw, as a database that has gone away would
+ * @returns {object} the bank, carrying `draws` (how many questions each draw was asked for)
+ */
+function fakeBank(held, { fail = false } = {}) {
+  const bank = {
+    draws: [],
+    count() {
+      if (fail) throw new Error('no database');
+      return held;
+    },
+    draw(count) {
+      bank.draws.push(count);
+      if (fail) throw new Error('no database');
+      return Array.from({ length: Math.min(count * 3, held) }, (_, n) => ({ ...apiQuestion(`bank-${bank.drawn + n}`), id: `bank-${bank.drawn + n}` }));
+    },
+    drawn: 0,
+  };
+  const draw = bank.draw;
+  bank.draw = (count) => {
+    const got = draw(count);
+    bank.drawn += got.length;
+    return got;
+  };
+  return bank;
+}
+
+/**
+ * A fake fetch that says how many questions the API has but then refuses to hand any over, which is what a wobbly API
+ * looks like to a store that has already counted it.
+ * @param {number} count  how many it claims to have
+ * @returns {Function} the fake, carrying `calls`
+ */
+function failingFetch(count) {
+  const fetchImpl = async (url) => {
+    fetchImpl.calls.push(String(url));
+    if (String(url).includes('/count')) return { ok: true, status: 200, json: async () => ({ count }) };
+    throw new Error('offline');
+  };
+  fetchImpl.calls = [];
+  return fetchImpl;
+}
+
+/** How many of a handful of questions came from the bank. */
+const fromBank = (questions) => questions.filter((q) => String(q.id).startsWith('bank-')).length;
 
 // A store with a fake fetch and a seeded shuffle, so a failing run can be repeated.
 const testStore = (options = {}, fetchOptions) => {
@@ -236,3 +289,108 @@ test('a take that cannot be filled says so instead of handing out fewer', async 
     return true;
   });
 });
+
+// ---- the site's own questions, beside the API's ----
+
+test('a store with no questions of its own never asks how many there are', async () => {
+  const { store, fetchImpl } = testStore();
+  await store.prime();
+  assert.deepEqual(await store.sources(), { api: 0, bank: 0 }, 'nothing to weigh, so nothing counted');
+  assert.equal(fetchImpl.calls.filter((url) => url.includes('/count')).length, 0);
+  assert.equal(store.ready, CACHE_SIZE);
+});
+
+test('a store with questions of its own counts both sides once, whatever it is then asked for', async () => {
+  const bank = fakeBank(500);
+  const { store, fetchImpl } = testStore({ bank }, { count: 1500 });
+  await store.prime();
+  assert.deepEqual(await store.sources(), { api: 1500, bank: 500 });
+  await store.take(4);
+  await store.take(4);
+  assert.equal(fetchImpl.calls.filter((url) => url.includes('/count')).length, 1, 'counted once, not once a fill');
+});
+
+test('the count request carries the same filters as the questions do', async () => {
+  const { store, fetchImpl } = testStore({ bank: fakeBank(10), categories: 'history', difficulties: 'easy', region: 'GB' });
+  await store.prime();
+  const [counted] = fetchImpl.calls.filter((url) => url.includes('/count'));
+  const asked = new URL(counted);
+  assert.equal(asked.pathname.endsWith('/questions/count'), true);
+  assert.equal(asked.searchParams.get('categories'), 'history');
+  assert.equal(asked.searchParams.get('difficulties'), 'easy');
+  assert.equal(asked.searchParams.get('region'), 'GB');
+  assert.equal(asked.searchParams.get('limit'), null, 'a count is not a question');
+});
+
+test('each question picks its source, so the bank answers about its share of them', async () => {
+  // Half and half: over several hundred questions the bank should answer roughly half, and certainly not none or all.
+  let drawn = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const bank = fakeBank(1000);
+    const { store } = testStore({ bank, rng: seeded(seed), size: 20 }, { count: 1000 });
+    drawn += fromBank(await store.take(20));
+  }
+  const share = drawn / (12 * 20);
+  assert.ok(share > 0.3 && share < 0.7, `the bank answered ${Math.round(share * 100)}% of them, which should be about half`);
+});
+
+test('a bank holding a tenth as many questions answers about a tenth of them', async () => {
+  let drawn = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const bank = fakeBank(100);
+    const { store } = testStore({ bank, rng: seeded(seed), size: 20 }, { count: 900 });
+    drawn += fromBank(await store.take(20));
+  }
+  const share = drawn / (12 * 20);
+  assert.ok(share > 0.02 && share < 0.25, `the bank answered ${Math.round(share * 100)}% of them, which should be about a tenth`);
+});
+
+test('a question is asked of one source or the other, never counted twice', async () => {
+  const bank = fakeBank(1000);
+  const { store } = testStore({ bank, size: 12 }, { count: 1000 });
+  const questions = await store.take(12);
+  assert.equal(questions.length, 12);
+  assert.equal(new Set(questions.map((q) => q.id)).size, 12, 'no question twice');
+  const own = fromBank(questions);
+  assert.ok(own > 0 && own < 12, `${own} of the twelve came from the bank`);
+});
+
+test('a store whose API has nothing takes every question from its own bank, without asking for any', async () => {
+  const bank = fakeBank(50);
+  const { store, fetchImpl } = testStore({ bank, size: 8 }, { count: 0 });
+  const questions = await store.take(8);
+  assert.equal(fromBank(questions), 8);
+  assert.deepEqual(questionCalls(fetchImpl), [], 'an API with no questions is not asked for any');
+});
+
+test('an API that falls over is made up for by the bank rather than failing the game', async () => {
+  const bank = fakeBank(50);
+  const { store } = testStore({ bank, size: 8, fetchImpl: failingFetch(1000) });
+  const questions = await store.take(8);
+  assert.equal(questions.length, 8);
+  assert.equal(fromBank(questions), 8, 'all of them came from the questions the site holds');
+});
+
+test('a bank that falls over is made up for by the API', async () => {
+  const bank = fakeBank(50, { fail: true });
+  const { store } = testStore({ bank, size: 8 }, { count: 1000 });
+  const questions = await store.take(8);
+  assert.equal(questions.length, 8);
+  assert.equal(fromBank(questions), 0, 'they all came from the API');
+});
+
+test('with both sources gone, the game is still told rather than left waiting', async () => {
+  const bank = fakeBank(0);
+  const { store } = testStore({ bank }, { fail: true });
+  await assert.rejects(() => store.take(1), (error) => error.code === 'triviaUnavailable');
+});
+
+test('a question the bank has already given is not given again', async () => {
+  const bank = fakeBank(6);
+  const { store } = testStore({ bank, size: 6 }, { count: 0 });
+  const first = await store.take(3);
+  const second = await store.take(3);
+  const ids = [...first, ...second].map((q) => q.id);
+  assert.equal(new Set(ids).size, 6, 'six different questions');
+});
+

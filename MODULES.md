@@ -351,12 +351,13 @@ Card games share a few pieces so they look and behave alike:
 
 ## Trivia questions
 
-Quiz games get their questions from [The Trivia API](https://the-trivia-api.com) through `shared/trivia.js` (import
-from a module as `../../shared/trivia.js`), so no game talks to the API itself:
+Quiz games get their questions through `shared/trivia.js` (import from a module as `../../shared/trivia.js`), so no
+game talks to a question source itself.  There are two sources: [The Trivia API](https://the-trivia-api.com) and the
+site's own question bank in the database (`server/triviaBank.js`).
 
 - `sharedTrivia()` is the site-wide cache: one store, so two games never ask a player the same question.
-  `createTriviaStore(options)` makes a private one (`size`, `region`, `categories`, `difficulties`, `tags`, and `rng`
-  and `fetchImpl` for the tests).
+  `createTriviaStore(options)` makes a private one (`size`, `region`, `categories`, `difficulties`, `tags`, `bank`, and
+  `rng` and `fetchImpl` for the tests).
 - `await store.take(n)` gives `n` questions, `n` defaulting to 1, and always as an array.  Each is
   `{ id, question, answers, correct, category, difficulty, tags, regions }`: `answers` is already shuffled and
   `correct` is the index of the right one in it, so a view can render `answers` as it stands.
@@ -367,6 +368,16 @@ from a module as `../../shared/trivia.js`), so no game talks to the API itself:
 - When the API cannot supply enough questions, `take` rejects with an Error whose `code` is `triviaUnavailable`;
   servers turn that into a `fail('triviaUnavailable')` rather than showing it.
 - Server-side only (it needs `fetch`, and the cache is shared between rooms).
+- **The two sources.**  The first time a store needs questions it asks both how many they have (`store.sources()`
+  reports that as `{ api, bank }`), and from then on it chooses between them for *each* question at that ratio: a bank
+  holding a quarter as many questions as the API answers about a fifth of them.  Either source coming up short is made
+  up for by the other, so a game carries on when the API is down or the bank is empty.  A store with no bank, or with
+  an empty one, takes every question from the API and never touches the count endpoint.
+- **The bank.**  `createQuestionBank(db)` (`server/triviaBank.js`) is `count(filters)`, `draw(count, filters)`, and
+  `add(questions)`; a question goes in as `{ id?, question, correct, wrong[], category?, difficulty?, tags?, regions? }`
+  and comes out of `draw` in the API's own shape, so one `prepare` serves both sources.  `server/index.js` makes the
+  bank as the site starts and hands it to the store with `setTriviaBank(bank)`, before any game asks for a question.
+  The same filters narrow both sources, regions included: a question with no regions suits everywhere.
 - The questions are licensed CC BY-NC 4.0: non-commercial use, with a credit.  The site credits the API in
   `src/help/en/games.md`; if the site is ever run commercially, that licence needs a paid plan.
 

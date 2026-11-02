@@ -1,19 +1,27 @@
-// Trivia questions from The Trivia API (https://the-trivia-api.com), kept in a small cache so a game never waits for the
-// network mid-round.  A store holds 16 ready-to-use questions; `take(n)` hands out that many and quietly refills behind
-// the player's back.  Answers arrive already shuffled with the index of the right one, so a game never has to know that
-// the API returns the correct answer separately from the wrong ones.
+// Trivia questions, kept in a small cache so a game never waits for the network mid-round.  A store holds 16
+// ready-to-use questions; `take(n)` hands out that many and quietly refills behind the player's back.  Answers arrive
+// already shuffled with the index of the right one, so a game never has to know that a question is stored as the right
+// answer and the wrong ones.
 //
 //   const store = sharedTrivia();                   // the site-wide cache, filtered to questions that suit the UK
 //   const [question] = await store.take();          // { id, question, answers, correct, ... }
 //   const five = await store.take(5);
 //
-// The questions are licensed CC BY-NC 4.0, so the site credits the API in the Games help page.
+// **Two sources.**  Questions come from The Trivia API (https://the-trivia-api.com) and from the site's own question
+// bank (server/triviaBank.js), if it has been given one.  The first time a store needs questions it asks both how many
+// they have, and from then on it chooses between them for *each* question at that ratio: a bank holding a quarter as
+// many questions as the API answers about a fifth of them.  A source that comes up short is made up for by the other,
+// so a game carries on when the API is down or the bank is empty.
+//
+// The API's questions are licensed CC BY-NC 4.0, so the site credits the API in the Games help page.
 // Server-side only: it needs `fetch`, and a browser could not keep one shared cache for everybody anyway.
 // Depends on: ./cards.js (shuffle), and the global fetch.
 import { shuffle } from './cards.js';
 
 // Where the questions come from, and how many a store keeps ready.
 const API = 'https://the-trivia-api.com/v2/questions';
+// The same endpoint with the same filters, but answering with how many questions there are rather than with questions.
+const API_COUNT = `${API}/count`;
 export const CACHE_SIZE = 16;
 // The API refuses a limit above this, so a large fill is split into several requests.
 const MAX_PER_REQUEST = 50;
@@ -65,8 +73,11 @@ export function prepare(raw, rng = Math.random) {
  * @param {string} [options.tags]  comma-separated API tags, e.g. 'geology'
  * @param {() => number} [options.rng]  random source; pass a seeded one in tests
  * @param {typeof fetch} [options.fetchImpl]  the fetch to use; pass a fake one in tests
- * @returns {{ take: (count?: number) => Promise<object[]>, prime: () => Promise<void>, ready: number, forget: () => void }}
- * Side effects: none until a method is called; after that it makes HTTPS requests to the API.
+ * @param {{ count: Function, draw: Function } | null} [options.bank]  the site's own questions (server/triviaBank.js);
+ *   without one every question comes from the API
+ * @returns {{ take: (count?: number) => Promise<object[]>, prime: () => Promise<void>, ready: number, forget: () => void,
+ *   sources: () => Promise<{ api: number, bank: number }> }}
+ * Side effects: none until a method is called; after that it makes HTTPS requests to the API and reads the bank.
  */
 export function createTriviaStore(options = {}) {
   const {
@@ -77,6 +88,7 @@ export function createTriviaStore(options = {}) {
     tags,
     rng = Math.random,
     fetchImpl = (...args) => fetch(...args),
+    bank = null,
   } = options;
 
   // The questions waiting to be handed out, the ids already handed out (so a player never sees one twice), and the fill
@@ -85,14 +97,111 @@ export function createTriviaStore(options = {}) {
   const seen = new Set();
   let filling = null;
 
+  /** Whatever this store was asked to narrow its questions to; both sources are given the same. */
+  const filters = { region, categories, difficulties, tags };
+
+  /** Those filters as query parameters, which is how the API takes them. */
+  const query = () => {
+    const parameters = new URLSearchParams();
+    for (const [name, value] of Object.entries(filters)) if (value) parameters.set(name, value);
+    return parameters;
+  };
+
   /** The URL for one request, carrying whichever filters this store was given. */
   const urlFor = (count) => {
-    const query = new URLSearchParams({ limit: String(Math.min(count, MAX_PER_REQUEST)) });
-    if (region) query.set('region', region);
-    if (categories) query.set('categories', categories);
-    if (difficulties) query.set('difficulties', difficulties);
-    if (tags) query.set('tags', tags);
-    return `${API}?${query}`;
+    const parameters = query();
+    parameters.set('limit', String(Math.min(count, MAX_PER_REQUEST)));
+    return `${API}?${parameters}`;
+  };
+
+  // How many questions each source has, asked once and then kept: see the head of this file.  `null` until then.
+  let counts = null;
+  let counting = null;
+
+  /**
+   * Asks the API and the bank how many questions they have.  The API is only asked when the bank has some, because
+   * that is the only time the answer changes anything: with no questions of its own a store takes every one of them
+   * from the API, and a store with no bank at all never touches the count endpoint.
+   *
+   * An API that will not say is counted as having none, so that a site with questions of its own carries on asking
+   * them while the API is unreachable.
+   * @returns {Promise<{ api: number, bank: number }>}
+   * Side effects: reads the bank, and may make one request to the API.
+   */
+  const countSources = async () => {
+    let held = 0;
+    try {
+      const found = bank?.count(filters);
+      held = Number.isFinite(found) && found > 0 ? found : 0;
+    } catch {
+      held = 0; // a bank that will not answer is a bank with nothing in it
+    }
+    if (!held) return { api: 0, bank: 0 };
+    try {
+      const reply = await fetchImpl(`${API_COUNT}?${query()}`, { headers: { accept: 'application/json' } });
+      if (!reply?.ok) return { api: 0, bank: held };
+      const body = await reply.json();
+      return { api: Number.isFinite(body?.count) && body.count > 0 ? body.count : 0, bank: held };
+    } catch {
+      return { api: 0, bank: held };
+    }
+  };
+
+  /** The counts, asked for once however many callers want them at the same moment. */
+  const sources = () => {
+    if (counts) return Promise.resolve(counts);
+    counting ??= countSources()
+      .then((found) => {
+        counts = found;
+        return found;
+      })
+      .finally(() => {
+        counting = null;
+      });
+    return counting;
+  };
+
+  /**
+   * How many of the next `want` questions should come from the bank: a choice made for each question on its own, at
+   * the ratio of the two counts, which is what makes a bank of a tenth the size answer about a tenth of the questions.
+   * @param {number} want  how many questions are wanted
+   * @param {{ api: number, bank: number }} held  how many each source has
+   * @returns {number} how many to draw from the bank (the rest come from the API)
+   * Side effects: advances `rng` once per question.
+   */
+  const bankShare = (want, held) => {
+    if (!bank || !held.bank) return 0;
+    if (!held.api) return want; // nothing to be had from the API: the bank answers everything
+    const share = held.bank / (held.api + held.bank);
+    let fromBank = 0;
+    for (let n = 0; n < want; n++) if (rng() < share) fromBank++;
+    return fromBank;
+  };
+
+  /**
+   * Takes questions from the bank, keeping the ones nobody has seen.
+   * @param {number} count  how many are wanted
+   * @returns {number} how many fresh questions were added to the cache
+   * Side effects: appends to `cache` and `seen`.
+   */
+  const drawFromBank = (count) => {
+    if (!bank || count < 1) return 0;
+    let added = 0;
+    let raws = [];
+    try {
+      raws = bank.draw(count, filters) ?? [];
+    } catch {
+      return 0; // a bank that will not answer is simply a bank with nothing in it
+    }
+    for (const raw of raws) {
+      if (added >= count) break;
+      const question = prepare(raw, rng);
+      if (!question || seen.has(question.id)) continue;
+      seen.add(question.id);
+      cache.push(question);
+      added++;
+    }
+    return added;
   };
 
   /**
@@ -127,14 +236,36 @@ export function createTriviaStore(options = {}) {
   };
 
   /**
-   * Tops the cache back up to `size`, asking again when a round brings back only questions already seen.  If every
+   * Tops the cache back up to `target`, asking again when a round brings back only questions already seen.  If every
    * question the filters allow has been seen, the memory of what was handed out is cleared and they come round again,
    * which is what `drawUnused` does for words and spectra elsewhere.
+   *
+   * Each round chooses a source for every question it needs (see bankShare) and then asks each source for its share in
+   * one go, which is the same thing as asking question by question but a single request.  Whatever one source cannot
+   * supply is asked of the other before the round is given up on, so an empty bank or a silent API only costs a round.
    */
   const fill = async (target) => {
+    const held = await sources();
+    // The API is asked unless the bank is the only source with anything in it: a store with no questions of its
+    // own (or whose bank has gone away, which counts as none) has nowhere else to ask.
+    let askApi = !held.bank || held.api > 0;
     for (let round = 0; cache.length < target && round < MAX_ROUNDS; round++) {
-      const added = await fetchRound(target - cache.length);
-      // Nothing new twice running means the filters have been exhausted rather than the API being unlucky.
+      const want = target - cache.length;
+      const fromBank = bankShare(want, held);
+      let added = drawFromBank(fromBank);
+      if (askApi && want > added) {
+        try {
+          added += await fetchRound(want - added);
+        } catch (error) {
+          // With questions of its own the store carries on without the API for the rest of this fill; without them
+          // there is nothing to carry on with, and the caller is told.
+          if (!held.bank) throw error;
+          askApi = false;
+        }
+      }
+      // Whatever the API could not supply is asked of the bank, if it was not already asked for all of it.
+      if (cache.length < target && fromBank < want) added += drawFromBank(target - cache.length);
+      // Nothing new twice running means the filters have been exhausted rather than a source being unlucky.
       if (!added && round) seen.clear();
     }
   };
@@ -181,11 +312,22 @@ export function createTriviaStore(options = {}) {
 
     /** Forgets which questions have been handed out, so they may come round again.  Mostly for the tests. */
     forget: () => seen.clear(),
+
+    /**
+     * How many questions each source has, as the store counted them the first time it needed any; asking before then
+     * is what counts them.  Both are 0 for a store with no questions of its own, which takes every one from the API
+     * and so never needs to know how many that is.
+     * @returns {Promise<{ api: number, bank: number }>}
+     * Side effects: the first call asks the API and the bank (see the head of this file).
+     */
+    sources,
   };
 }
 
-// The site-wide store, made on first use so that importing this file never touches the network.
+// The site-wide store, made on first use so that importing this file never touches the network, and the questions of
+// the site's own that it draws on (set by server/index.js as the site starts, before any game asks for a question).
 let shared = null;
+let sharedBank = null;
 
 /**
  * The one cache the whole site shares, so several games draw from the same 16 questions in hand and no two of them ask
@@ -194,6 +336,23 @@ let shared = null;
  * Side effects: makes the store the first time it is called.
  */
 export function sharedTrivia() {
-  if (!shared) shared = createTriviaStore();
+  if (!shared) shared = createTriviaStore({ bank: sharedBank });
   return shared;
+}
+
+/**
+ * Gives the shared store the site's own questions (server/triviaBank.js).  The site does this as it starts, before the
+ * games are loaded; a store already made is thrown away so that the next one is built with the bank, which costs
+ * nothing at startup because it holds no questions yet.
+ *
+ * One process runs one site, so there is one bank: a test that wants its own should make a store of its own with
+ * `createTriviaStore({ bank })` rather than setting this.
+ *
+ * @param {{ count: Function, draw: Function } | null} bank  the questions, or null to go back to the API alone
+ * @returns {void}
+ * Side effects: replaces the shared store.
+ */
+export function setTriviaBank(bank) {
+  sharedBank = bank ?? null;
+  shared = null;
 }

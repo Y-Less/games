@@ -74,6 +74,22 @@ CREATE TABLE IF NOT EXISTS achievement_awards (
   shown INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, id, level)
 );
+-- Trivia questions the site holds itself, rather than fetching (shared/trivia.js draws on both, in proportion to how
+-- many each has).  The answers are kept as the right one and the wrong ones, which is the shape The Trivia API sends,
+-- so that a question from here and a question from there become the same thing.  The wrong answers, the tags and the
+-- regions are JSON arrays; no regions at all means the question suits everywhere.
+CREATE TABLE IF NOT EXISTS trivia_questions (
+  id TEXT PRIMARY KEY,
+  question TEXT NOT NULL,
+  correct TEXT NOT NULL,
+  wrong TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT '',
+  difficulty TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '[]',
+  regions TEXT NOT NULL DEFAULT '[]',
+  added_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS trivia_questions_kind ON trivia_questions (category, difficulty);
 CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
 -- An achievement level pays once, even if it were settled twice.
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_achievement ON coin_ledger (user_id, reason) WHERE reason LIKE 'achievement:%';

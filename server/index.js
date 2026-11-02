@@ -15,7 +15,9 @@ import { registerRoutes } from './routes/index.js';
 import { checkSettings, createShop, grandfather } from './shop.js';
 import { attachSiteSocket } from './siteSocket.js';
 import { createStats } from './stats.js';
+import { createQuestionBank } from './triviaBank.js';
 import { createUploads } from './uploads.js';
+import { setTriviaBank } from '../shared/trivia.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -47,6 +49,10 @@ export async function startSite(options = {}) {
   const listGames = () => moduleList;
   // (io is made below, before anything can be recorded or played)
   const presence = createPresence(db);
+  // The quiz questions the site holds itself: given to the shared trivia cache before any game is loaded, so that a
+  // game drawing on it gets questions from here and from The Trivia API in proportion to how many each has.
+  const questions = createQuestionBank(db);
+  setTriviaBank(questions);
   const achievements = createAchievements(db, {
     listGames,
     statsFor: (userId) => stats.forUser(userId),
@@ -93,6 +99,7 @@ export async function startSite(options = {}) {
     db,
     stats,
     achievements,
+    questions,
     /**
      * Stops the site.
      * @returns {Promise<void>}
