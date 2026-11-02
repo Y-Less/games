@@ -11,7 +11,7 @@ itself an open reimplementation of skribbl.io.  What was reused, and what was no
 
 | from scribble.rs | here |
 | --- | --- |
-| `internal/game/words/en_gb` | `words/en.txt`, with the one self-referential entry taken out |
+| `internal/game/words/en_gb` | `words/en.txt`: the one self-referential entry and the ten words it listed twice taken out, and fifteen everyday nouns added, which makes it a round 5,000 |
 | `internal/frontend/resources/draw.js` (the flood fill and the brush) | `client/draw.js`, as ES modules |
 | the palette of 26 colours | `drawing.js` (`PALETTE`), beside the instructions that name a colour by its place in it |
 | the real-time sketch events (`line`, `fill`, `clear-drawing-board`, `undo`, `request-drawing`) | the same events on Socket.IO: `line`, `fill`, `draw`, `clear`, `undo`, `canvas` (see `server.js`) |

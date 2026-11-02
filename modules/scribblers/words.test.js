@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { seeded } from '../../shared/random.js';
 import { DEFAULT_LANGUAGE, WORD_LANGUAGES, cleanText, guessQuality, pickWords, wordList } from './words.js';
 
-test('the word list is long, lowercase, and free of stray characters', () => {
+test('the word list is a round five thousand words, lowercase, and free of stray characters', () => {
   const words = wordList();
-  assert.ok(words.length > 4000, `only ${words.length} words`);
+  assert.equal(words.length, 5000, `the list is meant to be exactly five thousand words (${words.length})`);
   assert.equal(new Set(words).size, words.length, 'no word twice');
   for (const word of words) {
     assert.equal(word, word.toLowerCase(), word);
