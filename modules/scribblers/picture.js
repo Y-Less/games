@@ -28,9 +28,9 @@ export const SQUARE = 256;
 /** How wide a block is, in board units: the thinnest brush there is, since nothing finer can be drawn. */
 export const BLOCK = BRUSH.min;
 /** How far apart the rows are: less than the brush is wide, so that the round strokes overlap and leave no white between them. */
-export const ROW_STEP = 6;
+const ROW_STEP = 6;
 /** The side of the square the picture is drawn in, in board units: as much of the board's height as whole blocks fill. */
-export const SIDE = Math.floor(BOARD.height / BLOCK) * BLOCK;
+const SIDE = Math.floor(BOARD.height / BLOCK) * BLOCK;
 /** How many blocks across, and how many rows down, the picture is drawn in. */
 export const COLUMNS = SIDE / BLOCK;
 export const ROWS = Math.floor((SIDE - BLOCK) / ROW_STEP) + 1;

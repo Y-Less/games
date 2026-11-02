@@ -1,7 +1,6 @@
 <script setup>
-// File: the bar over the board - the word as the viewer may see it (blanks for the letters still hidden), how many
-// letters it has, and how long is left.
-// Depends on: Vue and useGameText.
+// The bar over the board: the word as the viewer may see it (blanks for the letters still hidden), how many letters it
+// has, and how long is left.  It is a fixed height, so nothing moves as the word is revealed.
 // Props: hints (one entry per character: { ch, fixed, shown }), secondsLeft (or null when nothing is being timed),
 //   youDraw, drawerName, phase.
 // Emits: none.  Slots: none.  Side effects: none.

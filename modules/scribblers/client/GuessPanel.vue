@@ -1,8 +1,8 @@
 <script setup>
-// File: the guesses panel beside the board - what everybody has typed, and the box to type in.
-// Depends on: Vue, GameLog (the scrolling list that keeps the newest line in view) and useGameText.
+// The guesses panel beside the board: what everybody has typed, and the box to type in.  It is a GameLog, so the
+// newest line stays in view unless the reader has scrolled away from it.
 // Props: feed (the lines the server sent this viewer), canGuess (may this viewer type), youDraw (the drawer sees the
-//   guesses but talks only to the others who know the word), height (pixels).
+//   guesses but talks only to the others who know the word), maxLength (the longest guess the server takes), height (pixels).
 // Emits: guess (the text typed).  Slots: none.
 // Side effects: none beyond clearing its own input.
 import { computed, ref } from 'vue';
@@ -13,6 +13,7 @@ const props = defineProps({
   feed: { type: Array, default: () => [] },
   canGuess: { type: Boolean, default: false },
   youDraw: { type: Boolean, default: false },
+  maxLength: { type: Number, default: 60 },
   height: { type: Number, default: 300 },
 });
 const emit = defineEmits(['guess']);
@@ -54,7 +55,7 @@ const placeholder = computed(() => (props.youDraw ? t('panel.sayPlaceholder') : 
       </GameLog>
     </div>
     <form class="ask" @submit.prevent="send">
-      <input v-model="text" type="text" autocomplete="off" maxlength="60" :disabled="!canGuess" :placeholder="placeholder" :aria-label="placeholder" />
+      <input v-model="text" type="text" autocomplete="off" :maxlength="maxLength" :disabled="!canGuess" :placeholder="placeholder" :aria-label="placeholder" />
       <button type="submit" class="primary" :disabled="!canGuess || !text.trim()">{{ t('panel.send') }}</button>
     </form>
   </section>

@@ -171,7 +171,9 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     ready: [], // between rounds: the people who have closed the scores
     used: [], // the words played this game
     customWords: [], // words the players added in this room's lobby
-    added: Array.isArray(added) ? [...new Set(added.map((word) => textFrom(word).trim()).filter(Boolean))].slice(0, CUSTOM_WORDS * 4) : [], // words added in earlier games, from the socket layer
+    // Words added in earlier games, handed over by the socket layer (which is what keeps them); the newest are the
+    // ones worth offering, and the cap is only so that a room cannot be made enormous by what it is given.
+    added: Array.isArray(added) ? [...new Set(added.map((word) => textFrom(word).trim()).filter(Boolean))].slice(-CUSTOM_WORDS * 4) : [],
     history: [], // one entry per round, for the scoreboard
     recorded: false,
     createdAt: now,
@@ -878,7 +880,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     scoreboard: scoreboardView(room, userId, { online, nameOf }),
     customWords: room.phase === 'lobby' ? [...(room.customWords ?? [])] : [],
     savedWords: (room.added ?? []).length,
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, customWords: CUSTOM_WORDS, wordLength: CUSTOM_LENGTH },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, customWords: CUSTOM_WORDS, wordLength: CUSTOM_LENGTH, guessLength: GUESS_LENGTH },
     settings: { rounds: room.rounds, drawTime: room.drawTime, wordChoices: room.wordChoices },
   };
 }

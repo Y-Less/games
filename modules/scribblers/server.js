@@ -164,9 +164,14 @@ export default function (ctx) {
    * empty, so that a computer player standing in for somebody who left does not paint over what they had drawn.
    * @param {object} room  the room
    * @returns {boolean}
-   * Side effects: none.
+   * Side effects: none (it reads the drawing without starting one, which is why it does not use canvasOf).
    */
-  const pictureDue = (room) => painted.get(room.code) !== `${room.round}:${room.turn}` && canvasOf(room).ops.length === 0;
+  function pictureDue(room) {
+    const key = `${room.round}:${room.turn}`;
+    if (painted.get(room.code) === key) return false;
+    const entry = canvases.get(room.code);
+    return !entry || entry.key !== key || entry.drawing.ops.length === 0;
+  }
 
   /**
    * Draws a computer player's word: a picture of it is fetched from the web and put on the board a message-full of
@@ -211,13 +216,15 @@ export default function (ctx) {
     migrate: (room) => game.migrate(room, nameOf),
     /**
      * Forgets the drawing of a room that is not being drawn (between rounds, in the lobby, once it is over), so that no
-     * room holds a canvas it will never show again.
+     * room holds a canvas it will never show again, nor a note of the picture that went on it.
      * @param {object} room  the room that has just changed
      * @returns {void}
-     * Side effects: may drop this room's entry from `canvases`.
+     * Side effects: may drop this room's entries from `canvases` and `painted`.
      */
     afterChange(room) {
-      if (!['drawing', 'between'].includes(room.phase)) canvases.delete(room.code);
+      if (['drawing', 'between'].includes(room.phase)) return;
+      canvases.delete(room.code);
+      painted.delete(room.code);
     },
     /**
      * The clock work of a turn, which is several clocks run off the one timer the room server gives a game: a word
@@ -241,11 +248,11 @@ export default function (ctx) {
     nextAction(room, rng, now, { online, relay }) {
       const turnKey = `${room.round}:${room.turn}`;
       const drawer = room.players.find((p) => p.id === room.drawer);
-      const drawing = ['choosing', 'drawing'].includes(room.phase);
+      const inTurn = ['choosing', 'drawing'].includes(room.phase);
 
       // A person was drawing and has gone: nothing else about the turn matters until they are back, so this is asked
       // first rather than taking its turn with the rest.
-      if (drawing && game.isHuman(drawer) && !online(room.drawer)) {
+      if (inTurn && game.isHuman(drawer) && !online(room.drawer)) {
         return {
           key: `away:${turnKey}`,
           wait: delays.awayMs,

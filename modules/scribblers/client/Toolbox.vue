@@ -1,7 +1,8 @@
 <script setup>
-// File: the drawer's tools - the palette, the brush sizes, the pen, the rubber, the paint bucket, undo, and clear.
-// Depends on: Vue, ./draw.js (the palette) and ./useTools.js (the widths and tools).
-// Props: tool ({ kind, colour, width }, changed in place).  Emits: undo, clear.  Slots: none.
+// The drawer's tools: the palette, the brush sizes, the pen, the rubber, the paint bucket, undo, and clear.  The two
+// rows of colours are the palette the instructions name by place (../drawing.js), bright ones above their darker twins.
+// Props: tool ({ kind, colour, width }, changed in place).
+// Emits: undo, clear.  Slots: none.
 // Side effects: none beyond changing the tool it was given.
 import { useGameText } from '../../../src/useGameText.js';
 import { PALETTE } from './draw.js';

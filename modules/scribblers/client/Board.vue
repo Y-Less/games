@@ -1,9 +1,9 @@
 <script setup>
-// File: the drawing board.  A canvas of a fixed 1600 x 900, shown at whatever size the table has room for, so that
-// everybody draws and sees the same picture whatever their screen.
-// Depends on: Vue and ./draw.js (the palette, the brush, and the flood fill).
+// The drawing board: a canvas of a fixed 1600 x 900, shown at whatever size the table has room for, so that everybody
+// draws and sees the same picture whatever their screen.  The pixels are kept in a buffer of its own and the canvas
+// only shows them (see ./draw.js).
 // Props: active (may this viewer draw), tool ({ kind, colour, width }), width / height (the size to show it at, in pixels).
-// Emits: ops (instructions the player has just made, for the table to send on).
+// Emits: ops (instructions the player has just made, for the table to send on).  Slots: none.
 // Exposes: apply(ops) adds instructions from somebody else; reset(ops) redraws the board from scratch.
 // Side effects: draws on its own canvas element; captures the pointer while a stroke is being made.
 import { computed, onMounted, ref, watch } from 'vue';

@@ -16,12 +16,12 @@ import { PALETTE, WHITE } from '../drawing.js';
 export { PALETTE, WHITE };
 
 /**
- * A palette colour as red, green and blue.
+ * A palette colour as red, green and blue.  Only the cache below uses it; everything else wants `colourOf`.
  * @param {number} index  a place in PALETTE
  * @returns {{ r: number, g: number, b: number }} the colour (black for anything that is not a colour of the palette)
  * Side effects: none.
  */
-export function rgbOf(index) {
+function rgbOf(index) {
   const hex = PALETTE[index] ?? '#000000';
   return { r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) };
 }

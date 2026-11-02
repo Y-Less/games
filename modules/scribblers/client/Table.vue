@@ -271,7 +271,7 @@ const stageOf = (p) => {
         </div>
 
         <div class="panel-side" :style="{ gridColumn: `span ${area.columns - dims(area).span}` }">
-          <GuessPanel :feed="state.feed" :can-guess="canType" :you-draw="youDraw" :height="dims(area).panel" @guess="(typed) => send('guess', { text: typed })" />
+          <GuessPanel :feed="state.feed" :can-guess="canType" :you-draw="youDraw" :max-length="state.limits.guessLength" :height="dims(area).panel" @guess="(typed) => send('guess', { text: typed })" />
         </div>
       </div>
     </template>

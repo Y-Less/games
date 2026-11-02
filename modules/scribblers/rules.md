@@ -39,3 +39,10 @@ seeing it.  Keys: **Q** pen, **W** paint bucket, **E** rubber, **1** to **4** br
 A person who leaves is replaced by a computer player, in their place and with their score, so nobody's turns are lost:
 it draws and guesses like anybody else.  A drawer who has simply vanished mid-turn (their connection dropped) has the
 turn given up instead: nobody scores and play moves on.
+
+## Where this game came from
+
+Scribblers began as [scribble.rs](https://github.com/scribble-rs/scribble.rs) (BSD 3-Clause), which is where its word
+list, its pen, rubber and paint bucket, and its twenty-six colours come from.  The paint bucket began as
+[floodfill.js](https://github.com/binarymax/floodfill.js) (MIT), and the pictures the computer players draw are found
+on [Wikimedia Commons](https://commons.wikimedia.org).

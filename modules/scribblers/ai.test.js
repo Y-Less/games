@@ -2,12 +2,11 @@
 // plays with, and that none of them is ever told the word.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { aiById, describeAI, pickAI } from '../../shared/ai.js';
 import { seeded } from '../../shared/random.js';
 import { AIS } from './ai/index.js';
 import { oneOf, wordsOfLength, wordsThatFit } from './ai/fit.js';
 import * as game from './game.js';
-import { wordList } from './words.js';
 
 const NOW = 1_000_000;
 const WORDS = ['house', 'horse', 'mouse', 'hound', 'cat', 'housing', 'pac-man', 'mad hair'];
