@@ -251,7 +251,12 @@ list(names);                           // "Ann, Bob and Cat", as the language jo
 ```
 
 The play view provides the game's id (`GAME_ID`), so neither a game's components nor the shared ones name it; in a
-test, `src/testSetup.js` provides it from the test file's folder. Templates may use `$t('common.close')` for a site
+test, `src/testSetup.js` provides it from the test file's folder.
+
+A sentence with markup inside it (a bold word, a link) uses `<i18n-t>`. That component resolves its `keypath` against the
+component's own i18n scope, which `useGameText()` does not create, so inside a game it needs `scope="global"` and the full
+key from `keyFor('reveal.wordWas', game)` (`src/messageText.js`). Without `scope="global"` it draws nothing and warns
+"Not found parent scope", which `client/render-all.test.js` catches. Templates may use `$t('common.close')` for a site
 key. Never build a sentence from pieces: give the whole sentence a key with named params (`"{name} takes the trick."`),
 so a translator can reorder it. vue-i18n's syntax: `{name}` is a param, `|` separates plural forms, a literal brace is
 `{'{'}` and a literal `@` is `{'@'}`.
