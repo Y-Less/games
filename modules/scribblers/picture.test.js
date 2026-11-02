@@ -1,14 +1,11 @@
-// The stand-alone bot's two halves, without a network and without the site: turning a picture into strokes the board
-// will accept, and choosing a guess from what the hints give away.  (bots/bot.js itself is the plumbing around these:
-// it signs in, joins, and sends what they return.)
+// How a computer player's drawing is made, without a network and without the site: the search, the decoders, bringing a
+// picture down to a square, and turning that into strokes the board will accept.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
-import { BLOCK, COLUMNS, ORIGIN, ROWS, SQUARE, decodePicture, drawingFor, instructions, nearestColour, searchImage, squareOf } from './bots/picture.js';
-import { pickGuess, wordsThatFit } from './bots/guessing.js';
+import { BLOCK, COLUMNS, ORIGIN, ROWS, SQUARE, decodePicture, drawingFor, instructions, nearestColour, searchImage, squareOf, testPicture } from './picture.js';
 import { BOARD, PALETTE, readOp } from './drawing.js';
-import { wordList } from './words.js';
 
 /**
  * A picture of flat colours: `colourAt(x, y)` gives each pixel as [r, g, b] (or [r, g, b, a]).
@@ -62,15 +59,15 @@ test('a colour is matched to the nearest one in the palette', () => {
   assert.ok(nearestColour(250, 250, 250) === 0 || PALETTE[nearestColour(250, 250, 250)] === '#c1c1c1');
 });
 
-test('a PNG and a JPEG are both read, and anything else is refused', () => {
+test('a PNG and a JPEG are both read, and anything else is refused', async () => {
   const image = picture(4, 4, (x) => (x < 2 ? [255, 0, 0] : [0, 0, 255]));
-  const fromPng = decodePicture(asPng(image));
+  const fromPng = await decodePicture(asPng(image));
   assert.deepEqual([fromPng.width, fromPng.height], [4, 4]);
   assert.deepEqual([...fromPng.data.slice(0, 3)], [255, 0, 0]);
-  const fromJpeg = decodePicture(asJpeg(picture(16, 16, () => [255, 0, 0])));
+  const fromJpeg = await decodePicture(asJpeg(picture(16, 16, () => [255, 0, 0])));
   assert.deepEqual([fromJpeg.width, fromJpeg.height], [16, 16]);
   assert.ok(fromJpeg.data[0] > 200 && fromJpeg.data[1] < 60, 'a red picture comes back red');
-  assert.throws(() => decodePicture(Buffer.from('not a picture at all')), /PNG or a JPEG/);
+  await assert.rejects(() => decodePicture(Buffer.from('not a picture at all')), /PNG or a JPEG/);
 });
 
 test('a picture is brought down to a square of the size the game asks for, keeping its middle', () => {
@@ -157,7 +154,7 @@ test('the search asks for the word, as a picture, and says who is asking', async
   assert.ok(asked.includes('gsrsearch=fire+engine'), asked);
   assert.ok(asked.includes('gsrnamespace=6'), 'files only');
   assert.ok(asked.includes('iiurlwidth='), 'a thumbnail, not the original');
-  assert.match(headers['user-agent'], /scribblers-bot/);
+  assert.match(headers['user-agent'], /^scribblers\//);
 });
 
 test('a word becomes a picture on the board, from the search to the strokes', async () => {
@@ -183,51 +180,13 @@ test('a word with no picture anywhere leaves the board alone', async () => {
   assert.equal(url, null);
 });
 
-// ---- guessing ----
-
-/** Hints as the view sends them: a word with some letters shown. */
-const hintsFor = (word, shown = []) => [...word].map((ch, at) => ({ ch: shown.includes(at) || [' ', '-'].includes(ch) ? ch : null, fixed: [' ', '-'].includes(ch), shown: shown.includes(at) }));
-
-test('only words of the right shape are guessed', () => {
-  const words = ['house', 'horse', 'mouse', 'cat', 'housing', 'hound'];
-  assert.deepEqual(wordsThatFit(hintsFor('house'), words).sort(), ['horse', 'hound', 'house', 'mouse']);
-  assert.deepEqual(wordsThatFit(hintsFor('house', [0]), words).sort(), ['horse', 'hound', 'house'], 'an h was shown');
-  assert.deepEqual(wordsThatFit(hintsFor('house', [0, 4]), words).sort(), ['horse', 'house'], 'and an e at the end');
-  assert.deepEqual(wordsThatFit(hintsFor('house', [1, 2]), words).sort(), ['hound', 'house', 'mouse'], '_ou__ keeps three');
-  assert.deepEqual(wordsThatFit(hintsFor('house', [0, 2, 3]), words), ['house'], 'h_us_ leaves one');
-  assert.deepEqual(wordsThatFit([], words), [], 'no hints, no idea');
-});
-
-test('a word with a space or a hyphen in it is matched on those too', () => {
-  const words = ['pac-man', 'pacman', 'mad hair', 'bad hair'];
-  assert.deepEqual(wordsThatFit(hintsFor('pac-man'), words), ['pac-man']);
-  assert.deepEqual(wordsThatFit(hintsFor('mad hair'), words).sort(), ['bad hair', 'mad hair']);
-});
-
-test('the bot guesses something that fits, never the same thing twice', () => {
-  const words = ['house', 'horse', 'mouse'];
-  const tried = new Set();
-  const guesses = [];
-  for (let n = 0; n < 3; n++) {
-    const guess = pickGuess({ hints: hintsFor('house'), words, tried, rng: () => 0.5 });
-    assert.ok(words.includes(guess));
-    tried.add(guess);
-    guesses.push(guess);
+test('the picture that needs no network is made of bands the board will accept', () => {
+  const ops = testPicture('house');
+  assert.ok(ops.length > 5, 'there is something to see');
+  assert.deepEqual(ops, testPicture('house'), 'the same word always draws the same thing');
+  assert.notDeepEqual(ops, testPicture('tree'), 'and another word draws another thing');
+  for (const op of ops) {
+    assert.deepEqual(readOp(op), op, 'the server would take it as it is');
+    assert.notEqual(op.c, 0, 'never white, which would leave the board as it was');
   }
-  assert.equal(new Set(guesses).size, 3, 'three different guesses');
-  assert.equal(pickGuess({ hints: hintsFor('house'), words, tried }), null, 'and then it has nothing left');
-});
-
-test('when nothing fits, it still says something', () => {
-  const words = ['house', 'cat'];
-  assert.equal(pickGuess({ hints: hintsFor('xxxxx'), words, rng: () => 0 }), 'house', 'a word of the right length');
-  assert.ok(['house', 'cat'].includes(pickGuess({ hints: hintsFor('xxxxxxxxxxxx'), words, rng: () => 0 })), 'or any word at all');
-  assert.equal(pickGuess({ hints: [], words: [], tried: new Set() }), null);
-});
-
-test('it guesses from the list the game itself draws from', () => {
-  const words = wordList();
-  const guess = pickGuess({ hints: hintsFor('house'), words, rng: () => 0.5 });
-  assert.ok(words.includes(guess));
-  assert.equal([...guess].length, 5);
 });

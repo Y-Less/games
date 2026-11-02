@@ -10,11 +10,15 @@ import { MAX_BATCH } from './drawing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-// A turn is made short so that a whole game is a test rather than a wait.
+// A turn is made short so that a whole game is a test rather than a wait, and the computer players draw the picture
+// that needs no network, so that no test of the game reaches for the web.
 process.env.SCRIBBLERS_CHOOSE_WAIT = '1500';
 process.env.SCRIBBLERS_BETWEEN_WAIT = '150';
 process.env.SCRIBBLERS_SCORES_WAIT = '1500';
 process.env.SCRIBBLERS_AWAY_WAIT = '300';
+process.env.SCRIBBLERS_BOT_DELAY = '50-150';
+process.env.SCRIBBLERS_BOT_DRAW = '100';
+process.env.SCRIBBLERS_PICTURES = 'test';
 
 /** A line instruction, with whatever is wanted changed. */
 const line = (over = {}) => ({ x: 100, y: 100, x2: 200, y2: 200, c: 2, w: 8, ...over });
@@ -204,14 +208,59 @@ test('a word nobody chooses is chosen by the clock, and letters appear as the ti
   assert.ok(guessers[0].state.remaining > 0, 'the guesser is told how long is left');
 });
 
-test('a turn whose drawer has gone is given up and play moves on', async (t) => {
+test('somebody who leaves mid-turn is replaced by a computer player, which carries the turn on', async (t) => {
   const { people } = await table(t, ['ann', 'bob', 'cat'], { rounds: 2, drawTime: 30 });
   const { drawer } = split(people);
   const others = people.filter((p) => p !== drawer);
+  const watching = watchDrawing(others[0]);
   assert.equal((await drawer.call('leave')).ok, true);
   await until(() => others.every((p) => p.state?.players.some((q) => q.bot)), 'a stand-in took their place');
-  await until(() => others.every((p) => p.state?.phase !== 'choosing' || p.state.drawer !== drawer.id), 'the turn was given up', { timeout: 8000 });
-  await until(() => others.some((p) => p.state?.reveal?.reason === 'drawerAway' || p.state?.phase === 'choosing'), 'the table was told why');
+  const standIn = others[0].state.players.find((p) => p.bot);
+  assert.ok(standIn.ai, 'the stand-in plays with an AI');
+  await until(() => others.every((p) => p.state?.phase === 'drawing'), 'it chose a word', { timeout: 8000 });
+  await until(() => watching.draws.length > 0, 'and drew it', { timeout: 8000 });
+  assert.equal(others[0].state.drawer, standIn.id);
+});
+
+test('a drawer whose connection drops has the turn given up', async (t) => {
+  const { people } = await table(t, ['ann', 'bob', 'cat'], { rounds: 2, drawTime: 240 });
+  const { drawer, guessers } = split(people);
+  assert.equal((await drawer.call('word', { n: 0 })).ok, true);
+  await until(() => people.every((p) => p.state?.phase === 'drawing'), 'the drawing starts');
+  drawer.closeAll();
+  // A connection going is not itself a change to the room, so the server notices when the next thing happens: here,
+  // somebody guessing.
+  assert.equal((await guessers[0].call('guess', { text: 'something' })).ok, true);
+  await until(() => guessers.every((p) => p.state?.reveal?.reason === 'drawerAway' || p.state?.phase === 'choosing'), 'the turn was given up', { timeout: 8000 });
+});
+
+test('a game of computer players plays itself: they choose a word, draw it, and guess', async (t) => {
+  const site = await launchModule(t, { id: 'scribblers', moduleDir: here });
+  const ann = await site.person('ann').open();
+  const created = await ann.call('create', { rounds: 1, drawTime: 60 });
+  assert.equal(created.ok, true, created.error);
+  assert.equal((await ann.call('fillBots', { count: 4 })).ok, true);
+  await until(() => ann.state?.players.length === 4, 'a table of four');
+  assert.equal(ann.state.players.filter((p) => p.bot).length, 3);
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => ann.state?.phase !== 'lobby', 'the game starts');
+  for (const player of ann.state.players) assert.equal(Boolean(player.ai), player.bot, `${player.name}: an AI iff a computer player`);
+
+  const watching = watchDrawing(ann);
+  // If the person is drawing, they choose at once so that a computer player's turn comes round.
+  const chooseIfMine = async () => {
+    if (ann.state?.phase === 'choosing' && ann.state.youDraw) await ann.call('word', { n: 0 });
+  };
+  await until(async () => {
+    await chooseIfMine();
+    return ann.state?.phase === 'drawing' && !ann.state.youDraw;
+  }, 'a computer player is drawing', { timeout: 20000 });
+  await until(() => watching.draws.length > 0, 'its picture reaches the table', { timeout: 20000 });
+  assert.ok(watching.draws.flatMap((m) => m.ops).length > 5, 'there is a picture, not a stray stroke');
+  await until(() => ann.state.feed.some((line) => line.id !== ann.id), 'and the others are guessing', { timeout: 20000 });
+  const guesses = ann.state.feed.filter((line) => line.id !== ann.id);
+  assert.ok(guesses.every((line) => line.text.length > 0 || line.kind === 'correct'));
+  assert.ok(guesses.some((line) => [...line.text].length === ann.state.hints.length || line.kind === 'correct'), 'a guess of the right length');
 });
 
 test('the lobby options are the host business, and the game needs two players', async (t) => {

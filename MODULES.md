@@ -402,6 +402,11 @@ so a new `ai/` folder needs nothing extra there (a hand-written copy list in a t
 Hearts is the worked example (`modules/hearts/ai/`: `standard`, `sharp`, `moon`, `jack`, `avoider`, `random`).  Its
 context is built by `aiContext(room, seat, rng)` in `game.js`.
 
+**What an AI may not do** it does not do: anything needing the network, the clock or a file belongs to the game's socket
+layer, which runs it after the AI has decided.  Scribblers is the example: its AIs choose which word to draw, and
+`server.js` then fetches a picture of that word and puts it on the board (`modules/scribblers/picture.js`), just as a
+quiz game's questions come from `shared/trivia.js` and not from its rules.
+
 **Assignment and state.**
 
 - Each bot seat gets its AI id when the game starts, with `assignAIs(AIS, botSeats, rng)` using the game's own seeded

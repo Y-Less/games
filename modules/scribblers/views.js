@@ -1,8 +1,9 @@
 // Plays whole seeded games and records every view the rules send, for the view test (node) and the client's
 // render-everything test (vitest): the same views reach both, so what the server sends is also what the table draws.
 //
-// Scribblers has no computer players that can draw, so the people are played here instead: the drawer chooses a word,
-// some guessers get it, some do not, and one turn in each game is left to run out of time.
+// The people are played here (the drawer chooses a word, some guessers get it, some do not, and one turn in each game
+// is left to run out of time); a game may also be given computer players, which play themselves through the rules, so
+// that the views of a table with them in are drawn as well.
 import assert from 'node:assert/strict';
 import { seeded } from '../../shared/random.js';
 import * as game from './game.js';
@@ -17,14 +18,16 @@ const BETWEEN_MS = 500;
  * @param {number} seed  the seed for the random source
  * @param {number} size  how many people are at the table
  * @param {number} rounds  how many rounds they play
+ * @param {number} [bots]  how many computer players to add as well
  * @returns {{ views: string[], finished: boolean }} every view as JSON, and whether the game ran to its end
  * Side effects: none outside the room it makes.
  */
-export function recordedViews(seed, size, rounds) {
+export function recordedViews(seed, size, rounds, bots = 0) {
   const rng = seeded(seed);
   let now = 1000;
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Player 1', settings: { rounds, drawTime: 30 }, now, chooseMs: CHOOSE_MS, betweenMs: BETWEEN_MS });
   for (let id = 2; id <= size; id++) assert.equal(game.addHuman(room, id, `Player ${id}`).ok, true);
+  for (let n = 0; n < bots; n++) assert.equal(game.addBot(room, 1).ok, true);
   const names = (id) => `Player ${id}`;
   const views = [];
   /** Records the view each of the players, and an outsider, would be sent now. */
@@ -42,6 +45,13 @@ export function recordedViews(seed, size, rounds) {
   let turns = 0;
   for (let guard = 0; guard < 2000 && room.phase !== 'finished'; guard++) {
     now += 100;
+    const botAction = game.pendingBotAction(room);
+    if (botAction && !(room.phase === 'drawing' && botAction.type === 'guess' && rng() < 0.5)) {
+      // A computer player acts when it owes something; a guess only now and then, so the people get a turn too.
+      assert.equal(game.runBotAction(room, rng, now, botAction), true);
+      look();
+      continue;
+    }
     if (room.phase === 'choosing') {
       const choice = Math.floor(rng() * room.choices.length);
       assert.equal(game.chooseWord(room, room.drawer, choice, now).ok, true);
@@ -86,7 +96,11 @@ export function recordedViews(seed, size, rounds) {
       continue;
     }
     if (room.phase === 'scores') {
-      for (const p of room.players) assert.equal(game.ready(room, p.id, rng, now).ok, true);
+      // Only the people close the scores; a computer player is always ready, and the round starts as the last person does.
+      for (const p of room.players) {
+        if (room.phase !== 'scores' || p.kind === 'bot') continue;
+        assert.equal(game.ready(room, p.id, rng, now).ok, true);
+      }
       look();
       continue;
     }

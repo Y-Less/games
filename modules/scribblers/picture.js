@@ -1,8 +1,8 @@
 // Turning a word into something to draw: the first image a search finds for it, brought down to a small square of
-// palette colours, and then into drawing instructions for the board.
+// palette colours, and then into drawing instructions for the board.  This is how a computer player draws.
 //
-// This is for the stand-alone bot (bot.js), so that there is something to play against while the game is being worked
-// on.  Nothing here runs on the site: the site's computer players draw nothing.
+// It belongs to the socket layer, not to the rules: it fetches from the web, which the rules (and the AIs) may never
+// do, exactly as a quiz game's questions come from shared/trivia.js rather than from its rules.
 //
 //   word -> searchImage  -> a picture's URL (Wikimedia Commons, which needs no key)
 //        -> loadPicture  -> its pixels (PNG and JPEG are understood)
@@ -18,11 +18,10 @@
 // The rows are drawn closer together than the brush is wide, because the brush is round: left a brush-width apart, the
 // circles only touch, and the white board shows through between them.
 //
-// Depends on: jpeg-js and pngjs (both dev dependencies: the site never loads this), and ../drawing.js (the palette and
-// the board's size).  `fetch` and the decoders are injectable, so the tests need no network and no pictures.
-import jpeg from 'jpeg-js';
-import { PNG } from 'pngjs';
-import { BOARD, BRUSH, PALETTE } from '../drawing.js';
+// Depends on: ./drawing.js (the palette and the board's size), and jpeg-js and pngjs for the pixels - those two are
+// loaded only when a picture is actually read, because a module is copied without node_modules in the tests and a game
+// must still start there.  `fetch` is injectable, so the tests need no network and no pictures.
+import { BOARD, BRUSH, PALETTE } from './drawing.js';
 
 /** How big the picture is made before it is drawn, as the game asks: 256 x 256. */
 export const SQUARE = 256;
@@ -41,7 +40,7 @@ export const ORIGIN = { x: Math.round((BOARD.width - SIDE) / 2), y: Math.round((
 /** Where the pictures come from: a search that needs no key, and gives a thumbnail rather than a ten-megabyte original. */
 const SEARCH = 'https://commons.wikimedia.org/w/api.php';
 /** What to say we are, since Wikimedia asks callers to say (and refuses the ones that do not). */
-const AGENT = 'scribblers-bot/1.0 (a game hub test bot; https://github.com/scribble-rs/scribble.rs)';
+const AGENT = 'scribblers/1.0 (a draw-and-guess game; https://github.com/scribble-rs/scribble.rs)';
 
 /** The palette as red, green and blue, worked out once. */
 const PALETTE_RGB = PALETTE.map((hex) => ({ r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) }));
@@ -105,15 +104,29 @@ export async function searchImage(word, { fetchImpl = fetch, width = 512 } = {})
   return null;
 }
 
+let decoders = null;
+
+/**
+ * The two image decoders, loaded the first time a picture has to be read.
+ * @returns {Promise<{ jpeg: object, PNG: object }>}
+ * Side effects: imports two packages the first time, and keeps them.
+ */
+async function imageDecoders() {
+  decoders ??= { jpeg: (await import('jpeg-js')).default, PNG: (await import('pngjs')).PNG };
+  return decoders;
+}
+
 /**
  * Reads a picture's pixels.  PNG and JPEG are told apart by what they begin with, not by what the server called them.
  *
  * @param {ArrayBuffer | Buffer | Uint8Array} bytes  the file
- * @returns {{ width: number, height: number, data: Uint8Array }} the pixels, four bytes each (red, green, blue, alpha)
- * Side effects: none.
+ * @returns {Promise<{ width: number, height: number, data: Uint8Array }>} the pixels, four bytes each (red, green,
+ *   blue, alpha)
+ * Side effects: may load the decoders (see imageDecoders).
  */
-export function decodePicture(bytes) {
+export async function decodePicture(bytes) {
   const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const { jpeg, PNG } = await imageDecoders();
   if (buffer.length > 8 && buffer.readUInt32BE(0) === 0x89504e47) {
     const png = PNG.sync.read(buffer);
     return { width: png.width, height: png.height, data: png.data };
@@ -137,7 +150,7 @@ export function decodePicture(bytes) {
 export async function loadPicture(url, { fetchImpl = fetch } = {}) {
   const response = await fetchImpl(url, { headers: { 'user-agent': AGENT } });
   if (!response.ok) throw new Error(`the picture could not be fetched (${response.status})`);
-  return decodePicture(await response.arrayBuffer());
+  return await decodePicture(await response.arrayBuffer());
 }
 
 /**
@@ -227,6 +240,34 @@ export function instructions(square) {
       }
     }
     close(COLUMNS);
+  }
+  return ops;
+}
+
+/**
+ * A picture that needs no network: bands of colour worked out from the word's own letters.  The tests draw with this,
+ * and so does a site told to (see SCRIBBLERS_PICTURES in server.js), so that a computer player still draws something
+ * when there is nowhere to fetch a picture from.
+ *
+ * @param {string} word  the word being drawn
+ * @returns {object[]} the instructions: one band per row of the grid, every eighth row
+ * Side effects: none.
+ */
+export function testPicture(word) {
+  const letters = [...(word || 'x')];
+  const ops = [];
+  for (let row = 0; row < ROWS; row += 8) {
+    const letter = letters[(row / 8) % letters.length].codePointAt(0);
+    const y = ORIGIN.y + row * ROW_STEP + Math.floor(BLOCK / 2);
+    ops.push({
+      t: 'line',
+      x: ORIGIN.x + Math.floor(BLOCK / 2),
+      y,
+      x2: ORIGIN.x + (COLUMNS - 1) * BLOCK + Math.floor(BLOCK / 2),
+      y2: y,
+      c: 1 + ((letter + row) % (PALETTE.length - 1)), // never 0: white would leave the board as it was
+      w: BLOCK,
+    });
   }
   return ops;
 }

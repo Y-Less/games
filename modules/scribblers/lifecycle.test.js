@@ -16,6 +16,10 @@ process.env.SCRIBBLERS_CHOOSE_WAIT = '20000';
 process.env.SCRIBBLERS_BETWEEN_WAIT = '400';
 process.env.SCRIBBLERS_SCORES_WAIT = '20000';
 process.env.SCRIBBLERS_AWAY_WAIT = '20000';
+process.env.SCRIBBLERS_BOT_DELAY = '50-150';
+process.env.SCRIBBLERS_BOT_DRAW = '100';
+process.env.SCRIBBLERS_PICTURES = 'test'; // a computer player draws without reaching for the web
+
 
 /**
  * A started game: everybody in, the first drawer choosing.

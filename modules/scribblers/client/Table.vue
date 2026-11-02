@@ -223,6 +223,10 @@ const stageOf = (p) => {
     <template #main="area">
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
+          <template v-if="opened.ai">
+            <dt>{{ t('popup.plays') }}</dt>
+            <dd>{{ opened.ai.name }}</dd>
+          </template>
           <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
           <dt>{{ t('popup.lastTurn') }}</dt>

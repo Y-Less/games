@@ -6,22 +6,23 @@ import assert from 'node:assert/strict';
 import { recordedViews } from './views.js';
 
 const GAMES = [
-  ['a four-player game of two rounds', 101, 4, 2],
-  ['a game for two', 102, 2, 1],
-  ['a six-player game', 103, 6, 2],
+  ['a four-player game of two rounds', 101, 4, 2, 0],
+  ['a game for two', 102, 2, 1, 0],
+  ['a six-player game', 103, 6, 2, 0],
+  ['two people and two computer players', 104, 2, 2, 2],
 ];
 
-for (const [label, seed, size, rounds] of GAMES) {
+for (const [label, seed, size, rounds, bots] of GAMES) {
   test(`${label} sends the same views every time`, () => {
-    const first = recordedViews(seed, size, rounds);
-    const again = recordedViews(seed, size, rounds);
+    const first = recordedViews(seed, size, rounds, bots);
+    const again = recordedViews(seed, size, rounds, bots);
     assert.equal(first.finished, true, 'the game ran to its end');
     assert.ok(first.views.length > 20);
     assert.deepEqual(again.views, first.views);
   });
 
   test(`${label} never shows anybody what they may not know`, () => {
-    const { views } = recordedViews(seed, size, rounds);
+    const { views } = recordedViews(seed, size, rounds, bots);
     const phases = new Set();
     for (const json of views) {
       const view = JSON.parse(json);
@@ -56,9 +57,13 @@ for (const [label, seed, size, rounds] of GAMES) {
       }
       // Whatever happens, a view is well formed.
       assert.ok(['lobby', 'choosing', 'drawing', 'between', 'scores', 'finished'].includes(view.phase), view.phase);
-      assert.equal(view.players.length, size);
-      assert.equal(new Set(view.players.map((p) => p.id)).size, size, 'no player twice');
-      assert.equal(view.scoreboard.players.length, size);
+      assert.equal(view.players.length, size + bots);
+      assert.equal(new Set(view.players.map((p) => p.id)).size, size + bots, 'no player twice');
+      assert.equal(view.scoreboard.players.length, size + bots);
+      for (const player of view.players) {
+        if (!player.bot) assert.equal(player.ai, null, 'a person has no AI');
+        else if (view.phase !== 'lobby') assert.deepEqual(Object.keys(player.ai).sort(), ['description', 'id', 'name'], 'a computer player shows only its AI name');
+      }
       assert.ok(view.round >= 0 && view.round <= rounds);
       assert.ok(view.remaining === null || view.remaining >= 0);
       assert.ok(view.feed.length <= 60, 'the panel keeps only the recent lines');

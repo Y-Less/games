@@ -288,7 +288,7 @@ test('a turn whose drawer cannot draw it is given up, and nobody scores', () => 
   assert.equal(game.skipTurn(room, NOW).ok, false, 'there is no turn to give up now');
 });
 
-test('somebody who leaves a game under way is replaced, and a computer player cannot draw yet', () => {
+test('somebody who leaves a game under way is replaced by a computer player that can play on', () => {
   const { room, rng } = drawing(3);
   const leaving = room.drawer;
   const outcome = game.removeHuman(room, leaving, rng, NOW);
@@ -296,9 +296,10 @@ test('somebody who leaves a game under way is replaced, and a computer player ca
   assert.equal(outcome.replaced, true);
   assert.equal(room.players.length, 3, 'the table is as big as it was');
   assert.equal(game.hasPlayer(room, leaving), false);
-  assert.equal(game.drawerIsBot(room), true);
   assert.ok(room.order.includes(room.drawer), 'the stand-in took their place in the order');
-  assert.equal(game.skipTurn(room, NOW).ok, true);
+  const standIn = room.players.find((p) => p.id === room.drawer);
+  assert.equal(standIn.kind, 'bot');
+  assert.ok(standIn.ai, 'and was given an AI to play with');
 });
 
 test('somebody who leaves the lobby simply goes', () => {

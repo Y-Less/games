@@ -106,9 +106,10 @@ export function pickKeys(payload, keys) {
  *   removeBot(room, userId, seat, rng), fillWithBots(room, userId), start(room, userId, rng, now), playAgain(room, userId).
  *   Every rule returns { ok: true, ... } or { ok: false, error }.
  * @param {(payload: object) => object} options.pickSettings  keeps only the settings the game accepts from a client message
- * @param {(room: object, rng: () => number, now: () => number, who: { online: (id: number) => boolean }) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
- *   must do by itself next, if anything (given the server's `rng` and `now`, to hand to botWait and the computer players, and
- *   `who.online` for rules that wait on somebody being there): `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
+ * @param {(room: object, rng: () => number, now: () => number, who: { online: (id: number) => boolean, relay: Function }) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server
+ *   must do by itself next, if anything (given the server's `rng` and `now`, to hand to botWait and the computer players,
+ *   `who.online` for rules that wait on somebody being there, and `who.relay` for a job that sends a stream of its own,
+ *   as `registerEvents` gets): `wait` milliseconds from now it calls `run()` (a computer move, the end of a trick
  *   pause...).  If `key` is given and the same key is already waiting, the existing timer is kept instead of restarted.
  * @param {(h: object) => void} options.registerEvents  adds the game's own socket events.  It is called for every connection
  *   with { on, act, userId, socket, rng, now, roomOf, relay } (the server's random numbers and clock, for rules that need them): `on(event, handler)` wraps a handler (payload in, ack object out) with validation and
@@ -267,6 +268,24 @@ export function createRoomServer(ctx, options) {
   }
 
   /**
+   * Sends an event straight to the people in a room, bypassing the view.  A view is the whole state of a room and is
+   * sent to everybody on every change, so it cannot carry a stream: the thousands of strokes of a drawing go this way
+   * instead, as they are made.
+   * @param {object} room  the room whose people should get it
+   * @param {string} event  the socket event name
+   * @param {*} payload  what to send
+   * @param {{ except?: number | string }} [options]  a player id to leave out (usually the one who caused it)
+   * @returns {void}
+   * Side effects: emits on every socket those people have open on this room.
+   */
+  function relay(room, event, payload, { except = null } = {}) {
+    for (const member of members(room)) {
+      if (!game.isHuman(member) || member.id === except) continue;
+      for (const other of open(member.id, room.code)) other.emit(event, payload);
+    }
+  }
+
+  /**
    * Points a socket at a room and gives everyone in it the current view.
    * @param {object} socket  the socket to attach
    * @param {object} room  the room it is now looking at
@@ -306,7 +325,7 @@ export function createRoomServer(ctx, options) {
   function schedule(room) {
     let action;
     try {
-      action = nextAction(room, rng, now, { online: online(room.code) });
+      action = nextAction(room, rng, now, { online: online(room.code), relay });
     } catch (error) {
       cancelTimer(room.code);
       failedMove(room, 'could not work out the next move', error);
@@ -588,24 +607,6 @@ export function createRoomServer(ctx, options) {
     on('fillBots', (payload) => act((room) => game.fillWithBots(room, userId, payload.count)));
     on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng, now())));
     on('again', () => act((room) => game.playAgain(room, userId)));
-
-    /**
-     * Sends an event straight to the people in a room, bypassing the view.  A view is the whole state of a room and is
-     * sent to everybody on every change, so it cannot carry a stream: the thousands of strokes of a drawing go this way
-     * instead, as they are made.
-     * @param {object} room  the room whose people should get it
-     * @param {string} event  the socket event name
-     * @param {*} payload  what to send
-     * @param {{ except?: number | string }} [options]  a player id to leave out (usually the one who caused it)
-     * @returns {void}
-     * Side effects: emits on every socket those people have open on this room.
-     */
-    const relay = (room, event, payload, { except = null } = {}) => {
-      for (const member of members(room)) {
-        if (!game.isHuman(member) || member.id === except) continue;
-        for (const other of open(member.id, room.code)) other.emit(event, payload);
-      }
-    };
 
     registerEvents({ on, act, userId, socket, rng, now, roomOf: roomOfSocket, relay });
 

@@ -11,6 +11,7 @@ describe('rendering every state of a whole game', () => {
     ['a four-player game of two rounds', () => recordedViews(101, 4, 2)],
     ['a game for two', () => recordedViews(102, 2, 1)],
     ['a six-player game', () => recordedViews(103, 6, 2)],
+    ['two people and two computer players', () => recordedViews(104, 2, 2, 2)],
   ]) {
     it(`draws every view of ${label} without an error or a warning`, async () => {
       const { views, finished } = record();

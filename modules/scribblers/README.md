@@ -28,7 +28,8 @@ icons, whose artwork has a licence of its own.
 | | |
 | --- | --- |
 | `words.js`, `words/en.txt` | the word list, drawing words for a turn, and comparing a guess with the word |
-| `bots/` | a stand-alone bot that signs in as an account and plays, so there is somebody to play against (below) |
+| `ai/` | the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (below) |
+| `picture.js` | a word turned into something to draw: the search, the decoders, and the strokes (the socket layer's, not the rules') |
 | `game.js` | the rules: rooms, turns, choosing a word, letters, guesses, scoring, the views.  No sockets, no files, no canvas |
 | `drawing.js` | what a drawing is made of and what the server will accept into one (and the grouping that undo works on) |
 | `tally.js` | the counters kept for each player, for the statistics and achievements |
@@ -50,39 +51,38 @@ The instructions are in the board's own 1600 x 900 space, whatever size the canv
 ## Playing with the timings
 
 The tests make a turn short through the environment (see the header of `server.js`): `SCRIBBLERS_CHOOSE_WAIT`,
-`SCRIBBLERS_BETWEEN_WAIT`, `SCRIBBLERS_SCORES_WAIT` and `SCRIBBLERS_AWAY_WAIT`, all in milliseconds.
+`SCRIBBLERS_BETWEEN_WAIT`, `SCRIBBLERS_SCORES_WAIT`, `SCRIBBLERS_AWAY_WAIT`, `SCRIBBLERS_BOT_DELAY` (a "min-max"
+range) and `SCRIBBLERS_BOT_DRAW`, all in milliseconds.
 
-## Players to play against
+All of them are clocks run off the one timer a game gets from the room server: `nextAction` works out which of them -
+a letter, the end of the drawing, the next turn, a computer player's move - is due soonest, and that is the one
+scheduled.
 
-Two different things are called a computer player here.
+## Computer players
 
-**The lobby's computer players** (Add a computer player) are seats in the room, played by the server.  They cannot draw:
-a turn that falls to one is given up (`skipTurn`), and they do not guess.  They are only of use as stand-ins for
-somebody who leaves mid-game, which is what the shared roster rules do with them.
+The lobby's **Add a computer player** gives the table a player the server plays, as in every other game here: it is a
+seat in the room (`{ kind: 'bot', id: 'bot:<n>' }`), not an account, so it is never recorded in anybody's statistics.
+It chooses a word when it is drawing, draws a picture of it, and guesses when somebody else is.
 
-**The stand-alone bot** (`bots/bot.js`) is a separate process that signs in as an account and plays over the same HTTP
-and Socket.IO API as the browser, so it is a person as far as the game is concerned - and it can draw.  Run one per
-terminal, as many as you like:
+- **The AIs** (`ai/`) decide only what can be decided from plain data: which of the words offered to draw
+  (`chooseWord`), and what to guess (`guess`).  `standard` guesses words that fit the letters shown; `sharp` draws the
+  shortest word it is offered and never guesses a word anybody at the table has tried; `hopeful` counts the letters but
+  ignores which ones are shown; `random` shouts out any word in the book.  Each is given one for the whole game
+  (`assignAIs`), the id is kept on the seat so it survives a restart, and the table can see it in a player's pop-up.
+- **The drawing is not an AI decision**, because it needs the web: once the AI has chosen a word, `server.js` asks
+  `picture.js` for a picture of it and paints it on the board a message-full of strokes at a time, so the others watch
+  it appear.  An AI never touches the network, the clock, or `Math.random`.
+- **The picture.**  The first image a Wikimedia Commons search finds for the word (no key needed, and a thumbnail
+  rather than the original), brought down to 256 x 256, then painted as blocks of the board's thinnest brush (8 of its
+  1600 x 900 units, so 112 fill its height) in rows a little closer together than the brush is wide - it is round, so
+  rows a brush apart leave white between them.  Each run of neighbouring blocks of one colour is a single line: a
+  photograph is two to seven thousand instructions rather than sixty-five thousand.  White is never drawn, since the
+  board is already white.
+- **Where the pictures come from** is `SCRIBBLERS_PICTURES`: `web` (the default), `test` (bands worked out from the
+  word, needing no network, which every test of this game uses) or `off` (draw nothing).
+- A computer player standing in for somebody who left plays on in their place, but it does not paint over a board that
+  already has strokes on it: it draws only when the board it inherits is empty.
 
-```
-node modules/scribblers/bots/bot.js --join boss-aware-you --name Painter
-node modules/scribblers/bots/bot.js --join boss-aware-you --name Scribbler --guess-every 1500
-```
-
-- **Drawing.** It chooses one of the words it is offered, searches Wikimedia Commons for a picture of it (no key
-  needed, and a thumbnail rather than the original), brings it down to 256 x 256, and paints it on the board.  The
-  board's thinnest brush is 8 of its 1600 x 900 units, so the square is drawn as blocks of that size, in rows a little
-  closer together than the brush is wide (it is round: rows a brush apart leave white between them), and each run of
-  neighbouring blocks of one colour becomes a single line.  A photograph comes out as two to seven thousand
-  instructions, sent a message-full at a time so the others watch it appear.  White is never drawn: the board is
-  already white.
-- **Guessing.** Once a second it tries a word from the game's own list that still fits the hints - the right number of
-  characters, the shown letters in the right places, the spaces and hyphens where the hints have them - and never the
-  same word twice in a turn.
-- It joins an existing game and never starts one or moves a round on; a person does that.  If it is still in an earlier
-  game it leaves that one first.
-- `bots/picture.js` and `bots/guessing.js` hold the thinking and are tested in `../bots.test.js` with a made-up `fetch`
-  and hand-made pictures, so the tests need no network.
-
-Reading a downloaded photograph needs a decoder, which is what `jpeg-js` and `pngjs` are for.  They are **dev**
-dependencies: the site itself never loads them, because the bot is a tool for working on the game.
+Reading a downloaded photograph needs a decoder, which is what `jpeg-js` and `pngjs` are for.  They are loaded the
+first time a picture is actually read, not when the module starts, because the test kit copies a module without
+`node_modules` and a game must still start there.

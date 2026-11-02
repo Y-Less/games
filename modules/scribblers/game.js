@@ -13,16 +13,19 @@
 // (BSD 3-Clause; see README.md), which is where the word list comes from too.
 //
 // Depends on: shared/input.js (reading untrusted payloads), shared/messages.js (labels and notes), shared/scores.js
-// (standings and scoreboard rows), shared/tally.js (statistics rows), shared/seats.js (result helpers), shared/roster.js
-// (the lobby and player-list rules), ./tally.js (per-player counters), ./words.js (the word list and guess comparison).
+// (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer player choice),
+// shared/seats.js (result helpers), shared/roster.js (the lobby and player-list rules), ./ai/index.js (the computer
+// players), ./tally.js (per-player counters), ./words.js (the word list and guess comparison).
 import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
-import { DEFAULT_LANGUAGE, guessQuality, pickWords } from './words.js';
+import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from './words.js';
 
 // Table size: two can play (one draws, one guesses), and twelve is as many guesses as the panel can show.
 export const MIN_PLAYERS = 2;
@@ -119,7 +122,7 @@ const knowsWord = (room, id) => id === room.drawer || hasGuessed(room, id);
  * @returns {object} the player
  * Side effects: none.
  */
-const makePlayer = (room, base) => ({ ...base, score: 0, lastScore: 0, roundStart: 0, drewThisRound: null, ...newCounters() });
+const makePlayer = (room, base) => ({ ...base, score: 0, lastScore: 0, roundStart: 0, drewThisRound: null, tries: 0, ...newCounters() });
 
 /**
  * Makes a new room with the host in it.
@@ -249,6 +252,10 @@ export function start(room, id, rng, now) {
     p.roundStart = p.score;
     p.drewThisRound = null;
   }
+  // Every computer player gets an AI for the whole game.
+  const bots = room.players.filter(isBot);
+  const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
+  for (const p of bots) p.ai = picks[p.id];
   beginTurn(room, rng, now);
   return ok();
 }
@@ -287,6 +294,7 @@ function beginTurn(room, rng, now) {
   room.hintsTotal = 0;
   room.guessed = [];
   room.reveal = null;
+  for (const p of room.players) p.tries = 0; // how many guesses each has had this turn (the computer players share out their turns by it)
   room.deadline = now + (room.chooseMs ?? CHOOSE_MS);
   room.nextHintAt = null;
   room.phase = 'choosing';
@@ -417,6 +425,7 @@ export function guess(room, id, text, now) {
     return ok({ quality: 'chat' });
   }
   const quality = guessQuality(clean, room.word);
+  player.tries = (player.tries ?? 0) + 1;
   if (quality === 'exact') {
     const points = guesserPoints(room, now);
     room.guessed.push({ id, points });
@@ -628,14 +637,6 @@ export function skipTurn(room, now) {
 }
 
 /**
- * Is the drawing of this turn in the hands of a computer player (somebody left and it took their place)?
- * @param {object} room  the room
- * @returns {boolean}
- * Side effects: none.
- */
-export const drawerIsBot = (room) => ['choosing', 'drawing'].includes(room.phase) && isBot(playerOf(room, room.drawer));
-
-/**
  * Scribblers's part of a computer player taking the place of a person who left a game under way (the roster has already
  * put it in the list, with their score and counters): everything that named the person now names it, and a round that
  * was only waiting for that person to close the scores moves on.
@@ -643,10 +644,12 @@ export const drawerIsBot = (room) => ['choosing', 'drawing'].includes(room.phase
  * @param {object} room
  * @param {number} oldId  the account id of the person who left
  * @param {object} bot    the computer player now in their place
+ * @param {() => number} [rng]  random source, for the AI it is given
  * @returns {void}
  * Side effects: mutates the room (the order, the drawer, the guesses, the feed, the reveal, the ready list, the history).
  */
-function takeOver(room, oldId, bot) {
+function takeOver(room, oldId, bot, rng = Math.random) {
+  bot.ai = pickAI(AIS, rng).id;
   const renamed = (x) => (x === oldId ? bot.id : x);
   room.order = room.order.map(renamed);
   room.drawer = renamed(room.drawer);
@@ -685,6 +688,7 @@ export function migrate(room, nameOf) {
   room.language ??= DEFAULT_LANGUAGE;
   room.chooseMs ??= CHOOSE_MS;
   room.betweenMs ??= BETWEEN_MS;
+  for (const p of room.players ?? []) p.tries ??= 0;
   if (!Array.isArray(room.history)) room.history = [];
   return room;
 }
@@ -759,7 +763,8 @@ function playerView(room, p, { online, final, nameOf }) {
     score: p.score,
     lastScore: p.lastScore ?? 0,
     online: isBot(p) || online(p.id),
-    bot: isBot(p),
+    bot: isBot(p), // the client's name for "is a computer player"
+    ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
     drawing: p.id === room.drawer && TURN.includes(room.phase),
     guessed: hasGuessed(room, p.id),
     ready: room.phase === 'scores' ? isBot(p) || (room.ready ?? []).includes(p.id) : false,
@@ -842,3 +847,82 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
  * Side effects: none.
  */
 export const canDraw = (room, id) => room.phase === 'drawing' && room.drawer === id;
+
+// ---------- computer players ----------
+
+/**
+ * What one computer player is allowed to know, as plain data: its own view of the hints, the word list, its own guesses
+ * this turn and everybody's wrong ones (which the panel shows the whole table anyway).  The word being drawn is never
+ * in it, unless this seat is the one drawing.
+ *
+ * @param {object} room  not changed
+ * @param {number | string} id  the computer player
+ * @param {() => number} rng  random source, which the AI uses instead of any of its own
+ * @returns {object} the AI context
+ * Side effects: none.
+ */
+export function aiContext(room, id, rng) {
+  const seat = viewFor(room, id);
+  const mine = room.feed.filter((line) => line.id === id).map((line) => line.text);
+  const everybody = room.feed.filter((line) => ['guess', 'close'].includes(line.kind)).map((line) => line.text);
+  return { choices: seat.choices, hints: seat.hints, words: wordList(room.language), tried: mine, seen: everybody, rng };
+}
+
+/**
+ * The next thing a computer player has to do, or null: choose a word to draw, or have another guess.  Several of them
+ * take it in turns, the one with the fewest guesses this turn going next, so one does not do all the guessing.
+ * What a computer player draws is not here: the socket layer fetches a picture once the word is chosen.
+ *
+ * @param {object} room  not changed
+ * @returns {{ type: 'word' | 'guess', id: number | string } | null}
+ * Side effects: none.
+ */
+export function pendingBotAction(room) {
+  if (room.phase === 'choosing') {
+    const drawer = playerOf(room, room.drawer);
+    return isBot(drawer) && room.choices.length ? { type: 'word', id: drawer.id } : null;
+  }
+  if (room.phase !== 'drawing') return null;
+  const waiting = guessers(room).filter((p) => isBot(p) && !hasGuessed(room, p.id));
+  if (!waiting.length) return null;
+  const next = waiting.reduce((fewest, p) => ((p.tries ?? 0) < (fewest.tries ?? 0) ? p : fewest), waiting[0]);
+  return { type: 'guess', id: next.id };
+}
+
+/**
+ * Plays one pending computer move.  The decision is made from that seat's own context (see aiContext), so a computer
+ * player never guesses a word it has been told.  An AI that throws, or answers with something the rules refuse, is
+ * replaced by a legal choice.
+ *
+ * @param {object} room  the room (mutated by the move played)
+ * @param {() => number} rng  random source handed to the AI
+ * @param {number} now  the clock (a guess is scored by how much time is left)
+ * @param {object | null} [action]  the move to play (default: pendingBotAction)
+ * @returns {boolean} true if a move was played
+ * Side effects: plays the move (chooseWord or guess) and so changes the room as they do.
+ */
+export function runBotAction(room, rng, now, action = pendingBotAction(room)) {
+  if (!action) return false;
+  const player = playerOf(room, action.id);
+  if (!player) return false;
+  const ai = aiById(AIS, player.ai);
+  const context = aiContext(room, action.id, rng);
+  // An AI is not trusted to answer: a throw, or anything out of range, falls back to a plain legal choice.
+  const attempt = (decide) => {
+    try {
+      return decide();
+    } catch {
+      return undefined;
+    }
+  };
+  if (action.type === 'word') {
+    const chosen = attempt(() => ai.chooseWord(context));
+    const n = Number.isInteger(chosen) && chosen >= 0 && chosen < room.choices.length ? chosen : Math.floor(rng() * room.choices.length);
+    return chooseWord(room, action.id, n, now).ok;
+  }
+  const guessed = attempt(() => ai.guess(context));
+  const text = typeof guessed === 'string' && guessed.trim() ? guessed.trim() : (context.words[Math.floor(rng() * context.words.length)] ?? 'something');
+  const outcome = guess(room, action.id, text, now);
+  // Being refused for guessing too fast is not a failure: the server simply asks again in a moment.
+  return outcome.ok || outcome.error === 'tooFast';
+}

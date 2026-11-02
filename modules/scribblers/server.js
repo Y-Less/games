@@ -1,7 +1,7 @@
 // The socket layer for Scribblers.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events
 // are the shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js.  This
 // file says what is particular to Scribblers: its settings, its own socket events, the clock work a turn needs (a word
-// chosen for a drawer who dithers, a letter revealed, the end of a turn), and the drawing itself.
+// chosen for a drawer who dithers, a letter revealed, the end of a turn), the computer players, and the drawing itself.
 //
 // **The drawing is not part of the view.**  A view is the whole state of a room, sent to everybody on every change; a
 // drawing is thousands of instructions a turn.  So the strokes live in this file, in memory, for the turn being drawn,
@@ -16,19 +16,52 @@
 //   SCRIBBLERS_BETWEEN_WAIT  milliseconds the word stays up between turns (default 6000)
 //   SCRIBBLERS_SCORES_WAIT   milliseconds the round's scores wait for everybody to close them (default 60000)
 //   SCRIBBLERS_AWAY_WAIT     milliseconds a drawing waits for a drawer who has gone (default 8000)
+//   SCRIBBLERS_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing a word or guessing (default 700-1300)
+//   SCRIBBLERS_BOT_DRAW      milliseconds before a computer player starts drawing its picture (default 1200)
+//   SCRIBBLERS_PICTURES      where a computer player's pictures come from: "web" (default), "test" (bands worked out
+//                            from the word, needing no network, which is what the tests use) or "off" (draw nothing)
 //
-// Depends on shared/roomServer.js (the room server and its timing helpers), ./game.js (the rules) and ./drawing.js (the
-// canvas and what may go on it).
-import { createRoomServer, pickKeys, readDelayMs } from '../../shared/roomServer.js';
+// **A computer player draws.**  Its AI chooses the word (ai/, driven through game.js), and then this file fetches a
+// picture of it from the web (picture.js) and puts it on the board a message-full of strokes at a time, which an AI may
+// not do itself: an AI is a function of plain data, with no clock and no network.  Nothing else about a computer
+// player is special - its guesses go through the same rules as anybody's.
+//
+// Depends on shared/roomServer.js (the room server and its timing helpers), ./game.js (the rules), ./drawing.js (the
+// canvas and what may go on it) and ./picture.js (a word turned into something to draw).
+import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from './drawing.js';
 import * as game from './game.js';
+import { drawingFor, testPicture } from './picture.js';
 
-/** How long after a computer player inherits a drawing turn before that turn is given up (milliseconds). */
-const SKIP_WAIT = 1000;
+/** How long the server waits between one message-full of a computer player's picture and the next (milliseconds). */
+const STROKE_PAUSE = 120;
+
+/**
+ * Where a computer player's pictures come from.
+ * @returns {(word: string) => Promise<{ ops: object[], url: string | null }>} the instructions for a word
+ * Side effects: none itself; the "web" source fetches when it is called.
+ */
+function pictureSource() {
+  const kind = process.env.SCRIBBLERS_PICTURES ?? 'web';
+  if (kind === 'off') return async () => ({ ops: [], url: null });
+  if (kind === 'test') return async (word) => ({ ops: testPicture(word), url: 'test' });
+  return (word) => drawingFor(word);
+}
+
+/**
+ * Waits, without keeping the process alive on its own account.
+ * @param {number} ms  how long to wait
+ * @returns {Promise<void>}
+ * Side effects: sets an unreferenced timer.
+ */
+const pause = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms).unref?.();
+  });
 
 /**
  * Reads the Scribblers timings from the environment.
- * @returns {{ chooseMs: number, betweenMs: number, scoresMs: number, awayMs: number }} all in milliseconds
+ * @returns {object} the waits, all in milliseconds (`bot` is a { min, max } range)
  * Side effects: none (reads process.env).
  */
 function readDelays() {
@@ -37,6 +70,8 @@ function readDelays() {
     betweenMs: readDelayMs('SCRIBBLERS_BETWEEN_WAIT', game.BETWEEN_MS),
     scoresMs: readDelayMs('SCRIBBLERS_SCORES_WAIT', 60000),
     awayMs: readDelayMs('SCRIBBLERS_AWAY_WAIT', 8000),
+    bot: readDelayRange('SCRIBBLERS_BOT_DELAY', '700-1300'),
+    botDraw: readDelayMs('SCRIBBLERS_BOT_DRAW', 1200),
   };
 }
 
@@ -51,6 +86,7 @@ function readDelays() {
  */
 export default function (ctx) {
   const delays = readDelays();
+  const pictureFor = pictureSource();
   /** An account's display name (for people who have left the room, and for rooms saved before names were kept). */
   const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
   /** The drawing of each room that is being drawn: code -> { key: '<round>:<turn>', drawing }.  Never saved. */
@@ -72,6 +108,51 @@ export default function (ctx) {
     return entry.drawing;
   }
 
+  /** The turn each room's computer player has already been given a picture for: code -> '<round>:<turn>'. */
+  const painted = new Map();
+
+  /**
+   * Has this room's computer player still to be given its picture?  Only once a turn, and only while the board is
+   * empty, so that a computer player standing in for somebody who left does not paint over what they had drawn.
+   * @param {object} room  the room
+   * @returns {boolean}
+   * Side effects: none.
+   */
+  const pictureDue = (room) => painted.get(room.code) !== `${room.round}:${room.turn}` && canvasOf(room).ops.length === 0;
+
+  /**
+   * Draws a computer player's word: a picture of it is fetched from the web and put on the board a message-full of
+   * strokes at a time, so the others watch it appear rather than meeting it all at once.  It stops if the turn moves
+   * on, and a word with no picture anywhere simply leaves the board empty.
+   *
+   * @param {object} room  the room (its drawing is added to)
+   * @param {Function} relay  sends an event to everybody in the room
+   * @param {() => number} now  the clock
+   * @returns {Promise<void>} resolves when the picture is on the board, or there is nothing more to do
+   * Side effects: fetches twice over the network, fills this room's drawing, emits `draw` to the room, and logs.
+   */
+  async function paint(room, relay, now) {
+    const turn = `${room.round}:${room.turn}`;
+    painted.set(room.code, turn); // marked before the fetch, so a second timer cannot start the same picture again
+    const word = room.word;
+    const here = () => `${room.round}:${room.turn}` === turn && room.phase === 'drawing' && room.word === word;
+    try {
+      const { ops } = await pictureFor(word);
+      if (!ops.length) {
+        ctx.log(`no picture was found for "${word}"`);
+        return;
+      }
+      for (let at = 0; at < ops.length; at += MAX_BATCH) {
+        if (!here()) return; // the turn moved on while the picture was being fetched or sent
+        const kept = addOps(canvasOf(room), ops.slice(at, at + MAX_BATCH), now());
+        if (kept.length) relay(room, 'draw', { ops: kept });
+        await pause(STROKE_PAUSE);
+      }
+    } catch (error) {
+      ctx.log(`could not draw "${word}":`, error.message);
+    }
+  }
+
   return createRoomServer(ctx, {
     game,
     pickSettings,
@@ -91,8 +172,11 @@ export default function (ctx) {
       if (!['drawing', 'between'].includes(room.phase)) canvases.delete(room.code);
     },
     /**
-     * The clock work of a turn: a word chosen for a drawer who did not choose one, a letter revealed, the end of the
-     * drawing, the next turn, the next round, and the end of a turn nobody is there to draw.
+     * The clock work of a turn, which is several clocks run off the one timer the room server gives a game: a word
+     * chosen for a drawer who did not choose one, a letter revealed, the end of the drawing, the next turn, the next
+     * round, a computer player's move, the picture a computer player draws, and the end of a turn nobody is there to
+     * draw.  Whichever of them is due soonest is the one scheduled; doing it changes the room, which works the next one
+     * out again.
      *
      * A drawer who closes the page is noticed when the next scheduled thing happens (a letter, the end of the turn),
      * because a connection going is not itself a change to the room; the turn therefore ends within a letter's time of
@@ -101,18 +185,19 @@ export default function (ctx) {
      * @param {object} room  the room
      * @param {() => number} rng  random source
      * @param {() => number} now  the clock
-     * @param {{ online: (id: *) => boolean }} who  who is connected right now (read again when the timer fires)
+     * @param {{ online: (id: *) => boolean, relay: Function }} who  who is connected right now (read again when the
+     *   timer fires), and how to send a stream to the room (the picture a computer player draws)
      * @returns {{ key?: string, wait: number, run: () => void } | null} what to schedule, or null when nothing is due
-     * Side effects: none itself; the returned run() moves the room on.
+     * Side effects: none itself; the returned run() moves the room on, or starts a picture.
      */
-    nextAction(room, rng, now, { online }) {
+    nextAction(room, rng, now, { online, relay }) {
       const turnKey = `${room.round}:${room.turn}`;
-      // Nobody can draw this turn: a computer player has taken the drawer's place.
-      if (game.drawerIsBot(room)) {
-        return { key: `skip:${turnKey}`, wait: SKIP_WAIT, run: () => insist(game.skipTurn(room, now())) };
-      }
-      // The drawer has gone: give the turn up unless they are back by the time this fires.
-      if (['choosing', 'drawing'].includes(room.phase) && !online(room.drawer)) {
+      const drawer = room.players.find((p) => p.id === room.drawer);
+      const drawing = ['choosing', 'drawing'].includes(room.phase);
+
+      // A person was drawing and has gone: nothing else about the turn matters until they are back, so this is asked
+      // first rather than taking its turn with the rest.
+      if (drawing && game.isHuman(drawer) && !online(room.drawer)) {
         return {
           key: `away:${turnKey}`,
           wait: delays.awayMs,
@@ -121,19 +206,38 @@ export default function (ctx) {
           },
         };
       }
-      // The round's scores are up: move on without anybody who has not closed them.
+      // A computer player has a word and an empty board: fetch a picture of it and start painting (once a turn).
+      if (room.phase === 'drawing' && drawer && !game.isHuman(drawer) && pictureDue(room)) {
+        return { key: `picture:${turnKey}`, wait: delays.botDraw, run: () => void paint(room, relay, now) };
+      }
+
+      // Everything else takes its turn by when it is due.
+      const due = [];
+      const bot = game.pendingBotAction(room);
+      if (bot) {
+        const tries = room.players.find((p) => p.id === bot.id)?.tries ?? 0;
+        due.push({
+          key: `bot:${turnKey}:${bot.type}:${bot.id}:${tries}`,
+          at: now() + botWait(delays.bot, rng),
+          // runBotAction answers with whether it played, not with a rule's outcome, so a refusal is turned into a throw
+          // here instead (the room server then logs it and tries again after a pause).
+          run() {
+            if (!game.runBotAction(room, rng, now(), bot)) throw new Error(`the computer move ${bot.type} for ${bot.id} was refused`);
+          },
+        });
+      }
       if (room.phase === 'scores') {
-        return { key: `scores:${room.round}`, wait: delays.scoresMs, run: () => insist(game.forceNextRound(room, rng, now())) };
+        due.push({ key: `scores:${room.round}`, at: now() + delays.scoresMs, run: () => insist(game.forceNextRound(room, rng, now())) });
       }
-      // A letter of the word, if one is due before the drawing ends.
-      if (room.nextHintAt !== null && room.nextHintAt !== undefined && (room.deadline === null || room.nextHintAt <= room.deadline)) {
-        return { key: `hint:${turnKey}:${room.hintsLeft}`, wait: Math.max(0, room.nextHintAt - now()), run: () => insist(game.revealHint(room, rng, now())) };
+      if (room.nextHintAt !== null && room.nextHintAt !== undefined) {
+        due.push({ key: `hint:${turnKey}:${room.hintsLeft}`, at: room.nextHintAt, run: () => insist(game.revealHint(room, rng, now())) });
       }
-      // Whatever the end of this phase means: the word chosen, the drawing over, or the next turn.
       if (room.deadline !== null && room.deadline !== undefined) {
-        return { key: `deadline:${turnKey}:${room.phase}`, wait: Math.max(0, room.deadline - now()), run: () => insist(game.timeUp(room, rng, now(), nameOf)) };
+        due.push({ key: `deadline:${turnKey}:${room.phase}`, at: room.deadline, run: () => insist(game.timeUp(room, rng, now(), nameOf)) });
       }
-      return null;
+      if (!due.length) return null;
+      const soonest = due.reduce((first, next) => (next.at < first.at ? next : first));
+      return { key: soonest.key, wait: Math.max(0, soonest.at - now()), run: soonest.run };
     },
     /**
      * Registers the game's own socket events: what a player does through the rules (choose a word, guess, close the
