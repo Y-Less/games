@@ -193,14 +193,19 @@ test('statistics: modules report results and the profile shows totals and module
   await new Promise((resolve) => socket.on('connect', resolve));
   const finish = (payload) => new Promise((resolve) => socket.emit('finish', payload, resolve));
 
-  assert.deepEqual((await c.get('/api/stats/me')).data.summary, { played: 0, wins: 0, losses: 0, draws: 0, winRate: 0 });
+  // The route adds onlineSeconds, which is a clock rather than a game result, so it is checked apart from the rest.
+  const { onlineSeconds: before, ...fresh } = (await c.get('/api/stats/me')).data.summary;
+  assert.deepEqual(fresh, { played: 0, wins: 0, losses: 0, draws: 0, winRate: 0 });
+  assert.ok(Number.isInteger(before) && before >= 0, `onlineSeconds should be a whole number of seconds, not ${before}`);
   await finish({ outcome: 'win', score: 300, streak: 3 });
   await finish({ outcome: 'win', score: 150, streak: 5 });
   await finish({ outcome: 'loss', score: 50, streak: 1 });
   await finish({ outcome: 'draw', score: 100 });
 
   const stats = (await c.get('/api/stats/me')).data;
-  assert.deepEqual(stats.summary, { played: 4, wins: 2, losses: 1, draws: 1, winRate: 0.5 });
+  const { onlineSeconds: after, ...played } = stats.summary;
+  assert.deepEqual(played, { played: 4, wins: 2, losses: 1, draws: 1, winRate: 0.5 });
+  assert.ok(Number.isInteger(after) && after >= before, `onlineSeconds should not go backwards: ${before} then ${after}`);
   const [coin] = stats.perGame;
   assert.equal(coin.name, 'Coin Flip');
   assert.equal(coin.totalScore, 600);
