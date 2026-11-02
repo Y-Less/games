@@ -1,0 +1,123 @@
+{
+  "entry": {
+    "noun": "game of Just One",
+    "intro": "Write one-word clues for a secret word that the guesser cannot see. The clues that match are cancelled. You get a code to share."
+  },
+  "leaveConfirm": "You will not be able to come back.",
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends."
+  },
+  "settings": {
+    "length": "Length of the game",
+    "fewerTurns": "Fewer turns",
+    "moreTurns": "More turns",
+    "turnsEach": "{count} turn each | {count} turns each",
+    "total": "{count} turn in all with {players} players. Everyone takes turns as the guesser. | {count} turns in all with {players} players. Everyone takes turns as the guesser."
+  },
+  "scoreboard": {
+    "turn": "Turn {n}: {name}"
+  },
+  "notes": {
+    "guessedIt": "guessed it",
+    "passed": "passed",
+    "missed": "missed",
+    "bestHint": "best hint"
+  },
+  "table": {
+    "secretWord": "The secret word",
+    "secretWordHidden": "The secret word (hidden from you)",
+    "clues": "Clues",
+    "theClues": "The clues",
+    "cluePlaceholder": "One word",
+    "yourClue": "Your clue",
+    "sendClue": "Send clue",
+    "thinking": "Clues are being written. Have a think about what the word could be.",
+    "whoWritten": "Who has written",
+    "allCancelled": "Every clue was cancelled.",
+    "writerCancelled": "{name} · cancelled",
+    "writerBest": "{name} · best hint",
+    "guessPlaceholder": "Your one guess",
+    "yourGuess": "Your guess",
+    "guess": "Guess",
+    "pass": "Pass",
+    "guessedRight": "{name} guessed “{guess}”, and it is right.",
+    "players": "Players",
+    "guesserTag": "guesser",
+    "writtenTag": "written",
+    "cancelledTag": "cancelled",
+    "bestTag": "best hint",
+    "nothingYet": "Nothing has happened yet."
+  },
+  "facts": {
+    "turn": "Turn {n} of {total}",
+    "gameOver": "Game over",
+    "guesser": "Guesser: {name}"
+  },
+  "popup": {
+    "plays": "Plays",
+    "score": "Score",
+    "now": "Now",
+    "guesser": "the guesser this turn",
+    "written": "has written a clue",
+    "toWrite": "still to write a clue"
+  },
+  "reveal": {
+    "label": "This turn",
+    "wordWas": "The word was {word}",
+    "passed": "{name} passed.",
+    "guessedRight": "{name} guessed “{guess}”: right (+{points}).",
+    "guessedWrong": "{name} guessed “{guess}”: wrong.",
+    "bestHint": "{name} wrote the best hint (+{points})."
+  },
+  "status": {
+    "abandoned": "The game was abandoned.",
+    "wins": "{names} wins with {score} points. | {names} win with {score} points.",
+    "revealPassed": "{name} passed. The word was {word}.",
+    "revealGuessed": "{name} guessed “{guess}”. The word was {word}.",
+    "revealBest": "{name} got it! {best}'s hint was the best.",
+    "revealNoHint": "{name} got it! Every hint was cancelled.",
+    "guesserWriting": "You are the guesser. The others are writing clues ({written} of {total}).",
+    "write": "Write a one-word clue for “{word}”. If somebody writes the same, both are cancelled.",
+    "clueSent": "Clue sent. Waiting for the others ({written} of {total}).",
+    "yourGuess": "Your turn: read the clues and guess the word, or pass.",
+    "guessing": "{name} is guessing.",
+    "pickBest": "Right! Now pick the best hint.",
+    "choosing": "{name} found the word, and is picking the best hint.",
+    "abandonedNote": "Too many players left, so this game does not count towards the statistics.",
+    "leaveToMenu": "Use Leave game (top right) to go back to the menu.",
+    "finishedNote": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every turn again.",
+    "waitingReadyNext": "Waiting for {names} to be ready for the next turn.",
+    "waitingReadyFinal": "Waiting for {names} to be ready for the final scores.",
+    "closeScores": "Close the scores when you are ready to carry on.",
+    "ownCancelled": "Your clue was cancelled: it matched another one.",
+    "scoring": "Right: {guesser} points for you, and {bestHint} for the writer of the best hint. Wrong or pass: nobody scores.",
+    "clickBest": "Click the clue that helped you most."
+  },
+  "log": {
+    "turnStart": "Turn {n} of {total}: {name} is the guesser. Everyone else is writing a clue.",
+    "written": "{name} has written a clue.",
+    "cluesIn": "The clues are in. None of them matched. | The clues are in. {count} matched and was cancelled. | The clues are in. {count} matched and were cancelled.",
+    "passed": "{name} passed.",
+    "guessed": "{name} guessed “{guess}”.",
+    "bestHint": "{best}'s hint was the best (+{points}). {name} scores {score}.",
+    "noHints": "{name} scores {score}. No hints were left to pick from.",
+    "wordWas": "The word was “{word}”.",
+    "gameOver": "The game is over: {names} wins. | The game is over: {names} win.",
+    "abandoned": "The game was abandoned."
+  },
+  "errors": {
+    "cluesIn": "The clues are in.",
+    "guesserNoClue": "You are guessing, so you do not write a clue.",
+    "alreadyClued": "You have already sent your clue.",
+    "typeClue": "Type your clue first.",
+    "clueTooLong": "A clue is at most {max} letters.",
+    "clueOneWord": "A clue is one word.",
+    "clueIsTheWord": "That is the word itself, or part of it.",
+    "guesserOnlyGuesses": "Only the guesser guesses.",
+    "typeGuess": "Type a guess, or pass.",
+    "guesserOnlyPasses": "Only the guesser can pass.",
+    "noBestYet": "There is no best hint to pick yet.",
+    "guesserOnlyPicks": "Only the guesser picks the best hint.",
+    "pickAHint": "Pick one of the hints."
+  }
+}

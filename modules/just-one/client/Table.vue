@@ -4,7 +4,7 @@
 // word and send one-word clues; the guesser sees the clues that were not cancelled, guesses once, and picks the best hint.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves, an array
-// of strings kept by JustOne.vue).
+// of messages kept by JustOne.vue, see moveLog.js).
 // Emits: none. Slots: none (it fills GameFrame's scorebar, main, others, log and status slots).
 // Side effects: sends 'clue', 'guess', 'pass', 'best', 'ready', 'removeBot' and 'kick' requests; one watcher on the view
 // empties the clue and guess boxes when the turn or phase changes.
@@ -14,13 +14,16 @@ import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { keyFor } from '../../../src/messageText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({
   state: { type: Object, required: true },
   send: { type: Function, required: true },
-  log: { type: Array, default: () => [] },
+  log: { type: Array, default: () => [] }, // Recent moves: messages, kept by the page (see moveLog.js)
 });
+const { t, text, list, game } = useGameText();
 
 const clueText = ref(''); // what is typed in the clue box
 const guessText = ref(''); // what is typed in the guess box
@@ -41,8 +44,8 @@ const playing = computed(() => clueTime.value || guessing.value || choosing.valu
 const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
 // Everyone but you, drawn as the slim bars.
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
-// A player's name by id, or "Someone" if they are not in the game.
-const nameOf = (id) => s.value.players.find((p) => p.id === id)?.name ?? 'Someone';
+// A player's name by id, or the site's "Someone" if they are not in the game.
+const nameOf = (id) => s.value.players.find((p) => p.id === id)?.name ?? t('common.someone');
 // The guesser's name.
 const guesserName = computed(() => nameOf(s.value.guesser));
 // The players writing clues this turn (everyone but the guesser).
@@ -65,6 +68,8 @@ const canWrite = computed(() => clueTime.value && !isGuesser.value && !myClue.va
 const canGuess = computed(() => guessing.value && isGuesser.value);
 // Your own clue was cancelled (shown to you as a warning once the clues are in).
 const ownCancelled = computed(() => (guessing.value || choosing.value) && !isGuesser.value && s.value.clues.some((c) => c.id === s.value.you && c.cancelled));
+// The full key of the reveal's "The word was {word}" line, for <i18n-t>, which wraps the word in its own element.
+const wordWasKey = keyFor('reveal.wordWas', game);
 
 // Typed text belongs to one turn and phase: it is emptied when either changes (and once at the start).
 watch(
@@ -84,39 +89,40 @@ const sendGuess = () => props.send('guess', { text: guessText.value });
 // ---- the words in the Status box ----
 // The Status headline for the phase and your role, as one sentence ('' when there is nothing to say).
 const headline = computed(() => {
-  if (phase.value === 'abandoned') return 'The game was abandoned.';
-  if (phase.value === 'finished') return `${winners.value.join(' and ')} ${winners.value.length > 1 ? 'win' : 'wins'} with ${standings.value[0].score} points.`;
+  if (phase.value === 'abandoned') return t('status.abandoned');
+  if (phase.value === 'finished') return t('status.wins', { names: list(winners.value), score: standings.value[0].score, count: winners.value.length }, winners.value.length);
   if (reveal.value) {
     const r = s.value.result;
     if (!r) return '';
-    if (!r.correct) return r.guess?.passed ? `${r.guesserName} passed. The word was ${r.word}.` : `${r.guesserName} guessed “${r.guess?.text}”. The word was ${r.word}.`;
-    return r.bestName ? `${r.guesserName} got it! ${r.bestName}'s hint was the best.` : `${r.guesserName} got it! Every hint was cancelled.`;
+    if (!r.correct) return r.guess?.passed ? t('status.revealPassed', { name: r.guesserName, word: r.word }) : t('status.revealGuessed', { name: r.guesserName, guess: r.guess?.text, word: r.word });
+    return r.bestName ? t('status.revealBest', { name: r.guesserName, best: r.bestName }) : t('status.revealNoHint', { name: r.guesserName });
   }
   if (clueTime.value) {
-    if (isGuesser.value) return `You are the guesser. The others are writing clues (${writtenCount.value} of ${writerList.value.length}).`;
-    if (canWrite.value) return `Write a one-word clue for “${s.value.word}”. If somebody writes the same, both are cancelled.`;
-    return `Clue sent. Waiting for the others (${writtenCount.value} of ${writerList.value.length}).`;
+    const progress = { written: writtenCount.value, total: writerList.value.length };
+    if (isGuesser.value) return t('status.guesserWriting', progress);
+    if (canWrite.value) return t('status.write', { word: s.value.word });
+    return t('status.clueSent', progress);
   }
-  if (guessing.value) return isGuesser.value ? 'Your turn: read the clues and guess the word, or pass.' : `${guesserName.value} is guessing.`;
-  if (choosing.value) return isGuesser.value ? 'Right! Now pick the best hint.' : `${guesserName.value} found the word, and is picking the best hint.`;
+  if (guessing.value) return isGuesser.value ? t('status.yourGuess') : t('status.guessing', { name: guesserName.value });
+  if (choosing.value) return isGuesser.value ? t('status.pickBest') : t('status.choosing', { name: guesserName.value });
   return '';
 });
 // It is your move (highlights the Status box): you can write a clue, or you are the guesser in the guessing or choosing phase.
 const mineNow = computed(() => canWrite.value || (isGuesser.value && (guessing.value || choosing.value)));
 // The further Status lines. Most are { text, tone } where tone only picks the colour; the abandoned case also holds a plain string.
 const lines = computed(() => {
-  if (phase.value === 'abandoned') return [{ text: 'Too many players left, so this game does not count towards the statistics.', tone: 'muted' }, 'Use Leave game (top right) to go back to the menu.'];
-  if (phase.value === 'finished') return [{ text: 'Use Leave game (top right) to go back to the menu, or "All rounds" in the score bar to see every turn again.', tone: 'muted' }];
+  if (phase.value === 'abandoned') return [{ text: t('status.abandonedNote'), tone: 'muted' }, t('status.leaveToMenu')];
+  if (phase.value === 'finished') return [{ text: t('status.finishedNote'), tone: 'muted' }];
   if (reveal.value) {
     return [
       mine.value?.ready
-        ? { text: `Waiting for ${waitingFor.value.join(', ')} to be ready${lastTurn.value ? ' for the final scores' : ' for the next turn'}.`, tone: 'muted' }
-        : { text: 'Close the scores when you are ready to carry on.', tone: 'mine' },
+        ? { text: t(lastTurn.value ? 'status.waitingReadyFinal' : 'status.waitingReadyNext', { names: list(waitingFor.value) }), tone: 'muted' }
+        : { text: t('status.closeScores'), tone: 'mine' },
     ];
   }
-  if (ownCancelled.value) return [{ text: 'Your clue was cancelled: it matched another one.', tone: 'warn' }];
-  if (canGuess.value) return [{ text: `Right: ${s.value.points.guesser} points for you, and ${s.value.points.bestHint} for the writer of the best hint. Wrong or pass: nobody scores.`, tone: 'muted' }];
-  if (choosing.value && isGuesser.value) return [{ text: 'Click the clue that helped you most.', tone: 'muted' }];
+  if (ownCancelled.value) return [{ text: t('status.ownCancelled'), tone: 'warn' }];
+  if (canGuess.value) return [{ text: t('status.scoring', { guesser: s.value.points.guesser, bestHint: s.value.points.bestHint }), tone: 'muted' }];
+  if (choosing.value && isGuesser.value) return [{ text: t('status.clickBest'), tone: 'muted' }];
   return [];
 });
 
@@ -138,10 +144,18 @@ const opened = computed(() => s.value.players.find((p) => p.id === openId.value)
  */
 const stageOf = (p) => {
   if (ended.value) return '';
-  if (p.id === s.value.guesser) return 'the guesser this turn';
-  if (clueTime.value) return p.written ? 'has written a clue' : 'still to write a clue';
+  if (p.id === s.value.guesser) return t('popup.guesser');
+  if (clueTime.value) return p.written ? t('popup.written') : t('popup.toWrite');
   return '';
 };
+/**
+ * The small line under a clue card for everyone but the guesser: the writer's name, with whether the clue was cancelled or
+ * picked as the best hint.
+ * @param {{ name: string, cancelled?: boolean, best?: boolean }} c  a clue from the view
+ * @returns {string}
+ * Side effects: none.
+ */
+const writerLine = (c) => (c.cancelled ? t('table.writerCancelled', { name: c.name }) : c.best ? t('table.writerBest', { name: c.name }) : c.name);
 // How many frame columns each slim bar spans: wider bars when four or fewer players are shown (a number, 3 or 2).
 const barSpan = (count) => (count <= 4 ? 3 : 2);
 // The grid style shared by every slim bar.
@@ -153,19 +167,22 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
     <template #scorebar>
       <ScoreBoard :players="state.scoreboard.players" :rounds="state.scoreboard.rounds" :low-is-better="state.scoreboard.lowIsBetter" :finished="state.phase === 'finished'" :awaiting="reveal && !mine?.ready" :waiting="waitingFor" :sticky="false" v-bind="scoreProps" @continue="send('ready')">
         <template #round>
-          <section v-if="state.result" class="reveal stack" aria-label="This turn">
-            <p class="reveal-word">The word was <strong>{{ state.result.word }}</strong></p>
+          <section v-if="state.result" class="reveal stack" :aria-label="t('reveal.label')">
+            <i18n-t :keypath="wordWasKey" scope="global" tag="p" class="reveal-word">
+              <template #word><strong>{{ state.result.word }}</strong></template>
+            </i18n-t>
             <p class="muted">
-              <template v-if="state.result.guess?.passed">{{ state.result.guesserName }} passed.</template>
-              <template v-else>{{ state.result.guesserName }} guessed “{{ state.result.guess?.text }}”: {{ state.result.correct ? `right (+${state.result.guesserPoints})` : 'wrong' }}.</template>
-              <template v-if="state.result.bestName"> {{ state.result.bestName }} wrote the best hint (+{{ state.result.bestPoints }}).</template>
+              <template v-if="state.result.guess?.passed">{{ t('reveal.passed', { name: state.result.guesserName }) }}</template>
+              <template v-else-if="state.result.correct">{{ t('reveal.guessedRight', { name: state.result.guesserName, guess: state.result.guess?.text, points: state.result.guesserPoints }) }}</template>
+              <template v-else>{{ t('reveal.guessedWrong', { name: state.result.guesserName, guess: state.result.guess?.text }) }}</template>
+              <template v-if="state.result.bestName"> {{ t('reveal.bestHint', { name: state.result.bestName, points: state.result.bestPoints }) }}</template>
             </p>
             <ul class="entries">
               <li v-for="c in state.result.clues" :key="c.id" class="row" :class="{ cancelled: c.cancelled, best: c.best }">
                 <span class="clue-text">{{ c.text }}</span>
                 <span class="muted">{{ nameOf(c.id) }}</span>
-                <span v-if="c.cancelled" class="tag">cancelled</span>
-                <span v-else-if="c.best" class="tag best-tag">best hint</span>
+                <span v-if="c.cancelled" class="tag">{{ t('table.cancelledTag') }}</span>
+                <span v-else-if="c.best" class="tag best-tag">{{ t('table.bestTag') }}</span>
               </li>
             </ul>
           </section>
@@ -177,50 +194,50 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
       <PlayerPopup v-if="popupProps" v-bind="popupProps">
         <dl v-if="opened" class="facts">
           <template v-if="opened.ai">
-            <dt>Plays</dt>
+            <dt>{{ t('popup.plays') }}</dt>
             <dd>{{ opened.ai.name }}</dd>
           </template>
-          <dt>Score</dt>
+          <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
           <template v-if="stageOf(opened)">
-            <dt>Now</dt>
+            <dt>{{ t('popup.now') }}</dt>
             <dd>{{ stageOf(opened) }}</dd>
           </template>
         </dl>
       </PlayerPopup>
 
       <div class="arena">
-        <section class="word-card" aria-label="The secret word">
-          <span class="caption muted">{{ isGuesser && !reveal && !ended ? 'The secret word (hidden from you)' : 'The secret word' }}</span>
+        <section class="word-card" :aria-label="t('table.secretWord')">
+          <span class="caption muted">{{ isGuesser && !reveal && !ended ? t('table.secretWordHidden') : t('table.secretWord') }}</span>
           <strong class="word" :class="{ hidden: !state.word }">{{ state.word ?? '???' }}</strong>
         </section>
 
-        <section class="clues-box" aria-label="Clues">
+        <section class="clues-box" :aria-label="t('table.clues')">
           <!-- Writing the clues -->
           <form v-if="canWrite" class="clue-form" @submit.prevent="sendClue">
-            <input v-model="clueText" maxlength="24" placeholder="One word" autocomplete="off" aria-label="Your clue" />
-            <button type="submit" class="primary" :disabled="!clueText.trim()">Send clue</button>
+            <input v-model="clueText" maxlength="24" :placeholder="t('table.cluePlaceholder')" autocomplete="off" :aria-label="t('table.yourClue')" />
+            <button type="submit" class="primary" :disabled="!clueText.trim()">{{ t('table.sendClue') }}</button>
           </form>
-          <p v-else-if="clueTime && isGuesser" class="waiting muted">Clues are being written. Have a think about what the word could be.</p>
-          <ul v-if="clueTime" class="who-wrote" aria-label="Who has written">
+          <p v-else-if="clueTime && isGuesser" class="waiting muted">{{ t('table.thinking') }}</p>
+          <ul v-if="clueTime" class="who-wrote" :aria-label="t('table.whoWritten')">
             <li v-for="p in writerList" :key="p.id" :class="{ done: p.written }">{{ p.name }}<span v-if="p.written"> &#10003;</span></li>
           </ul>
 
           <!-- Clues for the guesser: the ones that are left, with no writers -->
-          <ul v-if="(guessing || choosing) && isGuesser" class="cards" aria-label="The clues">
+          <ul v-if="(guessing || choosing) && isGuesser" class="cards" :aria-label="t('table.theClues')">
             <li v-for="c in state.clues" :key="c.n">
               <button v-if="choosing" type="button" class="card pick" @click="send('best', { n: c.n })">{{ c.text }}</button>
               <span v-else class="card">{{ c.text }}</span>
             </li>
-            <li v-if="!state.clues.length" class="none muted">Every clue was cancelled.</li>
+            <li v-if="!state.clues.length" class="none muted">{{ t('table.allCancelled') }}</li>
           </ul>
 
           <!-- Clues for everyone else, and for everybody once the turn is over -->
-          <ul v-else-if="state.clues.length && !clueTime" class="cards" aria-label="The clues">
+          <ul v-else-if="state.clues.length && !clueTime" class="cards" :aria-label="t('table.theClues')">
             <li v-for="c in state.clues" :key="c.id">
               <span class="card" :class="{ cancelled: c.cancelled, best: c.best }">
                 <span class="text">{{ c.text }}</span>
-                <small class="writer">{{ c.name }}<template v-if="c.cancelled"> &middot; cancelled</template><template v-else-if="c.best"> &middot; best hint</template></small>
+                <small class="writer">{{ writerLine(c) }}</small>
               </span>
             </li>
           </ul>
@@ -228,37 +245,37 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
 
         <div class="action">
           <form v-if="canGuess" class="guess-form row" @submit.prevent="sendGuess">
-            <input v-model="guessText" maxlength="40" placeholder="Your one guess" autocomplete="off" aria-label="Your guess" />
-            <button type="submit" class="primary" :disabled="!guessText.trim()">Guess</button>
-            <button type="button" @click="send('pass')">Pass</button>
+            <input v-model="guessText" maxlength="40" :placeholder="t('table.guessPlaceholder')" autocomplete="off" :aria-label="t('table.yourGuess')" />
+            <button type="submit" class="primary" :disabled="!guessText.trim()">{{ t('table.guess') }}</button>
+            <button type="button" @click="send('pass')">{{ t('table.pass') }}</button>
           </form>
-          <p v-else-if="choosing && state.guess" class="muted">{{ guesserName }} guessed “{{ state.guess.text }}”, and it is right.</p>
+          <p v-else-if="choosing && state.guess" class="muted">{{ t('table.guessedRight', { name: guesserName, guess: state.guess.text }) }}</p>
         </div>
       </div>
     </template>
 
     <template #others>
-      <ul v-if="others.length" class="bars" aria-label="Players">
+      <ul v-if="others.length" class="bars" :aria-label="t('table.players')">
         <li v-for="p in others" :key="p.id" class="bar" :class="{ away: !p.online, guesser: p.id === state.guesser && !ended }" :style="barStyle">
           <strong class="who">{{ p.name }}</strong>
-          <span v-if="p.id === state.guesser && !ended" class="tag guesser-tag">guesser</span>
-          <span v-else-if="clueTime && p.written" class="tag done">written</span>
-          <span v-if="!p.online" class="tag away">away</span>
+          <span v-if="p.id === state.guesser && !ended" class="tag guesser-tag">{{ t('table.guesserTag') }}</span>
+          <span v-else-if="clueTime && p.written" class="tag done">{{ t('table.writtenTag') }}</span>
+          <span v-if="!p.online" class="tag away">{{ t('common.away') }}</span>
           <span class="score">{{ p.score }}</span>
         </li>
       </ul>
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has happened yet." v-slot="{ entry }">{{ entry }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingYet')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="headline" :mine="mineNow" :turn="isGuesser && (guessing || choosing)" :lines="lines">
         <template #facts>
-          <strong v-if="!ended">Turn {{ state.turn }} of {{ state.turnsTotal }}</strong>
-          <strong v-else>Game over</strong>
-          <span v-if="!ended">Guesser: {{ guesserName }}</span>
+          <strong v-if="!ended">{{ t('facts.turn', { n: state.turn, total: state.turnsTotal }) }}</strong>
+          <strong v-else>{{ t('facts.gameOver') }}</strong>
+          <span v-if="!ended">{{ t('facts.guesser', { name: guesserName }) }}</span>
         </template>
       </GameStatus>
     </template>

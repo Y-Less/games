@@ -125,7 +125,7 @@ test('a wrong guess or a pass scores nobody, and there is no best hint to pick',
     assert.equal(room.best, null);
     for (const p of room.players) assert.equal(p.score, 0, how);
     assert.equal(room.result.correct, false);
-    assert.equal(room.history[0].notes[guesser], how === 'wrong' ? 'missed' : 'passed');
+    assert.deepEqual(room.history[0].notes[guesser], { key: how === 'wrong' ? 'notes.missed' : 'notes.passed' });
     assert.equal(game.pass(room, guesser).ok, false, 'already over');
   }
 });
@@ -353,7 +353,7 @@ test('kick refuses a finished game and removes nobody', () => {
   })();
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'The game is over: there is nobody to remove.' });
+  assert.deepEqual(game.kick(room, 1, 2, Math.random), { ok: false, error: 'gameOverNobodyToRemove' });
   assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 

@@ -4,6 +4,10 @@ import { flushPromises, mount } from '@vue/test-utils';
 import JustOne from './JustOne.vue';
 import Lobby from './Lobby.vue';
 import { newEntries } from './moveLog.js';
+import { messageText } from '../../../src/messageText.js';
+
+// A log line (a message) in English, as the table draws it.
+const words = (line) => messageText(line, 'just-one');
 
 const player = (id, name, extra = {}) => ({ id, name, score: 0, online: true, bot: false, written: false, ready: false, placement: null, winner: false, ai: null, ...extra });
 function view(extra = {}) {
@@ -205,15 +209,15 @@ describe('Just One lobby and recent moves', () => {
 
   it('logs the turn, the clues, the cancelling, the guess and the outcome, each once', () => {
     const base = view();
-    expect(newEntries(null, base)).toEqual(['Turn 1 of 4: Bob is the guesser. Everyone else is writing a clue.']);
+    expect(newEntries(null, base).map(words)).toEqual(['Turn 1 of 4: Bob is the guesser. Everyone else is writing a clue.']);
     const written = view({ players: [player(1, 'Ann', { written: true }), player(2, 'Bob'), player(3, 'Cy'), player(4, 'Di')] });
-    expect(newEntries(base, written)).toEqual(['Ann has written a clue.']);
+    expect(newEntries(base, written).map(words)).toEqual(['Ann has written a clue.']);
     const guessing = view({ phase: 'guessing', clues: [{ id: 3, name: 'Cy', text: 'x', cancelled: false }, { id: 1, name: 'Ann', text: 'r', cancelled: true }, { id: 4, name: 'Di', text: 'r', cancelled: true }] });
-    expect(newEntries(written, guessing)).toEqual(['The clues are in. 2 matched and were cancelled.']);
+    expect(newEntries(written, guessing).map(words)).toEqual(['The clues are in. 2 matched and were cancelled.']);
     const guessed = view({ ...guessing, phase: 'choosing', guess: { text: 'apple', correct: true, passed: false } });
-    expect(newEntries(guessing, guessed)).toEqual(['Bob guessed “apple”.']);
+    expect(newEntries(guessing, guessed).map(words)).toEqual(['Bob guessed “apple”.']);
     const revealed = view({ ...guessed, phase: 'reveal', result: { word: 'apple', correct: true, bestName: 'Cy', bestPoints: 1, guesserName: 'Bob', guesserPoints: 2 } });
-    expect(newEntries(guessed, revealed)).toEqual(["Cy's hint was the best (+1). Bob scores 2.", 'The word was “apple”.']);
+    expect(newEntries(guessed, revealed).map(words)).toEqual(["Cy's hint was the best (+1). Bob scores 2.", 'The word was “apple”.']);
     expect(newEntries(revealed, revealed)).toEqual([]);
   });
 });

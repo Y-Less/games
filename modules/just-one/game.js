@@ -1,14 +1,16 @@
 // The rules of Just One, with no sockets or files. A room is a plain object that can be saved as JSON.
-// Every action returns { ok: true, ... } or { ok: false, error }.
+// Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in the game's
+// locale file or the site's (see MODULES.md, Languages); anything else the client shows is a message (shared/messages.js).
 //
 // A turn: one player, the guesser, does not see the secret word. Everybody else sees it and secretly writes a one-word clue.
 // Clues that match are cancelled. The guesser sees the clues that are left and makes one guess. If it is right they pick
 // the best hint from them, and only the guesser and the writer of that hint score.
 //
 // Depends on: shared/scores.js (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer
-// player choice), shared/seats.js (result helpers), shared/roster.js (lobby and player-list rules), ./ai/index.js (the
+// player choice), shared/seats.js (result helpers), shared/messages.js (scoreboard labels and notes), shared/roster.js (lobby and player-list rules), ./ai/index.js (the
 // computer players), ./tally.js (per-player counters) and ./words.js (the word list and clue matching).
 import { textFrom } from '../../shared/input.js';
+import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -176,7 +178,7 @@ export function setSettings(room, id, settings = {}) {
  * Side effects: none.
  */
 export function playAgain() {
-  return fail('Start a new game from the menu.');
+  return fail('startFromMenu');
 }
 
 /**
@@ -189,10 +191,10 @@ export function playAgain() {
  * Side effects: sets room.turnsEach on success.
  */
 export function setTurnsEach(room, id, turnsEach) {
-  if (id !== room.hostId) return fail('Only the host can change the settings.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
+  if (id !== room.hostId) return fail('hostOnlySettings');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (!Number.isInteger(turnsEach) || turnsEach < TURNS_EACH.min || turnsEach > TURNS_EACH.max) {
-    return fail(`Choose between ${TURNS_EACH.min} and ${TURNS_EACH.max} turns each.`);
+    return fail('turnsEach', { min: TURNS_EACH.min, max: TURNS_EACH.max });
   }
   room.turnsEach = turnsEach;
   return ok();
@@ -241,9 +243,9 @@ function startTurn(room, rng) {
  * Side effects (restated): also sets turnsTotal, turn, used, and each computer player's `ai`.
  */
 export function start(room, id, rng) {
-  if (id !== room.hostId) return fail('Only the host can start the game.');
-  if (room.phase !== 'lobby') return fail('The game has already started.');
-  if (room.players.length < MIN_PLAYERS) return fail(`You need at least ${MIN_PLAYERS} players.`);
+  if (id !== room.hostId) return fail('hostOnlyStart');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
+  if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   room.turnsTotal = room.turnsEach * room.players.length;
   room.turn = 0;
   room.used = [];
@@ -262,14 +264,14 @@ export function start(room, id, rng) {
  * The containment test only applies from three letters up so that short clues such as "a" or "it" are not wrongly refused.
  * @param {string} text  the trimmed clue
  * @param {string} word  the secret word
- * @returns {string | null} the reason to show, or null if the clue is allowed
+ * @returns {string | null} the refusal code (under `errors.`: 'clueOneWord' or 'clueIsTheWord'), or null if the clue is allowed
  * Side effects: none.
  */
 export function clueProblem(text, word) {
-  if (!/^[\p{L}\p{N}][\p{L}\p{N}'’-]*$/u.test(text)) return 'A clue is one word.';
+  if (!/^[\p{L}\p{N}][\p{L}\p{N}'’-]*$/u.test(text)) return 'clueOneWord';
   const clue = normal(text);
   const secret = normal(word);
-  if (clue === secret || (clue.length >= 3 && (secret.includes(clue) || clue.includes(secret)))) return 'That is the word itself, or part of it.';
+  if (clue === secret || (clue.length >= 3 && (secret.includes(clue) || clue.includes(secret)))) return 'clueIsTheWord';
   return null;
 }
 
@@ -283,13 +285,13 @@ export function clueProblem(text, word) {
  * Side effects: adds to room.clues; when the last clue arrives, runs openGuessing (cancelled, order, phase).
  */
 export function submitClue(room, id, text, rng) {
-  if (room.phase !== 'clues') return fail('The clues are in.');
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (id === room.guesser) return fail('You are guessing, so you do not write a clue.');
-  if (clueOf(room, id)) return fail('You have already sent your clue.');
+  if (room.phase !== 'clues') return fail('cluesIn');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (id === room.guesser) return fail('guesserNoClue');
+  if (clueOf(room, id)) return fail('alreadyClued');
   const clean = textFrom(text).trim();
-  if (!clean) return fail('Type your clue first.');
-  if (clean.length > CLUE_LENGTH) return fail(`A clue is at most ${CLUE_LENGTH} letters.`);
+  if (!clean) return fail('typeClue');
+  if (clean.length > CLUE_LENGTH) return fail('clueTooLong', { max: CLUE_LENGTH });
   const problem = clueProblem(clean, room.word);
   if (problem) return fail(problem);
   room.clues.push({ id, text: clean });
@@ -337,10 +339,10 @@ const sameWord = (a, b) => normal(a) === normal(b);
  * Side effects: sets room.guess; moves to 'choosing', or scores the turn (see scoreTurn) and opens the reveal.
  */
 export function guess(room, id, text, nameOf = String) {
-  if (room.phase !== 'guessing') return fail('It is not time to guess.');
-  if (id !== room.guesser) return fail('Only the guesser guesses.');
+  if (room.phase !== 'guessing') return fail('notTimeToGuess');
+  if (id !== room.guesser) return fail('guesserOnlyGuesses');
   const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, GUESS_LENGTH);
-  if (!clean) return fail('Type a guess, or pass.');
+  if (!clean) return fail('typeGuess');
   const correct = sameWord(clean, room.word);
   room.guess = { text: clean, correct, passed: false };
   if (correct && room.order.length) room.phase = 'choosing';
@@ -357,8 +359,8 @@ export function guess(room, id, text, nameOf = String) {
  * Side effects: sets room.guess as passed and scores the turn (history entry, reveal phase).
  */
 export function pass(room, id, nameOf = String) {
-  if (room.phase !== 'guessing') return fail('It is not time to guess.');
-  if (id !== room.guesser) return fail('Only the guesser can pass.');
+  if (room.phase !== 'guessing') return fail('notTimeToGuess');
+  if (id !== room.guesser) return fail('guesserOnlyPasses');
   room.guess = { text: '', correct: false, passed: true };
   scoreTurn(room, namer(room, nameOf));
   return ok();
@@ -374,9 +376,9 @@ export function pass(room, id, nameOf = String) {
  * Side effects: sets room.best and scores the turn (scores, counters, history, reveal phase).
  */
 export function chooseBest(room, id, n, nameOf = String) {
-  if (room.phase !== 'choosing') return fail('There is no best hint to pick yet.');
-  if (id !== room.guesser) return fail('Only the guesser picks the best hint.');
-  if (!Number.isInteger(n) || n < 0 || n >= room.order.length) return fail('Pick one of the hints.');
+  if (room.phase !== 'choosing') return fail('noBestYet');
+  if (id !== room.guesser) return fail('guesserOnlyPicks');
+  if (!Number.isInteger(n) || n < 0 || n >= room.order.length) return fail('pickAHint');
   room.best = room.order[n];
   scoreTurn(room, namer(room, nameOf));
   return ok();
@@ -388,6 +390,7 @@ export function chooseBest(room, id, n, nameOf = String) {
  * @param {object} room  the room (mutated)
  * @param {(id: *) => string} [nameOf]  name lookup for the history label
  * @returns {void}
+ * The history entry's label and notes are messages (shared/messages.js), put into words by the client.
  * Side effects: changes scores, bumps statistics counters (tallyTurn), sets room.result, pushes room.history, clears ready and sets phase 'reveal'.
  */
 function scoreTurn(room, nameOf = String) {
@@ -401,12 +404,12 @@ function scoreTurn(room, nameOf = String) {
       guesser.score += POINTS.guesser;
       deltas[guesser.id] = POINTS.guesser;
     } else deltas[guesser.id] = 0;
-    notes[guesser.id] = correct ? 'guessed it' : room.guess?.passed ? 'passed' : 'missed';
+    notes[guesser.id] = msg(correct ? 'notes.guessedIt' : room.guess?.passed ? 'notes.passed' : 'notes.missed');
   }
   if (best) {
     best.score += POINTS.bestHint;
     deltas[best.id] = POINTS.bestHint;
-    notes[best.id] = 'best hint';
+    notes[best.id] = msg('notes.bestHint');
   }
   tallyTurn({ guesser, best, correct, clues: room.clues.map((c) => ({ writer: playerOf(room, c.id), cancelled: room.cancelled.includes(c.id) })) });
   room.result = {
@@ -419,7 +422,7 @@ function scoreTurn(room, nameOf = String) {
     bestPoints: best ? POINTS.bestHint : 0,
     clues: room.clues.map((c) => ({ id: c.id, text: c.text, cancelled: room.cancelled.includes(c.id), best: c.id === room.best })),
   };
-  room.history.push({ label: `Turn ${room.turn + 1}: ${nameOf(room.guesser)}`, deltas, notes });
+  room.history.push({ label: msg('scoreboard.turn', { n: room.turn + 1, name: nameOf(room.guesser) }), deltas, notes });
   room.ready = [];
   room.phase = 'reveal';
 }
@@ -480,8 +483,8 @@ const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id))
  * Side effects: adds to room.ready, and may move on to the next turn or finish the game (finishTurn).
  */
 export function ready(room, id, rng) {
-  if (!hasPlayer(room, id)) return fail('You are not in this game.');
-  if (room.phase !== 'reveal') return fail('There are no scores to close.');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (room.phase !== 'reveal') return fail('noScoresToClose');
   if (!room.ready.includes(id)) room.ready.push(id);
   return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
 }
@@ -494,7 +497,7 @@ export function ready(room, id, rng) {
  * Side effects: as finishTurn.
  */
 export function forceNext(room, rng) {
-  if (room.phase !== 'reveal') return fail('There is nothing to move on from.');
+  if (room.phase !== 'reveal') return fail('nothingToMoveOn');
   return ok({ finished: finishTurn(room, rng) });
 }
 

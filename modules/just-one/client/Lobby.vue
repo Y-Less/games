@@ -5,8 +5,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // Only the host may change the length of the game and start it.
 const isHost = computed(() => props.state.hostId === props.state.you);
@@ -21,8 +23,8 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
 <template>
   <div class="stack">
     <section class="panel stack">
-      <h2>Waiting for players</h2>
-      <p class="muted">Share this code, or the invite link, with your friends.</p>
+      <h2>{{ t('lobby.title') }}</h2>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -40,17 +42,17 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
     />
 
     <section class="panel stack">
-      <h3>Length of the game</h3>
+      <h3>{{ t('settings.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.turnsEach <= turns.min" aria-label="Fewer turns" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
-        <strong>{{ state.turnsEach }} {{ state.turnsEach === 1 ? 'turn' : 'turns' }} each</strong>
-        <button :disabled="!isHost || state.turnsEach >= turns.max" aria-label="More turns" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.turnsEach <= turns.min" :aria-label="t('settings.fewerTurns')" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
+        <strong>{{ t('settings.turnsEach', { count: state.turnsEach }, state.turnsEach) }}</strong>
+        <button :disabled="!isHost || state.turnsEach >= turns.max" :aria-label="t('settings.moreTurns')" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
       </div>
-      <p class="muted">{{ total }} turns in all with {{ state.players.length }} players. Everyone takes turns as the guesser.</p>
+      <p class="muted">{{ t('settings.total', { count: total, players: state.players.length }, total) }}</p>
       <div class="row">
-        <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">Start the game</button>
-        <span v-if="isHost && !canStart" class="muted">You need at least {{ state.limits.min }} players.</span>
-        <span v-if="!isHost" class="muted">Waiting for the host to start.</span>
+        <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">{{ t('lobby.start') }}</button>
+        <span v-if="isHost && !canStart" class="muted">{{ t('errors.minPlayers', { min: state.limits.min }) }}</span>
+        <span v-if="!isHost" class="muted">{{ t('lobby.waitingForHost') }}</span>
       </div>
     </section>
   </div>
