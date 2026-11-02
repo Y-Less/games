@@ -44,6 +44,23 @@ describe('renderMarkdown', () => {
     expect(renderMarkdown('')).toBe('');
   });
 
+  it('renders a link, opening it in a new tab', () => {
+    expect(renderMarkdown('[The Trivia API](https://the-trivia-api.com)')).toBe(
+      '<p><a href="https://the-trivia-api.com" target="_blank" rel="noopener noreferrer">The Trivia API</a></p>',
+    );
+  });
+
+  it('renders a link inside a sentence, a heading and a list, and keeps bold in the label', () => {
+    expect(renderMarkdown('see [us](http://a.b) now')).toContain('see <a href="http://a.b"');
+    expect(renderMarkdown('# [us](http://a.b)')).toMatch(/^<h2><a href="http:\/\/a\.b"/);
+    expect(renderMarkdown('- [us](http://a.b)')).toContain('<li><a href="http://a.b"');
+    expect(renderMarkdown('[**us**](http://a.b)')).toContain('><strong>us</strong></a>');
+  });
+
+  it('keeps query strings intact, escaping the ampersands', () => {
+    expect(renderMarkdown('[x](https://a.b/c?d=1&e=2)')).toContain('href="https://a.b/c?d=1&amp;e=2"');
+  });
+
   describe('escaping', () => {
     const attack = '<script>alert(1)</script>';
     const parse = (html) => {
@@ -85,6 +102,25 @@ describe('renderMarkdown', () => {
     it('produces only the expected tags from a hostile heading and list', () => {
       const box = parse(renderMarkdown('# <img src=x onerror=1>\n- <a href="javascript:1">x</a>\n- <iframe>'));
       expect([...box.querySelectorAll('*')].map((e) => e.tagName)).toEqual(['H2', 'UL', 'LI', 'LI']);
+    });
+
+    it('only makes links of http and https URLs', () => {
+      for (const url of ['javascript:alert(1)', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'vbscript:x', '/local']) {
+        const box = parse(renderMarkdown(`[click](${url})`));
+        expect(box.querySelector('a'), url).toBeNull();
+      }
+    });
+
+    it('a quote in a URL cannot add an attribute', () => {
+      const box = parse(renderMarkdown('[x](https://a.b/" onmouseover="alert(1))'));
+      expect(box.querySelector('[onmouseover]')).toBeNull();
+      expect([...box.querySelectorAll('*')].map((e) => e.tagName)).toEqual(['P'], 'and it is no longer a link at all');
+    });
+
+    it('markup in a URL stays escaped inside the attribute', () => {
+      const box = parse(renderMarkdown('[y](https://a.b/<b>)'));
+      expect(box.querySelector('b')).toBeNull();
+      expect(box.querySelector('a').getAttribute('href')).toBe('https://a.b/<b>');
     });
   });
 });
