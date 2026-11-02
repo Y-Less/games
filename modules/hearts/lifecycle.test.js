@@ -2,6 +2,8 @@
 // rooms disappearing under connected sockets and the one-game-per-account rule.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
@@ -246,4 +248,34 @@ test('a finished game does not block joining another, and a finished seat can be
   await until(() => fresh.state?.code === other.code, 'the new game');
   assert.equal((await bob.call('leave', {})).ok, true);
   await until(() => bob.state === null, 'bob out');
+});
+
+test('the site still starts when its saved games have gone cold, and sweeps them away', async (t) => {
+  // Every other test here meets data a few seconds old. A real server meets data from last week, and the start-up
+  // sweep that clears it runs while the room server is still being built: this is the shape that took Hearts off the
+  // site entirely, because the module failed to load and nothing after it could list or play the game.
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hearts-cold-'));
+  const roomsFile = path.join(dataDir, 'site', 'modules', 'hearts', 'rooms.json');
+  const first = await launchModule(t, { id: 'hearts', moduleDir: here, dataDir, keep: true });
+  const ann = await first.person('ann').open();
+  await ann.call('create', {});
+  await ann.call('fillBots');
+  await ann.call('start');
+  await until(() => ann.state?.phase === 'passing' || ann.state?.phase === 'playing', 'a game is going');
+  await sleep(200); // saves are batched
+  await first.stop();
+
+  // A fortnight passes with nobody touching it: past the week a live game is kept.
+  const aged = JSON.parse(fs.readFileSync(roomsFile, 'utf8')).map((room) => ({ ...room, updatedAt: Date.now() - 14 * 24 * 60 * 60 * 1000 }));
+  assert.equal(aged.length, 1, 'there is a saved game to go cold');
+  assert.ok(aged[0].seats.some((seat) => seat && seat.kind === 'human'), 'with a person still seated, which is what the sweep has to tidy up after');
+  fs.writeFileSync(roomsFile, JSON.stringify(aged));
+
+  const second = await launchModule(t, { id: 'hearts', moduleDir: here, dataDir, keep: true });
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); // after the site has closed
+  assert.deepEqual(second.logs.filter((line) => line.includes('Could not load module')), [], 'the module loaded');
+  const games = (await (await fetch(`${second.base}/api/config`)).json()).games;
+  assert.deepEqual(games.map((g) => g.id), ['hearts'], 'and the site lists it, so the menu and the statistics page can find it');
+  const bob = await second.person('bob').open();
+  assert.equal((await bob.call('create', {})).ok, true, 'and a new game can still be started');
 });

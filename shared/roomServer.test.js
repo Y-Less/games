@@ -206,3 +206,22 @@ test('the hourly sweep sends anybody still looking at a discarded room back to t
   assert.equal(ann.sent.at(-1), null, 'and Ann was sent home rather than left pointing at nothing');
   assert.equal(ann.data.code, null);
 });
+
+test('a room already stale when the server starts is swept during start-up, not left to crash it', (t) => {
+  // The start-up sweep runs while createRoomServer is still building its closure, so anything it reaches has to exist
+  // by then. A stale room with a person in it reaches detach, and through it every helper detach uses: a module whose
+  // saved games had gone cold would otherwise fail to load at all, taking the whole game off the site.
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
+  const now = 10 * 24 * 60 * 60 * 1000; // ten days in, so a week-old room is well past its keep
+  fs.writeFileSync(
+    path.join(dataDir, 'rooms.json'),
+    JSON.stringify([
+      { code: 'cold', phase: 'playing', updatedAt: 1000, players: [{ kind: 'human', id: 7, name: 'Ann' }] },
+      { code: 'warm', phase: 'playing', updatedAt: now - 1000, players: [{ kind: 'human', id: 8, name: 'Bob' }] },
+    ]),
+  );
+  const ctx = { io: new EventEmitter(), dataDir, log() {}, codes: { normalise: (c) => c ?? '' }, stats: { record() {} } };
+  const server = createRoomServer(ctx, { game: listRules(), pickSettings: () => ({}), nextAction: () => null, registerEvents() {}, members: (room) => room.players, now: () => now });
+  t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  assert.deepEqual([...server.rooms.keys()], ['warm'], 'the cold room went and the warm one stayed');
+});

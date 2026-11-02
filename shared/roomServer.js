@@ -235,10 +235,6 @@ export function createRoomServer(ctx, options) {
       if (current - room.updatedAt > (game.isLive(room) ? KEEP_OTHER_MS : KEEP_FINISHED_MS)) discard(room);
     }
   }
-  sweep();
-  const sweeper = setInterval(sweep, SWEEP_EVERY_MS);
-  sweeper.unref();
-
   /**
    * Finds the sockets a person has open that are currently looking at the room with this code.
    * @param {number} id  the account id
@@ -246,7 +242,9 @@ export function createRoomServer(ctx, options) {
    * @returns {object[]} matching sockets (possibly none)
    * Side effects: none.
    */
-  const open = (id, code) => [...(sockets.get(id) ?? [])].filter((s) => s.data.code === code);
+  function open(id, code) {
+    return [...(sockets.get(id) ?? [])].filter((s) => s.data.code === code);
+  }
   // Returns a predicate (id => boolean): "is this person connected to the room?", handed to the rules so the view can show who is away.
   const online = (code) => (id) => open(id, code).length > 0;
   // Returns the unfinished room a person is in, or undefined: a person can be in only one at a time.
@@ -477,6 +475,12 @@ export function createRoomServer(ctx, options) {
   }
 
   // One connection per browser tab: track the socket, register the shared events, then the game-specific ones.
+  // Sweeping reaches `detach`, and through it every helper above, so it waits until they all exist: a module whose
+  // saved games had gone cold would otherwise throw here and fail to load at all.
+  sweep();
+  const sweeper = setInterval(sweep, SWEEP_EVERY_MS);
+  sweeper.unref();
+
   ctx.io.on('connection', (socket) => {
     const userId = socket.data.user.id;
     socket.data.code = null;
