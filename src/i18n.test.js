@@ -24,6 +24,8 @@ const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|
 const TEXT_ATTRIBUTES = ['title', 'aria-label', 'aria-description', 'aria-roledescription', 'placeholder', 'alt', 'label', 'empty', 'intro', 'noun', 'headline', 'message', 'create-label', 'start-label', 'log-title', 'status-title', 'confirm-text', 'legend'];
 /** Template text that is not a word in any language. */
 const NOT_WORDS = /^(?:Aa|JOKER|[\s\d.,:;/+\-–—×…·•%()&#;'"?!|]*)$/;
+/** SVG path or points data ("M12 1.5 L22.5 12 Z"): drawing commands and numbers, never anything anyone reads. */
+const DRAWING = /^[MmLlHhVvCcSsQqTtAaZz\d\s.,+-]+$/;
 
 const moduleOf = (file) => file.match(/modules\/([^/]+)\//)?.[1] ?? null;
 const units = ['site', ...Object.keys(moduleMessages).map(moduleOf).sort()];
@@ -74,6 +76,7 @@ function hardCodedInScript(script) {
     if (/^\s*import\b|import\.meta\.glob|console\.|\bctx\.log\(|throw new |new Error\(|assert\.|\bError\(`/.test(line)) continue;
     for (const [, text] of line.matchAll(/(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)/g).map((m) => [m[0], m[1] ?? m[2] ?? m[3]])) {
       const words = text.replace(/\$\{[^}]*\}/g, 'x').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+      if (DRAWING.test(text.trim())) continue;
       if (words.length >= 3 && (/^[A-Z]/.test(text.trim()) || /[.!?:]$/.test(text.trim()))) found.push(text);
     }
   }
