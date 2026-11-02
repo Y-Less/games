@@ -355,6 +355,20 @@ test('a question is asked of one source or the other, never counted twice', asyn
   assert.ok(own > 0 && own < 12, `${own} of the twelve came from the bank`);
 });
 
+test('a bank with nothing in it yet is the same as having none: every question comes from the API', async () => {
+  // What a new site looks like, since server/index.js always hands the store a bank: it is simply empty until
+  // somebody puts questions in it.
+  const bank = fakeBank(0);
+  const { store, fetchImpl } = testStore({ bank, size: 8 }, { count: 1000 });
+  const questions = await store.take(8);
+  assert.equal(questions.length, 8);
+  assert.equal(fromBank(questions), 0, 'there was nothing to take from the bank');
+  assert.deepEqual(bank.draws, [], 'and so it was never drawn on');
+  assert.deepEqual(await store.sources(), { api: 0, bank: 0 });
+  assert.equal(fetchImpl.calls.filter((url) => url.includes('/count')).length, 0, 'with nothing to weigh, the API is not counted either');
+  assert.ok(questionCalls(fetchImpl).length > 0);
+});
+
 test('a store whose API has nothing takes every question from its own bank, without asking for any', async () => {
   const bank = fakeBank(50);
   const { store, fetchImpl } = testStore({ bank, size: 8 }, { count: 0 });
