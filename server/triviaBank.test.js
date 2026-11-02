@@ -127,3 +127,69 @@ test('a bank with nothing in it counts none and draws none', () => {
   assert.equal(bank.count(), 0);
   assert.deepEqual(bank.draw(5), []);
 });
+
+// ---- answers are a JSON array, not a joined string, so nothing in one needs escaping ----
+
+// Every way an answer could upset a format that joined answers together with some character or other.
+const AWKWARD = [
+  'Salt, pepper, and vinegar',
+  'He said "no"',
+  "O'Brien",
+  'C:\\Users\\Y_Less',
+  'one\ntwo',
+  'a|b;c\td',
+  '["already", "json"]',
+  '{"correct": "wrong"}',
+  'naïve café — ☃ 日本語 😀',
+  "'; DROP TABLE trivia_questions; --",
+];
+
+test('an answer with commas, quotes, backslashes or newlines in it comes back exactly as it went in', () => {
+  const bank = bankOf();
+  bank.add([question(1, { question: AWKWARD[0], correct: AWKWARD[1], wrong: AWKWARD.slice(2) })]);
+  const [raw] = bank.draw(1);
+  assert.equal(raw.question.text, AWKWARD[0]);
+  assert.equal(raw.correctAnswer, AWKWARD[1]);
+  assert.deepEqual(raw.incorrectAnswers, AWKWARD.slice(2), 'eight answers, none of them split or mangled');
+  assert.equal(bank.count(), 1, 'and the SQL was not confused by the quote in it either');
+});
+
+test('an answer that contains the API filters\u2019 separator is still one answer', () => {
+  const bank = bankOf();
+  bank.add([question(1, { wrong: ['Salt, pepper', 'vinegar'] })]);
+  const [raw] = bank.draw(1);
+  assert.deepEqual(raw.incorrectAnswers, ['Salt, pepper', 'vinegar'], 'two answers, not three');
+});
+
+test('an awkward answer survives the whole way to a game, shuffled in with the rest', () => {
+  const bank = bankOf();
+  bank.add([question(1, { correct: AWKWARD[0], wrong: [AWKWARD[1], AWKWARD[2], AWKWARD[3]] })]);
+  const ready = prepare(bank.draw(1)[0], seeded(3));
+  assert.deepEqual([...ready.answers].sort(), AWKWARD.slice(0, 4).sort(), 'all four, unchanged');
+  assert.equal(ready.answers[ready.correct], AWKWARD[0], 'and the right one is still the right one');
+});
+
+test('a tag or category with awkward characters is stored whole, and can be filtered for as a list', () => {
+  const bank = bankOf();
+  bank.add([
+    question(1, { category: "rock 'n' roll", tags: ['1970s', 'glam, prog'] }),
+    question(2, { category: 'history', tags: ['kings'] }),
+  ]);
+  assert.deepEqual(bank.draw(1, { categories: ["rock 'n' roll"] })[0].tags, ['1970s', 'glam, prog'], 'the comma in the tag is part of it');
+  assert.equal(bank.count({ tags: ['glam, prog'] }), 1, 'and a list of filters says where one ends without a separator');
+  // The comma-separated form is the API's own, so a name with a comma in it cannot be asked for that way: it splits.
+  assert.equal(bank.count({ tags: 'glam, prog' }), 0, 'asked as a string, it is two tags, and nothing has either');
+  assert.equal(bank.count({ tags: '1970s,kings' }), 2, 'which is what makes the ordinary form useful');
+});
+
+test('an id with awkward characters is still an id, and still only held once', () => {
+  const bank = bankOf();
+  const odd = `q,1"2'3\\4`;
+  assert.equal(bank.add([question(1, { id: odd })]), 1);
+  assert.equal(bank.add([question(2, { id: odd })]), 0, 'the same id, whatever is in it');
+  assert.equal(bank.draw(1)[0].id, odd);
+  // Without an id the question text is the id, so an awkward question text has to work as one too.
+  assert.equal(bank.add([question(3, { id: undefined, question: AWKWARD[0] })]), 1);
+  assert.equal(bank.add([question(4, { id: undefined, question: AWKWARD[0] })]), 0);
+});
+
