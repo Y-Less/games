@@ -12,7 +12,6 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
   (`socket.data.user`, token `user:<id>`), saving to `ctx.dataDir/games.json`, categories, hints, and statistics.
 - `client/` the Vue half. `index.js` exports `Dixnt.vue`, which builds the store (`store.js`) from the props the site
   passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.
-- `bots/bot.js` an optional stand-alone bot player that signs in as an account (see below).
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
 - `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
@@ -54,8 +53,6 @@ sentence:
 - **On the client.** Every component calls `useGameText()`. `status.js` and `moveLog.js` build messages rather than
   words (the root component draws them with `text()`), and `createStore` is given the game's `error` helper so a
   refusal reaches the toast in the player's language.
-- The external bot (`bots/bot.js`) is an operator tool, so it prints the refusal code it was sent rather than
-  translating it, just as the server's own `ctx.log` lines stay English for whoever runs the site.
 
 ## Cards
 
@@ -112,25 +109,6 @@ seats, while Dixnt's lobby also has the play style, categories, and its own star
   bots from.
 - **Statistics.** Only accounts are recorded: bots have no user id and are left out of `ctx.stats.record` and of the
   tallies, though they do count in the placements.
-
-## External bots (optional)
-
-`bots/bot.js` is kept as an optional extra: a separate process that uses only the site's public API: it registers (or logs in) an account named after
-the bot, takes the session cookie, and connects to the `/dixnt` namespace.  It can only join an existing game, with
-`--join` and the game's code; it never creates one, and it does not start games or press "Next round".  It joins as an ordinary account (a person
-seat that happens to be played by a program), so it is recorded in the statistics, and it uses the same `ai/` code as the
-built-in computer players (telling the server which AI it plays with through `declareAI`, which built-in bots never
-need).  Use it to put a bot on a remote site or to try an AI over the real API; for ordinary games use the lobby.
-
-```
-node modules/dixnt/bots/bot.js --join boss-aware-you --name Robin
-node modules/dixnt/bots/bot.js --join boss-aware-you --name Sam --url http://192.168.1.20:3000 --delay 500-2000
-node modules/dixnt/bots/bot.js --help
-```
-
-The bot's name must be a valid username (3 to 20 letters, numbers, dashes, or underscores) and not already taken by
-someone else.  Its generated password is kept in `bots/.bot-tokens.json` (git-ignored), so a restarted bot signs in to
-the same account and rejoins as the same player.
 
 ## Tests
 

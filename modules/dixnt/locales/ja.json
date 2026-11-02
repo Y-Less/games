@@ -204,7 +204,6 @@
     "enterName": "名前を入力してください。",
     "nameTooLong": "名前は{max}文字までです。",
     "nameTaken": "その名前はすでに使われています。",
-    "unknownAI": "不明なAIです。",
     "handSizeRange": "手札の枚数は{min}〜{max}にしてください。",
     "unknownJudging": "不明な判定方法です。",
     "unknownCategory": "不明なカテゴリーです。",

@@ -1,37 +1,35 @@
-// Dixnt: three people in three browsers, plus a bot process, play a round through the UI.
+// Dixnt: four people in four browsers play a round through the UI, and the host removes one of them mid-game.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { createWorld, drive, root } from './helpers.js';
+import { createWorld, drive } from './helpers.js';
 
 let world;
 let host;
 let second;
 let third;
+let fourth;
 let solo;
 let code;
-let bot = null;
-let botName;
 before(async () => {
   world = await createWorld({ suite: 'dixnt' });
   host = await world.newUser('host');
   second = await world.newUser('invitee');
   third = await world.newUser('typist');
+  fourth = await world.newUser('fourth');
   solo = await world.newUser('loner');
   await host.signUp('dix', { displayName: 'Dora' });
   await second.signUp('dix', { displayName: 'Dan' });
   await third.signUp('dix', { displayName: 'Dee' });
+  await fourth.signUp('dix', { displayName: 'Fay' });
   await solo.signUp('dix', { displayName: 'Sol' });
 });
 after(async () => {
-  if (bot && bot.exitCode === null) bot.kill();
   await world?.close();
 });
 
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
 
-test('the host creates a game; two people join (by invite link and by typing the code) and a bot process joins', { timeout: 90000 }, guarded('lobby', async () => {
+test('the host creates a game and three people join: by invite link, by typing the code, and by typing it again', { timeout: 90000 }, guarded('lobby', async () => {
   await host.goto('/play/dixnt');
   await host.clickButton('Start a new game');
   await host.waitForText('Waiting for players');
@@ -57,10 +55,12 @@ test('the host creates a game; two people join (by invite link and by typing the
   await host.waitForText('Dan');
   await host.waitForText('Dee');
 
-  // A bot supplies a fourth player (it uses only the public API, like a browser would).
-  botName = world.uniqueName('bot');
-  bot = spawn(process.execPath, [path.join(root, 'modules/dixnt/bots/bot.js'), '--join', code, '--name', botName, '--url', world.base, '--delay', '0-30', '--token-file', path.join(world.dataDir, 'bot-tokens.json')], { stdio: 'ignore' });
-  await host.waitForText(botName);
+  // Fay makes a fourth, so that there is somebody for the host to remove mid-game further down.
+  await fourth.goto('/play/dixnt');
+  await fourth.fill('input[aria-label="Invite code"]', code);
+  await fourth.clickButton('Join', { exact: true });
+  await fourth.waitForText('Waiting for the host to start the game.');
+  await host.waitForText('Fay');
 
   // One turn at choosing the word each: a four-round game, of which we play the first round.
   await host.fill('label.row:nth-of-type(2) input.num', '1');
@@ -70,7 +70,7 @@ test('the host creates a game; two people join (by invite link and by typing the
 }));
 
 test('a round: the chooser types a word, everyone plays a card and votes, and the scores pop-up shows Round 1', { timeout: 150000 }, guarded('round', async () => {
-  const all = [host, second, third];
+  const all = [host, second, third, fourth];
   const popups = new Map(all.map((u) => [u, null]));
   await host.clickButton('Start the game', { exact: true });
   await host.waitForText('Round 1 of 4');
@@ -138,19 +138,19 @@ test('the host removes a person from the game through their popup: Remove player
   assert.doesNotMatch(await second.page.$eval('.player-popup', (e) => e.innerText), /Remove/);
   await second.page.keyboard.press('Escape');
   await second.waitForSelector('.player-popup', { hidden: true });
-  // The host picks the bot process's account (a person, as far as the game is concerned).
-  const at = (await chips()).findIndex((c) => c.includes(botName));
-  assert.ok(at >= 0, `${botName} is in the score bar`);
+  // The host picks Fay out of the score bar and removes her.
+  const at = (await chips()).findIndex((c) => c.includes('Fay'));
+  assert.ok(at >= 0, 'Fay is in the score bar');
   await host.page.click(`.score-bar li:nth-child(${at + 2}) button.chip-button`);
   await host.waitForSelector('.main .player-popup');
-  assert.match(await host.page.$eval('.player-popup', (e) => e.innerText), new RegExp(botName));
+  assert.match(await host.page.$eval('.player-popup', (e) => e.innerText), /Fay/);
   await host.clickButton('Remove player', { scope: '.player-popup' });
   await host.clickButton('Yes, remove', { scope: '.player-popup' });
   await host.waitForSelector('.player-popup', { hidden: true });
   // Mid-game a computer player takes over the removed person's seat, so the table stays the same size.
   const started = Date.now();
-  while ((await chips()).some((c) => c.includes(botName)) && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
-  assert.ok(!(await chips()).some((c) => c.includes(botName)), 'they are gone from the score bar');
+  while ((await chips()).some((c) => c.includes('Fay')) && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
+  assert.ok(!(await chips()).some((c) => c.includes('Fay')), 'they are gone from the score bar');
   assert.equal((await chips()).length, 3);
   assert.equal((await host.page.$$('.score-bar .bot')).length, 1, 'a computer player took their seat');
 }));

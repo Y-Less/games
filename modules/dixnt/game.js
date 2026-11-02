@@ -476,22 +476,6 @@ export class Game {
   }
 
   /**
-   * A bot running as its own process (bots/bot.js, signed in as an account) says which AI it plays with, when it joins
-   * and again at the start of every game.  Stored on the seat and shown to everyone as { id, name } for that seat only.
-   * Built-in computer players never call this: the game deals them an AI itself when it starts.
-   *
-   * @param {string} id    the seat id of the caller
-   * @param {string} aiId  the id of one of the AIs in ./ai
-   * @returns {void}
-   * Side effects: sets `ai` on the seat.  Throws a GameError for an unknown AI or seat.
-   */
-  setAI(id, aiId) {
-    const player = this.requirePlayer(id);
-    if (!AIS.some((ai) => ai.id === aiId)) fail('unknownAI');
-    player.ai = aiId;
-  }
-
-  /**
    * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
    * @returns {{ id: string, name: string }} how an AI is shown to the players
     * Side effects: none.

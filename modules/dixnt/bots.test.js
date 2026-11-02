@@ -541,7 +541,6 @@ test('over sockets: garbage to the bot events is refused and harms nothing', asy
   assert.equal((await ann.call('addBot')).ok, false, 'no bots once started');
   assert.equal((await ann.call('fillBots')).ok, false);
   assert.equal((await ann.call('removeBot', { targetId: ann.state.players.find((p) => p.bot)?.id })).ok, false);
-  assert.equal((await ann.call('declareAI', { id: 'sharp' })).ok, true, 'the external-bot event still works for accounts');
   await drive([ann, bob]);
   assert.equal(await site.alive(), true);
 });

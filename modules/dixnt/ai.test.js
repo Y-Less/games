@@ -194,25 +194,29 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
   }
 });
 
-test('an AI is recorded on a bot seat, shown as { id, name } for bots only, saved and restored', () => {
+test('an AI is dealt to a computer player, shown as { id, name } for them only, saved and restored', () => {
   const game = new Game({ rng: Math.random, getCategories: () => categories, hints });
-  const [host, bot, human] = ['Host', 'Bot', 'Human'].map((n) => game.addPlayer(n, `t-${n}`));
-  assert.throws(() => game.setAI(bot.id, 'wizardry'), GameError, 'unknown AIs are refused');
-  assert.throws(() => game.setAI('nobody', 'sharp'), GameError, 'the seat must exist');
-  game.setAI(bot.id, 'sharp');
+  const [host, human] = ['Host', 'Human'].map((n) => game.addPlayer(n, `t-${n}`));
+  const { id: botId } = game.addBot(host.id);
   const seat = (g, id) => g.viewFor(host.id).players.find((p) => p.id === id);
-  assert.deepEqual(seat(game, bot.id).ai, { id: 'sharp', name: 'Sharp' });
-  assert.equal(seat(game, host.id).ai, null);
+  assert.equal(seat(game, botId).ai, null, 'a computer player has none until the game starts');
+
+  game.start(host.id);
+  const dealt = seat(game, botId).ai;
+  assert.deepEqual(Object.keys(dealt).sort(), ['id', 'name'], 'only the public part is shown');
+  assert.ok(AIS.some((ai) => ai.id === dealt.id), `${dealt.id} is one of the AIs`);
+  assert.equal(seat(game, host.id).ai, null, 'and a person has none');
   assert.equal(seat(game, human.id).ai, null);
-  // A re-declaration replaces it, and a save/restore round trip keeps it.
-  game.setAI(bot.id, 'literal');
+
+  // A save and restore keeps it.
   const restored = new Game({ rng: Math.random, getCategories: () => categories, hints, saved: JSON.parse(JSON.stringify(game.toJSON())) });
-  assert.deepEqual(seat(restored, bot.id).ai, { id: 'literal', name: 'Literal' });
+  assert.deepEqual(seat(restored, botId).ai, dealt);
+
   // A room saved with an AI that no longer exists falls back to the first AI; a seat saved before this feature has none.
   const saved = JSON.parse(JSON.stringify(game.toJSON()));
-  saved.players.find((p) => p.id === bot.id).ai = 'retired';
+  saved.players.find((p) => p.id === botId).ai = 'retired';
   delete saved.players.find((p) => p.id === human.id).ai;
   const old = new Game({ rng: Math.random, getCategories: () => categories, hints, saved });
-  assert.deepEqual(seat(old, bot.id).ai, { id: 'standard', name: 'Standard' });
+  assert.deepEqual(seat(old, botId).ai, { id: 'standard', name: 'Standard' });
   assert.equal(seat(old, human.id).ai, null);
 });

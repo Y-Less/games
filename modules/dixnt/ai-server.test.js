@@ -1,4 +1,5 @@
-// Bots tell the server which AI they play with: the choice is validated, shown on bot seats only, and survives a restart.
+// The AI a computer player plays with, over the real site: dealt at the start, shown on its seat only, and surviving a
+// restart.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,23 +18,21 @@ function makeFakeCards(dataDir) {
   process.env.DIXNT_CARDS_DIR = cardsDir;
 }
 
-test('declareAI is validated, shown for bot seats only, and kept across a restart', async (t) => {
+test('a computer player is dealt an AI at the start, shown to everybody, and kept across a restart', async (t) => {
   const site = await launchModule(t, { id: 'dixnt', moduleDir: here, setup: makeFakeCards, keep: true });
-  const [ann, bot, cat] = await Promise.all(['ann', 'robin', 'cat'].map((n) => site.person(n).open()));
+  const [ann, cat] = await Promise.all(['ann', 'cat'].map((n) => site.person(n).open()));
   const { code } = await ann.call('create');
-  for (const p of [bot, cat]) assert.equal((await p.call('join', { code })).ok, true);
+  assert.equal((await cat.call('join', { code })).ok, true);
+  assert.equal((await ann.call('addBot', {})).ok, true);
+  await until(() => ann.state?.players.length === 3, 'a table of three');
+  assert.equal(ann.state.players.find((p) => p.bot).ai, null, 'a computer player has no AI until the game starts');
 
-  assert.equal((await bot.call('declareAI', { id: 'no-such-ai' })).ok, false, 'unknown AIs are refused');
-  assert.equal((await bot.call('declareAI', {})).ok, false);
-  assert.equal((await bot.call('declareAI', { id: 'sharp' })).ok, true);
-  await until(() => ann.state?.players.some((p) => p.ai), 'the AI to appear in everyone\'s view');
-  const seats = Object.fromEntries(ann.state.players.map((p) => [p.name, p.ai]));
-  assert.deepEqual(seats, { ann: null, robin: { id: 'sharp', name: 'Sharp' }, cat: null });
-
-  // A new game: the bot says again, and the new AI replaces the old one.
   assert.equal((await ann.call('start')).ok, true);
-  assert.equal((await bot.call('declareAI', { id: 'literal' })).ok, true);
-  await until(() => ann.state.players.find((p) => p.name === 'robin').ai?.id === 'literal', 'the new AI');
+  await until(() => ann.state?.players.some((p) => p.ai), 'the AI to appear in everyone’s view');
+  const dealt = ann.state.players.find((p) => p.bot).ai;
+  assert.deepEqual(Object.keys(dealt).sort(), ['id', 'name']);
+  for (const player of ann.state.players) assert.equal(Boolean(player.ai), player.bot, `${player.name}: an AI iff a computer player`);
+  await until(() => cat.state?.players.find((p) => p.bot)?.ai?.id === dealt.id, 'and in everybody else’s');
 
   // A restart keeps the seat's AI.
   await site.stop();
@@ -43,6 +42,6 @@ test('declareAI is validated, shown for bot seats only, and kept across a restar
   await back.connect();
   assert.equal((await back.call('resume', { code })).ok, true);
   await until(() => back.state?.players.length === 3, 'the saved game');
-  assert.deepEqual(back.state.players.find((p) => p.name === 'robin').ai, { id: 'literal', name: 'Literal' });
+  assert.deepEqual(back.state.players.find((p) => p.bot).ai, dealt);
   assert.equal(back.state.players.find((p) => p.name === 'cat').ai, null);
 });

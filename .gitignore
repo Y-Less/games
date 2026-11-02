@@ -1,6 +1,5 @@
 node_modules/
 dist/
 data/
-modules/*/bots/.bot-tokens.json
 .vitest/
 sim-out/

@@ -664,7 +664,6 @@ export default function (ctx) {
     action(socket, 'setRounds', (player, { count }, game) => game.setRounds(player.id, count));
     action(socket, 'setJudging', (player, { mode }, game) => game.setJudging(player.id, mode));
     action(socket, 'setCategories', (player, { keys }, game) => game.setCategories(player.id, keys));
-    action(socket, 'declareAI', (player, { id }, game) => game.setAI(player.id, id));
     action(socket, 'addBot', (player, _payload, game) => game.addBot(player.id));
     action(socket, 'fillBots', (player, { count }, game) => game.fillWithBots(player.id, count));
     action(socket, 'removeBot', (player, { targetId }, game) => game.removeBot(player.id, targetId));

@@ -4,21 +4,20 @@
 
 Dixnt's computer players are built in: the host adds them in the lobby (they are seats in the room, not accounts) and
 the server plays them.  The decision logic is in this folder: one file per AI, and `ai/index.js` exports the `AIS` array
-(built with `defineAIs` from `shared/ai.js`).  The optional stand-alone bot process (`bots/bot.js`) uses the same code.
+(built with `defineAIs` from `shared/ai.js`).
 
 - **Choosing.** When a game starts, `Game.start` deals every computer player an AI with `assignAIs(AIS, ids, rng)`
   (weighted random, using the game's rng, so seeded games repeat) and stores its id on the seat; the seat is saved with
   the room, and a new game deals again.  A person who leaves mid-round is replaced by a computer player that gets a random
-  AI with `pickAI`.  The external `bots/bot.js` instead picks with `pickAI(AIS)`, or the one named with `--ai ID`, and
-  tells the server with the `declareAI` event (`game.setAI` refuses unknown ids); built-in bots never use `declareAI`.
+  AI with `pickAI`.
 - **View.** `players[].ai` is `{ id, name }` for computer players once a game has started and `null` for people (and
-  for built-in bots in the lobby).  A seat saved with an AI that no longer exists falls back to the first AI
+  for computer players still in the lobby).  A seat saved with an AI that no longer exists falls back to the first AI
   (`standard`); one saved before this feature has none.
 - **What a computer player does.** The server asks `Game.runBotAction()` for the next move after a short wait
   (`DIXNT_BOT_DELAY`).  When it is the chooser, the AI picks one of three hints from the game's list; when cards are being
   played the AI picks from its hand; when voting the AI picks from the legal targets.  Every decision is built from that
   seat's own view, so the AI never sees more than a person would.  If an AI throws or answers with something illegal, a
-  random legal choice is made instead.  The game's rng is passed as the `rng` (the external bot passes `Math.random`).
+  random legal choice is made instead.  The game's own rng is passed as the `rng`, so a seeded game repeats.
 
 ## The AIs
 
@@ -98,5 +97,5 @@ seeded games each:
    table, and the clue only if they can see it).  Use the supplied `rng` for randomness, never `Math.random`.  The
    helpers in `util.js` (`pick`, `best`, `fitter`, `clueStrength`, `oddness`) and `lexicon.js` are there to reuse.
 4. Add it to the list in `ai/index.js`, keeping `standard` first (the fallback for unknown ids).
-5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour.  Neither the server nor the
-   external bot needs a change: both use `AIS`, and `--help` lists the new id.
+5. Update `ai.test.js` (the registry test lists the ids) and add a test for the AI's distinguishing behaviour.  The
+   server needs no change: it plays whatever is in `AIS`.

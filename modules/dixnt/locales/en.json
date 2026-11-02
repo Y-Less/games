@@ -204,7 +204,6 @@
     "enterName": "Please enter a name.",
     "nameTooLong": "Names can be at most {max} characters.",
     "nameTaken": "Someone is already using that name.",
-    "unknownAI": "Unknown AI.",
     "handSizeRange": "Hand size must be between {min} and {max}.",
     "unknownJudging": "Unknown judging method.",
     "unknownCategory": "Unknown category.",

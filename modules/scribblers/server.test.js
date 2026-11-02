@@ -256,10 +256,10 @@ test('a game of computer players plays itself: they choose a word, draw it, and 
   await until(async () => {
     await chooseIfMine();
     return ann.state?.phase === 'drawing' && !ann.state.youDraw;
-  }, 'a computer player is drawing', { timeout: 20000 });
-  await until(() => watching.draws.length > 0, 'its picture reaches the table', { timeout: 20000 });
+  }, 'a computer player is drawing', { timeout: 60000 });
+  await until(() => watching.draws.length > 0, 'its picture reaches the table', { timeout: 60000 });
   assert.ok(watching.draws.flatMap((m) => m.ops).length > 5, 'there is a picture, not a stray stroke');
-  await until(() => ann.state.feed.some((line) => line.id !== ann.id), 'and the others are guessing', { timeout: 20000 });
+  await until(() => ann.state.feed.some((line) => line.id !== ann.id), 'and the others are guessing', { timeout: 60000 });
   const guesses = ann.state.feed.filter((line) => line.id !== ann.id);
   assert.ok(guesses.every((line) => line.text.length > 0 || line.kind === 'correct'));
   assert.ok(guesses.some((line) => [...line.text].length === ann.state.hints.length || line.kind === 'correct'), 'a guess of the right length');

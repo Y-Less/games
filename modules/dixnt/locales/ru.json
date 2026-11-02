@@ -208,7 +208,6 @@
     "enterName": "Введите имя.",
     "nameTooLong": "Имя — не длиннее {max} символов.",
     "nameTaken": "Это имя уже занято.",
-    "unknownAI": "Неизвестный ИИ.",
     "handSizeRange": "На руке должно быть от {min} до {max} карт.",
     "unknownJudging": "Неизвестный способ подсчёта.",
     "unknownCategory": "Неизвестная категория.",

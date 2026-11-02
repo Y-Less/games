@@ -80,7 +80,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
   if (!fs.existsSync(modulesDir)) {
     fs.cpSync(moduleDir, path.join(modulesDir, id), {
       recursive: true,
-      filter: (source) => !['client', 'cards', 'node_modules', 'bots', '.bot-tokens.json'].includes(path.basename(source)) && !source.endsWith('.test.js'),
+      filter: (source) => !['client', 'cards', 'node_modules'].includes(path.basename(source)) && !source.endsWith('.test.js'),
     });
     fs.mkdirSync(path.join(copy, 'shared'), { recursive: true });
     for (const file of fs.readdirSync(path.join(platform, 'shared'))) {

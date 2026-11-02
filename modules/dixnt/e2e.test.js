@@ -1,7 +1,7 @@
-// End-to-end tests: the real site on a spare port with the Dixnt module, real accounts, sockets, bot processes, and statistics.
+// End-to-end tests: the real site on a spare port with the Dixnt module, real accounts, sockets, the lobby's computer
+// players, and statistics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,7 +10,6 @@ import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const botScript = path.join(here, 'bots', 'bot.js');
 
 /** Two small fake categories (empty image files are enough: the server only looks at the file names). */
 function makeFakeCards(cardsDir) {
@@ -48,7 +47,7 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
   if (!fs.existsSync(modulesDir)) {
     fs.cpSync(here, path.join(modulesDir, 'dixnt'), {
       recursive: true,
-      filter: (source) => !['cards', 'node_modules', '.bot-tokens.json'].includes(path.basename(source)),
+      filter: (source) => !['cards', 'node_modules'].includes(path.basename(source)),
     });
   }
   // The module imports ../../shared/scores.js, ai.js, and tally.js, so the copy needs a shared folder beside its modules folder.
@@ -61,13 +60,11 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
   const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
   const base = `http://127.0.0.1:${site.port}`;
   const people = [];
-  const processes = [];
   let stopped = false;
   const stop = async () => {
     if (stopped) return;
     stopped = true;
     people.forEach((p) => p.socket?.close());
-    processes.forEach((p) => p.kill());
     await site.close();
   };
   t.after(async () => {
@@ -133,7 +130,7 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
   const person = (name) => new Person(name);
   const people4 = async (names) => Promise.all(names.map((n) => person(n).open()));
   const userId = (name) => site.db.prepare('SELECT id FROM users WHERE username = ?').get(name).id;
-  return { site, base, dataDir, person, people4, userId, stop, processes };
+  return { site, base, dataDir, person, people4, userId, stop };
 }
 
 /**
@@ -486,18 +483,14 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
 });
 
 /**
- * Plays a whole game against three real bot processes.  The human host joins first, picks the settings, then plays
- * (or judges) alongside the bots.
+ * Plays a whole game against three of the lobby's computer players, which the server plays.  The human host joins
+ * first, picks the settings, then plays (or judges) alongside them.
  */
-async function playBotGame(t, { judging, categories }) {
-  const { site, base, person, userId, processes } = await startDixnt(t);
-  const tokenFile = path.join(os.tmpdir(), `dixnt-bot-tokens-${process.pid}-${Date.now()}.json`);
-  t.after(() => fs.rmSync(tokenFile, { force: true }));
-  const botLog = [];
+async function playComputerGame(t, { judging, categories }) {
+  const { site, person, userId } = await startDixnt(t);
   const human = await person('host').open();
 
   assert.equal((await human.join()).ok, true);
-  const code = human.code;
   await until(() => human.state, 'the first state update');
   assert.deepEqual(
     human.state.categories.map((c) => [c.key, c.count, c.selected]),
@@ -508,34 +501,26 @@ async function playBotGame(t, { judging, categories }) {
   assert.equal((await human.call('setCategories', { keys: categories })).ok, true);
   assert.equal((await human.call('setRounds', { count: 1 })).ok, true);
 
-  for (const name of ['Robin', 'Sam', 'Tess']) {
-    const child = spawn(process.execPath, [botScript, '--join', code, '--name', name, '--url', base, '--delay', '0-50', '--token-file', tokenFile], {
-      stdio: ['ignore', 'pipe', 'inherit'],
-    });
-    child.stdout.on('data', (chunk) => botLog.push(String(chunk)));
-    processes.push(child);
-  }
-  await until(() => human.state?.players.length === 4, 'all bots to join', { extra: () => `\nbot output:\n${botLog.join('')}` });
-  assert.deepEqual(human.state.players.map((p) => p.name).slice(1).sort(), ['Robin', 'Sam', 'Tess']);
+  assert.equal((await human.call('fillBots', { count: 4 })).ok, true);
+  await until(() => human.state?.players.length === 4, 'the computer players to join');
+  assert.equal(human.state.players.filter((p) => p.bot).length, 3);
   assert.equal(human.state.judging, judging);
-  assert.ok(JSON.parse(fs.readFileSync(tokenFile, 'utf8')).Robin, 'the bot remembered its password');
   assert.equal((await human.call('start')).ok, true);
 
   for (const cardId of human.state.me.hand) {
     assert.ok(categories.some((key) => (key === 'alpha' ? cardId < 20000 : cardId >= 20000 && cardId < 30000)), 'only selected categories are dealt');
   }
-  const rounds = await playToEnd([human], { log: () => `\nbot output:\n${botLog.join('')}` });
+  const rounds = await playToEnd([human]);
   await until(() => human.state.phase === 'finished', 'the end');
   assert.equal(rounds.length, 4);
   for (const { results } of rounds) {
     assert.equal(results.judging, judging);
     assert.equal(Object.keys(results.votes).length, judging === 'everyone' ? 4 : 1);
   }
+  // The game could not have reached the end unless a computer player chose a word on the rounds it was the chooser.
+  assert.ok(rounds.some(({ chooserId }) => human.state.players.find((p) => p.id === chooserId)?.bot), 'a computer player was the chooser at least once');
 
-  const log = botLog.join('');
-  assert.match(log, /played card \d+/);
-  if (judging === 'everyone') assert.match(log, /voted for /);
-  else {
+  if (judging !== 'everyone') {
     const allowed = judging === 'favourite' ? [2] : [1, 5];
     for (const { results } of rounds) {
       const gained = Object.values(results.deltas).filter(Boolean);
@@ -547,65 +532,22 @@ async function playBotGame(t, { judging, categories }) {
       }
     }
   }
-  assert.match(log, /chose the word "/, 'a bot picked a word from the hint list when it was the chooser');
 
-  // The human and the bots are all in the statistics.
+  // The person is in the statistics; the computer players are not accounts, so nobody else is.
   await sleep(150);
-  await assertRecorded(human, human.state, rounds);
-  for (const name of ['Robin', 'Sam', 'Tess']) {
-    const stats = site.stats.forUser(userId(name));
-    assert.equal(stats.perGame[0].played, 1, `${name} was recorded`);
-    assert.equal(stats.perGame[0].totalScore, human.state.players.find((p) => p.name === name).score);
-  }
+  await assertRecorded(human, human.state, rounds, { players: 1 }); // the result holds one player: the computer players are not accounts
+  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 1, 'only the one account ever existed');
+  assert.equal(userId('host') > 0, true);
 }
 
-test('external bot processes play whole games using only the API (everyone votes)', (t) =>
-  playBotGame(t, { judging: 'everyone', categories: ['alpha', 'beta'] }));
+test('computer players play whole games beside a person (everyone votes)', (t) =>
+  playComputerGame(t, { judging: 'everyone', categories: ['alpha', 'beta'] }));
 
-test('external bot processes play a whole game in chooser-only judging, with one category', (t) =>
-  playBotGame(t, { judging: 'chooser', categories: ['beta'] }));
+test('computer players play a whole game in chooser-only judging, with one category', (t) =>
+  playComputerGame(t, { judging: 'chooser', categories: ['beta'] }));
 
-test('external bot processes play the favourite style: everyone sees the word, the chosen card scores 2', (t) =>
-  playBotGame(t, { judging: 'favourite', categories: ['alpha'] }));
-
-test('bots can only join an existing game, and they sign back in as the same account', async (t) => {
-  const { base, site, person, processes } = await startDixnt(t);
-  const tokenFile = path.join(os.tmpdir(), `dixnt-bot-tokens-${process.pid}-${Date.now()}-b.json`);
-  t.after(() => fs.rmSync(tokenFile, { force: true }));
-  const run = (args) =>
-    new Promise((resolve) => {
-      const child = spawn(process.execPath, [botScript, ...args, '--url', base, '--token-file', tokenFile], { stdio: ['ignore', 'pipe', 'pipe'] });
-      processes.push(child);
-      let output = '';
-      child.stdout.on('data', (c) => (output += c));
-      child.stderr.on('data', (c) => (output += c));
-      child.on('exit', (code) => resolve({ code, output }));
-    });
-
-  assert.equal((await run(['--name', 'Robin'])).code, 1, '--join is required');
-  const missing = await run(['--join', 'no-such-game', '--name', 'Robin']);
-  assert.equal(missing.code, 1);
-  assert.match(missing.output, /noGameWithCode/, 'the bot prints the refusal code the server sent');
-  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 1, 'the bot account was made, and no game');
-
-  const host = await person('host').open();
-  await host.join();
-  const stay = (name) => {
-    const child = spawn(process.execPath, [botScript, '--join', host.code, '--name', name, '--url', base, '--token-file', tokenFile], { stdio: 'ignore' });
-    processes.push(child);
-    return child;
-  };
-  const first = stay('Robin');
-  await until(() => host.state?.players.length === 2, 'the bot to join');
-  const botId = host.state.players[1].id;
-  first.kill();
-  await until(() => host.state.players[1].connected === false, 'the bot to go offline');
-  stay('Robin');
-  await until(() => host.state.players[1].connected === true, 'the bot to come back');
-  assert.equal(host.state.players.length, 2);
-  assert.equal(host.state.players[1].id, botId, 'the same player');
-  assert.equal(site.db.prepare('SELECT COUNT(*) AS n FROM users WHERE username = ?').get('Robin').n, 1);
-});
+test('computer players play the favourite style: everyone sees the word, the chosen card scores 2', (t) =>
+  playComputerGame(t, { judging: 'favourite', categories: ['alpha'] }));
 
 test('several games run side by side, each with its own invite code', async (t) => {
   const { people4, person } = await startDixnt(t);

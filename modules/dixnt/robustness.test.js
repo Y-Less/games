@@ -49,7 +49,6 @@ const EVENTS = {
   addBot: [],
   fillBots: ['count'],
   removeBot: ['targetId'],
-  declareAI: ['id'],
 };
 
 /** Checks one view for internal consistency. */
