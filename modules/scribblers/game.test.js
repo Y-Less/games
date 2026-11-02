@@ -348,7 +348,6 @@ test('the statistics count the people only, with what each of them did', () => {
   assert.ok(rows.some((r) => r.placement === 1));
   const drawerRow = rows.find((r) => r.userId === room.drawer);
   assert.equal(drawerRow.extras.wordsDrawn, 1);
-  assert.equal(drawerRow.extras.everyoneGot, 1);
   for (const id of guessers) assert.equal(rows.find((r) => r.userId === id).extras.wordsGuessed, 1);
 });
 

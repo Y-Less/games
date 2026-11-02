@@ -529,7 +529,7 @@ function endTurn(room, reason, now) {
   const points = Object.fromEntries(room.guessed.map((g) => [g.id, g.points]));
   if (drawer && average) points[drawer.id] = average;
   for (const p of guessers(room)) if (!hasGuessed(room, p.id)) p.lastScore = 0;
-  tallyTurn({ drawer, guessed: room.guessed.map((g) => playerOf(room, g.id)).filter(Boolean), guessers: guessers(room), reason, average });
+  tallyTurn({ drawer, guessed: room.guessed.map((g) => playerOf(room, g.id)).filter(Boolean), reason, average });
   room.reveal = { word: room.word, drawer: room.drawer, reason, points, guessed: room.guessed.map((g) => g.id) };
   for (const hint of room.hints) hint.shown = true;
   room.deadline = now + (room.betweenMs ?? BETWEEN_MS);

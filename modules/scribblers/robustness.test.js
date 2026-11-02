@@ -17,6 +17,7 @@ process.env.SCRIBBLERS_SCORES_WAIT = '20000';
 process.env.SCRIBBLERS_AWAY_WAIT = '20000';
 process.env.SCRIBBLERS_BOT_DELAY = '50-150';
 process.env.SCRIBBLERS_BOT_DRAW = '100';
+process.env.SCRIBBLERS_BOT_RATE = '5000'; // a computer player draws its picture in one go here, rather than at its usual pace
 process.env.SCRIBBLERS_PICTURES = 'test'; // a computer player draws without reaching for the web
 
 

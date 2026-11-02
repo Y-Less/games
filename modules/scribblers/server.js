@@ -18,13 +18,14 @@
 //   SCRIBBLERS_AWAY_WAIT     milliseconds a drawing waits for a drawer who has gone (default 8000)
 //   SCRIBBLERS_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing a word or guessing (default 700-1300)
 //   SCRIBBLERS_BOT_DRAW      milliseconds before a computer player starts drawing its picture (default 1200)
+//   SCRIBBLERS_BOT_RATE      strokes a second a computer player draws at (default 10; the tests turn it right up)
 //   SCRIBBLERS_PICTURES      where a computer player's pictures come from: "web" (default), "test" (bands worked out
 //                            from the word, needing no network, which is what the tests use) or "off" (draw nothing)
 //
 // **A computer player draws.**  Its AI chooses the word (ai/, driven through game.js), and then this file fetches a
-// picture of it from the web (picture.js) and puts it on the board a message-full of strokes at a time, which an AI may
-// not do itself: an AI is a function of plain data, with no clock and no network.  Nothing else about a computer
-// player is special - its guesses go through the same rules as anybody's.
+// picture of it from the web (picture.js) and puts it on the board a few strokes a second, in a scattered order, which
+// an AI may not do itself: an AI is a function of plain data, with no clock and no network.  Nothing else about a
+// computer player is special - its guesses go through the same rules as anybody's.
 //
 // **Words the players add** are kept here too: a word added in a lobby is used in that game and saved under the
 // module's data folder, so it is offered in later games as well.  The rules never touch a file, so they are given the
@@ -34,13 +35,16 @@
 // canvas and what may go on it) and ./picture.js (a word turned into something to draw).
 import fs from 'node:fs';
 import path from 'node:path';
+import { shuffle } from '../../shared/cards.js';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from './drawing.js';
 import * as game from './game.js';
 import { drawingFor, testPicture } from './picture.js';
 
-/** How long the server waits between one message-full of a computer player's picture and the next (milliseconds). */
-const STROKE_PAUSE = 120;
+/** How often the server sends the next few strokes of a computer player's picture (milliseconds). */
+const STROKE_TICK = 250;
+/** How fast a computer player draws, in strokes a second, unless SCRIBBLERS_BOT_RATE says otherwise. */
+const BOT_STROKE_RATE = 10;
 /** How soon after filling the board somebody has to undo it to have thought better of it ("Arrgh!", milliseconds). */
 const ARRGH_MS = 5000;
 /** How many words added by players are kept from one game to the next. */
@@ -70,6 +74,18 @@ const pause = (ms) =>
   });
 
 /**
+ * Reads a positive number from the environment, for the settings that are not a number of milliseconds.
+ * @param {string} name  the variable to read
+ * @param {number} fallback  what to use when it is missing, or not a number above zero
+ * @returns {number} the setting
+ * Side effects: none (reads process.env).
+ */
+function readRate(name, fallback) {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/**
  * Reads the Scribblers timings from the environment.
  * @returns {object} the waits, all in milliseconds (`bot` is a { min, max } range)
  * Side effects: none (reads process.env).
@@ -82,6 +98,7 @@ function readDelays() {
     awayMs: readDelayMs('SCRIBBLERS_AWAY_WAIT', 8000),
     bot: readDelayRange('SCRIBBLERS_BOT_DELAY', '700-1300'),
     botDraw: readDelayMs('SCRIBBLERS_BOT_DRAW', 1200),
+    botRate: readRate('SCRIBBLERS_BOT_RATE', BOT_STROKE_RATE), // strokes a second, not milliseconds
   };
 }
 
@@ -174,17 +191,21 @@ export default function (ctx) {
   }
 
   /**
-   * Draws a computer player's word: a picture of it is fetched from the web and put on the board a message-full of
-   * strokes at a time, so the others watch it appear rather than meeting it all at once.  It stops if the turn moves
-   * on, and a word with no picture anywhere simply leaves the board empty.
+   * Draws a computer player's word: a picture of it is fetched from the web and then put on the board a few strokes a
+   * second, in a scattered order, so that it comes up out of nothing the way a drawing does rather than being wiped on
+   * from the top.  The strokes are the same ones either way - only the order and the pace change - so a picture left
+   * half-drawn when the time runs out still shows the whole of its subject, faintly, instead of only its top third.
+   *
+   * It stops if the turn moves on, and a word with no picture anywhere simply leaves the board empty.
    *
    * @param {object} room  the room (its drawing is added to)
    * @param {Function} relay  sends an event to everybody in the room
+   * @param {() => number} rng  random source, for the order the strokes go on in
    * @param {() => number} now  the clock
    * @returns {Promise<void>} resolves when the picture is on the board, or there is nothing more to do
    * Side effects: fetches twice over the network, fills this room's drawing, emits `draw` to the room, and logs.
    */
-  async function paint(room, relay, now) {
+  async function paint(room, relay, rng, now) {
     const turn = `${room.round}:${room.turn}`;
     painted.set(room.code, turn); // marked before the fetch, so a second timer cannot start the same picture again
     const word = room.word;
@@ -195,11 +216,21 @@ export default function (ctx) {
         ctx.log(`no picture was found for "${word}"`);
         return;
       }
-      for (let at = 0; at < ops.length; at += MAX_BATCH) {
-        if (!here()) return; // the turn moved on while the picture was being fetched or sent
-        const kept = addOps(canvasOf(room), ops.slice(at, at + MAX_BATCH), now());
+      const order = shuffle(ops, rng);
+      // How many strokes a tick is owed, kept as a running total rather than rounded each time, so that a rate of
+      // fewer strokes than there are ticks in a second still comes out right over a turn.
+      const perTick = (delays.botRate * STROKE_TICK) / 1000;
+      let credit = 0;
+      for (let sent = 0; sent < order.length; ) {
+        await pause(STROKE_TICK);
+        if (!here()) return; // the turn moved on while the picture was being fetched or drawn
+        credit += perTick;
+        const take = Math.min(Math.floor(credit), order.length - sent, MAX_BATCH);
+        if (take < 1) continue; // not a whole stroke owed yet
+        credit -= take;
+        const kept = addOps(canvasOf(room), order.slice(sent, sent + take), now());
+        sent += take;
         if (kept.length) relay(room, 'draw', { ops: kept });
-        await pause(STROKE_PAUSE);
       }
     } catch (error) {
       ctx.log(`could not draw "${word}":`, error.message);
@@ -263,7 +294,7 @@ export default function (ctx) {
       }
       // A computer player has a word and an empty board: fetch a picture of it and start painting (once a turn).
       if (room.phase === 'drawing' && drawer && !game.isHuman(drawer) && pictureDue(room)) {
-        return { key: `picture:${turnKey}`, wait: delays.botDraw, run: () => void paint(room, relay, now) };
+        return { key: `picture:${turnKey}`, wait: delays.botDraw, run: () => void paint(room, relay, rng, now) };
       }
 
       // Everything else takes its turn by when it is due.
