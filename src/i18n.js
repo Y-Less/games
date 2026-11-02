@@ -28,7 +28,7 @@ const bundle = (site, modules) => ({ ...site, ...Object.fromEntries(modules) });
 // forms it takes the second unless the count is 1. That suits English and Klingon, and Japanese needs only one form, but
 // a language with more forms has to say which form belongs to which of its plural categories. List its categories here,
 // in the order a translator writes the forms in, and Intl's own rules do the choosing.
-const PLURAL_FORMS = {
+export const PLURAL_FORMS = {
   ru: ['one', 'few', 'many'], // "1 карта | 2 карты | 5 карт"
 };
 
