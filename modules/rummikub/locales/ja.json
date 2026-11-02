@@ -1,0 +1,241 @@
+{
+  "entry": {
+    "noun": "ラミィキューブ",
+    "intro": "数字タイルでランとグループを作り、場全体を組み替えながら、いちばん早くラックを空にしましょう。2〜6人。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "seats": "プレイヤー（席数）",
+    "players": "{count}人",
+    "fewer": "{setting}を減らす",
+    "more": "{setting}を増やす",
+    "range": "{hint}（{min}〜{max}）",
+    "seconds": "{count}秒",
+    "off": "オフ",
+    "coloursInPlay": "使う色",
+    "coloursNumbers": "{colours}色、数字は1〜{numbers}",
+    "tiles": "タイル{total}枚（{colours}色 × {numbers}数字 × 2）。",
+    "tilesWild": "タイル{total}枚（{colours}色 × {numbers}数字 × 2 + ワイルド{count}枚）。",
+    "deal": "1人{hand}ずつ配り、{pool}が山に残ります。",
+    "handNeeds": "（手札には最低{min}枚必要です。）",
+    "hints": {
+      "numbers": "タイルの数字は1からこの数までです。",
+      "colours": "色ごとに色味と形が違います。",
+      "wildcards": "どのタイルの代わりにもなるジョーカーです。",
+      "rounds": "得点はラウンドごとに積み上がります。",
+      "meld": "場のタイルを使う前に、自分のタイルだけで必要な点数です。",
+      "timer": "時間切れになると、そのプレイヤーはタイルを1枚引きます。",
+      "playOnMeld": "初出しを置いたら、同じ手番のうちに場全体を組み替えられます（次の手番からではありません）。"
+    }
+  },
+  "settings": {
+    "numbers": "色ごとの数字",
+    "colours": "色数",
+    "wildcards": "ワイルドカード",
+    "rounds": "ラウンド数",
+    "meld": "初出し（点数）",
+    "timer": "手番のタイマー",
+    "playOnMeld": "初出しのあとも続けて置く"
+  },
+  "colours": {
+    "red": "赤",
+    "blue": "青",
+    "orange": "オレンジ",
+    "black": "黒",
+    "green": "緑",
+    "purple": "紫",
+    "teal": "ティール",
+    "pink": "ピンク"
+  },
+  "tiles": {
+    "name": "{colour}の{number}",
+    "wildcard": "ワイルドカード",
+    "wildcardStanding": "{text}の代わりのワイルドカード",
+    "new": "新規"
+  },
+  "table": {
+    "empty": "場には何もありません。",
+    "emptyMine": "場には何もありません。自分のラックから最初のセットを作りましょう。",
+    "run": "ラン、{value}",
+    "group": "グループ、{value}",
+    "addToSet": "選んだタイルをセット{n}に加える",
+    "yourRack": "あなたのラック",
+    "rackCount": "（{count}枚）",
+    "sortRack": "ラックを並べ替える",
+    "runsTitle": "色、次に数字：ランを作りやすい並び",
+    "groupsTitle": "数字、次に色：グループを作りやすい並び",
+    "runs": "ラン",
+    "groups": "グループ",
+    "rackEmpty": "ラックが空になりました。",
+    "newSet": "新しいセットを作る",
+    "newSetDrop": "新しいセット：ここにタイルを置く",
+    "resetTurn": "手番をやり直す",
+    "drawTitle": "山からタイルを1枚引いて手番を終える",
+    "passTitle": "山が空です。パスします",
+    "draw": "タイルを引く",
+    "pass": "パス",
+    "endTurn": "手番を終える"
+  },
+  "facts": {
+    "roundOf": "ラウンド {n}/{total}",
+    "poolTitle": "山に{count}枚",
+    "pool": "山に{count}枚",
+    "meld": "初出し：{n}点",
+    "meldWithPoints": "初出し：{n}点（現在{points}点）",
+    "timeLeft": "この手番の残り時間",
+    "secondsLeft": "残り{n}秒"
+  },
+  "popup": {
+    "tilesInRack": "ラックのタイル",
+    "firstMeld": "初出し",
+    "made": "済み",
+    "notYet": "まだ",
+    "turn": "手番",
+    "playingNow": "手番中",
+    "waiting": "待機中"
+  },
+  "summary": {
+    "wentOut": "{names}が上がりました。",
+    "blocked": "誰も出せませんでした。{names}のラックがいちばん少なかったです。",
+    "noTilesLeft": "タイルなし",
+    "pointsOfTiles": "タイル{n}点分"
+  },
+  "status": {
+    "yourMove": "ラックのタイルを場に出すか、場を組み替えてください。タイルを引いてもかまいません。",
+    "makeMeld": "自分のタイルだけで{meld}点以上の初出しを作るか、タイルを引いてください。",
+    "makeMeldOpen": "自分のタイルだけで{meld}点以上の初出しを作ると、そのまま場全体を使って続けられます。タイルを引いてもかまいません。",
+    "readyPlayed": "準備完了：{count}枚出しました。",
+    "readyMeld": "準備完了：{points}点の初出しです。",
+    "readyMeldOpen": "準備完了：{points}点の初出しで、場が使えるようになりました。",
+    "wins": "{name}がゲームに勝ちました！",
+    "shareWin": "{names}が勝ちを分け合いました。",
+    "roundOver": "ラウンド{n}が終わりました。",
+    "playing": "{name}の手番です",
+    "waitingFor": "{names}を待っています",
+    "closeScores": "得点を閉じて続けてください。",
+    "ready": "準備完了：{names}",
+    "readyNobody": "準備完了：まだ誰もいません",
+    "startedWith": "各プレイヤーは{count}枚で始めました。",
+    "waitingHostAgain": "ホストがもう一度始めるのを待っています。"
+  },
+  "hints": {
+    "notThere": "そのタイルはそこにありません。",
+    "jokerStays": "場のジョーカーは、代わりになるタイルと交換するまでその場に残ります。",
+    "frozen": "初出しをするまでは、場にあるセットを変えられません。",
+    "staysOnTable": "場にあったタイルは、場に残さなければなりません。",
+    "noSuchSet": "そのセットはありません。",
+    "runSplit": "2枚目の{n}のところで、ランが分かれました。",
+    "jokerReplaced": "ジョーカーが交換されました。単独のセットに移ったので、この手番でどこかのセットに使ってください。"
+  },
+  "notes": {
+    "tilesLeft": "残り{count}枚（{points}）",
+    "wentOut": "上がり",
+    "lowestRack": "ラック最少（{points}）"
+  },
+  "log": {
+    "takesOver": "{name}が退出した人の代わりに入りました",
+    "begins": "ゲーム開始：{count}ラウンド、タイル{tiles}枚。",
+    "roundStarts": "ラウンド{n}：{name}から始めます。1人{hand}枚、山に{inPool}枚。",
+    "melded": "{name}が{count}枚で初出し（{points}点）",
+    "played": "{name}が{count}枚出した",
+    "drew": "{name}がタイルを引いた",
+    "drewTimeout": "{name}がタイルを引いた（時間切れ）",
+    "passed": "{name}がパスした",
+    "passedTimeout": "{name}がパスした（時間切れ）",
+    "wentOut": "{name}が上がり、ラウンド{n}の勝ちです。",
+    "blocked": "誰も動けません。{names}がラック最少でラウンド{n}の勝ちです。 | 誰も動けません。{names}がラック最少でラウンド{n}を分け合いました。",
+    "gameOver": "ゲーム終了：{names}の勝ちです。 | ゲーム終了：{names}が勝ちを分け合いました。"
+  },
+  "errors": {
+    "fewNumbersColours": "数字と色が少なすぎて、ランもグループも作れません。数字を{min}以上、または色を{min}以上にしてください。",
+    "tooFewTiles": "タイルが{tiles}枚しかなく、{players}人に遊べる手札（1人{min}枚以上と、同じだけの山）を配れません。数字・色・ワイルドカードを増やすか、人数を減らしてください。",
+    "settingNotNumber": "{setting}は数値でなければなりません。",
+    "playOnMeldSetting": "「初出しのあとも続けて置く」はオンかオフです。",
+    "runOneColour": "ランはすべて同じ色です。",
+    "runRepeats": "ランに同じ数字は使えません。",
+    "runTooLong": "ランは{max}枚までです。",
+    "runGap": "数字が離れすぎていて、ジョーカーでは埋められません。",
+    "groupOneNumber": "グループはすべて同じ数字です。",
+    "groupColours": "グループはタイルごとに色が違う必要があります。",
+    "groupTooBig": "グループは{max}枚までです（1色につき1枚）。",
+    "setTooSmall": "セットには最低{min}枚必要です。",
+    "notASet": "それはタイルのセットではありません。",
+    "onlyJokers": "ジョーカーだけでセットは作れません。",
+    "notRunOrGroup": "そのタイルでは、ランもグループも作れません。",
+    "notASetKind": "セットはラン（同じ色で連番）か、グループ（同じ数字で違う色）です。",
+    "jokerTaken": "場のジョーカーは、ただ動かすことはできません。先に、代わりになるタイルと交換してください。",
+    "notATableLayout": "それは場の並びではありません。",
+    "tileTwice": "その並びには、同じタイルが2回出ています。",
+    "tilesMissing": "場のタイルが{count}枚足りません。場にあるものは、すべて場に残さなければなりません。",
+    "onlyFromRack": "加えられるのは、自分のラックのタイルだけです。",
+    "nothingAdded": "タイルを1枚も加えていません。代わりにタイルを引いてください。",
+    "setProblem": "セット{n}：{reason}",
+    "meldShortOpen": "初出しは、自分のタイルで作った新しいセットで{meld}点以上必要です。今のは{points}点です。",
+    "meldUsesTable": "初出しの前は、すでに場にあるタイルは使えません。",
+    "meldShort": "初出しは、自分のタイルで{meld}点以上必要です。今のは{points}点です。",
+    "noTimeLimit": "適用する制限時間がありません。",
+    "nothingToDo": "することがありません。"
+  },
+  "meta": {
+    "name": "ラミィキューブ",
+    "description": "数字タイルでランとグループを作り、場全体を組み替えて、いちばん早くラックを空にしましょう。2〜6人用。空席はコンピュータープレイヤーで埋められ、タイルの構成も選べます。"
+  },
+  "stats": {
+    "roundsWon": "勝ったラウンド",
+    "roundsPlayed": "プレイしたラウンド",
+    "tilesPlayed": "出したタイル",
+    "jokersPlayed": "出したジョーカー",
+    "biggestTurn": "1手番の最多タイル",
+    "pointsPlayed": "出したタイルの点数",
+    "tilesMoved": "グループ間で動かしたタイル",
+    "jokersReplaced": "場から交換したジョーカー",
+    "outInOne": "1手番で上がったラウンド",
+    "biggestRack": "ラックの最多タイル",
+    "bothJokers": "ジョーカー2枚を持っていたラウンド",
+    "turnsDrawn": "タイルを引いた手番",
+    "longestSet": "場に残したセットの最多タイル"
+  },
+  "achievements": {
+    "points": {
+      "name": "出した点数",
+      "text": "タイルを合計{n}点分出す"
+    },
+    "tiles": {
+      "name": "出したタイル",
+      "text": "タイルを{n}枚出す",
+      "one": "タイルを1枚出す"
+    },
+    "shuffler": {
+      "name": "シャッフラー",
+      "text": "タイルを{n}枚、別のグループへ移す"
+    },
+    "swap": {
+      "name": "ジョーカー交換",
+      "text": "場のジョーカーを{n}回交換する",
+      "one": "場のジョーカーを交換する"
+    },
+    "outinone": {
+      "name": "一気上がり",
+      "text": "1手番でラックをすべて出して上がる"
+    },
+    "hoarder": {
+      "name": "ため込み屋",
+      "text": "ラックにタイルを30枚持つ"
+    },
+    "pair": {
+      "name": "ジョーカー2枚",
+      "text": "ジョーカー2枚を同時に持つのを{n}回",
+      "one": "ジョーカー2枚を同時に持つ"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

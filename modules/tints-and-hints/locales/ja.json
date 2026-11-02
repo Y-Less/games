@@ -1,0 +1,171 @@
+{
+  "entry": {
+    "noun": "ティント＆ヒント",
+    "intro": "秘密の色を言葉で伝えて、友達がどこまで近づけるか試しましょう。共有用のコードが発行されます。"
+  },
+  "leaveConfirm": "一度退出すると、戻ってこられません。",
+  "lobby": {
+    "yourColour": "あなたのマーカーの色",
+    "chooseColour": "マーカーの色{colour}を選ぶ",
+    "chooseAnyColour": "好きなマーカーの色を選ぶ",
+    "unlockColour": "好きな色はショップで解放できます。いつも使う色はプロフィールで設定できます。",
+    "fewerTurns": "ターンを減らす",
+    "moreTurns": "ターンを増やす",
+    "turnsEach": "1人{count}ターン",
+    "turnCount": "{count}ターン",
+    "turnsInAll": "{players}で全部で{turns}です。全員が順番にヒントを出します。"
+  },
+  "table": {
+    "thisTurn": "このターン",
+    "hintsAndGuesses": "ヒントと回答",
+    "theHinter": "ヒント役",
+    "yourTint": "あなたの色は{cell}です",
+    "captionSecret": "あなただけに見える秘密の色です。",
+    "captionChoice": "今の選択です。",
+    "captionTint": "このターンの色です。",
+    "firstHint": "1つ目のヒントを入力",
+    "secondHint": "任意：2つ目のヒント",
+    "hint": "ヒント",
+    "sent": "送信済み",
+    "sendHint": "ヒントを送る",
+    "lockIn": "回答を確定",
+    "secondRound": "2回目に進む",
+    "revealTint": "色を公開する",
+    "legend": "点線の輪が1回目、実線の輪が2回目の回答です。",
+    "yourColour": "あなたの色",
+    "hinterTag": "ヒント役",
+    "guessedTag": "回答済み"
+  },
+  "popup": {
+    "colour": "色",
+    "hinterNow": "このターンのヒント役",
+    "hasGuessed": "回答済み",
+    "stillToGuess": "まだ回答していません"
+  },
+  "facts": {
+    "round": "ラウンド {n}/2",
+    "hinter": "ヒント役：{name}"
+  },
+  "status": {
+    "hintFirst": "あなたがヒント役です。マスの名前は出さずに、色を表す1つ目のヒントを入力してください。入力するまで誰も回答できません。",
+    "hintAgain": "あなたがヒント役です。マスの名前は出さずに色を表してください。",
+    "waitingFirstHint": "{name}の1つ目のヒントを待っています。",
+    "lockedIn": "回答を確定しました。他の人を待っています（{total}人中{guessed}人）。",
+    "guessFirst": "あなたの番です。ヒントを読んで色を当ててください。",
+    "guessSecond": "2つ目のヒントです。今ならどこを選びますか。",
+    "leaveToMenu": "メニューに戻るには、右上の「ゲームを退出」を使ってください。",
+    "finishedNote": "メニューに戻るには右上の「ゲームを退出」を、各ターンをもう一度見るには得点バーの「全ラウンド」を使ってください。",
+    "everyGuess": "全員の回答がグリッド上に出ています。",
+    "waitingReadyNext": "{names}が次のターンの準備をするのを待っています。",
+    "waitingReadyFinal": "{names}が最終得点の準備をするのを待っています。",
+    "guessedCount": "{total}人中{guessed}人が回答しました。",
+    "chosen": "{cell}を選びました。準備ができたら確定してください。",
+    "clickSquare": "グリッドのマスをクリックしてください。"
+  },
+  "reveal": {
+    "tintWas": "色は{cell}でした。",
+    "hinterScores": "{name}はヒントで{points}点です。",
+    "summary": "色は{cell}でした。{name}はヒントで{points}点です。",
+    "entry": "ラウンド{round}、{cell}",
+    "kind": {
+      "exact": "ぴったり正解",
+      "close": "惜しい",
+      "miss": "外れ"
+    }
+  },
+  "board": {
+    "label": "カラーグリッド",
+    "theTint": "その色",
+    "guess": "{name} ラウンド{round}"
+  },
+  "scoreboard": {
+    "turn": "ターン{n}：{name}",
+    "earlier": "前のターン"
+  },
+  "notes": {
+    "exact": "ラウンド{round}でぴったり",
+    "close": "ラウンド{round}で惜しい",
+    "found": "誰も見つけられず | {count}人が発見 | {count}人が発見"
+  },
+  "log": {
+    "turnStart": "ターン {n}/{total}：{name}がヒント役です。",
+    "secondRound": "2回目：2つ目のヒントでもう一度当てましょう。",
+    "firstHint": "{name}がヒント「{text}」を出しました。",
+    "secondHint": "{name}が2つ目のヒント「{text}」を出しました。",
+    "guessed": "{name}が回答しました。",
+    "guess": "{name}がラウンド{round}で{cell}を選びました：{kind}（+{points}）。",
+    "kind": {
+      "exact": "ぴったり正解",
+      "close": "惜しい",
+      "miss": "外れ"
+    }
+  },
+  "errors": {
+    "cannotHintNow": "今はヒントを出せません。",
+    "firstHintNeeded": "1つ目のヒントが必要です。誰かが回答する前に入力してください。",
+    "hinterCannotGuess": "あなたはヒント役なので、回答できません。",
+    "waitForFirstHint": "1つ目のヒントを待ってください。",
+    "notASquare": "それはグリッドのマスではありません。",
+    "closeScoresToCarryOn": "得点を閉じて続けてください。",
+    "nothingToContinue": "続けるものがありません。",
+    "hinterOnlyContinue": "続けられるのはヒント役だけです。",
+    "waitForEveryoneToGuess": "全員が回答するのを待ってください。"
+  },
+  "meta": {
+    "name": "ティント＆ヒント",
+    "description": "秘密の色をいくつかの言葉で伝えて、友達がカラーグリッドでどこまで近づけるか試しましょう。"
+  },
+  "stats": {
+    "exactGuesses": "ぴったり正解",
+    "closeGuesses": "惜しい回答",
+    "hintsGiven": "出したヒント",
+    "missGuesses": "0点だった回答",
+    "firstExact": "1回目でのぴったり正解",
+    "leeks": "1つ目のヒントで誰も取れず、2つ目で誰かが当てたターン",
+    "alexTurns": "秘密のマスがA・L・E・X列だったターン",
+    "distance": "回答と秘密のマスの距離の合計"
+  },
+  "achievements": {
+    "firsttry": {
+      "name": "一発的中",
+      "text": "1回目の回答でぴったりのマスを{n}回当てる",
+      "one": "1回目の回答でぴったりのマスを当てる"
+    },
+    "leek": {
+      "name": "リークって何？",
+      "text": "誰も得点できないヒントのあと、2つ目で誰かがぴったり当てる"
+    },
+    "wayoff": {
+      "name": "大外れ",
+      "text": "回答と正解の距離が、縦横あわせて合計{n}マスになる"
+    },
+    "colourblind": {
+      "name": "色音痴",
+      "text": "0点の回答を{n}回する",
+      "one": "0点の回答を1回する"
+    },
+    "palette": {
+      "name": "洗練されたパレット",
+      "text": "{n}種類のマスを回答する"
+    },
+    "corners": {
+      "name": "四隅制覇",
+      "text": "グリッドの四隅すべてを、何ゲームかけてでも回答する"
+    },
+    "alex": {
+      "name": "アレックス",
+      "text": "A・L・E・X列のマスでヒントを出すのを{n}回",
+      "one": "A・L・E・X列のマスでヒントを出す"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

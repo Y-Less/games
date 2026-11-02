@@ -1,0 +1,141 @@
+{
+  "entry": {
+    "noun": "ダウト",
+    "intro": "3〜7人。カードを裏向きに出して、そのランクだと宣言します。正直に出しても嘘をついてもかまいません。怪しいと思ったらダウトをかけましょう。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "deal": "{players}人：{packs}、1人{cardsEach}枚。",
+    "dealExtra": "{players}人：{packs}、1人{cardsEach}枚（{count}人は1枚多くなります）。",
+    "packs": {
+      "1": "1組",
+      "2": "2組"
+    }
+  },
+  "rank": {
+    "A": "エース",
+    "2": "2",
+    "3": "3",
+    "4": "4",
+    "5": "5",
+    "6": "6",
+    "7": "7",
+    "8": "8",
+    "9": "9",
+    "10": "10",
+    "J": "ジャック",
+    "Q": "クイーン",
+    "K": "キング"
+  },
+  "status": {
+    "wins": "{name}がカードをすべて出し切って勝ちました。",
+    "lastCards": "{name}が最後のカードを出しました。ダウトをかけるか、信じるか選んでください。",
+    "yourLastPlay": "今のが最後のプレイです。他の人が認めるのを待っています。",
+    "waitingDecide": "{name}の最後のプレイについて、他の人の判断を待っています。",
+    "yourTurn": "あなたの番です。{rank}と宣言して1〜{max}枚出してください。",
+    "waitingFor": "{name}が{rank}を出すのを待っています。",
+    "atMost": "出せるのは最大{max}枚です。",
+    "playing": "{rank}として{count}枚出します。",
+    "pick": "出すカードをクリックして、テーブルのボタンを押してください。宣言どおりのランクでなくてもかまいません。",
+    "callLie": "{caller}が{accused}にダウト：嘘だったので、{picker}が{count}枚引き取りました。",
+    "callTrue": "{caller}が{accused}にダウト：本当だったので、{picker}が{count}枚引き取りました。"
+  },
+  "table": {
+    "rankToClaim": "宣言するランク",
+    "gameOver": "ゲーム終了",
+    "claim": "宣言",
+    "pile": "場のカードなし | 場のカード：{count}枚 | 場のカード：{count}枚",
+    "empty": "なし",
+    "turnedOver": "めくられたカード",
+    "lastPlay": "{name}が{rank}として{count}枚出しました。",
+    "cheat": "ダウト！",
+    "believe": "信じます",
+    "play": "{rank}として出す | {rank}として{count}枚出す | {rank}として{count}枚出す"
+  },
+  "facts": {
+    "claiming": "宣言：{rank}",
+    "pile": "場：{n}"
+  },
+  "popup": {
+    "liesTold": "ついた嘘",
+    "caughtLying": "見破られた回数",
+    "calls": "ダウト（的中）",
+    "callsValue": "{made}（{correct}）"
+  },
+  "log": {
+    "dealt": "カードを配りました。",
+    "played": "{name}が{rank}と宣言して{count}枚出しました。",
+    "callLie": "{caller}が{accused}にダウト：嘘だったので、{picker}が{count}枚引き取ります。",
+    "callTrue": "{caller}が{accused}にダウト：本当だったので、{picker}が{count}枚引き取ります。",
+    "wins": "{name}がカードをすべて出し切って勝ちました。"
+  },
+  "errors": {
+    "playBetween": "1〜{max}枚の範囲で出してください。",
+    "playFromHand": "出せるのは手札のカードだけです。",
+    "nothingToCall": "ダウトをかける相手がいません。",
+    "callOwnPlay": "自分のプレイにダウトはかけられません。",
+    "nothingToAccept": "認める最後のプレイがありません。",
+    "acceptOwnPlay": "自分のプレイは認められません。"
+  },
+  "meta": {
+    "name": "ダウト",
+    "description": "3〜7人で遊ぶブラフのカードゲーム。カードを裏向きに出してそのランクだと宣言し、手札をなくしましょう。正直に出しても嘘をついてもかまいません。怪しいと思ったらダウトをかけます。友達ともコンピュータープレイヤーとも遊べます。"
+  },
+  "stats": {
+    "liesTold": "ついた嘘",
+    "liesCaught": "嘘を見破られた回数",
+    "callsMade": "ダウトをかけた回数",
+    "callsCorrect": "的中したダウト",
+    "fullSuits": "1つのスートをすべて持っていた回数",
+    "liesGotAway": "誰にも指摘されなかった嘘",
+    "badCalls": "正直者にかけたダウト",
+    "brazenLies": "4枚でついた嘘",
+    "cleanGetaways": "指摘されない嘘で上がって勝ったゲーム",
+    "honestWins": "一度も嘘をつかずに勝ったゲーム"
+  },
+  "achievements": {
+    "fibber": {
+      "name": "嘘つき",
+      "text": "嘘を{n}回つく",
+      "one": "嘘を1回つく"
+    },
+    "pokerface": {
+      "name": "ポーカーフェイス",
+      "text": "誰にも指摘されない嘘を{n}回つく",
+      "one": "誰にも指摘されない嘘をつく"
+    },
+    "suited": {
+      "name": "スート制覇",
+      "text": "同じスート13枚を手札にそろえるのを{n}回",
+      "one": "同じスート13枚を手札にそろえる"
+    },
+    "badcall": {
+      "name": "濡れ衣",
+      "text": "正直者にダウトをかけるのを{n}回",
+      "one": "正直者にダウトをかける"
+    },
+    "brazen": {
+      "name": "大胆不敵",
+      "text": "4枚で嘘をつくのを{n}回",
+      "one": "4枚で嘘をつく"
+    },
+    "honest": {
+      "name": "正直者",
+      "text": "一度も嘘をつかずにゲームに勝つ"
+    },
+    "getaway": {
+      "name": "完全犯罪",
+      "text": "誰にも指摘されない嘘で上がって勝つ"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

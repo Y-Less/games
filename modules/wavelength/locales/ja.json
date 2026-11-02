@@ -1,0 +1,174 @@
+{
+  "entry": {
+    "noun": "ウェーブレングス",
+    "intro": "2つの対極のあいだに隠れた的に向けてヒントを出し、友達がどこまで近くダイヤルを回せるか試しましょう。共有用のコードが発行されます。"
+  },
+  "leaveConfirm": "一度退出すると、戻ってこられません。",
+  "lobby": {
+    "yourColour": "あなたのマーカーの色",
+    "chooseColour": "マーカーの色{colour}を選ぶ",
+    "ownColour": "自分の色",
+    "anyColour": "好きな色",
+    "chooseAnyColour": "好きなマーカーの色を選ぶ",
+    "unlockColours": "好きな色はショップで解放できます。いつも使う色はプロフィールで設定できます。",
+    "howYouPlay": "遊び方",
+    "mode": "ゲームモード",
+    "solo": "各自で勝負",
+    "soloText": "回答者がそれぞれ自分のダイヤルを回します。いちばん近い回答が最高点です。",
+    "team": "1つのチーム",
+    "teamText": "回答者はマーカーを1つ共有し、みんなで動かして、誰でも確定できます。得点は全員同じです。",
+    "hostChooses": "ホストが選びます。",
+    "fewerTurns": "ターンを減らす",
+    "moreTurns": "ターンを増やす",
+    "turnsEach": "1人{count}ターン",
+    "totalTurns": "{players}人で全{turns}ターンです。全員が順番にサイキックになります。"
+  },
+  "dial": {
+    "label": "{left}から{right}までのダイヤル",
+    "slider": "{left}から{right}までダイヤルを回す"
+  },
+  "table": {
+    "psychicTag": "サイキック",
+    "guessedTag": "回答済み",
+    "sideLabel": "ヒントと回答",
+    "teamMarkerNote": "チーム全体でマーカーは1つです。",
+    "bandsLegend": "的は4点・3点・2点の3段階です。",
+    "yourColour": "あなたの色",
+    "cluePsychic": "{name}のヒント",
+    "onlyYouSeeTarget": "的が見えるのはあなただけです。",
+    "clueWillAppear": "ここにヒントが出ます。",
+    "cluePlaceholder": "ヒントを入力",
+    "clueLabel": "ヒント",
+    "sendClue": "ヒントを送る",
+    "lockIn": "確定",
+    "lockInGuess": "回答を確定",
+    "thePsychic": "サイキック",
+    "yourTeam": "あなたのチーム"
+  },
+  "facts": {
+    "psychic": "サイキック：{name}"
+  },
+  "popup": {
+    "colour": "色",
+    "stagePsychic": "このターンのサイキック",
+    "hasGuessed": "回答済み",
+    "stillToGuess": "まだ回答していません"
+  },
+  "status": {
+    "teamFinal": "あなたのチームは{max}点中{score}点でした。",
+    "teamTurn": "このターン、あなたのチームは{points}点です。",
+    "psychicScores": "{name}はヒントで{points}点です。",
+    "youArePsychic": "あなたはサイキックです。的はあなたのダイヤルに出ています。数字やダイヤル上の言葉は使わずに、的を指すヒントを入力してください。",
+    "waitingClue": "{name}のヒントを待っています。",
+    "psychicTeam": "ヒントを送りました。チームがマーカーを一緒に動かしています。公開までは見えません。",
+    "teamMove": "全員が納得するまでマーカーを動かし、誰かが確定してください。",
+    "psychicWaiting": "ヒントを送りました。全員の回答を待っています（{total}人中{n}人）。",
+    "guessLocked": "回答を確定しました。他の人を待っています（{total}人中{n}人）。",
+    "guessNow": "あなたの番です。ヒントを読んで、的があると思う場所までダイヤルを回してください。",
+    "leaveHint": "メニューに戻るには、右上の「ゲームを退出」を使ってください。",
+    "finishedHint": "メニューに戻るには右上の「ゲームを退出」を、各ターンをもう一度見るには得点バーの「全ラウンド」を使ってください。",
+    "everyGuess": "全員の回答がダイヤル上に出ています。",
+    "waitingNext": "{names}が次のターンの準備をするのを待っています。",
+    "waitingFinal": "{names}が最終得点の準備をするのを待っています。",
+    "waitTeamLock": "チームが確定するのを待ってください。",
+    "teamDrag": "ダイヤルをドラッグするか、スライダーを使ってください。マーカーの動きは全員に見えます。",
+    "guessedCount": "{total}人中{n}人が回答しました。",
+    "dragHint": "ダイヤルをドラッグするか、下のスライダーを使ってください。",
+    "lockHint": "準備ができたら確定してください。"
+  },
+  "reveal": {
+    "label": "このターン",
+    "clueLine": "{name}のヒント：「{clue}」・{name}は{points}点。",
+    "teamLocked": "{name}がチームのために確定しました。全員に+{points}点。",
+    "bullseye": "ど真ん中",
+    "inTarget": "的の中",
+    "missed": "外れ"
+  },
+  "log": {
+    "turnStart": "ターン {n}/{total}：{name}がサイキック、{left}と{right}のあいだです。",
+    "clue": "{name}がヒント「{clue}」を出しました。",
+    "guessed": "{name}が回答しました。",
+    "teamLock": "{name}がチームのマーカーを確定しました（全員に+{points}）。",
+    "bullseye": "{name}がど真ん中を射抜きました（+{points}）。",
+    "inTarget": "{name}が的の中に入れました（+{points}）。",
+    "missed": "{name}は外しました（+{points}）。",
+    "reveal": "的が公開されました。{name}はヒントで{points}点です。",
+    "abandoned": "ゲームは中断されました。"
+  },
+  "turnLabel": "ターン{n}：{name}",
+  "notes": {
+    "bullseye": "ど真ん中",
+    "inTarget": "的の中",
+    "psychic": "サイキック"
+  },
+  "errors": {
+    "notAMode": "それは遊び方ではありません。",
+    "clueGiven": "ヒントはもう出ています。",
+    "psychicOnlyClue": "ヒントを出すのはサイキックだけです。",
+    "typeClue": "先にヒントを入力してください。",
+    "teamOneMarker": "チームのマーカーは1つです。みんなで動かしてから確定してください。",
+    "psychicCannotGuess": "あなたはサイキックなので、回答できません。",
+    "dialRange": "ダイヤルは両端のあいだに合わせてください。",
+    "notATeamGame": "このゲームはチーム戦ではありません。",
+    "psychicTeamMarker": "あなたはサイキックです。マーカーはチームが動かします。",
+    "markerRange": "マーカーは両端のあいだに置いてください。",
+    "moveMarkerFirst": "先にマーカーを動かしてください。"
+  },
+  "meta": {
+    "name": "ウェーブレングス",
+    "description": "2つの対極のあいだに隠れた的を指すヒントを出して、友達がどこまで近くダイヤルを回せるか見てみましょう。"
+  },
+  "stats": {
+    "bullseyes": "ど真ん中",
+    "cluesGiven": "出したヒント",
+    "onlyScorer": "自分だけが得点したターン",
+    "highGuesses": "ダイヤルのいちばん上への回答",
+    "lowGuesses": "ダイヤルのいちばん下への回答",
+    "blankClues": "誰も得点できなかったヒント",
+    "guesses": "回答した回数",
+    "missDistance": "回答と的の距離の合計"
+  },
+  "achievements": {
+    "exact": {
+      "name": "ぴったり的中",
+      "text": "ど真ん中を{n}回射抜く"
+    },
+    "clues": {
+      "name": "出したヒント",
+      "text": "ヒントを{n}回出す",
+      "one": "ヒントを1回出す"
+    },
+    "score": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "insync": {
+      "name": "以心伝心",
+      "text": "自分だけが得点するのを{n}回（3人以上）",
+      "one": "自分だけが得点する（3人以上）"
+    },
+    "optimist": {
+      "name": "楽観主義者",
+      "text": "いちばん大きい値を回答する"
+    },
+    "pessimist": {
+      "name": "悲観主義者",
+      "text": "いちばん小さい値を回答する"
+    },
+    "blank": {
+      "name": "周波数が違う",
+      "text": "誰も得点できないヒントを{n}回出す（3人以上）",
+      "one": "誰も得点できないヒントを出す（3人以上）"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

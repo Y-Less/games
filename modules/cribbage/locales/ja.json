@@ -1,0 +1,175 @@
+{
+  "entry": {
+    "noun": "クリベッジ",
+    "intro": "2〜5人で遊ぶクリベッジです。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "hand": "第{n}ハンド",
+  "lobby": {
+    "share": "このコードを友達に教えましょう（クリックすると招待リンクをコピーします）。ホストが始めるには、すべての席が埋まっている必要があります（コンピュータープレイヤーでもかまいません）。",
+    "game": "ゲーム",
+    "seats": "席数",
+    "playTo": "目標点",
+    "deal": {
+      "2": "2人：1人6枚、クリブに2枚。",
+      "3": "3人：1人5枚、クリブに1人1枚、さらにデッキから1枚。",
+      "4": "4人：1人5枚、クリブに1人1枚。",
+      "5": "5人：1人5枚、クリブに1枚ずつ。ただしディーラーは4枚だけで、クリブには出しません。"
+    }
+  },
+  "table": {
+    "dealer": "ディーラー",
+    "dealerDiscarded": "ディーラー、提出済み",
+    "dealerChoosing": "ディーラー、選択中",
+    "discarded": "提出済み",
+    "choosing": "選択中",
+    "dealerTitle": "ディーラー",
+    "play": "プレイ",
+    "count": "カウント",
+    "countLabel": "カウント",
+    "sendToBox": "クリブに入れる",
+    "deck": "デッキ",
+    "deckLabel": "デッキ",
+    "starter": "スターター",
+    "starterLabel": "スターター",
+    "box": "クリブ",
+    "boxLabel": "クリブ",
+    "scoring": "得点",
+    "nothingScored": "このハンドではまだ得点がありません。",
+    "playAgain": "もう一度遊ぶ（ロビーに戻る）"
+  },
+  "facts": {
+    "hand": "第{n}ハンド",
+    "youDeal": "あなたがディーラー",
+    "deals": "{name}がディーラー",
+    "firstTo": "{n}点先取",
+    "deck": "デッキ：{count}",
+    "yourBox": "あなたのクリブ：{count}",
+    "box": "{name}のクリブ：{count}"
+  },
+  "popup": {
+    "cardsInHand": "手札{count}枚",
+    "youDiscarded": "クリブにカードを入れました",
+    "youChoosing": "クリブに入れるカードをまだ選んでいます",
+    "discarded": "クリブにカードを入れました",
+    "choosing": "クリブに入れるカードをまだ選んでいます",
+    "youDeal": "あなたがディーラーです。クリブはあなたのものです",
+    "deals": "ディーラーです。クリブはこの人のものです",
+    "boxYours": "クリブ：あなた",
+    "boxOf": "クリブ：{name}",
+    "pegs": "ペグ：前が{score}、後ろが{back}"
+  },
+  "status": {
+    "youWin": "{name}（あなた）の勝ちです！",
+    "chooseForYourBox": "自分のクリブに入れるカードを{count}枚選んでください。",
+    "chooseForBox": "{name}のクリブに入れるカードを{count}枚選んでください。",
+    "yourTurnChoose": "あなたの番です。カードを1枚選んでください。",
+    "yourTurn": "あなたの番です。",
+    "toPlay": "{name}の番です。",
+    "closeScores": "次のハンドの準備ができたら、得点のポップアップを閉じてください。",
+    "chosen": "{count}枚中{chosen}枚を選択。選び終えたら「クリブに入れる」を押してください。",
+    "countRestarted": "カウントが0から始まり直しました。",
+    "nothingPlayed": "まだ何も出されていません。",
+    "standing": "{place} {name}：{score}",
+    "standingYou": "{place} {name}（あなた）：{score}",
+    "skunk": "スカンク！{names}が{line}点に届きませんでした。"
+  },
+  "show": {
+    "you": "{name}（あなた）",
+    "hand": "{who}：手札",
+    "crib": "{who}：クリブ",
+    "nothing": "数えるものがありません。0点の手札です。",
+    "after": "{name}は{score}点になりました。"
+  },
+  "board": {
+    "label": "{target}点までのクリベッジボード：{scores}",
+    "score": "{name} {score}"
+  },
+  "scoring": {
+    "fifteen": "フィフティーン",
+    "pair": "ペア",
+    "pairRoyal": "ペアロイヤル",
+    "doublePairRoyal": "ダブルペアロイヤル",
+    "run": "{count}枚のラン",
+    "flushFive": "5枚のフラッシュ",
+    "flushFour": "4枚のフラッシュ",
+    "nobs": "ノブズ",
+    "heels": "ヒールズ",
+    "thirtyOne": "サーティーワン",
+    "go": "ゴー",
+    "lastCard": "ラストカード"
+  },
+  "log": {
+    "scored": "{name}：{what}で{points}点",
+    "go": "{name}：ゴー"
+  },
+  "errors": {
+    "targetScore": "目標点は{targets}のどれかにしてください。",
+    "notTimeToDiscard": "クリブに入れる場面ではありません。",
+    "alreadyDiscarded": "もうクリブに入れました。",
+    "chooseForBox": "クリブに入れるカードを{count}枚選んでください。",
+    "cardsNotInHand": "そのカードは手札にありません。",
+    "overThirtyOne": "それではカウントが31を超えます。",
+    "nothingToBeReadyFor": "準備するものがありません。",
+    "noBotMove": "動けるコンピュータープレイヤーがいません。"
+  },
+  "meta": {
+    "name": "クリベッジ",
+    "description": "2〜5人で遊ぶ定番のペグ移動カードゲーム。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "stats": {
+    "handsPlayed": "プレイしたハンド",
+    "bestHand": "最高のハンド",
+    "pegPoints": "プレイで稼いだ点",
+    "skunks": "スカンク",
+    "zeroHands": "0点だった手札とクリブ",
+    "nineteens": "自分がディーラーで1点も取れなかった配り",
+    "fiveFlushes": "5枚のフラッシュ",
+    "perfectHands": "完璧な手札・クリブ（29点、ディーラーなら30点）",
+    "nobs": "ノブズで得点した回数",
+    "fivesGiven": "他の人のクリブに入れた5"
+  },
+  "achievements": {
+    "nineteen": {
+      "name": "ナインティーン",
+      "text": "ディーラーのとき、手札・クリブ・プレイのどれでも1点も取れずに終える"
+    },
+    "nothing": {
+      "name": "見せ場なし",
+      "text": "手札かクリブで0点を{n}回取る",
+      "one": "手札かクリブで0点を取る"
+    },
+    "flush": {
+      "name": "フラッシュ",
+      "text": "5枚のフラッシュを{n}回決める",
+      "one": "5枚のフラッシュを決める"
+    },
+    "perfect": {
+      "name": "パーフェクトハンド",
+      "text": "手札かクリブで29点以上、またはディーラーのヒールズで30点を取る"
+    },
+    "points": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "kind": {
+      "name": "親切",
+      "text": "他の人のクリブに5を入れるのを{n}回",
+      "one": "他の人のクリブに5を入れる"
+    },
+    "nobhead": {
+      "name": "ノブ頭",
+      "text": "ノブズで1点取るのを{n}回",
+      "one": "ノブズで1点取る"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

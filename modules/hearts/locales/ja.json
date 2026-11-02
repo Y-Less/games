@@ -1,0 +1,164 @@
+{
+  "entry": {
+    "noun": "ハーツ",
+    "intro": "3〜7人（ふつうは4人）、デッキ1組で、得点がいちばん低い人の勝ちです。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "deal": "{players}：1人{cardsEach}枚、{removed}、パスは{passCount}枚。",
+    "removed": "{cards}を抜く",
+    "noneRemoved": "抜くカードなし",
+    "playTo": "目標点",
+    "points": "{n}点",
+    "jack": "ダイヤのジャックを取った人は-5点",
+    "moon": "シュート・ザ・ムーン（ハート全部とスペードのクイーン）",
+    "moonOthers": "他の全員が+26点",
+    "moonSelf": "決めた人が-26点"
+  },
+  "number": {
+    "3": "3人",
+    "4": "4人",
+    "5": "5人",
+    "6": "6人",
+    "7": "7人"
+  },
+  "hand": "第{n}ハンド",
+  "shotMoon": "ムーン成功",
+  "pass": {
+    "none": "このハンドはパスなし",
+    "across": "向かいへ{count}枚パス",
+    "side": "{side}へ{count}枚パス",
+    "sideFar": "{side}へ{count}枚パス（{distance}人先）",
+    "left": "左",
+    "right": "右"
+  },
+  "status": {
+    "tie": "引き分け：{names}の勝ちです。",
+    "wins": "{name}が{score}点で勝ちました。",
+    "waitingOthersChoose": "他の人がカードを選ぶのを待っています。",
+    "choose": "{label}：{name}に渡すカードを{count}枚選んでください。",
+    "takesTrick": "{name}がトリックを取りました。",
+    "leadOpening": "{card}を持っています。これをリードしてください。",
+    "yourTurn": "あなたの番です。カードを1枚出してください。",
+    "waitingFor": "{name}を待っています。",
+    "waitingReady": "{names}が次のハンドの準備をするのを待っています。",
+    "handOver": "第{n}ハンドが終わりました。得点を閉じて続けましょう。",
+    "pick": "カードを{count}枚選んで、テーブルのボタンを押してください（{count}枚中{chosen}枚選択）。",
+    "receive": "{name}から{count}枚受け取ります。",
+    "claimable": "あなたのカードに勝てる人はいません。これ以上トリックは落としません。「すべて取る」を押してください。",
+    "received": "受け取ったカードは緑の枠で囲まれています。",
+    "lastTrick": "前のトリック：{name}が取りました。",
+    "moonSelf": "{name}がシュート・ザ・ムーンを決めて-{points}点です。",
+    "moonOthers": "{name}がシュート・ザ・ムーンを決め、他の全員が+{points}点です。"
+  },
+  "table": {
+    "thisHand": "このハンド",
+    "passed": "パス済み",
+    "choosing": "選択中",
+    "tricks": "{count}トリック",
+    "hearts": "ハート{count}枚",
+    "queen": "、スペードのクイーン",
+    "jack": "、ダイヤのジャック",
+    "claimAll": "すべて取る",
+    "passThese": "{count}枚中{chosen}枚をパス"
+  },
+  "facts": {
+    "hand": "第{n}ハンド",
+    "trick": "トリック {n}/{total}",
+    "heartsBroken": "ハート解禁",
+    "heartsNotBroken": "ハートまだ未解禁",
+    "playTo": "目標{n}点",
+    "jack": "ダイヤのジャック：-5"
+  },
+  "popup": {
+    "tricksTaken": "取ったトリック",
+    "heartsTaken": "取ったハート",
+    "pointsThisHand": "このハンドの得点",
+    "passing": "パス",
+    "hasChosen": "選び終えた",
+    "stillChoosing": "まだ選択中"
+  },
+  "log": {
+    "dealt": "第{n}ハンドを配りました。",
+    "passed": "カードをパスしました。",
+    "played": "{name}が{card}を出しました。",
+    "takesTrick": "{name}がトリックを取りました。",
+    "claims": "{name}が残り{count}トリックをまとめて取りました。",
+    "handOver": "第{n}ハンドが終わりました。"
+  },
+  "errors": {
+    "targetScore": "目標点は{targets}のどれかにしてください。",
+    "jackSetting": "ダイヤのジャックの設定はオンかオフです。",
+    "moonSetting": "シュート・ザ・ムーンは、他の全員が+26点か、決めた人が-26点のどちらかです。",
+    "notTimeToPass": "カードをパスする場面ではありません。",
+    "alreadyPassed": "もうカードをパスしました。",
+    "chooseExactly": "パスするカードを、ちょうど{count}枚、別々に選んでください。",
+    "passFromHand": "パスできるのは手札のカードだけです。",
+    "mustLead": "{card}をリードしてください。",
+    "heartsNotBroken": "ハートはまだ解禁されていません。",
+    "followSuit": "スートに従ってください（{suit}）。",
+    "noPointsFirstTrick": "最初のトリックに点数札は出せません。",
+    "claimWhenLeading": "まとめて取れるのは、自分がリードする番のときだけです。",
+    "claimCouldLose": "まだトリックを落とす可能性があります。上のカードが残っています。"
+  },
+  "meta": {
+    "name": "ハーツ",
+    "description": "3〜7人で遊ぶ定番のトリックテイキング。ハートとスペードのクイーンを避けるか、いっそシュート・ザ・ムーンを狙いましょう。友達ともコンピュータープレイヤーとも遊べます。"
+  },
+  "stats": {
+    "handsPlayed": "プレイしたハンド",
+    "moonsShot": "シュート・ザ・ムーン成功",
+    "queensTaken": "取ったスペードのクイーン",
+    "heartsTaken": "取ったハート",
+    "jacksTaken": "取ったダイヤのジャック",
+    "perfectGames": "完璧なゲーム（無失点）",
+    "queensAvoided": "スペードのクイーンを避けたハンド",
+    "zeroHands": "失点のなかったハンド",
+    "missedMoons": "25点分を取ったハンド",
+    "openingPassed": "最初のカードをパスした回数",
+    "openingReceived": "最初のカードを受け取った回数",
+    "tricksWon": "取ったトリック"
+  },
+  "achievements": {
+    "moon": {
+      "name": "シュート・ザ・ムーン",
+      "text": "シュート・ザ・ムーンを{n}回決める",
+      "one": "シュート・ザ・ムーンを決める"
+    },
+    "perfect": {
+      "name": "完全無失点",
+      "text": "無失点でゲームを終える"
+    },
+    "jack": {
+      "name": "ジャックを確保",
+      "text": "ダイヤのジャックを{n}回取る"
+    },
+    "zero": {
+      "name": "ゼロ",
+      "text": "ハートもクイーンも取らないハンドを{n}回",
+      "one": "ハートもクイーンも取らないハンドを1回"
+    },
+    "queen": {
+      "name": "クイーン回避",
+      "text": "スペードのクイーンを避けたハンドを{n}回"
+    },
+    "hands": {
+      "name": "プレイしたハンド",
+      "text": "{n}ハンドをプレイする"
+    },
+    "missed": {
+      "name": "月旅行は感心しないね",
+      "text": "1ハンドで25点を取る"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "entry": {
+    "noun": "ジャストワン",
+    "intro": "当てる人には見えない秘密の言葉に、1単語のヒントを書きます。同じヒントが重なると取り消されます。共有用のコードが発行されます。"
+  },
+  "leaveConfirm": "一度退出すると、戻ってこられません。",
+  "settings": {
+    "length": "ゲームの長さ",
+    "fewerTurns": "ターンを減らす",
+    "moreTurns": "ターンを増やす",
+    "turnsEach": "1人{count}ターン",
+    "total": "{players}人で全{count}ターンです。全員が順番に回答者になります。"
+  },
+  "scoreboard": {
+    "turn": "ターン{n}：{name}"
+  },
+  "notes": {
+    "guessedIt": "正解",
+    "passed": "パス",
+    "bestHint": "ベストヒント"
+  },
+  "table": {
+    "secretWord": "秘密の言葉",
+    "secretWordHidden": "秘密の言葉（あなたには見えません）",
+    "clues": "ヒント",
+    "theClues": "みんなのヒント",
+    "cluePlaceholder": "1単語",
+    "yourClue": "あなたのヒント",
+    "sendClue": "ヒントを送る",
+    "thinking": "みんながヒントを書いています。どんな言葉か考えてみましょう。",
+    "whoWritten": "書き終えた人",
+    "allCancelled": "ヒントはすべて取り消されました。",
+    "writerCancelled": "{name}・取り消し",
+    "writerBest": "{name}・ベストヒント",
+    "guessPlaceholder": "一度きりの回答",
+    "yourGuess": "あなたの回答",
+    "guess": "回答する",
+    "pass": "パス",
+    "guessedRight": "{name}が「{guess}」と答えて正解しました。",
+    "guesserTag": "回答者",
+    "writtenTag": "記入済み",
+    "cancelledTag": "取り消し",
+    "bestTag": "ベストヒント"
+  },
+  "facts": {
+    "guesser": "回答者：{name}"
+  },
+  "popup": {
+    "guesser": "このターンの回答者",
+    "written": "ヒントを書きました",
+    "toWrite": "まだヒントを書いていません"
+  },
+  "reveal": {
+    "label": "このターン",
+    "wordWas": "言葉は{word}でした",
+    "passed": "{name}がパスしました。",
+    "guessedRight": "{name}の回答「{guess}」：正解（+{points}）。",
+    "guessedWrong": "{name}の回答「{guess}」：不正解。",
+    "bestHint": "{name}がベストヒントを書きました（+{points}）。"
+  },
+  "status": {
+    "revealPassed": "{name}がパスしました。言葉は{word}でした。",
+    "revealGuessed": "{name}が「{guess}」と答えました。言葉は{word}でした。",
+    "revealBest": "{name}が正解！{best}のヒントがいちばんでした。",
+    "revealNoHint": "{name}が正解！ヒントはすべて取り消されていました。",
+    "guesserWriting": "あなたは回答者です。他の人がヒントを書いています（{total}人中{written}人）。",
+    "write": "「{word}」のヒントを1単語で書いてください。同じヒントを書いた人がいると、どちらも取り消されます。",
+    "clueSent": "ヒントを送りました。他の人を待っています（{total}人中{written}人）。",
+    "yourGuess": "あなたの番です。ヒントを読んで言葉を当てるか、パスしてください。",
+    "guessing": "{name}が考えています。",
+    "pickBest": "正解！ベストヒントを選んでください。",
+    "choosing": "{name}が正解し、ベストヒントを選んでいます。",
+    "leaveToMenu": "メニューに戻るには、右上の「ゲームを退出」を使ってください。",
+    "finishedNote": "メニューに戻るには右上の「ゲームを退出」を、各ターンをもう一度見るには得点バーの「全ラウンド」を使ってください。",
+    "waitingReadyNext": "{names}が次のターンの準備をするのを待っています。",
+    "waitingReadyFinal": "{names}が最終得点の準備をするのを待っています。",
+    "ownCancelled": "あなたのヒントは、他の人と重なって取り消されました。",
+    "scoring": "正解すると、あなたに{guesser}点、ベストヒントを書いた人に{bestHint}点です。不正解やパスでは誰も得点しません。",
+    "clickBest": "いちばん役に立ったヒントをクリックしてください。"
+  },
+  "log": {
+    "turnStart": "ターン {n}/{total}：{name}が回答者です。他の全員がヒントを書きます。",
+    "written": "{name}がヒントを書きました。",
+    "cluesIn": "ヒントが出そろいました。重なったものはありませんでした。 | ヒントが出そろいました。重なった{count}個が取り消されました。 | ヒントが出そろいました。重なった{count}個が取り消されました。",
+    "passed": "{name}がパスしました。",
+    "guessed": "{name}が「{guess}」と答えました。",
+    "bestHint": "{best}のヒントがいちばんでした（+{points}）。{name}は{score}点です。",
+    "noHints": "{name}は{score}点です。選べるヒントは残っていませんでした。",
+    "wordWas": "言葉は「{word}」でした。",
+    "abandoned": "ゲームは中断されました。"
+  },
+  "errors": {
+    "cluesIn": "ヒントはもう出そろっています。",
+    "guesserNoClue": "あなたは回答者なので、ヒントは書きません。",
+    "alreadyClued": "ヒントはもう送りました。",
+    "typeClue": "先にヒントを入力してください。",
+    "clueTooLong": "ヒントは{max}文字までです。",
+    "clueOneWord": "ヒントは1単語です。",
+    "clueIsTheWord": "それは言葉そのもの、またはその一部です。",
+    "guesserOnlyGuesses": "答えられるのは回答者だけです。",
+    "typeGuess": "回答を入力するか、パスしてください。",
+    "guesserOnlyPasses": "パスできるのは回答者だけです。",
+    "noBestYet": "まだ選べるベストヒントがありません。",
+    "guesserOnlyPicks": "ベストヒントを選ぶのは回答者だけです。",
+    "pickAHint": "ヒントをどれか選んでください。"
+  },
+  "meta": {
+    "name": "ジャストワン",
+    "description": "回答者以外の全員が、秘密の言葉に1単語のヒントを書きます。同じヒントは取り消されます。回答者は言葉を当てられるでしょうか。そして、いちばんよかったヒントはどれでしょう。"
+  },
+  "stats": {
+    "correctGuesses": "当てた言葉",
+    "bestHints": "ベストヒント",
+    "cluesGiven": "書いたヒント",
+    "cancelledClues": "他の人と重なって取り消されたヒント",
+    "hiveMinds": "ヒントが全部取り消されたターン",
+    "perfectGuesser": "自分の全ターンで言葉を当てたゲーム"
+  },
+  "achievements": {
+    "mindreader": {
+      "name": "読心術",
+      "text": "言葉を{n}回当てる",
+      "one": "言葉を1回当てる"
+    },
+    "besthint": {
+      "name": "ベストヒント",
+      "text": "自分のヒントが{n}回ベストに選ばれる",
+      "one": "自分のヒントがベストに選ばれる"
+    },
+    "wordsmith": {
+      "name": "言葉の職人",
+      "text": "ヒントを{n}個書く",
+      "one": "ヒントを1個書く"
+    },
+    "greatminds": {
+      "name": "考えることは同じ",
+      "text": "他の人と同じ言葉を書いて取り消されるのを{n}回",
+      "one": "他の人と同じ言葉を書いて取り消される"
+    },
+    "points": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "perfect": {
+      "name": "完璧な回答者",
+      "text": "1ゲームの自分の全ターンで言葉を当てる"
+    },
+    "hive": {
+      "name": "全員一致",
+      "text": "1ターンのヒントがすべて取り消される"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

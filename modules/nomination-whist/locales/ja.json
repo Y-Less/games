@@ -1,0 +1,171 @@
+{
+  "entry": {
+    "noun": "ノミネーション・ホイスト",
+    "intro": "3〜7人で遊ぶオー・ヘル系のホイストです。取るトリック数をぴったり宣言しましょう。"
+  },
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "options": "ゲーム設定",
+    "seats": "席数",
+    "full": "フル：7枚から1枚まで下って戻る（全14ラウンド）",
+    "short": "7枚から1枚まで（全7ラウンド）",
+    "missPoints": "外しても取ったトリック数が点になる",
+    "missPointsNote": "（オフなら、外すと0点）",
+    "instantWin": "7で即勝利",
+    "instantWinNote": "（最初か最後のラウンドで7を宣言し、7トリックすべて取るとその場で勝ち）",
+    "jokers": "ジョーカー",
+    "jokersNote": "（ジョーカー2枚を混ぜます。リードしたとき、またはスートに従えないときに出したジョーカーはトリックを取ります。同じトリックにもう1枚のジョーカーが出た場合は、どちらも負けです）",
+    "hints": "ヒント",
+    "hintsNote": "（手札に合う宣言を提案します。自分で考えたいときはオフに）",
+    "scoring": "宣言をぴったり当てると、10点に宣言した数を足した点が入ります。全{rounds}ラウンドです。"
+  },
+  "noTrumps": "切り札なし",
+  "instantWin": "即勝利",
+  "round": {
+    "label": "ラウンド{n}：{count}枚、{trump}",
+    "note": "宣言{bid}、獲得{taken}"
+  },
+  "table": {
+    "nominating": "宣言中…",
+    "dealer": "ディーラー",
+    "notYetNominated": "まだ宣言していません",
+    "nominated": "宣言{bid}",
+    "nominatedWon": "宣言{bid}・獲得{tricks}",
+    "yourNomination": "あなたの宣言",
+    "forbiddenTitle": "ディーラーはこの数を宣言できません",
+    "suggestedTitle": "あなたの手札へのおすすめ"
+  },
+  "status": {
+    "yourTurnNominate": "あなたの番です。取るトリック数を宣言してください。",
+    "waitingNominate": "{name}の宣言を待っています。",
+    "winsTrick": "{name}がトリックを取りました。",
+    "yourTurnPlay": "あなたの番です。カードを1枚出してください。",
+    "waitingPlay": "{name}がカードを出すのを待っています。",
+    "waitingReady": "{names}が次のラウンドの準備をするのを待っています。",
+    "roundOver": "ラウンドが終わりました。得点を閉じて続けましょう。",
+    "winsInstantly": "{name}が即勝利しました！",
+    "suggestion": "あなたの手札へのおすすめの宣言：{n}（強調表示）。",
+    "dealerForbidden": "あなたはディーラーなので{number}は宣言できません。宣言の合計がトリック数の{cards}になり、必ず誰かが外すことになります。",
+    "dealerFree": "あなたはディーラーです。他の人の宣言がすでに合計{cards}トリック以上なので、どの数でも宣言できます。",
+    "dealerLast": "{name}がディーラーで、最後に宣言します。{number}は宣言できません。",
+    "followSuit": "暗いカードは出せません。スートに従ってください。",
+    "instantHow": "{round}で7を宣言し、7トリックすべて取りました。"
+  },
+  "facts": {
+    "cardsEach": "1人{count}枚",
+    "dealer": "ディーラー：{name}",
+    "youNominated": "あなたの宣言{bid}",
+    "youNominatedWon": "宣言{bid}・獲得{tricks}",
+    "notNominated": "まだ宣言していません",
+    "trumps": "切り札：",
+    "trumpsTitle": "このラウンドの切り札：{trump}",
+    "nominatedTotal": "{count}トリック中{total}が宣言済み"
+  },
+  "popup": {
+    "dealer": "ディーラー",
+    "yes": "はい",
+    "no": "いいえ",
+    "nomination": "宣言",
+    "choosing": "選択中…",
+    "notYet": "まだ"
+  },
+  "result": {
+    "player": "プレイヤー",
+    "nominated": "宣言",
+    "won": "獲得",
+    "points": "得点",
+    "instantWin": "即勝利！",
+    "hit": "ぴったり",
+    "missed": "外れ"
+  },
+  "final": {
+    "winsInstantly": "{name}が即勝利！",
+    "instantExplain": "{name}が7を宣言し、7トリックすべて取りました。合計点にかかわらず、ゲームはここで終わりです。他の人はここまでの得点で順位が決まります。",
+    "youWon": "お見事、あなたの勝ちです。",
+    "computer": "（コンピューター）"
+  },
+  "log": {
+    "roundTrumps": "ラウンド{n}：1人{count}枚、切り札は{trump}。",
+    "roundNoTrumps": "ラウンド{n}：1人{count}枚、切り札なし。",
+    "nominated": "{name}が{bid}を宣言しました。",
+    "played": "{name}が{card}を出しました。",
+    "jokersCancel": "ジョーカーが2枚出たので、どちらも無効です。",
+    "secondJokerWins": "2枚目のジョーカーが、リードしたジョーカーに勝ちます。",
+    "wonTrick": "{name}がトリックを取りました。",
+    "roundOver": "ラウンド{n}が終わりました。",
+    "gameOver": "ゲームが終わりました。"
+  },
+  "errors": {
+    "lengthSetting": "ゲームは全14ラウンドか、7から1までのどちらかです。",
+    "missPointsSetting": "その得点設定はオンかオフです。",
+    "instantWinSetting": "その即勝利の設定はオンかオフです。",
+    "jokersSetting": "ジョーカーの設定はオンかオフです。",
+    "hintsSetting": "ヒントの設定はオンかオフです。",
+    "notTimeToNominate": "宣言する場面ではありません。",
+    "notYourTurnToNominate": "あなたが宣言する番ではありません。",
+    "nominateRange": "0から{max}までの整数で宣言してください。",
+    "dealerForbidden": "ディーラーは{number}を宣言できません。合計がトリック数の{cards}になり、必ず誰かが外します。",
+    "followSuit": "スートに従ってください（{suit}）。",
+    "jokerOnlyWhenVoid": "ジョーカーを出せるのは、スートに従えないときだけです（{suit}）。"
+  },
+  "meta": {
+    "name": "ノミネーション・ホイスト",
+    "description": "3〜7人で遊ぶオー・ヘル系のホイスト。取るトリック数をぴったり宣言します。切り札は毎ラウンド変わります。友達ともコンピュータープレイヤーとも遊べます。"
+  },
+  "stats": {
+    "roundsPlayed": "プレイしたラウンド",
+    "bidsMade": "ぴったり当てた宣言",
+    "tricksWon": "取ったトリック",
+    "perfectGames": "完璧なゲーム（全宣言的中）",
+    "instantWins": "即勝利（最初か最後のラウンドで7を宣言して達成）",
+    "scoredOver100": "100点を超えたゲーム",
+    "singledOut": "自分だけが宣言を当てたラウンド",
+    "zeroBidsMade": "達成した0の宣言",
+    "sevenMade": "達成した7の宣言",
+    "missedByOne": "宣言を1つ外したラウンド",
+    "biggestBidMade": "達成した最大の宣言"
+  },
+  "achievements": {
+    "perfect": {
+      "name": "完璧なゲーム",
+      "text": "1ゲームですべての宣言を当てる"
+    },
+    "over100": {
+      "name": "100点超え",
+      "text": "1ゲームで100点を超えるのを{n}回",
+      "one": "1ゲームで100点を超える"
+    },
+    "single": {
+      "name": "ただひとり",
+      "text": "自分だけが宣言を当てるのを{n}回",
+      "one": "自分だけが宣言を当てる"
+    },
+    "zero": {
+      "name": "無欲の勝利",
+      "text": "0を宣言して達成するのを{n}回",
+      "one": "0を宣言して達成する"
+    },
+    "score": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "bids": {
+      "name": "宣言的中",
+      "text": "宣言をぴったり{n}回当てる"
+    },
+    "seven": {
+      "name": "セブンアップ",
+      "text": "7を宣言して達成する"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

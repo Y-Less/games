@@ -1,0 +1,287 @@
+{
+  "entry": {
+    "intro": "ひとりだけ、お題が見えていません。残りの全員でそれが誰か分かるでしょうか。あなたは{name}としてプレイします。",
+    "gameGone": "そのゲームはもうありません。友達に新しいリンクをもらってください。"
+  },
+  "leave": {
+    "takenOver": "あなたの席と得点は、コンピュータープレイヤーが引き継ぎます。",
+    "scoreLost": "あなたの得点は失われます。"
+  },
+  "lobby": {
+    "share": "友達はスタート画面のゲームコードか、招待リンクで参加できます。少なくとも{min}人必要です。",
+    "playersLabel": "このゲームのプレイヤー",
+    "allCards": "すべてのカード",
+    "playStyle": "遊び方",
+    "categories": "カードのカテゴリー",
+    "pickCategories": "デッキに入れるカードの種類を選びましょう。",
+    "cardCount": "{count}枚",
+    "noCategories": "選べるカテゴリーがありません",
+    "deckSize": "デッキに{count}枚。",
+    "notEnoughCards": "{players}が1人{handSize}枚ずつ持つには足りません（{needed}必要）。",
+    "handSize": "1人の手札の枚数",
+    "roundsEach": "1人がお題を選ぶ回数",
+    "gameLength": "全員が{times}お題を選ぶとゲーム終了です。{players}なら{rounds}になります。",
+    "times": "{count}回",
+    "rounds": "{count}ラウンド",
+    "playerCount": "{count}人",
+    "needMore": "あと{count}人必要",
+    "chooseMoreCategories": "カテゴリーをもっと選ぶ",
+    "waitingToStart": "ホストがゲームを始めるのを待っています。手札は{handSize}枚で、全員が{times}お題を選びます。",
+    "howItWorks": "遊び方",
+    "rule": {
+      "word": "毎ラウンド、1人が言葉やフレーズを考えて入力します。",
+      "everyoneSees": "他の全員がそれを見て、手札からいちばん合うカードを出します。",
+      "oneInTheDark": "他の全員がそれを見ますが、ランダムに選ばれた1人だけは{hidden}としか見えません。",
+      "bluff": "全員が手札からいちばん合うカードを出します。お題を知らない人は、ごまかすしかありません。",
+      "reveal": "カードとお題が公開されます。話し合って、選んだ理由を説明しましょう。",
+      "favourite": "そのあと出題者がお気に入りのカードを選び、それを出した人が{points}点を得ます。",
+      "chooserDecides": "そのあと投票です。出題者が、お題が見えていなかったのは誰かを決めます。",
+      "everyoneVotes": "そのあと投票です。お題が見えていなかったのは誰か、全員で投票します。"
+    }
+  },
+  "judging": {
+    "everyone": {
+      "title": "全員で投票",
+      "short": "全員で投票",
+      "text": "お題が見えていなかったのは誰か、全員で投票します。見破られたら、その人に投票した各プレイヤーが{perVote}点。だまされたら、インポスターは見抜けなかった人数ごとに{perVote}点を得ます。"
+    },
+    "chooser": {
+      "title": "出題者だけが決める",
+      "short": "出題者だけが決める",
+      "text": "お題が見えていなかったのは誰か、出題者だけが当てます。当たれば出題者が{correct}点、だまされればインポスターが{fooled}点です。"
+    },
+    "favourite": {
+      "title": "お気に入りのカード（インポスターなし）",
+      "short": "お気に入りのカード",
+      "text": "全員がお題を見るので、ごまかす人はいません。出題者がいちばん気に入ったカードを選び、それを出した人が{points}点を得ます。"
+    }
+  },
+  "round": {
+    "label": "ラウンド{n}",
+    "earlier": "前のラウンド"
+  },
+  "notes": {
+    "chooser": "出題者",
+    "cardPicked": "カードが選ばれた",
+    "chooserCardPicked": "出題者、カードが選ばれた",
+    "imposterCaught": "インポスター、露見",
+    "imposterFooledAll": "インポスター、全員をだます",
+    "chooserSpotted": "出題者、見破る",
+    "chooserFooled": "出題者、だまされる"
+  },
+  "reveal": {
+    "favourite": "{chooser}が{winner}のカードを選びました。",
+    "imposter": "{name}がインポスターでした。",
+    "chooserSpotted": "出題者が見破りました。",
+    "chooserFooled": "出題者はだまされました。",
+    "groupFound": "みんなで見破りました。",
+    "groupFooled": "みんなだまされました。"
+  },
+  "popup": {
+    "turns": "出題者を務めた回数",
+    "waiting": "次のラウンド待ち",
+    "choosingWord": "お題を考え中",
+    "waitingForWord": "お題待ち",
+    "hasPlayed": "カードを出しました",
+    "stillChoosing": "カードを選んでいます",
+    "hasVoted": "投票済み",
+    "stillToVote": "未投票",
+    "theChooser": "出題者"
+  },
+  "facts": {
+    "chooser": "出題者：{name}",
+    "word": "お題：{word}",
+    "deck": "山札 {draw} / 捨て札 {discard}",
+    "code": "コード {code}"
+  },
+  "table": {
+    "hiddenWord": "???",
+    "offline": "接続が切れました。つなぎ直しています…",
+    "ideas": "お題のヒント",
+    "wordPlaceholder": "言葉やフレーズ",
+    "giveIdeas": "案を出して",
+    "moreIdeas": "別の案",
+    "lockIn": "決定",
+    "lastRound": "今のが最後のラウンドでした。最終得点を見る",
+    "nextRound": "次のラウンド：{name}がお題を選びます",
+    "backToLobby": "ロビーに戻る",
+    "skipRound": "ラウンドをとばす",
+    "endGame": "ゲームを終える",
+    "confirmEnd": "ゲームを終えて、全員をロビーに戻しますか？得点はリセットされます。",
+    "confirmSkip": "このラウンドをやめて（得点なし）、次の出題者に移りますか？",
+    "card": "カード{id}",
+    "cardPlayed": "カード{id}、提出済み",
+    "played": "提出済み",
+    "alreadyPlayed": "すでに出しました",
+    "playThis": "このカードを出す",
+    "playInstead": "こちらに差し替える",
+    "lookCloser": "{name}のカードを大きく見る",
+    "imposter": "インポスター",
+    "favourite": "お気に入り",
+    "vote": "投票",
+    "pickThis": "これを選ぶ",
+    "yourPick": "あなたの選択",
+    "voteFor": "{name}に投票",
+    "votes": "{count}票",
+    "votesBy": "{count}票：{names}",
+    "confirmFavourite": "{name}のカードをお気に入りに選びますか？これでラウンドが終わります。",
+    "confirmDecide": "{name}がお題を知らなかったと決めますか？これでラウンドが終わります。",
+    "faceDown": "裏向きに出されたカード",
+    "toPlay": "まだ出されていないカード",
+    "cardPreview": "カードの拡大",
+    "previousCard": "前のカード",
+    "nextCard": "次のカード",
+    "position": "{total}枚中{n}枚目",
+    "wordChosenHidden": "お題は決まりましたが、あなたには見えません",
+    "wordIs": "お題は"
+  },
+  "finished": {
+    "tie": "引き分け！{names}の勝ちです",
+    "withPoints": "{count}点で"
+  },
+  "status": {
+    "theChooser": "出題者",
+    "nobody": "なし",
+    "away": "離席：{names}。",
+    "chooseWord": "あなたの番です。言葉かフレーズを選んでください。",
+    "chooseWordFavourite": "全員に見えます。いろいろに解釈できるものを選びましょう。",
+    "chooseWordImposter": "他の全員に見えますが、ランダムに選ばれた1人だけは{hidden}しか見えず、ごまかすことになります。いろいろに解釈できるものを選びましょう。",
+    "choosing": "{name}がお題を考えています…",
+    "lookAtHand": "待っているあいだに手札を見てみましょう。",
+    "waitingFor": "{names}を待っています…",
+    "joinedMidRound": "ラウンドの途中で参加したので、次のラウンドから配られます。",
+    "everyonePlayed": "全員が出しました。",
+    "cardPlayed": "カードを出しました。",
+    "yourWord": "これはあなたのお題です。全員がカードを出すのを待っています。",
+    "canSwap": "全員が出すまでは差し替えられます。",
+    "playInTheDark": "あなたの番です。お題は見えていません。合いそうなカードを出して、うまく紛れましょう。",
+    "clickToPlay": "手札のカードをクリックすると、大きく見て出せます。",
+    "playCard": "あなたの番です。お題にいちばん合うカードを出してください。",
+    "chooserPicks": "出題者がお気に入りを選びます。",
+    "oneInTheDark": "このお題が見えていない人がひとりいます。",
+    "pickFavourite": "あなたの番です。いちばん気に入ったカードを選んでください。",
+    "decide": "あなたの番です。お題が見えていなかったのは誰でしょう。",
+    "picked": "選びました。",
+    "decided": "決めました。",
+    "listenFavourite": "それぞれがカードの理由を説明します。選ばれた人は{points}点です。",
+    "guessRight": "当たればあなたが{correct}点。だまされると、インポスターが{fooled}点です。",
+    "willPickFavourite": "{name}がお気に入りを選びます。",
+    "willDecide": "{name}が、お題が見えていなかったのは誰かを決めます。",
+    "explainFavourite": "自分のカードがお題に合う理由を説明しましょう。{name}に選ばれれば{points}点です。",
+    "explainDecide": "自分のカードがお題に合う理由を説明しましょう。{name}がだまされれば、インポスターが{points}点です。",
+    "joinNextRound": "次のラウンドから参加します。",
+    "vote": "あなたの番です。お題が見えていなかった人に投票してください。",
+    "voteIn": "投票しました。まだ変えられます。",
+    "stillToVote": "未投票：{names}。",
+    "explainVote": "そのカードを選んだ理由を説明し、他の人の話も聞きましょう。最後の票が入るとラウンドが終わります。",
+    "favouritePicked": "{chooser}が{winner}のカードを選びました。",
+    "scores": "{name}が{points}点です。",
+    "discardAndDraw": "出したカードは捨て札になり、全員が{handSize}枚になるまで引きます。",
+    "chooserRight": "{name}が言い当てて{points}点です。",
+    "chooserFooled": "{chooser}はだまされました！{imposter}が{points}点です。",
+    "groupFound": "みんなで見破りました。その人に投票した人は{points}点です。",
+    "groupFooled": "みんなだまされました！{name}が{points}点です（見抜けなかった1人につき{each}点）。",
+    "votesFor": "{name}への票：{voters}。",
+    "wasImposter": "{name}がインポスターでした！",
+    "tie": "引き分けです！{names}の勝ちです。",
+    "gameOverAfter": "{count}ラウンドでゲーム終了。",
+    "hostAgain": "もう一度遊ぶには「ロビーに戻る」を押すか、右上から退出してください。",
+    "waitingHost": "ホストが全員をロビーに戻すか、退出する（右上）のを待っています。"
+  },
+  "log": {
+    "skipped": "このラウンドはとばされました。",
+    "choosing": "ラウンド{n}：{name}がお題を考えています。",
+    "chose": "{name}がお題を決めました。",
+    "played": "{name}がカードを出しました。",
+    "voted": "{name}が投票しました。",
+    "decided": "{name}が決めました。",
+    "allOnTable": "カードがすべて場に出ました。",
+    "favourite": "{chooser}が{winner}のカードを選びました。",
+    "imposterCaught": "{name}がインポスターでした。見破られました。",
+    "imposterFooled": "{name}がインポスターでした。全員をだましました。"
+  },
+  "errors": {
+    "enterName": "名前を入力してください。",
+    "nameTooLong": "名前は{max}文字までです。",
+    "nameTaken": "その名前はすでに使われています。",
+    "unknownAI": "不明なAIです。",
+    "handSizeRange": "手札の枚数は{min}〜{max}にしてください。",
+    "unknownJudging": "不明な判定方法です。",
+    "unknownCategory": "不明なカテゴリーです。",
+    "needCategory": "カテゴリーを少なくとも1つ選んでください。",
+    "notEnoughCards": "選んだカテゴリーでは、その人数分のカードが足りません。カテゴリーをもっと選んでください。",
+    "hostOnlyEnd": "ゲームを終えられるのはホストだけです。",
+    "hostOnlySkip": "ラウンドをとばせるのはホストだけです。",
+    "noRoundToSkip": "とばすラウンドがありません。",
+    "notTimeToChooseWord": "お題を選ぶ場面ではありません。",
+    "chooserOnlyWord": "お題を選べるのは出題者だけです。",
+    "typeWord": "先に言葉かフレーズを入力してください。",
+    "wordTooLong": "{max}文字以内にしてください。",
+    "nobodyToPlay": "このラウンドでカードを出す人が他にいません。",
+    "notPlayingThisRound": "このラウンドはカードを出しません。",
+    "notTimeToVote": "投票する場面ではありません。",
+    "waitingNextRound": "次のラウンドを待っています。",
+    "chooserOnlyVotes": "このゲームで投票するのは出題者だけです。",
+    "voteSelf": "自分には投票できません。",
+    "voteCardPlayer": "投票できるのは、カードを出した人だけです。",
+    "joinFirst": "ゲームに参加してください。",
+    "tooManyGames": "進行中のゲームが多すぎます。しばらくしてからお試しください。"
+  },
+  "meta": {
+    "name": "ディクスント",
+    "description": "ディクシット風のカードゲームに、ひとひねり。ひとりだけが秘密裏にお題を知らされず、残りの人は誰がごまかしているかを見抜きます。"
+  },
+  "stats": {
+    "roundsAsImposter": "インポスターだったラウンド",
+    "timesFooledGroup": "みんなをだました回数",
+    "correctGuesses": "見破ったインポスター",
+    "cardsPlayed": "出したカード",
+    "soleCorrect": "誰も見つけられなかったインポスターを、ひとりだけ見破った回数",
+    "favouritePicks": "自分のカードがお気に入りに選ばれた回数",
+    "mostFooled": "1ゲームでみんなをだました最多回数",
+    "spymaster": "全ラウンドでインポスターを見破ったゲーム"
+  },
+  "achievements": {
+    "imposter": {
+      "name": "インポスター",
+      "text": "みんなを{n}回だます",
+      "one": "みんなをだます"
+    },
+    "dontfool": {
+      "name": "その手は食わない",
+      "text": "誰も見つけられなかったインポスターに、ひとりだけ投票するのを{n}回",
+      "one": "誰も見つけられなかったインポスターに、ひとりだけ投票する"
+    },
+    "favourite": {
+      "name": "お気に入り",
+      "text": "自分のカードが{n}回ベストに選ばれる",
+      "one": "自分のカードがベストに選ばれる"
+    },
+    "art": {
+      "name": "アート好き",
+      "text": "{n}種類のカードを配られる"
+    },
+    "invisible": {
+      "name": "透明人間",
+      "text": "1ゲームでインポスターとして5回みんなをだます"
+    },
+    "spymaster": {
+      "name": "スパイマスター",
+      "text": "1ゲームの全ラウンドでインポスターに正しく投票する"
+    },
+    "points": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

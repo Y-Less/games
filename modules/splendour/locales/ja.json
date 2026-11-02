@@ -1,0 +1,239 @@
+{
+  "entry": {
+    "noun": "スプレンダー",
+    "intro": "2〜4人で宝石を集め、カードを買い、貴族の訪問を得ます。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "players": "人数",
+    "playerCount": "{count}人",
+    "playTo": "目標（威信点）",
+    "targetUsual": "{n}（標準）"
+  },
+  "gems": {
+    "diamond": "ダイヤモンド",
+    "sapphire": "サファイア",
+    "emerald": "エメラルド",
+    "ruby": "ルビー",
+    "onyx": "オニキス",
+    "gold": "ゴールド"
+  },
+  "nobles": {
+    "n1": "記録官",
+    "n2": "港湾長",
+    "n3": "薬草師",
+    "n4": "炉の番人",
+    "n5": "夜警",
+    "n6": "宝石細工師",
+    "n7": "地図製作者",
+    "n8": "錬金術師",
+    "n9": "点灯夫",
+    "n10": "石の計量人"
+  },
+  "table": {
+    "supplyLabel": "宝石の供給",
+    "supply": "供給",
+    "stackLabel": "{gem}：残り{count}個",
+    "goldTitle": "ゴールドはワイルドです。カードを確保すると手に入ります。",
+    "marketLabel": "カード",
+    "nobles": "貴族",
+    "noNobles": "貴族はすべて訪問済みです。",
+    "returnCount": "{count}個中{done}個を戻す",
+    "clear": "クリア",
+    "buy": "このカードを買う",
+    "cannotAffordTitle": "このカードは買えません",
+    "reserveGold": "確保（+ゴールド1）",
+    "reserveNoGold": "確保（ゴールドなし）",
+    "goldLabel": "ゴールド：",
+    "lessGold": "ゴールドを減らす",
+    "moreGold": "ゴールドを増やす",
+    "reserveTop": "山札の一番上を確保",
+    "takeCount": "宝石を{count}個取る",
+    "pass": "パス（他にできることがありません）",
+    "showScores": "得点を見る"
+  },
+  "facts": {
+    "nothing": "なし",
+    "gemCount": "{gem}{count}個",
+    "costDiscounted": "{gem} {left}（{cost}中）",
+    "cardFull": "レベル{level}のカード：威信{points}点、{bonus}のボーナス。コスト{cost}。",
+    "faceDownCard": "裏向きのレベル{level}カード",
+    "canBuy": "購入可",
+    "cardsLeft": "残り{count}",
+    "levelRow": "レベル{level}のカード",
+    "pileTitle": "レベル{level}の山札の一番上を、見ずに確保する",
+    "pileLabel": "レベル{level}の山札、{count}枚。選ぶと一番上を確保します。",
+    "noble": "{name}：威信{points}点。{needs}のカードが必要です。",
+    "nobleChoose": "{name}を選ぶ：威信{points}点。{needs}のカードが必要です。",
+    "board": "{name}のボード",
+    "cpu": "CPU",
+    "aiTitle": "コンピュータープレイヤー：{name}",
+    "prestigeTitle": "威信{n}点",
+    "pts": "点",
+    "tokens": "トークン",
+    "tokensTitle": "トークン（{held}/{max}）",
+    "giveBack": "{gem}を戻す：所持{held}個、{marked}個を指定中",
+    "cards": "カード",
+    "cardsTitle": "カードのボーナス（{count}枚）",
+    "nobleBadge": "貴族：{name}",
+    "reservedLabel": "確保したカード（{held}/{max}）",
+    "reservedTitle": "確保（{held}/{max}）",
+    "target": "威信{n}点で勝ち",
+    "piles": "残りの山札：{piles}",
+    "pileCount": "{count}（レベル{level}）",
+    "prestigeCount": "威信{n}点",
+    "cardsCount": "{count}枚",
+    "noblesCount": "貴族{count}人"
+  },
+  "status": {
+    "winner": "{name}が威信{prestige}点で勝ちました！",
+    "winnerYou": "{name}（あなた）が威信{prestige}点で勝ちました！",
+    "sharedWin": "引き分けの勝利：{names}が威信{prestige}点です。",
+    "returnTokens": "トークンが{max}個を超えています。{count}個戻してください。",
+    "chooseNoble": "貴族を選んでください。市場で選びたい貴族をクリックします。",
+    "theirReturn": "{name}がトークンを戻しています。",
+    "theirNoble": "{name}が貴族を選んでいます。",
+    "myTurn": "あなたの番です。宝石を取るか、カードを確保するか、カードを買ってください。",
+    "lastRound": "{name}が{target}に到達しました。手番数をそろえるため、これが最後のラウンドです。",
+    "returnHelp": "トークンは{max}個までしか持てません。戻す{count}個を自分のトークンからクリックで選び、「戻す」を押してください。",
+    "nobleHelp": "複数の貴族が訪問を希望していますが、来られるのは1人だけです。市場で強調された貴族から選んでクリックしてください（どれも威信{points}点です）。",
+    "wellPlayed": "お見事。",
+    "cardInfo": "レベル{level}のカード：威信{points}点、{bonus}のボーナス。",
+    "afford": "買えます。支払いは{pay}です。",
+    "affordGold": "買えます。支払いは{pay}です（ゴールド{gold}を使用）。",
+    "short": "まだ買えません。{short}が足りません。",
+    "shortGold": "まだ買えません。{short}が足りません（ゴールド{gold}で{covered}を補えます）。",
+    "waitOther": "他のプレイヤーが終えるのを待ってください。",
+    "lookOnly": "今はカードを見られますが、動かせるのは自分の番だけです。",
+    "reserveBlind": "レベル{level}の山札から確保します。一番上のカードを見ずに取り、買うまで中身を知っているのはあなただけです。ゴールドも1個もらえます。",
+    "reserveBlindNoGold": "レベル{level}の山札から確保します。一番上のカードを見ずに取り、買うまで中身を知っているのはあなただけです。ゴールドは残っていないのでもらえません。",
+    "hint": "宝石をクリックして取るか、カードをクリックして買うか確保します。",
+    "finishFirst": "先に今の選択を終えてください。",
+    "reserveFull": "確保したカードがすでに{count}枚あります。",
+    "endLimit": "ラウンド数の上限に達しました。",
+    "endStalled": "誰も何もできなくなりました。",
+    "tieFewerCards": "威信点が同じときは、カードの少ない人の勝ちです。",
+    "tieShared": "威信点も購入カード数も同じなので、勝ちを分け合います。",
+    "waitingHost": "ホストが次のゲームを始めるか、退出する（右上）のを待っています。"
+  },
+  "take": {
+    "noneLeft": "取れる宝石が残っていません。代わりにカードを確保するか、買ってください。",
+    "howTo": "違う色の宝石を3個クリックするか、同じ色を2回クリックして2個取ります。",
+    "pair": "{gem}を2個取ります。",
+    "more": "別の色の宝石をあと{count}個選んでください。",
+    "confirm": "{gems}を取ります。",
+    "confirmMore": "{gems}を取ります。（あと{count}個取れます。）",
+    "pairNeedsFour": "{gem}を2個取るには、供給に4個以上残っている必要があります。",
+    "noneOfColour": "{gem}はもう残っていません。",
+    "atMostThree": "宝石は3個までです。先にどれかをクリックして戻してください。"
+  },
+  "log": {
+    "empty": "まだ何も起きていません。",
+    "round": "R{n}",
+    "took": "{gems}を取った",
+    "tookTwo": "{gem}を2個取った",
+    "reservedCard": "レベル{level}のカード{gem}を確保",
+    "reservedCardGold": "レベル{level}のカード{gem}を確保し、{gold}を取得",
+    "reservedBlind": "山札{level}の一番上を確保",
+    "reservedBlindGold": "山札{level}の一番上を確保し、{gold}を取得",
+    "bought": "レベル{level}のカード{gem}を購入",
+    "boughtPoints": "レベル{level}のカード{gem}を購入（+{points}）",
+    "returned": "トークンを{count}個戻した",
+    "noble": "{name}の訪問を受けた（+{points}）",
+    "passed": "パス"
+  },
+  "notes": {
+    "tookGems": "宝石{count}個を取得",
+    "reserved": "レベル{level}のカードを確保",
+    "bought": "レベル{level}のカードを購入",
+    "boughtPoints": "レベル{level}のカードを購入（{count}点）",
+    "nobleVisited": "貴族が訪問",
+    "passed": "パス"
+  },
+  "errors": {
+    "targetPrestige": "目標の威信点は{targets}にしてください。",
+    "returnFirst": "先にトークンを戻してください。",
+    "chooseNobleFirst": "先に貴族を選んでください。",
+    "takeUpToThree": "違う色の宝石を3個まで取ってください。",
+    "notAGemColour": "それは宝石の色ではありません。",
+    "gemsMustDiffer": "同時に取る宝石は、すべて違う色でなければなりません。",
+    "noneOfThatColour": "その色はもう残っていません。",
+    "takeThreeDifferent": "違う3色の宝石を3個取ってください。",
+    "needFourForPair": "同じ色を2個取れるのは、4個以上残っているときだけです。",
+    "reserveLimit": "確保できるのは{count}枚までです。",
+    "cardNotOnTable": "そのカードは場にありません。",
+    "chooseCardOrLevel": "カードかレベルを選んでください。",
+    "pileEmpty": "その山札は空です。",
+    "cardNotAvailable": "そのカードは場にも、あなたの確保にもありません。",
+    "cannotAfford": "そのカードは買えません。",
+    "invalidPayment": "正しい支払いではありません。",
+    "paymentMismatch": "その支払いはカードのコストと合いません。",
+    "nothingToReturn": "戻すトークンはありません。",
+    "invalidTokens": "正しいトークンの組み合わせではありません。",
+    "tokensNotHeld": "持っていないトークンは戻せません。",
+    "returnExactly": "ちょうど{count}個のトークンを戻してください。",
+    "noNobleToChoose": "選べる貴族がいません。",
+    "nobleNotVisiting": "その貴族はあなたを訪問しません。",
+    "passOnlyIfStuck": "パスできるのは、他に何もできないときだけです。",
+    "unknownMove": "不明な手です。"
+  },
+  "meta": {
+    "name": "スプレンダー",
+    "description": "2〜4人で遊ぶ、宝石とパトロンのエンジンビルド。宝石を集め、発展カードを買って永続の割引を得て、貴族の支持を集め、いちばん早く目標の威信点に届きましょう。友達ともコンピュータープレイヤーとも遊べます。"
+  },
+  "stats": {
+    "cardsBought": "買った発展カード",
+    "noblesVisited": "訪問を受けた貴族",
+    "reservedCards": "確保したカード",
+    "turnsTaken": "手番数",
+    "level3Bought": "買ったレベル3の発展カード",
+    "nobleChoices": "貴族が2人来て選んだ手番",
+    "tokenReturns": "10個を超えてトークンを戻した回数",
+    "pipped": "先に目標へ届きながら負けたゲーム"
+  },
+  "achievements": {
+    "nobles": {
+      "name": "貴族のお付き合い",
+      "text": "貴族の訪問を{n}回受ける",
+      "one": "貴族の訪問を受ける"
+    },
+    "reserved": {
+      "name": "取り置き",
+      "text": "カードを{n}枚確保する",
+      "one": "カードを1枚確保する"
+    },
+    "pipped": {
+      "name": "惜敗",
+      "text": "先に目標へ届きながら負ける"
+    },
+    "bought": {
+      "name": "買い物上手",
+      "text": "発展カードを{n}枚買う",
+      "one": "発展カードを1枚買う"
+    },
+    "level3": {
+      "name": "高級志向",
+      "text": "レベル3のカードを{n}枚買う",
+      "one": "レベル3のカードを1枚買う"
+    },
+    "choice": {
+      "name": "スプレンダーの選択",
+      "text": "1手番で2人の貴族の条件を満たし、1人を選ぶ"
+    },
+    "greed": {
+      "name": "強欲",
+      "text": "10個を超えてトークンを戻すのを{n}回",
+      "one": "10個を超えてトークンを戻す"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}

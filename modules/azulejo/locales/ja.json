@@ -1,0 +1,215 @@
+{
+  "entry": {
+    "noun": "アズレージョ",
+    "intro": "ディスプレイの皿から絵タイルをドラフトして、模様の壁を作ります。2〜5人。空席はコンピュータープレイヤーで埋められます。"
+  },
+  "freeWall": "フリー壁",
+  "colour": {
+    "0": "コバルト",
+    "1": "サフラン",
+    "2": "テラコッタ",
+    "3": "ヴェルディグリ",
+    "4": "プラム"
+  },
+  "tiles": "{colour}{count}枚",
+  "source": {
+    "centre": "中央",
+    "factory": "工房{n}"
+  },
+  "player": "プレイヤー{n}",
+  "bonuses": "ボーナス",
+  "lobby": {
+    "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
+    "players": "プレイヤー（席数）",
+    "playerCount": "{n}人",
+    "plates": "{perPlate}枚ずつ乗ったディスプレイの皿が{plates}枚。袋には{tiles}枚（各色{perColour}枚）入っています。",
+    "offByDefault": "（初期設定はオフ）",
+    "freeWallOn": "壁は空の状態で始まります。ラインが完成すると、その人がその行のどの列に置くかを選びます。同じ色は行にも列にも重ねられません。ラインを使えるのは、その行にその色の空き列が残っているあいだだけです。",
+    "freeWallOff": "標準の壁です。各行は1つ上の行を1つずらした並びで、どの色も各行で置く場所が決まっています。"
+  },
+  "status": {
+    "chooseColumn": "壁貼り：{row}行目の{colour}タイルを置く列を選んでください。",
+    "waitingColumns": "壁貼り：{names}が列を選ぶのを待っています…",
+    "yourTurn": "あなたの番です。皿か中央の色をクリックしてください。",
+    "chooseWhere": "次は、{colour}{count}枚をどこに置くか選んでください。強調されたラインか、床です。",
+    "clickPlace": "壁の{row}行目で、強調された場所をクリックしてください。",
+    "pointAtLine": "ラインにポインターを合わせると結果が見えます。緑のラインには置けます。床にはいつでも置けます。",
+    "takeTiles": "1枚の皿か中央から、同じ色のタイルをすべて取ります。",
+    "firstPlayer": "先手：{name}。先手マーカー：{marker}。",
+    "selected": "{source}から{colour}{count}枚。",
+    "selectedMarker": "{source}から{colour}{count}枚と先手マーカー（床を1マス使い、次のラウンドの先手になります）。"
+  },
+  "marker": {
+    "centre": "中央にあります",
+    "taken": "取られました",
+    "with": "{name}が持っています"
+  },
+  "preview": {
+    "floor": "{colour}{count}枚すべてが床に行きます。",
+    "line": "{colour}{count}枚のうち{put}枚がライン{line}に乗ります。",
+    "lineComplete": "{colour}{count}枚のうち{put}枚がライン{line}に乗り、完成します。",
+    "spill": "{count}枚が床にあふれます。",
+    "marker": "先手マーカーも取ります。",
+    "cost": "床でさらに{cost}点失います（合計{total}点）。",
+    "noCost": "床の減点は増えません。"
+  },
+  "table": {
+    "floorTitle": "すべて床のラインに置く",
+    "bonusNote": "最後の行は終了時ボーナスを足すので、それぞれの合計が最終得点になります。",
+    "finalResult": "最終結果",
+    "winner": "{names}が{points}点で勝ちました。 | {names}が{points}点で勝ちを分け合いました。",
+    "player": "プレイヤー",
+    "beforeBonuses": "ボーナス前",
+    "rows": "行（+{bonus}）",
+    "columns": "列（+{bonus}）",
+    "colours": "色（+{bonus}）",
+    "bonuses": "ボーナス",
+    "place": "順位",
+    "winnerPlace": "優勝",
+    "tiesNote": "同点のときは完成した行の多い人が上位です。それでも同じなら勝ちを分け合います。",
+    "waitingHost": "ホストがもう一度始めるか、退出する（右上）のを待っています。",
+    "chooseAnother": "別の色を選ぶ"
+  },
+  "facts": {
+    "round": "ラウンド{n}",
+    "inBag": "袋に{count}枚",
+    "lidTitle": "ふたに{count}枚",
+    "lid": "ふた："
+  },
+  "board": {
+    "label": "{name}のボード",
+    "toMove": "手番",
+    "firstNext": "次のラウンドの先手",
+    "firstNextTitle": "次のラウンドを始めます",
+    "scoreTitle": "{name}は{count}点",
+    "patternLines": "パターンライン",
+    "line": "ライン{n}：{capacity}枚中{count}枚",
+    "wall": "壁",
+    "wallFree": "壁（フリー）",
+    "putTile": "{row}行{col}列にタイルを置く",
+    "floorLine": "床ライン",
+    "floor": "床"
+  },
+  "workshop": {
+    "plates": "工房ディスプレイ",
+    "fromFactory": "工房{n}から{colour}{count}枚",
+    "fromCentre": "中央から{colour}{count}枚",
+    "withMarker": "{colour}{count}枚（と先手マーカー）",
+    "empty": "空",
+    "centre": "中央",
+    "markerTitle": "中央から最初に取った人がこのマーカーを受け取り（床を1マス使います）、次のラウンドの先手になります。",
+    "onlyMarker": "マーカーだけです。",
+    "nothingHere": "ここには何もありません。"
+  },
+  "tile": {
+    "marker": "先手マーカー",
+    "placeFor": "{name}（置き場所）"
+  },
+  "tiling": {
+    "label": "ラウンド{n}の壁貼り",
+    "title": "壁貼り、ラウンド{n}",
+    "chip": "{row}行目：{count}点",
+    "noneFull": "完成したラインなし",
+    "dropped": "（完成した{count}ラインに置き場所なし）",
+    "floorLost": "床 -{lost}",
+    "floorNone": "床 0"
+  },
+  "notes": {
+    "floor": "床 -{lost}",
+    "rowsComplete": "{count}行完成",
+    "noRoom": "完成したラインを置く場所が壁にない",
+    "rows": "{count}行",
+    "columns": "{count}列",
+    "sets": "{count}色セット",
+    "noBonuses": "ボーナスなし"
+  },
+  "log": {
+    "takesOver": "{name}が退出した人の代わりに入りました",
+    "begins": "ゲーム開始。{name}が先手です。",
+    "round": "ラウンド{n}：{name}が先手です。",
+    "took": "{name}が{source}から{tiles}取りました：{result}",
+    "tookMarker": "{name}が{source}から{tiles}と先手マーカーを取りました：{result}",
+    "allToFloor": "すべて床へ",
+    "onLine": "{placed}をライン{line}へ",
+    "onLineSpill": "{placed}をライン{line}へ、{overflow}を床へ",
+    "scored": "{name}が{points}点",
+    "scoredLost": "{name}が{points}点、そのあと床で{lost}点減点",
+    "roundOverRow": "ラウンド{n}が終わり、行が1つ完成しました。",
+    "gameOver": "ゲーム終了。{names}の勝ちです。 | ゲーム終了。{names}が勝ちを分け合いました。"
+  },
+  "errors": {
+    "freeWallSetting": "フリー壁の設定はオンかオフです。",
+    "chooseSource": "工房ディスプレイか中央を選んでください。",
+    "chooseColour": "色を選んでください。",
+    "noColourInSource": "{source}に{colour}はありません。",
+    "noSuchLine": "そのパターンラインはありません。",
+    "lineFull": "ライン{line}はもう満杯です。",
+    "lineHolds": "ライン{line}にはすでに{colour}が乗っています。",
+    "rowHasColour": "壁の{row}行目には、すでに{colour}があります。",
+    "noFreeColumn": "壁の{row}行目に、{colour}を置ける空き列がありません。",
+    "notTimeToPlace": "壁にタイルを置く場面ではありません。",
+    "nothingToPlace": "壁に置くものがありません。",
+    "chooseHighlighted": "{row}行目の強調された列から選んでください。"
+  },
+  "meta": {
+    "name": "アズレージョ",
+    "description": "工房のディスプレイ皿から絵タイルをドラフトして、模様の壁を作ります。2〜5人用で、空席はコンピュータープレイヤーが埋められます。"
+  },
+  "stats": {
+    "rowsCompleted": "完成した壁の行",
+    "columnsCompleted": "完成した壁の列",
+    "colourSetsCompleted": "完成した色セット",
+    "floorPenalties": "床で失った点",
+    "roundsPlayed": "プレイしたラウンド",
+    "bottomRows": "壁の最下行を埋めて終えたゲーム",
+    "tilesTaken": "取ったタイル",
+    "tilesDropped": "床に落としたタイル（先手マーカー込み）",
+    "floorsFilled": "床を埋めた回数",
+    "wallTiles": "壁に置いたタイル",
+    "gridsFilled": "壁をすべて埋めて終えたゲーム"
+  },
+  "achievements": {
+    "points": {
+      "name": "累計得点",
+      "text": "合計{n}点を取る"
+    },
+    "taken": {
+      "name": "タイルコレクター",
+      "text": "タイルを{n}枚取る",
+      "one": "タイルを1枚取る"
+    },
+    "dropped": {
+      "name": "粉々",
+      "text": "タイルを{n}枚床に落とす",
+      "one": "タイルを1枚床に落とす"
+    },
+    "sets": {
+      "name": "カラーセット",
+      "text": "色セットを{n}組そろえる",
+      "one": "色セットを1組そろえる"
+    },
+    "bottom": {
+      "name": "土台は万全",
+      "text": "最下行を埋めてゲームを{n}回終える",
+      "one": "最下行を埋めてゲームを終える"
+    },
+    "floor": {
+      "name": "床まみれ",
+      "text": "床を埋める"
+    },
+    "grid": {
+      "name": "整理整頓",
+      "text": "壁のすべてのマスを埋める"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}
