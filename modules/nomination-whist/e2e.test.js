@@ -180,9 +180,10 @@ function assertHistory(person, { rounds, seats }) {
   const totals = totalsFromRounds(s.rounds, s.seats.map((x) => x.seat));
   s.seats.forEach((seat) => assert.equal(seat.score, totals[seat.seat], `${seat.name}: the rounds add up to the total`));
   s.rounds.forEach((r, i) => {
-    assert.match(r.label, new RegExp(`^Round ${i + 1}: \\d cards?, `));
+    assert.equal(r.label.key, 'round.label');
+    assert.equal(r.label.params.n, i + 1, 'the round label names the round');
     for (const seat of s.seats) {
-      assert.match(r.notes[seat.seat], /^bid \d, took \d$/);
+      assert.deepEqual(r.notes[seat.seat], { key: 'round.note', params: { bid: r.bids[seat.seat], taken: r.taken[seat.seat] } });
       const [bid, took] = [r.bids[seat.seat], r.taken[seat.seat]];
       assert.equal(r.deltas[seat.seat], bid === took ? 10 + bid : s.settings.missPoints ? took : 0);
     }
@@ -306,7 +307,7 @@ test('the lobby: only the host changes things, seats and computer players, and t
   const { person } = await launch(t);
   const [ann, bob] = [await person('ann'), await person('bob')];
   assert.equal((await ann.send('join', { code: 'nonsense' })).ok, false);
-  assert.match((await ann.send('join', { code: 'boss-aware-you' })).error, /No game has that code/);
+  assert.equal((await ann.send('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
   assert.equal((await ann.send('start')).ok, false, 'not in a game');
   const created = await ann.send('create', {});
   assert.ok(created.ok);
@@ -367,7 +368,7 @@ test('invalid moves are refused and never change the game', async (t) => {
   const before = JSON.stringify(ann.state.hand);
   for (const card of ['ZZ', 7, null, '1S', 'AS AS']) assert.equal((await ann.send('play', { card })).ok, false);
   const illegal = ann.state.hand.find((c) => ann.state.legal[c] !== null);
-  if (illegal) assert.match((await ann.send('play', { card: illegal })).error, /follow suit/);
+  if (illegal) assert.ok(['followSuit', 'jokerOnlyWhenVoid'].includes((await ann.send('play', { card: illegal })).error));
   assert.equal(JSON.stringify(ann.state.hand), before);
   assert.equal((await ann.send('next')).ok, false);
   assert.equal((await ann.send('again')).ok, false);
@@ -385,7 +386,7 @@ test('the dealer cannot make the nominations add up to the tricks, whoever deals
       if (s.round.dealer === s.you && s.forbidden !== null) {
         const refused = await ann.send('nominate', { number: s.forbidden });
         assert.equal(refused.ok, false);
-        assert.match(refused.error, /cannot nominate/);
+        assert.equal(refused.error, 'dealerForbidden');
         checked++;
       }
     }
@@ -492,7 +493,7 @@ test('when the last person leaves, the game is abandoned and nothing is recorded
   await bob.send('leave');
   await until(() => ann.state === null && bob.state === null, 'both out');
   await sleep(200);
-  assert.match((await ann.send('join', { code })).error, /No game has that code/);
+  assert.equal((await ann.send('join', { code })).error, 'noGameWithCode');
   assert.equal((await ann.stats()).perGame.length, 0);
   assert.equal((await bob.stats()).perGame.length, 0);
 });

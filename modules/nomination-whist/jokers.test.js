@@ -126,7 +126,7 @@ test('the server refuses a Joker while you can follow suit, with a reason, and o
   room.hands[b] = ['5H', BLACK];
   room.turn = a;
   assert.ok(g.playCard(room, a, '9H').ok);
-  assert.match(g.illegalReason(room, b, BLACK), /only play a Joker when you cannot follow suit \(hearts\)/);
+  assert.deepEqual(g.illegalReason(room, b, BLACK), { key: 'errors.jokerOnlyWhenVoid', params: { suit: { key: 'cards.suit.H' } } });
   assert.equal(g.playCard(room, b, BLACK).ok, false);
   assert.deepEqual(g.legalCards(room, b), ['5H']);
   // Had seat b no heart, the Joker would be fine.

@@ -189,10 +189,12 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await ann.call('fillBots', {});
   await ann.call('start', {});
   await until(() => ann.state?.phase === 'nominating' && bob.state?.phase === 'nominating', 'nominating');
-  const refused = async (p, event, payload, pattern) => {
+  // `code` is the refusal code expected (a string), or a pattern when more than one code would be right.
+  const refused = async (p, event, payload, code) => {
     const reply = await p.call(event, payload);
     assert.equal(reply.ok, false, `${event} ${JSON.stringify(payload)?.slice(0, 50)}`);
-    if (pattern) assert.match(reply.error, pattern);
+    if (typeof code === 'string') assert.equal(reply.error, code);
+    else if (code) assert.match(reply.error, code);
     assert.deepEqual(cardsIn(reply), []);
   };
   const people = [ann, bob];
@@ -201,21 +203,21 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   const mover = people.find((p) => p.state.turn === p.state.you);
   const waiter = mover === ann ? bob : ann;
   const cards = mover.state.round.cards;
-  await refused(waiter, 'nominate', { number: 0 }, /not your turn/);
-  for (const number of [-1, cards + 1, 1.5, '1', null, [1], { n: 1 }, 1e9, NaN, true]) await refused(mover, 'nominate', { number }, /whole number|./);
-  await refused(mover, 'nominate', {}, /whole number/);
-  await refused(eve, 'nominate', { number: 0 }, /not in a game/);
-  await refused(mover, 'play', { card: mover.state.hand[0] }, /not being played/);
-  await refused(mover, 'next', {}, /not over/);
-  await refused(mover, 'again', {}, /not over|host/);
-  await refused(mover, 'start', {}, /before the game starts|Only the host/);
-  await refused(mover, 'settings', { length: 'full' }, /before the game starts|Only the host/);
-  await refused(mover, 'fillBots', {}, /before the game starts|Only the host/);
-  await refused(mover, 'addBot', {}, /before the game starts|Only the host/);
-  await refused(mover, 'removeBot', { seat: 2 }, /before the game starts|Only the host/);
-  await refused(bob, 'kick', { seat: 0 }, /host|before the game starts/);
-  await refused(mover, 'join', { code: 'boss-aware-you' }, /already in the game/);
-  await refused(mover, 'create', {}, /already in the game/);
+  await refused(waiter, 'nominate', { number: 0 }, 'notYourTurnToNominate');
+  for (const number of [-1, cards + 1, 1.5, '1', null, [1], { n: 1 }, 1e9, NaN, true]) await refused(mover, 'nominate', { number }, /nominateRange|./);
+  await refused(mover, 'nominate', {}, 'nominateRange');
+  await refused(eve, 'nominate', { number: 0 }, 'notInAnyGame');
+  await refused(mover, 'play', { card: mover.state.hand[0] }, 'notPlaying');
+  await refused(mover, 'next', {}, 'roundNotOver');
+  await refused(mover, 'again', {}, /notOver|hostOnly/);
+  await refused(mover, 'start', {}, /settingsBeforeStart|hostOnly/);
+  await refused(mover, 'settings', { length: 'full' }, /settingsBeforeStart|hostOnly/);
+  await refused(mover, 'fillBots', {}, /settingsBeforeStart|hostOnly/);
+  await refused(mover, 'addBot', {}, /settingsBeforeStart|hostOnly/);
+  await refused(mover, 'removeBot', { seat: 2 }, /settingsBeforeStart|hostOnly/);
+  await refused(bob, 'kick', { seat: 0 }, /hostOnly|settingsBeforeStart/);
+  await refused(mover, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
+  await refused(mover, 'create', {}, 'alreadyInGameStart');
   assert.equal(mover.state.seats[mover.state.you].bid, null, 'nothing was nominated');
   // The dealer cannot make the total equal the tricks: play to the dealer's turn if a person is the dealer.
   assert.equal((await mover.call('nominate', { number: mover.state.forbidden === 0 ? 1 : 0 })).ok, true, 'a proper nomination works');
@@ -225,11 +227,11 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
     const m = people.find((p) => p.state.legal);
     const w = m === ann ? bob : ann;
     const before = m.state.trick.length;
-    await refused(w, 'play', { card: w.state.hand[0] }, /not your turn/);
-    await refused(m, 'play', { card: w.state.hand.find((c) => !m.state.hand.includes(c)) }, /not in your hand/);
+    await refused(w, 'play', { card: w.state.hand[0] }, 'notYourTurn');
+    await refused(m, 'play', { card: w.state.hand.find((c) => !m.state.hand.includes(c)) }, 'notInHand');
     for (const card of ['ZZ', '1S', '', 'as', 'AS ', ' 2C', 12, null, ['2C'], { card: '2C' }, '2C2C', 'x'.repeat(100000)]) await refused(m, 'play', { card }, /./);
-    await refused(eve, 'play', { card: '2C' }, /not in a game/);
-    await refused(m, 'nominate', { number: 0 }, /not time to nominate/);
+    await refused(eve, 'play', { card: '2C' }, 'notInAnyGame');
+    await refused(m, 'nominate', { number: 0 }, 'notTimeToNominate');
     assert.equal(m.state.trick.length, before, 'no card reached the table');
     assert.equal((await m.call('play', { card: Object.keys(m.state.legal).find((c) => m.state.legal[c] === null) })).ok, true);
   }

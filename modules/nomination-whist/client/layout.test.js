@@ -4,11 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { leaveOffer } from '../../../src/playBar.js';
+import { messageText } from '../../../src/messageText.js';
 import { movesBetween } from './log.js';
 import NominationWhist from './NominationWhist.vue';
 import Table from './Table.vue';
 
 window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+
+// A log line (a message) in English, as the table draws it.
+const words = (line) => messageText(line, 'nomination-whist');
 
 /** A started 4-seat game (user 1 is seat 0), with `turn` to nominate. */
 function started(turn = 0) {
@@ -150,17 +154,17 @@ describe('Recent moves', () => {
 
   it('starts with the round and adds a line for each nomination, card and trick', () => {
     const before = base();
-    expect(movesBetween(null, before)).toEqual([{ text: expect.stringMatching(/^Round 1: 7 cards each, .* are trumps\.$/) }]);
+    expect(movesBetween(null, before).map(words)).toEqual([expect.stringMatching(/^Round 1: 7 cards each, .* are trumps\.$/)]);
     const nominated = copy(before);
     nominated.seats[1].bid = 2;
-    expect(movesBetween(before, nominated)).toEqual([{ text: `${nominated.seats[1].name} nominated 2.` }]);
+    expect(movesBetween(before, nominated).map(words)).toEqual([`${nominated.seats[1].name} nominated 2.`]);
     const one = copy(before);
     one.trick = [{ seat: 2, card: 'QS' }];
-    expect(movesBetween(before, one)).toEqual([{ text: `${one.seats[2].name} played Q♠.` }]);
+    expect(movesBetween(before, one).map(words)).toEqual([`${one.seats[2].name} played the queen of spades.`]);
     const full = copy(one);
     full.trick = [0, 1, 2, 3].map((seat) => ({ seat, card: 'QS' }));
     full.trickWinner = 1;
-    expect(movesBetween(one, full).map((l) => l.text).at(-1)).toBe(`${full.seats[1].name} won the trick.`);
+    expect(movesBetween(one, full).map(words).at(-1)).toBe(`${full.seats[1].name} won the trick.`);
   });
 
   it('says nothing when nothing changed, and starts afresh with a new round', () => {
@@ -169,7 +173,7 @@ describe('Recent moves', () => {
     const later = copy(state);
     later.round.number = 2;
     later.round.cards = 6;
-    expect(movesBetween(state, later)[0].text).toMatch(/^Round 2: 6 cards each/);
+    expect(words(movesBetween(state, later)[0])).toMatch(/^Round 2: 6 cards each/);
     expect(movesBetween(null, { ...state, phase: 'lobby' })).toEqual([]);
   });
 

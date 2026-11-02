@@ -16,16 +16,19 @@ import CardFan from '../../../src/components/CardFan.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
-import { sortHand, SUIT_NAMES, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
+import { sortHand, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
+import { suitMsg } from '../../../shared/messages.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Final from './Final.vue';
 import RoundResult from './RoundResult.vue';
 
 const props = defineProps({
   state: { type: Object, required: true },
   send: { type: Function, required: true },
-  log: { type: Array, default: () => [] }, // Recent moves: [{ text }], kept by the page (see log.js)
+  log: { type: Array, default: () => [] }, // Recent moves: messages, kept by the page (see log.js)
 });
+const { t, text, list } = useGameText();
 
 // A transient warning (why a card cannot be played), cleared whenever the phase, turn or round changes.
 const hint = ref('');
@@ -65,8 +68,6 @@ const nominating = computed(() => props.state.phase === 'nominating' && myTurn.v
 const ordered = computed(() => seats.value.map((_, i) => seats.value[(you.value + i) % seats.value.length]).map((s) => ({ key: s.seat, name: s.name, ...s })));
 // Everyone except you, in clockwise order from you.
 const others = computed(() => ordered.value.slice(1));
-// Returns "n word" with an 's' added to the word unless n is 1.
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /**
  * The short line under an opponent's name: what they nominated and how many tricks they have won so far.
  * @param {object} seat  a seat object from the state (seat, bid, tricks)
@@ -75,10 +76,10 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
  */
 function noteFor(seat) {
   if (seat.bid === null) {
-    if (props.state.phase === 'nominating' && props.state.turn === seat.seat) return 'nominating…';
-    return seat.seat === props.state.round?.dealer ? 'dealer' : 'not yet nominated'; // the dealer nominates last
+    if (props.state.phase === 'nominating' && props.state.turn === seat.seat) return t('table.nominating');
+    return seat.seat === props.state.round?.dealer ? t('table.dealer') : t('table.notYetNominated'); // the dealer nominates last
   }
-  return props.state.phase === 'nominating' ? `nominated ${seat.bid}` : `nominated ${seat.bid} · won ${seat.tricks}`;
+  return props.state.phase === 'nominating' ? t('table.nominated', { bid: seat.bid }) : t('table.nominatedWon', { bid: seat.bid, tricks: seat.tricks });
 }
 // Opponents in the shape OpponentHands expects (name, card count, note, away and current-turn flags).
 const opponents = computed(() => others.value.map((s) => ({ key: s.seat, name: s.name, cards: s.cards, note: noteFor(s), away: Boolean(s.away && !s.bot), current: s.seat === props.state.turn })));
@@ -98,8 +99,10 @@ const opened = computed(() => ordered.value.find((o) => o.seat === openId.value)
 
 // CSS class that colours the trump label red for hearts and diamonds.
 const trumpClass = computed(() => (round.value.trump === 'H' || round.value.trump === 'D' ? 'red' : ''));
-// The trump suit's name, or 'no trumps'.
-const trumpText = computed(() => (round.value.trump ? SUIT_NAMES[round.value.trump] : 'no trumps'));
+// The trump suit's name (the site's word for the suit), or the game's "no trumps".
+const trumpText = computed(() => (round.value.trump ? text(suitMsg(round.value.trump)) : t('noTrumps')));
+// A seat's name, with the site's "(you)" after your own, as the scoreboard writes it.
+const named = (seat) => (seat.seat === you.value ? `${seat.name} ${t('common.youBracketed')}` : seat.name);
 // True when you are the dealer this round.
 const imDealer = computed(() => round.value.dealer === you.value);
 const MOST_CARDS = 7; // the most cards in a hand: the nomination zone always has room for 0 to this
@@ -117,13 +120,13 @@ const winnerKey = computed(() => (props.state.trick.length ? props.state.trickWi
 // The one-line headline for the Status box describing what is happening now.
 const headline = computed(() => {
   const { phase } = props.state;
-  if (phase === 'nominating') return myTurn.value ? 'Your turn: nominate how many tricks you will win.' : `Waiting for ${nameOf(props.state.turn)} to nominate.`;
+  if (phase === 'nominating') return myTurn.value ? t('status.yourTurnNominate') : t('status.waitingNominate', { name: nameOf(props.state.turn) });
   if (phase === 'playing') {
-    if (props.state.turn === null) return `${nameOf(props.state.trickWinner)} wins the trick.`;
-    return myTurn.value ? 'Your turn: play a card.' : `Waiting for ${nameOf(props.state.turn)} to play.`;
+    if (props.state.turn === null) return t('status.winsTrick', { name: nameOf(props.state.trickWinner) });
+    return myTurn.value ? t('status.yourTurnPlay') : t('status.waitingPlay', { name: nameOf(props.state.turn) });
   }
-  if (phase === 'roundEnd') return seats.value[you.value].ready ? `Waiting for ${waitingFor.value.join(', ')} to be ready for the next round.` : 'The round is over: close the scores to carry on.';
-  if (finished.value) return instantWinner.value ? `${instantWinner.value.name} wins the game instantly!` : 'The game is over.';
+  if (phase === 'roundEnd') return seats.value[you.value].ready ? t('status.waitingReady', { names: list(waitingFor.value) }) : t('status.roundOver');
+  if (finished.value) return instantWinner.value ? t('status.winsInstantly', { name: instantWinner.value.name }) : t('status.gameOver');
   return '';
 });
 // True when it is your move (nominate, play, or close the round scores), which highlights the Status box.
@@ -140,18 +143,18 @@ const statusLines = computed(() => {
   if (hint.value) lines.push({ text: hint.value, tone: 'warn' });
   if (props.state.phase === 'nominating') {
     if (myTurn.value && props.state.suggestion != null) {
-      lines.push({ text: `Suggested nomination for your hand: ${props.state.suggestion} (highlighted).`, tone: 'muted' });
+      lines.push({ text: t('status.suggestion', { n: props.state.suggestion }), tone: 'muted' });
     }
     if (myTurn.value && imDealer.value && props.state.forbidden !== null) {
-      lines.push(`You are the dealer, so you cannot nominate ${props.state.forbidden}: the nominations would total ${round.value.cards}, the number of tricks, and somebody has to miss.`);
+      lines.push(t('status.dealerForbidden', { number: props.state.forbidden, cards: round.value.cards }));
     } else if (myTurn.value && imDealer.value) {
-      lines.push(`You are the dealer. The others have already nominated at least ${round.value.cards} tricks between them, so any number is allowed.`);
+      lines.push(t('status.dealerFree', { cards: round.value.cards }));
     } else if (!everyoneNominated.value && round.value.dealer === props.state.turn) {
-      lines.push({ text: `${nameOf(round.value.dealer)} deals and nominates last: they cannot nominate ${props.state.forbidden}.`, tone: 'muted' });
+      lines.push({ text: t('status.dealerLast', { name: nameOf(round.value.dealer), number: props.state.forbidden }), tone: 'muted' });
     }
   }
-  if (props.state.phase === 'playing' && myTurn.value && hand.value.some((c) => props.state.legal?.[c])) lines.push({ text: 'Dimmed cards cannot be played: you must follow suit.', tone: 'muted' });
-  if (finished.value && instantWinner.value) lines.push({ text: `They nominated 7 and won all 7 tricks in ${lastRound.value?.label}.`, tone: 'muted' });
+  if (props.state.phase === 'playing' && myTurn.value && hand.value.some((c) => props.state.legal?.[c])) lines.push({ text: t('status.followSuit'), tone: 'muted' });
+  if (finished.value && instantWinner.value) lines.push({ text: t('status.instantHow', { round: text(lastRound.value?.label) }), tone: 'muted' });
   return lines;
 });
 
@@ -164,7 +167,7 @@ const statusLines = computed(() => {
 function pick(card) {
   const reason = props.state.legal?.[card];
   if (reason) {
-    hint.value = reason;
+    hint.value = text(reason);
     return;
   }
   hint.value = '';
@@ -205,7 +208,7 @@ const roomFor = (area) => {
     <template #scorebar>
       <ScoreBoard :players="board.players" :rounds="board.rounds" :finished="finished && !instantWinner" :low-is-better="false" :awaiting="state.phase === 'roundEnd' && !seats[you].ready" :waiting="waitingFor" :sticky="false" v-bind="scoreProps" @continue="send('next')">
         <template #round>
-          <p v-if="instantWinner" class="instant-note" role="status"><strong>{{ instantWinner.name }}{{ instantWinner.seat === you ? ' (you)' : '' }} wins the game instantly!</strong> They nominated 7 and won all 7 tricks in {{ lastRound?.label }}.</p>
+          <p v-if="instantWinner" class="instant-note" role="status"><strong>{{ t('status.winsInstantly', { name: named(instantWinner) }) }}</strong> {{ t('status.instantHow', { round: text(lastRound?.label) }) }}</p>
           <RoundResult v-if="lastRound" :round="lastRound" :seats="seats" :you="you" />
         </template>
       </ScoreBoard>
@@ -215,17 +218,17 @@ const roomFor = (area) => {
       <div class="arena">
         <PlayerPopup v-if="popupProps" v-bind="popupProps">
           <dl v-if="opened" class="facts">
-            <dt>Dealer</dt>
-            <dd>{{ opened.seat === round.dealer ? 'yes' : 'no' }}</dd>
-            <dt>Cards in hand</dt>
+            <dt>{{ t('popup.dealer') }}</dt>
+            <dd>{{ opened.seat === round.dealer ? t('popup.yes') : t('popup.no') }}</dd>
+            <dt>{{ t('popup.cardsInHand') }}</dt>
             <dd>{{ opened.cards }}</dd>
-            <dt>Nomination</dt>
+            <dt>{{ t('popup.nomination') }}</dt>
             <dd>
-              <template v-if="opened.bid !== null">nominated <b>{{ opened.bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ opened.tricks }}</b></template></template>
-              <template v-else-if="state.phase === 'nominating' && state.turn === opened.seat">choosing…</template>
-              <template v-else>not yet</template>
+              <template v-if="opened.bid !== null">{{ state.phase === 'nominating' ? t('table.nominated', { bid: opened.bid }) : t('table.nominatedWon', { bid: opened.bid, tricks: opened.tricks }) }}</template>
+              <template v-else-if="state.phase === 'nominating' && state.turn === opened.seat">{{ t('popup.choosing') }}</template>
+              <template v-else>{{ t('popup.notYet') }}</template>
             </dd>
-            <dt>Score</dt>
+            <dt>{{ t('popup.score') }}</dt>
             <dd>{{ opened.score }}</dd>
           </dl>
         </PlayerPopup>
@@ -236,8 +239,8 @@ const roomFor = (area) => {
           <div class="centre" :style="{ paddingTop: TOP_HANDS.includes(others.length) ? `${TOP_RESERVE}px` : undefined }" aria-live="polite">
             <TrickCircle :style="{ zoom: roomFor(area).zoom }" :seats="ordered" :plays="plays" :winner-key="winnerKey" :trump="round.trump ?? ''" size="lg" labels />
           </div>
-          <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" aria-label="Your nomination">
-            <h3>Your nomination</h3>
+          <section class="nominate" :class="{ live: nominating, hidden: state.phase !== 'nominating' }" :aria-label="t('table.yourNomination')">
+            <h3>{{ t('table.yourNomination') }}</h3>
             <div class="numbers">
               <button
                 v-for="n in options"
@@ -245,7 +248,7 @@ const roomFor = (area) => {
                 class="number"
                 :class="{ forbidden: n === state.forbidden && nominating, suggested: n === state.suggestion && nominating }"
                 :disabled="!nominating || n === state.forbidden"
-                :title="n === state.forbidden && nominating ? 'You cannot nominate this as the dealer' : n === state.suggestion && nominating ? 'Suggested for your hand' : ''"
+                :title="n === state.forbidden && nominating ? t('table.forbiddenTitle') : n === state.suggestion && nominating ? t('table.suggestedTitle') : ''"
                 @click="send('nominate', { number: n })"
               >{{ n }}</button>
             </div>
@@ -253,9 +256,9 @@ const roomFor = (area) => {
         </template>
 
         <div class="mine">
-          <CardFan class="hand" role="group" aria-label="Your hand" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" :straight="!roomFor(area).fanned">
+          <CardFan class="hand" role="group" :aria-label="t('table.yourHand')" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" :straight="!roomFor(area).fanned">
             <template #default="{ item: card }">
-              <div class="slot" :title="state.legal?.[card] ?? undefined">
+              <div class="slot" :title="state.legal?.[card] ? text(state.legal[card]) : undefined">
                 <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" :trump="Boolean(round.trump) && suitOf(card) === round.trump" @pick="pick" />
               </div>
             </template>
@@ -265,21 +268,21 @@ const roomFor = (area) => {
     </template>
 
     <template #log>
-      <GameLog :entries="log" newest-first :fresh="4" empty="Nothing has been played yet." v-slot="{ entry }">{{ entry.text }}</GameLog>
+      <GameLog :entries="log" newest-first :fresh="4" :empty="t('table.nothingPlayed')" v-slot="{ entry }">{{ text(entry) }}</GameLog>
     </template>
 
     <template #status>
       <GameStatus :headline="headline" :mine="mineNow" :popup="false" :lines="statusLines">
         <template #facts>
-          <strong>Round {{ round.number }} of {{ round.total }}</strong>
-          <span>{{ round.cards }} {{ round.cards === 1 ? 'card' : 'cards' }} each</span>
-          <span>Dealer: {{ nameOf(round.dealer) }}{{ imDealer ? ' (you)' : '' }}</span>
+          <strong>{{ t('facts.round', { n: round.number, total: round.total }) }}</strong>
+          <span>{{ t('facts.cardsEach', { count: round.cards }, round.cards) }}</span>
+          <span>{{ t('facts.dealer', { name: named(seats[round.dealer]) }) }}</span>
           <span class="tally">
-            <template v-if="seats[you].bid !== null">You nominated <b>{{ seats[you].bid }}</b><template v-if="state.phase !== 'nominating'"> · won <b>{{ seats[you].tricks }}</b></template></template>
-            <template v-else>You have not nominated yet</template>
+            <template v-if="seats[you].bid !== null">{{ state.phase === 'nominating' ? t('facts.youNominated', { bid: seats[you].bid }) : t('facts.youNominatedWon', { bid: seats[you].bid, tricks: seats[you].tricks }) }}</template>
+            <template v-else>{{ t('facts.notNominated') }}</template>
           </span>
-          <span class="trump" :class="trumpClass" :title="`Trumps this round: ${trumpText}`">Trumps: <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
-          <span v-if="state.phase === 'nominating'">{{ total }} of {{ round.cards }} {{ round.cards === 1 ? 'trick' : 'tricks' }} nominated</span>
+          <span class="trump" :class="trumpClass" :title="t('facts.trumpsTitle', { trump: trumpText })">{{ t('facts.trumps') }} <b><span v-if="round.trump" aria-hidden="true">{{ SUIT_SYMBOLS[round.trump] }}</span> {{ trumpText }}</b></span>
+          <span v-if="state.phase === 'nominating'">{{ t('facts.nominatedTotal', { total, count: round.cards }, round.cards) }}</span>
         </template>
       </GameStatus>
     </template>

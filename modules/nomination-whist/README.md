@@ -11,6 +11,7 @@ game.js            the rules as pure functions over a plain room object (no sock
 ai/                the computer players' AIs (ai/index.js exports AIS): standard (the original), random, cautious, optimist, counter, sharp; each has nominate(ctx) and play(ctx) over plain data. Each computer seat picks one by weight at game start (seats[].ai, saved with the room; a replacement picks when it joins; older rooms fall back to standard)
 server.js          the socket layer: rooms, saving to ctx.dataDir/rooms.json, bot timers, personalised views, statistics
 client/            Vue 3 components: NominationWhist (root), Lobby, Table, RoundResult, log (Recent moves), Final
+locales/en.json    every word a player reads (see MODULES.md, "Languages"); another language is another file beside it
 game.test.js       rules and computer-player tests
 e2e.test.js        end-to-end tests against the real site
 ```
@@ -39,7 +40,17 @@ When the last round ends the game is recorded once, for every person still seate
 
 Client to server (each takes a payload and an acknowledgement `{ ok, error? }`): `resume {code?}`, `join {code}`, `create {seats?, length?, missPoints?, instantWin?}`, `leave`, `settings {seats?, length?, missPoints?, instantWin?}`, `addBot {seat?}`, `removeBot {seat}`, `fillBots`, `start`, `nominate {number}`, `play {card}`, `next`, `again`.
 
-Server to client: `state`, a view personalised for that account (or `null` when not in a game). It holds your own hand, only card counts for everyone else, the standard scoreboard rounds (`rounds`: `label`, `deltas`, `notes`, plus `bids`, `taken`) and, when it is your turn to play, `legal` (each card in your hand with the reason it cannot be played, or `null`).
+An acknowledgement's `error` is a refusal code, not a sentence: a key under `errors.` in `locales/en.json` or the site's
+file, with `params` where the text needs them (`dealerForbidden` with `{ number, cards }`, `nominateRange` with `{ max }`,
+`followSuit` and `jokerOnlyWhenVoid` with `{ suit }`). The client turns it into words.
+
+Server to client: `state`, a view personalised for that account (or `null` when not in a game). It holds your own hand,
+only card counts for everyone else, the standard scoreboard rounds (`rounds`: `label`, `deltas`, `notes`, plus `bids`,
+`taken`) and, when it is your turn to play, `legal` (each card in your hand with the reason it cannot be played, or
+`null`). Every word in a view is a message (`{ key, params }`, see `shared/messages.js`), never English: a round's
+`label` is `round.label` with `{ n, count, trump }` (the trump is the site's `cards.suit.*`, or the game's `noTrumps`),
+a round's `notes` are `round.note` with `{ bid, taken }`, the instant winner's scoreboard `note` is `instantWin`, and a
+`legal` reason is an `errors.*` message. `trumpName` and `roundLabel` in `game.js` return messages for the same reason.
 
 ## Reusable parts
 

@@ -7,8 +7,10 @@
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
+import { useGameText } from '../../../src/useGameText.js';
 
 const props = defineProps({ state: { type: Object, required: true }, send: { type: Function, required: true } });
+const { t } = useGameText();
 
 // True when this player is the host (only they can change options).
 const isHost = computed(() => props.state.hostSeat === props.state.you);
@@ -34,7 +36,7 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
 <template>
   <div class="stack">
     <section class="panel stack">
-      <p class="muted">Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.</p>
+      <p class="muted">{{ t('lobby.share') }}</p>
       <div class="row"><InviteCode :code="state.code" /></div>
     </section>
 
@@ -48,41 +50,41 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
       @start="send('start')"
     >
       <template #settings>
-        <h3>Game options</h3>
+        <h3>{{ t('lobby.options') }}</h3>
         <div class="option">
-          <span class="muted">Number of seats</span>
+          <span class="muted">{{ t('lobby.seats') }}</span>
           <div class="row">
             <button v-for="n in seatOptions" :key="n" :class="{ primary: state.settings.seats === n }" :disabled="!isHost" :aria-pressed="state.settings.seats === n" @click="send('settings', { seats: n })">{{ n }}</button>
           </div>
         </div>
         <div class="option">
-          <span class="muted">Length of the game</span>
+          <span class="muted">{{ t('lobby.length') }}</span>
           <div class="row">
             <button :class="{ primary: state.settings.length === 'full' }" :disabled="!isHost" :aria-pressed="state.settings.length === 'full'" @click="send('settings', { length: 'full' })">
-              Full: 7 down to 1 and back (14 rounds)
+              {{ t('lobby.full') }}
             </button>
             <button :class="{ primary: state.settings.length === 'short' }" :disabled="!isHost" :aria-pressed="state.settings.length === 'short'" @click="send('settings', { length: 'short' })">
-              7 down to 1 only (7 rounds)
+              {{ t('lobby.short') }}
             </button>
           </div>
         </div>
         <label class="check">
           <input type="checkbox" :checked="state.settings.missPoints" :disabled="!isHost" @change="send('settings', { missPoints: $event.target.checked })" />
-          <span>Misses score the tricks taken<span class="muted"> (otherwise a miss scores nothing)</span></span>
+          <span>{{ t('lobby.missPoints') }}<span class="muted"> {{ t('lobby.missPointsNote') }}</span></span>
         </label>
         <label class="check">
           <input type="checkbox" :checked="state.settings.instantWin !== false" :disabled="!isHost" @change="send('settings', { instantWin: $event.target.checked })" />
-          <span>Instant win on a 7<span class="muted"> (nominate 7 and win all 7 tricks in the first or last round to win the whole game)</span></span>
+          <span>{{ t('lobby.instantWin') }}<span class="muted"> {{ t('lobby.instantWinNote') }}</span></span>
         </label>
         <label class="check">
           <input type="checkbox" :checked="state.settings.jokers === true" :disabled="!isHost" @change="send('settings', { jokers: $event.target.checked })" />
-          <span>Jokers<span class="muted"> (the two Jokers are shuffled in: a Joker wins the trick if you lead it or cannot follow suit, unless the other Joker is played in the same trick, when both lose)</span></span>
+          <span>{{ t('lobby.jokers') }}<span class="muted"> {{ t('lobby.jokersNote') }}</span></span>
         </label>
         <label class="check">
           <input type="checkbox" :checked="state.settings.hints !== false" :disabled="!isHost" @change="send('settings', { hints: $event.target.checked })" />
-          <span>Hints<span class="muted"> (suggest a nomination for your hand; turn off to work it out for yourselves)</span></span>
+          <span>{{ t('lobby.hints') }}<span class="muted"> {{ t('lobby.hintsNote') }}</span></span>
         </label>
-        <p class="muted">Hit your nomination exactly and score 10 plus the number nominated. {{ rounds }} rounds in all.</p>
+        <p class="muted">{{ t('lobby.scoring', { rounds }) }}</p>
       </template>
     </SeatLobby>
   </div>

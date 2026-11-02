@@ -35,7 +35,7 @@ test('rules: only the host can kick, and never themselves', () => {
   for (const [by, seat] of [[2, 2], [3, 1], [2, 0], [99, 1], [null, 1], [undefined, 1]]) {
     const result = game.kick(room, by, seat, Math.random);
     assert.equal(result.ok, false, `${by} kicking seat ${seat}`);
-    assert.match(result.error, /host/i);
+    assert.equal(result.error, 'hostOnly');
   }
   const self = game.kick(room, 1, 0, Math.random);
   assert.equal(self.ok, false);
@@ -53,7 +53,7 @@ test('rules: the host can remove a person in any phase but the last: a computer 
     const result = game.kick(room, 1, 1, Math.random);
     if (phase === 'finished') {
       assert.equal(result.ok, false, phase);
-      assert.match(result.error, /over/);
+      assert.equal(result.error, 'gameOverNobodyToRemove');
       assert.equal(snapshot(room), before);
     } else {
       assert.equal(result.ok, true, phase);
@@ -100,7 +100,7 @@ test('sockets: the host removes a person; they return to the entry screen and ca
   assert.equal((await bobsSecondTab.call('resume', { code })).ok, true);
   await until(() => bobsSecondTab.state?.you === 1, 'the second tab to be seated');
 
-  assert.deepEqual(await cat.call('kick', { seat: 1 }), { ok: false, error: 'Only the host can do that.' });
+  assert.deepEqual(await cat.call('kick', { seat: 1 }), { ok: false, error: 'hostOnly' });
   assert.equal(ann.state.seats[1].name, 'bob', 'a non-host cannot remove anyone');
 
   assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
@@ -118,7 +118,7 @@ test('sockets: the host removes a person; they return to the entry screen and ca
   for (const [event, payload] of [['settings', { length: 'short' }], ['start', {}], ['play', { card: '2C' }], ['kick', { seat: 0 }], ['addBot', {}]]) {
     const reply = await bob.call(event, payload);
     assert.equal(reply.ok, false, event);
-    assert.equal(reply.error, 'You are not in a game.');
+    assert.equal(reply.error, 'notInAnyGame');
   }
   assert.equal(ann.state.seats[1], null);
 
@@ -174,7 +174,7 @@ test('sockets: the host removes a person mid-game and a computer player takes th
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'started');
   const at = ann.state.seats.findIndex((x) => x.name === 'bob');
-  assert.deepEqual(await bob.call('kick', { seat: 0 }), { ok: false, error: 'Only the host can do that.' });
+  assert.deepEqual(await bob.call('kick', { seat: 0 }), { ok: false, error: 'hostOnly' });
   assert.deepEqual(await ann.call('kick', { seat: at }), { ok: true });
   await until(() => bob.state === null, 'bob sent out');
   await until(() => ann.state.seats[at].bot === true, 'a computer player in the seat');

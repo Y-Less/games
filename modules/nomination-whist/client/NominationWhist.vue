@@ -9,11 +9,13 @@ import { ref } from 'vue';
 import ErrorToast from '../../../src/components/ErrorToast.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import { useGameSocket } from '../../../src/useGameSocket.js';
+import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 import { movesBetween } from './log.js';
 
 const LOG_KEPT = 120;
+const { t } = useGameText();
 const log = ref([]); // Recent moves, worked out from the states as they arrive (see log.js)
 /**
  * Works the list of recent moves out from each state as it arrives. It lives here, not in the table, so that every state
@@ -45,7 +47,7 @@ const { state, loaded, busy, notice, initialCode, send } = useGameSocket({
   search: props.search,
   setSearch: props.setSearch,
   // Returns the warning shown when leaving mid-game ('' when leaving is harmless).
-  leaveConfirm: (state) => ['nominating', 'playing', 'roundEnd'].includes(state.phase) ? 'A computer player takes your seat if you leave.' : '',
+  leaveConfirm: (state) => (['nominating', 'playing', 'roundEnd'].includes(state.phase) ? t('leaveConfirm') : ''),
   onState,
 });
 </script>
@@ -53,11 +55,11 @@ const { state, loaded, busy, notice, initialCode, send } = useGameSocket({
 <template>
   <div class="whist stack">
     <ErrorToast v-if="notice && state" :text="notice" />
-    <p v-if="!loaded" class="muted">Loading your game…</p>
+    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
     <RoomEntry
       v-else-if="!state"
-      noun="game"
-      intro="Oh Hell-style whist for 3 to 7 players: nominate exactly how many tricks you will win."
+      :noun="t('entry.noun')"
+      :intro="t('entry.intro')"
       :busy="busy"
       :error="notice"
       :initial-code="initialCode"

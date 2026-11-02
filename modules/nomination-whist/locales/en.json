@@ -1,0 +1,121 @@
+{
+  "entry": {
+    "noun": "game of Nomination Whist",
+    "intro": "Oh Hell-style whist for 3 to 7 players: nominate exactly how many tricks you will win."
+  },
+  "leaveConfirm": "A computer player takes your seat if you leave.",
+  "lobby": {
+    "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
+    "options": "Game options",
+    "seats": "Number of seats",
+    "length": "Length of the game",
+    "full": "Full: 7 down to 1 and back (14 rounds)",
+    "short": "7 down to 1 only (7 rounds)",
+    "missPoints": "Misses score the tricks taken",
+    "missPointsNote": "(otherwise a miss scores nothing)",
+    "instantWin": "Instant win on a 7",
+    "instantWinNote": "(nominate 7 and win all 7 tricks in the first or last round to win the whole game)",
+    "jokers": "Jokers",
+    "jokersNote": "(the two Jokers are shuffled in: a Joker wins the trick if you lead it or cannot follow suit, unless the other Joker is played in the same trick, when both lose)",
+    "hints": "Hints",
+    "hintsNote": "(suggest a nomination for your hand; turn off to work it out for yourselves)",
+    "scoring": "Hit your nomination exactly and score 10 plus the number nominated. {rounds} rounds in all."
+  },
+  "noTrumps": "no trumps",
+  "instantWin": "instant win",
+  "round": {
+    "label": "Round {n}: {count} card, {trump} | Round {n}: {count} cards, {trump}",
+    "note": "bid {bid}, took {taken}"
+  },
+  "table": {
+    "nominating": "nominating…",
+    "dealer": "dealer",
+    "notYetNominated": "not yet nominated",
+    "nominated": "nominated {bid}",
+    "nominatedWon": "nominated {bid} · won {tricks}",
+    "yourNomination": "Your nomination",
+    "forbiddenTitle": "You cannot nominate this as the dealer",
+    "suggestedTitle": "Suggested for your hand",
+    "yourHand": "Your hand",
+    "nothingPlayed": "Nothing has been played yet.",
+    "playAgain": "Play again"
+  },
+  "status": {
+    "yourTurnNominate": "Your turn: nominate how many tricks you will win.",
+    "waitingNominate": "Waiting for {name} to nominate.",
+    "winsTrick": "{name} wins the trick.",
+    "yourTurnPlay": "Your turn: play a card.",
+    "waitingPlay": "Waiting for {name} to play.",
+    "waitingReady": "Waiting for {names} to be ready for the next round.",
+    "roundOver": "The round is over: close the scores to carry on.",
+    "winsInstantly": "{name} wins the game instantly!",
+    "gameOver": "The game is over.",
+    "suggestion": "Suggested nomination for your hand: {n} (highlighted).",
+    "dealerForbidden": "You are the dealer, so you cannot nominate {number}: the nominations would total {cards}, the number of tricks, and somebody has to miss.",
+    "dealerFree": "You are the dealer. The others have already nominated at least {cards} tricks between them, so any number is allowed.",
+    "dealerLast": "{name} deals and nominates last: they cannot nominate {number}.",
+    "followSuit": "Dimmed cards cannot be played: you must follow suit.",
+    "instantHow": "They nominated 7 and won all 7 tricks in {round}.",
+    "againHost": "The host can start another game."
+  },
+  "facts": {
+    "round": "Round {n} of {total}",
+    "cardsEach": "{count} card each | {count} cards each",
+    "dealer": "Dealer: {name}",
+    "youNominated": "You nominated {bid}",
+    "youNominatedWon": "You nominated {bid} · won {tricks}",
+    "notNominated": "You have not nominated yet",
+    "trumps": "Trumps:",
+    "trumpsTitle": "Trumps this round: {trump}",
+    "nominatedTotal": "{total} of {count} trick nominated | {total} of {count} tricks nominated"
+  },
+  "popup": {
+    "dealer": "Dealer",
+    "yes": "yes",
+    "no": "no",
+    "cardsInHand": "Cards in hand",
+    "nomination": "Nomination",
+    "choosing": "choosing…",
+    "notYet": "not yet",
+    "score": "Score"
+  },
+  "result": {
+    "player": "Player",
+    "nominated": "Nominated",
+    "won": "Won",
+    "points": "Points",
+    "instantWin": "instant win!",
+    "hit": "exactly right",
+    "missed": "missed"
+  },
+  "final": {
+    "winsInstantly": "{name} wins instantly!",
+    "instantExplain": "{name} nominated 7 and won all 7 tricks, so the game ends here whatever the totals. Everyone else is ranked by their scores so far.",
+    "youWon": "Well played: that is a win for you.",
+    "computer": "(computer)"
+  },
+  "log": {
+    "roundTrumps": "Round {n}: {count} card each, {trump} are trumps. | Round {n}: {count} cards each, {trump} are trumps.",
+    "roundNoTrumps": "Round {n}: {count} card each, no trumps. | Round {n}: {count} cards each, no trumps.",
+    "nominated": "{name} nominated {bid}.",
+    "played": "{name} played the {card}.",
+    "jokersCancel": "Both Jokers were played, so they cancel out.",
+    "secondJokerWins": "The second Joker beats the Joker that led.",
+    "wonTrick": "{name} won the trick.",
+    "roundOver": "Round {n} is over.",
+    "gameOver": "The game is over."
+  },
+  "errors": {
+    "lengthSetting": "The game is either the full 14 rounds or 7 down to 1.",
+    "missPointsSetting": "That scoring option must be on or off.",
+    "instantWinSetting": "That instant win option must be on or off.",
+    "jokersSetting": "The Jokers option must be on or off.",
+    "hintsSetting": "The hints option must be on or off.",
+    "notTimeToNominate": "It is not time to nominate.",
+    "notYourTurnToNominate": "It is not your turn to nominate.",
+    "nominateRange": "Nominate a whole number from 0 to {max}.",
+    "dealerForbidden": "As the dealer you cannot nominate {number}: the total would be {cards}, the number of tricks, so somebody has to miss.",
+    "followSuit": "You must follow suit ({suit}).",
+    "jokerOnlyWhenVoid": "You can only play a Joker when you cannot follow suit ({suit})."
+  }
+}

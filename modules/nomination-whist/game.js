@@ -1,12 +1,15 @@
 // The rules of Nomination Whist, with no sockets or files. A room is a plain object that can be saved as JSON.
-// Every action returns { ok: true, ... } or { ok: false, error }.
+// Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a refusal code (a key under
+// `errors.` in the game's own locale file or the site's, see shared/seats.js); anything else a client will show is a
+// message, { key, params } from shared/messages.js, never a sentence.
 // Depends on shared/ (cards, seats, scores, tally, tricks, ai), ./trick.js for the card rules, ./tally.js for the statistics
 // and ./ai for the computer players; the sockets and timers are in server.js.
 //
 // Seats run clockwise: the player to your left is seat + 1, so play and nominations go round in increasing seat order.
 // A seat holds a human ({ kind: 'human', id: <account id>, name }), a computer player ({ kind: 'bot', id: 'bot:<n>',
 // name }), a person who left after the game ended ({ kind: 'gone', name }) or null (empty, lobby only).
-import { deckFor, isJoker, shuffle, sortHand, SUIT_NAMES } from '../../shared/cards.js';
+import { deckFor, isJoker, shuffle, sortHand } from '../../shared/cards.js';
+import { msg, suitMsg } from '../../shared/messages.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat, turnAfterPlay } from '../../shared/tricks.js';
@@ -98,24 +101,25 @@ export const handSize = (settings, round) => scheduleFor(settings)[round];
  */
 export const trumpOf = (round) => TRUMP_ORDER[round % TRUMP_ORDER.length];
 /**
- * The trump suit as words.
+ * The trump suit as a message the client puts into words (shared/messages.js): the site's name for the suit, or the
+ * game's own "no trumps".
  *
  * @param {string | null} trump  the suit letter, or null
- * @returns {string} the suit's name, or 'no trumps'
+ * @returns {{ key: string }} the message
  * Side effects: none.
  */
-export const trumpName = (trump) => (trump ? SUIT_NAMES[trump] : 'no trumps');
+export const trumpName = (trump) => (trump ? suitMsg(trump) : msg('noTrumps'));
 /**
- * A short heading for a round, such as "Round 3: 5 cards, Hearts".
+ * A short heading for a round, such as "Round 3: 5 cards, diamonds", as a message (`count` picks the plural of "card").
  *
  * @param {object} settings  the room's settings
  * @param {number} round  the zero-based round
- * @returns {string} the label
+ * @returns {{ key: string, params: object }} the label
  * Side effects: none.
  */
 export const roundLabel = (settings, round) => {
   const cards = handSize(settings, round);
-  return `Round ${round + 1}: ${cards} ${cards === 1 ? 'card' : 'cards'}, ${trumpName(trumpOf(round))}`;
+  return msg('round.label', { n: round + 1, count: cards, trump: trumpName(trumpOf(round)) });
 };
 /**
  * The dealer of a round (0-based), given the first round's dealer: the deal passes clockwise each round.
@@ -184,27 +188,27 @@ export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === 
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
   if (input?.seats !== undefined) {
-    if (!Number.isInteger(input.seats) || input.seats < MIN_SEATS || input.seats > MAX_SEATS) return fail(`A game needs ${MIN_SEATS} to ${MAX_SEATS} seats.`);
+    if (!Number.isInteger(input.seats) || input.seats < MIN_SEATS || input.seats > MAX_SEATS) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
     next.seats = input.seats;
   }
   if (input?.length !== undefined) {
-    if (!LENGTHS.includes(input.length)) return fail('The game is either the full 14 rounds or 7 down to 1.');
+    if (!LENGTHS.includes(input.length)) return fail('lengthSetting');
     next.length = input.length;
   }
   if (input?.missPoints !== undefined) {
-    if (typeof input.missPoints !== 'boolean') return fail('That scoring option must be on or off.');
+    if (typeof input.missPoints !== 'boolean') return fail('missPointsSetting');
     next.missPoints = input.missPoints;
   }
   if (input?.instantWin !== undefined) {
-    if (typeof input.instantWin !== 'boolean') return fail('That instant win option must be on or off.');
+    if (typeof input.instantWin !== 'boolean') return fail('instantWinSetting');
     next.instantWin = input.instantWin;
   }
   if (input?.jokers !== undefined) {
-    if (typeof input.jokers !== 'boolean') return fail('The Jokers option must be on or off.');
+    if (typeof input.jokers !== 'boolean') return fail('jokersSetting');
     next.jokers = input.jokers;
   }
   if (input?.hints !== undefined) {
-    if (typeof input.hints !== 'boolean') return fail('The hints option must be on or off.');
+    if (typeof input.hints !== 'boolean') return fail('hintsSetting');
     next.hints = input.hints;
   }
   return ok({ settings: next });
@@ -224,7 +228,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
-  if (!normalised.ok) throw new Error(normalised.error);
+  if (!normalised.ok) throw new Error(`A room cannot be created with those settings (${normalised.error}).`);
   const room = {
     code,
     hostId,
@@ -299,7 +303,7 @@ function resizeSeats(room, count) {
   const occupants = room.seats.filter(Boolean);
   while (occupants.length > count) {
     const index = occupants.findLastIndex(isBot);
-    if (index === -1) return fail('Too many people are in the game for that many seats.');
+    if (index === -1) return fail('removeBeforeFewerSeats');
     occupants.splice(index, 1);
   }
   room.seats = [...occupants, ...Array(count - occupants.length).fill(null)];
@@ -341,8 +345,8 @@ export function setSettings(room, userId, input) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('Every seat needs a player. Add computer players to fill the empty ones.');
-  if (!humanSeats(room).length) return fail('At least one person has to play.');
+  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  if (!humanSeats(room).length) return fail('needPerson');
   resetGame(room);
   room.dealer = Math.floor(rng() * room.seats.length);
   dealRound(room, rng);
@@ -442,12 +446,12 @@ export function allowedNominations(room, seat) {
  * Side effects: as described; the room is unchanged when it fails.
  */
 export function nominate(room, seat, number) {
-  if (room.phase !== 'nominating') return fail('It is not time to nominate.');
-  if (room.turn !== seat) return fail('It is not your turn to nominate.');
+  if (room.phase !== 'nominating') return fail('notTimeToNominate');
+  if (room.turn !== seat) return fail('notYourTurnToNominate');
   const cards = cardsThisRound(room);
-  if (!Number.isInteger(number) || number < 0 || number > cards) return fail(`Nominate a whole number from 0 to ${cards}.`);
+  if (!Number.isInteger(number) || number < 0 || number > cards) return fail('nominateRange', { max: cards });
   if (seat === room.dealer && number === forbiddenNow(room)) {
-    return fail(`As the dealer you cannot nominate ${number}: the total would be ${cards}, the number of tricks, so somebody has to miss.`);
+    return fail('dealerForbidden', { number, cards });
   }
   room.nominations[seat] = number;
   if (seat === room.dealer) {
@@ -468,15 +472,16 @@ export function nominate(room, seat, number) {
  * @param {object} room  not changed
  * @param {number} seat  the seat playing
  * @param {string} card  the card it wants to play
- * @returns {string | null} the reason, or null when the card is legal
+ * @returns {{ key: string, params?: object } | null} the reason as a message (an `errors.` key, see shared/messages.js),
+ *   or null when the card is legal
  */
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
-  if (!hand.includes(card)) return 'That card is not in your hand.';
+  if (!hand.includes(card)) return msg('errors.notInHand');
   const trick = room.trick.map((p) => p.card);
   if (legalCardsFor(hand, trick).includes(card)) return null;
-  const led = SUIT_NAMES[ledSuit(trick)];
-  return isJoker(card) ? `You can only play a Joker when you cannot follow suit (${led}).` : `You must follow suit (${led}).`;
+  const led = suitMsg(ledSuit(trick));
+  return isJoker(card) ? msg('errors.jokerOnlyWhenVoid', { suit: led }) : msg('errors.followSuit', { suit: led });
 }
 
 /**
@@ -499,11 +504,11 @@ export const legalCards = (room, seat) => room.hands[seat].filter((card) => ille
  * @returns {{ ok: boolean, error?: string, complete?: boolean }} `complete` says the trick is now full
  */
 export function playCard(room, seat, card) {
-  if (room.phase !== 'playing') return fail('The cards are not being played.');
-  if (room.turn !== seat) return fail('It is not your turn.');
-  if (typeof card !== 'string') return fail('That is not a card.');
+  if (room.phase !== 'playing') return fail('notPlaying');
+  if (room.turn !== seat) return fail('notYourTurn');
+  if (typeof card !== 'string') return fail('notACard');
   const reason = illegalReason(room, seat, card);
-  if (reason) return fail(reason);
+  if (reason) return fail(reason.key.slice('errors.'.length), reason.params);
   const n = room.seats.length;
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
@@ -532,7 +537,7 @@ export function trickWinner(trick, trump) {
  * Side effects: as described; the room is unchanged when there is no finished trick.
  */
 export function resolveTrick(room) {
-  if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('There is no finished trick.');
+  if (room.phase !== 'playing' || room.trick.length !== room.seats.length) return fail('noFinishedTrick');
   const winner = trickWinner(room.trick, trumpThisRound(room));
   room.taken[winner]++;
   room.lastTrick = { plays: room.trick, winner };
@@ -597,8 +602,8 @@ function endRound(room) {
  * Side effects: as described.
  */
 export function nextRound(room, userId, rng) {
-  if (!hasPlayer(room, userId)) return fail('You are not in this game.');
-  if (room.phase !== 'roundEnd') return fail('The round is not over.');
+  if (!hasPlayer(room, userId)) return fail('notInGame');
+  if (room.phase !== 'roundEnd') return fail('roundNotOver');
   room.ready ??= [];
   const seat = seatOf(room, userId);
   if (!room.ready.includes(seat)) room.ready.push(seat);
@@ -645,7 +650,7 @@ function dealNext(room, rng) {
  * Side effects: as described.
  */
 export function forceNextRound(room, rng) {
-  if (room.phase !== 'roundEnd') return fail('The round is not over.');
+  if (room.phase !== 'roundEnd') return fail('roundNotOver');
   dealNext(room, rng);
   return ok();
 }
@@ -669,7 +674,7 @@ export const waitingForReady = (room) => room.phase === 'roundEnd';
 export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
-  if (room.phase !== 'finished') return fail('The game is not over.');
+  if (room.phase !== 'finished') return fail('notOver');
   freeGoneSeats(room);
   for (const s of room.seats) if (s) delete s.ai;
   resetGame(room);
@@ -864,7 +869,8 @@ export function runPending(room, rng) {
 // ---- what each player may see ----
 
 /**
- * The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows.
+ * The standard scoreboard rounds (shared/scores.js), plus the detail the round table shows. The round's `label` and each
+ * player's note ("bid 2, took 1") are messages (shared/messages.js), put into words by the client.
  *
  * @param {object} room  not changed
  * @returns {object[]} one entry per scored round
@@ -874,7 +880,7 @@ export function roundsView(room) {
   return room.history.map((h) => ({
     label: roundLabel(room.settings, h.round - 1),
     deltas: Object.fromEntries(h.points.map((points, seat) => [seat, points])),
-    notes: Object.fromEntries(h.bids.map((bid, seat) => [seat, `bid ${bid}, took ${h.taken[seat]}`])),
+    notes: Object.fromEntries(h.bids.map((bid, seat) => [seat, msg('round.note', { bid, taken: h.taken[seat] })])),
     round: h.round,
     cards: h.cards,
     trump: h.trump,
@@ -976,7 +982,7 @@ function scoreboardView(room, me, online) {
   const player = (seat, i) => ({
     ...seatScoreboardEntry(seat, i, { score: room.scores[i], me, current: room.turn === i, online }),
     ...(room.phase === 'roundEnd' ? { ready: isBot(seat) || Boolean(room.ready?.includes(i)) } : {}),
-    ...(room.instantWin === i ? { note: 'instant win' } : {}),
+    ...(room.instantWin === i ? { note: msg('instantWin') } : {}),
   });
   return { players: room.seats.flatMap((seat, i) => (seat ? [player(seat, i)] : [])), rounds: roundsView(room), lowIsBetter: false };
 }

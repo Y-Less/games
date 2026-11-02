@@ -49,10 +49,10 @@ test('the hand sizes run 7 down to 1 and back up, or 7 down to 1 only', () => {
 test('the trump suit repeats hearts, clubs, diamonds, spades, no trumps across all 14 rounds', () => {
   const trumps = Array.from({ length: 14 }, (_, i) => g.trumpOf(i));
   assert.deepEqual(trumps, ['H', 'C', 'D', 'S', null, 'H', 'C', 'D', 'S', null, 'H', 'C', 'D', 'S']);
-  assert.equal(g.trumpName(null), 'no trumps');
-  assert.equal(g.trumpName('D'), 'diamonds');
-  assert.equal(g.roundLabel({ length: 'full' }, 2), 'Round 3: 5 cards, diamonds');
-  assert.equal(g.roundLabel({ length: 'full' }, 6), 'Round 7: 1 card, clubs');
+  assert.deepEqual(g.trumpName(null), { key: 'noTrumps' });
+  assert.deepEqual(g.trumpName('D'), { key: 'cards.suit.D' });
+  assert.deepEqual(g.roundLabel({ length: 'full' }, 2), { key: 'round.label', params: { n: 3, count: 5, trump: { key: 'cards.suit.D' } } });
+  assert.deepEqual(g.roundLabel({ length: 'full' }, 6), { key: 'round.label', params: { n: 7, count: 1, trump: { key: 'cards.suit.C' } } }, 'one card picks the singular when it is written out');
 });
 
 test('the dealer rotates clockwise each round', () => {
@@ -90,12 +90,12 @@ test('dealing gives every seat the right number of distinct cards, including 7 p
 
 test('a game needs every seat filled and a human, and only the host starts it', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.match(g.start(room, 1, Math.random).error, /Every seat/);
+  assert.equal(g.start(room, 1, Math.random).error, 'seatsNeedPlayers');
   assert.ok(g.addBot(room, 1).ok);
   assert.ok(g.addBot(room, 1, 3).ok);
-  assert.match(g.start(room, 1, Math.random).error, /Every seat/);
+  assert.equal(g.start(room, 1, Math.random).error, 'seatsNeedPlayers');
   assert.ok(g.addHuman(room, 2, 'Bob').ok);
-  assert.equal(g.start(room, 2, Math.random).error, 'Only the host can do that.');
+  assert.equal(g.start(room, 2, Math.random).error, 'hostOnly');
   assert.ok(g.start(room, 1, Math.random).ok);
   assert.equal(room.phase, 'nominating');
   assert.equal(g.start(room, 1, Math.random).ok, false);
@@ -143,7 +143,7 @@ test('too many people cannot be squeezed into fewer seats', () => {
   g.addHuman(room, 2, 'Bob');
   g.addHuman(room, 3, 'Cat');
   g.addHuman(room, 4, 'Dan');
-  assert.match(g.setSettings(room, 1, { seats: 3 }).error, /Too many people/);
+  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerSeats');
   assert.equal(room.seats.length, 4);
 });
 
@@ -157,13 +157,13 @@ test('follow-suit legality', () => {
   assert.equal(g.legalCards(room, 0).length, 4, 'anything may be led, trumps included');
   room.trick = [{ seat: 3, card: '5H' }];
   assert.deepEqual(g.legalCards(room, 0), ['2H', '9H']);
-  assert.match(g.illegalReason(room, 0, '3C'), /follow suit \(hearts\)/);
+  assert.deepEqual(g.illegalReason(room, 0, '3C'), { key: 'errors.followSuit', params: { suit: { key: 'cards.suit.H' } } });
   assert.equal(g.playCard(room, 0, '3C').ok, false);
   assert.equal(g.playCard(room, 1, 'KH').ok, false, 'not your turn');
   room.trick = [{ seat: 3, card: '5S' }];
   room.hands[0] = ['2H', '9H', '3C'];
   assert.equal(g.legalCards(room, 0).length, 3, 'void in spades: anything, trumps too');
-  assert.match(g.illegalReason(room, 0, 'AS'), /not in your hand/);
+  assert.deepEqual(g.illegalReason(room, 0, 'AS'), { key: 'errors.notInHand' });
   assert.equal(g.playCard(room, 0, 12).ok, false);
 });
 
@@ -214,7 +214,8 @@ test('the dealer\'s forbidden nomination, in every combination', () => {
         if (forbidden !== null) {
           const refused = g.nominate(room, room.dealer, forbidden);
           assert.equal(refused.ok, false);
-          assert.match(refused.error, /cannot nominate/);
+          assert.equal(refused.error, 'dealerForbidden');
+          assert.deepEqual(refused.params, { number: forbidden, cards }, 'the refusal names the number and the tricks');
           assert.equal(room.phase, 'nominating');
         }
         for (const n of allowed) {
@@ -309,8 +310,12 @@ test('a round is scored from the nominations and the tricks actually taken', () 
   assert.deepEqual(mixed.tally.map((t) => t.bidsMade), [1, 0, 1]);
   assert.deepEqual(mixed.tally.map((t) => t.tricksWon), [1, 1, 0]);
   const view = g.viewFor(mixed, 1);
-  assert.deepEqual(view.rounds[0].notes, { 0: 'bid 1, took 1', 1: 'bid 2, took 1', 2: 'bid 0, took 0' });
-  assert.equal(view.rounds[0].label, 'Round 6: 2 cards, hearts');
+  assert.deepEqual(view.rounds[0].notes, {
+    0: { key: 'round.note', params: { bid: 1, taken: 1 } },
+    1: { key: 'round.note', params: { bid: 2, taken: 1 } },
+    2: { key: 'round.note', params: { bid: 0, taken: 0 } },
+  });
+  assert.deepEqual(view.rounds[0].label, { key: 'round.label', params: { n: 6, count: 2, trump: { key: 'cards.suit.H' } } });
 });
 
 test('the tally counts a nomination of zero that was made, and a round where only you were right', () => {

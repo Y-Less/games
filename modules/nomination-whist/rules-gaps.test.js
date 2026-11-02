@@ -81,11 +81,11 @@ test('the winner of a trick: trumps beat the suit led, otherwise the highest of 
 
 test('the trump suit cycles hearts, clubs, diamonds, spades, no trumps; the deal passes round the table', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 9].map(game.trumpOf), ['H', 'C', 'D', 'S', null, 'H', null]);
-  assert.equal(game.trumpName(null), 'no trumps');
+  assert.deepEqual(game.trumpName(null), { key: 'noTrumps' });
   assert.equal(game.roundCount({ length: 'full' }), 14);
   assert.equal(game.roundCount({ length: 'short' }), 7);
   assert.deepEqual([0, 1, 2, 3, 4].map((r) => game.dealerFor(2, r, 4)), [2, 3, 0, 1, 2]);
-  assert.match(game.roundLabel({ length: 'full' }, 6), /1 card,/);
+  assert.deepEqual(game.roundLabel({ length: 'full' }, 6).params, { n: 7, count: 1, trump: { key: 'cards.suit.C' } }, 'a one-card round');
 });
 
 test('refused nominations and plays leave the room exactly as it was', () => {
