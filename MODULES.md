@@ -265,7 +265,10 @@ so a translator can reorder it. vue-i18n's syntax: `{name}` is a param, `|` sepa
 key under `errors.` in the game's file first and the site's second; the site's `src/locales/en.json` has the refusals
 every game shares (`notYourTurn`, `notInGame`, `hostOnly`, `gameFull`, `settingsBeforeStart`, `needPerson`,
 `allSeatsNeedPlayers` with `{ seats }`, `playersRange` with `{ min, max }` ...), and a game's own go in its file.
-HTTP routes throw `new AuthError(code, status, params)` the same way. Anything else the client will show comes as a
+HTTP routes throw `new AuthError(code, status, params)` the same way. The room server forwards a refusal's `params`
+to the client, so a sentence with a number in it arrives with the number. `createRoom` cannot return a refusal, so it
+refuses by throwing `refusal(code, params)` (`shared/messages.js`); anything else it throws is a bug in the rules, and
+the player is told only that something went wrong, never the developer's sentence. Anything else the client will show comes as a
 message, `msg(key, params)` from `shared/messages.js`: a scoreboard round's `label` and `notes`, a player's `note`, a log
 line, a status hint, the reason a card cannot be played. A param may itself be a message (`cardMsg('QS')`,
 `suitMsg('H')`) or a list of them, and a numeric `count` param picks the plural form. The client puts a message into
