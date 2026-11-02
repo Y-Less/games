@@ -24,11 +24,41 @@ const moduleOf = (file) => file.match(/modules\/([^/]+)\//)[1];
 // The site's messages with each module's under its id.
 const bundle = (site, modules) => ({ ...site, ...Object.fromEntries(modules) });
 
+// vue-i18n chooses between the forms a message separates with `|` by position, not by the language's own rules: with two
+// forms it takes the second unless the count is 1. That suits English and Klingon, and Japanese needs only one form, but
+// a language with more forms has to say which form belongs to which of its plural categories. List its categories here,
+// in the order a translator writes the forms in, and Intl's own rules do the choosing.
+const PLURAL_FORMS = {
+  ru: ['one', 'few', 'many'], // "1 карта | 2 карты | 5 карт"
+};
+
+/**
+ * The rule vue-i18n asks for a language: which form, counting from 0, a count should take.
+ * @param {string} lang  the language tag, whose own plural rules Intl knows
+ * @param {string[]} forms  its plural categories, in the order the locale file writes them
+ * @returns {(count: number, formCount: number) => number} an index into the forms the message actually has
+ * Side effects: none.
+ */
+const pluralRule = (lang, forms) => (count, formCount) => {
+  if (formCount <= 1) return 0;
+  let category = 'other';
+  try {
+    category = new Intl.PluralRules(lang).select(count);
+  } catch {
+    /* a language Intl does not know: fall through to the last form */
+  }
+  const wanted = forms.indexOf(category);
+  return Math.min(wanted === -1 ? forms.length - 1 : wanted, formCount - 1);
+};
+
+const pluralRules = Object.fromEntries(Object.entries(PLURAL_FORMS).map(([lang, forms]) => [lang, pluralRule(lang, forms)]));
+
 export const i18n = createI18n({
   legacy: false,
   locale: FALLBACK,
   fallbackLocale: FALLBACK,
   messages: { [FALLBACK]: bundle(siteEnglish, Object.entries(moduleEnglish).map(([file, messages]) => [moduleOf(file), messages])) },
+  pluralRules, // a language whose plural forms are not English's (see PLURAL_FORMS)
   fallbackWarn: false, // a game may lack a translation: English is the design, not a fault
   missingWarn: true, // a key nobody wrote, on the other hand, is a fault the tests must see
 });
