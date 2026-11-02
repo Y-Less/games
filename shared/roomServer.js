@@ -130,6 +130,16 @@ export function pickKeys(payload, keys) {
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
  * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
  */
+/**
+ * A refusal as the client receives it: the rules' code and, when its words need them, the values to put in (see
+ * shared/messages.js). Without the values a sentence such as "You need at least {min} players." reaches the player with
+ * the gap still in it.
+ * @param {{ error: string, params?: object }} outcome  what a rule returned
+ * @returns {{ ok: false, error: string, params?: object }}
+ * Side effects: none.
+ */
+const refused = (outcome) => ({ ok: false, error: outcome.error, ...(outcome.params ? { params: outcome.params } : {}) });
+
 export function createRoomServer(ctx, options) {
   const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, kickKey = 'seat', startRule, migrate, rng = Math.random, now = Date.now } = options;
   const file = path.join(ctx.dataDir, 'rooms.json');
@@ -508,7 +518,7 @@ export function createRoomServer(ctx, options) {
       if (seat === -1) return { ok: false, error: 'notInAnyGame' };
       const outcome = rule(room, seat);
       if (outcome.ok) changed(room);
-      return outcome.ok ? { ok: true } : { ok: false, error: outcome.error };
+      return outcome.ok ? { ok: true } : refused(outcome);
     };
 
     on('resume', ({ code }) => enter(socket, code));
@@ -559,7 +569,7 @@ export function createRoomServer(ctx, options) {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };
       const outcome = game.kick(room, userId, payload[kickKey], rng, now());
-      if (!outcome.ok) return { ok: false, error: outcome.error };
+      if (!outcome.ok) return refused(outcome);
       detach(outcome.userId, room.code);
       changed(room);
       return { ok: true };

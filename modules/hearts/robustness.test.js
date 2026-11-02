@@ -204,6 +204,8 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'pass', { cards: annHand.slice(0, 2) }, /chooseExactly/);
   await refused(ann, 'pass', { cards: annHand.slice(0, 4) }, /chooseExactly/);
   await refused(ann, 'pass', { cards: [annHand[0], annHand[0], annHand[1]] }, 'chooseExactly');
+  // A refusal whose words need a number must arrive with that number: "Choose exactly {count} different cards to pass."
+  assert.deepEqual(await ann.call('pass', { cards: annHand.slice(0, 2) }), { ok: false, error: 'chooseExactly', params: { count: 3 } });
   await refused(ann, 'pass', { cards: [annHand[0], annHand[1], bobHand.find((c) => !annHand.includes(c))] }, 'passFromHand');
   await refused(ann, 'pass', { cards: [1, 2, 3] }, 'passFromHand');
   await refused(ann, 'pass', { cards: [null, undefined, {}] }, /chooseExactly|passFromHand/);
