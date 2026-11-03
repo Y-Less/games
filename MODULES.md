@@ -363,7 +363,10 @@ site's own question bank in the database (`server/triviaBank.js`).
   `correct` is the index of the right one in it, so a view can render `answers` as it stands.
 - `await store.take(n, { category })` gives questions of one category instead; `store.categories` lists the ones it
   holds, and asking for any other throws a `TypeError` rather than quietly answering with something else.  With no
-  category named, each question is of one drawn at random, which is what a game that knows nothing of categories gets.
+  category named, each question is of one drawn **weighed by how many questions there are of it** across both sources
+  - the API has six times as many film and television questions as general knowledge ones, and a site with a thousand
+  history questions of its own is asked about history more often still.  `sources()` reports the counts it weighs by,
+  totals and `byCategory`.
 - **A cacheful a category.**  The store keeps 16 ready *of each* category and refills behind the player's back, so a
   round never waits on the network whichever category it wants.  `prime()` fills them ahead of time (do it when a room
   is made, not when the first question is wanted) and costs one request a category; `prime(category)` fills just the
@@ -372,11 +375,11 @@ site's own question bank in the database (`server/triviaBank.js`).
 - When the API cannot supply enough questions, `take` rejects with an Error whose `code` is `triviaUnavailable`;
   servers turn that into a `fail('triviaUnavailable')` rather than showing it.
 - Server-side only (it needs `fetch`, and the cache is shared between rooms).
-- **The two sources.**  The first time a store needs questions it asks both how many they have (`store.sources()`
-  reports that as `{ api, bank }`), and from then on it chooses between them for *each* question at that ratio: a bank
-  holding a quarter as many questions as the API answers about a fifth of them.  Either source coming up short is made
-  up for by the other, so a game carries on when the API is down or the bank is empty.  A store with no bank, or with
-  an empty one, takes every question from the API and never touches the count endpoint.
+- **The two sources.**  The first time a store needs questions it asks both how many they have of each category (one
+  small count request a category, once), and from then on it chooses between them for *each* question at that
+  category's ratio: a bank holding a quarter as many history questions as the API answers about a fifth of the history
+  asked for.  Either source coming up short is made up for by the other, so a game carries on when the API is down or
+  the bank is empty.
 - **The bank.**  `createQuestionBank(db)` (`server/triviaBank.js`) is `count(filters)`, `draw(count, filters)`, and
   `add(questions)`; a question goes in as `{ id?, question, correct, wrong[], category?, difficulty?, tags?, regions? }`
   and comes out of `draw` in the API's own shape, so one `prepare` serves both sources.  `server/index.js` makes the
