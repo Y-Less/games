@@ -378,6 +378,10 @@ site's own question bank in the database (`server/triviaBank.js`).
   and comes out of `draw` in the API's own shape, so one `prepare` serves both sources.  `server/index.js` makes the
   bank as the site starts and hands it to the store with `setTriviaBank(bank)`, before any game asks for a question.
   The same filters narrow both sources, regions included: a question with no regions suits everywhere.
+- **Categories.**  The API has ten (`CATEGORIES` in `shared/trivia.js`), each answering to several names - `movies`,
+  `film`, and `film_and_tv` are all Film & TV.  A question reports only the canonical name, so the store puts a filter
+  into that form (`canonicalCategory`, `canonicalCategories`) before either source sees it; ask the bank for `movies`
+  directly and it will find nothing, because that is not what its rows say.
 - The questions are licensed CC BY-NC 4.0: non-commercial use, with a credit.  The site credits the API in
   `src/help/en/games.md`; if the site is ever run commercially, that licence needs a paid plan.
 

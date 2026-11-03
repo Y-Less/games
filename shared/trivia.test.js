@@ -3,7 +3,7 @@
 // requests it was asked to make, and a fake bank that counts what was drawn from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CACHE_SIZE, createTriviaStore, prepare } from './trivia.js';
+import { CACHE_SIZE, CATEGORIES, canonicalCategories, canonicalCategory, createTriviaStore, prepare } from './trivia.js';
 import { seeded } from './random.js';
 
 // One question in the shape the API sends, numbered so every question is a different one.
@@ -46,25 +46,29 @@ const questionCalls = (fetchImpl) => fetchImpl.calls.filter((url) => !url.includ
  * A fake question bank: `held` questions of its own, numbered apart from the API's so a test can tell them apart.
  * @param {number} held  how many questions it has
  * @param {object} [options] `fail` makes every call throw, as a database that has gone away would
- * @returns {object} the bank, carrying `draws` (how many questions each draw was asked for)
+ * @returns {object} the bank, carrying `draws` (how many questions each draw was asked for) and `filters` (what it
+ *   was asked to narrow to, every time)
  */
 function fakeBank(held, { fail = false } = {}) {
   const bank = {
     draws: [],
-    count() {
+    filters: [],
+    count(filters) {
+      bank.filters.push({ ...filters });
       if (fail) throw new Error('no database');
       return held;
     },
-    draw(count) {
+    draw(count, filters) {
       bank.draws.push(count);
+      bank.filters.push({ ...filters });
       if (fail) throw new Error('no database');
       return Array.from({ length: Math.min(count * 3, held) }, (_, n) => ({ ...apiQuestion(`bank-${bank.drawn + n}`), id: `bank-${bank.drawn + n}` }));
     },
     drawn: 0,
   };
   const draw = bank.draw;
-  bank.draw = (count) => {
-    const got = draw(count);
+  bank.draw = (count, filters) => {
+    const got = draw(count, filters);
     bank.drawn += got.length;
     return got;
   };
@@ -406,5 +410,48 @@ test('a question the bank has already given is not given again', async () => {
   const second = await store.take(3);
   const ids = [...first, ...second].map((q) => q.id);
   assert.equal(new Set(ids).size, 6, 'six different questions');
+});
+
+// ---- the API's category names, which the bank has to be asked in the same form ----
+
+test('an alias is turned into the name a question actually carries', () => {
+  assert.equal(canonicalCategory('movies'), 'film_and_tv');
+  assert.equal(canonicalCategory('film'), 'film_and_tv');
+  assert.equal(canonicalCategory('novels'), 'arts_and_literature');
+  assert.equal(canonicalCategory('sports'), 'sport_and_leisure');
+  assert.equal(canonicalCategory(' Movies '), 'film_and_tv', 'however it is typed');
+  assert.equal(canonicalCategory('history'), 'history', 'a canonical name is already one');
+  assert.equal(canonicalCategory('nothing-like-it'), 'nothing-like-it', 'and a name the API does not know is left alone');
+});
+
+test('every category is its own canonical name, and no alias is claimed twice', () => {
+  const seen = new Set();
+  for (const [name, aliases] of Object.entries(CATEGORIES)) {
+    assert.equal(canonicalCategory(name), name, name);
+    for (const alias of [name, ...aliases]) {
+      assert.equal(seen.has(alias), false, `${alias} belongs to more than one category`);
+      seen.add(alias);
+    }
+  }
+  assert.equal(Object.keys(CATEGORIES).length, 10, 'the API offers ten');
+});
+
+test('a list of categories comes back canonical, without repeats', () => {
+  assert.equal(canonicalCategories('movies,history'), 'film_and_tv,history');
+  assert.equal(canonicalCategories(['film', 'movies']), 'film_and_tv', 'two names for one category are one category');
+  assert.equal(canonicalCategories('history , music '), 'history,music');
+  assert.equal(canonicalCategories(''), undefined);
+  assert.equal(canonicalCategories(undefined), undefined, 'a store without the filter still has none');
+});
+
+test('both sources are asked for a category by the name a question carries, not by the alias given', () => {
+  const bank = fakeBank(100);
+  const { store, fetchImpl } = testStore({ bank, categories: 'movies' }, { count: 100 });
+  return store.prime().then(() => {
+    for (const url of fetchImpl.calls) {
+      assert.equal(new URL(url).searchParams.get('categories'), 'film_and_tv', url);
+    }
+    for (const asked of bank.filters) assert.equal(asked.categories, 'film_and_tv');
+  });
 });
 

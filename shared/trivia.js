@@ -23,6 +23,57 @@ const API = 'https://the-trivia-api.com/v2/questions';
 // The same endpoint with the same filters, but answering with how many questions there are rather than with questions.
 const API_COUNT = `${API}/count`;
 export const CACHE_SIZE = 16;
+
+/**
+ * The categories the API offers, each with the other names it answers to (from https://the-trivia-api.com/v2/categories).
+ *
+ * The API resolves an alias itself, but a question reports only the canonical name, so the site's own questions are
+ * stored under that name: a filter therefore has to be put into canonical form before either source is asked, or
+ * `categories=movies` would find questions at the API and none at all in the bank.
+ */
+export const CATEGORIES = {
+  arts_and_literature: ['arts', 'literature', 'novels'],
+  film_and_tv: ['movies', 'film'],
+  food_and_drink: ['food', 'drink', 'alcohol'],
+  general_knowledge: [],
+  geography: [],
+  history: [],
+  music: [],
+  science: [],
+  society_and_culture: ['society', 'culture'],
+  sport_and_leisure: ['sports', 'sport', 'games'],
+};
+
+/** Every name the API answers to, against the one a question carries: 'movies' -> 'film_and_tv'. */
+const CANONICAL = new Map(Object.entries(CATEGORIES).flatMap(([name, aliases]) => [[name, name], ...aliases.map((alias) => [alias, name])]));
+
+/**
+ * One category name in the form a question carries it, so that one filter finds the same questions at either source.
+ * A name the API does not know is left alone: it will simply find nothing, which is what it would do anyway.
+ *
+ * @param {string} name  a category name or one of its aliases, in any case
+ * @returns {string} the canonical name
+ * Side effects: none.
+ */
+export const canonicalCategory = (name) => {
+  const tidy = String(name ?? '').trim();
+  return CANONICAL.get(tidy.toLowerCase()) ?? tidy;
+};
+
+/**
+ * A comma-separated list of categories with every name in canonical form (see canonicalCategory).  Nothing in gives
+ * nothing out, so that a store without the filter still has none.
+ *
+ * @param {string | string[] | undefined} value  'movies,history', ['movies'], or nothing
+ * @returns {string | undefined} the list, or undefined when there was nothing in it
+ * Side effects: none.
+ */
+export function canonicalCategories(value) {
+  const names = (Array.isArray(value) ? value : String(value ?? '').split(','))
+    .map((name) => canonicalCategory(name))
+    .filter(Boolean);
+  return names.length ? [...new Set(names)].join(',') : undefined;
+}
 // The API refuses a limit above this, so a large fill is split into several requests.
 const MAX_PER_REQUEST = 50;
 // How many requests one fill may make before giving up on finding questions nobody has seen yet.
@@ -97,8 +148,9 @@ export function createTriviaStore(options = {}) {
   const seen = new Set();
   let filling = null;
 
-  /** Whatever this store was asked to narrow its questions to; both sources are given the same. */
-  const filters = { region, categories, difficulties, tags };
+  // Whatever this store was asked to narrow its questions to; both sources are given the same, which is why the
+  // categories are put into the form a question carries before either of them sees them.
+  const filters = { region, categories: canonicalCategories(categories), difficulties, tags };
 
   /** Those filters as query parameters, which is how the API takes them. */
   const query = () => {
