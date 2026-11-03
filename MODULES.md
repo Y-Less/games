@@ -361,9 +361,13 @@ site's own question bank in the database (`server/triviaBank.js`).
 - `await store.take(n)` gives `n` questions, `n` defaulting to 1, and always as an array.  Each is
   `{ id, question, answers, correct, category, difficulty, tags, regions }`: `answers` is already shuffled and
   `correct` is the index of the right one in it, so a view can render `answers` as it stands.
-- The store keeps 16 ready and refills behind the player's back, so a round never waits on the network; `prime()`
-  fills it ahead of time (do it when a room is made, not when the first question is wanted), and `ready` says how many
-  are in hand.
+- `await store.take(n, { category })` gives questions of one category instead; `store.categories` lists the ones it
+  holds, and asking for any other throws a `TypeError` rather than quietly answering with something else.  With no
+  category named, each question is of one drawn at random, which is what a game that knows nothing of categories gets.
+- **A cacheful a category.**  The store keeps 16 ready *of each* category and refills behind the player's back, so a
+  round never waits on the network whichever category it wants.  `prime()` fills them ahead of time (do it when a room
+  is made, not when the first question is wanted) and costs one request a category; `prime(category)` fills just the
+  one.  `ready` says how many are in hand altogether and `held()` how many of each.
 - A store defaults to `region: 'GB'`, which lets in questions that only make sense in the UK alongside the rest.
 - When the API cannot supply enough questions, `take` rejects with an Error whose `code` is `triviaUnavailable`;
   servers turn that into a `fail('triviaUnavailable')` rather than showing it.

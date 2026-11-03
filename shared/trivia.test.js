@@ -7,8 +7,8 @@ import { CACHE_SIZE, CATEGORIES, canonicalCategories, canonicalCategory, createT
 import { seeded } from './random.js';
 
 // One question in the shape the API sends, numbered so every question is a different one.
-const apiQuestion = (n) => ({
-  category: 'history',
+const apiQuestion = (n, category = 'history') => ({
+  category,
   id: `id-${n}`,
   correctAnswer: `right-${n}`,
   incorrectAnswers: [`wrong-${n}a`, `wrong-${n}b`, `wrong-${n}c`],
@@ -31,8 +31,12 @@ function fakeFetch({ repeat = false, fail = false, status = 200, count = 1000 } 
     fetchImpl.calls.push(String(url));
     if (fail) throw new Error('offline');
     if (String(url).includes('/count')) return { ok: status === 200, status, json: async () => ({ count }) };
-    const limit = Number(new URL(String(url)).searchParams.get('limit'));
-    const body = Array.from({ length: limit }, () => apiQuestion(repeat ? 1 : next++));
+    const asked = new URL(String(url)).searchParams;
+    const limit = Number(asked.get('limit'));
+    // Questions come back of the category they were asked for, as the real API's do, so a test can tell which cache
+    // one came out of.
+    const category = asked.get('categories') ?? 'history';
+    const body = Array.from({ length: limit }, () => apiQuestion(repeat ? 1 : next++, category));
     return { ok: status === 200, status, json: async () => body };
   };
   fetchImpl.calls = [];
@@ -136,22 +140,33 @@ test('a new store holds nothing and has asked for nothing', () => {
   assert.equal(fetchImpl.calls.length, 0, 'making a store must not touch the network');
 });
 
-test('prime fills the cache with sixteen questions in one request', async () => {
+test('prime fills every category with sixteen questions, in a request each', async () => {
   const { store, fetchImpl } = testStore();
   await store.prime();
-  assert.equal(store.ready, CACHE_SIZE);
   assert.equal(CACHE_SIZE, 16);
+  assert.equal(store.categories.length, 10, 'the API has ten categories');
+  assert.deepEqual(Object.values(store.held()), Array(10).fill(CACHE_SIZE), 'sixteen of each');
+  assert.equal(store.ready, CACHE_SIZE * 10);
+  assert.equal(fetchImpl.calls.length, 10, 'one request a category: they are different questions');
+  for (const url of fetchImpl.calls) assert.match(url, /limit=16/);
+});
+
+test('one category can be primed on its own', async () => {
+  const { store, fetchImpl } = testStore();
+  await store.prime('movies');
+  assert.equal(store.ready, CACHE_SIZE);
+  assert.equal(store.held().film_and_tv, CACHE_SIZE, 'the one that was asked for, under its own name');
   assert.equal(fetchImpl.calls.length, 1);
-  assert.match(fetchImpl.calls[0], /limit=16/);
 });
 
 test('take hands out one question by default and refills behind it', async () => {
   const { store } = testStore();
   const taken = await store.take();
   assert.equal(taken.length, 1);
-  assert.equal(taken[0].answers[taken[0].correct], 'right-0');
-  await store.prime(); // waits for the refill the take started
-  assert.equal(store.ready, CACHE_SIZE, 'the cache should be full again for the next request');
+  // Whichever question it is - a cacheful is shuffled, so it is not always the first the API sent.
+  assert.equal(taken[0].answers[taken[0].correct], taken[0].id.replace('id-', 'right-'));
+  await store.prime(); // waits for the refill the take started, and fills the rest
+  assert.deepEqual(Object.values(store.held()), Array(10).fill(CACHE_SIZE), 'every category full for the next request');
 });
 
 test('take hands out as many as were asked for', async () => {
@@ -189,7 +204,8 @@ test('take refuses a count that is not a positive whole number', async () => {
 });
 
 test('the questions come from the cache, so a second take needs no new request', async () => {
-  const { store, fetchImpl } = testStore();
+  // One category, so that this is about the cache rather than about which category the takes happened to draw.
+  const { store, fetchImpl } = testStore({ categories: 'history' });
   await store.prime();
   assert.equal(fetchImpl.calls.length, 1);
   await store.take(3);
@@ -211,7 +227,8 @@ test('overlapping takes share one fill rather than racing', async () => {
   };
   const { store } = testStore({ fetchImpl });
 
-  const both = Promise.all([store.take(2), store.take(2)]);
+  // Both of one category: two takes that want different ones have nothing to share, and rightly ask for both.
+  const both = Promise.all([store.take(2, { category: 'history' }), store.take(2, { category: 'history' })]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 1, 'the second take should wait on the request the first one started');
 
@@ -224,23 +241,30 @@ test('overlapping takes share one fill rather than racing', async () => {
 test('the request carries the UK region by default, and whatever filters the store was given', async () => {
   const { store, fetchImpl } = testStore();
   await store.prime();
-  assert.match(fetchImpl.calls[0], /region=GB/);
+  for (const url of fetchImpl.calls) assert.match(url, /region=GB/);
 
   const picky = testStore({ region: 'US', categories: 'history,music', difficulties: 'easy', tags: 'geology', size: 4 });
   await picky.store.prime();
-  const url = new URL(picky.fetchImpl.calls[0]);
-  assert.equal(url.origin + url.pathname, 'https://the-trivia-api.com/v2/questions');
-  assert.equal(url.searchParams.get('region'), 'US');
-  assert.equal(url.searchParams.get('categories'), 'history,music');
-  assert.equal(url.searchParams.get('difficulties'), 'easy');
-  assert.equal(url.searchParams.get('tags'), 'geology');
-  assert.equal(url.searchParams.get('limit'), '4');
+  assert.equal(picky.fetchImpl.calls.length, 2, 'the two categories it was narrowed to, and no others');
+  const asked = new Set();
+  for (const call of picky.fetchImpl.calls) {
+    const url = new URL(call);
+    assert.equal(url.origin + url.pathname, 'https://the-trivia-api.com/v2/questions');
+    assert.equal(url.searchParams.get('region'), 'US');
+    assert.equal(url.searchParams.get('difficulties'), 'easy');
+    assert.equal(url.searchParams.get('tags'), 'geology');
+    assert.equal(url.searchParams.get('limit'), '4');
+    asked.add(url.searchParams.get('categories'));
+  }
+  // Each request is for one category, because each category has a cache of its own to fill.
+  assert.deepEqual([...asked].sort(), ['history', 'music']);
 });
 
 test('a store can be told to keep a different number of questions ready', async () => {
-  const { store } = testStore({ size: 3 });
+  const { store } = testStore({ size: 3, categories: 'history' });
   await store.prime();
   assert.equal(store.ready, 3);
+  assert.equal(testStore({ size: 3 }).store.categories.length, 10, 'and that many of each, when it holds the lot');
 });
 
 test('a dead API gives an error with a code rather than a sentence', async () => {
@@ -301,7 +325,7 @@ test('a store with no questions of its own never asks how many there are', async
   await store.prime();
   assert.deepEqual(await store.sources(), { api: 0, bank: 0 }, 'nothing to weigh, so nothing counted');
   assert.equal(fetchImpl.calls.filter((url) => url.includes('/count')).length, 0);
-  assert.equal(store.ready, CACHE_SIZE);
+  assert.equal(store.ready, CACHE_SIZE * 10);
 });
 
 test('a store with questions of its own counts both sides once, whatever it is then asked for', async () => {
@@ -453,5 +477,86 @@ test('both sources are asked for a category by the name a question carries, not 
     }
     for (const asked of bank.filters) assert.equal(asked.categories, 'film_and_tv');
   });
+});
+
+// ---- a cacheful a category ----
+
+test('a take of one category hands out that category, by whichever of its names was used', async () => {
+  const { store } = testStore();
+  for (const question of await store.take(3, { category: 'music' })) assert.equal(question.category, 'music');
+  for (const question of await store.take(3, { category: 'movies' })) {
+    assert.equal(question.category, 'film_and_tv', 'an alias is the category it stands for');
+  }
+  assert.equal(store.held().music, CACHE_SIZE, 'and the cache it came out of was topped back up');
+});
+
+test('a take of one category leaves the others alone', async () => {
+  const { store, fetchImpl } = testStore();
+  await store.take(2, { category: 'history' });
+  await store.prime('history'); // waits for the refill the take started, and starts nothing else
+  const held = store.held();
+  assert.equal(held.history, CACHE_SIZE, 'filled, taken from, and filled again');
+  for (const [kind, ready] of Object.entries(held)) {
+    if (kind !== 'history') assert.equal(ready, 0, `${kind} was fetched for no reason`);
+  }
+  for (const url of fetchImpl.calls) assert.equal(new URL(url).searchParams.get('categories'), 'history');
+});
+
+test('a take that names no category spreads over all of them', async () => {
+  // Forty questions from ten categories: every one should turn up, and none should answer more than its share.
+  const { store } = testStore({ rng: seeded(5) });
+  const questions = await store.take(40);
+  assert.equal(questions.length, 40);
+  const answered = new Map();
+  for (const question of questions) answered.set(question.category, (answered.get(question.category) ?? 0) + 1);
+  assert.ok(answered.size >= 8, `only ${answered.size} categories of the ten came up`);
+  for (const [kind, n] of answered) assert.ok(n < 15, `${kind} answered ${n} of the forty`);
+});
+
+test('a take of a category this store does not hold is a mistake, not an empty answer', async () => {
+  const { store, fetchImpl } = testStore();
+  await assert.rejects(() => store.take(1, { category: 'basket weaving' }), TypeError);
+  const narrow = testStore({ categories: 'history,music' });
+  assert.deepEqual(narrow.store.categories, ['history', 'music'], 'it holds only what it was narrowed to');
+  await assert.rejects(() => narrow.store.take(1, { category: 'science' }), TypeError, 'a real category it was not given');
+  assert.equal((await narrow.store.take(1, { category: 'music' })).length, 1);
+  assert.equal(fetchImpl.calls.length, 0, 'and a mistake never reaches the network');
+});
+
+test('a take with no category named is the same request it always was', async () => {
+  // What a game that knows nothing of categories does: ask for some questions and get some questions.
+  const { store } = testStore();
+  const first = await store.take(5);
+  const second = await store.take(5);
+  const all = [...first, ...second];
+  assert.equal(all.length, 10);
+  assert.equal(new Set(all.map((q) => q.id)).size, 10, 'all different');
+  for (const question of all) {
+    assert.equal(question.answers.length, 4);
+    assert.equal(typeof question.question, 'string');
+  }
+});
+
+test('a category that cannot be filled is made up from the others, unless it was the one asked for', async () => {
+  // The API has history questions and nothing else at all.
+  const fetchImpl = async (url) => {
+    fetchImpl.calls.push(String(url));
+    const asked = new URL(String(url)).searchParams;
+    if (asked.get('categories') !== 'history') return { ok: true, status: 200, json: async () => [] };
+    const limit = Number(asked.get('limit'));
+    return { ok: true, status: 200, json: async () => Array.from({ length: limit }, () => apiQuestion(fetchImpl.next++, 'history')) };
+  };
+  fetchImpl.calls = [];
+  fetchImpl.next = 0;
+
+  const { store } = testStore({ fetchImpl });
+  const questions = await store.take(6);
+  assert.equal(questions.length, 6, 'the request is still answered in full');
+  for (const question of questions) assert.equal(question.category, 'history');
+  await assert.rejects(
+    () => store.take(2, { category: 'music' }),
+    (error) => error.code === 'triviaUnavailable',
+    'but a take of music is not quietly answered with history',
+  );
 });
 
