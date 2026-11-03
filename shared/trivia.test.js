@@ -3,7 +3,7 @@
 // requests it was asked to make, and a fake bank that counts what was drawn from it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CACHE_SIZE, CATEGORIES, canonicalCategories, canonicalCategory, createTriviaStore, prepare } from './trivia.js';
+import { CACHE_SIZE, CATEGORIES, COUNT_GOOD_FOR, canonicalCategories, canonicalCategory, createTriviaStore, prepare } from './trivia.js';
 import { seeded } from './random.js';
 
 // One question in the shape the API sends, numbered so every question is a different one.
@@ -33,7 +33,9 @@ function fakeFetch({ repeat = false, fail = false, status = 200, count = 1000 } 
     if (fail) throw new Error('offline');
     const asked = new URL(String(url)).searchParams;
     if (String(url).includes('/count')) {
-      const held = typeof count === 'object' && count !== null ? (count[asked.get('categories')] ?? 0) : count;
+      // Read off the fake rather than the option it was made with, so a test can change its mind partway through.
+      const says = fetchImpl.says;
+      const held = typeof says === 'object' && says !== null ? (says[asked.get('categories')] ?? 0) : says;
       return { ok: status === 200, status, json: async () => ({ count: held }) };
     }
     const limit = Number(asked.get('limit'));
@@ -44,6 +46,7 @@ function fakeFetch({ repeat = false, fail = false, status = 200, count = 1000 } 
     return { ok: status === 200, status, json: async () => body };
   };
   fetchImpl.calls = [];
+  fetchImpl.says = count; // how many it claims to have; a test may change it to see the store notice
   return fetchImpl;
 }
 
@@ -597,6 +600,78 @@ test('a store that cannot count anything still hands out every category', async 
   assert.deepEqual(await store.sources(), { api: 0, bank: 0, byCategory: Object.fromEntries(store.categories.map((k) => [k, { api: 0, bank: 0 }])) });
   const tally = await spread(store, 10, 10);
   assert.ok(tally.size >= 7, `only ${tally.size} categories came up`);
+});
+
+// ---- the counts are kept for a day ----
+
+/** A clock the test winds on itself, and a store that reads it. */
+function withClock(options, fetchOptions) {
+  let at = 1_000_000;
+  const made = testStore({ now: () => at, ...options }, fetchOptions);
+  return { ...made, wind: (ms) => { at += ms; } };
+}
+
+test('the counts are taken once and then kept, however much is asked of the store', async () => {
+  const { store, fetchImpl, wind } = withClock({ categories: 'history', size: 4 });
+  await store.prime();
+  assert.equal(countCalls(fetchImpl).length, 1);
+  wind(COUNT_GOOD_FOR - 1);
+  for (let n = 0; n < 5; n++) await store.take(2);
+  assert.equal(countCalls(fetchImpl).length, 1, 'still yesterday, so still yesterday’s counts');
+});
+
+test('a day later the next fill counts again, and the questions do not wait for it', async () => {
+  // The counts can be held back on demand, so that the test can see whether a take waits on one.
+  let letGo = () => {};
+  let holding = false;
+  const answer = fakeFetch({ count: 100 });
+  const fetchImpl = async (url) => {
+    const reply = answer(url); // asked for straight away, whatever happens to the answer
+    if (holding && String(url).includes('/count')) await new Promise((resolve) => { letGo = resolve; });
+    return reply;
+  };
+  fetchImpl.calls = answer.calls;
+
+  const { store, wind } = withClock({ fetchImpl, categories: 'history', size: 4 });
+  await store.prime();
+  assert.equal((await store.sources()).api, 100);
+  assert.equal(countCalls(fetchImpl).length, 1);
+
+  wind(COUNT_GOOD_FOR);
+  holding = true;
+  answer.says = 900; // from here the API has more questions than it had, which the store should notice
+
+  const taken = await store.take(4); // empties the cache, so this one has to fill, which is what counts again
+  assert.equal(taken.length, 4, 'the questions came back without waiting on the count');
+  assert.equal(countCalls(fetchImpl).length, 2, 'the second count was asked for, and is still in the air');
+
+  letGo();
+  assert.equal((await store.sources()).api, 900, 'and once it lands, the new number is what it weighs by');
+
+  wind(60_000);
+  holding = false;
+  await store.take(2);
+  assert.equal(countCalls(fetchImpl).length, 2, 'and not again until tomorrow');
+});
+
+test('a count taken while the API is down keeps the numbers it had', async () => {
+  const answer = fakeFetch({ count: 500 });
+  let open = true;
+  const fetchImpl = async (url) => {
+    if (!open && String(url).includes('/count')) throw new Error('offline');
+    return answer(url);
+  };
+  fetchImpl.calls = answer.calls;
+
+  const { store, wind } = withClock({ fetchImpl, categories: 'history', size: 4 });
+  await store.prime();
+  assert.equal((await store.sources()).api, 500);
+
+  open = false;
+  wind(COUNT_GOOD_FOR);
+  await store.take(4);
+  await store.prime();
+  assert.equal((await store.sources()).api, 500, 'yesterday’s count is better than no count at all');
 });
 
 test('a take that names no category spreads over all of them', async () => {

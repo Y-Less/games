@@ -16,8 +16,10 @@
 // many questions there are of each: the API has six times as many about film and television as about general
 // knowledge, and a game that takes what it is given sees them in about that proportion rather than one in ten of each.
 // The bank's questions are weighed in too, so a site that has put a thousand history questions of its own in is asked
-// about history more often than the API alone would be.  That costs one count request a category, once in the life of
-// a store, because the API has no endpoint that breaks its total down.
+// about history more often than the API alone would be.  That costs one count request a category, because the API has
+// no endpoint that breaks its total down, and those counts are then kept for a day: once they are stale the next fill
+// asks again without waiting for the answer, so a site that runs for weeks keeps up with both sources without any
+// game ever stopping to count.
 //
 // **Two sources.**  Questions come from The Trivia API (https://the-trivia-api.com) and from the site's own question
 // bank (server/triviaBank.js), if it has been given one.  The first time a store needs questions it asks both how many
@@ -90,6 +92,10 @@ export function canonicalCategories(value) {
 const MAX_PER_REQUEST = 50;
 // How many requests one fill may make before giving up on finding questions nobody has seen yet.
 const MAX_ROUNDS = 4;
+// How long the counts the categories are weighed by are taken as still true.  Questions are added to the API, and to
+// the site's own bank, far too slowly for this to want to be shorter, and a site that is up for weeks should not be
+// weighing today's questions by the shape the sources had when it started.
+export const COUNT_GOOD_FOR = 24 * 60 * 60 * 1000;
 
 /**
  * The error every failure throws, so a caller can tell "the API is down" from a programming mistake.
@@ -141,6 +147,7 @@ export function prepare(raw, rng = Math.random) {
  * @param {string} [options.difficulties]  comma-separated, from easy, medium, and hard
  * @param {string} [options.tags]  comma-separated API tags, e.g. 'geology'
  * @param {() => number} [options.rng]  random source; pass a seeded one in tests
+ * @param {() => number} [options.now]  the clock, which only says when the counts were last taken
  * @param {typeof fetch} [options.fetchImpl]  the fetch to use; pass a fake one in tests
  * @param {{ count: Function, draw: Function } | null} [options.bank]  the site's own questions (server/triviaBank.js);
  *   without one every question comes from the API
@@ -156,6 +163,7 @@ export function createTriviaStore(options = {}) {
     difficulties,
     tags,
     rng = Math.random,
+    now = Date.now,
     fetchImpl = (...args) => fetch(...args),
     bank = null,
   } = options;
@@ -194,42 +202,48 @@ export function createTriviaStore(options = {}) {
     return `${API}?${parameters}`;
   };
 
-  // How many questions each source has, asked once and then kept: see the head of this file.  `null` until then.
+  // How many questions each source has, when that was worked out, and the counting in flight if any: see the head of
+  // this file.  `null` until the first time anything needs them.
   let counts = null;
+  let countedAt = 0;
   let counting = null;
 
   /**
    * Asks both sources how many questions they have of each category.  That is one small request a category at the API
-   * (there is no endpoint that breaks the total down) and one cheap query a category at the bank, once in the life of
-   * a store, and it buys two things: how often each category is handed out, and how often each source is asked within
-   * it.  A bank strong in history and empty of music is therefore dealt with category by category rather than by one
-   * ratio across the lot.
+   * (there is no endpoint that breaks the total down) and one cheap query a category at the bank, and it buys two
+   * things: how often each category is handed out, and how often each source is asked within it.  A bank strong in
+   * history and empty of music is therefore dealt with category by category rather than by one ratio across the lot.
    *
-   * A source that will not say is counted as having none of that category, so that a site with questions of its own
-   * carries on asking them while the API is unreachable, and a store whose counts all fail falls back to choosing a
-   * category at random (see weighing below).
+   * A source that will not say keeps whatever it last said, or counts as having none of that category if it has never
+   * said: so a count taken while the API is down does not throw away yesterday's good numbers, a site with questions
+   * of its own carries on asking them meanwhile, and a store that has never managed to count anything falls back to
+   * choosing a category at random (see anyKind).
+   *
+   * @param {Map<string, { api: number, bank: number }> | null} [before]  what was last counted, if anything
    * @returns {Promise<Map<string, { api: number, bank: number }>>} how many of each, by category
-   * Side effects: reads the bank, and makes one request a category to the API.
+   * Side effects: reads the bank, and makes one request a category to the API.  Never rejects.
    */
-  const countSources = async () => {
+  const countSources = async (before = null) => {
     const held = new Map();
     await Promise.all(
       kinds.map(async (kind) => {
         const these = filtersFor(kind);
-        let mine = 0;
+        const was = before?.get(kind);
+        let mine;
         try {
           const found = bank?.count(these);
           mine = Number.isFinite(found) && found > 0 ? found : 0;
         } catch {
-          mine = 0; // a bank that will not answer is a bank with nothing in it
+          mine = was?.bank ?? 0; // a bank that will not answer is a bank that has not changed
         }
-        let theirs = 0;
+        let theirs;
         try {
           const reply = await fetchImpl(`${API_COUNT}?${query(these)}`, { headers: { accept: 'application/json' } });
-          const body = reply?.ok ? await reply.json() : null;
+          if (!reply?.ok) throw new Error(`the API answered ${reply?.status ?? '(no response)'}`);
+          const body = await reply.json();
           theirs = Number.isFinite(body?.count) && body.count > 0 ? body.count : 0;
         } catch {
-          theirs = 0; // likewise an API that will not say
+          theirs = was?.api ?? 0; // likewise an API that will not say
         }
         held.set(kind, { api: theirs, bank: mine });
       }),
@@ -237,18 +251,32 @@ export function createTriviaStore(options = {}) {
     return held;
   };
 
-  /** The counts, asked for once however many callers want them at the same moment. */
+  /**
+   * The counts, worked out once however many callers want them at the same moment, and then kept for a day.
+   *
+   * Once they are a day old the next fill asks again, but it does not wait for the answer: the counts in hand are
+   * handed back at once and brought up to date behind the caller, because they are a shape to weigh questions by
+   * rather than anything a question depends on, and a fill that waited on ten count requests would be a fill that
+   * stuttered once a day.  Only a store that has never counted anything has to wait.
+   *
+   * @returns {Promise<Map<string, { api: number, bank: number }>>} the counts, by category
+   * Side effects: may start a count (see countSources); keeps the result and when it was taken.
+   */
   const counted = () => {
-    if (counts) return Promise.resolve(counts);
-    counting ??= countSources()
-      .then((found) => {
-        counts = found;
-        return found;
-      })
-      .finally(() => {
-        counting = null;
-      });
-    return counting;
+    const stale = !counts || now() - countedAt >= COUNT_GOOD_FOR;
+    if (stale && !counting) {
+      const before = counts;
+      counting = countSources(before)
+        .then((found) => {
+          counts = found;
+          countedAt = now();
+          return found;
+        })
+        .finally(() => {
+          counting = null;
+        });
+    }
+    return counts ? Promise.resolve(counts) : counting;
   };
 
   /** How many questions there are of one category, both sources together; 0 before anything has been counted. */
@@ -539,7 +567,11 @@ export function createTriviaStore(options = {}) {
      * Side effects: the first call asks the bank and the API (see the head of this file).
      */
     async sources() {
-      const held = await counted();
+      await counted();
+      // A day-old refresh may be going on behind a fill (see counted): say the new numbers rather than the old ones,
+      // since asking for the counts is asking for the best this store knows.
+      if (counting) await counting;
+      const held = counts;
       let api = 0;
       let bankHas = 0;
       for (const of of held.values()) {

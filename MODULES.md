@@ -376,10 +376,14 @@ site's own question bank in the database (`server/triviaBank.js`).
   servers turn that into a `fail('triviaUnavailable')` rather than showing it.
 - Server-side only (it needs `fetch`, and the cache is shared between rooms).
 - **The two sources.**  The first time a store needs questions it asks both how many they have of each category (one
-  small count request a category, once), and from then on it chooses between them for *each* question at that
-  category's ratio: a bank holding a quarter as many history questions as the API answers about a fifth of the history
-  asked for.  Either source coming up short is made up for by the other, so a game carries on when the API is down or
-  the bank is empty.
+  small count request a category), and from then on it chooses between them for *each* question at that category's
+  ratio: a bank holding a quarter as many history questions as the API answers about a fifth of the history asked for.
+  Either source coming up short is made up for by the other, so a game carries on when the API is down or the bank is
+  empty.
+- **The counts are kept for a day** (`COUNT_GOOD_FOR`).  Once they are stale the next fill asks again, but nothing
+  waits for the answer: the counts in hand are used while the new ones are fetched behind the caller, and a count that
+  fails keeps the numbers it had rather than falling back to nothing.  There is no timer — a store nobody uses never
+  counts again.
 - **The bank.**  `createQuestionBank(db)` (`server/triviaBank.js`) is `count(filters)`, `draw(count, filters)`, and
   `add(questions)`; a question goes in as `{ id?, question, correct, wrong[], category?, difficulty?, tags?, regions? }`
   and comes out of `draw` in the API's own shape, so one `prepare` serves both sources.  `server/index.js` makes the
