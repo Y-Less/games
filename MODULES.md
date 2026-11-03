@@ -381,9 +381,9 @@ site's own question bank in the database (`server/triviaBank.js`).
   Either source coming up short is made up for by the other, so a game carries on when the API is down or the bank is
   empty.
 - **The counts are kept for a day** (`COUNT_GOOD_FOR`).  Once they are stale the next fill asks again, but nothing
-  waits for the answer: the counts in hand are used while the new ones are fetched behind the caller, and a count that
-  fails keeps the numbers it had rather than falling back to nothing.  There is no timer — a store nobody uses never
-  counts again.
+  waits for the answer, `sources()` included: the counts in hand are used, and reported, while the new ones are
+  fetched behind the caller.  A count that fails keeps the numbers it had rather than falling back to nothing.  There
+  is no timer — a store nobody uses never counts again.
 - **The bank.**  `createQuestionBank(db)` (`server/triviaBank.js`) is `count(filters)`, `draw(count, filters)`, and
   `add(questions)`; a question goes in as `{ id?, question, correct, wrong[], category?, difficulty?, tags?, regions? }`
   and comes out of `draw` in the API's own shape, so one `prepare` serves both sources.  `server/index.js` makes the

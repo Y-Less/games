@@ -560,18 +560,17 @@ export function createTriviaStore(options = {}) {
     forget: () => seen.clear(),
 
     /**
-     * How many questions each source has, as the store counted them the first time it needed any; asking before then
-     * is what counts them.  `api` and `bank` are the totals, and `byCategory` is the breakdown the store weighs its
-     * categories by.
+     * How many questions each source has, as the store last counted them; asking before it ever has is what counts
+     * them.  `api` and `bank` are the totals, and `byCategory` is the breakdown the store weighs its categories by.
+     *
+     * These may be a day old, and may be being brought up to date as you read them: nothing waits for that.
      * @returns {Promise<{ api: number, bank: number, byCategory: object }>}
      * Side effects: the first call asks the bank and the API (see the head of this file).
      */
     async sources() {
-      await counted();
-      // A day-old refresh may be going on behind a fill (see counted): say the new numbers rather than the old ones,
-      // since asking for the counts is asking for the best this store knows.
-      if (counting) await counting;
-      const held = counts;
+      // Whatever is in hand, without waiting: a day-old refresh going on behind a fill (see counted) is not worth
+      // holding a caller up for.  Only a store that has never counted anything waits here.
+      const held = await counted();
       let api = 0;
       let bankHas = 0;
       for (const of of held.values()) {

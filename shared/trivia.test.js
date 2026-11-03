@@ -604,6 +604,9 @@ test('a store that cannot count anything still hands out every category', async 
 
 // ---- the counts are kept for a day ----
 
+/** Lets everything already in flight finish.  No fake here waits on anything real, so one turn of the loop does it. */
+const settle = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+
 /** A clock the test winds on itself, and a store that reads it. */
 function withClock(options, fetchOptions) {
   let at = 1_000_000;
@@ -644,8 +647,10 @@ test('a day later the next fill counts again, and the questions do not wait for 
   const taken = await store.take(4); // empties the cache, so this one has to fill, which is what counts again
   assert.equal(taken.length, 4, 'the questions came back without waiting on the count');
   assert.equal(countCalls(fetchImpl).length, 2, 'the second count was asked for, and is still in the air');
+  assert.equal((await store.sources()).api, 100, 'which is still reported as yesterday’s number, rather than waited for');
 
   letGo();
+  await settle();
   assert.equal((await store.sources()).api, 900, 'and once it lands, the new number is what it weighs by');
 
   wind(60_000);
@@ -657,8 +662,12 @@ test('a day later the next fill counts again, and the questions do not wait for 
 test('a count taken while the API is down keeps the numbers it had', async () => {
   const answer = fakeFetch({ count: 500 });
   let open = true;
+  let countsAsked = 0; // counted here rather than off the fake, which only records what it manages to answer
   const fetchImpl = async (url) => {
-    if (!open && String(url).includes('/count')) throw new Error('offline');
+    if (String(url).includes('/count')) {
+      countsAsked++;
+      if (!open) throw new Error('offline');
+    }
     return answer(url);
   };
   fetchImpl.calls = answer.calls;
@@ -666,12 +675,14 @@ test('a count taken while the API is down keeps the numbers it had', async () =>
   const { store, wind } = withClock({ fetchImpl, categories: 'history', size: 4 });
   await store.prime();
   assert.equal((await store.sources()).api, 500);
+  assert.equal(countsAsked, 1);
 
   open = false;
   wind(COUNT_GOOD_FOR);
-  await store.take(4);
-  await store.prime();
-  assert.equal((await store.sources()).api, 500, 'yesterday’s count is better than no count at all');
+  await store.take(4); // the fill that notices the counts are a day old
+  await settle();
+  assert.equal(countsAsked, 2, 'it did ask again');
+  assert.equal((await store.sources()).api, 500, 'and kept what it knew: yesterday’s count beats no count at all');
 });
 
 test('a take that names no category spreads over all of them', async () => {
