@@ -11,8 +11,12 @@ export const RIGHT_POINTS = 5;
 export const SPEED_BONUS = [5, 4, 3, 2, 1];
 /** The most one question can be worth. */
 export const MAX_QUESTION_POINTS = RIGHT_POINTS + SPEED_BONUS[0];
-/** A right answer this quick (milliseconds) counts as a snap answer. */
-export const SNAP_MS = 2000;
+/**
+ * A right answer this quick (milliseconds) counts as a snap answer.  Half a second is not enough to read a question
+ * and four answers, so it is either a subject you knew on sight or a button you hit on the way past and got away
+ * with - which is why it is worth an achievement rather than a running count.
+ */
+export const SNAP_MS = 500;
 /** How near the middle of a button a tap has to be to count as dead centre (as a fraction of the button). */
 export const CENTRE_WITHIN = 0.08;
 /** How near an edge a tap has to be to count as on the edge (as a fraction of the button). */

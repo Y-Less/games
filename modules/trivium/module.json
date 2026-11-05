@@ -7,17 +7,82 @@
   "category": "party",
   "rules": "rules.md",
   "stats": [
+    { "key": "questionsFaced", "label": "Questions faced", "agg": "sum" },
     { "key": "rightAnswers", "label": "Questions answered correctly", "agg": "sum" },
     { "key": "answersGiven", "label": "Questions answered", "agg": "sum" },
     { "key": "fastestRight", "label": "Questions you answered correctly first", "agg": "sum" },
     { "key": "bestRound", "label": "Best round", "agg": "max" },
     { "key": "questionsMissed", "label": "Questions you let go by", "agg": "sum", "hidden": true },
-    { "key": "perfectRounds", "label": "Rounds with every question right", "agg": "sum", "hidden": true },
-    { "key": "perfectGames", "label": "Games with every question right", "agg": "sum", "hidden": true },
+    { "key": "perfectRounds", "label": "Categories you got every question of right", "agg": "sum", "hidden": true },
+    { "key": "blankRounds", "label": "Categories you got nothing right in", "agg": "sum", "hidden": true },
+    { "key": "flawlessGames", "label": "Games you got every question right, first", "agg": "sum", "hidden": true },
     { "key": "soleRight", "label": "Questions only you got right", "agg": "sum", "hidden": true },
-    { "key": "snapAnswers", "label": "Right answers given in under two seconds", "agg": "sum", "hidden": true },
+    { "key": "snapAnswers", "label": "Right answers given in under half a second", "agg": "sum", "hidden": true },
     { "key": "bullseyes", "label": "Answers tapped dead centre", "agg": "sum", "hidden": true },
     { "key": "edgeClicks", "label": "Answers tapped right on the edge", "agg": "sum", "hidden": true },
     { "key": "lastButRight", "label": "Questions you answered last and still got right", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "first",
+      "name": "On the buzzer",
+      "text": "Be the first to the right answer {n} times",
+      "one": "Be the first to the right answer",
+      "levels": "easy",
+      "stat": "fastestRight"
+    },
+    {
+      "key": "snap",
+      "name": "Off the mark",
+      "text": "Get a question right in under half a second",
+      "levels": "unlock",
+      "stat": "snapAnswers"
+    },
+    {
+      "key": "right",
+      "name": "Quiz brain",
+      "text": "Answer {n} questions correctly",
+      "one": "Answer a question correctly",
+      "levels": "easy",
+      "stat": "rightAnswers"
+    },
+    {
+      "key": "faced",
+      "name": "Fingers on buzzers",
+      "text": "Face {n} questions",
+      "one": "Face a question",
+      "levels": "veryEasy",
+      "stat": "questionsFaced"
+    },
+    {
+      "key": "cleansweep",
+      "name": "My specialist subject",
+      "text": "Get every question of a category right {n} times",
+      "one": "Get every question of a category right",
+      "levels": "medium",
+      "stat": "perfectRounds"
+    },
+    {
+      "key": "flawless",
+      "name": "Flawless",
+      "text": "Get every question of a whole quiz right, and be first to every one",
+      "levels": "unlock",
+      "stat": "flawlessGames"
+    },
+    {
+      "key": "sole",
+      "name": "Only one who knew",
+      "text": "Be the only player to get a question right {n} times",
+      "one": "Be the only player to get a question right",
+      "levels": "medium",
+      "stat": "soleRight"
+    },
+    {
+      "key": "blank",
+      "name": "Not my subject",
+      "text": "Get nothing right in a whole category",
+      "levels": "unlock",
+      "stat": "blankRounds"
+    }
   ]
 }

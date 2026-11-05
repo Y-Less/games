@@ -105,7 +105,8 @@ const makePlayer = (room, base, extras = {}) => ({
   ...base,
   colour: isBot(base) ? freeColour(room) : startingMarker(extras.colour ?? null, room.players.map((p) => p.colour), true),
   score: 0,
-  rightThisGame: 0,
+  rightThisGame: 0, // how many of this game's questions they have got right, for the flawless-game statistic
+  firstThisGame: 0, // and how many of them they were first to get right
   plan: null, // computer players only: the answer they mean to give to the question that is up
   ...newCounters(),
 });
@@ -325,7 +326,10 @@ export function start(room, id, rng, now) {
   room.round = 0;
   room.ask = 0;
   room.history = [];
-  for (const p of room.players) p.rightThisGame = 0;
+  for (const p of room.players) {
+    p.rightThisGame = 0;
+    p.firstThisGame = 0;
+  }
   const bots = room.players.filter(isBot);
   const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
   for (const p of bots) p.ai = picks[p.id];
@@ -523,13 +527,17 @@ function closeQuestion(room, now) {
   let place = 0;
   const entries = room.answers.map((given) => {
     const right = given.choice === correct;
-    const points = pointsFor(right, right ? place++ : 0);
+    const among = right ? place++ : 0; // where it came among the right answers, which is what the speed bonus pays on
+    const points = pointsFor(right, among);
     const player = playerOf(room, given.id);
     if (player) {
       player.score += points;
-      if (right) player.rightThisGame++;
       room.roundScored[given.id] = (room.roundScored[given.id] ?? 0) + points;
-      if (right) room.roundRight[given.id] = (room.roundRight[given.id] ?? 0) + 1;
+      if (right) {
+        player.rightThisGame++;
+        if (among === 0) player.firstThisGame++;
+        room.roundRight[given.id] = (room.roundRight[given.id] ?? 0) + 1;
+      }
     }
     return { ...given, right, points };
   });
@@ -639,6 +647,7 @@ export function migrate(room, nameOf) {
   room.revealHold ??= REVEAL_HOLD_MS;
   for (const player of room.players ?? []) {
     player.rightThisGame ??= 0;
+    player.firstThisGame ??= 0;
     player.plan ??= null;
   }
   if (!Array.isArray(room.history)) room.history = [];
@@ -720,8 +729,9 @@ export function statsPlayers(room) {
     score: p.score,
     extras: {
       ...statsExtras(p),
-      // Every question of the whole game, which wants there to have been some questions.
-      perfectGames: asked > 0 && (p.rightThisGame ?? 0) === asked ? 1 : 0,
+      // Flawless: every question of the whole game right, and first to every one of them.  Both counts have to reach
+      // the number asked, and there has to have been something to ask.
+      flawlessGames: asked > 0 && (p.rightThisGame ?? 0) === asked && (p.firstThisGame ?? 0) === asked ? 1 : 0,
     },
   }));
 }

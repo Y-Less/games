@@ -10,9 +10,17 @@ in `../../MODULES.md`.  Two things make it unlike the other games on the site:
    landed (`x` and `y`, as fractions of it), and how long the player took.  The time decides the speed bonus and the
    order of the reveal; the spot decides where that player's marker comes to rest.
 
-The game defines no achievements of its own yet, so it has the two every game gets without asking (played, won).  It
-does keep twelve counters (`tally.js`, declared in `module.json`), most of them hidden, so that whatever achievements
-are chosen later already have a history behind them.
+Eight achievements, on top of the two every game gets without asking (played, won).  Every one of them reads a `stat`,
+so none needs `ctx.achievements` and all of them count games played before they existed.  Two are worth a word:
+
+- **Flawless** is not "every answer right" but "every answer right *and* first to it", so `statsPlayers` wants two
+  per-game counts (`rightThisGame` and `firstThisGame`) to both reach the number of questions asked.
+- **My specialist subject** and **Not my subject** are about a *category*, which here means a round: the wheel picks
+  one category and the round's questions all come from it, so a round is exactly the set of questions that category
+  gave you.  `tallyRound` counts a round whose questions you all got right, and one you got none of.
+
+`tally.js` keeps more counters than the achievements use (taps dead centre, taps on the edge, answered last but
+right, best round); they cost nothing to record and are there for whatever is added next.
 
 ## Layout
 

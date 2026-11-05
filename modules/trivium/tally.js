@@ -7,12 +7,14 @@ import { SNAP_MS, isCentre, isEdge } from './scoring.js';
 
 /** The counters Trivium keeps per player. */
 export const STAT_KEYS = [
+  'questionsFaced',
   'rightAnswers',
   'answersGiven',
   'fastestRight',
   'bestRound',
   'questionsMissed',
   'perfectRounds',
+  'blankRounds',
   'soleRight',
   'snapAnswers',
   'bullseyes',
@@ -53,6 +55,7 @@ export function tallyQuestion(entries, missed, playerOf) {
   for (const [place, entry] of entries.entries()) {
     const player = playerOf(entry.id);
     if (!player) continue;
+    bump(player, 'questionsFaced');
     bump(player, 'answersGiven');
     if (isCentre(entry.x, entry.y)) bump(player, 'bullseyes');
     if (isEdge(entry.x, entry.y)) bump(player, 'edgeClicks');
@@ -65,12 +68,15 @@ export function tallyQuestion(entries, missed, playerOf) {
   }
   for (const id of missed) {
     const player = playerOf(id);
-    if (player) bump(player, 'questionsMissed');
+    if (!player) continue;
+    bump(player, 'questionsFaced'); // a question you let go by was still put to you
+    bump(player, 'questionsMissed');
   }
 }
 
 /**
- * Counts a finished round: what each player scored in it, and whether they got every question of it right.
+ * Counts a finished round: what each player scored in it, and how they did against the whole set of questions the
+ * wheel's category gave them - every one right, or not one of them.
  *
  * @param {object[]} players  the players holding the counters
  * @param {Record<string|number, number>} scored  what each of them scored this round
@@ -80,8 +86,11 @@ export function tallyQuestion(entries, missed, playerOf) {
  * Side effects: increments and raises counters on the players.
  */
 export function tallyRound(players, scored, correct, asked) {
+  if (asked < 1) return; // a round that asked nothing is neither a clean sweep nor a blank
   for (const player of players) {
+    const got = correct[player.id] ?? 0;
     peak(player, 'bestRound', scored[player.id] ?? 0);
-    if (asked > 0 && (correct[player.id] ?? 0) === asked) bump(player, 'perfectRounds');
+    if (got === asked) bump(player, 'perfectRounds');
+    if (got === 0) bump(player, 'blankRounds');
   }
 }
