@@ -1,7 +1,7 @@
 // The socket layer for Cribbage.  The rules live in game.js; the rooms, saving, views, joining, and the lobby events are
 // the shared room server (shared/roomServer.js).  This file says what is particular to Cribbage: its settings (how far to
-// play and how many seats), its own socket events (discard, play, ready), and what the server has to do by itself (a
-// computer player's move after a short think, and the wait for everyone to close the show between hands).
+// play, how many seats, and the stinkhole rule), its own socket events (discard, play, ready), and what the server has to
+// do by itself (a computer player's move after a short think, and the wait for everyone to close the show between hands).
 //
 // Depends on shared/roomServer.js and ./game.js.
 //
@@ -58,12 +58,12 @@ export default function (ctx) {
 }
 
 /**
- * Only the settings (how far to play and the number of seats), whatever else a client sends.
+ * Only the settings (how far to play, the number of seats and the stinkhole rule), whatever else a client sends.
  *
  * @param {object} payload  what the client sent
- * @returns {{ target?: number, seats?: number }} the permitted settings
+ * @returns {{ target?: number, seats?: number, stinkhole?: boolean }} the permitted settings
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['target', 'seats']);
+  return pickKeys(payload, ['target', 'seats', 'stinkhole']);
 }

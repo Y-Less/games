@@ -33,6 +33,22 @@ export const MAX_NAME_LENGTH = 24;
 export const BOT_NAMES = ['Robin', 'Sam', 'Jo', 'Max', 'Kit', 'Lee', 'Pat', 'Ash', 'Bea', 'Fen'];
 /** A winner "skunks" an opponent who finishes below this (by target score): a statistic only, it changes no points. */
 export const SKUNK_LINE = { 61: 31, 121: 91 };
+/**
+ * A double skunk leaves the loser short of half the way home.  In the 121-point game that is the usual line of 61, twice
+ * as far back as a skunk; in the short game the skunk line is already half the board, so the two lines meet there.
+ * @param {number} target  the target score
+ * @returns {number} the score a loser must stay below
+ */
+export const doubleSkunkLine = (target) => Math.ceil(target / 2);
+/**
+ * The "stinkhole": the hole one short of home, 120 on a 121-point board.  With the option on, a player sitting in it can
+ * only go out by an exact count, which means pegging exactly one; anything bigger would carry them past the target, so it
+ * is wasted and they stay where they are.  Nowhere else on the board is affected, and a score that reaches the target
+ * from further back still wins however far it would overshoot.
+ * @param {number} target  the target score
+ * @returns {number} the stinkhole's score
+ */
+export const stinkhole = (target) => target - 1;
 /** How many lines of the move log are kept (the view shows fewer). */
 const LOG_LIMIT = 60;
 
@@ -120,20 +136,21 @@ function fitName(room, raw) {
  * @param {string} args.code        the invite code
  * @param {number} args.hostId      the host's account id
  * @param {string} args.hostName    the host's display name
- * @param {{ target?: number, seats?: number }} [args.settings]  how far to play (61 or 121) and how many seats (2 to 5)
+ * @param {{ target?: number, seats?: number, stinkhole?: boolean }} [args.settings]  how far to play (61 or 121), how many seats (2 to 5), and whether the stinkhole rule applies
  * @param {number} args.now       the clock, in milliseconds
  * @returns {object} the new room
  * @throws {Error} (a developer's message) if a setting is not allowed
  * Side effects: none outside the room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
-  const { target = 121, seats: count = DEFAULT_SEATS } = settings;
+  const { target = 121, seats: count = DEFAULT_SEATS, stinkhole: stink = false } = settings;
   if (!TARGETS.includes(target)) throw new Error(`Play to ${TARGETS.join(' or ')}.`);
   if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} seats.`);
   return {
     code,
     hostId,
     target,
+    stinkhole: Boolean(stink),
     phase: 'lobby',
     seats: [{ kind: 'human', id: hostId, name: cleanName(hostName), ...gameFields() }, ...emptySeats(count - 1)],
     nextBot: 1,
@@ -262,16 +279,17 @@ export function fillWithBots(room, userId) {
 }
 
 /**
- * The host changes how far to play and/or how many seats there are.  Lobby only.
+ * The host changes how far to play, how many seats there are, and/or whether the stinkhole rule applies.  Lobby only.
  *
- * Side effects: may change the room's target and grow or shrink its seats (shrinking closes up gaps if it has to).
+ * Side effects: may change the room's target and stinkhole rule, and grow or shrink its seats (shrinking closes up gaps
+ * if it has to).
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
- * @param {{ target?: number, seats?: number }} settings  whatever the client sent
+ * @param {{ target?: number, seats?: number, stinkhole?: boolean }} settings  whatever the client sent
  * @returns {{ ok: boolean, error?: string }}
  */
-export function setSettings(room, userId, { target, seats: count } = {}) {
+export function setSettings(room, userId, { target, seats: count, stinkhole: stink } = {}) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (target !== undefined && !TARGETS.includes(target)) return fail('targetScore', { targets: TARGETS.join(', ') });
@@ -282,6 +300,7 @@ export function setSettings(room, userId, { target, seats: count } = {}) {
     room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
   }
   if (target !== undefined) room.target = target;
+  if (stink !== undefined) room.stinkhole = Boolean(stink);
   return ok();
 }
 
@@ -352,6 +371,12 @@ function award(room, seat, entries, { pegging = false, quiet = false } = {}) {
   let moved = false;
   for (const entry of entries) {
     if (room.phase === 'finished' || entry.points <= 0) continue;
+    // The stinkhole: one short of home, nothing but an exact one will take you out, and the rest is wasted where you sit.
+    // Checked as each score is pegged, so a score that carries you into the stinkhole leaves the next one stuck there.
+    if (room.stinkhole && s.score === stinkhole(room.target) && entry.points !== 1) {
+      if (!quiet) log(room, seat, msg('log.wasted', { name: s.name, what: entry.label, points: entry.points }), 0);
+      continue;
+    }
     if (!moved) {
       s.back = s.score;
       moved = true;
@@ -507,7 +532,11 @@ function beginPlay(room, rng) {
   room.starter = room.deck.splice(Math.floor(rng() * room.deck.length), 1)[0];
   room.phase = 'play';
   room.play = { count: 0, sequence: [], turn: (room.dealer + 1) % room.seats.length, last: null, said: [], previous: [] };
-  if (rankOf(room.starter) === 'J') award(room, room.dealer, [{ label: msg('scoring.heels'), points: HEELS_POINTS }]);
+  if (rankOf(room.starter) === 'J') {
+    award(room, room.dealer, [{ label: msg('scoring.heels'), points: HEELS_POINTS }]);
+    // Two for his heels from 119 or 120 wins the game on the cut, before a card is played.
+    if (room.phase === 'finished' && room.winner === room.dealer) bump(room.seats[room.dealer].stats, 'heelsWins');
+  }
 }
 
 // ---- the play (pegging) ----
@@ -951,6 +980,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     dealer: room.phase === 'lobby' ? null : room.dealer,
     limits: { targets: TARGETS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
     skunkLine: SKUNK_LINE[room.target],
+    stinkhole: Boolean(room.stinkhole),
+    stinkholeAt: room.stinkhole ? stinkhole(room.target) : null,
     seats: room.seats.map((s, i) => (s ? seatView(room, i, online) : null)),
     ...handView(room, me),
     log: recentMoves(room, 40),
@@ -970,11 +1001,16 @@ export function viewFor(room, userId, { online = () => true } = {}) {
  */
 export function statsPlayers(room) {
   const skunked = room.seats.some((s, i) => i !== room.winner && s.score < SKUNK_LINE[room.target]);
+  const doubleSkunked = room.seats.some((s, i) => i !== room.winner && s.score < doubleSkunkLine(room.target));
   const places = seatPlacements(room);
   return statsRows(room.seats, (s, i) => ({
     outcome: i === room.winner ? 'win' : 'loss',
     placement: places[i],
     score: Math.min(s.score, room.target),
-    extras: { ...extrasOf(s.stats, STAT_KEYS), skunks: i === room.winner && skunked ? 1 : 0 },
+    extras: {
+      ...extrasOf(s.stats, STAT_KEYS),
+      skunks: i === room.winner && skunked ? 1 : 0,
+      doubleSkunks: i === room.winner && doubleSkunked ? 1 : 0,
+    },
   }));
 }

@@ -16,7 +16,9 @@
     { "key": "fiveFlushes", "label": "Flushes of five", "agg": "sum", "hidden": true },
     { "key": "perfectHands", "label": "Perfect hands and boxes (29, or 30 as dealer)", "agg": "sum", "hidden": true },
     { "key": "nobs", "label": "Times you scored his nobs", "agg": "sum", "hidden": true },
-    { "key": "fivesGiven", "label": "Fives you put in somebody else's box", "agg": "sum", "hidden": true }
+    { "key": "fivesGiven", "label": "Fives you put in somebody else's box", "agg": "sum", "hidden": true },
+    { "key": "doubleSkunks", "label": "Double skunks", "agg": "sum", "hidden": true },
+    { "key": "heelsWins", "label": "Games won on the cut by two for his heels", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -71,6 +73,28 @@
       "one": "Score one for his nobs",
       "levels": "easy",
       "stat": "nobs"
+    },
+    {
+      "key": "skunk",
+      "name": "Skunked",
+      "text": "Win by a skunk {n} times",
+      "one": "Win by a skunk",
+      "levels": "hard",
+      "stat": "skunks"
+    },
+    {
+      "key": "doubleskunk",
+      "name": "Double skunk",
+      "text": "Win with the loser still short of half the way home",
+      "levels": "unlock",
+      "stat": "doubleSkunks"
+    },
+    {
+      "key": "heels",
+      "name": "Two for his heels",
+      "text": "Win on the cut, by turning up a Jack for the two points that take you home",
+      "levels": "unlock",
+      "stat": "heelsWins"
     }
   ]
 }

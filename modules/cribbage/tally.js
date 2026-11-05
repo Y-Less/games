@@ -5,7 +5,7 @@ import { rankOf } from '../../shared/cards.js';
 import { bump, freshTally, peak } from '../../shared/tally.js';
 
 /** Every counter kept for a player. */
-export const STAT_KEYS = ['handsPlayed', 'bestHand', 'pegPoints', 'zeroHands', 'nineteens', 'fiveFlushes', 'perfectHands', 'nobs', 'fivesGiven'];
+export const STAT_KEYS = ['handsPlayed', 'bestHand', 'pegPoints', 'zeroHands', 'nineteens', 'fiveFlushes', 'perfectHands', 'nobs', 'fivesGiven', 'heelsWins'];
 /**
  * A fresh set of counters, all zero, for one player.
  *

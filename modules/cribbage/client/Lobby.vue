@@ -1,9 +1,9 @@
 <script setup>
-// Cribbage lobby: the invite code and seats (via the shared SeatLobby), plus the host's choice of seat count and the
-// score to play to, with a line describing how many cards the chosen seat count deals.
+// Cribbage lobby: the invite code and seats (via the shared SeatLobby), plus the host's choice of seat count, the score
+// to play to and the stinkhole rule, with a line describing how many cards the chosen seat count deals.
 //
 // Props:
-//   state  {Object}    required.  The player's view (phase 'lobby'): code, seats, you, isHost, seatCount, target, limits.
+//   state  {Object}    required.  The player's view (phase 'lobby'): code, seats, you, isHost, seatCount, target, stinkhole, limits.
 //   send   {Function}  required. send(action, payload) asks the server to do something.
 // Emits: none.
 // Slots: none (fills SeatLobby's #settings slot).
@@ -60,6 +60,10 @@ const dealing = computed(() => t(`lobby.deal.${props.state.seatCount}`));
           <span class="muted label">{{ t('lobby.playTo') }}</span>
           <button v-for="t in targets" :key="t" :class="{ primary: state.target === t }" :disabled="!state.isHost" :aria-pressed="state.target === t" @click="send('settings', { target: t })">{{ t }}</button>
         </div>
+        <label class="check">
+          <input type="checkbox" :checked="state.stinkhole === true" :disabled="!state.isHost" @change="send('settings', { stinkhole: $event.target.checked })" />
+          <span>{{ t('lobby.stinkhole') }}<span class="muted"> {{ t('lobby.stinkholeNote') }}</span></span>
+        </label>
         <p class="muted small">{{ dealing }}</p>
       </template>
     </SeatLobby>

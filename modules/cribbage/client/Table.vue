@@ -276,7 +276,7 @@ const previous = computed(() => (inPlay.value && !sequence.value.length ? s.valu
 
         <div class="right-col" :style="{ gridColumn: `span ${area.columns - area.mainSpan}` }">
           <div class="board-box" :style="{ height: `${dims(area).boardHeight}px` }">
-            <Board :seats="state.seats" :target="state.target" :skunk-line="state.skunkLine" :you="state.you" />
+            <Board :seats="state.seats" :target="state.target" :skunk-line="state.skunkLine" :stinkhole="state.stinkholeAt" :you="state.you" />
           </div>
           <div class="piles" :style="{ '--w': `${dims(area).pile}px`, height: `${dims(area).pilesHeight}px` }">
             <div class="pile" :aria-label="t('table.deck')">

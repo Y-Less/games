@@ -6,6 +6,7 @@
 //   seats      {Array}   required. [{ seat, name, score, back }]: the front peg sits on `score`, the back peg on `back`.
 //   target     {number}  required.  The winning score (the last hole); the track has target / 30 rows.
 //   skunkLine  {number}  the score marking the skunk line, or null for none.
+//   stinkhole  {number}  the score of the stinkhole, marked like the skunk line, or null when the rule is off.
 //   you        {number}  the viewer's seat, to emphasise their front peg (default -1).
 // Emits: none.  Slots: none.
 // Side effects: none (pure rendering).
@@ -18,6 +19,7 @@ const props = defineProps({
   seats: { type: Array, required: true }, // [{ seat, name, score, back }]
   target: { type: Number, required: true },
   skunkLine: { type: Number, default: null },
+  stinkhole: { type: Number, default: null },
   you: { type: Number, default: -1 },
 });
 
@@ -58,7 +60,7 @@ const holes = computed(() => {
   for (let lane = 0; lane < laneCount.value; lane++) {
     for (let h = 0; h <= props.target; h++) {
       const { x, y } = hole(h, lane);
-      out.push({ key: `${lane}-${h}`, x, y, lane, big: h % 5 === 0, mark: h === props.skunkLine || h === props.target || h === 0 });
+      out.push({ key: `${lane}-${h}`, x, y, lane, big: h % 5 === 0, mark: h === props.skunkLine || h === props.stinkhole || h === props.target || h === 0 });
     }
   }
   return out;

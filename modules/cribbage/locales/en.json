@@ -9,6 +9,8 @@
     "game": "Game",
     "seats": "Seats",
     "playTo": "Play to",
+    "stinkhole": "Stinkhole",
+    "stinkholeNote": "(one short of home, only an exact one gets you out)",
     "deal": {
       "2": "Two players: six cards each, two to the box.",
       "3": "Three players: five cards each, one card each to the box, and one more from the deck.",
@@ -100,6 +102,7 @@
   },
   "log": {
     "scored": "{name}: {what} for {points}",
+    "wasted": "{name}: {what} for {points}, wasted in the stinkhole",
     "go": "{name}: go"
   },
   "errors": {

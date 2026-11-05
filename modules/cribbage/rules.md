@@ -1,6 +1,6 @@
 # Cribbage
 
-A game for 2, 3, 4 or 5 players, everyone playing for themselves.  The first to reach the target score wins: 121, or 61 for a short game.  The host chooses the number of seats (empty seats can be filled with computer players) and the target.
+A game for 2, 3, 4 or 5 players, everyone playing for themselves.  The first to reach the target score wins: 121, or 61 for a short game.  The host chooses the number of seats (empty seats can be filled with computer players), the target, and whether the stinkhole rule applies.
 
 ## Dealing
 
@@ -42,6 +42,15 @@ There is no muggins: points are never stolen for missed scores.
 ## Winning
 
 Points are pegged as they are earned, and the game ends the instant someone reaches the target, even in the middle of the play or the show.  A winner who finishes while an opponent is still below 91 points (31 in the short game) has skunked them.
+
+### The stinkhole (option)
+
+The host can turn on the **stinkhole** in the lobby (off by default).  The stinkhole is the hole one short of home: **120** on a 121-point board, 60 on a 61-point one.
+
+- A player sitting in the stinkhole can only go out by an **exact count**, which means pegging **exactly one**.  Anything bigger would carry them past the target, so it is wasted: they stay on 120 and the move log says so.
+- Nowhere else on the board is affected.  A score that reaches the target from further back still wins however far it would overshoot, so pegging 4 from 118 wins as usual.
+- Each score is checked as it is pegged, so a score that carries you **into** the stinkhole leaves the next one stuck there.  Landing on 120 with the first of your hand's combinations means the rest of that hand is wasted unless one of them is worth exactly one.
+- His heels, his nobs, a go, and the last card are all worth one, so those are the ways out.
 
 ## Computer players and leaving
 

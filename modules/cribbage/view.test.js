@@ -26,7 +26,7 @@ for (const [seed, seats] of [
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1 });
-  const parts = ['code', 'phase', 'target', 'seatCount', 'you', 'isHost', 'handNo', 'dealer', 'limits', 'skunkLine', 'seats', 'hand', 'need', 'cribCount', 'deckCount', 'starter', 'play', 'show', 'log', 'winner', 'placements', 'scoreboard'];
+  const parts = ['code', 'phase', 'target', 'seatCount', 'you', 'isHost', 'handNo', 'dealer', 'limits', 'skunkLine', 'stinkhole', 'stinkholeAt', 'seats', 'hand', 'need', 'cribCount', 'deckCount', 'starter', 'play', 'show', 'log', 'winner', 'placements', 'scoreboard'];
   assert.deepEqual(Object.keys(game.viewFor(room, 1)), parts);
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(3));

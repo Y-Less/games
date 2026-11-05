@@ -175,6 +175,71 @@ test('a jack as the starter gives the dealer two for his heels', () => {
   room.seats.forEach((s, i) => i !== room.dealer && assert.equal(s.score, 0));
 });
 
+test('two for his heels on the cut wins the game from 119, and is counted', () => {
+  const room = started(3, { seed: 7 }); // the seed that deals to seat 0, the only person at the table, so the row below is theirs
+  assert.equal(room.dealer, 0);
+  room.deck = ['JH', ...room.deck.filter((c) => c !== 'JH')];
+  for (let i = 0; i < 3; i++) room.hands[i] = room.hands[i].filter((c) => c !== 'JH');
+  room.seats[room.dealer].score = 119;
+  for (let i = 0; i < 3; i++) assert.ok(game.discard(room, i, [room.hands[i][0]], () => 0).ok);
+  assert.equal(room.phase, 'finished', 'the game ends on the cut, before a card is played');
+  assert.equal(room.winner, room.dealer);
+  assert.equal(room.seats[room.dealer].score, 121);
+  assert.equal(room.seats[room.dealer].stats.heelsWins, 1);
+  const [me] = game.statsPlayers(room);
+  assert.equal(me.extras.heelsWins, 1);
+});
+
+test('the stinkhole is off unless the host asks for it, and then only the hole one short of home is stuck', () => {
+  const plain = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex' });
+  assert.equal(plain.stinkhole, false, 'off by default');
+  assert.ok(game.setSettings(plain, 1, { stinkhole: true }).ok);
+  assert.equal(plain.stinkhole, true);
+  assert.equal(game.viewFor(plain, 1).stinkholeAt, 120, 'the view names the hole, for the board to mark');
+  assert.ok(game.setSettings(plain, 1, { stinkhole: false }).ok);
+  assert.equal(game.viewFor(plain, 1).stinkholeAt, null);
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target: 61, stinkhole: true } }).stinkhole, true);
+});
+
+test('with the stinkhole on, 120 needs an exact one: a two is wasted and the last card takes you out', () => {
+  const room = inPlay([['5H'], ['10C']], { scores: [120, 0] });
+  room.stinkhole = true;
+  play(room, 1, '10C'); // the count is 10
+  play(room, 0, '5H'); // fifteen for two, which would overshoot
+  assert.equal(room.seats[0].score, 121, 'the two is wasted, but the last card is worth exactly one');
+  assert.equal(room.winner, 0);
+  const lines = logShapes(room).filter((l) => l.seat === 0);
+  assert.ok(lines.some((l) => l.key === 'log.wasted' && l.what === 'scoring.fifteen' && l.points === 0), 'the wasted two is logged as wasted');
+  assert.ok(lines.some((l) => l.key === 'log.scored' && l.points === 1), 'the one that got them out is logged as scored');
+});
+
+test('without the stinkhole, the same two from 120 simply wins', () => {
+  const room = inPlay([['5H'], ['10C']], { scores: [120, 0] });
+  play(room, 1, '10C');
+  play(room, 0, '5H');
+  assert.equal(room.seats[0].score, 121);
+  assert.equal(room.winner, 0);
+  assert.ok(!logShapes(room).some((l) => l.key === 'log.wasted'));
+});
+
+test('the stinkhole leaves the rest of the board alone: a score that overshoots from further back still wins', () => {
+  const room = inPlay([['5H'], ['10C']], { scores: [119, 0] });
+  room.stinkhole = true;
+  play(room, 1, '10C');
+  play(room, 0, '5H'); // fifteen for two, from 119: 121 exactly
+  assert.equal(room.seats[0].score, 121);
+  assert.equal(room.winner, 0);
+  // Landing in the stinkhole is allowed; it is leaving that is hard.  The fifteen carries this one from 118 into it, and
+  // then the single point for the last card is exactly what it takes to get out again.
+  const through = inPlay([['5H'], ['10C']], { scores: [118, 0] });
+  through.stinkhole = true;
+  play(through, 1, '10C');
+  play(through, 0, '5H');
+  assert.equal(through.seats[0].score, 121);
+  assert.equal(through.winner, 0);
+  assert.ok(!logShapes(through).some((l) => l.key === 'log.wasted'), 'nothing was wasted: the fifteen only took them to 120');
+});
+
 test('the play, two players: go, then last card, and the lead after a go', () => {
   const room = inPlay([['9S', '5C'], ['10H', '10D']]);
   play(room, 1, '10H');
