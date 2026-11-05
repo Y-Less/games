@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import StyledName from '../components/StyledName.vue';
+import CollapsiblePanel from '../components/CollapsiblePanel.vue';
 import { api } from '../api.js';
 import { catalogue } from '../catalogueText.js';
 import { intlLocale } from '../messageText.js';
@@ -87,8 +88,7 @@ function recentFacts(game) {
 
       <p v-if="!stats.perGame.length" class="panel">{{ t('stats.none') }}</p>
 
-      <div v-for="game in stats.perGame" :key="game.game" class="panel stack">
-        <h2>{{ gameName(game) }}</h2>
+      <CollapsiblePanel v-for="game in stats.perGame" :key="game.game" :title="gameName(game)" :data-game="game.game">
         <table class="figures">
           <tbody>
             <tr><th>{{ t('stats.played') }}</th><td>{{ number(game.played) }}</td></tr>
@@ -107,7 +107,7 @@ function recentFacts(game) {
             </li>
           </ol>
         </template>
-      </div>
+      </CollapsiblePanel>
 
       <div v-if="stats.recent.length" class="panel stack">
         <h2>{{ t('stats.recent') }}</h2>

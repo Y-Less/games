@@ -10,6 +10,7 @@ import { api } from '../api.js';
 import { catalogue } from '../catalogueText.js';
 import { intlLocale } from '../messageText.js';
 import { session } from '../session.js';
+import CollapsiblePanel from '../components/CollapsiblePanel.vue';
 
 /** The section that is the site's own rather than a game's (server/achievements.js). */
 const SITE_SECTION = 'global';
@@ -73,11 +74,10 @@ function badge(a) {
     <p v-else-if="!sections" class="muted">{{ t('common.loading') }}</p>
 
     <template v-else>
-    <section v-for="section in sections" :key="section.id" class="panel stack" :data-section="section.id" :aria-label="t('achievements.sectionLabel', { name: sectionName(section) })">
-      <header class="heading">
-        <h2>{{ sectionName(section) }}</h2>
+    <CollapsiblePanel v-for="section in sections" :key="section.id" :title="sectionName(section)" :data-section="section.id" :aria-label="t('achievements.sectionLabel', { name: sectionName(section) })">
+      <template #summary>
         <span class="muted tally">{{ t('achievements.tally', { unlocked: number(unlocked(section)), possible: number(possible(section)) }) }}</span>
-      </header>
+      </template>
       <ul class="boxes">
         <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a), locked: untouched(a) }" :data-achievement="a.id">
           <div class="top">
@@ -100,7 +100,7 @@ function badge(a) {
           </template>
         </li>
       </ul>
-    </section>
+    </CollapsiblePanel>
     </template>
   </section>
 </template>

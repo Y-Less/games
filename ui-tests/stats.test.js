@@ -15,8 +15,41 @@ after(async () => {
 });
 
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
-const tilesOf = (u) =>
+const allTilesOf = (u) =>
   u.page.$$eval('.tile', (els) => Object.fromEntries(els.map((e) => [e.querySelector('.muted').textContent.trim(), e.querySelector('strong').textContent.trim()])));
+
+/**
+ * The counted tiles, with the clock taken out and checked separately: "Time on the site" runs while the test does,
+ * so it is a shape to match rather than a number to pin.
+ * @param {object} u  a person from the world
+ * @returns {Promise<object>} the tiles, less the clock
+ */
+async function tilesOf(u) {
+  const tiles = await allTilesOf(u);
+  assert.match(tiles['Time on the site'], /^\d+:\d\d:\d\d$/, 'the clock is a time');
+  delete tiles['Time on the site'];
+  return tiles;
+}
+
+/**
+ * Opens a game's panel on the statistics page.  They start shut, so what is in one is not on the page until it is
+ * asked for; `innerText` of a panel that is still folded is only its heading.
+ * @param {object} u  a person from the world
+ * @param {string} title  the game's name, as its heading reads
+ * @returns {Promise<void>}
+ */
+async function openGame(u, title) {
+  const opened = await u.clickFound(
+    (name) => [...document.querySelectorAll('.collapsible h2 button')].find((b) => b.textContent.trim() === name && b.getAttribute('aria-expanded') === 'false'),
+    title,
+  );
+  assert.ok(opened, `there is a shut ${title} panel to open`);
+  await u.page.waitForFunction(
+    (name) => [...document.querySelectorAll('.collapsible h2 button')].some((b) => b.textContent.trim() === name && b.getAttribute('aria-expanded') === 'true'),
+    { timeout: 5000 },
+    title,
+  );
+}
 
 test('a new user sees zeros and an invitation to play', { timeout: 60000 }, guarded('zeros', async () => {
   await user.clickButton('Statistics', { scope: 'header nav', exact: true });
@@ -44,6 +77,7 @@ test('a finished game shows up in the totals, the per-game table and the recent 
   await user.page.reload({ waitUntil: 'domcontentloaded' });
   await user.waitForText('Recent games');
   assert.deepEqual(await tilesOf(user), { 'Games played': '1', Wins: '1', Losses: '0', 'Win rate': '100%' });
+  await openGame(user, 'Hearts');
   const hearts = await user.page.$$eval('.panel.stack', (panels) => {
     const panel = panels.find((p) => p.querySelector('h2')?.textContent.trim() === 'Hearts');
     return panel ? panel.innerText.replace(/\s+/g, ' ') : null;
