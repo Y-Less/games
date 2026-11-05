@@ -178,6 +178,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
 
     // Profile operations are passed straight through from profile.js (see createProfiles) so callers only need `auth`.
     userById: profiles.userById,
+    userByName: profiles.userByName,
     publicProfiles: profiles.publicProfiles,
     updateProfile: profiles.updateProfile,
 

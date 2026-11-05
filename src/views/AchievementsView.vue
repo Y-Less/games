@@ -4,7 +4,7 @@
 // Props: none.  Emits: none.  Slots: none.
 // Depends on: api.js (GET /api/achievements), session.js, catalogueText.js (the names and texts a language may translate)
 // and messageText.js (intlLocale).  Side effects: one request on mount.
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 import { catalogue } from '../catalogueText.js';
@@ -16,14 +16,22 @@ import CollapsiblePanel from '../components/CollapsiblePanel.vue';
 const SITE_SECTION = 'global';
 
 const { t } = useI18n();
+const props = defineProps({ who: { type: String, default: '' } });
+// Whose page this is: nobody named in the address means your own.
+const mine = computed(() => !props.who);
+// The name at the top: your display name, or theirs once their list has arrived.
+const whose = computed(() => (mine.value ? session.user.displayName : (subject.value?.displayName ?? props.who)));
+const subject = ref(null); // who the server says this page is about, for somebody else's
+
 const sections = ref(null); // the server's sections once loaded (null while loading)
 const failed = ref(''); // the error text if loading failed
 
-// Loads the achievements.  Side effects: sets sections, or failed.
+// Loads the achievements, yours or the player the address names.  Side effects: sets sections and subject, or failed.
 onMounted(async () => {
   try {
-    const data = await api('GET', '/api/achievements');
+    const data = await api('GET', mine.value ? '/api/achievements' : `/api/achievements/user/${encodeURIComponent(props.who)}`);
     sections.value = data.sections;
+    subject.value = data.who ?? null;
   } catch (e) {
     failed.value = e.message;
   }
@@ -69,7 +77,8 @@ function badge(a) {
 
 <template>
   <section class="stack achievements">
-    <h1>{{ t('achievements.title', { name: session.user.displayName }) }}</h1>
+    <h1>{{ t('achievements.title', { name: whose }) }}</h1>
+    <p v-if="!mine" class="muted"><RouterLink :to="{ name: 'stats', params: { who } }">{{ t('achievements.theirStats', { name: whose }) }}</RouterLink></p>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
     <p v-else-if="!sections" class="muted">{{ t('common.loading') }}</p>
 

@@ -194,7 +194,8 @@
     "players": "{count}人",
     "points": "{count}点",
     "playersAndPoints": "{players}、{points}",
-    "online": "サイト滞在時間"
+    "online": "サイト滞在時間",
+    "theirAchievements": "{name}の実績"
   },
   "achievements": {
     "title": "{name}の実績",
@@ -216,7 +217,8 @@
       "bestScore": "1ゲームでの最高得点"
     },
     "progressLabel": "{name}：次のレベルまでの進み具合",
-    "countOf": "{value} / {target}"
+    "countOf": "{value} / {target}",
+    "theirStats": "{name}の統計"
   },
   "steve": {
     "yours": "スティーブの実績を手に入れました。",
@@ -307,7 +309,9 @@
     "cardsInHand": "手札",
     "now": "現在",
     "plays": "プレイ",
-    "score": "得点"
+    "score": "得点",
+    "theirStats": "統計",
+    "theirAchievements": "実績"
   },
   "cards": {
     "name": "{suit}の{rank}",
@@ -466,7 +470,8 @@
     "typeInviteCode": "招待コードを入力してください。",
     "notAColour": "それは色ではありません。",
     "colourIsUnlock": "好きな色はショップのアンロックです。標準の色から選んでください。",
-    "colourTaken": "その色は他の人が使っています。"
+    "colourTaken": "その色は他の人が使っています。",
+    "noSuchPlayer": "その名前のプレイヤーはいません。"
   },
   "facts": {
     "gameOver": "ゲーム終了",

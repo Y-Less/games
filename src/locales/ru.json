@@ -194,7 +194,8 @@
     "players": "{count} игрок | {count} игрока | {count} игроков",
     "points": "{count} очко | {count} очка | {count} очков",
     "playersAndPoints": "{players}, {points}",
-    "online": "Время на сайте"
+    "online": "Время на сайте",
+    "theirAchievements": "Достижения: {name}"
   },
   "achievements": {
     "title": "Достижения: {name}",
@@ -216,7 +217,8 @@
       "bestScore": "Лучший результат за одну игру"
     },
     "progressLabel": "{name}: прогресс до следующего уровня",
-    "countOf": "{value} / {target}"
+    "countOf": "{value} / {target}",
+    "theirStats": "Статистика: {name}"
   },
   "steve": {
     "yours": "Достижение Стива теперь ваше.",
@@ -307,7 +309,9 @@
     "cardsInHand": "Карт на руках",
     "now": "Сейчас",
     "plays": "Ходы",
-    "score": "Очки"
+    "score": "Очки",
+    "theirStats": "Статистика",
+    "theirAchievements": "Достижения"
   },
   "cards": {
     "name": "{rank} {suit}",
@@ -453,7 +457,8 @@
     "typeInviteCode": "Введите код приглашения.",
     "notAColour": "Это не цвет.",
     "colourIsUnlock": "Произвольный цвет открывается в магазине. Выберите один из обычных.",
-    "colourTaken": "Этот цвет уже занят."
+    "colourTaken": "Этот цвет уже занят.",
+    "noSuchPlayer": "Игрока с таким именем нет."
   },
   "facts": {
     "gameOver": "Игра окончена",

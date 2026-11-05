@@ -4,6 +4,9 @@
 // Props: player ({ id, name, bot?, away?, isHost?, userId? }), canRemove (Boolean), error (String), anchor (Object|null, the chip element).
 // Emits: remove (after the host confirms).  Slots: default (the game's own panel about this player).
 // Side effects: reads layout (offsetParent, bounding rects) to position itself; resets its confirmation step on player or error change.
+//
+// A person's name in it also links to their statistics and their achievements.  Those links open in a tab of their
+// own: the dialog is opened during a game, and a page that replaced the table would take the player out of it.
 // The standard dialog opened from a player's chip in the score bar (see usePlayerPopup.js, which owns the opening and
 // closing): a floating panel, centred at the top of the game's main area, over the table so that nothing moves.  It
 // shows who the player is (name, a computer icon for computer players, whether they are away, a "host" badge) and,
@@ -82,6 +85,10 @@ function confirm() {
       <span v-if="player.isHost" class="tag host">{{ t('common.host') }}</span>
       <span class="tag state" :class="{ away: player.away }">{{ player.away ? t('common.away') : player.bot ? t('common.computer') : t('common.connected') }}</span>
     </header>
+    <nav v-if="player.userId" class="pages">
+      <a :href="`/stats/${player.userId}`" target="_blank" rel="noopener">{{ t('popup.theirStats') }}</a>
+      <a :href="`/achievements/${player.userId}`" target="_blank" rel="noopener">{{ t('popup.theirAchievements') }}</a>
+    </nav>
     <div v-if="$slots.default" class="panel"><slot /></div>
     <footer v-if="canRemove" class="foot">
       <template v-if="!confirming">
@@ -98,6 +105,13 @@ function confirm() {
 </template>
 
 <style scoped>
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  font-size: 0.85rem;
+}
+
 .player-popup {
   position: absolute;
   top: 0;

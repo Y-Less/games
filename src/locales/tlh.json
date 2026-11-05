@@ -194,7 +194,8 @@
     "players": "{count} QujwI' | {count} QujwI'pu'",
     "points": "{count} mI' | {count} mI'mey",
     "playersAndPoints": "{players}, {points}",
-    "online": "naDev poH"
+    "online": "naDev poH",
+    "theirAchievements": "{name} DIvI'mey"
   },
   "achievements": {
     "title": "{name} ta'mey",
@@ -216,7 +217,8 @@
       "bestScore": "wa' Quj mI' pov"
     },
     "progressLabel": "{name}: patlh veb ghoSlI'",
-    "countOf": "{value} / {target}"
+    "countOf": "{value} / {target}",
+    "theirStats": "{name} mI'mey"
   },
   "steve": {
     "yours": "Steve ta' Daghaj.",
@@ -307,7 +309,9 @@
     "cardsInHand": "ghopDaq navmey",
     "now": "DaH",
     "plays": "vangmey",
-    "score": "mI'"
+    "score": "mI'",
+    "theirStats": "mI'mey",
+    "theirAchievements": "DIvI'mey"
   },
   "cards": {
     "name": "{suit} {rank}",
@@ -453,7 +457,8 @@
     "typeInviteCode": "rI' mu' yIghItlh.",
     "notAColour": "rItlh 'oHbe'.",
     "colourIsUnlock": "malja'Daq poSmoHlu' rItlh vay'. rItlhmey motlh wa' yIwIv.",
-    "colourTaken": "rItlhvetlh ghaj latlh."
+    "colourTaken": "rItlhvetlh ghaj latlh.",
+    "noSuchPlayer": "pongvetlh ghajbogh QujwI' tu'lu'be'."
   },
   "facts": {
     "gameOver": "Quj rIn",

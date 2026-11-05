@@ -1,9 +1,12 @@
 <script setup>
-// The statistics page: your totals, each game's figures and its leaderboard, and your recent games.
-// Props: none. Emits: none. Slots: none.
-// Depends on: api.js (GET /api/stats/me and /api/stats/leaderboard/<game>), session.js, catalogueText.js (game names and
-// stat labels a language may translate), messageText.js (intlLocale) and StyledName.vue.
-// Side effects: requests on mount; runs a one-second timer while the page is open, to keep the time on the site ticking.
+// The statistics page: a player's totals, each game's figures and its leaderboard, and their recent games.  Yours by
+// default, or somebody else's when the address names one (/stats/tom, /stats/3243).
+// Props: who (String, the account named in the address: a username or an id; empty for your own).
+// Emits: none. Slots: none.
+// Depends on: api.js (GET /api/stats/me or /api/stats/user/<who>, and /api/stats/leaderboard/<game>), session.js,
+// catalogueText.js (game names and stat labels a language may translate), messageText.js (intlLocale) and StyledName.vue.
+// Side effects: requests on mount; runs a one-second timer while your own page is open, to keep the time on the site
+// ticking.  Somebody else's page has no such clock: time on the site is about them, not about their games.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import StyledName from '../components/StyledName.vue';
@@ -13,8 +16,10 @@ import { catalogue } from '../catalogueText.js';
 import { intlLocale } from '../messageText.js';
 import { session } from '../session.js';
 
+const props = defineProps({ who: { type: String, default: '' } });
+
 const { t } = useI18n();
-const stats = ref(null); // your stats once loaded
+const stats = ref(null); // the stats once loaded
 const failed = ref(''); // the error text if loading failed
 const boards = ref({}); // game id -> leaderboard rows
 
@@ -26,12 +31,19 @@ const now = ref(Date.now());
 let ticker = null;
 const onlineSeconds = computed(() => (stats.value?.summary.onlineSeconds ?? 0) + (arrived.value ? Math.max(0, Math.floor((now.value - arrived.value) / 1000)) : 0));
 
-// Loads your stats and then one leaderboard per game you have played. Side effects: sets stats, boards or failed.
+// Whose page this is: nobody named in the address means your own.
+const mine = computed(() => !props.who);
+// The name at the top: your display name, or theirs once their figures have arrived.
+const whose = computed(() => (mine.value ? session.user.displayName : (stats.value?.who?.displayName ?? props.who)));
+
+// Loads the stats and then one leaderboard per game that player has played. Side effects: sets stats, boards or failed.
 onMounted(async () => {
   try {
-    stats.value = await api('GET', '/api/stats/me');
-    arrived.value = Date.now();
-    ticker = setInterval(() => (now.value = Date.now()), 1000);
+    stats.value = await api('GET', mine.value ? '/api/stats/me' : `/api/stats/user/${encodeURIComponent(props.who)}`);
+    if (mine.value) {
+      arrived.value = Date.now();
+      ticker = setInterval(() => (now.value = Date.now()), 1000);
+    }
     for (const game of stats.value.perGame) {
       boards.value[game.game] = (await api('GET', `/api/stats/leaderboard/${game.game}`)).leaderboard;
     }
@@ -72,7 +84,8 @@ function recentFacts(game) {
 
 <template>
   <section class="stack stats">
-    <h1>{{ t('stats.title', { name: session.user.displayName }) }}</h1>
+    <h1>{{ t('stats.title', { name: whose }) }}</h1>
+    <p v-if="!mine" class="muted"><RouterLink :to="{ name: 'achievements', params: { who } }">{{ t('stats.theirAchievements', { name: whose }) }}</RouterLink></p>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
     <p v-else-if="!stats" class="muted">{{ t('common.loading') }}</p>
 
@@ -83,7 +96,7 @@ function recentFacts(game) {
         <div class="panel tile"><strong>{{ number(stats.summary.losses) }}</strong><span class="muted">{{ t('stats.losses') }}</span></div>
         <div v-if="stats.summary.draws" class="panel tile"><strong>{{ number(stats.summary.draws) }}</strong><span class="muted">{{ t('stats.draws') }}</span></div>
         <div class="panel tile"><strong>{{ percent(stats.summary.winRate) }}</strong><span class="muted">{{ t('stats.winRate') }}</span></div>
-        <div class="panel tile"><strong class="clock">{{ clock(onlineSeconds) }}</strong><span class="muted">{{ t('stats.online') }}</span></div>
+        <div v-if="mine" class="panel tile"><strong class="clock">{{ clock(onlineSeconds) }}</strong><span class="muted">{{ t('stats.online') }}</span></div>
       </div>
 
       <p v-if="!stats.perGame.length" class="panel">{{ t('stats.none') }}</p>

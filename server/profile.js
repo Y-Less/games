@@ -166,7 +166,7 @@ export function publicUser(row) {
  * @param {import('node:sqlite').DatabaseSync} db
  * @param {{ canUse?: (userId: number, settings: object) => void }} [options]
  *   canUse throws when a profile change uses something the user has not bought (the site wires the shop's check in; tests may omit it).
- * @returns {{ userById: (id: number) => object | null, publicProfiles: (ids: number[]) => object, updateProfile: (userId: number, changes: object) => object }}
+ * @returns {{ userById: (id: number) => object | null, userByName: (name: string) => object | null, publicProfiles: (ids: number[]) => object, updateProfile: (userId: number, changes: object) => object }}
  * Side effects: none until a method is called.
  */
 export function createProfiles(db, { canUse = () => {} } = {}) {
@@ -178,6 +178,18 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
    */
   function userById(id) {
     const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    return row ? publicUser(row) : null;
+  }
+
+  /**
+   * One user by the name they sign in with, whatever its capitals (usernames are unique that way, display names are
+   * not, which is why a link to somebody's pages names them this way).
+   * @param {string} username
+   * @returns {object | null}  null when there is no such user
+   * Side effects: reads the database.
+   */
+  function userByName(username) {
+    const row = typeof username === 'string' && username ? db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase()) : null;
     return row ? publicUser(row) : null;
   }
 
@@ -215,5 +227,5 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
     return userById(userId);
   }
 
-  return { userById, publicProfiles, updateProfile };
+  return { userById, userByName, publicProfiles, updateProfile };
 }

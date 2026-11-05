@@ -194,7 +194,8 @@
     "players": "{count} player | {count} players",
     "points": "{count} point | {count} points",
     "playersAndPoints": "{players}, {points}",
-    "online": "Time on the site"
+    "online": "Time on the site",
+    "theirAchievements": "{name}'s achievements"
   },
   "achievements": {
     "title": "Achievements for {name}",
@@ -216,7 +217,8 @@
       "bestScore": "Best score in a single game"
     },
     "progressLabel": "{name}: progress towards the next level",
-    "countOf": "{value} / {target}"
+    "countOf": "{value} / {target}",
+    "theirStats": "{name}'s statistics"
   },
   "steve": {
     "yours": "Steve's Achievement is yours.",
@@ -307,7 +309,9 @@
     "cardsInHand": "Cards in hand",
     "now": "Now",
     "plays": "Plays",
-    "score": "Score"
+    "score": "Score",
+    "theirStats": "Statistics",
+    "theirAchievements": "Achievements"
   },
   "cards": {
     "name": "{rank} of {suit}",
@@ -453,7 +457,8 @@
     "typeInviteCode": "Type an invite code.",
     "notAColour": "That is not a colour.",
     "colourIsUnlock": "Any colour is an unlock in the shop. Choose one of the standard colours.",
-    "colourTaken": "Someone else has that colour."
+    "colourTaken": "Someone else has that colour.",
+    "noSuchPlayer": "There is no player by that name."
   },
   "facts": {
     "gameOver": "Game over",
