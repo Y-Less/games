@@ -26,7 +26,7 @@
     "other": "{n}-й"
   },
   "nav": {
-    "brand": "Game Hub",
+    "brand": "Game Gang",
     "tagline": "Играйте сами с собой — и с другими.",
     "main": "Главная",
     "games": "Игры",
@@ -39,8 +39,8 @@
     "leaveGame": "Покинуть игру",
     "yesLeave": "Да, выйти",
     "stay": "Остаться",
-    "gold": "Золото: {n}. Потратьте его в магазине",
-    "yourGold": "Ваше золото",
+    "gold": "Гилдеры: {n}. Потратьте их в магазине",
+    "yourGold": "Ваши гилдеры",
     "yourAvatar": "Ваш аватар",
     "noHelp": "Для этой страницы справки нет."
   },
@@ -140,7 +140,7 @@
   },
   "shop": {
     "title": "Магазин",
-    "goldBalance": "Золото: {n}",
+    "goldBalance": "Гилдеры: {n}",
     "paused": "Анимации на паузе, поэтому превью не двигаются. Чтобы включить их, выберите «{option}» в своём {profile}.",
     "profileLink": "профиле",
     "browse": "Что посмотреть",
@@ -166,7 +166,7 @@
     "use": "Выбрать",
     "unlocked": "Открыто",
     "buyFor": "Купить за {price}",
-    "short": "Не хватает золота: {n}"
+    "short": "Не хватает гилдеров: {n}"
   },
   "stats": {
     "title": "Статистика: {name}",
@@ -198,7 +198,7 @@
   },
   "achievements": {
     "title": "Достижения: {name}",
-    "site": "Game Hub",
+    "site": "Game Gang",
     "sectionLabel": "Достижения: {name}",
     "tally": "{unlocked} из {possible} уровней",
     "secret": "???",
@@ -349,14 +349,14 @@
     "yours": "Ваш аватар",
     "save": "Сохранить аватар",
     "saved": "Аватар сохранён.",
-    "lockedTitle": "{name}: купите в магазине (золото: {price})",
+    "lockedTitle": "{name}: купите в магазине (гилдеры: {price})",
     "option": "{slot}: {name}"
   },
   "unlocks": {
     "one": "Достижение открыто: {name}",
     "oneLine": "{game}: {text}",
     "oneLineLevel": "{game}, уровень {level}: {text}",
-    "reward": "+{coins} золота"
+    "reward": "+{coins} гилдеров"
   },
   "errors": {
     "noAnswer": "Сервер не ответил.",
@@ -396,7 +396,7 @@
     "notOwned": "Сначала купите «{item}» в магазине.",
     "noSuchItem": "Такого товара нет.",
     "alreadyOwned": "У вас это уже есть.",
-    "notEnoughGold": "На это у вас не хватает золота.",
+    "notEnoughGold": "На это у вас не хватает гилдеров.",
     "notInGame": "Вы не в этой игре.",
     "notInAnyGame": "Вы сейчас не в игре.",
     "notYourTurn": "Сейчас не ваш ход.",

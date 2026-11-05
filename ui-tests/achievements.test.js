@@ -25,8 +25,9 @@ test('the page is in the menu and lists the global achievements, then each game 
   assert.equal(user.url.pathname, '/achievements');
   await user.waitForSelector('[data-section="hearts"]');
   const sections = await user.page.$$eval('[data-section] > header h2', (els) => els.map((e) => e.textContent.trim()));
-  assert.ok(['Global', 'Hearts', 'Nomination Whist', 'Wavelength', 'Cheat', 'Cribbage'].every((name) => sections.includes(name)));
-  assert.equal(sections[0], 'Global', 'the global ones come first');
+  // The site's own achievements are headed with the site's name, not the word "global" (see sectionName).
+  assert.ok(['Game Gang', 'Hearts', 'Nomination Whist', 'Wavelength', 'Cheat', 'Cribbage'].every((name) => sections.includes(name)));
+  assert.equal(sections[0], 'Game Gang', "the site's own come first");
   assert.equal(await user.page.$$eval('[data-section="cheat"] h3', (els) => els.length), 9, 'played and won, then the seven of its own');
   const wavelength = await user.page.$$eval('[data-section="wavelength"] h3', (els) => els.map((e) => e.textContent.trim()));
   assert.equal(wavelength.length, 9, 'every Wavelength achievement has a box');
@@ -66,7 +67,7 @@ test('what was unlocked is announced in a pop-up, and the coins are paid', { tim
   await user.waitForSelector('.notice.achievement');
   const text = await user.page.$eval('.notice.achievement', (e) => e.innerText.replace(/\s+/g, ' '));
   assert.match(text, /achievements? unlocked/i);
-  assert.match(text, /\+[\d,]+ gold/);
+  assert.match(text, /\+[\d,]+ Gilders/);
   await user.page.click('.notice.achievement button');
   await user.page.waitForFunction(() => !document.querySelector('.notice.achievement'), { timeout: 5000 });
 }));

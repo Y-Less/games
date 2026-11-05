@@ -247,7 +247,7 @@ export function createShop(db) {
      * @param {number} userId
      * @param {string} itemId
      * @returns {{ item: object, balance: number }}
-     * @throws {ShopError} 404 unknown item, 409 already owned, 402 not enough gold
+     * @throws {ShopError} 404 unknown item, 409 already owned, 402 not enough Gilders
      * Side effects: spends coins and records the purchase, in one transaction.
      */
     buy(userId, itemId) {

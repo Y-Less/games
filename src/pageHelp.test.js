@@ -12,7 +12,7 @@ describe('page help', () => {
     expect(pageHelp({ name: 'play', params: { game: 'hearts' } })).toBeNull();
   });
 
-  it('explains every part of the shop on whichever tab you are on, and what the gold is for', () => {
+  it('explains every part of the shop on whichever tab you are on, and what the Gilders are for', () => {
     const names = pageHelp({ name: 'shop', params: { tab: 'names' } }).markdown;
     expect(pageHelp({ name: 'shop', params: { tab: 'avatar' } }).markdown).toBe(names);
     expect(pageHelp({ name: 'shop', params: {} }).markdown).toBe(names);
@@ -23,6 +23,6 @@ describe('page help', () => {
   });
 
   it('says what achievements pay, from the real amounts', () => {
-    expect(pageHelp({ name: 'achievements', params: {} }).markdown).toContain('100 gold times its level number, so 100 for level 1 and 500 for level 5');
+    expect(pageHelp({ name: 'achievements', params: {} }).markdown).toContain('100 Gilders times its level number, so 100 for level 1 and 500 for level 5');
   });
 });

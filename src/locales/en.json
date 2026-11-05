@@ -26,8 +26,8 @@
     "other": "{n}th"
   },
   "nav": {
-    "brand": "Game Hub",
-    "tagline": "Play with yourself, and others.",
+    "brand": "Game Gang",
+    "tagline": "A bang up time!",
     "main": "Main",
     "games": "Games",
     "stats": "Statistics",
@@ -39,8 +39,8 @@
     "leaveGame": "Leave game",
     "yesLeave": "Yes, leave",
     "stay": "Stay",
-    "gold": "{n} gold: spend it in the shop",
-    "yourGold": "Your gold",
+    "gold": "{n} Gilders: spend them in the shop",
+    "yourGold": "Your Gilders",
     "yourAvatar": "Your avatar",
     "noHelp": "There is no help for this page."
   },
@@ -140,7 +140,7 @@
   },
   "shop": {
     "title": "Shop",
-    "goldBalance": "{n} gold",
+    "goldBalance": "{n} Gilders",
     "paused": "Animations are paused, so these previews stand still. To play them, choose \"{option}\" in your {profile}.",
     "profileLink": "profile",
     "browse": "What to browse",
@@ -166,7 +166,7 @@
     "use": "Use",
     "unlocked": "Unlocked",
     "buyFor": "Buy for {price}",
-    "short": "You need {n} more gold"
+    "short": "You need {n} more Gilders"
   },
   "stats": {
     "title": "Statistics for {name}",
@@ -198,7 +198,7 @@
   },
   "achievements": {
     "title": "Achievements for {name}",
-    "site": "Game Hub",
+    "site": "Game Gang",
     "sectionLabel": "{name} achievements",
     "tally": "{unlocked} of {possible} levels",
     "secret": "???",
@@ -349,14 +349,14 @@
     "yours": "Your avatar",
     "save": "Save avatar",
     "saved": "Avatar saved.",
-    "lockedTitle": "{name}: buy it in the shop ({price} gold)",
+    "lockedTitle": "{name}: buy it in the shop ({price} Gilders)",
     "option": "{slot}: {name}"
   },
   "unlocks": {
     "one": "Achievement unlocked: {name}",
     "oneLine": "{game}: {text}",
     "oneLineLevel": "{game}, level {level}: {text}",
-    "reward": "+{coins} gold"
+    "reward": "+{coins} Gilders"
   },
   "errors": {
     "noAnswer": "The server did not answer.",
@@ -396,7 +396,7 @@
     "notOwned": "You need to buy \"{item}\" in the shop first.",
     "noSuchItem": "There is no such item.",
     "alreadyOwned": "You already have that.",
-    "notEnoughGold": "You do not have enough gold for that.",
+    "notEnoughGold": "You do not have enough Gilders for that.",
     "notInGame": "You are not in this game.",
     "notInAnyGame": "You are not in a game.",
     "notYourTurn": "It is not your turn.",

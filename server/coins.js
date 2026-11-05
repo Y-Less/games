@@ -121,9 +121,9 @@ export function createCoins(db) {
      * Side effects: inserts a negative coin_ledger row.
      */
     spend(userId, amount, reason) {
-      if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of gold.');
+      if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of Gilders.');
       if (amount === 0) return;
-      if (sum.get(userId).balance < amount) throw new Error('Not enough gold.');
+      if (sum.get(userId).balance < amount) throw new Error('Not enough Gilders.');
       insert.run(userId, -amount, reason, null, Date.now());
     },
   };

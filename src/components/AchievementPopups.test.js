@@ -55,7 +55,7 @@ describe('AchievementPopups', () => {
     const text = popup().textContent;
     expect(text).toContain('Achievement unlocked: Played cards');
     expect(text).toContain('level 2: Play 500 cards');
-    expect(text).toContain('+1,000 gold');
+    expect(text).toContain('+1,000 Gilders');
     expect(popup().getAttribute('role')).toBe('status');
   });
 

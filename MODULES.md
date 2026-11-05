@@ -161,7 +161,7 @@ far they are towards the next.  An achievement is a number that grows, and the l
 Every game also gets two without asking: **Played the game** (medium) and **Won the game** (hard), from its recorded results
 (a module may define its own `played` or `won` key to replace them).
 
-**Rewards.** Every level unlocked pays 100 gold times its level number (100 for level 1, up to 500 for level 5), once; an achievement with only one level pays a flat 250. The player sees a pop-up wherever they are on
+**Rewards.** Every level unlocked pays 100 Gilders times its level number (100 for level 1, up to 500 for level 5), once; an achievement with only one level pays a flat 250. The player sees a pop-up wherever they are on
 the site (`AchievementPopups`, built on the generic `NoticePopup`), and it is queued until they have seen it.  Levels
 a player had already earned when achievements began paying out are paid the first time the site works them out (when they open the
 Achievements page, finish a game or are told of an unlock).
@@ -174,7 +174,7 @@ each card a person plays.
 Two more global ones are worked out from the games' recorded stats with no help from a game: "Played pieces" adds up Azulejo's
 `wallTiles`, Gaudi's `dicePlaced`, Rummikub's `tilesPlayed` and Splendour's `cardsBought` (a global definition says
 `sum: [[game, stat], ...]`), and `wonEvery: true` is 1 once every game on the site has been won at least once.
-"Big spender" (gold spent) and "Customised" (something paid for from every part of the shop; avatar parts count slot by slot, so hair, eyes
+"Big spender" (Gilders spent) and "Customised" (something paid for from every part of the shop; avatar parts count slot by slot, so hair, eyes
 and hats are parts of their own, and a part with only free items is not asked for) take their values from `measure` functions the site
 gives `createAchievements`; buying in the shop settles them straight away.
 "Indecisive" counts every shop item put on (a background, card back, name style or animation, avatar part, site colour, font, or background
@@ -183,7 +183,7 @@ animation swapped for another), whether from the shop or the profile page; the s
 settled); "Persistent" counts games lost.
 
 Three more are the site's own doing, and need nothing from a game.  "Fashionable" counts the things an account has bought
-that cost gold (`measure: 'purchases'`), so the free starting background and card back are not among them.  "Out in the shed"
+that cost Gilders (`measure: 'purchases'`), so the free starting background and card back are not among them.  "Out in the shed"
 counts minutes on the site (`measure: 'onlineMinutes'`): `server/presence.js` runs a clock while somebody has at least one
 page open, so two tabs are one person, and banks it when their last page closes or the site shuts down; the same figure is
 the Statistics page's "Time on the site".  "Qapla'" is saved progress rather than a measure, written the moment somebody

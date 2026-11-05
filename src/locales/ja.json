@@ -26,7 +26,7 @@
     "other": "{n}位"
   },
   "nav": {
-    "brand": "ゲームハブ",
+    "brand": "ゲームギャング",
     "tagline": "ひとりでも、みんなでも。",
     "main": "メイン",
     "games": "ゲーム",
@@ -39,8 +39,8 @@
     "leaveGame": "ゲームを退出",
     "yesLeave": "はい、退出します",
     "stay": "残る",
-    "gold": "{n}ゴールド：ショップで使えます",
-    "yourGold": "あなたのゴールド",
+    "gold": "{n}ギルダー：ショップで使えます",
+    "yourGold": "あなたのギルダー",
     "yourAvatar": "あなたのアバター",
     "noHelp": "このページのヘルプはありません。"
   },
@@ -140,7 +140,7 @@
   },
   "shop": {
     "title": "ショップ",
-    "goldBalance": "{n}ゴールド",
+    "goldBalance": "{n}ギルダー",
     "paused": "アニメーションが停止中なので、見本は動きません。動かすには{profile}で「{option}」を選んでください。",
     "profileLink": "プロフィール",
     "browse": "表示する種類",
@@ -166,7 +166,7 @@
     "use": "使う",
     "unlocked": "解放済み",
     "buyFor": "{price}で買う",
-    "short": "あと{n}ゴールド必要です"
+    "short": "あと{n}ギルダー必要です"
   },
   "stats": {
     "title": "{name}の統計",
@@ -349,7 +349,7 @@
     "yours": "あなたのアバター",
     "save": "アバターを保存",
     "saved": "アバターを保存しました。",
-    "lockedTitle": "{name}：ショップで買えます（{price}ゴールド）",
+    "lockedTitle": "{name}：ショップで買えます（{price}ギルダー）",
     "option": "{slot}：{name}",
     "slots": {
       "skin": "肌",
@@ -369,7 +369,7 @@
     "one": "実績を解放：{name}",
     "oneLine": "{game}：{text}",
     "oneLineLevel": "{game} レベル{level}：{text}",
-    "reward": "+{coins}ゴールド"
+    "reward": "+{coins}ギルダー"
   },
   "errors": {
     "noAnswer": "サーバーから返事がありません。",
@@ -409,7 +409,7 @@
     "notOwned": "先にショップで「{item}」を買ってください。",
     "noSuchItem": "そのような商品はありません。",
     "alreadyOwned": "すでに持っています。",
-    "notEnoughGold": "ゴールドが足りません。",
+    "notEnoughGold": "ギルダーが足りません。",
     "notInGame": "このゲームに参加していません。",
     "notInAnyGame": "ゲームに参加していません。",
     "notYourTurn": "あなたの番ではありません。",
@@ -526,7 +526,7 @@
     },
     "spent": {
       "name": "大盤振る舞い",
-      "text": "ショップで{n}ゴールド使う"
+      "text": "ショップで{n}ギルダー使う"
     },
     "indecisive": {
       "name": "優柔不断",

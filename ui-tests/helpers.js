@@ -341,7 +341,7 @@ export class User {
 export async function createWorld({ suite = 'ui', env = {}, shopLocked = false, achievementPopups = false } = {}) {
   ensureBuilt();
   Object.assign(process.env, FAST_ENV, env);
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-hub-ui-'));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-gang-ui-'));
   const logs = [];
   const site = await startSite({ port: 0, dataDir, log: (line) => logs.push(line) });
   if (!shopLocked) unlockEverything(site.db);
@@ -349,7 +349,7 @@ export async function createWorld({ suite = 'ui', env = {}, shopLocked = false, 
   if (!achievementPopups) site.db.exec('CREATE TRIGGER IF NOT EXISTS test_quiet_achievements AFTER INSERT ON achievement_awards BEGIN UPDATE achievement_awards SET shown = 1 WHERE user_id = NEW.user_id AND id = NEW.id AND level = NEW.level; END;');
   const base = `http://127.0.0.1:${site.port}`;
   const browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, defaultViewport: VIEWPORT, args: ['--no-first-run', '--disable-extensions'] });
-  const failuresDir = path.join(os.tmpdir(), 'game-hub-ui-failures', suite);
+  const failuresDir = path.join(os.tmpdir(), 'game-gang-ui-failures', suite);
   fs.rmSync(failuresDir, { recursive: true, force: true });
 
   const users = [];
@@ -470,7 +470,7 @@ export function makePng({ width = 4, height = 4, rgb = [200, 40, 90] } = {}) {
 }
 /** Writes a tiny PNG into a fresh temp folder and returns its path (the caller deletes the folder with `cleanup`). */
 export function writePng(name = 'tiny.png', options) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-hub-ui-png-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-gang-ui-png-'));
   const file = path.join(dir, name);
   fs.writeFileSync(file, makePng(options));
   return { file, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };

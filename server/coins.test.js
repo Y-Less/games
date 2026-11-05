@@ -80,7 +80,7 @@ test('spending takes coins, and refuses to go below zero', (t) => {
   stats.record('g', { players: [{ userId: a, outcome: 'win', placement: 1 }] });
   coins.spend(a, 60, 'shop:test');
   assert.equal(coins.balance(a), 40);
-  assert.throws(() => coins.spend(a, 41, 'shop:test'), /Not enough gold/);
+  assert.throws(() => coins.spend(a, 41, 'shop:test'), /Not enough Gilders/);
   assert.throws(() => coins.spend(a, -5, 'shop:test'));
   assert.throws(() => coins.spend(a, 1.5, 'shop:test'));
   assert.equal(coins.balance(a), 40);
