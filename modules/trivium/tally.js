@@ -75,6 +75,13 @@ export function tallyQuestion(entries, missed, playerOf) {
 }
 
 /**
+ * The fewest questions a round must have asked before getting all of them right, or none of them, says anything about
+ * the category.  The host can set a round to a single question, and one question is not a subject: "every question of
+ * the category" would then be one lucky guess, and "none of them" one slip.
+ */
+export const CATEGORY_SET = 3;
+
+/**
  * Counts a finished round: what each player scored in it, and how they did against the whole set of questions the
  * wheel's category gave them - every one right, or not one of them.
  *
@@ -86,10 +93,11 @@ export function tallyQuestion(entries, missed, playerOf) {
  * Side effects: increments and raises counters on the players.
  */
 export function tallyRound(players, scored, correct, asked) {
-  if (asked < 1) return; // a round that asked nothing is neither a clean sweep nor a blank
+  if (asked < 1) return;
   for (const player of players) {
     const got = correct[player.id] ?? 0;
     peak(player, 'bestRound', scored[player.id] ?? 0);
+    if (asked < CATEGORY_SET) continue; // too few to be a verdict on the category, whichever way it went
     if (got === asked) bump(player, 'perfectRounds');
     if (got === 0) bump(player, 'blankRounds');
   }

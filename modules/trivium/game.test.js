@@ -336,7 +336,7 @@ test('the statistics record people only, with the counters the game kept', () =>
   assert.equal(row(3).extras.rightAnswers, 0);
   assert.equal(row(3).extras.edgeClicks, 1, 'tapped the edge');
   assert.equal(row(3).extras.questionsFaced, 1);
-  assert.equal(row(3).extras.blankRounds, 1, 'and so got nothing of the category right');
+  assert.equal(row(3).extras.blankRounds, 0, 'a round of one question is no verdict on the category');
   assert.equal(row(3).extras.flawlessGames, 0);
   assert.equal(row(2).extras.rightAnswers, 1);
   assert.equal(row(2).extras.flawlessGames, 0, 'right, but beaten to it');

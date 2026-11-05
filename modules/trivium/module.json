@@ -83,6 +83,21 @@
       "text": "Get nothing right in a whole category",
       "levels": "unlock",
       "stat": "blankRounds"
+    },
+    {
+      "key": "bullseye",
+      "name": "Bullseye",
+      "text": "Press an answer within a hundredth of the very middle of the button",
+      "levels": "unlock",
+      "stat": "bullseyes"
+    },
+    {
+      "key": "timeout",
+      "name": "Timeout",
+      "text": "Let {n} questions go by without answering at all",
+      "one": "Let a question go by without answering at all",
+      "levels": "medium",
+      "stat": "questionsMissed"
     }
   ]
 }

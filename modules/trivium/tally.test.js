@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SNAP_MS, isCentre, isEdge, pointsFor } from './scoring.js';
-import { STAT_KEYS, newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
+import { CATEGORY_SET, STAT_KEYS, newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
 
 /** A player with nothing counted yet. */
 const player = (id) => ({ id, ...newCounters() });
@@ -53,7 +53,11 @@ test('where the finger landed is counted too', () => {
   assert.equal(by(2).bullseyes, 0);
   assert.equal(by(3).bullseyes, 0);
   assert.equal(by(3).edgeClicks, 0);
-  assert.ok(isCentre(0.5, 0.5) && !isCentre(0.5, 0.9));
+  // A hundredth of the button each way, and no more: a tap a fiftieth off centre is not a bullseye.
+  assert.ok(isCentre(0.5, 0.5));
+  assert.ok(isCentre(0.495, 0.505) && isCentre(0.505, 0.495), 'inside the window, either way, still counts');
+  assert.ok(!isCentre(0.5, 0.52) && !isCentre(0.48, 0.5), 'a fiftieth off centre does not');
+  assert.ok(!isCentre(0.5, 0.9));
   assert.ok(isEdge(0.99, 0.5) && isEdge(0.5, 0) && !isEdge(0.4, 0.6));
 });
 
@@ -88,6 +92,17 @@ test('a round keeps the best score and notices a clean sweep and a blank', () =>
   tallyRound(people, {}, {}, 0);
   assert.deepEqual(people.map((p) => p.perfectRounds), [1, 1, 0], 'a round with no questions is no clean sweep');
   assert.equal(people[2].blankRounds, 2, 'nor a blank');
+});
+
+test('a round of one or two questions says nothing about the category either way', () => {
+  const people = [player(1), player(2)];
+  for (const asked of [1, 2]) tallyRound(people, { 1: 20, 2: 0 }, { 1: asked, 2: 0 }, asked);
+  assert.equal(people[0].perfectRounds, 0, 'every question of a round of two is not a specialist subject');
+  assert.equal(people[1].blankRounds, 0, 'and getting none of two is not a category you cannot do');
+  assert.equal(people[0].bestRound, 20, 'but the score still counts for the best round');
+  tallyRound(people, { 1: 30, 2: 0 }, { 1: CATEGORY_SET, 2: 0 }, CATEGORY_SET);
+  assert.equal(people[0].perfectRounds, 1, 'three is enough');
+  assert.equal(people[1].blankRounds, 1);
 });
 
 test('the counters that go to the statistics are the ones the game declares', () => {

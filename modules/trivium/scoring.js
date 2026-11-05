@@ -17,8 +17,17 @@ export const MAX_QUESTION_POINTS = RIGHT_POINTS + SPEED_BONUS[0];
  * with - which is why it is worth an achievement rather than a running count.
  */
 export const SNAP_MS = 500;
-/** How near the middle of a button a tap has to be to count as dead centre (as a fraction of the button). */
-export const CENTRE_WITHIN = 0.08;
+/**
+ * How near the middle of a button a tap has to be to count as a bullseye, each way along each axis, as a share of the
+ * button.  A hundredth is about four pixels across and one down on a desktop, which is roughly what two pixels each
+ * way would have been there.
+ *
+ * It is a share rather than a distance on the screen because the buttons are wide and short - about four and a half
+ * to one - so two pixels is a third of a per cent across but a per cent and a half down, and because a button on a
+ * phone is a third of the width of one on a wide desktop, which would make the same feat five times easier there.  A
+ * share is the same wherever it is played, and needs nothing of the button sent back with the answer.
+ */
+export const CENTRE_WITHIN = 0.01;
 /** How near an edge a tap has to be to count as on the edge (as a fraction of the button). */
 export const EDGE_WITHIN = 0.04;
 
