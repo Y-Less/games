@@ -25,10 +25,10 @@ describe('Wavelength lobby computer players', () => {
     expect(button(wrapper, 'Fill up to'), 'enough players already').toBeUndefined();
   });
 
-  it('offers to fill up to the minimum while there are too few players', async () => {
+  it('offers to fill up to a table worth playing while there are too few players', async () => {
     const { wrapper, send } = make({ players: [person(1, 'Ann')] });
-    await button(wrapper, 'Fill up to 2 players').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 2 });
+    await button(wrapper, 'Fill up to 3 players').trigger('click');
+    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 3 });
   });
 
   it('removes a person with kick, and stops offering computers at a full table', async () => {

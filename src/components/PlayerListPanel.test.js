@@ -44,6 +44,20 @@ describe('PlayerListPanel', () => {
     expect(full.text()).toContain('The table is full (3 players).');
   });
 
+  it('fills to three where a game would settle for two, and never past its own limits', async () => {
+    // A game of two is one opponent and nobody to be quicker than, so filling offers a third player.
+    const two = make({ players: players.slice(0, 1), min: 2, max: 8 });
+    await button(two, 'Fill up to 3 players').trigger('click');
+    expect(two.emitted().fillBots).toEqual([[3]]);
+    // A game that wants more than three still asks for what it wants.
+    const five = make({ players: players.slice(0, 1), min: 5, max: 8 });
+    expect(button(five, 'Fill up to 5 players')).toBeDefined();
+    // And one that cannot seat three is not offered three.
+    const pair = make({ players: players.slice(0, 1), min: 2, max: 2 });
+    await button(pair, 'Fill up to 2 players').trigger('click');
+    expect(pair.emitted().fillBots).toEqual([[2]]);
+  });
+
   it('renders the lead slot for each player and the default slot after the list', () => {
     const w = make({}, { lead: '<i class="lead">{{ params.player.id }}</i>', default: '<p class="extra">more</p>' });
     expect(w.findAll('.lead').map((e) => e.text())).toEqual(['1', '2', 'b1']);
