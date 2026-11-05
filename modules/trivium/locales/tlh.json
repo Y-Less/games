@@ -1,0 +1,189 @@
+{
+  "entry": {
+    "noun": "Sov qaD Quj",
+    "intro": "Segh wIvmeH jIrwI' yIjIrmoH, ghIq lughbogh jang yISam 'ej Hoch yIghoS. DangeHmeH mu' DaHev."
+  },
+  "leaveConfirm": "SoH Hutlh 'ach taHtaH qaD, 'ej bIcheghlaHbe'.",
+  "lobby": {
+    "yourColour": "'angwI'lIj rItlh",
+    "chooseColour": "'angwI' rItlh {colour} yIwIv",
+    "ownColour": "rItlhlIj'e'",
+    "anyColour": "rItlh vay'",
+    "chooseAnyColour": "'angwI' rItlh vay' yIwIv",
+    "unlockColours": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv.",
+    "fewerRounds": "'ay'mey puS",
+    "moreRounds": "'ay'mey law'",
+    "rounds": "{count} 'ay'mey",
+    "fewerQuestions": "'ay'vaD qaDmey puS",
+    "moreQuestions": "'ay'vaD qaDmey law'",
+    "perRound": "'ay' Hoch {count} qaDmey",
+    "totalQuestions": "Hoch {count} qaDmey.",
+    "hostChooses": "wIv che'wI'."
+  },
+  "wheel": {
+    "label": "Seghmey jIrwI'"
+  },
+  "table": {
+    "pickThis": "Dochvam yIwIv",
+    "thatIsThat": "pItlh.",
+    "noQuestions": "qaDmey latlh tu'lu'be'."
+  },
+  "popup": {
+    "colour": "rItlh",
+    "now": "DaH",
+    "answered": "jangpu'",
+    "thinking": "wej jang",
+    "answer": "jang",
+    "scored": "mI'mey"
+  },
+  "facts": {
+    "round": "{total}vo' 'ay' {n}",
+    "question": "{total}vo' qaD {n}",
+    "category": "Segh: {name}",
+    "seconds": "{count} lup ratlh"
+  },
+  "status": {
+    "spinning": "Segh wIvmeH jIrtaH jIrwI'…",
+    "landed": "{name}Daq mevpu' jIrwI'.",
+    "spinHint": "qaDmey law' ghajbogh Segh, 'ay' tIn ghaj.",
+    "yourAnswer": "DaH yIjang: lughbogh DaHarbogh yIwIv.",
+    "locked": "bIjangpu'.",
+    "quickest": "vagh mI'mey Suq lughbogh jang; nomqu'bogh lughbogh jang Suq {points} mI'mey.",
+    "answered": "{total}vo' {n} jangpu'.",
+    "revealing": "jangmey 'anglu'taH…",
+    "theAnswer": "“{answer}” 'oH lughbogh jang'e'.",
+    "youGot": "bIlughpu'; {points} mI'mey Daghaj.",
+    "youMissedIt": "DaH bIlughbe'.",
+    "youSaidNothing": "qaDvam DajangQo'pu'.",
+    "finished": "pItlh qaD.",
+    "ranOut": "qaDmey Hutlh, vaj mevpu' Quj.",
+    "finishedHint": "tetlhDaq bIcheghmeH \"Quj yImej\" (nIH Dung) yIlo', pagh Hoch qaD Daleghqa'meH mI' tlheghDaq \"Hoch 'ay'\" yIlo'."
+  },
+  "log": {
+    "spin": "{total}vo' 'ay' {n}: {category}.",
+    "right": "“{answer}” jang {name} (+{points}).",
+    "wrong": "“{answer}” jang {name}.",
+    "missed": "jangbe' {name}.",
+    "answer": "“{answer}” 'oH lughbogh jang'e'.",
+    "ranOut": "qaDmey Hutlh."
+  },
+  "questionLabel": "'ay' {round}, qaD {n}",
+  "notes": {
+    "first": "wa'DIch",
+    "right": "lugh",
+    "wrong": "lughbe'",
+    "missed": "jang pagh"
+  },
+  "category": {
+    "arts_and_literature": "ghItlhmey",
+    "film_and_tv": "lut HaSta",
+    "food_and_drink": "Soj tlhutlhmeH je",
+    "general_knowledge": "Sov motlh",
+    "geography": "Sepmey",
+    "history": "qun",
+    "music": "QoQ",
+    "science": "QeD",
+    "society_and_culture": "nugh tIgh je",
+    "sport_and_leisure": "Qujmey"
+  },
+  "categoryShort": {
+    "arts_and_literature": "ghItlh",
+    "film_and_tv": "lut",
+    "food_and_drink": "Soj",
+    "general_knowledge": "Sov",
+    "geography": "Sepmey",
+    "history": "qun",
+    "music": "QoQ",
+    "science": "QeD",
+    "society_and_culture": "nugh",
+    "sport_and_leisure": "Quj"
+  },
+  "errors": {
+    "roundsRange": "{min}vo' {max}Daq 'ay'mey ghaj qaD.",
+    "perRoundRange": "{min}vo' {max}Daq qaDmey ghaj 'ay'.",
+    "notSpinning": "jIrtaHbe' jIrwI'.",
+    "alreadyDealt": "qaDmeyDaj ghajtaH 'ay'vam.",
+    "noQuestionReady": "wej ruch qaD veb.",
+    "triviaUnavailable": "DaH qaDmey tu'lu'be'. puS poH yIloS, ghIq yInID.",
+    "noQuestionUp": "jangmeH qaD tu'lu'be'.",
+    "alreadyAnswered": "qaDvam Dajangpu'.",
+    "notAnAnswer": "jangmeH wIv 'oHbe'.",
+    "tapOnTheButton": "jangmeH wIvmey wa' yIwIv.",
+    "botAnswerRefused": "janglaHbe' De'wI' QujwI'."
+  },
+  "meta": {
+    "name": "Sov qaD",
+    "description": "nom qaD. Segh wIvmeH jIrwI' yIjIrmoH, ghIq lughbogh jang yISam 'ej Hoch yIghoS: nom DaqIpDI', mI' law' Suq."
+  },
+  "stats": {
+    "questionsFaced": "qaDmey Daghajbogh",
+    "rightAnswers": "lughbogh jangmey",
+    "answersGiven": "jangmey Danobbogh",
+    "fastestRight": "wa'DIch Dajangbogh qaDmey",
+    "bestRound": "'ay' QaQ law'",
+    "questionsMissed": "Dajangbe'bogh qaDmey",
+    "perfectRounds": "Hoch qaD Dajangbogh Seghmey",
+    "blankRounds": "pagh qaD Dajangbogh Seghmey",
+    "flawlessGames": "Hoch qaD wa'DIch Dajangbogh Qujmey",
+    "soleRight": "SoH neH Dajangbogh qaDmey",
+    "snapAnswers": "nomqu'bogh lughbogh jangmey",
+    "bullseyes": "botlhDaq qIpmey",
+    "edgeClicks": "HeHDaq qIpmey",
+    "lastButRight": "Qav 'ach lugh jangmey"
+  },
+  "achievements": {
+    "first": {
+      "name": "wa'DIch",
+      "text": "{n}logh wa'DIch lughbogh jang yInob",
+      "one": "wa'DIch lughbogh jang yInob"
+    },
+    "snap": {
+      "name": "nom",
+      "text": "bID lup qaSpa' yIjang 'ej yIlugh"
+    },
+    "right": {
+      "name": "Sov",
+      "text": "{n}logh yIjang 'ej yIlugh",
+      "one": "yIjang 'ej yIlugh"
+    },
+    "faced": {
+      "name": "qaD",
+      "text": "{n} qaDmey yIqIH",
+      "one": "wa' qaD yIqIH"
+    },
+    "cleansweep": {
+      "name": "Seghwij",
+      "text": "{n}logh Segh Hoch qaD yIjang 'ej yIlugh",
+      "one": "Segh Hoch qaD yIjang 'ej yIlugh"
+    },
+    "flawless": {
+      "text": "Quj Hoch qaD yIjang, yIlugh, 'ej wa'DIch yIjang"
+    },
+    "sole": {
+      "text": "{n}logh SoH neH yIlugh",
+      "one": "SoH neH yIlugh"
+    },
+    "blank": {
+      "name": "Segh Qatlh",
+      "text": "SeghvaD pagh qaD yIjang lugh"
+    },
+    "bullseye": {
+      "text": "botlhvo' wa' vatlhvI' chuqDaq yIqIp"
+    },
+    "timeout": {
+      "name": "poH Hutlh",
+      "text": "{n} qaDmey yIjangQo'",
+      "one": "wa' qaD yIjangQo'"
+    },
+    "played": {
+      "name": "Qujpu'",
+      "text": "{n}logh yIQuj",
+      "one": "yIQuj"
+    },
+    "won": {
+      "name": "Qappu'",
+      "text": "{n}logh yIQap",
+      "one": "yIQap"
+    }
+  }
+}

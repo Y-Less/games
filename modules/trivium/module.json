@@ -64,14 +64,14 @@
     },
     {
       "key": "flawless",
-      "name": "Flawless",
+      "name": "Rain",
       "text": "Get every question of a whole quiz right, and be first to every one",
       "levels": "unlock",
       "stat": "flawlessGames"
     },
     {
       "key": "sole",
-      "name": "Only one who knew",
+      "name": "Pull Harder on the Strings of Your Martyr",
       "text": "Be the only player to get a question right {n} times",
       "one": "Be the only player to get a question right",
       "levels": "medium",
@@ -86,7 +86,7 @@
     },
     {
       "key": "bullseye",
-      "name": "Bullseye",
+      "name": "A Gunshot to the Head of Trepidation",
       "text": "Press an answer within a hundredth of the very middle of the button",
       "levels": "unlock",
       "stat": "bullseyes"

@@ -1,0 +1,189 @@
+{
+  "entry": {
+    "noun": "トリビウム",
+    "intro": "ルーレットでカテゴリーを決めて、正解をいちばん早く押すのは誰か。共有用のコードが発行されます。"
+  },
+  "leaveConfirm": "クイズはあなた抜きで続き、戻ってくることはできません。",
+  "lobby": {
+    "yourColour": "あなたのマーカーの色",
+    "chooseColour": "マーカーの色 {colour} を選ぶ",
+    "ownColour": "あなた自身の色",
+    "anyColour": "好きな色",
+    "chooseAnyColour": "好きなマーカーの色を選ぶ",
+    "unlockColours": "ショップで好きな色を解放できます。いつもの色はプロフィールで設定します。",
+    "fewerRounds": "ラウンドを減らす",
+    "moreRounds": "ラウンドを増やす",
+    "rounds": "{count}ラウンド",
+    "fewerQuestions": "1ラウンドの問題を減らす",
+    "moreQuestions": "1ラウンドの問題を増やす",
+    "perRound": "1ラウンド{count}問",
+    "totalQuestions": "全部で{count}問。",
+    "hostChooses": "ホストが決めます。"
+  },
+  "wheel": {
+    "label": "カテゴリーのルーレット"
+  },
+  "table": {
+    "pickThis": "これに答える",
+    "thatIsThat": "以上です。",
+    "noQuestions": "これ以上の問題がありませんでした。"
+  },
+  "popup": {
+    "colour": "色",
+    "now": "いま",
+    "answered": "回答済み",
+    "thinking": "考え中",
+    "answer": "回答",
+    "scored": "得点"
+  },
+  "facts": {
+    "round": "ラウンド {n}／{total}",
+    "question": "問題 {n}／{total}",
+    "category": "カテゴリー：{name}",
+    "seconds": "残り{count}秒"
+  },
+  "status": {
+    "spinning": "カテゴリーを抽選中…",
+    "landed": "ルーレットは{name}で止まりました。",
+    "spinHint": "扇が大きいほど、そのカテゴリーの問題は多くあります。",
+    "yourAnswer": "いま答えましょう：正しいと思うものを押してください。",
+    "locked": "回答しました。",
+    "quickest": "正解は5点、いちばん早い正解は合計{points}点です。",
+    "answered": "{total}人中{n}人が回答しました。",
+    "revealing": "誰が何を答えたか見ています…",
+    "theAnswer": "正解は「{answer}」でした。",
+    "youGot": "正解、{points}点です。",
+    "youMissedIt": "今回は不正解です。",
+    "youSaidNothing": "今回は答えませんでした。",
+    "finished": "クイズは以上です。",
+    "ranOut": "問題がなくなったので、クイズはここまでです。",
+    "finishedHint": "メニューに戻るには右上の「ゲームを退出」を、全問をもう一度見るには得点バーの「全ラウンド」を使ってください。"
+  },
+  "log": {
+    "spin": "ラウンド {n}／{total}：{category}。",
+    "right": "{name}が「{answer}」で正解しました（+{points}）。",
+    "wrong": "{name}は「{answer}」と答えました。",
+    "missed": "{name}は答えませんでした。",
+    "answer": "正解は「{answer}」でした。",
+    "ranOut": "問題がなくなりました。"
+  },
+  "questionLabel": "ラウンド{round}、問題{n}",
+  "notes": {
+    "first": "最速",
+    "right": "正解",
+    "wrong": "不正解",
+    "missed": "無回答"
+  },
+  "category": {
+    "arts_and_literature": "芸術と文学",
+    "film_and_tv": "映画とテレビ",
+    "food_and_drink": "食べ物と飲み物",
+    "general_knowledge": "一般常識",
+    "geography": "地理",
+    "history": "歴史",
+    "music": "音楽",
+    "science": "科学",
+    "society_and_culture": "社会と文化",
+    "sport_and_leisure": "スポーツと娯楽"
+  },
+  "categoryShort": {
+    "arts_and_literature": "芸術",
+    "film_and_tv": "映画・TV",
+    "food_and_drink": "食",
+    "general_knowledge": "一般",
+    "geography": "地理",
+    "history": "歴史",
+    "music": "音楽",
+    "science": "科学",
+    "society_and_culture": "社会",
+    "sport_and_leisure": "スポーツ"
+  },
+  "errors": {
+    "roundsRange": "クイズは{min}〜{max}ラウンドです。",
+    "perRoundRange": "1ラウンドは{min}〜{max}問です。",
+    "notSpinning": "ルーレットは回っていません。",
+    "alreadyDealt": "このラウンドの問題はもう決まっています。",
+    "noQuestionReady": "次の問題はまだ準備できていません。",
+    "triviaUnavailable": "いま問題が見つかりませんでした。少し待ってからもう一度お試しください。",
+    "noQuestionUp": "答える問題がありません。",
+    "alreadyAnswered": "この問題にはもう答えています。",
+    "notAnAnswer": "それは選択肢ではありません。",
+    "tapOnTheButton": "選択肢のどれかを押してください。",
+    "botAnswerRefused": "コンピュータープレイヤーが答えられませんでした。"
+  },
+  "meta": {
+    "name": "トリビウム",
+    "description": "テンポの速いクイズ。ルーレットでカテゴリーを決めて、正解をいちばん早く押すのは誰か。早く押すほど得点は高くなります。"
+  },
+  "stats": {
+    "questionsFaced": "出題された問題",
+    "rightAnswers": "正解した問題",
+    "answersGiven": "回答した問題",
+    "fastestRight": "いちばん早く正解した問題",
+    "bestRound": "最高のラウンド",
+    "questionsMissed": "答えずに流した問題",
+    "perfectRounds": "全問正解したカテゴリー",
+    "blankRounds": "1問も正解できなかったカテゴリー",
+    "flawlessGames": "全問を最速で正解したゲーム",
+    "soleRight": "自分だけが正解した問題",
+    "snapAnswers": "0.5秒未満で出した正解",
+    "bullseyes": "ど真ん中を押した回答",
+    "edgeClicks": "端ぎりぎりを押した回答",
+    "lastButRight": "最後に答えて正解した問題"
+  },
+  "achievements": {
+    "first": {
+      "name": "早押し一番",
+      "text": "いちばん早く正解を{n}回出す",
+      "one": "いちばん早く正解を出す"
+    },
+    "snap": {
+      "name": "出だし好調",
+      "text": "0.5秒未満で正解する"
+    },
+    "right": {
+      "name": "クイズ脳",
+      "text": "問題に{n}回正解する",
+      "one": "問題に正解する"
+    },
+    "faced": {
+      "name": "早押しの構え",
+      "text": "{n}問に挑む",
+      "one": "1問に挑む"
+    },
+    "cleansweep": {
+      "name": "得意分野",
+      "text": "カテゴリーの全問に{n}回正解する",
+      "one": "カテゴリーの全問に正解する"
+    },
+    "flawless": {
+      "text": "クイズの全問に、すべていちばん早く正解する"
+    },
+    "sole": {
+      "text": "自分だけが正解する、を{n}回",
+      "one": "自分だけが正解する"
+    },
+    "blank": {
+      "name": "専門外",
+      "text": "カテゴリーで1問も正解できない"
+    },
+    "bullseye": {
+      "text": "ボタンの中心から100分の1以内を押す"
+    },
+    "timeout": {
+      "name": "時間切れ",
+      "text": "まったく答えずに{n}問流す",
+      "one": "まったく答えずに1問流す"
+    },
+    "played": {
+      "name": "このゲームをプレイ",
+      "text": "{n}回プレイする",
+      "one": "1回プレイする"
+    },
+    "won": {
+      "name": "このゲームで勝利",
+      "text": "{n}回勝つ",
+      "one": "1回勝つ"
+    }
+  }
+}
