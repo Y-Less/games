@@ -74,6 +74,12 @@
       "label": "Games won from alone at the bottom at halfway",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "circuses",
+      "label": "Two-card rounds dealt to you as both Jokers",
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [
@@ -143,6 +149,13 @@
       "text": "Win a game you were last in, on your own, at halfway",
       "levels": "unlock",
       "stat": "comebacks"
+    },
+    {
+      "key": "circus",
+      "name": "Circus",
+      "text": "Be dealt both Jokers and nothing else, in a two-card round",
+      "levels": "unlock",
+      "stat": "circuses"
     }
   ]
 }

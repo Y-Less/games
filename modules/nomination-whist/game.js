@@ -16,7 +16,7 @@ import { nextSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { AIS } from './ai/index.js';
 import { contextModel, lutv } from './ai/lut.js';
 import { handModel } from './sim/hand-model.js';
-import { FULL_HAND, newTally, STAT_KEYS, tallyRound } from './tally.js';
+import { FULL_HAND, newTally, STAT_KEYS, tallyDeal, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, ok, seatOf } from '../../shared/seats.js';
@@ -383,6 +383,8 @@ export function dealRound(room, rng) {
   const cards = handSize(room.settings, room.roundIndex);
   const deck = shuffle(deckFor(room.settings.jokers === true), rng);
   room.hands = Array.from({ length: n }, (_, i) => sortHand(deck.slice(i * cards, (i + 1) * cards), trumpOf(room.roundIndex)));
+  // Counted as the cards land: a hand of nothing but Jokers is gone again by the time the round is scored.
+  room.hands.forEach((hand, seat) => room.tally?.[seat] && tallyDeal(room.tally[seat], hand));
   room.nominations = Array(n).fill(null);
   room.taken = Array(n).fill(0);
   room.trick = [];
