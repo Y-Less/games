@@ -1,8 +1,9 @@
-// Statistics routes: your own numbers, somebody else's, and a game's leaderboard.
+// Statistics routes: your own numbers, somebody else's, a game's leaderboard, and the leaderboard page's standings.
+import { TOP_PLAYERS } from '../stats.js';
 import { asSubject, personNamed } from './people.js';
 
 /**
- * Registers GET /stats/me, GET /stats/user/:who and GET /stats/leaderboard/:game.
+ * Registers GET /stats/me, GET /stats/user/:who, GET /stats/leaderboard/:game and GET /leaderboard.
  * @param {import('express').Router} api  the router mounted at /api
  * @param {{ stats: object, presence: object, auth: object, listGames: () => Array<{ id: string }>, requireUser: import('express').RequestHandler }} deps
  * @returns {void}
@@ -24,5 +25,13 @@ export function registerStatsRoutes(api, { stats, presence, auth, listGames, req
   api.get('/stats/leaderboard/:game', requireUser, (req, res) => {
     if (!listGames().some((g) => g.id === req.params.game)) return res.status(404).json({ error: 'noSuchGame' });
     res.json({ leaderboard: stats.leaderboard(req.params.game) });
+  });
+  // The leaderboard page: every game anybody has finished, with the rows that page needs to sort itself (server/stats.js).
+  // A game nobody has played at all is left out rather than given an empty table.
+  api.get('/leaderboard', requireUser, (req, res) => {
+    const games = listGames()
+      .map((game) => ({ game: game.id, name: game.name, players: stats.standings(game.id, { viewerId: req.user.id }) }))
+      .filter((game) => game.players.length);
+    res.json({ top: TOP_PLAYERS, games });
   });
 }

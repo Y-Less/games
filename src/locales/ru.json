@@ -32,6 +32,7 @@
     "games": "Игры",
     "stats": "Статистика",
     "myStats": "Моя статистика",
+    "leaderboard": "Таблица лидеров",
     "achievements": "Достижения",
     "shop": "Магазин",
     "profile": "Профиль",
@@ -196,6 +197,19 @@
     "playersAndPoints": "{players}, {points}",
     "online": "Время на сайте",
     "theirAchievements": "Достижения: {name}"
+  },
+  "leaderboard": {
+    "title": "Таблица лидеров",
+    "intro": "Лучшие игроки каждой игры — {top} — и ваше место среди них.",
+    "none": "Никто ещё не закончил ни одной игры. Будьте первым!",
+    "position": "Место",
+    "name": "Имя",
+    "played": "Сыграно игр",
+    "wins": "Побед",
+    "bestScore": "Лучший счёт",
+    "sortBy": "Сортировать по: {column}",
+    "noScore": "—",
+    "leads": "Впереди {name}"
   },
   "achievements": {
     "title": "Достижения: {name}",

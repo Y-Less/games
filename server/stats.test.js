@@ -405,3 +405,100 @@ test('a throw from onPlayerRecorded rolls the whole game back', (t) => {
   assert.equal(count('results'), 0);
   assert.equal(count('result_players'), 0);
 });
+
+// --- standings: the leaderboard page's rows, which carry a position in each of the three orders ---
+
+/** Three players whose best score, wins and games played put them in a different order each time. */
+function standingsSetup(t) {
+  const ctx = setup(t);
+  const people = {};
+  for (const name of ['ann', 'bea', 'cyd']) people[name] = ctx.addUser(name);
+  const play = (name, game, wins, losses, score) => {
+    for (let i = 0; i < wins; i++) ctx.stats.record(game, one(people[name], 'win', { score }));
+    for (let i = 0; i < losses; i++) ctx.stats.record(game, one(people[name], 'loss', { score: 0 }));
+  };
+  play('ann', 'alpha', 2, 0, 50); // 2 of 2, best 50
+  play('bea', 'alpha', 1, 4, 90); // 1 of 5, best 90
+  play('cyd', 'alpha', 3, 1, 10); // 3 of 4, best 10
+  return { ...ctx, people, play };
+}
+
+test('standings: best-score order to start with, and every row knows its place in all three orders', (t) => {
+  const { stats, people } = standingsSetup(t);
+  const board = stats.standings('alpha');
+  assert.deepEqual(board.map((r) => r.name), ['bea', 'ann', 'cyd'], 'the rows come back in best-score order');
+  assert.deepEqual(board.map((r) => r.rank.bestScore), [1, 2, 3]);
+  assert.deepEqual(board.map((r) => [r.name, r.rank.wins]), [['bea', 3], ['ann', 2], ['cyd', 1]], 'wins put them the other way round');
+  assert.deepEqual(board.map((r) => [r.name, r.rank.played]), [['bea', 1], ['ann', 3], ['cyd', 2]], 'and games played another way again');
+  assert.deepEqual(board.find((r) => r.name === 'ann'), { userId: people.ann, name: 'ann', played: 2, wins: 2, bestScore: 50, rank: { bestScore: 2, wins: 2, played: 3 } });
+});
+
+test('standings: the top of every order is there, so a page can sort by any of them without asking again', (t) => {
+  const { stats } = standingsSetup(t);
+  const board = stats.standings('alpha', { top: 1 });
+  assert.deepEqual(board.map((r) => r.name).sort(), ['bea', 'cyd'], 'bea tops two orders, cyd the third, and ann tops none');
+});
+
+test('standings: the top ten, plus the player looking wherever they come', (t) => {
+  const { stats, addUser } = setup(t);
+  const people = [];
+  for (let i = 1; i <= 14; i++) {
+    const id = addUser(`p${String(i).padStart(2, '0')}`);
+    people.push(id);
+    for (let w = 0; w < i; w++) stats.record('alpha', one(id, 'win', { score: i }));
+  }
+  const top = stats.standings('alpha').map((r) => r.name);
+  assert.deepEqual(top, ['p14', 'p13', 'p12', 'p11', 'p10', 'p09', 'p08', 'p07', 'p06', 'p05'], 'ten on their own');
+
+  const withMe = stats.standings('alpha', { viewerId: people[0] });
+  assert.equal(withMe.length, 11, 'eleven once the player looking is one of the also-rans');
+  assert.deepEqual(withMe.at(-1).name, 'p01');
+  assert.equal(withMe.at(-1).rank.bestScore, 14, 'and they are told where they really stand');
+
+  const inTheTop = stats.standings('alpha', { viewerId: people.at(-1) });
+  assert.equal(inTheTop.length, 10, 'ten when the player looking is already among them');
+});
+
+test('standings: a player who has not played that game is not added, and nor are bots', (t) => {
+  const { stats, addUser, people } = standingsSetup(t);
+  const robot = addUser('robot', { bot: true });
+  for (let i = 0; i < 9; i++) stats.record('alpha', one(robot, 'win', { score: 900 }));
+  const looker = addUser('zoe');
+  assert.deepEqual(stats.standings('alpha', { viewerId: looker }).map((r) => r.name), ['bea', 'ann', 'cyd']);
+  assert.deepEqual(stats.standings('alpha', { includeBots: true })[0].name, 'robot');
+  assert.deepEqual(stats.standings('beta'), [], 'a game nobody has finished has no standings at all');
+  assert.ok(people.ann);
+});
+
+test('standings: a game nobody scores has no best score, and those rows come last rather than first', (t) => {
+  const { stats, addUser } = setup(t);
+  const ann = addUser('ann');
+  const bea = addUser('bea');
+  stats.record('beta', one(ann, 'win')); // no score at all
+  stats.record('beta', one(bea, 'loss', { score: -5 }));
+  const board = stats.standings('beta');
+  assert.deepEqual(board.map((r) => [r.name, r.bestScore]), [['bea', -5], ['ann', null]], 'a score below zero still beats none');
+});
+
+test('standings: the three orders can name three different crowds, and all of them come back', (t) => {
+  const { stats, addUser } = setup(t);
+  // Thirty players in three groups, each group topping one order and no other, and one last player topping none.
+  const group = (prefix, make) => Array.from({ length: 10 }, (_, i) => {
+    const id = addUser(`${prefix}${i}`);
+    make(id, i);
+    return id;
+  });
+  const scorers = group('score', (id, i) => stats.record('alpha', one(id, 'win', { score: 1000 + i }))); // one game, a huge score
+  const winners = group('win', (id) => { for (let w = 0; w < 20; w++) stats.record('alpha', one(id, 'win', { score: 1 })); }); // most wins
+  const triers = group('try', (id) => { for (let g = 0; g < 30; g++) stats.record('alpha', one(id, 'loss', { score: 0 })); }); // most games, no wins
+  const alsoRan = addUser('zoe');
+  stats.record('alpha', one(alsoRan, 'loss', { score: 0 }));
+
+  const board = stats.standings('alpha', { viewerId: alsoRan });
+  assert.equal(board.length, 31, 'ten for each order and the player looking: none of them can be left out');
+  const namesIn = (key) => board.filter((r) => r.rank[key] <= 10).sort((a, b) => a.rank[key] - b.rank[key]).map((r) => r.userId);
+  assert.deepEqual(namesIn('bestScore'), [...scorers].reverse(), 'the best scores are a crowd of their own');
+  assert.deepEqual(namesIn('wins'), winners, 'the wins another');
+  assert.deepEqual(namesIn('played'), triers, 'and the games played a third');
+  assert.equal(board.find((r) => r.userId === alsoRan).rank.played, 31, 'and the one who tops nothing still knows where they came');
+});

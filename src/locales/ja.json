@@ -32,6 +32,7 @@
     "games": "ゲーム",
     "stats": "統計",
     "myStats": "自分の統計",
+    "leaderboard": "ランキング",
     "achievements": "実績",
     "shop": "ショップ",
     "profile": "プロフィール",
@@ -196,6 +197,19 @@
     "playersAndPoints": "{players}、{points}",
     "online": "サイト滞在時間",
     "theirAchievements": "{name}の実績"
+  },
+  "leaderboard": {
+    "title": "ランキング",
+    "intro": "各ゲームの上位{top}人と、あなたの順位です。",
+    "none": "まだ誰もゲームを終えていません。最初の一人になりましょう。",
+    "position": "順位",
+    "name": "名前",
+    "played": "プレイ回数",
+    "wins": "勝利数",
+    "bestScore": "最高得点",
+    "sortBy": "{column}で並べ替える",
+    "noScore": "—",
+    "leads": "首位は{name}"
   },
   "achievements": {
     "title": "{name}の実績",

@@ -13,6 +13,7 @@ const routes = [
   // With a name on the end these are somebody else's: /stats/tom, or /achievements/3243 by account id.
   { path: '/achievements/:who?', name: 'achievements', component: () => import('./views/AchievementsView.vue'), props: true },
   { path: '/stats/:who?', name: 'stats', component: () => import('./views/StatsView.vue'), props: true },
+  { path: '/leaderboard', name: 'leaderboard', component: () => import('./views/LeaderboardView.vue') },
   // Links sent out by earlier versions of the Dixnt game.
   { path: '/invite', redirect: (to) => ({ path: '/play/dixnt', query: to.query }) },
   { path: '/:rest(.*)*', redirect: '/' },

@@ -104,6 +104,7 @@ async function leaveSite() {
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">{{ $t('nav.games') }}</RouterLink>
         <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">{{ $t('nav.stats') }}</RouterLink>
         <RouterLink to="/achievements" class="optional" :class="{ on: route.name === 'achievements' }">{{ $t('nav.achievements') }}</RouterLink>
+        <RouterLink to="/leaderboard" class="optional" :class="{ on: route.name === 'leaderboard' }">{{ $t('nav.leaderboard') }}</RouterLink>
         <RouterLink to="/shop" class="optional" :class="{ on: route.name === 'shop' }">{{ $t('nav.shop') }}</RouterLink>
       </nav>
 
@@ -134,6 +135,7 @@ async function leaveSite() {
           <RouterLink to="/shop">{{ $t('nav.shop') }}</RouterLink>
           <RouterLink to="/stats">{{ $t('nav.myStats') }}</RouterLink>
           <RouterLink to="/achievements">{{ $t('nav.achievements') }}</RouterLink>
+          <RouterLink to="/leaderboard">{{ $t('nav.leaderboard') }}</RouterLink>
           <button class="quiet" @click="leaveSite">{{ $t('nav.signOut') }}</button>
         </div>
       </div>

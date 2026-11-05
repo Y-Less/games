@@ -32,6 +32,7 @@
     "games": "Games",
     "stats": "Statistics",
     "myStats": "My statistics",
+    "leaderboard": "Leaderboard",
     "achievements": "Achievements",
     "shop": "Shop",
     "profile": "Profile",
@@ -196,6 +197,19 @@
     "playersAndPoints": "{players}, {points}",
     "online": "Time on the site",
     "theirAchievements": "{name}'s achievements"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "intro": "The top {top} of every game, and where you come.",
+    "none": "Nobody has finished a game yet. Be the first!",
+    "position": "Position",
+    "name": "Name",
+    "played": "Games played",
+    "wins": "Games won",
+    "bestScore": "Best score",
+    "sortBy": "Sort by {column}",
+    "noScore": "—",
+    "leads": "{name} leads"
   },
   "achievements": {
     "title": "Achievements for {name}",

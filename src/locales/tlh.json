@@ -32,6 +32,7 @@
     "games": "Qujmey",
     "stats": "mI'mey",
     "myStats": "mI'meywIj",
+    "leaderboard": "patlhmey",
     "achievements": "ta'mey",
     "shop": "malja'",
     "profile": "De'lIj",
@@ -196,6 +197,19 @@
     "playersAndPoints": "{players}, {points}",
     "online": "naDev poH",
     "theirAchievements": "{name} DIvI'mey"
+  },
+  "leaderboard": {
+    "title": "patlhmey",
+    "intro": "Hoch QujDaq QujwI'pu' pov {top} 'ej patlhlIj.",
+    "none": "wej Quj rInmoH vay'. yIjaH 'ej yIQuj!",
+    "position": "patlh",
+    "name": "pong",
+    "played": "Qujmey",
+    "wins": "yaymey",
+    "bestScore": "mI' pov",
+    "sortBy": "{column} patlh",
+    "noScore": "—",
+    "leads": "wa'DIch {name}"
   },
   "achievements": {
     "title": "{name} ta'mey",

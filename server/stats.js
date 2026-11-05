@@ -4,6 +4,23 @@ import { transaction } from './db.js';
 
 const OUTCOMES = ['win', 'loss', 'draw']; // the only results a player can be recorded with (matches the table's CHECK) // the only results a player can be recorded with (matches the table's CHECK)
 
+/** How many players a game's standings show, before the one looking at them is added. */
+export const TOP_PLAYERS = 10;
+
+/** A row's best score for sorting: a game nobody scores has none, and those players come last rather than first. */
+const scoreOf = (row) => (row.bestScore === null ? -Infinity : row.bestScore);
+
+// The orders a standings table can be read in.  Each runs out to a single answer, so there are no shared positions:
+// every tie is broken, in the end by account id, and the same table always comes back the same way round.
+const ORDERS = {
+  bestScore: (a, b) => scoreOf(b) - scoreOf(a) || b.wins - a.wins || b.played - a.played || a.userId - b.userId,
+  wins: (a, b) => b.wins - a.wins || b.wins / b.played - a.wins / a.played || b.played - a.played || a.userId - b.userId,
+  played: (a, b) => b.played - a.played || b.wins - a.wins || a.userId - b.userId,
+};
+
+/** The columns a standings table can be sorted by, for the client to offer. */
+export const ORDER_KEYS = Object.keys(ORDERS);
+
 /**
  * Makes the statistics service over a database.
  * @param {import('node:sqlite').DatabaseSync} db  the site database
@@ -12,7 +29,7 @@ const OUTCOMES = ['win', 'loss', 'draw']; // the only results a player can be re
  *   onPlayerRecorded is called inside the recording transaction, once for each player, with the new result id, the player as
  *   reported and whether the account is a computer player (the site pays coins from it; a throw rolls the whole game back).
  *   onRecorded is called after a game is recorded, with the players in it (the site works out their achievements then).
- * @returns {{ record: Function, forUser: Function, leaderboard: Function }}
+ * @returns {{ record: Function, forUser: Function, leaderboard: Function, standings: Function }}
  * Side effects: none until a method is called.
  */
 export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}) {
@@ -155,5 +172,46 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
       .all(game, includeBots ? 1 : 0, limit);
   }
 
-  return { record, forUser, leaderboard };
+  /**
+   * One game's standings: the players the leaderboard page shows, however it is sorted.
+   *
+   * The page sorts itself, which means it has to hold enough rows to answer any of the three orders without asking
+   * again — so what comes back is the top players of each order together, plus the player looking, wherever they
+   * come.  Every row carries its position in all three orders, so a row outside the top ten still knows where it
+   * stands.
+   *
+   * @param {string} game  module id
+   * @param {{ viewerId?: number | null, top?: number, includeBots?: boolean }} [options]
+   *   viewerId is the player looking, who is always included when they have played at all.
+   * @returns {Array<{ userId: number, name: string, played: number, wins: number, bestScore: number | null, rank: Record<string, number> }>}
+   *   in best-score order (the order the page opens in).
+   * Side effects: none.
+   */
+  function standings(game, { viewerId = null, top = TOP_PLAYERS, includeBots = false } = {}) {
+    const all = db
+      .prepare(
+        `SELECT u.id AS userId, u.display_name AS name, COUNT(*) AS played,
+                SUM(rp.outcome = 'win') AS wins, MAX(rp.score) AS bestScore
+         FROM result_players rp JOIN results r ON r.id = rp.result_id JOIN users u ON u.id = rp.user_id
+         WHERE r.game = ? AND (? OR u.is_bot = 0)
+         GROUP BY u.id`,
+      )
+      .all(game, includeBots ? 1 : 0);
+
+    const ranks = new Map(all.map((row) => [row.userId, {}]));
+    const keep = new Set();
+    for (const [key, order] of Object.entries(ORDERS)) {
+      const sorted = [...all].sort(order);
+      sorted.forEach((row, i) => (ranks.get(row.userId)[key] = i + 1));
+      for (const row of sorted.slice(0, top)) keep.add(row.userId);
+    }
+    if (ranks.has(viewerId)) keep.add(viewerId);
+
+    return all
+      .filter((row) => keep.has(row.userId))
+      .map((row) => ({ ...row, bestScore: row.bestScore ?? null, rank: ranks.get(row.userId) }))
+      .sort((a, b) => a.rank.bestScore - b.rank.bestScore);
+  }
+
+  return { record, forUser, leaderboard, standings };
 }
