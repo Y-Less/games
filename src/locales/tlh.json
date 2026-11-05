@@ -27,7 +27,11 @@
   },
   "nav": {
     "brand": "QujmeH Daq",
-    "tagline": "SoH neH yIQuj, pagh latlhpu' yItlhej.",
+    "taglines": {
+      "yourself": "SoH neH yIQuj, pagh latlhpu' yItlhej.",
+      "bangUp": "poH Dun!",
+      "fun": "DatIvpu''a'?"
+    },
     "main": "wa'DIch",
     "games": "Qujmey",
     "stats": "mI'mey",

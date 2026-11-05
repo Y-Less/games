@@ -20,10 +20,18 @@ import HelpDialog from './components/HelpDialog.vue';
 import { renderMarkdown } from './markdown.js';
 import { pageHelp } from './pageHelp.js';
 
+/** The lines that go under the site's name.  One is picked at random for each page opened, so the site keeps its tongue in its cheek. */
+const TAGLINES = ['nav.taglines.yourself', 'nav.taglines.bangUp', 'nav.taglines.fun'];
+
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
 const menuOpen = ref(false); // the header's account menu
+const tagline = ref(TAGLINES[0]); // the line showing now (the key, so changing language changes the line with it)
+// Picks the line for the page being opened.  The same one twice running is simply what chance does, not a bug.
+const pickTagline = () => (tagline.value = TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+pickTagline();
+watch(() => route.fullPath, pickTagline);
 // Whether a game is on screen (the header then shows its title and the Help and Leave buttons).
 const playing = computed(() => route.name === 'play');
 // The leave button's registration from playBar (null when nothing to offer).
@@ -98,7 +106,7 @@ async function leaveSite() {
     <header class="bar">
       <RouterLink to="/" class="brand">
         <span class="brand-name">{{ $t('nav.brand') }}</span>
-        <span class="tagline muted">{{ $t('nav.tagline') }}</span>
+        <span class="tagline muted">{{ $t(tagline) }}</span>
       </RouterLink>
       <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" :aria-label="$t('nav.main')">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">{{ $t('nav.games') }}</RouterLink>

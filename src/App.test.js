@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { session } from './session.js';
 import { playBar, useLeave } from './playBar.js';
+import en from './locales/en.json';
 
 vi.mock('./profiles.js', async (importOriginal) => {
   const real = await importOriginal();
@@ -98,7 +99,11 @@ describe('the Help button', () => {
 });
 
 describe('the site name', () => {
-  it('carries its line underneath, inside the link home', async () => {
+  // The lines the site picks between.  The test reads them from the English rather than repeating them, so adding
+  // one is a change in a single place.
+  const TAGLINES = Object.values(en.nav.taglines);
+
+  it('carries one of its lines underneath, inside the link home', async () => {
     session.ready = true;
     session.user = { id: 1, displayName: 'Ann' };
     await router.replace('/');
@@ -106,7 +111,28 @@ describe('the site name', () => {
     const brand = w.find('a.brand');
     expect(brand.attributes('href')).toBe('/');
     expect(brand.find('.brand-name').text()).toBe('Game Gang');
-    expect(brand.find('.tagline').text()).toBe('A bang up time!');
+    expect(TAGLINES).toContain(brand.find('.tagline').text());
+    expect(TAGLINES).toHaveLength(3);
+  });
+
+  it('picks a line at random, and picks again for every page opened', async () => {
+    session.ready = true;
+    session.user = { id: 1, displayName: 'Ann' };
+    // Chance is taken out of it: each page opened takes the next number, and so the next line along.
+    const rolls = [0, 0.5, 0.9, 0];
+    let roll = 0;
+    vi.spyOn(Math, 'random').mockImplementation(() => rolls[roll++ % rolls.length]);
+    onTestFinished(() => vi.restoreAllMocks()); // chance is given back, however this test ends
+
+    await router.replace('/');
+    w = mount(App, { global: { plugins: [router] } });
+    const shown = () => w.find('.tagline').text();
+    expect(shown()).toBe(TAGLINES[0]);
+    for (const [path, wanted] of [['/stats', TAGLINES[1]], ['/profile', TAGLINES[2]], ['/', TAGLINES[0]]]) {
+      await router.push(path);
+      await nextTick();
+      expect(shown(), `after going to ${path}`).toBe(wanted);
+    }
   });
 });
 

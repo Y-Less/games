@@ -27,7 +27,11 @@
   },
   "nav": {
     "brand": "Game Gang",
-    "tagline": "A bang up time!",
+    "taglines": {
+      "yourself": "Play with yourself, and others.",
+      "bangUp": "A bang up time!",
+      "fun": "Oh, wasn't that just so much fun!"
+    },
     "main": "Main",
     "games": "Games",
     "stats": "Statistics",
