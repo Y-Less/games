@@ -44,6 +44,7 @@
   },
   "status": {
     "spinning": "Spinning for a category…",
+    "landed": "The wheel stopped on {name}.",
     "spinHint": "The bigger the wedge, the more questions that category has.",
     "yourAnswer": "Answer now: press the one you think is right.",
     "locked": "Your answer is in.",

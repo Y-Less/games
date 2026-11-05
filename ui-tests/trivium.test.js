@@ -9,8 +9,12 @@ import { createWorld, sleep } from './helpers.js';
 let world;
 let host;
 before(async () => {
-  world = await createWorld({ suite: 'trivium' });
+  // A longer spin than FAST_ENV's, so that the wheel can be watched actually turning.
+  world = await createWorld({ suite: 'trivium', env: { TRIVIUM_SPIN_MS: '2500' } });
   host = await world.newUser('host');
+  // Headless Chrome asks for less motion by default, and the site honours that by stopping every transition
+  // (src/style.css).  This suite is about what an ordinary browser shows, so it says it is an ordinary browser.
+  await host.page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
   await host.signUp('triv', { displayName: 'Tess' });
 });
 after(async () => {
@@ -54,11 +58,21 @@ test('the host sets up a short quiz with computer players and starts it', { time
   await host.waitForSelector('.game-frame');
 }));
 
-test('the wheel turns, and stops on a category the table then says it is asking about', { timeout: 60000 }, guarded('wheel', async () => {
+test('the wheel is really turning, not simply sitting where it stops', { timeout: 60000 }, guarded('wheel', async () => {
   await host.waitForSelector('.wheel');
   await host.waitForText('Spinning for a category');
-  const turned = await host.page.$eval('.wheel .turn', (el) => getComputedStyle(el).transform);
-  assert.notEqual(turned, 'none', 'the wheel is turned to where it stops');
+  // Three looks a few hundred milliseconds apart: a wheel that was put where it lands rather than turned there reads
+  // the same every time (which is exactly what a transition from a state the browser never drew does).
+  const seen = [];
+  for (let n = 0; n < 3; n++) {
+    seen.push(await host.page.$eval('.wheel .turn', (el) => getComputedStyle(el).transform));
+    await sleep(350);
+  }
+  assert.ok(!seen.includes('none'), 'the wheel is turned');
+  assert.equal(new Set(seen).size, seen.length, `the wheel moved between each look: ${seen.join(' | ')}`);
+}));
+
+test('it stops on a category, which the table only then says it is asking about', { timeout: 60000 }, guarded('landed', async () => {
   await host.waitForSelector('button.answer');
   const text = await host.text();
   assert.match(text, /Category: \w/, `the table names the category it landed on: ${text.slice(0, 200)}`);

@@ -160,9 +160,5 @@ const markerStyle = (marker) => ({ background: marker.colour, left: `${marker.at
 .marker.waiting {
   opacity: 0.85;
 }
-@media (prefers-reduced-motion: reduce) {
-  .marker {
-    transition-duration: 0ms;
-  }
-}
+/* A device asking for less motion makes the markers appear rather than travel: src/style.css stops every transition. */
 </style>

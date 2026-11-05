@@ -5,6 +5,7 @@
 // Emits: none.  Slots: none.
 // Side effects: none itself; useTurnClock runs a countdown while a question is up.
 import { computed } from 'vue';
+import { animationsPlaying } from '../../../src/appearance.js';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
@@ -17,9 +18,12 @@ const props = defineProps({
 const { t } = useGameText();
 const { secondsLeft } = useTurnClock(() => props.state);
 
-// The name of the category the wheel picked.  It is not said while the wheel is still turning: watching it land is
-// the point, and a line of words above the board would give the ending away.
-const category = computed(() => (props.view.category && !props.view.spinning ? t(`category.${props.view.category}`) : ''));
+// Whether this player has motion: a wheel that is not going to turn has nothing to watch, so there is nothing to
+// give away either, and the words should not claim it is spinning.
+const turning = computed(() => props.view.spinning && animationsPlaying());
+// The name of the category the wheel picked.  It is kept back while the wheel is actually turning: watching it land
+// is the point, and a line of words above the board would give the ending away.
+const category = computed(() => (props.view.category && !turning.value ? t(`category.${props.view.category}`) : ''));
 // The right answer in words, once it is up.
 const answer = computed(() => (props.lit && props.state.correct !== null ? (props.state.question?.answers[props.state.correct] ?? '') : ''));
 // Your own answer to the question just closed, if you gave one.
@@ -29,7 +33,8 @@ const mine = computed(() => props.state.result?.entries.find((entry) => entry.id
 const headline = computed(() => {
   if (props.view.abandoned) return t('status.ranOut');
   if (props.view.ended) return t('status.finished');
-  if (props.view.spinning) return t('status.spinning');
+  if (turning.value) return t('status.spinning');
+  if (props.view.spinning) return t('status.landed', { name: category.value });
   if (props.view.asking) return props.view.canAnswer ? t('status.yourAnswer') : t('status.locked');
   if (answer.value) return t('status.theAnswer', { answer: answer.value });
   return t('status.revealing');
@@ -40,7 +45,7 @@ const mineNow = computed(() => props.view.canAnswer);
 // Everything else worth saying.
 const lines = computed(() => {
   const out = [];
-  if (props.view.spinning) out.push({ text: t('status.spinHint'), tone: 'muted' });
+  if (turning.value) out.push({ text: t('status.spinHint'), tone: 'muted' });
   if (props.view.asking) {
     out.push({ text: t('status.quickest', { points: props.state.limits.points }), tone: 'muted' });
     out.push({ text: t('status.answered', { n: props.view.answeredCount, total: props.state.players.length }), tone: 'muted' });

@@ -5,8 +5,15 @@
 // Props: wheel (the slices), spin ({ category, angle } or null), left (milliseconds it is still turning, or null),
 //   size (how wide to draw it, in pixels).
 // Emits: none.  Slots: none.
-// Side effects: none beyond a CSS transition (a watcher sets the rotation each time a new spin arrives).
-import { computed, ref, watch } from 'vue';
+// Side effects: a watcher runs the turn as an animation each time a new spin arrives.
+//
+// **Why the turn is an animation and not a transition.**  A wheel that does not turn is a wheel that tells you
+// nothing, and the site stops every CSS transition when the device asks for less motion (src/style.css), which no
+// per-element rule can undo.  So the turn is played with the Web Animations API, which that rule does not reach, and
+// is asked for only when `animationsPlaying()` says this player wants motion - their Profile choice first, and the
+// device's own setting when they have not made one.  A player who wants none sees the wheel already on its wedge.
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { animationsPlaying } from '../../../src/appearance.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { CATEGORY_ORDER, slices } from '../wheel.js';
 
@@ -22,8 +29,8 @@ const { t } = useGameText();
 const COLOURS = ['#e8743b', '#3b6fe8', '#d94f4f', '#e8c53b', '#2fa05a', '#8a5fd6', '#1fb5c4', '#5a8f2f', '#d6598a', '#b5762f'];
 /** How many whole turns the wheel makes before it stops. */
 const TURNS = 4;
-/** A wedge narrower than this (degrees) has no room for its name. */
-const LABEL_WIDTH = 17;
+/** A wedge narrower than this (degrees) has no room for its name across it. */
+const LABEL_WIDTH = 10;
 /** The circle the wedges are drawn in, inside a 100 by 100 box. */
 const CENTRE = 50;
 const RADIUS = 47;
@@ -46,49 +53,88 @@ const wedges = computed(() =>
     const from = edge(slice.from);
     const to = edge(slice.to);
     const wide = slice.to - slice.from;
-    const middle = edge(slice.from + wide / 2, RADIUS * LABEL_AT);
+    const down = slice.from + wide / 2; // the line from the middle of the wheel out through the middle of the wedge
     // One category with everything is a circle, which an arc cannot draw; everything else is a wedge.
     const path = wide >= 359.9 ? wholePath() : wedgePath(from, to, wide);
-    return { category: slice.category, path, colour: COLOURS[CATEGORY_ORDER.indexOf(slice.category)] ?? COLOURS[0], label: wide >= LABEL_WIDTH, at: middle };
+    // The name lies along that line, reading outwards: level at three o'clock, upside down at nine (see `tilt`).
+    return { category: slice.category, path, colour: COLOURS[CATEGORY_ORDER.indexOf(slice.category)] ?? COLOURS[0], label: wide >= LABEL_WIDTH, at: edge(down, RADIUS * LABEL_AT), tilt: down - 90 };
   }),
 );
 
-// How far the wheel has been turned, in degrees: every spin adds whole turns, so it only ever goes forwards.
+/** How the wheel slows as it comes to rest. */
+const EASING = 'cubic-bezier(0.16, 0.68, 0.18, 1)';
+
+// Where the wheel is resting, in degrees: every spin adds whole turns, so it only ever goes forwards.
 const rotation = ref(0);
-// How long the turn takes; a page that joins a spin already under way catches it up in whatever is left of it.
-const turning = ref(0);
+const turn = ref(null); // the group the wheel is drawn in, which is what actually turns
 let spun = 0;
+let was = 0; // the rotation the next turn starts from
+let playing = null; // the turn that is running, so a new one can replace it
+
+/**
+ * Plays the turn from where the wheel was to where it now rests.  It is asked for after the group has been drawn, so
+ * that there is something to animate; a browser without the Web Animations API, or a player who wants no motion,
+ * simply finds the wheel already on its wedge.
+ *
+ * @param {number} from  the rotation it starts from, in degrees
+ * @param {number} to  the rotation it comes to rest at, in degrees
+ * @param {number} takes  how long it should take, in milliseconds
+ * @returns {void}
+ * Side effects: cancels any turn already running and starts one on the group.
+ */
+function play(from, to, takes) {
+  const group = turn.value;
+  if (!group || typeof group.animate !== 'function' || !animationsPlaying()) return;
+  playing?.cancel();
+  playing = group.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${to}deg)` }], { duration: takes, easing: EASING });
+}
+
+/**
+ * Sets the wheel turning to where this spin stops.
+ *
+ * @param {string} angle  where the wheel comes to rest, in degrees
+ * @returns {void}
+ * Side effects: moves the wheel to its resting place and, once it has been drawn there, plays the turn.
+ */
+function turnTo(angle) {
+  spun++;
+  const from = was;
+  const target = spun * TURNS * 360 + Number(angle);
+  was = target;
+  rotation.value = target;
+  const takes = Math.max(200, props.left ?? 0);
+  nextTick(() => play(from, target, takes));
+}
+
 watch(
   () => (props.spin ? `${props.spin.angle}` : null),
   (angle, before) => {
     if (angle === null || angle === before) return;
-    spun++;
-    turning.value = Math.max(200, props.left ?? 0);
-    rotation.value = spun * TURNS * 360 + Number(angle);
+    turnTo(angle);
   },
   { immediate: true },
 );
+onBeforeUnmount(() => playing?.cancel());
 
-// The style of the turning group: where it is now, and how long it takes to get there.
-const spinStyle = computed(() => ({ transform: `rotate(${rotation.value}deg)`, transitionDuration: `${turning.value}ms` }));
+// The style of the turning group: where it has come to rest.  The turn itself is played over the top of this (see play).
+const spinStyle = computed(() => ({ transform: `rotate(${rotation.value}deg)` }));
 /**
- * The style of one wedge's name: carried round with its wedge, but turned back by as much as the wheel has turned, so
- * that it is the right way up wherever the wheel stops.  It is given the same transition as the wheel, so the two
- * stay in step the whole way round.
+ * Where one wedge's name goes: out along the middle of the wedge, lying on that line.  It is fixed in the wheel's own
+ * coordinates, so the name simply rides round with its wedge and needs no turning of its own.
  *
- * @param {{ at: { x: number, y: number } }} wedge  the wedge, with where its name sits in the wheel's own coordinates
- * @returns {object} the inline style
+ * @param {{ at: { x: number, y: number }, tilt: number }} wedge  where the name sits, and how far over it lies
+ * @returns {string} the SVG transform
  * Side effects: none.
  */
-const labelStyle = (wedge) => ({ transform: `translate(${wedge.at.x}px, ${wedge.at.y}px) rotate(${-rotation.value}deg)`, transitionDuration: `${turning.value}ms` });
+const labelAt = (wedge) => `translate(${wedge.at.x} ${wedge.at.y}) rotate(${wedge.tilt})`;
 </script>
 
 <template>
   <div class="wheel" :style="{ width: `${size}px`, height: `${size}px` }">
     <svg viewBox="0 0 100 100" role="img" :aria-label="t('wheel.label')">
-      <g class="turn" :style="spinStyle">
+      <g ref="turn" class="turn" :style="spinStyle">
         <path v-for="wedge in wedges" :key="wedge.category" :d="wedge.path" :fill="wedge.colour" stroke="#101010" stroke-width="0.8" />
-        <g v-for="wedge in wedges.filter((w) => w.label)" :key="`${wedge.category}-name`" class="label" :style="labelStyle(wedge)">
+        <g v-for="wedge in wedges.filter((w) => w.label)" :key="`${wedge.category}-name`" :transform="labelAt(wedge)">
           <text text-anchor="middle" dominant-baseline="middle">{{ t(`categoryShort.${wedge.category}`) }}</text>
         </g>
       </g>
@@ -108,16 +154,9 @@ svg {
   height: 100%;
   overflow: visible;
 }
-.turn,
-.label {
-  transition-property: transform;
-  transition-timing-function: cubic-bezier(0.16, 0.68, 0.18, 1);
-}
 .turn {
+  transform-box: view-box; /* the wheel turns about the middle of the drawing, not of its own bounding box */
   transform-origin: 50px 50px;
-}
-.label {
-  transform-origin: 0 0; /* the translate in the style puts it where it goes, so it turns about its own middle */
 }
 text {
   font-size: 4.6px;
@@ -140,10 +179,5 @@ text {
   border-top: 1.4rem solid var(--danger, #d94f4f);
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
-@media (prefers-reduced-motion: reduce) {
-  .turn,
-  .label {
-    transition-duration: 0ms !important;
-  }
-}
+/* A device asking for less motion stops the turn: src/style.css does that for every transition on the site. */
 </style>

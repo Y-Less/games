@@ -119,12 +119,46 @@ describe('the waiting room', () => {
 });
 
 describe('the wheel', () => {
-  it('turns while the round is being chosen, and no question is drawn', async () => {
+  it('is drawn while the round is being chosen, and no question is drawn with it', async () => {
     await mountGame(view({ phase: 'spin', question: null, spinLeft: 3000, remaining: null }));
     expect(wrapper.find('.wheel').exists()).toBe(true);
     expect(answerButtons()).toHaveLength(0);
-    expect(wrapper.find('.turn').attributes('style')).toContain('rotate(');
     expect(wrapper.text()).toContain('Spinning for a category');
+  });
+
+  it('plays the turn as an animation, from where it was round to where it stops', async () => {
+    // The turn is a Web Animations one rather than a CSS transition, because the site stops every transition when the
+    // device asks for less motion and no per-element rule can undo that.  jsdom has no such API, so stand one in.
+    const played = [];
+    Element.prototype.animate = function stand(frames, options) {
+      played.push({ frames, options });
+      return { cancel() {} };
+    };
+    try {
+      await mountGame(view({ phase: 'spin', question: null, spinLeft: 3000, remaining: null }));
+      await flushPromises();
+      expect(played).toHaveLength(1);
+      expect(played[0].frames.map((f) => f.transform)).toEqual(['rotate(0deg)', `rotate(${4 * 360 + 123}deg)`]);
+      expect(played[0].options.duration).toBe(3000); // what is left of the spin, so a latecomer catches it up
+      // And it is left resting where the server said, whether or not the turn was ever played.
+      expect(wrapper.find('.turn').attributes('style')).toContain(`rotate(${4 * 360 + 123}deg)`);
+    } finally {
+      delete Element.prototype.animate;
+    }
+  });
+
+  it('does not claim to be spinning for a player who has asked for no motion', async () => {
+    // This jsdom has no matchMedia at all, which is itself "no preference stated"; give it one that asks for less motion.
+    const had = Object.hasOwn(window, 'matchMedia') ? window.matchMedia : null;
+    window.matchMedia = (query) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+    try {
+      await mountGame(view({ phase: 'spin', question: null, spinLeft: 3000, remaining: null }));
+      expect(wrapper.text()).not.toContain('Spinning for a category');
+      expect(wrapper.text()).toContain('The wheel stopped on History.');
+    } finally {
+      if (had) window.matchMedia = had;
+      else delete window.matchMedia;
+    }
   });
 
   it('gives nothing away about where it is landing until it has landed', async () => {
