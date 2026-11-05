@@ -51,7 +51,6 @@
   },
   "games": {
     "welcome": "Здравствуйте, {name}",
-    "choose": "Выберите игру.",
     "none": "Игры ещё не установлены. Добавьте игру в папку {folder}.",
     "players": "{count} игрок | {count} игрока | {count} игроков",
     "playersRange": "{min}–{max} игроков"

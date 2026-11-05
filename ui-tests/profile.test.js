@@ -170,7 +170,7 @@ test('the password can be changed, and the new one works for signing in again', 
   await user.login(user.username, PASSWORD);
   await user.waitForText('Wrong username or password.');
   await user.login(user.username, newPassword);
-  await user.waitForText('Choose a game.');
+  await user.waitForText('Welcome,');
 }));
 
 test('no uncaught errors in any page', () => {

@@ -56,7 +56,7 @@ test('the menu lists the five original games (and any newer ones) with their pla
 for (const game of GAMES) {
   test(`${game.name}: the card opens the game page, and the Help dialog works`, { timeout: 60000 }, guarded(`rules ${game.id}`, async () => {
     await user.goto('/');
-    await user.waitForText('Choose a game.');
+    await user.waitForText('Welcome,');
     await user.clickButton(game.name, { scope: 'main' });
     await user.waitForSelector('header.bar h1');
     assert.equal(user.url.pathname, `/play/${game.id}`);

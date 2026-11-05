@@ -51,7 +51,6 @@
   },
   "games": {
     "welcome": "nuqneH, {name}",
-    "choose": "Quj yIwIv.",
     "none": "wej chenlu' Qujmey. {folder} DaqDaq wa' yIchel.",
     "players": "{count} QujwI' | {count} QujwI'pu'",
     "playersRange": "{min}–{max} QujwI'pu'"

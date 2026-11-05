@@ -51,7 +51,6 @@
   },
   "games": {
     "welcome": "Welcome, {name}",
-    "choose": "Choose a game.",
     "none": "No games are installed yet. Add one to the {folder} folder.",
     "players": "{count} player | {count} players",
     "playersRange": "{min}–{max} players"

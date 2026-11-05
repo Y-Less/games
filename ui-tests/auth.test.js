@@ -39,7 +39,7 @@ test('the wrong password is refused with a message', { timeout: 60000 }, world_g
   assert.equal(await user.page.$('.account button'), null, 'still signed out');
   // The right password then works from the same form.
   await user.login(name);
-  await user.waitForText('Choose a game.');
+  await user.waitForText('Welcome,');
 }));
 
 test('registering rejects a short password with the server message, and a bad username too', { timeout: 60000 }, world_guard('register validation', async () => {

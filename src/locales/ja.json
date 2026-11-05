@@ -51,7 +51,6 @@
   },
   "games": {
     "welcome": "{name}さん、ようこそ",
-    "choose": "ゲームを選んでください。",
     "none": "まだゲームがありません。{folder}フォルダーに追加してください。",
     "players": "{count}人",
     "playersRange": "{min}〜{max}人"

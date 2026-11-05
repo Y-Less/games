@@ -300,7 +300,7 @@ export class User {
   async signUp(prefix, options = {}) {
     await this.goto('/login');
     await this.register(this.world.uniqueName(prefix), options);
-    await this.waitForText('Choose a game.');
+    await this.waitForText('Welcome,');
     return this;
   }
 

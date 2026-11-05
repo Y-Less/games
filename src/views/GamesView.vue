@@ -31,7 +31,6 @@ const players = (g) => (g.minPlayers === g.maxPlayers ? t('games.players', { cou
 <template>
   <section class="stack">
     <h1>{{ t('games.welcome', { name: session.user.displayName }) }}</h1>
-    <p class="muted">{{ t('games.choose') }}</p>
 
     <i18n-t v-if="!session.games.length" keypath="games.none" tag="p" class="panel">
       <template #folder><code>{{ MODULES_FOLDER }}</code></template>
