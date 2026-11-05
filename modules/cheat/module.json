@@ -88,6 +88,12 @@
       "text": "Pick up a pile of thirty cards or more",
       "levels": "unlock",
       "stat": "bigPickups"
+    },
+    {
+      "key": "cheater",
+      "name": "Cheater",
+      "text": "You must have cheated to get this",
+      "levels": "unlock"
     }
   ]
 }
