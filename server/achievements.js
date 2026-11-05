@@ -277,7 +277,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
       sections: sections().map((section) => ({
         id: section.id,
         name: section.name,
-        achievements: section.definitions.map((definition) => describe(definition, `${section.id}.${definition.key}`, valueOf(section.id, definition))),
+        achievements: section.definitions.map((definition) => describe(definition, `${section.id}.${definition.key}`, valueOf(section.id, definition), section.stats)),
       })),
     };
   }

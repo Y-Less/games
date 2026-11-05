@@ -40,7 +40,7 @@ const formCount = (text) => String(text).split('|').length;
  * statistics labels and achievements, the site's achievements, shop items, avatar parts).  English for these comes from
  * the server itself through src/catalogueText.js, so only a translation ever names them.
  */
-const CATALOGUE = /^(meta\.(name|description)|stats\.[\w-]+|achievements\.\w+\.(name|text|one)|siteAchievements\.\w+\.(name|text|one)|shop\.[\w:-]+|avatar\.(slots\.\w+|options\.\w+\.[\w-]+))$/;
+const CATALOGUE = /^(meta\.(name|description)|stats\.[\w-]+|achievements\.\w+\.(name|text|one|label)|siteAchievements\.\w+\.(name|text|one|label)|shop\.[\w:-]+|avatar\.(slots\.\w+|options\.\w+\.[\w-]+))$/;
 
 const english = filesFor(FALLBACK);
 const others = LANGUAGES.filter((lang) => lang !== FALLBACK);

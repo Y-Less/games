@@ -9,13 +9,15 @@ function reply(body, status = 200) {
 }
 
 /** An achievement as the server describes it (see shared/achievements.js describe()). */
-function made(id, name, levels, value, text = (n) => `Do it ${n} times`) {
+function made(id, name, levels, value, text = (n) => `Do it ${n} times`, { stat = null, label = null } = {}) {
   const level = levels.filter((n) => value >= n).length;
   const next = levels[level];
   return {
     id,
     key: id.split('.')[1],
     name,
+    stat,
+    label,
     value,
     level,
     maxLevel: levels.length,
@@ -27,11 +29,17 @@ function made(id, name, levels, value, text = (n) => `Do it ${n} times`) {
 }
 
 const sections = [
-  { id: 'global', name: 'Global', achievements: [made('global.cards', 'Played cards', [100, 500, 1000, 5000, 10000], 600, (n) => `Play ${n.toLocaleString('en-GB')} cards`)] },
+  { id: 'global', name: 'Global', achievements: [made('global.cards', 'Played cards', [100, 500, 1000, 5000, 10000], 600, (n) => `Play ${n.toLocaleString('en-GB')} cards`, { label: 'Cards played in every game' })] },
   {
     id: 'hearts',
     name: 'Hearts',
-    achievements: [made('hearts.perfect', 'Perfect game', [1], 1, () => 'Finish a game with no points'), made('hearts.moon', 'Shot the moon', [1, 5], 0)],
+    achievements: [
+      made('hearts.perfect', 'Perfect game', [1], 1, () => 'Finish a game with no points'),
+      made('hearts.moon', 'Shot the moon', [1, 5], 0),
+      made('hearts.jack', 'Jack of Diamonds', [10, 50], 12, undefined, { stat: 'jacks', label: 'Jacks of Diamonds taken' }),
+      made('hearts.won', 'Won the game', [1, 5, 10], 3, undefined, { stat: 'wins', label: 'Number of games won' }),
+      made('hearts.secret', 'Hidden away', [1], 0, () => 'Do something rare'),
+    ],
   },
 ];
 
@@ -71,15 +79,19 @@ describe('AchievementsView', () => {
     // The site's own section is headed in the site's words; a game's by its name, which a language may translate.
     expect(wrapper.find('[data-section="global"] h2').text()).toBe('Game Hub');
     expect(wrapper.find('[data-section="hearts"] h2').text()).toBe('Hearts');
-    expect(wrapper.findAll('[data-section="hearts"] [data-achievement]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-section="hearts"] [data-achievement]')).toHaveLength(5);
   });
 
   it('shows the level reached and the progress towards the next one', async () => {
     await make();
     const cards = box('global.cards');
     expect(cards.text()).toContain('Level 2');
-    expect(cards.text()).toContain('Level 3: Play 1,000 cards');
+    expect(cards.text()).toContain('Cards played in every game');
     expect(cards.text()).toContain('600 / 1,000');
+    // The level it is working towards and that level's number are drawn once each, not repeated in the line below the pips.
+    expect(cards.find('.goal').text()).toBe('Cards played in every game');
+    expect(cards.text()).not.toContain('Level 3');
+    expect(cards.text()).not.toContain('Play 1,000 cards');
     expect(cards.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('60');
     expect(cards.find('.bar i').attributes('style')).toContain('width: 60%');
     expect(cards.findAll('.pips li.on')).toHaveLength(2);
@@ -99,22 +111,43 @@ describe('AchievementsView', () => {
     const moon = box('hearts.moon');
   });
 
-  it('keeps an achievement secret as ??? until a level is earned', async () => {
+  it('shows an achievement with levels, and how far along you are, before the first level is earned', async () => {
     await make();
     const moon = box('hearts.moon');
-    expect(moon.classes()).toContain('locked');
-    expect(moon.find('h3').text()).toBe('???');
+    expect(moon.classes()).toContain('locked'); // nothing earned, so it is drawn dimmed
+    expect(moon.find('h3').text()).toBe('Shot the moon'); // but it is no secret
     expect(moon.text()).toContain('Locked');
-    expect(moon.text()).not.toContain('Shot the moon');
-    expect(moon.text()).not.toContain('Do it');
-    expect(moon.find('[role="progressbar"]').exists()).toBe(false);
-    expect(moon.find('.pips').exists()).toBe(false);
+    expect(moon.text()).toContain('Do it 1 times'); // what the first level asks for
+    expect(moon.find('[role="progressbar"]').exists()).toBe(true);
+    expect(moon.find('.pips').exists()).toBe(true);
     expect(box('global.cards').find('h3').text()).toBe('Played cards');
+  });
+
+  it('keeps a one-off unlock secret as ??? until it is earned, and only that kind', async () => {
+    await make();
+    const secret = box('hearts.secret');
+    expect(secret.classes()).toContain('locked');
+    expect(secret.find('h3').text()).toBe('???');
+    expect(secret.text()).toContain('Locked');
+    expect(secret.text()).not.toContain('Hidden away');
+    expect(secret.text()).not.toContain('Do something rare');
+    expect(secret.find('[role="progressbar"]').exists()).toBe(false);
+    expect(secret.find('.pips').exists()).toBe(false);
+  });
+
+  it('says what the number counts, from the stat it reads where there is one', async () => {
+    await make();
+    // A game's own stat is labelled in its module.json, and the server sends that label along.
+    expect(box('hearts.jack').find('.goal').text()).toBe('Jacks of Diamonds taken');
+    // The stats every game has are labelled by the site, in the site's language.
+    expect(box('hearts.won').find('.goal').text()).toBe('Number of games won');
+    // A definition that names nothing still says something: what the level it is working towards asks for.
+    expect(box('hearts.moon').find('.goal').text()).toBe('Do it 1 times');
   });
 
   it('counts the levels unlocked in each section', async () => {
     await make();
     expect(wrapper.find('[data-section="global"] .tally').text()).toBe('2 of 5 levels');
-    expect(wrapper.find('[data-section="hearts"] .tally').text()).toBe('1 of 3 levels');
+    expect(wrapper.find('[data-section="hearts"] .tally').text()).toBe('3 of 9 levels');
   });
 });

@@ -207,7 +207,14 @@
     "unlocked": "解放済み",
     "complete": "達成",
     "level": "レベル{level}",
-    "levelGoal": "レベル{level}：{text}",
+    "stats": {
+      "played": "プレイしたゲーム数",
+      "wins": "勝ったゲーム数",
+      "losses": "負けたゲーム数",
+      "draws": "引き分けたゲーム数",
+      "totalScore": "全ゲームの得点の合計",
+      "bestScore": "1ゲームでの最高得点"
+    },
     "progressLabel": "{name}：次のレベルまでの進み具合",
     "countOf": "{value} / {target}"
   },

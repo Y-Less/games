@@ -34,10 +34,13 @@ const number = (n) => n.toLocaleString(intlLocale());
 const percent = (progress) => Math.floor(progress * 100);
 // Returns true when achievement `a` is at its top level.
 const done = (a) => a.level === a.maxLevel;
-// Returns true when `a` has no levels earned (its name and goal stay secret).
-const hidden = (a) => a.level === 0; // nothing earned yet: the name and goal stay secret
 // Returns true when `a` has just one level.
 const single = (a) => a.maxLevel === 1; // one level: you have it or you do not, so there is nothing to count
+// Returns true when `a` keeps its name and goal to itself: a one-off unlock nobody has earned yet, and only that.
+// An achievement with levels always shows what it asks for and how far along you are, even before the first level.
+const secret = (a) => single(a) && a.level === 0;
+// Returns true when nothing at all has been earned yet (the box is drawn dimmed, whether or not it is a secret).
+const untouched = (a) => a.level === 0;
 // Returns the total of levels earned across a section's achievements.
 const unlocked = (section) => section.achievements.reduce((sum, a) => sum + a.level, 0);
 // Returns the total of levels available across a section's achievements.
@@ -48,9 +51,15 @@ const sectionName = (section) => (section.id === SITE_SECTION ? t('achievements.
 const name = (section, a) => catalogue.achievementName(section.id, a);
 // Returns what a level ({ n, text }) of an achievement asks for, in the language.
 const goal = (section, a, level) => catalogue.achievementText(section.id, a, level.n, level.text);
+// Returns the line under an achievement's name.  One with levels says what its number counts ("Cards played"), because
+// the level it has reached and the number it is working towards are already drawn as the badge and the count beside the
+// bar; a one-off, which has neither, says what it asks for instead.  The goal is the fallback for a definition that
+// names nothing (no label and no labelled stat), so a box is never left with a blank line.
+const description = (section, a) =>
+  (single(a) ? goal(section, a, a.levels[0]) : catalogue.achievementLabel(section.id, a) ?? goal(section, a, a.next ?? a.current));
 // Returns the badge text beside an achievement's name.
 function badge(a) {
-  if (hidden(a)) return t('achievements.locked');
+  if (untouched(a)) return t('achievements.locked');
   if (single(a)) return t('achievements.unlocked');
   if (done(a)) return t('achievements.complete');
   return t('achievements.level', { level: a.level });
@@ -70,19 +79,17 @@ function badge(a) {
         <span class="muted tally">{{ t('achievements.tally', { unlocked: number(unlocked(section)), possible: number(possible(section)) }) }}</span>
       </header>
       <ul class="boxes">
-        <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a), locked: hidden(a) }" :data-achievement="a.id">
+        <li v-for="a in section.achievements" :key="a.id" class="box" :class="{ complete: done(a), locked: untouched(a) }" :data-achievement="a.id">
           <div class="top">
-            <h3>{{ hidden(a) ? t('achievements.secret') : name(section, a) }}</h3>
+            <h3>{{ secret(a) ? t('achievements.secret') : name(section, a) }}</h3>
             <span class="level" :title="t('achievements.levelsTitle', { level: a.level, max: a.maxLevel })">{{ badge(a) }}</span>
           </div>
-          <p v-if="hidden(a)" class="goal">{{ t('achievements.secret') }}</p>
+          <p v-if="secret(a)" class="goal">{{ t('achievements.secret') }}</p>
           <template v-else>
           <ol v-if="!single(a)" class="pips" aria-hidden="true">
             <li v-for="(l, i) in a.levels" :key="i" :class="{ on: l.done }" />
           </ol>
-          <p v-if="single(a)" class="goal">{{ goal(section, a, a.levels[0]) }}</p>
-          <p v-else-if="a.next" class="goal">{{ t('achievements.levelGoal', { level: a.level + 1, text: goal(section, a, a.next) }) }}</p>
-          <p v-else class="goal">{{ t('achievements.levelGoal', { level: a.maxLevel, text: goal(section, a, a.current) }) }}</p>
+          <p class="goal">{{ description(section, a) }}</p>
           <div v-if="!single(a)" class="bar" role="progressbar" :aria-valuenow="percent(a.progress)" aria-valuemin="0" aria-valuemax="100" :aria-label="t('achievements.progressLabel', { name: name(section, a) })">
             <i :style="{ width: `${percent(a.progress)}%` }" />
           </div>
@@ -130,10 +137,12 @@ function badge(a) {
 .box {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.8rem 0.9rem;
+  /* The name and its pips belong together, and so do the bar and its count; the description sits between the two pairs,
+     so the rows are spaced by hand rather than by one gap for all of them. */
+  gap: 0.35rem;
+  padding: 1rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--bg-raised);
 }
 .box.complete {
@@ -146,7 +155,7 @@ function badge(a) {
   gap: 0.6rem;
 }
 .top h3 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
 }
 .level {
   flex: none;
@@ -162,11 +171,11 @@ function badge(a) {
   margin: 0;
   padding: 0;
   display: flex;
-  gap: 0.3rem;
+  gap: 0.4rem;
 }
 .pips li {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 50%;
   border: 1px solid var(--line);
 }
@@ -175,11 +184,12 @@ function badge(a) {
   border-color: var(--amber);
 }
 .goal {
-  margin: 0;
-  font-size: 0.95rem;
+  /* Set off from the pips above it, which belong with the name. */
+  margin: 0.45rem 0 0;
+  font-size: 1rem;
 }
 .bar {
-  height: 0.6rem;
+  height: 0.7rem;
   border-radius: 999px;
   background: var(--bg-sunken);
   border: 1px solid var(--line);

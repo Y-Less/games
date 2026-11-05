@@ -17,9 +17,9 @@ const sources = import.meta.glob(['./**/*.{vue,js}', '../modules/*/client/**/*.{
 
 /**
  * Source files whose English is not the interface: tests, test kits, and fixtures (for developers), and a game's content
- * (Just One's word list, Wavelength's spectra), which is translated as content, not as keys.
+ * (Just One's word list, Wavelength's spectra, GTK's questions), which is translated as content, not as keys.
  */
-const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|views\.js|fixtures\/|\/sim\/|\/arena\.js|\/testing\.js|\/words\.js|\/spectra\.js)$/;
+const NOT_PLAYER_FACING = /(\.test\.js|testSetup\.js|testkit\.js|renderWalk\.js|views\.js|fixtures\/|\/sim\/|\/arena\.js|\/testing\.js|\/words\.js|\/spectra\.js|\/questions\.js)$/;
 /** Attributes whose static value is read out or shown. */
 const TEXT_ATTRIBUTES = ['title', 'aria-label', 'aria-description', 'aria-roledescription', 'placeholder', 'alt', 'label', 'empty', 'intro', 'noun', 'headline', 'message', 'create-label', 'start-label', 'log-title', 'status-title', 'confirm-text', 'legend'];
 /** Template text that is not a word in any language. */

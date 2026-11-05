@@ -2,8 +2,8 @@
 // its statistics labels and achievements, the site's own achievements, shop items, avatar parts, and game categories.
 // English is the definition itself; another language's file holds a translation under the key, and a missing one falls
 // back to the server's English, so a half-translated catalogue still shows every name.
-//   <game>.meta.name, <game>.meta.description, <game>.stats.<key>, <game>.achievements.<key>.{name,text,one}
-//   siteAchievements.<key>.{name,text,one}, shop.<itemId>, avatar.slots.<slot>, avatar.options.<slot>.<id>, categories.<key>
+//   <game>.meta.name, <game>.meta.description, <game>.stats.<key>, <game>.achievements.<key>.{name,text,one,label}
+//   siteAchievements.<key>.{name,text,one,label}, shop.<itemId>, avatar.slots.<slot>, avatar.options.<slot>.<id>, categories.<key>
 // Depends on: ./i18n.js and ./messageText.js.
 import { i18n } from './i18n.js';
 import { hasText, intlLocale } from './messageText.js';
@@ -54,6 +54,24 @@ export const catalogue = {
     const base = achievementKey(sectionId, achievement.key);
     if (n === 1 && hasText(`${base}.one`)) return i18n.global.t(`${base}.one`);
     return hasText(`${base}.text`) ? i18n.global.t(`${base}.text`, { n: number(n) }) : fallback;
+  },
+  /**
+   * What an achievement's number counts, with no number in it ("Cards played"): the line under its name.  An achievement
+   * that reads a stat is labelled by that stat, so the game's own translation is used where there is one and the shared
+   * labels (achievements.stats.<key>) stand in for the stats every game has; one that counts something no stat does
+   * carries its own label.  The server's English is the fallback throughout.
+   * @param {string} sectionId  the game id or 'global'
+   * @param {{ key: string, stat: string|null, label: string|null }} achievement  as the server describes it
+   * @returns {string|null} the label, or null when the achievement has none
+   */
+  achievementLabel(sectionId, achievement) {
+    const { key, stat, label } = achievement;
+    if (!label) return null;
+    if (!stat) return named(`${achievementKey(sectionId, key)}.label`, label);
+    for (const candidate of [`${sectionId}.stats.${stat}`, `achievements.stats.${stat}`]) {
+      if (hasText(candidate)) return i18n.global.t(candidate);
+    }
+    return label;
   },
   /** @param {{ id: string, name: string }} item  a shop item  @returns {string} */
   shopItemName: (item) => named(`shop.${item.id}`, item.name),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, GLOBAL_TIERS, levelInfo, levelReward, levelText, TIERS } from './achievements.js';
+import { BUILTIN_STAT_LABELS, cleanDefinition, describe, GAME_ACHIEVEMENTS, GLOBAL_ACHIEVEMENTS, GLOBAL_TIERS, labelFor, levelInfo, levelReward, levelText, TIERS } from './achievements.js';
 
 const cards = { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: [500, 1000, 5000] };
 
@@ -29,6 +29,20 @@ test('describe gives what the page draws', () => {
   assert.deepEqual(d.levels.map((l) => l.done), [true, false, false]);
   assert.equal(describe(cards, 'x', 0).current, null);
   assert.equal(describe(cards, 'x', 9999).next, null);
+});
+
+test('an achievement is labelled by the stat it reads, or by a label of its own', () => {
+  const stats = [{ key: 'moonsShot', label: 'Times you shot the moon' }];
+  assert.equal(labelFor({ key: 'moon', stat: 'moonsShot' }, stats), 'Times you shot the moon', "the game's own stat");
+  assert.equal(labelFor({ key: 'points', stat: 'totalScore' }, stats), BUILTIN_STAT_LABELS.totalScore, 'a stat every game has');
+  assert.equal(labelFor({ key: 'art', label: 'Different cards you have been dealt' }, stats), 'Different cards you have been dealt', 'counting what no stat does');
+  assert.equal(labelFor({ key: 'art', stat: 'moonsShot', label: 'Its own words' }, stats), 'Its own words', 'a label of its own wins');
+  assert.equal(labelFor({ key: 'slow' }, stats), null, 'nothing names it, so the page falls back to what it asks for');
+  assert.equal(labelFor({ key: 'x', stat: 'notDeclared' }, stats), null, 'a stat no one labels');
+  // The label travels to the page beside the stat it came from, so a language can translate it by key.
+  const d = describe({ ...cards, stat: 'totalScore' }, 'global.cards', 600, stats);
+  assert.deepEqual([d.stat, d.label], ['totalScore', BUILTIN_STAT_LABELS.totalScore]);
+  assert.deepEqual([describe(cards, 'x', 0).stat, describe(cards, 'x', 0).label], [null, null]);
 });
 
 test('definitions from a module.json are checked', () => {

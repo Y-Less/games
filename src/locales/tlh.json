@@ -207,7 +207,14 @@
     "unlocked": "poS",
     "complete": "naQ",
     "level": "patlh {level}",
-    "levelGoal": "patlh {level}: {text}",
+    "stats": {
+      "played": "Qujpu' 'ar",
+      "wins": "yaymey 'ar",
+      "losses": "lujmey 'ar",
+      "draws": "rapmey 'ar",
+      "totalScore": "Hoch Qujmey mI'",
+      "bestScore": "wa' Quj mI' pov"
+    },
     "progressLabel": "{name}: patlh veb ghoSlI'",
     "countOf": "{value} / {target}"
   },

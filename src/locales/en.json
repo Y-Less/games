@@ -207,7 +207,14 @@
     "unlocked": "Unlocked",
     "complete": "Complete",
     "level": "Level {level}",
-    "levelGoal": "Level {level}: {text}",
+    "stats": {
+      "played": "Number of games played",
+      "wins": "Number of games won",
+      "losses": "Number of games lost",
+      "draws": "Number of games drawn",
+      "totalScore": "Total of your scores in every game",
+      "bestScore": "Best score in a single game"
+    },
     "progressLabel": "{name}: progress towards the next level",
     "countOf": "{value} / {target}"
   },

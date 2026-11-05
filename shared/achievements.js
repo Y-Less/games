@@ -2,11 +2,15 @@
 // a player's levels) and by the page (to draw them).
 //
 // A definition (in a game's module.json "achievements", or GLOBAL_ACHIEVEMENTS below) is
-//   { key, name, text, one?, levels: [10, 50, 100] or a tier name such as "easy", stat? }
+//   { key, name, text, one?, levels: [10, 50, 100] or a tier name such as "easy", stat?, label? }
 // - `levels` are the values at which each level unlocks (ascending whole numbers), or the name of a tier (see TIERS); a
 //   one-level achievement has one entry, or is `"unlock"`.
 // - `text` says what a level asks for, with {n} replaced by that level's number ("Play {n} cards"); `one` is used instead
 //   when the number is 1 ("Shoot the moon").
+// - `label` says what the number counts, without a number of its own ("Cards played"), and is what the page shows under
+//   the name: the level and its target are already drawn as the badge and the count, so the text would only repeat them.
+//   An achievement that reads a stat needs none, because the stat is already labelled (a game's own in its module.json
+//   "stats", the shared ones in BUILTIN_STAT_LABELS); one that counts something no stat does gives its own.
 // - `stat` makes the value come from the game's recorded results, so it counts games played before the achievement
 //   existed: a game's own stat key (declared in its module.json "stats"), or 'played', 'wins', 'losses', 'totalScore' or
 //   'bestScore'. Without `stat` the value is progress that the game saves itself (ctx.achievements).
@@ -54,24 +58,38 @@ export const levelReward = (level, levelCount) => (levelCount === 1 ? SINGLE_LEV
 // Stat names always available to a definition's `stat`, in addition to a game's own declared stats.
 export const BUILTIN_STATS = ['played', 'wins', 'losses', 'draws', 'totalScore', 'bestScore'];
 
+/**
+ * What each of those counts, for the line under an achievement's name.  A game labels its own stats in its module.json;
+ * these belong to no game, so they are labelled once here.  A language translates them under achievements.stats.<key>.
+ */
+export const BUILTIN_STAT_LABELS = {
+  played: 'Number of games played',
+  wins: 'Number of games won',
+  losses: 'Number of games lost',
+  draws: 'Number of games drawn',
+  totalScore: 'Total of your scores in every game',
+  bestScore: 'Best score in a single game',
+};
+
 /** The achievements that belong to the site rather than to one game. */
 export const GLOBAL_ACHIEVEMENTS = [
   { key: 'welcome', name: 'Millennium Home', text: 'Sign up', levels: GLOBAL_TIERS.unlock, measure: 'member' },
   { key: 'games', name: 'Played games', text: 'Play {n} games', one: 'Play a game', levels: GLOBAL_TIERS.medium, stat: 'played' },
   { key: 'wins', name: 'Won games', text: 'Win {n} games', one: 'Win a game', levels: GLOBAL_TIERS.hard, stat: 'wins' },
   { key: 'persistent', name: 'Persistent', text: 'You just lost the game ({n} times)', one: 'You just lost the game (1 time)', levels: GLOBAL_TIERS.medium, stat: 'losses' },
-  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', levels: GLOBAL_TIERS.veryEasy },
+  { key: 'cards', name: 'Played cards', text: 'Play {n} cards', one: 'Play a card', label: 'Cards played in every game', levels: GLOBAL_TIERS.veryEasy },
   { key: 'slow', name: 'Hurry up Dods!', text: 'Take over 10 minutes for a turn', levels: GLOBAL_TIERS.unlock },
   {
     key: 'pieces',
     name: 'Played pieces',
     text: 'Place {n} pieces in the building games',
     one: 'Place a piece in a building game',
+    label: 'Pieces placed in the building games',
     levels: GLOBAL_TIERS.easy,
     sum: [['azulejo', 'wallTiles'], ['gaudi', 'dicePlaced'], ['rummikub', 'tilesPlayed'], ['splendour', 'cardsBought']],
   },
-  { key: 'spent', name: 'Big spender', text: 'Spend {n} gold in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
-  { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', levels: [10, 50, 100, 500, 1000] },
+  { key: 'spent', name: 'Big spender', text: 'Spend {n} gold in the shop', label: 'Gold spent in the shop', levels: [2000, 10000, 20000, 50000, 100000], measure: 'coinsSpent' },
+  { key: 'indecisive', name: 'Indecisive', text: 'Put {n} shop items to use', one: 'Put a shop item to use', label: 'Shop items put to use', levels: [10, 50, 100, 500, 1000] },
   { key: 'customised', name: 'Customised', text: 'Buy something from every part of the shop', levels: GLOBAL_TIERS.unlock, measure: 'customised' },
   { key: 'steve', name: "Steve's Achievement", text: "Claim Steve's reward", levels: GLOBAL_TIERS.unlock },
   { key: 'everygame', name: 'Master of all', text: 'Win every game at least once', levels: GLOBAL_TIERS.unlock, wonEvery: true },
@@ -79,8 +97,8 @@ export const GLOBAL_ACHIEVEMENTS = [
   { key: 'klingon', name: "Qapla'", text: 'Choose Klingon as your language', levels: GLOBAL_TIERS.unlock },
   // The top level asks for more than the shop currently sells; more is to come, and an achievement nobody can finish yet
   // is better than one that has to be renumbered later.
-  { key: 'fashionable', name: 'Fashionable', text: 'Buy {n} things in the shop', one: 'Buy something in the shop', levels: GLOBAL_TIERS.hard, measure: 'purchases' },
-  { key: 'shed', name: 'Out in the shed', text: 'Spend {n} minutes on the site', levels: [100, 500, 1000, 2500, 5000], measure: 'onlineMinutes' },
+  { key: 'fashionable', name: 'Fashionable', text: 'Buy {n} things in the shop', one: 'Buy something in the shop', label: 'Things bought in the shop', levels: GLOBAL_TIERS.hard, measure: 'purchases' },
+  { key: 'shed', name: 'Out in the shed', text: 'Spend {n} minutes on the site', label: 'Minutes spent on the site', levels: [100, 500, 1000, 2500, 5000], measure: 'onlineMinutes' },
 ];
 
 /** Every game has these two, whatever its module.json says: how often you played it, and how often you won. */
@@ -101,11 +119,19 @@ const KEY = /^[a-zA-Z][a-zA-Z0-9]{0,30}$/;
  */
 export function cleanDefinition(input) {
   if (!input || typeof input !== 'object') return null;
-  const { key, name, text, one, stat } = input;
+  const { key, name, text, one, stat, label } = input;
   const levels = typeof input.levels === 'string' ? TIERS[input.levels] ?? [] : Array.isArray(input.levels) ? input.levels : [];
   if (typeof key !== 'string' || !KEY.test(key) || typeof name !== 'string' || !name || typeof text !== 'string' || !text) return null;
   if (!levels.length || levels.some((n, i) => !Number.isFinite(n) || n <= 0 || (i > 0 && n <= levels[i - 1]))) return null;
-  return { key, name, text, one: typeof one === 'string' && one ? one : null, levels: [...levels], stat: typeof stat === 'string' && stat ? stat : null };
+  return {
+    key,
+    name,
+    text,
+    one: typeof one === 'string' && one ? one : null,
+    label: typeof label === 'string' && label ? label : null,
+    levels: [...levels],
+    stat: typeof stat === 'string' && stat ? stat : null,
+  };
 }
 
 // Formats numbers with thousands separators ("1,000") for level text.
@@ -138,19 +164,37 @@ export function levelInfo(levels, value) {
 }
 
 /**
+ * What an achievement's number counts, in words and without a number: the line the page draws under the name.  The
+ * definition's own `label` if it has one, else the label of the stat it reads (the game's own, else the shared one).
+ * @param {object} definition  a definition (cleaned, or one of the global ones)
+ * @param {Array<{ key: string, label: string }>} [stats]  the stats the game declares in its module.json
+ * @returns {string|null} the label, or null when nothing names it (a one-off shows what it asks for instead)
+ * Side effects: none.
+ */
+export function labelFor(definition, stats = []) {
+  if (definition.label) return definition.label;
+  if (!definition.stat) return null;
+  return stats.find((s) => s.key === definition.stat)?.label ?? BUILTIN_STAT_LABELS[definition.stat] ?? null;
+}
+
+/**
  * Builds the shape the page draws for one achievement: definition plus a player's value and level state.
  * @param {object} definition  a cleaned definition (see cleanDefinition)
  * @param {string} id  the unique id to report (e.g. "game:key"), echoed back
  * @param {number} value  the player's current value
- * @returns {object} { id, key, name, value, level, maxLevel, levels, current, next, progress }
+ * @param {Array<{ key: string, label: string }>} [stats]  the game's declared stats, for the label (see labelFor)
+ * @returns {object} { id, key, name, stat, label, value, level, maxLevel, levels, current, next, progress }
  * Side effects: none.
  */
-export function describe(definition, id, value) {
+export function describe(definition, id, value, stats = []) {
   const { level, next, progress } = levelInfo(definition.levels, value);
   return {
     id,
     key: definition.key,
     name: definition.name,
+    // The stat is reported so a language can translate its label by key; `label` is the server's English to fall back on.
+    stat: definition.stat ?? null,
+    label: labelFor(definition, stats),
     value,
     level,
     maxLevel: definition.levels.length,

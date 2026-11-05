@@ -45,12 +45,16 @@ test('progress shows the level reached and how far it is towards the next', { ti
   await user.waitForSelector('[data-achievement="global.cards"]');
   const cards = await box('global.cards');
   assert.match(cards.text, /Level 1/);
-  assert.match(cards.text, /Level 2: Play 1,000 cards/);
+  // The box says what the number counts; the level reached is the badge and the one being worked towards is the count.
+  assert.match(cards.text, /Cards played in every game/);
+  assert.doesNotMatch(cards.text, /Level 2:/);
+  assert.doesNotMatch(cards.text, /Play 1,000 cards/);
   assert.match(cards.text, /600 \/ 1,000/);
   assert.equal(cards.bar, '60');
   const moon = await box('hearts.moon');
   assert.match(moon.text, /Level 2/, '6 moons: levels at 1 and 3 reached, working to 10');
-  assert.match(moon.text, /Level 3: Shoot the moon 10 times/);
+  assert.match(moon.text, /Times you shot the moon/, "a game's own stat labels the achievement that reads it");
+  assert.match(moon.text, /6 \/ 10/);
   const perfect = await box('hearts.perfect');
   assert.equal(perfect.complete, true);
   assert.equal(perfect.bar, null, 'one level: got or not, so no progress bar');

@@ -24,22 +24,23 @@ export const sectionOf = (id) => id.split('.')[0];
 
 /**
  * Makes a registry over the live list of games (read on every call, so late-loaded modules show up).
- * @param {() => Array<{ id: string, name: string, achievements?: object[] }>} listGames  the loaded games
+ * @param {() => Array<{ id: string, name: string, stats?: object[], achievements?: object[] }>} listGames  the loaded games
  * @returns {{ sections: () => object[], find: (id: string) => object | null }} lookups over the definitions
  * Side effects: none.
  */
 export function createRegistry(listGames) {
   /**
-   * The global achievements, then each game that has any: { id, name, definitions }.
-   * @returns {Array<{ id: string, name: string, definitions: object[] }>} the sections in display order
+   * The global achievements, then each game that has any: { id, name, stats, definitions }.  The stats come along
+   * because an achievement is labelled by the stat it reads (shared/achievements.js labelFor).
+   * @returns {Array<{ id: string, name: string, stats: object[], definitions: object[] }>} the sections in display order
    * Side effects: none.
    */
   function sections() {
     return [
-      { id: GLOBAL, name: 'Global', definitions: GLOBAL_ACHIEVEMENTS },
+      { id: GLOBAL, name: 'Global', stats: [], definitions: GLOBAL_ACHIEVEMENTS },
       ...listGames()
         .filter((g) => g.achievements?.length)
-        .map((g) => ({ id: g.id, name: g.name, definitions: g.achievements })),
+        .map((g) => ({ id: g.id, name: g.name, stats: g.stats ?? [], definitions: g.achievements })),
     ];
   }
 
