@@ -37,6 +37,13 @@ const FAST_ENV = {
   TINTS_BOT_DELAY: '0-5',
   WAVELENGTH_BOT_DELAY: '0-5',
   JUST_ONE_BOT_DELAY: '0-5',
+  // Trivium asks The Trivia API for its questions, so every UI test gets the made-up ones instead, and its clocks are
+  // wound in so that a quiz plays out in seconds rather than at the pace a room full of people would want.
+  TRIVIUM_TRIVIA: 'test',
+  TRIVIUM_SPIN_MS: '600',
+  TRIVIUM_ANSWER_MS: '3000',
+  TRIVIUM_REVEAL_STEP: '120',
+  TRIVIUM_REVEAL_HOLD: '600',
 };
 
 function findChrome() {
