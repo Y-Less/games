@@ -117,7 +117,7 @@ export function migratePlayers(room, nameOf = () => undefined) {
  *   turns the bare player into the game's own shape (adds the score, the counters, a marker colour...). `extras` is whatever
  *   the server passed for a person joining (for example their preferred colour); it is undefined for a computer player.
  *   It may read the room (to pick a colour nobody has) but must not add the player to it.
- * @param {(room: object, oldId: number | string, bot: object, rng: () => number) => void} [config.takeOver]  runs after a
+ * @param {(room: object, oldId: number | string, bot: object, rng: () => number, now: number) => void} [config.takeOver]  runs after a
  *   computer player has taken the place of a person who left a game under way: `bot` is already in the list where the
  *   person was, with their score, counters and colour but the new id and name.  The game gives it an AI, renames the
  *   person's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory does the
@@ -170,11 +170,12 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {object} room
    * @param {number} id  the account id
    * @param {() => number} rng
+   * @param {number} [now]  the clock, for games whose rules start a timer when somebody is replaced
    * @returns {{ ok: boolean, empty?: boolean, replaced?: boolean, changed?: boolean, error?: string }} `empty` is true
    *   when no person is left, so the caller should discard the room; `replaced` says a computer player took their place;
    *   `changed: false` means nothing happened
    */
-  function takeOut(room, id, rng) {
+  function takeOut(room, id, rng, now = 0) {
     const index = seatOf(room, id);
     if (index === -1) return fail('notInGame');
     if (!isLive(room)) return ok({ empty: false, replaced: false, changed: false });
@@ -184,7 +185,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
       const leaving = room.players[index];
       const { id: botId, name } = newBot(room); // just for the id and the name: the player keeps everything else
       room.players[index] = { ...leaving, kind: 'bot', id: botId, name };
-      takeOver(room, id, room.players[index], rng);
+      takeOver(room, id, room.players[index], rng, now);
       replaced = true;
     }
     const people = humans(room);
@@ -203,9 +204,9 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @returns {{ ok: boolean, empty?: boolean, replaced?: boolean, changed?: boolean, error?: string }}
    * Side effects: as takeOut.
    */
-  function removeHuman(room, userId, rng) {
+  function removeHuman(room, userId, rng, now = 0) {
     if (!isHuman(room.players[seatOf(room, userId)])) return fail('notInGame');
-    return takeOut(room, userId, rng);
+    return takeOut(room, userId, rng, now);
   }
 
   /**
@@ -290,15 +291,16 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {number} hostId
    * @param {number} targetId  the account id of the person to remove
    * @param {() => number} rng
+   * @param {number} [now]  the clock, passed on to the game's takeOver
    * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }}
    * Side effects: as takeOut.
    */
-  function kick(room, hostId, targetId, rng) {
+  function kick(room, hostId, targetId, rng, now = 0) {
     if (hostId !== room.hostId) return fail('hostOnlyRemove');
     const target = room.players.find((p) => p.id === targetId);
     if (!isHuman(target) || target.id === hostId) return fail('playerNotInGame');
     if (!isLive(room)) return fail('gameOverNobodyToRemove');
-    const removed = takeOut(room, target.id, rng);
+    const removed = takeOut(room, target.id, rng, now);
     return removed.ok ? ok({ userId: target.id, replaced: removed.replaced }) : removed;
   }
 

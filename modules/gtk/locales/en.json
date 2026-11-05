@@ -1,0 +1,124 @@
+{
+  "entry": {
+    "noun": "game of GTK",
+    "intro": "Every round is about one of you. They answer two questions truthfully, everybody else makes an answer up, and then you all try to spot the truth. You get a code to share."
+  },
+  "leaveConfirm": "You will not be able to come back.",
+  "settings": {
+    "length": "Length of the game",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
+    "roundsEach": "{count} round each | {count} rounds each",
+    "total": "{count} round in all with {players} players, and {questions} questions a round. | {count} rounds in all with {players} players, and {questions} questions a round.",
+    "questions": "Questions each round",
+    "fewerQuestions": "Fewer questions",
+    "moreQuestions": "More questions",
+    "questionsEach": "{count} question a round | {count} questions a round",
+    "time": "Time to answer",
+    "lessTime": "Less time",
+    "moreTime": "More time",
+    "secondsEach": "{count} second | {count} seconds",
+    "timeNote": "When the time runs out an answer is made up for anybody who has not sent one, and a pick is made for anybody who has not picked."
+  },
+  "scoreboard": {
+    "question": "Round {round}: {name}, question {n}"
+  },
+  "notes": {
+    "right": "spotted it",
+    "fooled": "fooled {count} | fooled {count}",
+    "matched": "wrote the truth",
+    "named": "was the answer",
+    "theirRound": "the round is about them"
+  },
+  "table": {
+    "subjectTag": "it",
+    "writtenTag": "written",
+    "pickedTag": "picked",
+    "players": "The other players",
+    "nothingYet": "Nothing has happened yet.",
+    "theQuestions": "This round's questions",
+    "questionNumber": "Question {n} of {total}",
+    "yourAnswers": "Your answers",
+    "answerPlaceholder": "A short answer",
+    "sendAnswers": "Send your answer | Send all your answers",
+    "whoWritten": "Who has written",
+    "whoPicked": "Who has picked",
+    "theAnswers": "The answers",
+    "yourAnswerTag": "yours",
+    "trueTag": "true",
+    "pickOne": "Pick the answer you believe is true",
+    "chose": "Chose {names}",
+    "nobodyChose": "Nobody chose this",
+    "wroteBy": "Written by {names}",
+    "subjectAnswer": "{name}’s own answer",
+    "waitingForPicks": "Waiting for the others to pick."
+  },
+  "facts": {
+    "round": "Round {n} of {total}",
+    "question": "Question {n} of {total}",
+    "subject": "This round is about {name}",
+    "gameOver": "Game over",
+    "time": "{count} second left | {count} seconds left"
+  },
+  "popup": {
+    "plays": "Plays as",
+    "score": "Score",
+    "now": "Now",
+    "subject": "the round is about them",
+    "written": "has written their answers",
+    "toWrite": "still writing",
+    "picked": "has picked",
+    "toPick": "still to pick"
+  },
+  "reveal": {
+    "label": "This question",
+    "truthWas": "The true answer was {answer}"
+  },
+  "status": {
+    "writeSubject": "This question is about you. Answer it honestly: the others are making an answer up for the same one. | The questions are all about you. Answer them honestly: the others are making answers up for the same ones.",
+    "writeOther": "Make up an answer that could pass for {name}’s own. | Make up an answer to each question that could pass for {name}’s own.",
+    "writeSent": "Answers sent. Waiting for the others ({written} of {total}).",
+    "pickSubject": "The others are picking which answer is really yours.",
+    "pickYours": "Which of these is {name}’s own answer? You cannot pick your own.",
+    "pickWaiting": "Picked. Waiting for the others ({picked} of {total}).",
+    "pickMatched": "You wrote the true answer, so this one is already yours. Watch the others guess.",
+    "revealTruth": "{name}’s answer was “{answer}”.",
+    "scoring": "The true answer is worth {correct}; a made-up answer earns {fooled} for every player who picks it.",
+    "cannotPickOwn": "Your own answer cannot be picked.",
+    "leaveToMenu": "Use Leave game (top right) to go back to the menu.",
+    "finishedNote": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every question again.",
+    "waitingReadyNext": "Waiting for {names} to be ready for the next question.",
+    "waitingReadyFinal": "Waiting for {names} to be ready for the final scores.",
+    "hurry": "The time is nearly up: an answer will be made up for you.",
+    "hurryPick": "The time is nearly up: a pick will be made for you."
+  },
+  "log": {
+    "roundStart": "Round {n} of {total}: this one is about {name}.",
+    "written": "{name} has written their answers.",
+    "answersIn": "The answers are in.",
+    "questionUp": "Question {n}: {prompt}",
+    "picked": "{name} has picked.",
+    "truthWas": "The true answer was “{answer}”.",
+    "fooled": "{name} fooled {count} player with “{answer}”. | {name} fooled {count} players with “{answer}”.",
+    "spotted": "Nobody spotted the true answer. | {count} player spotted the true answer. | {count} players spotted the true answer.",
+    "gameOver": "{names} wins. | {names} win.",
+    "abandoned": "The game was abandoned."
+  },
+  "errors": {
+    "answersIn": "The answers are in.",
+    "alreadyAnswered": "You have already sent your answers.",
+    "answerEachQuestion": "Answer the question. | Answer all {count} questions.",
+    "typeAnswers": "Write an answer to each question first.",
+    "answerTooLong": "An answer is at most {max} characters.",
+    "answerNeedsWords": "An answer needs some words in it.",
+    "notTimeToPick": "It is not time to pick an answer.",
+    "subjectDoesNotPick": "This round is about you, so you do not pick.",
+    "alreadyPicked": "You have already picked.",
+    "pickAnAnswer": "Pick one of the answers.",
+    "notYourOwnAnswer": "You cannot pick your own answer.",
+    "yoursWasTrue": "You wrote the true answer, so there is nothing for you to pick.",
+    "roundsEach": "Choose between {min} and {max} rounds each.",
+    "questionsPerRound": "Choose between {min} and {max} questions a round.",
+    "seconds": "Choose between {min} and {max} seconds."
+  }
+}

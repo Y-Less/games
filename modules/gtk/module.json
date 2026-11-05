@@ -1,0 +1,138 @@
+{
+  "id": "gtk",
+  "name": "GTK",
+  "description": "Getting To Know. Each round is about one player: they answer two questions about themselves, everybody else makes an answer up, and then you all try to spot the truth.",
+  "minPlayers": 3,
+  "maxPlayers": 8,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    {
+      "key": "rightAnswers",
+      "label": "True answers spotted",
+      "agg": "sum"
+    },
+    {
+      "key": "peopleFooled",
+      "label": "People fooled",
+      "agg": "sum"
+    },
+    {
+      "key": "answersWritten",
+      "label": "Answers written",
+      "agg": "sum"
+    },
+    {
+      "key": "matchedTruth",
+      "label": "Made-up answers that were true",
+      "agg": "sum"
+    },
+    {
+      "key": "namedAsTruth",
+      "label": "Questions everybody answered with your name",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "nobodyFoundMe",
+      "label": "Questions of your own that nobody got right",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "cleanSweeps",
+      "label": "Answers that fooled everybody",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "perfectRounds",
+      "label": "Rounds with both questions right",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "neverFooled",
+      "label": "Games where you were never fooled",
+      "agg": "sum",
+      "hidden": true
+    }
+  ],
+  "achievements": [
+    {
+      "key": "truthseeker",
+      "name": "Truth seeker",
+      "text": "Spot the true answer {n} times",
+      "one": "Spot the true answer",
+      "levels": "easy",
+      "stat": "rightAnswers"
+    },
+    {
+      "key": "storyteller",
+      "name": "Storyteller",
+      "text": "Fool {n} people with your made-up answers",
+      "one": "Fool somebody with a made-up answer",
+      "levels": "easy",
+      "stat": "peopleFooled"
+    },
+    {
+      "key": "scribe",
+      "name": "Never short of an answer",
+      "text": "Write {n} answers",
+      "one": "Write an answer",
+      "levels": "veryEasy",
+      "stat": "answersWritten"
+    },
+    {
+      "key": "mindmeld",
+      "name": "Mind meld",
+      "text": "Make up an answer that turns out to be the true one {n} times",
+      "one": "Make up an answer that turns out to be the true one",
+      "levels": "medium",
+      "stat": "matchedTruth"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "easy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "driveby",
+      "name": "Drive-by",
+      "text": "Have every other player answer a question with your name",
+      "levels": "unlock",
+      "stat": "namedAsTruth"
+    },
+    {
+      "key": "inscrutable",
+      "name": "Inscrutable",
+      "text": "Be the subject of a question that nobody gets right",
+      "levels": "unlock",
+      "stat": "nobodyFoundMe"
+    },
+    {
+      "key": "sweep",
+      "name": "Clean sweep",
+      "text": "Write an answer that every single player falls for",
+      "levels": "unlock",
+      "stat": "cleanSweeps"
+    },
+    {
+      "key": "bothright",
+      "name": "Knows you well",
+      "text": "Get every question of a round right {n} times",
+      "one": "Get every question of a round right",
+      "levels": "medium",
+      "stat": "perfectRounds"
+    },
+    {
+      "key": "unfoolable",
+      "name": "Unfoolable",
+      "text": "Finish a game having spotted every true answer",
+      "levels": "unlock",
+      "stat": "neverFooled"
+    }
+  ]
+}
