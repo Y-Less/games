@@ -1,0 +1,113 @@
+{
+  "entry": {
+    "noun": "game of Trivium",
+    "intro": "Spin for a category and race everybody to the right answer. You get a code to share."
+  },
+  "leaveConfirm": "The quiz carries on without you, and you will not be able to come back.",
+  "lobby": {
+    "yourColour": "Your marker colour",
+    "chooseColour": "Choose marker colour {colour}",
+    "ownColour": "Your own colour",
+    "anyColour": "Any colour",
+    "chooseAnyColour": "Choose any marker colour",
+    "unlockColours": "Unlock any colour in the shop. Set your usual one under Profile.",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
+    "rounds": "{count} round | {count} rounds",
+    "fewerQuestions": "Fewer questions a round",
+    "moreQuestions": "More questions a round",
+    "perRound": "{count} question a round | {count} questions a round",
+    "totalQuestions": "{count} question in all. | {count} questions in all.",
+    "hostChooses": "The host chooses."
+  },
+  "wheel": {
+    "label": "The wheel of categories"
+  },
+  "table": {
+    "pickThis": "Answer this one",
+    "thatIsThat": "That is the lot.",
+    "noQuestions": "There were no more questions to be had."
+  },
+  "popup": {
+    "colour": "Colour",
+    "now": "Now",
+    "answered": "answered",
+    "thinking": "still thinking",
+    "answer": "Answered",
+    "scored": "Scored"
+  },
+  "facts": {
+    "round": "Round {n} of {total}",
+    "question": "Question {n} of {total}",
+    "category": "Category: {name}",
+    "seconds": "{count} second left | {count} seconds left"
+  },
+  "status": {
+    "spinning": "Spinning for a category…",
+    "spinHint": "The bigger the wedge, the more questions that category has.",
+    "yourAnswer": "Answer now: press the one you think is right.",
+    "locked": "Your answer is in.",
+    "quickest": "Being right scores 5, and the quickest right answer scores {points} in all.",
+    "answered": "{n} of {total} have answered.",
+    "revealing": "Seeing who said what…",
+    "theAnswer": "The answer was “{answer}”.",
+    "youGot": "You got it, for {points}.",
+    "youMissedIt": "Not this time.",
+    "youSaidNothing": "You let that one go by.",
+    "finished": "That is the quiz.",
+    "ranOut": "The questions ran out, so the quiz stopped there.",
+    "finishedHint": "Use Leave game (top right) to go back to the menu, or “All rounds” in the score bar to see every question again."
+  },
+  "log": {
+    "spin": "Round {n} of {total}: {category}.",
+    "right": "{name} got it with “{answer}” (+{points}).",
+    "wrong": "{name} said “{answer}”.",
+    "missed": "{name} did not answer.",
+    "answer": "The answer was “{answer}”.",
+    "ranOut": "The questions ran out."
+  },
+  "questionLabel": "Round {round}, question {n}",
+  "notes": {
+    "first": "first",
+    "right": "right",
+    "wrong": "wrong",
+    "missed": "no answer"
+  },
+  "category": {
+    "arts_and_literature": "Arts & literature",
+    "film_and_tv": "Film & TV",
+    "food_and_drink": "Food & drink",
+    "general_knowledge": "General knowledge",
+    "geography": "Geography",
+    "history": "History",
+    "music": "Music",
+    "science": "Science",
+    "society_and_culture": "Society & culture",
+    "sport_and_leisure": "Sport & leisure"
+  },
+  "categoryShort": {
+    "arts_and_literature": "Arts",
+    "film_and_tv": "Film & TV",
+    "food_and_drink": "Food",
+    "general_knowledge": "General",
+    "geography": "Geography",
+    "history": "History",
+    "music": "Music",
+    "science": "Science",
+    "society_and_culture": "Society",
+    "sport_and_leisure": "Sport"
+  },
+  "errors": {
+    "roundsRange": "A quiz is {min} to {max} rounds.",
+    "perRoundRange": "A round is {min} to {max} questions.",
+    "notSpinning": "The wheel is not turning.",
+    "alreadyDealt": "This round already has its questions.",
+    "noQuestionReady": "The next question is not ready yet.",
+    "triviaUnavailable": "No questions could be found just now. Please try again in a moment.",
+    "noQuestionUp": "There is no question to answer.",
+    "alreadyAnswered": "You have answered this one.",
+    "notAnAnswer": "That is not one of the answers.",
+    "tapOnTheButton": "Press one of the answers.",
+    "botAnswerRefused": "A computer player could not answer."
+  }
+}
