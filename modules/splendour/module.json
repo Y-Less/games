@@ -14,7 +14,10 @@
     { "key": "level3Bought", "label": "Level 3 development cards bought", "agg": "sum", "hidden": true },
     { "key": "nobleChoices", "label": "Turns two nobles came to visit and you chose", "agg": "sum", "hidden": true },
     { "key": "tokenReturns", "label": "Times you put tokens back after going over ten", "agg": "sum", "hidden": true },
-    { "key": "pipped", "label": "Games where you were first to the target and still lost", "agg": "sum", "hidden": true }
+    { "key": "pipped", "label": "Games where you were first to the target and still lost", "agg": "sum", "hidden": true },
+    { "key": "freeCards", "label": "Cards bought with no tokens at all", "agg": "sum", "hidden": true },
+    { "key": "blindBuys", "label": "Cards you reserved blind and then bought", "agg": "sum", "hidden": true },
+    { "key": "mostNobles", "label": "Most nobles to visit you in one game", "agg": "max", "hidden": true }
   ],
   "achievements": [
     {
@@ -70,6 +73,28 @@
       "one": "Put tokens back after going over ten",
       "levels": "easy",
       "stat": "tokenReturns"
+    },
+    {
+      "key": "freecard",
+      "name": "On the house",
+      "text": "Buy {n} cards that cost you nothing",
+      "one": "Buy a card that costs you nothing",
+      "levels": "medium",
+      "stat": "freeCards"
+    },
+    {
+      "key": "blindbuy",
+      "name": "Blind faith",
+      "text": "Reserve a card blind from a pile, then buy it",
+      "levels": "unlock",
+      "stat": "blindBuys"
+    },
+    {
+      "key": "threenobles",
+      "name": "The whole court",
+      "text": "Be visited by three nobles in one game",
+      "levels": [3],
+      "stat": "mostNobles"
     }
   ]
 }

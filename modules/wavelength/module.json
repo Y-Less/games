@@ -14,7 +14,9 @@
     { "key": "lowGuesses", "label": "Guesses at the very bottom of the dial", "agg": "sum", "hidden": true },
     { "key": "blankClues", "label": "Clues that nobody scored on", "agg": "sum", "hidden": true },
     { "key": "guesses", "label": "Guesses made", "agg": "sum", "hidden": true },
-    { "key": "missDistance", "label": "Total distance of your guesses from the target", "agg": "sum", "hidden": true }
+    { "key": "missDistance", "label": "Total distance of your guesses from the target", "agg": "sum", "hidden": true },
+    { "key": "perfectClues", "label": "Clues every guesser hit the bullseye on", "agg": "sum", "hidden": true },
+    { "key": "perfectGuessing", "label": "Games you hit the bullseye with every one of at least two guesses", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     { "key": "exact", "name": "Guess exactly", "text": "Hit the bullseye {n} times", "levels": "easy", "stat": "bullseyes" },
@@ -23,6 +25,9 @@
     { "key": "insync", "name": "In sync", "text": "Be the only guesser to score, {n} times (3+ players)", "one": "Be the only guesser to score (3+ players)", "levels": "medium", "stat": "onlyScorer" },
     { "key": "optimist", "name": "Optimist", "text": "Guess the highest value", "levels": "unlock", "stat": "highGuesses" },
     { "key": "pessimist", "name": "Pessimist", "text": "Guess the lowest value", "levels": "unlock", "stat": "lowGuesses" },
-    { "key": "blank", "name": "Wrong wavelength", "text": "Give a clue that nobody scores on, {n} times (3+ players)", "one": "Give a clue that nobody scores on (3+ players)", "levels": "hard", "stat": "blankClues" }
+    { "key": "blank", "name": "Wrong wavelength", "text": "Give a clue that nobody scores on, {n} times (3+ players)", "one": "Give a clue that nobody scores on (3+ players)", "levels": "hard", "stat": "blankClues" },
+    { "key": "milesaway", "name": "Miles away", "text": "Guess {n} spots from the target in total", "levels": "veryEasy", "stat": "missDistance" },
+    { "key": "samewavelength", "name": "Everyone's wavelength", "text": "Give a clue that every guesser hits the bullseye on (3+ players)", "levels": "unlock", "stat": "perfectClues" },
+    { "key": "tunedin", "name": "Tuned in", "text": "Hit the bullseye with every one of your guesses in a game", "levels": "unlock", "stat": "perfectGuessing" }
   ]
 }

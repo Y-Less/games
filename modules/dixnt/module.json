@@ -14,7 +14,10 @@
     { "key": "soleCorrect", "label": "Times you alone spotted an imposter nobody found", "agg": "sum", "hidden": true },
     { "key": "favouritePicks", "label": "Times your card was picked as the favourite", "agg": "sum", "hidden": true },
     { "key": "mostFooled", "label": "Most times you fooled the group in one game", "agg": "max", "hidden": true },
-    { "key": "spymaster", "label": "Games you spotted the imposter every round", "agg": "sum", "hidden": true }
+    { "key": "spymaster", "label": "Games you spotted the imposter every round", "agg": "sum", "hidden": true },
+    { "key": "loneDissent", "label": "Rounds you alone voted against the card the group settled on", "agg": "sum", "hidden": true },
+    { "key": "neverAccused", "label": "Games nobody ever voted for you", "agg": "sum", "hidden": true },
+    { "key": "scorelessGames", "label": "Games you finished without a point", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -44,6 +47,7 @@
     {
       "key": "art",
       "name": "Art lover",
+      "label": "Different cards you have been dealt",
       "text": "Be dealt {n} different cards",
       "levels": [128, 256, 512, 1024, 2048]
     },
@@ -67,6 +71,28 @@
       "text": "Score {n} points",
       "levels": "easy",
       "stat": "totalScore"
+    },
+    {
+      "key": "subjective",
+      "name": "Art is subjective",
+      "text": "Be the only one to vote against the card the group settled on, {n} times",
+      "one": "Be the only one to vote against the card the group settled on",
+      "levels": "medium",
+      "stat": "loneDissent"
+    },
+    {
+      "key": "nulpoints",
+      "name": "Nul points",
+      "text": "Finish a game without scoring a single point",
+      "levels": "unlock",
+      "stat": "scorelessGames"
+    },
+    {
+      "key": "suspicion",
+      "name": "Above suspicion",
+      "text": "Finish a game that nobody ever voted for you in, having been the imposter at least twice (3+ players)",
+      "levels": "unlock",
+      "stat": "neverAccused"
     }
   ]
 }

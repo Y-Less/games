@@ -683,6 +683,38 @@ export function playAgain(room, userId) {
 }
 
 /**
+ * Everybody's total after the first half of the game's rounds, for the comeback achievement.  Null when the game did not
+ * reach halfway (an instant win on a seven can end it in the first round), so that nobody counts as having been last.
+ *
+ * @param {object} room  a finished room (not changed)
+ * @returns {number[] | null} the totals by seat, or null when there was no halfway point to be last at
+ * Side effects: none.
+ */
+function halfwayTotals(room) {
+  const half = Math.floor(roundCount(room.settings) / 2);
+  const rounds = room.history ?? [];
+  if (half < 1 || rounds.length < half) return null;
+  const totals = room.scores.map(() => 0);
+  for (const entry of rounds.slice(0, half)) {
+    entry.points?.forEach((points, seat) => {
+      totals[seat] += points;
+    });
+  }
+  return totals;
+}
+
+/**
+ * Was this seat alone at the bottom at halfway?  A seat level with another is not last on its own, so a shared bottom place
+ * does not count: the comeback is from being behind everybody.
+ *
+ * @param {number[] | null} totals  the halfway totals, or null when there were none
+ * @param {number} seat  the seat to check
+ * @returns {boolean} true when every other seat was ahead of this one
+ * Side effects: none.
+ */
+const wasAloneLast = (totals, seat) => Boolean(totals) && totals.length > 1 && totals.every((score, other) => other === seat || score > totals[seat]);
+
+/**
  * What the statistics should record for a finished game: one entry per human still seated.  An instant winner is placed first
  * whatever the totals.
  *
@@ -692,6 +724,7 @@ export function playAgain(room, userId) {
  */
 export function statsPlayers(room) {
   const place = placements(Object.fromEntries(room.scores.map((score, seat) => [seat, score])));
+  const halfway = halfwayTotals(room);
   if (room.instantWin !== null && room.instantWin !== undefined) {
     // The instant winner is first whatever the totals; everybody else is ranked by theirs, below the winner.
     const others = placements(Object.fromEntries(room.scores.flatMap((score, seat) => (seat === room.instantWin ? [] : [[seat, score]]))));
@@ -703,7 +736,13 @@ export function statsPlayers(room) {
     placement: place[i],
     score: room.scores[i],
     // extrasOf, not a spread: a room saved before a counter existed then records 0 for it rather than nothing.
-    extras: { ...extrasOf(room.tally[i], STAT_KEYS), perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0, instantWins: room.instantWin === i ? 1 : 0, scoredOver100: room.scores[i] > 100 ? 1 : 0 },
+    extras: {
+      ...extrasOf(room.tally[i], STAT_KEYS),
+      perfectGames: room.tally[i].roundsPlayed > 0 && room.tally[i].bidsMade === room.tally[i].roundsPlayed ? 1 : 0,
+      instantWins: room.instantWin === i ? 1 : 0,
+      scoredOver100: room.scores[i] > 100 ? 1 : 0,
+      comebacks: room.winners.includes(i) && wasAloneLast(halfway, i) ? 1 : 0,
+    },
   }));
 }
 

@@ -3,7 +3,7 @@
 import { bump, freshTally } from '../../shared/tally.js';
 import { HAND_POINTS } from './deals.js';
 
-export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons', 'openingPassed', 'openingReceived', 'tricksWon'];
+export const STAT_KEYS = ['handsPlayed', 'moonsShot', 'queensTaken', 'heartsTaken', 'jacksTaken', 'queensAvoided', 'zeroHands', 'missedMoons', 'openingPassed', 'openingReceived', 'tricksWon', 'claimsMade'];
 /**
  * A fresh, zeroed tally for one player.
  * @returns {object} counters for every key in STAT_KEYS.
@@ -64,3 +64,11 @@ export function tallyExchange(tallies, passes, targetOf, opening) {
  * Side effects: mutates tally.
  */
 export const tallyTrick = (tally) => bump(tally, 'tricksWon');
+
+/**
+ * Counts a hand taken with Claim all: the player showed a hand that could not lose another trick and took the rest.
+ * @param {object} tally  the claiming player's counters.
+ * @returns {void}
+ * Side effects: mutates `tally.claimsMade`.
+ */
+export const tallyClaim = (tally) => bump(tally, 'claimsMade');

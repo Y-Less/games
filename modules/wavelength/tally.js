@@ -5,7 +5,7 @@ import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 // Depends on shared/tally.js for the counter helpers.  Every function here either builds counters or bumps them on players.
 
 /** The statistic counters Wavelength keeps per player. */
-export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues', 'guesses', 'missDistance'];
+export const STAT_KEYS = ['bullseyes', 'cluesGiven', 'onlyScorer', 'highGuesses', 'lowGuesses', 'blankClues', 'guesses', 'missDistance', 'perfectClues'];
 /**
  * A fresh, all-zero set of counters for a new player.
  *
@@ -33,7 +33,7 @@ export const DIAL_MAX = 100;
  *   entries   one per guess: { id, position, distance, points, bullseye }
  *   playerOf  the player (the object that holds the counters) for an id
  *   psychic   the player who gave the clue, or undefined if they have left
- * "Only scorer" and "blank clue" need at least two guessers, so three or more people.
+ * "Only scorer", "blank clue" and "perfect clue" need at least two guessers, so three or more people.
  *
  * @param {{id: string, position: number, distance: number, points: number, bullseye: boolean}[]} entries  the turn's guesses
  * @param {(id: string) => object} playerOf  looks up the player holding the counters for an id
@@ -56,4 +56,5 @@ export function tallyTurn(entries, playerOf, psychic) {
   if (!psychic) return;
   bump(psychic, 'cluesGiven');
   if (entries.length >= 2 && !scorers.length) bump(psychic, 'blankClues');
+  if (entries.length >= 2 && entries.every((e) => e.bullseye)) bump(psychic, 'perfectClues');
 }

@@ -141,6 +141,28 @@
       "one": "Hold both jokers at once",
       "levels": "hard",
       "stat": "bothJokers"
+    },
+    {
+      "key": "jokers",
+      "name": "Wild thing",
+      "text": "Play {n} jokers",
+      "one": "Play a joker",
+      "levels": "medium",
+      "stat": "jokersPlayed"
+    },
+    {
+      "key": "bigturn",
+      "name": "Big turn",
+      "text": "Play 15 tiles in a single turn",
+      "levels": [15],
+      "stat": "biggestTurn"
+    },
+    {
+      "key": "longrun",
+      "name": "The long game",
+      "text": "Leave a set of 10 or more tiles on the table",
+      "levels": [10],
+      "stat": "longestSet"
     }
   ]
 }

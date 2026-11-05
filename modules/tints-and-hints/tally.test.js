@@ -52,6 +52,28 @@ test('a turn with the secret square in column A, L, E or X counts once for the h
   }
 });
 
+test('finding the square in both rounds of a turn counts once as a twice over', () => {
+  const p = people();
+  turn(p, [entry('ann', 1, 'M9', 'exact'), entry('ann', 2, 'M9', 'exact'), entry('bob', 2, 'M9', 'exact')]);
+  assert.equal(p.ann.doubleExacts, 1, 'both rounds');
+  assert.equal(p.bob.doubleExacts, 0, 'the second round only');
+  const once = people();
+  turn(once, [entry('ann', 1, 'M9', 'exact'), entry('ann', 2, 'N9', 'close')]);
+  assert.equal(once.ann.doubleExacts, 0, 'the first round only');
+});
+
+test('a hint every guesser finds the square from is a perfect one, and one guesser is not enough', () => {
+  const all = people();
+  turn(all, [entry('ann', 1, 'M9', 'exact'), entry('bob', 2, 'M9', 'exact')]);
+  assert.equal(all.cat.perfectHints, 1, 'both guessers found it, in either round');
+  const some = people();
+  turn(some, [entry('ann', 1, 'M9', 'exact'), entry('bob', 2, 'N9', 'close')]);
+  assert.equal(some.cat.perfectHints, 0, 'one of them only');
+  const alone = people();
+  turn(alone, [entry('ann', 1, 'M9', 'exact')]);
+  assert.equal(alone.cat.perfectHints, 0, 'a single guesser is no feat');
+});
+
 test('what is recorded', () => {
-  assert.deepEqual(Object.keys(statsExtras(newCounters())).sort(), ['alexTurns', 'closeGuesses', 'distance', 'exactGuesses', 'firstExact', 'hintsGiven', 'leeks', 'missGuesses']);
+  assert.deepEqual(Object.keys(statsExtras(newCounters())).sort(), ['alexTurns', 'closeGuesses', 'distance', 'doubleExacts', 'exactGuesses', 'firstExact', 'hintsGiven', 'leeks', 'missGuesses', 'perfectHints']);
 });

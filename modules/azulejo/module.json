@@ -17,7 +17,9 @@
     { "key": "tilesDropped", "label": "Tiles dropped on the floor (with the first-player marker)", "agg": "sum", "hidden": true },
     { "key": "floorsFilled", "label": "Times you filled your floor", "agg": "sum", "hidden": true },
     { "key": "wallTiles", "label": "Tiles placed on your wall", "agg": "sum", "hidden": true },
-    { "key": "gridsFilled", "label": "Games ending with every space of your wall filled", "agg": "sum", "hidden": true }
+    { "key": "gridsFilled", "label": "Games ending with every space of your wall filled", "agg": "sum", "hidden": true },
+    { "key": "fullPlates", "label": "Plates you emptied in a single turn", "agg": "sum", "hidden": true },
+    { "key": "cleanWins", "label": "Games won with nothing ever on your floor", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -72,6 +74,28 @@
       "text": "Fill every space of your wall",
       "levels": "unlock",
       "stat": "gridsFilled"
+    },
+    {
+      "key": "columns",
+      "name": "Vertical thinking",
+      "text": "Complete {n} wall columns",
+      "one": "Complete a wall column",
+      "levels": "medium",
+      "stat": "columnsCompleted"
+    },
+    {
+      "key": "fullplate",
+      "name": "The whole plate",
+      "text": "Take every tile of one plate in a single turn",
+      "levels": "unlock",
+      "stat": "fullPlates"
+    },
+    {
+      "key": "spotless",
+      "name": "Spotless",
+      "text": "Win a game without a single tile on your floor",
+      "levels": "unlock",
+      "stat": "cleanWins"
     }
   ]
 }

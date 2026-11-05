@@ -68,6 +68,12 @@
       "label": "Biggest nomination you made",
       "agg": "max",
       "hidden": true
+    },
+    {
+      "key": "comebacks",
+      "label": "Games won from alone at the bottom at halfway",
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [
@@ -122,6 +128,21 @@
       "text": "Nominate seven and make it",
       "levels": "unlock",
       "stat": "sevenMade"
+    },
+    {
+      "key": "sonear",
+      "name": "So close",
+      "text": "Miss your nomination by one {n} times",
+      "one": "Miss your nomination by one",
+      "levels": "easy",
+      "stat": "missedByOne"
+    },
+    {
+      "key": "comeback",
+      "name": "Comeback",
+      "text": "Win a game you were last in, on your own, at halfway",
+      "levels": "unlock",
+      "stat": "comebacks"
     }
   ]
 }

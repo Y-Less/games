@@ -4,7 +4,7 @@ import { RANKS, SUITS } from '../../shared/cards.js';
 import { bump, freshTally } from '../../shared/tally.js';
 
 /** Every counter kept for a player. */
-export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect', 'liesGotAway', 'badCalls', 'brazenLies', 'cleanGetaways', 'fullSuits'];
+export const STAT_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect', 'liesGotAway', 'badCalls', 'brazenLies', 'cleanGetaways', 'fullSuits', 'bigPickups'];
 /**
  * A fresh set of counters, all zero, for one player.
  *
@@ -18,6 +18,21 @@ export const PUBLIC_KEYS = ['liesTold', 'liesCaught', 'callsMade', 'callsCorrect
 
 /** The most cards that can be played at once: a lie with this many is a brazen one. */
 export const BRAZEN_COUNT = 4;
+
+/** A pile of this many cards or more is a punishing one to pick up. */
+export const BIG_PILE = 30;
+
+/**
+ * Counts picking up a pile big enough to hurt.  The size is the pile as it was before it was taken.
+ * Side effects: mutates the tally.
+ *
+ * @param {object} tally  the picker's counters
+ * @param {number} pileSize  how many cards were picked up
+ * @returns {void}
+ */
+export function tallyPickup(tally, pileSize) {
+  if (pileSize >= BIG_PILE) bump(tally, 'bigPickups');
+}
 
 /**
  * Counts a play of `count` cards, which was a lie or not.  An honest play counts for nothing.

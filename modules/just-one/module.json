@@ -12,7 +12,10 @@
     { "key": "cluesGiven", "label": "Clues given", "agg": "sum" },
     { "key": "cancelledClues", "label": "Clues cancelled by matching somebody else's", "agg": "sum", "hidden": true },
     { "key": "hiveMinds", "label": "Turns where every clue was cancelled", "agg": "sum", "hidden": true },
-    { "key": "perfectGuesser", "label": "Games where you guessed the word on every one of your turns", "agg": "sum", "hidden": true }
+    { "key": "perfectGuesser", "label": "Games where you guessed the word on every one of your turns", "agg": "sum", "hidden": true },
+    { "key": "soleClues", "label": "Turns your clue was the only one left standing", "agg": "sum", "hidden": true },
+    { "key": "blindGuesses", "label": "Words you guessed with every clue cancelled", "agg": "sum", "hidden": true },
+    { "key": "bestEveryTurn", "label": "Games where your clue was picked as the best every time it was in the running", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -67,6 +70,28 @@
       "text": "Have every clue in a turn cancelled",
       "levels": "unlock",
       "stat": "hiveMinds"
+    },
+    {
+      "key": "soleclue",
+      "name": "Last word",
+      "text": "Be the only clue left standing {n} times",
+      "one": "Be the only clue left standing",
+      "levels": "medium",
+      "stat": "soleClues"
+    },
+    {
+      "key": "inthedark",
+      "name": "In the dark",
+      "text": "Guess the word when every single clue was cancelled",
+      "levels": "unlock",
+      "stat": "blindGuesses"
+    },
+    {
+      "key": "indispensable",
+      "name": "Indispensable",
+      "text": "Have your clue picked as the best on every turn of a game it was in the running",
+      "levels": "unlock",
+      "stat": "bestEveryTurn"
     }
   ]
 }

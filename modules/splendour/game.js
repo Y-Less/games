@@ -645,10 +645,11 @@ export function buyCard(room, seat, id, pay) {
     player.tokens[c] -= paid[c];
     room.supply[c] += paid[c];
   }
+  const blind = reservedAt !== -1 && Boolean(player.reserved[reservedAt].blind);
   if (reservedAt !== -1) player.reserved.splice(reservedAt, 1);
   else room.board[card.level][slot] = room.decks[card.level].pop() ?? null;
   player.bought.push(id);
-  tallyBuy(player.tally, card);
+  tallyBuy(player.tally, card, { free: sum(paid) === 0, blind });
   givePoints(room, seat, card.points);
   room.passStreak = 0;
   note(room, seat, card.points ? msg('notes.boughtPoints', { level: card.level, count: card.points }) : msg('notes.bought', { level: card.level }));
@@ -827,7 +828,12 @@ export function statsPlayers(room) {
     outcome: room.winners.includes(i) ? 'win' : 'loss',
     placement: places[i],
     score: prestigeOf(room.players[i]),
-    extras: { ...extrasOf(room.players[i].tally, STAT_KEYS), pipped: room.triggeredBy === i && !room.winners.includes(i) ? 1 : 0 },
+    extras: {
+      ...extrasOf(room.players[i].tally, STAT_KEYS),
+      pipped: room.triggeredBy === i && !room.winners.includes(i) ? 1 : 0,
+      // Recorded as a maximum, so it is the most nobles to have visited in any one game.
+      mostNobles: room.players[i].tally.noblesVisited ?? 0,
+    },
   }));
 }
 

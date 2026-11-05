@@ -5,7 +5,7 @@
 import { bump, freshTally } from '../../shared/tally.js';
 
 /** The counters this game keeps for every player (the keys of the player's tally; see module.json "stats"). */
-export const STAT_KEYS = ['cardsBought', 'noblesVisited', 'reservedCards', 'turnsTaken', 'level3Bought', 'nobleChoices', 'tokenReturns'];
+export const STAT_KEYS = ['cardsBought', 'noblesVisited', 'reservedCards', 'turnsTaken', 'level3Bought', 'nobleChoices', 'tokenReturns', 'freeCards', 'blindBuys'];
 /**
  * A tally with every Splendour counter at zero.
  *
@@ -19,16 +19,20 @@ export const newTally = () => freshTally(STAT_KEYS);
 export const TOP_LEVEL = 3;
 
 /**
- * Counts a development card bought (and, for a level 3 card, the separate level 3 counter).
+ * Counts a development card bought (and, for a level 3 card, the separate level 3 counter).  A card that cost no tokens at
+ * all was paid for by the discounts alone; one bought out of a card reserved face down was taken on trust from a pile.
  *
  * Side effects: mutates `tally`.
  *
  * @param {Record<string, number>} tally  the buyer's tally
  * @param {{ level: number }} card        the card bought
+ * @param {{ free?: boolean, blind?: boolean }} [how]  whether no tokens were paid, and whether it was reserved blind
  */
-export function tallyBuy(tally, card) {
+export function tallyBuy(tally, card, { free = false, blind = false } = {}) {
   bump(tally, 'cardsBought');
   if (card.level === TOP_LEVEL) bump(tally, 'level3Bought');
+  if (free) bump(tally, 'freeCards');
+  if (blind) bump(tally, 'blindBuys');
 }
 
 /**

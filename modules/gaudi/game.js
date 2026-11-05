@@ -60,7 +60,7 @@ export const DEFAULT_SIZE = 4;
 // The one setting: whether private-colour dice are worth a flat 3 (see rules.js privatePoints).
 export const DEFAULT_SETTINGS = { badPrivate: false };
 // The extra statistics recorded for each finished game (see statsPlayers).
-export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective', 'perfectBoards', 'privateTotal', 'emptySpaces'];
+export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective', 'perfectBoards', 'privateTotal', 'emptySpaces', 'thriftyGames', 'allToolsUsed'];
 /** The names computer players are given, in order (Gaudi uses the architect and his circle, not the shared default list). */
 export const BOT_NAMES = ['Gaudi', 'Jujol', 'Lluis', 'Pau', 'Mercè', 'Rosa', 'Enric', 'Núria', 'Joan', 'Elena'];
 // How many tools and public objectives a game deals, and how many window patterns each player chooses between.
@@ -604,7 +604,7 @@ function resetGame(room) {
     history: [],
     snapshot: [],
     log: [],
-    tally: Array.from({ length: room.size }, () => ({ dicePlaced: 0, toolsUsed: 0 })),
+    tally: Array.from({ length: room.size }, () => ({ dicePlaced: 0, toolsUsed: 0, toolsSeen: [] })),
     final: null,
     winners: null,
     recorded: false,
@@ -1139,6 +1139,9 @@ export function useTool(room, seat, args, rng) {
   room.spent[index] += cost;
   room.turn.toolUsed = true;
   room.tally[seat].toolsUsed++;
+  // Which of the three tools this player has used, for the achievement: a room saved before this counter existed has no list.
+  room.tally[seat].toolsSeen ??= [];
+  if (!room.tally[seat].toolsSeen.includes(index)) room.tally[seat].toolsSeen.push(index);
   prepared.commit();
   const line = { name: seatName(room, seat), tool: msg(`tools.${def.id}.name`), count: cost };
   addLog(room, seat, prepared.note ? msg('log.usedToolNote', { ...line, note: prepared.note }) : msg('log.usedTool', line));
@@ -1204,6 +1207,9 @@ export function statsPlayers(room) {
       perfectBoards: isPerfect(room.grids[i], room.publicIds) ? 1 : 0,
       privateTotal: rows[i].privatePoints,
       emptySpaces: rows[i].empty,
+      // Nothing but tools costs a favour token, so using none leaves every one of them unspent.
+      thriftyGames: room.tally[i].toolsUsed === 0 ? 1 : 0,
+      allToolsUsed: (room.tally[i].toolsSeen?.length ?? 0) === room.tools.length ? 1 : 0,
     },
   }));
 }

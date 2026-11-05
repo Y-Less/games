@@ -660,7 +660,7 @@ test('statistics: placements, outcomes, score = prestige and the four extras', (
   const [mine] = game.statsPlayers(room);
   assert.equal(mine.userId, 1);
   assert.equal(mine.score, 15);
-  assert.deepEqual(Object.keys(mine.extras).sort(), [...game.STAT_KEYS, 'pipped'].sort());
+  assert.deepEqual(Object.keys(mine.extras).sort(), [...game.STAT_KEYS, 'pipped', 'mostNobles'].sort());
   assert.equal(mine.extras.turnsTaken, 1);
   assert.ok(mine.extras.cardsBought >= 1);
   assert.deepEqual(game.statsPlayers(room).map((p) => p.userId), [1].filter(() => game.isHuman(room.seats[0])).concat([]));

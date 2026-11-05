@@ -74,6 +74,18 @@
       "label": "Tricks won",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "claimsMade",
+      "label": "Hands taken with Claim all",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "negativeGames",
+      "label": "Games finished on a score below zero",
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [
@@ -127,6 +139,28 @@
       "text": "Take 25 points in a hand",
       "levels": "unlock",
       "stat": "missedMoons"
+    },
+    {
+      "key": "bleeding",
+      "name": "Bleeding hearts",
+      "text": "Take {n} hearts",
+      "one": "Take a heart",
+      "levels": "veryEasy",
+      "stat": "heartsTaken"
+    },
+    {
+      "key": "claim",
+      "name": "I'll take the rest",
+      "text": "Win a hand with Claim all",
+      "levels": "unlock",
+      "stat": "claimsMade"
+    },
+    {
+      "key": "inblack",
+      "name": "In the black",
+      "text": "Finish a game on a score below zero",
+      "levels": "unlock",
+      "stat": "negativeGames"
     }
   ]
 }

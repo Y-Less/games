@@ -387,7 +387,7 @@ export default function (ctx) {
         outcome: winners.has(p.id) ? 'win' : 'loss',
         placement: places[p.id],
         score: p.score,
-        extras: statsExtras(entry.tally[p.token] ?? newTally()),
+        extras: statsExtras(entry.tally[p.token] ?? newTally(), { players: game.s.players.length, score: p.score }),
       });
     }
     try {

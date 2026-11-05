@@ -13,7 +13,9 @@
     { "key": "bestPublicObjective", "label": "Best single public objective", "agg": "max" },
     { "key": "perfectBoards", "label": "Perfect windows (every public objective at its most)", "agg": "sum", "hidden": true },
     { "key": "privateTotal", "label": "Points from your private objective", "agg": "sum", "hidden": true },
-    { "key": "emptySpaces", "label": "Empty spaces left in your window at the end", "agg": "sum", "hidden": true }
+    { "key": "emptySpaces", "label": "Empty spaces left in your window at the end", "agg": "sum", "hidden": true },
+    { "key": "thriftyGames", "label": "Games finished with every favour token unspent", "agg": "sum", "hidden": true },
+    { "key": "allToolsUsed", "label": "Games you used all three tools in", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -67,6 +69,28 @@
       "one": "Leave a space empty at the end of a game",
       "levels": "easy",
       "stat": "emptySpaces"
+    },
+    {
+      "key": "glazier",
+      "name": "Glazier",
+      "text": "Place {n} dice",
+      "one": "Place a die",
+      "levels": "veryEasy",
+      "stat": "dicePlaced"
+    },
+    {
+      "key": "thrifty",
+      "name": "Thrifty",
+      "text": "Finish a game with every favour token still unspent",
+      "levels": "unlock",
+      "stat": "thriftyGames"
+    },
+    {
+      "key": "toolbox",
+      "name": "Full toolbox",
+      "text": "Use all three tool cards in one game",
+      "levels": "unlock",
+      "stat": "allToolsUsed"
     }
   ]
 }

@@ -20,7 +20,7 @@ import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail,
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat as seatAfter } from '../../shared/tricks.js';
-import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyHand, tallyLieStood, tallyPlay } from './tally.js';
+import { newTally, PUBLIC_KEYS, STAT_KEYS, tallyCall, tallyCleanGetaway, tallyHand, tallyLieStood, tallyPickup, tallyPlay } from './tally.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -249,6 +249,7 @@ export function callCheat(room, seat) {
   const held = room.hands[picker];
   room.hands[picker] = sortHand([...held, ...room.pile]);
   tallyHand(room.tally[picker], held, room.hands[picker]);
+  tallyPickup(room.tally[picker], pileSize);
   room.pile = [];
   room.lastCall = { caller: seat, accused, rank, count, cards: [...cards], lie, picker, pileSize };
   tallyCall(room.tally[seat], room.tally[accused], lie);

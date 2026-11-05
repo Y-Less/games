@@ -16,7 +16,8 @@
     { "key": "badCalls", "label": "Calls on somebody telling the truth", "agg": "sum", "hidden": true },
     { "key": "brazenLies", "label": "Lies told with four cards", "agg": "sum", "hidden": true },
     { "key": "cleanGetaways", "label": "Games won by going out with a lie nobody called", "agg": "sum", "hidden": true },
-    { "key": "honestWins", "label": "Games won without telling a single lie", "agg": "sum", "hidden": true }
+    { "key": "honestWins", "label": "Games won without telling a single lie", "agg": "sum", "hidden": true },
+    { "key": "bigPickups", "label": "Piles of thirty cards or more that you picked up", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -72,6 +73,21 @@
       "text": "Win by going out with a lie that nobody called",
       "levels": "unlock",
       "stat": "cleanGetaways"
+    },
+    {
+      "key": "sleuth",
+      "name": "Sleuth",
+      "text": "Call Cheat correctly {n} times",
+      "one": "Call Cheat correctly",
+      "levels": "easy",
+      "stat": "callsCorrect"
+    },
+    {
+      "key": "rumbled",
+      "name": "Rumbled",
+      "text": "Pick up a pile of thirty cards or more",
+      "levels": "unlock",
+      "stat": "bigPickups"
     }
   ]
 }

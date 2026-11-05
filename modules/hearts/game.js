@@ -16,7 +16,7 @@ import { cardMsg, msg, refusal, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
-import { newTally, STAT_KEYS, tallyExchange, tallyHand, tallyTrick } from './tally.js';
+import { newTally, STAT_KEYS, tallyClaim, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
 import { DEFAULT_SEATS, HAND_POINTS, MAX_SEATS, MIN_SEATS, deckFor, dealFor, describePass, directionName, isSeatCount, offsetFor, offsetOfDirection, openingCard, passCountFor, tricksFor } from './deals.js';
 
@@ -440,6 +440,7 @@ export function claimAll(room, seat) {
   if (!canClaim(room, seat)) return fail('claimCouldLose');
   const n = room.seats.length;
   const tricks = tricksFor(n) - room.tricksPlayed;
+  tallyClaim(room.tally[seat]);
   while (room.phase === 'playing') {
     for (let i = 0; i < n; i++) {
       const who = room.turn;
@@ -638,7 +639,11 @@ export function statsPlayers(room) {
     placement: places[i],
     score: room.scores[i],
     // extrasOf, not a spread: a room saved before a counter existed then records 0 for it rather than nothing.
-    extras: { ...extrasOf(room.tally[i], STAT_KEYS), perfectGames: room.scores[i] <= 0 ? 1 : 0 },
+    extras: {
+      ...extrasOf(room.tally[i], STAT_KEYS),
+      perfectGames: room.scores[i] <= 0 ? 1 : 0,
+      negativeGames: room.scores[i] < 0 ? 1 : 0, // only the Jack of Diamonds can take a total below zero
+    },
   }));
 }
 

@@ -666,7 +666,11 @@ export function statsPlayers(room) {
     outcome: (room.mode === 'team' ? teamWon(p) : p.winner) ? 'win' : 'loss',
     placement: p.placement,
     score: p.score,
-    extras: statsExtras(p),
+    extras: {
+      ...statsExtras(p),
+      // Every guess a bullseye, over at least two guesses: one lucky guess in a very short game is no feat.
+      perfectGuessing: p.guesses >= 2 && p.bullseyes === p.guesses ? 1 : 0,
+    },
   }));
 }
 

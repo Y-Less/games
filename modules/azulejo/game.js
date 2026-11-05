@@ -446,6 +446,8 @@ export function takeTiles(room, seat, args, rng) {
   if (!isInt(colour) || colour < 0 || colour >= COLOURS.length) return fail('chooseColour');
   const tiles = sourceTiles(room, source);
   const count = countOf(tiles, colour);
+  // A full plate of one colour, taken in one go: worked out before the take, which empties the plate.
+  const wholePlate = source !== 'centre' && tiles.length === FACTORY_TILES && count === FACTORY_TILES;
   if (!count) return fail('noColourInSource', { colour: colourMsg(colour), source: sourceMsg(source) });
   if (line !== 'floor') {
     const problem = lineProblem(room.lines[seat], room.walls[seat], line, colour, room.settings.freeWall);
@@ -481,7 +483,7 @@ export function takeTiles(room, seat, args, rng) {
     else room.lid.push(colour);
   }
   const placed = count - overflow;
-  tallyTake(room.tally[seat], { taken: count, dropped: overflow + (markerOnFloor ? 1 : 0), floorBefore, floorAfter: floor.length });
+  tallyTake(room.tally[seat], { taken: count, dropped: overflow + (markerOnFloor ? 1 : 0), floorBefore, floorAfter: floor.length, wholePlate });
   let result;
   if (line === 'floor') result = msg('log.allToFloor');
   else if (overflow) result = msg('log.onLineSpill', { placed, line: line + 1, overflow });
@@ -725,6 +727,8 @@ export function statsPlayers(room) {
       gridsFilled: completeRows(room.walls[i]) === SIZE ? 1 : 0, // the whole wall filled: all five rows complete
       wallTiles: room.walls[i].flat().filter((tile) => tile !== null).length,
       roundsPlayed: room.playedRounds,
+      // Nothing ever on the floor: tilesDropped counts the first-player marker too, which is what costs the first point.
+      cleanWins: room.winners.includes(i) && (room.tally[i].tilesDropped ?? 0) === 0 ? 1 : 0,
     },
   }));
 }

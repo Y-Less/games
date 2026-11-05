@@ -14,7 +14,9 @@
     { "key": "firstExact", "label": "Exact guesses on your first try", "agg": "sum", "hidden": true },
     { "key": "leeks", "label": "Turns where nobody scored on your first hint and somebody found the square on your second", "agg": "sum", "hidden": true },
     { "key": "alexTurns", "label": "Turns where your secret square was in column A, L, E or X", "agg": "sum", "hidden": true },
-    { "key": "distance", "label": "Total distance of your guesses from the secret square", "agg": "sum", "hidden": true }
+    { "key": "distance", "label": "Total distance of your guesses from the secret square", "agg": "sum", "hidden": true },
+    { "key": "doubleExacts", "label": "Turns you found the exact square in both rounds", "agg": "sum", "hidden": true },
+    { "key": "perfectHints", "label": "Turns every guesser found your square", "agg": "sum", "hidden": true }
   ],
   "achievements": [
     {
@@ -50,6 +52,7 @@
     {
       "key": "palette",
       "name": "Refined palette",
+      "label": "Different squares you have guessed",
       "text": "Guess {n} different squares",
       "levels": [32, 64, 128, 512, 1024]
     },
@@ -66,6 +69,28 @@
       "one": "Give hints for a square in column A, L, E or X",
       "levels": "medium",
       "stat": "alexTurns"
+    },
+    {
+      "key": "exact",
+      "name": "Bang on",
+      "text": "Find the exact square {n} times",
+      "one": "Find the exact square",
+      "levels": "easy",
+      "stat": "exactGuesses"
+    },
+    {
+      "key": "perfecthint",
+      "name": "Perfect hint",
+      "text": "Give a hint that every guesser finds the exact square from (3+ players)",
+      "levels": "unlock",
+      "stat": "perfectHints"
+    },
+    {
+      "key": "twiceover",
+      "name": "Twice over",
+      "text": "Find the exact square in both rounds of one turn",
+      "levels": "unlock",
+      "stat": "doubleExacts"
     }
   ]
 }
