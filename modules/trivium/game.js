@@ -132,11 +132,16 @@ const hasAnswered = (room, id) => room.answers.some((a) => a.id === id);
 /**
  * Is there nobody left to answer?
  *
+ * A computer player that decided to let this question go by (see planBots) is not one of them: it made that choice
+ * the moment the question went up and will never press anything, so waiting for it would sit the whole table out the
+ * rest of the clock for an answer that was never coming.  A person is always waited for, however quiet they are
+ * going: they may still be reading it, and the deadline is what they are up against.
+ *
  * @param {object} room  the room to look at
- * @returns {boolean}
+ * @returns {boolean} true when everybody who is going to answer has
  * Side effects: none.
  */
-const allAnswered = (room) => room.players.every((p) => hasAnswered(room, p.id));
+const allAnswered = (room) => !room.players.some((p) => !hasAnswered(room, p.id) && (isHuman(p) || Boolean(p.plan)));
 
 /**
  * How long the reveal of the question just closed lasts: a step for each answer, one more before the right answer is

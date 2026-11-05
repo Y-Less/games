@@ -11,7 +11,8 @@ the pointer cannot find it.  Where it stops is where the round's questions come 
 
 Then the questions come, one at a time, with the answers on big buttons.  Press the one you think is right.  **Your
 first press is your answer**: there is no changing your mind, because how quickly you answered is half of what it is
-worth.  The question closes when everybody has answered, or after fifteen seconds, whichever comes first.
+worth.  The question closes when everybody has answered, or after fifteen seconds, whichever comes first — and a
+computer player that has already decided to sit this one out is not somebody the table waits for.
 
 ## The reveal
 

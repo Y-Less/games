@@ -39,7 +39,10 @@ lobby  ->  spin  ->  question  ->  reveal  ->  (next question of the round, or t
 
 - **spin** the wheel turns for `spinMs`.  `server.js` asks `shared/trivia.js` for the round's questions of the
   category it stopped on the moment it starts turning, so they are in hand long before it stops.
-- **question** up for `answerMs`, or until everybody has answered.  A player's *first* press is their answer.
+- **question** up for `answerMs`, or until everybody who is going to answer has.  A player's *first* press is their
+  answer.  "Going to answer" leaves out a computer player whose plan is `null` — it chose to pass when the question
+  went up, so waiting for it would sit the table out the rest of the clock for nothing.  A person is always waited
+  for, connected or not: the deadline is what they are up against.
 - **reveal** `revealStep` milliseconds per answer while the markers travel, one more step before the right answer
   lights up, then `revealHold`.
 - A round that cannot be dealt at all (the API down and the bank empty) ends the quiz on the scores it has, or

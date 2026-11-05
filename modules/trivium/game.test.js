@@ -238,6 +238,45 @@ test('a computer player decides its answer when the question goes up, and gives 
   assert.ok(!JSON.stringify(game.viewFor(r, 2, { now: due.at })).includes('plan'), 'and nobody is told what it meant to do');
 });
 
+test('a computer player that means to let the question go by is not waited for', () => {
+  const rng = seeded(31);
+  const r = room({ rounds: 1, perRound: 1 });
+  assert.equal(game.addHuman(r, 2, 'Bob').ok, true);
+  assert.equal(game.addBot(r, 1).ok, true);
+  assert.equal(game.start(r, 1, rng, 2000).ok, true);
+  assert.equal(game.deal(r, questions(1)).ok, true);
+  assert.equal(game.askNext(r, rng, 3000).ok, true);
+  const bot = r.players.find((p) => p.kind === 'bot');
+
+  // With something to answer, the question waits for it however long it means to take.
+  bot.plan = { choice: 0, x: 0.5, y: 0.5, wait: 900 };
+  assert.equal(game.answer(r, 1, 0, 0.5, 0.5, 3100).ok, true);
+  assert.equal(game.answer(r, 2, 0, 0.5, 0.5, 3200).ok, true);
+  assert.equal(r.phase, 'question', 'the computer player has still to answer');
+  assert.ok(game.pendingBotAction(r), 'and the server knows when to make it');
+
+  // Having decided to answer nothing, it is not waited for: the question closes on the last answer that is coming.
+  bot.plan = null;
+  assert.equal(game.pendingBotAction(r), null);
+  assert.equal(game.timeUp(r, 3300).ok, true); // stand in for the next answer closing it
+  assert.equal(r.phase, 'reveal');
+  assert.deepEqual(r.result.missed, [bot.id]);
+});
+
+test('the last answer closes the question when the rest of the table is computer players with nothing to say', () => {
+  const rng = seeded(32);
+  const r = room({ rounds: 1, perRound: 1 });
+  for (let n = 0; n < 3; n++) assert.equal(game.addBot(r, 1).ok, true);
+  assert.equal(game.start(r, 1, rng, 2000).ok, true);
+  assert.equal(game.deal(r, questions(1)).ok, true);
+  assert.equal(game.askNext(r, rng, 3000).ok, true);
+  for (const bot of r.players.filter((p) => p.kind === 'bot')) bot.plan = null;
+  assert.equal(game.answer(r, 1, 0, 0.5, 0.5, 3100).ok, true);
+  assert.equal(r.phase, 'reveal', 'nobody else was ever going to answer, so it did not wait');
+  assert.equal(r.result.entries.length, 1);
+  assert.equal(r.result.missed.length, 3);
+});
+
 test('a person who leaves mid-question is replaced by a computer player that answers for them', () => {
   const { room: r } = playing({ size: 3, correct: 0 });
   assert.equal(game.answer(r, 2, 0, 0.5, 0.5, 3100).ok, true);
