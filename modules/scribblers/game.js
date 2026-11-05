@@ -5,7 +5,8 @@
 // are a stream of thousands of instructions a turn that no view should carry and no save should keep.
 //
 // A turn: one player is the drawer.  They choose one of a few words, then draw it while everybody else types guesses.
-// A guesser scores for getting it, the sooner the more, and the drawer scores the average of what the guessers got.
+// A guesser scores for getting it, the sooner the more, and the drawer scores the average of what the guessers got,
+// moved up or down by the thumbs the rest of the table gives the drawing.
 // Letters of the word are revealed as the time runs down.  When everybody has guessed, or the time is up, the word is
 // shown and the next player draws.  A round is everybody drawing once.
 //
@@ -49,6 +50,12 @@ const TALK_WINDOW_MS = 3000;
 /** The scoring curve, from scribble.rs's "chill" scoring: a base, a bonus that decays over the drawing time, and a bonus
  * for every letter still hidden when the guess came in. */
 const SCORING = { base: 100, timeBonus: 100, decline: 2, hintBonus: 60 };
+
+/** What one thumb is worth: every person who gives a drawing a thumbs up adds this share to what the drawer scores for
+ * the turn, and every thumbs down takes the same away (see vote and endTurn). */
+export const VOTE_STEP = 0.05;
+/** The two things the table may say about a drawing. */
+const VOTES = ['up', 'down'];
 
 /** Names for the computer players, in the order they are used. */
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hattie', 'Ira', 'Jonas', 'Kit', 'Lula'];
@@ -163,6 +170,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     hintsLeft: 0,
     hintsTotal: 0,
     guessed: [], // [{ id, points }] in the order they found the word, this turn
+    votes: [], // [{ id, vote: 'up' | 'down' }] what the table makes of the drawing, this turn
     feed: [], // what the guess panel shows: [{ n, kind, id, name, text }]
     nextFeed: 1, // the number the next feed line gets, so the client can key them
     deadline: null, // when the current phase runs out (ms), or null when it does not
@@ -330,6 +338,7 @@ function beginTurn(room, rng, now) {
   room.hintsLeft = 0;
   room.hintsTotal = 0;
   room.guessed = [];
+  room.votes = [];
   room.reveal = null;
   for (const p of room.players) p.tries = 0; // how many guesses each has had this turn (the computer players share out their turns by it)
   room.deadline = now + (room.chooseMs ?? CHOOSE_MS);
@@ -482,16 +491,18 @@ export function guess(room, id, text, now) {
 }
 
 /**
- * Is this player typing faster than the game allows (five in three seconds, as scribble.rs allows)?
+ * Is this player doing something faster than the game allows (five in three seconds, as scribble.rs allows for
+ * typing)?  Each kind of thing is counted on its own, so pressing the thumbs never uses up anybody's guesses.
  * @param {object} player  the player (mutated: their recent times are kept on them)
  * @param {number} now  the clock
+ * @param {string} [what]  which times to count: 'talk' for what they type, 'rated' for the thumbs
  * @returns {boolean} true if this one should be refused
  * Side effects: records `now` in the player's recent times and drops the ones that have fallen out of the window.
  */
-function tooFast(player, now) {
-  player.talk = (player.talk ?? []).filter((at) => now - at < TALK_WINDOW_MS);
-  if (player.talk.length >= TALK_BURST) return true;
-  player.talk.push(now);
+function tooFast(player, now, what = 'talk') {
+  player[what] = (player[what] ?? []).filter((at) => now - at < TALK_WINDOW_MS);
+  if (player[what].length >= TALK_BURST) return true;
+  player[what].push(now);
   return false;
 }
 
@@ -508,8 +519,51 @@ function addFeed(room, line) {
 }
 
 /**
- * Ends the turn: the drawer scores the average of what the guessers scored, the word is shown to everybody, and the room
- * waits BETWEEN_MS before the next drawer starts.
+ * How many thumbs this turn's drawing has each way.
+ * @param {object} room  not changed
+ * @returns {{ up: number, down: number }} the two counts
+ * Side effects: none.
+ */
+const voteTally = (room) => ({
+  up: (room.votes ?? []).filter((v) => v.vote === 'up').length,
+  down: (room.votes ?? []).filter((v) => v.vote === 'down').length,
+});
+
+/**
+ * Somebody says what they make of the drawing: a thumbs up or a thumbs down, each of which moves what the drawer
+ * scores for the turn by VOTE_STEP (see endTurn).  Everybody but the drawer has one thumb; pressing the one they have
+ * already given takes it back, and pressing the other changes their mind.  The thumbs go with the turn, so the verdict
+ * on one drawing never follows the drawer into the next.
+ *
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is pressing
+ * @param {string} direction  'up' or 'down'
+ * @param {number} now  the clock, for the rate limit
+ * @returns {{ ok: boolean, error?: string, vote?: string | null }} `vote` is the thumb they now have, or null when
+ *   they have just taken it back
+ * Side effects: adds to, changes, or takes an entry out of room.votes.
+ */
+export function vote(room, id, direction, now) {
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (room.phase !== 'drawing') return fail('nothingToRate');
+  if (id === room.drawer) return fail('noRatingYourOwn');
+  const want = textFrom(direction);
+  if (!VOTES.includes(want)) return fail('badRating');
+  if (tooFast(playerOf(room, id), now, 'rated')) return fail('tooFast');
+  room.votes ??= [];
+  const had = room.votes.find((v) => v.id === id);
+  if (had?.vote === want) {
+    room.votes = room.votes.filter((v) => v.id !== id);
+    return ok({ vote: null });
+  }
+  if (had) had.vote = want;
+  else room.votes.push({ id, vote: want });
+  return ok({ vote: want });
+}
+
+/**
+ * Ends the turn: the drawer scores the average of what the guessers scored, moved by the thumbs the table gave the
+ * drawing (see vote), the word is shown to everybody, and the room waits BETWEEN_MS before the next drawer starts.
  *
  * @param {object} room  the room (mutated)
  * @param {'allGuessed' | 'timeUp' | 'drawerAway'} reason  why the turn ended, which the table tells the players
@@ -522,15 +576,32 @@ function endTurn(room, reason, now) {
   const scored = guessers(room).filter((p) => isHuman(p) || hasGuessed(room, p.id));
   const total = scored.reduce((sum, p) => sum + (room.guessed.find((g) => g.id === p.id)?.points ?? 0), 0);
   const average = scored.length ? Math.floor(total / scored.length) : 0;
+  // What the table made of the drawing: VOTE_STEP more for every thumbs up, as much less for every thumbs down.  It
+  // is a share of what the drawing earned, so praise for one nobody guessed is worth nothing, and no amount of booing
+  // can leave the drawer out of pocket.
+  const thumbs = voteTally(room);
+  const award = Math.max(0, Math.round(average * (1 + VOTE_STEP * (thumbs.up - thumbs.down))));
   if (drawer) {
-    drawer.lastScore = average;
-    drawer.score += average;
+    drawer.lastScore = award;
+    drawer.score += award;
   }
   const points = Object.fromEntries(room.guessed.map((g) => [g.id, g.points]));
-  if (drawer && average) points[drawer.id] = average;
+  if (drawer && award) points[drawer.id] = award;
   for (const p of guessers(room)) if (!hasGuessed(room, p.id)) p.lastScore = 0;
-  tallyTurn({ drawer, guessed: room.guessed.map((g) => playerOf(room, g.id)).filter(Boolean), reason, average });
-  room.reveal = { word: room.word, drawer: room.drawer, reason, points, guessed: room.guessed.map((g) => g.id) };
+  // "Everybody" and "the whole table" mean the people: a computer player neither guesses in earnest nor presses a thumb.
+  const people = guessers(room).filter(isHuman);
+  const everyone = people.length > 0 && people.every((p) => hasGuessed(room, p.id));
+  const ovation = people.length > 1 && thumbs.up === people.length;
+  tallyTurn({
+    drawer,
+    guessed: room.guessed.map((g) => playerOf(room, g.id)).filter(Boolean),
+    guessing: people,
+    reason,
+    average: award,
+    everyone,
+    ovation,
+  });
+  room.reveal = { word: room.word, drawer: room.drawer, reason, points, guessed: room.guessed.map((g) => g.id), votes: thumbs };
   for (const hint of room.hints) hint.shown = true;
   room.deadline = now + (room.betweenMs ?? BETWEEN_MS);
   room.nextHintAt = null;
@@ -696,6 +767,7 @@ function takeOver(room, oldId, bot, rng = Math.random) {
   room.order = room.order.map(renamed);
   room.drawer = renamed(room.drawer);
   for (const entry of room.guessed) entry.id = renamed(entry.id);
+  for (const entry of room.votes ?? []) entry.id = renamed(entry.id);
   for (const line of room.feed) if (line.id === oldId) Object.assign(line, { id: bot.id, name: bot.name });
   if (room.reveal) {
     room.reveal.drawer = renamed(room.reveal.drawer);
@@ -724,6 +796,7 @@ export function migrate(room, nameOf) {
   room.added ??= [];
   room.order ??= [];
   room.guessed ??= [];
+  room.votes ??= [];
   room.feed ??= [];
   room.ready ??= [];
   room.hints ??= [];
@@ -790,6 +863,23 @@ function feedFor(room, userId) {
   return room.feed
     .filter((line) => !line.private || inTheKnow)
     .map(({ n, kind, id, name, text }) => ({ n, kind: kind === 'close' && id !== userId ? 'guess' : kind, id, name, text }));
+}
+
+/**
+ * The thumbs as one person sees them: how many there are each way, which one they have given, and whether they may
+ * press one now (there is nothing to judge outside a drawing, and nobody judges their own).
+ *
+ * @param {object} room  not changed
+ * @param {number | string} userId  the viewer
+ * @returns {{ up: number, down: number, you: string | null, can: boolean }}
+ * Side effects: none.
+ */
+function votesFor(room, userId) {
+  return {
+    ...voteTally(room),
+    you: (room.votes ?? []).find((v) => v.id === userId)?.vote ?? null,
+    can: room.phase === 'drawing' && room.drawer !== userId && hasPlayer(room, userId),
+  };
 }
 
 /**
@@ -872,6 +962,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     choices: room.phase === 'choosing' && isDrawer ? room.choices : [],
     guessedCount: room.guessed.length,
     youGuessed: hasGuessed(room, userId),
+    votes: votesFor(room, userId),
     feed: feedFor(room, userId),
     reveal: room.phase === 'between' ? room.reveal : null,
     remaining: room.deadline === null ? null : Math.max(0, room.deadline - now),
@@ -880,7 +971,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     scoreboard: scoreboardView(room, userId, { online, nameOf }),
     customWords: room.phase === 'lobby' ? [...(room.customWords ?? [])] : [],
     savedWords: (room.added ?? []).length,
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, customWords: CUSTOM_WORDS, wordLength: CUSTOM_LENGTH, guessLength: GUESS_LENGTH },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, customWords: CUSTOM_WORDS, wordLength: CUSTOM_LENGTH, guessLength: GUESS_LENGTH, voteStep: VOTE_STEP },
     settings: { rounds: room.rounds, drawTime: room.drawTime, wordChoices: room.wordChoices },
   };
 }

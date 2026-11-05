@@ -34,7 +34,7 @@ icons, whose artwork has a licence of its own.
 | `drawing.js` | what a drawing is made of and what the server will accept into one (and the grouping that undo works on) |
 | `tally.js` | the counters kept for each player, for the statistics and achievements |
 | `server.js` | the socket layer: the shared room server, the clock work of a turn, and the stroke relay |
-| `client/` | the table: the board (`Board.vue`, `draw.js`), the toolbox, the guesses panel, the word bar |
+| `client/` | the table: the board (`Board.vue`, `draw.js`), the toolbox, the guesses panel, the word bar, the thumbs |
 
 ## Words of your own
 
@@ -47,6 +47,17 @@ wants to see drawn, and among five thousand others it would never come up.
 Ten of the words in `words/en.txt` are the juvenile ones of the "Had to be done" achievement (`JUVENILE` in
 `words.js`).  They are in the list like any other word, so a drawer may simply be offered one; the achievement is for
 the drawer who *picks* it, which `chooseWord` tells apart from the clock choosing for them (`manual`).
+
+## Thumbs up and thumbs down
+
+While a drawing is going on, everybody but the drawer may give it one thumb (`vote`), which they can take back or turn
+around until the turn ends.  The thumbs are kept on the room for the turn only (`room.votes`, cleared by `beginTurn`),
+and `endTurn` turns them into the drawer's score: the average the guessers earned them, moved by `VOTE_STEP` (5%) for
+each thumb either way, never below nothing.  A share rather than a flat figure, so the thumbs flatter a good drawing
+rather than becoming a way of scoring without drawing at all.
+
+The computer players neither press a thumb nor care about them: an AI decides from plain data (see below), and what the
+table makes of a drawing is not something the rules ask it.
 
 ## Why the drawing is not in the view
 

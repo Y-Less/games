@@ -64,6 +64,11 @@
     "pick": "Choose a word to draw",
     "orWait": "One is chosen for you if you wait."
   },
+  "votes": {
+    "label": "What the table makes of the drawing",
+    "up": "Thumbs up: {percent}% more for the drawer",
+    "down": "Thumbs down: {percent}% less for the drawer"
+  },
   "reveal": {
     "label": "The word",
     "wordWas": "The word was “{word}”",
@@ -121,6 +126,9 @@
     "pickAWord": "Choose one of the words you were offered.",
     "noHintDue": "There is no letter to show.",
     "typeGuess": "Type a guess first.",
+    "nothingToRate": "There is no drawing to judge now.",
+    "noRatingYourOwn": "You cannot judge your own drawing.",
+    "badRating": "A drawing gets a thumb up or a thumb down.",
     "tooFast": "Slow down a moment.",
     "nothingToSkip": "There is no turn to give up.",
     "notYourTurnToDraw": "It is not your turn to draw.",

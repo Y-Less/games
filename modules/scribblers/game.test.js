@@ -204,6 +204,41 @@ test('the turn ends when everybody has the word, and the drawer scores the avera
   assert.deepEqual(room.reveal.guessed, guessers);
 });
 
+test('the thumbs the table gives a drawing move what the drawer scores for it', () => {
+  const { room, word, guessers } = drawing(4);
+  assert.equal(game.vote(room, room.drawer, 'up', NOW).ok, false, 'the drawer does not judge their own drawing');
+  assert.equal(game.vote(room, guessers[0], 'sideways', NOW).ok, false, 'a thumb goes up or down');
+  assert.equal(game.vote(room, 99, 'up', NOW).ok, false, 'only the people at the table');
+  assert.deepEqual([game.vote(room, guessers[0], 'up', NOW).vote, game.vote(room, guessers[1], 'up', NOW).vote], ['up', 'up']);
+  assert.equal(game.vote(room, guessers[2], 'down', NOW).vote, 'down');
+  for (const [n, id] of guessers.entries()) assert.equal(game.guess(room, id, word, NOW + n * 2000).ok, true);
+  const scores = guessers.map((id) => room.players.find((p) => p.id === id).lastScore);
+  const average = Math.floor(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const drawer = room.players.find((p) => p.id === room.drawer);
+  assert.equal(drawer.lastScore, Math.round(average * (1 + game.VOTE_STEP)), 'two up and one down leaves one thumb up');
+  assert.equal(room.reveal.points[room.drawer], drawer.lastScore);
+  assert.deepEqual(room.reveal.votes, { up: 2, down: 1 });
+});
+
+test('a thumb can be taken back or changed, and the thumbs go with the turn', () => {
+  const { room, rng, guessers } = drawing(3);
+  assert.equal(game.vote(room, guessers[0], 'up', NOW).vote, 'up');
+  assert.equal(game.vote(room, guessers[0], 'up', NOW + 1000).vote, null, 'the same thumb again takes it back');
+  assert.equal(game.vote(room, guessers[0], 'down', NOW + 2000).vote, 'down');
+  assert.equal(game.vote(room, guessers[0], 'up', NOW + 3000).vote, 'up', 'the other thumb changes your mind');
+  assert.deepEqual(game.viewFor(room, guessers[0]).votes, { up: 1, down: 0, you: 'up', can: true });
+  assert.deepEqual(game.viewFor(room, room.drawer).votes, { up: 1, down: 0, you: null, can: false }, 'the drawer sees the verdict but has no say in it');
+
+  for (let n = 0; n < 5; n++) game.vote(room, guessers[1], n % 2 ? 'up' : 'down', NOW);
+  assert.equal(game.vote(room, guessers[1], 'up', NOW).error, 'tooFast', 'the thumbs are rate limited');
+  assert.equal(game.guess(room, guessers[1], 'something else', NOW).ok, true, "but not out of anybody's guesses");
+
+  assert.equal(game.timeUp(room, rng, room.deadline, String).ok, true);
+  assert.equal(game.vote(room, guessers[0], 'up', NOW).ok, false, 'there is nothing to judge between turns');
+  assert.equal(game.timeUp(room, rng, room.deadline, String).ok, true, 'on to the next turn');
+  assert.deepEqual(room.votes, [], 'every drawing is judged on its own');
+});
+
 test('a turn nobody guesses ends when the time is up and is worth nothing to anybody', () => {
   const { room, rng, word } = drawing(3);
   const scoresBefore = room.players.map((p) => p.score);

@@ -36,11 +36,12 @@ function view(extra = {}) {
     reveal: null,
     remaining: 30000,
     drawTime: 90,
+    votes: { up: 0, down: 0, you: null, can: true },
     ...extra,
     hints,
     players,
     scoreboard: extra.scoreboard ?? { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 1, away: false })), rounds: [], lowIsBetter: false },
-    limits: { min: 2, max: 12, rounds: { min: 1, max: 10 }, drawTime: { min: 30, max: 240 }, wordChoices: { min: 2, max: 5 } },
+    limits: { min: 2, max: 12, rounds: { min: 1, max: 10 }, drawTime: { min: 30, max: 240 }, wordChoices: { min: 2, max: 5 }, voteStep: 0.05 },
     settings: { rounds: 3, drawTime: 90, wordChoices: 3 },
   };
 }
@@ -93,6 +94,17 @@ describe('what a guesser sees while somebody draws', () => {
     expect(input.attributes('disabled')).toBeUndefined();
   });
 
+  it('gives the drawing a thumb, and is shown which one it gave', async () => {
+    const { wrapper, send } = table(view({ votes: { up: 2, down: 1, you: 'up', can: true } }));
+    const thumbs = wrapper.findAll('.thumb');
+    expect(thumbs.map((b) => b.attributes('aria-label'))).toEqual(['Thumbs up: 5% more for the drawer', 'Thumbs down: 5% less for the drawer']);
+    expect(thumbs[0].classes()).toContain('picked');
+    expect(thumbs[1].classes()).not.toContain('picked');
+    expect(wrapper.find('.votes').text()).toBe('', 'the counts are not on the board');
+    await thumbs[1].trigger('click');
+    expect(send).toHaveBeenCalledWith('vote', { dir: 'down' });
+  });
+
   it('shows no toolbox: only the drawer has one', () => {
     const { wrapper } = table();
     expect(wrapper.find('.toolbox').exists()).toBe(false);
@@ -134,6 +146,11 @@ describe('what the drawer sees', () => {
     expect(send).toHaveBeenCalledWith('clear');
     await wrapper.find('[aria-label="Undo the last stroke (Ctrl+Z)"]').trigger('click');
     expect(send).toHaveBeenCalledWith('undo');
+  });
+
+  it('is shown no thumbs: nobody judges their own drawing', () => {
+    const { wrapper } = table(view({ youDraw: true, drawer: 1, drawerName: 'Ann', word: 'house', votes: { up: 3, down: 0, you: null, can: false } }));
+    expect(wrapper.find('.votes').exists()).toBe(false);
   });
 
   it('changes the colour and the brush from the toolbox', async () => {

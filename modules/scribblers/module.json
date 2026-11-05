@@ -48,6 +48,30 @@
       "label": "Rude words you chose to draw",
       "agg": "sum",
       "hidden": true
+    },
+    {
+      "key": "everyoneGot",
+      "label": "Drawings everybody guessed",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "turnsGuessing",
+      "label": "Turns you spent guessing",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "cleanSweep",
+      "label": "Games where you guessed every word",
+      "agg": "sum",
+      "hidden": true
+    },
+    {
+      "key": "ovations",
+      "label": "Drawings the whole table gave a thumbs up",
+      "agg": "sum",
+      "hidden": true
     }
   ],
   "achievements": [
@@ -115,6 +139,28 @@
       "text": "Choose one of the rude words to draw",
       "levels": "unlock",
       "stat": "juvenilePicks"
+    },
+    {
+      "key": "crowd",
+      "name": "Crowd pleaser",
+      "text": "Draw a word that everybody guesses, {n} times",
+      "one": "Draw a word that everybody guesses",
+      "levels": "easy",
+      "stat": "everyoneGot"
+    },
+    {
+      "key": "sweep",
+      "name": "Clean sweep",
+      "text": "Guess the word on every one of your turns in a game",
+      "levels": "unlock",
+      "stat": "cleanSweep"
+    },
+    {
+      "key": "ovation",
+      "name": "Standing ovation",
+      "text": "Draw something the whole table gives a thumbs up (3+ players)",
+      "levels": "unlock",
+      "stat": "ovations"
     }
   ]
 }

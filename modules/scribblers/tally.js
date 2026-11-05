@@ -4,7 +4,7 @@
 import { bump, extrasOf, freshTally, peak } from '../../shared/tally.js';
 
 // The counters kept on every player.
-export const STAT_KEYS = ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'nobodyGot', 'bestTurn', 'guesses', 'wordsAdded', 'juvenilePicks'];
+export const STAT_KEYS = ['wordsDrawn', 'wordsGuessed', 'firstGuesses', 'nobodyGot', 'bestTurn', 'guesses', 'wordsAdded', 'juvenilePicks', 'everyoneGot', 'turnsGuessing', 'ovations'];
 /**
  * A fresh set of zeroed counters for a new player.
  * @returns {object} one zero per STAT_KEYS entry
@@ -37,21 +37,27 @@ export const tallyWord = (player, what) => bump(player, what === 'juvenile' ? 'j
  * Counts a turn as it is scored.
  *   drawer     the player who was drawing (the object that holds the counters), or null if they have left
  *   guessed    the players who found the word, in the order they found it
+ *   guessing   everybody who was guessing this turn, whether they found it or not (for "every turn of a game")
  *   reason     why the turn ended ('allGuessed', 'timeUp', 'drawerAway')
  *   average    what the drawer scored
+ *   everyone   true when every one of the guessers found the word
+ *   ovation    true when every one of them gave the drawing a thumbs up
  * A turn nobody could draw ('drawerAway') counts for nobody.
  *
- * @param {object} turn  { drawer, guessed, reason, average } as above
+ * @param {object} turn  { drawer, guessed, guessing, reason, average, everyone, ovation } as above
  * @returns {void}
- * Side effects: increments counters on the drawer and on everybody who guessed (the player objects).
+ * Side effects: increments counters on the drawer and on everybody who was guessing (the player objects).
  */
-export function tallyTurn({ drawer, guessed, reason, average }) {
+export function tallyTurn({ drawer, guessed, guessing = [], reason, average, everyone = false, ovation = false }) {
   if (reason === 'drawerAway') return;
   if (drawer) {
     bump(drawer, 'wordsDrawn');
     peak(drawer, 'bestTurn', average);
     if (!guessed.length) bump(drawer, 'nobodyGot');
+    if (everyone) bump(drawer, 'everyoneGot');
+    if (ovation) bump(drawer, 'ovations');
   }
+  for (const player of guessing) bump(player, 'turnsGuessing');
   for (const [place, player] of guessed.entries()) {
     bump(player, 'wordsGuessed');
     peak(player, 'bestTurn', player.lastScore ?? 0);
@@ -65,4 +71,8 @@ export function tallyTurn({ drawer, guessed, reason, average }) {
  * @returns {object} the extras to store with the player's result
  * Side effects: none.
  */
-export const statsExtras = (player) => extrasOf(player, STAT_KEYS);
+export const statsExtras = (player) => ({
+  ...extrasOf(player, STAT_KEYS),
+  // Found the word on every turn they spent guessing: worked out here rather than counted, so it needs no counter of its own.
+  cleanSweep: (player.turnsGuessing ?? 0) > 0 && (player.wordsGuessed ?? 0) === player.turnsGuessing ? 1 : 0,
+});

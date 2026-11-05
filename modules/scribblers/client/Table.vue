@@ -10,8 +10,8 @@
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), socket (the module's
 // socket, for the drawing events), log (Recent moves, kept by Scribblers.vue, see moveLog.js).
 // Emits: none.  Slots: none (it fills GameFrame's scorebar, main, log, and status slots).
-// Side effects: listens for `draw` and `canvas` on the socket while it is mounted; sends 'word', 'guess', 'ready',
-// 'canvas', 'line', 'draw', 'fill', 'undo', 'clear', 'removeBot' and 'kick' requests.
+// Side effects: listens for `draw` and `canvas` on the socket while it is mounted; sends 'word', 'guess', 'vote',
+// 'ready', 'canvas', 'line', 'draw', 'fill', 'undo', 'clear', 'removeBot' and 'kick' requests.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -24,6 +24,7 @@ import { useTurnClock } from '../../../src/useTurnClock.js';
 import Board from './Board.vue';
 import GuessPanel from './GuessPanel.vue';
 import Toolbox from './Toolbox.vue';
+import Votes from './Votes.vue';
 import WordBar from './WordBar.vue';
 import { boardSize, boardSpan } from './layout.js';
 import { useTools } from './useTools.js';
@@ -265,6 +266,10 @@ const stageOf = (p) => {
                 <li v-if="!Object.keys(state.reveal.points).length" class="muted">{{ t('reveal.nobody') }}</li>
               </ul>
             </div>
+
+            <!-- The thumbs a guesser judges the drawing with, in its corner.  The drawer has no say in their own
+                 drawing, so they are not shown them.  Last, so they are over the drawing. -->
+            <Votes v-if="state.votes?.can" :votes="state.votes" :step="state.limits.voteStep" @vote="(dir) => send('vote', { dir })" />
           </div>
 
           <Toolbox v-if="youDraw && drawing" :tool="tool" @undo="send('undo')" @clear="send('clear')" />

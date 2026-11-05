@@ -11,7 +11,8 @@ One player draws a secret word.  Everybody else types guesses.  The sooner you g
    is shown to the table and you alone are told you were close, so the others can learn from your near miss without
    being handed the answer.
 4. As the time runs down, letters of the word are shown: one for a short word, up to three for a long one.
-5. The turn ends when everybody has the word, or when the time runs out.  The word is shown, and the next person draws.
+5. While the drawing is going on, everybody but the drawer can give it a thumbs up or a thumbs down.
+6. The turn ends when everybody has the word, or when the time runs out.  The word is shown, and the next person draws.
 
 Everybody draws once a round, and the game is three rounds by default.  The scores go up at the end of each round.
 
@@ -22,6 +23,11 @@ Everybody draws once a round, and the game is three rounds by default.  The scor
   with nothing revealed is worth about 260, and a guess in the last seconds of a long word about 100.
 - **The drawer** scores the average of what the guessers scored.  A drawing everybody gets at once is worth as much to
   the drawer as to them; one nobody gets is worth nothing.
+- **The thumbs** then have their say: every thumbs up adds 5% to what the drawer scored for the turn, and every thumbs
+  down takes 5% away.  It is a share of what the drawing earned, so praise for one nobody guessed is still worth
+  nothing, and however badly it goes down the drawer never ends the turn out of pocket.  You have one thumb a turn:
+  press the one you gave to take it back, or the other one to change your mind.  The drawer has no say, and the thumbs
+  are forgotten with the turn.
 - Guessing costs nothing, so guess as often as you like.
 
 ## Words of your own

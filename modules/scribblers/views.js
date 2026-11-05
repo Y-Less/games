@@ -61,6 +61,11 @@ export function recordedViews(seed, size, rounds, bots = 0) {
     }
     if (room.phase === 'drawing') {
       const guessers = room.players.filter((p) => p.id !== room.drawer);
+      // The table says what it makes of the drawing: one thumb up, one down, and the rest of them saying nothing.
+      for (const [n, p] of guessers.slice(0, 2).entries()) {
+        assert.equal(game.vote(room, p.id, n === 0 ? 'up' : 'down', now).ok, true);
+        look();
+      }
       // Every third turn nobody gets it and the drawing runs out of time; otherwise a wrong guess, a close one, and
       // then everybody gets there.
       if (turns % 3 === 0) {

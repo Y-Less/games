@@ -42,9 +42,9 @@ import * as game from './game.js';
 import { drawingFor, testPicture } from './picture.js';
 
 /** How often the server sends the next few strokes of a computer player's picture (milliseconds). */
-const STROKE_TICK = 250;
+const STROKE_TICK = 100;
 /** How fast a computer player draws, in strokes a second, unless SCRIBBLERS_BOT_RATE says otherwise. */
-const BOT_STROKE_RATE = 10;
+const BOT_STROKE_RATE = 100;
 /** How soon after filling the board somebody has to undo it to have thought better of it ("Arrgh!", milliseconds). */
 const ARRGH_MS = 5000;
 /** How many words added by players are kept from one game to the next. */
@@ -337,6 +337,7 @@ export default function (ctx) {
       on('word', ({ n }) => act((room) => game.chooseWord(room, userId, n, now())));
       on('guess', ({ text }) => act((room) => game.guess(room, userId, text, now())));
       on('ready', () => act((room) => game.ready(room, userId, rng, now())));
+      on('vote', ({ dir }) => act((room) => game.vote(room, userId, dir, now())));
 
       // A word somebody adds in the lobby is used in this game and kept for the ones after it.
       on('addWord', ({ text }) => {

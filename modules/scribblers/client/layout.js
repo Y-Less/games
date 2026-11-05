@@ -5,7 +5,8 @@
 /** The drawing board's own coordinate space, which every instruction speaks (the same figures as drawing.js). */
 export const BOARD_WIDTH = 1600;
 export const BOARD_HEIGHT = 900;
-/** How tall the word and the clock are above the board, and the toolbox below it (the board gets what is left). */
+/** How tall the word and the clock are above the board, and the toolbox below it (the board gets what is left).  The
+ * thumbs take nothing: they sit in the corner of the board itself. */
 const WORD_BAR = 44;
 const TOOLBOX = 96;
 

@@ -111,6 +111,28 @@ test('the drawer strokes are relayed to the others as they are made, and not bac
   assert.equal(own.draws.length, 0, 'the drawer is not sent their own strokes back');
 });
 
+test('the thumbs the table presses reach everybody and move what the drawer scores', async (t) => {
+  const { people } = await table(t, ['ann', 'bob', 'cat']);
+  const { drawer, guessers } = split(people);
+  assert.equal((await drawer.call('word', { n: 0 })).ok, true);
+  await until(() => people.every((p) => p.state?.phase === 'drawing'), 'the drawing starts');
+  const word = drawer.state.word;
+
+  assert.equal((await drawer.call('vote', { dir: 'up' })).error, 'noRatingYourOwn');
+  assert.equal((await guessers[0].call('vote', { dir: 'sideways' })).error, 'badRating');
+  for (const guesser of guessers) assert.equal((await guesser.call('vote', { dir: 'up' })).ok, true);
+  await until(() => people.every((p) => p.state?.votes.up === 2), 'both thumbs reached the table');
+  assert.equal(drawer.state.votes.can, false, 'the drawer has no say');
+  assert.equal(guessers[0].state.votes.you, 'up', 'but a guesser is shown their own');
+
+  for (const guesser of guessers) assert.equal((await guesser.call('guess', { text: word })).ok, true);
+  await until(() => people.every((p) => p.state?.phase !== 'drawing'), 'the turn is over');
+  const scored = (person) => person.state.players.find((p) => p.id === person.state.you).lastScore;
+  const average = Math.floor(guessers.reduce((sum, p) => sum + scored(p), 0) / guessers.length);
+  assert.ok(average > 0, 'the guessers scored');
+  assert.equal(scored(drawer), Math.round(average * 1.1), 'two thumbs up is a tenth more than the average');
+});
+
 test('a guesser cannot draw, and nor can anybody once the turn is over', async (t) => {
   const { people } = await table(t, ['ann', 'bob']);
   const { drawer, guessers } = split(people);
