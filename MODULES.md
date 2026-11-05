@@ -320,6 +320,19 @@ that a new event cannot go untested.  jsdom has no canvas, so `src/testSetup.js`
 game that draws to run against a buffer of pixels in a test (Scribblers' `client/draw.test.js` tests the drawing itself
 on such a buffer, with no canvas at all).
 
+**A failure under load may be the load.**  Much of this suite waits on real things — a site on a real port, a real
+browser, a computer player's timer, a view arriving over a socket — so a machine that is busy can miss a deadline that
+is nowhere near missed on a quiet one.  Before believing a failure, **run it again**, on its own
+(`node --test modules/hearts/lifecycle.test.js`, `vitest run src/i18n.test.js -t hearts`), with nothing else running.
+A failure that comes back every time is a real one; one that comes and goes is the machine, and the answer is a longer
+wait in the test rather than a change to the game.  Say which it was when reporting a failure, and how many runs it
+took to tell: "fails every time in three runs" and "failed once in three" are different findings.
+
+The UI tests (`npm run test:ui`) are the ones to be most careful with: they drive a real Chrome and are not run by
+`npm test`, so they are both the slowest and the likeliest to have gone stale without anybody noticing.  Prefer an
+assertion that reads the truth from the source — the count of a game's achievements from its `module.json`, say —
+over a number written into the test, which is a number that goes quietly wrong the next time somebody adds one.
+
 ## Card games
 
 Card games share a few pieces so they look and behave alike:
