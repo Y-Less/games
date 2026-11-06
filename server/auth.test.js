@@ -254,11 +254,12 @@ test("changing the password signs out every other device, and only that user's",
   const tablet = await auth.login({ username: 'changer', password: 'old password' });
   const other = await auth.register({ username: 'bystander', password: 'password1' });
 
-  await rejects(auth.changePassword(laptop.user.id, 'wrong', 'a new password', laptop.token), 401);
+  // A wrong current password is 403, not 401: 401 tells the client the session has gone and signs them out (src/api.js).
+  await rejects(auth.changePassword(laptop.user.id, 'wrong', 'a new password', laptop.token), 403);
   await rejects(auth.changePassword(laptop.user.id, 'old password', 'short', laptop.token), 400);
   await rejects(auth.changePassword(laptop.user.id, 'old password', 'x'.repeat(201), laptop.token), 400);
-  await rejects(auth.changePassword(laptop.user.id, undefined, 'a new password', laptop.token), 401);
-  await rejects(auth.changePassword(999, 'old password', 'a new password', laptop.token), 401);
+  await rejects(auth.changePassword(laptop.user.id, undefined, 'a new password', laptop.token), 403);
+  await rejects(auth.changePassword(999, 'old password', 'a new password', laptop.token), 403);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n, 4, 'refused changes sign nobody out');
 
   await auth.changePassword(laptop.user.id, 'old password', 'a new password', phone.token);

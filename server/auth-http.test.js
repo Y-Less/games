@@ -239,7 +239,7 @@ test('an empty or odd-shaped (but valid) JSON body is handled as missing fields'
     assert.equal((await client().call('POST', '/api/auth/login', body, json)).status, 401, `login ${body}`);
   }
   assert.equal((await c.call('PATCH', '/api/me', '', json)).status, 200, 'an empty patch changes nothing');
-  assert.equal((await c.call('POST', '/api/me/password', '[]', json)).status, 401);
+  assert.equal((await c.call('POST', '/api/me/password', '[]', json)).status, 403, 'no current password is a wrong one, and a wrong one is not a lost session');
 });
 
 test('background settings over HTTP: colours, gradient angles and bad inputs', async (t) => {
@@ -330,7 +330,12 @@ test('changing the password signs out other devices only (and their sockets cann
   const bystander = client();
   await register(bystander, 'bob12', 'password1');
 
-  assert.equal((await laptop.post('/api/me/password', { currentPassword: 'wrong wrong', newPassword: 'a brand new one' })).status, 401);
+  // 403 and not 401: the client signs you out of the site on any 401, and a typo in your own password is not the
+  // session going away.  See src/api.js and src/session.js.
+  const typo = await laptop.post('/api/me/password', { currentPassword: 'wrong wrong', newPassword: 'a brand new one' });
+  assert.equal(typo.status, 403);
+  assert.equal(typo.data.error, 'wrongCurrentPassword');
+  assert.equal((await laptop.get('/api/me')).data.user.username, 'alice', 'and the person who typed it is still signed in');
   assert.equal((await phone.get('/api/me')).data.user.username, 'alice', 'a refused change signs nobody out');
   assert.equal((await laptop.post('/api/me/password', { currentPassword: 'correct horse', newPassword: 'x'.repeat(201) })).status, 400);
   assert.equal((await laptop.post('/api/me/password', { currentPassword: 'correct horse', newPassword: 'a brand new one' })).status, 200);

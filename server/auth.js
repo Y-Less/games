@@ -194,7 +194,9 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
       const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-      if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('wrongCurrentPassword', 401);
+      // 403, not 401: they are signed in, they simply typed the wrong password.  A 401 means "your session has gone"
+      // to the client (src/api.js), which signs them out of the site over a typo.
+      if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('wrongCurrentPassword', 403);
       if (textFrom(newPassword).length < 8) throw new AuthError('passwordShort');
       if (textFrom(newPassword).length > 200) throw new AuthError('passwordLong');
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(textFrom(newPassword)), userId);
