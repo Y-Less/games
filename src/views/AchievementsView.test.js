@@ -61,6 +61,14 @@ async function make() {
 const box = (id) => wrapper.find(`[data-achievement="${id}"]`);
 
 describe('AchievementsView', () => {
+  it('draws the avatar of whoever the page is about, beside the title', async () => {
+    session.user = { id: 1, displayName: 'Ann', avatar: { hair: 'bun' } };
+    const w = await make();
+    const title = w.find('.title');
+    expect(title.find('h1').text()).toBe('Achievements for Ann');
+    expect(title.find('svg.avatar-figure').exists()).toBe(true);
+  });
+
   it('says it is loading, then shows an error if the server refuses', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
     wrapper = mount(AchievementsView);

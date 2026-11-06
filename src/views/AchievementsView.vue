@@ -11,6 +11,8 @@ import { catalogue } from '../catalogueText.js';
 import { intlLocale } from '../messageText.js';
 import { session } from '../session.js';
 import CollapsiblePanel from '../components/CollapsiblePanel.vue';
+import AvatarFigure from '../components/AvatarFigure.vue';
+import { profileOf } from '../profiles.js';
 
 /** The section that is the site's own rather than a game's (server/achievements.js). */
 const SITE_SECTION = 'global';
@@ -22,6 +24,9 @@ const mine = computed(() => !props.who);
 // The name at the top: your display name, or theirs once their list has arrived.
 const whose = computed(() => (mine.value ? session.user.displayName : (subject.value?.displayName ?? props.who)));
 const subject = ref(null); // who the server says this page is about, for somebody else's
+// The avatar beside the title, as on the statistics page: your own from the session, theirs from the profile cache
+// once it arrives (profiles.js asks the site for it, so this page needs nothing extra of its own).
+const avatar = computed(() => profileOf(mine.value ? session.user.id : (subject.value?.id ?? null))?.avatar ?? null);
 
 const sections = ref(null); // the server's sections once loaded (null while loading)
 const failed = ref(''); // the error text if loading failed
@@ -77,7 +82,10 @@ function badge(a) {
 
 <template>
   <section class="stack achievements">
-    <h1>{{ t('achievements.title', { name: whose }) }}</h1>
+    <header class="title">
+      <AvatarFigure class="portrait" :avatar="avatar" size="4.5rem" />
+      <h1>{{ t('achievements.title', { name: whose }) }}</h1>
+    </header>
     <p v-if="!mine" class="muted"><RouterLink :to="{ name: 'stats', params: { who } }">{{ t('achievements.theirStats', { name: whose }) }}</RouterLink></p>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
     <p v-else-if="!sections" class="muted">{{ t('common.loading') }}</p>
@@ -119,7 +127,13 @@ function badge(a) {
   max-width: 960px;
   margin: 0 auto;
 }
-.achievements > h1 {
+.title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.title h1 {
+  margin: 0;
   color: var(--amber);
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }
