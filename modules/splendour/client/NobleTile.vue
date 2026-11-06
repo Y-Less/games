@@ -84,11 +84,6 @@ button.noble {
     box-shadow: 0 0 0 3px var(--amber), 0 0 16px 4px rgb(224 168 74 / 0.6);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .noble.clickable.highlight {
-    animation: none;
-  }
-}
 button.noble:hover {
   box-shadow: 0 0 0 2px var(--parchment), 0 3px 8px rgb(0 0 0 / 0.5);
 }

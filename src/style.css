@@ -138,38 +138,26 @@ input::placeholder {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
 }
 
-/* The device's less-motion setting stops the interface's own motion. The shop animations (names, backgrounds) are left out:
-   they follow the player's "Play animations" setting instead, which defaults to the device (see the end of this file). */
-@media (prefers-reduced-motion: reduce) {
-  *:not(.name-pill, .bg-fx, .mx, .ma, .ma b) {
-    transition: none !important;
-    animation: none !important;
-  }
-}
-
-/* The player's "Play animations" setting (Profile page): never (off) stops every shop animation, on names and behind the site;
-   by default (auto) they stop only when the device asks for less motion; always (on) plays them whatever the device says. */
-html[data-animations='off'] .name-pill,
-html[data-animations='off'] .name-pill::before,
-html[data-animations='off'] .bg-fx,
-html[data-animations='off'] .bg-fx::before,
-html[data-animations='off'] .bg-fx::after,
-html[data-animations='off'] .bg-fx .mx,
-html[data-animations='off'] .bg-fx .mx::before,
-html[data-animations='off'] .bg-fx .ma,
-html[data-animations='off'] .bg-fx .ma b {
+/* Whether anything on this site moves is the player's own choice (Profile > Animations), not the device's alone: never (off)
+   stops all of it, always (on) plays all of it whatever the device asks for, and by default (auto, which is also what a
+   player we do not know yet gets) the device's own less-motion setting decides.  "All of it" means every animation and
+   every transition: the shop's name and background animations, the games' own motion, and the interface's.  The choice
+   rides on <html data-animations> (see src/appearance.js); animations driven from JavaScript ask animationsPlaying()
+   there instead.  A stopped animation holds its first frame, so each effect's first frame is drawn to stand on its own. */
+html[data-animations='off'],
+html[data-animations='off'] *,
+html[data-animations='off'] *::before,
+html[data-animations='off'] *::after {
+  transition: none !important;
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-animations='auto'] .name-pill,
-  html[data-animations='auto'] .name-pill::before,
-  html[data-animations='auto'] .bg-fx,
-  html[data-animations='auto'] .bg-fx::before,
-  html[data-animations='auto'] .bg-fx::after,
-  html[data-animations='auto'] .bg-fx .mx,
-  html[data-animations='auto'] .bg-fx .mx::before,
-  html[data-animations='auto'] .bg-fx .ma,
-  html[data-animations='auto'] .bg-fx .ma b {
+  /* No choice made (or none yet): the device decides. */
+  html:not([data-animations='on']),
+  html:not([data-animations='on']) *,
+  html:not([data-animations='on']) *::before,
+  html:not([data-animations='on']) *::after {
+    transition: none !important;
     animation: none !important;
   }
 }

@@ -85,9 +85,4 @@ h2 {
   outline-offset: 3px;
   border-radius: 4px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .fold::before {
-    transition: none;
-  }
-}
 </style>
