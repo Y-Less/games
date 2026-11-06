@@ -259,6 +259,42 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await eve.join(ann.code)).ok, false);
 });
 
+test('the table can vote somebody out, and they do not come back on the invitation', async (t) => {
+  fast();
+  const { person } = await launch(t);
+  const [ann, bob, cat, dan] = await Promise.all(['ann', 'bob', 'cat', 'dan'].map((n) => person(n).open()));
+  await ann.create();
+  for (const who of [bob, cat, dan]) await who.join(ann.code);
+  await until(() => ann.state.seats.every(Boolean), 'four people');
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => ann.state.phase === 'passing', 'passing');
+  const danSeat = ann.state.seats.find((s) => s.name === dan.name)?.seat ?? 3;
+
+  // Nobody has been voted on yet, so nothing is in the view.
+  assert.equal(ann.state.vote, undefined);
+  assert.equal((await bob.call('voteAnswer', { agree: true })).error, 'noVoteRunning');
+
+  // Ann asks, which is a yes from her; three people may vote, so two are needed.
+  assert.equal((await ann.call('voteKick', { seat: danSeat })).ok, true);
+  await until(() => [ann, bob, cat, dan].every((who) => who.state?.vote), 'the vote to reach everybody');
+  assert.deepEqual(ann.state.vote, { target: danSeat, by: ann.state.you, yes: 1, no: 0, needed: 2, answered: true, mine: true });
+  assert.deepEqual(cat.state.vote.answered, null, 'Cat has not answered');
+  assert.equal(dan.state.vote.target, danSeat, 'and the one being voted on can see it too');
+
+  assert.equal((await dan.call('voteAnswer', { agree: false })).error, 'cannotVoteOnYourself');
+  assert.equal((await bob.call('voteKick', { seat: 0 })).error, 'voteAlreadyRunning');
+
+  // Bob agrees, which carries it: a computer player takes Dan's seat, as when anybody leaves.
+  assert.deepEqual(await bob.call('voteAnswer', { agree: true }), { ok: true, passed: true });
+  await until(() => ann.state.seats[danSeat].bot, 'a computer player in his seat');
+  assert.equal(ann.state.vote, undefined, 'and the vote is over');
+  await until(() => dan.state === null, 'Dan to be sent back to the menu');
+
+  // And the invitation does not let him straight back in.
+  assert.equal((await dan.join(ann.code)).error, 'removedFromGame');
+  assert.equal(ann.state.seats[danSeat].bot, true, 'his seat is still the computer player’s');
+});
+
 test('coming late to the invitation: a newcomer takes a computer player seat, and a leaver gets their own back', async (t) => {
   fast();
   const { person } = await launch(t);

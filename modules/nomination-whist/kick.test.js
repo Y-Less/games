@@ -24,9 +24,10 @@ test('rules: the host removes a person from a lobby seat and the seat becomes em
   assert.equal(game.hasPlayer(room, 2), false);
   assert.equal(room.hostId, 1, 'the host is unchanged');
   assert.equal(game.hasPlayer(room, 3), true, 'the others stay');
-  // The seat can be filled again, by the same person or another.
-  assert.deepEqual(game.addHuman(room, 2, 'bob'), { ok: true, seat: 1 });
-  assert.equal(room.seats[1].id, 2);
+  // The seat can be filled again, but not by the person who was put out of it.
+  assert.deepEqual(game.addHuman(room, 2, 'bob'), { ok: false, error: 'removedFromGame' });
+  assert.deepEqual(game.addHuman(room, 9, 'zoe'), { ok: true, seat: 1 });
+  assert.equal(room.seats[1].id, 9);
 });
 
 test('rules: only the host can kick, and never themselves', () => {
@@ -86,7 +87,7 @@ test('rules: the kick result names the person so the server can send them home',
   assert.equal(game.humanSeats(room).length, 2);
 });
 
-test('sockets: the host removes a person; they return to the entry screen and can rejoin with the code', async (t) => {
+test('sockets: the host removes a person; they return to the entry screen, and the code is no way back', async (t) => {
   process.env.NOMINATION_WHIST_BOT_DELAY = '0-3';
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
@@ -122,13 +123,12 @@ test('sockets: the host removes a person; they return to the entry screen and ca
   }
   assert.equal(ann.state.seats[1], null);
 
-  // Resuming without a code finds nothing; the code takes them back in, into the first empty seat.
+  // Resuming without a code finds nothing, and the code does not take them back: being put out is not leaving.
   assert.deepEqual(await bob.call('resume', {}), { ok: true, code: null });
   assert.equal(bob.state, null);
-  assert.equal((await bob.call('join', { code })).ok, true);
-  await until(() => bob.state?.you === 1, 'bob to be back in seat 1');
-  assert.equal(ann.state.seats[1].name, 'bob');
-  assert.equal(bob.state.phase, 'lobby');
+  assert.equal((await bob.call('join', { code })).error, 'removedFromGame');
+  assert.equal(bob.state, null);
+  assert.equal(ann.state.seats[1], null, 'and the seat is still free for somebody else');
 });
 
 test('sockets: nobody can kick themselves, a computer player, an empty or an unknown seat, and non-hosts cannot kick', async (t) => {
@@ -185,17 +185,16 @@ test('sockets: the host removes a person mid-game and a computer player takes th
   assert.equal(ann.state.seats.every(Boolean), true, 'every seat is still filled');
 });
 
-test('sockets: a kicked person is free to start their own game, and may be kicked again after rejoining', async (t) => {
+test('sockets: a kicked person is free to start their own game, but not to come back to that one', async (t) => {
   process.env.NOMINATION_WHIST_BOT_DELAY = '0-3';
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
   const { code } = await ann.call('create', {});
-  for (let round = 0; round < 3; round++) {
-    assert.equal((await bob.call('join', { code })).ok, true, `round ${round}`);
-    await until(() => ann.state.seats[1]?.name === 'bob', 'bob seated');
-    assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
-    await until(() => bob.state === null && ann.state.seats[1] === null, 'bob out');
-  }
+  assert.equal((await bob.call('join', { code })).ok, true);
+  await until(() => ann.state.seats[1]?.name === 'bob', 'bob seated');
+  assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
+  await until(() => bob.state === null && ann.state.seats[1] === null, 'bob out');
+  assert.equal((await bob.call('join', { code })).error, 'removedFromGame', 'the code is no way back in');
   const own = await bob.call('create', {});
   assert.equal(own.ok, true, 'not blocked from hosting');
   assert.notEqual(own.code, code);

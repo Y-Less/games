@@ -20,6 +20,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { refusalReply } from './messages.js';
+import { barFromRoom } from './seats.js';
+import { answerRemoval, askToRemove, dropVote, tidyVote, voteView } from './voteKick.js';
 
 // Retention and timing: how long to keep a finished room, then an unfinished one (kept longer: players may return to a
 // paused game), how often to sweep for old rooms, and how long to debounce saves.
@@ -146,6 +148,22 @@ const refused = (outcome) => ({ ok: false, error: outcome.error, ...(outcome.par
 
 export function createRoomServer(ctx, options) {
   const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, kickKey = 'seat', startRule, migrate, rng = Math.random, now = Date.now } = options;
+
+  // A player is named the same way in a removal and in a vote about one: by seat number in a game with numbered seats,
+  // by account id in a game that keeps a list.  `kickKey` is what each game calls it, and so says which (see the
+  // games' server.js).  Votes themselves are kept in account ids, which is what the rules remove by.
+  const byAccount = kickKey !== 'seat';
+  /** Everybody in the room who is a person. */
+  const peopleIn = (room) => (members(room) ?? []).filter((member) => game.isHuman?.(member));
+  /** The account behind whatever the client named, or null. */
+  const accountNamed = (room, named) => {
+    if (byAccount) return peopleIn(room).some((p) => p.id === named) ? named : null;
+    if (!Number.isInteger(named)) return null; // a seat is a number: anything else is not worth looking up
+    const seat = members(room)[named];
+    return game.isHuman(seat) ? seat.id : null;
+  };
+  /** The other way round: what the client calls that account. */
+  const nameFor = (room, account) => (byAccount ? account : members(room).findIndex((m) => game.isHuman(m) && m.id === account));
   const file = path.join(ctx.dataDir, 'rooms.json');
   const rooms = new Map();
   const sockets = new Map(); // user id -> the sockets that user has open
@@ -263,7 +281,11 @@ export function createRoomServer(ctx, options) {
   function push(room) {
     for (const seat of members(room)) {
       if (!game.isHuman(seat)) continue;
-      for (const socket of open(seat.id, room.code)) socket.emit('state', game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room, seat.id, now) }));
+      const vote = voteFor(room, seat.id); // only while one is running: a view nobody is being voted out of is untouched
+      for (const socket of open(seat.id, room.code)) {
+        const view = game.viewFor(room, seat.id, { online: online(room.code), ...viewOptions(room, seat.id, now) });
+        socket.emit('state', vote ? { ...view, vote } : view);
+      }
     }
   }
 
@@ -409,6 +431,7 @@ export function createRoomServer(ctx, options) {
    */
   function changed(room) {
     room.updatedAt = now();
+    tidyVote(room, peopleIn(room), now()); // a vote about somebody who has gone, or one too few people are left for
     failures.delete(room.code);
     try {
       afterChange?.(room);
@@ -436,6 +459,36 @@ export function createRoomServer(ctx, options) {
     detach(userId, room.code);
     if (outcome.empty) discard(room);
     else if (outcome.changed !== false) changed(room);
+    return outcome;
+  }
+
+  /**
+   * The vote running in a room as one person is shown it, with the players named the way that game names them.
+   * @param {object} room  not changed
+   * @param {number} forId  the account being shown it
+   * @returns {object | null} the vote, or null when none is running
+   * Side effects: none.
+   */
+  function voteFor(room, forId) {
+    const view = voteView(room, forId, peopleIn(room), now());
+    return view && { ...view, target: nameFor(room, view.target), by: nameFor(room, view.by) };
+  }
+
+  /**
+   * Puts somebody out because the room voted them out: a computer player takes their place as it does for anybody who
+   * leaves, and they are barred, so the invitation does not let them straight back in.
+   * @param {object} room  the room to change
+   * @param {number} targetId  the account being put out
+   * @returns {{ ok: boolean, error?: string }}
+   * Side effects: as `leaveRoom`, and bars them before the room is saved.
+   */
+  function putOutByVote(room, targetId) {
+    const outcome = game.removeHuman(room, targetId, rng, now());
+    if (!outcome.ok) return outcome;
+    barFromRoom(room, targetId);
+    detach(targetId, room.code);
+    if (outcome.empty) discard(room);
+    else changed(room);
     return outcome;
   }
 
@@ -597,6 +650,38 @@ export function createRoomServer(ctx, options) {
       const outcome = game.kick(room, userId, payload[kickKey], rng, now());
       if (!outcome.ok) return refused(outcome);
       detach(outcome.userId, room.code);
+      changed(room);
+      return { ok: true };
+    });
+
+    // Anybody may ask for a player to be put out, and the others answer; the host still has `kick` for an outright one.
+    on('voteKick', (payload) => {
+      const room = roomOfSocket();
+      if (!room) return { ok: false, error: 'notInAnyGame' };
+      const target = accountNamed(room, payload[kickKey]);
+      if (target === null) return { ok: false, error: 'playerNotInGame' };
+      const asked = askToRemove(room, userId, peopleIn(room), target, now());
+      if (!asked.ok) return refused(asked);
+      changed(room);
+      return { ok: true };
+    });
+
+    on('voteAnswer', (payload) => {
+      const room = roomOfSocket();
+      if (!room) return { ok: false, error: 'notInAnyGame' };
+      const target = room.vote?.target ?? null;
+      const answered = answerRemoval(room, userId, payload.agree === true, peopleIn(room), now());
+      if (!answered.ok) return refused(answered);
+      if (answered.passed && target !== null) putOutByVote(room, target);
+      else changed(room);
+      return { ok: true, passed: Boolean(answered.passed) };
+    });
+
+    on('voteDrop', () => {
+      const room = roomOfSocket();
+      if (!room) return { ok: false, error: 'notInAnyGame' };
+      const dropped = dropVote(room, userId, now());
+      if (!dropped.ok) return refused(dropped);
       changed(room);
       return { ok: true };
     });

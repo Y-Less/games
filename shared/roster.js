@@ -17,9 +17,9 @@
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { numberFrom } from './input.js';
-import { DEFAULT_BOT_NAMES, asHost, fail, freeName, isBot, isHuman, nextBotName, ok } from './seats.js';
+import { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, isBarred, isBot, isHuman, nextBotName, ok } from './seats.js';
 
-export { isBot, isHuman };
+export { barFromRoom, isBarred, isBot, isHuman };
 
 /**
  * Renames one player's id wherever a room's scoreboard history refers to it (the `deltas` and `notes` of every round), so
@@ -156,6 +156,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @returns {{ ok: boolean, seat?: number, error?: string }} `seat` is their place in the join order
    */
   function addHuman(room, userId, name, extras = {}) {
+    if (isBarred(room, userId)) return fail('removedFromGame');
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
     if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
     if (room.players.length >= maxPlayers) return fail('gameFull');
@@ -356,7 +357,9 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
     if (!isHuman(target) || target.id === hostId) return fail('playerNotInGame');
     if (!isLive(room)) return fail('gameOverNobodyToRemove');
     const removed = takeOut(room, target.id, rng, now);
-    return removed.ok ? ok({ userId: target.id, replaced: removed.replaced }) : removed;
+    if (!removed.ok) return removed;
+    barFromRoom(room, target.id); // put out by somebody else, so the invitation does not let them back in
+    return ok({ userId: target.id, replaced: removed.replaced });
   }
 
   return { newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick };

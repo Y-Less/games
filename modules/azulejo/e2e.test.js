@@ -169,10 +169,11 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   assert.equal((await bob.call('kick', { seat: 0 })).ok, false, 'not the host');
   assert.equal((await ann.call('kick', { seat: 0 })).ok, false, 'not yourself');
   assert.equal((await ann.call('kick', { seat: 'x' })).ok, false);
-  assert.equal((await cat.call('join', { code: ann.state.code })).ok, true, 'a removed player may rejoin');
+  assert.equal((await cat.call('join', { code: ann.state.code })).error, 'removedFromGame', 'a removed player does not come back on the code');
 
   assert.equal((await ann.call('addBot')).ok, true);
   assert.equal((await ann.call('addBot')).ok, true);
+  assert.equal((await ann.call('addBot')).ok, true); // the seat the removed player used to have
   await until(() => ann.state.seats.every(Boolean), 'five seats');
   assert.equal((await dan.call('join', { code: ann.state.code })).ok, false, 'full');
   assert.equal((await ann.call('removeBot', { seat: 1 })).ok, false, 'a person');

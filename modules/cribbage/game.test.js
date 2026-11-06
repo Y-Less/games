@@ -443,12 +443,13 @@ test('kick: the host removes people at any time: in a game a computer player tak
   assert.equal(game.kick(room, 2, 0, Math.random).ok, false, 'only the host');
   assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'not yourself');
   assert.equal(game.kick(room, 1, 1, Math.random).userId, 2);
-  game.addHuman(room, 2, 'B');
+  assert.equal(game.addHuman(room, 2, 'B').error, 'removedFromGame', 'the one who was put out does not come back');
+  game.addHuman(room, 5, 'E'); // somebody else takes the free seat
   game.fillWithBots(room, 1);
   game.start(room, 1, Math.random);
   assert.equal(game.kick(room, 1, 1.5, Math.random).ok, false, 'a nonsense seat');
   assert.equal(game.kick(room, 1, '1', Math.random).ok, false, 'a nonsense seat');
-  assert.equal(game.kick(room, 1, 1, Math.random).userId, 2);
+  assert.equal(game.kick(room, 1, 1, Math.random).userId, 5);
   assert.equal(room.seats[1].kind, 'bot');
 });
 

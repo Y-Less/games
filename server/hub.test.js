@@ -123,7 +123,7 @@ test('profile: display name, background settings and password change', async (t)
   }
   assert.equal((await c.get('/api/me')).data.user.background.type, 'gradient', 'refused changes changed nothing');
 
-  assert.equal((await c.post('/api/me/password', { currentPassword: 'not it at all', newPassword: 'a brand new one' })).status, 401);
+  assert.equal((await c.post('/api/me/password', { currentPassword: 'not it at all', newPassword: 'a brand new one' })).status, 403, 'a wrong password is not a lost session');
   assert.equal((await c.post('/api/me/password', { currentPassword: 'correct horse', newPassword: 'short' })).status, 400);
 
   const second = client(); // a second signed-in device

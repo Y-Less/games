@@ -11,6 +11,10 @@
 //     hostId: () => hostPlayerId,                   // the host's id, in the same id space as the players' ids
 //     isHost: () => iAmTheHost,                     // whether this person may remove others
 //     remove: (id, player) => send(player.bot ? 'removeBot' : 'kick', { seat: id }), // the game's own event(s); may return the server's reply
+//     vote: () => state.vote,                                             // the vote the server says is running
+//     askVote: (id) => send('voteKick', { seat: id }),                    // anybody may ask; the others answer
+//     answerVote: (agree) => send('voteAnswer', { agree }),
+//     dropVote: () => send('voteDrop', {}),
 //   });
 //   <ScoreBoard v-bind="scoreProps" ... />
 //   <PlayerPopup v-if="popupProps" v-bind="popupProps"> ...the game's panel for openId... </PlayerPopup>
@@ -29,12 +33,17 @@ export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
  * @param {() => boolean} [options.isHost]  whether this person may remove others
  * @param {?((id: *, player: object) => (Promise<{ ok: boolean, error?: string }>|void))} [options.remove]  removes a
  *   player (the game's own event); null means nobody can be removed
+ * @param {() => ?object} [options.vote]  the vote the server says is running (`state.vote`), or null
+ * @param {?((id: *, player: object) => *)} [options.askVote]  asks the rest of the table to remove a player; null
+ *   means this game does not offer it
+ * @param {?((agree: boolean) => *)} [options.answerVote]  answers the vote that is running
+ * @param {?(() => *)} [options.dropVote]  calls off the vote this person asked for
  * @returns {{ openId, selected, scoreProps, popupProps, open, close, hover, unhover, click, error }}  refs and
  *   computed props to bind on ScoreBoard and PlayerPopup, and the open/close handlers; error is a removal failure text
  * Side effects: while mounted, listens for document clicks and window keydown (removed on unmount); hover leave starts a
  * 300 ms timer; remove is called when the host removes the selected player.
  */
-export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, remove = null }) {
+export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, remove = null, vote = () => null, askVote = null, answerVote = null, dropVote = null }) {
   const openId = ref(null);
   const error = ref('');
   const { error: errorWords } = useGameText();
@@ -120,6 +129,42 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
     else close();
   }
 
+  /**
+   * Sends one of the vote events and shows a refusal where the removal refusals go.
+   * @param {?Function} send  the game's own sender, or null
+   * @param {...*} args  what to send it
+   * @returns {Promise<void>}
+   * Side effects: calls `send`; sets `error` on refusal.
+   */
+  async function sendVote(send, ...args) {
+    if (!send) return;
+    error.value = '';
+    let reply;
+    try {
+      reply = await send(...args);
+    } catch {
+      reply = { ok: false, error: 'removeFailed' };
+    }
+    if (reply && reply.ok === false) error.value = errorWords(reply.error ? reply : { error: 'removeFailed' });
+  }
+
+  // Asks the rest of the table to remove the open player.  Side effects: as sendVote.
+  async function askAboutSelected() {
+    const target = selected.value;
+    if (target && !target.isMe && !target.bot) await sendVote(askVote, target.id, target);
+  }
+  // Answers the vote running about the open player.  Side effects: as sendVote.
+  const answerAboutSelected = (agree) => sendVote(answerVote, agree === true);
+  // Calls off the vote this person asked for.  Side effects: as sendVote.
+  const dropAboutSelected = () => sendVote(dropVote);
+
+  /** The vote the server is running, but only when it is about the player whose pop-up is open. */
+  const voteOnSelected = computed(() => {
+    const running = vote();
+    const target = selected.value;
+    return running && target && running.target === target.id ? running : null;
+  });
+
   // The path is read from the event, not the target's ancestors: the button that was clicked may already have been
   // swapped out of the page (the Remove button turning into its confirmation) by the time this runs.
   // Returns true when the event came from a chip or the pop-up.
@@ -146,7 +191,23 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   const scoreProps = computed(() => ({ hasDetails, openDetails: openId.value, onDetails: click, onHover: hover, onUnhover: unhover }));
   // Spread on <PlayerPopup v-if="popupProps" v-bind="popupProps">; null while nothing is open.
   const popupProps = computed(() =>
-    selected.value ? { player: selected.value, canRemove: Boolean(isHost() && remove && !selected.value.isMe), error: error.value, anchor: anchor.value, onRemove: removeSelected, onPointerenter: cancelClose, onPointerleave: unhover } : null,
+    selected.value
+      ? {
+          player: selected.value,
+          canRemove: Boolean(isHost() && remove && !selected.value.isMe),
+          // Anybody may ask about anybody else who is a person, but only one vote runs at a time.
+          canVote: Boolean(askVote && !selected.value.isMe && !selected.value.bot && !vote()),
+          vote: voteOnSelected.value,
+          error: error.value,
+          anchor: anchor.value,
+          onRemove: removeSelected,
+          onVote: askAboutSelected,
+          onAnswer: answerAboutSelected,
+          onDrop: dropAboutSelected,
+          onPointerenter: cancelClose,
+          onPointerleave: unhover,
+        }
+      : null,
   );
 
   return { openId, selected, scoreProps, popupProps, open, close, hover, unhover, click, error };

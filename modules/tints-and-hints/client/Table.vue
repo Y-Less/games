@@ -165,6 +165,11 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   hostId: () => s.value.hostId,
   isHost: () => s.value.you === s.value.hostId,
   remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
+  // Anybody may ask the rest of the table to remove a player; the vote itself is shared (shared/voteKick.js).
+  vote: () => props.state.vote ?? null,
+  askVote: (id) => props.send('voteKick', { userId: id }),
+  answerVote: (agree) => props.send('voteAnswer', { agree }),
+  dropVote: () => props.send('voteDrop', {}),
 });
 // The player whose popup is open, or null.
 const opened = computed(() => s.value.players.find((p) => p.id === openId.value) ?? null);

@@ -220,6 +220,11 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   hostId: () => s.value.hostSeat,
   isHost: () => isHost.value,
   remove: (seat, player) => props.send(player.bot ? 'removeBot' : 'kick', { seat }),
+  // Anybody may ask the rest of the table to remove a player; the vote itself is shared (shared/voteKick.js).
+  vote: () => props.state.vote ?? null,
+  askVote: (id) => props.send('voteKick', { seat: id }),
+  answerVote: (agree) => props.send('voteAnswer', { agree }),
+  dropVote: () => props.send('voteDrop', {}),
 });
 // The seat whose board the open pop-up shows, or null.
 const openedBoard = computed(() => (openId.value === null ? null : (s.value.seats.find((o) => o && o.seat === openId.value) ?? null))); // yours too: your own summary

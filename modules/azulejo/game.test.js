@@ -146,13 +146,14 @@ test('kick: host only, a person other than yourself; mid-game a computer player 
   assert.equal(done.ok, true);
   assert.equal(done.userId, 2);
   assert.equal(room.seats[1], null);
-  game.addHuman(room, 2, 'B');
+  assert.equal(game.addHuman(room, 2, 'B').error, 'removedFromGame', 'the one who was kicked does not come back');
+  game.addHuman(room, 5, 'E'); // somebody else takes the free seat
   game.fillWithBots(room, 1);
   game.start(room, 1, Math.random);
-  const at = room.seats.findIndex((s) => s.id === 2); // the seats are shuffled when the game starts
-  assert.equal(game.kick(room, 2, at, Math.random).ok, false, 'still only the host');
+  const at = room.seats.findIndex((s) => s.id === 5); // the seats are shuffled when the game starts
+  assert.equal(game.kick(room, 5, at, Math.random).ok, false, 'still only the host');
   const mid = game.kick(room, 1, at, Math.random);
-  assert.deepEqual([mid.ok, mid.userId, mid.replaced], [true, 2, true]);
+  assert.deepEqual([mid.ok, mid.userId, mid.replaced], [true, 5, true]);
   assert.equal(room.seats[at].kind, 'bot', 'a computer player took the seat');
   assert.equal(room.seats.every(Boolean), true);
   assert.equal(game.kick(room, 1, at, Math.random).ok, false, 'and it is not a person to kick');

@@ -16,6 +16,11 @@ export function useOpenedPlayer(s, send) {
     hostId: () => s.value.hostSeat,
     isHost: () => s.value.hostSeat === s.value.you,
     remove: (seat, player) => send(player.bot ? 'removeBot' : 'kick', { seat }),
+    // Anybody may ask the rest of the table to remove a player; the vote itself is shared (shared/voteKick.js).
+    vote: () => s.value.vote ?? null,
+    askVote: (id) => send('voteKick', { seat: id }),
+    answerVote: (agree) => send('voteAnswer', { agree }),
+    dropVote: () => send('voteDrop', {}),
   });
   // The seat whose name was clicked, from the whole seat list (not just other players), or null when nothing is open.
   const openedPlayer = computed(() => s.value.seats.find((o) => o && o.seat === openId.value) ?? null); // yours too

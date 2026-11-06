@@ -199,7 +199,7 @@ test('one live game per account: creating or joining a second is refused, and le
   assert.equal(bob.state.code, other);
 });
 
-test('kicking over sockets: every socket of the person is sent out, and they can rejoin or start their own game', async (t) => {
+test('kicking over sockets: every socket of the person is sent out, and the code is no way back', async (t) => {
   fast();
   const site = await launch(t);
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
@@ -213,9 +213,7 @@ test('kicking over sockets: every socket of the person is sent out, and they can
   assert.equal(ann.state.seats[1], null);
   assert.equal((await bob.call('create', { seats: 2 })).ok, true, 'free to start their own game');
   await bob.call('leave');
-  assert.equal((await bob.call('join', { code })).ok, true, 'or to rejoin');
-  await until(() => ann.state.seats[1]?.name === 'bob', 'bob back');
-  assert.equal((await ann.call('kick', { seat: 1 })).ok, true, 'and be kicked again');
+  assert.equal((await bob.call('join', { code })).error, 'removedFromGame', 'but not to come back to that one');
   await ann.call('fillBots');
   await ann.call('start');
   await until(() => ann.state.phase === 'playing', 'play');

@@ -245,10 +245,9 @@ test('a game nobody finishes is not recorded, and the host can remove someone wh
   await cat.send('join', { code });
   await ann.until((s) => s.players.length === 3);
 
+  // Removing somebody from the lobby is the host's alone, and it is final (the kick tests of the seated games cover
+  // that); here Cat stays, so that the mid-game removal below has somebody to remove.
   assert.equal((await bob.send('kick', { userId: accounts[2].id })).ok, false, 'only the host removes players');
-  assert.ok((await ann.send('kick', { userId: accounts[2].id })).ok, 'anyone can be removed from the lobby');
-  await cat.until((s) => s === null);
-  assert.ok((await cat.send('join', { code })).ok, 'and may come back');
   await ann.until((s) => s.players.length === 3);
 
   assert.ok((await ann.send('start')).ok);

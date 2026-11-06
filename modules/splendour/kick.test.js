@@ -22,7 +22,8 @@ test('rules: the host removes a person from a lobby seat and the seat becomes em
   assert.equal(game.hasPlayer(room, 2), false);
   assert.equal(room.hostId, 1);
   assert.equal(game.hasPlayer(room, 3), true);
-  assert.deepEqual(game.addHuman(room, 2, 'bob'), { ok: true, seat: 1 });
+  assert.deepEqual(game.addHuman(room, 2, 'bob'), { ok: false, error: 'removedFromGame' }, 'and not by the one who was put out');
+  assert.deepEqual(game.addHuman(room, 9, 'zoe'), { ok: true, seat: 1 }, 'though the seat is free for anybody else');
 });
 
 test('rules: only the host can kick, and never themselves', () => {
@@ -73,7 +74,7 @@ test('rules: a computer player, an empty seat or a nonsense seat cannot be kicke
   assert.equal(JSON.stringify(room), before);
 });
 
-test('sockets: the kicked person is sent out, can rejoin, and the others are told', async (t) => {
+test('sockets: the kicked person is sent out, cannot come back, and the others are told', async (t) => {
   process.env.SPLENDOUR_BOT_DELAY = '0-2';
   const site = await launchModule(t, { id: 'splendour', moduleDir: here });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
@@ -95,15 +96,14 @@ test('sockets: the kicked person is sent out, can rejoin, and the others are tol
   await until(() => ann.state.seats[1] === null && cat.state.seats[1] === null, 'the others told');
   assert.equal((await bob.call('create', {})).ok, true, 'bob is not in any game now');
   await bob.call('leave');
-  assert.equal((await bob.call('join', { code })).ok, true, 'and may rejoin');
-  await until(() => ann.state.seats[1]?.name === 'bob', 'bob back');
+  assert.equal((await bob.call('join', { code })).error, 'removedFromGame', 'but the code is no way back');
 
   await ann.call('fillBots');
   await ann.call('start');
   await until(() => ann.state.phase === 'playing', 'started');
-  const at = ann.state.seats.findIndex((x) => x.name === 'bob');
+  const at = ann.state.seats.findIndex((x) => x.name === 'cat');
   assert.equal((await ann.call('kick', { seat: at })).ok, true, 'a computer player takes over mid-game');
-  await until(() => bob.state === null && ann.state.seats[at].bot === true, 'bob out, a computer in');
+  await until(() => cat.state === null && ann.state.seats[at].bot === true, 'cat out, a computer in');
   const botAt = ann.state.seats.findIndex((x, i) => x.bot && i !== at);
   assert.equal((await ann.call('removeBot', { seat: botAt })).ok, false, 'a computer player stays for the game');
 });

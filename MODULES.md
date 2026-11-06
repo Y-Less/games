@@ -375,9 +375,16 @@ Card games share a few pieces so they look and behave alike:
   a person's place is taken over by a computer player (as when they leave) in every game, seated or list-based, with
   their score and their place in the turn order, so nobody's turns are lost; a computer player can only be removed in
   the lobby (Dixnt excepted), because the game needs the player, and the pop-up shows the server's refusal.  Once a game
-  is over, `kick` is refused (Cribbage marks the seat as left).  Note that removing somebody no longer shuts the door on
-  them: anybody with the invite code can take a computer player's place while the game runs, so a host who wants rid of
-  somebody for good has to end the game.
+  is over, `kick` is refused (Cribbage marks the seat as left).  Being removed by other people is not the same as
+  leaving: the room remembers them (`room.barred`, shared/seats.js `barFromRoom`) and the invitation answers
+  `removedFromGame`, so they cannot take a computer player's place and walk back in.
+- **The rest of the table can vote somebody out**, from the same pop-up, without the host.  The rules are shared
+  (shared/voteKick.js) and so is the plumbing: `roomServer` handles `voteKick`, `voteAnswer` and `voteDrop` for every
+  game, names the player the same way the game's `kick` does (`kickKey`), and puts `vote` into the view while one is
+  running.  A vote needs three people, one runs at a time, whoever asks has said yes by asking, and it carries when
+  more than half of the people who are not the one being voted on agree.  Nothing is timed: a vote simply stops
+  counting a minute after it was asked.  A game's client passes `vote`, `askVote`, `answerVote` and `dropVote` to
+  `usePlayerPopup` and the shared pop-up draws the rest.
 - Overlays (`position: fixed`) work inside the play field, but remember that a game can be played on a phone.
 
 ## Trivia questions

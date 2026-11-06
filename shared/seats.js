@@ -40,6 +40,33 @@ export const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
 /** A list of n empty seats. */
 export const emptySeats = (n) => Array.from({ length: n }, () => null);
 
+/**
+ * Shuts somebody out of a room for good.  Being put out by other people is not the same as leaving: the invitation
+ * must not let them straight back in to take a computer player's place.  The computer player keeping their place warm
+ * stops keeping it for them, so that somebody who can actually come back may have it.
+ *
+ * Both kinds of room are handled, so a game with removal rules of its own can use it as well.
+ *
+ * @param {{ barred?: number[], seats?: Array<object|null>, players?: object[] }} room  the room to change
+ * @param {number} userId  the account being put out
+ * @returns {void}
+ * Side effects: adds to `room.barred` and clears any `stoodInFor` that named them.
+ */
+export function barFromRoom(room, userId) {
+  room.barred ??= [];
+  if (!room.barred.includes(userId)) room.barred.push(userId);
+  for (const spot of room.seats ?? room.players ?? []) if (spot?.stoodInFor === userId) delete spot.stoodInFor;
+}
+
+/**
+ * Has this person been put out of this room by other people?
+ * @param {{ barred?: number[] }} room  not changed
+ * @param {number} userId
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const isBarred = (room, userId) => Boolean(room.barred?.includes(userId));
+
 /** Is this seat the marker left by a person who left after the game ended?  (See goneSeat.) */
 export const isGone = (seat) => seat?.kind === 'gone';
 /**
@@ -150,6 +177,7 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * Side effects: sets `room.seats[seat]` to a new human seat on success.
    */
   function addHuman(room, userId, name) {
+    if (isBarred(room, userId)) return fail('removedFromGame');
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
     if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
     const seat = firstEmpty(room);
@@ -298,7 +326,9 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     if (!isHuman(target) || target.id === hostId) return fail('nobodyElseInSeat');
     if (room.phase === 'finished') return fail('gameOverNobodyToRemove');
     const removed = removeHuman(room, target.id, rng, now);
-    return removed.ok ? ok({ userId: target.id, replaced: Boolean(removed.replaced) }) : removed;
+    if (!removed.ok) return removed;
+    barFromRoom(room, target.id); // put out by somebody else, so the invitation does not let them back in
+    return ok({ userId: target.id, replaced: Boolean(removed.replaced) });
   }
 
   return { newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick };
