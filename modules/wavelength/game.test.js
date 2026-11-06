@@ -59,7 +59,7 @@ test('a lobby: players, colours, settings and computer players', () => {
   assert.ok(game.start(room, 1, seeded(1)).ok);
   assert.equal(room.turnsTotal, 12);
   assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => AIS.some((ai) => ai.id === p.ai)), 'every bot has an AI');
-  assert.equal(game.addHuman(room, 9).ok, false, 'too late to join');
+  assert.equal(game.addHuman(room, 9).ok, true, 'a latecomer takes a computer player place rather than being turned away');
   assert.equal(game.addBot(room, 1).ok, false);
 });
 

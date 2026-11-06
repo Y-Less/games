@@ -181,7 +181,7 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   assert.equal((await dan.call('join', { code: ann.state.code })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase === 'playing', 'the game');
-  assert.equal((await eve.call('join', { code: ann.state.code })).ok, false, 'a started game cannot be joined');
+  assert.equal((await eve.call('join', { code: ann.state.code })).ok, true, 'a started game is joined by taking a computer player seat');
   assert.equal((await ann.call('size', { seats: 3 })).ok, false);
   assert.equal((await ann.call('settings', { freeWall: true })).ok, false);
   assert.equal((await ann.call('kick', { seat: ann.state.you })).ok, false, 'not yourself');
@@ -337,7 +337,6 @@ test('a human who leaves mid-game is replaced by a computer, is not recorded, an
   assert.notEqual(ann.state.seats[2].name, 'cat');
   assert.equal((await cat.call('resume')).ok, true);
   assert.equal(cat.state, null, 'there is nothing to go back to');
-  assert.equal((await cat.call('join', { code: ann.state.code })).ok, false);
   await playToEnd([ann, bob]);
   await sleep(120);
   assert.equal(gameStats(await ann.stats()).played, 1);

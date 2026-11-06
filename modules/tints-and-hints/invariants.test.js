@@ -93,6 +93,15 @@ function playRandomGame(seed) {
       const leaver = pick(rng, people);
       assert.equal(game.removeHuman(room, leaver.id, rng).ok, true);
       check('leave at the reveal');
+    } else if (roll < 0.014 && room.players.some((p) => p.kind === 'bot')) {
+      // Somebody comes late to the invitation and takes a computer player's place, with its colour and its score.
+      const taken = room.players.find((p) => p.kind === 'bot');
+      const joined = game.addHuman(room, 7000 + steps, `late${steps}`);
+      assert.equal(joined.ok, true, 'a latecomer takes a computer player place');
+      assert.equal(joined.tookOver, taken.name);
+      assert.equal(room.players.length, size, 'so the game keeps its size');
+      log.push('late join');
+      check('a latecomer joins');
     } else if (roll < 0.2) {
       // A refused action of some kind.
       const stranger = 5000;
@@ -106,7 +115,7 @@ function playRandomGame(seed) {
         () => game.start(room, room.hostId, rng),
         () => game.setColour(room, any.id, game.COLOURS[0]),
         () => game.setTurnsEach(room, room.hostId, 3),
-        () => game.addHuman(room, 6000 + steps),
+        () => game.addBot(room, room.hostId), // computer players are added in the lobby and nowhere else
       ];
       const before = snapshot(room);
       const result = pick(rng, choices)();

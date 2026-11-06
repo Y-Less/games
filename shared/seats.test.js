@@ -20,12 +20,81 @@ test('addHuman seats a newcomer, once, and gives them a name nobody else has', (
   assert.equal(uniqueName(room, 'Bob'), 'Bob');
 });
 
-test('addHuman refuses a full table and a game that has started', () => {
+test('addHuman refuses a full table in the lobby, and a game that is over', () => {
   const room = lobby();
   rules.fillWithBots(room, 1);
   assert.equal(rules.addHuman(room, 5, 'Eve').error, 'gameFull');
-  room.phase = 'playing';
+  room.phase = 'finished'; // not mid-game, so there is nothing left to take over
   assert.equal(rules.addHuman(room, 5, 'Eve').error, 'thatGameStarted');
+});
+
+// --- coming late to the invitation: a newcomer takes a computer player's seat rather than being turned away ---
+
+test('somebody arriving at a game under way takes the first computer player seat, and everything in it', () => {
+  const room = lobby();
+  rules.fillWithBots(room, 1);
+  Object.assign(room.seats[1], { score: 12, hand: ['7H'], ai: 'steady' });
+  room.phase = 'playing';
+  assert.deepEqual(rules.addHuman(room, 5, 'Eve'), { ok: true, seat: 1, tookOver: 'Hazel' });
+  assert.deepEqual(room.seats[1], { kind: 'human', id: 5, name: 'Eve', score: 12, hand: ['7H'] }, 'the hand and the score stay; the AI goes');
+  assert.ok(isBot(room.seats[2]), 'and only the first computer player is taken over');
+  assert.equal(seatOf(room, 5), 1);
+});
+
+test('a newcomer may go by the name the computer player was using, there being no clash once it has gone', () => {
+  const room = lobby();
+  rules.fillWithBots(room, 1);
+  room.phase = 'playing';
+  assert.equal(rules.addHuman(room, 5, 'Hazel').seat, 1);
+  assert.equal(room.seats[1].name, 'Hazel', 'the Hazel they are replacing is gone');
+  assert.equal(rules.addHuman(room, 6, 'Hazel').seat, 2);
+  assert.equal(room.seats[2].name, 'Hazel (2)', 'but the next one has to make way for them');
+});
+
+test('a game under way with nobody but people in it has no seat to take', () => {
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  rules.addHuman(room, 3, 'Cat');
+  room.phase = 'playing';
+  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'gameFull');
+  assert.deepEqual(rules.addHuman(room, 2, 'Bob'), { ok: true, seat: 1 }, 'and somebody already playing just comes back');
+});
+
+// A seated game keeps what is on the table by seat index (the hands, the pegs, the scores), so getting your own seat
+// back is how you get your own cards back.  Cheat's tests play that through for real.
+test('coming back puts you in your own seat, which is where your cards still are', () => {
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  rules.addBot(room, 1); // seat 2, which the host filled and is nobody's stand-in
+  room.phase = 'playing';
+  assert.equal(rules.removeHuman(room, 2, Math.random).replaced, true);
+  assert.deepEqual(room.seats.map((s) => s?.stoodInFor), [undefined, 2, undefined]);
+
+  assert.equal(rules.addHuman(room, 9, 'Zoe').seat, 2, "a stranger takes the host's seat, not the one kept for Bob");
+  assert.deepEqual(rules.addHuman(room, 2, 'Bob'), { ok: true, seat: 1, tookOver: 'Otis' }, 'so Bob gets his own seat back');
+  assert.equal(room.seats[1].stoodInFor, undefined, 'and it is nobody else’s stand-in any more');
+  assert.equal(rules.addHuman(room, 8, 'Yan').error, 'gameFull', 'with every seat held by a person there is nothing left to take');
+});
+
+test('handOver is given the person, the seat and the computer player, and says what to store', () => {
+  const seen = [];
+  const own = createSeatRules({
+    isMidGame: (room) => room.phase === 'playing',
+    handOver: (room, person, seat, bot) => {
+      seen.push({ person: { ...person }, seat, bot: { ...bot } });
+      return { ...person, cameLate: true };
+    },
+  });
+  const room = lobby();
+  own.fillWithBots(room, 1);
+  room.seats[1].ai = 'steady';
+  room.phase = 'playing';
+  own.addHuman(room, 5, 'Eve');
+  assert.equal(seen.length, 1);
+  assert.deepEqual(seen[0].person, { kind: 'human', id: 5, name: 'Eve' }, 'the AI is already off it');
+  assert.equal(seen[0].seat, 1);
+  assert.deepEqual(seen[0].bot, { kind: 'bot', id: 'bot:1', name: 'Hazel', ai: 'steady' }, 'and the computer player is there as it was');
+  assert.equal(room.seats[1].cameLate, true, 'what it returns is what sits there');
 });
 
 test('only the host changes the lobby, and only in the lobby', () => {

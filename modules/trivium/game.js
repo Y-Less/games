@@ -212,7 +212,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, colour = nul
 
 /**
  * The lobby, joining, leaving and computer-player rules, from shared/roster.js.  Somebody who leaves mid-game is
- * replaced by a computer player in their place, so no answer is lost (see takeOver).
+ * replaced by a computer player in their place, so no answer is lost (see takeOver), and somebody arriving
+ * late takes a computer player's place the same way round (see handOver).
  */
 const roster = createRosterRules({
   isLive,
@@ -221,6 +222,7 @@ const roster = createRosterRules({
   botNames: BOT_NAMES,
   makePlayer,
   takeOver,
+  handOver,
 });
 /** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
@@ -668,21 +670,52 @@ export function migrate(room, nameOf) {
  * Side effects: mutates the room (the bot, the answers, the result, the round counters, the history) and may close the
  *   question if it was only waiting for that person.
  */
-function takeOver(room, oldId, bot, rng, now) {
-  bot.ai = pickAI(AIS, rng).id;
-  bot.plan = null;
-  for (const given of room.answers) if (given.id === oldId) given.id = bot.id;
+/**
+ * Renames one player's id everywhere this quiz writes one down: the answers in, the round's counters, the question
+ * just revealed, and the scoreboard history.  A place changes hands in both directions — a computer player takes a
+ * person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} from  the id leaving
+ * @param {number | string} to  the id taking its place
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function renameId(room, from, to) {
+  for (const given of room.answers) if (given.id === from) given.id = to;
   for (const table of [room.roundScored, room.roundRight]) {
-    if (Object.hasOwn(table, oldId)) {
-      table[bot.id] = table[oldId];
-      delete table[oldId];
+    if (Object.hasOwn(table, from)) {
+      table[to] = table[from];
+      delete table[from];
     }
   }
   if (room.result) {
-    for (const entry of room.result.entries) if (entry.id === oldId) entry.id = bot.id;
-    room.result.missed = room.result.missed.map((id) => (id === oldId ? bot.id : id));
+    for (const entry of room.result.entries) if (entry.id === from) entry.id = to;
+    room.result.missed = room.result.missed.map((id) => (id === from ? to : id));
   }
-  renameInHistory(room, oldId, bot.id);
+  renameInHistory(room, from, to);
+}
+
+/**
+ * The mirror of takeOver: somebody arriving has taken a computer player's place, with its score and its counters.
+ * Whatever answer the computer player had lined up goes with it — if the question is still up, the newcomer answers
+ * for themselves, and the quiz waits for them as it would for anybody (see allAnswered).
+ *
+ * @param {object} room  the room to change
+ * @param {string} botId  the computer player whose place was taken
+ * @param {object} person  the newcomer, already in its place in the list
+ * @returns {void}
+ * Side effects: mutates the room (the answers, the counters, the result, the history) and clears the planned answer.
+ */
+function handOver(room, botId, person) {
+  delete person.plan;
+  renameId(room, botId, person.id);
+}
+
+function takeOver(room, oldId, bot, rng, now) {
+  bot.ai = pickAI(AIS, rng).id;
+  bot.plan = null;
+  renameId(room, oldId, bot.id);
   if (room.phase !== 'question') return;
   if (!hasAnswered(room, bot.id)) {
     // It has to answer something: the same decision any computer player makes, but with what is left of the clock.

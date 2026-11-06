@@ -196,11 +196,20 @@ test('the statistics: one entry per person, with the outcome, the place and the 
 
 test('leaving mid-game hands the seat to a computer player; the room is empty when no person is left', () => {
   const room = started();
-  assert.equal(g.addHuman(room, 5, 'Bob').ok, false, 'the game has started');
-  assert.equal(g.seatOf(room, 5), -1);
   assert.equal(g.removeHuman(room, 99, Math.random).ok, false);
   const out = g.removeHuman(room, 1, Math.random);
   assert.equal(out.ok && out.empty, true, 'the only person has left');
+});
+
+test('somebody arriving mid-game takes a computer player seat, hand and all', () => {
+  const room = started();
+  const hand = [...room.hands[1]];
+  const wasCalled = room.seats[1].name;
+  assert.deepEqual(g.addHuman(room, 5, 'Bob'), { ok: true, seat: 1, tookOver: wasCalled });
+  assert.equal(g.seatOf(room, 5), 1);
+  assert.equal(room.seats[1].kind, 'human');
+  assert.equal(room.seats[1].ai, undefined, 'the AI that was playing the seat stands down');
+  assert.deepEqual(room.hands[1], hand, 'and the cards it was holding are now theirs');
 });
 
 test('play again returns to the lobby with the same seats', () => {

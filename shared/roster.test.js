@@ -1,7 +1,7 @@
 // Tests for the shared player-list rules (shared/roster.js): joining, computer players, leaving, kicking, and loading old rooms.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createRosterRules, humans, migratePlayers, renameInHistory, seatOf, uniqueName } from './roster.js';
+import { createRosterRules, humans, isBot, migratePlayers, renameInHistory, seatOf, uniqueName } from './roster.js';
 
 const LIVE = ['lobby', 'playing'];
 
@@ -43,8 +43,126 @@ test('addHuman leaves the name off when none is given, and refuses a full room a
   assert.ok(!('name' in room.players[1]));
   rules.fillWithBots(room, 1, 4);
   assert.equal(rules.addHuman(room, 5, 'Eve').error, 'gameFull');
-  room.phase = 'playing';
+  room.phase = 'over'; // not live, so there is nothing left to take over
   assert.equal(rules.addHuman(room, 6, 'Fay').error, 'thatGameStarted');
+});
+
+// --- coming late to the invitation: a newcomer takes a computer player's place rather than being turned away ---
+
+/** The rules with a `handOver` that reports what it was given and puts the newcomer into the room's own field. */
+function lateRules(handed = []) {
+  return createRosterRules({
+    isLive: (room) => LIVE.includes(room.phase),
+    minPlayers: 2,
+    maxPlayers: 4,
+    botNames: ['Ada', 'Bram'],
+    makePlayer: (room, base, extras = {}) => ({ ...base, score: 0, ...extras }),
+    handOver: (room, botId, person) => {
+      handed.push({ botId, person: { ...person } });
+      if (room.turn === botId) room.turn = person.id;
+    },
+  });
+}
+
+test('somebody arriving at a game under way takes the first computer player place, and everything in it', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.fillWithBots(room, 1, 3);
+  Object.assign(room.players[1], { score: 12, colour: 'red', ai: 'standard' });
+  room.phase = 'playing';
+  assert.deepEqual(rules.addHuman(room, 5, 'Eve'), { ok: true, seat: 1, tookOver: 'Ada' });
+  assert.deepEqual(room.players[1], { kind: 'human', id: 5, name: 'Eve', score: 12, colour: 'red' }, 'the score and the colour stay; the AI goes');
+  assert.ok(isBot(room.players[2]), 'and only the first computer player is taken over');
+  assert.equal(seatOf(room, 5), 1);
+  assert.equal(humans(room).length, 2);
+});
+
+test('a newcomer may go by the name the computer player was using, and answers to it if they bring none', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.fillWithBots(room, 1, 3);
+  room.phase = 'playing';
+  assert.equal(rules.addHuman(room, 5, 'Ada').seat, 1);
+  assert.equal(room.players[1].name, 'Ada', 'the Ada they are replacing is gone');
+  assert.equal(rules.addHuman(room, 6).seat, 2);
+  assert.equal(room.players[2].name, 'Bram', 'and somebody with no name of their own keeps the one in the place');
+});
+
+test('a game under way with nobody but people in it has no place to take', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  room.phase = 'playing';
+  assert.equal(rules.addHuman(room, 5, 'Eve').error, 'gameFull');
+  assert.deepEqual(rules.addHuman(room, 2, 'Bob'), { ok: true, seat: 1 }, 'and somebody already playing just comes back');
+});
+
+test('handOver is told which computer player went, and may put the newcomer in its place in the game itself', () => {
+  const handed = [];
+  const rules = lateRules(handed);
+  const room = lobby();
+  rules.fillWithBots(room, 1, 3);
+  room.phase = 'playing';
+  room.turn = 'bot:1'; // it was the computer player's turn when they arrived
+  rules.addHuman(room, 5, 'Eve');
+  assert.deepEqual(handed, [{ botId: 'bot:1', person: { kind: 'human', id: 5, name: 'Eve', score: 0 } }]);
+  assert.equal(room.turn, 5, 'and now it is theirs');
+});
+
+test('coming back puts you where you were, with what you left behind', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  rules.addHuman(room, 3, 'Cy');
+  rules.fillWithBots(room, 1, 4); // and one the host added, which is nobody's stand-in
+  room.phase = 'playing';
+  room.players[1].score = 7;
+  room.players[2].score = 4;
+  assert.equal(rules.removeHuman(room, 2).replaced, true);
+  assert.equal(rules.removeHuman(room, 3).replaced, true);
+  assert.deepEqual(room.players.map((p) => p.stoodInFor), [undefined, 2, 3, undefined]);
+
+  assert.deepEqual(rules.addHuman(room, 3, 'Cy'), { ok: true, seat: 2, tookOver: 'Computer' }, 'Cy comes back to his own place');
+  assert.equal(room.players[2].score, 4, 'with the score he left behind');
+  assert.equal(room.players[2].stoodInFor, undefined, 'and it is nobody else\u2019s place now');
+  assert.equal(room.players[1].stoodInFor, 2, "Bob's is still being kept for him");
+});
+
+test('somebody with no place of their own takes one that is nobody\u2019s, so a leaver can still come back to theirs', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  rules.fillWithBots(room, 1, 3); // the host adds one
+  room.phase = 'playing';
+  assert.equal(rules.removeHuman(room, 2).replaced, true); // and Bob leaves, so there are two computer players
+  assert.deepEqual(room.players.map((p) => p.stoodInFor), [undefined, 2, undefined]);
+
+  assert.equal(rules.addHuman(room, 9, 'Zoe').seat, 2, "a stranger takes the host's one, not the one being kept for Bob");
+  assert.equal(rules.addHuman(room, 2, 'Bob').seat, 1, 'so Bob still gets his own back');
+  assert.equal(rules.addHuman(room, 8, 'Yan').error, 'gameFull', 'and now there is nothing left to take');
+});
+
+test('a place kept for somebody is taken by a stranger only when there is nothing else', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  rules.addHuman(room, 3, 'Cy');
+  room.phase = 'playing';
+  assert.equal(rules.removeHuman(room, 3).replaced, true);
+  assert.equal(rules.addHuman(room, 9, 'Zoe').seat, 2, "Cy's place is all there is, so Zoe has it");
+  assert.equal(rules.addHuman(room, 3, 'Cy').error, 'gameFull', 'and Cy comes back to nothing');
+});
+
+test('a person leaving and a person arriving are the same move the other way round', () => {
+  const rules = makeRules();
+  const room = lobby();
+  rules.addHuman(room, 2, 'Bob');
+  room.players[1].score = 7;
+  room.phase = 'playing';
+  assert.equal(rules.removeHuman(room, 2, () => 0).replaced, true);
+  assert.equal(room.players[1].score, 7, 'the computer player carries on with their score');
+  assert.equal(rules.addHuman(room, 3, 'Cat').seat, 1);
+  assert.deepEqual(room.players[1], { kind: 'human', id: 3, name: 'Cat', score: 7 }, 'and so does the next person along');
 });
 
 test('computer players are { kind: bot, id: bot:<n>, name } with the first unused name, and only the host adds them in the lobby', () => {
@@ -113,7 +231,7 @@ test('removeHuman in a game puts a computer player in their place, with their sc
   room.history = [{ label: 'Turn 1', deltas: { 2: 7, 1: 0 }, notes: { 2: 'guessed it' } }];
   assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, replaced: true });
   assert.deepEqual(room.players.map((p) => p.id), [1, 'bot:1', 3], 'same slot, so the turn order is unchanged');
-  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard' }, 'the score carries over and the game gave it an AI');
+  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard', stoodInFor: 2 }, 'the score carries over, the game gave it an AI, and it knows whose place it is keeping');
   assert.deepEqual(taken, [{ oldId: 2, bot: room.players[1] }]);
   assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { 'bot:1': 7, 1: 0 }, notes: { 'bot:1': 'guessed it' } }, 'the history still adds up');
   assert.equal(seatOf(room, 2), -1, 'the person is free to join another game');

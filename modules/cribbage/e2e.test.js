@@ -262,7 +262,7 @@ test('lobby rules: host only, full seats, a full room and a started room refuse 
   assert.ok((await host.call('fillBots')).ok);
   assert.ok((await host.call('start')).ok);
   await guest.until((s) => s.phase === 'discard', 'the game to start');
-  assert.equal((await fourth.join(code)).ok, false, 'already started');
+  assert.equal((await fourth.join(code)).ok, true, 'a started game is joined by taking a computer player seat');
   assert.equal((await host.call('create')).ok, false, 'already in a game');
   assert.equal((await host.call('join', { code: 'not a code' })).ok, false);
   assert.equal((await host.call('join', { code: 'boss-aware-you' })).error, 'alreadyInGameJoin');

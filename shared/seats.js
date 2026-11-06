@@ -1,5 +1,6 @@
 // The seat and lobby rules every seated game shares: who is sitting where, how people and computer players join and
-// leave, and what the host may do.  Hearts, Cheat, Gaudi, Splendour, Azulejo, Rummikub, and Nomination Whist each carried
+// leave (a person leaving a game under way hands their seat to a computer player, and somebody arriving late takes a
+// computer player's seat the same way round), and what the host may do.  Hearts, Cheat, Gaudi, Splendour, Azulejo, Rummikub, and Nomination Whist each carried
 // their own copy of this; they now build theirs from createSeatRules() and say only what differs.
 //
 // A room is a plain object saved as JSON.  The parts this file reads and writes:
@@ -117,13 +118,18 @@ const seatNames = (room) => room.seats.filter(Boolean).map((s) => s.name);
  * @param {(room: object, bot: object, seat: number, rng: () => number) => object} [config.takeOver]  called with the
  *   computer player about to replace a person who left; it may mutate the room (write a log line, record the bot's AI)
  *   and returns the seat object to store (add `ai`, say).  Default: the bot unchanged.
+ * @param {(room: object, person: object, seat: number, bot: object) => object} [config.handOver]  the mirror of
+ *   takeOver: called when somebody joining a game under way takes a computer player's seat.  `person` already holds
+ *   everything the computer player had but its name and its `ai`; `bot` is the computer player as it was.  It may
+ *   mutate the room (write a log line, forget an AI kept outside the seat) and returns the seat object to store.
+ *   Default: the person unchanged.
  * @param {(room: object, rng: () => number, now: number) => void} [config.afterRemoval]  runs after somebody has left and at least one
  *   person remains (for example, they may have been the only one the game was waiting for)
  * @param {(seat: object) => (object | null)} [config.finishedSeat]  what a seat becomes when its person leaves a finished
  *   game (default null; Nomination Whist keeps a { kind: 'gone', name } marker so the final scores still make sense)
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
  */
-export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeOver = (room, bot) => bot, afterRemoval = () => {}, finishedSeat = () => null }) {
+export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeOver = (room, bot) => bot, handOver = (room, person) => person, afterRemoval = () => {}, finishedSeat = () => null }) {
   /**
    * Makes the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
    * @param {{ seats: Array<object|null>, nextBot: number }} room  the room (seats read to avoid clashing names)
@@ -145,11 +151,57 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    */
   function addHuman(room, userId, name) {
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-    if (room.phase !== 'lobby') return fail('thatGameStarted');
+    if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
     const seat = firstEmpty(room);
     if (seat === -1) return fail('gameFull');
     room.seats[seat] = { kind: 'human', id: userId, name: uniqueName(room, name) };
     return ok({ seat });
+  }
+
+  /**
+   * Somebody arriving at a game already under way — a friend who was slow to open the invitation — takes the first
+   * computer player's seat: its cards, its score, its place in the order, everything but its name and the AI that was
+   * playing it.  It is the mirror of what happens when a person leaves, and it is why an invitation is still worth
+   * following after the first hand has been dealt.
+   *
+   * There is nothing to take over in a game that is finished (the caller says so instead), nor in one where every seat
+   * already holds a person, which is as full as a table can be.
+   *
+   * @param {object} room  the room to change
+   * @param {number} userId  the joining account id
+   * @param {string} name  the display name wanted (made unique at the table)
+   * @returns {{ ok: boolean, seat?: number, tookOver?: string, error?: string }} the seat taken and the name of the
+   *   computer player that was in it, or why nothing could be taken
+   * Side effects: replaces that seat, and whatever `handOver` changes.
+   */
+  function sitInForBot(room, userId, name) {
+    if (!isMidGame(room)) return fail('thatGameStarted');
+    const seat = seatToTake(room, userId);
+    if (seat === undefined) return fail('gameFull');
+    const bot = room.seats[seat];
+    const person = { ...bot, kind: 'human', id: userId };
+    delete person.ai; // the AI stops here: from now on the seat plays for itself
+    delete person.stoodInFor; // and it is nobody's stand-in: the person it was waiting for is sitting in it
+    room.seats[seat] = null; // out of the way, so the newcomer may use the name the computer player was going by
+    person.name = uniqueName(room, name);
+    room.seats[seat] = handOver(room, person, seat, bot);
+    return ok({ seat, tookOver: bot.name });
+  }
+
+  /**
+   * The seat a newcomer takes over.  Their own comes first: if the computer player keeping their seat warm is still
+   * there, somebody coming back after a dropped connection sits down where they left off, with their own cards.
+   * Failing that it is a seat that is nobody's stand-in — one the host filled — so that the others who might yet come
+   * back keep theirs.  Failing that, the first computer player at the table.
+   *
+   * @param {object} room  not changed
+   * @param {number} userId  the account arriving
+   * @returns {number | undefined} the seat index, or undefined when every seat holds a person
+   * Side effects: none.
+   */
+  function seatToTake(room, userId) {
+    const bots = botSeats(room);
+    return bots.find((i) => room.seats[i].stoodInFor === userId) ?? bots.find((i) => room.seats[i].stoodInFor === undefined) ?? bots[0];
   }
 
   /**
@@ -168,7 +220,8 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
     if (seat === -1) return fail('notInGame');
     const midGame = isMidGame(room);
     const leaving = room.seats[seat];
-    if (midGame) room.seats[seat] = takeOver(room, newBot(room), seat, rng);
+    // The computer player remembers whose seat it is keeping warm, so that they get it back if they come back.
+    if (midGame) room.seats[seat] = { ...takeOver(room, newBot(room), seat, rng), stoodInFor: userId };
     else room.seats[seat] = room.phase === 'finished' ? finishedSeat(leaving) : null;
     const humans = humanSeats(room);
     if (!humans.length) return ok({ empty: true, seat });

@@ -350,7 +350,7 @@ test('the lobby: only the host changes things, seats and computer players, and t
   assert.equal((await ann.send('start')).ok, false);
   assert.equal((await ann.send('settings', { seats: 4 })).ok, false, 'too late');
   const late = await person('dan');
-  assert.equal((await late.send('join', { code: created.code })).ok, false, 'too late to join');
+  assert.equal((await late.send('join', { code: created.code })).ok, true, 'a started game is joined by taking a computer player seat');
 });
 
 test('invalid moves are refused and never change the game', async (t) => {

@@ -238,6 +238,12 @@ const seats = createSeatRules({
     (room.ais ??= {})[bot.id] = pickAI(AIS, rng).id;
     return bot;
   },
+  // And the mirror: somebody arriving takes the seat with its cards and nobles, and the AI that was playing it is
+  // forgotten — it is kept in room.ais rather than in the seat, so it does not go with the seat on its own.
+  handOver: (room, person, seat, bot) => {
+    if (room.ais) delete room.ais[bot.id];
+    return person;
+  },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
 

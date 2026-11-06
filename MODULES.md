@@ -102,6 +102,22 @@ capitals; and `kick` is refused once the game is over.  A person who leaves a *f
 `goneSeat` marker (`{ kind: 'gone', name }`, pass it as `finishedSeat`) rather than an empty seat, so the final scores
 still name them and the table never meets a missing seat; `playAgain` then calls `freeGoneSeats(room)`.
 
+**A place changes hands both ways.**  When somebody leaves a game under way, a computer player takes their place, keeps
+their score and whatever else was theirs, and remembers whose place it is holding (`stoodInFor`).  When somebody joins a
+game under way — a friend slow to open the invitation, or the leaver coming back — they take a computer player's place
+the same way round.  Their own comes first if it is still being held for them; failing that, one the host added, so that
+the others who might yet come back keep theirs; failing that, the first.  A game with nobody but people in it answers
+`gameFull`, and a game that is over answers `thatGameStarted`.
+
+Both directions are the same renaming, so write it once.  `takeOver` renames the person to the computer player; the new
+`handOver` renames the computer player to the person.  A game with numbered seats usually needs neither (the seat index
+is the identity, so the cards and the pegs come with the seat), only a hook to drop what belongs to a computer player
+alone — Cribbage's `replaced` mark, Splendour's entry in `room.ais`.  A game that keeps a list of players identifies its
+players by id, so it must rename that id everywhere it writes one down; factor that into a `renameId(room, from, to)`
+and call it from both (see `modules/just-one/game.js`).  The shared code takes `ai` and `stoodInFor` off before your
+hook runs.  Get this wrong and the fuzz tests say so: an answer or a clue left under the old id fails "the answers are
+from players in the room" within a few hundred random steps.
+
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players.  Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or
 `now` argument, so a test can replay a game from a seed.
@@ -359,7 +375,9 @@ Card games share a few pieces so they look and behave alike:
   a person's place is taken over by a computer player (as when they leave) in every game, seated or list-based, with
   their score and their place in the turn order, so nobody's turns are lost; a computer player can only be removed in
   the lobby (Dixnt excepted), because the game needs the player, and the pop-up shows the server's refusal.  Once a game
-  is over, `kick` is refused (Cribbage marks the seat as left).
+  is over, `kick` is refused (Cribbage marks the seat as left).  Note that removing somebody no longer shuts the door on
+  them: anybody with the invite code can take a computer player's place while the game runs, so a host who wants rid of
+  somebody for good has to end the game.
 - Overlays (`position: fixed`) work inside the play field, but remember that a game can be played on a phone.
 
 ## Trivia questions

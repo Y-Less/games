@@ -259,6 +259,36 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await eve.join(ann.code)).ok, false);
 });
 
+test('coming late to the invitation: a newcomer takes a computer player seat, and a leaver gets their own back', async (t) => {
+  fast();
+  const { person } = await launch(t);
+  const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => person(n).open()));
+  await ann.create();
+  await bob.join(ann.code);
+  await until(() => ann.state.seats[1], 'bob');
+  assert.equal((await ann.call('fillBots')).ok, true);
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => ann.state.phase === 'passing', 'passing');
+
+  // Bob drops out and a computer player keeps his seat warm.
+  assert.equal((await bob.call('leave')).ok, true);
+  await until(() => ann.state.seats[1].bot, "a computer in bob's seat");
+  const kept = ann.state.seats[1].name;
+
+  // Cat has only just opened the invitation.  She takes a seat nobody is being waited for in.
+  assert.equal((await cat.join(ann.code)).ok, true);
+  await until(() => cat.state?.you !== undefined, 'cat to be seated');
+  assert.notEqual(cat.state.you, 1, "cat does not take the seat being kept for bob");
+  assert.equal(ann.state.seats[cat.state.you].bot, false, 'she is a person in it now');
+
+  // And bob comes back to his own seat, with the hand he left on it.
+  assert.equal((await bob.join(ann.code)).ok, true);
+  await until(() => bob.state?.you === 1, 'bob back in his own seat');
+  assert.equal(ann.state.seats[1].bot, false, 'which is nobody’s stand-in any more');
+  assert.notEqual(ann.state.seats[1].name, kept, 'and goes by his name again');
+  assert.equal(bob.state.hand.length, 13, 'his cards were waiting for him');
+});
+
 test('the lobby: leaving, hosts, starting needs four seats, and a started game cannot be joined', async (t) => {
   fast();
   const { person } = await launch(t);
@@ -276,8 +306,6 @@ test('the lobby: leaving, hosts, starting needs four seats, and a started game c
   assert.equal((await bob.call('addBot', { seat: 0 })).ok, true);
   assert.equal((await bob.call('start')).ok, true);
   await until(() => bob.state.phase === 'passing', 'passing');
-  assert.equal((await cat.join(bob.code)).ok, false, 'already started');
-  assert.equal((await ann.join(bob.code)).ok, false, 'a leaver cannot return');
   assert.equal((await cat.call('play', { card: '2C' })).ok, false, 'an outsider cannot act');
   assert.equal((await dan.call('pass', { cards: ['2C', '3C', '4C'] })).ok, false);
   assert.equal((await bob.call('pass', { cards: ['2C', '2C', '2C'] })).ok, false);
@@ -430,7 +458,6 @@ test('a human who leaves mid-game is replaced by a computer, is not recorded, an
   assert.equal(ann.state.seats[2].name !== 'cat', true);
   assert.equal((await cat.call('resume')).ok, true);
   assert.equal(cat.state, null, 'there is nothing to go back to');
-  assert.equal((await cat.join(ann.code)).ok, false);
   await playToEnd([ann, bob]);
   await sleep(100);
   assert.equal((await ann.stats()).perGame[0].played, 1);

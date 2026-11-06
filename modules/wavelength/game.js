@@ -196,7 +196,8 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
 
 /**
  * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.  Somebody who leaves mid-game is replaced by
- * a computer player in their place, so no turn is lost (see takeOver).
+ * a computer player in their place, so no turn is lost (see takeOver), and somebody arriving
+ * late takes a computer player's place the same way round (see handOver).
  */
 const roster = createRosterRules({
   isLive,
@@ -205,6 +206,7 @@ const roster = createRosterRules({
   botNames: BOT_NAMES,
   makePlayer,
   takeOver,
+  handOver,
 });
 /** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
@@ -623,20 +625,50 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @param {() => number} rng
  * @returns {void}
  */
-function takeOver(room, oldId, bot, rng) {
-  bot.ai = pickAI(AIS, rng).id;
-  const renamed = (x) => (x === oldId ? bot.id : x);
+/**
+ * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
+ * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
+ * are this same renaming.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} from  the id leaving
+ * @param {number | string} to  the id taking its place
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function renameId(room, from, to) {
+  const renamed = (x) => (x === from ? to : x);
   room.psychic = renamed(room.psychic);
   room.lockedBy = renamed(room.lockedBy ?? null);
   for (const g of room.guesses) g.id = renamed(g.id);
-  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
   if (room.result) {
     room.result.psychic = renamed(room.result.psychic);
     if ('lockedBy' in room.result) room.result.lockedBy = renamed(room.result.lockedBy);
     for (const e of room.result.entries) e.id = renamed(e.id);
   }
-  renameInHistory(room, oldId, bot.id);
+  renameInHistory(room, from, to);
+}
+
+function takeOver(room, oldId, bot, rng) {
+  bot.ai = pickAI(AIS, rng).id;
+  renameId(room, oldId, bot.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
   if (room.phase === 'reveal' && unready(room).length === 0) finishTurn(room, rng);
+}
+
+/**
+ * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
+ * here.  Nothing is ready on their behalf any more, which is why a reveal that was about to end now waits for them.
+ *
+ * @param {object} room  the room to change
+ * @param {string} botId  the computer player whose place was taken
+ * @param {object} person  the newcomer, already in its place in the list
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function handOver(room, botId, person) {
+  renameId(room, botId, person.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== botId);
 }
 
 /**

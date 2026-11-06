@@ -99,7 +99,7 @@ test('a game needs every seat filled and a human, and only the host starts it', 
   assert.ok(g.start(room, 1, Math.random).ok);
   assert.equal(room.phase, 'nominating');
   assert.equal(g.start(room, 1, Math.random).ok, false);
-  assert.equal(g.addHuman(room, 3, 'Cat').ok, false, 'no joining after the start');
+  assert.equal(g.addHuman(room, 3, 'Cat').ok, true, 'a latecomer takes a computer player seat rather than being turned away');
 });
 
 test('lobby seats: the number of seats, adding, removing and filling computer players', () => {

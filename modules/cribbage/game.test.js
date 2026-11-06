@@ -75,7 +75,7 @@ test('lobby: seats, settings, computer players and starting', () => {
   assert.equal(game.start(room, 1, Math.random).ok, false);
   assert.ok(game.setSettings(room, 1, { seats: 2 }).ok);
   assert.ok(game.start(room, 1, Math.random).ok);
-  assert.equal(game.addHuman(room, 9, 'Late').ok, false, 'already started');
+  assert.deepEqual(game.addHuman(room, 9, 'Late'), { ok: true, seat: 1, tookOver: 'Robin' }, 'a latecomer takes a computer player seat');
 });
 
 test('lobby: names are made unique, a second person can join and the host passes on', () => {

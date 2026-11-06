@@ -182,7 +182,7 @@ test('an invite code brings somebody into the waiting room, but not into a quiz 
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state?.question, 'a question');
   const eve = await site.person('eve').open();
-  assert.equal((await eve.call('join', { code: created.code })).error, 'thatGameStarted');
+  assert.equal((await eve.call('join', { code: created.code })).error, 'gameFull', 'nobody but people in the quiz, so there is no place to take');
   await sleep(50);
   assert.equal(ann.state.players.length, 2);
 });

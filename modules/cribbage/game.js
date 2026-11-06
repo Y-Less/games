@@ -226,6 +226,11 @@ const seats = createSeatRules({
   botNames: BOT_NAMES,
   // The computer player keeps everything about the seat except who is sitting in it.
   takeOver: (room, bot, seat, rng) => ({ ...room.seats[seat], kind: 'bot', id: bot.id, replaced: true, ai: pickAI(AIS, rng).id }),
+  // And the mirror: somebody arriving takes the seat with its pegs and its cards, and it is nobody's stand-in again.
+  handOver: (room, person) => {
+    delete person.replaced;
+    return person;
+  },
   finishedSeat: (seat) => ({ ...seat, kind: 'gone', id: null }),
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
 });

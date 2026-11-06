@@ -204,6 +204,7 @@ const roster = createRosterRules({
   botNames: BOT_NAMES,
   makePlayer,
   takeOver,
+  handOver,
 });
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
@@ -761,24 +762,55 @@ export function skipTurn(room, now) {
  * @returns {void}
  * Side effects: mutates the room (the order, the drawer, the guesses, the feed, the reveal, the ready list, the history).
  */
-function takeOver(room, oldId, bot, rng = Math.random) {
-  bot.ai = pickAI(AIS, rng).id;
-  const renamed = (x) => (x === oldId ? bot.id : x);
+/**
+ * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
+ * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
+ * are this same renaming.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} from  the id leaving
+ * @param {number | string} to  the id taking its place
+ * @param {string} name  the new name, for the lines already in the feed
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function renameId(room, from, to, name) {
+  const renamed = (x) => (x === from ? to : x);
   room.order = room.order.map(renamed);
   room.drawer = renamed(room.drawer);
   for (const entry of room.guessed) entry.id = renamed(entry.id);
   for (const entry of room.votes ?? []) entry.id = renamed(entry.id);
-  for (const line of room.feed) if (line.id === oldId) Object.assign(line, { id: bot.id, name: bot.name });
+  for (const line of room.feed) if (line.id === from) Object.assign(line, { id: to, name });
   if (room.reveal) {
     room.reveal.drawer = renamed(room.reveal.drawer);
     room.reveal.guessed = room.reveal.guessed.map(renamed);
-    if (Object.hasOwn(room.reveal.points, oldId)) {
-      room.reveal.points[bot.id] = room.reveal.points[oldId];
-      delete room.reveal.points[oldId];
+    if (Object.hasOwn(room.reveal.points, from)) {
+      room.reveal.points[to] = room.reveal.points[from];
+      delete room.reveal.points[from];
     }
   }
+  renameInHistory(room, from, to);
+}
+
+function takeOver(room, oldId, bot, rng = Math.random) {
+  bot.ai = pickAI(AIS, rng).id;
+  renameId(room, oldId, bot.id, bot.name);
   room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
-  renameInHistory(room, oldId, bot.id);
+}
+
+/**
+ * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
+ * here.  Nothing is ready on their behalf any more, which is why a round that was about to end now waits for them.
+ *
+ * @param {object} room  the room to change
+ * @param {string} botId  the computer player whose place was taken
+ * @param {object} person  the newcomer, already in its place in the list
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function handOver(room, botId, person) {
+  renameId(room, botId, person.id, person.name);
+  room.ready = (room.ready ?? []).filter((x) => x !== botId);
 }
 
 /**

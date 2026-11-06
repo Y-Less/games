@@ -100,7 +100,7 @@ test('advancing from the lobby, or from a phase with a stranger, is refused with
   assert.equal(game.setHint(room, 1, 'x').ok, false);
   game.start(room, 1, first);
   assert.equal(game.addHuman(room, 2).ok, true, 'a player already in is told ok');
-  assert.equal(game.addHuman(room, 3).error, 'thatGameStarted');
+  assert.equal(game.addHuman(room, 3).error, 'gameFull', 'with no computer player to take over from, a started game is full');
   assert.equal(game.guess(room, 3, 'A1').error, 'notInGame');
 });
 

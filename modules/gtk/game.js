@@ -167,6 +167,7 @@ const roster = createRosterRules({
   botNames: BOT_NAMES,
   makePlayer,
   takeOver,
+  handOver,
 });
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
@@ -728,17 +729,26 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @returns {void}
  * Side effects: mutates the room (the bot, subject, answers, options, picks, ready, roundPicks, result, history) and may move on.
  */
-function takeOver(room, oldId, bot, rng, now = 0) {
-  bot.ai = pickAI(AIS, rng).id;
-  const renamed = (x) => (x === oldId ? bot.id : x);
+/**
+ * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
+ * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
+ * are this same renaming.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} from  the id leaving
+ * @param {number | string} to  the id taking its place
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function renameId(room, from, to) {
+  const renamed = (x) => (x === from ? to : x);
   room.subject = renamed(room.subject);
   for (const answer of room.answers) answer.id = renamed(answer.id);
   for (const option of room.options) option.authors = option.authors.map(renamed);
   for (const pick of room.picks) pick.id = renamed(pick.id);
-  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
-  if (room.roundPicks && Object.hasOwn(room.roundPicks, oldId)) {
-    room.roundPicks[bot.id] = room.roundPicks[oldId];
-    delete room.roundPicks[oldId];
+  if (room.roundPicks && Object.hasOwn(room.roundPicks, from)) {
+    room.roundPicks[to] = room.roundPicks[from];
+    delete room.roundPicks[from];
   }
   if (room.result) {
     room.result.subject = renamed(room.result.subject);
@@ -747,8 +757,29 @@ function takeOver(room, oldId, bot, rng, now = 0) {
       option.pickedBy = option.pickedBy.map(renamed);
     }
   }
-  renameInHistory(room, oldId, bot.id);
+  renameInHistory(room, from, to);
+}
+
+function takeOver(room, oldId, bot, rng, now = 0) {
+  bot.ai = pickAI(AIS, rng).id;
+  renameId(room, oldId, bot.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
   if (room.phase === 'reveal' && unready(room).length === 0) finishQuestion(room, rng, String, now);
+}
+
+/**
+ * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
+ * here.  Nothing is ready on their behalf any more, which is why a round that was about to end now waits for them.
+ *
+ * @param {object} room  the room to change
+ * @param {string} botId  the computer player whose place was taken
+ * @param {object} person  the newcomer, already in its place in the list
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+function handOver(room, botId, person) {
+  renameId(room, botId, person.id);
+  room.ready = (room.ready ?? []).filter((x) => x !== botId);
 }
 
 /**

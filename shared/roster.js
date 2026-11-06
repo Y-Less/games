@@ -7,7 +7,8 @@
 //   room.players[i]  a person { kind: 'human', id: <account id>, name } or a computer player
 //                    { kind: 'bot', id: 'bot:<n>', name } (games add their own fields: score, colour, `ai`, counters...)
 //                    in the order they joined.  There are no empty seats: the list grows in the lobby and only shrinks
-//                    there; in a game a person who leaves is replaced, in place, by a computer player.
+//                    there; in a game a person who leaves is replaced, in place, by a computer player, and somebody
+//                    arriving late takes a computer player's place the same way round.
 //   room.hostId      the account id of the host
 //   room.phase       'lobby' while people are arriving; anything else once the game has started
 //   room.nextBot     the number the next computer player's id will use
@@ -117,6 +118,11 @@ export function migratePlayers(room, nameOf = () => undefined) {
  *   turns the bare player into the game's own shape (adds the score, the counters, a marker colour...). `extras` is whatever
  *   the server passed for a person joining (for example their preferred colour); it is undefined for a computer player.
  *   It may read the room (to pick a colour nobody has) but must not add the player to it.
+ * @param {(room: object, botId: string, person: object) => void} [config.handOver]  the mirror of takeOver: runs after
+ *   somebody joining a game under way has taken a computer player's place.  `person` is already in the list where the
+ *   computer player was, with its score, counters and colour but the joiner's id and name.  The game renames the
+ *   computer player's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory
+ *   does the scoreboard history) and drops anything else that only a computer player has.  The default does nothing.
  * @param {(room: object, oldId: number | string, bot: object, rng: () => number, now: number) => void} [config.takeOver]  runs after a
  *   computer player has taken the place of a person who left a game under way: `bot` is already in the list where the
  *   person was, with their score, counters and colour but the new id and name.  The game gives it an AI, renames the
@@ -124,7 +130,7 @@ export function migratePlayers(room, nameOf = () => undefined) {
  *   scoreboard history) and moves on if the game was only waiting for that person.  The default does nothing.
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
  */
-export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {} }) {
+export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {}, handOver = () => {} }) {
   /**
    * Makes the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
    *
@@ -151,12 +157,60 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    */
   function addHuman(room, userId, name, extras = {}) {
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-    if (room.phase !== 'lobby') return fail('thatGameStarted');
+    if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
     if (room.players.length >= maxPlayers) return fail('gameFull');
     const base = { kind: 'human', id: userId };
     if (typeof name === 'string') base.name = uniqueName(room, name);
     room.players.push(makePlayer(room, base, extras));
     return ok({ seat: room.players.length - 1 });
+  }
+
+  /**
+   * Somebody arriving at a game already under way — a friend who was slow to open the invitation — takes the place of
+   * the first computer player in the list: its score, its counters, its colour, everything but its name and the AI
+   * that was playing it.  It is the mirror of what happens when a person leaves, and it is why an invitation is still
+   * worth following after the first round has started.
+   *
+   * There is nothing to take over once the game is over (the caller says so instead), nor when every place already
+   * holds a person, which is as full as a game can be.
+   *
+   * @param {object} room  the room to change
+   * @param {number} userId  the joining account id
+   * @param {string} [name]  the account's display name (made unique among the players)
+   * @returns {{ ok: boolean, seat?: number, tookOver?: string, error?: string }} their place in the list and the name
+   *   of the computer player that held it, or why nothing could be taken
+   * Side effects: replaces one entry of room.players, and whatever `handOver` changes.
+   */
+  function sitInForBot(room, userId, name) {
+    if (!isLive(room)) return fail('thatGameStarted');
+    const index = placeToTake(room, userId);
+    if (index === -1) return fail('gameFull');
+    const bot = room.players[index];
+    const person = { ...bot, kind: 'human', id: userId };
+    delete person.ai; // the AI stops here: from now on the place plays for itself
+    delete person.stoodInFor; // and it is nobody's stand-in: the person it was waiting for is standing in it
+    delete person.name; // out of the way, so the newcomer may use the name the computer player was going by
+    room.players[index] = person;
+    if (typeof name === 'string') person.name = uniqueName(room, name);
+    else person.name = bot.name;
+    handOver(room, bot.id, person);
+    return ok({ seat: index, tookOver: bot.name });
+  }
+
+  /**
+   * The place a newcomer takes over.  Their own comes first: if the computer player keeping their place warm is still
+   * there, somebody coming back after a dropped connection carries on where they left off, with their own score and
+   * colour.  Failing that it is a place that is nobody's stand-in — one the host filled — so that the others who might
+   * yet come back keep theirs.  Failing that, the first computer player in the list.
+   *
+   * @param {object} room  not changed
+   * @param {number} userId  the account arriving
+   * @returns {number} the index in the list, or -1 when every place holds a person
+   * Side effects: none.
+   */
+  function placeToTake(room, userId) {
+    const bots = room.players.flatMap((p, i) => (isBot(p) ? [i] : []));
+    return bots.find((i) => room.players[i].stoodInFor === userId) ?? bots.find((i) => room.players[i].stoodInFor === undefined) ?? bots[0] ?? -1;
   }
 
   /**
@@ -184,7 +238,8 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
     else {
       const leaving = room.players[index];
       const { id: botId, name } = newBot(room); // just for the id and the name: the player keeps everything else
-      room.players[index] = { ...leaving, kind: 'bot', id: botId, name };
+      // The computer player remembers whose place it is keeping warm, so that they get it back if they come back.
+      room.players[index] = { ...leaving, kind: 'bot', id: botId, name, stoodInFor: id };
       takeOver(room, id, room.players[index], rng, now);
       replaced = true;
     }

@@ -266,9 +266,9 @@ test('leaving a game, or finishing it, frees a player; one live game per account
   await allIn(g.people, 'guessing1');
   assert.equal((await bob.call('create', {})).ok, false);
   assert.equal((await bob.call('join', { code: dan.code })).ok, false);
-  // A newcomer cannot join a started game.
+  // A newcomer joins a started game by taking a computer player's place, and there is none here to take.
   const late = await site.person('late').open();
-  assert.equal((await late.call('join', { code: g.code })).error, 'thatGameStarted');
+  assert.equal((await late.call('join', { code: g.code })).error, 'gameFull');
 
   // One of two leaves: a computer player takes their place and the leaver is free at once to start or join something else.
   assert.equal((await bob.call('leave', {})).ok, true);
