@@ -82,6 +82,9 @@ export function cleanBackground(input) {
 export function cleanCardBack(input) {
   if (input?.type === 'preset' && isText(input.value) && Object.hasOwn(CARD_BACK_PRESETS, input.value)) return { type: 'preset', value: input.value };
   if (input?.type === 'image' && isText(input.file) && /^cb-\d+-[0-9a-f]{12}\.(png|jpg|webp)$/.test(input.file)) return { type: 'image', file: input.file };
+  // Your own avatar, drawn rather than stored: nothing is kept here but the choice, so changing your avatar changes
+  // the backs of your cards with it.
+  if (input?.type === 'avatar') return { type: 'avatar' };
   throw new AuthError('invalidCardBack');
 }
 

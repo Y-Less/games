@@ -1,7 +1,9 @@
 // How the signed-in user's choices look on the page: the background, the card back, whether animations play, and the
 // CSS variables of the site theme and font.
-// Depends on: shared/siteThemes.js (siteVariables) and sessionState.js (preset lists, current user).
+// Depends on: shared/siteThemes.js (siteVariables), avatarArt.js (drawing an avatar card back) and sessionState.js
+// (preset lists, current user).
 import { siteVariables } from '../shared/siteThemes.js';
+import { avatarMarkup } from './avatarArt.js';
 import { session } from './sessionState.js';
 
 /**
@@ -20,14 +22,28 @@ export function backgroundCss(background, presets = session.presets) {
 }
 
 /**
+ * An avatar as a CSS image: the same drawing AvatarFigure puts on the page, wrapped in an SVG document and inlined.
+ * Nothing is uploaded or stored, so changing your avatar changes anything drawn with this at once.
+ * @param {object | null} avatar  the chosen options (null draws the default avatar)
+ * @returns {string} a `url("data:...")` value
+ * Side effects: none.
+ */
+export function avatarImage(avatar) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${avatarMarkup(avatar)}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+/**
  * The CSS background for a card back.  Card games draw every face-down card with this (see .card-back in style.css).
- * @param {object} cardBack  { type: 'preset'|'image', ... }
+ * @param {object} cardBack  { type: 'preset'|'image'|'avatar', ... }
  * @param {Record<string, string>} [presets]  the preset card backs by name
+ * @param {object | null} [avatar]  the avatar to draw for an avatar card back (the signed-in user's by default)
  * @returns {string}
  * Side effects: none.
  */
-export function cardBackCss(cardBack, presets = session.cardBacks) {
+export function cardBackCss(cardBack, presets = session.cardBacks, avatar = session.user?.avatar ?? null) {
   if (cardBack?.type === 'image') return `url(/uploads/${encodeURIComponent(cardBack.file)}) center / cover no-repeat`;
+  if (cardBack?.type === 'avatar') return `${avatarImage(avatar)} center / cover no-repeat`;
   return presets[cardBack?.value] ?? presets.crimson ?? '#6b1a27';
 }
 

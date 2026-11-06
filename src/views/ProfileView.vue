@@ -225,6 +225,17 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
           @click="chooseCardBack({ type: 'preset', value: key })"
         />
         <span v-if="session.user.cardBack.type === 'image'" class="back chosen" :style="{ background: cardBackCss(session.user.cardBack) }" :title="$t('profile.yourPicture')" />
+        <button
+          type="button"
+          class="back"
+          :class="{ chosen: session.user.cardBack.type === 'avatar', locked: !owns('cb-avatar') }"
+          :style="{ background: cardBackCss({ type: 'avatar' }) }"
+          :title="owns('cb-avatar') ? $t('profile.avatarCardBack') : $t('profile.buyInShop', { name: $t('profile.avatarCardBack') })"
+          :disabled="!owns('cb-avatar')"
+          :aria-label="$t('profile.avatarCardBack')"
+          :aria-pressed="session.user.cardBack.type === 'avatar'"
+          @click="chooseCardBack({ type: 'avatar' })"
+        />
       </div>
       <h3>{{ $t('profile.yourOwnPicture') }}</h3>
       <i18n-t v-if="!owns('cb-upload')" keypath="profile.unlockInShop" tag="p" class="muted">

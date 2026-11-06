@@ -10,7 +10,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import StyledName from '../components/StyledName.vue';
+import AvatarFigure from '../components/AvatarFigure.vue';
 import CollapsiblePanel from '../components/CollapsiblePanel.vue';
+import { profileOf } from '../profiles.js';
 import { api } from '../api.js';
 import { catalogue } from '../catalogueText.js';
 import { intlLocale } from '../messageText.js';
@@ -33,6 +35,9 @@ const onlineSeconds = computed(() => (stats.value?.summary.onlineSeconds ?? 0) +
 
 // Whose page this is: nobody named in the address means your own.
 const mine = computed(() => !props.who);
+// The avatar beside the title: your own from the session, theirs from the profile cache once it arrives (profiles.js
+// asks the site for it, so a page about somebody else needs nothing extra from the statistics itself).
+const avatar = computed(() => profileOf(mine.value ? session.user.id : (stats.value?.who?.id ?? null))?.avatar ?? null);
 // The name at the top: your display name, or theirs once their figures have arrived.
 const whose = computed(() => (mine.value ? session.user.displayName : (stats.value?.who?.displayName ?? props.who)));
 
@@ -84,7 +89,10 @@ function recentFacts(game) {
 
 <template>
   <section class="stack stats">
-    <h1>{{ t('stats.title', { name: whose }) }}</h1>
+    <header class="title">
+      <AvatarFigure class="portrait" :avatar="avatar" size="4.5rem" />
+      <h1>{{ t('stats.title', { name: whose }) }}</h1>
+    </header>
     <p v-if="!mine" class="muted"><RouterLink :to="{ name: 'achievements', params: { who } }">{{ t('stats.theirAchievements', { name: whose }) }}</RouterLink></p>
     <p v-if="failed" class="panel" role="alert">{{ failed }}</p>
     <p v-else-if="!stats" class="muted">{{ t('common.loading') }}</p>
@@ -144,7 +152,13 @@ function recentFacts(game) {
   max-width: 820px;
   margin: 0 auto;
 }
-.stats > h1 {
+.title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.title h1 {
+  margin: 0;
   color: var(--amber);
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
 }

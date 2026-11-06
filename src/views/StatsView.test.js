@@ -54,6 +54,14 @@ afterEach(() => {
 });
 
 describe('StatsView', () => {
+  it('draws the avatar of whoever the page is about, beside the title', async () => {
+    session.user = { id: 1, displayName: 'Ann', avatar: { hair: 'bun' } };
+    await make();
+    const title = wrapper.find('.title');
+    expect(title.find('h1').text()).toBe('Statistics for Ann');
+    expect(title.find('svg.avatar-figure').exists()).toBe(true);
+  });
+
   it('shows a loading message before the API answers', () => {
     fetchMock.mockReturnValue(new Promise(() => {}));
     wrapper = mount(StatsView);

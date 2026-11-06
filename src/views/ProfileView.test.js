@@ -217,11 +217,29 @@ describe('ProfileView uploads', () => {
 });
 
 describe('ProfileView card back', () => {
-  it('shows a swatch per card back and marks the current one', () => {
+  it('shows a swatch per card back, your avatar among them, and marks the current one', () => {
     const w = make();
     const backs = w.findAll('button.back');
-    expect(backs.map((b) => b.attributes('aria-label'))).toEqual(['crimson card back', 'navy card back']);
-    expect(backs.map((b) => b.attributes('aria-pressed'))).toEqual(['true', 'false']);
+    expect(backs.map((b) => b.attributes('aria-label'))).toEqual(['crimson card back', 'navy card back', 'Your avatar']);
+    expect(backs.map((b) => b.attributes('aria-pressed'))).toEqual(['true', 'false', 'false']);
+  });
+
+  it('the avatar card back is locked until it is bought, and is drawn from the avatar rather than a file', async () => {
+    const shop = (owned) => ({ balance: 0, items: [{ id: 'cb-avatar', type: 'unlock', name: 'Your avatar as a card back', price: 1200, owned }] });
+    session.shop = shop(false);
+    const locked = make();
+    const avatarBack = (w) => w.find('button[aria-label="Your avatar"]');
+    expect(avatarBack(locked).attributes('disabled')).toBeDefined();
+    // Drawn, not uploaded: the swatch is the avatar itself, inlined, so it follows whatever avatar you are wearing.
+    expect(avatarBack(locked).attributes('style')).toContain('data:image/svg+xml');
+
+    session.shop = shop(true);
+    const bought = make();
+    expect(avatarBack(bought).attributes('disabled')).toBeUndefined();
+    await avatarBack(bought).trigger('click');
+    await flushPromises();
+    expect(lastBody()).toEqual({ cardBack: { type: 'avatar' } });
+    session.shop = null;
   });
 
   it('sends a card back choice', async () => {

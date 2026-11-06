@@ -82,6 +82,20 @@ test("one person's purchase is not another's", async (t) => {
   assert.equal((await other.patch('/api/me', { cardBack: { type: 'preset', value: 'gold' } })).status, 403);
 });
 
+test('your avatar as a card back has to be bought like anything else, and keeps nothing but the choice', async (t) => {
+  const { c } = await shopSite(t, { coins: 5000 });
+  const refused = await c.patch('/api/me', { cardBack: { type: 'avatar' } });
+  assert.equal(refused.status, 403);
+  assert.equal(refused.data.error, 'notOwned');
+  assert.match(refused.data.params.item, /avatar/i, 'the refusal names the unlock to buy');
+
+  assert.equal((await c.post('/api/shop/buy', { item: 'cb-avatar' })).status, 200);
+  const bought = await c.patch('/api/me', { cardBack: { type: 'avatar' } });
+  assert.equal(bought.status, 200);
+  // Nothing is stored but the choice: the avatar itself is drawn from the account, so it is never copied here.
+  assert.deepEqual((await c.get('/api/me')).data.user.cardBack, { type: 'avatar' });
+});
+
 test('the free starting choices need nothing, and a refused change changes nothing', async (t) => {
   const { c } = await shopSite(t);
   const night = await c.patch('/api/me', { background: { type: 'preset', value: 'night' }, cardBack: { type: 'preset', value: 'crimson' } });

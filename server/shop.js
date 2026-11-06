@@ -51,6 +51,7 @@ add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity 
 add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
 add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 600 });
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
+add({ id: 'cb-avatar', type: 'unlock', name: 'Your avatar as a card back', price: 1200 });
 // Buying this turns the shop's Gilder count into a button that leads to the refund page (src/views/RefundView.vue).
 add({ id: REFUND_ITEM, type: 'unlock', name: 'Refunds', price: 1000 });
 
@@ -111,7 +112,7 @@ export function itemForBackground(background) {
  * @returns {string}  an item id
  * Side effects: none.
  */
-export const itemForCardBack = (cardBack) => (cardBack?.type === 'image' ? 'cb-upload' : `cb:${cardBack?.value}`);
+export const itemForCardBack = (cardBack) => ({ image: 'cb-upload', avatar: 'cb-avatar' }[cardBack?.type] ?? `cb:${cardBack?.value}`);
 
 /**
  * Whether a user may use an item: it is free, or they have bought it. An unknown item is never owned.

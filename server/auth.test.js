@@ -459,6 +459,9 @@ test('cleanBackground drops everything it was not asked to keep', () => {
 test('cleanCardBack: presets and its own image pattern', () => {
   for (const name of Object.keys(CARD_BACK_PRESETS)) assert.deepEqual(cleanCardBack({ type: 'preset', value: name }), { type: 'preset', value: name });
   assert.deepEqual(cleanCardBack({ type: 'image', file: 'cb-3-0123456789ab.webp' }), { type: 'image', file: 'cb-3-0123456789ab.webp' });
+  // Your own avatar: nothing is stored but the choice, so anything else sent with it is dropped.
+  assert.deepEqual(cleanCardBack({ type: 'avatar' }), { type: 'avatar' });
+  assert.deepEqual(cleanCardBack({ type: 'avatar', file: '../etc/passwd', value: 'navy' }), { type: 'avatar' });
   for (const bad of [
     { type: 'preset', value: 'night' }, // a background preset is not a card back
     { type: 'preset', value: 'constructor' },

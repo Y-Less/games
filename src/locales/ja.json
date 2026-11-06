@@ -125,6 +125,7 @@
     "cardBackIntro": "すべてのカードゲームで、裏向きのカードがあなたにどう見えるかです。",
     "cardBackSaved": "カードの裏を保存しました。",
     "yourPicture": "自分の画像",
+    "avatarCardBack": "あなたのアバター",
     "cardBackPictureRules": "PNG、JPEG、WebP。3 MBまで。縦長の画像がよく合います。",
     "uploadCardBack": "カード裏の画像をアップロード",
     "markerColour": "マーカーの色",
