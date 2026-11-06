@@ -21,6 +21,7 @@ const ITEMS = [
   { id: 'sf:sans', type: 'site-font', name: 'Sans-serif', price: 0, owned: true, display: 'system-ui', body: 'system-ui' },
   { id: 'sf:serif', type: 'site-font', name: 'Serif', price: 300, owned: false, display: 'Georgia', body: 'Georgia' },
   { id: 'bg-colour', type: 'unlock', name: 'Any background colour', price: 800, owned: false },
+  { id: 'refunds', type: 'unlock', name: 'Refunds', price: 1000, owned: false },
 ];
 
 let wrapper;
@@ -78,6 +79,19 @@ describe('ShopView', () => {
     expect(card('ns:gold').find('button').text()).toBe('Buy for 800');
     expect(card('ns:ruby').find('button').text()).toBe('Use');
     expect(card('ns:ruby').find('[data-name-style="ruby"]').text()).toBe('Ann'); // previewed in its own style
+  });
+
+  it('leaves the Gilder count alone until Refunds has been bought, and then makes it the way to the refund page', async () => {
+    await make();
+    expect(wrapper.find('.coins').text()).toContain('700 Gilders');
+    expect(wrapper.find('.coins.refund').exists()).toBe(false);
+
+    listing.items.find((i) => i.id === 'refunds').owned = true;
+    await make();
+    const pill = wrapper.find('.coins.refund');
+    expect(pill.text()).toBe('Refund');
+    expect(pill.attributes('href')).toBe('/refund');
+    expect(wrapper.find('.coins').text()).not.toContain('Gilders');
   });
 
   it('will not let you buy what you cannot afford, and says how many coins short you are', async () => {

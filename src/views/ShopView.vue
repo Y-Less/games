@@ -9,6 +9,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { AVATAR_SLOTS, normaliseAvatar } from '../../shared/avatar.js';
+import { REFUND_ITEM } from '../../shared/refunds.js';
 import AvatarFigure from '../components/AvatarFigure.vue';
 import BackgroundFx from '../components/BackgroundFx.vue';
 import StyledName from '../components/StyledName.vue';
@@ -16,7 +17,7 @@ import { animationsPlaying, backgroundCss, cardBackCss } from '../appearance.js'
 import { catalogue } from '../catalogueText.js';
 import { updateProfile } from '../profileApi.js';
 import { session } from '../session.js';
-import { buy, refreshShop } from '../shopStore.js';
+import { buy, owns, refreshShop } from '../shopStore.js';
 
 // The shop's tabs: the URL slug, the key of the label, and the kinds of item listed under each, with the key of each
 // section's title (an avatar section is titled by its slot, which the catalogue names).
@@ -52,6 +53,9 @@ onMounted(refreshShop);
 
 // Your coins (0 until the listing arrives).
 const balance = computed(() => session.shop?.balance ?? 0);
+// Once Refunds has been bought, the Gilder count gives its place up to the way to the refund page (RefundView.vue).
+// It waits for the listing, so the count does not turn into a button a moment after the page has settled.
+const refundable = computed(() => Boolean(session.shop) && owns(REFUND_ITEM));
 // The tab's items, one list for each kind of thing it sells (avatar parts have a list for each slot: hair, eyes, hats ...).
 const sections = computed(() => current.value.sections.map((s) => ({ ...s, items: (session.shop?.items ?? []).filter((item) => item.type === s.type && (!s.slot || item.slot === s.slot)) })));
 
@@ -119,7 +123,11 @@ function use(item) {
   <section class="stack shop">
     <header class="top">
       <h1>{{ $t('shop.title') }}</h1>
-      <p class="coins" aria-live="polite">
+      <RouterLink v-if="refundable" to="/refund" class="coins refund" :title="$t('shop.refundTitle')">
+        <span class="coin" aria-hidden="true" />
+        <strong>{{ $t('shop.refund') }}</strong>
+      </RouterLink>
+      <p v-else class="coins" aria-live="polite">
         <span class="coin" aria-hidden="true" />
         <i18n-t keypath="shop.goldBalance" tag="span"><template #n><strong>{{ balance }}</strong></template></i18n-t>
       </p>
@@ -193,6 +201,16 @@ h1 {
   border-radius: 999px;
   background: color-mix(in srgb, var(--bg-sunken) 88%, transparent);
   border: 1px solid var(--amber);
+}
+/* Once Refunds has been bought the same pill is the way to the refund page, so it answers the pointer like a button. */
+.coins.refund {
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--amber);
+}
+.coins.refund:hover,
+.coins.refund:focus-visible {
+  background: color-mix(in srgb, var(--bg-raised), var(--line) 50%);
 }
 .coin {
   width: 1rem;

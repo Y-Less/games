@@ -10,6 +10,8 @@ const routes = [
   { path: '/play/:game', name: 'play', component: () => import('./views/PlayView.vue'), props: true },
   { path: '/profile', name: 'profile', component: () => import('./views/ProfileView.vue') },
   { path: '/shop/:tab(names|backgrounds|themes|card-backs|avatar|unlocks)?', name: 'shop', component: () => import('./views/ShopView.vue') },
+  // Reached from the shop, by whoever has bought Refunds; the page itself says so to anybody else who finds it.
+  { path: '/refund', name: 'refund', component: () => import('./views/RefundView.vue') },
   // With a name on the end these are somebody else's: /stats/tom, or /achievements/3243 by account id.
   { path: '/achievements/:who?', name: 'achievements', component: () => import('./views/AchievementsView.vue'), props: true },
   { path: '/stats/:who?', name: 'stats', component: () => import('./views/StatsView.vue'), props: true },

@@ -24,14 +24,19 @@ function createApiRouter() {
     if (!req.is('application/json')) return res.status(415).json({ error: 'sendJson' });
     next();
   });
-  api.use(express.json({ limit: '20kb' }));
+  // 20kb is plenty for every change the site makes but one: a refund request is at least a thousand words, and in a
+  // language whose letters take four bytes apiece the longest one allowed (shared/refunds.js) does not fit.  That one
+  // path is parsed with a body large enough to hold it, and everything else keeps the smaller limit.
+  const ordinary = express.json({ limit: '20kb' });
+  const refunds = express.json({ limit: '128kb' });
+  api.use((req, res, next) => (req.path === '/refunds' ? refunds : ordinary)(req, res, next));
   return api;
 }
 
 /**
  * Registers every route on the app.
  * @param {import('express').Express} app
- * @param {{ auth: object, achievements: object, coins: object, shop: object, stats: object, modules: object, uploads: object, canUse: Function, listGames: () => object[], distDir: string }} deps
+ * @param {{ auth: object, achievements: object, coins: object, shop: object, refunds: object, stats: object, modules: object, uploads: object, canUse: Function, listGames: () => object[], distDir: string }} deps
  * @returns {void}
  * Side effects: adds all routes and middleware to the app (the order matters: API, then the client, then the error handler).
  */

@@ -170,7 +170,22 @@
     "use": "Use",
     "unlocked": "Unlocked",
     "buyFor": "Buy for {price}",
-    "short": "You need {n} more Gilders"
+    "short": "You need {n} more Gilders",
+    "refund": "Refund",
+    "refundTitle": "Ask for a refund"
+  },
+  "refund": {
+    "title": "Refund request",
+    "intro": "In no fewer than {min} words please describe which item you wish to refund and why.  This will be submitted to our customer support agents for review.  We will endeavour to get back to you within 20 working months with a decision.",
+    "label": "Which item you wish to refund, and why",
+    "counted": "{n} of {min} words",
+    "enough": "{n} words: long enough.",
+    "send": "Submit for review",
+    "sending": "Submitting…",
+    "sent": "Thank you.  Your request is with our customer support agents, who will get back to you within 20 working months.",
+    "again": "Write another one",
+    "locked": "Refunds are not among the things you have bought.",
+    "toShop": "Back to the shop"
   },
   "stats": {
     "title": "Statistics for {name}",
@@ -426,6 +441,8 @@
     "noSuchItem": "There is no such item.",
     "alreadyOwned": "You already have that.",
     "notEnoughGold": "You do not have enough Gilders for that.",
+    "refundTooShort": "A refund request must be no fewer than {min} words. That one is {n}.",
+    "refundTooLong": "A refund request cannot be longer than {max} characters.",
     "notInGame": "You are not in this game.",
     "notInAnyGame": "You are not in a game.",
     "notYourTurn": "It is not your turn.",

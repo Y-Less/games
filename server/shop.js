@@ -8,6 +8,7 @@ import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker } from '../shared/markerColours.js';
 import { SITE_FONTS, SITE_THEMES } from '../shared/siteThemes.js';
+import { REFUND_ITEM } from '../shared/refunds.js';
 import { createCoins } from './coins.js';
 import { transaction } from './db.js';
 
@@ -50,6 +51,8 @@ add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity 
 add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
 add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 600 });
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
+// Buying this turns the shop's Gilder count into a button that leads to the refund page (src/views/RefundView.vue).
+add({ id: REFUND_ITEM, type: 'unlock', name: 'Refunds', price: 1000 });
 
 for (const style of NAME_STYLES) add({ id: `ns:${style.id}`, type: 'name-style', name: style.name, price: style.price });
 for (const a of NAME_ANIMATIONS) add({ id: `na:${a.id}`, type: 'name-animation', name: a.name, price: a.price, part: a.part });

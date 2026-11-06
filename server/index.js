@@ -9,6 +9,7 @@ import { createAuth } from './auth.js';
 import { createAchievements } from './achievements.js';
 import { createCoins } from './coins.js';
 import { createPresence } from './presence.js';
+import { createRefunds } from './refunds.js';
 import { openDatabase, transaction } from './db.js';
 import { loadModules } from './modules.js';
 import { registerRoutes } from './routes/index.js';
@@ -45,6 +46,7 @@ export async function startSite(options = {}) {
   const auth = createAuth(db, { canUse });
   const shop = createShop(db);
   const coins = createCoins(db);
+  const refunds = createRefunds(db);
   let moduleList = [];
   const listGames = () => moduleList;
   // (io is made below, before anything can be recorded or played)
@@ -84,7 +86,7 @@ export async function startSite(options = {}) {
   moduleList = modules.list();
   for (const meta of moduleList) for (const problem of achievements.problems(meta)) log(`Achievement problem: ${problem}`);
 
-  registerRoutes(app, { auth, achievements, coins, shop, stats, presence, modules, uploads, canUse, listGames, distDir });
+  registerRoutes(app, { auth, achievements, coins, shop, refunds, stats, presence, modules, uploads, canUse, listGames, distDir });
 
   const sweep = setInterval(() => auth.deleteExpiredSessions(), 60 * 60 * 1000);
   sweep.unref();

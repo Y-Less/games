@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS trivia_questions (
   regions TEXT NOT NULL DEFAULT '[]',
   added_at INTEGER NOT NULL
 );
+-- What somebody wrote when they asked for a refund (the shop's "Refunds" unlock).  Nothing reads these back yet: they
+-- are, as the page promises, with the customer support agents.
+CREATE TABLE IF NOT EXISTS refund_requests (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  words INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS refund_requests_user ON refund_requests (user_id, created_at);
 CREATE INDEX IF NOT EXISTS trivia_questions_kind ON trivia_questions (category, difficulty);
 CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
 -- An achievement level pays once, even if it were settled twice.
