@@ -1,7 +1,6 @@
 {
   "entry": {
-    "intro": "One of you is in the dark. Can the rest of you work out who? You will play as {name}.",
-    "gameGone": "That game does not exist any more. Ask your friend for a fresh link."
+    "intro": "One of you is in the dark. Can the rest of you work out who? You will play as {name}."
   },
   "leave": {
     "takenOver": "A computer player will take over your seat and your score.",
@@ -9,7 +8,6 @@
   },
   "lobby": {
     "share": "Friends can join with the game code on the start screen, or with your invite link. You need at least {min} players.",
-    "playersLabel": "Players in this game",
     "allCards": "All cards",
     "playStyle": "Play style",
     "categories": "Card categories",
@@ -79,7 +77,6 @@
   },
   "popup": {
     "turns": "Turns as chooser",
-    "waiting": "waiting for the next round",
     "choosingWord": "choosing the word",
     "waitingForWord": "waiting for the word",
     "hasPlayed": "has played a card",
@@ -149,7 +146,6 @@
     "choosing": "{name} is choosing a word…",
     "lookAtHand": "While you wait, have a look at your hand.",
     "waitingFor": "Waiting for {names}…",
-    "joinedMidRound": "You joined mid-round, so you will be dealt in next round.",
     "everyonePlayed": "Everyone has played.",
     "yourWord": "This is your word. Waiting for everyone to play a card.",
     "cardPlayed": "Card played.",
@@ -169,7 +165,6 @@
     "willDecide": "{name} will decide who was in the dark.",
     "explainFavourite": "Explain why your card fits the word. If {name} picks yours you score {points}.",
     "explainDecide": "Explain why your card fits the word. If {name} is fooled, the imposter scores {points}.",
-    "joinNextRound": "You will join in next round.",
     "vote": "Your turn: vote for the player who did not see the word.",
     "voteIn": "Your vote is in. You can still change it.",
     "stillToVote": "Still to vote: {names}.",
@@ -201,9 +196,6 @@
     "imposterFooled": "{name} was the imposter. They fooled the table."
   },
   "errors": {
-    "enterName": "Please enter a name.",
-    "nameTooLong": "Names can be at most {max} characters.",
-    "nameTaken": "Someone is already using that name.",
     "handSizeRange": "Hand size must be between {min} and {max}.",
     "unknownJudging": "Unknown judging method.",
     "unknownCategory": "Unknown category.",
@@ -219,11 +211,9 @@
     "nobodyToPlay": "Nobody else is in this round to play a card.",
     "notPlayingThisRound": "You do not play a card this round.",
     "notTimeToVote": "It is not time to vote.",
-    "waitingNextRound": "You are waiting for the next round.",
     "chooserOnlyVotes": "In this game only the word-chooser votes.",
     "voteSelf": "You cannot vote for yourself.",
     "voteCardPlayer": "You can only vote for someone who played a card.",
-    "joinFirst": "Please join the game.",
-    "tooManyGames": "There are too many games running. Please try again later."
+    "alreadyInLobby": "The game is already in the lobby."
   }
 }

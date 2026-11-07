@@ -4,8 +4,7 @@
     "description": "nav Quj pIm: pegh'eghtaHvIS HurghDaq ghaH wa' QujwI', 'ej 'Iv nep 'e' luSamnIS latlhpu'."
   },
   "entry": {
-    "intro": "HurghDaq ghaHtaH wa' QujwI'. 'Iv ghaH 'e' luSamlaH latlhpu''a'? {name} DaQuj.",
-    "gameGone": "DaH tu'lu'be' Qujvetlh. juplIjvo' He chu' yItlhob."
+    "intro": "HurghDaq ghaHtaH wa' QujwI'. 'Iv ghaH 'e' luSamlaH latlhpu''a'? {name} DaQuj."
   },
   "leave": {
     "takenOver": "quSlIj mI'meylIj je tlhap De'wI' QujwI'.",
@@ -13,7 +12,6 @@
   },
   "lobby": {
     "share": "Quj taghmeH DaqDaq Quj mu' lo'taHvIS, pagh rI' HelIj lo'taHvIS, muvlaH juppu'. {min} pagh law' QujwI'pu' DapoQ.",
-    "playersLabel": "QujvamDaq QujwI'pu'",
     "allCards": "Hoch navmey",
     "playStyle": "Quj mIw",
     "categories": "nav buvmey",
@@ -83,7 +81,6 @@
   },
   "popup": {
     "turns": "wIvwI' Qu'mey",
-    "waiting": "may' veb loStaH",
     "choosingWord": "mu' wIvtaH",
     "waitingForWord": "mu' loStaH",
     "hasPlayed": "nav lanpu'",
@@ -153,7 +150,6 @@
     "choosing": "mu' wIvtaH {name}…",
     "lookAtHand": "bIloStaHvIS navmeylIj yIlegh.",
     "waitingFor": "{names} loSlu'…",
-    "joinedMidRound": "may' botlhDaq bImuvpu', vaj may' vebDaq navmey DaHev.",
     "everyonePlayed": "lanpu' Hoch.",
     "yourWord": "mu'lIj 'oH. nav lan Hoch 'e' loSlu'.",
     "cardPlayed": "lanlu'pu' nav.",
@@ -173,7 +169,6 @@
     "willDecide": "HurghDaq ghaHpu' 'Iv 'e' wuq {name}.",
     "explainFavourite": "qatlh mu'vaD QaQ navlIj yIQIj. navlIj wIvchugh {name}, {points} DaSuq.",
     "explainDecide": "qatlh mu'vaD QaQ navlIj yIQIj. tojlu'chugh {name}, {points} Suq tojwI'.",
-    "joinNextRound": "may' vebDaq bImuv.",
     "vote": "Qu'lIj: mu' leghbe'pu'bogh QujwI' yIwuq.",
     "voteIn": "wuqlIj tu'lu'. DachoHlaH.",
     "stillToVote": "wej wuq: {names}.",
@@ -205,9 +200,6 @@
     "imposterFooled": "tojwI' ghaHpu' {name}'e'. raS toj."
   },
   "errors": {
-    "enterName": "pong yIghItlh.",
-    "nameTooLong": "{max} ghItlhmey pagh puS ghaj pongmey.",
-    "nameTaken": "pongvetlh lo'taH vay'.",
     "handSizeRange": "{min}vo' {max} navmey ghajnIS ghop.",
     "unknownJudging": "wuq mIw Sovbe'lu'.",
     "unknownCategory": "buv Sovbe'lu'.",
@@ -223,11 +215,8 @@
     "nobodyToPlay": "may'vamDaq nav lanmeH latlh tu'lu'be'.",
     "notPlayingThisRound": "may'vamDaq nav Dalanbe'.",
     "notTimeToVote": "wuqmeH poH 'oHbe'.",
-    "waitingNextRound": "may' veb DaloStaH.",
     "chooserOnlyVotes": "QujvamDaq wuq mu' wIvwI' neH.",
     "voteSelf": "SoH'e' DawuqlaHbe'.",
-    "voteCardPlayer": "nav lanpu'bogh ghaH neH DawuqlaH.",
-    "joinFirst": "Quj yImuv.",
-    "tooManyGames": "Qujmey law'qu' QaptaH. tugh yInIDqa'."
+    "voteCardPlayer": "nav lanpu'bogh ghaH neH DawuqlaH."
   }
 }

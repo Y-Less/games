@@ -1,16 +1,17 @@
-// What Dixnt counts about each player in a game for the statistics and achievements (see module.json "stats").  The server
-// keeps one tally for each person in each game and calls tallyRound once a round is finished; nothing here changes the game.
+// What Dixnt counts about each player in a game for the statistics and achievements (see module.json "stats").  The
+// counters live on the player in the room, like their score, so they follow a place when it changes hands; the rules
+// call tallyRound once a round is finished (see game.js, completeRound).  Nothing here changes the game.
 // Depends on shared/tally.js for the counter helpers.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
 /** Everything counted, including what is only needed to work out a stat at the end. */
 const COUNTERS = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed', 'soleCorrect', 'favouritePicks', 'votesCast', 'votesAgainst', 'loneDissent'];
 /**
- * Creates an empty tally with every counter at zero.
- * @returns {object} a fresh tally
+ * Creates an empty set of counters, every one at zero (merged into a player when they are made).
+ * @returns {object} the counters
  * Side effects: none.
  */
-export const newTally = () => freshTally(COUNTERS);
+export const newCounters = () => freshTally(COUNTERS);
 
 /** The stats a game records for each person, besides the two worked out from the counters in statsExtras. */
 const RECORDED = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed', 'soleCorrect', 'favouritePicks', 'loneDissent'];
@@ -26,30 +27,31 @@ export const MIN_UNACCUSED_PLAYERS = 3;
 export const MIN_CROWD = 2;
 
 /**
- * Counts a finished round.
- *   tallyFor  (playerId) => the player's tally, or null for a computer player (they are not counted)
- *   pickers   the ids of the players who played a card
- *   results   the round's results (see Game: judging, imposterId, groupCorrect, winnerId, votes)
- * @param {(playerId: string) => (object | null)} tallyFor  looks up a person's tally (null for computer players)
- * @param {{ pickers: string[], results: object }} round  who played a card and the round's results
+ * Counts a finished round.  Every id is a real player id (a table keyed by player id has text keys, and a person's
+ * id is their account number), which is why the votes arrive as pairs rather than as the results' own object.
+ *
+ * @param {(playerId: number | string) => (object | null)} counterOf  a person's counters (null for a computer player)
+ * @param {{ pickers: Array<number | string>, votes: Array<Array<number | string>>, results: object }} round
+ *   who played a card, every vote as [voter, who they voted for], and the round's results (judging, imposterId,
+ *   groupCorrect, winnerId)
  * @returns {void} nothing
- * Side effects: increments counters on the tallies returned by `tallyFor`.
+ * Side effects: increments counters on the objects `counterOf` returns.
  */
-export function tallyRound(tallyFor, { pickers, results }) {
-  // Bumps one counter for a player, skipping computer players (tallyFor gives null).
+export function tallyRound(counterOf, { pickers, votes, results }) {
+  // Bumps one counter for a player, skipping computer players (counterOf gives null).
   const count = (id, key) => {
-    const tally = tallyFor(id);
-    if (tally) bump(tally, key);
+    const counters = counterOf(id);
+    if (counters) bump(counters, key);
   };
   for (const id of pickers) count(id, 'cardsPlayed');
   if (results.judging === 'favourite') {
-    if (results.winnerId) count(results.winnerId, 'favouritePicks');
+    if (results.winnerId !== null && results.winnerId !== undefined) count(results.winnerId, 'favouritePicks');
     return;
   }
-  if (!results.imposterId) return;
+  if (results.imposterId === null || results.imposterId === undefined) return;
   count(results.imposterId, 'roundsAsImposter');
   if (!results.groupCorrect) count(results.imposterId, 'timesFooledGroup');
-  const guesses = Object.entries(results.votes).filter(([voterId]) => voterId !== results.imposterId);
+  const guesses = votes.filter(([voterId]) => voterId !== results.imposterId);
   for (const [voterId, targetId] of guesses) {
     count(voterId, 'votesCast');
     if (targetId === results.imposterId) count(voterId, 'correctGuesses');
@@ -57,8 +59,8 @@ export function tallyRound(tallyFor, { pickers, results }) {
   const right = guesses.filter(([, targetId]) => targetId === results.imposterId);
   if (!results.groupCorrect && results.judging === 'everyone' && right.length === 1) count(right[0][0], 'soleCorrect');
   // Every vote names somebody as the imposter, the imposter's own vote included: a player no vote ever names is above suspicion.
-  for (const targetId of Object.values(results.votes)) count(targetId, 'votesAgainst');
-  if (results.judging === 'everyone') countLoneDissent(count, results.votes);
+  for (const [, targetId] of votes) count(targetId, 'votesAgainst');
+  if (results.judging === 'everyone') countLoneDissent(count, votes);
 }
 
 /**
@@ -66,29 +68,28 @@ export function tallyRound(tallyFor, { pickers, results }) {
  * counts as that voter: nobody may vote for their own card, so being the accused would otherwise be dissent by itself.
  * The group must be a real one (MIN_CROWD agreeing), and a tie for the most votes settles on no card at all.
  *
- * @param {(id: string, key: string) => void} count  bumps a counter for a person (computer players are skipped)
- * @param {Record<string, string>} votes  every vote of the round, as voter id to the id they voted for
+ * @param {(id: number | string, key: string) => void} count  bumps a counter for a person (computer players are skipped)
+ * @param {Array<Array<number | string>>} votes  every vote of the round, as [voter, who they voted for]
  * @returns {void} nothing
  * Side effects: increments `loneDissent` on the lone dissenter, when there is exactly one.
  */
 function countLoneDissent(count, votes) {
-  const entries = Object.entries(votes);
   const counts = new Map();
-  for (const [, targetId] of entries) counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
+  for (const [, targetId] of votes) counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
   const most = Math.max(0, ...counts.values());
   const leaders = [...counts].filter(([, n]) => n === most).map(([id]) => id);
   if (leaders.length !== 1) return; // a tie: the group settled on nothing to stand against
   const [card] = leaders;
-  const agreed = entries.filter(([voterId, targetId]) => targetId === card && voterId !== card);
-  const against = entries.filter(([voterId, targetId]) => targetId !== card && voterId !== card);
+  const agreed = votes.filter(([voterId, targetId]) => targetId === card && voterId !== card);
+  const against = votes.filter(([voterId, targetId]) => targetId !== card && voterId !== card);
   if (agreed.length >= MIN_CROWD && against.length === 1) count(against[0][0], 'loneDissent');
 }
 
 /**
- * What to record for a person when the game ends.  The game's own facts come in beside the tally: how many people were
- * playing at the end, and what this person finished on.
+ * What to record for a person when the game ends.  The game's own facts come in beside the counters: how many people
+ * were playing at the end, and what this person finished on.
  *
- * @param {object} tally  the person's finished tally
+ * @param {object} tally  the person's finished counters (the player themselves: the counters live on them)
  * @param {{ players?: number, score?: number|null }} [game]  the people left in the game, and this person's final score
  * @returns {object} the stat values to record, plus mostFooled, spymaster (they accused the imposter in every voting
  *   round, over enough rounds), neverAccused (no vote all game ever named them, over enough rounds as the imposter) and

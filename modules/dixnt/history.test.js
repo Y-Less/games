@@ -1,43 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Game } from './game.js';
+import { createRules } from './game.js';
+import { makeRoom, range } from './harness.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 
-const range = (start, count) => Array.from({ length: count }, (_, i) => start + i);
-
-function seededRng(seed = 7) {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-}
-
-const newGame = (saved = null) => new Game({ getCardIds: () => range(1, 200), hints: [], rng: seededRng(), saved });
-
-function setup(names, judging = 'everyone') {
-  const game = newGame();
-  const players = names.map((n) => game.addPlayer(n, `token-${n}`));
-  game.setJudging(players[0].id, judging);
-  return { game, players, host: players[0] };
-}
+const rules = () => createRules({ getCardIds: () => range(1, 200) });
+const setup = (names, judging = 'everyone') => makeRoom(names, { cardCount: 200, seed: 7, judging });
 
 /** Plays a round to its results. `right` says whether everyone who votes names the imposter. */
-function playRound(game, { right = true } = {}) {
-  const s = game.s;
-  game.submitWord(s.chooserId, 'a word');
-  for (const p of game.cardPlayers()) game.playCard(p.id, p.hand[0]);
-  for (const voter of game.voters()) {
-    const targets = game.cardPlayers().filter((p) => p.id !== voter.id);
-    const target = right ? targets.find((p) => p.id === s.imposterId) : targets.find((p) => p.id !== s.imposterId);
-    game.vote(voter.id, (target ?? targets[0]).id);
+function playRound({ game, room, rng }, { right = true } = {}) {
+  game.submitWord(room, room.chooserId, 'a word', rng);
+  for (const p of game.cardPlayers(room)) game.playCard(room, p.id, p.hand[0], rng);
+  for (const voter of game.voters(room)) {
+    const targets = game.cardPlayers(room).filter((p) => p.id !== voter.id);
+    const target = right ? targets.find((p) => p.id === room.imposterId) : targets.find((p) => p.id !== room.imposterId);
+    game.vote(room, voter.id, (target ?? targets[0]).id);
   }
-  assert.equal(s.phase, 'results');
+  assert.equal(room.phase, 'results');
 }
 
-const everyView = (game, connected) => game.s.players.map((p) => game.viewFor(p.id, connected));
+const everyView = ({ game, room }, online) => room.players.map((p) => game.viewFor(room, p.id, online ? { online } : {}));
 
-function assertAddsUp(game) {
-  for (const view of everyView(game)) {
+function assertAddsUp(made) {
+  for (const view of everyView(made)) {
     const { players, rounds, lowIsBetter } = view.scoreboard;
     assert.equal(lowIsBetter, false);
     assert.equal('target' in view.scoreboard, false, 'Dixnt has no target score');
@@ -47,29 +32,31 @@ function assertAddsUp(game) {
 }
 
 test('every completed round is added to the history, with notes, and the totals equal the scores', () => {
-  const { game, host } = setup(['Ann', 'Bob', 'Cat', 'Dan']);
-  game.start(host.id);
-  assert.deepEqual(game.viewFor(host.id).scoreboard.rounds, []);
+  const made = setup(['Ann', 'Bob', 'Cat', 'Dan']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.rounds, []);
   for (let i = 1; i <= 3; i++) {
-    const chooserId = game.s.chooserId;
-    playRound(game, { right: i % 2 === 1 });
-    const rounds = game.viewFor(host.id).scoreboard.rounds;
+    const chooserId = room.chooserId;
+    playRound(made, { right: i % 2 === 1 });
+    const rounds = game.viewFor(room, 1).scoreboard.rounds;
     assert.equal(rounds.length, i);
     const last = rounds.at(-1);
     assert.deepEqual(last.label, { key: 'round.label', params: { n: i } });
-    assert.deepEqual(last.deltas, game.s.results.deltas);
+    assert.deepEqual(last.deltas, room.results.deltas);
     assert.deepEqual(last.notes[chooserId], { key: 'notes.chooser' });
-    assert.ok(['notes.imposterCaught', 'notes.imposterFooledAll'].includes(last.notes[game.s.imposterId].key));
-    assertAddsUp(game);
-    game.nextRound(host.id);
+    assert.ok(['notes.imposterCaught', 'notes.imposterFooledAll'].includes(last.notes[room.imposterId].key));
+    assertAddsUp(made);
+    game.nextRound(room, 1, rng);
   }
 });
 
 test('the scoreboard shape is the same for everybody, with isMe and away set per viewer', () => {
-  const { game, players } = setup(['Ann', 'Bob', 'Cat']);
-  game.start(players[0].id);
-  playRound(game);
-  const views = everyView(game, new Set([players[0].id, players[1].id]));
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  const views = everyView(made, (id) => id === 1 || id === 2);
   assert.deepEqual(views[0].scoreboard.rounds, views[2].scoreboard.rounds);
   assert.deepEqual(views[0].scoreboard.players.map((p) => p.isMe), [true, false, false]);
   assert.deepEqual(views[1].scoreboard.players.map((p) => p.isMe), [false, true, false]);
@@ -77,106 +64,133 @@ test('the scoreboard shape is the same for everybody, with isMe and away set per
   assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score', 'userId']);
 });
 
-test('the scoreboard names each person by account id, which is what the site needs for name styles and avatars', () => {
-  const game = newGame();
-  const ann = game.addPlayer('Ann', 'user:7');
-  game.addPlayer('Bob', 'user:12');
-  game.addPlayer('Cat', 'user:3');
-  game.addBot(ann.id);
-  const { players } = game.viewFor(ann.id, new Set()).scoreboard;
-  assert.deepEqual(players.map((p) => p.userId), [7, 12, 3, undefined], 'accounts, and nothing for a computer player');
-  assert.notEqual(players[0].id, 7, "the seat id is the game's own, not the account");
+test('the scoreboard names each person by their account, which is what the site needs for name styles and avatars', () => {
+  const { game, room } = makeRoom(['Ann'], { cardCount: 200 });
+  assert.equal(game.addHuman(room, 12, 'Bob').ok, true);
+  assert.equal(game.addHuman(room, 3, 'Cat').ok, true);
+  assert.equal(game.addBot(room, 1).ok, true);
+  const { players } = game.viewFor(room, 1).scoreboard;
+  assert.deepEqual(players.map((p) => p.userId), [1, 12, 3, undefined], 'accounts, and nothing for a computer player');
+  assert.deepEqual(players.map((p) => p.id), [1, 12, 3, 'bot:1'], 'a person is their account; a computer player is not one');
 });
 
 test('nothing is revealed early: the history only grows when the round is over', () => {
-  const { game, host } = setup(['Ann', 'Bob', 'Cat']);
-  game.start(host.id);
-  playRound(game);
-  game.nextRound(host.id);
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  game.nextRound(room, 1, rng);
   // `current` marks who must act, so it moves as the round goes on; the scores and rounds must not.
-  const scores = () => JSON.stringify({ ...game.viewFor(host.id).scoreboard, players: game.viewFor(host.id).scoreboard.players.map(({ current, ...p }) => p) });
+  const board = () => game.viewFor(room, 1).scoreboard;
+  const scores = () => JSON.stringify({ ...board(), players: board().players.map(({ current, ...p }) => p) });
   const before = scores();
-  assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.current), game.s.players.map((p) => p.id === game.s.chooserId), 'the chooser is to act');
-  game.submitWord(game.s.chooserId, 'word');
+  assert.deepEqual(board().players.map((p) => p.current), room.players.map((p) => p.id === room.chooserId), 'the chooser is to act');
+  game.submitWord(room, room.chooserId, 'word', rng);
   assert.equal(scores(), before, 'choosing the word changes nothing');
-  assert.deepEqual(game.viewFor(host.id).scoreboard.players.map((p) => p.current), game.s.players.map((p) => p.id !== game.s.chooserId), 'now everybody else is to play a card');
-  for (const p of game.cardPlayers()) game.playCard(p.id, p.hand[0]);
+  assert.deepEqual(board().players.map((p) => p.current), room.players.map((p) => p.id !== room.chooserId), 'now everybody else is to play a card');
+  for (const p of game.cardPlayers(room)) game.playCard(room, p.id, p.hand[0], rng);
   assert.equal(scores(), before, 'neither does voting time');
 });
 
 test('abandoned rounds are not recorded, and labels count completed rounds only', () => {
-  const { game, host } = setup(['Ann', 'Bob', 'Cat']);
-  game.start(host.id);
-  playRound(game);
-  game.nextRound(host.id);
-  game.submitWord(game.s.chooserId, 'word');
-  game.abortRound(host.id);
-  game.abortRound(host.id);
-  assert.equal(game.s.history.length, 1);
-  playRound(game);
-  assert.deepEqual(game.s.history.map((r) => r.label), [{ key: 'round.label', params: { n: 1 } }, { key: 'round.label', params: { n: 2 } }]);
-  assertAddsUp(game);
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  game.nextRound(room, 1, rng);
+  game.submitWord(room, room.chooserId, 'word', rng);
+  game.abortRound(room, 1, rng);
+  game.abortRound(room, 1, rng);
+  assert.equal(room.history.length, 1);
+  playRound(made);
+  assert.deepEqual(room.history.map((r) => r.label), [{ key: 'round.label', params: { n: 1 } }, { key: 'round.label', params: { n: 2 } }]);
+  assertAddsUp(made);
 });
 
 test('every judging style records its own notes and still adds up', () => {
   for (const judging of ['chooser', 'favourite']) {
-    const { game, host } = setup(['Ann', 'Bob', 'Cat'], judging);
-    game.start(host.id);
-    const chooserId = game.s.chooserId;
-    playRound(game, { right: false });
-    const { notes, deltas } = game.s.history[0];
+    const made = setup(['Ann', 'Bob', 'Cat'], judging);
+    const { game, room, rng } = made;
+    game.start(room, 1, rng);
+    const chooserId = room.chooserId;
+    playRound(made, { right: false });
+    const { notes, deltas } = room.history[0];
     assert.equal(Object.values(deltas).reduce((a, b) => a + b, 0) > 0, true);
     if (judging === 'chooser') assert.deepEqual(notes[chooserId], { key: 'notes.chooserFooled' });
     else assert.ok(Object.values(notes).some((note) => note.key === 'notes.cardPicked'));
-    assertAddsUp(game);
+    assertAddsUp(made);
   }
 });
 
-test('late joiners show with a score of nothing, and a player who leaves is removed from the table', () => {
-  const { game, host, players } = setup(['Ann', 'Bob', 'Cat', 'Dan']);
-  game.start(host.id);
-  playRound(game);
-  const late = game.addPlayer('Eve', 'token-Eve');
-  game.nextRound(host.id);
-  playRound(game);
-  game.nextRound(host.id);
-  const view = game.viewFor(late.id);
-  assert.equal(view.scoreboard.players.find((p) => p.id === late.id).score >= 0, true);
-  assertAddsUp(game);
-  game.removePlayer(host.id, players[3].id);
-  for (const round of game.s.history) assert.equal(players[3].id in round.deltas, false);
-  assert.equal(game.s.history.length >= 2, true);
-  assertAddsUp(game);
+test('a place that changes hands keeps its column, so the table still adds up', () => {
+  const made = setup(['Ann', 'Bob', 'Cat', 'Dan']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  game.nextRound(room, 1, rng);
+  playRound(made);
+  game.nextRound(room, 1, rng);
+  assertAddsUp(made);
+
+  const dan = game.playerOf(room, 4);
+  const score = dan.score;
+  assert.equal(game.kick(room, 1, 4, rng, 0).ok, true);
+  const stand = room.players[3];
+  assert.equal(stand.kind, 'bot');
+  assert.equal(stand.score, score, 'the computer player inherits the score');
+  assert.equal(room.history.every((round) => !(4 in round.deltas)), true, 'and the column with it');
+  assert.equal(room.history.length >= 2, true);
+  assertAddsUp(made);
 });
 
-test('the history survives saving, and the lobby clears it', () => {
-  const { game, host } = setup(['Ann', 'Bob', 'Cat']);
-  game.start(host.id);
-  playRound(game);
-  const copy = newGame(JSON.parse(JSON.stringify(game)));
-  assert.deepEqual(copy.s.history, game.s.history);
-  assertAddsUp(copy);
-  game.returnToLobby(host.id);
-  assert.deepEqual(game.viewFor(host.id).scoreboard.rounds, []);
-  assert.ok(game.viewFor(host.id).scoreboard.players.every((p) => p.score === 0));
+test('the history survives saving, and starting again clears it', () => {
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  const copy = rules().migrate(JSON.parse(JSON.stringify(room)));
+  assert.deepEqual(copy.history, room.history);
+  assertAddsUp({ game: rules(), room: copy });
+  game.playAgain(room, 1);
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.rounds, []);
+  assert.ok(game.viewFor(room, 1).scoreboard.players.every((p) => p.score === 0));
 });
 
 test('older saves without a history still load: existing scores become one "Earlier rounds" row', () => {
-  const { game, host } = setup(['Ann', 'Bob', 'Cat']);
-  game.start(host.id);
-  playRound(game);
-  game.nextRound(host.id);
-  const old = JSON.parse(JSON.stringify(game));
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  game.nextRound(room, 1, rng);
+  const old = JSON.parse(JSON.stringify(room));
   delete old.history;
-  const loaded = newGame(old);
-  const { rounds } = loaded.viewFor(host.id).scoreboard;
+  const game2 = rules();
+  const loaded = game2.migrate(old);
+  const { rounds } = game2.viewFor(loaded, 1).scoreboard;
   assert.equal(rounds.length, 1);
   assert.deepEqual(rounds[0].label, { key: 'round.earlier' });
-  assertAddsUp(loaded);
-  playRound(loaded);
-  assert.deepEqual(loaded.s.history.map((r) => r.label), [{ key: 'round.earlier' }, { key: 'round.label', params: { n: 2 } }]);
-  assertAddsUp(loaded);
+  assertAddsUp({ game: game2, room: loaded });
+  playRound({ game: game2, room: loaded, rng });
+  assert.deepEqual(loaded.history.map((r) => r.label), [{ key: 'round.earlier' }, { key: 'round.label', params: { n: 2 } }]);
+  assertAddsUp({ game: game2, room: loaded });
 
-  const lobby = newGame({ phase: 'lobby', players: [] });
-  assert.deepEqual(lobby.s.history, []);
+  const empty = rules().migrate({ phase: 'lobby', players: [] });
+  assert.deepEqual(empty.history, []);
+});
+
+test('a save from when a vote was worth a hundred points is scaled down, once', () => {
+  const made = setup(['Ann', 'Bob', 'Cat']);
+  const { game, room, rng } = made;
+  game.start(room, 1, rng);
+  playRound(made);
+  const old = JSON.parse(JSON.stringify(room));
+  delete old.pointScale;
+  for (const p of old.players) p.score *= 100;
+  for (const round of old.history) for (const id of Object.keys(round.deltas)) round.deltas[id] *= 100;
+  const game2 = rules();
+  const loaded = game2.migrate(old);
+  assert.deepEqual(loaded.players.map((p) => p.score), room.players.map((p) => p.score));
+  game2.migrate(loaded);
+  assert.deepEqual(loaded.players.map((p) => p.score), room.players.map((p) => p.score), 'loading it again does not scale it twice');
+  assertAddsUp({ game: game2, room: loaded });
 });

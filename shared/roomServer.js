@@ -175,27 +175,51 @@ export function createRoomServer(ctx, options) {
   let saveTimer = null;
 
   /**
-   * Reads the saved rooms, if any.  A missing file is normal; an unreadable file is logged and the rooms start empty; one
+   * Keeps a damaged rooms file out of harm's way: copies it to rooms.json.corrupt (or, if that already exists,
+   * rooms.json.corrupt-<time>) so that the next save does not overwrite the only copy of everybody's games.
+   * @returns {string | null} the path of the copy, or null if it could not be made
+   * Side effects: writes a file next to rooms.json; logs a failure.
+   */
+  function keepCorruptCopy() {
+    let target = `${file}.corrupt`;
+    if (fs.existsSync(target)) target = `${file}.corrupt-${now()}`;
+    try {
+      fs.copyFileSync(file, target);
+      return target;
+    } catch (error) {
+      ctx.log('could not keep a copy of the damaged saved games:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Reads the saved rooms, if any.  A missing file is normal.  A file that cannot be read or parsed is logged and the
+   * rooms start empty, and a copy of it is kept beside it so that the next save does not throw the only copy away.  One
    * room that cannot be brought up to date is logged and skipped, so it does not take the others down with it.
    * @returns {void}
-   * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room) and may log errors.
+   * Side effects: fills the `rooms` map from disk (running `migrate` on each saved room), may copy the file and log errors.
    */
   function loadRooms() {
     let saved;
     try {
       saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (error) {
-      if (error.code !== 'ENOENT') ctx.log('could not read the saved games:', error.message);
+      if (error.code === 'ENOENT') return;
+      const copy = keepCorruptCopy();
+      ctx.log(`the saved games are corrupt (${error.message}); starting with none${copy ? `, a copy is in ${copy}` : ''}`);
       return;
     }
+    let damaged = 0;
     for (const entry of Array.isArray(saved) ? saved : []) {
       try {
         const room = migrate ? migrate(entry) ?? entry : entry;
         rooms.set(room.code, room);
       } catch (error) {
+        damaged++;
         ctx.log(`could not load the saved game ${entry?.code}:`, error.message);
       }
     }
+    if (damaged) ctx.log(`${damaged} saved game(s) could not be loaded; a copy of the file is in ${keepCorruptCopy()}`);
   }
 
   /**

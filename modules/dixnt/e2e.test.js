@@ -152,7 +152,7 @@ async function playToEnd(humans, { vote = (p, round) => p.state.voteTargets[roun
       await waitFor(() => host.state.phase !== 'word' || roundOf() !== round, 'the word to be chosen');
     } else if (phase === 'picking') {
       for (const p of humans) {
-        if (p.state.me.isChooser || p.state.me.waiting || p.state.me.myPick !== null) continue;
+        if (p.state.me.isChooser || p.state.me.myPick !== null) continue;
         const reply = await p.call('playCard', { cardId: p.state.me.hand[0] });
         assert.equal(reply.ok, true, reply.error);
       }
@@ -197,14 +197,15 @@ function assertScoreboard(people, rounds) {
 function expectedExtras(rounds) {
   const extras = {};
   const of = (name) => (extras[name] ??= { roundsAsImposter: 0, timesFooledGroup: 0, correctGuesses: 0, cardsPlayed: 0 });
+  // A table keyed by a player id has text keys, while a person's id is their account number: compare as text.
   for (const { results, chooserId, names } of rounds) {
-    for (const id of Object.keys(names)) if (id !== chooserId) of(names[id]).cardsPlayed++;
+    for (const id of Object.keys(names)) if (id !== String(chooserId)) of(names[id]).cardsPlayed++;
     if (!results.imposterId) continue;
     const imposter = of(names[results.imposterId]);
     imposter.roundsAsImposter++;
     if (!results.groupCorrect) imposter.timesFooledGroup++;
     for (const [voterId, targetId] of Object.entries(results.votes)) {
-      if (targetId === results.imposterId && voterId !== results.imposterId) of(names[voterId]).correctGuesses++;
+      if (String(targetId) === String(results.imposterId) && voterId !== String(results.imposterId)) of(names[voterId]).correctGuesses++;
     }
   }
   return extras;
@@ -262,8 +263,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   await until(() => ann.state.players.length === 4, 'the twin to leave');
 
   assert.equal((await bob.call('start')).ok, false, 'only the host can start');
-  assert.equal((await ann.call('setRounds', { count: 1 })).ok, true);
-  assert.equal((await ann.call('setHandSize', { size: 8 })).ok, true);
+  assert.equal((await ann.call('settings', { roundsEach: 1, handSize: 8 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => cat.state?.phase === 'word', 'the game to start');
   assert.equal(cat.state.me.hand.length, 8);
@@ -285,7 +285,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   const again = person('bob');
   again.cookie = bob.cookie;
   await again.connect();
-  assert.equal((await again.call('resume')).ok, false, 'a finished game is not resumed without its code');
+  assert.equal((await again.call('resume')).code, null, 'a finished game is not resumed without its code');
   assert.equal((await again.call('resume', { code: bob.state.code })).ok, true);
   await until(() => again.state, 'the state after resuming');
   assert.equal(again.state.me.id, bob.state.me.id);
@@ -297,7 +297,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   for (const p of players) await assertRecorded(p, final, rounds);
 
   // Going back to the lobby afterwards does not record it again.
-  assert.equal((await ann.call('endGame')).ok, true);
+  assert.equal((await ann.call('again')).ok, true);
   await until(() => ann.state.phase === 'lobby', 'the lobby');
   await sleep(100);
   for (const p of players) assert.equal((await p.stats()).perGame[0].played, 1);
@@ -309,10 +309,10 @@ test('a game ended early by the host, or abandoned, is not recorded', async (t) 
   const [ann, bob, cat, dan] = players;
   await ann.join();
   for (const p of [bob, cat, dan]) await p.join(ann.code);
-  await ann.call('setRounds', { count: 1 });
+  await ann.call('settings', { roundsEach: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
-  assert.equal((await ann.call('endGame')).ok, true, 'the host ends it early');
+  assert.equal((await ann.call('again')).ok, true, 'the host ends it early');
   await until(() => ann.state.phase === 'lobby', 'the lobby');
 
   await ann.call('start');
@@ -334,8 +334,7 @@ test('a tied game counts as a win for every tied winner, with a shared placement
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('setJudging', { mode: 'favourite' });
-  await ann.call('setRounds', { count: 1 });
+  await ann.call('settings', { judging: 'favourite', roundsEach: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
 
@@ -363,8 +362,7 @@ test('the chooser-decides style records who fooled the chooser', async (t) => {
   const [ann, bob, cat, dan] = players;
   await ann.join();
   for (const p of [bob, cat, dan]) await p.join(ann.code);
-  await ann.call('setJudging', { mode: 'chooser' });
-  await ann.call('setRounds', { count: 1 });
+  await ann.call('settings', { judging: 'chooser', roundsEach: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   const rounds = await playToEnd(players);
@@ -379,7 +377,7 @@ test('the game state, and the fact that it was recorded, survive a restart', asy
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('setRounds', { count: 1 });
+  await ann.call('settings', { roundsEach: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   const hand = bob.state.me.hand;
@@ -430,7 +428,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('setRounds', { count: 2 });
+  await ann.call('settings', { roundsEach: 2 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   assert.equal((await ann.call('abortRound')).ok, true, 'the host skips the first round');
@@ -470,10 +468,11 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   await second.site.stop();
 
   // An older save has scores but no history: it loads, with the scores as one earlier row.
-  const file = path.join(first.dataDir, 'site', 'modules', 'dixnt', 'games.json');
+  const file = path.join(first.dataDir, 'site', 'modules', 'dixnt', 'rooms.json');
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.equal(saved.games[code].game.history.length, 1, 'the history is in the save file');
-  delete saved.games[code].game.history;
+  const room = saved.find((r) => r.code === code);
+  assert.equal(room.history.length, 1, 'the history is in the save file');
+  delete room.history;
   fs.writeFileSync(file, JSON.stringify(saved));
   const third = await reload('from the old save');
   assertScoreboard(third.again, 1);
@@ -497,9 +496,7 @@ async function playComputerGame(t, { judging, categories }) {
     [['alpha', 120, true], ['beta', 120, true]],
     'the server offers both categories, all selected by default',
   );
-  assert.equal((await human.call('setJudging', { mode: judging })).ok, true);
-  assert.equal((await human.call('setCategories', { keys: categories })).ok, true);
-  assert.equal((await human.call('setRounds', { count: 1 })).ok, true);
+  assert.equal((await human.call('settings', { judging, categories, roundsEach: 1 })).ok, true);
 
   assert.equal((await human.call('fillBots', { count: 4 })).ok, true);
   await until(() => human.state?.players.length === 4, 'the computer players to join');
@@ -569,22 +566,23 @@ test('several games run side by side, each with its own invite code', async (t) 
   assert.equal(ann.state.code, ann.code);
 
   // Settings in one game do not touch the other.
-  assert.equal((await ann.call('setHandSize', { size: 5 })).ok, true);
+  assert.equal((await ann.call('settings', { handSize: 5 })).ok, true);
   await until(() => ann.state.handSize === 5, 'the hand size to change');
   assert.notEqual(dan.state.handSize, 5);
-  assert.equal((await bob.call('setHandSize', { size: 6 })).ok, false, 'only the host of a game can change it');
+  assert.equal((await bob.call('settings', { handSize: 6 })).ok, false, 'only the host of a game can change it');
 
-  // The same account in the second game: resume without a code finds the most recently used one.
-  assert.equal((await bob.join(dan.code)).ok, true);
-  await until(() => dan.state.players.length === 3, 'bob to join the second game');
-  assert.equal(bob.state.code, dan.code);
+  // One game at a time: bob is in ann's, so the other one is refused and he stays where he is.
+  const elsewhere = await bob.call('join', { code: dan.code });
+  assert.equal(elsewhere.ok, false, 'already in a game');
+  assert.equal(elsewhere.params.code, ann.code, 'and is told which');
+  await until(() => bob.state?.code === ann.code, 'bob still in the first game');
+  assert.equal(dan.state.players.length, 2);
 
-  // Unknown codes are refused, and a lookup says whether a game exists.
+  // Unknown codes are refused, and somebody in no game has nothing to come back to.
   assert.equal((await fay.join('no-such-game')).ok, false);
-  assert.equal((await fay.call('lookup', { code: `?${ann.code}` })).exists, true);
-  assert.equal((await fay.call('lookup', { code: 'no-such-game' })).exists, false);
-  assert.equal((await fay.call('resume', { code: dan.code })).ok, false, 'only players can resume');
-  assert.equal((await fay.call('resume')).ok, false, 'and an account in no game has nothing to resume');
+  assert.equal((await fay.call('resume')).code, null, 'an account in no game has nothing to resume');
+  assert.equal((await fay.call('resume', { code: dan.code })).ok, true, 'a code in a resume is an invitation, and takes you in');
+  await until(() => dan.state.players.length === 3, 'fay in the second game');
 
   // The same account on a second device sees the same game.
   const laptop = gus;
@@ -600,9 +598,8 @@ test('several games run side by side, each with its own invite code', async (t) 
   // The last player leaving closes the game, and its code stops working.
   assert.equal((await dan.call('leave')).ok, true);
   assert.equal((await eve.call('leave')).ok, true);
-  assert.equal((await bob.call('leave')).ok, true);
+  assert.equal((await fay.call('leave')).ok, true);
   assert.equal((await fay.join(dan.code)).ok, false, 'the game is gone');
-  assert.equal((await ann.call('lookup', { code: dan.code })).exists, false);
 });
 
 test('the card images are served from the module and the hint list loads', async (t) => {

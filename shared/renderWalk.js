@@ -34,7 +34,7 @@ export function fakeSocket() {
  */
 export function isMemberView(view) {
   if (!view) return false;
-  if (view.me !== undefined) return view.me !== null; // Dixnt
+  if (view.me !== undefined) return view.me !== null && view.me?.id !== null; // Dixnt (an outsider's view has no `me.id`)
   if (Array.isArray(view.seats) && typeof view.you === 'number') return view.you !== -1 && Boolean(view.seats[view.you]);
   if (Array.isArray(view.players)) return view.players.some((p) => p.id === view.you);
   return true;

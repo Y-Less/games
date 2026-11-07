@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertNoPollution, fuzzEvent, garbageValues, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SECRET_WORD = 'zebra-quartz-secret';
@@ -28,28 +28,31 @@ function makeFakeCards(dataDir) {
 
 /** The events the module handles, with the payload fields each one reads. */
 const EVENTS = {
-  lookup: ['code'],
   resume: ['code'],
   create: [],
   join: ['code'],
   leave: [],
-  setHandSize: ['size'],
-  setRounds: ['count'],
-  setJudging: ['mode'],
-  setCategories: ['keys'],
+  kick: ['userId'],
+  voteKick: ['userId'],
+  voteAnswer: ['agree'],
+  voteDrop: [],
+  settings: ['handSize', 'roundsEach', 'judging', 'categories'],
+  addBot: ['seat'],
+  fillBots: ['count'],
+  removeBot: ['seat'],
   start: [],
-  endGame: [],
+  again: [],
   hints: [],
   submitWord: ['word'],
   playCard: ['cardId'],
   vote: ['targetId'],
   nextRound: [],
   abortRound: [],
-  removePlayer: ['targetId'],
-  addBot: [],
-  fillBots: ['count'],
-  removeBot: ['targetId'],
 };
+
+test('this test knows every socket event the server handles', () => {
+  assert.deepEqual(handledSocketEvents(here), Object.keys(EVENTS).sort());
+});
 
 /** Checks one view for internal consistency. */
 function assertValidView(view, who) {
@@ -100,7 +103,7 @@ async function playToEnd(people, { timeout = 20000 } = {}) {
       if (!s) continue;
       let reply = null;
       if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: SECRET_WORD });
-      else if (s.phase === 'picking' && !s.me.isChooser && !s.me.waiting && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
+      else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
       else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
       else if (s.phase === 'results' && p === host) reply = await p.call('nextRound');
       if (reply) {
@@ -131,7 +134,7 @@ test('every socket event survives garbage in every phase, and a normal game can 
   async function reach(phase) {
     await fresh();
     if (phase === 'lobby') return;
-    assert.equal((await ann.call('setRounds', { count: 1 })).ok, true);
+    assert.equal((await ann.call('settings', { roundsEach: 1 })).ok, true);
     assert.equal((await ann.call('start')).ok, true);
     await until(() => trio.every((p) => p.state?.phase === 'word'), 'the word phase');
     if (phase === 'word') return;
@@ -161,7 +164,7 @@ test('every socket event survives garbage in every phase, and a normal game can 
         calls += await fuzzEvent(person, event, fields, { secrets: secretsFor(person) });
       }
       await sleep(5);
-      const ping = await ann.call('lookup', { code: 'boss-aware-you' });
+      const ping = await ann.call('resume', {});
       assert.equal(ping.ok, true, `${phase}/${event}: the server still answers`);
       assertAllViewsValid([ann, bob, cat, eve]);
       for (const p of [ann, bob, cat, eve]) p.states.length = 0;
@@ -173,8 +176,7 @@ test('every socket event survives garbage in every phase, and a normal game can 
 
   // The module still works for a normal game, start to finish.
   await fresh();
-  assert.equal((await ann.call('setRounds', { count: 1 })).ok, true);
-  assert.equal((await ann.call('setJudging', { mode: 'favourite' })).ok, true);
+  assert.equal((await ann.call('settings', { roundsEach: 1, judging: 'favourite' })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await playToEnd(trio);
   assertAllViewsValid(trio);
@@ -199,20 +201,19 @@ test('actions that need the right moment or the right person are refused with a 
   for (const [event, payload] of [['submitWord', { word: 'x' }], ['playCard', { cardId: 10001 }], ['vote', { targetId: 'x' }], ['nextRound'], ['abortRound']]) {
     await refused(ann, event, payload, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['setHandSize', { size: 5 }], ['setRounds', { count: 3 }], ['setJudging', { mode: 'chooser' }], ['setCategories', { keys: ['alpha'] }], ['start'], ['endGame']]) {
+  for (const [event, payload] of [['settings', { handSize: 5 }], ['settings', { roundsEach: 3 }], ['settings', { judging: 'chooser' }], ['settings', { categories: ['alpha'] }], ['start'], ['again']]) {
     await refused(bob, event, payload, `${event} by a non-host`);
     await refused(eve, event, payload, `${event} by an outsider`);
   }
-  await refused(bob, 'removePlayer', { targetId: ann.state.me.id }, 'a non-host removing the host');
-  await refused(ann, 'setCategories', { keys: [] }, 'no categories');
-  await refused(ann, 'setCategories', { keys: ['alpha', 'nope'] }, 'an unknown category');
-  await refused(ann, 'setHandSize', { size: 2 }, 'too small a hand');
-  await refused(ann, 'setHandSize', { size: 13 }, 'too large a hand');
-  await refused(ann, 'setRounds', { count: 0 }, 'no rounds');
-  await refused(ann, 'setJudging', { mode: '__proto__' }, 'a made-up mode');
+  await refused(bob, 'kick', { userId: ann.state.me.id }, 'a non-host removing the host');
+  await refused(ann, 'settings', { categories: [] }, 'no categories');
+  await refused(ann, 'settings', { categories: ['alpha', 'nope'] }, 'an unknown category');
+  await refused(ann, 'settings', { handSize: 2 }, 'too small a hand');
+  await refused(ann, 'settings', { handSize: 13 }, 'too large a hand');
+  await refused(ann, 'settings', { roundsEach: 0 }, 'no rounds');
+  await refused(ann, 'settings', { judging: '__proto__' }, 'a made-up mode');
   // A huge hand with too few cards: starting fails with a message.
-  assert.equal((await ann.call('setCategories', { keys: ['alpha'] })).ok, true);
-  assert.equal((await ann.call('setHandSize', { size: 12 })).ok, true);
+  assert.equal((await ann.call('settings', { categories: ['alpha'], handSize: 12 })).ok, true);
   assert.equal((await ann.call('start')).ok, true, '36 cards of 60');
   await until(() => cat.state?.phase === 'word', 'word');
 
@@ -253,7 +254,7 @@ test('voting refusals: yourself, a non-player, the chooser, and outsiders', asyn
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => cat.state?.players.length === 3, 'lobby');
-  await ann.call('setRounds', { count: 1 });
+  await ann.call('settings', { roundsEach: 1 });
   await ann.call('start');
   await until(() => cat.state?.phase === 'word', 'word');
   const chooser = trio.find((p) => p.state.me.isChooser);

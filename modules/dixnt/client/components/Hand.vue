@@ -23,8 +23,8 @@ const { send, store } = useDixnt();
 
 // The current state.
 const state = computed(() => store.state);
-// True when the viewer may play a card now: picking phase, and not the chooser or waiting for the next round.
-const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser && !state.value.me.waiting);
+// True when the viewer may play a card now: the picking phase, and not the chooser.
+const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser);
 
 /**
  * Builds the buttons the card viewer shows for one of your cards: a Play button while cards are being played.

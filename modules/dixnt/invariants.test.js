@@ -2,128 +2,134 @@
 // skipped) in every judging mode, checking the invariants of the game after every single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Game, GameError, JUDGING_MODES, MIN_PLAYERS } from './game.js';
+import { createRules, JUDGING_MODES, MIN_PLAYERS } from './game.js';
 import { seeded } from '../../shared/testkit.js';
 
 const CARDS = 90;
 const ids = (n) => Array.from({ length: n }, (_, i) => 1000 + i);
 
-function newGame(rng, cardCount = CARDS) {
-  return new Game({ getCardIds: () => ids(cardCount), hints: ['a', 'b', 'c', 'd', 'e'], rng });
+const newRules = (cardCount = CARDS) => createRules({ getCardIds: () => ids(cardCount), hints: ['a', 'b', 'c', 'd', 'e'] });
+/** A lobby of `count` people, accounts 1 upwards. */
+function newRoom(game, count) {
+  const room = game.createRoom({ code: 'fuzz-room-here', hostId: 1, hostName: 'P1', now: 0 });
+  for (let i = 2; i <= count; i++) assert.equal(game.addHuman(room, i, `P${i}`).ok, true);
+  return room;
 }
 
+/** The player a table's key names.  A table keyed by player id has text keys; a person's id is a number. */
+const byKey = (room, key) => room.players.find((p) => String(p.id) === String(key));
+
 /** Everything that must hold whatever has happened so far. */
-function check(game, memory, where) {
-  const s = game.s;
-  const note = `${where} (phase ${s.phase}, round ${s.round})`;
-  const hands = s.players.flatMap((p) => p.hand);
-  const all = [...s.draw, ...s.discard, ...hands];
+function check(game, room, memory, where) {
+  const note = `${where} (phase ${room.phase}, round ${room.round})`;
+  const hands = room.players.flatMap((p) => p.hand);
+  const all = [...room.draw, ...room.discard, ...hands];
   assert.equal(new Set(all).size, all.length, `${note}: a card exists twice`);
-  if (s.phase === 'lobby') assert.equal(all.length, 0, `${note}: the lobby holds no cards`);
+  if (room.phase === 'lobby') assert.equal(all.length, 0, `${note}: the lobby holds no cards`);
   else {
     assert.equal(all.length, memory.cards, `${note}: cards are conserved`);
     for (const id of all) assert.ok(id >= 1000 && id < 1000 + memory.cards, `${note}: a made-up card ${id}`);
-    for (const p of s.players) assert.ok(p.hand.length <= s.handSize, `${note}: ${p.name} holds too many cards`);
+    for (const p of room.players) assert.ok(p.hand.length <= room.handSize, `${note}: ${p.name} holds too many cards`);
   }
-  for (const p of s.players) {
-    const total = s.history.reduce((sum, r) => sum + (r.deltas[p.id] ?? 0), 0);
+  for (const p of room.players) {
+    const total = room.history.reduce((sum, r) => sum + (r.deltas[p.id] ?? 0), 0);
     assert.equal(total, p.score, `${note}: ${p.name}'s score equals the history`);
     assert.ok(Number.isInteger(p.score) && p.score >= 0, `${note}: a sane score`);
   }
-  for (const r of s.history) for (const id of Object.keys(r.deltas)) assert.ok(game.player(id), `${note}: history mentions someone who left`);
-  assert.equal(s.history.length, s.completed, `${note}: one history row per completed round`);
-  if (s.phase !== 'lobby') assert.ok(s.players.length >= MIN_PLAYERS, `${note}: a game needs ${MIN_PLAYERS} players`);
-  if (['word', 'picking', 'voting', 'results'].includes(s.phase)) {
-    assert.ok(game.player(s.chooserId), `${note}: the chooser is a current player`);
-    for (const id of Object.keys(s.picks)) assert.ok(game.player(id) && id !== s.chooserId, `${note}: a pick by a non-player`);
-    for (const [voter, target] of Object.entries(s.votes)) assert.ok(game.player(voter) && game.player(target), `${note}: a vote involving a non-player`);
+  for (const r of room.history) for (const id of Object.keys(r.deltas)) assert.ok(byKey(room, id), `${note}: history mentions someone who left`);
+  assert.equal(room.history.length, room.completed, `${note}: one history row per completed round`);
+  if (room.phase !== 'lobby') assert.ok(room.players.length >= MIN_PLAYERS, `${note}: a game needs ${MIN_PLAYERS} players`);
+  if (['word', 'picking', 'voting', 'results'].includes(room.phase)) {
+    assert.ok(game.playerOf(room, room.chooserId), `${note}: the chooser is a current player`);
+    for (const id of Object.keys(room.picks)) assert.ok(byKey(room, id) && String(id) !== String(room.chooserId), `${note}: a pick by a non-player`);
+    for (const [voter, target] of Object.entries(room.votes)) assert.ok(byKey(room, voter) && byKey(room, target), `${note}: a vote involving a non-player`);
   }
-  if (['picking', 'voting', 'results'].includes(s.phase)) {
-    if (s.judging === 'favourite') assert.equal(s.imposterId, null);
-    else assert.ok(game.player(s.imposterId) && s.imposterId !== s.chooserId, `${note}: the imposter is a current card player`);
+  if (['picking', 'voting', 'results'].includes(room.phase)) {
+    if (room.judging === 'favourite') assert.equal(room.imposterId, null);
+    else assert.ok(game.playerOf(room, room.imposterId) && room.imposterId !== room.chooserId, `${note}: the imposter is a current card player`);
   }
-  if (s.phase === 'voting') assert.equal(s.tableOrder.length, game.cardPlayers().length, `${note}: every card is on the table`);
-  if (s.phase === 'results') {
-    const sum = Object.values(s.results.deltas).reduce((a, b) => a + b, 0);
+  if (room.phase === 'voting') assert.equal(room.tableOrder.length, game.cardPlayers(room).length, `${note}: every card is on the table`);
+  if (room.phase === 'results') {
+    const sum = Object.values(room.results.deltas).reduce((a, b) => a + b, 0);
     assert.ok(sum >= 0, `${note}: results add points`);
   }
-  if (s.phase === 'finished') assert.ok(s.players.every((p) => p.waiting || p.turns >= s.roundsEach), `${note}: finished only when everybody (but late joiners) has had their turns`);
-  assert.ok(s.completed >= memory.completed || memory.reset, `${note}: completed rounds never go backwards`);
-  memory.completed = s.completed;
+  if (room.phase === 'finished') assert.ok(room.players.every((p) => p.turns >= room.roundsEach), `${note}: finished only when everybody has had their turns`);
+  assert.ok(room.completed >= memory.completed || memory.reset, `${note}: completed rounds never go backwards`);
+  memory.completed = room.completed;
   memory.reset = false;
-  if (s.players.length) assert.ok(game.player(s.hostId), `${note}: the host is a current player`);
+  if (room.players.length) assert.ok(game.playerOf(room, room.hostId), `${note}: the host is a current player`);
   // The views: nobody sees what they must not.
-  for (const p of s.players) {
-    const view = game.viewFor(p.id, new Set());
-    if (['picking', 'voting'].includes(s.phase)) {
+  for (const p of room.players) {
+    const view = game.viewFor(room, p.id, { online: () => false });
+    if (['picking', 'voting'].includes(room.phase)) {
       assert.equal(view.me.isImposter, false, `${note}: the imposter is not revealed yet`);
       assert.equal(view.results, null);
       assert.ok(!JSON.stringify(view).includes('"imposterId"'), `${note}: no imposterId in a view`);
     }
-    if (s.phase === 'picking' && p.id === s.imposterId) {
+    if (room.phase === 'picking' && p.id === room.imposterId) {
       assert.equal(view.word, null, `${note}: the imposter must not see the word`);
       assert.equal(view.wordHidden, true);
     }
     assert.deepEqual(view.me.hand.filter((c) => !p.hand.includes(c)), [], `${note}: only my own cards in my hand`);
-    if (s.phase === 'picking') assert.deepEqual(view.table, [], `${note}: nothing is shown on the table yet`);
+    if (room.phase === 'picking') assert.deepEqual(view.table, [], `${note}: nothing is shown on the table yet`);
   }
 }
 
 /** One random thing a person (or the host) could do right now.  Returns false when nothing was possible. */
-function randomAction(game, rng, names) {
-  const s = game.s;
+function randomAction(game, room, rng, names) {
   const pick = (list) => list[Math.floor(rng() * list.length)];
   const roll = rng();
-  const host = s.hostId;
+  const host = room.hostId;
+  const people = () => room.players.filter((p) => p.kind === 'human');
   const join = () => {
     names.n++;
-    game.addPlayer(`P${names.n}`, `t${names.n}`);
+    game.addHuman(room, 1000 + names.n, `Q${names.n}`); // refused when every place already holds a person
   };
-  if (s.phase === 'lobby') {
-    if (s.players.length < MIN_PLAYERS + Math.floor(rng() * 3)) join();
-    else game.start(host);
+  if (room.phase === 'lobby') {
+    if (room.players.length < MIN_PLAYERS + Math.floor(rng() * 3)) join();
+    else game.start(room, host, rng);
     return true;
   }
-  if (roll < 0.03 && s.players.length < 7) {
+  if (roll < 0.03) {
     join();
     return true;
   }
-  if (roll < 0.06) {
-    const victim = pick(s.players);
-    if (rng() < 0.5) game.removePlayer(victim.id, victim.id);
-    else game.removePlayer(host, victim.id);
+  if (roll < 0.06 && people().length > 1) {
+    const victim = pick(people());
+    if (rng() < 0.5) game.removeHuman(room, victim.id, rng, 0);
+    else game.kick(room, host, victim.id, rng, 0);
     return true;
   }
-  if (roll < 0.08 && ['word', 'picking', 'voting'].includes(s.phase)) {
-    game.abortRound(host);
+  if (roll < 0.08 && ['word', 'picking', 'voting'].includes(room.phase)) {
+    game.abortRound(room, host, rng);
     return true;
   }
   if (roll < 0.09) {
-    game.returnToLobby(host);
+    game.playAgain(room, host);
     return true;
   }
-  switch (s.phase) {
+  switch (room.phase) {
     case 'word':
-      game.submitWord(s.chooserId, `word ${Math.floor(rng() * 1000)}`);
+      game.submitWord(room, room.chooserId, `word ${Math.floor(rng() * 1000)}`, rng);
       return true;
     case 'picking': {
-      const waiting = game.cardPlayers().filter((p) => !(p.id in s.picks));
+      const waiting = game.cardPlayers(room).filter((p) => !(p.id in room.picks));
       if (!waiting.length) return false;
       const p = pick(waiting);
-      game.playCard(p.id, pick(p.hand));
+      game.playCard(room, p.id, pick(p.hand), rng);
       return true;
     }
     case 'voting': {
-      const v = pick(game.voters());
-      game.vote(v.id, pick(game.cardPlayers().filter((p) => p.id !== v.id)).id);
+      const v = pick(game.voters(room));
+      game.vote(room, v.id, pick(game.cardPlayers(room).filter((p) => p.id !== v.id)).id);
       return true;
     }
     case 'results':
-      game.nextRound(pick(s.players).id);
+      game.nextRound(room, pick(room.players).id, rng);
       return true;
     case 'finished':
       if (rng() < 0.5) {
-        game.returnToLobby(host);
+        game.playAgain(room, host);
         return true;
       }
       return false;
@@ -136,27 +142,21 @@ for (const judging of JUDGING_MODES) {
     let finishedGames = 0;
     for (let seed = 1; seed <= 25; seed++) {
       const rng = seeded(seed * 7919 + JUDGING_MODES.indexOf(judging));
-      const game = newGame(rng);
+      const game = newRules();
+      const room = newRoom(game, 4);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const names = { n: 0 };
-      for (let i = 0; i < 4; i++) game.addPlayer(`P${i}`, `x${i}`);
-      game.setJudging(game.s.hostId, judging);
-      game.setRounds(game.s.hostId, 1 + Math.floor(rng() * 3));
-      game.setHandSize(game.s.hostId, 3 + Math.floor(rng() * 8));
-      game.start(game.s.hostId);
-      check(game, memory, `seed ${seed} start`);
+      assert.equal(game.setSettings(room, room.hostId, { judging, roundsEach: 1 + Math.floor(rng() * 3), handSize: 3 + Math.floor(rng() * 8) }).ok, true);
+      assert.equal(game.start(room, room.hostId, rng).ok, true);
+      check(game, room, memory, `seed ${seed} start`);
       let sawFinished = false;
       for (let step = 0; step < 600; step++) {
-        const before = game.s.phase;
-        const completed = game.s.completed;
-        try {
-          randomAction(game, rng, names);
-        } catch (error) {
-          assert.ok(error instanceof GameError, `seed ${seed} step ${step}: unexpected ${error.stack}`);
-        }
-        if (game.s.phase === 'lobby' || game.s.completed < completed) memory.reset = true;
-        check(game, memory, `seed ${seed} step ${step} after ${before}`);
-        if (game.s.phase === 'finished') {
+        const before = room.phase;
+        const completed = room.completed;
+        randomAction(game, room, rng, names);
+        if (room.phase === 'lobby' || room.completed < completed) memory.reset = true;
+        check(game, room, memory, `seed ${seed} step ${step} after ${before}`);
+        if (room.phase === 'finished') {
           sawFinished = true;
           if (rng() < 0.3) break;
         }
@@ -171,36 +171,33 @@ test('without leaves or skips every game terminates after exactly players x roun
   for (const judging of JUDGING_MODES) {
     for (let seed = 1; seed <= 20; seed++) {
       const rng = seeded(seed);
-      const game = newGame(rng);
+      const game = newRules();
       const count = 3 + Math.floor(rng() * 5);
-      for (let i = 0; i < count; i++) game.addPlayer(`P${i}`, `t${i}`);
-      const host = game.s.hostId;
+      const room = newRoom(game, count);
+      const host = room.hostId;
       const each = 1 + Math.floor(rng() * 3);
-      game.setJudging(host, judging);
-      game.setRounds(host, each);
-      game.setHandSize(host, 3 + Math.floor(rng() * 4));
-      game.start(host);
+      assert.equal(game.setSettings(room, host, { judging, roundsEach: each, handSize: 3 + Math.floor(rng() * 4) }).ok, true);
+      assert.equal(game.start(room, host, rng).ok, true);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const chosen = new Set();
       let guard = 0;
-      while (game.s.phase !== 'finished') {
+      while (room.phase !== 'finished') {
         assert.ok(guard++ < 2000, 'terminates');
-        const s = game.s;
-        if (s.phase === 'word') {
-          chosen.add(s.chooserId);
-          game.submitWord(s.chooserId, 'w');
-        } else if (s.phase === 'picking') {
-          for (const p of game.cardPlayers()) game.playCard(p.id, p.hand[Math.floor(rng() * p.hand.length)]);
-        } else if (s.phase === 'voting') {
-          for (const v of game.voters()) {
-            const targets = game.cardPlayers().filter((p) => p.id !== v.id);
-            game.vote(v.id, targets[Math.floor(rng() * targets.length)].id);
+        if (room.phase === 'word') {
+          chosen.add(room.chooserId);
+          game.submitWord(room, room.chooserId, 'w', rng);
+        } else if (room.phase === 'picking') {
+          for (const p of game.cardPlayers(room)) game.playCard(room, p.id, p.hand[Math.floor(rng() * p.hand.length)], rng);
+        } else if (room.phase === 'voting') {
+          for (const v of game.voters(room)) {
+            const targets = game.cardPlayers(room).filter((p) => p.id !== v.id);
+            game.vote(room, v.id, targets[Math.floor(rng() * targets.length)].id);
           }
-        } else game.nextRound(host);
-        check(game, memory, `${judging} seed ${seed}`);
+        } else game.nextRound(room, host, rng);
+        check(game, room, memory, `${judging} seed ${seed}`);
       }
-      assert.equal(game.s.completed, count * each);
-      assert.ok(game.s.players.every((p) => p.turns === each), 'everyone chose the word equally often');
+      assert.equal(room.completed, count * each);
+      assert.ok(room.players.every((p) => p.turns === each), 'everyone chose the word equally often');
       assert.equal(chosen.size, count);
     }
   }

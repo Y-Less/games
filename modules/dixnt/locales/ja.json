@@ -1,7 +1,6 @@
 {
   "entry": {
-    "intro": "ひとりだけ、お題が見えていません。残りの全員でそれが誰か分かるでしょうか。あなたは{name}としてプレイします。",
-    "gameGone": "そのゲームはもうありません。友達に新しいリンクをもらってください。"
+    "intro": "ひとりだけ、お題が見えていません。残りの全員でそれが誰か分かるでしょうか。あなたは{name}としてプレイします。"
   },
   "leave": {
     "takenOver": "あなたの席と得点は、コンピュータープレイヤーが引き継ぎます。",
@@ -9,7 +8,6 @@
   },
   "lobby": {
     "share": "友達はスタート画面のゲームコードか、招待リンクで参加できます。少なくとも{min}人必要です。",
-    "playersLabel": "このゲームのプレイヤー",
     "allCards": "すべてのカード",
     "playStyle": "遊び方",
     "categories": "カードのカテゴリー",
@@ -79,7 +77,6 @@
   },
   "popup": {
     "turns": "出題者を務めた回数",
-    "waiting": "次のラウンド待ち",
     "choosingWord": "お題を考え中",
     "waitingForWord": "お題待ち",
     "hasPlayed": "カードを出しました",
@@ -149,7 +146,6 @@
     "choosing": "{name}がお題を考えています…",
     "lookAtHand": "待っているあいだに手札を見てみましょう。",
     "waitingFor": "{names}を待っています…",
-    "joinedMidRound": "ラウンドの途中で参加したので、次のラウンドから配られます。",
     "everyonePlayed": "全員が出しました。",
     "cardPlayed": "カードを出しました。",
     "yourWord": "これはあなたのお題です。全員がカードを出すのを待っています。",
@@ -169,7 +165,6 @@
     "willDecide": "{name}が、お題が見えていなかったのは誰かを決めます。",
     "explainFavourite": "自分のカードがお題に合う理由を説明しましょう。{name}に選ばれれば{points}点です。",
     "explainDecide": "自分のカードがお題に合う理由を説明しましょう。{name}がだまされれば、インポスターが{points}点です。",
-    "joinNextRound": "次のラウンドから参加します。",
     "vote": "あなたの番です。お題が見えていなかった人に投票してください。",
     "voteIn": "投票しました。まだ変えられます。",
     "stillToVote": "未投票：{names}。",
@@ -201,9 +196,6 @@
     "imposterFooled": "{name}がインポスターでした。全員をだましました。"
   },
   "errors": {
-    "enterName": "名前を入力してください。",
-    "nameTooLong": "名前は{max}文字までです。",
-    "nameTaken": "その名前はすでに使われています。",
     "handSizeRange": "手札の枚数は{min}〜{max}にしてください。",
     "unknownJudging": "不明な判定方法です。",
     "unknownCategory": "不明なカテゴリーです。",
@@ -219,12 +211,9 @@
     "nobodyToPlay": "このラウンドでカードを出す人が他にいません。",
     "notPlayingThisRound": "このラウンドはカードを出しません。",
     "notTimeToVote": "投票する場面ではありません。",
-    "waitingNextRound": "次のラウンドを待っています。",
     "chooserOnlyVotes": "このゲームで投票するのは出題者だけです。",
     "voteSelf": "自分には投票できません。",
-    "voteCardPlayer": "投票できるのは、カードを出した人だけです。",
-    "joinFirst": "ゲームに参加してください。",
-    "tooManyGames": "進行中のゲームが多すぎます。しばらくしてからお試しください。"
+    "voteCardPlayer": "投票できるのは、カードを出した人だけです。"
   },
   "meta": {
     "name": "ディクスント",

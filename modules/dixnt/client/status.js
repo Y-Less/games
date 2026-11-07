@@ -18,11 +18,11 @@ export function statusFor(state, { isHost = false } = {}) {
   const players = state.players;
   const chooser = players.find((p) => p.isChooser);
   const chooserName = chooser?.name ?? msg('status.theChooser');
-  const inRound = players.filter((p) => !p.waiting);
-  const waitingOnCards = inRound.filter((p) => !p.isChooser && !p.hasPlayed).map((p) => p.name);
-  const waitingOnVotes = inRound.filter((p) => !p.hasVoted).map((p) => p.name);
-  // Returns the name of a player id ('?' if unknown).
-  const nameOf = (id) => players.find((p) => p.id === id)?.name ?? '?';
+  const waitingOnCards = players.filter((p) => !p.isChooser && !p.hasPlayed).map((p) => p.name);
+  const waitingOnVotes = players.filter((p) => !p.hasVoted).map((p) => p.name);
+  // Returns the name of a player id ('?' if unknown).  A table keyed by a player id has text keys, while a person's
+  // id is their account number, so the two are matched as text.
+  const nameOf = (id) => players.find((p) => String(p.id) === String(id))?.name ?? '?';
   // Returns a Status line in the muted tone.
   const muted = (text) => ({ text, tone: 'muted' });
 
@@ -39,7 +39,6 @@ export function statusFor(state, { isHost = false } = {}) {
 
   if (state.phase === 'picking') {
     const waiting = waitingOnCards.length ? msg('status.waitingFor', { names: waitingOnCards }) : null;
-    if (me.waiting) return { headline: msg('status.joinedMidRound'), mine: false, lines: [] };
     if (me.isChooser) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
     if (me.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
     if (state.wordHidden) return { headline: msg('status.playInTheDark'), mine: true, lines: [muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])] };
@@ -78,7 +77,6 @@ export function statusFor(state, { isHost = false } = {}) {
         ],
       };
     }
-    if (me.waiting) return { headline: msg('status.joinNextRound'), mine: false, lines: [] };
     return {
       headline: msg(me.myVote === null ? 'status.vote' : 'status.voteIn'),
       mine: me.myVote === null,

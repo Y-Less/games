@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import Root from './index.js';
 import { recordedViews } from '../views.js';
-import { walkViews } from '../../../shared/renderWalk.js';
+import { isMemberView, walkViews } from '../../../shared/renderWalk.js';
+import { newEntries } from './moveLog.js';
+import { statusFor } from './status.js';
 
 describe('rendering every state of a whole game', () => {
   for (const [label, record] of [
@@ -19,4 +21,22 @@ describe('rendering every state of a whole game', () => {
       expect(sent).toBeGreaterThan(10);
     }, 120000); // a whole game is hundreds of views
   }
+
+  // A table keyed by a player id has text keys while a person's id is their account number, so a lookup that matches
+  // the two with === quietly draws "?" instead of a name.  Nothing above would fail for it, so it is checked here.
+  it('never writes "?" where a player name belongs', () => {
+    const seen = [];
+    for (const judging of ['everyone', 'chooser', 'favourite']) {
+      let previous = null;
+      for (const raw of recordedViews(judging, 91).views) {
+        const next = JSON.parse(raw);
+        if (!isMemberView(next)) continue;
+        const status = statusFor(next, { isHost: true });
+        seen.push(JSON.stringify([status.headline, ...status.lines, ...newEntries(previous, next)]));
+        previous = next;
+      }
+    }
+    expect(seen.length).toBeGreaterThan(100);
+    expect(seen.filter((text) => text.includes('"?"'))).toEqual([]);
+  }, 120000);
 });

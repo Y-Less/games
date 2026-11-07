@@ -11,7 +11,8 @@
 // Emits: none.
 // Slots: none (fills GameFrame's scorebar, main, log, and status slots).
 // Side effects: creates the store, which listens to the socket (detached when this component unmounts); provides the
-// store under DIXNT_KEY; sends `removePlayer` (host's Remove) and `leave` requests; registers the site's leave button.
+// store under DIXNT_KEY; sends `kick`/`removeBot` (the host's Remove), the vote-to-remove events, and `leave`;
+// registers the site's leave button.
 import { computed, onBeforeUnmount, provide } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -53,19 +54,24 @@ const results = computed(() => (state.value?.phase === 'results' ? state.value.r
 const nameOf = dixnt.nameOf;
 
 // Another player's details open from their chip in the score bar (the standard player pop-up, with the host's Remove
-// button: the way to get rid of someone who has gone away).  The scoreboard's ids are the players' ids.
+// button: the way to get rid of someone who has gone away).  A person's id in the game is their account id, and a
+// computer player's is its own, so removing one is `kick` and the other `removeBot`.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => state.value?.scoreboard.players ?? [],
   hostId: () => state.value?.hostId ?? null,
   isHost: () => isHost.value,
-  remove: (targetId) => send('removePlayer', { targetId }, { quiet: true }),
+  remove: (id, player) => (player?.bot ? send('removeBot', { seat: id }, { quiet: true }) : send('kick', { userId: id }, { quiet: true })),
+  // Anybody may ask the rest of the table to remove a player; the vote itself is shared (shared/voteKick.js).
+  vote: () => state.value?.vote ?? null,
+  askVote: (id) => send('voteKick', { userId: id }, { quiet: true }),
+  answerVote: (agree) => send('voteAnswer', { agree }, { quiet: true }),
+  dropVote: () => send('voteDrop', {}, { quiet: true }),
 });
 // The player whose pop-up is open, or null.
 const opened = computed(() => state.value?.players.find((p) => p.id === openId.value) ?? null);
 // Returns what a player is doing in this phase, in words, for their pop-up ('' if nothing to say).
 const stageOf = (p) => {
   const phase = state.value.phase;
-  if (p.waiting) return t('popup.waiting');
   if (phase === 'word') return t(p.isChooser ? 'popup.choosingWord' : 'popup.waitingForWord');
   if (phase === 'picking') return t(p.hasPlayed ? 'popup.hasPlayed' : 'popup.stillChoosing');
   if (phase === 'voting') return t(p.hasVoted ? 'popup.hasVoted' : 'popup.stillToVote');
@@ -84,9 +90,9 @@ const status = computed(() => {
 const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
 
 // "Leave game" lives in the site's header, whenever you are in a game.  Mid-game it asks first: a computer player takes
-// over your seat if anyone else is still playing, otherwise your score is lost.
-// True when leaving would hand the seat to a computer player (another human is still playing), rather than lose the score.
-const takenOver = computed(() => Boolean(state.value) && !state.value.me.waiting && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id));
+// your place if anyone else is still playing, otherwise the game goes with you.
+// True when leaving would hand the place to a computer player (another person is still playing), rather than end the game.
+const takenOver = computed(() => Boolean(state.value) && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id));
 useLeave({
   canLeave: computed(() => Boolean(state.value)),
   leave: async () => {

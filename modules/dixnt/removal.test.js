@@ -1,57 +1,70 @@
-// The host can remove any other player at any time: people (a computer player takes over mid-round) and computer players.
+// The host can remove any other player at any time: people (a computer player takes over mid-round) and computer
+// players (in the lobby, where they still belong to nobody).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Game, GameError } from './game.js';
+import { makeRoom } from './harness.js';
 
-const cards = (n) => Array.from({ length: n }, (_, i) => i + 1);
+/** Ann (the host), Bob, Cat and one computer player, in a game under way. */
 function started() {
-  const game = new Game({ getCardIds: () => cards(100), hints: [], rng: () => 0.5 });
-  const host = game.addPlayer('Ann', 't1');
-  game.addPlayer('Bob', 't2');
-  game.addPlayer('Cat', 't3');
-  const { id: botId } = game.addBot(host.id);
-  game.setRounds(host.id, 10);
-  game.start(host.id);
-  return { game, host, botId };
+  const made = makeRoom(['Ann', 'Bob', 'Cat'], { bots: 1, roundsEach: 10, rng: () => 0.5, start: true });
+  return { ...made, botId: 'bot:1' };
 }
 
-test('the host removes a computer player in the middle of a round, and the game goes on', () => {
-  const { game, host, botId } = started();
-  assert.equal(game.s.players.length, 4);
-  game.removePlayer(host.id, botId);
-  assert.equal(game.s.players.length, 3);
-  assert.equal(game.s.players.some((p) => p.id === botId), false);
-  assert.notEqual(game.s.phase, 'lobby');
+test('the host removes a computer player in the lobby, and cannot once the game is on', () => {
+  const made = makeRoom(['Ann', 'Bob', 'Cat'], { bots: 1, rng: () => 0.5 });
+  const { game, room, rng } = made;
+  assert.equal(room.players.length, 4);
+  assert.equal(game.removeBot(room, 1, 'bot:1', rng).ok, true);
+  assert.equal(room.players.length, 3);
+  assert.equal(room.players.some((p) => p.id === 'bot:1'), false);
+
+  assert.equal(game.addBot(room, 1).ok, true);
+  assert.equal(game.start(room, 1, rng).ok, true);
+  assert.equal(game.removeBot(room, 1, 'bot:2', rng).error, 'botsRemoveLobbyOnly', 'its turns are part of the game now');
 });
 
-test('the host removes a person mid-round: a computer player takes the seat', () => {
-  const { game, host } = started();
-  const bob = game.s.players.find((p) => p.name === 'Bob');
-  game.leave(host.id, bob.id);
-  assert.equal(game.s.players.length, 4);
-  assert.equal(game.player(bob.id).kind, 'bot');
-  assert.notEqual(game.player(bob.id).name, 'Bob');
+test('the host removes a person mid-round: a computer player takes their place', () => {
+  const { game, room, rng } = started();
+  assert.equal(game.kick(room, 1, 2, rng, 0).ok, true);
+  assert.equal(room.players.length, 4, 'the place is kept, so no turn is lost');
+  assert.equal(game.playerOf(room, 2), undefined);
+  const stand = room.players[1];
+  assert.equal(stand.kind, 'bot');
+  assert.notEqual(stand.name, 'Bob');
+  assert.ok(stand.ai, 'it is given an AI so it can carry on');
 });
 
-test('leaving a finished game leaves the final standings for the others, even when fewer than three remain', () => {
-  const { game, host } = started();
-  game.s.phase = 'finished';
-  const bob = game.s.players.find((p) => p.name === 'Bob');
-  const cat = game.s.players.find((p) => p.name === 'Cat');
-  game.leave(bob.id, bob.id);
-  game.leave(cat.id, cat.id);
-  assert.equal(game.s.phase, 'finished', 'the game is not sent back to the lobby');
-  assert.deepEqual(game.s.players.map((p) => p.name), ['Ann', game.s.players[1].name]);
-  assert.throws(() => game.leave(host.id, game.s.players[1].id), GameError, 'the host cannot remove anybody once the game is over');
+test('somebody put out by the host is barred, so the invitation does not let them straight back in', () => {
+  const { game, room, rng } = started();
+  assert.equal(game.kick(room, 1, 2, rng, 0).ok, true);
+  assert.deepEqual(room.barred, [2]);
+  assert.equal(game.addHuman(room, 2, 'Bob').error, 'removedFromGame');
+});
+
+test('leaving a finished game leaves the final standings for the others', () => {
+  const { game, room, rng } = started();
+  room.phase = 'finished';
+  const left = game.removeHuman(room, 2, rng, 0);
+  assert.equal(left.ok, true);
+  assert.equal(left.changed, false, 'nothing about the room changed, so nobody is told');
+  assert.deepEqual(room.players.map((p) => p.name), ['Ann', 'Bob', 'Cat', room.players[3].name], 'the standings still name everybody');
+  assert.equal(game.kick(room, 1, 3, rng, 0).error, 'gameOverNobodyToRemove', 'the host cannot remove anybody once the game is over');
 });
 
 test('only the host removes others, and nonsense ids change nothing', () => {
-  const { game, host, botId } = started();
-  const bob = game.s.players.find((p) => p.name === 'Bob');
-  assert.throws(() => game.leave(bob.id, host.id), GameError);
-  assert.throws(() => game.leave(bob.id, botId), GameError);
-  const before = JSON.stringify(game.s);
-  for (const id of ['nobody', 99999, null, undefined, {}, []]) assert.throws(() => game.leave(host.id, id), GameError);
-  assert.equal(JSON.stringify(game.s), before);
+  const { game, room, rng, botId } = started();
+  assert.equal(game.kick(room, 2, 1, rng, 0).error, 'hostOnlyRemove');
+  assert.equal(game.kick(room, 1, botId, rng, 0).error, 'playerNotInGame', 'a computer player is not kicked: it is removed');
+  assert.equal(game.kick(room, 1, 1, rng, 0).error, 'playerNotInGame', 'the host cannot remove themselves');
+  const before = JSON.stringify(room);
+  for (const id of ['nobody', 99999, null, undefined, {}, []]) assert.equal(game.kick(room, 1, id, rng, 0).ok, false);
+  assert.equal(JSON.stringify(room), before);
 });
 
+test('the last person leaving empties the room, so computer players alone never keep one alive', () => {
+  const { game, room, rng } = started();
+  assert.equal(game.removeHuman(room, 2, rng, 0).empty, false);
+  assert.equal(game.removeHuman(room, 3, rng, 0).empty, false);
+  const last = game.removeHuman(room, 1, rng, 0);
+  assert.equal(last.empty, true, 'the server drops a room like this');
+});

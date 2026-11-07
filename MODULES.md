@@ -73,7 +73,7 @@ Rules of the road:
 
 ### The shared room server (`shared/roomServer.js`)
 
-Every room-based game (all of them except Dixnt, which keeps its own server) writes its `server.js` as a short call to
+Every room-based game writes its `server.js` as a short call to
 `createRoomServer(ctx, options)` instead of copying the socket layer.  It keeps the rooms in memory and saves them
 atomically under `ctx.dataDir`, sweeps old rooms, tracks each account's sockets, sends every person their own view, and
 handles `create`, `join`/`resume`, `leave`, `kick` and the lobby events (`settings`, `addBot`, `removeBot`, `fillBots`,
@@ -371,10 +371,10 @@ Card games share a few pieces so they look and behave alike:
   `removeBot`, `fillBots`, `kick` and `start`.
 - **The host can remove any other player at any time** (the Remove button of `PlayerPopup`), so every game's server has a
   host-only removal that the table calls with the seat or account id (never the host's own, never garbage): `kick` for a
-  person and `removeBot` for a computer player (Dixnt: `removePlayer` for both).  In the lobby the seat is freed.  In a game
+  person and `removeBot` for a computer player.  In the lobby the seat is freed.  In a game
   a person's place is taken over by a computer player (as when they leave) in every game, seated or list-based, with
   their score and their place in the turn order, so nobody's turns are lost; a computer player can only be removed in
-  the lobby (Dixnt excepted), because the game needs the player, and the pop-up shows the server's refusal.  Once a game
+  the lobby, because the game needs the player, and the pop-up shows the server's refusal.  Once a game
   is over, `kick` is refused (Cribbage marks the seat as left).  Being removed by other people is not the same as
   leaving: the room remembers them (`room.barred`, shared/seats.js `barFromRoom`) and the invitation answers
   `removedFromGame`, so they cannot take a computer player's place and walk back in.

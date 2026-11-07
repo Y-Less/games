@@ -1,5 +1,5 @@
 // The Dixnt AIs: the registry, how each one decides (as plain data in, plain answer out), complete games played by
-// every AI in every judging style, a seeded tournament, and how an AI is recorded on a seat.
+// every AI in every judging style, a seeded tournament, and how an AI is recorded on a computer player.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { seeded } from '../../shared/testkit.js';
-import { Game, GameError, JUDGING_MODES } from './game.js';
+import { createRules, JUDGING_MODES } from './game.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -21,50 +21,46 @@ const cards = buildCardInfo({ categories });
 const idsOf = (key) => categories.find((c) => c.key === key).ids;
 const firstOf = (key) => idsOf(key)[0];
 
-/** Plays a whole game, every seat driven by the AI named in `lineup` (an AI id per seat); returns the finished game. */
+/** Plays a whole game, every place driven by the AI named in `lineup` (an AI id per place); returns the finished room. */
 function playGame(lineup, { judging = 'everyone', seed = 1, roundsEach = 2, handSize = 6 } = {}) {
   const rng = seeded(seed);
-  const game = new Game({ getCategories: () => categories, hints, rng });
-  const players = lineup.map((_, i) => game.addPlayer(`P${i}`, `t${i}`));
-  players.forEach((p, i) => (p.id = `p${i}`)); // the game's own ids are random; fixed ones keep the run repeatable
-  game.s.hostId = players[0].id;
-  const aiOf = Object.fromEntries(players.map((p, i) => [p.id, byId[lineup[i]]]));
-  game.setHandSize(players[0].id, handSize);
-  game.setRounds(players[0].id, roundsEach);
-  game.setJudging(players[0].id, judging);
-  game.start(players[0].id);
+  const game = createRules({ getCategories: () => categories, hints });
+  const room = game.createRoom({ code: 'ai-test-game-here', hostId: 1, hostName: 'P0', now: 0 });
+  for (let i = 1; i < lineup.length; i++) assert.equal(game.addHuman(room, i + 1, `P${i}`).ok, true);
+  const aiOf = Object.fromEntries(room.players.map((p, i) => [p.id, byId[lineup[i]]]));
+  assert.equal(game.setSettings(room, 1, { handSize, roundsEach, judging }).ok, true);
+  assert.equal(game.start(room, 1, rng).ok, true);
   const imposters = new Set();
   let guard = 0;
-  while (game.s.phase !== 'finished') {
+  while (room.phase !== 'finished') {
     assert.ok(++guard < 500, 'the game terminates');
-    const s = game.s;
-    if (s.phase === 'word') {
-      const view = game.viewFor(s.chooserId);
-      const offered = game.nextHints(3);
-      const word = aiOf[s.chooserId].chooseWord({ hints: offered, hand: view.me.hand, cards, round: s.round, judging }, rng);
+    if (room.phase === 'word') {
+      const view = game.viewFor(room, room.chooserId);
+      const offered = game.nextHints(room, 3, rng);
+      const word = aiOf[room.chooserId].chooseWord({ hints: offered, hand: view.me.hand, cards, round: room.round, judging }, rng);
       assert.ok(offered.includes(word), 'a chosen word is one of the hints');
-      game.submitWord(s.chooserId, word);
-    } else if (s.phase === 'picking') {
-      for (const p of game.cardPlayers()) {
-        const view = game.viewFor(p.id);
-        if (view.wordHidden) imposters.add(`${s.round}:${p.id}`);
-        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.me.hand, cards, round: s.round, judging }, rng);
+      assert.equal(game.submitWord(room, room.chooserId, word, rng).ok, true);
+    } else if (room.phase === 'picking') {
+      for (const p of game.cardPlayers(room)) {
+        const view = game.viewFor(room, p.id);
+        if (view.wordHidden) imposters.add(`${room.round}:${p.id}`);
+        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.me.hand, cards, round: room.round, judging }, rng);
         assert.ok(view.me.hand.includes(cardId), 'the card is from the hand');
-        game.playCard(p.id, cardId);
+        assert.equal(game.playCard(room, p.id, cardId, rng).ok, true);
       }
-    } else if (s.phase === 'voting') {
-      for (const p of game.voters()) {
-        if (s.phase !== 'voting') break;
-        const view = game.viewFor(p.id);
-        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${s.round}:${p.id}`), chooser: view.me.isChooser, judging, cards, scores: {} }, rng);
+    } else if (room.phase === 'voting') {
+      for (const p of game.voters(room)) {
+        if (room.phase !== 'voting') break;
+        const view = game.viewFor(room, p.id);
+        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${room.round}:${p.id}`), chooser: view.me.isChooser, judging, cards, scores: {} }, rng);
         assert.ok(view.voteTargets.includes(targetId), 'the vote is for a legal target');
-        game.vote(p.id, targetId);
+        assert.equal(game.vote(room, p.id, targetId).ok, true);
       }
-    } else if (s.phase === 'results') {
-      game.nextRound(s.hostId);
+    } else if (room.phase === 'results') {
+      assert.equal(game.nextRound(room, room.hostId, rng).ok, true);
     }
   }
-  return game;
+  return room;
 }
 
 test('the registry is valid, has the required AIs and falls back safely', () => {
@@ -86,13 +82,13 @@ test('every AI plays complete, legal games in every judging style', () => {
   for (const judging of JUDGING_MODES) {
     for (const ai of AIS) {
       for (const seed of [1, 2, 3]) {
-        const game = playGame([ai.id, ai.id, ai.id, ai.id], { judging, seed });
-        assert.equal(game.s.phase, 'finished', `${ai.id} ${judging}`);
-        assert.equal(game.s.completed, 8, 'each of four players chose twice');
+        const room = playGame([ai.id, ai.id, ai.id, ai.id], { judging, seed });
+        assert.equal(room.phase, 'finished', `${ai.id} ${judging}`);
+        assert.equal(room.completed, 8, 'each of four players chose twice');
       }
     }
-    assert.equal(playGame(AIS.map((a) => a.id), { judging, seed: 9 }).s.phase, 'finished', 'all five mixed');
-    assert.equal(playGame(['sharp', 'random', 'literal'], { judging, seed: 4, handSize: 3 }).s.phase, 'finished', 'the minimum of three players');
+    assert.equal(playGame(AIS.map((a) => a.id), { judging, seed: 9 }).phase, 'finished', 'all five mixed');
+    assert.equal(playGame(['sharp', 'random', 'literal'], { judging, seed: 4, handSize: 3 }).phase, 'finished', 'the minimum of three players');
   }
 });
 
@@ -100,7 +96,7 @@ test('every AI is deterministic for a given seed', () => {
   for (const ai of AIS) {
     const a = playGame([ai.id, 'random', 'sharp', ai.id], { seed: 21 });
     const b = playGame([ai.id, 'random', 'sharp', ai.id], { seed: 21 });
-    assert.deepEqual(a.s.players.map((p) => p.score), b.s.players.map((p) => p.score), ai.id);
+    assert.deepEqual(a.players.map((p) => p.score), b.players.map((p) => p.score), ai.id);
   }
 });
 
@@ -175,8 +171,8 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
     let caught = 0;
     let rounds = 0;
     for (let seed = 1; seed <= 150; seed++) {
-      const game = playGame(Array(players).fill(ai), { seed, judging: 'everyone', roundsEach: 3 });
-      for (const round of game.s.history) {
+      const room = playGame(Array(players).fill(ai), { seed, judging: 'everyone', roundsEach: 3 });
+      for (const round of room.history) {
         // The notes a view carries are messages: `{ key: 'notes.imposterCaught' }` and friends.
         for (const note of Object.values(round.notes)) {
           if (note.key.startsWith('notes.imposter')) rounds++;
@@ -195,28 +191,30 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
 });
 
 test('an AI is dealt to a computer player, shown as { id, name } for them only, saved and restored', () => {
-  const game = new Game({ rng: Math.random, getCategories: () => categories, hints });
-  const [host, human] = ['Host', 'Human'].map((n) => game.addPlayer(n, `t-${n}`));
-  const { id: botId } = game.addBot(host.id);
-  const seat = (g, id) => g.viewFor(host.id).players.find((p) => p.id === id);
-  assert.equal(seat(game, botId).ai, null, 'a computer player has none until the game starts');
+  const game = createRules({ getCategories: () => categories, hints });
+  const rng = seeded(4);
+  const room = game.createRoom({ code: 'ai-dealt-here', hostId: 1, hostName: 'Host', now: 0 });
+  assert.equal(game.addHuman(room, 2, 'Human').ok, true);
+  assert.equal(game.addBot(room, 1).id, 'bot:1');
+  const seat = (r, id) => game.viewFor(r, 1).players.find((p) => p.id === id);
+  assert.equal(seat(room, 'bot:1').ai, null, 'a computer player has none until the game starts');
 
-  game.start(host.id);
-  const dealt = seat(game, botId).ai;
+  assert.equal(game.start(room, 1, rng).ok, true);
+  const dealt = seat(room, 'bot:1').ai;
   assert.deepEqual(Object.keys(dealt).sort(), ['id', 'name'], 'only the public part is shown');
   assert.ok(AIS.some((ai) => ai.id === dealt.id), `${dealt.id} is one of the AIs`);
-  assert.equal(seat(game, host.id).ai, null, 'and a person has none');
-  assert.equal(seat(game, human.id).ai, null);
+  assert.equal(seat(room, 1).ai, null, 'and a person has none');
+  assert.equal(seat(room, 2).ai, null);
 
   // A save and restore keeps it.
-  const restored = new Game({ rng: Math.random, getCategories: () => categories, hints, saved: JSON.parse(JSON.stringify(game.toJSON())) });
-  assert.deepEqual(seat(restored, botId).ai, dealt);
+  const restored = game.migrate(JSON.parse(JSON.stringify(room)));
+  assert.deepEqual(seat(restored, 'bot:1').ai, dealt);
 
-  // A room saved with an AI that no longer exists falls back to the first AI; a seat saved before this feature has none.
-  const saved = JSON.parse(JSON.stringify(game.toJSON()));
-  saved.players.find((p) => p.id === botId).ai = 'retired';
-  delete saved.players.find((p) => p.id === human.id).ai;
-  const old = new Game({ rng: Math.random, getCategories: () => categories, hints, saved });
-  assert.deepEqual(seat(old, botId).ai, { id: 'standard', name: 'Standard' });
-  assert.equal(seat(old, human.id).ai, null);
+  // A room saved with an AI that no longer exists falls back to the first AI; one saved before this feature has none.
+  const saved = JSON.parse(JSON.stringify(room));
+  saved.players.find((p) => p.id === 'bot:1').ai = 'retired';
+  delete saved.players.find((p) => p.id === 2).ai;
+  const old = game.migrate(saved);
+  assert.deepEqual(seat(old, 'bot:1').ai, { id: 'standard', name: 'Standard' });
+  assert.equal(seat(old, 2).ai, null);
 });

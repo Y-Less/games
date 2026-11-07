@@ -1,14 +1,14 @@
 <script setup>
-// Dixnt lobby: the invite code, the players (the host can remove people and add computer players), and the host's
-// settings: play style, card categories, hand size, and number of rounds.  Everyone else sees them read-only.
-// Every word comes from a locale file (the game's own first, then the site's); a category's label may be a message
-// the server sent, so it is drawn with text().
+// Dixnt lobby: the invite code, the shared players panel (the host can remove people and add computer players), and
+// the host's settings: play style, card categories, hand size, and number of rounds.  Everyone else sees them
+// read-only.  Every word comes from a locale file (the game's own first, then the site's); a category's label may be
+// a message the server sent, so it is drawn with text().
 //
 // Props: none.  Emits: none.  Slots: none.
-// Side effects: sends addBot, fillBots, removeBot, removePlayer, setJudging, setCategories, setHandSize, setRounds and
-// start requests (through the store).
+// Side effects: sends addBot, fillBots, removeBot, kick, settings and start requests (through the store).
 import { computed } from 'vue';
 import InviteCode from '../../../../src/components/InviteCode.vue';
+import PlayerListPanel from '../../../../src/components/PlayerListPanel.vue';
 import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
@@ -16,14 +16,14 @@ const { t, text } = useGameText();
 const { isHost, players, send, store } = useDixnt();
 // The current state.
 const state = computed(() => store.state);
-// True when no more players can join.
-const full = computed(() => players.value.length >= state.value.maxPlayers);
 // How many more players are needed before the game can start (0 when enough).
 const missingPlayers = computed(() => Math.max(0, state.value.minPlayers - players.value.length));
 // Cards needed to deal everyone a full hand.
 const cardsNeeded = computed(() => players.value.length * state.value.handSize);
 // True when the chosen categories hold enough cards for that deal.
 const enoughCards = computed(() => state.value.availableCards >= cardsNeeded.value);
+// The players as the shared panel wants them: it says `online` where the game's view says `connected`.
+const panelPlayers = computed(() => players.value.map((p) => ({ ...p, online: p.bot || p.connected })));
 // The categories currently in the deck.
 const selected = computed(() => state.value.categories.filter((c) => c.selected));
 // The names of the chosen categories, as the language joins a list.
@@ -42,11 +42,11 @@ const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode ==
  * Adds a category to the deck, or removes it if it is already in, by sending the whole new selection.
  * @param {string} key  The category's key.
  * @returns {void}
- * Side effects: sends a `setCategories` request.
+ * Side effects: sends a `settings` request.
  */
 function toggleCategory(key) {
-  const keys = state.value.categories.filter((c) => (c.key === key ? !c.selected : c.selected)).map((c) => c.key);
-  send('setCategories', { keys });
+  const categories = state.value.categories.filter((c) => (c.key === key ? !c.selected : c.selected)).map((c) => c.key);
+  send('settings', { categories });
 }
 </script>
 
@@ -57,29 +57,18 @@ function toggleCategory(key) {
     <div class="row"><InviteCode :code="state.code" /></div>
   </section>
 
-  <section class="panel stack">
-    <h2>{{ t('lobby.players') }}</h2>
-    <ul class="seats" :aria-label="t('lobby.playersLabel')">
-      <li v-for="p in players" :key="p.id" class="seat" :class="{ bot: p.bot, me: p.id === state.me.id, away: !p.connected }">
-        <span class="who">
-          {{ p.name }}
-          <span v-if="p.id === state.me.id" class="tag">{{ $t('common.you') }}</span>
-          <span v-if="p.id === state.hostId" class="tag">{{ $t('common.host') }}</span>
-          <span v-if="p.bot" class="tag bot">{{ $t('common.computer') }}</span>
-          <span v-if="!p.bot && !p.connected" class="tag away">{{ $t('common.away') }}</span>
-        </span>
-        <button v-if="isHost && p.bot" class="quiet" @click="send('removeBot', { targetId: p.id })">{{ $t('common.remove') }}</button>
-        <button v-else-if="isHost && p.id !== state.me.id" class="quiet" @click="send('removePlayer', { targetId: p.id })">{{ $t('common.remove') }}</button>
-      </li>
-    </ul>
-    <div v-if="isHost" class="row">
-      <button :disabled="full" @click="send('addBot')">{{ $t('lobby.addBot') }}</button>
-      <button v-if="missingPlayers > 0" @click="send('fillBots', { count: state.minPlayers })">
-        {{ t('lobby.fillUpTo', { count: state.minPlayers }, state.minPlayers) }}
-      </button>
-      <span v-if="full" class="muted">{{ t('lobby.tableFull', { count: state.maxPlayers }, state.maxPlayers) }}</span>
-    </div>
-  </section>
+  <PlayerListPanel
+    :players="panelPlayers"
+    :you="state.me.id"
+    :host-id="state.hostId"
+    :is-host="isHost"
+    :min="state.minPlayers"
+    :max="state.maxPlayers"
+    @add-bot="send('addBot')"
+    @remove-bot="(id) => send('removeBot', { seat: id })"
+    @kick="(id) => send('kick', { userId: id })"
+    @fill-bots="(count) => send('fillBots', { count })"
+  />
 
   <section class="panel stack">
     <h2>{{ t('lobby.playStyle') }}</h2>
@@ -91,7 +80,7 @@ function toggleCategory(key) {
             name="judging"
             :value="option.mode"
             :checked="state.judging === option.mode"
-            @change="send('setJudging', { mode: option.mode })"
+            @change="send('settings', { judging: option.mode })"
           />
           <span>
             <strong>{{ option.title }}</strong>
@@ -142,7 +131,7 @@ function toggleCategory(key) {
           min="3"
           max="12"
           :value="state.handSize"
-          @change="send('setHandSize', { size: $event.target.value })"
+          @change="send('settings', { handSize: $event.target.value })"
         />
       </label>
       <label class="row">
@@ -153,7 +142,7 @@ function toggleCategory(key) {
           min="1"
           max="10"
           :value="state.roundsEach"
-          @change="send('setRounds', { count: $event.target.value })"
+          @change="send('settings', { roundsEach: $event.target.value })"
         />
       </label>
       <p class="muted">
@@ -191,52 +180,6 @@ function toggleCategory(key) {
 </template>
 
 <style scoped>
-.seats {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.4rem;
-}
-.seat {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.5rem 0.8rem;
-  border-radius: 10px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--line);
-}
-.seat.me {
-  border-color: var(--amber);
-}
-.seat.away {
-  opacity: 0.65;
-}
-.who {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-.tag {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--amber);
-  color: var(--amber);
-}
-.tag.bot {
-  border-color: var(--muted);
-  color: var(--muted);
-}
-.tag.away {
-  border-color: var(--danger);
-  color: var(--danger);
-}
 .num {
   width: 5rem;
 }

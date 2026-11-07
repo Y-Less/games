@@ -33,16 +33,18 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
   return { wrapper, send };
 }
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
-const seats = (w) => w.findAll('ul.seats li.seat');
+// The shared players panel (src/components/PlayerListPanel.vue) draws one row per player.
+const seats = (w) => w.findAll('ul.players li.row');
 
 describe('Dixnt lobby computer players', () => {
   it('lists people and computer players with their tags', () => {
     const { wrapper } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob', { connected: false }), bot('b1', 'Ada')] });
     const rows = seats(wrapper);
     expect(rows).toHaveLength(3);
-    expect(rows[0].findAll('.tag').map((t) => t.text())).toEqual(['you', 'host']);
-    expect(rows[1].findAll('.tag').map((t) => t.text())).toEqual(['away']);
-    expect(rows[2].findAll('.tag').map((t) => t.text())).toEqual(['computer']);
+    expect(rows[0].text()).toContain('(you)');
+    expect(rows[0].text()).toContain('host');
+    expect(rows[1].text()).toContain('away');
+    expect(rows[2].text()).toContain('computer');
   });
 
   it('lets the host add a computer player, fill up to the minimum and remove bots and people', async () => {
@@ -52,15 +54,15 @@ describe('Dixnt lobby computer players', () => {
     const rows = seats(wrapper);
     expect(rows[0].find('button').exists()).toBe(false); // not oneself
     await rows[1].find('button').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('removePlayer', { targetId: 'bob' });
+    expect(send).toHaveBeenLastCalledWith('kick', { userId: 'bob' });
     await rows[2].find('button').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('removeBot', { targetId: 'b1' });
+    expect(send).toHaveBeenLastCalledWith('removeBot', { seat: 'b1' });
     expect(button(wrapper, 'Fill up to'), 'enough players already').toBeUndefined();
   });
 
   it('offers to fill up to the minimum only while there are too few players', async () => {
     const { wrapper, send } = make({ players: [person('ann', 'Ann')] });
-    await button(wrapper, 'Fill up to 3 players').trigger('click');
+    await button(wrapper, 'Fill up to 3').trigger('click');
     expect(send).toHaveBeenLastCalledWith('fillBots', { count: 3 });
     expect(button(wrapper, 'Need 2 more players')).toBeDefined();
   });
@@ -70,6 +72,22 @@ describe('Dixnt lobby computer players', () => {
     const { wrapper } = make({ players });
     expect(button(wrapper, 'Add a computer player').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('The table is full (12 players)');
+  });
+
+  it('sends the whole settings message when the host changes one', async () => {
+    const { wrapper, send } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')] });
+    const styles = wrapper.findAll('input[name="judging"]');
+    await styles[1].trigger('change');
+    expect(send).toHaveBeenLastCalledWith('settings', { judging: 'chooser' });
+    const numbers = wrapper.findAll('input.num');
+    numbers[0].element.value = '6';
+    await numbers[0].trigger('change');
+    expect(send).toHaveBeenLastCalledWith('settings', { handSize: '6' });
+    numbers[1].element.value = '3';
+    await numbers[1].trigger('change');
+    expect(send).toHaveBeenLastCalledWith('settings', { roundsEach: '3' });
+    await wrapper.find('input[type="checkbox"]').trigger('change');
+    expect(send).toHaveBeenLastCalledWith('settings', { categories: [] });
   });
 
   it('shows nobody but the host any bot controls', () => {

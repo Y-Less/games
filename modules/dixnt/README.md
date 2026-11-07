@@ -7,11 +7,16 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 
 - `module.json` the menu entry, player limits (3 to 12), and the statistics the game reports.
 - `rules.md` the player-facing rules, shown by the site's "Rules" button.
-- `game.js` the pure rules and what each player may see (no networking), including the computer-player seats.
-- `server.js` the socket half: rooms keyed by three-word codes (`ctx.codes`), one player per account
-  (`socket.data.user`, token `user:<id>`), saving to `ctx.dataDir/games.json`, categories, hints, and statistics.
+- `game.js` the pure rules and what each player may see (no networking), including the computer players.
+  `createRules({ getCategories, hints })` builds the rules object `shared/roomServer.js` drives; the lobby itself
+  (joining, leaving, removing, the computer players) is the shared player-list code of `shared/roster.js`.
+- `server.js` the socket half, a short call to `createRoomServer` (`shared/roomServer.js`): where the cards and the
+  hints come from, the settings it accepts, its own events, the computer players' timer, and the `art` achievement.
+  Rooms are saved to `ctx.dataDir/rooms.json`; a `games.json` from before this is brought over once (see
+  `importOldSave`) and kept as `games.json.imported`.
 - `client/` the Vue half. `index.js` exports `Dixnt.vue`, which builds the store (`store.js`) from the props the site
-  passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.
+  passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.  The
+  store is Dixnt's own; the other games use `src/useGameSocket.js` for the same plumbing.
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
 - `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
@@ -20,7 +25,7 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 
 ## Scoreboard
 
-Every completed round is appended to `history` in the room state (saved in `games.json`):
+Every completed round is appended to `history` in the room state (saved in `rooms.json`):
 `{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
 (`{ key, params? }`, see `shared/messages.js`), never English: `msg('round.label', { n })` or `msg('round.earlier')`
 for the label, and one of `notes.chooser`, `notes.cardPicked`, `notes.chooserCardPicked`, `notes.imposterCaught`,
@@ -40,12 +45,11 @@ those rows keep their original wording.
 Every word a player sees comes from `locales/en.json` (`../../MODULES.md`, "Languages").  Nothing the server sends is a
 sentence:
 
-- **Refusals.** `Game` throws a `GameError` whose `message` is a refusal **code** and whose `params` are the values
-  that text needs; `server.js` answers `{ ok: false, error: <code>, params? }` (it used to answer with an English
-  sentence).  A code is looked up under `errors.` in `locales/en.json` first and `src/locales/en.json` second, so
-  Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`, `joinFirst` ...) sit beside the
-  shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `turnsEach`, `noGameWithCode` ...).  An unexpected throw
-  becomes `serverError`.
+- **Refusals.** Every rule returns `{ ok: false, error: <code>, params? }`, where the code is a refusal **code** and
+  `params` are the values that text needs.  A code is looked up under `errors.` in `locales/en.json` first and
+  `src/locales/en.json` second, so Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`
+  ...) sit beside the shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `turnsEach`, `noGameWithCode` ...).
+  An unexpected throw becomes `serverError`.
 - **Text in a view.** The scoreboard's round labels and notes are messages (above), and so is the label of the
   made-up "all cards" category (`lobby.allCards`) used when there is no `categories.json`.  The labels and
   descriptions *in* `categories.json`, the hints in `hints.txt`, the chooser's word, the card pictures, and the
@@ -72,19 +76,19 @@ winners (see `dixit/STYLE_GUIDE.md` and `dixit/JUDGING.md`).
 When a game reaches the finished phase it is reported once with `ctx.stats.record`: winners (everyone tied on the top
 score) get `win`, the rest `loss`, placements follow the score (ties share one), and the extras are
 `roundsAsImposter`, `timesFooledGroup`, `correctGuesses` and `cardsPlayed`.  Games ended early by the host, or
-abandoned, are not recorded.  The per-round tallies are kept next to each saved game, so a restart does not lose them
-or record a game twice.
+abandoned, are not recorded.  The per-round counters live on the player in the room (as their score does), so they
+survive a restart, follow a place when it changes hands, and never record a game twice.
 
 ## Computer players (built in)
 
-Computer players are seats in the room, like in Hearts or Rummikub.  They are not accounts: a bot seat is
-`{ id, token: 'bot:<n>', name, bot: true, ai, hand, score, ... }` in `players` (saved with the room), and no user token
-can match it.  Dixnt has no fixed seat count (3 to 12 players), so there are no "empty seats": the lobby's Players panel
-has **Add a computer player**, **Remove** beside each computer player, and **Fill up to 3 players with computer players**
-(socket events `addBot`, `removeBot { targetId }` and `fillBots { count }`; the count defaults to the minimum and is
-capped at 12).  All three are host-only and lobby-only.  People and computer players share the 12 seats.  The lobby
-controls are Dixnt's own (`LobbyView.vue`) rather than `SeatLobby`, because that component is for a fixed number of
-seats, while Dixnt's lobby also has the play style, categories, and its own start conditions.
+Computer players are places in the room, like in Just One or Wavelength.  They are not accounts: a person's id in a
+room **is** their account id, and a computer player's is `'bot:<n>'`, so no account can ever match one.  Dixnt has no
+fixed seat count (3 to 12 players), so there are no "empty seats": the lobby's players panel is the shared
+`PlayerListPanel`, with **Add a computer player**, **Remove** beside each one, and **Fill up to 3 players with
+computer players** (socket events `addBot`, `removeBot { seat }` and `fillBots { count }`; the count defaults to the
+minimum and is capped at 12).  All three are host-only and lobby-only.  People and computer players share the 12
+places.  The rest of the lobby (the play style, the categories, the hand size and the length) is Dixnt's own, in
+`LobbyView.vue`, and the host changes any of it with one `settings` message.
 
 - **AIs.** `start` deals each computer player an AI with `assignAIs(AIS, ids, rng)` using the game's rng and stores its
   id on the seat; they are dealt again at every start (and cleared when the game returns to the lobby).  The view has
@@ -99,14 +103,16 @@ seats, while Dixnt's lobby also has the play style, categories, and its own star
   few built-in words.  Timers are rebuilt when the server starts, so saved rooms carry on.
 - **Next round.** Bots never press "Next round" or start the game: the host does, as before, so they cannot hold
   anything up.
-- **Leaving.** While a round is on (or its results are showing), a person who leaves or is removed by the host is
-  replaced by a computer player in the same seat (keeping hand, score, turns, what they played, and their scoreboard
-  column), if another person is still in the game.  The new bot gets a bot name and a random AI, and the host role passes
-  to the first remaining person.  In the lobby, after the game, for a late joiner who is still waiting, for a computer
-  player the host removes mid-game, or when nobody else is left, the seat is simply removed (`Game.removePlayer`, which
-  still abandons the round, or returns to the lobby below three players).  A game with no people left is dropped, so bots
-  alone never keep a room alive.  Dixnt allows several rooms per account, so there is no "one live room" rule to exempt
-  bots from.
+- **Leaving and arriving.** This is the shared behaviour of `shared/roster.js`, and nothing about it is Dixnt's own.
+  While a game is on, a person who leaves or is removed by the host is replaced by a computer player in their place,
+  keeping their hand, score, turns, the card they played, the vote they cast and their scoreboard column; the new
+  computer player gets a name and a random AI, remembers whose place it is keeping warm (`stoodInFor`), and the host
+  role passes to the first remaining person.  So a round is never abandoned for somebody leaving, whoever they were.
+  Somebody arriving at a game under way takes a computer player's place the same way round — their own first, if it is
+  still being kept for them — so a game of nothing but people answers `gameFull`.  In the lobby a place is simply given
+  up, and a finished game keeps its final standings for everybody who played.  A game with no people left is dropped,
+  so computer players alone never keep a room alive.  Somebody the host removes, or the table votes out, is barred
+  (`room.barred`), so the invitation does not let them back in.
 - **Statistics.** Only accounts are recorded: bots have no user id and are left out of `ctx.stats.record` and of the
   tallies, though they do count in the placements.
 

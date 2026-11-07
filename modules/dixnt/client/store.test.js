@@ -84,32 +84,24 @@ describe('connection handling', () => {
     expect(api.store.toast).toBe('');
   });
 
-  it('looks the code up when resuming fails, quietly', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: false, error: 'noGameWithCode' }, lookup: { exists: true } } });
+  it("keeps the server refusal for the start screen, without a toast", async () => {
+    const socket = fakeSocket({ replies: { resume: { ok: false, error: 'noGameWithCode' } } });
     const { api } = make({ socket, search: '?boss-aware-you' });
-    socket.trigger('connect');
-    await settle();
-    expect(socket.emitted.map((e) => e[0])).toEqual(['resume', 'lookup']);
-    expect(socket.emitted[1][1]).toEqual({ code: 'boss-aware-you' });
-    expect(api.store.codeExists).toBe(true);
-    expect(api.store.toast).toBe('');
-  });
-
-  it('records that a game does not exist', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: false }, lookup: { exists: false } } });
-    const { api } = make({ socket, search: '?boss-aware-you' });
-    socket.trigger('connect');
-    await settle();
-    expect(api.store.codeExists).toBe(false);
-  });
-
-  it('does not look anything up when there is no code', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: false } } });
-    const { api } = make({ socket });
     socket.trigger('connect');
     await settle();
     expect(socket.emitted.map((e) => e[0])).toEqual(['resume']);
-    expect(api.store.codeExists).toBeNull();
+    expect(api.store.notice).toBe('No game has that code.');
+    expect(api.store.toast).toBe('', 'a failed resume is quiet');
+    expect(api.store.checkedSession).toBe(true);
+  });
+
+  it('asks only once, with no code, when there is none', async () => {
+    const socket = fakeSocket({ replies: { resume: { ok: true, code: null } } });
+    const { api } = make({ socket });
+    socket.trigger('connect');
+    await settle();
+    expect(socket.emitted).toEqual([['resume', { code: '' }]]);
+    expect(api.store.notice).toBe('');
     expect(api.store.checkedSession).toBe(true);
   });
 
@@ -127,20 +119,14 @@ describe('connection handling', () => {
     expect(api.store.connected).toBe(false);
   });
 
-  it('discards a stale lookup answer if the code changed meanwhile', async () => {
-    let answer;
-    const socket = fakeSocket();
-    socket.emit = vi.fn((event, payload, ack) => {
-      if (event === 'lookup') answer = () => ack({ exists: true });
-      else ack({ ok: false });
-    });
+  it('comes back with the code the server last gave, not the one in the address', async () => {
+    const socket = fakeSocket({ replies: { resume: { ok: true } } });
     const { api } = make({ socket, search: '?boss-aware-you' });
+    socket.trigger('state', { code: 'cat-dog-fox', me: { id: 1 }, hostId: 1, players: [] });
     socket.trigger('connect');
     await settle();
-    api.goHome();
-    answer();
-    await settle();
-    expect(api.store.codeExists).toBeNull();
+    expect(socket.emitted.at(-1)).toEqual(['resume', { code: 'cat-dog-fox' }]);
+    void api;
   });
 });
 
@@ -154,15 +140,14 @@ describe('state updates', () => {
     expect(setSearch).toHaveBeenCalledWith('cat-dog-fox');
   });
 
-  it('a null state clears the zoom and looks the code up again', async () => {
-    const socket = fakeSocket({ replies: { lookup: { exists: false } } });
+  it('a null state clears the zoom and asks the server for nothing more', async () => {
+    const socket = fakeSocket();
     const { api } = make({ socket, search: '?cat-dog-fox' });
     api.store.zoom = { cardId: 3, actions: [] };
     socket.trigger('state', null);
     await settle();
     expect(api.store.zoom).toBeNull();
-    expect(socket.emitted).toEqual([['lookup', { code: 'cat-dog-fox' }]]);
-    expect(api.store.codeExists).toBe(false);
+    expect(socket.emitted).toEqual([]);
   });
 });
 
@@ -249,12 +234,12 @@ describe('actions', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('goHome forgets the code and clears the address', () => {
+  it('goHome forgets the code, the last refusal and the address', () => {
     const { api } = make({ search: '?cat-dog-fox' });
-    api.store.codeExists = true;
+    api.store.notice = 'something went wrong';
     api.goHome();
     expect(api.store.code).toBe('');
-    expect(api.store.codeExists).toBeNull();
+    expect(api.store.notice).toBe('');
     expect(setSearch).toHaveBeenCalledWith('');
   });
 });

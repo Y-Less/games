@@ -7,7 +7,7 @@
 //   width   {number}  required.  Width of the main area in pixels.
 //   height  {number}  required.  Height of the main area in pixels.
 // Emits: none.  Slots: none.
-// Side effects: sends submitWord, hints, nextRound, endGame and abortRound requests (the last two after a confirm
+// Side effects: sends submitWord, hints, nextRound, again and abortRound requests (the last two after a confirm
 // dialog); keeps local word/hints/busy state, cleared when you stop being the chooser; focuses the word box when you
 // become the chooser.
 import { computed, nextTick, ref, watch } from 'vue';
@@ -35,8 +35,8 @@ const finished = computed(() => phase.value === 'finished');
 // ---- the sizes ----
 // Size of a card in your hand: sized for a full hand so the zone never changes.
 const hand = computed(() => handCard(props.width, props.height, Math.max(state.value.handSize, state.value.me.hand.length, 1)));
-// How many players are in this round (those who joined mid-round are waiting).
-const inRound = computed(() => players.value.filter((p) => !p.waiting).length);
+// How many players are in this round: everybody in the room, since a place is never empty while a game is on.
+const inRound = computed(() => players.value.length);
 // Size and grid of the cards on the table, from what is left after the controls and the hand.
 const cards = computed(() => fitCards(inRound.value, props.width, props.height - CONTROLS - hand.value.height - GAP * 2));
 // The CSS grid rows of the three fixed zones: table (flexible), controls, hand.
@@ -97,10 +97,10 @@ const nextChooser = computed(() => {
 /**
  * Host only: ends the game and returns everyone to the lobby, after asking.
  * @returns {Promise<void>}
- * Side effects: shows a confirm dialog; sends `endGame` if confirmed (scores are reset).
+ * Side effects: shows a confirm dialog; sends `again` if confirmed (scores are reset).
  */
 async function endGame() {
-  if (window.confirm(t('table.confirmEnd'))) await send('endGame');
+  if (window.confirm(t('table.confirmEnd'))) await send('again');
 }
 /**
  * Host only: abandons the current round (no points) and moves to the next chooser, after asking.
@@ -132,7 +132,7 @@ async function skipRound() {
         <button v-if="isLastRound" class="primary" @click="send('nextRound')">{{ t('table.lastRound') }}</button>
         <button v-else class="primary" @click="send('nextRound')">{{ t('table.nextRound', { name: nextChooser }) }}</button>
       </template>
-      <button v-else-if="finished && isHost" class="primary" @click="send('endGame')">{{ t('table.backToLobby') }}</button>
+      <button v-else-if="finished && isHost" class="primary" @click="send('again')">{{ t('table.backToLobby') }}</button>
       <span class="spacer" />
       <div v-if="isHost && !finished" class="host">
         <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipRound">{{ t('table.skipRound') }}</button>

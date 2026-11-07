@@ -29,7 +29,7 @@ async function lobby(site, names, { rounds = 1 } = {}) {
   assert.equal(created.ok, true, created.error);
   for (const p of rest) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === names.length), 'everybody in the lobby');
-  assert.equal((await host.call('setRounds', { count: rounds })).ok, true);
+  assert.equal((await host.call('settings', { roundsEach: rounds })).ok, true);
   return { people, host, code: created.code };
 }
 
@@ -78,7 +78,7 @@ async function finish(people, host) {
       if (!s) continue;
       let reply = null;
       if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: 'w' });
-      else if (s.phase === 'picking' && !s.me.isChooser && !s.me.waiting && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
+      else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
       else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
       else if (s.phase === 'results' && p === host) reply = await p.call('nextRound');
       if (reply) {
@@ -217,7 +217,7 @@ test('a disconnect is not a leave: the host dropping keeps the host role, and re
 test('the host leaving hands the host role on, in the lobby and in the middle of a round', async (t) => {
   const site = await launch(t);
   const { people, host } = await lobby(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 2 });
-  const [, bob, cat, dan] = people;
+  const [, bob, cat] = people;
   assert.equal((await host.call('leave')).ok, true);
   await until(() => host.state === null, 'ann out');
   await until(() => bob.state.players.length === 3, 'three left');
@@ -234,7 +234,6 @@ test('the host leaving hands the host role on, in the lobby and in the middle of
   assert.ok(remaining.every((p) => p.state.phase === 'picking'), 'the round carries on');
   assert.ok(remaining.some((p) => p.state.hostId === p.state.me.id), 'someone hosts');
   assert.ok(remaining.filter((p) => p.state.hostId === p.state.me.id).length === 1, 'exactly one host');
-  void dan;
 });
 
 test('the game vanishing under connected sockets: the last player leaving ends it for every socket of theirs', async (t) => {
@@ -249,20 +248,19 @@ test('the game vanishing under connected sockets: the last player leaving ends i
   assert.equal((await bob.call('leave')).ok, true, 'the last one leaves');
   await until(() => bob.state === null && bobPhone.state === null, 'both of bob\'s sockets sent home');
   // Anything the phone tries now is refused politely; the code is dead.
-  for (const [event, payload] of [['start'], ['submitWord', { word: 'x' }], ['playCard', { cardId: 10001 }], ['leave'], ['removePlayer', { targetId: 'x' }]]) {
+  for (const [event, payload] of [['start'], ['submitWord', { word: 'x' }], ['playCard', { cardId: 10001 }], ['kick', { userId: 'x' }]]) {
     const reply = await bobPhone.call(event, payload);
     assert.equal(reply.ok, false, event);
   }
   assert.equal((await host.call('join', { code })).ok, false, 'no game has that code');
-  assert.deepEqual(await host.call('lookup', { code }), { ok: true, code, exists: false });
-  assert.equal((await bob.call('resume')).ok, false);
+  assert.equal((await bob.call('resume')).code, null, 'and nothing to come back to');
   // The accounts are free to start again.
   const next = await host.call('create');
   assert.equal(next.ok, true);
   assert.notEqual(next.code, undefined);
 });
 
-test('the host removing a player sends every socket of theirs out; they may rejoin, and a removed mid-game player is replaced by a computer player', async (t) => {
+test('the host removing a player sends every socket of theirs out and bars them; a computer player takes the place', async (t) => {
   const site = await launch(t);
   const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat', 'dan']);
   const [, bob, cat, dan] = people;
@@ -270,54 +268,74 @@ test('the host removing a player sends every socket of theirs out; they may rejo
   await bobPhone.call('resume', { code });
   await toPhase(people, host, 'picking');
   const bobId = bob.state.me.id;
-  assert.equal((await cat.call('removePlayer', { targetId: bobId })).ok, false, 'only the host removes others');
-  assert.equal((await host.call('removePlayer', { targetId: bobId })).ok, true);
+  assert.equal((await cat.call('kick', { userId: bobId })).ok, false, 'only the host removes others');
+  assert.equal((await host.call('kick', { userId: bobId })).ok, true);
   await until(() => bob.state === null && bobPhone.state === null, 'bob out on both sockets');
   const rest = [host, cat, dan];
-  await until(() => rest.every((p) => p.state?.players.length === 4), 'four seats');
-  assert.ok(rest.every((p) => p.state.players.find((x) => x.id === bobId)?.bot), 'a computer player holds the seat');
+  await until(() => rest.every((p) => p.state?.players.filter((x) => x.bot).length === 1), 'a computer player holds the place');
+  assert.ok(rest.every((p) => p.state.players.length === 4), 'four places still');
+  assert.ok(rest.every((p) => p.state.players.every((x) => x.id !== bobId)), 'he is no longer one of them');
   assert.equal((await bob.call('playCard', { cardId: 10001 })).ok, false);
-  assert.equal((await bob.call('join', { code })).ok, true, 'back in, waiting for the next round');
-  await until(() => bob.state?.me.waiting === true, 'bob waiting');
-  assert.equal(bob.state.me.hand.length, 0);
-  assert.notEqual(bob.state.me.id, bobId, 'a new identity in the game');
-  // The game carries on for everyone, with bob joining at the next round.
-  await finish([host, cat, dan, bob], host);
+  assert.equal((await bob.call('join', { code })).ok, false, 'being put out bars him from the invitation');
+  // The game carries on for the rest.
+  await finish([host, cat, dan], host);
   assert.equal(host.state.phase, 'finished');
 });
 
-test('one account in two games: both exist, each socket acts in its own game, and resume picks the latest touched', async (t) => {
+test('somebody who leaves of their own accord can take their own place back, cards and score and all', async (t) => {
+  const site = await launch(t);
+  const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 2 });
+  const [, bob] = people;
+  await toPhase(people, host, 'picking');
+  const bobId = bob.state.me.id;
+  const hand = [...bob.state.me.hand];
+  assert.equal((await bob.call('leave')).ok, true);
+  await until(() => bob.state === null, 'bob out');
+  await until(() => host.state.players.filter((p) => p.bot).length === 1, 'a computer player keeping his place warm');
+  assert.equal(host.state.players.length, 4);
+
+  assert.equal((await bob.call('join', { code })).ok, true, 'the invitation lets him back in');
+  await until(() => bob.state?.phase === 'picking', 'bob back at the table');
+  assert.equal(bob.state.me.id, bobId, 'his own place, not a new one');
+  assert.deepEqual(bob.state.me.hand, hand, 'with the cards he had');
+  assert.equal(host.state.players.length, 4, 'and no place was made for him');
+  await finish(people, host);
+  assert.equal(host.state.phase, 'finished');
+});
+
+test('one game at a time: a second one is refused and sends you back to the one you are in', async (t) => {
   const site = await launch(t);
   const [ann, bob, cat, dan] = await Promise.all(['ann', 'bob', 'cat', 'dan'].map((n) => site.person(n).open()));
   const a = await ann.call('create');
-  await bob.call('join', { code: a.code });
-  await cat.call('join', { code: a.code });
+  for (const p of [bob, cat]) assert.equal((await p.call('join', { code: a.code })).ok, true);
   await until(() => cat.state?.players.length === 3, 'game A');
-  // Ann starts a second game on the same socket: allowed (Dixnt has no one-game rule).
-  const b = await ann.call('create');
+
+  // Dan starts a second game of his own; ann cannot be in both.
+  const b = await dan.call('create');
   assert.equal(b.ok, true);
   assert.notEqual(b.code, a.code);
-  await until(() => ann.state?.players.length === 1, 'game B for ann');
-  await sleep(20); // game B must be touched strictly later than game A
-  assert.equal((await dan.call('join', { code: b.code })).ok, true);
-  await until(() => ann.state.players.length === 2, 'dan in game B');
-  // A second socket of ann resumes without a code: the most recently touched game (B).
+  const second = await ann.call('create');
+  assert.equal(second.ok, false, 'ann is already in a game');
+  assert.equal(second.params.code, a.code, 'and is told which');
+  await until(() => ann.state?.code === a.code, 'ann is put back in game A');
+  const elsewhere = await ann.call('join', { code: b.code });
+  assert.equal(elsewhere.ok, false, 'nor may she join another');
+  assert.equal(elsewhere.params.code, a.code);
+
+  // Her other sockets land in the same game, with or without the code.
   const phone = await ann.twin();
-  assert.equal((await phone.call('resume')).code, b.code);
-  // And with a code it picks A, without disturbing the first socket.
-  const phoneA = await ann.twin();
-  assert.equal((await phoneA.call('resume', { code: a.code })).code, a.code);
-  await until(() => phoneA.state?.players.length === 3, 'phone sees game A');
-  assert.equal(ann.state.players.length, 2, 'the first socket is still in B');
-  // Settings go to the game each socket is in.
-  assert.equal((await phoneA.call('setHandSize', { size: 5 })).ok, true);
-  await until(() => bob.state.handSize === 5, 'game A to change');
-  assert.notEqual(ann.state.handSize, 5);
-  assert.equal((await phoneA.call('start')).ok, true);
-  await until(() => bob.state.phase === 'word', 'game A started');
-  assert.equal(ann.state.phase, 'lobby', 'game B is untouched');
-  // Leaving A on that socket does not remove ann from B.
-  assert.equal((await phoneA.call('leave')).ok, true);
-  assert.equal(phoneA.state, null);
-  assert.equal(ann.state.players.length, 2);
+  assert.equal((await phone.call('resume')).code, a.code);
+  const laptop = await ann.twin();
+  assert.equal((await laptop.call('resume', { code: a.code })).code, a.code);
+  await until(() => laptop.state?.players.length === 3, 'the laptop sees game A');
+  // A setting reaches every socket of every person in the game.
+  assert.equal((await ann.call('settings', { handSize: 5 })).ok, true);
+  await until(() => bob.state.handSize === 5 && phone.state?.handSize === 5, 'game A to change');
+  assert.equal(dan.state.handSize, 8, 'game B is untouched');
+  // Once she leaves she is free to start another.
+  assert.equal((await ann.call('leave')).ok, true);
+  await until(() => ann.state === null, 'ann out');
+  const next = await ann.call('create');
+  assert.equal(next.ok, true);
+  assert.notEqual(next.code, a.code);
 });

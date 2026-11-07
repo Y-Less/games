@@ -15,7 +15,7 @@ const words = (value) => messageText(value, 'dixnt');
 const lineWords = (line) => words(line?.tone ? line.text : line);
 
 // ---- a state shaped like the server's view ----
-const player = (id, name, extra = {}) => ({ id, name, score: 0, turns: 0, waiting: false, connected: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, ...extra });
+const player = (id, name, extra = {}) => ({ id, name, score: 0, turns: 0, connected: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, ...extra });
 function view(extra = {}, me = {}) {
   const players = extra.players ?? [player('ann', 'Ann', { isChooser: true }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
   return {
@@ -42,7 +42,7 @@ function view(extra = {}, me = {}) {
     discardCount: 2,
     word: 'Dragon',
     wordHidden: false,
-    me: { id: 'ann', waiting: false, isChooser: true, hand: [1, 2, 3, 4, 5, 6], myPick: null, myVote: null, isImposter: false, ...me },
+    me: { id: 'ann', isChooser: true, hand: [1, 2, 3, 4, 5, 6], myPick: null, myVote: null, isImposter: false, ...me },
     players,
     scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 'ann', bot: p.bot, away: false })), rounds: [], lowIsBetter: false },
     table: [],
@@ -206,7 +206,7 @@ describe('Dixnt word pop-up', () => {
 });
 
 describe('Dixnt player pop-up', () => {
-  it('gives the host a Remove button for a person and for a computer player, removing through removePlayer', async () => {
+  it('gives the host a Remove button for a person and for a computer player, each through its own event', async () => {
     const { wrapper, socket } = await mountGame(view());
     const chips = () => wrapper.findAll('.score-bar button.chip-button');
     expect(chips().map((c) => c.text())).toEqual([expect.stringContaining('Ann'), expect.stringContaining('Bob'), expect.stringContaining('Cy'), expect.stringContaining('Di')]);
@@ -223,8 +223,16 @@ describe('Dixnt player pop-up', () => {
     socket.emit.mockClear();
     await wrapper.find('.player-popup [data-confirm]').trigger('click');
     await flushPromises();
-    expect(socket.emit).toHaveBeenCalledWith('removePlayer', { targetId: 'cy' }, expect.any(Function));
+    expect(socket.emit).toHaveBeenCalledWith('removeBot', { seat: 'cy' }, expect.any(Function));
     expect(wrapper.find('.player-popup').exists()).toBe(false);
+
+    // A person goes by their account instead: that is the shared room server's 'kick'.
+    await chips()[1].trigger('click');
+    await wrapper.find('.player-popup').findAll('button').find((b) => b.text() === 'Remove player').trigger('click');
+    socket.emit.mockClear();
+    await wrapper.find('.player-popup [data-confirm]').trigger('click');
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('kick', { userId: 'bob' }, expect.any(Function));
     wrapper.unmount();
   });
 

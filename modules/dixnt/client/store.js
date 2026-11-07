@@ -27,8 +27,8 @@ export const cardUrl = (cardId, size = 'medium') => `/assets/dixnt/cards/${size}
  *   setSearch puts the current game code in the address bar; error turns a server refusal into words in the player's
  *   language (useGameText's `error`), because nothing outside a locale file writes any.
  * @returns {object} { store, user, send, showToast, goHome, createGame, join, players, nameOf, chooser, isHost, cardUrl, dispose }.
- * Side effects: listens to the socket's connect, disconnect, and state events (removed by `dispose()`); emits resume,
- * lookup, and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
+ * Side effects: listens to the socket's connect, disconnect, and state events (removed by `dispose()`); emits resume
+ * and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
  */
 export function createStore({ socket, user, search, setSearch, error }) {
   const store = reactive({
@@ -37,7 +37,7 @@ export function createStore({ socket, user, search, setSearch, error }) {
     state: null,
     log: [], // "Recent moves": worked out here from the changes between one state and the next
     code: tidyCode(search), // the game we are in, or the one an invite link points at
-    codeExists: null, // for an invite link: does that game exist? (null until the server has said)
+    notice: '', // the latest refusal, in words, for the start screen
     toast: '',
     wordPopup: null, // { word, key, hidden, at }: the word just chosen, shown large to everyone for a few seconds
     zoom: null, // { cardId, actions: [{ label, run, primary }] } for the card lightbox
@@ -67,34 +67,22 @@ export function createStore({ socket, user, search, setSearch, error }) {
   function send(event, payload = {}, { quiet = false } = {}) {
     return new Promise((resolve) => {
       socket.emit(event, payload, (reply) => {
-        if (reply && !reply.ok && !quiet) showToast(error(reply));
+        store.notice = reply && !reply.ok ? error(reply) : '';
+        if (reply && !reply.ok && !quiet) showToast(store.notice);
         resolve(reply ?? { ok: false });
       });
     });
   }
 
   /**
-   * Asks whether the game that store.code points at still exists (so an invite page can say so).
+   * Handles the socket connecting (or reconnecting): asks the server to put us back into our game, using the invite
+   * code the first time (the shared room server treats a code in a `resume` as an invitation, as `join` does).
    * @returns {Promise<void>}
-   * Side effects: sends a quiet `lookup`; sets `store.codeExists` (null while waiting, ignored if the code changed meanwhile).
-   */
-  async function lookUpCode() {
-    store.codeExists = null;
-    if (!store.code) return;
-    const asked = store.code;
-    const reply = await send('lookup', { code: asked }, { quiet: true });
-    if (store.code === asked) store.codeExists = Boolean(reply.exists);
-  }
-
-  /**
-   * Handles the socket connecting (or reconnecting): tries to resume the player's game, else checks the invite code.
-   * @returns {Promise<void>}
-   * Side effects: sets `connected` and `checkedSession`; sends `resume` (and maybe `lookup`).
+   * Side effects: sets `connected` and `checkedSession`; sends `resume`.
    */
   async function onConnect() {
     store.connected = true;
-    const reply = await send('resume', { code: store.code }, { quiet: true });
-    if (!reply.ok) await lookUpCode();
+    await send('resume', { code: store.state?.code ?? store.code }, { quiet: true });
     store.checkedSession = true;
   }
   // Marks the connection as lost (the page then shows its offline banner).
@@ -105,8 +93,7 @@ export function createStore({ socket, user, search, setSearch, error }) {
    * Takes in a new personalised state from the server (null when the player is no longer in a game).
    * @param {object | null} state  The new state.
    * @returns {void}
-   * Side effects: updates `store.log`, `wordPopup`, `zoom`, `state`, and `code`; calls `setSearch`; looks the code up when
-   * there is no game.
+   * Side effects: updates `store.log`, `wordPopup`, `zoom`, `state`, and `code`; calls `setSearch`.
    */
   function onState(state) {
     store.log = !state || state.phase === 'lobby' ? [] : [...store.log, ...newEntries(store.state, state)].slice(-200);
@@ -128,7 +115,6 @@ export function createStore({ socket, user, search, setSearch, error }) {
     } else {
       store.zoom = null;
       store.wordPopup = null;
-      lookUpCode();
     }
   }
 
@@ -140,11 +126,11 @@ export function createStore({ socket, user, search, setSearch, error }) {
   /**
    * Goes back to the start screen: forgets the current code and shows the create/join form.
    * @returns {void}
-   * Side effects: clears `store.code` and `codeExists`; clears the address bar's code.
+   * Side effects: clears `store.code` and the last refusal; clears the address bar's code.
    */
   function goHome() {
     store.code = '';
-    store.codeExists = null;
+    store.notice = '';
     setSearch('');
   }
 
@@ -155,8 +141,9 @@ export function createStore({ socket, user, search, setSearch, error }) {
 
   // Everyone in the game ([] before there is a state).
   const players = computed(() => store.state?.players ?? []);
-  // Returns a player's name by id ('?' if unknown).
-  const nameOf = (id) => players.value.find((p) => p.id === id)?.name ?? '?';
+  // Returns a player's name by id ('?' if unknown).  A table keyed by a player id has text keys, while a person's id
+  // is their account number, so the two are matched as text.
+  const nameOf = (id) => players.value.find((p) => String(p.id) === String(id))?.name ?? '?';
   // The player choosing the word this round, or null.
   const chooser = computed(() => players.value.find((p) => p.isChooser) ?? null);
   // True when the viewer is the host.

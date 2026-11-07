@@ -40,12 +40,10 @@ test('the host creates a game and three people join: by invite link, by typing t
   assert.equal(await host.copyInvite(), `${world.base}/play/dixnt?${code}`);
   assert.equal((await host.buttonState('Need 2 more players')).disabled, true, 'cannot start alone');
 
-  // Dan follows the invite link: the code is filled in and he presses Join.
+  // Dan follows the invite link, which takes him straight into the lobby (the client sends the code with its resume).
   await second.goto(`/play/dixnt?${code}`);
-  await second.waitForSelector('input[aria-label="Invite code"]');
-  assert.equal(await second.page.$eval('input[aria-label="Invite code"]', (e) => e.value), code);
-  await second.clickButton('Join', { exact: true });
   await second.waitForText('Waiting for the host to start the game.');
+  await second.waitForCodeInUrl(code);
 
   // Dee types the code.
   await third.goto('/play/dixnt');
@@ -147,25 +145,26 @@ test('the host removes a person from the game through their popup: Remove player
   await host.clickButton('Remove player', { scope: '.player-popup' });
   await host.clickButton('Yes, remove', { scope: '.player-popup' });
   await host.waitForSelector('.player-popup', { hidden: true });
-  // Mid-game a computer player takes over the removed person's seat, so the table stays the same size.
+  // Mid-game a computer player takes over the removed person's place, so the table stays the same size.
   const started = Date.now();
   while ((await chips()).some((c) => c.includes('Fay')) && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
   assert.ok(!(await chips()).some((c) => c.includes('Fay')), 'they are gone from the score bar');
   assert.equal((await chips()).length, 3);
-  assert.equal((await host.page.$$('.score-bar .bot')).length, 1, 'a computer player took their seat');
+  assert.equal((await host.page.$$('.score-bar .bot')).length, 1, 'a computer player took their place');
 }));
 
 test('a host on their own fills the table with built-in computer players, starts, and the bots play their cards', { timeout: 90000 }, guarded('bots', async () => {
   await solo.goto('/play/dixnt');
   await solo.clickButton('Start a new game');
   await solo.waitForText('Waiting for players');
-  const seats = () => solo.page.$$eval('ul.seats .seat', (els) => els.map((e) => ({ bot: e.classList.contains('bot'), text: e.innerText.replace(/\s+/g, ' ').trim() })));
+  // The shared players panel (src/components/PlayerListPanel.vue) draws one row per player, marked "computer" for one.
+  const seats = () => solo.page.$$eval('ul.players li.row', (els) => els.map((e) => ({ bot: /computer/i.test(e.innerText), text: e.innerText.replace(/\s+/g, ' ').trim() })));
   assert.equal((await solo.buttonState('Need 2 more players')).disabled, true);
 
   await solo.clickButton('Add a computer player');
   await solo.waitForText('Need 1 more player');
   assert.equal((await seats()).filter((s) => s.bot).length, 1);
-  await solo.clickButton('Remove', { scope: '.seat.bot' });
+  await solo.clickButton('Remove', { scope: 'ul.players li.row:nth-child(2)' });
   await solo.waitForText('Need 2 more players');
   await solo.clickButton('Fill up to 3 players with computer players');
   await solo.waitForText('Start the game');
@@ -231,7 +230,7 @@ test('the chooser types the word, and the three computer players play a card by 
   assert.equal(await solo.page.$$eval('.table figure', (els) => els.length), 3, 'a card from each of the three computer players is on the table (the chooser plays none)');
 }));
 
-test('the host always has Remove in a player popup: a computer player is removed mid-game, end to end', { timeout: 60000 }, guarded('remove computer', async () => {
+test('the host always has Remove in a player popup, and a computer player cannot be removed mid-game', { timeout: 60000 }, guarded('remove computer', async () => {
   const chips = () => solo.page.$$eval('.score-bar .chip:not(.me) button.chip-button', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
   await solo.waitForSelector('.word-popup', { hidden: true }); // the chosen word is shown large for a few seconds first
   assert.equal((await chips()).length, 3, 'a chip for every other player');
@@ -250,13 +249,14 @@ test('the host always has Remove in a player popup: a computer player is removed
   assert.equal(await solo.page.evaluate(() => Boolean(document.querySelector('.modal-backdrop'))), false, 'not a window.confirm or modal');
   await solo.clickButton('Cancel', { scope: '.player-popup' });
   await solo.waitForNoText('from the game?');
+  // Once the game is on, a computer player's turns are part of it, so the server refuses and the popup says why.
   await solo.clickButton('Remove computer player', { scope: '.player-popup' });
   await solo.clickButton('Yes, remove', { scope: '.player-popup' });
+  await solo.waitForText('Computer players can only be removed in the lobby.');
+  assert.equal((await chips()).length, 3, 'the table is as it was');
+  assert.equal((await solo.page.$$('.score-bar .bot')).length, 3);
+  await solo.page.keyboard.press('Escape');
   await solo.waitForSelector('.player-popup', { hidden: true });
-  const started = Date.now();
-  while ((await chips()).length !== 2 && Date.now() - started < 15000) await new Promise((r) => setTimeout(r, 100));
-  assert.equal((await chips()).length, 2, 'one computer player fewer in the score bar');
-  assert.equal((await solo.page.$$('.score-bar .bot')).length, 2);
 }));
 
 test('Leave game in the header asks first, then leaves the game', { timeout: 60000 }, guarded('leave', async () => {

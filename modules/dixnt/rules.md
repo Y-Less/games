@@ -39,7 +39,7 @@ The host picks one of three styles in the lobby.
 
 ## Length of the game
 
-The host decides how many times each player chooses the word (1 to 10, two by default).  The game ends once everyone has had all their turns, and the player with the most points wins.  If several players share the top score, they all win.  A skipped round does not use up anyone's turn, and players who join late still get their turns, which makes the game longer.
+The host decides how many times each player chooses the word (1 to 10, two by default).  The game ends once everyone has had all their turns, and the player with the most points wins.  If several players share the top score, they all win.  A skipped round does not use up anyone's turn.
 
 ## Card categories
 
@@ -47,7 +47,8 @@ The cards come in categories: Fantasy, Fairy tales, Modern world, Sci-fi, Steamp
 
 ## Good to know
 
-- Players who join in the middle of a round are dealt in at the start of the next one.
-- The host can remove players, skip a round (no points), or end the game, which returns everyone to the lobby with the scores reset.  A game ended early does not count towards your statistics.
+- If somebody leaves a game that is under way, a computer player takes their place and plays on with their cards and their score, so no round is spoilt.  Somebody arriving in the middle — a friend slow to open the invitation, or the leaver coming back — takes a computer player's place the same way round, and gets their own place back if it is still being kept for them.  A game with nobody but people in it is full.
+- You can be in one game at a time.
+- The host can remove players, skip a round (no points), or end the game, which returns everyone to the lobby with the scores reset.  A game ended early does not count towards your statistics.  Anybody the host removes, or the table votes out, cannot use the invitation to come back.
 - If you lose your connection, just reopen the game: you carry on where you left off.
-- A game closes when its last player leaves.
+- A game closes when its last player leaves.  A finished game keeps its final scores for a day, so the invitation still shows them.

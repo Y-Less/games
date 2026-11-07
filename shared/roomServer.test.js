@@ -13,15 +13,31 @@ import { botWait, createRoomServer } from './roomServer.js';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A server over one saved room, with a rules stub that only knows what loading and scheduling need. */
-function serverWith(nextAction, extra = {}) {
+function serverWith(nextAction, extra = {}, saved = JSON.stringify([{ code: 'a-b-c', phase: 'playing', updatedAt: Date.now(), players: [] }])) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-server-'));
-  fs.writeFileSync(path.join(dataDir, 'rooms.json'), JSON.stringify([{ code: 'a-b-c', phase: 'playing', updatedAt: Date.now(), players: [] }]));
+  fs.writeFileSync(path.join(dataDir, 'rooms.json'), saved);
   const logs = [];
   const ctx = { io: new EventEmitter(), dataDir, log: (...args) => logs.push(args.map(String).join(' ')), codes: {}, stats: { record() {} } };
   const game = { isLive: () => true };
   const server = createRoomServer(ctx, { game, pickSettings: () => ({}), nextAction, registerEvents() {}, ...extra });
-  return { server, logs, cleanup: () => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); } };
+  return { server, logs, dataDir, cleanup: () => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); } };
 }
+
+test('a saved-games file that cannot be read is kept beside the new one, not quietly overwritten', (t) => {
+  const { logs, dataDir, cleanup } = serverWith(() => null, {}, '[ not json');
+  t.after(cleanup);
+  assert.ok(logs.some((line) => line.includes('corrupt')), `logged: ${logs.join(' | ')}`);
+  assert.equal(fs.readFileSync(path.join(dataDir, 'rooms.json.corrupt'), 'utf8'), '[ not json');
+});
+
+test('one room that cannot be brought up to date is skipped, the others load, and a copy of the file is kept', (t) => {
+  const rooms = JSON.stringify([{ code: 'good' }, { code: 'bad' }]);
+  const { server, logs, dataDir, cleanup } = serverWith(() => null, { migrate: (room) => { if (room.code === 'bad') throw new Error('too old'); return room; } }, rooms);
+  t.after(cleanup);
+  assert.deepEqual([...server.rooms.keys()], ['good']);
+  assert.ok(logs.some((line) => line.includes('bad')));
+  assert.equal(fs.existsSync(path.join(dataDir, 'rooms.json.corrupt')), true);
+});
 
 test('if working out the next move throws, it is logged and tried again, so the room is not left stuck', async (t) => {
   let calls = 0;

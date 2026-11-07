@@ -1,6 +1,6 @@
-// The lobby and leaving rules for games that keep a LIST of players instead of fixed seats: Just One, Wavelength and
-// Tints and Hints. seats.js does the same job for games with numbered seats (Hearts, Cheat...); the two files speak the
-// same vocabulary (addHuman, removeHuman, addBot, removeBot, fillWithBots, kick) so that shared/roomServer.js can drive
+// The lobby and leaving rules for games that keep a LIST of players instead of fixed seats (Just One, Wavelength,
+// Tints and Hints, GTK, Trivium, Scribblers and Dixnt).  seats.js does the same job for games with numbered seats
+// (Hearts, Cheat...); the two files speak the same vocabulary (addHuman, removeHuman, addBot, removeBot, fillWithBots, kick) so that shared/roomServer.js can drive
 // either, and both hand a seat to a computer player when a person leaves a game that is under way, so that nobody's
 // turns are lost.  Where the games differ is only how a room stores its people:
 //

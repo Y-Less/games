@@ -25,8 +25,9 @@ const IN_ROUND = ['word', 'picking', 'voting'];
  */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
-  // Returns the name of a player id in the new state (the site's "Someone" if they have gone).
-  const name = (id) => next.players.find((p) => p.id === id)?.name ?? msg('common.someone');
+  // Returns the name of a player id in the new state (the site's "Someone" if they have gone).  Ids read out of a
+  // table's keys are text, while a person's id is their account number, so the two are matched as text.
+  const name = (id) => next.players.find((p) => String(p.id) === String(id))?.name ?? msg('common.someone');
   const out = [];
 
   if (next.phase === 'word' && (!prev || prev.phase !== 'word' || prev.chooserId !== next.chooserId)) {

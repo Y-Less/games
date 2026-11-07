@@ -1,218 +1,188 @@
-// Fixes from the code review: a player leaving mid-round no longer abandons it needlessly, submitWord cannot throw on an
-// empty round, ids come from the injected rng, cards are collected once per round, a corrupt games.json is kept and
-// logged, a finished game cannot have people removed, and seats say kind: 'bot'.  The first group drives the rules
-// (game.js) directly; the second drives the real server module (server.js) with a fake socket layer.
+// Fixes from the code review, kept as tests: a person who leaves mid-round never costs the round (a computer player
+// takes their place, with their card and their vote), submitWord cannot throw on an empty round, a finished game
+// cannot have people removed, players say kind: 'bot' or 'human', a damaged saved-games file is kept and logged, and
+// cards are collected once per round.  The first group drives the rules (game.js) directly; the second drives the real
+// server module (server.js) with a fake socket layer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import { Game, GameError, newPublicId } from './game.js';
+import { createRules } from './game.js';
+import { cards, makeRoom, seededRng } from './harness.js';
 import createServer from './server.js';
-
-const cards = (n) => Array.from({ length: n }, (_, i) => i + 1);
-
-/** A small repeatable random number generator. */
-function seededRng(seed = 1) {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-}
 
 /** A game of `count` people (Ann hosts), started, with plenty of rounds and the given judging style. */
 function started(count = 5, judging = 'everyone') {
-  const game = new Game({ getCardIds: () => cards(200), hints: [], rng: seededRng(11) });
-  const people = Array.from({ length: count }, (_, i) => game.addPlayer(['Ann', 'Bob', 'Cat', 'Dan', 'Eve', 'Fay'][i], `t${i}`));
-  const host = people[0];
-  game.setRounds(host.id, 10);
-  game.setJudging(host.id, judging);
-  game.start(host.id);
-  return { game, people, host };
+  const names = ['Ann', 'Bob', 'Cat', 'Dan', 'Eve', 'Fay'].slice(0, count);
+  return makeRoom(names, { cardCount: 200, seed: 11, roundsEach: 10, judging, start: true });
 }
 
 /** Moves the game on to `phase`, using the first card of each hand and voting for the first target. */
-function advanceTo(game, phase) {
-  const s = game.s;
+function advanceTo({ game, room, rng }, phase) {
   if (phase === 'word') return;
-  game.submitWord(s.chooserId, 'lighthouse');
+  game.submitWord(room, room.chooserId, 'lighthouse', rng);
   if (phase === 'picking') return;
-  for (const p of game.cardPlayers()) game.playCard(p.id, p.hand[0]);
+  for (const p of game.cardPlayers(room)) game.playCard(room, p.id, p.hand[0], rng);
   if (phase === 'voting') return;
-  for (const v of game.voters()) game.vote(v.id, game.cardPlayers().find((p) => p.id !== v.id).id);
+  for (const v of game.voters(room)) game.vote(room, v.id, game.cardPlayers(room).find((p) => p.id !== v.id).id);
 }
 
-// ---------- (1) removing a player continues the round when it can ----------
+// ---------- (1) somebody leaving never costs the round ----------
 
-test('removing someone who is not needed in the word phase keeps the round', () => {
-  const { game, host } = started();
-  const bystander = game.s.players.find((p) => p.id !== game.s.chooserId && p.id !== host.id);
-  const round = game.s.round;
-  game.removePlayer(host.id, bystander.id);
-  assert.equal(game.s.phase, 'word');
-  assert.equal(game.s.round, round, 'the round was not restarted');
+for (const phase of ['word', 'picking', 'voting', 'results']) {
+  test(`a person leaving in the ${phase} phase leaves the round exactly where it was`, () => {
+    const made = started();
+    const { game, room, rng } = made;
+    advanceTo(made, phase);
+    const before = { phase: room.phase, round: room.round, completed: room.completed, picks: Object.keys(room.picks).length, votes: Object.keys(room.votes).length };
+    const leaver = room.players.find((p) => p.kind === 'human' && p.id !== room.hostId);
+    assert.equal(game.removeHuman(room, leaver.id, rng, 0).ok, true);
+    assert.equal(room.phase, before.phase, 'the phase is untouched');
+    assert.equal(room.round, before.round, 'the round was not abandoned');
+    assert.equal(room.completed, before.completed);
+    assert.equal(Object.keys(room.picks).length, before.picks, 'their card is still on the table');
+    assert.equal(Object.keys(room.votes).length, before.votes, 'and their vote still counts');
+    assert.equal(room.players.length, 5);
+  });
+}
+
+test('even the chooser leaving keeps the round: a computer player chooses the word for them', () => {
+  const made = started();
+  const { game, room, rng } = made;
+  const chooser = room.chooserId;
+  const round = room.round;
+  assert.equal(game.removeHuman(room, chooser, rng, 0).ok, true);
+  assert.equal(room.round, round, 'the round was not abandoned');
+  assert.equal(room.phase, 'word');
+  const now = game.playerOf(room, room.chooserId);
+  assert.equal(now.kind, 'bot');
+  assert.deepEqual(game.pendingBotAction(room), { type: 'word', id: now.id }, 'and it is its move');
 });
 
-test('removing the chooser abandons the round: it cannot go on without them', () => {
-  const { game, host } = started();
-  const chooser = game.s.chooserId;
-  const round = game.s.round;
-  game.removePlayer(host.id, chooser);
-  assert.equal(game.s.round, round + 1);
-  assert.notEqual(game.s.chooserId, chooser);
+test('the imposter leaving keeps the round, and the computer player standing in still knows nothing', () => {
+  const made = started();
+  const { game, room, rng } = made;
+  advanceTo(made, 'picking');
+  const imposter = room.imposterId;
+  const round = room.round;
+  assert.equal(game.removeHuman(room, imposter, rng, 0).ok, true);
+  assert.equal(room.round, round);
+  assert.equal(room.phase, 'picking');
+  assert.notEqual(room.imposterId, imposter, 'the place has a new name');
+  assert.equal(game.viewFor(room, room.imposterId).word, null, 'whoever holds it is still in the dark');
 });
 
-test('removing the imposter abandons the round: only they saw ???', () => {
-  const { game, host } = started();
-  advanceTo(game, 'picking');
-  const imposter = game.s.imposterId;
-  const round = game.s.round;
-  game.removePlayer(host.id, imposter);
-  assert.equal(game.s.round, round + 1);
-  assert.equal(game.s.phase, 'word');
+test('removing a card player who had not played leaves a computer player to play for them', () => {
+  const made = started(5);
+  const { game, room, rng } = made;
+  advanceTo(made, 'picking');
+  const leaver = game.cardPlayers(room).find((p) => p.id !== room.imposterId && p.id !== room.hostId);
+  for (const p of game.cardPlayers(room)) if (p.id !== leaver.id) game.playCard(room, p.id, p.hand[0], rng);
+  assert.equal(room.phase, 'picking', 'one card is still missing');
+  assert.equal(game.removeHuman(room, leaver.id, rng, 0).ok, true);
+  assert.equal(room.phase, 'picking', 'the round waits for the computer player to play it');
+  const pending = game.pendingBotAction(room);
+  assert.equal(pending.type, 'card');
+  assert.equal(game.runBotAction(room, rng, pending), true);
+  assert.equal(room.phase, 'voting', 'and then voting opens as it would have done');
+  assert.equal(room.tableOrder.length, game.cardPlayers(room).length);
 });
 
-test('removing a card player who has not played yet keeps picking going, and the last card opens voting', () => {
-  const { game, host } = started(5);
-  advanceTo(game, 'picking');
-  const players = game.cardPlayers().filter((p) => p.id !== game.s.imposterId && p.id !== host.id);
-  const [leaver] = players;
-  for (const p of game.cardPlayers()) if (p.id !== leaver.id) game.playCard(p.id, p.hand[0]);
-  assert.equal(game.s.phase, 'picking', 'one card is still missing');
-  const round = game.s.round;
-  game.removePlayer(host.id, leaver.id);
-  assert.equal(game.s.round, round);
-  assert.equal(game.s.phase, 'voting', 'everyone who is left has played');
-  assert.equal(game.s.tableOrder.length, game.cardPlayers().length);
-  assert.ok(!game.s.tableOrder.includes(leaver.id));
-});
-
-test('removing a card player who already played takes their card and votes off the table', () => {
-  const { game, host } = started(5);
-  advanceTo(game, 'voting');
-  const leaver = game.cardPlayers().find((p) => p.id !== game.s.imposterId && p.id !== host.id);
-  const other = game.cardPlayers().find((p) => p.id !== leaver.id);
-  game.vote(other.id, leaver.id);
-  game.vote(leaver.id, other.id);
-  const round = game.s.round;
-  game.removePlayer(host.id, leaver.id);
-  assert.equal(game.s.round, round);
-  assert.equal(game.s.phase, 'voting');
-  assert.ok(!(leaver.id in game.s.picks) && !(leaver.id in game.s.votes));
-  assert.ok(!Object.values(game.s.votes).includes(leaver.id), 'votes for the leaver are gone');
-  assert.ok(!game.s.tableOrder.includes(leaver.id));
-});
-
-test('removing the last person who had not voted resolves the round', () => {
-  const { game, host } = started(5);
-  advanceTo(game, 'voting');
-  const voters = game.voters();
-  const leaver = voters.find((p) => p.id !== game.s.imposterId && p.id !== host.id);
+test('the last person who had not voted leaving leaves the computer player to finish it', () => {
+  const made = started(5);
+  const { game, room, rng } = made;
+  advanceTo(made, 'voting');
+  const voters = game.voters(room);
+  const leaver = voters.find((p) => p.id !== room.imposterId && p.id !== room.hostId);
   for (const v of voters) {
     if (v.id === leaver.id) continue;
-    game.vote(v.id, game.cardPlayers().find((p) => p.id !== v.id && p.id !== leaver.id).id);
+    game.vote(room, v.id, game.cardPlayers(room).find((p) => p.id !== v.id && p.id !== leaver.id).id);
   }
-  assert.equal(game.s.phase, 'voting');
-  game.removePlayer(host.id, leaver.id);
-  assert.equal(game.s.phase, 'results');
-  assert.ok(!(leaver.id in game.s.results.deltas));
-  assert.ok(!(leaver.id in game.s.results.tally));
+  assert.equal(room.phase, 'voting');
+  assert.equal(game.removeHuman(room, leaver.id, rng, 0).ok, true);
+  assert.equal(game.runBotAction(room, rng), true);
+  assert.equal(room.phase, 'results');
+  assert.equal(Object.keys(room.results.deltas).length, 5, 'everybody is in the results, including the place that changed hands');
 });
 
-test('removing a bystander while results are showing keeps the results', () => {
-  const { game, host } = started(5);
-  advanceTo(game, 'results');
-  const leaver = game.s.players.find((p) => ![game.s.chooserId, game.s.imposterId, host.id].includes(p.id));
-  game.removePlayer(host.id, leaver.id);
-  assert.equal(game.s.phase, 'results');
-  assert.ok(!(leaver.id in game.s.results.deltas));
-  assert.ok(!Object.entries(game.s.results.votes).some(([v, t]) => v === leaver.id || t === leaver.id));
-  game.nextRound(host.id);
-  assert.equal(game.s.phase, 'word');
+test('a person leaving while the results are up keeps them, and the next round still starts', () => {
+  const made = started(5);
+  const { game, room, rng } = made;
+  advanceTo(made, 'results');
+  const leaver = room.players.find((p) => p.kind === 'human' && ![room.chooserId, room.imposterId, room.hostId].includes(p.id));
+  const score = leaver.score;
+  assert.equal(game.removeHuman(room, leaver.id, rng, 0).ok, true);
+  assert.equal(room.phase, 'results');
+  const stand = room.players.find((p) => p.stoodInFor === leaver.id);
+  assert.equal(room.results.deltas[stand.id], room.history.at(-1).deltas[leaver.id] ?? room.results.deltas[stand.id]);
+  assert.equal(stand.score, score, 'the score stayed with the place');
+  assert.equal(game.nextRound(room, room.hostId, rng).ok, true);
+  assert.equal(room.phase, 'word');
 });
 
-test('removing someone down to two players still sends the game to the lobby', () => {
-  const { game, host } = started(3);
-  game.removePlayer(host.id, game.s.players[2].id);
-  assert.equal(game.s.phase, 'lobby');
+test('the room is never left below three players by somebody leaving', () => {
+  const { game, room, rng } = started(3);
+  assert.equal(game.removeHuman(room, 3, rng, 0).ok, true);
+  assert.equal(room.players.length, 3);
+  assert.notEqual(room.phase, 'lobby');
 });
 
 // ---------- (2) submitWord with nobody to play ----------
 
 test('submitWord refuses cleanly when nobody else is in the round', () => {
-  const { game } = started(3);
-  for (const p of game.s.players) if (p.id !== game.s.chooserId) p.waiting = true;
-  const before = JSON.stringify(game.s);
-  assert.throws(() => game.submitWord(game.s.chooserId, 'lonely'), (e) => e instanceof GameError && e.message === 'nobodyToPlay');
-  assert.equal(JSON.stringify(game.s), before, 'nothing changed');
+  const { game, room } = makeRoom(['Ann'], { cardCount: 200 });
+  Object.assign(room, { phase: 'word', chooserId: 1 });
+  const before = JSON.stringify(room);
+  assert.equal(game.submitWord(room, 1, 'lonely', () => 0.5).error, 'nobodyToPlay');
+  assert.equal(JSON.stringify(room), before, 'nothing changed');
 });
 
-// ---------- (3) ids come from the rng ----------
+// ---------- (3) who a player is ----------
 
-test('a Game needs an rng, and the same rng gives the same ids', () => {
-  assert.throws(() => new Game({ getCardIds: () => cards(10), hints: [] }), TypeError);
-  const ids = () => {
-    const game = new Game({ getCardIds: () => cards(50), hints: [], rng: seededRng(5) });
-    return ['a', 'b', 'c'].map((name) => game.addPlayer(name, name).id);
-  };
-  assert.deepEqual(ids(), ids());
-});
-
-test('newPublicId uses only the rng it is given, and never repeats an id that is taken', () => {
-  const originalRandom = Math.random;
-  Math.random = () => assert.fail('Math.random must not be used by the rules');
-  try {
-    const taken = new Set();
-    for (let i = 0; i < 5; i++) taken.add(newPublicId(() => 0.5, taken)); // a constant rng cannot make a clash
-    assert.equal(taken.size, 5);
-    assert.equal(newPublicId(() => 0), '00000000');
-    const game = new Game({ getCardIds: () => cards(50), hints: [], rng: () => 0.25 });
-    const a = game.addPlayer('Ann', 'a');
-    const b = game.addPlayer('Bob', 'b');
-    assert.notEqual(a.id, b.id);
-  } finally {
-    Math.random = originalRandom;
-  }
+test('a person is known by their account and a computer player is not an account at all', () => {
+  const { game, room } = makeRoom(['Ann', 'Bob'], { cardCount: 50, bots: 1 });
+  assert.deepEqual(room.players.map((p) => p.id), [1, 2, 'bot:1']);
+  assert.ok(room.players.every((p) => !('token' in p)), 'no seat tokens are kept any more');
+  assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.userId), [1, 2, undefined]);
 });
 
 // ---------- (6) nobody can be removed from a finished game ----------
 
 test('the host cannot remove anyone from a finished game, but people can still leave', () => {
-  const { game, host, people } = started(3);
-  game.s.phase = 'finished';
-  for (const call of [() => game.removePlayer(host.id, people[1].id), () => game.leave(host.id, people[1].id)]) {
-    assert.throws(call, (e) => e instanceof GameError && e.message === 'gameOverNobodyToRemove');
-  }
-  assert.equal(game.s.players.length, 3);
-  game.leave(people[1].id, people[1].id);
-  assert.equal(game.s.players.length, 2, 'leaving for yourself still works');
+  const { game, room, rng } = started(3);
+  room.phase = 'finished';
+  assert.equal(game.kick(room, 1, 2, rng, 0).error, 'gameOverNobodyToRemove');
+  assert.equal(room.players.length, 3);
+  const left = game.removeHuman(room, 2, rng, 0);
+  assert.equal(left.ok, true);
+  assert.equal(left.changed, false, 'leaving a finished game changes nothing for the others');
+  assert.equal(room.players.length, 3, 'the final standings still name them');
 });
 
 // ---------- (7) kind: 'bot' ----------
 
 test('computer players are kind bot, people are kind human, and the view still says bot', () => {
-  const game = new Game({ getCardIds: () => cards(100), hints: [], rng: seededRng(2) });
-  const host = game.addPlayer('Ann', 't1');
-  game.fillWithBots(host.id, 3);
-  assert.deepEqual(game.s.players.map((p) => p.kind), ['human', 'bot', 'bot']);
-  assert.ok(game.s.players.every((p) => !('bot' in p)));
-  assert.deepEqual(game.viewFor(host.id).players.map((p) => p.bot), [false, true, true]);
+  const { game, room } = makeRoom(['Ann'], { cardCount: 100 });
+  assert.equal(game.fillWithBots(room, 1, 3).ok, true);
+  assert.deepEqual(room.players.map((p) => p.kind), ['human', 'bot', 'bot']);
+  assert.ok(room.players.every((p) => !('bot' in p)));
+  assert.deepEqual(game.viewFor(room, 1).players.map((p) => p.bot), [false, true, true]);
 });
 
-test('a saved room with bot: true seats is migrated to kind bot', () => {
-  const game = new Game({ getCardIds: () => cards(100), hints: [], rng: seededRng(2) });
-  const host = game.addPlayer('Ann', 't1');
-  game.fillWithBots(host.id, 3);
-  const old = JSON.parse(JSON.stringify(game.toJSON()));
+test('a saved room with bot: true players is migrated to kind bot', () => {
+  const { game, room } = makeRoom(['Ann'], { cardCount: 100 });
+  game.fillWithBots(room, 1, 3);
+  const old = JSON.parse(JSON.stringify(room));
   for (const p of old.players) {
     p.bot = p.kind === 'bot';
     delete p.kind;
   }
-  const loaded = new Game({ getCardIds: () => cards(100), hints: [], rng: seededRng(2), saved: old });
-  assert.deepEqual(loaded.s.players.map((p) => p.kind), ['human', 'bot', 'bot']);
-  assert.ok(loaded.s.players.every((p) => !('bot' in p)));
-  assert.equal(loaded.humans().length, 1);
+  const loaded = createRules({ getCardIds: () => cards(100) }).migrate(old);
+  assert.deepEqual(loaded.players.map((p) => p.kind), ['human', 'bot', 'bot']);
+  assert.ok(loaded.players.every((p) => !('bot' in p)));
+  assert.equal(game.humans(loaded).length, 1);
 });
 
 // ---------- the server module, with a fake socket layer ----------
@@ -236,6 +206,7 @@ function launch(t, { setup, collected = [] } = {}) {
     mount() {},
     log: (...args) => logs.push(args.join(' ')),
     rng: seededRng(3),
+    users: { get: () => null },
     codes: { generate: () => `game-${++games}`, normalise: (code) => (typeof code === 'string' && code ? code.toLowerCase() : '') },
     stats: { record() {} },
     achievements: { collect: (userId, key, ids) => collected.push({ userId, key, ids: [...ids] }) },
@@ -259,36 +230,102 @@ function launch(t, { setup, collected = [] } = {}) {
     socket.call = (event, payload = {}) => new Promise((resolve) => handlers.emit(event, payload, resolve));
     return socket;
   };
-  return { ctx, logs, dataDir, connect, gamesFile: path.join(dataDir, 'games.json'), module };
+  return { ctx, logs, dataDir, connect, roomsFile: path.join(dataDir, 'rooms.json'), module };
 }
 
-test('a corrupt games.json is logged and kept as games.json.corrupt, not silently overwritten', (t) => {
-  const { logs, gamesFile, module } = launch(t, { setup: (dir) => fs.writeFileSync(path.join(dir, 'games.json'), '{"version":1,"games":{ not json') });
+test('a corrupt rooms.json is logged and kept as rooms.json.corrupt, not silently overwritten', (t) => {
+  const { logs, roomsFile, module } = launch(t, { setup: (dir) => fs.writeFileSync(path.join(dir, 'rooms.json'), '[ not json') });
   assert.ok(logs.some((line) => /corrupt/.test(line)), `logged: ${logs.join(' | ')}`);
-  assert.equal(fs.readFileSync(`${gamesFile}.corrupt`, 'utf8'), '{"version":1,"games":{ not json');
-  module.dispose(); // the next save replaces games.json, but the copy stays
-  assert.equal(fs.readFileSync(`${gamesFile}.corrupt`, 'utf8'), '{"version":1,"games":{ not json');
-  assert.doesNotThrow(() => JSON.parse(fs.readFileSync(gamesFile, 'utf8')));
+  assert.equal(fs.readFileSync(`${roomsFile}.corrupt`, 'utf8'), '[ not json');
+  module.dispose(); // the next save replaces rooms.json, but the copy stays
+  assert.equal(fs.readFileSync(`${roomsFile}.corrupt`, 'utf8'), '[ not json');
+  assert.doesNotThrow(() => JSON.parse(fs.readFileSync(roomsFile, 'utf8')));
 });
 
-test('a missing games.json is normal: nothing logged as corrupt and no copy made', (t) => {
-  const { logs, gamesFile } = launch(t);
+test('a missing rooms.json is normal: nothing logged as corrupt and no copy made', (t) => {
+  const { logs, roomsFile } = launch(t);
   assert.ok(!logs.some((line) => /corrupt/.test(line)));
-  assert.equal(fs.existsSync(`${gamesFile}.corrupt`), false);
+  assert.equal(fs.existsSync(`${roomsFile}.corrupt`), false);
 });
 
-test('a games.json with a game that cannot be restored keeps a copy and still loads the others', (t) => {
-  const { logs, gamesFile } = launch(t, {
+test('a rooms.json with a room that cannot be brought up to date keeps a copy and still loads the others', (t) => {
+  const { logs, roomsFile } = launch(t, {
     setup: (dir) => {
-      const good = new Game({ getCardIds: () => cards(60), hints: [], rng: seededRng(1) });
-      good.addPlayer('Ann', 'user:1');
-      const entry = { touched: Date.now(), game: good.toJSON() };
-      fs.writeFileSync(path.join(dir, 'games.json'), JSON.stringify({ version: 1, games: { 'good-game': entry, 'bad-game': { touched: Date.now(), game: { players: 'nonsense' } } } }));
+      const good = createRules({ getCardIds: () => cards(60) }).createRoom({ code: 'good-game', hostId: 1, hostName: 'Ann', now: Date.now() });
+      fs.writeFileSync(path.join(dir, 'rooms.json'), JSON.stringify([good, { code: 'bad-game', players: 'nonsense' }]));
     },
   });
-  assert.ok(logs.some((line) => /bad-game/.test(line)));
-  assert.equal(fs.existsSync(`${gamesFile}.corrupt`), true);
+  assert.ok(logs.some((line) => /bad-game/.test(line)), `logged: ${logs.join(' | ')}`);
+  assert.equal(fs.existsSync(`${roomsFile}.corrupt`), true);
   assert.ok(logs.some((line) => /1 saved games/.test(line)), 'the good game was loaded');
+});
+
+test('games saved before the shared room server are brought over, people and all', (t) => {
+  const { logs, dataDir, connect } = launch(t, {
+    setup: (dir) => {
+      // The old shape: one entry per code, seats with a made-up public id and a `user:<n>` token, and the counters
+      // kept beside the game.
+      const old = {
+        version: 1,
+        games: {
+          'old-game': {
+            touched: Date.now(),
+            tally: { 'user:4': { cardsPlayed: 3 } },
+            game: {
+              phase: 'picking',
+              hostId: 'aaa',
+              players: [
+                { id: 'aaa', kind: 'human', token: 'user:4', name: 'Ann', score: 2, turns: 1, hand: [1, 2, 3], waiting: false },
+                { id: 'bbb', kind: 'human', token: 'user:5', name: 'Bob', score: 0, turns: 0, hand: [4, 5, 6], waiting: false },
+                { id: 'ccc', kind: 'bot', token: 'bot:1', name: 'Ada', score: 1, turns: 0, hand: [7, 8, 9], waiting: false },
+              ],
+              nextBot: 2,
+              handSize: 3,
+              judging: 'everyone',
+              categories: null,
+              roundsEach: 2,
+              completed: 1,
+              history: [{ label: { key: 'round.label', params: { n: 1 } }, deltas: { aaa: 2, bbb: 0, ccc: 1 }, notes: {} }],
+              pointScale: 1,
+              round: 2,
+              nextChooserIdx: 1,
+              chooserId: 'aaa',
+              draw: [10, 11, 12],
+              discard: [],
+              word: 'lighthouse',
+              imposterId: 'bbb',
+              picks: { ccc: 7 },
+              tableOrder: [],
+              votes: {},
+              results: null,
+            },
+          },
+        },
+      };
+      fs.writeFileSync(path.join(dir, 'games.json'), JSON.stringify(old));
+    },
+  });
+  assert.ok(logs.some((line) => /brought over/.test(line)), `logged: ${logs.join(' | ')}`);
+  assert.equal(fs.existsSync(path.join(dataDir, 'games.json')), false, 'the old file is kept under another name');
+  assert.ok(fs.existsSync(path.join(dataDir, 'games.json.imported')));
+
+  const [room] = JSON.parse(fs.readFileSync(path.join(dataDir, 'rooms.json'), 'utf8'));
+  assert.deepEqual(room.players.map((p) => p.id), [4, 5, 'bot:1'], 'a person is their account now');
+  assert.equal(room.hostId, 4);
+  assert.equal(room.chooserId, 4);
+  assert.equal(room.imposterId, 5);
+  assert.deepEqual(room.picks, { 'bot:1': 7 });
+  assert.deepEqual(room.history[0].deltas, { 4: 2, 5: 0, 'bot:1': 1 });
+  assert.equal(room.players[0].cardsPlayed, 3, 'the counters came with the person');
+  assert.ok(room.players.every((p) => !('token' in p) && !('waiting' in p)));
+
+  // And the people are let back in where they were.
+  const socket = connect(5, 'Bob');
+  return socket.call('resume', { code: 'old-game' }).then((reply) => {
+    assert.equal(reply.ok, true, reply.error);
+    assert.equal(socket.state.phase, 'picking');
+    assert.equal(socket.state.me.id, 5);
+  });
 });
 
 test('cards are collected once per round, not after every action', async (t) => {
