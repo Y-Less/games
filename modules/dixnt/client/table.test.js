@@ -76,6 +76,23 @@ async function mountGame(state) {
   return { wrapper, socket };
 }
 
+describe('the start screen', () => {
+  it('offers the shared create-or-join form, with the invite code from the address', async () => {
+    const socket = fakeSocket();
+    const wrapper = mount(Dixnt, { props: { socket, user: { id: 1, displayName: 'Ann' }, search: '?boss-aware-you', setSearch: vi.fn() }, attachTo: document.body });
+    socket.handlers.state(null);
+    await flushPromises();
+    expect(wrapper.find('input[aria-label="Invite code"]').element.value).toBe('boss-aware-you');
+    socket.emit.mockClear();
+    await wrapper.findAll('button').find((b) => b.text().includes('Start a new game')).trigger('click');
+    expect(socket.emit).toHaveBeenCalledWith('create', {}, expect.any(Function));
+    socket.emit.mockClear();
+    await wrapper.findAll('button').find((b) => b.text() === 'Join').trigger('click');
+    expect(socket.emit).toHaveBeenCalledWith('join', { code: 'boss-aware-you' }, expect.any(Function));
+    wrapper.unmount();
+  });
+});
+
 describe('Dixnt layout sums', () => {
   it('fits the biggest cards in one row when they can, and in rows when the room is short', () => {
     const one = fitCards(4, 1334, 200, { gap: 12 });

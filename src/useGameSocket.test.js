@@ -154,6 +154,16 @@ describe('useGameSocket', () => {
     expect(socket.emitted.at(-1)).toEqual(['leave', {}]);
   });
 
+  it('says whether the connection is up, for a game that tells the player it has gone', () => {
+    const socket = fakeSocket({ connected: false });
+    const { api } = mountWith(socket);
+    expect(api.connected.value).toBe(false);
+    socket.fire('connect');
+    expect(api.connected.value).toBe(true);
+    socket.fire('disconnect');
+    expect(api.connected.value).toBe(false);
+  });
+
   it('removes its listeners and the Leave button on unmount', () => {
     const socket = fakeSocket({ connected: false });
     const { wrapper } = mountWith(socket);
@@ -161,6 +171,7 @@ describe('useGameSocket', () => {
     wrapper.unmount();
     expect(socket.handlers.state).toEqual([]);
     expect(socket.handlers.connect).toEqual([]);
+    expect(socket.handlers.disconnect).toEqual([]);
     expect(playBar.leave).toBe(null);
   });
 });

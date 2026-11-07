@@ -10,22 +10,22 @@
 //   setSearch  {Function}  required.  Updates the page's query string (puts the game code in the address bar).
 // Emits: none.
 // Slots: none (fills GameFrame's scorebar, main, log, and status slots).
-// Side effects: creates the store, which listens to the socket (detached when this component unmounts); provides the
-// store under DIXNT_KEY; sends `kick`/`removeBot` (the host's Remove), the vote-to-remove events, and `leave`;
-// registers the site's leave button.
-import { computed, onBeforeUnmount, provide } from 'vue';
+// Side effects: creates the store, whose shared plumbing (src/useGameSocket.js) listens to the socket and registers
+// the site's "Leave game" button for the life of this component; provides the store under DIXNT_KEY; sends
+// `create`, `join`, `kick`/`removeBot` (the host's Remove) and the vote-to-remove events.
+import { computed, provide } from 'vue';
+import ErrorToast from '../../../src/components/ErrorToast.vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
+import RoomEntry from '../../../src/components/RoomEntry.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
-import { useLeave } from '../../../src/playBar.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { createStore } from './store.js';
 import { DIXNT_KEY } from './useDixnt.js';
 import Arena from './components/Arena.vue';
-import HomeScreen from './components/HomeScreen.vue';
 import Lightbox from './components/Lightbox.vue';
 import LobbyView from './components/LobbyView.vue';
 import WordPopup from './components/WordPopup.vue';
@@ -39,13 +39,18 @@ const props = defineProps({
   setSearch: { type: Function, required: true },
 });
 
-const { t, text, error, list } = useGameText();
-// The store answers a refusal with words, so it is given the game's own error helper (it is not a component itself).
-const dixnt = createStore({ socket: props.socket, user: props.user, search: props.search, setSearch: props.setSearch, error });
+const { t, text, list } = useGameText();
+// "Leave game" lives in the site's header, whenever you are in a game.  Mid-game it asks first: a computer player
+// takes your place if anyone else is still playing, otherwise the game goes with you.
+// @param {object} view  the current state; @returns {string} the warning, or '' when leaving is harmless.  No side effects.
+const leaveConfirm = (view) => {
+  if (['lobby', 'finished'].includes(view.phase)) return '';
+  return t(view.players.some((p) => !p.bot && p.id !== view.me.id) ? 'leave.takenOver' : 'leave.scoreLost');
+};
+const dixnt = createStore({ socket: props.socket, user: props.user, search: props.search, setSearch: props.setSearch, leaveConfirm });
 provide(DIXNT_KEY, dixnt);
-onBeforeUnmount(() => dixnt.dispose());
 
-const { store, isHost, send, goHome } = dixnt;
+const { store, isHost, send, busy, initialCode } = dixnt;
 // The current personalised state (null when not in a game).
 const state = computed(() => store.state);
 // The results of the round while they are on show, else null.
@@ -89,26 +94,20 @@ const status = computed(() => {
 // The word as this viewer sees it: the stand-in for the one player kept in the dark.
 const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
 
-// "Leave game" lives in the site's header, whenever you are in a game.  Mid-game it asks first: a computer player takes
-// your place if anyone else is still playing, otherwise the game goes with you.
-// True when leaving would hand the place to a computer player (another person is still playing), rather than end the game.
-const takenOver = computed(() => Boolean(state.value) && state.value.players.some((p) => !p.bot && p.id !== state.value.me.id));
-useLeave({
-  canLeave: computed(() => Boolean(state.value)),
-  leave: async () => {
-    await send('leave');
-    goHome();
-  },
-  confirmText: computed(() => {
-    if (!state.value || ['lobby', 'finished'].includes(state.value.phase)) return '';
-    return t(takenOver.value ? 'leave.takenOver' : 'leave.scoreLost');
-  }),
-});
 </script>
 
 <template>
-  <div v-if="!store.checkedSession" class="splash muted">{{ $t('play.connecting') }}</div>
-  <HomeScreen v-else-if="!state" />
+  <div v-if="!store.loaded" class="splash muted">{{ $t('play.connecting') }}</div>
+  <RoomEntry
+    v-else-if="!state"
+    :noun="t('entry.noun')"
+    :intro="t('entry.intro', { name: user.displayName })"
+    :initial-code="initialCode"
+    :busy="busy"
+    :error="store.notice"
+    @create="send('create')"
+    @join="(code) => send('join', { code })"
+  />
 
   <div v-else-if="state.phase === 'lobby'" class="game">
     <main class="stack"><LobbyView /></main>
@@ -174,9 +173,9 @@ useLeave({
   <Lightbox />
   <WordPopup v-if="state && state.phase !== 'lobby'" />
 
+  <ErrorToast v-if="state && store.notice" :text="store.notice" />
   <Teleport to="body">
-    <div v-if="store.state && !store.connected" class="offline" role="status">{{ t('table.offline') }}</div>
-    <div v-if="store.state && store.toast" class="toast" role="status">{{ store.toast }}</div>
+    <div v-if="state && !store.connected" class="offline" role="status">{{ t('table.offline') }}</div>
   </Teleport>
 </template>
 
@@ -195,9 +194,9 @@ useLeave({
   margin: 0 0 0.6rem;
   text-align: center;
 }
-.toast,
 .offline {
   position: fixed;
+  top: 0.8rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 60;
@@ -206,14 +205,6 @@ useLeave({
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
   max-width: 92vw;
   text-align: center;
-}
-.toast {
-  bottom: 1.2rem;
-  background: var(--parchment);
-  color: #2a2418;
-}
-.offline {
-  top: 0.8rem;
   background: var(--rust);
   color: #fff;
 }

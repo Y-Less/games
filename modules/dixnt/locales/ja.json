@@ -213,7 +213,8 @@
     "notTimeToVote": "投票する場面ではありません。",
     "chooserOnlyVotes": "このゲームで投票するのは出題者だけです。",
     "voteSelf": "自分には投票できません。",
-    "voteCardPlayer": "投票できるのは、カードを出した人だけです。"
+    "voteCardPlayer": "投票できるのは、カードを出した人だけです。",
+    "alreadyInLobby": "ゲームはもうロビーに戻っています。"
   },
   "meta": {
     "name": "ディクスント",

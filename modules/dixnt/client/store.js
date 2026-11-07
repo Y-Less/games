@@ -1,15 +1,11 @@
-// Client-side game store: the latest personalised state from the server, over the socket the site gives us.
-import { computed, reactive } from 'vue';
-import { normaliseCode } from '../../../shared/codes.js';
+// The game's own view state — the Recent moves list, the word pop-up and the card lightbox — on top of the plumbing
+// every room game shares (src/useGameSocket.js), which owns the socket, the room's state, the "busy" flag, the refusal
+// notice, the invite code in the address bar and the header's "Leave game" button.  The root component builds this once
+// from its setup and shares it with every component below through useDixnt.js.
+// Depends on: vue, src/useGameSocket.js and ./moveLog.js.
+import { computed, reactive, ref } from 'vue';
+import { useGameSocket } from '../../../src/useGameSocket.js';
 import { newEntries } from './moveLog.js';
-
-/**
- * Tidies the code in an invite link (or a pasted one) with the site's shared rules; '' if there is none.
- * @param {string} text  The query string or pasted code.
- * @returns {string} The normalised code.
- * Side effects: none.
- */
-const tidyCode = normaliseCode;
 
 /**
  * Gives the URL of a card image.
@@ -21,123 +17,50 @@ const tidyCode = normaliseCode;
 export const cardUrl = (cardId, size = 'medium') => `/assets/dixnt/cards/${size}/card_${String(cardId).padStart(4, '0')}.jpg`;
 
 /**
- * Creates the game store: reactive state fed by the server's `state` events, plus the actions the components use.
- * @param {{ socket: object, user: object, search: string, setSearch: (search: string) => void, error: (reply: object) => string }} options
- *   socket is the site's socket; user the signed-in user; search the page's query string (an invite code may be in it);
- *   setSearch puts the current game code in the address bar; error turns a server refusal into words in the player's
- *   language (useGameText's `error`), because nothing outside a locale file writes any.
- * @returns {object} { store, user, send, showToast, goHome, createGame, join, players, nameOf, chooser, isHost, cardUrl, dispose }.
- * Side effects: listens to the socket's connect, disconnect, and state events (removed by `dispose()`); emits resume
- * and game requests; may start a timer for the toast; calls `setSearch` when the game code changes.
+ * Creates the game store.  Call it from a component's setup: the shared plumbing underneath registers its socket
+ * listeners and the header's "Leave game" button for the life of that component.
+ *
+ * @param {object} options
+ * @param {object} options.socket  the site's socket for this game
+ * @param {object} options.user  the signed-in user
+ * @param {string} [options.search]  the page's query string, whose invite code is used the first time
+ * @param {(search: string) => void} [options.setSearch]  puts the room code in the address bar
+ * @param {(state: object) => string} [options.leaveConfirm]  what to ask before leaving, or '' to leave at once
+ * @returns {object} { store, user, send, busy, initialCode, players, nameOf, chooser, isHost, cardUrl }.
+ *   `store` holds `state`, `loaded`, `notice` and `connected` from the shared plumbing, and Dixnt's own `log`,
+ *   `wordPopup` and `zoom`: all reactive, and writable where a component needs to set them.
+ * Side effects: through useGameSocket, listens on the socket and resumes the player's room on every connection.
  */
-export function createStore({ socket, user, search, setSearch, error }) {
-  const store = reactive({
-    connected: socket.connected,
-    checkedSession: false, // true once the server has said whether we are already in a game
-    state: null,
-    log: [], // "Recent moves": worked out here from the changes between one state and the next
-    code: tidyCode(search), // the game we are in, or the one an invite link points at
-    notice: '', // the latest refusal, in words, for the start screen
-    toast: '',
-    wordPopup: null, // { word, key, hidden, at }: the word just chosen, shown large to everyone for a few seconds
-    zoom: null, // { cardId, actions: [{ label, run, primary }] } for the card lightbox
-  });
+export function createStore({ socket, user, search = '', setSearch = () => {}, leaveConfirm = () => '' }) {
+  const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
+  const wordPopup = ref(null); // { word, key, hidden, at }: the word just chosen, shown large to everyone for a few seconds
+  const zoom = ref(null); // { cardId, actions: [{ label, run, primary }] } for the card lightbox
 
-  let toastTimer = null;
-  /**
-   * Shows a message in the toast for four seconds (a newer one replaces it).
-   * @param {string} message  The text to show.
-   * @returns {void}
-   * Side effects: sets `store.toast` and (re)starts the clearing timer.
-   */
-  function showToast(message) {
-    store.toast = message;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (store.toast = ''), 4000);
-  }
-
-  /**
-   * Sends an event to the server and resolves with its reply.  Errors are shown as a toast.
-   * @param {string} event  The request name.
-   * @param {object} [payload]  Request data.
-   * @param {{quiet?: boolean}} [options]  quiet suppresses the error toast (for requests whose failure is expected).
-   * @returns {Promise<{ok: boolean, error?: string}>} The server's reply ({ ok: false } if there was none); never rejects.
-   * Side effects: emits on the socket; may call showToast.
-   */
-  function send(event, payload = {}, { quiet = false } = {}) {
-    return new Promise((resolve) => {
-      socket.emit(event, payload, (reply) => {
-        store.notice = reply && !reply.ok ? error(reply) : '';
-        if (reply && !reply.ok && !quiet) showToast(store.notice);
-        resolve(reply ?? { ok: false });
-      });
-    });
-  }
-
-  /**
-   * Handles the socket connecting (or reconnecting): asks the server to put us back into our game, using the invite
-   * code the first time (the shared room server treats a code in a `resume` as an invitation, as `join` does).
-   * @returns {Promise<void>}
-   * Side effects: sets `connected` and `checkedSession`; sends `resume`.
-   */
-  async function onConnect() {
-    store.connected = true;
-    await send('resume', { code: store.state?.code ?? store.code }, { quiet: true });
-    store.checkedSession = true;
-  }
-  // Marks the connection as lost (the page then shows its offline banner).
-  const onDisconnect = () => {
-    store.connected = false;
-  };
   /**
    * Takes in a new personalised state from the server (null when the player is no longer in a game).
-   * @param {object | null} state  The new state.
+   * @param {object | null} next  The new state.
+   * @param {object | null} previous  The state it replaces.
    * @returns {void}
-   * Side effects: updates `store.log`, `wordPopup`, `zoom`, `state`, and `code`; calls `setSearch`.
+   * Side effects: updates `log`, `wordPopup` and `zoom`.
    */
-  function onState(state) {
-    store.log = !state || state.phase === 'lobby' ? [] : [...store.log, ...newEntries(store.state, state)].slice(-200);
+  function onState(next, previous) {
+    log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
     // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per round.
-    if (state && store.state?.phase === 'word' && state.phase === 'picking') {
+    if (next && previous?.phase === 'word' && next.phase === 'picking') {
       // `hidden` says the viewer is the one kept in the dark; the pop-up itself writes what they see instead.
-      store.wordPopup = { word: state.wordHidden ? null : state.word, key: `${state.round}:${state.completedRounds}`, hidden: Boolean(state.wordHidden), at: Date.now() };
+      wordPopup.value = { word: next.wordHidden ? null : next.word, key: `${next.round}:${next.completedRounds}`, hidden: Boolean(next.wordHidden), at: Date.now() };
     }
-    store.state = state;
-    // Back in the lobby (a new game is about to start), nothing from the last game may be left to show: the word popup is
-    // replayed by the next game's popup component when it mounts, and a lightbox would still hold a card from before.
-    if (state?.phase === 'lobby') {
-      store.wordPopup = null;
-      store.zoom = null;
-    }
-    if (state) {
-      store.code = state.code;
-      setSearch(state.code);
-    } else {
-      store.zoom = null;
-      store.wordPopup = null;
+    // Back in the lobby, or out of the game, nothing from the last round may be left to show: the word pop-up is
+    // replayed by the next game's pop-up component when it mounts, and a lightbox would still hold a card from before.
+    if (!next || next.phase === 'lobby') {
+      wordPopup.value = null;
+      zoom.value = null;
     }
   }
 
-  socket.on('connect', onConnect);
-  socket.on('disconnect', onDisconnect);
-  socket.on('state', onState);
-  if (socket.connected) onConnect();
-
-  /**
-   * Goes back to the start screen: forgets the current code and shows the create/join form.
-   * @returns {void}
-   * Side effects: clears `store.code` and the last refusal; clears the address bar's code.
-   */
-  function goHome() {
-    store.code = '';
-    store.notice = '';
-    setSearch('');
-  }
-
-  // Asks the server to create a game; returns the request's promise.
-  const createGame = () => send('create');
-  // Asks the server to join a game (by default the one in store.code); returns the request's promise.
-  const join = (code = store.code) => send('join', { code });
+  const { state, loaded, busy, notice, connected, initialCode, send } = useGameSocket({ socket, search, setSearch, leaveConfirm, onState });
+  // A reactive object of refs: Vue unwraps them, so a component reads `store.state` and writes `store.zoom` as before.
+  const store = reactive({ state, loaded, busy, notice, connected, log, wordPopup, zoom });
 
   // Everyone in the game ([] before there is a state).
   const players = computed(() => store.state?.players ?? []);
@@ -149,25 +72,5 @@ export function createStore({ socket, user, search, setSearch, error }) {
   // True when the viewer is the host.
   const isHost = computed(() => Boolean(store.state) && store.state.hostId === store.state.me.id);
 
-  return {
-    store,
-    user,
-    send,
-    showToast,
-    goHome,
-    createGame,
-    join,
-    players,
-    nameOf,
-    chooser,
-    isHost,
-    cardUrl,
-    // Stops the timer and detaches the socket listeners (call when the root component unmounts).
-    dispose() {
-      clearTimeout(toastTimer);
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('state', onState);
-    },
-  };
+  return { store, user, send, busy, initialCode, players, nameOf, chooser, isHost, cardUrl };
 }

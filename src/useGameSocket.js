@@ -31,9 +31,10 @@ export const inviteFrom = (search) => String(search ?? '').replace(/^\?/, '');
  * @param {(next: object | null, previous: object | null) => void} [options.onState]  called with each new state and the
  *   one it replaces, just before it is shown (a game works its log of recent moves out here)
  * @returns {{ state: import('vue').Ref, loaded: import('vue').Ref<boolean>, busy: import('vue').Ref<boolean>,
- *   notice: import('vue').Ref<string>, initialCode: string, send: Function }}
+ *   notice: import('vue').Ref<string>, connected: import('vue').Ref<boolean>, initialCode: string, send: Function }}
  *   `state` is the current view (null when not in a room), `loaded` is true once the server has said which,
- *   `notice` is the latest error text, `initialCode` is the invite code the page was opened with, and `send` is
+ *   `notice` is the latest error text, `connected` says whether the socket is up (for a game that tells the player
+ *   it has lost the server), `initialCode` is the invite code the page was opened with, and `send` is
  *   `send(event, payload)`: emits the event, shows a refusal as the notice and resolves with the reply
  *   ({ ok, error? }; a failure if the server did not answer, or has not within ACK_TIMEOUT_MS).
  */
@@ -45,6 +46,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   const loaded = ref(false);
   const busy = ref(false);
   const notice = ref('');
+  const connected = ref(Boolean(socket.connected));
   const { error: errorWords } = useGameText(); // a refusal's code, in the player's language
   const initialCode = inviteFrom(search);
   let invite = initialCode; // used once, by the first `resume`
@@ -114,15 +116,24 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
     setSearch(next ? next.code : '');
   }
 
+  // The connection itself, for a game that shows the player when it has gone (the state is left as it was, so the
+  // table stays on screen rather than flashing away and back).
+  const wentUp = () => (connected.value = true);
+  const wentDown = () => (connected.value = false);
+
   onMounted(() => {
     socket.on('state', receive);
     socket.on('connect', resume);
+    socket.on('connect', wentUp);
+    socket.on('disconnect', wentDown);
     if (socket.connected) resume();
   });
   onBeforeUnmount(() => {
     socket.off('state', receive);
     socket.off('connect', resume);
+    socket.off('connect', wentUp);
+    socket.off('disconnect', wentDown);
   });
 
-  return { state, loaded, busy, notice, initialCode, send };
+  return { state, loaded, busy, notice, connected, initialCode, send };
 }

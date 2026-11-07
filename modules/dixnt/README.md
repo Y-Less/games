@@ -15,8 +15,9 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
   Rooms are saved to `ctx.dataDir/rooms.json`; a `games.json` from before this is brought over once (see
   `importOldSave`) and kept as `games.json.imported`.
 - `client/` the Vue half. `index.js` exports `Dixnt.vue`, which builds the store (`store.js`) from the props the site
-  passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.  The
-  store is Dixnt's own; the other games use `src/useGameSocket.js` for the same plumbing.
+  passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.  The store
+  is the site's own plumbing (`src/useGameSocket.js`: the socket, the room's state, the refusal notice and the
+  header's Leave button) with the game's view state beside it: the Recent moves, the word pop-up and the lightbox.
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
 - `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).

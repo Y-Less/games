@@ -1,5 +1,9 @@
 # Writing a game module
 
+This file is the contract: everything a module may do.  If you have not written one before, read `TUTORIAL.md` first —
+it builds one small game from an empty folder to a finished table, in the order you would actually write it, and sends
+you back here for the details.
+
 The site (accounts, profiles, statistics, the game menu, the header) is generic.  A game is a folder in `modules/<id>/`
 that plugs into it.  The site starts the module's **server half** on a socket namespace of its own and loads its
 **client half** into the central play field.
@@ -510,10 +514,11 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
 
-Two helpers beside them, imported from `modules/<id>/client/` as `../../../src/<name>.js`:
+Three helpers beside them, imported from `modules/<id>/client/` as `../../../src/<name>.js`:
 
 | | |
 | --- | --- |
+| `useGameSocket({ socket, search, setSearch, leaveConfirm, onState })` | the client plumbing **every** room game shares, called once from the top component's setup: it resumes the player's room on every connection (using the invite link's code the first time), keeps that code in the address bar, and registers the header's "Leave game" button with the game's own confirmation text.  It gives back `state` (the view, null outside a room), `loaded` (the server has said which), `busy` (a request is in flight), `notice` (the last refusal, already in the player's language), `connected` (false while the socket is down, for a game that tells the player so), `initialCode` (for `RoomEntry`) and `send(event, payload)`.  `onState(next, previous)` is where a game works out what changed, such as its Recent moves |
 | `useTurnClock(getState)` | counts the seconds down from the `remaining` milliseconds a view carries, re-anchoring to the local clock on every new view, so a game never depends on the server's clock agreeing with the player's (Rummikub, Scribblers) |
 | `usePlayerPopup(...)` | which player's details are open, and the host's removal (see `PlayerPopup` above) |
 

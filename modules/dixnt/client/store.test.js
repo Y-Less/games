@@ -1,9 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// The Dixnt store: the game's own view state (Recent moves, the word pop-up, the card lightbox) and the derived values
+// its components read.  The socket plumbing under it is the site's (src/useGameSocket.js, tested there); what is
+// checked here is what Dixnt adds, and that it is wired to that plumbing at all.  The store is built from a component's
+// setup, as the root component builds it, so these tests mount one.
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
+import { flushPromises, mount } from '@vue/test-utils';
 import { cardUrl, createStore } from './store.js';
-import { errorText } from '../../../src/messageText.js';
-
-// The store is handed the game's own error helper, as the root component hands it one (nothing here writes English).
-const error = (reply) => errorText(reply, 'dixnt');
 
 /** A minimal fake of the socket.io client: records handlers and emits, and lets a test trigger events. */
 function fakeSocket({ connected = false, replies = {} } = {}) {
@@ -17,30 +19,35 @@ function fakeSocket({ connected = false, replies = {} } = {}) {
     emit: vi.fn((event, payload, ack) => {
       socket.emitted.push([event, payload]);
       const reply = typeof replies[event] === 'function' ? replies[event](payload) : replies[event];
-      if (ack) queueMicrotask(() => ack(reply));
+      if (ack) ack(reply);
     }),
     trigger: (event, ...args) => [...(handlers[event] ?? [])].forEach((fn) => fn(...args)),
   };
   return socket;
 }
 
-const user = { id: 1, name: 'Ann' };
+const user = { id: 1, displayName: 'Ann' };
+let wrapper;
 let setSearch;
-let created;
 
-function make({ socket = fakeSocket(), search = '' } = {}) {
+/** Mounts a component that builds the store, and returns what it gave back. */
+function make({ socket = fakeSocket(), search = '', leaveConfirm } = {}) {
   setSearch = vi.fn();
-  const api = createStore({ socket, user, search, setSearch, error });
-  created = api;
+  let api;
+  wrapper = mount(
+    defineComponent({
+      setup() {
+        api = createStore({ socket, user, search, setSearch, leaveConfirm });
+        return () => h('div');
+      },
+    }),
+  );
   return { api, socket };
 }
-const settle = () => vi.advanceTimersByTimeAsync(0);
 
-beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
-  created?.dispose();
-  created = null;
-  vi.useRealTimers();
+  wrapper?.unmount();
+  wrapper = null;
 });
 
 describe('cardUrl()', () => {
@@ -52,102 +59,98 @@ describe('cardUrl()', () => {
 });
 
 describe('createStore() initial state', () => {
-  it('reads the code from an invite link and the connection state from the socket', () => {
-    const { api } = make({ socket: fakeSocket({ connected: true, replies: { resume: { ok: true } } }), search: '?Boss-Aware-You' });
-    expect(api.store.code).toBe('boss-aware-you');
+  it('reads the code from an invite link and the connection from the socket', () => {
+    const { api } = make({ socket: fakeSocket({ connected: true, replies: { resume: { ok: true } } }), search: '?boss-aware-you' });
+    expect(api.initialCode).toBe('boss-aware-you');
     expect(api.store.connected).toBe(true);
     expect(api.store.state).toBeNull();
     expect(api.user).toBe(user);
   });
 
-  it('ignores a search string that is not a code', () => {
-    expect(make({ search: '?nonsense' }).api.store.code).toBe('');
-  });
-
-  it('registers its handlers and removes them on dispose', () => {
-    const { api, socket } = make();
+  it('registers its handlers and takes them off again when the component goes', () => {
+    const { socket } = make();
     expect(Object.keys(socket.handlers).sort()).toEqual(['connect', 'disconnect', 'state']);
-    api.dispose();
+    wrapper.unmount();
+    wrapper = null;
     for (const set of Object.values(socket.handlers)) expect(set.size).toBe(0);
   });
 });
 
-describe('connection handling', () => {
-  it('on connect it resumes with the current code and marks the session checked', async () => {
-    const { api, socket } = make({ socket: fakeSocket({ replies: { resume: { ok: true } } }), search: '?boss-aware-you' });
-    expect(api.store.checkedSession).toBe(false);
+describe('the shared plumbing underneath', () => {
+  it('asks to be put back in the room on every connection, with the invite code the first time', async () => {
+    const socket = fakeSocket({ replies: { resume: { ok: true } } });
+    make({ socket, search: '?boss-aware-you' });
     socket.trigger('connect');
-    await settle();
-    expect(api.store.connected).toBe(true);
+    await flushPromises();
     expect(socket.emitted).toEqual([['resume', { code: 'boss-aware-you' }]]);
-    expect(api.store.checkedSession).toBe(true);
-    expect(api.store.toast).toBe('');
+    socket.trigger('connect');
+    await flushPromises();
+    expect(socket.emitted[1]).toEqual(['resume', { code: '' }]);
   });
 
-  it("keeps the server refusal for the start screen, without a toast", async () => {
+  it("keeps the server's refusal, in the player's language, for the start screen", async () => {
     const socket = fakeSocket({ replies: { resume: { ok: false, error: 'noGameWithCode' } } });
     const { api } = make({ socket, search: '?boss-aware-you' });
     socket.trigger('connect');
-    await settle();
-    expect(socket.emitted.map((e) => e[0])).toEqual(['resume']);
+    await flushPromises();
     expect(api.store.notice).toBe('No game has that code.');
-    expect(api.store.toast).toBe('', 'a failed resume is quiet');
-    expect(api.store.checkedSession).toBe(true);
   });
 
-  it('asks only once, with no code, when there is none', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: true, code: null } } });
-    const { api } = make({ socket });
-    socket.trigger('connect');
-    await settle();
-    expect(socket.emitted).toEqual([['resume', { code: '' }]]);
-    expect(api.store.notice).toBe('');
-    expect(api.store.checkedSession).toBe(true);
-  });
-
-  it('resumes straight away when the socket is already connected', async () => {
+  it('tracks the connection going and coming back', async () => {
     const socket = fakeSocket({ connected: true, replies: { resume: { ok: true } } });
     const { api } = make({ socket });
-    await settle();
-    expect(socket.emitted[0][0]).toBe('resume');
-    expect(api.store.checkedSession).toBe(true);
-  });
-
-  it('tracks disconnection', () => {
-    const { api, socket } = make({ socket: fakeSocket({ connected: true }) });
+    expect(api.store.connected).toBe(true);
     socket.trigger('disconnect');
+    await flushPromises();
     expect(api.store.connected).toBe(false);
+    socket.trigger('connect');
+    await flushPromises();
+    expect(api.store.connected).toBe(true);
   });
 
-  it('comes back with the code the server last gave, not the one in the address', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: true } } });
-    const { api } = make({ socket, search: '?boss-aware-you' });
-    socket.trigger('state', { code: 'cat-dog-fox', me: { id: 1 }, hostId: 1, players: [] });
-    socket.trigger('connect');
-    await settle();
-    expect(socket.emitted.at(-1)).toEqual(['resume', { code: 'cat-dog-fox' }]);
-    void api;
+  it("send resolves with the reply and shows a refusal, in the player's language", async () => {
+    const replies = { play: { ok: false, error: 'notYourTurn' }, set: { ok: false, error: 'handSizeRange', params: { min: 3, max: 12 } }, ping: { ok: true } };
+    const { api } = make({ socket: fakeSocket({ replies }) });
+    expect(await api.send('play', { card: 1 })).toEqual({ ok: false, error: 'notYourTurn' });
+    expect(api.store.notice).toBe('It is not your turn.');
+    await api.send('set', { size: 99 });
+    expect(api.store.notice).toBe('Hand size must be between 3 and 12.');
+    await api.send('ping');
+    expect(api.store.notice).toBe('');
   });
 });
 
 describe('state updates', () => {
-  it('stores the state, adopts its code and updates the address', () => {
+  it('stores the state and puts its code in the address', async () => {
     const { api, socket } = make();
     const state = { code: 'cat-dog-fox', me: { id: 1 }, hostId: 1, players: [] };
     socket.trigger('state', state);
+    await flushPromises();
     expect(api.store.state).toEqual(state);
-    expect(api.store.code).toBe('cat-dog-fox');
+    expect(api.store.loaded).toBe(true);
     expect(setSearch).toHaveBeenCalledWith('cat-dog-fox');
   });
 
-  it('a null state clears the zoom and asks the server for nothing more', async () => {
+  it('a null state clears the zoom, empties the address and asks the server for nothing more', async () => {
     const socket = fakeSocket();
     const { api } = make({ socket, search: '?cat-dog-fox' });
     api.store.zoom = { cardId: 3, actions: [] };
     socket.trigger('state', null);
-    await settle();
+    await flushPromises();
     expect(api.store.zoom).toBeNull();
+    expect(setSearch).toHaveBeenCalledWith('');
     expect(socket.emitted).toEqual([]);
+  });
+
+  it('keeps the Recent moves of a round, and drops them in the lobby', async () => {
+    const { api, socket } = make();
+    const base = { code: 'a-b-c', round: 1, completedRounds: 0, totalRounds: 2, chooserId: 1, judging: 'everyone', me: { id: 1 }, players: [{ id: 1, name: 'Ann', isChooser: true }] };
+    socket.trigger('state', { ...base, phase: 'word' });
+    await flushPromises();
+    expect(api.store.log.length).toBeGreaterThan(0);
+    socket.trigger('state', { ...base, phase: 'lobby' });
+    await flushPromises();
+    expect(api.store.log).toEqual([]);
   });
 });
 
@@ -173,77 +176,6 @@ describe('the word popup', () => {
   });
 });
 
-describe('actions', () => {
-  it('createGame and join send the right events', async () => {
-    const socket = fakeSocket({ replies: { create: { ok: true }, join: { ok: true } } });
-    const { api } = make({ socket, search: '?cat-dog-fox' });
-    expect(await api.createGame()).toEqual({ ok: true });
-    await api.join();
-    await api.join('new-code-here');
-    expect(socket.emitted).toEqual([
-      ['create', {}],
-      ['join', { code: 'cat-dog-fox' }],
-      ['join', { code: 'new-code-here' }],
-    ]);
-  });
-
-  it("send resolves with the reply and toasts an error, in the player's language", async () => {
-    const socket = fakeSocket({ replies: { play: { ok: false, error: 'notYourTurn' } } });
-    const { api } = make({ socket });
-    expect(await api.send('play', { card: 1 })).toEqual({ ok: false, error: 'notYourTurn' });
-    expect(api.store.toast).toBe('It is not your turn.');
-  });
-
-  it("puts the refusal's values into the words it shows", async () => {
-    const socket = fakeSocket({ replies: { set: { ok: false, error: 'handSizeRange', params: { min: 3, max: 12 } } } });
-    const { api } = make({ socket });
-    await api.send('set', { size: 99 });
-    expect(api.store.toast).toBe('Hand size must be between 3 and 12.');
-  });
-
-  it('send stays quiet when asked to, and treats a missing reply as a failure', async () => {
-    const socket = fakeSocket({ replies: { play: { ok: false, error: 'notPlaying' } } });
-    const { api } = make({ socket });
-    await api.send('play', {}, { quiet: true });
-    expect(api.store.toast).toBe('');
-    expect(await api.send('silent')).toEqual({ ok: false });
-    expect(api.store.toast).toBe('');
-  });
-
-  it('a successful reply shows no toast', async () => {
-    const { api } = make({ socket: fakeSocket({ replies: { ping: { ok: true } } }) });
-    await api.send('ping');
-    expect(api.store.toast).toBe('');
-  });
-
-  it('a toast disappears after four seconds, and a newer one restarts the clock', () => {
-    const { api } = make();
-    api.showToast('First');
-    vi.advanceTimersByTime(3000);
-    api.showToast('Second');
-    vi.advanceTimersByTime(3999);
-    expect(api.store.toast).toBe('Second');
-    vi.advanceTimersByTime(1);
-    expect(api.store.toast).toBe('');
-  });
-
-  it('dispose cancels a pending toast timer', () => {
-    const { api } = make();
-    api.showToast('Hi');
-    api.dispose();
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it('goHome forgets the code, the last refusal and the address', () => {
-    const { api } = make({ search: '?cat-dog-fox' });
-    api.store.notice = 'something went wrong';
-    api.goHome();
-    expect(api.store.code).toBe('');
-    expect(api.store.notice).toBe('');
-    expect(setSearch).toHaveBeenCalledWith('');
-  });
-});
-
 describe('derived values', () => {
   const state = {
     code: 'cat-dog-fox',
@@ -260,11 +192,12 @@ describe('derived values', () => {
     expect(api.isHost.value).toBe(false);
   });
 
-  it('follow the state', () => {
+  it('follow the state, and name a player whose id arrived as text', () => {
     const { api, socket } = make();
     socket.trigger('state', state);
     expect(api.players.value).toHaveLength(2);
     expect(api.nameOf(1)).toBe('Ann');
+    expect(api.nameOf('1')).toBe('Ann');
     expect(api.nameOf(99)).toBe('?');
     expect(api.chooser.value.name).toBe('Bob');
     expect(api.isHost.value).toBe(true);
