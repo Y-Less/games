@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, until } from '../../shared/testkit.js';
+import { DRAW_TIME } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,7 +23,9 @@ process.env.SCRIBBLERS_PICTURES = 'test';
 test('a computer player draws a few strokes at a time, scattered over the board', async (t) => {
   const site = await launchModule(t, { id: 'scribblers', moduleDir: here });
   const ann = await site.person('ann').open();
-  const created = await ann.call('create', { rounds: 1, drawTime: 60 });
+  // The shortest drawing time the rules allow: the turn this test is waiting for may be the second or the third, and
+  // Ann draws nothing on her own, so hers runs its full length before a computer player's comes round.
+  const created = await ann.call('create', { rounds: 1, drawTime: DRAW_TIME.min });
   assert.equal(created.ok, true, created.error);
   assert.equal((await ann.call('fillBots', { count: 3 })).ok, true);
   await until(() => ann.state?.players.length === 3, 'a table of three');
@@ -37,7 +40,7 @@ test('a computer player draws a few strokes at a time, scattered over the board'
       return ann.state?.phase === 'drawing' && !ann.state.youDraw;
     },
     'a computer player is drawing',
-    { timeout: 60000 },
+    { timeout: (DRAW_TIME.min + 30) * 1000 }, // room for two of Ann's own turns to run out, on a loaded machine
   );
 
   const began = Date.now();

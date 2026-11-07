@@ -29,7 +29,7 @@ test('the lobby: three to seven players, the deal described, and Start waits for
   await user.clickButton('Start a new game of Cheat');
   await user.waitForText('Waiting for players');
   await user.waitForText('4 players: one pack, 13 cards each.');
-  for (const [n, line] of [[6, '6 players: two packs, 17 cards each (and 2 players get one more).'], [3, '3 players: one pack, 17 cards each (and 1 players get one more).']]) {
+  for (const [n, line] of [[6, '6 players: two packs, 17 cards each (and 2 players get one more).'], [3, '3 players: one pack, 17 cards each (and 1 player gets one more).']]) {
     await user.clickButton(String(n), { exact: true, scope: 'fieldset' });
     await user.waitForText(line);
     assert.equal((await seatKinds()).length, n);
