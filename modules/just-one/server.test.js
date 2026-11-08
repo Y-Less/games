@@ -41,7 +41,11 @@ test('a whole game with four people: create, join, start, clues, guess, best hin
     assert.ok((await writers[2].call('clue', { text: 'gamma' })).ok);
     await until(() => people.every((p) => p.state.phase === 'guessing'), 'guessing');
     assert.deepEqual(guesser.state.clues, [{ n: 0, text: 'gamma' }], 'the guesser sees only the clue that is left');
-    assert.ok(!JSON.stringify(guesser.states.filter((s) => s?.turn === turn)).includes(word), 'the word never reached the guesser early');
+    // The word itself, not merely its letters somewhere in the state: the invite code is three real words, so a
+    // secret word that happens to be inside one of them would fail a search of the whole thing.
+    const sent = guesser.states.filter((s) => s?.turn === turn);
+    assert.ok(sent.every((s) => s.word === null), 'the word never reached the guesser early');
+    assert.ok(sent.every((s) => s.clues.every((c) => c.text !== word)), 'and no clue gave it away');
     assert.equal(writers[0].state.clues.filter((c) => c.cancelled).length, 2);
 
     assert.equal((await writers[0].call('guess', { text: word })).ok, false, 'only the guesser guesses');
