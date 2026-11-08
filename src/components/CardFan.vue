@@ -51,7 +51,10 @@ const boxWidth = computed(() => (props.straight ? `${(props.max - 1) * props.ove
   position: relative;
   flex: none;
   width: calc(var(--reach) * 2 * sin(var(--max)) + var(--w) + 0.6rem);
-  height: calc(var(--h) + var(--reach) * (1 - cos(var(--max))) + var(--lift));
+  /* Room below the row for the turned cards: the outermost one's lower corner swings down by half a card width
+     times the sine of its angle, as well as rising about the pivot with the rest of the card.  Allowing only for
+     the pivot's rise leaves the corners hanging out of the box. */
+  height: calc(var(--h) + var(--lift) + var(--w) * 0.5 * sin(var(--max)) + (var(--reach) - var(--h) * 0.5) * (1 - cos(var(--max))));
 }
 .fan.straight {
   height: calc(var(--h) + var(--lift));

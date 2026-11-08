@@ -250,8 +250,13 @@ const handStyle = (fanned) => {
 // needs that much more room between the trick and the bottom edge.  The design leaves CLEAR rem there; a window taller
 // than the table can be scaled to (see `scale`) leaves more.  The minimised boxes also give the arc its room.
 const CLEAR = 2.9; // rem between the lowest played card and the top of a flat hand, in the design
-// How far (rem) the middle cards of the fanned hand stand higher than the flat row's (the arc's sag).
-const arcSag = computed(() => 8 * CARD_W * (1 - Math.cos(((cardsEach.value - 1) / 2) * handLook.value.step * (Math.PI / 180))));
+// How much taller (rem) the fanned hand is than the flat row: the middle cards stand higher, and the outermost
+// card's lower corner swings down.  It is the same sum CardFan's own box is built from, so the two agree.
+const arcSag = computed(() => {
+  const angle = ((((cardsEach.value - 1) / 2) * handLook.value.step) / 180) * Math.PI;
+  const height = CARD_W * 1.4; // a card is 1.4 times as tall as it is wide (PlayingCard)
+  return (CARD_W / 2) * Math.sin(angle) + (8 * CARD_W - height / 2) * (1 - Math.cos(angle));
+});
 /**
  * Whether the hand can be shown as an arc in the room the frame gives (otherwise it is a flat row).
  * @param {{ minimised?: boolean, height: number }} area  the main area given by the frame
@@ -392,7 +397,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
   transform: scale(var(--s));
 }
 .my-fan.fanned.minimised {
-  bottom: 1.2rem; /* and its outer corners drop low, so it sits higher to clear the minimised boxes */
+  bottom: 1.2rem; /* a gap over the minimised boxes, which sit right under the table */
 }
 .slot {
   width: 100%;
