@@ -56,8 +56,15 @@ async function stopRecording(user) {
   });
 }
 
-/** Asserts that every area was always present and only ever had one box, unless it is listed in `sizeOnly`. */
-function assertStable(game, result, { sizeOnly = [], tolerateMissing = 0, allowOverflow = false } = {}) {
+/**
+ * Asserts that every area was always present and only ever had one box.
+ *
+ * Two kinds of area are held to less than that.  `sizeOnly` is for one that scrolls with the page (the score bar):
+ * its size must hold, its place need not.  `centreOnly` is for one whose own words change while it sits still (the
+ * Hearts pass button counts the cards you have picked, and becomes the claim button at the end of a hand): it must
+ * stay in the same place, the same height, and centred where it was, but its width may follow its label.
+ */
+function assertStable(game, result, { sizeOnly = [], centreOnly = [], tolerateMissing = 0, allowOverflow = false } = {}) {
   const problems = [];
   const { overflow, ...areas } = result;
   // The page itself must not need to scroll while playing: everything fits the window.
@@ -66,8 +73,18 @@ function assertStable(game, result, { sizeOnly = [], tolerateMissing = 0, allowO
     if (process.env.LAYOUT_REPORT) console.log(game, selector, missing ? `(missing ${missing}x)` : '', boxes.map(([k, n]) => `${k} [${n}]`).join(' | '));
     if (missing > tolerateMissing) problems.push(`${selector} was missing from ${missing} samples`);
     if (!boxes.length) problems.push(`${selector} was never seen`);
+    const listed = boxes.map(([k, n]) => `${k} [${n}]`).join(' | ');
+    if (centreOnly.includes(selector)) {
+      // Held to its place, not its width: the middle, the top and the height must hold.  The middle is worked out
+      // from a left edge and a width that the recorder has each rounded to half a pixel, so it is given a pixel.
+      const parts = boxes.map(([key]) => key.match(/^x(-?[\d.]+) y(-?[\d.]+) ([\d.]+)x([\d.]+)$/).slice(1).map(Number));
+      const middles = parts.map(([x, , w]) => x + w / 2);
+      const still = new Set(parts.map(([, y, , h]) => `y${y} ${h} tall`));
+      if (Math.max(...middles) - Math.min(...middles) > 1 || still.size > 1) problems.push(`${selector} changed place: ${listed}`);
+      continue;
+    }
     const keys = sizeOnly.includes(selector) ? [...new Set(boxes.map(([k]) => k.split(' ')[2]))] : boxes.map(([k]) => k);
-    if (keys.length > 1) problems.push(`${selector} changed ${sizeOnly.includes(selector) ? 'size' : 'box'}: ${boxes.map(([k, n]) => `${k} [${n}]`).join(' | ')}`);
+    if (keys.length > 1) problems.push(`${selector} changed ${sizeOnly.includes(selector) ? 'size' : 'box'}: ${listed}`);
   }
   assert.deepEqual(problems, [], `${game}: the layout moved while playing`);
 }
@@ -123,7 +140,9 @@ async function assertHeartsTable(user, seats) {
   for (let i = 0; i < parts.length; i++) {
     for (let j = i + 1; j < parts.length; j++) assert.ok(!touching(parts[i], parts[j]), `${parts[i].name} overlaps ${parts[j].name} with ${seats} players`);
     const p = parts[i];
-    assert.ok(p.left >= boxes.felt.left - 2 && p.right <= boxes.felt.right + 2 && p.top >= boxes.felt.top - 2 && p.bottom <= boxes.felt.bottom + 2, `${p.name} stays on the table with ${seats} players`);
+    const over = { left: boxes.felt.left - p.left, right: p.right - boxes.felt.right, top: boxes.felt.top - p.top, bottom: p.bottom - boxes.felt.bottom };
+    const out = Object.entries(over).filter(([, px]) => px > 2).map(([side, px]) => `${Math.round(px)}px past the ${side}`);
+    assert.ok(!out.length, `${p.name} stays on the table with ${seats} players (${out.join(', ')})`);
   }
   // The trick circle is a box with room round its cards: only the hands of the opponents must stay clear of it.
   for (const o of boxes.opps) assert.ok(!touching(o, boxes.trick), `${o.name} overlaps the trick with ${seats} players`);
@@ -190,7 +209,9 @@ test(`Hearts with ${seats} players at ${at}: the table, hand, bottom boxes and e
     };
     await drive({ act, finished: finishedModal(user), what: 'a hand of Hearts', timeout: 120000 });
     assert.deepEqual(world.pageErrors, []);
-    assertStable('hearts', await stopRecording(user), {});
+    // The pass button counts the cards you have picked, and the claim button takes its place at the end of a hand, so
+    // the confirm row is held to its place rather than to its width.
+    assertStable('hearts', await stopRecording(user), { centreOnly: ['.felt .confirm'] });
     assert.equal(await user.page.evaluate(() => document.querySelector('.box.log .game-log').scrollTop), 0, 'the newest move is in view');
     await assertGridEdges(user, 'hearts', viewport, { left: ['.felt'], right: ['.felt'] });
   })(t);
@@ -297,7 +318,7 @@ test(`Nomination Whist at ${at}: the trick, nomination zone, hand and both botto
     const finder = () => document.querySelector('.nominate .numbers button.number:not([disabled])') ?? document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
     let clicks = 0;
     const act = async () => {
-      const done = await user.clickFound(finder);
+      const done = await user.clickFoundOnTop(finder); // the hand is a fan: click where the card itself is on top
       clicks += done ? 1 : 0;
       if (process.env.LAYOUT_SHOTS && clicks === 5 && done) {
         await sleep(300);
@@ -562,10 +583,11 @@ test(`Tints and Hints at ${at}: every zone keeps one size and position through a
         await u.page.keyboard.press('Escape');
         return true;
       }
+      // The first hint is required, so the button is dead until something is typed: type, then send.
       const send = await u.buttonState('Send hint');
-      if (send.present && !send.disabled) {
+      if (send.present) {
         await u.fill('form.hint input', 'a warm evening');
-        return u.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send hint'));
+        return u.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Send hint' && !b.disabled));
       }
       const lock = await u.buttonState('Lock in guess');
       if (lock.present && lock.disabled) return u.clickFound(() => document.querySelectorAll('.board button.cell:not([disabled])')[40]);

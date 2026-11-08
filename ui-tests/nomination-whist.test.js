@@ -55,7 +55,8 @@ test('starting the game deals round 1, and a reload resumes the same room', { ti
 test('a whole round, nominating then playing seven tricks, ends with the scores pop-up and its All rounds table', { timeout: 120000 }, guarded('play a round', async () => {
   const finder = () =>
     document.querySelector('.nominate .numbers button.number:not([disabled])') ?? document.querySelector('.hand button.playing-card:not(.dimmed):not([disabled])');
-  const act = () => user.clickFound(finder);
+  // The hand is a fan of overlapping cards, so the only playable one may have its middle under its neighbour.
+  const act = () => user.clickFoundOnTop(finder);
   await drive({ act, finished: async () => /^Scores after/.test(await user.modalTitle()), what: 'a round of Nomination Whist', timeout: 100000 });
 
   assert.match(await user.modalTitle(), /^Scores after Round 1/);

@@ -123,8 +123,14 @@ test('drawing a tile adds one to the rack and passes the turn on without moving 
   assert.deepEqual(await boxes(), was, 'drawing moved something');
 }));
 
-test('Leave game in the header leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+test('Leave game in the header asks first, then leaves the room', { timeout: 60000 }, guarded('leave', async () => {
+  // A game is under way, so leaving hands the seat to a computer player and is worth asking about first.
   await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.waitForText('A computer player takes your seat if you leave.');
+  await user.clickButton('Stay', { exact: true });
+  await user.waitForNoText('A computer player takes your seat');
+  await user.clickButton('Leave game', { exact: true, scope: 'header.bar' });
+  await user.clickButton('Yes, leave', { exact: true });
   await user.waitForText('Start a new game');
 }));
 
