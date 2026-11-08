@@ -40,6 +40,9 @@ The drawing itself is not here.  It is the site's, shared with Scribblers:
 - `shared/words.js`, `shared/words/en.txt` — the word list, and comparing a typed guess with a word
 - `src/components/DrawingBoard.vue`, `src/drawBoard.js` — the canvas, the brush and the flood fill
 
+The interface is translated (`locales/en.json` and the three beside it), but that word list is not: whatever language
+the screen is in, the words drawn and guessed are English ones, as they are in Scribblers.
+
 ## Who draws against whom
 
 Every pair of players draws together once, or `cycles` times over, and **nobody draws three rounds running** — drawing

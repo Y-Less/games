@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "name": "ドロー！",
+    "description": "ふたりが同時に絵を描き、残りの全員がどちらかを先に言い当てようと競います。"
+  },
+  "entry": {
+    "noun": "ドロー！",
+    "intro": "ふたりが同時に絵を描き、残りの全員がどちらかを先に言い当てようと競います。3人から8人で遊べます。"
+  },
+  "lobby": {
+    "title": "プレイヤーを待っています",
+    "share": "このコードか招待リンクを友達に伝えましょう。描く人ふたりと当てる人ひとり、最低3人必要です。",
+    "cycles": "すべての組み合わせを{count}周",
+    "fewerCycles": "周る回数を減らす",
+    "moreCycles": "周る回数を増やす",
+    "drawTime": "1枚につき{count}秒",
+    "fasterDrawing": "描く時間を短く",
+    "slowerDrawing": "描く時間を長く",
+    "choices": "選べる言葉は{count}個",
+    "fewerChoices": "選べる言葉を減らす",
+    "moreChoices": "選べる言葉を増やす",
+    "length": "全{rounds}ラウンド、あなたは{drawings}回描きます",
+    "waitingForHost": "ホストがゲームを始めるのを待っています。"
+  },
+  "table": {
+    "round": "ラウンド{n} / {total}",
+    "yourWord": "あなたのお題：{word}",
+    "theirBoard": "{name}が描いています",
+    "named": "{guesser}が{drawer}の絵を当てました：{word}",
+    "wasDrawing": "{name}のお題は{word}でした",
+    "offline": "オフラインです。つなぎ直しています…",
+    "guessHere": "どちらかの絵の答えを入力",
+    "guessing": "回答",
+    "nothingYet": "まだ回答はありません。",
+    "youDrawSoNoGuessing": "あなたは描く番なので、このラウンドは回答できません。",
+    "undo": "元に戻す",
+    "clear": "ボードを消す",
+    "pen": "ペン",
+    "rubber": "消しゴム",
+    "fill": "塗りつぶし",
+    "thin": "細い",
+    "medium": "普通",
+    "thick": "太い",
+    "colours": "色",
+    "colour": "色{n}"
+  },
+  "status": {
+    "choose": "お題を選びましょう。5秒です！",
+    "chosen": "準備完了。もうひとりの描き手を待っています。",
+    "draw": "描きましょう！先に当てられたほうの絵がラウンドの勝ちです。",
+    "guess": "どちらの絵でも当てられます。入力欄はひとつ、絵はふたつ。",
+    "waiting": "描き手を待っています…",
+    "wonIt": "当たりです！",
+    "drewIt": "当てられたのはあなたの絵です。",
+    "missed": "どちらの絵も当てられませんでした。",
+    "over": "ゲーム終了です。"
+  },
+  "scoreboard": {
+    "round": "ラウンド{n} / {of}"
+  },
+  "notes": {
+    "drew": "{word}を描きました"
+  },
+  "errors": {
+    "cycles": "すべての組み合わせを周る回数は{min}〜{max}で選んでください。",
+    "drawTime": "1枚の持ち時間は{min}〜{max}秒です。",
+    "wordChoices": "選べる言葉は{min}〜{max}個にしてください。",
+    "notChoosing": "いまはお題を選ぶときではありません。",
+    "drawersOnlyChoose": "お題を選べるのは描き手のふたりだけです。",
+    "alreadyChosen": "すでにお題を選んでいます。",
+    "pickAWord": "提示された言葉のなかから選んでください。",
+    "notGuessing": "いま当てられるものはありません。",
+    "drawersDoNotGuess": "このラウンドは描く番なので、回答はできません。",
+    "typeGuess": "まず回答を入力してください。",
+    "nothingToMoveOn": "次に進むものがありません。",
+    "nothingToSkip": "やめられるラウンドがありません。",
+    "notYourTurnToDraw": "このラウンドは描く番ではありません。",
+    "badDrawing": "それは描けるものではありません。",
+    "hostOnlyEnd": "ゲームを終われるのはホストだけです。",
+    "alreadyInLobby": "ゲームはすでにロビーに戻っています。",
+    "tooFast": "少し落ち着いてください。"
+  },
+  "stats": {
+    "drawn": "描いた絵",
+    "guessedFirst": "一番に当てた絵",
+    "wasNamed": "当ててもらえた自分の絵",
+    "wentUnnamed": "誰にも当てられなかった自分の絵"
+  },
+  "achievements": {
+    "quickest": {
+      "name": "誰よりも早く",
+      "text": "誰よりも早く絵を{n}回当てる",
+      "one": "誰よりも早く絵を当てる"
+    },
+    "unmistakable": {
+      "name": "まぎれもない",
+      "text": "自分の絵を{n}回当ててもらう",
+      "one": "自分の絵を当ててもらう"
+    },
+    "prolific": {
+      "name": "多作",
+      "text": "絵を{n}枚描く",
+      "one": "絵を描く"
+    }
+  }
+}

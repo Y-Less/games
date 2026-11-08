@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "name": "cha' mIllogh",
+    "description": "rap qonlu' cha' mIllogh; wa' mIllogh pong 'e' lunID latlhpu'."
+  },
+  "entry": {
+    "noun": "cha' mIllogh Quj",
+    "intro": "rap mIlloghmey luqon cha' QujwI', 'ej wa' mIllogh pong 'e' lunIDtaH latlhpu'. wej QujwI'pu' chorgh QujwI'pu' je."
+  },
+  "lobby": {
+    "title": "QujwI'pu' loSlu'",
+    "share": "juppu'lI'vaD mI' tlhegh pagh ghelmeH tlhegh yInob. wej QujwI'pu' poQlu': qonwI' cha' 'ej loywI' wa'.",
+    "cycles": "Hoch QujwI'ghommey wa'logh | Hoch QujwI'ghommey {count}logh",
+    "fewerCycles": "logh puS",
+    "moreCycles": "logh law'",
+    "drawTime": "mIlloghvaD {count} lup",
+    "fasterDrawing": "qonmeH poH puS",
+    "slowerDrawing": "qonmeH poH law'",
+    "choices": "{count} mu'mey wIvlu'",
+    "fewerChoices": "mu'mey puS noblu'",
+    "moreChoices": "mu'mey law' noblu'",
+    "length": "{rounds} may'mey, 'ej {drawings}logh bIqon",
+    "waitingForHost": "Quj taghmeH che'wI' loSlu'."
+  },
+  "table": {
+    "round": "may' {n} ({total}vo')",
+    "yourWord": "Daqonbogh: {word}",
+    "theirBoard": "qontaH {name}",
+    "named": "{drawer} mIllogh pong {guesser}: {word}",
+    "wasDrawing": "{word} qonpu' {name}",
+    "offline": "bIrIHbe'. jIcheghqa' 'e' vInIDtaH…",
+    "guessHere": "mIllogh vay' yIpong",
+    "guessing": "loymey",
+    "nothingYet": "pagh loylu'pu'.",
+    "youDrawSoNoGuessing": "bIqonmo' may'vamDaq bIloylaHbe'.",
+    "undo": "yIteqqa'",
+    "clear": "nagh beQ yISay'moH",
+    "pen": "ghItlhwI'",
+    "rubber": "teqwI'",
+    "fill": "tebwI'",
+    "thin": "mach",
+    "medium": "motlh",
+    "thick": "tIn",
+    "colours": "rItlhmey",
+    "colour": "rItlh {n}"
+  },
+  "status": {
+    "choose": "wa' mu' yIwIv. vagh lup neH!",
+    "chosen": "bIruchrup. qonwI' latlh loSlu'.",
+    "draw": "yIqon! wa'DIch ponglu'bogh mIllogh Qap.",
+    "guess": "mIllogh vay' yIpong. wa' ghItlhmeH Daq, cha' mIllogh.",
+    "waiting": "qonwI'pu' loSlu'…",
+    "wonIt": "DapongtaH!",
+    "drewIt": "ponglu'bogh mIllogh 'oH mIlloghlIj'e'.",
+    "missed": "mIllogh pongpu' pagh.",
+    "over": "rIn Quj."
+  },
+  "scoreboard": {
+    "round": "may' {n} ({of}vo')"
+  },
+  "notes": {
+    "drew": "{word} qonpu'"
+  },
+  "errors": {
+    "cycles": "Hoch QujwI'ghommey {min}logh {max}logh je joj yIwIv.",
+    "drawTime": "{min} lup {max} lup je joj taH mIllogh.",
+    "wordChoices": "{min} mu'mey {max} mu'mey je joj yInob.",
+    "notChoosing": "DaH mu' wIvmeH poH 'oHbe'.",
+    "drawersOnlyChoose": "mu' luwIv qonwI' cha' neH.",
+    "alreadyChosen": "mu'lIj DawIvpu'.",
+    "pickAWord": "Danoblu'bogh mu'mey yIwIv.",
+    "notGuessing": "DaH pagh loylu'.",
+    "drawersDoNotGuess": "may'vamDaq bIqonmo' bIloybe'.",
+    "typeGuess": "wa'DIch loy yIghItlh.",
+    "nothingToMoveOn": "DataHmeH pagh tu'lu'.",
+    "nothingToSkip": "Dalonlu'meH may' tu'lu'be'.",
+    "notYourTurnToDraw": "may'vamDaq bIqonbe'.",
+    "badDrawing": "qonlu'laHbe'bogh 'oH.",
+    "hostOnlyEnd": "Quj rInmoHlaH che'wI' neH.",
+    "alreadyInLobby": "loSmeH DaqDaq Quj.",
+    "tooFast": "yIQIt."
+  },
+  "stats": {
+    "drawn": "qonlu'pu'bogh mIlloghmey",
+    "guessedFirst": "wa'DIch Dapongbogh mIlloghmey",
+    "wasNamed": "ponglu'pu'bogh mIlloghlIj",
+    "wentUnnamed": "ponglu'pu'be'bogh mIlloghlIj"
+  },
+  "achievements": {
+    "quickest": {
+      "name": "nom",
+      "text": "{n}logh latlhpu' bIH pa' mIllogh yIpong",
+      "one": "latlhpu' bIH pa' mIllogh yIpong"
+    },
+    "unmistakable": {
+      "name": "mujHa'",
+      "text": "{n} mIlloghlIj lupong",
+      "one": "mIlloghlIj lupong"
+    },
+    "prolific": {
+      "name": "qonwI' tIn",
+      "text": "{n} mIlloghmey yIqon",
+      "one": "mIllogh yIqon"
+    }
+  }
+}
