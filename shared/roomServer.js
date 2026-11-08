@@ -724,7 +724,13 @@ export function createRoomServer(ctx, options) {
       set?.delete(socket);
       if (set && !set.size) sockets.delete(userId);
       const room = roomOfSocket();
-      if (room) push(room);
+      // Somebody going is not a change to the room, but it can change what the server owes it next: a game that waits
+      // on a player who has gone (a drawer who shut the tab) must be given the chance to set that timer now, rather
+      // than only when something else happens to fire.  An unchanged `nextAction` keeps the timer it already has.
+      if (room) {
+        push(room);
+        schedule(room);
+      }
     });
   });
 

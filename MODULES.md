@@ -90,8 +90,8 @@ handles `create`, `join`/`resume`, `leave`, `kick` and the lobby events (`settin
   move, the pause after a trick, the wait for everyone to close the score pop-up).  The same `key` keeps its timer instead
   of restarting it.  A `run` that throws is retried up to three times with a doubling pause.  `online(id)` says who is
   connected, read afresh whenever it is called, for a game that gives up on somebody who has gone (Scribblers ends a turn
-  whose drawer has left).  A connection going is not itself a change to a room, so such a check only happens when the
-  room next changes or a timer fires.
+  whose drawer has left).  A connection going is not a change to a room, but it is asked for again when one goes, so a
+  game that waits on somebody who has left can set that timer there and then rather than at the next change.
 - `registerEvents({ on, act, userId, socket, rng, now, roomOf, relay })`: the game's own socket events.  `roomOf()` is the room
   this socket is in; `relay(room, event, payload, { except })` sends an event straight to the room's people, for a stream
   no view can carry.  A view is the whole state of a room, sent to everybody on every change, so a game whose data is far
