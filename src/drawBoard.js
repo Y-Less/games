@@ -11,7 +11,7 @@
 // The palette and the colour white are the protocol's, not the canvas's: they are in ../drawing.js, beside the
 // instructions that name a colour by its place in them.  They are passed on from here so that a component drawing on
 // the board needs only this file.
-import { PALETTE, WHITE } from '../drawing.js';
+import { PALETTE, WHITE } from '../shared/drawing.js';
 
 export { PALETTE, WHITE };
 

@@ -1,15 +1,20 @@
 <script setup>
-// The drawing board: a canvas of a fixed 1600 x 900, shown at whatever size the table has room for, so that everybody
-// draws and sees the same picture whatever their screen.  The pixels are kept in a buffer of its own and the canvas
-// only shows them (see ./draw.js).
+// File: the drawing board shared by the games that draw (Scribblers, Draw!).  A canvas of a fixed 1600 x 900, shown at
+// whatever size the table has room for, so that everybody draws and sees the same picture whatever their screen.  The
+// pixels are kept in a buffer of its own and the canvas only shows them (see ../drawBoard.js).
+// Depends on: shared/drawing.js (the board's size and palette) and src/drawBoard.js (the brush and the flood fill).
 // Props: active (may this viewer draw), tool ({ kind, colour, width }), width / height (the size to show it at, in pixels).
 // Emits: ops (instructions the player has just made, for the table to send on).  Slots: none.
 // Exposes: apply(ops) adds instructions from somebody else; reset(ops) redraws the board from scratch.
 // Side effects: draws on its own canvas element; captures the pointer while a stroke is being made.
+// A game with more than one board on screen draws one of these per board and sends each its own instructions.
 import { computed, onMounted, ref, watch } from 'vue';
-import { useGameText } from '../../../src/useGameText.js';
-import { BOARD_HEIGHT, BOARD_WIDTH } from './layout.js';
-import { PALETTE, WHITE, applyOp, applyOps, blankBoard } from './draw.js';
+import { BOARD } from '../../shared/drawing.js';
+import { PALETTE, WHITE, applyOp, applyOps, blankBoard } from '../drawBoard.js';
+import { useGameText } from '../useGameText.js';
+
+/** The board's own space: every instruction is in it, whatever size the board is shown at. */
+const { width: BOARD_WIDTH, height: BOARD_HEIGHT } = BOARD;
 
 const props = defineProps({
   active: { type: Boolean, default: false },

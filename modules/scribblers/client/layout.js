@@ -1,10 +1,10 @@
 // Sizes for the Scribblers table, worked out from the room available (never from the game, so nothing moves while
 // playing).  All numbers are pixels unless they are said to be board units.
-// Depends on: nothing.
+// Depends on: shared/drawing.js (the board's own size, which the server and the board itself speak too).
+import { BOARD } from '../../../shared/drawing.js';
 
-/** The drawing board's own coordinate space, which every instruction speaks (the same figures as drawing.js). */
-export const BOARD_WIDTH = 1600;
-export const BOARD_HEIGHT = 900;
+/** The drawing board's own coordinate space, which every instruction speaks. */
+export const { width: BOARD_WIDTH, height: BOARD_HEIGHT } = BOARD;
 /** How tall the word and the clock are above the board, and the toolbox below it (the board gets what is left).  The
  * thumbs take nothing: they sit in the corner of the board itself. */
 const WORD_BAR = 44;

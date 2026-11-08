@@ -12,13 +12,13 @@ itself an open reimplementation of skribbl.io.  What was reused, and what was no
 | from scribble.rs | here |
 | --- | --- |
 | `internal/game/words/en_gb` | `words/en.txt`: the one self-referential entry and the ten words it listed twice taken out, and fifteen everyday nouns added, which makes it a round 5,000 |
-| `internal/frontend/resources/draw.js` (the flood fill and the brush) | `client/draw.js`, as ES modules |
-| the palette of 26 colours | `drawing.js` (`PALETTE`), beside the instructions that name a colour by its place in it |
+| `internal/frontend/resources/draw.js` (the flood fill and the brush) | `src/drawBoard.js`, as ES modules |
+| the palette of 26 colours | `shared/drawing.js` (`PALETTE`), beside the instructions that name a colour by its place in it |
 | the real-time sketch events (`line`, `fill`, `clear-drawing-board`, `undo`, `request-drawing`) | the same events on Socket.IO: `line`, `fill`, `draw`, `clear`, `undo`, `canvas` (see `server.js`) |
-| the turn rules: the scoring curve, how many letters are revealed and when, what counts as a close guess, the 150 ms stroke grouping behind undo | `game.js` and `drawing.js` |
+| the turn rules: the scoring curve, how many letters are revealed and when, what counts as a close guess, the 150 ms stroke grouping behind undo | `game.js` and `shared/drawing.js` |
 | its lobby, accounts, chat, kick votes, spectators, HTTP API, Go server, and page | **not used**: the hub already has accounts, invite codes, a waiting room, a score bar and a player pop-up |
 
-The flood fill in `client/draw.js` came to scribble.rs from
+The flood fill in `src/drawBoard.js` came to scribble.rs from
 [floodfill.js](https://github.com/binarymax/floodfill.js) (MIT, Copyright (c) Max Irwin 2011-2016) and has been
 rewritten again here.  No artwork was copied: the toolbox uses the player's own emoji font rather than scribble.rs's
 icons, whose artwork has a licence of its own.
@@ -27,14 +27,14 @@ icons, whose artwork has a licence of its own.
 
 | | |
 | --- | --- |
-| `words.js`, `words/en.txt` | the word list, drawing words for a turn, and comparing a guess with the word |
+| `shared/words.js`, `shared/words/en.txt` | the word list, drawing words for a turn, and comparing a guess with the word (shared with Draw!) |
 | `ai/` | the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (below) |
-| `picture.js` | a word turned into something to draw: the search, the decoders, and the strokes (the socket layer's, not the rules') |
+| `shared/picture.js` | a word turned into something to draw: the search, the decoders, and the strokes (the socket layer's, not the rules'; shared with Draw!) |
 | `game.js` | the rules: rooms, turns, choosing a word, letters, guesses, scoring, the views.  No sockets, no files, no canvas |
-| `drawing.js` | what a drawing is made of and what the server will accept into one (and the grouping that undo works on) |
+| `shared/drawing.js` | what a drawing is made of and what the server will accept into one, and the grouping that undo works on (shared with Draw!) |
 | `tally.js` | the counters kept for each player, for the statistics and achievements |
 | `server.js` | the socket layer: the shared room server, the clock work of a turn, and the stroke relay |
-| `client/` | the table: the board (`Board.vue`, `draw.js`), the toolbox, the guesses panel, the word bar, the thumbs |
+| `client/` | the table: the toolbox, the guesses panel, the word bar, the thumbs.  The board itself is the site's `DrawingBoard` |
 
 ## Words of your own
 
@@ -103,7 +103,7 @@ It chooses a word when it is drawing, draws a picture of it, and guesses when so
   ignores which ones are shown; `random` shouts out any word in the book.  Each is given one for the whole game
   (`assignAIs`), the id is kept on the seat so it survives a restart, and the table can see it in a player's pop-up.
 - **The drawing is not an AI decision**, because it needs the web: once the AI has chosen a word, `server.js` asks
-  `picture.js` for a picture of it and paints it on the board a message-full of strokes at a time, so the others watch
+  `shared/picture.js` for a picture of it and paints it on the board a message-full of strokes at a time, so the others watch
   it appear.  An AI never touches the network, the clock, or `Math.random`.
 - **The picture.**  The first image a Wikimedia Commons search finds for the word (no key needed, and a thumbnail
   rather than the original), brought down to 256 x 256, then painted as blocks of the board's thinnest brush (8 of its

@@ -2,7 +2,7 @@
 // guess counts as right, nearly right, or neither in the way the players are told it does.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { seeded } from '../../shared/random.js';
+import { seeded } from './random.js';
 import { DEFAULT_LANGUAGE, WORD_LANGUAGES, cleanText, guessQuality, pickWords, wordList } from './words.js';
 
 test('the word list is a round five thousand words, lowercase, and free of stray characters', () => {

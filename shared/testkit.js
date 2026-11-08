@@ -82,10 +82,9 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
       recursive: true,
       filter: (source) => !['client', 'cards', 'node_modules'].includes(path.basename(source)) && !source.endsWith('.test.js'),
     });
-    fs.mkdirSync(path.join(copy, 'shared'), { recursive: true });
-    for (const file of fs.readdirSync(path.join(platform, 'shared'))) {
-      if (file.endsWith('.js') && !file.endsWith('.test.js')) fs.copyFileSync(path.join(platform, 'shared', file), path.join(copy, 'shared', file));
-    }
+    // The whole of shared/, not only its own files: some of it is data a module reads at run time (the word list the
+    // drawing games draw from), and a module that could not find it here would fail only under test.
+    fs.cpSync(path.join(platform, 'shared'), path.join(copy, 'shared'), { recursive: true, filter: (source) => !source.endsWith('.test.js') });
   }
   setup?.(dataDir);
   const logs = []; // everything the site and the module log: a handler that threw shows up here as "<event> failed:"

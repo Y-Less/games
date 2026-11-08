@@ -21,7 +21,7 @@ import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
-import Board from './Board.vue';
+import Board from '../../../src/components/DrawingBoard.vue';
 import GuessPanel from './GuessPanel.vue';
 import Toolbox from './Toolbox.vue';
 import Votes from './Votes.vue';

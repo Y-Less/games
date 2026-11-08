@@ -26,7 +26,7 @@ import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { createRosterRules, hasPlayer, humans, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
-import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from './words.js';
+import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from '../../shared/words.js';
 
 // Table size: two can play (one draws, one guesses), and twelve is as many guesses as the panel can show.
 export const MIN_PLAYERS = 2;

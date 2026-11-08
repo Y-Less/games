@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
-import { MAX_BATCH } from './drawing.js';
+import { MAX_BATCH } from '../../shared/drawing.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 

@@ -337,7 +337,7 @@ them), and its `client/render-all.test.js` draws every one of them with the real
 player would meet.  A new game should have both.  The robustness tests (`modules/<id>/robustness.test.js`) throw
 garbage at every socket event in every phase; `handledSocketEvents` in the test kit lists the events a server handles so
 that a new event cannot go untested.  jsdom has no canvas, so `src/testSetup.js` gives it enough of a 2D context for a
-game that draws to run against a buffer of pixels in a test (Scribblers' `client/draw.test.js` tests the drawing itself
+game that draws to run against a buffer of pixels in a test (`src/drawBoard.test.js` tests the drawing itself
 on such a buffer, with no canvas at all).
 
 **A failure under load may be the load.**  Much of this suite waits on real things — a site on a real port, a real
@@ -472,7 +472,7 @@ context is built by `aiContext(room, seat, rng)` in `game.js`.
 
 **What an AI may not do** it does not do: anything needing the network, the clock or a file belongs to the game's socket
 layer, which runs it after the AI has decided.  Scribblers is the example: its AIs choose which word to draw, and
-`server.js` then fetches a picture of that word and puts it on the board (`modules/scribblers/picture.js`), just as a
+`server.js` then fetches a picture of that word and puts it on the board (`shared/picture.js`), just as a
 quiz game's questions come from `shared/trivia.js` and not from its rules.
 
 **Assignment and state.**
@@ -513,6 +513,7 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `NoticePopup` | the generic small pop-up over the top of the page: slot content, `active`, `duration`, `autoHide` (false: stays until OK), OK button, `name` (extra class), `row` (stack two). `YourTurnPopup` and the achievement unlocks are built on it |
 | `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
+| `DrawingBoard` | the 1600 x 900 drawing canvas of the games that draw, shown at whatever size there is room for.  Props `active` (may this viewer draw), `tool`, `width`/`height`; emits `ops` (what the player has just drawn, for the table to send on); exposes `apply(ops)` and `reset(ops)`.  A game with two boards on screen draws one of these per board (see `modules/draw`).  The instructions themselves, what the server will accept into a drawing, and the palette are `shared/drawing.js`; the brush and the flood fill are `src/drawBoard.js` |
 
 Three helpers beside them, imported from `modules/<id>/client/` as `../../../src/<name>.js`:
 

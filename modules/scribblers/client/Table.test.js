@@ -2,7 +2,7 @@
 // the drawing - a stroke made here goes to the server, and one from the server goes on to the board.
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import Board from './Board.vue';
+import Board from '../../../src/components/DrawingBoard.vue';
 import Table from './Table.vue';
 import { newEntries } from './moveLog.js';
 import { messageText } from '../../../src/messageText.js';

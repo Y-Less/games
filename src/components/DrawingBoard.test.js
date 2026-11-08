@@ -4,8 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import Board from './Board.vue';
-import { WHITE } from './draw.js';
+import Board from './DrawingBoard.vue';
+import { WHITE } from '../drawBoard.js';
 
 /** Waits for the animation frame on which the board sends what has been drawn. */
 const nextFrame = () => new Promise((resolve) => setTimeout(resolve, 40));

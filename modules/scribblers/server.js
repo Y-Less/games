@@ -37,9 +37,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { shuffle } from '../../shared/cards.js';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
-import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from './drawing.js';
+import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from '../../shared/drawing.js';
 import * as game from './game.js';
-import { drawingFor, testPicture } from './picture.js';
+import { drawingFor, testPicture } from '../../shared/picture.js';
 
 /** How often the server sends the next few strokes of a computer player's picture (milliseconds). */
 const STROKE_TICK = 100;

@@ -5,7 +5,7 @@
 // Emits: undo, clear.  Slots: none.
 // Side effects: none beyond changing the tool it was given.
 import { useGameText } from '../../../src/useGameText.js';
-import { PALETTE } from './draw.js';
+import { PALETTE } from '../../../src/drawBoard.js';
 import { TOOLS, WIDTHS } from './useTools.js';
 
 const props = defineProps({ tool: { type: Object, required: true } });

@@ -1,6 +1,6 @@
 // The drawing maths, on a buffer of pixels rather than a canvas: the palette, a stroke and a dot, and the flood fill.
 import { describe, expect, it } from 'vitest';
-import { PALETTE, WHITE, colourOf, floodFill, strokeInto } from './draw.js';
+import { PALETTE, WHITE, colourOf, floodFill, strokeInto } from './drawBoard.js';
 
 /** A small white board of pixels, shaped like the ImageData a canvas gives. */
 function board(width = 40, height = 30) {
