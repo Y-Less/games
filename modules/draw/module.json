@@ -1,0 +1,41 @@
+{
+  "id": "draw",
+  "name": "Draw!",
+  "description": "Two players draw at once, and everybody else races to name one of them.",
+  "minPlayers": 3,
+  "maxPlayers": 8,
+  "category": "party",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "drawn", "label": "Drawings made", "agg": "sum" },
+    { "key": "guessedFirst", "label": "Drawings you named first", "agg": "sum" },
+    { "key": "wasNamed", "label": "Your drawings that were named", "agg": "sum" },
+    { "key": "wentUnnamed", "label": "Your drawings nobody named", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "quickest",
+      "name": "Quickest off the mark",
+      "text": "Name a drawing before anybody else {n} times",
+      "one": "Name a drawing before anybody else",
+      "levels": "easy",
+      "stat": "guessedFirst"
+    },
+    {
+      "key": "unmistakable",
+      "name": "Unmistakable",
+      "text": "Have {n} of your drawings named",
+      "one": "Have one of your drawings named",
+      "levels": "easy",
+      "stat": "wasNamed"
+    },
+    {
+      "key": "prolific",
+      "name": "Prolific",
+      "text": "Draw {n} pictures",
+      "one": "Draw a picture",
+      "levels": "medium",
+      "stat": "drawn"
+    }
+  ]
+}

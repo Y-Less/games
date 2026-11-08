@@ -26,9 +26,6 @@
     },
     "total": "{count} turn in all with {players} players. Everybody draws once a round. | {count} turns in all with {players} players. Everybody draws once a round."
   },
-  "board": {
-    "label": "The drawing board"
-  },
   "toolbox": {
     "colours": "Colours",
     "colour": "Colour {n}",

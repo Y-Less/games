@@ -513,5 +513,8 @@
     "players": "QujwI'pu'",
     "seeScores": "mI'mey yIlegh",
     "yourHand": "navmeylIj"
+  },
+  "board": {
+    "label": "nagh beQ"
   }
 }

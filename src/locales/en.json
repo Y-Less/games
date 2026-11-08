@@ -530,5 +530,8 @@
     "players": "Players",
     "seeScores": "See the scores",
     "yourHand": "Your hand"
+  },
+  "board": {
+    "label": "The drawing board"
   }
 }
