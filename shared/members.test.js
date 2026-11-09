@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSeatRules, emptySeats, goneSeat } from './seats.js';
-import { createRosterRules } from './roster.js';
+import { createRosterRules, migratePlayers } from './roster.js';
 
 /** A seated game: three seats, Ann hosting, with the hooks a real game provides. */
 function seated({ phase = 'lobby' } = {}) {
@@ -178,14 +178,56 @@ test('seated: filling with computer players fills the table, because every seat 
   assert.equal(room.seats.filter(Boolean).length, 3, 'every seat');
 });
 
-test('listed: filling with computer players adds enough to start, not as many as will fit', () => {
-  // A list has no empty places to fill, so "fill" means "make the game big enough to begin"; the host may ask for
-  // more by name.  A seated game cannot work that way: an empty seat is a hole somebody has to sit in.
+test('listed: a room opens as big as the game allows, so nobody who could join before is turned away', () => {
+  const { rules, room } = listed();
+  assert.equal(rules.addHuman(room, 2, 'Bob').ok, true);
+  assert.equal(rules.addHuman(room, 3, 'Cy').ok, true, 'up to the most the game holds, with nothing to set first');
+});
+
+test('listed: the host may cap the room to keep people out, within the limits and never below those here', () => {
+  const { rules, room } = listed();
+  rules.addHuman(room, 2, 'Bob');
+  assert.equal(rules.setSize(room, 2, 3).ok, false, 'only the host');
+  assert.equal(rules.setSize(room, 1, 1).error, 'playersRange', 'and only within what the game allows');
+  assert.equal(rules.setSize(room, 1, 9).error, 'playersRange');
+  assert.equal(rules.setSize(room, 1, 'x').error, 'playersRange');
+  assert.equal(rules.setSize(room, 1, 2).ok, true);
+  assert.equal(rules.addHuman(room, 3, 'Cy').error, 'gameFull', 'a room capped at two is full with two');
+  assert.equal(rules.setSize(room, 1, 3).ok, true, 'until the host makes room again');
+  assert.equal(rules.addHuman(room, 3, 'Cy').ok, true);
+  assert.equal(rules.setSize(room, 1, 2).error, 'removeBeforeFewerPlayers', 'and capping below the people here is refused');
+});
+
+test('listed: starting settles the size, so a place kept open has to be a computer player holding it', () => {
+  const { rules, room } = listed();
+  rules.addHuman(room, 2, 'Bob');
+  assert.equal(rules.sizeOf(room), 3, 'until then it is as big as the game allows');
+  rules.lockSize(room);
+  room.phase = 'playing';
+  assert.equal(room.size, 2, 'now it is exactly the people who are playing');
+  assert.equal(rules.setSize(room, 1, 3).ok, false, 'and the host cannot reopen it');
+});
+
+test('listed: filling with computer players makes up a normal table, not as many as the game could hold', () => {
+  // The quick start: most games are played by about four, whatever the most they allow is.  Somebody who wants more
+  // adds them one at a time, as the lobby's per-place buttons do.
   const { rules, room } = listed();
   assert.equal(rules.fillWithBots(room, 1).ok, true);
-  assert.equal(room.players.length, 2, 'the minimum to start');
-  assert.equal(rules.fillWithBots(room, 1, 3).ok, true);
-  assert.equal(room.players.length, 3, 'or as many as the host asks for');
+  assert.equal(room.players.length, 3, 'a normal table, or the most this small game holds');
+});
+
+test('listed: a room saved before the host could choose keeps the game it had', () => {
+  // A game that was played had as many players as are in its list; a lobby had room for as many as the game allows,
+  // and must keep it, or somebody who could have joined yesterday is turned away today.
+  const played = { phase: 'finished', players: [{ kind: 'human', id: 1, name: 'Ann', slot: 's0' }, { kind: 'bot', id: 'bot:1', name: 'Ada', slot: 's1' }] };
+  migratePlayers(played, undefined, { maxPlayers: 6 });
+  assert.equal(played.size, 2, 'the number it was played with');
+  const waiting = { phase: 'lobby', players: [{ kind: 'human', id: 1, name: 'Ann', slot: 's0' }] };
+  migratePlayers(waiting, undefined, { maxPlayers: 6 });
+  assert.equal(waiting.size, 6, 'the whole game it had room for');
+  const chosen = { phase: 'lobby', size: 3, players: [] };
+  migratePlayers(chosen, undefined, { maxPlayers: 6 });
+  assert.equal(chosen.size, 3, 'and a room that already says is left alone');
 });
 
 test('seated: leaving a finished game leaves a marker, so the final scores still name them', () => {

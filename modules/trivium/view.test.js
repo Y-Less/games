@@ -93,6 +93,7 @@ test('a view lists its parts in a fixed order', () => {
     'scoreboard',
     'colours',
     'canCustomColour',
+    'size',
     'limits',
   ]);
 });

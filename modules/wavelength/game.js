@@ -14,7 +14,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
 import { SPECTRA, spectrumById } from './spectra.js';
@@ -24,6 +24,8 @@ import { DIAL_MAX, DIAL_MIN, newCounters, statsExtras, tallyTurn } from './tally
 export const MIN_PLAYERS = 2;
 /** The most people in a room (the marker palette and the table only have room for so many). */
 export const MAX_PLAYERS = 8;
+/** How many a new game is for, until the host says otherwise. */
+export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 /** How many turns each person gets as psychic: the game lasts turnsEach x players turns. */
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 /** The longest clue, in characters; longer ones are cut (so a clue cannot swamp the table). */
@@ -171,6 +173,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     turnsTotal: 0,
     turn: 0,
     players: [],
+    size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     mode: 'solo',
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
@@ -222,6 +225,10 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * Side effects: sets room.turnsEach and/or room.mode when given; if the first is accepted and the second refused, the first stays changed.
  */
 export function setSettings(room, id, settings = {}) {
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
+  }
   if (settings.turnsEach === undefined && settings.mode === undefined) return hostInLobby(room, id) ?? ok();
   if (settings.turnsEach !== undefined) {
     const outcome = setTurnsEach(room, id, settings.turnsEach);
@@ -348,6 +355,7 @@ export function start(room, id, rng) {
   if (id !== room.hostId) return fail('hostOnlyStart');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
   room.turnsTotal = room.turnsEach * room.players.length;
   room.turn = 0;
   room.used = [];
@@ -535,7 +543,7 @@ function recordHistory(room, nameOf) {
  * @returns {object} the same room
  */
 export function migrate(room, nameOf) {
-  migratePlayers(room, nameOf);
+  migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
   room.used ??= [];
   room.mode ??= 'solo';
   room.marker ??= null;
@@ -822,6 +830,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     scoreboard: scoreboardView(room, userId, { nameOf, online }),
     colours: COLOURS,
     canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
+    size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
   };
 }

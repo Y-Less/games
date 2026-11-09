@@ -45,18 +45,33 @@ describe('PlayerListPanel', () => {
     expect(full.text()).toContain('The table is full (3 players).');
   });
 
-  it('fills to three where a game would settle for two, and never past its own limits', async () => {
-    // A game of two is one opponent and nobody to be quicker than, so filling offers a third player.
-    const two = make({ players: players.slice(0, 1), min: 2, max: 8 });
-    await button(two, 'Fill up to 3 players').trigger('click');
-    expect(two.emitted().fillBots).toEqual([[3]]);
-    // A game that wants more than three still asks for what it wants.
+  it('fills to a normal table of four, and never past the game or the host', async () => {
+    // Not "as many as will fit": a game for twelve filling to twelve would be a surprise.
+    const roomy = make({ players: players.slice(0, 1), min: 2, max: 12 });
+    await button(roomy, 'Fill up to 4 players').trigger('click');
+    expect(roomy.emitted().fillBots).toEqual([[4]]);
+    // A game that wants more than four still asks for what it wants.
     const five = make({ players: players.slice(0, 1), min: 5, max: 8 });
     expect(button(five, 'Fill up to 5 players')).toBeDefined();
-    // And one that cannot seat three is not offered three.
+    // One that cannot hold four is not offered four.
     const pair = make({ players: players.slice(0, 1), min: 2, max: 2 });
     await button(pair, 'Fill up to 2 players').trigger('click');
     expect(pair.emitted().fillBots).toEqual([[2]]);
+    // And a host who has capped the room is not offered more than the cap.
+    const capped = make({ players: players.slice(0, 1), min: 2, max: 12, size: 3 });
+    await button(capped, 'Fill up to 3 players').trigger('click');
+    expect(capped.emitted().fillBots).toEqual([[3]]);
+  });
+
+  it('lets the host say how many the room will hold, between those here and what the game allows', async () => {
+    const w = make({ players, min: 2, max: 8, size: 5 });
+    expect(w.text()).toContain('Players (3 of 5)');
+    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Room for more players').trigger('click');
+    expect(w.emitted().size).toEqual([[6]]);
+    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Room for fewer players').trigger('click');
+    expect(w.emitted().size).toEqual([[6], [4]]);
+    const tight = make({ players, min: 2, max: 8, size: 3 });
+    expect(tight.findAll('button').find((b) => b.attributes('aria-label') === 'Room for fewer players').attributes('disabled')).toBeDefined();
   });
 
   it('renders the lead slot for each player and the default slot after the list', () => {

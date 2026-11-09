@@ -195,8 +195,8 @@ describe('Just One lobby and recent moves', () => {
     const { w, send } = make(1);
     expect(w.text()).toContain('You need at least 3 players.');
     expect(w.find('button.primary').attributes('disabled')).toBeDefined();
-    await w.findAll('button').find((b) => b.text().includes('Fill up to 3')).trigger('click');
-    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 3 });
+    await w.findAll('button').find((b) => b.text().includes('Fill up to 4')).trigger('click');
+    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 4 });
     await w.find('button[aria-label="More turns"]').trigger('click');
     expect(send).toHaveBeenLastCalledWith('settings', { turnsEach: 3 });
   });

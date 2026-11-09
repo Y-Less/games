@@ -20,21 +20,32 @@ const props = defineProps({
   isHost: { type: Boolean, default: false },
   min: { type: Number, required: true },
   max: { type: Number, required: true },
+  size: { type: Number, default: 0 },
 });
-const emit = defineEmits(['addBot', 'removeBot', 'kick', 'fillBots']);
+const emit = defineEmits(['addBot', 'removeBot', 'kick', 'fillBots', 'size']);
+
+// How many this room will hold: the host's cap, or the whole game when they have not set one.
+const cap = computed(() => (props.size >= props.min ? props.size : props.max));
+// The cap may not be lowered past the people already here, nor below what the game needs, nor above what it allows.
+const capFloor = computed(() => Math.max(props.min, props.players.length));
 
 /**
- * The fewest players the fill button is willing to leave a table with.  Several of these games can be played by two,
- * but two is a thin game of any of them - one opponent, and nobody to be quicker than - so filling offers a third.
+ * How many players "fill with computer players" makes up to: a comfortable table of four rather than as many as the
+ * game could possibly hold, which in a game for twelve would be a surprise.  It is the same number the rules use
+ * (shared/roster.js defaultPlayers), and it is never below the game's own minimum or above a cap the host has set.
  */
-const FILL_AT_LEAST = 3;
-// How many players "fill with computer players" makes up to: never below the game's own minimum, never above its maximum.
-const fillTo = computed(() => Math.min(props.max, Math.max(props.min, FILL_AT_LEAST)));
+const FILL_TO = 4;
+const fillTo = computed(() => Math.min(cap.value, props.max, Math.max(props.min, FILL_TO)));
 </script>
 
 <template>
   <section class="panel stack">
-    <h3>{{ $t('lobby.playersCount', { count: players.length, max }) }}</h3>
+    <h3>{{ $t('lobby.playersCount', { count: players.length, max: cap }) }}</h3>
+    <div v-if="isHost" class="row cap">
+      <button :disabled="cap <= capFloor" :aria-label="$t('lobby.fewerPlayers')" @click="emit('size', cap - 1)">-</button>
+      <span class="muted">{{ $t('lobby.roomFor', { count: cap }, cap) }}</span>
+      <button :disabled="cap >= max" :aria-label="$t('lobby.morePlayers')" @click="emit('size', cap + 1)">+</button>
+    </div>
     <ul class="players">
       <li v-for="p in players" :key="p.id" class="row">
         <slot name="lead" :player="p" />
@@ -47,9 +58,9 @@ const fillTo = computed(() => Math.min(props.max, Math.max(props.min, FILL_AT_LE
       </li>
     </ul>
     <div v-if="isHost" class="row bots">
-      <button :disabled="players.length >= max" @click="emit('addBot')">{{ $t('lobby.addBot') }}</button>
-      <button v-if="players.length < min" @click="emit('fillBots', fillTo)">{{ $t('lobby.fillUpTo', { count: fillTo }, fillTo) }}</button>
-      <span v-if="players.length >= max" class="muted">{{ $t('lobby.tableFull', { count: max }, max) }}</span>
+      <button :disabled="players.length >= cap" @click="emit('addBot')">{{ $t('lobby.addBot') }}</button>
+      <button v-if="players.length < fillTo" @click="emit('fillBots', fillTo)">{{ $t('lobby.fillUpTo', { count: fillTo }, fillTo) }}</button>
+      <span v-if="players.length >= cap" class="muted">{{ $t('lobby.tableFull', { count: cap }, cap) }}</span>
     </div>
     <slot />
   </section>

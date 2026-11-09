@@ -55,6 +55,7 @@ test('a view lists its parts in a fixed order', () => {
     'points',
     'players',
     'scoreboard',
+    'size',
     'limits',
   ]);
 });

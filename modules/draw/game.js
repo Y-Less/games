@@ -16,7 +16,7 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
 import { AI } from './ai.js';
@@ -27,6 +27,8 @@ import { newCounters, statsExtras, tallyGuess, tallyRound } from './tally.js';
 export const MIN_PLAYERS = 3;
 /** Every pair of players draws, so the rounds grow fast: eight is twenty-eight rounds already. */
 export const MAX_PLAYERS = 8;
+/** How many a new game is for, until the host says otherwise. */
+export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 /** How many times the game runs through every pair of drawers. */
 export const CYCLES = { min: 1, max: 5, default: 1 };
 /** How long a drawing lasts, in seconds. */
@@ -136,6 +138,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     round: 0, // 1-based once the game starts
     order: [], // the pairs of drawers, in the order they draw (see pairings.js)
     players: [],
+    size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextBot: 1,
     drawers: [], // the two drawing this round
     choices: {}, // drawer id -> the words they were offered
@@ -165,7 +168,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
  * Side effects: mutates the room.  Running it twice changes nothing more.
  */
 export function migrate(room, nameOf) {
-  migratePlayers(room, nameOf);
+  migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
   room.drawers ??= [];
   room.choices ??= {};
   room.preChoice ??= {};
@@ -271,6 +274,10 @@ const SETTINGS = { cycles: CYCLES, drawTime: DRAW_TIME, wordChoices: WORD_CHOICE
 export function setSettings(room, id, settings = {}) {
   const refused = hostInLobby(room, id);
   if (refused) return refused;
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
+  }
   const wanted = {};
   for (const [key, bounds] of Object.entries(SETTINGS)) {
     if (settings[key] === undefined) continue;
@@ -305,6 +312,7 @@ export function start(room, id, rng, now) {
   if (id !== room.hostId) return fail('hostOnlyStart');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
   room.order = pairings(room.players.map((p) => p.id), room.cycles, rng);
   room.round = 0;
   room.used = [];
@@ -707,6 +715,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     drawTime: room.drawTime,
     players: room.players.map((p) => playerView(room, p, { online, final, nameOf })),
     scoreboard: scoreboardView(room, userId, { online, nameOf }),
+    size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, cycles: CYCLES, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, guessLength: GUESS_LENGTH },
     settings: { cycles: room.cycles, drawTime: room.drawTime, wordChoices: room.wordChoices },
     roundsToPlay: room.phase === 'lobby' ? roundsInGame(room) : room.order.length,

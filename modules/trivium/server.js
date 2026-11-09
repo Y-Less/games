@@ -267,5 +267,5 @@ function insist(outcome) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['rounds', 'perRound']);
+  return pickKeys(payload, ['rounds', 'perRound', 'size']);
 }

@@ -69,7 +69,7 @@ const userIdOf = (token) => (/^user:\d+$/.test(String(token)) ? Number(String(to
  * @returns {object} a copy with only the allowed keys
  * Side effects: none.
  */
-const pickSettings = (payload) => pickKeys(payload, ['handSize', 'roundsEach', 'judging', 'categories']);
+const pickSettings = (payload) => pickKeys(payload, ['handSize', 'roundsEach', 'judging', 'categories', 'size']);
 
 /**
  * Brings the games saved before Dixnt used the shared room server (`games.json`, one entry per invite code, seats

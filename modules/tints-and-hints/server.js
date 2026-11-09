@@ -147,5 +147,5 @@ export default function (ctx) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['turnsEach']);
+  return pickKeys(payload, ['turnsEach', 'size']);
 }

@@ -287,6 +287,9 @@
     "length": "Length of the game",
     "players": "Players",
     "removeFirst": "Remove some players first",
+    "roomFor": "room for {count} player | room for {count} players",
+    "fewerPlayers": "Room for fewer players",
+    "morePlayers": "Room for more players",
     "rules": "Rules for this game",
     "share": "Share this code, or the invite link, with your friends."
   },

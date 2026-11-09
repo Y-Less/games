@@ -57,13 +57,13 @@ describe('Dixnt lobby computer players', () => {
     expect(send).toHaveBeenLastCalledWith('kick', { slot: 's-bob' });
     await rows[2].find('button').trigger('click');
     expect(send).toHaveBeenLastCalledWith('removeBot', { slot: 's-b1' });
-    expect(button(wrapper, 'Fill up to'), 'enough players already').toBeUndefined();
+    expect(button(wrapper, 'Fill up to 4'), 'two left, so a table of four is still offered').toBeDefined();
   });
 
-  it('offers to fill up to the minimum only while there are too few players', async () => {
+  it('offers to fill up to a normal table while there are fewer than that', async () => {
     const { wrapper, send } = make({ players: [person('ann', 'Ann')] });
-    await button(wrapper, 'Fill up to 3').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 3 });
+    await button(wrapper, 'Fill up to 4').trigger('click');
+    expect(send).toHaveBeenLastCalledWith('fillBots', { count: 4 });
     expect(button(wrapper, 'Need 2 more players')).toBeDefined();
   });
 

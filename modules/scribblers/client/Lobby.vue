@@ -69,6 +69,8 @@ function addWord() {
       :is-host="isHost"
       :min="state.limits.min"
       :max="state.limits.max"
+      :size="state.size"
+      @size="(n) => send('settings', { size: n })"
       @add-bot="send('addBot')"
       @remove-bot="(slot) => send('removeBot', { slot })"
       @kick="(slot) => send('kick', { slot })"

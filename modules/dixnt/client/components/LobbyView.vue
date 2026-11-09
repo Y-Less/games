@@ -64,6 +64,8 @@ function toggleCategory(key) {
     :is-host="isHost"
     :min="state.minPlayers"
     :max="state.maxPlayers"
+    :size="state.size"
+    @size="(n) => send('settings', { size: n })"
     @add-bot="send('addBot')"
     @remove-bot="(slot) => send('removeBot', { slot })"
     @kick="(slot) => send('kick', { slot })"

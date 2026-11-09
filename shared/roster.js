@@ -18,7 +18,7 @@
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { numberFrom } from './input.js';
 import { rosterLayout } from './layout.js';
-import { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, isBarred, isBot, isHuman, nextBotName, ok } from './seats.js';
+import { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, ok } from './seats.js';
 
 export { barFromRoom, isBarred, isBot, isHuman };
 
@@ -140,9 +140,11 @@ const playerNames = (room) => room.players.filter((p) => typeof p.name === 'stri
  *
  * @param {object} room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
+ * @param {{ maxPlayers?: number }} [limits]  the game's limits, so a room saved before the host could choose how many
+ *   players it is for is given the number it already had (see migrateSize)
  * @returns {object} the same room
  */
-export function migratePlayers(room, nameOf = () => undefined) {
+export function migratePlayers(room, nameOf = () => undefined, limits = {}) {
   room.nextBot ??= 1;
   for (const player of room.players ?? []) {
     if (player.kind !== 'human' && player.kind !== 'bot') player.kind = player.bot === true ? 'bot' : 'human';
@@ -153,7 +155,26 @@ export function migratePlayers(room, nameOf = () => undefined) {
     }
   }
   migrateSlots(room);
+  migrateSize(room, limits);
   return room;
+}
+
+/**
+ * Gives a saved room the number of players it is for, which it always had — it just was not written down.
+ *
+ * A game that has started, or is over, had exactly as many players as are in its list: that is the number it was
+ * played with, and a finished game's scoreboard then draws exactly as it always did.  A lobby is the one place where
+ * that is the wrong answer, because people may still have been arriving: it keeps the whole game's worth of room it
+ * had before, so nobody who could have joined it yesterday is turned away today.
+ *
+ * @param {object} room  the room to change
+ * @param {{ maxPlayers?: number }} [limits]  the game's limits; without them nothing is done
+ * @returns {void}
+ * Side effects: sets `room.size` when it is missing.
+ */
+function migrateSize(room, { maxPlayers } = {}) {
+  if (Number.isInteger(room.size) || !Number.isInteger(maxPlayers)) return;
+  room.size = room.phase === 'lobby' ? maxPlayers : (room.players ?? []).length;
 }
 
 /**
@@ -195,6 +216,17 @@ function migrateSlots(room) {
 }
 
 /**
+ * How many players "fill with computer players" makes up to: a comfortable table of four, or the nearest a game that
+ * cannot hold four allows.  It is a quick start — most games are played by about four, whatever the most they allow
+ * is — and not "as many as will fit", which in a game for twelve would be a surprise.
+ *
+ * @param {number} min  the fewest the game can be played with
+ * @param {number} max  the most
+ * @returns {number}
+ */
+export const defaultPlayers = (min, max) => Math.min(max, Math.max(min, 4));
+
+/**
  * Builds a list-game's lobby rules.
  *
  * @param {object} config
@@ -219,7 +251,15 @@ function migrateSlots(room) {
  *   scoreboard history) and moves on if the game was only waiting for that person.  The default does nothing.
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
  */
-export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {}, handOver = () => {} }) {
+export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = defaultPlayers(minPlayers, maxPlayers), botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {}, handOver = () => {} }) {
+  /**
+   * The most people this game will hold.  A room opens as big as the game allows, so nobody is turned away who could
+   * have joined before; a host who wants to keep it smaller says so, and starting settles it for good.
+   * @param {object} room  not changed
+   * @returns {number}
+   */
+  const sizeOf = (room) => (Number.isInteger(room.size) ? room.size : maxPlayers);
+
   /**
    * Makes the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
    *
@@ -248,7 +288,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
     if (isBarred(room, userId)) return fail('removedFromGame');
     if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
     if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
-    if (room.players.length >= maxPlayers) return fail('gameFull');
+    if (room.players.length >= sizeOf(room)) return fail('gameFull');
     const base = { kind: 'human', id: userId };
     if (typeof name === 'string') base.name = uniqueName(room, name);
     room.players.push(withSlot(room, makePlayer(room, base, extras)));
@@ -364,6 +404,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * Side effects: none.
    */
   function lobbyHostOnly(room, userId, what) {
+    if (what === 'size') return hostInLobby(room, userId);
     if (userId !== room.hostId) return fail(what === 'add' ? 'hostOnlyAddBots' : 'hostOnlyRemoveBots');
     if (room.phase !== 'lobby') return fail(what === 'add' ? 'botsLobbyOnly' : 'botsRemoveLobbyOnly');
     return null;
@@ -381,7 +422,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
   function addBot(room, userId) {
     const refused = lobbyHostOnly(room, userId, 'add');
     if (refused) return refused;
-    if (room.players.length >= maxPlayers) return fail('gameFull');
+    if (room.players.length >= sizeOf(room)) return fail('gameFull');
     const bot = newBot(room);
     room.players.push(bot);
     return ok({ id: bot.id });
@@ -397,11 +438,47 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    * @param {number} [target]  how many players the room should have; kept between minPlayers and maxPlayers
    * @returns {{ ok: boolean, error?: string }}
    */
-  function fillWithBots(room, userId, target = minPlayers) {
+  function fillWithBots(room, userId, target = fillTo) {
     const refused = lobbyHostOnly(room, userId, 'add');
     if (refused) return refused;
-    const wanted = Math.min(maxPlayers, Math.max(minPlayers, Math.round(numberFrom(target)) || minPlayers));
+    // "Fill" is a quick start, not "as many as will fit": it makes up a normal table of players, and never goes past
+    // the cap the host has set.  Somebody who wants more adds them one at a time, or asks for a number.
+    const asked = Math.round(numberFrom(target)) || fillTo;
+    const wanted = Math.min(sizeOf(room), maxPlayers, Math.max(minPlayers, asked));
     while (room.players.length < wanted) room.players.push(newBot(room));
+    return ok();
+  }
+
+  /**
+   * Starting settles how many are playing: the room becomes exactly as big as the people and computer players in it.
+   * A host who wants a place kept open for a friend fills it with a computer player first, and the friend takes it
+   * over when they arrive.
+   *
+   * @param {object} room  the room to change
+   * @returns {void}
+   * Side effects: sets `room.size`.
+   */
+  function lockSize(room) {
+    room.size = room.players.length;
+  }
+
+  /**
+   * The host chooses how many players the game is for.  Lobby only, within the game's limits, and never fewer than are
+   * already here (the host takes somebody out first).
+   *
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (must be the host)
+   * @param {number} size  how many players the game is for
+   * @returns {{ ok: boolean, error?: string }}
+   * Side effects: sets `room.size` on success; nothing on failure.
+   */
+  function setSize(room, userId, size) {
+    const problem = lobbyHostOnly(room, userId, 'size');
+    if (problem) return problem;
+    const wanted = Math.round(numberFrom(size));
+    if (!Number.isInteger(wanted) || wanted < minPlayers || wanted > maxPlayers) return fail('playersRange', { min: minPlayers, max: maxPlayers });
+    if (room.players.length > wanted) return fail('removeBeforeFewerPlayers');
+    room.size = wanted;
     return ok();
   }
 
@@ -451,5 +528,5 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
     return ok({ userId: target.id, replaced: removed.replaced });
   }
 
-  return { newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick };
+  return { newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf, lockSize };
 }

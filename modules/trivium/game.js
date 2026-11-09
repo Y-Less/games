@@ -23,7 +23,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { MAX_QUESTION_POINTS, pointsFor } from './scoring.js';
 import { buildWheel, pickSpin } from './wheel.js';
@@ -33,6 +33,8 @@ import { newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js'
 export const MIN_PLAYERS = 2;
 /** The most people in a room (the marker palette and the name row only have room for so many). */
 export const MAX_PLAYERS = 8;
+/** How many a new game is for, until the host says otherwise. */
+export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 /** How many rounds a game may be played over, and how many it is by default. */
 export const ROUNDS = { min: 1, max: 8, default: 3 };
 /** How many questions a round may hold, and how many it holds by default. */
@@ -182,6 +184,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, colour = nul
     round: 0, // which round is being played, counting from zero
     ask: 0, // which question of that round is up, counting from zero
     players: [],
+    size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
     wheel: buildWheel(counts),
     spin: null, // { category, angle }: what the wheel picked this round and where it stopped
@@ -247,6 +250,10 @@ export function playAgain() {
  * Side effects: sets room.rounds and/or room.perRound; if the first is accepted and the second refused, the first stays changed.
  */
 export function setSettings(room, id, settings = {}) {
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
+  }
   if (settings.rounds === undefined && settings.perRound === undefined) return hostInLobby(room, id) ?? ok();
   if (settings.rounds !== undefined) {
     const outcome = setNumber(room, id, 'rounds', settings.rounds, ROUNDS, 'roundsRange');
@@ -325,6 +332,7 @@ export function start(room, id, rng, now) {
   if (id !== room.hostId) return fail('hostOnlyStart');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
   room.round = 0;
   room.ask = 0;
   room.history = [];
@@ -644,7 +652,7 @@ export function giveUp(room) {
  * Side effects: mutates the room.  Running it twice changes nothing more.
  */
 export function migrate(room, nameOf) {
-  migratePlayers(room, nameOf);
+  migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
   room.wheel = Array.isArray(room.wheel) && room.wheel.length ? room.wheel : buildWheel({});
   room.deck ??= [];
   room.answers ??= [];
@@ -890,6 +898,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     scoreboard: scoreboardView(room, userId, { nameOf, online }),
     colours: COLOURS,
     canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
+    size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, perRound: PER_ROUND, points: MAX_QUESTION_POINTS },
   };
 }

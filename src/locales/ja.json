@@ -272,6 +272,9 @@
     "length": "ゲームの長さ",
     "players": "プレイヤー",
     "removeFirst": "先にプレイヤーを外してください",
+    "roomFor": "{count}人まで",
+    "fewerPlayers": "定員を減らす",
+    "morePlayers": "定員を増やす",
     "rules": "このゲームのルール",
     "share": "このコードか招待リンクを友達に教えましょう。"
   },

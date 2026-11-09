@@ -181,13 +181,17 @@ test('computer players are { kind: bot, id: bot:<n>, name } with the first unuse
   assert.equal(rules.addBot(room, 1).error, 'botsLobbyOnly');
 });
 
-test('fillWithBots fills up to the target, kept between the minimum and the maximum', () => {
+test('fillWithBots makes up a normal table, never more than the cap, or a number the host names', () => {
   const rules = makeRules();
   const room = lobby();
   assert.ok(rules.fillWithBots(room, 1).ok);
-  assert.equal(room.players.length, 2, 'enough to start, by default');
+  assert.equal(room.players.length, 4, 'a normal table, not as many as the game could hold');
+  const capped = lobby();
+  assert.ok(rules.setSize(capped, 1, 3).ok);
+  assert.ok(rules.fillWithBots(capped, 1).ok);
+  assert.equal(capped.players.length, 3, 'and never past a cap the host has set');
   rules.fillWithBots(room, 1, 99);
-  assert.equal(room.players.length, 4);
+  assert.equal(room.players.length, 4, 'a number of its own is still kept within the limits');
   assert.equal(rules.fillWithBots(room, 2).ok, false, 'only the host');
 });
 

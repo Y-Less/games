@@ -272,6 +272,9 @@
     "length": "Quj poH",
     "players": "QujwI'pu'",
     "removeFirst": "wa'DIch QujwI'pu' tIteq",
+    "roomFor": "{count} QujwI' luSIch | {count} QujwI'pu' luSIch",
+    "fewerPlayers": "puS QujwI'pu'",
+    "morePlayers": "law' QujwI'pu'",
     "rules": "Qujvam chutmey",
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang."
   },

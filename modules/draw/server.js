@@ -359,5 +359,5 @@ export default function (ctx) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['cycles', 'drawTime', 'wordChoices']);
+  return pickKeys(payload, ['cycles', 'drawTime', 'wordChoices', 'size']);
 }

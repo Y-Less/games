@@ -39,6 +39,8 @@ export function seededRng(seed = 1) {
 export function makeRoom(names, { cardCount = 100, categories = null, hints = [], handSize, roundsEach, judging, bots = 0, seed = 7, rng = seededRng(seed), start = false, code = 'test-game-here' } = {}) {
   const game = createRules(categories ? { getCategories: () => categories, hints } : { getCardIds: () => cards(cardCount), hints });
   const room = game.createRoom({ code, hostId: 1, hostName: names[0], now: 0 });
+  // A host sizes the game for the people they are expecting, which is what a test is doing when it names them.
+  room.size = Math.max(room.size, names.length + bots);
   names.slice(1).forEach((name, i) => assert.equal(game.addHuman(room, i + 2, name).ok, true, `${name} joins`));
   for (let i = 0; i < bots; i++) assert.equal(game.addBot(room, 1).ok, true, 'a computer player joins');
   const settings = {};

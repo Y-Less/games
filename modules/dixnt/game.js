@@ -41,7 +41,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 import { newCounters, statsExtras, tallyRound } from './tally.js';
@@ -56,6 +56,8 @@ export const MAX_ROUNDS_EACH = 10;
 export const DEFAULT_ROUNDS_EACH = 2;
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 12;
+/** How many a new game is for, until the host says otherwise. */
+export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 export const MIN_HAND_SIZE = 3;
 export const MAX_HAND_SIZE = 12;
 export const DEFAULT_HAND_SIZE = 8;
@@ -325,6 +327,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       hostId,
       phase: 'lobby',
       players: [],
+      size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
       nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
       handSize: DEFAULT_HAND_SIZE,
       judging: 'everyone',
@@ -370,7 +373,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * Side effects: mutates the room.  Running it twice changes nothing more.
    */
   function migrate(room, nameOf, rng = () => 0.5) {
-    migratePlayers(room, nameOf);
+    migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
     const hadHistory = Array.isArray(room.history);
     if (room.phase === 'discussion') room.phase = 'voting'; // saved by an older version that had a separate step
     delete room.ready; // and by one that waited for everybody to close the scores
@@ -511,6 +514,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   function setSettings(room, id, settings = {}) {
     const refused = hostInLobby(room, id);
     if (refused) return refused;
+    if (settings.size !== undefined) {
+      const sized = roster.setSize(room, id, settings.size);
+      if (!sized.ok) return sized;
+    }
     const wanted = {};
     if (settings.handSize !== undefined) {
       const n = Math.round(numberFrom(settings.handSize));
@@ -553,6 +560,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     if (id !== room.hostId) return fail('hostOnlyStart');
     if (room.phase !== 'lobby') return fail('alreadyStarted');
     if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+    roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
     normaliseSettings(room);
     const cardIds = availableIds(room);
     if (cardIds.length < room.players.length * room.handSize) return fail('notEnoughCards');
@@ -1180,6 +1188,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       hostId: room.hostId,
       minPlayers: MIN_PLAYERS,
       maxPlayers: MAX_PLAYERS,
+      size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
       pointsPerVote: POINTS_PER_VOTE,
       pointsChooserCorrect: CHOOSER_CORRECT_POINTS,
       pointsFooledChooser: CHOOSER_FOOLED_POINTS,

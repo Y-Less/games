@@ -59,7 +59,7 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.equal(room.players.length, 2);
 
   assert.equal(game.fillWithBots(room, 1).ok, true);
-  assert.equal(room.players.length, MIN_PLAYERS, 'fills up to the minimum by default');
+  assert.equal(room.players.length, 4, 'fills up to a normal table, not to the twelve this game could hold');
   game.fillWithBots(room, 1, 6);
   assert.equal(room.players.length, 6);
   game.fillWithBots(room, 1, 'many');
@@ -380,20 +380,20 @@ test('over sockets: the host fills with computer players and starts, the server 
   assert.equal((await ann.call('create')).ok, true);
   assert.equal((await ann.call('start')).ok, false, 'one player is not enough');
   assert.equal((await ann.call('fillBots')).ok, true);
-  await until(() => ann.state.players.length === 3, 'two computer players');
+  await until(() => ann.state.players.length === 4, 'a normal table of computer players');
   assert.equal((await ann.call('settings', { roundsEach: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'the game to start');
   assert.ok(ann.state.players.filter((p) => p.bot).every((p) => p.ai && p.connected));
   await drive([ann]);
-  assert.equal(ann.state.completedRounds, 3);
+  assert.equal(ann.state.completedRounds, 4);
   await sleep(100);
   assert.equal((await ann.stats()).perGame[0].played, 1);
   assert.equal(resultRows(site), 1, 'one account in the result: the computer players are not recorded');
   assert.equal(JSON.stringify(ann.state).includes('"token"'), false, 'no seat tokens are sent out');
   // Back to the lobby keeps them; the AIs are dealt again at the next start.
   assert.equal((await ann.call('again')).ok, true);
-  await until(() => ann.state.phase === 'lobby' && ann.state.players.length === 3, 'the lobby with its computer players');
+  await until(() => ann.state.phase === 'lobby' && ann.state.players.length === 4, 'the lobby with its computer players');
   assert.ok(ann.state.players.every((p) => p.ai === null));
 });
 

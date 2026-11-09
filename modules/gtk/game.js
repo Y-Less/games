@@ -19,7 +19,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
 import { QUESTIONS, answersFor, normal } from './questions.js';
@@ -27,6 +27,8 @@ import { QUESTIONS, answersFor, normal } from './questions.js';
 // Table size limits (three are needed for anybody to have somebody to fool; eight is the most the screen shows comfortably).
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 8;
+/** How many a new game is for, until the host says otherwise. */
+export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 // How many rounds each player is the subject of: bounds and default for the host's setting.
 export const ROUNDS_EACH = { min: 1, max: 3, default: 1 };
 // How many questions are asked about each subject in their round: bounds and default for the host's setting.
@@ -134,6 +136,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, roundsE
     round: 0,
     question: 0, // which of the round's questions is being picked or revealed (0 or 1)
     players: [],
+    size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
     nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
@@ -180,6 +183,10 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * Side effects: may change room.roundsEach, room.questionsPerRound and room.seconds.
  */
 export function setSettings(room, id, settings = {}) {
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
+  }
   const asked = [
     ['roundsEach', setRoundsEach],
     ['questionsPerRound', setQuestionsPerRound],
@@ -301,6 +308,7 @@ export function start(room, id, rng, now = 0) {
   if (id !== room.hostId) return fail('hostOnlyStart');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
   room.roundsTotal = room.roundsEach * room.players.length;
   room.round = 0;
   room.used = [];
@@ -575,7 +583,7 @@ function scoreQuestion(room, nameOf = String) {
  * Side effects: mutates the room (as described above).  Running it twice changes nothing more.
  */
 export function migrate(room, nameOf) {
-  migratePlayers(room, nameOf);
+  migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
   room.used ??= [];
   room.questions ??= [];
   room.answers ??= [];
@@ -920,6 +928,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     points: POINTS,
     players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
     scoreboard: scoreboardView(room, userId, { nameOf, online }),
+    size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS_EACH, questions: QUESTIONS_EACH, time: SECONDS, answer: ANSWER_LENGTH },
   };
 }
