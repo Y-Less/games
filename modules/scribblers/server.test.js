@@ -282,10 +282,12 @@ test('a game of computer players plays itself: they choose a word, draw it, and 
   }, 'a computer player is drawing', { timeout: 60000 });
   await until(() => watching.draws.length > 0, 'its picture reaches the table', { timeout: 60000 });
   assert.ok(watching.draws.flatMap((m) => m.ops).length > 5, 'there is a picture, not a stray stroke');
-  await until(() => ann.state.feed.some((line) => line.id !== ann.id), 'and the others are guessing', { timeout: 60000 });
+  // Wait for the guess this asserts on, not merely for the first guess to arrive: the computer players guess one at a
+  // time, and the first one through need not be the one of the right length.
+  const rightLength = (line) => [...line.text].length === ann.state.hints.length || line.kind === 'correct';
+  await until(() => ann.state.feed.some((line) => line.id !== ann.id && rightLength(line)), 'a guess of the right length', { timeout: 60000 });
   const guesses = ann.state.feed.filter((line) => line.id !== ann.id);
   assert.ok(guesses.every((line) => line.text.length > 0 || line.kind === 'correct'));
-  assert.ok(guesses.some((line) => [...line.text].length === ann.state.hints.length || line.kind === 'correct'), 'a guess of the right length');
 });
 
 test('Arrgh: filling the board and undoing it a moment later is noticed, and a plain undo is not', async (t) => {

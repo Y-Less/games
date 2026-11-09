@@ -22,12 +22,20 @@ async function step(p) {
   if (s.phase === 'roundEnd') return (await p.call('next', {})).ok;
   return false;
 }
+// `done` is checked again before each person, not just once a pass: `step` closes the round-end pop-up, so a pass that
+// steps everybody can have the first person close theirs, the second person's state arrive while that call is in flight,
+// and the second person close theirs too — which is every human ready, so the next round is dealt and played out before
+// the loop next looks.  Checking per person means at most one pop-up is closed after the caller's condition comes true,
+// and one ready seat never moves the game on.
 async function playOn(people, done, limit = 40000) {
   const started = Date.now();
   while (!done()) {
     assert.ok(Date.now() - started < limit, 'stuck');
     let moved = false;
-    for (const p of people) moved = (await step(p)) || moved;
+    for (const p of people) {
+      if (done()) break;
+      moved = (await step(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }

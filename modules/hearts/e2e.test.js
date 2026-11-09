@@ -541,8 +541,16 @@ test('a restart loses nothing: the room comes back and the computer players carr
     await sleep(25);
   }
   const code = ann.code;
+  // The snapshot has to be taken when the server has nothing of its own to do, or a computer player can finish the hand
+  // between taking it and the shutdown below, and the restart then looks as though it gained a round.  On Ann's turn
+  // nothing is pending — no computer player is waiting and no trick is resolving — so the room cannot move under us.
+  await until(async () => {
+    if (ann.state.phase === 'playing' && ann.state.legal) return true;
+    await ann.step();
+    return false;
+  }, "Ann's turn, with the room waiting on her");
   const before = ann.state;
-  assert.ok(before.phase === 'playing' || before.phase === 'handEnd');
+  assert.equal(before.phase, 'playing');
   const cookie = ann.cookie;
   await first.stop();
 
@@ -559,7 +567,7 @@ test('a restart loses nothing: the room comes back and the computer players carr
   assert.deepEqual(again.state.seats.map((s) => s.ai), before.seats.map((s) => s.ai), 'every computer player keeps its AI over a restart');
   assert.ok(again.state.seats.slice(1).every((s) => s.ai?.id && s.ai?.name));
   assert.ok(again.state.hand.length > 0 || again.state.phase === 'handEnd');
-  if (before.phase === 'playing') assert.equal(again.state.scoreboard.rounds.length, before.scoreboard.rounds.length);
+  assert.equal(again.state.scoreboard.rounds.length, before.scoreboard.rounds.length);
 
   // The computer players' turns resume by themselves: let the human move only when it is their turn.
   process.env.HEARTS_BOT_DELAY = '0-3';
