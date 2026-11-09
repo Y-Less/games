@@ -109,7 +109,7 @@ test('only the drawer whose drawing was named, and the guesser who named it, sco
   assert.equal(scoreOf(guesser), game.POINT);
   assert.equal(scoreOf(other), 0, 'the other drawer gets nothing');
   for (const p of made.players) if (![named, guesser].includes(p.id)) assert.equal(p.score, 0);
-  assert.deepEqual(made.history.at(-1).deltas[other], 0);
+  assert.deepEqual(made.history.at(-1).deltas[made.players.find((p) => p.id === other).slot], 0);
 });
 
 test('the two drawers do not type: one of them naming the other would be a race nobody could win', () => {

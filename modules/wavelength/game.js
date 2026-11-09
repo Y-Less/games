@@ -14,7 +14,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
 import { SPECTRA, spectrumById } from './spectra.js';
@@ -189,7 +189,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -507,13 +507,19 @@ function scoreTurn(room, nameOf = String) {
 function recordHistory(room, nameOf) {
   const deltas = {};
   const notes = {};
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished turn is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   for (const e of room.result.entries) {
-    deltas[e.id] = e.points;
-    notes[e.id] = msg(e.bullseye ? 'notes.bullseye' : e.points ? 'notes.inTarget' : 'notes.missed');
+    const slot = slotOf(room, e.id);
+    if (slot === -1) continue;
+    deltas[slot] = e.points;
+    notes[slot] = msg(e.bullseye ? 'notes.bullseye' : e.points ? 'notes.inTarget' : 'notes.missed');
   }
   if (playerOf(room, room.psychic)) {
-    deltas[room.psychic] = room.result.psychicPoints;
-    notes[room.psychic] = msg('notes.psychic');
+    const slot = slotOf(room, room.psychic);
+    deltas[slot] = room.result.psychicPoints;
+    notes[slot] = msg('notes.psychic');
   }
   room.history.push({ label: msg('turnLabel', { n: room.turn + 1, name: nameOf(room.psychic) }), deltas, notes });
 }
@@ -626,15 +632,17 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @returns {void}
  */
 /**
- * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
- * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
- * are this same renaming.
+ * Renames one player's id everywhere this game writes one down.  A place changes hands in both directions — a computer
+ * player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place, so
+ * a finished turn is never rewritten.
  *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
  * @param {number | string} to  the id taking its place
  * @returns {void}
- * Side effects: mutates the room's own fields and its scoreboard history.
+ * Side effects: mutates the room's own fields.
  */
 function renameId(room, from, to) {
   const renamed = (x) => (x === from ? to : x);
@@ -646,7 +654,6 @@ function renameId(room, from, to) {
     if ('lockedBy' in room.result) room.result.lockedBy = renamed(room.result.lockedBy);
     for (const e of room.result.entries) e.id = renamed(e.id);
   }
-  renameInHistory(room, from, to);
 }
 
 function takeOver(room, oldId, bot, rng) {
@@ -769,7 +776,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

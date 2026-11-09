@@ -91,7 +91,8 @@ test('a turn: clue, guesses, reveal and ready', () => {
   assert.equal(score(room, psychic), 2, 'the psychic gets the average, rounded');
   assert.equal(room.result.psychicPoints, 2);
   assert.equal(room.history.length, 1);
-  assert.deepEqual(room.history[0].deltas, { [a]: 4, [b]: 0, [psychic]: 2 });
+  // The scoreboard still names people by their id; the history behind it is written by slot (shared/roster.js).
+  assert.deepEqual(game.viewFor(room, psychic).scoreboard.rounds[0].deltas, { [a]: 4, [b]: 0, [psychic]: 2 });
   assert.equal(room.players.find((p) => p.id === a).bullseyes, 1);
   assert.equal(room.players.find((p) => p.id === psychic).cluesGiven, 1);
 
@@ -122,8 +123,8 @@ test('everyone is the psychic turnsEach times, spectra do not repeat, and the ga
   for (const id of [1, 2, 3]) assert.equal(psychics.filter((x) => x === id).length, 2);
   assert.equal(new Set(spectra).size, 6, 'no spectrum twice in a short game');
   assert.equal(room.history.length, 6);
-  const total = (id) => room.history.reduce((n, r) => n + (r.deltas[id] ?? 0), 0);
-  for (const p of room.players) assert.equal(total(p.id), p.score, 'the history adds up to the score');
+  const total = (slot) => room.history.reduce((n, r) => n + (r.deltas[slot] ?? 0), 0);
+  for (const p of room.players) assert.equal(total(p.slot), p.score, 'the history adds up to the score');
   assert.equal(game.guess(room, 2, 50).ok, false);
 });
 
@@ -168,7 +169,8 @@ test('leaving: a computer player takes the place of a guesser, of the psychic an
   assert.ok(game.runBotAction(room, seeded(2)));
   assert.equal(room.phase, 'reveal');
   assert.equal(room.history.length, 1);
-  assert.ok(bot.id in room.history[0].deltas, 'its guess scored under its new id');
+  assert.ok(bot.slot in room.history[0].deltas, 'its guess scored under the slot it took over');
+  assert.ok(bot.id in game.viewFor(room, 1).scoreboard.rounds[0].deltas, 'and the scoreboard shows it under its new id');
 
   const second = started([1, 2, 3, 4]);
   game.setClue(second, second.psychic, 'warm');

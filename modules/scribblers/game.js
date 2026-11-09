@@ -23,7 +23,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
 import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from '../../shared/words.js';
@@ -187,7 +187,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -649,10 +649,13 @@ export function nextTurn(room, rng, now, nameOf = String) {
 function endRound(room, nameOf) {
   const deltas = {};
   const notes = {};
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished round is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   for (const p of room.players) {
-    deltas[p.id] = p.score - (p.roundStart ?? 0);
+    deltas[p.slot] = p.score - (p.roundStart ?? 0);
     p.roundStart = p.score;
-    if (p.drewThisRound) notes[p.id] = msg('notes.drew', { word: p.drewThisRound });
+    if (p.drewThisRound) notes[p.slot] = msg('notes.drew', { word: p.drewThisRound });
     p.drewThisRound = null;
   }
   room.history.push({ label: msg('scoreboard.round', { n: room.round, of: room.rounds }), deltas, notes });
@@ -763,9 +766,11 @@ export function skipTurn(room, now) {
  * Side effects: mutates the room (the order, the drawer, the guesses, the feed, the reveal, the ready list, the history).
  */
 /**
- * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
- * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
- * are this same renaming.
+ * Renames one player's id everywhere this game writes one down.  A place changes hands in both directions — a computer
+ * player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place, so
+ * a finished round is never rewritten.
  *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
@@ -789,7 +794,6 @@ function renameId(room, from, to, name) {
       delete room.reveal.points[from];
     }
   }
-  renameInHistory(room, from, to);
 }
 
 function takeOver(room, oldId, bot, rng = Math.random) {
@@ -957,7 +961,7 @@ function scoreboardView(room, userId, { online, nameOf }) {
   };
   const player = (p) =>
     playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'scores' ? isBot(p) || (room.ready ?? []).includes(p.id) : undefined });
-  return { players: room.players.map(player), rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })), lowIsBetter: false };
+  return { players: room.players.map(player), rounds: historyView(room), lowIsBetter: false };
 }
 
 /**

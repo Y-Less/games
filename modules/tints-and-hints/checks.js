@@ -39,7 +39,7 @@ export function checkRoom(room, what = 'room') {
   assert.ok(colours.every((c) => COLOURS.includes(c)), `${what}: a colour is not on the palette`);
   assert.ok(room.turnsEach >= TURNS_EACH.min && room.turnsEach <= TURNS_EACH.max && Number.isInteger(room.turnsEach));
   for (const p of room.players) {
-    const total = room.history.reduce((sum, round) => sum + (round.deltas[p.id] ?? 0), 0);
+    const total = room.history.reduce((sum, round) => sum + (round.deltas[p.slot] ?? 0), 0);
     assert.equal(p.score, total, `${what}: score of ${p.id} (${p.score}) differs from its history (${total})`);
     assert.ok(p.score >= 0 && Number.isInteger(p.score));
     assert.ok(p.exactGuesses >= 0 && p.closeGuesses >= 0 && p.hintsGiven >= 0);

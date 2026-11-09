@@ -32,11 +32,12 @@ function check(game, room, memory, where) {
     for (const p of room.players) assert.ok(p.hand.length <= room.handSize, `${note}: ${p.name} holds too many cards`);
   }
   for (const p of room.players) {
-    const total = room.history.reduce((sum, r) => sum + (r.deltas[p.id] ?? 0), 0);
+    const total = room.history.reduce((sum, r) => sum + (r.deltas[p.slot] ?? 0), 0);
     assert.equal(total, p.score, `${note}: ${p.name}'s score equals the history`);
     assert.ok(Number.isInteger(p.score) && p.score >= 0, `${note}: a sane score`);
   }
-  for (const r of room.history) for (const id of Object.keys(r.deltas)) assert.ok(byKey(room, id), `${note}: history mentions someone who left`);
+  // The history names slots, and a slot stays with its place through every takeover, so every one of them is still held.
+  for (const r of room.history) for (const slot of Object.keys(r.deltas)) assert.ok(room.players.some((p) => p.slot === slot), `${note}: history mentions a slot nobody holds`);
   assert.equal(room.history.length, room.completed, `${note}: one history row per completed round`);
   if (room.phase !== 'lobby') assert.ok(room.players.length >= MIN_PLAYERS, `${note}: a game needs ${MIN_PLAYERS} players`);
   if (['word', 'picking', 'voting', 'results'].includes(room.phase)) {

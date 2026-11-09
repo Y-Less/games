@@ -15,7 +15,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
@@ -137,7 +137,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -401,17 +401,20 @@ function scoreTurn(room, nameOf = String) {
   const deltas = {};
   const notes = {};
   const correct = Boolean(room.guess?.correct);
+  // The history is keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id,
+  // and the slot is what survives that, so a finished turn never has to be written a second time.  viewFor sends it
+  // back out keyed by id (shared/roster.js historyView), so the client sees what it always did.
   if (guesser) {
     if (correct) {
       guesser.score += POINTS.guesser;
-      deltas[guesser.id] = POINTS.guesser;
-    } else deltas[guesser.id] = 0;
-    notes[guesser.id] = msg(correct ? 'notes.guessedIt' : room.guess?.passed ? 'notes.passed' : 'notes.missed');
+      deltas[guesser.slot] = POINTS.guesser;
+    } else deltas[guesser.slot] = 0;
+    notes[guesser.slot] = msg(correct ? 'notes.guessedIt' : room.guess?.passed ? 'notes.passed' : 'notes.missed');
   }
   if (best) {
     best.score += POINTS.bestHint;
-    deltas[best.id] = POINTS.bestHint;
-    notes[best.id] = msg('notes.bestHint');
+    deltas[best.slot] = POINTS.bestHint;
+    notes[best.slot] = msg('notes.bestHint');
   }
   tallyTurn({ guesser, best, correct, clues: room.clues.map((c) => ({ writer: playerOf(room, c.id), cancelled: room.cancelled.includes(c.id) })) });
   room.result = {
@@ -681,7 +684,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

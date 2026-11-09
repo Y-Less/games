@@ -31,6 +31,55 @@ export { barFromRoom, isBarred, isBot, isHuman };
  * @returns {void}
  * Side effects: mutates every round of `room.history`.
  */
+/**
+ * Gives a new player its slot: the name the scoreboard's history calls them by, for as long as this game lasts.
+ *
+ * A player's place in `room.players` is not an identity — `removeBot` splices the list in the lobby, which renumbers
+ * everybody after it — and nor is their id, because a person who leaves a game under way is replaced by a computer
+ * player with a new one.  The slot is neither: it is handed out once, here, and it travels with the place through
+ * every replacement, because both of those paths build the new member by spreading the old one.  That is what lets
+ * the history be written once and never touched again.
+ *
+ * It is "s0", "s1", … rather than 0, 1, … on purpose.  Account ids are small numbers too, so a numeric slot and an id
+ * are indistinguishable once either is a key of an object, and reading a history by the wrong one quietly finds the
+ * wrong player's points instead of finding nothing.  Two bugs were written that way while this change was being made
+ * — one of them in code, not just a test — and both would have been loud with a key that cannot be mistaken.
+ *
+ * @param {object} room    the room, whose counter is used up
+ * @param {object} player  the player to give a slot to
+ * @returns {object} the same player
+ * Side effects: sets `player.slot` and advances `room.nextSlot`.
+ */
+export function withSlot(room, player) {
+  room.nextSlot ??= 0;
+  player.slot = `s${room.nextSlot++}`;
+  return player;
+}
+
+/** The slot of whoever holds this id, or -1 if nobody does. */
+export const slotOf = (room, id) => room.players.find((p) => p.id === id)?.slot ?? -1;
+
+/**
+ * The scoreboard's rounds as a view shows them: stored by slot, sent by id.
+ *
+ * The history is written by slot so that it never has to be rewritten, but the client has always been sent rounds
+ * keyed by the player id it is drawing, and there is no reason to make sixteen clients learn a new word.  So the
+ * translation happens here, in the one place, and the wire does not change at all.
+ *
+ * A slot whose player has gone — somebody who left a game that was already over, so no computer player stood in for
+ * them — has no id to be sent under, and its entry is dropped.  That matches what the client did with such a row
+ * before, which was to find no player for the id and leave it out of the table.
+ *
+ * @param {object} room  not changed
+ * @returns {object[]} one entry per finished round, with `deltas` and `notes` keyed by player id
+ * Side effects: none.
+ */
+export function historyView(room) {
+  const idOf = new Map((room.players ?? []).map((p) => [p.slot, p.id]));
+  const byId = (table) => Object.fromEntries(Object.entries(table ?? {}).flatMap(([slot, value]) => (idOf.has(slot) ? [[idOf.get(slot), value]] : [])));
+  return (room.history ?? []).map((round) => ({ ...round, deltas: byId(round.deltas), notes: byId(round.notes) }));
+}
+
 export function renameInHistory(room, oldId, newId) {
   for (const round of room.history ?? []) {
     for (const table of [round.deltas, round.notes]) {
@@ -102,7 +151,46 @@ export function migratePlayers(room, nameOf = () => undefined) {
       if (typeof name === 'string') player.name = name;
     }
   }
+  migrateSlots(room);
   return room;
+}
+
+/**
+ * Gives a saved room its slots, and rewrites a history that was written before they existed.
+ *
+ * A room saved by an older version keys its history by player id.  Here each player takes its place in the list as
+ * its slot, and every round's `deltas` and `notes` are rewritten to match.  A player missing a slot is the marker,
+ * so running this twice changes nothing — which matters, because the games assert that a saved room loads as it was.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: sets `slot` on every player, sets `room.nextSlot`, and rewrites the keys of every round of history.
+ */
+function migrateSlots(room) {
+  const players = room.players ?? [];
+  const hasSlot = (p) => typeof p.slot === 'string';
+  if (players.some(hasSlot)) {
+    // Some already have one, so this room's history is written by slot: leave those alone (renumbering them would
+    // orphan the history that names them) and only hand one to anybody who somehow has none.
+    room.nextSlot ??= players.reduce((next, p) => Math.max(next, Number(String(p.slot).slice(1)) + 1 || 0), 0);
+    for (const player of players) if (!hasSlot(player)) withSlot(room, player);
+    return;
+  }
+  if (!players.length) {
+    room.nextSlot ??= 0;
+    return;
+  }
+  const slotOfId = new Map();
+  players.forEach((player, index) => {
+    player.slot = `s${index}`;
+    slotOfId.set(player.id, player.slot);
+  });
+  room.nextSlot = players.length;
+  const bySlot = (table) => Object.fromEntries(Object.entries(table ?? {}).map(([id, value]) => [slotOfId.get(id) ?? slotOfId.get(Number(id)) ?? id, value]));
+  for (const round of room.history ?? []) {
+    round.deltas = bySlot(round.deltas);
+    round.notes = bySlot(round.notes);
+  }
 }
 
 /**
@@ -141,7 +229,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    */
   function newBot(room) {
     room.nextBot ??= 1;
-    return makePlayer(room, { kind: 'bot', id: `bot:${room.nextBot++}`, name: nextBotName(playerNames(room), botNames) });
+    return withSlot(room, makePlayer(room, { kind: 'bot', id: `bot:${room.nextBot++}`, name: nextBotName(playerNames(room), botNames) }));
   }
 
   /**
@@ -162,7 +250,7 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
     if (room.players.length >= maxPlayers) return fail('gameFull');
     const base = { kind: 'human', id: userId };
     if (typeof name === 'string') base.name = uniqueName(room, name);
-    room.players.push(makePlayer(room, base, extras));
+    room.players.push(withSlot(room, makePlayer(room, base, extras)));
     return ok({ seat: room.players.length - 1 });
   }
 

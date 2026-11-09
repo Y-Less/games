@@ -15,7 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../server/index.js';
-import { namesSecret } from './leaks.js';
+import { namesSecret, valuesOf } from './leaks.js';
 
 // Absolute path of the platform folder (this file lives in shared/, so one level up).
 const platform = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -307,7 +307,10 @@ export function assertReply(reply, { what, secrets = [] }) {
   }
   const text = JSON.stringify(reply);
   assert.ok(text.length < 5000, `${what}: the reply is suspiciously large (${text.length})`);
-  for (const secret of secrets) assert.ok(!namesSecret(text, secret), `${what}: the reply leaked ${secret}`);
+  // Against the reply's values, never its keys: a word list holds short everyday words, and one of them is "error",
+  // which is the name of the field every refusal carries.  A key that happens to spell a secret is not that secret.
+  const values = valuesOf(reply).join('\u0000');
+  for (const secret of secrets) assert.ok(!namesSecret(values, secret), `${what}: the reply leaked ${secret}`);
 }
 
 /**

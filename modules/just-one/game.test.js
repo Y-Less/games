@@ -101,7 +101,9 @@ test('a turn: clues, the guess, the best hint, the reveal and ready', () => {
   for (const id of [a, b]) assert.equal(score(room, id), 0, 'nobody else scores');
   assert.equal(room.result.correct, true);
   assert.deepEqual(room.result.clues.map((x) => [x.id, x.cancelled, x.best]), [[a, true, false], [b, true, false], [c, false, true]]);
-  assert.deepEqual(room.history[0].deltas, { [guesser]: 2, [c]: 1 });
+  // The scoreboard is what the client is sent, and it still names people by their id; the history behind it is
+  // written by slot (shared/roster.js) so that it never has to be rewritten.
+  assert.deepEqual(game.viewFor(room, guesser).scoreboard.rounds[0].deltas, { [guesser]: 2, [c]: 1 });
   assert.equal(game.chooseBest(room, guesser, 0).ok, false, 'once');
 
   assert.ok(game.ready(room, 1, Math.random).ok);
@@ -125,7 +127,7 @@ test('a wrong guess or a pass scores nobody, and there is no best hint to pick',
     assert.equal(room.best, null);
     for (const p of room.players) assert.equal(p.score, 0, how);
     assert.equal(room.result.correct, false);
-    assert.deepEqual(room.history[0].notes[guesser], { key: how === 'wrong' ? 'notes.missed' : 'notes.passed' });
+    assert.deepEqual(game.viewFor(room, guesser).scoreboard.rounds[0].notes[guesser], { key: how === 'wrong' ? 'notes.missed' : 'notes.passed' });
     assert.equal(game.pass(room, guesser).ok, false, 'already over');
   }
 });
@@ -207,7 +209,7 @@ test('everyone is the guesser turnsEach times, words do not repeat, and the game
   for (const id of [1, 2, 3]) assert.equal(guessers.filter((x) => x === id).length, 2);
   assert.equal(new Set(words).size, 6);
   assert.equal(room.history.length, 6);
-  for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score, 'the history adds up');
+  for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.slot] ?? 0), 0), p.score, 'the history adds up');
   const stats = game.statsPlayers(room);
   assert.deepEqual(stats.map((s) => s.userId).sort(), [1, 2, 3]);
   assert.ok(stats.some((s) => s.outcome === 'win'));
@@ -274,8 +276,12 @@ test('a computer player taking over at the reveal does not hold the others up, a
   assert.equal(room.phase, 'clues', 'and the next one began');
   const bot = room.players.find((p) => p.kind === 'bot');
   assert.equal(bot.score, 1, 'the point stays with the seat');
-  assert.equal(room.history[0].deltas[bot.id], 1, 'and the history names the seat by its new id');
-  assert.equal(room.history[0].deltas[best], undefined);
+  // The history itself is never rewritten: it was written against the slot, and the computer player took the slot
+  // along with the score.  What changes is only what the scoreboard is sent, which names whoever holds the slot now.
+  assert.equal(room.history[0].deltas[bot.slot], 1, 'the stored round still names the slot it was written for');
+  const rounds = game.viewFor(room, 1).scoreboard.rounds;
+  assert.equal(rounds[0].deltas[bot.id], 1, 'and the scoreboard names the seat by its new id');
+  assert.equal(rounds[0].deltas[best], undefined);
 });
 
 test('a saved room comes back as it was', () => {

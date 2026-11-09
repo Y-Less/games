@@ -19,7 +19,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
 import { QUESTIONS, answersFor, normal } from './questions.js';
@@ -150,7 +150,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, roundsE
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -485,7 +485,10 @@ export function choose(room, id, n, nameOf = String) {
  */
 function scoreQuestion(room, nameOf = String) {
   const truth = truthIndex(room);
-  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished question is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
+  const deltas = Object.fromEntries(room.players.map((p) => [p.slot, 0]));
   const fooled = room.options.map(() => 0); // how many people picked each option
   for (const pick of room.picks) fooled[pick.n]++;
   const right = new Set(room.picks.filter((pick) => pick.n === truth).map((pick) => pick.id));
@@ -496,13 +499,13 @@ function scoreQuestion(room, nameOf = String) {
     const player = playerOf(room, id);
     if (!player) continue;
     player.score += POINTS.correct;
-    deltas[id] += POINTS.correct;
+    deltas[player.slot] += POINTS.correct;
   }
   for (const id of matched) {
     const player = playerOf(room, id);
     if (!player) continue;
     player.score += POINTS.matched;
-    deltas[id] += POINTS.matched;
+    deltas[player.slot] += POINTS.matched;
   }
   for (const [n, option] of room.options.entries()) {
     if (option.truth || !fooled[n]) continue;
@@ -511,7 +514,7 @@ function scoreQuestion(room, nameOf = String) {
       if (!player) continue;
       gave[id] = (gave[id] ?? 0) + fooled[n];
       player.score += POINTS.fooled * fooled[n];
-      deltas[id] += POINTS.fooled * fooled[n];
+      deltas[player.slot] += POINTS.fooled * fooled[n];
     }
   }
 
@@ -521,11 +524,11 @@ function scoreQuestion(room, nameOf = String) {
   // One note per player, the most interesting thing they did: fooling somebody beats finding the answer.
   const notes = {};
   for (const p of room.players) {
-    if (gave[p.id]) notes[p.id] = msg('notes.fooled', { count: gave[p.id] });
-    else if (named.has(p.id)) notes[p.id] = msg('notes.named');
-    else if (matched.has(p.id)) notes[p.id] = msg('notes.matched');
-    else if (right.has(p.id)) notes[p.id] = msg('notes.right');
-    else if (p.id === room.subject) notes[p.id] = msg('notes.theirRound');
+    if (gave[p.id]) notes[p.slot] = msg('notes.fooled', { count: gave[p.id] });
+    else if (named.has(p.id)) notes[p.slot] = msg('notes.named');
+    else if (matched.has(p.id)) notes[p.slot] = msg('notes.matched');
+    else if (right.has(p.id)) notes[p.slot] = msg('notes.right');
+    else if (p.id === room.subject) notes[p.slot] = msg('notes.theirRound');
   }
 
   room.roundPicks ??= {};
@@ -730,9 +733,11 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * Side effects: mutates the room (the bot, subject, answers, options, picks, ready, roundPicks, result, history) and may move on.
  */
 /**
- * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
- * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
- * are this same renaming.
+ * Renames one player's id everywhere this game writes one down.  A place changes hands in both directions — a computer
+ * player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place, so
+ * a finished question is never rewritten.
  *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
@@ -757,7 +762,6 @@ function renameId(room, from, to) {
       option.pickedBy = option.pickedBy.map(renamed);
     }
   }
-  renameInHistory(room, from, to);
 }
 
 function takeOver(room, oldId, bot, rng, now = 0) {
@@ -869,7 +873,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: waiting.has(p.id), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

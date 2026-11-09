@@ -136,7 +136,7 @@ for (const judging of JUDGING_MODES) {
       assert.equal(chosenBy.size, bots + 1, 'computer players and the person each chose the word');
       assert.equal(room.history.length, room.completed, 'the shared scoreboard has every round');
       for (const p of room.players) {
-        assert.equal(p.score, room.history.reduce((sum, r) => sum + (r.deltas[p.id] ?? 0), 0), 'columns add up');
+        assert.equal(p.score, room.history.reduce((sum, r) => sum + (r.deltas[p.slot] ?? 0), 0), 'columns add up');
       }
       const view = game.viewFor(room, 1);
       assert.equal(view.phase, 'finished');

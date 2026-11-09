@@ -208,7 +208,7 @@ test('scoring: the truth is worth two, a made-up answer one for every player it 
   assert.equal(room.players.find((p) => p.id === room.subject).score, 0, 'the subject scores nothing in their round');
   assert.equal(room.history.length, 1);
   assert.deepEqual(
-    Object.fromEntries(room.players.map((p) => [p.id, room.history[0].deltas[p.id]])),
+    Object.fromEntries(room.players.map((p) => [p.id, room.history[0].deltas[p.slot]])),
     Object.fromEntries(room.players.map((p) => [p.id, p.score])),
     'the history is the scores',
   );
@@ -417,7 +417,7 @@ test('being named by everybody is counted at the reveal, never while the questio
   assert.equal(room.phase, 'reveal');
   assert.equal(target.namedAsTruth, 1, 'counted when the answers are revealed');
   for (const p of [subject, ...rest]) assert.equal(p.namedAsTruth, 0, `${p.name} was not named`);
-  assert.deepEqual(room.history.at(-1).notes[target.id], { key: 'notes.named' }, 'and said so on the scoreboard');
+  assert.deepEqual(room.history.at(-1).notes[target.slot], { key: 'notes.named' }, 'and said so on the scoreboard');
   assert.equal(game.statsPlayers(room).find((s) => s.userId === target.id).extras.namedAsTruth, 1, 'and recorded with the game');
   assert.equal(game.statsPlayers(room).find((s) => s.userId === rest[0].id).extras.namedAsTruth, 0);
 });

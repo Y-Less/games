@@ -315,7 +315,9 @@ test('games saved before the shared room server are brought over, people and all
   assert.equal(room.chooserId, 4);
   assert.equal(room.imposterId, 5);
   assert.deepEqual(room.picks, { 'bot:1': 7 });
-  assert.deepEqual(room.history[0].deltas, { 4: 2, 5: 0, 'bot:1': 1 });
+  // The old public ids became slots on the way in, and the scoreboard names the accounts they turned into.
+  assert.deepEqual(room.history[0].deltas, { s0: 2, s1: 0, s2: 1 });
+  assert.deepEqual(room.players.map((p) => p.slot), ['s0', 's1', 's2']);
   assert.equal(room.players[0].cardsPlayed, 3, 'the counters came with the person');
   assert.ok(room.players.every((p) => !('token' in p) && !('waiting' in p)));
 

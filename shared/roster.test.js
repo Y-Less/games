@@ -1,7 +1,7 @@
 // Tests for the shared player-list rules (shared/roster.js): joining, computer players, leaving, kicking, and loading old rooms.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createRosterRules, humans, isBot, migratePlayers, renameInHistory, seatOf, uniqueName } from './roster.js';
+import { createRosterRules, historyView, humans, isBot, migratePlayers, seatOf, uniqueName } from './roster.js';
 
 const LIVE = ['lobby', 'playing'];
 
@@ -16,19 +16,19 @@ function makeRules(taken = []) {
     takeOver: (room, oldId, bot) => {
       taken.push({ oldId, bot });
       bot.ai = 'standard';
-      renameInHistory(room, oldId, bot.id);
+      // Nothing is done to the history here: it is written by slot, and the computer player took the slot.
     },
   });
 }
 
 /** A lobby with Ann (the host, account 1) in it. */
-const lobby = () => ({ hostId: 1, phase: 'lobby', nextBot: 1, players: [{ kind: 'human', id: 1, name: 'Ann', score: 0 }] });
+const lobby = () => ({ hostId: 1, phase: 'lobby', nextBot: 1, nextSlot: 1, players: [{ kind: 'human', id: 1, name: 'Ann', score: 0, slot: 's0' }] });
 
 test('addHuman adds a newcomer at the end, once, with a name nobody else has and the extras the server gave', () => {
   const rules = makeRules();
   const room = lobby();
   assert.deepEqual(rules.addHuman(room, 2, 'ann', { colour: 'red' }), { ok: true, seat: 1 });
-  assert.deepEqual(room.players[1], { kind: 'human', id: 2, name: 'ann (2)', score: 0, colour: 'red' });
+  assert.deepEqual(room.players[1], { kind: 'human', id: 2, name: 'ann (2)', score: 0, colour: 'red', slot: 's1' });
   assert.deepEqual(rules.addHuman(room, 2, 'ann'), { ok: true, seat: 1 }, 'joining twice keeps the same place');
   assert.equal(room.players.length, 2);
   assert.equal(uniqueName(room, 'Bob'), 'Bob');
@@ -71,7 +71,7 @@ test('somebody arriving at a game under way takes the first computer player plac
   Object.assign(room.players[1], { score: 12, colour: 'red', ai: 'standard' });
   room.phase = 'playing';
   assert.deepEqual(rules.addHuman(room, 5, 'Eve'), { ok: true, seat: 1, tookOver: 'Ada' });
-  assert.deepEqual(room.players[1], { kind: 'human', id: 5, name: 'Eve', score: 12, colour: 'red' }, 'the score and the colour stay; the AI goes');
+  assert.deepEqual(room.players[1], { kind: 'human', id: 5, name: 'Eve', score: 12, colour: 'red', slot: 's1' }, 'the score, the colour, and the slot stay; the AI goes');
   assert.ok(isBot(room.players[2]), 'and only the first computer player is taken over');
   assert.equal(seatOf(room, 5), 1);
   assert.equal(humans(room).length, 2);
@@ -105,7 +105,7 @@ test('handOver is told which computer player went, and may put the newcomer in i
   room.phase = 'playing';
   room.turn = 'bot:1'; // it was the computer player's turn when they arrived
   rules.addHuman(room, 5, 'Eve');
-  assert.deepEqual(handed, [{ botId: 'bot:1', person: { kind: 'human', id: 5, name: 'Eve', score: 0 } }]);
+  assert.deepEqual(handed, [{ botId: 'bot:1', person: { kind: 'human', id: 5, name: 'Eve', score: 0, slot: 's1' } }]);
   assert.equal(room.turn, 5, 'and now it is theirs');
 });
 
@@ -162,7 +162,7 @@ test('a person leaving and a person arriving are the same move the other way rou
   assert.equal(rules.removeHuman(room, 2, () => 0).replaced, true);
   assert.equal(room.players[1].score, 7, 'the computer player carries on with their score');
   assert.equal(rules.addHuman(room, 3, 'Cat').seat, 1);
-  assert.deepEqual(room.players[1], { kind: 'human', id: 3, name: 'Cat', score: 7 }, 'and so does the next person along');
+  assert.deepEqual(room.players[1], { kind: 'human', id: 3, name: 'Cat', score: 7, slot: 's1' }, 'and so does the next person along');
 });
 
 test('computer players are { kind: bot, id: bot:<n>, name } with the first unused name, and only the host adds them in the lobby', () => {
@@ -170,7 +170,7 @@ test('computer players are { kind: bot, id: bot:<n>, name } with the first unuse
   const room = lobby();
   assert.equal(rules.addBot(room, 2).ok, false);
   const first = rules.addBot(room, 1);
-  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 0 });
+  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 0, slot: 's1' });
   assert.equal(first.id, 'bot:1');
   rules.addBot(room, 1);
   rules.addBot(room, 1);
@@ -228,12 +228,14 @@ test('removeHuman in a game puts a computer player in their place, with their sc
   rules.addHuman(room, 3, 'Cy');
   room.phase = 'playing';
   room.players[1].score = 7;
-  room.history = [{ label: 'Turn 1', deltas: { 2: 7, 1: 0 }, notes: { 2: 'guessed it' } }];
+  room.history = [{ label: 'Turn 1', deltas: { s1: 7, s0: 0 }, notes: { s1: 'guessed it' } }]; // by slot: Bob is s1
   assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, replaced: true });
   assert.deepEqual(room.players.map((p) => p.id), [1, 'bot:1', 3], 'same slot, so the turn order is unchanged');
-  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard', stoodInFor: 2 }, 'the score carries over, the game gave it an AI, and it knows whose place it is keeping');
+  assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard', stoodInFor: 2, slot: 's1' }, 'the score and the slot carry over, the game gave it an AI, and it knows whose place it is keeping');
   assert.deepEqual(taken, [{ oldId: 2, bot: room.players[1] }]);
-  assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { 'bot:1': 7, 1: 0 }, notes: { 'bot:1': 'guessed it' } }, 'the history still adds up');
+  assert.equal(room.players[1].slot, 's1', 'the computer player took the slot along with the score');
+  assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { s1: 7, s0: 0 }, notes: { s1: 'guessed it' } }, 'and the history was not touched at all');
+  assert.deepEqual(historyView(room)[0].deltas, { 'bot:1': 7, 1: 0 }, 'the scoreboard names whoever holds the slot now');
   assert.equal(seatOf(room, 2), -1, 'the person is free to join another game');
   assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: true }, 'the host leaving mid-game is replaced too');
   assert.equal(room.hostId, 3, 'and the host passes to the next person');
@@ -280,13 +282,42 @@ test('migratePlayers turns bot: true into kind: bot, names people from the accou
   };
   migratePlayers(room, (id) => (id === 1 ? 'Ann' : undefined));
   assert.deepEqual(room.players, [
-    { id: 1, score: 3, kind: 'human', name: 'Ann' },
-    { id: 'bot:1', name: 'Ada', score: 1, kind: 'bot' },
-    { id: 2, name: 'Kept', score: 0, kind: 'human' },
-    { id: 3, score: 0, kind: 'human' },
+    { id: 1, score: 3, kind: 'human', name: 'Ann', slot: 's0' },
+    { id: 'bot:1', name: 'Ada', score: 1, kind: 'bot', slot: 's1' },
+    { id: 2, name: 'Kept', score: 0, kind: 'human', slot: 's2' },
+    { id: 3, score: 0, kind: 'human', slot: 's3' },
   ]);
   assert.equal(room.nextBot, 1);
+  assert.equal(room.nextSlot, 4);
+  assert.deepEqual(room.history ?? [], [], 'a room with no history needs none rewritten');
   const again = JSON.stringify(room);
   migratePlayers(room);
   assert.equal(JSON.stringify(room), again);
+});
+
+test('a room saved before slots existed has its history rewritten from ids to slots, once', () => {
+  const room = {
+    nextBot: 2,
+    players: [
+      { kind: 'human', id: 1, name: 'Ann', score: 3 },
+      { kind: 'bot', id: 'bot:1', name: 'Ada', score: 1 },
+    ],
+    history: [{ label: 'Turn 1', deltas: { 1: 3, 'bot:1': 1 }, notes: { 1: 'guessed it' } }],
+  };
+  migratePlayers(room);
+  assert.deepEqual(room.players.map((p) => p.slot), ['s0', 's1'], 'the list order becomes the slots');
+  assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { s0: 3, s1: 1 }, notes: { s0: 'guessed it' } });
+  assert.deepEqual(historyView(room)[0].deltas, { 1: 3, 'bot:1': 1 }, 'and it goes back out under the same ids as before');
+  const again = JSON.stringify(room);
+  migratePlayers(room);
+  assert.equal(JSON.stringify(room), again, 'migrating twice changes nothing');
+});
+
+test('a slot nobody holds any more is left out of the scoreboard', () => {
+  const room = {
+    players: [{ kind: 'human', id: 1, name: 'Ann', score: 3, slot: 's0' }],
+    nextSlot: 2,
+    history: [{ label: 'Turn 1', deltas: { s0: 3, s1: 5 }, notes: { s1: 'left' } }],
+  };
+  assert.deepEqual(historyView(room)[0], { label: 'Turn 1', deltas: { 1: 3 }, notes: {} });
 });

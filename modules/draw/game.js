@@ -16,7 +16,7 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
 import { AI } from './ai.js';
@@ -152,7 +152,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
   setSettings(room, hostId, settings);
   return room;
 }
@@ -223,7 +223,7 @@ function renameId(room, from, to, name) {
       if (name) line.name = name;
     }
   }
-  renameInHistory(room, from, to);
+  // The scoreboard history is not renamed: it is written by slot, and the slot goes with the place.
 }
 
 /**
@@ -499,7 +499,7 @@ function addFeed(room, line) {
  * Side effects: scores, bumps the counters, adds a scoreboard row, sets reveal, the deadline and phase ('between').
  */
 function endRound(room, now) {
-  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  const deltas = Object.fromEntries(room.players.map((p) => [p.slot, 0]));
   for (const player of room.players) player.lastScore = 0;
   if (room.winner) {
     for (const id of [room.winner.drawer, room.winner.guesser]) {
@@ -507,7 +507,7 @@ function endRound(room, now) {
       if (!player) continue;
       player.score += POINT;
       player.lastScore = POINT;
-      deltas[id] = POINT;
+      deltas[player.slot] = POINT;
     }
   }
   tallyRound({
@@ -515,8 +515,16 @@ function endRound(room, now) {
     winner: room.winner ? playerOf(room, room.winner.drawer) : null,
     guesser: room.winner ? playerOf(room, room.winner.guesser) : null,
   });
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished round is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
+  // (`slotOf` in this file is Draw's own word for which of the two boards somebody is drawing on, so the player's slot
+  // is taken straight off the player rather than looked up through it.)
   const notes = {};
-  for (const drawer of room.drawers) if (room.words[drawer]) notes[drawer] = msg('notes.drew', { word: room.words[drawer] });
+  for (const drawer of room.drawers) {
+    const player = playerOf(room, drawer);
+    if (player && room.words[drawer]) notes[player.slot] = msg('notes.drew', { word: room.words[drawer] });
+  }
   room.history.push({ label: msg('scoreboard.round', { n: room.round, of: room.order.length }), deltas, notes });
   room.reveal = { words: { ...room.words }, winner: room.winner, drawers: [...room.drawers] };
   room.deadline = now + (room.betweenMs ?? BETWEEN_MS);
@@ -660,7 +668,7 @@ function scoreboardView(room, userId, { online, nameOf }) {
   };
   return {
     players: room.players.map((p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online })),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

@@ -142,7 +142,7 @@ test('whatever the order of play, a finished game has a history that adds up and
     }
     assert.equal(room.phase, 'finished', `seed ${seed} finishes`);
     finished++;
-    for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score, `seed ${seed}: the history adds up for ${p.id}`);
+    for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.slot] ?? 0), 0), p.score, `seed ${seed}: the history adds up for ${p.id}`);
     const stats = game.statsPlayers(room);
     assert.deepEqual(stats.map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
     for (const s of stats) {

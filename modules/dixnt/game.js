@@ -41,7 +41,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 import { newCounters, statsExtras, tallyRound } from './tally.js';
@@ -70,6 +70,22 @@ const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 const ROUND_PHASES = ['word', 'picking', 'voting', 'results'];
 /** Every phase but 'finished': the lobby counts as live, because people are still arriving. */
 const LIVE = ['lobby', ...ROUND_PHASES];
+
+/**
+ * A table keyed by player id, keyed by slot instead: what the scoreboard history is written with.
+ *
+ * Object keys are text, and a person's id is a number while a computer player's is a string, so the comparison is
+ * made on the text of both.  Anybody no longer at the table is left out.
+ *
+ * @param {object} room   not changed
+ * @param {object} table  a table keyed by player id
+ * @returns {object} the same values, keyed by slot
+ * Side effects: none.
+ */
+function bySlot(room, table) {
+  const slotOfId = new Map(room.players.map((p) => [String(p.id), p.slot]));
+  return Object.fromEntries(Object.entries(table ?? {}).flatMap(([id, value]) => (slotOfId.has(id) ? [[slotOfId.get(id), value]] : [])));
+}
 
 // The player-list vocabulary (who is in the room, and who is a person) is shared with Just One, Wavelength and Tints
 // and Hints.
@@ -336,7 +352,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       updatedAt: now,
     };
     normaliseSettings(room);
-    room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }));
+    room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
     setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
     return room;
   }
@@ -386,7 +402,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     room.pointScale = 1;
     // A game saved before the history existed shows the scores it already has as one "Earlier rounds" row.
     if (!hadHistory && room.phase !== 'lobby' && room.players.some((p) => p.score)) {
-      room.history.push({ label: msg('round.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.id, p.score])), notes: {} });
+      room.history.push({ label: msg('round.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.slot, p.score])), notes: {} });
     }
     normaliseSettings(room);
     syncCards(room, rng);
@@ -399,8 +415,11 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   /**
    * Renames one player's id everywhere this game writes one down: who is choosing the word, who the imposter is, who
    * played which card, the order the cards lie in, every vote (both who cast it and who it names), and the results
-   * on show (renameInHistory does the scoreboard history).  A place changes hands in both directions — a computer
-   * player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+   * on show.  A place changes hands in both directions — a computer player takes a person's, and a latecomer takes a
+   * computer player's — and both are this same renaming.
+   *
+   * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place,
+   * so a finished round is never rewritten.
    *
    * @param {object} room  the room to change
    * @param {number | string} from  the id leaving
@@ -429,7 +448,6 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       room.results.deltas = rekey(room.results.deltas);
       room.results.votes = rekey(room.results.votes, renamed);
     }
-    renameInHistory(room, from, to);
   }
 
   /**
@@ -850,7 +868,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     if (chooser) chooser.turns = (chooser.turns ?? 0) + 1;
     countRound(room);
     room.completed++;
-    room.history.push({ label: msg('round.label', { n: room.completed }), deltas: { ...room.results.deltas }, notes });
+    // `room.results` is the round on show and stays keyed by player id, because that is what the table is drawing and
+    // renameId keeps it straight.  The history row is keyed by slot instead, so that it is written once and never
+    // touched again; viewFor sends it back out by id (shared/roster.js historyView).
+    room.history.push({ label: msg('round.label', { n: room.completed }), deltas: bySlot(room, room.results.deltas), notes: bySlot(room, notes) });
     room.phase = 'results';
   }
 
@@ -1090,7 +1111,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
         current: mustAct(room, p),
         away: !isBot(p) && !online(p.id),
       })),
-      rounds: room.history.map((r) => ({ label: r.label, deltas: { ...r.deltas }, notes: { ...r.notes } })),
+      rounds: historyView(room),
       lowIsBetter: false,
     };
   }

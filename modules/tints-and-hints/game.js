@@ -17,7 +17,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
@@ -163,7 +163,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEa
     updatedAt: now,
   };
   room.ready ??= [];
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -420,16 +420,20 @@ function recordHistory(room, nameOf, found) {
   const notes = {};
   /** Describes one scoring guess for the history note, as a message ("exact in round 1"). */
   const phrase = (kind, round) => msg(`notes.${kind}`, { round });
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished turn is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   for (const p of guessers(room)) {
     const mine = room.result.entries.filter((e) => e.id === p.id);
     if (!mine.length) continue;
-    deltas[p.id] = mine.reduce((sum, e) => sum + e.points, 0);
+    deltas[p.slot] = mine.reduce((sum, e) => sum + e.points, 0);
     const scored = mine.filter((e) => e.kind !== 'miss').map((e) => phrase(e.kind, e.round));
-    notes[p.id] = scored.length ? scored : msg('notes.missed'); // a list of messages: the client joins it as its language joins lists
+    notes[p.slot] = scored.length ? scored : msg('notes.missed'); // a list of messages: the client joins it as its language joins lists
   }
-  if (playerOf(room, room.hinter)) {
-    deltas[room.hinter] = room.result.hinterPoints;
-    notes[room.hinter] = msg('notes.found', { count: found });
+  const hinter = playerOf(room, room.hinter);
+  if (hinter) {
+    deltas[hinter.slot] = room.result.hinterPoints;
+    notes[hinter.slot] = msg('notes.found', { count: found });
   }
   room.history.push({ label: msg('scoreboard.turn', { n: room.turn + 1, name: nameOf(room.hinter) }), deltas, notes });
 }
@@ -463,8 +467,10 @@ export function migrate(room, nameOf) {
     room.grid = GRID_VERSION;
   }
   if (!Array.isArray(room.history)) room.history = [];
-  const totals = totalsFromRounds(room.history, room.players.map((p) => p.id));
-  const missing = Object.fromEntries(room.players.map((p) => [p.id, p.score - totals[p.id]]).filter(([, diff]) => diff !== 0));
+  // By slot, like the history itself: migratePlayers has already given every player one and rewritten the rounds that
+  // were saved before slots existed, so this reconciliation sees the same keys the rounds are written under.
+  const totals = totalsFromRounds(room.history, room.players.map((p) => p.slot));
+  const missing = Object.fromEntries(room.players.map((p) => [p.slot, p.score - totals[p.slot]]).filter(([, diff]) => diff !== 0));
   if (Object.keys(missing).length) room.history.unshift({ label: msg('scoreboard.earlier'), deltas: missing, notes: {} });
   return room;
 }
@@ -584,15 +590,17 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @returns {void}
  */
 /**
- * Renames one player's id everywhere this game writes one down (renameInHistory does the scoreboard).  A place changes
- * hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's — and both
- * are this same renaming.
+ * Renames one player's id everywhere this game writes one down.  A place changes hands in both directions — a computer
+ * player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place, so
+ * a finished turn is never rewritten.
  *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
  * @param {number | string} to  the id taking its place
  * @returns {void}
- * Side effects: mutates the room's own fields and its scoreboard history.
+ * Side effects: mutates the room's own fields.
  */
 function renameId(room, from, to) {
   const renamed = (x) => (x === from ? to : x);
@@ -602,7 +610,6 @@ function renameId(room, from, to) {
     room.result.hinter = renamed(room.result.hinter);
     for (const e of room.result.entries) e.id = renamed(e.id);
   }
-  renameInHistory(room, from, to);
 }
 
 function takeOver(room, oldId, bot, rng) {
@@ -743,7 +750,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online, ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : undefined });
   return {
     players: room.players.map(player),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

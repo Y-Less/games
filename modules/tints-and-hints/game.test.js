@@ -373,9 +373,11 @@ test('migrate: an old room without a history gets one, with the earlier points a
   room.players[0].score = 3;
   delete room.history;
   game.migrate(room);
-  assert.deepEqual(room.history, [{ label: { key: 'scoreboard.earlier' }, deltas: { 1: 3, 2: 9 }, notes: {} }]);
+  // Stored by slot; the scoreboard still names the people.
+  assert.deepEqual(room.history, [{ label: { key: 'scoreboard.earlier' }, deltas: { s0: 3, s1: 9 }, notes: {} }]);
   const v = game.viewFor(room, 2);
   assert.equal(v.scoreboard.rounds.length, 1);
+  assert.deepEqual(v.scoreboard.rounds[0].deltas, { 1: 3, 2: 9 });
   game.migrate(room);
   assert.equal(room.history.length, 1, 'migrating twice changes nothing');
   const legacy = started([1, 2]);

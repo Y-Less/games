@@ -63,7 +63,7 @@ export function namesSecret(text, secret) {
  * @returns {string[]} every leaf value, as text
  * Side effects: none (it fills `into`, which it also returns).
  */
-function valuesOf(node, into = []) {
+export function valuesOf(node, into = []) {
   if (node === null || node === undefined) return into;
   if (Array.isArray(node)) {
     for (const item of node) valuesOf(item, into);

@@ -271,7 +271,8 @@ test('everybody draws once a round, then the scores go up and the next round nee
   assert.equal(game.nextTurn(room, rng, (now += 500), String).ok, true);
   assert.equal(room.phase, 'scores', 'the round is over');
   assert.equal(room.history.length, 1);
-  assert.deepEqual(Object.keys(room.history[0].deltas).sort(), ['1', '2', '3']);
+  assert.deepEqual(Object.keys(room.history[0].deltas).sort(), ['s0', 's1', 's2'], 'the stored round names the slots');
+  assert.deepEqual(Object.keys(game.viewFor(room, 1).scoreboard.rounds[0].deltas).sort(), ['1', '2', '3'], 'and the scoreboard names the people');
   assert.equal(game.ready(room, 1, rng, now).ok, true);
   assert.equal(room.phase, 'scores', 'still waiting for the others');
   assert.equal(game.ready(room, 2, rng, now).ok, true);

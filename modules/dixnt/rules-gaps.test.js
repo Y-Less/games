@@ -59,7 +59,8 @@ test('a saved game from an older version is brought up to date', () => {
   assert.deepEqual(loaded.categories, ['all']);
   assert.equal(loaded.history.length, 1);
   assert.deepEqual(loaded.history[0].label, { key: 'round.earlier' });
-  assert.deepEqual(loaded.history[0].deltas, { 1: 3, 2: 1, 3: 0 }, 'the old hundreds are scaled down');
+  assert.deepEqual(loaded.history[0].deltas, { s0: 3, s1: 1, s2: 0 }, 'the old hundreds are scaled down, under the slots the players were given');
+  assert.deepEqual(game.viewFor(loaded, 1).scoreboard.rounds[0].deltas, { 1: 3, 2: 1, 3: 0 }, 'and the scoreboard still names the people');
   // Without scores there is nothing to explain, and in a lobby neither.
   const quiet = rules().migrate({ ...JSON.parse(JSON.stringify(saved)), history: undefined, players: saved.players.map((p) => ({ ...p, score: 0 })) });
   assert.deepEqual(quiet.history, []);
@@ -274,9 +275,13 @@ test('a place that changes hands keeps its column and its cards, and chooser ord
   assert.equal(stand.kind, 'bot');
   assert.deepEqual(stand.hand, heldCards, 'the cards stay with the place');
   assert.equal(room.discard.length, discardBefore, 'so nothing is thrown away');
-  assert.ok(room.history.every((r) => !(leaver.id in r.deltas) && !(leaver.id in r.notes)));
+  // The history never named the person in the first place: it names the slot, which the computer player now holds, so
+  // the column belongs to whoever is in the place rather than to whoever was.
+  assert.equal(stand.slot, leaver.slot, 'the slot stayed with the place');
+  const rounds = game.viewFor(room, 1).scoreboard.rounds;
+  assert.ok(rounds.every((r) => !(leaver.id in r.deltas) && !(leaver.id in r.notes)));
   assert.equal(stand.score, score);
-  for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.id] ?? 0), 0), p.score);
+  for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.slot] ?? 0), 0), p.score);
   assert.equal(game.kick(room, 3, 4, rng, 0).error, 'hostOnlyRemove');
   assert.equal(game.kick(room, 1, 'nobody', rng, 0).error, 'playerNotInGame');
   // The turn counts: nobody who still owes a turn is skipped.

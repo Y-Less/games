@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { numberFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
+import { renameInHistory } from '../../shared/roster.js';
 import { createRules } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -113,6 +114,10 @@ function importOldSave(ctx, rules) {
         // The counters used to be kept beside the game, one set per person; they belong to the player now.
         if (account !== null) Object.assign(player, entry.tally?.[player.token] ?? {});
         rules.renameId(room, player.id, newId);
+        // This room was saved before slots existed, so its history is still keyed by the made-up public ids; rename
+        // those too, and `migrate` below turns the whole lot into slots.  Everywhere else the history is written by
+        // slot and a rename never touches it.
+        renameInHistory(room, player.id, newId);
         player.id = newId;
         if (wasHost) room.hostId = newId;
       }

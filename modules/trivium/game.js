@@ -23,7 +23,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, hasPlayer, humans, isBot, isHuman, migratePlayers, renameInHistory, seatOf } from '../../shared/roster.js';
+import { createRosterRules, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { MAX_QUESTION_POINTS, pointsFor } from './scoring.js';
 import { buildWheel, pickSpin } from './wheel.js';
@@ -205,7 +205,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, colour = nul
     createdAt: now,
     updatedAt: now,
   };
-  room.players.push(makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour }));
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour })));
   setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
   return room;
 }
@@ -565,13 +565,20 @@ function recordHistory(room) {
   const deltas = {};
   const notes = {};
   const [first] = room.result.entries.filter((e) => e.right);
+  // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
+  // is what survives that, so a finished question is written once and never touched again.  viewFor sends it back out
+  // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   for (const entry of room.result.entries) {
-    deltas[entry.id] = entry.points;
-    notes[entry.id] = msg(entry === first ? 'notes.first' : entry.right ? 'notes.right' : 'notes.wrong');
+    const slot = slotOf(room, entry.id);
+    if (slot === -1) continue;
+    deltas[slot] = entry.points;
+    notes[slot] = msg(entry === first ? 'notes.first' : entry.right ? 'notes.right' : 'notes.wrong');
   }
   for (const id of room.result.missed) {
-    deltas[id] = 0;
-    notes[id] = msg('notes.missed');
+    const slot = slotOf(room, id);
+    if (slot === -1) continue;
+    deltas[slot] = 0;
+    notes[slot] = msg('notes.missed');
   }
   room.history.push({ label: msg('questionLabel', { round: room.round + 1, n: room.ask + 1 }), deltas, notes });
 }
@@ -693,7 +700,7 @@ function renameId(room, from, to) {
     for (const entry of room.result.entries) if (entry.id === from) entry.id = to;
     room.result.missed = room.result.missed.map((id) => (id === from ? to : id));
   }
-  renameInHistory(room, from, to);
+  // The scoreboard history is not renamed: it is written by slot, and the slot goes with the place.
 }
 
 /**
@@ -835,7 +842,7 @@ function scoreboardView(room, userId, { nameOf, online }) {
   const player = (p) => playerScoreboardEntry(p, { name: nameOf(p.id), me: userId, current: mustAct(p), online });
   return {
     players: room.players.map(player),
-    rounds: (room.history ?? []).map(({ label, deltas, notes }) => ({ label, deltas, notes })),
+    rounds: historyView(room),
     lowIsBetter: false,
   };
 }

@@ -114,7 +114,8 @@ test('every judging style records its own notes and still adds up', () => {
     game.start(room, 1, rng);
     const chooserId = room.chooserId;
     playRound(made, { right: false });
-    const { notes, deltas } = room.history[0];
+    // The stored round names slots; the scoreboard names people.
+    const { notes, deltas } = game.viewFor(room, 1).scoreboard.rounds[0];
     assert.equal(Object.values(deltas).reduce((a, b) => a + b, 0) > 0, true);
     if (judging === 'chooser') assert.deepEqual(notes[chooserId], { key: 'notes.chooserFooled' });
     else assert.ok(Object.values(notes).some((note) => note.key === 'notes.cardPicked'));
