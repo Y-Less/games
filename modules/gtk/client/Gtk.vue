@@ -1,14 +1,19 @@
 <script setup>
-// GTK: the screens drawn inside the site's play field.  The server sends each player their own view of the game as a
-// `state` event (null when not in a game); everything the player does is a request to the server (see useGameSocket).
-// Props: socket (the platform's socket wrapper), user (signed-in user or null), search / setSearch (read and write the
-// page's query string, which carries the invite code).  Emits: none.  Slots: none.
-// Side effects: useGameSocket subscribes to the socket's state and notice events and may change the URL's query string;
-// the create and join events send requests; onState keeps the Recent moves list.
+// Getting to Know You: the screens drawn inside the site's play field.  The server sends each player their own view of
+// the game as a `state` event (null when not in a game); everything the player does is a request to the server (see
+// useGameSocket).  GameShell draws the loading line, the "new game or invite code" screen, and the error toast, and
+// hands the state to the lobby or the table below.  What is this game's own here is the list of recent moves, worked
+// out from each state as it arrives.
+//
+// Props:
+//   socket     {Object}    required.  The platform's socket connection for this game.
+//   user       {Object}    the signed-in user, or null (unused here; part of the module contract).
+//   search     {string}    the page's current query string, used to pick up an invite code.
+//   setSearch  {Function}  updates the page's query string (used to put the room code in the address bar).
+// Emits: none.  Slots: none.
+// Side effects: as GameShell, and `log` is replaced on every state.
 import { ref } from 'vue';
-import ErrorToast from '../../../src/components/ErrorToast.vue';
-import RoomEntry from '../../../src/components/RoomEntry.vue';
-import { useGameSocket } from '../../../src/useGameSocket.js';
+import GameShell from '../../../src/components/GameShell.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import { newEntries } from './moveLog.js';
@@ -23,44 +28,27 @@ const props = defineProps({
 const { t } = useGameText();
 
 const log = ref([]); // "Recent moves": messages (see moveLog.js), worked out here from the changes between one state and the next
+
 /**
- * Works the "Recent moves" list out from the change between one state and the next.
+ * Adds whatever the new state says has happened to the list of recent moves.
  * @param {object | null} next  the new state
  * @param {object | null} previous  the state it replaces
- * @returns {void} (the list is kept to the last 200 lines, and cleared outside a game)
+ * @returns {void}
  * Side effects: replaces `log`.
  */
 function onState(next, previous) {
   log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
 }
 
-const { state, loaded, notice, initialCode, send } = useGameSocket({
-  socket: props.socket,
-  search: props.search,
-  setSearch: props.setSearch,
-  // Warns before leaving a game in progress, because there is no way back in.
-  // @param {object} state  the current view; @returns {string} the warning, or '' when leaving is harmless.  No side effects.
-  leaveConfirm: (state) => (['writing', 'picking', 'reveal'].includes(state.phase) ? t('leaveConfirm') : ''),
-  onState,
-});
+/** The warning to show before leaving mid-game, or '' for no warning. */
+const leaveConfirm = (state) => (['writing', 'picking', 'reveal'].includes(state.phase) ? t('leaveConfirm') : '');
 </script>
 
 <template>
   <div class="gtk stack">
-    <p v-if="!loaded" class="muted">{{ t('play.loading') }}</p>
-    <RoomEntry
-      v-else-if="!state"
-      :noun="t('entry.noun')"
-      :intro="t('entry.intro')"
-      :initial-code="initialCode"
-      :error="notice"
-      @create="send('create')"
-      @join="(code) => send('join', { code })"
-    />
-    <template v-else>
-      <ErrorToast v-if="notice" :text="notice" />
-      <Lobby v-if="state.phase === 'lobby'" :state="state" :send="send" />
-      <Table v-else :state="state" :send="send" :log="log" />
-    </template>
+    <GameShell :socket="props.socket" :search="props.search" :set-search="props.setSearch" :leave-confirm="leaveConfirm" :on-state="onState" :noun="t('entry.noun')" :intro="t('entry.intro')">
+      <template #lobby="{ state, send }"><Lobby :state="state" :send="send" /></template>
+      <template #table="{ state, send }"><Table :state="state" :send="send" :log="log" /></template>
+    </GameShell>
   </div>
 </template>
