@@ -108,13 +108,13 @@ const EVENTS = {
   create: ['seats', 'numbers', 'colours', 'wildcards', 'rounds', 'meld', 'timer'],
   leave: [],
   kick: ['seat'],
-  voteKick: ['seat'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   settings: ['numbers', 'colours', 'wildcards', 'rounds', 'meld', 'timer'],
   size: ['seats'],
   addBot: ['seat'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   fillBots: [],
   start: [],
   play: ['table'],
@@ -193,8 +193,8 @@ test('kicking in the lobby, one live room per account, joining by code, and a ro
   assert.equal((await cat.call('join', { code })).ok, true);
   assert.equal((await cat.call('join', { code: 'no-such-room' })).ok, false);
   assert.equal((await ann.call('create', {})).ok, false, 'already in a live game');
-  assert.equal((await bob.call('kick', { seat: 2 })).ok, false, 'only the host kicks');
-  assert.equal((await ann.call('kick', { seat: 2 })).ok, true);
+  assert.equal((await bob.call('kick', { slot: 's2' })).ok, false, 'only the host kicks');
+  assert.equal((await ann.call('kick', { slot: 's2' })).ok, true);
   await until(() => cat.state === null, 'cat is told');
   await until(() => ann.state.seats.filter(Boolean).length === 2, 'the seat is free');
   assert.equal((await cat.call('create', { seats: 2 })).ok, true, 'cat can start her own game');

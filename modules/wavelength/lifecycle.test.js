@@ -201,7 +201,7 @@ test('when the psychic is gone the host removes them, and a computer player give
   if (psychic === g.host) return; // the host is the psychic this time: removal is covered by the rules tests
   for (const s of psychic.sockets) s.close();
   await until(() => host.state.players.find((p) => p.id === psychic.id).online === false, 'the psychic away');
-  assert.ok((await host.call('kick', { userId: psychic.id })).ok);
+  assert.ok((await host.call('kick', { slot: host.state.players.find((p) => p.id === psychic.id).slot })).ok);
   await until(() => host.state.players.some((p) => p.bot && p.id === host.state.psychic), 'the computer player is the psychic');
   assert.equal(host.state.players.length, 4, 'nobody is lost');
   assert.equal(host.state.turnsTotal, 8, 'and no turn is lost');

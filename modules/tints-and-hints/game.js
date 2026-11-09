@@ -713,6 +713,7 @@ function playerView(room, p, { nameOf, online, final }) {
   const current = room.phase === 'guessing1' ? room.first : room.phase === 'guessing2' ? room.second : [];
   return {
     id: p.id,
+    slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
     name: nameOf(p.id),
     colour: p.colour,
     score: p.score,

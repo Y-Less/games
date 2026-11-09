@@ -32,14 +32,14 @@ const EVENTS = {
   create: [],
   join: ['code'],
   leave: [],
-  kick: ['userId'],
-  voteKick: ['userId'],
+  kick: ['slot'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   settings: ['handSize', 'roundsEach', 'judging', 'categories'],
   addBot: ['seat'],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   start: [],
   again: [],
   hints: [],
@@ -205,7 +205,7 @@ test('actions that need the right moment or the right person are refused with a 
     await refused(bob, event, payload, `${event} by a non-host`);
     await refused(eve, event, payload, `${event} by an outsider`);
   }
-  await refused(bob, 'kick', { userId: ann.state.me.id }, 'a non-host removing the host');
+  await refused(bob, 'kick', { slot: bob.state.players.find((p) => p.id === ann.state.me.id).slot }, 'a non-host removing the host');
   await refused(ann, 'settings', { categories: [] }, 'no categories');
   await refused(ann, 'settings', { categories: ['alpha', 'nope'] }, 'an unknown category');
   await refused(ann, 'settings', { handSize: 2 }, 'too small a hand');

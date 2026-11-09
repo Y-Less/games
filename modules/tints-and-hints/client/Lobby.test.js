@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Lobby from './Lobby.vue';
 
-const person = (id, name, extra = {}) => ({ id, name, colour: `#00000${id}`, online: true, bot: false, ai: null, ...extra });
-const bot = (id, name) => ({ id, name, colour: '#aa0000', online: true, bot: true, ai: null });
+const person = (id, name, extra = {}) => ({ id, slot: `s${id}`, name, colour: `#00000${id}`, online: true, bot: false, ai: null, ...extra });
+const bot = (id, name) => ({ id, slot: `s${id}`, name, colour: '#aa0000', online: true, bot: true, ai: null });
 
 function make({ players, you = 1, hostId = 1, max = 8 }) {
   const send = vi.fn();
@@ -21,7 +21,7 @@ describe('Tints and Hints lobby computer players', () => {
     await button(wrapper, 'Add a computer player').trigger('click');
     expect(send).toHaveBeenLastCalledWith('addBot');
     await wrapper.findAll('.players li')[1].find('button.quiet').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('removeBot', { seat: 'bot:1' });
+    expect(send).toHaveBeenLastCalledWith('removeBot', { slot: 'sbot:1' });
     expect(button(wrapper, 'Fill up to'), 'enough players already').toBeUndefined();
   });
 
@@ -34,7 +34,7 @@ describe('Tints and Hints lobby computer players', () => {
   it('removes a person with kick, and stops offering computers at a full table', async () => {
     const { wrapper, send } = make({ players: [person(1, 'Ann'), person(2, 'Bob'), bot('bot:1', 'Ada')], max: 3 });
     await wrapper.findAll('.players li')[1].find('button.quiet').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('kick', { userId: 2 });
+    expect(send).toHaveBeenLastCalledWith('kick', { slot: 's2' });
     expect(button(wrapper, 'Add a computer player').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('The table is full (3 players)');
   });

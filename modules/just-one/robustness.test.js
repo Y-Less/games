@@ -15,12 +15,12 @@ const EVENTS = {
   create: ['turnsEach'],
   leave: [],
   kick: ['userId'],
-  voteKick: ['userId'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   addBot: [],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   settings: ['turnsEach'],
   start: [],
   clue: ['text'],
@@ -121,8 +121,8 @@ test('garbage payloads on every event, in every phase, from members and stranger
         clue: [{ text: 'good' }, { text: 'two words' }, { text: 'x'.repeat(30) }, { text: '   ' }, { text: 'apple' }, { text: 'a-b' }],
         guess: [{ text: 'apple' }, { text: '   ' }, { text: 'x'.repeat(100) }, { text: 'two words' }],
         best: [{ n: 0 }, { n: 1 }, { n: -1 }, { n: 99 }, { n: '0' }, { n: 0.5 }],
-        kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
-        removeBot: [{ seat: 'bot:1' }, { seat: 'bot:0' }, { seat: ann.id }],
+        kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
+        removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 7 }, { count: 0 }, { count: 99 }],
         settings: [{ turnsEach: 3 }, { turnsEach: 0 }, { turnsEach: 6 }, { turnsEach: '3' }],
         create: [{ turnsEach: 3 }, { turnsEach: 99 }],
@@ -162,7 +162,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['ready', {}]]) {
     for (const who of everyone) assert.equal((await who.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['kick', { userId: bob.id }], ['addBot', {}], ['settings', { turnsEach: 3 }]]) {
+  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { turnsEach: 3 }]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.ok((await ann.call('start')).ok);

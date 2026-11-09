@@ -65,10 +65,11 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => state.value?.scoreboard.players ?? [],
   hostId: () => state.value?.hostId ?? null,
   isHost: () => isHost.value,
-  remove: (id, player) => (player?.bot ? send('removeBot', { seat: id }, { quiet: true }) : send('kick', { userId: id }, { quiet: true })),
+  // Dixnt sends everything quietly, so it writes these out rather than taking usePlayerPopup's `send` versions.
+  remove: (id, player) => send(player?.bot ? 'removeBot' : 'kick', { slot: player?.slot }, { quiet: true }),
   // Anybody may ask the rest of the table to remove a player; the vote itself is shared (shared/voteKick.js).
   vote: () => state.value?.vote ?? null,
-  askVote: (id) => send('voteKick', { userId: id }, { quiet: true }),
+  askVote: (id, player) => send('voteKick', { slot: player?.slot }, { quiet: true }),
   answerVote: (agree) => send('voteAnswer', { agree }, { quiet: true }),
   dropVote: () => send('voteDrop', {}, { quiet: true }),
 });

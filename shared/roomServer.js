@@ -10,7 +10,7 @@
 //   - reports a finished game to the statistics once.
 //
 // Nothing here knows any rules.  The game's rules module (`game`) must provide the seat vocabulary described under
-// `options.game` below; seats.js (also shared) implements most of it for games with numbered seats, and roster.js for games that keep a list of players (set options.members and options.kickKey for those).
+// `options.game` below; seats.js (also shared) implements most of it for games with numbered seats, and roster.js for games that keep a list of players (set options.members and options.layout for those).
 //
 // Randomness and the clock are injected (`options.rng`, `options.now`) so a test can make a server deterministic;
 // the defaults (Math.random and Date.now) are chosen once, here, and nowhere else in the shared code or the rules.  The same
@@ -22,6 +22,7 @@ import { createScheduler } from './scheduler.js';
 import { createSocketRegistry } from './socketRegistry.js';
 import { refusalReply } from './messages.js';
 import { barFromRoom } from './seats.js';
+import { seatLayout } from './layout.js';
 import { answerRemoval, askToRemove, dropVote, tidyVote, voteView } from './voteKick.js';
 
 // Retention and timing: how long to keep a finished room, then an unfinished one (kept longer: players may return to a
@@ -133,8 +134,9 @@ const refused = (outcome) => ({ ok: false, error: outcome.error, ...(outcome.par
  *   time, or something that depends on who is looking)
  * @param {(room: object) => object[]} [options.members]  the people and computer players of a room, each with `kind` and `id`
  *   (default: room.seats, which has null for an empty seat; the player-list games of shared/roster.js use room.players)
- * @param {string} [options.kickKey]  the field of the 'kick' message that names who to remove (default 'seat'; the
- *   player-list games send the account id as 'userId')
+ * @param {{ slotOf: Function, indexOf: Function, at: Function }} [options.layout]  how this game's places are laid out
+ *   (shared/layout.js): `seatLayout` for numbered seats (the default), `rosterLayout` for a list of players.  It is
+ *   what turns the slot a client names into the member sitting in it.
  * @param {(room: object, userId: number) => object} [options.startRule]  replaces game.start for the 'start' event
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
  * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
@@ -144,23 +146,25 @@ const refused = (outcome) => ({ ok: false, error: outcome.error, ...(outcome.par
  * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
  */
 export function createRoomServer(ctx, options) {
-  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, kickKey = 'seat', startRule, migrate, rng = Math.random, now = Date.now } = options;
+  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, rng = Math.random, now = Date.now } = options;
 
-  // A player is named the same way in a removal and in a vote about one: by seat number in a game with numbered seats,
-  // by account id in a game that keeps a list.  `kickKey` is what each game calls it, and so says which (see the
-  // games' server.js).  Votes themselves are kept in account ids, which is what the rules remove by.
-  const byAccount = kickKey !== 'seat';
+  // Everybody is named by their slot — "s0", "s1" — whichever family the game belongs to, so a removal and a vote about
+  // one say the same thing in every game and the clients do not have to know which kind of game they are drawing.  The
+  // layout is the only thing that differs: where a slot is in this game's room (shared/layout.js).  Votes themselves
+  // are kept in account ids, which is what the rules remove by.
   /** Everybody in the room who is a person. */
   const peopleIn = (room) => (members(room) ?? []).filter((member) => game.isHuman?.(member));
-  /** The account behind whatever the client named, or null. */
-  const accountNamed = (room, named) => {
-    if (byAccount) return peopleIn(room).some((p) => p.id === named) ? named : null;
-    if (!Number.isInteger(named)) return null; // a seat is a number: anything else is not worth looking up
-    const seat = members(room)[named];
-    return game.isHuman(seat) ? seat.id : null;
+  /** The account in that slot, or null when nobody is. */
+  const accountNamed = (room, slot) => {
+    const member = layout.at(room, slot);
+    return game.isHuman?.(member) ? member.id : null;
   };
-  /** The other way round: what the client calls that account. */
-  const nameFor = (room, account) => (byAccount ? account : members(room).findIndex((m) => game.isHuman(m) && m.id === account));
+  /** The other way round: the slot that account is sitting in, or null. */
+  const nameFor = (room, account) => {
+    const list = members(room) ?? [];
+    const index = list.findIndex((m) => game.isHuman?.(m) && m.id === account);
+    return index === -1 ? null : layout.slotOf(list[index], index);
+  };
   // Where the rooms are kept between restarts (shared/roomStore.js); this file never touches the file itself.
   const store = createRoomStore({ dataDir: ctx.dataDir, log: ctx.log, now, migrate, members, isHuman: (member) => Boolean(game.isHuman?.(member)) });
   const rooms = store.rooms; // the store owns the map; this file changes it only through store.put and store.remove
@@ -508,7 +512,7 @@ export function createRoomServer(ctx, options) {
     on('kick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };
-      const outcome = game.kick(room, userId, payload[kickKey], rng, now());
+      const outcome = game.kick(room, userId, payload.slot, rng, now());
       if (!outcome.ok) return refused(outcome);
       detach(outcome.userId, room.code);
       changed(room);
@@ -519,7 +523,7 @@ export function createRoomServer(ctx, options) {
     on('voteKick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };
-      const target = accountNamed(room, payload[kickKey]);
+      const target = accountNamed(room, payload.slot);
       if (target === null) return { ok: false, error: 'playerNotInGame' };
       const asked = askToRemove(room, userId, peopleIn(room), target, now());
       if (!asked.ok) return refused(asked);
@@ -549,7 +553,7 @@ export function createRoomServer(ctx, options) {
 
     on('settings', (payload) => act((room) => game.setSettings(room, userId, pickSettings(payload))));
     on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
-    on('removeBot', ({ seat }) => act((room) => game.removeBot(room, userId, seat, rng)));
+    on('removeBot', ({ slot }) => act((room) => game.removeBot(room, userId, slot, rng)));
     on('fillBots', (payload) => act((room) => game.fillWithBots(room, userId, payload.count)));
     on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng, now())));
     on('again', () => act((room) => game.playAgain(room, userId)));

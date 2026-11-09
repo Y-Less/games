@@ -11,6 +11,8 @@
 // #footer extra buttons or notes beside Start.
 import { computed } from 'vue';
 import { useGameText } from '../useGameText.js';
+// A seat is named from outside by its slot, which for a game with numbered seats is the seat number (shared/layout.js).
+import { slotForSeat } from '../../shared/layout.js';
 
 const props = defineProps({
   seats: { type: Array, required: true },
@@ -48,8 +50,8 @@ const ready = computed(() => empty.value === 0 && humans.value >= 1);
             <span v-if="seat.kind === 'bot'" class="tag bot">{{ t('common.computer') }}</span>
             <span v-if="seat.away" class="tag away">{{ t('common.away') }}</span>
           </span>
-          <button v-if="isHost && seat.kind === 'bot'" class="quiet" @click="emit('removeBot', seat.id)">{{ t('common.remove') }}</button>
-          <button v-else-if="isHost && seat.kind === 'human' && !seat.isMe" class="quiet" @click="emit('kick', seat.id)">{{ t('common.remove') }}</button>
+          <button v-if="isHost && seat.kind === 'bot'" class="quiet" @click="emit('removeBot', seat.slot ?? slotForSeat(i))">{{ t('common.remove') }}</button>
+          <button v-else-if="isHost && seat.kind === 'human' && !seat.isMe" class="quiet" @click="emit('kick', seat.slot ?? slotForSeat(i))">{{ t('common.remove') }}</button>
         </template>
       </li>
     </ul>

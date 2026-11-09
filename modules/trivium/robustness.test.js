@@ -33,12 +33,12 @@ const EVENTS = {
   create: ['rounds', 'perRound'],
   leave: [],
   kick: ['userId'],
-  voteKick: ['userId'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   addBot: [],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   settings: ['rounds', 'perRound'],
   colour: ['colour'],
   start: [],
@@ -49,8 +49,8 @@ const EVENTS = {
 /** Extra payloads worth trying on each event beyond the standard battery. */
 const extrasFor = (people) => ({
   answer: [{ choice: 0, x: 0.5, y: 0.5 }, { choice: 3, x: 0, y: 0 }, { choice: 3, x: 1, y: 1 }, { choice: 0, x: 1.0001, y: 0.5 }, { choice: '1', x: '0.5', y: '0.5' }, { choice: [0], x: 0.5, y: 0.5 }, { choice: 0 }],
-  kick: [...people.map((p) => ({ userId: p.id })), { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(people[1].id) }],
-  removeBot: [{ seat: 'bot:1' }, { seat: 'bot:0' }, { seat: people[0].id }],
+  kick: [...people.map((_, i) => ({ slot: `s${i}` })), { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: people[1].id }, { slot: String(people[1].id) }],
+  removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: people[0].id }],
   fillBots: [{ count: 8 }, { count: 0 }, { count: 99 }],
   colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }, { colour: '#123456' }],
   settings: [{ rounds: 3 }, { rounds: 0 }, { rounds: 9 }, { rounds: '3' }, { perRound: 10 }, { perRound: 11 }],
@@ -203,7 +203,7 @@ test('actions out of their time, and from outsiders, are refused and change noth
   // Before the quiz: nothing but the waiting room's own actions work.
   for (const who of [ann, bob]) assert.equal((await who.call('answer', { choice: 0, x: 0.5, y: 0.5 })).error, 'noQuestionUp');
   // Outsiders cannot touch a game they are not in.
-  for (const [event, payload] of [['start', {}], ['answer', { choice: 0, x: 0.5, y: 0.5 }], ['settings', { rounds: 2 }], ['kick', { userId: bob.id }], ['colour', { colour: '#ff2d95' }], ['addBot', {}]]) {
+  for (const [event, payload] of [['start', {}], ['answer', { choice: 0, x: 0.5, y: 0.5 }], ['settings', { rounds: 2 }], ['kick', { slot: 's1' }], ['colour', { colour: '#ff2d95' }], ['addBot', {}]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.equal((await bob.call('start')).error, 'hostOnlyStart');

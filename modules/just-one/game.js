@@ -656,6 +656,7 @@ function resultView(room, nameOf) {
 function playerView(room, p, { nameOf, online, final }) {
   return {
     id: p.id,
+    slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
     name: nameOf(p.id),
     score: p.score,
     online: isBot(p) || online(p.id),

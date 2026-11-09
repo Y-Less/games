@@ -153,9 +153,10 @@ test('the host leaving hands the room on, and the host can remove somebody mid-q
   const site = await launch(t);
   const { people, host } = await quizOf(site, ['ann', 'bob', 'cat'], { rounds: 1, perRound: 1 });
   const [ann, bob, cat] = people;
-  assert.equal((await bob.call('kick', { userId: cat.id })).error, 'hostOnlyRemove');
-  assert.equal((await host.call('kick', { userId: ann.id })).ok, false, 'the host cannot remove themselves');
-  assert.equal((await host.call('kick', { userId: cat.id })).ok, true);
+  const slotOf = (id) => host.state.players.find((p) => p.id === id).slot;
+  assert.equal((await bob.call('kick', { slot: slotOf(cat.id) })).error, 'hostOnlyRemove');
+  assert.equal((await host.call('kick', { slot: slotOf(ann.id) })).ok, false, 'the host cannot remove themselves');
+  assert.equal((await host.call('kick', { slot: slotOf(cat.id) })).ok, true);
   await until(() => cat.state === null, 'Cat back at the menu');
   assert.equal((await ann.call('leave')).ok, true);
   await until(() => bob.state?.hostId === bob.id, 'Bob is now the host');

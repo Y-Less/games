@@ -120,8 +120,8 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   assert.equal(room.seats.length, 3);
   assert.equal(room.seats[0].kind, 'human', 'the host keeps a seat');
   assert.deepEqual(room.seats.map((s) => s.kind), ['human', 'bot', 'bot']);
-  assert.ok(g.removeBot(room, 1, 2).ok);
-  assert.equal(g.removeBot(room, 1, 0).ok, false, 'a person is not a computer player');
+  assert.ok(g.removeBot(room, 1, 's2').ok);
+  assert.equal(g.removeBot(room, 1, 's0').ok, false, 'a person is not a computer player');
   assert.equal(g.addBot(room, 1, 0).ok, false);
   assert.equal(g.addBot(room, 1, 9).ok, false);
   assert.ok(g.addBot(room, 1).ok);
@@ -129,7 +129,7 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   const names = room.seats.map((s) => s.name);
   assert.equal(new Set(names).size, names.length);
   assert.ok(g.addHuman(room, 2, 'Ann').ok === false, 'full');
-  g.removeBot(room, 1, 1);
+  g.removeBot(room, 1, 's1');
   assert.ok(g.addHuman(room, 2, 'Ann').ok);
   assert.notEqual(room.seats[1].name, 'Ann', 'names are made distinct');
   assert.equal(g.setSettings(room, 1, { length: 'weird' }).ok, false);

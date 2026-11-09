@@ -85,7 +85,7 @@ function playRandom(seed) {
     () => game.fillTimedOut(room, rng, String, 0),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [3, 5, 99, 'x'])),
-    (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id]), rng),
+    (id) => game.removeBot(room, id, pick(rng, ['s0', 's1', 's2', 's99']), rng),
     (id) => game.start(room, id, rng),
     (id) => game.submitAnswers(room, id, pick(rng, ANSWERS), rng),
     (id) => game.choose(room, id, pick(rng, PICKS)),

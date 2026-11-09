@@ -9,7 +9,7 @@ test('the host removes a person mid-game: a computer player takes the seat, the 
   const { room } = playingRoom(3, { seed: 4 });
   const at = room.seats.findIndex((s) => s.id === 2);
   const others = room.seats.map((s) => s.id);
-  const result = game.kick(room, 1, at, Math.random);
+  const result = game.kick(room, 1, `s${at}`, Math.random);
   assert.deepEqual([result.ok, result.userId, result.replaced], [true, 2, true]);
   assert.equal(room.seats[at].kind, 'bot');
   assert.deepEqual(room.seats.map((s) => s.id).filter((_, i) => i !== at), others.filter((_, i) => i !== at));
@@ -21,12 +21,12 @@ test('the host removes a person mid-game: a computer player takes the seat, the 
 test('only the host can remove, never themselves or a computer player, and nonsense changes nothing', () => {
   const { room } = playingRoom(3, { seed: 4 });
   const before = JSON.stringify(room);
-  const host = room.seats.findIndex((s) => s.id === 1);
-  const other = room.seats.findIndex((s) => s.id === 2);
+  const host = `s${room.seats.findIndex((s) => s.id === 1)}`;
+  const other = `s${room.seats.findIndex((s) => s.id === 2)}`;
   assert.equal(game.kick(room, 2, other, Math.random).ok, false, 'a guest');
   assert.equal(game.kick(room, 2, host, Math.random).ok, false, 'a guest removing the host');
   assert.equal(game.kick(room, 1, host, Math.random).ok, false, 'themselves');
-  for (const seat of [-1, 3, 99, 1.5, NaN, '1', null, undefined, {}, [], true, 2 ** 40]) assert.equal(game.kick(room, 1, seat, Math.random).ok, false, String(seat));
+  for (const seat of ['s-1', 's3', 's99', 's1.5', 's', -1, 3, 1.5, NaN, '1', null, undefined, {}, [], true, 2 ** 40]) assert.equal(game.kick(room, 1, seat, Math.random).ok, false, String(seat));
   for (const by of [99, null, undefined, '1']) assert.equal(game.kick(room, by, other, Math.random).ok, false, `by ${String(by)}`);
   assert.equal(JSON.stringify(room), before, 'nothing changed');
   assert.equal(game.kick(room, 1, other, Math.random).ok, true);
@@ -38,6 +38,6 @@ test('nobody is removed once the game is over', () => {
   const { room } = playingRoom(2, { seed: 4 });
   room.phase = 'finished';
   const before = JSON.stringify(room);
-  assert.equal(game.kick(room, 1, room.seats.findIndex((s) => s.id === 2), Math.random).ok, false);
+  assert.equal(game.kick(room, 1, `s${room.seats.findIndex((s) => s.id === 2)}`, Math.random).ok, false);
   assert.equal(JSON.stringify(room), before);
 });

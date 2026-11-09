@@ -14,7 +14,7 @@ const words = (line) => messageText(line, 'tints-and-hints');
 
 vi.setConfig({ testTimeout: 20000 }); // 1248 real buttons per mounted grid are slow in jsdom
 
-const player = (id, name, extra = {}) => ({ id, name, colour: '#ff0000', score: 0, online: true, guessed: false, placement: null, winner: false, ...extra });
+const player = (id, name, extra = {}) => ({ id, slot: `s${id}`, name, colour: '#ff0000', score: 0, online: true, guessed: false, placement: null, winner: false, ...extra });
 function view(extra = {}) {
   const players = extra.players ?? [player(1, 'Ann'), player(2, 'Bob', { colour: '#0000ff' }), player(3, 'Cy', { colour: '#00ff00' })];
   return {
@@ -31,7 +31,7 @@ function view(extra = {}) {
     guesses: [],
     result: null,
     players,
-    scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 1, away: false })), rounds: [], lowIsBetter: false },
+    scoreboard: { players: players.map((p) => ({ id: p.id, slot: p.slot, name: p.name, score: p.score, isMe: p.id === 1, away: false })), rounds: [], lowIsBetter: false },
     colours: ['#ff0000', '#0000ff', '#00ff00'],
     limits: { min: 2, max: 8, turns: { min: 1, max: 5 } },
     ...extra,
@@ -68,7 +68,7 @@ describe('Tints and Hints player pop-up', () => {
     socket.emit.mockClear();
     await wrapper.find('.player-popup [data-confirm]').trigger('click');
     await flushPromises();
-    expect(socket.emit).toHaveBeenCalledWith('kick', { userId: 2 }, expect.any(Function));
+    expect(socket.emit).toHaveBeenCalledWith('kick', { slot: 's2' }, expect.any(Function));
     wrapper.unmount();
   });
 
@@ -240,7 +240,7 @@ describe('Tints and Hints computer players at the table', () => {
   it('shows a computer player with the robot icon and the host removes it with removeBot', async () => {
     const players = [player(1, 'Ann'), player(2, 'Bob', { colour: '#0000ff' }), player('bot:1', 'Ada', { bot: true, ai: { id: 'random', name: 'Random' } })];
     const state = view({ players });
-    state.scoreboard.players = players.map((p) => ({ id: p.id, name: p.name, score: 0, isMe: p.id === 1, bot: Boolean(p.bot), away: false }));
+    state.scoreboard.players = players.map((p) => ({ id: p.id, slot: p.slot, name: p.name, score: 0, isMe: p.id === 1, bot: Boolean(p.bot), away: false }));
     const { wrapper, socket } = await mountGame(state);
     expect(wrapper.findAll('.score-bar .bot-icon')).toHaveLength(1);
     await wrapper.findAll('.score-bar button.chip-button')[2].trigger('click');
@@ -248,7 +248,7 @@ describe('Tints and Hints computer players at the table', () => {
     await wrapper.find('.player-popup').findAll('button').find((b) => b.text() === 'Remove computer player').trigger('click');
     const confirm = wrapper.find('.player-popup').findAll('button').find((b) => /^(Yes|Remove|Confirm)/.test(b.text()) && b.text() !== 'Remove computer player');
     if (confirm) await confirm.trigger('click');
-    expect(socket.emit).toHaveBeenCalledWith('removeBot', { seat: 'bot:1' }, expect.any(Function));
+    expect(socket.emit).toHaveBeenCalledWith('removeBot', { slot: 'sbot:1' }, expect.any(Function));
   });
 });
 

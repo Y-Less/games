@@ -208,7 +208,7 @@ test('kicking over sockets: every socket of the person is sent out, and the code
   const phone = await bob.twin();
   await phone.call('resume', {});
   await until(() => phone.state?.code === code && ann.state.seats[1], 'bob on two sockets');
-  assert.equal((await ann.call('kick', { seat: 1 })).ok, true);
+  assert.equal((await ann.call('kick', { slot: 's1' })).ok, true);
   await until(() => bob.state === null && phone.state === null, 'both of bob\'s sockets sent out');
   assert.equal(ann.state.seats[1], null);
   assert.equal((await bob.call('create', { seats: 2 })).ok, true, 'free to start their own game');
@@ -217,7 +217,7 @@ test('kicking over sockets: every socket of the person is sent out, and the code
   await ann.call('fillBots');
   await ann.call('start');
   await until(() => ann.state.phase === 'playing', 'play');
-  assert.equal((await ann.call('kick', { seat: 1 })).ok, false, 'kicking is for the lobby');
+  assert.equal((await ann.call('kick', { slot: 's1' })).ok, false, 'kicking is for the lobby');
 });
 
 test('a finished game does not block joining another, and a finished seat can be left', async (t) => {

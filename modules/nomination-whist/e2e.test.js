@@ -343,8 +343,8 @@ test('the lobby: only the host changes things, seats and computer players, and t
   assert.ok((await ann.send('addBot', {})).ok);
   assert.ok((await ann.send('addBot', { seat: 5 })).ok);
   await until(() => ann.state.seats[5]?.bot, 'a computer in seat 5');
-  assert.ok((await ann.send('removeBot', { seat: 5 })).ok);
-  assert.equal((await ann.send('removeBot', { seat: 0 })).ok, false);
+  assert.ok((await ann.send('removeBot', { slot: 's5' })).ok);
+  assert.equal((await ann.send('removeBot', { slot: 's0' })).ok, false);
   assert.ok((await ann.send('fillBots')).ok);
   assert.ok((await ann.send('settings', { seats: 3 })).ok, 'fewer seats drop computer players');
   await until(() => ann.state.seats.length === 3 && ann.state.seats.every((x) => x.name), 'three seats');

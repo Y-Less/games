@@ -116,8 +116,8 @@ test('the host adds, removes and fills computer players; the game needs four sea
   assert.match(room.seats[1].id, /^bot:\d+$/);
   assert.equal(g.addBot(room, 1, 1).ok, false, 'the seat is taken');
   assert.equal(g.addBot(room, 1, 9).ok, false, 'no such seat');
-  assert.equal(g.removeBot(room, 1, 0).ok, false, 'a person is not removed this way');
-  assert.equal(g.removeBot(room, 1, 1).ok, true);
+  assert.equal(g.removeBot(room, 1, 's0').ok, false, 'a person is not removed this way');
+  assert.equal(g.removeBot(room, 1, 's1').ok, true);
   assert.equal(room.seats[1], null);
   assert.equal(g.fillWithBots(room, 1).ok, true);
   assert.deepEqual(room.seats.map((s) => s.kind), ['human', 'bot', 'bot', 'bot']);
@@ -847,7 +847,7 @@ test('a person who leaves a finished game stays on the table as gone, so the vie
   assert.equal(view.seats[0].online, false, 'but they are away');
   assert.equal(view.scoreboard.players[0].away, true);
   assert.equal(view.scoreboard.players.length, room.seats.length, 'no seat is missing from the scoreboard');
-  assert.equal(g.kick(room, 2, 0, seeded(1), 0).ok, false, 'there is nobody left to remove in that seat');
+  assert.equal(g.kick(room, 2, 's0', seeded(1), 0).ok, false, 'there is nobody left to remove in that seat');
   assert.equal(g.playAgain(room, 2).ok, true);
   assert.equal(room.seats[0], null, 'their seat is free for the next game');
 });

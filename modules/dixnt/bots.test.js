@@ -51,10 +51,11 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.equal(game.viewFor(room, 1).scoreboard.players.some((p) => p.current), false, 'nobody is the chooser in the lobby');
   assert.equal(String(id).startsWith('bot:'), true);
   assert.equal(game.playerOf(room, id).hand.length, 0);
-  assert.equal(game.removeBot(room, 2, id, rng).error, 'hostOnlyRemoveBots');
-  assert.equal(game.removeBot(room, 1, 2, rng).error, 'notAComputer', 'people are not computer players');
+  const slot = game.playerOf(room, id).slot;
+  assert.equal(game.removeBot(room, 2, slot, rng).error, 'hostOnlyRemoveBots');
+  assert.equal(game.removeBot(room, 1, game.playerOf(room, 2).slot, rng).error, 'notAComputer', 'people are not computer players');
   assert.equal(game.removeBot(room, 1, 'nobody', rng).error, 'notAComputer');
-  assert.equal(game.removeBot(room, 1, id, rng).ok, true);
+  assert.equal(game.removeBot(room, 1, slot, rng).ok, true);
   assert.equal(room.players.length, 2);
 
   assert.equal(game.fillWithBots(room, 1).ok, true);
@@ -74,7 +75,7 @@ test('the host adds, fills and removes computer players in the lobby, up to the 
   assert.equal(game.start(room, 1, rng).ok, true);
   assert.equal(game.addBot(room, 1).error, 'botsLobbyOnly', 'not once the game has started');
   assert.equal(game.fillWithBots(room, 1).error, 'botsLobbyOnly');
-  assert.equal(game.removeBot(room, 1, room.players[2].id, rng).error, 'botsRemoveLobbyOnly');
+  assert.equal(game.removeBot(room, 1, room.players[2].slot, rng).error, 'botsRemoveLobbyOnly');
 });
 
 test('a computer player never shares a name with a person', () => {
@@ -408,10 +409,10 @@ test('over sockets: three people and computer players at the maximum size finish
   assert.equal((await ann.call('addBot')).ok, false, 'the table is full');
   const dan = await site.person('dan').open();
   assert.equal((await dan.call('join', { code })).ok, false, 'no place for another person either');
-  const botId = ann.state.players.find((p) => p.bot).id;
-  assert.equal((await bob.call('removeBot', { seat: botId })).ok, false);
-  assert.equal((await ann.call('removeBot', { seat: botId })).ok, true);
-  assert.equal((await ann.call('removeBot', { seat: botId })).ok, false, 'already gone');
+  const botSlot = ann.state.players.find((p) => p.bot).slot;
+  assert.equal((await bob.call('removeBot', { slot: botSlot })).ok, false);
+  assert.equal((await ann.call('removeBot', { slot: botSlot })).ok, true);
+  assert.equal((await ann.call('removeBot', { slot: botSlot })).ok, false, 'already gone');
   assert.equal((await ann.call('settings', { handSize: 3, roundsEach: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await drive(people);
@@ -459,7 +460,7 @@ test('over sockets: a person leaving or removed mid-game is replaced, and the on
   assert.equal((await bob.call('leave')).ok, true);
   await until(() => bob.state === null, 'bob out again');
 
-  assert.equal((await ann.call('kick', { userId: cat.id })).ok, true, 'the host removes cat');
+  assert.equal((await ann.call('kick', { slot: ann.state.players.find((p) => p.id === cat.id).slot })).ok, true, 'the host removes cat');
   await until(() => cat.state === null, 'cat out');
   await until(() => ann.state.players.filter((p) => p.bot).length === 3, 'three computer players');
   assert.equal((await cat.call('join', { code })).ok, false, 'being put out bars her from the invitation');
@@ -516,22 +517,22 @@ test('over sockets: garbage to the computer-player events is refused and harms n
   for (const event of ['addBot', 'fillBots', 'removeBot']) assert.equal((await eve.call(event)).ok, false, `${event} from outside any game`);
   const junk = [undefined, null, 0, -1, 1.5, true, '', 'x', [], {}, ['a'], { a: 1 }, 'a'.repeat(100000), JSON.parse('{"__proto__":{"x":1}}')];
   for (const target of junk) {
-    assert.equal((await ann.call('removeBot', { seat: target })).ok, false);
+    assert.equal((await ann.call('removeBot', { slot: target })).ok, false);
     assert.equal((await ann.call('fillBots', { count: target })).ok, true, 'a nonsense count still means "enough to start"');
   }
-  for (const payload of [undefined, null, 'x', 5, [], { seat: { $gt: '' } }]) {
+  for (const payload of [undefined, null, 'x', 5, [], { slot: { $gt: '' } }]) {
     ann.fire('addBot', payload);
     ann.fire('fillBots', payload);
     ann.fire('removeBot', payload);
   }
-  assert.equal((await ann.call('removeBot', { seat: bob.id })).ok, false, 'people are not computer players');
+  assert.equal((await ann.call('removeBot', { slot: ann.state.players.find((p) => p.id === bob.id).slot })).ok, false, 'people are not computer players');
   await until(() => ann.state.players.length >= 3, 'still a lobby');
   assert.ok(ann.state.players.length <= MAX_PLAYERS);
   assert.equal((await ann.call('settings', { roundsEach: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   assert.equal((await ann.call('addBot')).ok, false, 'none once started');
   assert.equal((await ann.call('fillBots')).ok, false);
-  assert.equal((await ann.call('removeBot', { seat: ann.state.players.find((p) => p.bot)?.id })).ok, false);
+  assert.equal((await ann.call('removeBot', { slot: ann.state.players.find((p) => p.bot)?.slot })).ok, false);
   await drive([ann, bob]);
   assert.equal(await site.alive(), true);
 });

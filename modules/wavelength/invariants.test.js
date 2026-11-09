@@ -71,7 +71,7 @@ function playRandom(seed) {
     (id) => game.setColour(room, id, pick(rng, [...game.COLOURS, '#123456', 'red', null]), rng() < 0.5),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [2, 4, 8, 99, 'x'])),
-    (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id]), Math.random),
+    (id) => game.removeBot(room, id, pick(rng, ['s0', 's1', 's2', 's99']), Math.random),
     (id) => game.start(room, id, rng),
     (id) => game.setClue(room, id, pick(rng, TEXTS)),
     (id) => game.guess(room, id, pick(rng, POSITIONS)),

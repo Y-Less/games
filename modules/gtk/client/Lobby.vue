@@ -40,8 +40,8 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
       :min="state.limits.min"
       :max="state.limits.max"
       @add-bot="send('addBot')"
-      @remove-bot="(id) => send('removeBot', { seat: id })"
-      @kick="(id) => send('kick', { userId: id })"
+      @remove-bot="(slot) => send('removeBot', { slot })"
+      @kick="(slot) => send('kick', { slot })"
       @fill-bots="(count) => send('fillBots', { count })"
     />
 

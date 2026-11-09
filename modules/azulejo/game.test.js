@@ -112,8 +112,8 @@ test('computer players: add, remove, fill; the game needs one person', () => {
   assert.equal(game.addBot(room, 1, 1).ok, true);
   assert.equal(room.seats[1].kind, 'bot');
   assert.match(room.seats[1].id, /^bot:\d+$/);
-  assert.equal(game.removeBot(room, 1, 0).ok, false, 'a person');
-  assert.equal(game.removeBot(room, 1, 1).ok, true);
+  assert.equal(game.removeBot(room, 1, 's0').ok, false, 'a person');
+  assert.equal(game.removeBot(room, 1, 's1').ok, true);
   assert.equal(room.seats[1], null);
   assert.equal(game.fillWithBots(room, 1).ok, true);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3, 'distinct names');
@@ -137,12 +137,12 @@ test('kick: host only, a person other than yourself; mid-game a computer player 
   const room = mk(3);
   game.addHuman(room, 2, 'B');
   game.addBot(room, 1);
-  assert.equal(game.kick(room, 2, 0, Math.random).ok, false);
-  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'not yourself');
-  assert.equal(game.kick(room, 1, 2, Math.random).ok, false, 'a computer player is removed, not kicked');
-  assert.equal(game.kick(room, 1, 7, Math.random).ok, false);
+  assert.equal(game.kick(room, 2, 's0', Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 's0', Math.random).ok, false, 'not yourself');
+  assert.equal(game.kick(room, 1, 's2', Math.random).ok, false, 'a computer player is removed, not kicked');
+  assert.equal(game.kick(room, 1, 's7', Math.random).ok, false);
   assert.equal(game.kick(room, 1, 'x', Math.random).ok, false);
-  const done = game.kick(room, 1, 1, Math.random);
+  const done = game.kick(room, 1, 's1', Math.random);
   assert.equal(done.ok, true);
   assert.equal(done.userId, 2);
   assert.equal(room.seats[1], null);
@@ -150,16 +150,17 @@ test('kick: host only, a person other than yourself; mid-game a computer player 
   game.addHuman(room, 5, 'E'); // somebody else takes the free seat
   game.fillWithBots(room, 1);
   game.start(room, 1, Math.random);
-  const at = room.seats.findIndex((s) => s.id === 5); // the seats are shuffled when the game starts
+  const seat = room.seats.findIndex((s) => s.id === 5); // the seats are shuffled when the game starts
+  const at = `s${seat}`;
   assert.equal(game.kick(room, 5, at, Math.random).ok, false, 'still only the host');
   const mid = game.kick(room, 1, at, Math.random);
   assert.deepEqual([mid.ok, mid.userId, mid.replaced], [true, 5, true]);
-  assert.equal(room.seats[at].kind, 'bot', 'a computer player took the seat');
+  assert.equal(room.seats[seat].kind, 'bot', 'a computer player took the seat');
   assert.equal(room.seats.every(Boolean), true);
   assert.equal(game.kick(room, 1, at, Math.random).ok, false, 'and it is not a person to kick');
   assert.equal(game.removeBot(room, 1, at).ok, false, 'nor can it be removed from a game that has started');
   room.phase = 'finished';
-  assert.equal(game.kick(room, 1, room.seats.findIndex((s) => s.kind === 'human' && s.id !== 1), Math.random).ok, false, 'nobody to remove once it is over');
+  assert.equal(game.kick(room, 1, `s${room.seats.findIndex((s) => s.kind === 'human' && s.id !== 1)}`, Math.random).ok, false, 'nobody to remove once it is over');
 });
 
 test('removing a human: the seat is freed in the lobby, a computer takes over mid-game, the host passes on', () => {

@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils';
 import PlayerListPanel from './PlayerListPanel.vue';
 
 const players = [
-  { id: 1, name: 'Ann', online: true },
-  { id: 2, name: 'Bob', online: false },
-  { id: 'b1', name: 'Robo', bot: true, online: true },
+  { id: 1, slot: 's0', name: 'Ann', online: true },
+  { id: 2, slot: 's1', name: 'Bob', online: false },
+  { id: 'b1', slot: 's2', name: 'Robo', bot: true, online: true },
 ];
 const make = (props = {}, slots = {}) => mount(PlayerListPanel, { props: { players, you: 1, hostId: 1, isHost: true, min: 4, max: 6, ...props }, slots });
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
@@ -27,8 +27,9 @@ describe('PlayerListPanel', () => {
     expect(rows[0].find('button').exists()).toBe(false);
     await rows[1].find('button').trigger('click');
     await rows[2].find('button').trigger('click');
-    expect(w.emitted().kick).toEqual([[2]]);
-    expect(w.emitted().removeBot).toEqual([['b1']]);
+    // Removal names a place by its slot, whatever kind of game it is (shared/layout.js).
+    expect(w.emitted().kick).toEqual([['s1']]);
+    expect(w.emitted().removeBot).toEqual([['s2']]);
   });
 
   it('offers add and fill to the host only, and says when full', async () => {

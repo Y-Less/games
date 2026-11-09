@@ -142,7 +142,7 @@ test('sockets: the host cannot send anyone away once the game has ended; the res
   await until(() => both.every((p) => p.state.phase === 'finished'), 'finished');
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
-  const reply = await ann.call('kick', { userId: bob.id });
+  const reply = await ann.call('kick', { slot: ann.state.players.find((p) => p.id === bob.id).slot });
   assert.deepEqual(reply, { ok: false, error: 'gameOverNobodyToRemove' });
   await sleep(50);
   assert.equal(ann.state.players.length, 2, 'the final standings still list both');

@@ -8,6 +8,7 @@
 //   WAVELENGTH_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
 //   WAVELENGTH_NEXT_WAIT   milliseconds the reveal waits for everyone to close the scores before moving on (default 60000)
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { rosterLayout } from '../../shared/layout.js';
 import * as game from './game.js';
 
 /**
@@ -49,7 +50,7 @@ export default function (ctx) {
     game,
     pickSettings,
     members: (room) => room.players,
-    kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
+    layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
     playerExtras: (userId) => ({ colour: ctx.markers.preferred(userId) }),
     viewOptions: (room, userId) => ({ nameOf, canCustom: ctx.markers.canCustom(userId) }),
     migrate: (room) => game.migrate(room, nameOf),

@@ -148,8 +148,8 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await ann.call('addBot')).ok, true);
   await until(() => ann.state.seats[2]?.bot, 'a computer player');
   assert.equal((await cat.call('join', { code })).ok, false, 'a full room');
-  assert.equal((await ann.call('removeBot', { seat: 1 })).ok, false, 'a person is not removed like a computer player');
-  assert.equal((await ann.call('removeBot', { seat: 2 })).ok, true);
+  assert.equal((await ann.call('removeBot', { slot: 's1' })).ok, false, 'a person is not removed like a computer player');
+  assert.equal((await ann.call('removeBot', { slot: 's2' })).ok, true);
   assert.equal((await cat.call('join', { code })).ok, true, 'the freed seat');
   assert.equal((await dan.call('join', { code })).ok, false);
   assert.equal((await ann.call('start')).ok, true);

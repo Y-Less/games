@@ -18,7 +18,7 @@ function lobby() {
 
 test('rules: the host removes a person from a lobby seat and the seat becomes empty', () => {
   const room = lobby();
-  const result = game.kick(room, 1, 1, Math.random);
+  const result = game.kick(room, 1, 's1', Math.random);
   assert.deepEqual(result, { ok: true, userId: 2, replaced: false });
   assert.equal(room.seats[1], null);
   assert.equal(game.hasPlayer(room, 2), false);
@@ -34,11 +34,11 @@ test('rules: only the host can kick, and never themselves', () => {
   const room = lobby();
   const before = snapshot(room);
   for (const [by, seat] of [[2, 2], [3, 1], [2, 0], [99, 1], [null, 1], [undefined, 1]]) {
-    const result = game.kick(room, by, seat, Math.random);
+    const result = game.kick(room, by, `s${seat}`, Math.random);
     assert.equal(result.ok, false, `${by} kicking seat ${seat}`);
     assert.equal(result.error, 'hostOnly');
   }
-  const self = game.kick(room, 1, 0, Math.random);
+  const self = game.kick(room, 1, 's0', Math.random);
   assert.equal(self.ok, false);
   assert.ok(self.error);
   assert.equal(snapshot(room), before, 'nothing changed');
@@ -51,7 +51,7 @@ test('rules: the host can remove a person in any phase but the last: a computer 
     assert.equal(game.start(room, 1, Math.random).ok, true);
     room.phase = phase;
     const before = snapshot(room);
-    const result = game.kick(room, 1, 1, Math.random);
+    const result = game.kick(room, 1, 's1', Math.random);
     if (phase === 'finished') {
       assert.equal(result.ok, false, phase);
       assert.equal(result.error, 'gameOverNobodyToRemove');
@@ -71,7 +71,8 @@ test('rules: a computer player, an empty seat or a nonsense seat cannot be kicke
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1, 2);
   const before = snapshot(room);
-  for (const seat of [2, 3, -1, 4, 99, 1.5, NaN, Infinity, '1', '0', undefined, null, {}, [], [1], true, 'bot:1', 2 ** 40]) {
+  // Both the slots that name nobody and the things that are not slots at all.
+  for (const seat of ['s2', 's3', 's-1', 's4', 's99', 2, 3, -1, 1.5, NaN, Infinity, '1', '0', 's', 's1.5', undefined, null, {}, [], [1], true, 'bot:1', 2 ** 40]) {
     const result = game.kick(room, 1, seat, Math.random);
     assert.equal(result.ok, false, `seat ${String(seat)}`);
     assert.equal(typeof result.error, 'string');
@@ -82,8 +83,8 @@ test('rules: a computer player, an empty seat or a nonsense seat cannot be kicke
 
 test('rules: the kick result names the person so the server can send them home', () => {
   const room = lobby();
-  assert.equal(game.kick(room, 1, 2, Math.random).userId, 3);
-  assert.equal(game.kick(room, 1, 2, Math.random).ok, false, 'the seat is already empty');
+  assert.equal(game.kick(room, 1, 's2', Math.random).userId, 3);
+  assert.equal(game.kick(room, 1, 's2', Math.random).ok, false, 'the seat is already empty');
   assert.equal(game.humanSeats(room).length, 2);
 });
 
@@ -101,10 +102,10 @@ test('sockets: the host removes a person; they return to the entry screen, and t
   assert.equal((await bobsSecondTab.call('resume', { code })).ok, true);
   await until(() => bobsSecondTab.state?.you === 1, 'the second tab to be seated');
 
-  assert.deepEqual(await cat.call('kick', { seat: 1 }), { ok: false, error: 'hostOnly' });
+  assert.deepEqual(await cat.call('kick', { slot: 's1' }), { ok: false, error: 'hostOnly' });
   assert.equal(ann.state.seats[1].name, 'bob', 'a non-host cannot remove anyone');
 
-  assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
+  assert.deepEqual(await ann.call('kick', { slot: 's1' }), { ok: true });
   await until(() => bob.state === null && bobsSecondTab.state === null, 'both of bob\'s tabs to be sent to the entry screen');
   await until(() => ann.state.seats[1] === null && cat.state.seats[1] === null, 'the seat to be empty for everyone');
   assert.equal(ann.state.seats[2].name, 'cat');
@@ -115,8 +116,8 @@ test('sockets: the host removes a person; they return to the entry screen, and t
   assert.equal((await ann.call('addBot', { seat: 1 })).ok, true);
   await sleep(60);
   assert.equal(bob.states.length, heard, 'no further states for the kicked person');
-  assert.equal((await ann.call('removeBot', { seat: 1 })).ok, true);
-  for (const [event, payload] of [['settings', { length: 'short' }], ['start', {}], ['play', { card: '2C' }], ['kick', { seat: 0 }], ['addBot', {}]]) {
+  assert.equal((await ann.call('removeBot', { slot: 's1' })).ok, true);
+  for (const [event, payload] of [['settings', { length: 'short' }], ['start', {}], ['play', { card: '2C' }], ['kick', { slot: 's0' }], ['addBot', {}]]) {
     const reply = await bob.call(event, payload);
     assert.equal(reply.ok, false, event);
     assert.equal(reply.error, 'notInAnyGame');
@@ -147,14 +148,14 @@ test('sockets: nobody can kick themselves, a computer player, an empty or an unk
     assert.equal(typeof reply.error, 'string', why);
     assert.ok(reply.error.length > 0, why);
   };
-  await refused(ann, { seat: 0 }, 'the host kicking themselves');
-  await refused(ann, { seat: 2 }, 'a computer player (use removeBot)');
-  await refused(ann, { seat: 3 }, 'an empty seat');
-  for (const seat of [-1, 4, 99, 1.5, '1', null, 'bot:1', {}, [], 2 ** 40]) await refused(ann, { seat }, `seat ${JSON.stringify(seat)}`);
+  await refused(ann, { slot: 's0' }, 'the host kicking themselves');
+  await refused(ann, { slot: 's2' }, 'a computer player (use removeBot)');
+  await refused(ann, { slot: 's3' }, 'an empty seat');
+  for (const slot of ['s-1', 's4', 's99', 's1.5', 's', -1, 4, 1.5, '1', null, 'bot:1', {}, [], 2 ** 40]) await refused(ann, { slot }, `slot ${JSON.stringify(slot)}`);
   for (const payload of [undefined, null, 1, 'x', [], [1]]) await refused(ann, payload, `payload ${JSON.stringify(payload)}`);
-  await refused(bob, { seat: 0 }, 'a non-host kicking the host');
-  await refused(bob, { seat: 1 }, 'a non-host kicking themselves');
-  await refused(eve, { seat: 1 }, 'someone who is not in the room');
+  await refused(bob, { slot: 's0' }, 'a non-host kicking the host');
+  await refused(bob, { slot: 's1' }, 'a non-host kicking themselves');
+  await refused(eve, { slot: 's1' }, 'someone who is not in the room');
 
   await sleep(40);
   assert.equal(ann.state.seats[1].name, 'bob', 'bob is still there');
@@ -174,14 +175,14 @@ test('sockets: the host removes a person mid-game and a computer player takes th
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'started');
   const at = ann.state.seats.findIndex((x) => x.name === 'bob');
-  assert.deepEqual(await bob.call('kick', { seat: 0 }), { ok: false, error: 'hostOnly' });
-  assert.deepEqual(await ann.call('kick', { seat: at }), { ok: true });
+  assert.deepEqual(await bob.call('kick', { slot: 's0' }), { ok: false, error: 'hostOnly' });
+  assert.deepEqual(await ann.call('kick', { slot: `s${at}` }), { ok: true });
   await until(() => bob.state === null, 'bob sent out');
   await until(() => ann.state.seats[at].bot === true, 'a computer player in the seat');
   assert.notEqual(ann.state.seats[at].name, 'bob');
   const botAt = ann.state.seats.findIndex((x, i) => x.bot && i !== at);
-  assert.equal((await ann.call('kick', { seat: botAt })).ok, false, 'a computer player is not a person');
-  assert.equal((await ann.call('removeBot', { seat: botAt })).ok, false, 'and cannot be taken out of a game that has started');
+  assert.equal((await ann.call('kick', { slot: `s${botAt}` })).ok, false, 'a computer player is not a person');
+  assert.equal((await ann.call('removeBot', { slot: `s${botAt}` })).ok, false, 'and cannot be taken out of a game that has started');
   assert.equal(ann.state.seats.every(Boolean), true, 'every seat is still filled');
 });
 
@@ -192,7 +193,7 @@ test('sockets: a kicked person is free to start their own game, but not to come 
   const { code } = await ann.call('create', {});
   assert.equal((await bob.call('join', { code })).ok, true);
   await until(() => ann.state.seats[1]?.name === 'bob', 'bob seated');
-  assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
+  assert.deepEqual(await ann.call('kick', { slot: 's1' }), { ok: true });
   await until(() => bob.state === null && ann.state.seats[1] === null, 'bob out');
   assert.equal((await bob.call('join', { code })).error, 'removedFromGame', 'the code is no way back in');
   const own = await bob.call('create', {});

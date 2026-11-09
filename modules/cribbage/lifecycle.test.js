@@ -157,14 +157,14 @@ test('the host: a dropped connection keeps the role, leaving hands it on, and an
   assert.equal(bob.state.isHost, false);
   assert.equal(bob.state.seats[0].host, true, 'a dropped connection does not hand the host over');
   // Bob is not the host: he cannot remove ann.
-  assert.deepEqual((await bob.call('kick', { seat: 0 })).ok, false);
+  assert.deepEqual((await bob.call('kick', { slot: 's0' })).ok, false);
   await ann.connect();
   await ann.call('resume', {});
   await until(() => ann.state?.phase === 'discard', 'ann back');
   // Now bob drops: ann (host) may remove him, and a computer takes over (she could have while he was connected too).
   bob.socket.close();
   await until(() => ann.state.seats[1].online === false, 'bob away');
-  assert.deepEqual(await ann.call('kick', { seat: 1 }), { ok: true });
+  assert.deepEqual(await ann.call('kick', { slot: 's1' }), { ok: true });
   await until(() => ann.state.seats[1].bot && ann.state.seats[1].replaced, 'a computer in bob\'s seat');
   await bob.connect();
   await bob.call('resume', {});

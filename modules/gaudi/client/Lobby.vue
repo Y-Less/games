@@ -64,9 +64,9 @@ const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * props.state.si
       :seats="seats"
       :is-host="isHost"
       @add-bot="send('addBot', { seat: firstEmpty() })"
-      @remove-bot="(id) => send('removeBot', { seat: id })"
+      @remove-bot="(slot) => send('removeBot', { slot })"
       @fill-bots="send('fillBots')"
-      @kick="(id) => send('kick', { seat: id })"
+      @kick="(slot) => send('kick', { slot })"
       @start="send('start')"
     >
       <template #settings>

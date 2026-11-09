@@ -132,7 +132,7 @@ test('the host removing the only player who still owes a turn leaves a computer 
   assert.equal(room.phase, 'word');
   const lastToChoose = game.playerOf(room, room.chooserId);
   assert.equal(lastToChoose.turns, 0);
-  assert.equal(game.kick(room, 1, lastToChoose.id, rng, 0).ok, true);
+  assert.equal(game.kick(room, 1, lastToChoose.slot, rng, 0).ok, true);
   assert.equal(room.phase, 'word', 'the game goes on: a computer player has their place and their turn');
   assert.equal(game.playerOf(room, room.chooserId).kind, 'bot');
   assert.equal(room.players.length, 4);

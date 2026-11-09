@@ -17,6 +17,7 @@
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { numberFrom } from './input.js';
+import { rosterLayout } from './layout.js';
 import { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, isBarred, isBot, isHuman, nextBotName, ok } from './seats.js';
 
 export { barFromRoom, isBarred, isBot, isHuman };
@@ -410,15 +411,15 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    *
    * @param {object} room
    * @param {number} userId
-   * @param {string} botId  the computer player's id ('bot:<n>')
+   * @param {string} slot  the slot the computer player holds ("s2")
    * @returns {{ ok: boolean, error?: string }}
    * Side effects: splices room.players.
    */
-  function removeBot(room, userId, botId) {
+  function removeBot(room, userId, slot) {
     const problem = asHost(room, userId);
     if (problem) return fail('hostOnlyRemoveBots');
-    const index = seatOf(room, botId);
-    if (!isBot(room.players[index])) return fail('notAComputer');
+    const index = rosterLayout.indexOf(room, slot);
+    if (index === -1 || !isBot(room.players[index])) return fail('notAComputer');
     if (!isLive(room)) return fail('gameOverNobodyToRemove');
     const refused = lobbyHostOnly(room, userId, 'remove');
     if (refused) return refused;
@@ -433,15 +434,15 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, botNames = D
    *
    * @param {object} room
    * @param {number} hostId
-   * @param {number} targetId  the account id of the person to remove
+   * @param {string} slot  the slot of the person to remove ("s2")
    * @param {() => number} rng
    * @param {number} [now]  the clock, passed on to the game's takeOver
    * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }}
    * Side effects: as takeOut.
    */
-  function kick(room, hostId, targetId, rng, now = 0) {
+  function kick(room, hostId, slot, rng, now = 0) {
     if (hostId !== room.hostId) return fail('hostOnlyRemove');
-    const target = room.players.find((p) => p.id === targetId);
+    const target = rosterLayout.at(room, slot);
     if (!isHuman(target) || target.id === hostId) return fail('playerNotInGame');
     if (!isLive(room)) return fail('gameOverNobodyToRemove');
     const removed = takeOut(room, target.id, rng, now);

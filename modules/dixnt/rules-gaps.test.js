@@ -270,7 +270,7 @@ test('a place that changes hands keeps its column and its cards, and chooser ord
   const heldCards = [...leaver.hand];
   const score = leaver.score;
   const discardBefore = room.discard.length;
-  assert.equal(game.kick(room, 1, leaver.id, rng, 0).ok, true);
+  assert.equal(game.kick(room, 1, leaver.slot, rng, 0).ok, true);
   const stand = room.players[1];
   assert.equal(stand.kind, 'bot');
   assert.deepEqual(stand.hand, heldCards, 'the cards stay with the place');
@@ -282,7 +282,7 @@ test('a place that changes hands keeps its column and its cards, and chooser ord
   assert.ok(rounds.every((r) => !(leaver.id in r.deltas) && !(leaver.id in r.notes)));
   assert.equal(stand.score, score);
   for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.slot] ?? 0), 0), p.score);
-  assert.equal(game.kick(room, 3, 4, rng, 0).error, 'hostOnlyRemove');
+  assert.equal(game.kick(room, 3, game.playerOf(room, 4).slot, rng, 0).error, 'hostOnlyRemove');
   assert.equal(game.kick(room, 1, 'nobody', rng, 0).error, 'playerNotInGame');
   // The turn counts: nobody who still owes a turn is skipped.
   const owing = room.players.filter((p) => p.turns < room.roundsEach).map((p) => p.id);

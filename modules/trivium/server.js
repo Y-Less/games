@@ -25,6 +25,7 @@
 // Depends on shared/roomServer.js, shared/trivia.js (the questions), ./game.js (the rules) and ./testing.js (the
 // questions the tests use).
 import { createRoomServer, pickKeys, readDelayMs } from '../../shared/roomServer.js';
+import { rosterLayout } from '../../shared/layout.js';
 import { sharedTrivia } from '../../shared/trivia.js';
 import * as game from './game.js';
 import { testStore } from './testing.js';
@@ -135,7 +136,7 @@ export default function (ctx) {
     game,
     pickSettings,
     members: (room) => room.players,
-    kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
+    layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
     playerExtras: (userId) => ({ colour: ctx.markers.preferred(userId) }),
     viewOptions: (room, userId, now) => ({ nameOf, canCustom: ctx.markers.canCustom(userId), now: now() }),
     createArgs: () => ({ counts: counts ?? {}, answerMs: delays.answerMs, spinMs: delays.spinMs, revealStep: delays.revealStep, revealHold: delays.revealHold }),

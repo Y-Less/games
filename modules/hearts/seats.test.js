@@ -217,7 +217,7 @@ test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody
   // Seat numbers are checked against the room's size, and the game needs every seat filled.
   assert.equal(g.addBot(room, 1, 6).ok, true);
   assert.equal(g.addBot(room, 1, 7).ok, false);
-  assert.equal(g.removeBot(room, 1, 6).ok, true);
+  assert.equal(g.removeBot(room, 1, 's6').ok, true);
   assert.equal(g.start(room, 1, Math.random).ok, false);
   assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'allSeatsNeedPlayers', params: { seats: 7 } });
   g.fillWithBots(room, 1);

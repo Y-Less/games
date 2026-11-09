@@ -50,8 +50,8 @@ const nudge = (which, by) => props.send('settings', { [which]: props.state[which
       :min="state.limits.min"
       :max="state.limits.max"
       @add-bot="send('addBot')"
-      @remove-bot="(id) => send('removeBot', { seat: id })"
-      @kick="(id) => send('kick', { userId: id })"
+      @remove-bot="(slot) => send('removeBot', { slot })"
+      @kick="(slot) => send('kick', { slot })"
       @fill-bots="(count) => send('fillBots', { count })"
     >
       <template #lead="{ player }"><span class="chip" :style="{ background: player.colour }" /></template>

@@ -19,12 +19,12 @@ const EVENTS = {
   create: ['target', 'seats'],
   leave: [],
   kick: ['seat'],
-  voteKick: ['seat'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   settings: ['target', 'seats'],
   addBot: ['seat'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   fillBots: [],
   start: [],
   take: ['colours'],
@@ -178,9 +178,9 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(mover, 'start', {}, /settingsBeforeStart|hostOnly/);
   await refused(mover, 'settings', { target: 10 }, /settingsBeforeStart|hostOnly/);
   await refused(mover, 'fillBots', {}, /settingsBeforeStart|hostOnly/);
-  await refused(mover, 'removeBot', { seat: 1 }, /settingsBeforeStart|hostOnly|noBotInSeat/);
+  await refused(mover, 'removeBot', { slot: 's1' }, /settingsBeforeStart|hostOnly|noBotInSeat/);
   await refused(mover, 'addBot', { seat: 1 }, /settingsBeforeStart|hostOnly/);
-  await refused(bob, 'kick', { seat: 0 }, /hostOnly|settingsBeforeStart/);
+  await refused(bob, 'kick', { slot: 's0' }, /hostOnly|settingsBeforeStart/);
   await refused(bob, 'again', {}, /hostOnly|notOver/);
   await refused(ann, 'again', {}, 'notOver');
   await refused(mover, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');

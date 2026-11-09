@@ -16,7 +16,7 @@ const EVENTS = {
   create: ['turnsEach'],
   leave: [],
   kick: ['userId'],
-  voteKick: ['userId'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   colour: ['colour'],
@@ -28,7 +28,7 @@ const EVENTS = {
   ready: [],
   addBot: [],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   again: [],
 };
 
@@ -144,7 +144,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['advance', {}]]) {
     for (const p of everyone) assert.equal((await p.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { userId: bob.id }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
+  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { slot: 's1' }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
     const reply = await eve.call(event, payload);
     assert.deepEqual(reply, { ok: false, error: 'notInAnyGame' }, event);
   }
@@ -205,7 +205,7 @@ test('error messages and replies never carry the tint or anyone else\'s guess', 
   const replies = [];
   for (const [who, event, payload] of [
     [g2, 'guess', { cell: 'nonsense' }], [g2, 'hint', { text: 'x' }], [g2, 'advance', {}], [g1, 'guess', { cell: 'K6' }], [g1, 'guess', { cell: 'K7' }],
-    [g2, 'kick', { userId: hinter.id }], [g2, 'kick', { userId: g1.id }], [g2, 'colour', { colour: 'K6' }], [g1, 'settings', { turnsEach: 'K6' }],
+    [g2, 'kick', { slot: 's0' }], [g2, 'kick', { slot: 's1' }], [g2, 'colour', { colour: 'K6' }], [g1, 'settings', { turnsEach: 'K6' }],
   ]) replies.push(await who.call(event, payload));
   const text = JSON.stringify(replies);
   assert.ok(!text.includes(`"${hinter.state.tint}"`) || ['K6', 'K7'].includes(hinter.state.tint));

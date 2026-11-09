@@ -103,7 +103,7 @@ test('only the host changes the lobby, and only in the lobby', () => {
   assert.equal(rules.addBot(room, 2).error, 'hostOnly');
   assert.deepEqual(rules.addBot(room, 1), { ok: true, seat: 2 });
   assert.ok(isBot(room.seats[2]));
-  assert.equal(rules.removeBot(room, 1, 2).ok, true);
+  assert.equal(rules.removeBot(room, 1, 's2').ok, true);
   assert.equal(room.seats[2], null);
   room.phase = 'playing';
   assert.equal(rules.addBot(room, 1).error, 'settingsBeforeStart');
@@ -166,13 +166,13 @@ test('a finished game can keep a marker for the person who left', () => {
 test('kick removes someone else, never the host, and never from a finished game', () => {
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
-  assert.equal(rules.kick(room, 2, 0).error, 'hostOnly');
-  assert.equal(rules.kick(room, 1, 0).error, 'nobodyElseInSeat');
-  assert.equal(rules.kick(room, 1, 2).error, 'nobodyElseInSeat');
+  assert.equal(rules.kick(room, 2, 's0').error, 'hostOnly');
+  assert.equal(rules.kick(room, 1, 's0').error, 'nobodyElseInSeat');
+  assert.equal(rules.kick(room, 1, 's2').error, 'nobodyElseInSeat');
   room.phase = 'finished';
-  assert.equal(rules.kick(room, 1, 1).error, 'gameOverNobodyToRemove');
+  assert.equal(rules.kick(room, 1, 's1').error, 'gameOverNobodyToRemove');
   room.phase = 'lobby';
-  const out = rules.kick(room, 1, 1);
+  const out = rules.kick(room, 1, 's1');
   assert.deepEqual(out, { ok: true, userId: 2, replaced: false });
   assert.equal(seatOf(room, 2), -1);
   assert.ok(isHuman(room.seats[0]));
@@ -203,7 +203,7 @@ test('a person who leaves a finished game leaves a gone marker, which play-again
   assert.equal(isGone(room.seats[0]), true);
   assert.equal(isHuman(room.seats[0]), false, 'a gone marker is not a person');
   assert.equal(room.hostId, 2);
-  assert.equal(gone.kick(room, 2, 0, seeded(1), 0).ok, false, 'there is nobody in that seat to remove');
+  assert.equal(gone.kick(room, 2, 's0', seeded(1), 0).ok, false, 'there is nobody in that seat to remove');
   freeGoneSeats(room);
   assert.equal(room.seats[0], null);
   assert.equal(room.seats[1].id, 2, 'the others keep their seats');

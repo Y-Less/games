@@ -45,9 +45,9 @@ const dealing = computed(() => t(`lobby.deal.${props.state.seatCount}`));
       :seats="seats"
       :is-host="state.isHost"
       @add-bot="send('addBot')"
-      @remove-bot="(id) => send('removeBot', { seat: id })"
+      @remove-bot="(slot) => send('removeBot', { slot })"
       @fill-bots="send('fillBots')"
-      @kick="(id) => send('kick', { seat: id })"
+      @kick="(slot) => send('kick', { slot })"
       @start="send('start')"
     >
       <template #settings>

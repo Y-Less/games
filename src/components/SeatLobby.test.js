@@ -41,8 +41,9 @@ describe('SeatLobby host controls', () => {
     expect(seats[0].find('button').exists()).toBe(false);
     await seats[1].find('button').trigger('click');
     await seats[2].find('button').trigger('click');
-    expect(w.emitted('kick')).toEqual([[2]]);
-    expect(w.emitted('removeBot')).toEqual([['bot1']]);
+    // Removal names a place by its slot, which for a game with numbered seats is the seat number (shared/layout.js).
+    expect(w.emitted('kick')).toEqual([['s1']]);
+    expect(w.emitted('removeBot')).toEqual([['s2']]);
   });
 
   it('offers to add a computer player in each empty seat', async () => {

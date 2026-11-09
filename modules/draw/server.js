@@ -34,6 +34,7 @@ import { shuffle } from '../../shared/cards.js';
 import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from '../../shared/drawing.js';
 import { drawingFor, testPicture } from '../../shared/picture.js';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { rosterLayout } from '../../shared/layout.js';
 import * as game from './game.js';
 
 /** How often the server sends the next few strokes of a computer player's picture (milliseconds). */
@@ -181,7 +182,7 @@ export default function (ctx) {
     game,
     pickSettings,
     members: (room) => room.players,
-    kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
+    layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
     viewOptions: (room, userId, now) => ({ nameOf, now: now() }),
     createArgs: () => ({ chooseMs: delays.chooseMs, betweenMs: delays.betweenMs }),
     migrate: (room) => game.migrate(room, nameOf),

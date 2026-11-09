@@ -11,7 +11,9 @@
 //   room.nextBot    the number the next computer player's id will use
 //
 // Every rule returns { ok: true, ... } or { ok: false, error }, and (like all the rules) mutates the room it is given.
-// Depends on: nothing (pure, no imports); the rules here are driven by shared/roomServer.js and each seated game's rules.js.
+// A place is named from outside by its slot ("s0", "s1"), which here is the seat number; see shared/layout.js.
+// Depends on: shared/layout.js; the rules here are driven by shared/roomServer.js and each seated game's rules.js.
+import { seatLayout } from './layout.js';
 
 /** Names computer players are given, in order, until they run out (then "Computer", "Computer 2", ...). */
 export const DEFAULT_BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
@@ -281,14 +283,15 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * The host takes a computer player out of a seat.  Lobby only.
    * @param {object} room  the room to change
    * @param {number} userId  who is asking (must be the host)
-   * @param {number} seat  the seat index holding the bot
+   * @param {string} slot  the slot holding the computer player ("s2")
    * @returns {{ ok: boolean, error?: string }} success, or why it failed
    * Side effects: sets `room.seats[seat]` to null.
    */
-  function removeBot(room, userId, seat) {
+  function removeBot(room, userId, slot) {
     const problem = hostInLobby(room, userId);
     if (problem) return problem;
-    if (!Number.isInteger(seat) || !isBot(room.seats[seat])) return fail('noBotInSeat');
+    const seat = seatLayout.indexOf(room, slot);
+    if (seat === -1 || !isBot(room.seats[seat])) return fail('noBotInSeat');
     room.seats[seat] = null;
     return ok();
   }
@@ -313,16 +316,16 @@ export function createSeatRules({ isMidGame, botNames = DEFAULT_BOT_NAMES, takeO
    * the person so the server can send them home.
    * @param {object} room  the room to change
    * @param {number} hostId  who is asking (must be the host)
-   * @param {number} seat  the seat index of the person to remove
+   * @param {string} slot  the slot of the person to remove ("s2")
    * @param {() => number} rng  random source, passed through to removeHuman
    * @param {number} now  current time in ms, passed through to removeHuman
    * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }} who was removed, or why it failed
    * Side effects: as removeHuman (mutates `room.seats`, may change the host).
    */
-  function kick(room, hostId, seat, rng, now) {
+  function kick(room, hostId, slot, rng, now) {
     const problem = asHost(room, hostId);
     if (problem) return problem;
-    const target = Number.isInteger(seat) ? room.seats[seat] : null;
+    const target = seatLayout.at(room, slot);
     if (!isHuman(target) || target.id === hostId) return fail('nobodyElseInSeat');
     if (room.phase === 'finished') return fail('gameOverNobodyToRemove');
     const removed = removeHuman(room, target.id, rng, now);

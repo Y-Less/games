@@ -254,11 +254,11 @@ test('lobby rules: host only, full seats, a full room and a started room refuse 
   assert.equal((await fourth.join(code)).ok, false, 'the room is full');
   assert.equal(fourth.state, null);
   assert.equal((await host.call('addBot')).ok, false, 'no free seat');
-  assert.ok((await host.call('kick', { seat: 2 })).ok);
+  assert.ok((await host.call('kick', { slot: 's2' })).ok);
   await third.gone();
   assert.ok((await host.call('addBot')).ok);
   assert.equal(host.state.seats.filter((s) => s.bot).length, 1);
-  assert.ok((await host.call('removeBot', { seat: 2 })).ok);
+  assert.ok((await host.call('removeBot', { slot: 's2' })).ok);
   assert.ok((await host.call('fillBots')).ok);
   assert.ok((await host.call('start')).ok);
   await guest.until((s) => s.phase === 'discard', 'the game to start');

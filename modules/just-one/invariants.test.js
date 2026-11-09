@@ -63,7 +63,7 @@ function playRandom(seed) {
     (id) => game.setTurnsEach(room, id, pick(rng, [1, 2, 0, 9, '2'])),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [3, 5, 99, 'x'])),
-    (id) => game.removeBot(room, id, pick(rng, ['bot:1', 'bot:2', id]), Math.random),
+    (id) => game.removeBot(room, id, pick(rng, ['s0', 's1', 's2', 's99']), Math.random),
     (id) => game.start(room, id, rng),
     (id) => game.submitClue(room, id, pick(rng, CLUES), rng),
     (id) => game.guess(room, id, pick(rng, [...GUESSES, room.word]), String),

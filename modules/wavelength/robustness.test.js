@@ -15,12 +15,12 @@ const EVENTS = {
   create: ['turnsEach', 'mode'],
   leave: [],
   kick: ['userId'],
-  voteKick: ['userId'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   addBot: [],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   colour: ['colour'],
   settings: ['turnsEach'],
   mode: ['mode'],
@@ -131,8 +131,8 @@ test('garbage payloads on every event, in every phase and mode, from members and
         guess: [{ position: 0 }, { position: 100 }, { position: 100.1 }, { position: -0.1 }, { position: '50' }, { position: [50] }, { position: 49.96 }],
         marker: [{ position: 0 }, { position: 100 }, { position: 100.1 }, { position: -0.1 }, { position: '50' }, { position: [50] }, { position: 49.96 }],
         clue: [{ text: 'a pleasant clue' }, { text: 'x'.repeat(81) }, { text: '   ' }, { text: 'two\nlines' }],
-        kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
-        removeBot: [{ seat: 'bot:1' }, { seat: 'bot:0' }, { seat: ann.id }],
+        kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
+        removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 8 }, { count: 0 }, { count: 99 }],
         colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }, { colour: '#123456' }],
         settings: [{ turnsEach: 3 }, { turnsEach: 0 }, { turnsEach: 6 }, { turnsEach: '3' }],
@@ -176,7 +176,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
     for (const who of everyone) assert.equal((await who.call(event, payload)).ok, false, `${event} in the lobby`);
   }
   // Outsiders cannot do anything to a game they are not in.
-  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['marker', { position: 5 }], ['lock', {}], ['mode', { mode: 'solo' }], ['kick', { userId: bob.id }], ['colour', { colour: '#ff2d95' }], ['addBot', {}]]) {
+  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['marker', { position: 5 }], ['lock', {}], ['mode', { mode: 'solo' }], ['kick', { slot: 's1' }], ['colour', { colour: '#ff2d95' }], ['addBot', {}]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.equal(ann.state.players.length, 3);

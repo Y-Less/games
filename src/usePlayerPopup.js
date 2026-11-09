@@ -10,12 +10,14 @@
 //     players: () => state.scoreboard.players,      // the scoreboard players: { id, name, bot?, away?, isMe? ... }
 //     hostId: () => hostPlayerId,                   // the host's id, in the same id space as the players' ids
 //     isHost: () => iAmTheHost,                     // whether this person may remove others
-//     remove: (id, player) => send(player.bot ? 'removeBot' : 'kick', { seat: id }), // the game's own event(s); may return the server's reply
-//     vote: () => state.vote,                                             // the vote the server says is running
-//     askVote: (id) => send('voteKick', { seat: id }),                    // anybody may ask; the others answer
-//     answerVote: (agree) => send('voteAnswer', { agree }),
-//     dropVote: () => send('voteDrop', {}),
+//     send,                                         // the game's sender: removing and voting are written for you
+//     vote: () => state.vote,                       // the vote the server says is running
 //   });
+//
+// `send` is all a game needs for removing and voting, because every game says those the same way: the player to
+// remove is named by their slot, which is on every scoreboard player, whether the game has numbered seats or a list
+// (shared/layout.js).  A game that genuinely differs may still pass `remove`, `askVote`, `answerVote` or `dropVote`
+// of its own, and they win.
 //   <ScoreBoard v-bind="scoreProps" ... />
 //   <PlayerPopup v-if="popupProps" v-bind="popupProps"> ...the game's panel for openId... </PlayerPopup>
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
@@ -31,8 +33,10 @@ export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
  * @param {() => Array<object>} options.players  the scoreboard players ({ id, name, bot?, away?, isMe? ... })
  * @param {() => ?(string|number)} [options.hostId]  the host's id, in the same id space as the players' ids
  * @param {() => boolean} [options.isHost]  whether this person may remove others
+ * @param {?((event: string, payload: object) => *)} [options.send]  the game's sender; with it, removing and voting
+ *   are written for you and the four callbacks below are not needed
  * @param {?((id: *, player: object) => (Promise<{ ok: boolean, error?: string }>|void))} [options.remove]  removes a
- *   player (the game's own event); null means nobody can be removed
+ *   player (the game's own event); null means nobody can be removed.  Defaults to `send`'s version.
  * @param {() => ?object} [options.vote]  the vote the server says is running (`state.vote`), or null
  * @param {?((id: *, player: object) => *)} [options.askVote]  asks the rest of the table to remove a player; null
  *   means this game does not offer it
@@ -43,7 +47,14 @@ export const POPUP_INSIDE = '.score-bar .chip-button, .player-popup';
  * Side effects: while mounted, listens for document clicks and window keydown (removed on unmount); hover leave starts a
  * 300 ms timer; remove is called when the host removes the selected player.
  */
-export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, remove = null, vote = () => null, askVote = null, answerVote = null, dropVote = null }) {
+export function usePlayerPopup({ players, hostId = () => null, isHost = () => false, send = null, remove, vote = () => null, askVote, answerVote, dropVote }) {
+  // Every game removes a player and votes about one in exactly the same words, because everybody is named by their
+  // slot whatever kind of game it is (shared/layout.js).  So a game that passes `send` gets all four for nothing, and
+  // one that genuinely differs still passes its own.
+  remove ??= send ? (id, player) => send(player?.bot ? 'removeBot' : 'kick', { slot: player?.slot }) : null;
+  askVote ??= send ? (id, player) => send('voteKick', { slot: player?.slot }) : null;
+  answerVote ??= send ? (agree) => send('voteAnswer', { agree }) : null;
+  dropVote ??= send ? () => send('voteDrop', {}) : null;
   const openId = ref(null);
   const error = ref('');
   const { error: errorWords } = useGameText();

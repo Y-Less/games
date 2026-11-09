@@ -277,7 +277,7 @@ test('only the host can remove others, start and change settings', () => {
   const { game, room, rng } = makeRoom(['A', 'B', 'C'], { cardCount: 50 });
   assert.equal(game.start(room, 2, rng).error, 'hostOnlyStart');
   assert.equal(game.setSettings(room, 2, { handSize: 5 }).error, 'hostOnly');
-  assert.equal(game.kick(room, 2, 1, rng, 0).error, 'hostOnlyRemove');
+  assert.equal(game.kick(room, 2, game.playerOf(room, 1).slot, rng, 0).error, 'hostOnlyRemove');
   assert.equal(game.setSettings(room, 1, { handSize: 5 }).ok, true);
   assert.equal(room.handSize, 5);
   assert.equal(game.setSettings(room, 1, { handSize: 1 }).error, 'handSizeRange');

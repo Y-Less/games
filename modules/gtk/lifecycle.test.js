@@ -124,7 +124,7 @@ test('a writer who has gone away holds the round up until the host removes them;
   for (const p of g.people.filter((x) => x !== gone)) assert.ok((await write(p)).ok);
   await sleep(100);
   assert.equal(g.host.state.phase, 'writing', 'the answers are not in until the one who is away has written (or has been removed)');
-  assert.ok((await g.host.call('kick', { userId: gone.id })).ok);
+  assert.ok((await g.host.call('kick', { slot: g.host.state.players.find((p) => p.id === gone.id).slot })).ok);
   await until(() => g.host.state?.phase === 'picking', 'the picking opens once the computer player has written');
   assert.equal(g.host.state.players.length, 4, 'nobody is lost');
   assert.equal(g.host.state.players.filter((p) => p.bot).length, 1, 'a computer player took their place');
@@ -140,7 +140,7 @@ test('when the subject is gone the host removes them and a computer player answe
   if (subject === g.host) return; // the host is the subject this time: removal is covered by the rules tests
   for (const s of subject.sockets) s.close();
   await until(() => g.host.state.players.find((p) => p.id === subject.id).online === false, 'the subject away');
-  assert.ok((await g.host.call('kick', { userId: subject.id })).ok);
+  assert.ok((await g.host.call('kick', { slot: g.host.state.players.find((p) => p.id === subject.id).slot })).ok);
   await until(() => g.host.state.players.some((p) => p.bot && p.subject), 'the computer player is the subject');
   assert.equal(g.host.state.players.length, 4, 'nobody is lost');
   assert.equal(g.host.state.roundsTotal, 4, 'and no round is lost');

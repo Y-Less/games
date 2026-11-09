@@ -10,6 +10,7 @@
 // `rounds` holds every finished round, oldest first, so the whole history can be shown.
 // Depends on: ./seats.js (isBot, isHuman).
 import { isBot, isGone, isHuman } from './seats.js';
+import { slotForSeat } from './layout.js';
 
 /**
  * Adds up each player's round scores.
@@ -64,7 +65,7 @@ export function winnersOf(scores, options) {
  * @returns {{ id: number, name: string, userId: number | undefined, score: number, isMe: boolean, bot: boolean, current: boolean, away: boolean }}
  */
 export function seatScoreboardEntry(seat, index, { score, me, current, online }) {
-  return { id: index, name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isGone(seat) || (isHuman(seat) && !online(seat.id)) };
+  return { id: index, slot: slotForSeat(index), name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isGone(seat) || (isHuman(seat) && !online(seat.id)) };
 }
 
 /**
@@ -80,7 +81,7 @@ export function seatScoreboardEntry(seat, index, { score, me, current, online })
  * @returns {object} `{ id, name, userId, score, isMe, bot, current, away }`, then `ready` when it was given
  */
 export function playerScoreboardEntry(player, { name, me, current, online, ready }) {
-  return { id: player.id, name, userId: isBot(player) ? undefined : player.id, score: player.score, isMe: player.id === me, bot: isBot(player), current, away: isHuman(player) && !online(player.id), ...(ready === undefined ? {} : { ready }) };
+  return { id: player.id, slot: player.slot, name, userId: isBot(player) ? undefined : player.id, score: player.score, isMe: player.id === me, bot: isBot(player), current, away: isHuman(player) && !online(player.id), ...(ready === undefined ? {} : { ready }) };
 }
 
 /**

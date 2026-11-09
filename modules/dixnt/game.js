@@ -1067,6 +1067,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     const inPlay = ['picking', 'voting', 'results'].includes(room.phase);
     return room.players.map((p) => ({
       id: p.id,
+      slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
       name: p.name,
       score: p.score,
       turns: p.turns ?? 0,
@@ -1103,6 +1104,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       // A person's id IS their account, which the site needs for name styles and avatars; a computer player has none.
       players: room.players.map((p) => ({
         id: p.id,
+        slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
         name: p.name,
         userId: isBot(p) ? undefined : p.id,
         score: p.score,

@@ -4,8 +4,8 @@ import { computed, reactive } from 'vue';
 import LobbyView from './components/LobbyView.vue';
 import { DIXNT_KEY } from './useDixnt.js';
 
-const person = (id, name, extra = {}) => ({ id, name, bot: false, ai: null, connected: true, ...extra });
-const bot = (id, name) => ({ id, name, bot: true, ai: null, connected: true });
+const person = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, bot: false, ai: null, connected: true, ...extra });
+const bot = (id, name) => ({ id, slot: `s-${id}`, name, bot: true, ai: null, connected: true });
 
 function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
   const state = {
@@ -54,9 +54,9 @@ describe('Dixnt lobby computer players', () => {
     const rows = seats(wrapper);
     expect(rows[0].find('button').exists()).toBe(false); // not oneself
     await rows[1].find('button').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('kick', { userId: 'bob' });
+    expect(send).toHaveBeenLastCalledWith('kick', { slot: 's-bob' });
     await rows[2].find('button').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('removeBot', { seat: 'b1' });
+    expect(send).toHaveBeenLastCalledWith('removeBot', { slot: 's-b1' });
     expect(button(wrapper, 'Fill up to'), 'enough players already').toBeUndefined();
   });
 

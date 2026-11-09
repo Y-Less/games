@@ -65,8 +65,8 @@ function toggleCategory(key) {
     :min="state.minPlayers"
     :max="state.maxPlayers"
     @add-bot="send('addBot')"
-    @remove-bot="(id) => send('removeBot', { seat: id })"
-    @kick="(id) => send('kick', { userId: id })"
+    @remove-bot="(slot) => send('removeBot', { slot })"
+    @kick="(slot) => send('kick', { slot })"
     @fill-bots="(count) => send('fillBots', { count })"
   />
 

@@ -93,11 +93,8 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
   players: () => props.state.scoreboard.players,
   hostId: () => props.state.hostId,
   isHost: () => props.state.hostId === props.state.you,
-  remove: (id, player) => (player?.bot ? props.send('removeBot', { seat: id }) : props.send('kick', { userId: id })),
+  send: props.send, // removing a player, and the vote about one, are the same words in every game (usePlayerPopup)
   vote: () => props.state.vote ?? null,
-  askVote: (id) => props.send('voteKick', { userId: id }),
-  answerVote: (agree) => props.send('voteAnswer', { agree }),
-  dropVote: () => props.send('voteDrop', {}),
 });
 const opened = computed(() => props.state.players.find((p) => p.id === openId.value) ?? null);
 

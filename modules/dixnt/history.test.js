@@ -61,7 +61,7 @@ test('the scoreboard shape is the same for everybody, with isMe and away set per
   assert.deepEqual(views[0].scoreboard.players.map((p) => p.isMe), [true, false, false]);
   assert.deepEqual(views[1].scoreboard.players.map((p) => p.isMe), [false, true, false]);
   assert.deepEqual(views[0].scoreboard.players.map((p) => p.away), [false, false, true]);
-  assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score', 'userId']);
+  assert.deepEqual(Object.keys(views[0].scoreboard.players[0]).sort(), ['away', 'bot', 'current', 'id', 'isMe', 'name', 'score', 'slot', 'userId']);
 });
 
 test('the scoreboard names each person by their account, which is what the site needs for name styles and avatars', () => {
@@ -135,7 +135,7 @@ test('a place that changes hands keeps its column, so the table still adds up', 
 
   const dan = game.playerOf(room, 4);
   const score = dan.score;
-  assert.equal(game.kick(room, 1, 4, rng, 0).ok, true);
+  assert.equal(game.kick(room, 1, game.playerOf(room, 4).slot, rng, 0).ok, true);
   const stand = room.players[3];
   assert.equal(stand.kind, 'bot');
   assert.equal(stand.score, score, 'the computer player inherits the score');

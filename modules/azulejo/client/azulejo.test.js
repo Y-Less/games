@@ -240,7 +240,7 @@ describe('Azulejo table: playing', () => {
     expect(w.find('.player-popup').text()).toContain('Yes, remove');
     await w.find('.player-popup [data-confirm]').trigger('click');
     await flushPromises();
-    expect(send).toHaveBeenCalledWith('kick', { seat: 1 });
+    expect(send).toHaveBeenCalledWith('kick', { slot: 's1' });
     expect(w.findAll('.popup')).toHaveLength(0);
   });
 

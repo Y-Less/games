@@ -70,8 +70,8 @@ test('lobby: seats, settings, computer players and starting', () => {
   assert.deepEqual(room.seats.map((s) => s.kind === 'bot'), [false, true, true]);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3, 'distinct names');
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, false, 'cannot drop below the occupied seats');
-  assert.ok(game.removeBot(room, 1, 2).ok);
-  assert.equal(game.removeBot(room, 1, 0).ok, false, 'a person is not a computer player');
+  assert.ok(game.removeBot(room, 1, 's2').ok);
+  assert.equal(game.removeBot(room, 1, 's0').ok, false, 'a person is not a computer player');
   assert.equal(game.start(room, 1, Math.random).ok, false);
   assert.ok(game.setSettings(room, 1, { seats: 2 }).ok);
   assert.ok(game.start(room, 1, Math.random).ok);
@@ -440,16 +440,16 @@ test('a person leaving the show lets the hand move on', () => {
 test('kick: the host removes people at any time: in a game a computer player takes over', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', settings: { seats: 3 } });
   game.addHuman(room, 2, 'B');
-  assert.equal(game.kick(room, 2, 0, Math.random).ok, false, 'only the host');
-  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'not yourself');
-  assert.equal(game.kick(room, 1, 1, Math.random).userId, 2);
+  assert.equal(game.kick(room, 2, 's0', Math.random).ok, false, 'only the host');
+  assert.equal(game.kick(room, 1, 's0', Math.random).ok, false, 'not yourself');
+  assert.equal(game.kick(room, 1, 's1', Math.random).userId, 2);
   assert.equal(game.addHuman(room, 2, 'B').error, 'removedFromGame', 'the one who was put out does not come back');
   game.addHuman(room, 5, 'E'); // somebody else takes the free seat
   game.fillWithBots(room, 1);
   game.start(room, 1, Math.random);
-  assert.equal(game.kick(room, 1, 1.5, Math.random).ok, false, 'a nonsense seat');
-  assert.equal(game.kick(room, 1, '1', Math.random).ok, false, 'a nonsense seat');
-  assert.equal(game.kick(room, 1, 1, Math.random).userId, 5);
+  assert.equal(game.kick(room, 1, 's1.5', Math.random).ok, false, 'a nonsense slot');
+  assert.equal(game.kick(room, 1, '1', Math.random).ok, false, 'a nonsense slot');
+  assert.equal(game.kick(room, 1, 's1', Math.random).userId, 5);
   assert.equal(room.seats[1].kind, 'bot');
 });
 

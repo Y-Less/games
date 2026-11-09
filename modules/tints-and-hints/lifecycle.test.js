@@ -184,15 +184,16 @@ test('the host disconnecting keeps the host role; leaving passes it on; the host
   await until(() => host.state?.phase === 'lobby', 'ann back');
   assert.equal(host.state.hostId, ann.id);
 
-  assert.equal((await ann.call('kick', { userId: ann.id })).ok, false, 'cannot kick yourself');
-  assert.equal((await ann.call('kick', { userId: 424242 })).ok, false, 'unknown id');
-  assert.equal((await bob.call('kick', { userId: cat.id })).ok, false, 'only the host');
+  const slotOf = (id) => ann.state.players.find((p) => p.id === id).slot;
+  assert.equal((await ann.call('kick', { slot: slotOf(ann.id) })).ok, false, 'cannot kick yourself');
+  assert.equal((await ann.call('kick', { slot: 's424242' })).ok, false, 'a slot nobody holds');
+  assert.equal((await bob.call('kick', { slot: slotOf(cat.id) })).ok, false, 'only the host');
 
   assert.equal((await ann.call('start', {})).ok, true);
   await allIn(people, 'guessing1');
   bob.socket.close();
   await until(() => ann.state.players.find((p) => p.id === bob.id).online === false, 'bob away');
-  assert.equal((await ann.call('kick', { userId: bob.id })).ok, true, 'a player can be removed mid-game');
+  assert.equal((await ann.call('kick', { slot: slotOf(bob.id) })).ok, true, 'a player can be removed mid-game');
   await until(() => ann.state.players.some((p) => p.bot), 'bob replaced by a computer player');
   assert.equal(ann.state.players.length, 3, 'the game is the same size');
   assert.ok(ann.state.players.every((p) => p.id !== bob.id));
@@ -227,7 +228,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   await until(() => bob.state === null && bobTab.state === null, 'room gone for both tabs');
   for (const p of [ann, bob, bobTab]) {
     assert.deepEqual(await p.call('join', { code: g.code }), { ok: false, error: 'noGameWithCode' });
-    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { userId: 1 }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
+    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { slot: 's0' }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
       const reply = await p.call(event, payload);
       assert.equal(reply.ok, false, event);
     }

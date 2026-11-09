@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { numberFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
+import { rosterLayout } from '../../shared/layout.js';
 import { renameInHistory } from '../../shared/roster.js';
 import { createRules } from './game.js';
 
@@ -234,7 +235,7 @@ export default function (ctx) {
     pickSettings,
     rng,
     members: (room) => room.players,
-    kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
+    layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
     migrate: (room) => game.migrate(room, nameOf, rng ?? Math.random),
     afterChange: collectCards,
     /**

@@ -42,8 +42,8 @@ const fillTo = computed(() => Math.min(props.max, Math.max(props.min, FILL_AT_LE
         <span v-if="p.bot" class="muted bot-tag"><BotIcon :size="16" /> {{ $t('common.computer') }}</span>
         <span v-if="p.id === hostId" class="muted">{{ $t('common.host') }}</span>
         <span v-if="!p.online" class="muted">{{ $t('common.away') }}</span>
-        <button v-if="isHost && p.bot" class="quiet" @click="emit('removeBot', p.id)">{{ $t('common.remove') }}</button>
-        <button v-else-if="isHost && p.id !== you" class="quiet" @click="emit('kick', p.id)">{{ $t('common.remove') }}</button>
+        <button v-if="isHost && p.bot" class="quiet" @click="emit('removeBot', p.slot)">{{ $t('common.remove') }}</button>
+        <button v-else-if="isHost && p.id !== you" class="quiet" @click="emit('kick', p.slot)">{{ $t('common.remove') }}</button>
       </li>
     </ul>
     <div v-if="isHost" class="row bots">

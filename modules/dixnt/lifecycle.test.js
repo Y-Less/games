@@ -248,7 +248,7 @@ test('the game vanishing under connected sockets: the last player leaving ends i
   assert.equal((await bob.call('leave')).ok, true, 'the last one leaves');
   await until(() => bob.state === null && bobPhone.state === null, 'both of bob\'s sockets sent home');
   // Anything the phone tries now is refused politely; the code is dead.
-  for (const [event, payload] of [['start'], ['submitWord', { word: 'x' }], ['playCard', { cardId: 10001 }], ['kick', { userId: 'x' }]]) {
+  for (const [event, payload] of [['start'], ['submitWord', { word: 'x' }], ['playCard', { cardId: 10001 }], ['kick', { slot: 'x' }]]) {
     const reply = await bobPhone.call(event, payload);
     assert.equal(reply.ok, false, event);
   }
@@ -268,8 +268,9 @@ test('the host removing a player sends every socket of theirs out and bars them;
   await bobPhone.call('resume', { code });
   await toPhase(people, host, 'picking');
   const bobId = bob.state.me.id;
-  assert.equal((await cat.call('kick', { userId: bobId })).ok, false, 'only the host removes others');
-  assert.equal((await host.call('kick', { userId: bobId })).ok, true);
+  const bobSlot = host.state.players.find((p) => p.id === bobId).slot;
+  assert.equal((await cat.call('kick', { slot: bobSlot })).ok, false, 'only the host removes others');
+  assert.equal((await host.call('kick', { slot: bobSlot })).ok, true);
   await until(() => bob.state === null && bobPhone.state === null, 'bob out on both sockets');
   const rest = [host, cat, dan];
   await until(() => rest.every((p) => p.state?.players.filter((x) => x.bot).length === 1), 'a computer player holds the place');

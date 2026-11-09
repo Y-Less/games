@@ -21,12 +21,12 @@ const EVENTS = {
   create: ['seats', 'length', 'missPoints', 'instantWin'],
   leave: [],
   kick: ['seat'],
-  voteKick: ['seat'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   settings: ['seats', 'length', 'missPoints', 'instantWin'],
   addBot: ['seat'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   fillBots: [],
   start: [],
   nominate: ['number'],
@@ -217,8 +217,8 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(mover, 'settings', { length: 'full' }, /settingsBeforeStart|hostOnly/);
   await refused(mover, 'fillBots', {}, /settingsBeforeStart|hostOnly/);
   await refused(mover, 'addBot', {}, /settingsBeforeStart|hostOnly/);
-  await refused(mover, 'removeBot', { seat: 2 }, /settingsBeforeStart|hostOnly/);
-  await refused(bob, 'kick', { seat: 0 }, /hostOnly|settingsBeforeStart/);
+  await refused(mover, 'removeBot', { slot: 's2' }, /settingsBeforeStart|hostOnly/);
+  await refused(bob, 'kick', { slot: 's0' }, /hostOnly|settingsBeforeStart/);
   await refused(mover, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
   await refused(mover, 'create', {}, 'alreadyInGameStart');
   assert.equal(mover.state.seats[mover.state.you].bid, null, 'nothing was nominated');

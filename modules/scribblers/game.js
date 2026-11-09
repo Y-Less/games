@@ -929,6 +929,7 @@ function votesFor(room, userId) {
 function playerView(room, p, { online, final, nameOf }) {
   return {
     id: p.id,
+    slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
     name: nameOf(p.id),
     score: p.score,
     lastScore: p.lastScore ?? 0,

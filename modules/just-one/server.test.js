@@ -108,9 +108,10 @@ test('the host can remove a person, who then has no game', async (t) => {
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state.players.length === 3, 'three players');
-  assert.equal((await bob.call('kick', { userId: cat.id })).ok, false, 'only the host removes people');
-  assert.equal((await ann.call('kick', { userId: ann.id })).ok, false, 'not themselves');
-  assert.ok((await ann.call('kick', { userId: cat.id })).ok);
+  const slotOf = (id) => ann.state.players.find((p) => p.id === id).slot;
+  assert.equal((await bob.call('kick', { slot: slotOf(cat.id) })).ok, false, 'only the host removes people');
+  assert.equal((await ann.call('kick', { slot: slotOf(ann.id) })).ok, false, 'not themselves');
+  assert.ok((await ann.call('kick', { slot: slotOf(cat.id) })).ok);
   await until(() => cat.state === null, 'the removed player out of the game');
   await until(() => ann.state.players.length === 2, 'two players');
 });

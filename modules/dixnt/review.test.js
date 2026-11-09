@@ -154,7 +154,7 @@ test('a person is known by their account and a computer player is not an account
 test('the host cannot remove anyone from a finished game, but people can still leave', () => {
   const { game, room, rng } = started(3);
   room.phase = 'finished';
-  assert.equal(game.kick(room, 1, 2, rng, 0).error, 'gameOverNobodyToRemove');
+  assert.equal(game.kick(room, 1, game.playerOf(room, 2).slot, rng, 0).error, 'gameOverNobodyToRemove');
   assert.equal(room.players.length, 3);
   const left = game.removeHuman(room, 2, rng, 0);
   assert.equal(left.ok, true);

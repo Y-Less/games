@@ -98,7 +98,7 @@ function randomAction(game, room, rng, names) {
   if (roll < 0.06 && people().length > 1) {
     const victim = pick(people());
     if (rng() < 0.5) game.removeHuman(room, victim.id, rng, 0);
-    else game.kick(room, host, victim.id, rng, 0);
+    else game.kick(room, host, victim.slot, rng, 0);
     return true;
   }
   if (roll < 0.08 && ['word', 'picking', 'voting'].includes(room.phase)) {

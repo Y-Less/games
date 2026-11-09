@@ -123,12 +123,12 @@ test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one r
 
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, true);
   assert.equal((await ann.call('size', { seats: 2 })).ok, false, 'three people are seated');
-  assert.equal((await ann.call('kick', { seat: 2 })).ok, true);
+  assert.equal((await ann.call('kick', { slot: 's2' })).ok, true);
   await until(() => cat.state === null, 'cat removed');
-  assert.equal((await cat.call('kick', { seat: 1 })).ok, false, 'not in a game / not the host');
-  assert.equal((await bob.call('kick', { seat: 0 })).ok, false);
-  assert.equal((await ann.call('kick', { seat: 0 })).ok, false, 'not yourself');
-  assert.equal((await ann.call('kick', { seat: 'x' })).ok, false);
+  assert.equal((await cat.call('kick', { slot: 's1' })).ok, false, 'not in a game / not the host');
+  assert.equal((await bob.call('kick', { slot: 's0' })).ok, false);
+  assert.equal((await ann.call('kick', { slot: 's0' })).ok, false, 'not yourself');
+  assert.equal((await ann.call('kick', { slot: 'x' })).ok, false);
   assert.equal((await cat.call('join', { code: ann.state.code })).error, 'removedFromGame', 'a removed player does not come back on the code');
 
   assert.equal((await ann.call('addBot')).ok, true);
@@ -136,8 +136,8 @@ test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one r
   assert.equal((await ann.call('addBot')).ok, true); // the seat the removed player used to have
   await until(() => ann.state.seats.every(Boolean), 'five seats');
   assert.equal((await dan.call('join', { code: ann.state.code })).ok, false, 'full');
-  assert.equal((await ann.call('removeBot', { seat: 1 })).ok, false, 'a person');
-  assert.equal((await ann.call('removeBot', { seat: 3 })).ok, true);
+  assert.equal((await ann.call('removeBot', { slot: 's1' })).ok, false, 'a person');
+  assert.equal((await ann.call('removeBot', { slot: 's3' })).ok, true);
   assert.equal(new Set(ann.state.seats.filter(Boolean).map((s) => s.name)).size, ann.state.seats.filter(Boolean).length, 'names are distinct');
   assert.equal((await dan.call('join', { code: ann.state.code })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
@@ -145,7 +145,7 @@ test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one r
   assert.equal((await eve.call('join', { code: ann.state.code })).ok, true, 'a started game is joined by taking a computer player seat');
   assert.equal((await ann.call('size', { seats: 3 })).ok, false);
   assert.equal((await ann.call('settings', { badPrivate: true })).ok, false);
-  assert.equal((await ann.call('kick', { seat: ann.state.you })).ok, false, 'not yourself');
+  assert.equal((await ann.call('kick', { slot: `s${ann.state.you}` })).ok, false, 'not yourself');
   assert.equal((await ann.call('addBot')).ok, false);
 });
 

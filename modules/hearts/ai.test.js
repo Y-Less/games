@@ -382,7 +382,7 @@ test('each new game (play again) draws the AIs afresh and the choice stays for t
 test('a bot that replaces a leaving human picks an AI at that moment', () => {
   const room = lobbyWithBots();
   g.addHuman(room, 2, 'Bea');
-  g.removeBot(room, 1, 1);
+  g.removeBot(room, 1, 's1');
   g.addHuman(room, 2, 'Bea');
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(4));
@@ -391,7 +391,7 @@ test('a bot that replaces a leaving human picks an AI at that moment', () => {
   for (let seed = 1; seed <= 60; seed++) {
     const r = lobbyWithBots();
     g.addHuman(r, 2, 'Bea');
-    g.removeBot(r, 1, 1);
+    g.removeBot(r, 1, 's1');
     g.addHuman(r, 2, 'Bea');
     g.fillWithBots(r, 1);
     g.start(r, 1, seeded(seed));
@@ -408,7 +408,7 @@ test('the view shows { id, name } for bots once the game is on, and nothing abou
   const room = lobbyWithBots();
   g.addHuman(room, 2, 'Bea');
   assert.ok(g.viewFor(room, 1).seats.every((s) => !s || s.ai === undefined), 'nothing in the lobby');
-  g.removeBot(room, 1, 1);
+  g.removeBot(room, 1, 's1');
   g.addHuman(room, 2, 'Bea');
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(6));

@@ -171,7 +171,7 @@ test('kick: refused once the game is over, and nothing changes', () => {
   game.start(room, 1, seeded(5));
   room.phase = 'finished';
   room.winner = 0;
-  const refused = game.kick(room, 1, 1, Math.random);
+  const refused = game.kick(room, 1, 's1', Math.random);
   assert.equal(refused.ok, false);
   assert.equal(refused.error, 'gameOverNobodyToRemove');
   assert.equal(room.seats[1].kind, 'human', 'nothing changed');

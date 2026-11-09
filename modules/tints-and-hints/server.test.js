@@ -248,13 +248,13 @@ test('a game nobody finishes is not recorded, and the host can remove someone wh
 
   // Removing somebody from the lobby is the host's alone, and it is final (the kick tests of the seated games cover
   // that); here Cat stays, so that the mid-game removal below has somebody to remove.
-  assert.equal((await bob.send('kick', { userId: accounts[2].id })).ok, false, 'only the host removes players');
+  assert.equal((await bob.send('kick', { slot: bob.state.players.find((p) => p.id === accounts[2].id).slot })).ok, false, 'only the host removes players');
   await ann.until((s) => s.players.length === 3);
 
   assert.ok((await ann.send('start')).ok);
   cat.socket.close();
   await ann.until((s) => s.players.find((p) => p.id === accounts[2].id).online === false);
-  assert.ok((await ann.send('kick', { userId: accounts[2].id })).ok);
+  assert.ok((await ann.send('kick', { slot: ann.state.players.find((p) => p.id === accounts[2].id).slot })).ok);
   await bob.until((s) => s.players.some((p) => p.bot) && !s.players.some((p) => p.id === accounts[2].id), 'a computer player in cat\'s place');
   assert.equal(bob.state.players.length, 3, 'the game is the same size');
 

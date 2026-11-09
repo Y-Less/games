@@ -96,21 +96,21 @@ test('seats and computer players: fill, add, remove, kick, start conditions', ()
   assert.equal(game.addBot(room, 1).ok, true);
   assert.equal(room.seats[1].kind, 'bot');
   assert.match(room.seats[1].id, /^bot:\d+$/);
-  assert.equal(game.removeBot(room, 1, 0).ok, false, 'a person is not a computer player');
-  assert.equal(game.removeBot(room, 1, 1).ok, true);
+  assert.equal(game.removeBot(room, 1, 's0').ok, false, 'a person is not a computer player');
+  assert.equal(game.removeBot(room, 1, 's1').ok, true);
   assert.equal(game.fillWithBots(room, 1).ok, true);
   assert.ok(room.seats.every(Boolean));
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3);
   assert.equal(game.addBot(room, 1).ok, false, 'full');
   assert.equal(game.addHuman(room, 2, 'B').ok, false, 'full');
-  assert.equal(game.kick(room, 1, 1, Math.random).ok, false, 'that is a computer player');
-  assert.equal(game.kick(room, 1, 0, Math.random).ok, false, 'the host cannot kick themselves');
+  assert.equal(game.kick(room, 1, 's1', Math.random).ok, false, 'that is a computer player');
+  assert.equal(game.kick(room, 1, 's0', Math.random).ok, false, 'the host cannot kick themselves');
   const other = game.createRoom({ now: 0, code: 'd-e-f', hostId: 1, hostName: 'A', size: 2 });
   game.addHuman(other, 2, 'B');
-  assert.equal(game.kick(other, 2, 0, Math.random).ok, false, 'only the host');
-  assert.deepEqual(game.kick(other, 1, 1, Math.random), { ok: true, userId: 2, replaced: false });
+  assert.equal(game.kick(other, 2, 's0', Math.random).ok, false, 'only the host');
+  assert.deepEqual(game.kick(other, 1, 's1', Math.random), { ok: true, userId: 2, replaced: false });
   assert.equal(other.seats[1], null);
-  assert.equal(game.kick(other, 1, 7, Math.random).ok, false);
+  assert.equal(game.kick(other, 1, 's7', Math.random).ok, false);
 });
 
 test('a game needs a person: all computer players cannot be started', () => {

@@ -15,14 +15,14 @@ const EVENTS = {
   join: ['code'],
   create: ['target', 'seats'],
   leave: [],
-  kick: ['seat'],
-  voteKick: ['seat'],
+  kick: ['slot'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   settings: ['target', 'seats'],
   addBot: [],
   fillBots: [],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   start: [],
   discard: ['cards'],
   play: ['card'],
@@ -183,7 +183,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   for (const seats of [1, 6, 2.5, '3', -2, null, [3]]) await refused(ann, 'settings', { seats }, 'playersRange');
   await refused(bob, 'settings', { target: 121 }, 'hostOnly');
   await refused(ann, 'addBot', {}, 'everySeatTaken');
-  await refused(ann, 'removeBot', { seat: 0 }, 'noBotInSeat');
+  await refused(ann, 'removeBot', { slot: 's0' }, 'noBotInSeat');
   await refused(eve, 'start', {}, /notInAnyGame|hostOnly/);
   await refused(ann, 'discard', { cards: ['AS', 'KS'] }, 'notTimeToDiscard');
   await refused(ann, 'play', { card: 'AS' }, 'notTimeToPlay');
@@ -207,9 +207,9 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'start', {}, 'settingsBeforeStart');
   await refused(ann, 'settings', { target: 121 }, 'settingsBeforeStart');
   await refused(ann, 'addBot', {}, 'settingsBeforeStart');
-  await refused(ann, 'kick', { seat: 0 }, 'nobodyElseInSeat');
-  await refused(ann, 'kick', { seat: 'x' }, 'nobodyElseInSeat');
-  await refused(bob, 'kick', { seat: 0 }, 'hostOnly');
+  await refused(ann, 'kick', { slot: 's0' }, 'nobodyElseInSeat');
+  await refused(ann, 'kick', { slot: 'x' }, 'nobodyElseInSeat');
+  await refused(bob, 'kick', { slot: 's0' }, 'hostOnly');
   await refused(ann, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
   await refused(ann, 'create', {}, 'alreadyInGameStart');
   assert.deepEqual(ann.state.hand, annHand, 'the hand is untouched');

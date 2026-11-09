@@ -14,13 +14,13 @@ const EVENTS = {
   join: ['code'],
   create: ['roundsEach', 'questionsPerRound', 'seconds'],
   leave: [],
-  kick: ['userId'],
-  voteKick: ['userId'],
+  kick: ['slot'],
+  voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   addBot: [],
   fillBots: ['count'],
-  removeBot: ['seat'],
+  removeBot: ['slot'],
   settings: ['roundsEach', 'questionsPerRound', 'seconds'],
   start: [],
   answers: ['texts'],
@@ -127,8 +127,8 @@ test('garbage payloads on every event, in every phase, from members and stranger
       const extra = {
         answers: [{ texts: ['one', 'two'] }, { texts: ['one'] }, { texts: ['one', 'two', 'three'] }, { texts: ['', ''] }, { texts: ['  ', '  '] }, { texts: ['x'.repeat(200), 'y'] }, { texts: [1, 2] }, { texts: 'one' }],
         choose: [{ n: 0 }, { n: 1 }, { n: -1 }, { n: 99 }, { n: '0' }, { n: 0.5 }],
-        kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
-        removeBot: [{ seat: 'bot:1' }, { seat: 'bot:0' }, { seat: ann.id }],
+        kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
+        removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 8 }, { count: 0 }, { count: 99 }],
         settings: [{ roundsEach: 2 }, { roundsEach: 0 }, { roundsEach: 9 }, { roundsEach: '2' }, { questionsPerRound: 1 }, { questionsPerRound: 0 }, { questionsPerRound: 9 }, { seconds: 30 }, { seconds: 7 }, { seconds: 1000 }, { roundsEach: 2, questionsPerRound: 3, seconds: 45 }],
         create: [{ roundsEach: 2 }, { roundsEach: 99 }, { questionsPerRound: 4 }, { questionsPerRound: 0 }, { seconds: 15 }, { seconds: 1 }],
@@ -168,7 +168,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['ready', {}]]) {
     for (const who of everyone) assert.equal((await who.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['start', {}], ['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['kick', { userId: bob.id }], ['addBot', {}], ['settings', { roundsEach: 2 }]]) {
+  for (const [event, payload] of [['start', {}], ['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { roundsEach: 2 }]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.ok((await ann.call('start')).ok);

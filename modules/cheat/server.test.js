@@ -138,7 +138,7 @@ test('malformed requests never break the game or leak a hand', async (t) => {
   await host.call('start');
   await until(() => people.every((p) => p.state?.phase === 'playing'), 'playing');
   const secrets = () => people.slice(1).flatMap((p) => p.state?.hand ?? []).filter((c) => !people[0].state.hand.includes(c));
-  const events = { play: ['cards'], call: [], accept: [], settings: ['seats'], addBot: ['seat'], removeBot: ['seat'], kick: ['seat'], fillBots: [], start: [], again: [], join: ['code'], create: ['seats'], resume: ['code'] };
+  const events = { play: ['cards'], call: [], accept: [], settings: ['seats'], addBot: ['seat'], removeBot: ['slot'], kick: ['slot'], fillBots: [], start: [], again: [], join: ['code'], create: ['seats'], resume: ['code'] };
   let acks = 0;
   for (const [event, fields] of Object.entries(events)) {
     if (['leave'].includes(event)) continue;

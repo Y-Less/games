@@ -76,7 +76,7 @@ describe('Hearts player pop-up', () => {
     await popup.findAll('button').find((b) => /^Remove/.test(b.text())).trigger('click');
     await w.find('.player-popup [data-confirm]').trigger('click');
     await flushPromises();
-    expect(send).toHaveBeenCalledWith('removeBot', { seat: expect.any(Number) });
+    expect(send).toHaveBeenCalledWith('removeBot', { slot: expect.stringMatching(/^s\d+$/) });
     const guest = mount(Table, { props: { state: { ...view(room()), hostSeat: 2 }, send: makeSend() } });
     await guest.findAll('.score-bar button.chip-button').find((c) => !c.text().includes('(you)')).trigger('click');
     expect(guest.find('.player-popup').exists()).toBe(true);

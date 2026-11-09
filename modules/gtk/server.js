@@ -9,6 +9,7 @@
 //
 // Depends on shared/roomServer.js (the room server and its timing helpers) and ./game.js (the rules).
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { rosterLayout } from '../../shared/layout.js';
 import * as game from './game.js';
 
 /**
@@ -39,7 +40,7 @@ export default function (ctx) {
     game,
     pickSettings,
     members: (room) => room.players,
-    kickKey: 'userId', // the client names the person to remove by account id, not by a seat number
+    layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
     viewOptions: (room, userId, clock) => ({ nameOf, now: clock() }),
     migrate: (room) => game.migrate(room, nameOf),
     /**

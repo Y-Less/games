@@ -51,7 +51,7 @@ test('after the game: leaving marks the seat as gone, the lobby drops people who
   assert.equal(game.removeHuman(room, 2, Math.random).ok, true);
   assert.equal(room.seats[1].kind, 'gone');
   assert.equal(game.hasPlayer(room, 2), false);
-  assert.equal(game.kick(room, 1, 1, Math.random).ok, false, 'a seat that has left cannot be removed again');
+  assert.equal(game.kick(room, 1, 's1', Math.random).ok, false, 'a seat that has left cannot be removed again');
   assert.equal(game.playAgain(room, 2).ok, false, 'only the host');
   assert.equal(game.playAgain(room, 1).ok, true);
   assert.equal(room.seats[1], null, 'the person who left has left an empty seat in the lobby');
@@ -64,13 +64,13 @@ test('kicking: not yourself, not a computer player, a game in progress is fine: 
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1);
-  assert.equal(game.kick(room, 1, 0, Math.random).ok, false);
-  assert.equal(game.kick(room, 1, 2, Math.random).ok, false);
-  assert.equal(game.kick(room, 1, 7, Math.random).ok, false);
-  assert.equal(game.kick(room, 1, -1, Math.random).ok, false);
-  assert.equal(game.kick(room, 2, 0, Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 's0', Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 's2', Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 's7', Math.random).ok, false);
+  assert.equal(game.kick(room, 1, 's-1', Math.random).ok, false);
+  assert.equal(game.kick(room, 2, 's0', Math.random).ok, false);
   game.start(room, 1, Math.random);
-  const result = game.kick(room, 1, 1, Math.random);
+  const result = game.kick(room, 1, 's1', Math.random);
   assert.equal(result.ok, true);
   assert.equal(room.seats[1].kind, 'bot');
   assert.equal(room.seats[1].replaced, true);

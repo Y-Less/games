@@ -254,8 +254,8 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await cat.join(ann.code)).ok, true);
   await until(() => ann.state.seats[3]?.name === 'cat', 'the room is full of people and computers');
   assert.equal((await dan.join(ann.code)).ok, false, 'a full room');
-  assert.equal((await ann.call('removeBot', { seat: 3 })).ok, false, 'a person is not removed like a computer player');
-  assert.equal((await ann.call('removeBot', { seat: 2 })).ok, true);
+  assert.equal((await ann.call('removeBot', { slot: 's3' })).ok, false, 'a person is not removed like a computer player');
+  assert.equal((await ann.call('removeBot', { slot: 's2' })).ok, true);
   assert.equal((await dan.join(ann.code)).ok, true, 'the freed seat');
   assert.equal((await eve.join(ann.code)).ok, false);
 });
@@ -276,14 +276,15 @@ test('the table can vote somebody out, and they do not come back on the invitati
   assert.equal((await bob.call('voteAnswer', { agree: true })).error, 'noVoteRunning');
 
   // Ann asks, which is a yes from her; three people may vote, so two are needed.
-  assert.equal((await ann.call('voteKick', { seat: danSeat })).ok, true);
+  assert.equal((await ann.call('voteKick', { slot: `s${danSeat}` })).ok, true);
   await until(() => [ann, bob, cat, dan].every((who) => who.state?.vote), 'the vote to reach everybody');
-  assert.deepEqual(ann.state.vote, { target: danSeat, by: ann.state.you, yes: 1, no: 0, needed: 2, answered: true, mine: true });
+  // The vote names people by their slot, which is the same word every game uses for a place (shared/layout.js).
+  assert.deepEqual(ann.state.vote, { target: `s${danSeat}`, by: `s${ann.state.you}`, yes: 1, no: 0, needed: 2, answered: true, mine: true });
   assert.deepEqual(cat.state.vote.answered, null, 'Cat has not answered');
-  assert.equal(dan.state.vote.target, danSeat, 'and the one being voted on can see it too');
+  assert.equal(dan.state.vote.target, `s${danSeat}`, 'and the one being voted on can see it too');
 
   assert.equal((await dan.call('voteAnswer', { agree: false })).error, 'cannotVoteOnYourself');
-  assert.equal((await bob.call('voteKick', { seat: 0 })).error, 'voteAlreadyRunning');
+  assert.equal((await bob.call('voteKick', { slot: 's0' })).error, 'voteAlreadyRunning');
 
   // Bob agrees, which carries it: a computer player takes Dan's seat, as when anybody leaves.
   assert.deepEqual(await bob.call('voteAnswer', { agree: true }), { ok: true, passed: true });
@@ -339,7 +340,7 @@ test('the lobby: leaving, hosts, starting needs four seats, and a started game c
   assert.equal((await bob.call('start')).ok, false, 'not four seats');
   assert.equal((await bob.call('fillBots')).ok, true);
   await until(() => bob.state.seats.every(Boolean), 'full');
-  assert.equal((await bob.call('removeBot', { seat: 0 })).ok, true);
+  assert.equal((await bob.call('removeBot', { slot: 's0' })).ok, true);
   assert.equal((await bob.call('addBot', { seat: 0 })).ok, true);
   assert.equal((await bob.call('start')).ok, true);
   await until(() => bob.state.phase === 'passing', 'passing');

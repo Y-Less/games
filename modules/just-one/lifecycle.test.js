@@ -117,7 +117,7 @@ test('a writer who has gone away holds up the clues until the host removes them;
   assert.equal(guesser.state.phase, 'clues', 'the clues are not in until the one who is away has written (or has been removed)');
   const host = g.host.id === c.id ? null : g.host;
   if (host) {
-    assert.ok((await host.call('kick', { userId: c.id })).ok);
+    assert.ok((await host.call('kick', { slot: host.state.players.find((p) => p.id === c.id).slot })).ok);
     await until(() => guesser.state?.phase === 'guessing', 'the guessing opens once the computer player has written for the one removed');
     assert.equal(guesser.state.players.length, 4, 'nobody is lost');
     assert.equal(guesser.state.players.filter((p) => p.bot).length, 1, 'a computer player took the place');
@@ -134,7 +134,7 @@ test('when the guesser is gone the host removes them, and a computer player gues
   if (guesser === g.host) return; // the host is the guesser this time: removal is covered by the rules tests
   for (const s of guesser.sockets) s.close();
   await until(() => g.host.state.players.find((p) => p.id === guesser.id).online === false, 'the guesser away');
-  assert.ok((await g.host.call('kick', { userId: guesser.id })).ok);
+  assert.ok((await g.host.call('kick', { slot: g.host.state.players.find((p) => p.id === guesser.id).slot })).ok);
   await until(() => g.host.state.players.some((p) => p.bot && p.id === g.host.state.guesser), 'the computer player is the guesser');
   assert.equal(g.host.state.players.length, 4, 'nobody is lost');
   assert.equal(g.host.state.turnsTotal, 8, 'and no turn is lost');
