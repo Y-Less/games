@@ -35,6 +35,35 @@ export const ORDER_KEYS = Object.keys(ORDERS);
 export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}) {
   const knownUser = db.prepare('SELECT 1 FROM users WHERE id = ?');
   const isBot = db.prepare('SELECT is_bot FROM users WHERE id = ?');
+  const insertResult = db.prepare('INSERT INTO results (game, code, finished_at) VALUES (?, ?, ?)');
+  const insertPlayer = db.prepare('INSERT INTO result_players (result_id, user_id, placement, score, outcome, extras) VALUES (?, ?, ?, ?, ?, ?)');
+  const userTotals = db.prepare(
+    `SELECT r.game AS game, COUNT(*) AS played,
+            SUM(rp.outcome = 'win') AS wins, SUM(rp.outcome = 'loss') AS losses, SUM(rp.outcome = 'draw') AS draws,
+            SUM(rp.score) AS totalScore, MAX(rp.score) AS bestScore
+     FROM result_players rp JOIN results r ON r.id = rp.result_id
+     WHERE rp.user_id = ? GROUP BY r.game`,
+  );
+  const userExtras = db.prepare('SELECT r.game AS game, rp.extras AS extras FROM result_players rp JOIN results r ON r.id = rp.result_id WHERE rp.user_id = ?');
+  const userRecent = db.prepare(
+    `SELECT r.game AS game, r.finished_at AS finishedAt, rp.outcome AS outcome, rp.score AS score, rp.placement AS placement,
+            (SELECT COUNT(*) FROM result_players x WHERE x.result_id = r.id) AS players
+     FROM result_players rp JOIN results r ON r.id = rp.result_id
+     WHERE rp.user_id = ? ORDER BY r.finished_at DESC, r.id DESC LIMIT 15`,
+  );
+  const topPlayers = db.prepare(
+    `SELECT u.id AS userId, u.display_name AS name, COUNT(*) AS played, SUM(rp.outcome = 'win') AS wins
+     FROM result_players rp JOIN results r ON r.id = rp.result_id JOIN users u ON u.id = rp.user_id
+     WHERE r.game = ? AND (? OR u.is_bot = 0)
+     GROUP BY u.id ORDER BY wins DESC, CAST(wins AS REAL) / COUNT(*) DESC, played DESC LIMIT ?`,
+  );
+  const gameStandings = db.prepare(
+    `SELECT u.id AS userId, u.display_name AS name, COUNT(*) AS played,
+            SUM(rp.outcome = 'win') AS wins, MAX(rp.score) AS bestScore
+     FROM result_players rp JOIN results r ON r.id = rp.result_id JOIN users u ON u.id = rp.user_id
+     WHERE r.game = ? AND (? OR u.is_bot = 0)
+     GROUP BY u.id`,
+  );
 
   /**
    * Records one finished game.
@@ -54,13 +83,10 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
     if (!players.length) return null;
     for (const p of players) if (!OUTCOMES.includes(p.outcome)) throw new Error(`Unknown outcome "${p.outcome}"`);
     const resultId = transaction(db, () => {
-      const { lastInsertRowid } = db
-        .prepare('INSERT INTO results (game, code, finished_at) VALUES (?, ?, ?)')
-        .run(game, result.code ?? null, Date.now());
-      const insert = db.prepare('INSERT INTO result_players (result_id, user_id, placement, score, outcome, extras) VALUES (?, ?, ?, ?, ?, ?)');
+      const { lastInsertRowid } = insertResult.run(game, result.code ?? null, Date.now());
       for (const p of players) {
         onPlayerRecorded?.(Number(lastInsertRowid), p, { isBot: Boolean(isBot.get(p.userId).is_bot) });
-        insert.run(
+        insertPlayer.run(
           lastInsertRowid,
           p.userId,
           Number.isFinite(p.placement) ? p.placement : null,
@@ -99,16 +125,8 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function forUser(userId) {
-    const totals = db
-      .prepare(
-        `SELECT r.game AS game, COUNT(*) AS played,
-                SUM(rp.outcome = 'win') AS wins, SUM(rp.outcome = 'loss') AS losses, SUM(rp.outcome = 'draw') AS draws,
-                SUM(rp.score) AS totalScore, MAX(rp.score) AS bestScore
-         FROM result_players rp JOIN results r ON r.id = rp.result_id
-         WHERE rp.user_id = ? GROUP BY r.game`,
-      )
-      .all(userId);
-    const extraRows = db.prepare('SELECT r.game AS game, rp.extras AS extras FROM result_players rp JOIN results r ON r.id = rp.result_id WHERE rp.user_id = ?').all(userId);
+    const totals = userTotals.all(userId);
+    const extraRows = userExtras.all(userId);
 
     const games = listGames();
     const perGame = totals.map((row) => {
@@ -142,15 +160,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
       (all, g) => ({ played: all.played + g.played, wins: all.wins + g.wins, losses: all.losses + g.losses, draws: all.draws + g.draws }),
       { played: 0, wins: 0, losses: 0, draws: 0 },
     );
-    const recent = db
-      .prepare(
-        `SELECT r.game AS game, r.finished_at AS finishedAt, rp.outcome AS outcome, rp.score AS score, rp.placement AS placement,
-                (SELECT COUNT(*) FROM result_players x WHERE x.result_id = r.id) AS players
-         FROM result_players rp JOIN results r ON r.id = rp.result_id
-         WHERE rp.user_id = ? ORDER BY r.finished_at DESC, r.id DESC LIMIT 15`,
-      )
-      .all(userId)
-      .map((row) => ({ ...row, name: games.find((g) => g.id === row.game)?.name ?? row.game }));
+    const recent = userRecent.all(userId).map((row) => ({ ...row, name: games.find((g) => g.id === row.game)?.name ?? row.game }));
     return { summary: { ...summary, winRate: summary.played ? summary.wins / summary.played : 0 }, perGame, recent };
   }
 
@@ -162,14 +172,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function leaderboard(game, { limit = 10, includeBots = false } = {}) {
-    return db
-      .prepare(
-        `SELECT u.id AS userId, u.display_name AS name, COUNT(*) AS played, SUM(rp.outcome = 'win') AS wins
-         FROM result_players rp JOIN results r ON r.id = rp.result_id JOIN users u ON u.id = rp.user_id
-         WHERE r.game = ? AND (? OR u.is_bot = 0)
-         GROUP BY u.id ORDER BY wins DESC, CAST(wins AS REAL) / COUNT(*) DESC, played DESC LIMIT ?`,
-      )
-      .all(game, includeBots ? 1 : 0, limit);
+    return topPlayers.all(game, includeBots ? 1 : 0, limit);
   }
 
   /**
@@ -188,15 +191,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function standings(game, { viewerId = null, top = TOP_PLAYERS, includeBots = false } = {}) {
-    const all = db
-      .prepare(
-        `SELECT u.id AS userId, u.display_name AS name, COUNT(*) AS played,
-                SUM(rp.outcome = 'win') AS wins, MAX(rp.score) AS bestScore
-         FROM result_players rp JOIN results r ON r.id = rp.result_id JOIN users u ON u.id = rp.user_id
-         WHERE r.game = ? AND (? OR u.is_bot = 0)
-         GROUP BY u.id`,
-      )
-      .all(game, includeBots ? 1 : 0);
+    const all = gameStandings.all(game, includeBots ? 1 : 0);
 
     const ranks = new Map(all.map((row) => [row.userId, {}]));
     const keep = new Set();

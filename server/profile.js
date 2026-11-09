@@ -8,6 +8,7 @@ import { normaliseMarker } from '../shared/markerColours.js';
 import { DEFAULT_FONT, DEFAULT_THEME, isSiteFont, isSiteTheme } from '../shared/siteThemes.js';
 import { isLanguageTag } from '../shared/languages.js';
 import { AuthError } from './errors.js';
+import { statements } from './sql.js';
 import {
   EFFECT_INTENSITY,
   EFFECT_SPEED,
@@ -170,6 +171,12 @@ export function publicUser(row) {
  * Side effects: none until a method is called.
  */
 export function createProfiles(db, { canUse = () => {} } = {}) {
+  // Prepared on first use and kept (see sql.js): `userById` is read on nearly every request and by every game module
+  // through ctx.users.get, so it must not be recompiled each time.  These cannot be prepared as the service is built,
+  // the way coins.js and achievements.js do, because most of the columns here are added by a migration (db.js
+  // MIGRATIONS) and the site builds its services against a database that is about to be migrated.
+  const q = statements(db);
+
   /**
    * One user as the site shows them.
    * @param {number} id
@@ -177,7 +184,7 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
    * Side effects: reads the database.
    */
   function userById(id) {
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    const row = q('SELECT * FROM users WHERE id = ?').get(id);
     return row ? publicUser(row) : null;
   }
 
@@ -189,7 +196,7 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
    * Side effects: reads the database.
    */
   function userByName(username) {
-    const row = typeof username === 'string' && username ? db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase()) : null;
+    const row = typeof username === 'string' && username ? q('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase()) : null;
     return row ? publicUser(row) : null;
   }
 
@@ -201,9 +208,8 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
    */
   function publicProfiles(ids) {
     const out = {};
-    const select = db.prepare('SELECT display_name, name_style, avatar FROM users WHERE id = ?');
     for (const id of [...new Set(ids)].slice(0, 100)) {
-      const row = Number.isInteger(id) ? select.get(id) : null;
+      const row = Number.isInteger(id) ? q('SELECT display_name, name_style, avatar FROM users WHERE id = ?').get(id) : null;
       if (row) out[id] = publicProfile(row);
     }
     return out;
@@ -223,7 +229,7 @@ export function createProfiles(db, { canUse = () => {} } = {}) {
     const cleaned = new Map(given.map((setting) => [setting.key, setting.clean(changes[setting.key])]));
     for (const setting of given) setting.check?.(cleaned.get(setting.key), userId);
     canUse(userId, Object.fromEntries(SETTINGS.filter((s) => s.gated).map(({ key }) => [key, cleaned.get(key)])));
-    for (const setting of given) db.prepare(`UPDATE users SET ${setting.column} = ? WHERE id = ?`).run(setting.store(cleaned.get(setting.key)), userId);
+    for (const setting of given) q(`UPDATE users SET ${setting.column} = ? WHERE id = ?`).run(setting.store(cleaned.get(setting.key)), userId);
     return userById(userId);
   }
 

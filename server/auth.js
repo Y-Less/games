@@ -69,6 +69,21 @@ export function createAuth(db, { canUse = () => {} } = {}) {
   const profiles = createProfiles(db, { canUse });
   const byId = profiles.userById;
 
+  // Every statement is prepared once, as the service is built, rather than on each call: node:sqlite compiles the SQL
+  // afresh for every prepare(), and `session` below runs on every authenticated request there is.
+  const sql = {
+    insertSession: db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)'),
+    nameTaken: db.prepare('SELECT 1 FROM users WHERE username_lower = ?'),
+    insertUser: db.prepare('INSERT INTO users (username, username_lower, password_hash, display_name, is_bot, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
+    byLowerName: db.prepare('SELECT * FROM users WHERE username_lower = ?'),
+    deleteSession: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
+    session: db.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?'),
+    byId: db.prepare('SELECT * FROM users WHERE id = ?'),
+    setPassword: db.prepare('UPDATE users SET password_hash = ? WHERE id = ?'),
+    deleteOtherSessions: db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?'),
+    deleteExpired: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
+  };
+
   /**
    * Counts one attempt against `key` and refuses it when there have been too many in the last 15 minutes.
    * @param {string} key  what is being limited (an address and username for logins, an address for registrations)
@@ -98,12 +113,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
   function createSession(userId) {
     const token = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
-    db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)').run(
-      hash(token),
-      userId,
-      now,
-      now + SESSION_DAYS * DAY_MS,
-    );
+    sql.insertSession.run(hash(token), userId, now, now + SESSION_DAYS * DAY_MS);
     return token;
   }
 
@@ -123,13 +133,11 @@ export function createAuth(db, { canUse = () => {} } = {}) {
       if (password.length < 8) throw new AuthError('passwordShort');
       if (password.length > 200) throw new AuthError('passwordLong');
       const name = (textFrom(displayName) || username).trim().slice(0, 20) || username;
-      if (db.prepare('SELECT 1 FROM users WHERE username_lower = ?').get(username.toLowerCase())) {
+      if (sql.nameTaken.get(username.toLowerCase())) {
         throw new AuthError('usernameTaken', 409);
       }
       const passwordHash = await hashPassword(password);
-      const { lastInsertRowid } = db
-        .prepare('INSERT INTO users (username, username_lower, password_hash, display_name, is_bot, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(username, username.toLowerCase(), passwordHash, name, isBot ? 1 : 0, Date.now());
+      const { lastInsertRowid } = sql.insertUser.run(username, username.toLowerCase(), passwordHash, name, isBot ? 1 : 0, Date.now());
       const id = Number(lastInsertRowid);
       return { user: byId(id), token: createSession(id) };
     },
@@ -144,7 +152,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
     async login({ username, password, ip = '' }) {
       username = textFrom(username).trim();
       throttle(`${ip}|${username.toLowerCase()}`);
-      const row = db.prepare('SELECT * FROM users WHERE username_lower = ?').get(username.toLowerCase());
+      const row = sql.byLowerName.get(username.toLowerCase());
       // Always do the hashing work, so a missing user takes as long as a wrong password.
       const ok = await checkPassword(textFrom(password), row?.password_hash ?? 'scrypt$00$00');
       if (!row || !ok) throw new AuthError('wrongLogin', 401);
@@ -159,7 +167,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: deletes the sessions row.
      */
     logout(token) {
-      if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hash(token));
+      if (token) sql.deleteSession.run(hash(token));
     },
 
     /**
@@ -170,9 +178,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      */
     userForToken(token) {
       if (!token || typeof token !== 'string') return null;
-      const row = db
-        .prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?')
-        .get(hash(token), Date.now());
+      const row = sql.session.get(hash(token), Date.now());
       return row ? publicUser(row) : null;
     },
 
@@ -193,15 +199,15 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: updates the password hash; deletes the user's other sessions.
      */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
-      const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      const row = sql.byId.get(userId);
       // 403, not 401: they are signed in, they simply typed the wrong password.  A 401 means "your session has gone"
       // to the client (src/api.js), which signs them out of the site over a typo.
       if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('wrongCurrentPassword', 403);
       if (textFrom(newPassword).length < 8) throw new AuthError('passwordShort');
       if (textFrom(newPassword).length > 200) throw new AuthError('passwordLong');
-      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(textFrom(newPassword)), userId);
+      sql.setPassword.run(await hashPassword(textFrom(newPassword)), userId);
       // Sign out every other device.
-      db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, hash(keepToken ?? ''));
+      sql.deleteOtherSessions.run(userId, hash(keepToken ?? ''));
     },
 
     /**
@@ -210,7 +216,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: deletes sessions rows.
      */
     deleteExpiredSessions() {
-      db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
+      sql.deleteExpired.run(Date.now());
     },
   };
 }

@@ -28,6 +28,15 @@ export function createCoins(db) {
   const sum = db.prepare('SELECT COALESCE(SUM(amount), 0) AS balance FROM coin_ledger WHERE user_id = ?');
   const spentSum = db.prepare('SELECT COALESCE(-SUM(amount), 0) AS spent FROM coin_ledger WHERE user_id = ? AND amount < 0');
   const history = db.prepare('SELECT amount, reason, result_id AS resultId, created_at AS createdAt FROM coin_ledger WHERE user_id = ? ORDER BY id DESC LIMIT ?');
+  const unpaidResults = db.prepare(
+    `SELECT rp.result_id AS resultId, rp.user_id AS userId, rp.placement AS placement, rp.outcome AS outcome, r.finished_at AS finishedAt
+     FROM result_players rp
+     JOIN results r ON r.id = rp.result_id
+     JOIN users u ON u.id = rp.user_id
+     WHERE u.is_bot = 0
+       AND NOT EXISTS (SELECT 1 FROM coin_ledger l WHERE l.user_id = rp.user_id AND l.result_id = rp.result_id AND l.reason = 'placement')
+     ORDER BY r.finished_at, rp.result_id`,
+  );
 
   return {
     /**
@@ -77,17 +86,7 @@ export function createCoins(db) {
      * Side effects: inserts coin_ledger rows.
      */
     creditPastResults() {
-      const unpaid = db
-        .prepare(
-          `SELECT rp.result_id AS resultId, rp.user_id AS userId, rp.placement AS placement, rp.outcome AS outcome, r.finished_at AS finishedAt
-           FROM result_players rp
-           JOIN results r ON r.id = rp.result_id
-           JOIN users u ON u.id = rp.user_id
-           WHERE u.is_bot = 0
-             AND NOT EXISTS (SELECT 1 FROM coin_ledger l WHERE l.user_id = rp.user_id AND l.result_id = rp.result_id AND l.reason = 'placement')
-           ORDER BY r.finished_at, rp.result_id`,
-        )
-        .all();
+      const unpaid = unpaidResults.all();
       const paid = { games: 0, coins: 0 };
       for (const row of unpaid) {
         const amount = prizeFor(row);

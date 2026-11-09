@@ -126,7 +126,20 @@ export function owns(db, userId, itemId) {
   const item = byId.get(itemId);
   if (!item) return false;
   if (item.price === 0) return true;
-  return Boolean(db.prepare('SELECT 1 FROM owned_items WHERE user_id = ? AND item_id = ?').get(userId, itemId));
+  return Boolean(ownedCheck(db).get(userId, itemId));
+}
+
+// `owns` is a free function rather than a method, so it has no closure to keep a prepared statement in, and it is asked
+// on every profile change and by every game module through ctx.markers.  One statement per database, kept weakly so a
+// test's throwaway database is not held open by this cache.
+const ownedChecks = new WeakMap();
+function ownedCheck(db) {
+  let statement = ownedChecks.get(db);
+  if (!statement) {
+    statement = db.prepare('SELECT 1 FROM owned_items WHERE user_id = ? AND item_id = ?');
+    ownedChecks.set(db, statement);
+  }
+  return statement;
 }
 
 /**
@@ -198,6 +211,10 @@ export function checkSettings(db, userId, { background, cardBack, nameStyle, ava
  */
 export function createShop(db) {
   const coins = createCoins(db);
+  // Prepared once, as elsewhere on the server: node:sqlite compiles the SQL afresh for every prepare().
+  const ownedItems = db.prepare('SELECT item_id FROM owned_items WHERE user_id = ?');
+  const recordPurchase = db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)');
+
   return {
     // Whether a user owns a shop item (see owns()); returns a boolean. Side effects: none.
     owns: (userId, itemId) => owns(db, userId, itemId),
@@ -209,12 +226,7 @@ export function createShop(db) {
      * Side effects: none.
      */
     customised(userId) {
-      const bought = new Set(
-        db
-          .prepare('SELECT item_id FROM owned_items WHERE user_id = ?')
-          .all(userId)
-          .flatMap((row) => (byId.get(row.item_id)?.price > 0 ? [categoryOf(byId.get(row.item_id))] : [])),
-      );
+      const bought = new Set(ownedItems.all(userId).flatMap((row) => (byId.get(row.item_id)?.price > 0 ? [categoryOf(byId.get(row.item_id))] : [])));
       return paidCategories().every((category) => bought.has(category)) ? 1 : 0;
     },
 
@@ -226,10 +238,7 @@ export function createShop(db) {
      * Side effects: none.
      */
     purchases(userId) {
-      return db
-        .prepare('SELECT item_id FROM owned_items WHERE user_id = ?')
-        .all(userId)
-        .filter((row) => (byId.get(row.item_id)?.price ?? 0) > 0).length;
+      return ownedItems.all(userId).filter((row) => (byId.get(row.item_id)?.price ?? 0) > 0).length;
     },
 
     /**
@@ -239,7 +248,7 @@ export function createShop(db) {
      * Side effects: none.
      */
     listing(userId) {
-      const owned = new Set(db.prepare('SELECT item_id FROM owned_items WHERE user_id = ?').all(userId).map((r) => r.item_id));
+      const owned = new Set(ownedItems.all(userId).map((r) => r.item_id));
       return {
         balance: coins.balance(userId),
         items: catalogue.map((item) => ({ ...item, category: categoryOf(item), owned: item.price === 0 || owned.has(item.id) })),
@@ -261,7 +270,7 @@ export function createShop(db) {
         if (owns(db, userId, itemId)) throw new ShopError('alreadyOwned', 409);
         if (coins.balance(userId) < item.price) throw new ShopError('notEnoughGold', 402);
         coins.spend(userId, item.price, `shop:${item.id}`);
-        db.prepare('INSERT INTO owned_items (user_id, item_id, bought_at) VALUES (?, ?, ?)').run(userId, item.id, Date.now());
+        recordPurchase.run(userId, item.id, Date.now());
         return { item, balance: coins.balance(userId) };
       });
     },

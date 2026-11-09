@@ -12,6 +12,12 @@ import { REFUND_MAXIMUM_CHARACTERS, REFUND_MINIMUM_WORDS, countWords } from '../
  * Side effects: none until a method is called.
  */
 export function createRefunds(db) {
+  // Prepared once, as elsewhere on the server: node:sqlite compiles the SQL afresh for every prepare().
+  const sql = {
+    insert: db.prepare('INSERT INTO refund_requests (user_id, words, text, created_at) VALUES (?, ?, ?, ?)'),
+    countFor: db.prepare('SELECT COUNT(*) AS n FROM refund_requests WHERE user_id = ?'),
+  };
+
   return {
     /**
      * Files a refund request, once its writing is long enough.
@@ -26,7 +32,7 @@ export function createRefunds(db) {
       const words = countWords(text);
       if (words < REFUND_MINIMUM_WORDS) throw new AuthError('refundTooShort', 400, { min: REFUND_MINIMUM_WORDS, n: words });
       if (text.length > REFUND_MAXIMUM_CHARACTERS) throw new AuthError('refundTooLong', 400, { max: REFUND_MAXIMUM_CHARACTERS });
-      const { lastInsertRowid } = db.prepare('INSERT INTO refund_requests (user_id, words, text, created_at) VALUES (?, ?, ?, ?)').run(userId, words, text, Date.now());
+      const { lastInsertRowid } = sql.insert.run(userId, words, text, Date.now());
       return { id: Number(lastInsertRowid), words };
     },
 
@@ -37,7 +43,7 @@ export function createRefunds(db) {
      * Side effects: none.
      */
     countFor(userId) {
-      return db.prepare('SELECT COUNT(*) AS n FROM refund_requests WHERE user_id = ?').get(userId).n;
+      return sql.countFor.get(userId).n;
     },
   };
 }
