@@ -7,6 +7,7 @@ import * as game from './game.js';
 import { fullDeck } from '../../shared/cards.js';
 import { pipValue } from './scoring.js';
 import { seeded } from '../../shared/testkit.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 const DECK = [...fullDeck()].sort();
 const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
@@ -72,7 +73,9 @@ function checkView(room, userId, label) {
   const me = game.seatOf(room, userId);
   if (room.phase === 'discard' || room.phase === 'play') {
     const allowed = new Set([...view.hand, view.starter, ...(view.play?.sequence ?? []).map((p) => p.card), ...(view.play?.previous ?? []), ...(view.play?.playable ?? [])].filter(Boolean));
-    for (const card of JSON.stringify({ ...view, show: null }).match(CARD) ?? []) assert.ok(allowed.has(card), `${label}: viewer ${userId} was sent ${card}`);
+    // `show` is left out rather than allowed: what the scores reveal at the end of a hand is public, but it is not
+    // part of what a player may be told while they are still discarding or playing.
+    assertNoLeaks_({ ...view, show: null }, { allowed, pattern: CARD, who: `${label}: viewer ${userId}` });
     assert.deepEqual(view.hand, me === -1 ? [] : room.hands[me]);
     assert.ok(view.seats.every((s) => typeof s.cards === 'number' && !('hand' in s)));
     assert.ok(!('hands' in view) && !('crib' in view) && !('deck' in view) && !('kept' in view));

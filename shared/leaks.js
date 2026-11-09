@@ -28,14 +28,67 @@
 import assert from 'node:assert/strict';
 
 /**
+ * Does this text name the secret, rather than merely contain its letters?  Plain containment is too eager, and in two
+ * ways that both turned up for real.  Draw's word list holds "raw", which is three of the letters of the error code
+ * `notYourTurnToDraw`.  And a Scribblers guesser who types "perceives" is shown their own near miss, which contains
+ * the word "perceive" they have not guessed yet.  Neither is a leak: a secret has only really been named when it is
+ * not part of a longer run of letters or digits.  In JSON a leaked word is quoted, so its neighbours are punctuation.
+ *
+ * Letters of other scripts count as boundaries here, which errs towards reporting a leak rather than missing one: a
+ * word list is not only English (`shared/words.js` has several languages), and a `\b`-style test would quietly stop
+ * matching for the ones that are not.
+ *
+ * @param {string} text    the text to search, usually a serialised view or reply
+ * @param {string} secret  the string that must not appear in it
+ * @returns {boolean} true when the secret is named
+ * Side effects: none.
+ */
+export function namesSecret(text, secret) {
+  if (!secret) return false;
+  const alphanumeric = /[A-Za-z0-9]/;
+  for (let at = text.indexOf(secret); at !== -1; at = text.indexOf(secret, at + 1)) {
+    const before = text[at - 1] ?? '';
+    const after = text[at + secret.length] ?? '';
+    if (!alphanumeric.test(before) && !alphanumeric.test(after)) return true;
+  }
+  return false;
+}
+
+/**
+ * Every value in a view, with the keys left behind: what the view actually tells its reader, as opposed to what the
+ * shape of it is called.
+ *
+ * @param {unknown} node  a view, or any part of one
+ * @param {string[]} [into]  the list being built (used by the recursion)
+ * @returns {string[]} every leaf value, as text
+ * Side effects: none (it fills `into`, which it also returns).
+ */
+function valuesOf(node, into = []) {
+  if (node === null || node === undefined) return into;
+  if (Array.isArray(node)) {
+    for (const item of node) valuesOf(item, into);
+    return into;
+  }
+  if (typeof node === 'object') {
+    for (const value of Object.values(node)) valuesOf(value, into);
+    return into;
+  }
+  into.push(String(node));
+  return into;
+}
+
+/**
  * The identifiers a view names that this viewer was not meant to see.
  *
  * @param {object | null | undefined} view  the view as the server would send it; null or undefined has no leaks
  * @param {object} policy
- * @param {Iterable<string | number>} policy.allowed  every identifier this viewer may see.  An id found in the view and
- *   not in here is a leak — so this is the whole of the game's secrecy rule, written as a set.
- * @param {RegExp} policy.pattern  matches one identifier anywhere in the serialised view.  It must be global, and
- *   either match the id itself or capture it in group 1 (`/"id":(\d+)/g` and `/\bC\d+\b/g` both work).
+ * @param {Iterable<string | number>} [policy.allowed]  every identifier this viewer may see.  An id found in the view
+ *   and not in here is a leak — so this is the whole of the game's secrecy rule, written as a set.  Required with
+ *   `pattern`, meaningless without it.
+ * @param {RegExp} [policy.pattern]  matches one identifier anywhere in the serialised view.  It must be global, and
+ *   either match the id itself or capture it in group 1 (`/"id":(\d+)/g` and `/\bC\d+\b/g` both work).  Leave it out
+ *   for a game whose secret is not an identifier at all — the word, the target, the tint — and give `forbidden`
+ *   instead.
  * @param {Array<{ text: string, why: string }>} [policy.forbidden]  text that must not appear in the view at all,
  *   whatever the ids say: a word, a spectrum's target, the name of a face-down card.  `why` is shown in the message.
  * @param {string} [policy.who]  whose view this is, shown in the messages ('the spectator', 'seat 2')
@@ -44,18 +97,29 @@ import assert from 'node:assert/strict';
  */
 export function leaks(view, { allowed, pattern, forbidden = [], who = 'this view' }) {
   if (view === null || view === undefined) return [];
+  if (!pattern && !forbidden.length) throw new Error('leaks(): give a pattern of identifiers, a list of forbidden text, or both — with neither, nothing is checked');
   const problems = [];
   const text = JSON.stringify(view);
-  const permitted = new Set();
-  for (const id of allowed) permitted.add(String(id));
 
-  if (!pattern.global) throw new Error('leaks(): the identifier pattern must be global, or only the first id is checked');
-  for (const match of text.matchAll(pattern)) {
-    const id = String(match[1] ?? match[0]);
-    if (!permitted.has(id)) problems.push(`${who}: was sent ${id}, which is not theirs to see`);
+  if (pattern) {
+    if (!pattern.global) throw new Error('leaks(): the identifier pattern must be global, or only the first id is checked');
+    const permitted = new Set();
+    for (const id of allowed ?? []) permitted.add(String(id));
+    for (const match of text.matchAll(pattern)) {
+      const id = String(match[1] ?? match[0]);
+      if (!permitted.has(id)) problems.push(`${who}: was sent ${id}, which is not theirs to see`);
+    }
   }
+  let values = null;
   for (const { text: secret, why } of forbidden) {
-    if (secret !== null && secret !== undefined && text.includes(JSON.stringify(secret).slice(1, -1))) problems.push(`${who}: ${why}`);
+    if (secret === null || secret === undefined) continue;
+    // A whole structure — the bag, a hand — can only really be checked against the serialised view, where its own
+    // punctuation makes it recognisable.  A single value is checked against the view's *values* instead, never its
+    // keys: Scribblers' word list holds "can", and every view carries a `votes.can` saying whether this person may
+    // judge the drawing.  A key that happens to spell a secret is not that secret.
+    values ??= valuesOf(view).join('\u0000');
+    const named = typeof secret === 'object' ? namesSecret(text, JSON.stringify(secret).slice(1, -1)) : namesSecret(values, String(secret));
+    if (named) problems.push(`${who}: ${why}`);
   }
   return [...new Set(problems)]; // the same id leaking twice is one problem to fix
 }

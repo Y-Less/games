@@ -6,6 +6,10 @@ import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
 import { recordedViews } from './views.js';
+import { assertNoLeaks } from '../../shared/leaks.js';
+
+// A card as it is written in a view: the rank then the suit letter, as shared/cards.js makes them.
+const CARD = /\b(?:10|[2-9JQKA])[CDHS]\b/g;
 
 for (const [seats, seed] of [
   [4, 21],
@@ -20,6 +24,15 @@ for (const [seats, seed] of [
       const view = JSON.parse(text);
       if (view.you === -1) assert.equal(view.hand?.length ?? 0, 0, 'a stranger is sent no cards');
       else if (view.phase !== 'lobby') assert.ok(Array.isArray(view.hand), 'a person is sent their hand');
+      // Cheat is a game of not knowing: the pile is face down and a claim is only a claim.  The only cards anybody may
+      // be told about are the ones in their own hand and the ones turned face up when somebody called a lie.  That the
+      // view names no others is the whole secrecy rule, so it is checked over the serialised view (shared/leaks.js)
+      // rather than field by field — a card leaking through a field this test has never heard of still counts.
+      assertNoLeaks(view, {
+        allowed: [...(view.hand ?? []), ...(view.lastCall?.cards ?? [])],
+        pattern: CARD,
+        who: view.you === -1 ? 'a stranger' : `seat ${view.you}`,
+      });
     }
   });
 }

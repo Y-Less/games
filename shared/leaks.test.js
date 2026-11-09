@@ -53,6 +53,35 @@ test('assertNoLeaks throws on a leak and says which, and passes a clean view', (
   assertNoLeaks({ a: 'c01' }, { allowed: ['c01'], pattern: CARD });
 });
 
+test('a secret is named only when it stands on its own, not when it is part of a longer word', () => {
+  // Draw's word list holds "raw" and the error code notYourTurnToDraw contains those letters; a Scribblers guesser who
+  // writes "perceives" is shown their own near miss while "perceive" is still the word.  Neither is a leak.
+  const forbidden = [{ text: 'raw', why: 'the word was sent' }];
+  assert.deepEqual(leaks({ error: 'notYourTurnToDraw' }, { forbidden }), []);
+  assert.deepEqual(leaks({ feed: [{ text: 'rawer' }] }, { forbidden }), []);
+  assert.equal(leaks({ feed: [{ text: 'raw' }] }, { forbidden, who: 'seat 1' }).length, 1);
+  assert.equal(leaks({ feed: [{ text: 'a raw deal' }] }, { forbidden }).length, 1);
+});
+
+test('a key that happens to spell a secret is not that secret', () => {
+  // Every Scribblers view carries votes.can, saying whether this person may judge the drawing; "can" is also a word
+  // in the list.  Only what a view *says* counts, never what the shape of it is called.
+  const forbidden = [{ text: 'can', why: 'the word was sent' }];
+  assert.deepEqual(leaks({ votes: { can: true, up: 0 } }, { forbidden }), []);
+  assert.equal(leaks({ votes: { can: true }, feed: [{ text: 'can' }] }, { forbidden }).length, 1);
+});
+
+test('a whole structure is still matched against the serialised view', () => {
+  const bag = ['b', 'l', 'u', 'e'];
+  assert.equal(leaks({ sneaked: ['b', 'l', 'u', 'e'] }, { forbidden: [{ text: bag, why: 'the bag was sent' }] }).length, 1);
+  assert.deepEqual(leaks({ sneaked: ['b', 'l', 'u'] }, { forbidden: [{ text: bag, why: 'the bag was sent' }] }), []);
+});
+
+test('a game whose secret is not an identifier needs no pattern, and a policy that checks nothing is refused', () => {
+  assert.deepEqual(leaks({ word: null }, { forbidden: [{ text: 'otter', why: 'the word was sent' }] }), []);
+  assert.throws(() => leaks({ a: 1 }, {}), /nothing is checked/);
+});
+
 test('a whole recorded run is checked at once, and names every view that leaked', () => {
   const policy = { allowed: ['c01'], pattern: CARD };
   const found = leaksInRun([

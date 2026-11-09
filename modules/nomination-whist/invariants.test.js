@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as game from './game.js';
 import { suitOf } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
 const pick = (rng, list) => list[Math.floor(rng() * list.length)];
@@ -82,7 +83,7 @@ function checkView(room, userId, label) {
   const view = game.viewFor(room, userId);
   const me = game.seatOf(room, userId);
   const allowed = new Set([...(view.hand ?? []), ...(view.trick ?? []).map((p) => p.card), ...(view.lastTrick?.plays ?? []).map((p) => p.card), ...Object.keys(view.legal ?? {})]);
-  for (const card of JSON.stringify(view).match(CARD) ?? []) assert.ok(allowed.has(card), `${label}: viewer ${userId} was sent ${card}`);
+  assertNoLeaks_(view, { allowed, pattern: CARD, who: `${label}: viewer ${userId}` });
   if (room.phase !== 'lobby') assert.deepEqual(view.hand, me === -1 ? [] : room.hands[me]);
   assert.ok(view.seats.every((s) => !s || (!('hand' in s) && typeof s.cards === 'number')));
   assert.ok(!('hands' in view) && !('played' in view));

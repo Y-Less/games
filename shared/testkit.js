@@ -15,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../server/index.js';
+import { namesSecret } from './leaks.js';
 
 // Absolute path of the platform folder (this file lives in shared/, so one level up).
 const platform = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -295,32 +296,6 @@ export function garbageValues() {
  * @returns {void}
  * Side effects: none (throws an assertion error when the reply is malformed or leaks).
  */
-/**
- * Does this text name the secret, rather than merely contain its letters?  Plain containment is too eager: Draw's
- * word list holds "raw", and the error code `notYourTurnToDraw` contains those three letters, so every round that
- * chose that word failed the fuzz test for no reason.  A secret has only really been named when it is not part of a
- * longer run of letters or digits — in JSON a leaked word is quoted, so its neighbours are punctuation.
- *
- * Letters of other scripts count as boundaries here, which errs towards reporting a leak rather than missing one:
- * a word list is not only English (`shared/words.js` has several languages), and `\b` would quietly stop matching
- * for the ones that are not.
- *
- * @param {string} text    the serialised reply
- * @param {string} secret  the string that must not appear
- * @returns {boolean} true when the secret is named
- * Side effects: none.
- */
-function namesSecret(text, secret) {
-  if (!secret) return false;
-  const alphanumeric = /[A-Za-z0-9]/;
-  for (let at = text.indexOf(secret); at !== -1; at = text.indexOf(secret, at + 1)) {
-    const before = text[at - 1] ?? '';
-    const after = text[at + secret.length] ?? '';
-    if (!alphanumeric.test(before) && !alphanumeric.test(after)) return true;
-  }
-  return false;
-}
-
 export function assertReply(reply, { what, secrets = [] }) {
   assert.ok(reply && typeof reply === 'object' && !Array.isArray(reply), `${what}: the reply was not an object: ${String(reply).slice(0, 80)}`);
   assert.ok(reply.ok === true || reply.ok === false, `${what}: ok must be true or false, was ${String(reply.ok)}`);

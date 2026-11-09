@@ -7,6 +7,10 @@ import * as game from './game.js';
 import { seeded } from '../../shared/random.js';
 import { NOW, recordedViews } from './views.js';
 
+// Everything a seat shows the table (game.js seatView).  A seat that carries anything else is carrying its holder's
+// tiles, which belong to nobody but them.
+const SEAT_SHOWS = ['seat', 'name', 'bot', 'ai', 'online', 'score', 'count', 'melded', 'ready'];
+
 for (const [label, record] of [
   ['two-round game for three', () => recordedViews(41, 3, { rounds: 2 })],
   ['one-round game for two', () => recordedViews(42, 2, {})],
@@ -20,6 +24,19 @@ for (const [label, record] of [
       const view = JSON.parse(text);
       assert.equal(view.scoreboard.players.length, view.seats.filter(Boolean).length, 'every seat is on the scoreboard');
       if (view.you !== -1) assert.ok(view.seats[view.you], 'a member is seated where the view says');
+      // The racks and the pool are the only secrets (game.js:8), and a tile is a plain number, so there is no
+      // distinctive identifier to scan for the way there is for a card or a die.  What can be checked, and what a
+      // change to where a player's state lives would break, is that a seat shows counts and never contents: no list
+      // of tiles may hang off a seat, and a stranger holds nothing at all.
+      for (const seat of view.seats) {
+        if (!seat) continue;
+        for (const [key, value] of Object.entries(seat)) {
+          assert.ok(SEAT_SHOWS.includes(key), `a seat was sent "${key}", which is not one of the things a seat shows`);
+          assert.ok(!Array.isArray(value), `a seat was sent a list of ${key}: seats show counts, not contents`);
+        }
+      }
+      if (view.you === -1) assert.deepEqual(view.rack ?? [], [], 'a stranger holds no tiles');
+      assert.ok(!text.includes('"pool"'), 'the pool is never sent, in any order');
     }
   });
 }

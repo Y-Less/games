@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
 import { totalsFromRounds } from '../../shared/scores.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 process.env.NOMINATION_WHIST_BOT_DELAY = '1-4';
 process.env.NOMINATION_WHIST_TRICK_PAUSE = '1';
@@ -16,6 +17,8 @@ process.env.NOMINATION_WHIST_TRICK_PAUSE = '1';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'nomination-whist';
 const CARD = /"(?:(?:[2-9]|10|[JQKA])[CDHS]|JK[12])"/g; // a card, or one of the two Jokers
+// The same, with the card itself captured so the leak check can name it without its quotes.
+const QUOTED_CARD = /"((?:[2-9]|10|[JQKA])[CDHS]|JK[12])"/g;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(condition, what, timeout = 20000) {
@@ -132,7 +135,7 @@ function assertNoLeaks(person) {
     const payload = JSON.parse(raw);
     if (!payload) continue;
     const allowed = new Set([...(payload.hand ?? []), ...(payload.trick ?? []).map((p) => p.card), ...(payload.lastTrick?.plays ?? []).map((p) => p.card)]);
-    for (const token of raw.match(CARD) ?? []) assert.ok(allowed.has(JSON.parse(token)), `${person.name} was sent ${token}, which is not theirs to see`);
+    assertNoLeaks_(payload, { allowed, pattern: QUOTED_CARD, who: person.name });
     assert.equal('hands' in payload, false);
     for (const seat of payload.seats) if (seat) assert.equal(typeof seat.cards, 'number', 'others only get a card count');
   }

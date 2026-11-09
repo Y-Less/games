@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.CRIBBAGE_BOT_DELAY = '0-3';
@@ -21,7 +22,8 @@ async function until(condition, what, timeout = 30000) {
   assert.fail(`timed out waiting for: ${what}`);
 }
 
-const CARD = /"(?:10|[2-9JQKA])[CDHS]"/g;
+// A card as a view writes it, with the id itself captured so the leak check can name it without its quotes.
+const CARD = /"((?:10|[2-9JQKA])[CDHS])"/g;
 
 /** Starts the site with only this module (linked into a temporary modules folder) and a data folder. */
 async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cribbage-e2e-')), keep = false } = {}) {
@@ -140,8 +142,6 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crib
   return { site, base, person, stop, dataDir };
 }
 
-const cardsIn = (value) => new Set((JSON.stringify(value).match(CARD) ?? []).map((c) => c.slice(1, -1)));
-
 /** No state a person was ever sent may contain a card they are not entitled to see. */
 function assertNoLeaks(person) {
   for (const s of person.states) {
@@ -150,7 +150,7 @@ function assertNoLeaks(person) {
     for (const key of ['"hands":', '"kept":', '"crib":', '"deck":']) assert.ok(!text.includes(key), `${key} is never sent`);
     const allowed = new Set([...s.hand, ...(s.starter ? [s.starter] : []), ...(s.play ? [...s.play.sequence.map((x) => x.card), ...s.play.previous] : [])]);
     for (const entry of s.show?.entries ?? []) for (const card of [...entry.cards, ...entry.items.flatMap((i) => i.cards)]) allowed.add(card);
-    for (const card of cardsIn(s)) assert.ok(allowed.has(card), `${person.name} was sent ${card} in phase ${s.phase}`);
+    assertNoLeaks_(s, { allowed, pattern: CARD, who: `${person.name} in phase ${s.phase}` });
     if (s.phase === 'discard' || s.phase === 'play') assert.ok(s.seats.every((seat) => typeof seat.cards === 'number'));
   }
 }

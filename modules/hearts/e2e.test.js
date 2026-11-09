@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const platform = path.resolve(here, '..', '..');
@@ -159,7 +160,7 @@ function assertNoLeaks(person) {
   for (const s of person.states) {
     if (!s) continue;
     const allowed = new Set([...(s.hand ?? []), ...(s.received ?? []), ...(s.pass?.chosen ?? []), ...(s.trick ?? []).map((p) => p.card), ...(s.lastTrick?.plays ?? []).map((p) => p.card), ...(s.deal?.removed ?? []), s.deal?.openingCard]); // the deal is public
-    for (const card of JSON.stringify(s).match(CARD) ?? []) assert.ok(allowed.has(card), `${person.name} was sent ${card}, which is not theirs to see`);
+    assertNoLeaks_(s, { allowed, pattern: CARD, who: person.name });
     assert.ok(s.seats.every((seat) => !seat || !('hand' in seat)));
   }
 }

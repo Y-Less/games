@@ -6,6 +6,7 @@ import * as game from './game.js';
 import { deckFor, openingCard, tricksFor, passCountFor } from './deals.js';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 
 const deckOf = (room) => [...deckFor(room.seats.length)].sort();
 const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
@@ -76,7 +77,6 @@ function checkRoom(room, label) {
 /** What one viewer was sent may only name cards the viewer is entitled to see. */
 function checkView(room, userId, label) {
   const view = game.viewFor(room, userId);
-  const text = JSON.stringify(view);
   const allowed = new Set([
     ...(view.hand ?? []),
     ...(view.received ?? []),
@@ -88,7 +88,7 @@ function checkView(room, userId, label) {
     view.deal?.openingCard,
   ]);
   // lastHand names no cards, only counts.
-  for (const card of text.match(CARD) ?? []) assert.ok(allowed.has(card), `${label}: viewer ${userId} was sent ${card}`);
+  assertNoLeaks_(view, { allowed, pattern: CARD, who: `${label}: viewer ${userId}` });
   const me = game.seatOf(room, userId);
   if (me === -1 && room.phase !== 'lobby') assert.deepEqual(view.hand, [], `${label}: a stranger has no hand`);
   if (me !== -1 && room.phase !== 'lobby') assert.deepEqual(view.hand, room.hands[me]);

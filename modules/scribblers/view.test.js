@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recordedViews } from './views.js';
+import { assertNoLeaks } from '../../shared/leaks.js';
 
 const GAMES = [
   ['a four-player game of two rounds', 101, 4, 2, 0],
@@ -68,6 +69,28 @@ for (const [label, seed, size, rounds, bots] of GAMES) {
       assert.ok(view.remaining === null || view.remaining >= 0);
       assert.ok(view.feed.length <= 60, 'the panel keeps only the recent lines');
     }
+    // Everything above checks a field this test knows the name of.  This last pass is the backstop for the fields it
+    // does not: take each turn's word from the views of the people allowed to know it, then make sure that word is
+    // nowhere at all in the views of the people who are not.  The hints never spell it out (they are one letter to an
+    // entry, so the word is never contiguous) and a right guess is sent without its text, so anything that matches
+    // here is a genuine leak through some field that was added without this test being told.
+    const wordOfTurn = new Map();
+    for (const json of views) {
+      const view = JSON.parse(json);
+      if (view.word) wordOfTurn.set(`${view.round}:${view.turn}`, view.word);
+    }
+    for (const json of views) {
+      const view = JSON.parse(json);
+      const secret = wordOfTurn.get(`${view.round}:${view.turn}`);
+      // The drawer is skipped: while they are choosing, `word` is still null because nothing is chosen yet, but the
+      // words on offer are theirs to see and one of them is about to become the word.
+      if (view.word !== null || view.youDraw || !secret) continue;
+      assertNoLeaks(view, {
+        forbidden: [{ text: secret, why: `the word "${secret}" reached somebody who may not know it` }],
+        who: `player ${view.you} in ${view.phase}`,
+      });
+    }
+
     // A one-round game never shows the scores between rounds: it finishes instead.
     const expected = ['between', 'choosing', 'drawing', 'finished', 'lobby', ...(rounds > 1 ? ['scores'] : [])];
     assert.deepEqual([...phases].sort(), expected, 'every phase was played through');
