@@ -1,9 +1,11 @@
 // Helpers for the socket-level tests: a "person" that plays from nothing but the view the server sends it.
 //
-// Depends on: node:assert, ./kit.js (the card id pattern), ../../shared/testkit.js (sleep), and ./rules.js (shared limits).
+// Depends on: node:assert, ./kit.js (the card id pattern), ../../shared/testkit.js (sleep), ../../shared/leaks.js (the
+// view-secrecy check every game shares), and ./rules.js (shared limits).
 import assert from 'node:assert/strict';
 import { ID } from './kit.js';
 import { sleep } from '../../shared/testkit.js';
+import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
 import { GOLD_SUPPLY, MAX_RESERVED, supplyPerColour } from './rules.js';
 
 /**
@@ -102,6 +104,23 @@ export async function playOn(people, done, { timeout = 60000 } = {}) {
 export const playToEnd = (people, options) => playOn(people, () => people.every((p) => p.state?.phase === 'finished'), options);
 
 /**
+ * The cards this viewer is allowed to know about: the ones face up on the board, the reserves they can see (their own,
+ * and anybody's that is face up), and any card already named in the move log.  Everything else — the piles, and another
+ * player's hidden reserve — must never appear in their view.
+ *
+ * @param {object} view  the view as the server would send it
+ * @returns {Set<string>} the card ids this viewer may see
+ * Side effects: none.
+ */
+function allowedCards(view) {
+  const allowed = new Set();
+  for (const l of [1, 2, 3]) for (const id of view.board[l]) if (id) allowed.add(id);
+  for (const seat of view.seats) for (const r of seat?.reserved ?? []) if (r.card) allowed.add(r.card);
+  for (const entry of view.log) if (entry.card) allowed.add(entry.card);
+  return allowed;
+}
+
+/**
  * Every card named in a view is one that viewer may see.  Throws if one is not.
  *
  * Side effects: none, except that it throws an assertion error when a check fails.
@@ -111,11 +130,9 @@ export const playToEnd = (people, options) => playOn(people, () => people.every(
  */
 export function assertNoLeaks(view, who = '') {
   if (!view || view.phase === 'lobby') return;
-  const allowed = new Set();
-  for (const l of [1, 2, 3]) for (const id of view.board[l]) if (id) allowed.add(id);
-  for (const seat of view.seats) for (const r of seat?.reserved ?? []) if (r.card) allowed.add(r.card);
-  for (const entry of view.log) if (entry.card) allowed.add(entry.card);
-  for (const id of JSON.stringify(view).match(ID) ?? []) assert.ok(allowed.has(id), `${who}: was sent ${id}, which is not theirs to see`);
+  // Which cards this viewer may see is Splendour's own rule; checking that the view names no others is everyone's, and
+  // lives in shared/leaks.js.
+  assertNoLeaks_(view, { allowed: allowedCards(view), pattern: ID, who: who || 'this view' });
   for (const seat of view.seats) {
     for (const r of seat?.reserved ?? []) if (seat.seat !== view.you) assert.equal(r.card, null, `${who}: another player's reserve is hidden`);
   }
