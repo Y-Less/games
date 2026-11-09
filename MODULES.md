@@ -122,9 +122,45 @@ and call it from both (see `modules/just-one/game.js`).  The shared code takes `
 hook runs.  Get this wrong and the fuzz tests say so: an answer or a clue left under the old id fails "the answers are
 from players in the room" within a few hundred random steps.
 
+**The scoreboard history is the one thing `renameId` must not touch.**  Every player in a list game has a `slot` — a
+string like `"s0"` that `shared/roster.js` hands out once when they join and that travels with the place through every
+one of those changes of hands.  Write the history against the slot (`deltas[player.slot]`, `notes[player.slot]`) and it
+never has to be written twice; `historyView(room)` turns it back into the player ids the scoreboard has always been
+sent, so your `scoreboardView` is `rounds: historyView(room)` and nothing on the wire changes.  Games with numbered
+seats already do the same thing with the seat index, which is their slot.
+
+The slot is `"s0"` and not `0` for a reason worth knowing before you write a key by hand.  Account ids are small
+numbers too, so a numeric slot and an id cannot be told apart once either is a key of an object, and reading a history
+by the wrong one finds *the wrong player's points* rather than finding nothing.  Two bugs were written exactly that way
+while slots were being introduced, and in both the test that should have caught it passed.
+
+Do not reach for `renameInHistory`.  It exists for one legacy importer and is the thing slots were introduced to stop
+needing.
+
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players.  Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or
 `now` argument, so a test can replay a game from a seed.
+
+### Where the rooms are kept
+
+A module's rooms live in `rooms.sqlite` in its `ctx.dataDir`, and `shared/roomStore.js` is the only thing that touches
+it.  A game never reads or writes it: `createRoomServer` loads the rooms at start-up, holds them in memory, and saves a
+room when it changes, so nothing in the course of playing reads from disk.
+
+Two things about the shape are worth knowing while writing rules:
+
+- **The history is a table of its own, one row per finished round, and only ever appended to.**  That is what makes an
+  ordinary move cost one small write instead of rewriting every room in the game.  A game that rewrites rounds it has
+  already written still works — the store notices and puts it right — but it is paying for it, so prefer not to.
+- **A room with no history and a room whose history is empty are different rooms.**  If your `migrate` shows the scores
+  a room already had as one "earlier rounds" row when it was saved before you kept a history (Dixnt and Tints and Hints
+  both do), it is telling those two apart, and the store keeps the difference for you.  Test it: delete `history` from a
+  saved room and load it again.
+
+In tests, read what was saved with `savedRooms(dataDir)` from `shared/testkit.js` rather than opening the file: that is
+the one place that knows where rooms are kept.  To rig a saved room and restart — a dealt hand you want to control, a
+room aged a fortnight — write it as a `rooms.json` beside an emptied database and let the start-up import pick it up,
+which exercises the path a real site upgrading takes once (`modules/nomination-whist/e2e.test.js` does this).
 
 ## Statistics
 
@@ -344,9 +380,55 @@ on such a buffer, with no canvas at all).
 browser, a computer player's timer, a view arriving over a socket — so a machine that is busy can miss a deadline that
 is nowhere near missed on a quiet one.  Before believing a failure, **run it again**, on its own
 (`node --test modules/hearts/lifecycle.test.js`, `vitest run src/i18n.test.js -t hearts`), with nothing else running.
-A failure that comes back every time is a real one; one that comes and goes is the machine, and the answer is a longer
-wait in the test rather than a change to the game.  Say which it was when reporting a failure, and how many runs it
+A failure that comes back every time is a real one.  Say which it was when reporting a failure, and how many runs it
 took to tell: "fails every time in three runs" and "failed once in three" are different findings.
+
+**But a failure that comes and goes is not automatically the machine.**  Four such failures were run down while this
+suite was being changed, and *none* of them wanted a longer wait; every one was a test asserting something it had not
+actually waited for, and each had an exact fix:
+
+- **Wait for the thing you are about to assert, not for something that usually implies it.**  Scribblers waited for the
+  first guess from a computer player and then asserted that one of the guesses was of the right length.  They guess one
+  at a time, so the first one through need not be that one.
+- **A loop that plays for you can play past the point you meant to stop at.**  A `playOn(people, done)` that checks
+  `done()` once per pass closes one person's round-end pop-up, lets the next person's state arrive while that call is
+  in flight, and closes theirs too — which is everybody ready, so the next round is dealt and played out before the
+  loop looks again.  Check `done()` before each person.
+- **Take a snapshot only when the server has nothing of its own to do.**  Comparing a room before and after a restart
+  means catching it on a human's turn, where `pendingAction` is null and no timer can fire; anywhere else a computer
+  player can move between the snapshot and the shutdown.
+- **A leak check that asks "does this text contain the secret" will accuse the innocent.**  Draw's word list holds
+  "raw", which is inside the error code `notYourTurnToDraw`, and "error", which is the name of the field every refusal
+  carries.  See the secrecy section below for what to do instead.
+
+A longer wait is the right answer when a test is genuinely waiting for something slow.  It is the wrong answer when
+the test never waited for the right thing at all, and so is relaxing the assertion: both hide whichever of the above
+it was.  Look for the exact fix first, and if you cannot find one, say so rather than loosening the test quietly.
+
+### Secrecy: does a view tell its reader too much?
+
+Every game keeps something back — a hand, the word only the drawer knows, the dice still in the bag, the target only
+the psychic sees — and `viewFor` is what keeps it.  A bug there is silent: the game plays correctly and the wrong
+player simply knows too much, which no ordinary test notices.
+
+`shared/leaks.js` is the mechanism; the policy stays in the game.  A new game gets the same protection by writing one
+function saying what a viewer may see, and calling `assertNoLeaks(view, policy)` over the views its `views.js` already
+records:
+
+```js
+assertNoLeaks(view, { allowed: allowedCards(view), pattern: CARD, who: `seat ${view.you}` });   // secrets that are ids
+assertNoLeaks(view, { forbidden: [{ text: room.word, why: 'the word reached a guesser' }] });   // secrets that are not
+```
+
+Use `allowed` with `pattern` when the secret is an identifier — a card, a die, a tile with a name — and `forbidden`
+when it is a value in its own right.  Both compare against what the view *says*: a secret is only named when it stands
+on its own, never as part of a longer word, and never because a **key** happens to spell it.  Both of those are real
+bugs this check has already had.
+
+What `shared/leaks.js` deliberately does **not** do is check that a view is a legal view at all — a phase in range, no
+duplicate players, counts matching their source, scores matching the scoreboard.  That is a separate concern and lives
+in the game's own checks (`modules/tints-and-hints/checks.js` is the fullest example).  Keep the two apart: they fail
+for different reasons and want different messages.
 
 The UI tests (`npm run test:ui`) are the ones to be most careful with: they drive a real Chrome and are not run by
 `npm test`, so they are both the slowest and the likeliest to have gone stale without anybody noticing.  Prefer an
