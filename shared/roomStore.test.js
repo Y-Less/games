@@ -184,11 +184,28 @@ test('each room is brought up to date as it is read, and one that cannot be is l
   assert.ok(second.logs.some((line) => line.includes('d-e-f')), 'and it says which one it could not read');
 });
 
+test('a room saved without a history comes back without one, which is not the same as an empty one', () => {
+  // Dixnt and Tints and Hints both tell a room saved before histories existed from one whose history is empty, and
+  // show the scores it already had as a single "earlier rounds" row.  Handing every room a `history: []` on the way
+  // back would quietly take that telling-apart away, and the row would never appear again.
+  const dataDir = dir();
+  const first = open(dataDir);
+  const old = room('a-b-c');
+  delete old.history;
+  first.store.put(old);
+  first.store.put(room('d-e-f', { history: [] }));
+  first.store.flush();
+  const loaded = open(dataDir).store.load();
+  const byCode = Object.fromEntries(loaded.map((r) => [r.code, r]));
+  assert.equal('history' in byCode['a-b-c'], false, 'a room that never had one still has not');
+  assert.deepEqual(byCode['d-e-f'].history, [], 'and one whose history is empty has an empty one');
+});
+
 test('saved games that cannot be read are kept aside rather than overwritten, and the site still starts', () => {
   const dataDir = dir();
   const first = open(dataDir);
   first.store.put(room('a-b-c'));
-  first.store.flush();
+  first.store.close(); // the site is not running: this is a folder found damaged at the next start
   // Whatever the store saved into this folder, ruin it.  The test does not know the name of the file, which is the
   // point: a store that keeps its rooms some other way must still cope with the same accident.
   const saved = fs.readdirSync(dataDir);

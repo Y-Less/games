@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launchModule, sleep, until } from '../../shared/testkit.js';
+import { launchModule, savedRooms, sleep, until } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fast = () => {
@@ -255,7 +255,7 @@ test('the site still starts when its saved games have gone cold, and sweeps them
   // sweep that clears it runs while the room server is still being built: this is the shape that took Hearts off the
   // site entirely, because the module failed to load and nothing after it could list or play the game.
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hearts-cold-'));
-  const roomsFile = path.join(dataDir, 'site', 'modules', 'hearts', 'rooms.json');
+  const moduleDir = path.join(dataDir, 'site', 'modules', 'hearts');
   const first = await launchModule(t, { id: 'hearts', moduleDir: here, dataDir, keep: true });
   const ann = await first.person('ann').open();
   await ann.call('create', {});
@@ -266,10 +266,12 @@ test('the site still starts when its saved games have gone cold, and sweeps them
   await first.stop();
 
   // A fortnight passes with nobody touching it: past the week a live game is kept.
-  const aged = JSON.parse(fs.readFileSync(roomsFile, 'utf8')).map((room) => ({ ...room, updatedAt: Date.now() - 14 * 24 * 60 * 60 * 1000 }));
+  const aged = savedRooms(moduleDir).map((room) => ({ ...room, updatedAt: Date.now() - 14 * 24 * 60 * 60 * 1000 }));
   assert.equal(aged.length, 1, 'there is a saved game to go cold');
   assert.ok(aged[0].seats.some((seat) => seat && seat.kind === 'human'), 'with a person still seated, which is what the sweep has to tidy up after');
-  fs.writeFileSync(roomsFile, JSON.stringify(aged));
+  // Put back as a file beside an emptied database, so the aged room is what the next start reads.
+  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(path.join(moduleDir, `rooms.sqlite${suffix}`), { force: true });
+  fs.writeFileSync(path.join(moduleDir, 'rooms.json'), JSON.stringify(aged));
 
   const second = await launchModule(t, { id: 'hearts', moduleDir: here, dataDir, keep: true });
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true })); // after the site has closed

@@ -10,6 +10,7 @@ import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
+import { savedRooms } from '../../shared/testkit.js';
 
 process.env.NOMINATION_WHIST_BOT_DELAY = '1-4';
 process.env.NOMINATION_WHIST_TRICK_PAUSE = '1';
@@ -592,9 +593,10 @@ async function riggedFirstRound(t, { instantWin }) {
   await sleep(50);
   await first.close();
 
-  const file = findFile(root, 'rooms.json');
+  const file = findFile(root, 'rooms.sqlite');
   assert.ok(file, 'the room was saved');
-  const rooms = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const moduleDir = path.dirname(file);
+  const rooms = savedRooms(moduleDir);
   const room = rooms[0];
   const stack = ['A', 'K', 'Q', 'J', '10', '9', '8'].map((r) => `${r}H`);
   const rest = ALL_CARDS.filter((c) => !stack.includes(c));
@@ -602,7 +604,9 @@ async function riggedFirstRound(t, { instantWin }) {
   room.dealer = 2;
   room.turn = 0;
   room.nominations = [null, null, null];
-  fs.writeFileSync(file, JSON.stringify(rooms));
+  // Written back as a file beside an emptied database, so the rigged room is what the next start reads.
+  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(`${file}${suffix}`, { force: true });
+  fs.writeFileSync(path.join(moduleDir, 'rooms.json'), JSON.stringify(rooms));
 
   const second = await launch(t, root);
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

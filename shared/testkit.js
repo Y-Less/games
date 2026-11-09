@@ -16,6 +16,38 @@ import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../server/index.js';
 import { namesSecret, valuesOf } from './leaks.js';
+import { openRoomDb } from './roomDb.js';
+
+/**
+ * The rooms a module has saved, read straight from where it keeps them.
+ *
+ * Tests used to read rooms.json themselves, which tied them to the shape of the store; this is the one place that
+ * knows, so moving the rooms somewhere else is a change here rather than in a dozen tests.  It is safe to call while
+ * the site is running: the database is read in its own connection and closed again.
+ *
+ * @param {string} dataDir  a module's data folder (the one its ctx was given)
+ * @returns {object[]} the saved rooms, each with its history, by code
+ * Side effects: opens and closes the module's room database (creating an empty one if there is none).
+ */
+export function savedRooms(dataDir) {
+  const db = openRoomDb(dataDir);
+  try {
+    const rounds = new Map();
+    for (const row of db.prepare('SELECT code, seq, entry_json FROM room_history ORDER BY code, seq').all()) {
+      if (!rounds.has(row.code)) rounds.set(row.code, []);
+      rounds.get(row.code).push(JSON.parse(row.entry_json));
+    }
+    return db.prepare('SELECT code, state_json FROM rooms ORDER BY code').all().map((row) => {
+      const saved = JSON.parse(row.state_json);
+      const entries = rounds.get(row.code) ?? [];
+      // A room saved before histories existed has none, and must not be handed an empty one (see roomStore's stateOf).
+      if (Array.isArray(saved.history) || entries.length) saved.history = entries;
+      return saved;
+    });
+  } finally {
+    db.close();
+  }
+}
 
 // Absolute path of the platform folder (this file lives in shared/, so one level up).
 const platform = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

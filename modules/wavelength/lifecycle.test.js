@@ -41,7 +41,7 @@ test('rooms survive a restart of the site: a guess made before it still counts, 
   await until(() => guesserA.state.phase === 'guessing', 'guessing');
   assert.ok((await guesserA.call('guess', { position: target })).ok);
   await first.stop();
-  assert.ok(fs.existsSync(path.join(dataDir, 'site', 'modules', ID, 'rooms.json')));
+  assert.ok(fs.existsSync(path.join(dataDir, 'site', 'modules', ID, 'rooms.sqlite')), 'the room was saved');
 
   // The same data folder, a new process-worth of site.  The accounts' sessions are in the same database.
   const second = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });

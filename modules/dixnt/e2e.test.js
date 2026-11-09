@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
+import { savedRooms } from '../../shared/testkit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -468,12 +469,15 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   await second.site.stop();
 
   // An older save has scores but no history: it loads, with the scores as one earlier row.
-  const file = path.join(first.dataDir, 'site', 'modules', 'dixnt', 'rooms.json');
-  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const moduleDir = path.join(first.dataDir, 'site', 'modules', 'dixnt');
+  const saved = savedRooms(moduleDir);
   const room = saved.find((r) => r.code === code);
-  assert.equal(room.history.length, 1, 'the history is in the save file');
+  assert.equal(room.history.length, 1, 'the history is saved with the room');
   delete room.history;
-  fs.writeFileSync(file, JSON.stringify(saved));
+  // Left the way a version before the rooms database would have left it, with the database taken away, so the next
+  // start brings the file over — which is the path every site takes once.
+  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(path.join(moduleDir, `rooms.sqlite${suffix}`), { force: true });
+  fs.writeFileSync(path.join(moduleDir, 'rooms.json'), JSON.stringify(saved));
   const third = await reload('from the old save');
   assertScoreboard(third.again, 1);
   assert.deepEqual(third.again[0].state.scoreboard.rounds[0].label, { key: 'round.earlier' });

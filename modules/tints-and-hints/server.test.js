@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
 import { parseCell } from './grid.js';
+import { savedRooms } from '../../shared/testkit.js';
 
 const modulesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ID = 'tints-and-hints';
@@ -281,7 +282,7 @@ test('rooms survive a restart of the site, and the game can be finished afterwar
   assert.ok((await [ann, bob][hinterIndex].send('hint', { text: 'a warm evening' })).ok);
   assert.ok((await guesser.send('guess', { cell: tint })).ok);
   await first.close();
-  assert.ok(fs.existsSync(path.join(dataDir, 'modules', ID, 'rooms.json')));
+  assert.ok(fs.existsSync(path.join(dataDir, 'modules', ID, 'rooms.sqlite')), 'the room was saved');
 
   // The same data folder, a new process-worth of site.  The accounts' sessions are in the same database.
   const second = await launch(t, dataDir);
@@ -333,7 +334,7 @@ function guesserOf(pair, hinterIndex) {
 test('the history is saved with the room, survives a restart, and rooms saved without one still load', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tints-history-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
-  const roomsFile = path.join(dataDir, 'modules', ID, 'rooms.json');
+  const moduleDir = path.join(dataDir, 'modules', ID);
   const names = ['ann', 'bob'];
 
   const first = await launch(t, dataDir);
@@ -358,7 +359,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   assert.deepEqual(board.rounds[0].deltas, { [guesser.state.you]: 5, [hinter.state.you]: 3 });
   assert.deepEqual(board.rounds[0].notes[guesser.state.you], [{ key: 'notes.exact', params: { round: 1 } }]);
   await first.close();
-  const saved = JSON.parse(fs.readFileSync(roomsFile, 'utf8'));
+  const saved = savedRooms(moduleDir);
   assert.equal(saved[0].history.length, 1, 'saved to disk');
 
   const peek = async (launched) => {
@@ -390,7 +391,9 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
 
   // A save from before the history was kept: the points are there but no turn-by-turn record.
   for (const room of saved) delete room.history;
-  fs.writeFileSync(roomsFile, JSON.stringify(saved));
+  // Put back as a file beside an emptied database, which is what a site upgrading from the older version meets.
+  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(path.join(moduleDir, `rooms.sqlite${suffix}`), { force: true });
+  fs.writeFileSync(path.join(moduleDir, 'rooms.json'), JSON.stringify(saved));
   const third = await launch(t, dataDir);
   const legacy = await peek(third);
   const { rounds, players } = legacy.bob.scoreboard;

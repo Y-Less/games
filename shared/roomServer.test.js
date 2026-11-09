@@ -36,7 +36,7 @@ test('one room that cannot be brought up to date is skipped, the others load, an
   t.after(cleanup);
   assert.deepEqual([...server.rooms.keys()], ['good']);
   assert.ok(logs.some((line) => line.includes('bad')));
-  assert.equal(fs.existsSync(path.join(dataDir, 'rooms.json.corrupt')), true);
+  assert.equal(fs.existsSync(path.join(dataDir, 'rooms.json.imported')), true, 'the file it came from is kept');
 });
 
 test('if working out the next move throws, it is logged and tried again, so the room is not left stuck', async (t) => {

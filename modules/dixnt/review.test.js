@@ -12,6 +12,7 @@ import { EventEmitter } from 'node:events';
 import { createRules } from './game.js';
 import { cards, makeRoom, seededRng } from './harness.js';
 import createServer from './server.js';
+import { savedRooms } from '../../shared/testkit.js';
 
 /** A game of `count` people (Ann hosts), started, with plenty of rounds and the given judging style. */
 function started(count = 5, judging = 'everyone') {
@@ -237,9 +238,9 @@ test('a corrupt rooms.json is logged and kept as rooms.json.corrupt, not silentl
   const { logs, roomsFile, module } = launch(t, { setup: (dir) => fs.writeFileSync(path.join(dir, 'rooms.json'), '[ not json') });
   assert.ok(logs.some((line) => /corrupt/.test(line)), `logged: ${logs.join(' | ')}`);
   assert.equal(fs.readFileSync(`${roomsFile}.corrupt`, 'utf8'), '[ not json');
-  module.dispose(); // the next save replaces rooms.json, but the copy stays
+  module.dispose(); // the rooms are kept in the database from here, and the copy stays where it is
   assert.equal(fs.readFileSync(`${roomsFile}.corrupt`, 'utf8'), '[ not json');
-  assert.doesNotThrow(() => JSON.parse(fs.readFileSync(roomsFile, 'utf8')));
+  assert.equal(fs.existsSync(roomsFile), false, 'the unreadable file is not left to be read again at every start');
 });
 
 test('a missing rooms.json is normal: nothing logged as corrupt and no copy made', (t) => {
@@ -256,7 +257,7 @@ test('a rooms.json with a room that cannot be brought up to date keeps a copy an
     },
   });
   assert.ok(logs.some((line) => /bad-game/.test(line)), `logged: ${logs.join(' | ')}`);
-  assert.equal(fs.existsSync(`${roomsFile}.corrupt`), true);
+  assert.equal(fs.existsSync(`${roomsFile}.imported`), true, 'the file it came from is kept');
   assert.ok(logs.some((line) => /1 saved games/.test(line)), 'the good game was loaded');
 });
 
@@ -309,7 +310,7 @@ test('games saved before the shared room server are brought over, people and all
   assert.equal(fs.existsSync(path.join(dataDir, 'games.json')), false, 'the old file is kept under another name');
   assert.ok(fs.existsSync(path.join(dataDir, 'games.json.imported')));
 
-  const [room] = JSON.parse(fs.readFileSync(path.join(dataDir, 'rooms.json'), 'utf8'));
+  const [room] = savedRooms(dataDir);
   assert.deepEqual(room.players.map((p) => p.id), [4, 5, 'bot:1'], 'a person is their account now');
   assert.equal(room.hostId, 4);
   assert.equal(room.chooserId, 4);

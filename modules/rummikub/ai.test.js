@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launchModule, sleep, until } from '../../shared/testkit.js';
+import { launchModule, savedRooms, sleep, until } from '../../shared/testkit.js';
 import * as game from './game.js';
 import { AIS } from './ai/index.js';
 import { aiOf, chooseTurn, pendingAction, runPending, situation } from './bot.js';
@@ -360,7 +360,7 @@ test('over the sockets each computer seat shows its AI, and a restart keeps it',
   const cookie = ann.cookie;
   await sleep(300);
   await first.stop();
-  const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'site', 'modules', 'rummikub', 'rooms.json'), 'utf8').toString());
+  const saved = savedRooms(path.join(dataDir, 'site', 'modules', 'rummikub'));
   assert.deepEqual(saved[0].seats.slice(1).map((s) => s.ai), named.slice(1), 'the AIs are in the saved room');
 
   const second = await launchModule(t2, { id: 'rummikub', moduleDir: here, dataDir });

@@ -56,7 +56,7 @@ test('a quiz survives a restart of the site: an answer given before it still cou
   const annId = ann.id;
   assert.equal((await ann.call('answer', { choice: 1, x: 0.2, y: 0.8 })).ok, true);
   await first.stop();
-  assert.ok(fs.existsSync(path.join(dataDir, 'site', 'modules', ID, 'rooms.json')), 'the room was saved');
+  assert.ok(fs.existsSync(path.join(dataDir, 'site', 'modules', ID, 'rooms.sqlite')), 'the room was saved');
 
   // The same data folder, a new process-worth of site.  The accounts are already in that database, so they sign in.
   const second = await launch(t, { dataDir, keep: true });
