@@ -99,8 +99,13 @@ handles `create`, `join`/`resume`, `leave`, `kick` and the lobby events (`settin
   room, relays it as it is made, and hands the lot to anybody who arrives in the middle.
 
 Seat rules are shared too.  Games with numbered seats build theirs with `createSeatRules` (`shared/seats.js`); games that
-keep a list of players use `createRosterRules` (`shared/roster.js`).  Both give you `addHuman`, `removeHuman`, `addBot`,
-`removeBot`, `fillWithBots` and `kick`, with these conventions: a person is `{ kind: 'human', id, name }` and a computer
+keep a list of players use `createRosterRules` (`shared/roster.js`).  Those two are front doors, not implementations:
+joining, leaving, being replaced and being put out are written once in `shared/members.js`, and the only thing the two
+families really disagree about — how a place is addressed, and what an empty one is — lives in `shared/layout.js` as a
+`layout`.  `shared/members.test.js` is the contract: it asserts the whole story of both families side by side, and says
+plainly where they are meant to differ, so that the one telling cannot quietly change it.  Both give you `addHuman`,
+`removeHuman`, `addBot`, `removeBot`, `fillWithBots` and `kick`, with these conventions: a person is
+`{ kind: 'human', id, name }` and a computer
 player is `{ kind: 'bot', id: 'bot:<n>', name }` (never a `bot: true` flag); names are made unique whatever their
 capitals; and `kick` is refused once the game is over.  A person who leaves a *finished* seated game should leave the
 `goneSeat` marker (`{ kind: 'gone', name }`, pass it as `finishedSeat`) rather than an empty seat, so the final scores
@@ -113,8 +118,16 @@ the same way round.  Their own comes first if it is still being held for them; f
 the others who might yet come back keep theirs; failing that, the first.  A game with nobody but people in it answers
 `gameFull`, and a game that is over answers `thatGameStarted`.
 
-Both directions are the same renaming, so write it once.  `takeOver` renames the person to the computer player; the new
-`handOver` renames the computer player to the person.  A game with numbered seats usually needs neither (the seat index
+Both directions are the same renaming, so write it once.  `takeOver(room, oldId, member, rng, now, seat)` renames the
+person to the computer player; `handOver(room, botId, person, bot, seat)` renames the computer player to the person.
+**Both are given the member already in its place, and change it where it sits — they return nothing.**  (They used to
+have one shape in each family, and the seated one returned the object to store; that is why a hook returning a new
+object now has no effect, silently.)  What a place *becomes* is the separate `replacement(room, leaving, bot)` hook,
+and its default is the family's: a seated game starts the place afresh, because it keeps the hand and the pegs in
+arrays beside the seats, while a game with a list hands the place over as it stands, because it keeps all of that on
+the member.  Cribbage is the one seated game that says otherwise, since it does keep its pegs on the seat.
+
+A game with numbered seats usually needs no renaming at all (the seat index
 is the identity, so the cards and the pegs come with the seat), only a hook to drop what belongs to a computer player
 alone — Cribbage's `replaced` mark, Splendour's entry in `room.ais`.  A game that keeps a list of players identifies its
 players by id, so it must rename that id everywhere it writes one down; factor that into a `renameId(room, from, to)`

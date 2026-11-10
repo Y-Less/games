@@ -161,7 +161,7 @@ test('leaving: a computer player takes the place of a guesser, of the psychic an
   game.guess(room, a, 50);
   game.guess(room, b, 50);
   const slot = room.players.findIndex((p) => p.id === c);
-  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true });
+  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true, seat: slot });
   const bot = room.players[slot];
   assert.equal(bot.kind, 'bot');
   assert.equal(room.phase, 'guessing', 'the computer player still has to guess');

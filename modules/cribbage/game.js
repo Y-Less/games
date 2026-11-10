@@ -224,12 +224,16 @@ export function migrate(room) {
 const seats = createSeatRules({
   isMidGame: (room) => ['discard', 'play', 'show'].includes(room.phase),
   botNames: BOT_NAMES,
-  // The computer player keeps everything about the seat except who is sitting in it.
-  takeOver: (room, bot, seat, rng) => ({ ...room.seats[seat], kind: 'bot', id: bot.id, replaced: true, ai: pickAI(AIS, rng).id }),
+  // The computer player keeps everything about the seat except who is sitting in it — this game keeps its pegs and
+  // its cards on the seat, not in arrays beside it, so the seat carries them over rather than starting afresh.
+  replacement: (room, leaving, bot) => ({ ...leaving, kind: 'bot', id: bot.id }),
+  takeOver: (room, oldId, bot, rng) => {
+    bot.replaced = true;
+    bot.ai = pickAI(AIS, rng).id;
+  },
   // And the mirror: somebody arriving takes the seat with its pegs and its cards, and it is nobody's stand-in again.
-  handOver: (room, person) => {
+  handOver: (room, botId, person) => {
     delete person.replaced;
-    return person;
   },
   finishedSeat: (seat) => ({ ...seat, kind: 'gone', id: null }),
   afterRemoval: (room, rng) => advanceIfReady(room, rng),

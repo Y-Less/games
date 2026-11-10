@@ -229,20 +229,18 @@ const seats = createSeatRules({
    * Side effects: mutates room.ais (adds an entry for the bot).
    *
    * @param {object} room
-   * @param {object} bot   the new computer-player seat entry
-   * @param {number} seat  the seat it takes over
+   * @param {number} oldId  the account that left
+   * @param {object} bot   the new computer player, already in the seat
    * @param {() => number} rng  random numbers in [0, 1)
-   * @returns {object} the bot, unchanged
+   * @returns {void}
    */
-  takeOver: (room, bot, seat, rng) => {
+  takeOver: (room, oldId, bot, rng) => {
     (room.ais ??= {})[bot.id] = pickAI(AIS, rng).id;
-    return bot;
   },
   // And the mirror: somebody arriving takes the seat with its cards and nobles, and the AI that was playing it is
   // forgotten — it is kept in room.ais rather than in the seat, so it does not go with the seat on its own.
-  handOver: (room, person, seat, bot) => {
-    if (room.ais) delete room.ais[bot.id];
-    return person;
+  handOver: (room, botId) => {
+    if (room.ais) delete room.ais[botId];
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;

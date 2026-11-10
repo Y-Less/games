@@ -643,15 +643,16 @@ const seats = createSeatRules({
    * Side effect: mutates room.log (and uses the rng, after the bot's name was chosen, as before).
    *
    * @param {object} room  the room
-   * @param {object} bot  the new computer player, with its name
-   * @param {number} seat  the seat it takes
+   * @param {number} oldId  the account that left
+   * @param {object} bot  the new computer player, already in the seat
    * @param {() => number} rng  random source returning [0, 1), used to choose its AI
-   * @returns {object} the bot, with its `ai` id, to put in the seat
+   * @param {number} now  the clock, unused here
+   * @param {number} seat  the seat it has taken
+   * @returns {void}
    */
-  takeOver(room, bot, seat, rng) {
-    const taken = { ...bot, ai: pickAI(AIS, rng).id };
-    addLog(room, seat, msg('log.takeOver', { name: taken.name }));
-    return taken;
+  takeOver(room, oldId, bot, rng, now, seat) {
+    bot.ai = pickAI(AIS, rng).id;
+    addLog(room, seat, msg('log.takeOver', { name: bot.name }));
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;

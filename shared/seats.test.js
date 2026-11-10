@@ -76,13 +76,13 @@ test('coming back puts you in your own seat, which is where your cards still are
   assert.equal(rules.addHuman(room, 8, 'Yan').error, 'gameFull', 'with every seat held by a person there is nothing left to take');
 });
 
-test('handOver is given the person, the seat and the computer player, and says what to store', () => {
+test('handOver is given the person, the computer player and the seat, and changes the person where they sit', () => {
   const seen = [];
   const own = createSeatRules({
     isMidGame: (room) => room.phase === 'playing',
-    handOver: (room, person, seat, bot) => {
-      seen.push({ person: { ...person }, seat, bot: { ...bot } });
-      return { ...person, cameLate: true };
+    handOver: (room, botId, person, bot, seat) => {
+      seen.push({ person: { ...person }, seat, bot: { ...bot }, botId });
+      person.cameLate = true;
     },
   });
   const room = lobby();
@@ -93,8 +93,9 @@ test('handOver is given the person, the seat and the computer player, and says w
   assert.equal(seen.length, 1);
   assert.deepEqual(seen[0].person, { kind: 'human', id: 5, name: 'Eve' }, 'the AI is already off it');
   assert.equal(seen[0].seat, 1);
+  assert.equal(seen[0].botId, 'bot:1', 'named directly, as the games with a list have always had it');
   assert.deepEqual(seen[0].bot, { kind: 'bot', id: 'bot:1', name: 'Hazel', ai: 'steady' }, 'and the computer player is there as it was');
-  assert.equal(room.seats[1].cameLate, true, 'what it returns is what sits there');
+  assert.equal(room.seats[1].cameLate, true, 'what it changes is what sits there');
 });
 
 test('only the host changes the lobby, and only in the lobby', () => {
@@ -132,9 +133,9 @@ test('removeHuman mid-game puts a computer player in the seat, via the takeOver 
   const calls = [];
   const custom = createSeatRules({
     isMidGame: () => true,
-    takeOver: (room, bot, seat) => {
+    takeOver: (room, oldId, bot, rng, now, seat) => {
       calls.push(seat);
-      return { ...bot, ai: 'standard' };
+      bot.ai = 'standard';
     },
     afterRemoval: (room) => calls.push('after'),
   });
@@ -151,7 +152,7 @@ test('removeHuman mid-game puts a computer player in the seat, via the takeOver 
 test('removeHuman reports an empty room when the last person goes', () => {
   const room = lobby();
   const out = rules.removeHuman(room, 1);
-  assert.deepEqual(out, { ok: true, empty: true, seat: 0 });
+  assert.deepEqual(out, { ok: true, empty: true, seat: 0, replaced: false });
 });
 
 test('a finished game can keep a marker for the person who left', () => {

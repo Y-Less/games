@@ -216,7 +216,7 @@ test('removeHuman: the lobby just loses them, the host passes to the next person
   const room = lobby();
   rules.addHuman(room, 2, 'Bob');
   rules.addBot(room, 1);
-  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: false });
+  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: false, seat: 0 }, 'and it says which place was freed, as the seated games always did');
   assert.equal(room.hostId, 2, 'the host is now the next person, not a computer player');
   assert.deepEqual(room.players.map((p) => p.id), [2, 'bot:1']);
   assert.equal(rules.removeHuman(room, 99).error, 'notInGame');
@@ -233,7 +233,7 @@ test('removeHuman in a game puts a computer player in their place, with their sc
   room.phase = 'playing';
   room.players[1].score = 7;
   room.history = [{ label: 'Turn 1', deltas: { s1: 7, s0: 0 }, notes: { s1: 'guessed it' } }]; // by slot: Bob is s1
-  assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, replaced: true });
+  assert.deepEqual(rules.removeHuman(room, 2), { ok: true, empty: false, replaced: true, seat: 1 });
   assert.deepEqual(room.players.map((p) => p.id), [1, 'bot:1', 3], 'same slot, so the turn order is unchanged');
   assert.deepEqual(room.players[1], { kind: 'bot', id: 'bot:1', name: 'Ada', score: 7, ai: 'standard', stoodInFor: 2, slot: 's1' }, 'the score and the slot carry over, the game gave it an AI, and it knows whose place it is keeping');
   assert.deepEqual(taken, [{ oldId: 2, bot: room.players[1] }]);
@@ -241,7 +241,7 @@ test('removeHuman in a game puts a computer player in their place, with their sc
   assert.deepEqual(room.history[0], { label: 'Turn 1', deltas: { s1: 7, s0: 0 }, notes: { s1: 'guessed it' } }, 'and the history was not touched at all');
   assert.deepEqual(historyView(room)[0].deltas, { 'bot:1': 7, 1: 0 }, 'the scoreboard names whoever holds the slot now');
   assert.equal(seatOf(room, 2), -1, 'the person is free to join another game');
-  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: true }, 'the host leaving mid-game is replaced too');
+  assert.deepEqual(rules.removeHuman(room, 1), { ok: true, empty: false, replaced: true, seat: 0 }, 'the host leaving mid-game is replaced too');
   assert.equal(room.hostId, 3, 'and the host passes to the next person');
   assert.equal(rules.removeHuman(room, 3).empty, true, 'the last person leaving empties the room, however many computers are left');
   const done = lobby();

@@ -178,10 +178,9 @@ const seats = createSeatRules({
   isMidGame: inRound,
   botNames: BOT_NAMES,
   /** Gives the replacement computer player its AI and tells the table (mutates the room's log). */
-  takeOver(room, bot, seat, rng) {
-    const taken = { ...bot, ai: pickAI(AIS, rng).id };
-    addLog(room, seat, 'log.takesOver', { name: taken.name });
-    return taken;
+  takeOver(room, oldId, bot, rng, now, seat) {
+    bot.ai = pickAI(AIS, rng).id;
+    addLog(room, seat, 'log.takesOver', { name: bot.name });
   },
   /** If the person who left was the last one the between-rounds screen was waiting for, the next round starts. */
   afterRemoval(room, rng, now) {

@@ -286,7 +286,9 @@ function resetGame(room) {
 const seats = createSeatRules({
   isMidGame: (room) => MID_GAME.includes(room.phase),
   botNames: BOT_NAMES,
-  takeOver: (room, bot, seat, rng) => ({ ...bot, ai: pickAI(AIS, rng).id }),
+  takeOver: (room, oldId, bot, rng) => {
+    bot.ai = pickAI(AIS, rng).id;
+  },
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
   finishedSeat: goneSeat,
 });

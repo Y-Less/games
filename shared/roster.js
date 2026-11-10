@@ -17,10 +17,11 @@
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { numberFrom } from './input.js';
-import { rosterLayout } from './layout.js';
-import { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, ok } from './seats.js';
+import { rosterLayout, withSlot } from './layout.js';
+import { asHost, createMemberRules, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
 
-export { barFromRoom, isBarred, isBot, isHuman };
+export { barFromRoom, isBarred, isBot, isHuman } from './members.js';
+export { withSlot } from './layout.js';
 
 /**
  * Renames one player's id wherever a room's scoreboard history refers to it (the `deltas` and `notes` of every round), so
@@ -32,31 +33,6 @@ export { barFromRoom, isBarred, isBot, isHuman };
  * @returns {void}
  * Side effects: mutates every round of `room.history`.
  */
-/**
- * Gives a new player its slot: the name the scoreboard's history calls them by, for as long as this game lasts.
- *
- * A player's place in `room.players` is not an identity — `removeBot` splices the list in the lobby, which renumbers
- * everybody after it — and nor is their id, because a person who leaves a game under way is replaced by a computer
- * player with a new one.  The slot is neither: it is handed out once, here, and it travels with the place through
- * every replacement, because both of those paths build the new member by spreading the old one.  That is what lets
- * the history be written once and never touched again.
- *
- * It is "s0", "s1", … rather than 0, 1, … on purpose.  Account ids are small numbers too, so a numeric slot and an id
- * are indistinguishable once either is a key of an object, and reading a history by the wrong one quietly finds the
- * wrong player's points instead of finding nothing.  Two bugs were written that way while this change was being made
- * — one of them in code, not just a test — and both would have been loud with a key that cannot be mistaken.
- *
- * @param {object} room    the room, whose counter is used up
- * @param {object} player  the player to give a slot to
- * @returns {object} the same player
- * Side effects: sets `player.slot` and advances `room.nextSlot`.
- */
-export function withSlot(room, player) {
-  room.nextSlot ??= 0;
-  player.slot = `s${room.nextSlot++}`;
-  return player;
-}
-
 /** The slot of whoever holds this id, or -1 if nobody does. */
 export const slotOf = (room, id) => room.players.find((p) => p.id === id)?.slot ?? -1;
 
@@ -226,14 +202,29 @@ function migrateSlots(room) {
  */
 export const defaultPlayers = (min, max) => Math.min(max, Math.max(min, 4));
 
+/** The codes this family's clients already know.  The two families never used the same ones. */
+const ROSTER_ERRORS = {
+  barred: 'removedFromGame',
+  full: 'gameFull',
+  started: 'thatGameStarted',
+  notInGame: 'notInGame',
+  kickNotHost: 'hostOnlyRemove',
+  kickTarget: 'playerNotInGame',
+  gameOver: 'gameOverNobodyToRemove',
+};
+
 /**
  * Builds a list-game's lobby rules.
+ *
+ * Joining, leaving, being replaced and being put out are shared/members.js; what is below is what only a game with a
+ * list of players has: a size the host may choose, and computer players that are appended rather than seated.
  *
  * @param {object} config
  * @param {(room: object) => boolean} config.isLive  true until the game is over (the lobby counts as live): leaving or
  *   removing someone from a room that is not live changes nothing
  * @param {number} config.minPlayers  how many players a game needs to start
  * @param {number} config.maxPlayers  how many players a room can hold
+ * @param {number} [config.fillTo]  how many "fill with computer players" makes up to (default: a table of four)
  * @param {string[]} [config.botNames]  the names computer players get (default DEFAULT_BOT_NAMES)
  * @param {(room: object, base: { kind: string, id: number | string, name?: string }, extras?: object) => object} config.makePlayer
  *   turns the bare player into the game's own shape (adds the score, the counters, a marker colour...). `extras` is whatever
@@ -249,150 +240,34 @@ export const defaultPlayers = (min, max) => Math.min(max, Math.max(min, 4));
  *   person was, with their score, counters and colour but the new id and name.  The game gives it an AI, renames the
  *   person's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory does the
  *   scoreboard history) and moves on if the game was only waiting for that person.  The default does nothing.
- * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
+ * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf, lockSize
  */
-export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = defaultPlayers(minPlayers, maxPlayers), botNames = DEFAULT_BOT_NAMES, makePlayer, takeOver = () => {}, handOver = () => {} }) {
+export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = defaultPlayers(minPlayers, maxPlayers), botNames, makePlayer, takeOver, handOver }) {
+  const rules = createMemberRules({
+    layout: rosterLayout,
+    errors: ROSTER_ERRORS,
+    isLive,
+    // A list has no seats to sit in, so "a game is under way" is simply "it has started and is not over".
+    isMidGame: (room) => isLive(room) && room.phase !== 'lobby',
+    minPlayers,
+    maxPlayers,
+    fillTo,
+    botNames,
+    makePlayer,
+    takeOver,
+    handOver,
+    guardFill: (room, userId) => lobbyHostOnly(room, userId, 'add'),
+    // Somebody who leaves a game that is over simply stays on the final standings, so nothing happened.
+    leaveFinished: () => false,
+  });
+
   /**
    * The most people this game will hold.  A room opens as big as the game allows, so nobody is turned away who could
    * have joined before; a host who wants to keep it smaller says so, and starting settles it for good.
    * @param {object} room  not changed
    * @returns {number}
    */
-  const sizeOf = (room) => (Number.isInteger(room.size) ? room.size : maxPlayers);
-
-  /**
-   * Makes the next computer player: the first unused name from the list, then "Computer", numbered if it clashes.
-   *
-   * Side effect: uses up one number from room.nextBot (and creates it if a saved room lacked it).
-   *
-   * @param {object} room
-   * @returns {object} the new player (not yet in room.players)
-   */
-  function newBot(room) {
-    room.nextBot ??= 1;
-    return withSlot(room, makePlayer(room, { kind: 'bot', id: `bot:${room.nextBot++}`, name: nextBotName(playerNames(room), botNames) }));
-  }
-
-  /**
-   * Adds a person to the end of the list.  Joining twice is harmless, and the game must still be in the lobby for a newcomer.
-   *
-   * Side effect: pushes the new player onto room.players.
-   *
-   * @param {object} room
-   * @param {number} userId
-   * @param {string} [name]    the account's display name (made unique among the players); left off if not given
-   * @param {object} [extras]  whatever the server knows about them that the game needs, handed to makePlayer
-   * @returns {{ ok: boolean, seat?: number, error?: string }} `seat` is their place in the join order
-   */
-  function addHuman(room, userId, name, extras = {}) {
-    if (isBarred(room, userId)) return fail('removedFromGame');
-    if (hasPlayer(room, userId)) return ok({ seat: seatOf(room, userId) });
-    if (room.phase !== 'lobby') return sitInForBot(room, userId, name);
-    if (room.players.length >= sizeOf(room)) return fail('gameFull');
-    const base = { kind: 'human', id: userId };
-    if (typeof name === 'string') base.name = uniqueName(room, name);
-    room.players.push(withSlot(room, makePlayer(room, base, extras)));
-    return ok({ seat: room.players.length - 1 });
-  }
-
-  /**
-   * Somebody arriving at a game already under way — a friend who was slow to open the invitation — takes the place of
-   * the first computer player in the list: its score, its counters, its colour, everything but its name and the AI
-   * that was playing it.  It is the mirror of what happens when a person leaves, and it is why an invitation is still
-   * worth following after the first round has started.
-   *
-   * There is nothing to take over once the game is over (the caller says so instead), nor when every place already
-   * holds a person, which is as full as a game can be.
-   *
-   * @param {object} room  the room to change
-   * @param {number} userId  the joining account id
-   * @param {string} [name]  the account's display name (made unique among the players)
-   * @returns {{ ok: boolean, seat?: number, tookOver?: string, error?: string }} their place in the list and the name
-   *   of the computer player that held it, or why nothing could be taken
-   * Side effects: replaces one entry of room.players, and whatever `handOver` changes.
-   */
-  function sitInForBot(room, userId, name) {
-    if (!isLive(room)) return fail('thatGameStarted');
-    const index = placeToTake(room, userId);
-    if (index === -1) return fail('gameFull');
-    const bot = room.players[index];
-    const person = { ...bot, kind: 'human', id: userId };
-    delete person.ai; // the AI stops here: from now on the place plays for itself
-    delete person.stoodInFor; // and it is nobody's stand-in: the person it was waiting for is standing in it
-    delete person.name; // out of the way, so the newcomer may use the name the computer player was going by
-    room.players[index] = person;
-    if (typeof name === 'string') person.name = uniqueName(room, name);
-    else person.name = bot.name;
-    handOver(room, bot.id, person);
-    return ok({ seat: index, tookOver: bot.name });
-  }
-
-  /**
-   * The place a newcomer takes over.  Their own comes first: if the computer player keeping their place warm is still
-   * there, somebody coming back after a dropped connection carries on where they left off, with their own score and
-   * colour.  Failing that it is a place that is nobody's stand-in — one the host filled — so that the others who might
-   * yet come back keep theirs.  Failing that, the first computer player in the list.
-   *
-   * @param {object} room  not changed
-   * @param {number} userId  the account arriving
-   * @returns {number} the index in the list, or -1 when every place holds a person
-   * Side effects: none.
-   */
-  function placeToTake(room, userId) {
-    const bots = room.players.flatMap((p, i) => (isBot(p) ? [i] : []));
-    return bots.find((i) => room.players[i].stoodInFor === userId) ?? bots.find((i) => room.players[i].stoodInFor === undefined) ?? bots[0] ?? -1;
-  }
-
-  /**
-   * Takes a person out of the list, whoever asked.  In the lobby they simply go.  In a game that is under way a computer
-   * player takes their place (same slot, same score; see config.takeOver), so no turn is lost.  A game that is over is left
-   * alone (they stay on the final standings) and the result says `changed: false`, so the room server does not treat it as
-   * a change.  If they were the host the next person becomes host.
-   *
-   * Side effects: splices or replaces an entry of room.players, may change room.hostId and whatever takeOver changes.
-   *
-   * @param {object} room
-   * @param {number} id  the account id
-   * @param {() => number} rng
-   * @param {number} [now]  the clock, for games whose rules start a timer when somebody is replaced
-   * @returns {{ ok: boolean, empty?: boolean, replaced?: boolean, changed?: boolean, error?: string }} `empty` is true
-   *   when no person is left, so the caller should discard the room; `replaced` says a computer player took their place;
-   *   `changed: false` means nothing happened
-   */
-  function takeOut(room, id, rng, now = 0) {
-    const index = seatOf(room, id);
-    if (index === -1) return fail('notInGame');
-    if (!isLive(room)) return ok({ empty: false, replaced: false, changed: false });
-    let replaced = false;
-    if (room.phase === 'lobby') room.players.splice(index, 1);
-    else {
-      const leaving = room.players[index];
-      const { id: botId, name } = newBot(room); // just for the id and the name: the player keeps everything else
-      // The computer player remembers whose place it is keeping warm, so that they get it back if they come back.
-      room.players[index] = { ...leaving, kind: 'bot', id: botId, name, stoodInFor: id };
-      takeOver(room, id, room.players[index], rng, now);
-      replaced = true;
-    }
-    const people = humans(room);
-    if (!people.length) return ok({ empty: true, replaced });
-    if (room.hostId === id) room.hostId = people[0].id;
-    return ok({ empty: false, replaced });
-  }
-
-  /**
-   * A person leaves (or is removed by the host).  In the lobby they simply go; in a game a computer player takes their
-   * place; after a game ends nothing changes (`changed: false`).
-   *
-   * @param {object} room
-   * @param {number} userId
-   * @param {() => number} rng
-   * @returns {{ ok: boolean, empty?: boolean, replaced?: boolean, changed?: boolean, error?: string }}
-   * Side effects: as takeOut.
-   */
-  function removeHuman(room, userId, rng, now = 0) {
-    if (!isHuman(room.players[seatOf(room, userId)])) return fail('notInGame');
-    return takeOut(room, userId, rng, now);
-  }
+  const sizeOf = (room) => rules.capacity(room);
 
   /**
    * Null if this person is the host and the game is still in the lobby, otherwise the failure to return.
@@ -422,31 +297,10 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
   function addBot(room, userId) {
     const refused = lobbyHostOnly(room, userId, 'add');
     if (refused) return refused;
-    if (room.players.length >= sizeOf(room)) return fail('gameFull');
-    const bot = newBot(room);
+    if (rules.isFull(room)) return fail('gameFull');
+    const bot = rules.newBot(room);
     room.players.push(bot);
     return ok({ id: bot.id });
-  }
-
-  /**
-   * The host fills the lobby with computer players until there are `target` players (default: enough to start).
-   *
-   * Side effect: pushes computer players onto room.players.
-   *
-   * @param {object} room
-   * @param {number} userId
-   * @param {number} [target]  how many players the room should have; kept between minPlayers and maxPlayers
-   * @returns {{ ok: boolean, error?: string }}
-   */
-  function fillWithBots(room, userId, target = fillTo) {
-    const refused = lobbyHostOnly(room, userId, 'add');
-    if (refused) return refused;
-    // "Fill" is a quick start, not "as many as will fit": it makes up a normal table of players, and never goes past
-    // the cap the host has set.  Somebody who wants more adds them one at a time, or asks for a number.
-    const asked = Math.round(numberFrom(target)) || fillTo;
-    const wanted = Math.min(sizeOf(room), maxPlayers, Math.max(minPlayers, asked));
-    while (room.players.length < wanted) room.players.push(newBot(room));
-    return ok();
   }
 
   /**
@@ -504,29 +358,5 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
     return ok();
   }
 
-  /**
-   * The host removes another person, at any time before the game is over: in the lobby they go, and in a game a computer
-   * player takes their place (as when someone leaves).  A finished game has nobody to remove.  The result names the person
-   * so the server can send them home.
-   *
-   * @param {object} room
-   * @param {number} hostId
-   * @param {string} slot  the slot of the person to remove ("s2")
-   * @param {() => number} rng
-   * @param {number} [now]  the clock, passed on to the game's takeOver
-   * @returns {{ ok: boolean, userId?: number, replaced?: boolean, error?: string }}
-   * Side effects: as takeOut.
-   */
-  function kick(room, hostId, slot, rng, now = 0) {
-    if (hostId !== room.hostId) return fail('hostOnlyRemove');
-    const target = rosterLayout.at(room, slot);
-    if (!isHuman(target) || target.id === hostId) return fail('playerNotInGame');
-    if (!isLive(room)) return fail('gameOverNobodyToRemove');
-    const removed = takeOut(room, target.id, rng, now);
-    if (!removed.ok) return removed;
-    barFromRoom(room, target.id); // put out by somebody else, so the invitation does not let them back in
-    return ok({ userId: target.id, replaced: removed.replaced });
-  }
-
-  return { newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf, lockSize };
+  return { newBot: rules.newBot, addHuman: rules.addHuman, removeHuman: rules.removeHuman, addBot, removeBot, fillWithBots: rules.fillWithBots, kick: rules.kick, setSize, sizeOf, lockSize };
 }

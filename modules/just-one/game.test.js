@@ -221,7 +221,7 @@ test('leaving: a computer player takes the place of a writer, of the guesser, an
   game.submitClue(room, a, 'alpha', Math.random);
   game.submitClue(room, b, 'beta', Math.random);
   const slot = room.players.findIndex((p) => p.id === c);
-  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true });
+  assert.deepEqual(game.removeHuman(room, c, seeded(1)), { ok: true, empty: false, replaced: true, seat: slot });
   const bot = room.players[slot];
   assert.equal(bot.kind, 'bot');
   assert.ok(bot.ai, 'it was given an AI');

@@ -214,7 +214,7 @@ test('ties: every tied leader wins and placements are shared', () => {
 test('leaving: in the lobby, the host passes on; the last one out empties the room', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.addHuman(room, 2);
-  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, replaced: false });
+  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, replaced: false, seat: 0 });
   assert.equal(room.hostId, 2);
   assert.equal(game.removeHuman(room, 2, Math.random).empty, true);
 });
@@ -224,7 +224,7 @@ test('leaving mid-game: a computer player takes the hinter\'s place and the turn
   hint(room);
   game.guess(room, 2, 'M4');
   const left = game.removeHuman(room, 1, seeded(1));
-  assert.deepEqual(left, { ok: true, empty: false, replaced: true });
+  assert.deepEqual(left, { ok: true, empty: false, replaced: true, seat: 0 });
   assert.equal(room.hostId, 2, 'the host passes on');
   const bot = room.players[0];
   assert.equal(bot.kind, 'bot');
