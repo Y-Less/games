@@ -28,7 +28,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  *   all optional; the defaults come from the PORT, DATA_DIR and MODULES_DIR environment variables, then the project folders
  * @returns {Promise<{ server: import('node:http').Server, port: number, db: object, stats: object, achievements: object, questions: object, close: () => Promise<void> }>}
  * Side effects: creates the data and uploads folders and the database, starts the modules, listens on the port and
- * starts an hourly sweep of expired sessions (stopped by `close`).
+ * starts an hourly sweep of expired sessions and unclaimed uploads (stopped by `close`).
  */
 export async function startSite(options = {}) {
   const port = options.port ?? (Number(process.env.PORT) || 3000);
@@ -36,9 +36,9 @@ export async function startSite(options = {}) {
   const modulesDir = path.resolve(options.modulesDir ?? process.env.MODULES_DIR ?? path.join(root, 'modules'));
   const distDir = options.distDir ?? path.join(root, 'dist');
   const log = options.log ?? console.log;
-  const uploads = createUploads(path.join(dataDir, 'uploads'));
 
   const db = openDatabase(options.memory ? ':memory:' : dataDir);
+  const uploads = createUploads(path.join(dataDir, 'uploads'), db);
   grandfather(db); // whoever already uses something now sold in the shop keeps it
   const backpaid = transaction(db, () => createCoins(db).creditPastResults()); // and whoever won before coins existed is paid for it
   if (backpaid.games) log(`Paid ${backpaid.coins} Gilders for ${backpaid.games} earlier placings.`);
@@ -88,7 +88,10 @@ export async function startSite(options = {}) {
 
   registerRoutes(app, { auth, achievements, coins, shop, refunds, stats, presence, modules, uploads, canUse, listGames, distDir });
 
-  const sweep = setInterval(() => auth.deleteExpiredSessions(), 60 * 60 * 1000);
+  const sweep = setInterval(() => {
+    auth.deleteExpiredSessions();
+    uploads.sweep(); // pictures stored but never claimed by a profile, from an upload that failed half way
+  }, 60 * 60 * 1000);
   sweep.unref();
 
   await new Promise((resolve) => server.listen(port, () => resolve(undefined)));

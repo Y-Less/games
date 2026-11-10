@@ -28,7 +28,12 @@ export function registerUploadRoutes(api, { auth, uploads, canUse, requireUser }
         // Check the unlock before anything is written to disk.
         canUse(req.user.id, { [setting]: { type: 'image' } });
         const file = uploads.saveImage({ kind, userId: req.user.id, contentType: req.headers['content-type'], body: req.body });
-        res.json({ user: auth.updateProfile(req.user.id, { [setting]: { type: 'image', file } }) });
+        const user = auth.updateProfile(req.user.id, { [setting]: { type: 'image', file } });
+        // Only now is the picture theirs: the setting naming it has been written, so it is kept and the one it
+        // replaced goes.  Had the line above thrown, the old picture would still be theirs and this one would be left
+        // for the sweep.
+        uploads.keep(kind, req.user.id, file);
+        res.json({ user });
       }),
     );
   imageUpload('/me/background-image', 'bg', 'background');

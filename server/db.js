@@ -105,6 +105,18 @@ CREATE INDEX IF NOT EXISTS coin_ledger_user ON coin_ledger (user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_achievement ON coin_ledger (user_id, reason) WHERE reason LIKE 'achievement:%';
 -- A game pays a player once, even if it were recorded twice.
 CREATE UNIQUE INDEX IF NOT EXISTS coin_ledger_once ON coin_ledger (user_id, result_id) WHERE reason = 'placement';
+-- Uploaded pictures, one row per file under <dataDir>/uploads.  The row is written *before* the file, so a crash
+-- between the two leaves something that can be found and swept; a file nothing points at used to be invisible, and
+-- the only thing that ever noticed one was a scan of the whole folder on the next upload.  in_use is set once the
+-- profile update naming the file has gone through.
+CREATE TABLE IF NOT EXISTS uploads (
+  file TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  in_use INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS uploads_user ON uploads (user_id, kind);
 CREATE INDEX IF NOT EXISTS result_players_user ON result_players (user_id);
 CREATE INDEX IF NOT EXISTS result_players_result ON result_players (result_id);
 CREATE INDEX IF NOT EXISTS results_game ON results (game, finished_at);

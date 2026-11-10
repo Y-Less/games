@@ -3,7 +3,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { jpeg, png, rawRequest, register, webp, withSite } from './fixtures/testkit.js';
+import { jpeg, png, rawRequest, register, tempDir, webp, withSite } from './fixtures/testkit.js';
+import { ORPHAN_MS, createUploads } from './uploads.js';
+import { openDatabase } from './db.js';
+
+/** An uploads folder of its own, with a throwaway database behind it. */
+const uploadsIn = (t) => {
+  const dir = path.join(tempDir(t, 'uploads-unit-'), 'uploads');
+  return { dir, uploads: createUploads(dir, openDatabase(':memory:')) };
+};
+const inDir = (dir) => fs.readdirSync(dir).sort();
 
 const MB3 = 3 * 1024 * 1024;
 const KINDS = [
@@ -154,6 +163,39 @@ test('uploaded files are served with nosniff and long immutable caching, with th
     assert.match(cache, /immutable/);
     await res.arrayBuffer();
   }
+});
+
+// What the uploads table is for: a picture is on disk before any profile names it, and used to be invisible from the
+// moment it was written until somebody happened to upload another one of the same kind.
+
+test('an upload that never reaches the profile keeps the picture that was already there, and is swept later', (t) => {
+  const { dir, uploads } = uploadsIn(t);
+  const now = 1_000_000;
+  const theirs = uploads.saveImage({ kind: 'bg', userId: 1, contentType: 'image/png', body: png(), now });
+  uploads.keep('bg', 1, theirs);
+
+  // Stored, and then the profile update failed: `keep` never ran.
+  const halfDone = uploads.saveImage({ kind: 'bg', userId: 1, contentType: 'image/png', body: png(), now });
+  assert.deepEqual(inDir(dir), [halfDone, theirs].sort(), 'both are on disk for the moment');
+  assert.equal(fs.existsSync(path.join(dir, theirs)), true, 'and they still have the picture they had');
+
+  assert.equal(uploads.sweep(now + ORPHAN_MS - 1), 0, 'an upload in flight is given an hour before anybody touches it');
+  assert.equal(uploads.sweep(now + ORPHAN_MS + 1), 1, 'after which the one nothing claimed goes');
+  assert.deepEqual(inDir(dir), [theirs], 'and only the one nothing claimed');
+});
+
+test('a picture stored before the uploads table existed is taken over, kept, and replaced like any other', (t) => {
+  const { dir, uploads: first } = uploadsIn(t);
+  void first; // the folder now exists; what follows is a site starting up over pictures that predate the table
+  fs.writeFileSync(path.join(dir, 'bg-7-abcdefabcdef.png'), png());
+  const uploads = createUploads(dir, openDatabase(':memory:'));
+
+  assert.equal(uploads.sweep(Date.now() + ORPHAN_MS * 2), 0, 'it is somebody’s picture, not an orphan');
+  assert.deepEqual(inDir(dir), ['bg-7-abcdefabcdef.png'], 'so the sweep leaves it alone');
+
+  const fresh = uploads.saveImage({ kind: 'bg', userId: 7, contentType: 'image/png', body: png() });
+  uploads.keep('bg', 7, fresh);
+  assert.deepEqual(inDir(dir), [fresh], 'and their next upload replaces it, as it would any other');
 });
 
 test('unknown upload files are plain 404s, never the client app, and cannot escape the folder', async (t) => {
