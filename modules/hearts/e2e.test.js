@@ -19,13 +19,32 @@ const fast = () => {
   process.env.HEARTS_TRICK_PAUSE = '0';
 };
 
-async function until(condition, what, { timeout = 20000 } = {}) {
+const DEADLINE = 20000;
+
+async function until(condition, what, { timeout = DEADLINE } = {}) {
   const started = Date.now();
   while (Date.now() - started < timeout) {
     if (await condition()) return;
     await sleep(10);
   }
   assert.fail(`timed out waiting for: ${what}`);
+}
+
+/**
+ * The same patience `until` has, for the waits that are not polling loops.  Those give up by themselves; these are the
+ * ones that would otherwise wait for ever on a site that accepts a request and never answers it.
+ * @template T @param {Promise<T>} promise @param {string} what @param {{ timeout?: number }} [options] @returns {Promise<T>}
+ */
+async function withDeadline(promise, what, { timeout = DEADLINE } = {}) {
+  let timer;
+  const expiry = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${timeout}ms waiting for: ${what}`)), timeout);
+  });
+  try {
+    return await Promise.race([promise, expiry]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -36,14 +55,25 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
   const modulesDir = path.join(dataDir, 'copy', 'modules');
   if (!fs.existsSync(modulesDir)) {
     fs.mkdirSync(path.join(modulesDir, 'hearts'), { recursive: true });
-    for (const file of ['server.js', 'game.js', 'deals.js', 'tally.js', 'module.json', 'rules.md']) fs.copyFileSync(path.join(here, file), path.join(modulesDir, 'hearts', file));
+    // (every non-test file, not a short list: a list breaks silently whenever the module gains a file, and the
+    // copied site then dies on an import the test can only see as a server that never answers)
+    for (const file of fs.readdirSync(path.join(here), { withFileTypes: true })) {
+      if (!file.isFile() || file.name.endsWith('.test.js')) continue;
+      fs.copyFileSync(path.join(here, file.name), path.join(modulesDir, 'hearts', file.name));
+    }
     fs.cpSync(path.join(here, 'ai'), path.join(modulesDir, 'hearts', 'ai'), { recursive: true });
     fs.mkdirSync(path.join(dataDir, 'copy', 'shared'), { recursive: true });
     for (const file of fs.readdirSync(path.join(platform, 'shared'))) {
       if (file.endsWith('.js') && !file.endsWith('.test.js')) fs.copyFileSync(path.join(platform, 'shared', file), path.join(dataDir, 'copy', 'shared', file));
     }
   }
-  const site = await startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
+  const starting = startSite({ port: 0, dataDir: path.join(dataDir, 'site'), modulesDir, log: () => {} });
+  const site = await withDeadline(starting, 'the site to start').catch((error) => {
+    // If it does start, eventually, do not leave it listening: the test file would have nothing left to do and still
+    // never exit.  (The catch also keeps a late rejection from being an unhandled one.)
+    starting.then((late) => late.close(), () => {});
+    throw error;
+  });
   const base = `http://127.0.0.1:${site.port}`;
   const people = [];
   let stopped = false;
@@ -57,6 +87,13 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
     await stop();
     if (!keep) fs.rmSync(dataDir, { recursive: true, force: true });
   });
+
+  // The site starts whether or not its games do: `loadModules` prints a module that fails to load and carries on, which
+  // is right for a live site with sixteen of them and wrong for a test with one.  The namespace is made before the
+  // module is imported, so what is left accepts connections and answers nothing — every later call would sit on its
+  // deadline in turn.  Say it once, here, while the reason loadModules printed is still the last thing on screen.
+  const config = await withDeadline(fetch(`${base}/api/config`).then((r) => r.json()), 'the site to list its games');
+  assert.ok(config.games?.some((g) => g.id === 'hearts'), 'the hearts module did not load; its error is printed above');
 
   class Person {
     constructor(name) {
@@ -93,14 +130,14 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
         this.state = s;
         this.states.push(s);
       });
-      await new Promise((resolve, reject) => {
+      await withDeadline(new Promise((resolve, reject) => {
         socket.once('connect', resolve);
         socket.once('connect_error', reject);
-      });
+      }), `${this.name} to connect`);
       return this;
     }
     call(event, payload = {}) {
-      return new Promise((resolve) => this.socket.emit(event, payload, resolve));
+      return withDeadline(new Promise((resolve) => this.socket.emit(event, payload, resolve)), `the site to answer "${event}" for ${this.name}`);
     }
     async create(settings = {}) {
       const reply = await this.call('create', settings);
@@ -601,4 +638,20 @@ test('a restart after the game has finished does not record it a second time', a
   await until(() => again.state?.phase === 'finished', 'the finished game');
   await sleep(150);
   assert.equal((await again.stats()).perGame[0].played, 1);
+});
+
+test('a site whose game did not load fails the test at once, instead of answering nothing for ever', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hearts-e2e-unloadable-'));
+  const moduleDir = path.join(dataDir, 'copy', 'modules', 'hearts');
+  fs.mkdirSync(moduleDir, { recursive: true });
+  // `launch` copies the module only when the folder is not already there, so this stands in for the copy: the real
+  // manifest, because the loader insists the id matches the folder, and a server.js importing a file that was not
+  // copied.  That is what a missing bot.js was, and the loader will print it to stderr below — that noise is the point.
+  fs.copyFileSync(path.join(here, 'module.json'), path.join(moduleDir, 'module.json'));
+  fs.writeFileSync(path.join(moduleDir, 'server.js'), "import './was-not-copied.js';\n\nexport default () => ({});\n");
+
+  const started = Date.now();
+  await assert.rejects(launch(t, { dataDir }), /hearts module did not load/);
+  const took = Date.now() - started;
+  assert.ok(took < DEADLINE / 2, `it should say so as soon as the site is up, not sit on a deadline; it took ${took}ms`);
 });

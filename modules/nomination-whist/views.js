@@ -2,6 +2,7 @@
 // render-everything test (vitest): the same views reach both, so what the server sends is also what the table draws.
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import * as botDriver from './bot.js'; // not `bot`: there is a stand-in seat called that below
 import { seeded } from '../../shared/random.js';
 
 
@@ -29,7 +30,7 @@ export function recordedViews(seed, settings) {
     }
     else {
       asBot();
-      const moved = game.runPending(room, rng);
+      const moved = botDriver.runPending(room, rng);
       asPerson();
       if (!moved) break;
     }

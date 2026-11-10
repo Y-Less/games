@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import * as bot from './bot.js';
 import { deckFor, openingCard, tricksFor, passCountFor } from './deals.js';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
@@ -127,7 +128,7 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
       assert.equal(game.nextHand(room, pick(rng, humanIds()), rng).ok, true);
       continue;
     }
-    const pending = game.pendingAction(room);
+    const pending = bot.pendingAction(room);
     if (room.phase === 'passing') {
       const waiting = room.seats.flatMap((s, i) => (game.isHuman(s) && !room.passes[i] ? [i] : []));
       if (waiting.length && (!pending || rng() < 0.5)) {
@@ -146,13 +147,13 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
         assert.equal(game.choosePass(room, seat, shuffled.slice(0, count)).ok, true);
         assert.equal(game.choosePass(room, seat, shuffled.slice(0, count)).ok, false, `${label}: passing twice is refused`);
       } else {
-        assert.ok(game.runPending(room, rng));
+        assert.ok(bot.runPending(room, rng));
       }
       continue;
     }
     if (pending) {
       const wasTrick = room.trick.length;
-      game.runPending(room, rng);
+      bot.runPending(room, rng);
       if (pending.type === 'resolve') assert.equal(wasTrick, room.seats.length);
       continue;
     }
@@ -252,7 +253,7 @@ test('every pass direction is used in order and the cards go to the right seat',
     }
     // Finish the hand with computer moves for everyone.
     while (room.phase === 'playing') {
-      game.runPending(room, rng) ?? game.playCard(room, room.turn, game.botPlay(room, room.turn, rng));
+      bot.runPending(room, rng) ?? game.playCard(room, room.turn, game.botPlay(room, room.turn, rng));
     }
     if (room.phase === 'handEnd') for (const seat of room.seats) if (seat.kind === 'human') game.nextHand(room, seat.id, rng);
     else break;

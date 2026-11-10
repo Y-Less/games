@@ -7,6 +7,7 @@
 //   CHEAT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 900-1800)
 import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
+import * as bot from './bot.js';
 
 /**
  * Reads the Cheat timings from the environment.
@@ -48,10 +49,10 @@ export default function (ctx) {
     pickSettings,
     /** The computer player's next play or decision, if the game is waiting for one. */
     nextAction(room, rng) {
-      const action = game.pendingAction(room);
+      const action = bot.pendingAction(room);
       if (!action) return null;
       const wait = action.type === 'decide' ? decideWait(delays.bot, rng) : botWait(delays.bot, rng);
-      return { key: action.key, wait, run: () => game.runPending(room, rng) };
+      return { key: action.key, wait, run: () => bot.runPending(room, rng) };
     },
     /** Cheat's own socket events: play cards, call "Cheat!", and accept the last play. */
     registerEvents({ act, on, userId }) {

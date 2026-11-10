@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fullDeck, suitOf } from '../../shared/cards.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { STAT_KEYS } from './tally.js';
 import { passStandard } from './ai/standard.js';
 import { newTally, tallyExchange } from './tally.js';
@@ -65,7 +66,7 @@ function simulate(settings, seed) {
       room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
       continue;
     }
-    assert.ok(g.runPending(room, rng), `something to do in ${room.phase}`);
+    assert.ok(bot.runPending(room, rng), `something to do in ${room.phase}`);
   }
   assert.equal(room.phase, 'finished');
   return room;
@@ -285,7 +286,7 @@ test('a finished trick goes to its winner, who leads next', () => {
   assert.equal(last.complete, true);
   assert.equal(room.turn, null, 'nobody plays while a trick waits to be cleared');
   assert.equal(g.playCard(room, 0, '9C').ok, false);
-  assert.equal(g.pendingAction(room).type, 'resolve');
+  assert.equal(bot.pendingAction(room).type, 'resolve');
   const outcome = g.resolveTrick(room);
   assert.deepEqual([outcome.winner, outcome.handOver], [1, false]);
   assert.deepEqual(room.taken[1].sort(), ['2D', '5D', '6D', 'AD']);
@@ -355,7 +356,7 @@ test('hand points shown while playing add up as the hand goes', () => {
 
 /** Plays out a hand where seat `taker` wins every trick by leading and playing high, to reach the end of the hand. */
 function finishHand(room, rng = seeded(5)) {
-  for (let guard = 0; guard < 500 && room.phase === 'playing'; guard++) g.runPending(room, rng);
+  for (let guard = 0; guard < 500 && room.phase === 'playing'; guard++) bot.runPending(room, rng);
 }
 
 test('after the thirteenth trick the hand is scored, tallied and the game goes on or ends', () => {
@@ -363,7 +364,7 @@ test('after the thirteenth trick the hand is scored, tallied and the game goes o
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
   let hands = 0;
   while (room.phase !== 'finished') {
-    for (let guard = 0; guard < 500 && ['passing', 'playing'].includes(room.phase); guard++) g.runPending(room, seeded(hands + 10));
+    for (let guard = 0; guard < 500 && ['passing', 'playing'].includes(room.phase); guard++) bot.runPending(room, seeded(hands + 10));
     hands++;
     const last = room.lastHand;
     assert.equal(last.hand, hands);
@@ -490,7 +491,7 @@ test('a human who leaves mid-game is replaced by a computer player in the same s
   assert.notEqual(room.seats[1].name, 'Bob');
   assert.equal(new Set(room.seats.map((s) => s.id)).size, 4);
   assert.equal(room.phase, 'passing');
-  assert.ok(g.pendingAction(room), 'the new computer player has to pass');
+  assert.ok(bot.pendingAction(room), 'the new computer player has to pass');
   assert.equal(g.removeHuman(room, 1, Math.random).empty, true, 'nobody is left');
 });
 
@@ -543,7 +544,7 @@ test('the tally counts hands without the Queen of Spades and hands with no point
     delete tally.queensAvoided; // an old saved room has neither key
     delete tally.zeroHands;
   }
-  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) bot.runPending(room, seeded(guard));
   assert.ok(['handEnd', 'finished'].includes(room.phase));
   room.tally.forEach((t, seat) => {
     const d = room.lastHand.details[seat];
@@ -558,12 +559,12 @@ test('the Jack of Diamonds is tallied when it scores, and a room saved before it
   const room = started({ target: 50, jackOfDiamonds: true }, seeded(2));
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
   for (const tally of room.tally) delete tally.jacksTaken; // an old saved room
-  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) bot.runPending(room, seeded(guard));
   assert.equal(room.tally.reduce((n, t) => n + (t.jacksTaken ?? 0), 0), 1, 'somebody took the Jack');
   assert.ok(room.tally.every((t) => t.jacksTaken === undefined || Number.isInteger(t.jacksTaken)));
   const off = started({ target: 50, jackOfDiamonds: false }, seeded(2));
   off.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
-  for (let guard = 0; guard < 500 && (off.phase === 'passing' || off.phase === 'playing'); guard++) g.runPending(off, seeded(guard));
+  for (let guard = 0; guard < 500 && (off.phase === 'passing' || off.phase === 'playing'); guard++) bot.runPending(off, seeded(guard));
   assert.equal(off.tally.reduce((n, t) => n + (t.jacksTaken ?? 0), 0), 0, 'worth nothing, so not counted');
 });
 
@@ -699,7 +700,7 @@ test('every legal-move check over thousands of random mid-hand positions', () =>
     const room = started({ jackOfDiamonds: n % 2 === 0 }, rng);
     room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
     const steps = Math.floor(rng() * 70);
-    for (let i = 0; i < steps && ['passing', 'playing'].includes(room.phase); i++) g.runPending(room, rng);
+    for (let i = 0; i < steps && ['passing', 'playing'].includes(room.phase); i++) bot.runPending(room, rng);
     if (room.phase !== 'playing' || room.trick.length === 4) continue;
     const seat = room.turn;
     const legal = g.legalCards(room, seat);
@@ -726,7 +727,7 @@ test('computer passes are always three different cards from the hand over thousa
 });
 
 test('a computer player does better than random: it takes fewer points than a player who always plays the first legal card', () => {
-  let bot = 0;
+  let computers = 0; // not `bot`: that is the module driving them, imported above
   let naive = 0;
   for (let seed = 1; seed <= 60; seed++) {
     const rng = seeded(seed);
@@ -735,9 +736,9 @@ test('a computer player does better than random: it takes fewer points than a pl
     room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
     for (let hand = 0; hand < 4; hand++) {
       while (['passing', 'playing'].includes(room.phase)) {
-        const action = g.pendingAction(room);
+        const action = bot.pendingAction(room);
         if (action.type === 'play' && action.seat === 0) g.playCard(room, 0, g.legalCards(room, 0)[0]);
-        else g.runPending(room, rng);
+        else bot.runPending(room, rng);
       }
       if (hand < 3) {
         room.seats[0] = { kind: 'human', id: 1, name: 'Ann' };
@@ -746,9 +747,9 @@ test('a computer player does better than random: it takes fewer points than a pl
       }
     }
     naive += room.scores[0];
-    bot += (room.scores[1] + room.scores[2] + room.scores[3]) / 3;
+    computers += (room.scores[1] + room.scores[2] + room.scores[3]) / 3;
   }
-  assert.ok(bot < naive, `computers ${bot} against naive ${naive}`);
+  assert.ok(computers < naive, `computers ${computers} against naive ${naive}`);
 });
 
 // ---- claiming the rest of a hand ----
@@ -830,7 +831,7 @@ test('the tally counts the opening card being passed on and being passed to you,
   assert.deepEqual(tallies.map((t) => [t.openingPassed, t.openingReceived]), [[1, 0], [0, 1], [0, 0]]);
   const room = started({ target: 50 }, seeded(4));
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
-  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) g.runPending(room, seeded(guard));
+  for (let guard = 0; guard < 500 && (room.phase === 'passing' || room.phase === 'playing'); guard++) bot.runPending(room, seeded(guard));
   assert.equal(room.tally.reduce((n, t) => n + t.tricksWon, 0), 13, 'every trick has a winner');
 });
 
@@ -856,10 +857,10 @@ test('a person who leaves a finished game stays on the table as gone, so the vie
 test("a computer player's pending action keeps its key while other people pass, so its timer is not restarted by them", () => {
   const room = started();
   room.seats[2] = { kind: 'human', id: 2, name: 'Bob' };
-  const before = g.pendingAction(room);
+  const before = bot.pendingAction(room);
   assert.equal(before.type, 'pass');
   assert.equal(g.choosePass(room, 0, room.hands[0].slice(0, 3)).ok, true);
-  assert.equal(g.pendingAction(room).key, before.key, 'Ann passing changes nothing for the waiting computer');
-  assert.equal(g.runPending(room, seeded(1)).type, 'pass');
-  assert.notEqual(g.pendingAction(room).key, before.key, 'once it has passed, the next computer is a new action');
+  assert.equal(bot.pendingAction(room).key, before.key, 'Ann passing changes nothing for the waiting computer');
+  assert.equal(bot.runPending(room, seeded(1)).type, 'pass');
+  assert.notEqual(bot.pendingAction(room).key, before.key, 'once it has passed, the next computer is a new action');
 });

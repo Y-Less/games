@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import * as bot from '../modules/hearts/bot.js';
 import * as game from '../modules/hearts/game.js';
 import { seeded } from './random.js';
 import { botWait, createRoomServer } from './roomServer.js';
@@ -108,11 +109,11 @@ async function botMovesWith(seed, moves = 25) {
         done();
         return null;
       }
-      const action = game.pendingAction(live);
-      if (!action || action.type === 'resolve') return action ? { wait: 0, run: () => game.runPending(live, rng) } : null;
+      const action = bot.pendingAction(live);
+      if (!action || action.type === 'resolve') return action ? { wait: 0, run: () => bot.runPending(live, rng) } : null;
       const wait = botWait({ min: 0, max: 1 }, rng);
       waits.push(wait);
-      return { wait, run: () => game.runPending(live, rng) };
+      return { wait, run: () => bot.runPending(live, rng) };
     },
   });
   const keepAlive = setInterval(() => {}, 1000); // the server's timers are unref'd, so something must keep the test alive

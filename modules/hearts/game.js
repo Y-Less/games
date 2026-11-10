@@ -741,43 +741,8 @@ export function botPlay(room, seat, rng) {
  */
 export const waitingForReady = (room) => room.phase === 'handEnd';
 
-/**
- * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
- * @param {object} room  not changed.
- * @returns {{type: 'pass'|'play'|'resolve', seat?: number, key: string}|null} the pending action; `key` names it, and stays
- *   the same while unrelated things happen (another person passing, somebody connecting), so the server's timer for it is
- *   not restarted by them.
- * Side effects: none.
- */
-export function pendingAction(room) {
-  if (room.phase === 'passing') {
-    const seat = room.seats.findIndex((s, i) => isBot(s) && !room.passes[i]);
-    return seat === -1 ? null : { type: 'pass', seat, key: `pass:${seat}:${room.handNumber}` };
-  }
-  if (room.phase !== 'playing') return null;
-  if (room.trick.length === room.seats.length) return { type: 'resolve', key: `resolve:${room.handNumber}:${room.tricksPlayed}` };
-  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.handNumber}:${room.tricksPlayed}:${room.trick.length}` } : null;
-}
-
-/**
- * Performs a pending action.  Returns the action, or null if there was nothing to do.
- * @param {object} room  the room.
- * @param {() => number} rng  random source for the computer players.
- * @returns {{type: string, seat?: number}|null} the action performed.
- * Side effects: mutates the room (a computer pass, play, or the resolving of a full trick); throws if a computer makes an illegal move.
- */
-export function runPending(room, rng) {
-  const action = pendingAction(room);
-  if (!action) return null;
-  const result =
-    action.type === 'pass'
-      ? choosePass(room, action.seat, botPassFor(room, action.seat, rng))
-      : action.type === 'play'
-        ? playCard(room, action.seat, botPlay(room, action.seat, rng))
-        : resolveTrick(room);
-  if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
-  return action;
-}
+// The computer players' turn-taking — `pendingAction` and `runPending` — is in ./bot.js, where the other modules keep
+// theirs.  What stays here is what the rules own: the moves themselves, and the AI lookups those two reach back for.
 
 // ---- what each player may see ----
 

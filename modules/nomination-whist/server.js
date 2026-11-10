@@ -9,6 +9,7 @@
 //   NOMINATION_WHIST_NEXT_WAIT   milliseconds to wait for everyone to close the score pop-up between rounds (default 60000)
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
+import * as bot from './bot.js';
 
 /**
  * Reads the Nomination Whist timings from the environment.
@@ -46,9 +47,9 @@ export default function (ctx) {
      * @returns {{ key?: string, wait: number, run: () => void } | null} null when the game is waiting for a person
      */
     nextAction(room, rng) {
-      const action = game.pendingAction(room);
+      const action = bot.pendingAction(room);
       if (action) {
-        return { key: action.key, wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => game.runPending(room, rng) };
+        return { key: action.key, wait: action.type === 'resolve' ? delays.trick : botWait(delays.bot, rng), run: () => bot.runPending(room, rng) };
       }
       // The wait is not restarted when somebody closes the pop-up: the same round's timer keeps running.
       if (game.waitingForReady(room)) return { key: `next:${room.roundIndex}`, wait: delays.nextWait, run: () => game.forceNextRound(room, rng) };

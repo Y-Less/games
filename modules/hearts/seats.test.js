@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { fullDeck } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { AIS } from './ai/index.js';
 import { DEALS, deckFor, describePass, directionName, offsetFor, offsetOfDirection, openingCard } from './deals.js';
 import { playGame } from './arena.js';
@@ -63,7 +64,7 @@ test('the first lead is the lowest club still in the deck, must be led, and the 
       const room = lobby(n);
       g.start(room, 1, seeded(seed));
       // Skip any passing so the hand is straight into play (as on the "none" hand).
-      while (room.phase === 'passing') g.runPending(room, seeded(seed)) ?? g.choosePass(room, 0, room.hands[0].slice(0, DEALS[n].pass));
+      while (room.phase === 'passing') bot.runPending(room, seeded(seed)) ?? g.choosePass(room, 0, room.hands[0].slice(0, DEALS[n].pass));
       const opening = openingCard(n);
       assert.equal(room.phase, 'playing');
       assert.ok(room.hands[room.turn].includes(opening), `${n} players: the opening card holder is on turn`);
@@ -79,7 +80,7 @@ test('the first lead is the lowest club still in the deck, must be led, and the 
     }
   }
   const four = startedRoom(4);
-  while (four.phase === 'passing') g.runPending(four, Math.random) ?? g.choosePass(four, 0, four.hands[0].slice(0, 3));
+  while (four.phase === 'passing') bot.runPending(four, Math.random) ?? g.choosePass(four, 0, four.hands[0].slice(0, 3));
   assert.equal(g.playCard(four, four.turn, four.hands[four.turn].find((c) => c !== '2C')).error, 'mustLead');
   assert.equal(g.playCard(four, four.turn, '2C').ok, true);
 });
@@ -134,7 +135,7 @@ test('passing: over a full rotation the right number of cards go to the right se
         assert.deepEqual(sorted(room.hands.flat()), sorted(deckFor(n)));
       }
       assert.ok(room.hands[room.turn].includes(openingCard(n)));
-      while (room.phase === 'playing') g.runPending(room, rng);
+      while (room.phase === 'playing') bot.runPending(room, rng);
       assert.equal(room.phase, 'handEnd');
       assert.equal(g.forceNextHand(room, rng).ok, true);
     }
@@ -291,7 +292,7 @@ test('whole seeded games for every count: cards conserved, every hand 26 points,
           assert.equal(g.forceNextHand(room, rng).ok, true);
           continue;
         }
-        const action = g.runPending(room, rng);
+        const action = bot.runPending(room, rng);
         assert.ok(action, `something to do in ${room.phase}`);
         if (room.phase === 'playing') {
           assert.deepEqual(sorted([...room.hands.flat(), ...room.taken.flat(), ...room.trick.map((p) => p.card)]), deck, 'cards are conserved');
@@ -362,6 +363,6 @@ test('a leaver is replaced by a computer at any table size and the game goes on'
     assert.equal(outcome.ok, true);
     assert.equal(room.seats[1].kind, 'bot');
     assert.equal(room.seats.length, n);
-    assert.equal(g.pendingAction(room) !== null || room.phase === 'passing' || room.turn === 0, true);
+    assert.equal(bot.pendingAction(room) !== null || room.phase === 'passing' || room.turn === 0, true);
   }
 });

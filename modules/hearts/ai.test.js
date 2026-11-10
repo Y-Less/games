@@ -8,6 +8,7 @@ import { AIS } from './ai/index.js';
 import { observe } from './ai/util.js';
 import { moonAlive } from './ai/moon.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { playGame, seeded, versus } from './arena.js';
 
 const ids = AIS.map((ai) => ai.id);
@@ -87,7 +88,7 @@ for (const id of ids) {
       g.start(room, 1, rng);
       for (const seat of room.seats) seat.ai = id;
       for (let guard = 0; guard < 80 && ['passing', 'playing'].includes(room.phase); guard++) {
-        const action = g.pendingAction(room);
+        const action = bot.pendingAction(room);
         if (!action) break;
         if (action.type === 'pass') {
           const cards = byId[id].choosePass(g.aiContext(room, action.seat, rng));
@@ -97,7 +98,7 @@ for (const id of ids) {
           const card = byId[id].choosePlay(g.aiContext(room, action.seat, rng));
           assert.ok(g.legalCards(room, action.seat).includes(card), `${id} chose an illegal ${card}`);
         }
-        g.runPending(room, rng);
+        bot.runPending(room, rng);
       }
     }
   });
@@ -205,7 +206,7 @@ test('jack collects the Jack of Diamonds far more often than standard, and is ex
     room.seats.forEach((seat, i) => (seat.ai = i % 2 ? 'jack' : 'standard'));
     allBots(room);
     for (let guard = 0; guard < 400 && ['passing', 'playing'].includes(room.phase); guard++) {
-      const action = g.pendingAction(room);
+      const action = bot.pendingAction(room);
       if (!action) break;
       if (action.type === 'pass') {
         const ctx = g.aiContext(room, action.seat, seeded(guard));
@@ -216,7 +217,7 @@ test('jack collects the Jack of Diamonds far more often than standard, and is ex
         assert.equal(a, b);
         compared++;
       }
-      g.runPending(room, rng);
+      bot.runPending(room, rng);
     }
   }
   assert.ok(compared > 100, `${compared} decisions compared`);
@@ -370,7 +371,7 @@ test('each new game (play again) draws the AIs afresh and the choice stays for t
   const chosen = room.seats.map((s) => s.ai);
   for (let guard = 0; guard < 5000 && room.phase !== 'finished'; guard++) {
     if (room.phase === 'handEnd') g.forceNextHand(room, seeded(guard));
-    else g.runPending(room, seeded(guard + 1));
+    else bot.runPending(room, seeded(guard + 1));
     assert.deepEqual(room.seats.map((s) => s.ai), chosen, 'unchanged during the game');
   }
   assert.equal(g.playAgain(room, 1).ok, true);
@@ -432,14 +433,14 @@ test('a room saved as JSON keeps its AIs and plays on identically; a room from b
   g.start(room, 1, seeded(12));
   allBots(room);
   const rng = seeded(31);
-  for (let i = 0; i < 25; i++) g.runPending(room, rng);
+  for (let i = 0; i < 25; i++) bot.runPending(room, rng);
   const saved = JSON.parse(JSON.stringify(room));
   assert.deepEqual(saved.seats.map((s) => s.ai), room.seats.map((s) => s.ai));
   const continueFrom = (r) => {
     const play = seeded(99);
     for (let guard = 0; guard < 4000 && r.phase !== 'finished'; guard++) {
       if (r.phase === 'handEnd') g.forceNextHand(r, play);
-      else if (!g.runPending(r, play)) break;
+      else if (!bot.runPending(r, play)) break;
     }
     return { scores: r.scores, phase: r.phase };
   };
@@ -467,7 +468,7 @@ test('an unknown saved AI id (one that was renamed or removed) plays as standard
   const rng = seeded(5);
   for (let guard = 0; guard < 4000 && room.phase !== 'finished'; guard++) {
     if (room.phase === 'handEnd') g.forceNextHand(room, rng);
-    else if (!g.runPending(room, rng)) break;
+    else if (!bot.runPending(room, rng)) break;
   }
   assert.equal(room.phase, 'finished');
 });

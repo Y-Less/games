@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import * as bot from './bot.js';
 import { seeded } from '../../shared/testkit.js';
 
 const make = (settings = {}) => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings });
@@ -52,7 +53,7 @@ test('after the end: a person who leaves keeps a "gone" seat; play again clears 
   const rng = seeded(8);
   game.start(room, 1, rng);
   while (room.phase !== 'finished') {
-    if (game.pendingAction(room)) game.runPending(room, rng);
+    if (bot.pendingAction(room)) bot.runPending(room, rng);
     else if (room.phase === 'roundEnd') {
       for (const seat of room.seats) if (seat.kind === 'human') game.nextRound(room, seat.id, rng);
     }
@@ -93,7 +94,7 @@ test('refused nominations and plays leave the room exactly as it was', () => {
   game.addHuman(room, 2, 'bob');
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(21));
-  while (game.pendingAction(room)) game.runPending(room, seeded(1));
+  while (bot.pendingAction(room)) bot.runPending(room, seeded(1));
   const seat = room.turn;
   const before = JSON.stringify(room);
   for (const number of [-1, 8, 0.5, '2', null, undefined, NaN, [], {}]) assert.equal(game.nominate(room, seat, number).ok, false);

@@ -753,20 +753,8 @@ export function statsPlayers(room) {
 
 // ---- computer players ----
 
-/**
- * The next thing a computer (or the clock) has to do, or null when the game waits for a person.
- *
- * @param {object} room  not changed
- * @returns {{ type: 'nominate' | 'play' | 'resolve', seat?: number, key: string } | null} the action, or null; `key` names
- *   it and stays the same while unrelated things happen, so the server's timer for it is not restarted by them
- * Side effects: none.
- */
-export function pendingAction(room) {
-  if (room.phase === 'nominating') return isBot(room.seats[room.turn]) ? { type: 'nominate', seat: room.turn, key: `nominate:${room.turn}:${room.roundIndex}` } : null;
-  if (room.phase !== 'playing') return null;
-  if (room.trick.length === room.seats.length) return { type: 'resolve', key: `resolve:${room.roundIndex}:${room.tricksPlayed}` };
-  return isBot(room.seats[room.turn]) ? { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.roundIndex}:${room.tricksPlayed}:${room.trick.length}` } : null;
-}
+// The computer players' turn-taking — `pendingAction` and `runPending` — is in ./bot.js, where the other modules keep
+// theirs.  What stays here is what the rules own: the moves themselves, and the AI lookups those two reach back for.
 
 /**
  * The AI a computer player plays with; rooms saved before AIs existed fall back to the first one.
@@ -887,27 +875,6 @@ export function botNominate(room, seat, rng) {
   const context = nominateContext(room, seat, rng);
   const number = aiOf(room, seat).nominate(context);
   return context.allowed.includes(number) ? number : AIS[0].nominate(context);
-}
-
-/**
- * Performs a pending action.  Returns the action, or null if there was nothing to do.
- *
- * @param {object} room  mutated by the nomination, play or trick resolution
- * @param {() => number} rng  random numbers for the AI
- * @returns {{ type: string, seat?: number } | null} the action performed, or null
- * Side effects: as the action does; throws if a computer player makes an illegal move.
- */
-export function runPending(room, rng) {
-  const action = pendingAction(room);
-  if (!action) return null;
-  const result =
-    action.type === 'nominate'
-      ? nominate(room, action.seat, botNominate(room, action.seat, rng))
-      : action.type === 'play'
-        ? playCard(room, action.seat, botPlay(room, action.seat, rng))
-        : resolveTrick(room);
-  if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
-  return action;
 }
 
 // ---- what each player may see ----

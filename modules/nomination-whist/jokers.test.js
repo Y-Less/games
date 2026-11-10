@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deckFor, isJoker, JOKERS, sortHand } from '../../shared/cards.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { ledSuit, legalCards, winningCard } from './trick.js';
 import { AIS } from './ai/index.js';
 import { bestNomination, contextChances, contextModel } from './ai/lut.js';
@@ -145,7 +146,7 @@ test('whole games with Jokers, for every live AI and every number of seats, play
     });
     for (let guard = 0; guard < 100000 && room.phase !== 'finished'; guard++) {
       if (room.phase === 'roundEnd') g.forceNextRound(room, rng);
-      else if (g.runPending(room, rng) === null) {
+      else if (bot.runPending(room, rng) === null) {
         // Ann is a person: play her seat with the computer's judgement too
         const seat = room.turn;
         const done = room.phase === 'nominating' ? g.nominate(room, seat, g.botNominate(room, seat, rng)) : g.playCard(room, seat, g.botPlay(room, seat, rng));
@@ -167,7 +168,7 @@ test('with Jokers the suggested nomination comes from the table learned for them
     const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 + (seed % 5), jokers: true } });
     g.fillWithBots(room, 1);
     g.start(room, 1, rng);
-    while (room.phase === 'nominating' && room.turn !== 0) g.runPending(room, rng);
+    while (room.phase === 'nominating' && room.turn !== 0) bot.runPending(room, rng);
     const view = g.viewFor(room, 1);
     assert.ok(Number.isInteger(view.suggestion), 'a suggestion is made in a Jokers game');
     assert.notEqual(view.suggestion, view.forbidden);
@@ -201,7 +202,7 @@ test('without the Jokers option the table for games without Jokers is used, so e
   g.fillWithBots(room, 1);
   g.start(room, 1, seeded(9));
   assert.equal(room.settings.jokers, false);
-  while (room.turn !== 0) g.runPending(room, seeded(9));
+  while (room.turn !== 0) bot.runPending(room, seeded(9));
   assert.ok(Number.isInteger(g.viewFor(room, 1).suggestion));
 });
 

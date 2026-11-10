@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';
+import * as bot from './bot.js';
 import { suitOf } from '../../shared/cards.js';
 import { seeded } from '../../shared/testkit.js';
 import { assertNoLeaks as assertNoLeaks_ } from '../../shared/leaks.js';
@@ -118,9 +119,9 @@ function playGame(seed, { leaves = true } = {}) {
       assert.equal(game.nextRound(room, pick(rng, humanIds()), rng).ok, true);
       continue;
     }
-    const pending = game.pendingAction(room);
+    const pending = bot.pendingAction(room);
     if (pending) {
-      game.runPending(room, rng);
+      bot.runPending(room, rng);
       continue;
     }
     const seat = room.turn;

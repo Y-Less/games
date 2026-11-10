@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seeded } from '../../shared/testkit.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 
 /** A started game with one person (account 1) in seat 0 and computers elsewhere. */
 function started(n = 4, seed = 1) {
@@ -311,8 +312,8 @@ test("a computer player's decision about the final play keeps its key while peop
   stage(room, [['5C'], ['2C', '9D'], ['3C', '4D'], ['6C', '7D']], { pile: ['KS'] });
   g.playCards(room, 0, ['5C']);
   assert.equal(room.phase, 'check');
-  const before = g.pendingAction(room);
+  const before = bot.pendingAction(room);
   assert.deepEqual([before.type, before.seat], ['decide', 1]);
   assert.equal(g.accept(room, 2).ok, true);
-  assert.equal(g.pendingAction(room).key, before.key, 'Bob accepting changes nothing for the deciding computer');
+  assert.equal(bot.pendingAction(room).key, before.key, 'Bob accepting changes nothing for the deciding computer');
 });

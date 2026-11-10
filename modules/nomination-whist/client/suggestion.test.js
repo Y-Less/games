@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import * as game from '../game.js';
+import * as bot from '../bot.js';
 import Table from './Table.vue';
 
 const send = () => vi.fn(() => Promise.resolve({ ok: true }));
@@ -13,7 +14,7 @@ function annsTurn(seed = 3) {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
   game.fillWithBots(room, 1);
   game.start(room, 1, rng);
-  while (room.phase === 'nominating' && room.turn !== 0) game.runPending(room, rng);
+  while (room.phase === 'nominating' && room.turn !== 0) bot.runPending(room, rng);
   return room;
 }
 

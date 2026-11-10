@@ -1,6 +1,7 @@
 // A test bench for the Hearts AIs: plays whole games of computers against computers with chosen AIs in each seat.
 // Used by ai.test.js; handy from a script too.  Depends on game.js (the real rules) and shared/random.js (seeded rng).
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { seeded } from '../../shared/random.js';
 
 export { seeded };
@@ -30,7 +31,7 @@ export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
       g.forceNextHand(room, rng);
       continue;
     }
-    if (!g.runPending(room, rng)) throw new Error(`nothing to do in ${room.phase}`);
+    if (!bot.runPending(room, rng)) throw new Error(`nothing to do in ${room.phase}`);
   }
   if (room.phase !== 'finished') throw new Error('the game did not finish');
   hands.push({ points: room.lastHand.points, moon: room.lastHand.moon, details: room.lastHand.details });

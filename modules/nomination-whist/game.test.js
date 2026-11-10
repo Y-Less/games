@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fullDeck, isCard, suitOf } from '../../shared/cards.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { canTakeAllSeven, chooseNomination, estimateTricks, winningCard } from './ai/standard.js';
 
 /** A small deterministic random number generator. */
@@ -552,15 +553,15 @@ test('pending actions: computers nominate, play and resolve tricks; people are w
   const room = fullRoom(3);
   room.seats[0] = { kind: 'human', id: 1, name: 'Ann' };
   g.start(room, 1, seeded(1));
-  while (g.pendingAction(room)) g.runPending(room, seeded(3));
+  while (bot.pendingAction(room)) bot.runPending(room, seeded(3));
   assert.equal(room.phase, 'nominating');
   assert.equal(room.turn, 0, 'waiting for the person');
-  assert.equal(g.pendingAction(room), null);
+  assert.equal(bot.pendingAction(room), null);
   g.nominate(room, 0, g.allowedNominations(room, 0)[0]);
-  while (g.pendingAction(room)) g.runPending(room, seeded(3));
+  while (bot.pendingAction(room)) bot.runPending(room, seeded(3));
   assert.equal(room.phase, 'playing');
   assert.equal(room.turn, 0);
-  assert.equal(g.runPending(room, Math.random), null);
+  assert.equal(bot.runPending(room, Math.random), null);
   const deck = new Set(fullDeck());
   assert.ok(room.hands.flat().every((c) => deck.has(c) && suitOf(c)));
 });

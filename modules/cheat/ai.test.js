@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seeded } from '../../shared/testkit.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { AIS } from './ai/index.js';
 
 const ai = (id) => AIS.find((a) => a.id === id);
@@ -67,7 +68,7 @@ test('a broken computer player cannot stop a game', () => {
     throw new Error('boom');
   };
   try {
-    for (let i = 0; i < 60 && room.phase !== 'finished'; i++) g.runPending(room, seeded(i));
+    for (let i = 0; i < 60 && room.phase !== 'finished'; i++) bot.runPending(room, seeded(i));
     assert.equal(cardCount(room), 52);
     assert.ok(room.plays > 10, 'the game went on');
   } finally {
@@ -83,7 +84,7 @@ for (const n of [3, 4, 5, 6, 7]) {
       const rng = seeded(seed);
       let steps = 0;
       while (room.phase !== 'finished') {
-        const done = g.runPending(room, rng);
+        const done = bot.runPending(room, rng);
         assert.ok(done, `a computer always has something to do (${n} players, seed ${seed}, phase ${room.phase})`);
         assert.equal(cardCount(room), total, 'no card is created or lost');
         if (g.decksFor(n) === 1) assert.equal(new Set(room.hands.flat().concat(room.pile)).size, total, 'no card appears twice in one pack');
@@ -103,7 +104,7 @@ test('computer players call "Cheat!" in whole games (the rng reaches the AI thro
   for (let seed = 1; seed <= 6; seed++) {
     const room = botGame(4, seed, ['standard', 'suspicious']);
     const rng = seeded(seed);
-    while (room.phase !== 'finished') g.runPending(room, rng);
+    while (room.phase !== 'finished') bot.runPending(room, rng);
     calls += room.tally.reduce((total, t) => total + t.callsMade, 0);
   }
   assert.ok(calls > 0, 'somebody called "Cheat!" in six games');
@@ -114,7 +115,7 @@ test('every kind of computer player wins games against the others', () => {
   for (let seed = 1; seed <= 40; seed++) {
     const room = botGame(AIS.length, seed, AIS.map((a) => a.id));
     const rng = seeded(seed);
-    while (room.phase !== 'finished') g.runPending(room, rng);
+    while (room.phase !== 'finished') bot.runPending(room, rng);
     wins[room.seats[room.winner].ai]++;
   }
   assert.ok(Object.values(wins).every((n) => n >= 0));

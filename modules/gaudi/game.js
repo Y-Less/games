@@ -22,6 +22,7 @@ import { statsRows } from '../../shared/tally.js';
 import { msg } from '../../shared/messages.js';
 import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
+import { STAT_KEYS } from './tally.js';
 import {
   BAD_PRIVATE_POINTS,
   CELLS,
@@ -59,8 +60,9 @@ export const SIZES = [2, 3, 4, 5];
 export const DEFAULT_SIZE = 4;
 // The one setting: whether private-colour dice are worth a flat 3 (see rules.js privatePoints).
 export const DEFAULT_SETTINGS = { badPrivate: false };
-// The extra statistics recorded for each finished game (see statsPlayers).
-export const STAT_KEYS = ['dicePlaced', 'toolsUsed', 'perfectWindows', 'bestPublicObjective', 'perfectBoards', 'privateTotal', 'emptySpaces', 'thriftyGames', 'allToolsUsed'];
+// The extra statistics recorded for each finished game (see statsPlayers).  They live in tally.js, as every other
+// module's do, and are re-exported here, as every other module re-exports theirs.
+export { STAT_KEYS };
 /** The names computer players are given, in order (Gaudi uses the architect and his circle, not the shared default list). */
 export const BOT_NAMES = ['Gaudi', 'Jujol', 'Lluis', 'Pau', 'Mercè', 'Rosa', 'Enric', 'Núria', 'Joan', 'Elena'];
 // How many tools and public objectives a game deals, and how many window patterns each player chooses between.

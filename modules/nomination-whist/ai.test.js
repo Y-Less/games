@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fullDeck, shuffle, suitOf } from '../../shared/cards.js';
 import { aiById } from '../../shared/ai.js';
 import * as g from './game.js';
+import * as bot from './bot.js';
 import { AIS } from './ai/index.js';
 import { countTricks, winChance } from './ai/counter.js';
 import { dealUnseen, playOut, roundPoints } from './ai/sharp.js';
@@ -67,7 +68,7 @@ function allBotGame(ais, { seed = 1, settings = {} } = {}) {
   for (let steps = 0; room.phase !== 'finished'; steps++) {
     assert.ok(steps < 100000, 'the game must end');
     if (room.phase === 'roundEnd') assert.ok(g.forceNextRound(room, rng).ok);
-    else g.runPending(room, rng);
+    else bot.runPending(room, rng);
   }
   return room;
 }
@@ -344,7 +345,7 @@ test('rooms saved before AIs existed fall back to the standard AI', () => {
   for (const s of room.seats) delete s.ai;
   assert.equal(g.aiOf(room, 1).id, 'standard');
   assert.deepEqual(g.viewFor(room, 1).seats[1].ai, { id: 'standard', name: 'Standard' });
-  while (g.pendingAction(room)) g.runPending(room, seeded(3));
+  while (bot.pendingAction(room)) bot.runPending(room, seeded(3));
   assert.ok(['roundEnd', 'finished'].includes(room.phase) || room.turn === 0, 'the bots play on');
 });
 

@@ -290,7 +290,7 @@ export function accept(room, seat) {
  * @param {object} room  the room to settle
  * @returns {void}
  */
-function settleCheck(room) {
+export function settleCheck(room) {
   if (room.phase !== 'check' || !room.last) return;
   const others = room.seats.map((_, i) => i).filter((i) => i !== room.last.seat);
   if (!others.every((i) => room.decided.includes(i))) return;
@@ -440,50 +440,8 @@ export function botCalls(room, seat, rng) {
   }
 }
 
-/**
- * The next thing a computer player has to do, or null when the game waits for a person.  A decision about the last play
- * comes before a play.
- *
- * @param {object} room  not changed
- * @returns {{ type: 'decide' | 'play', seat: number, key: string } | null} the action, or null when waiting for a person;
- *   `key` names it and stays the same while unrelated things happen (a person accepting the final play, say), so the
- *   server's timer for it is not restarted by them
- * Side effects: none.
- */
-export function pendingAction(room) {
-  if (!['playing', 'check'].includes(room.phase)) return null;
-  if (room.last) {
-    const seat = room.seats.findIndex((s, i) => isBot(s) && i !== room.last.seat && !room.decided.includes(i));
-    if (seat !== -1) return { type: 'decide', seat, key: `decide:${seat}:${room.plays}` };
-  }
-  if (room.phase === 'playing' && isBot(room.seats[room.turn])) return { type: 'play', seat: room.turn, key: `play:${room.turn}:${room.plays}` };
-  return null;
-}
-
-/**
- * Performs a pending action.
- * Side effects: mutates room (a call, a decision, or a play).
- *
- * @param {object} room  the room to act on
- * @param {() => number} rng  random numbers for the AI
- * @returns {{ type: string, seat: number } | null} the action done, or null if there was nothing to do
- * @throws {Error} if a computer player's move turns out to be illegal
- */
-export function runPending(room, rng) {
-  const action = pendingAction(room);
-  if (!action) return null;
-  let result;
-  if (action.type === 'decide') {
-    if (botCalls(room, action.seat, rng)) result = callCheat(room, action.seat);
-    else {
-      room.decided.push(action.seat);
-      settleCheck(room);
-      result = ok();
-    }
-  } else result = playCards(room, action.seat, botPlay(room, action.seat, rng));
-  if (!result.ok) throw new Error(`A computer player made an illegal move: ${result.error}`);
-  return action;
-}
+// The computer players' turn-taking — `pendingAction` and `runPending` — is in ./bot.js, where the other modules keep
+// theirs.  What stays here is what the rules own: the moves themselves, and the AI lookups those two reach back for.
 
 // ---- what each player may see ----
 

@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as g from './game.js';
+import * as bot from './bot.js';
 
 const seeded = (seed) => {
   let s = seed >>> 0;
@@ -17,7 +18,7 @@ function toAnnsTurn(seed, seats = 4) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats } });
   assert.ok(g.fillWithBots(room, 1).ok);
   assert.ok(g.start(room, 1, rng).ok);
-  while (room.phase === 'nominating' && room.turn !== 0) g.runPending(room, rng);
+  while (room.phase === 'nominating' && room.turn !== 0) bot.runPending(room, rng);
   return room;
 }
 
@@ -63,7 +64,7 @@ test('nobody is suggested anything off their turn, and the suggestion is not in 
     const seat = room.turn;
     const seatView = g.viewFor(room, seat === 0 ? 1 : 2);
     if (room.seats[seat].kind === 'human') g.nominate(room, seat, seatView.suggestion);
-    else g.runPending(room, rng);
+    else bot.runPending(room, rng);
   }
   assert.equal(g.viewFor(room, 1).suggestion, null);
   assert.equal(g.viewFor(room, 2).suggestion, null);
