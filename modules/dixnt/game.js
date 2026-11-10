@@ -41,7 +41,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 import { newCounters, statsExtras, tallyRound } from './tally.js';
@@ -593,6 +593,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   function playAgain(room, id = null) {
     if (id !== null && id !== room.hostId) return fail('hostOnlyEnd');
     if (room.phase === 'lobby') return fail('alreadyInLobby');
+    nextGame(room); // the game just played keeps its scoreboard; this is the next one
     Object.assign(room, {
       phase: 'lobby',
       round: 0,

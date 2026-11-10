@@ -19,7 +19,7 @@ import { handModel } from './sim/hand-model.js';
 import { FULL_HAND, newTally, STAT_KEYS, tallyDeal, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -679,6 +679,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   freeGoneSeats(room);
   for (const s of room.seats) if (s) delete s.ai;
   resetGame(room);

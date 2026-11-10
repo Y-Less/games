@@ -19,7 +19,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
-import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, asHost } from '../../shared/seats.js';
+import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, asHost } from '../../shared/seats.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { HEELS_POINTS, pipValue, scoreHand, scorePlay } from './scoring.js';
 import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
@@ -491,6 +491,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   room.seats = room.seats.map((s) => (isHuman(s) || isBot(s) ? s : null));
   for (const s of room.seats.filter(Boolean)) {
     Object.assign(s, gameFields());

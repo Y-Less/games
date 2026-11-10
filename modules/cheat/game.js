@@ -16,7 +16,7 @@
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat as seatAfter } from '../../shared/tricks.js';
@@ -329,6 +329,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   freeGoneSeats(room);
   resetGame(room);
   room.phase = 'lobby';

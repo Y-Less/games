@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { createRoomStore } from './roomStore.js';
+import { roomDbFile } from './roomDb.js';
 
 const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'roomstore-'));
 
@@ -132,6 +134,40 @@ test('a history that grows keeps every round, and one that is emptied is emptied
   first.store.put(live);
   first.store.flush();
   assert.deepEqual(open(dataDir).store.load()[0].history, []);
+});
+
+test('a room that plays again keeps the scoreboard of the game before it, under that game’s own number', () => {
+  // A room outlives the game being played in it: "play again" keeps the code, the settings and the people and starts
+  // the next game.  Before the games were numbered, the next game's history was written over the last game's — the
+  // save compares round by round from the first difference, and an emptied history differs at the first round, so
+  // every round of the game just finished was deleted.
+  //
+  // This is the one test here that knows what is on disk.  What it checks — that the game before is still kept — has
+  // no interface to check it through, because `load` deliberately hands back only the game being played now.
+  const dataDir = dir();
+  const { store } = open(dataDir);
+  const live = room('a-b-c');
+  store.put(live);
+  store.flush();
+  live.history.push({ label: 'Round 2', deltas: { s0: 5 }, notes: {} });
+  store.put(live);
+  store.flush();
+
+  live.gameSeq = 1;
+  live.history = [{ label: 'Round 1', deltas: { s0: 3, s1: 0, s2: 1 }, notes: {} }]; // reads exactly like game 0's did
+  store.put(live);
+  store.flush();
+  store.close();
+
+  const db = new DatabaseSync(roomDbFile(dataDir));
+  const rows = db.prepare('SELECT game_seq, seq, entry_json FROM room_history ORDER BY game_seq, seq').all();
+  db.close();
+  assert.deepEqual(rows.map((r) => [r.game_seq, r.seq]), [[0, 0], [0, 1], [1, 0]], 'both games are there, each under its own number');
+  assert.match(rows[1].entry_json, /Round 2/, 'including the round the replay used to delete');
+
+  const loaded = open(dataDir).store.load()[0];
+  assert.equal(loaded.gameSeq, 1, 'and the room comes back playing the game it was playing');
+  assert.deepEqual(loaded.history.map((h) => h.label), ['Round 1'], 'holding that game’s rounds and no others');
 });
 
 test('a history whose rounds are rewritten in place is saved as rewritten', () => {

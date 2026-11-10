@@ -17,6 +17,10 @@ describe('rendering every state of a whole game', () => {
       const { sent, problems } = await walkViews(Root, views, { step: 4 }); // the 1,152-square grid is slow to draw in jsdom: every fourth view
       expect(problems).toEqual([]);
       expect(sent).toBeGreaterThan(10);
-    }, 120000); // a whole game is hundreds of views
+      // Every other game gets the shared two minutes, and this one is the reason the `step` above exists: a 1,152-square
+      // grid is far and away the most expensive view the site has, and even every fourth one of them lands close enough
+      // to two minutes that an otherwise busy machine tips it over.  The game itself takes 122ms; all of this is jsdom
+      // drawing.  So it gets a budget of its own rather than the suite failing on how loaded the machine happens to be.
+    }, 300000);
   }
 });

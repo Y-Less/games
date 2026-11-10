@@ -9,7 +9,11 @@
 //   rooms         one row per room, holding the room as JSON *without* its history.  Rewritten when anything in it
 //                 changes, which for a game under way is most moves, but it is a kilobyte or two rather than every
 //                 room in the module.
-//   room_history  one row per finished round.  This is the part that grows without limit, and since slots made the
+//   room_history  one row per finished round, of one game.  A room outlives the game being played in it: "play again"
+//                 keeps the code, the settings and the people and starts the next game, which is `game_seq`.  That is
+//                 why the number is in the key: without it the second game's first round would land on the first
+//                 game's, and the rounds of the game just played would be deleted to make room for it.
+//                 This is the part that grows without limit, and since slots made the
 //                 history immutable it is only ever appended to, so an ordinary move writes one row and touches
 //                 nothing else.
 //
@@ -35,9 +39,10 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 CREATE TABLE IF NOT EXISTS room_history (
   code TEXT NOT NULL,
+  game_seq INTEGER NOT NULL DEFAULT 0,
   seq INTEGER NOT NULL,
   entry_json TEXT NOT NULL,
-  PRIMARY KEY (code, seq)
+  PRIMARY KEY (code, game_seq, seq)
 );
 `;
 

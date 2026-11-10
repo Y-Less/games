@@ -13,7 +13,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { newTally, STAT_KEYS, tallyBuy, tallyNoble, tallyNobleChoice, tallyReserve, tallyReturn, tallyTurn } from './tally.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
 import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, cardsOfLevel, isCardId, isNobleId } from './cards.js';
 import { GOLD, GOLD_SUPPLY, MAX_RESERVED, MAX_TOKENS, needOf, quoteFor, supplyPerColour } from './rules.js';
 
@@ -812,6 +812,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   resetGame(room);
   room.phase = 'lobby';
   return ok();

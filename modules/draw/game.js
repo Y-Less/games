@@ -16,7 +16,7 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
 import { AI } from './ai.js';
@@ -333,6 +333,7 @@ export function start(room, id, rng, now) {
 export function playAgain(room, id) {
   if (id !== room.hostId) return fail('hostOnlyEnd');
   if (room.phase === 'lobby') return fail('alreadyInLobby');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   for (const player of room.players) Object.assign(player, { score: 0, lastScore: 0, tries: 0 }, newCounters());
   Object.assign(room, { phase: 'lobby', round: 0, order: [], drawers: [], choices: {}, preChoice: {}, words: {}, winner: null, reveal: null, feed: [], used: [], history: [], deadline: null, recorded: false });
   return ok();

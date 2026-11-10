@@ -20,7 +20,7 @@ import { numberFrom } from './input.js';
 import { rosterLayout, withSlot } from './layout.js';
 import { asHost, createMemberRules, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
 
-export { barFromRoom, isBarred, isBot, isHuman } from './members.js';
+export { barFromRoom, isBarred, isBot, isHuman, nextGame } from './members.js';
 export { withSlot } from './layout.js';
 
 /**

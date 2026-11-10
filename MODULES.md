@@ -142,6 +142,14 @@ never has to be written twice; `historyView(room)` turns it back into the player
 sent, so your `scoreboardView` is `rounds: historyView(room)` and nothing on the wire changes.  Games with numbered
 seats already do the same thing with the seat index, which is their slot.
 
+**A room outlives the game being played in it.**  "Play again" keeps the code, the settings and the people, and starts
+the next game among them, so a room is a container of games rather than one game that gets wiped.  Call `nextGame(room)`
+at the top of your `playAgain` — both families export it — and go on resetting whatever your game holds, `history: []`
+and `recorded: false` included; the helper only advances `room.gameSeq`.  That number is in the key the rounds are
+saved under, which is what lets the game just finished keep its scoreboard: before it existed, emptying the history on
+a replay deleted every round of the game before.  Do **not** reset `room.nextSlot` — the people carry on into the next
+game, so their slots must too, and somebody joining it must not be handed one that is already in use.
+
 The slot is `"s0"` and not `0` for a reason worth knowing before you write a key by hand.  Account ids are small
 numbers too, so a numeric slot and an id cannot be told apart once either is a key of an object, and reading a history
 by the wrong one finds *the wrong player's points* rather than finding nothing.  Two bugs were written exactly that way

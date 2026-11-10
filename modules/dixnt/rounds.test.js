@@ -156,6 +156,7 @@ test('after the game the host can start again, with fresh scores and turn counts
   assert.ok(room.players.every((p) => p.turns === 0));
   assert.equal(room.roundsEach, 1, 'the setting is remembered');
   assert.equal(room.recorded, false, 'the next game is recorded in its own right');
+  assert.equal(room.gameSeq, 1, 'and it is the second game in this room, so the first keeps its saved scoreboard');
   assert.equal(game.playAgain(room, 1).error, 'alreadyInLobby');
 
   game.start(room, 1, rng);

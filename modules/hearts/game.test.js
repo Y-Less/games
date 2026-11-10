@@ -472,6 +472,7 @@ test('play again resets the game for the host, keeping the seats and settings', 
   assert.deepEqual(room.scores, [0, 0, 0, 0]);
   assert.deepEqual(room.history, []);
   assert.equal(room.recorded, false);
+  assert.equal(room.gameSeq, 1, 'the room is on its second game, so the first one keeps its saved scoreboard');
   assert.deepEqual(room.settings, { target: 50, jackOfDiamonds: true, moon: 'self' });
   assert.deepEqual(room.seats.map((s) => s.kind), ['human', 'bot', 'bot', 'bot']);
   assert.equal(g.start(room, 1, seeded(3)).ok, true);

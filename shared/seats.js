@@ -16,7 +16,7 @@
 import { seatLayout } from './layout.js';
 import { createMemberRules, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
 
-export { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, ok } from './members.js';
+export { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, nextGame, ok } from './members.js';
 
 /** The index of a person's seat, or -1 if they are not in the room. */
 export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);

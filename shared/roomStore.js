@@ -35,6 +35,14 @@ const SAVE_DEBOUNCE_MS = 100;
 const stateOf = ({ history, ...rest }) => JSON.stringify(Array.isArray(history) ? { ...rest, history: [] } : rest);
 
 /**
+ * Which game of this room is being played.  A room outlives a game: "play again" keeps the code, the settings and the
+ * people, and starts the next one.  A room saved before rooms held more than one game is that room's first game.
+ * @param {{ gameSeq?: number }} room  not changed
+ * @returns {number}
+ */
+const gameOf = (room) => room.gameSeq ?? 0;
+
+/**
  * Opens a game's saved rooms.
  *
  * @param {object} options
@@ -158,8 +166,13 @@ export function createRoomStore({ dataDir, log, now, migrate, members = (room) =
    */
   function write(handle, room) {
     const state = stateOf(room);
+    const game = gameOf(room);
     const entries = (room.history ?? []).map((entry) => JSON.stringify(entry));
-    const before = written.get(room.code) ?? { state: null, entries: [] };
+    const last = written.get(room.code);
+    // A new game under the same code starts its history afresh.  Nothing of the game before is compared against it —
+    // the second game's first round may well read exactly like the first game's, and it is still a new round — and
+    // nothing of it is deleted either, because its rounds are filed under its own number.
+    const before = last && last.game === game ? last : { state: last?.state ?? null, entries: [] };
 
     if (state !== before.state) {
       sql('INSERT INTO rooms (code, state_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(code) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at').run(room.code, state, now());
@@ -167,12 +180,12 @@ export function createRoomStore({ dataDir, log, now, migrate, members = (room) =
 
     let from = 0;
     while (from < entries.length && from < before.entries.length && entries[from] === before.entries[from]) from++;
-    if (from < before.entries.length) sql('DELETE FROM room_history WHERE code = ? AND seq >= ?').run(room.code, from);
+    if (from < before.entries.length) sql('DELETE FROM room_history WHERE code = ? AND game_seq = ? AND seq >= ?').run(room.code, game, from);
     if (from < entries.length) {
-      const insert = sql('INSERT INTO room_history (code, seq, entry_json) VALUES (?, ?, ?)');
-      for (let seq = from; seq < entries.length; seq++) insert.run(room.code, seq, entries[seq]);
+      const insert = sql('INSERT INTO room_history (code, game_seq, seq, entry_json) VALUES (?, ?, ?, ?)');
+      for (let seq = from; seq < entries.length; seq++) insert.run(room.code, game, seq, entries[seq]);
     }
-    written.set(room.code, { state, entries });
+    written.set(room.code, { state, entries, game });
   }
 
   /**
@@ -245,26 +258,31 @@ export function createRoomStore({ dataDir, log, now, migrate, members = (room) =
       let history;
       try {
         rows = sql('SELECT code, state_json FROM rooms ORDER BY code').all();
-        history = sql('SELECT code, seq, entry_json FROM room_history ORDER BY code, seq').all();
+        history = sql('SELECT code, game_seq, seq, entry_json FROM room_history ORDER BY code, game_seq, seq').all();
       } catch (error) {
         log('the saved games could not be read:', error.message);
         return [];
       }
+      // Keyed by room *and* game: the rounds of the games played here before are kept, and the room comes back holding
+      // the one being played now.
       const rounds = new Map();
+      const key = (code, game) => `${code}\u0000${game}`;
       for (const row of history) {
-        if (!rounds.has(row.code)) rounds.set(row.code, []);
-        rounds.get(row.code).push(row.entry_json);
+        const at = key(row.code, row.game_seq);
+        if (!rounds.has(at)) rounds.set(at, []);
+        rounds.get(at).push(row.entry_json);
       }
       let damaged = 0;
       for (const row of rows) {
         try {
-          const entries = rounds.get(row.code) ?? [];
           const saved = JSON.parse(row.state_json);
+          const game = gameOf(saved);
+          const entries = rounds.get(key(row.code, game)) ?? [];
           // Only a room that had a history gets one back; see `stateOf` for why the difference is kept.
           if (Array.isArray(saved.history) || entries.length) saved.history = entries.map((entry) => JSON.parse(entry));
           // What is on disk, remembered before `migrate` has a chance to change the room: anything migrating alters is
           // then a difference the next write puts right.
-          written.set(row.code, { state: row.state_json, entries });
+          written.set(row.code, { state: row.state_json, entries, game });
           const room = migrate ? (migrate(saved) ?? saved) : saved;
           rooms.set(room.code, room);
           index(room);

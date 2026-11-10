@@ -55,6 +55,27 @@ export function barFromRoom(room, userId) {
  */
 export const isBarred = (room, userId) => Boolean(room.barred?.includes(userId));
 
+/**
+ * The room starts the next game.
+ *
+ * A room outlives the game being played in it: "play again" keeps the code, the settings and the people, and starts a
+ * new game among them.  Numbering those games is what lets the one just played keep its scoreboard — the rounds are
+ * filed under the game they belong to, so the next game's first round lands beside the last game's rather than on top
+ * of it.  Before this, replaying deleted every round of the game just finished (shared/roomStore.js `write` deletes
+ * from the first difference onwards, and an emptied history differs at the first round).
+ *
+ * The game's own reset — the phase, the scores, the deck, `history: []`, `recorded: false` — stays with the game that
+ * knows what it has.  This is only the number.  `room.nextSlot` is deliberately *not* reset: the people carry on into
+ * the next game, so their slots must carry on too, and somebody joining it must not be handed one already in use.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: advances `room.gameSeq` (a room that has never replayed had none, and was game 0).
+ */
+export function nextGame(room) {
+  room.gameSeq = (room.gameSeq ?? 0) + 1;
+}
+
 /** Null if this account is the host, otherwise the failure to return. */
 export const asHost = (room, userId) => (room.hostId === userId ? null : fail('hostOnly'));
 /** Null while the game is still in the lobby, otherwise the failure to return. */

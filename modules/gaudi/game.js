@@ -20,7 +20,7 @@ import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { seatScoreboardEntry } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { msg } from '../../shared/messages.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, ok, seatOf, uniqueName } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, uniqueName } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import {
   BAD_PRIVATE_POINTS,
@@ -1180,6 +1180,7 @@ export function playAgain(room, userId) {
   const problem = asHost(room, userId);
   if (problem) return problem;
   if (room.phase !== 'finished') return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
   resetGame(room);
   for (const seat of room.seats) if (isBot(seat)) delete seat.ai; // a new game picks new AIs
   room.phase = 'lobby';
