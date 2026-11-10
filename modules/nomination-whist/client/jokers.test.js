@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { messageText } from '../../../src/messageText.js';
-import { movesBetween } from './log.js';
+import { newEntries } from './moveLog.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 
@@ -64,20 +64,20 @@ describe('the log of a trick with Jokers', () => {
   const before = (cards) => trickWith(cards.slice(0, 2), null);
 
   it('says that two Jokers cancel out', () => {
-    const lines = movesBetween(before(['5H', 'JK1']), trickWith(['5H', 'JK1', 'JK2'], 0)).map(words);
+    const lines = newEntries(before(['5H', 'JK1']), trickWith(['5H', 'JK1', 'JK2'], 0)).map(words);
     expect(lines).toContain('P2 played the red joker.');
     expect(lines).toContain('Both Jokers were played, so they cancel out.');
     expect(lines).toContain('P0 won the trick.');
   });
 
   it('says that the second Joker beats a Joker that led', () => {
-    const lines = movesBetween(before(['JK1', '5H']), trickWith(['JK1', '5H', 'JK2'], 2)).map(words);
+    const lines = newEntries(before(['JK1', '5H']), trickWith(['JK1', '5H', 'JK2'], 2)).map(words);
     expect(lines).toContain('The second Joker beats the Joker that led.');
     expect(lines).toContain('P2 won the trick.');
   });
 
   it('has nothing to say about Jokers when there is just one', () => {
-    const lines = movesBetween(before(['5H', 'JK1']), trickWith(['5H', 'JK1', '2H'], 1)).map(words);
+    const lines = newEntries(before(['5H', 'JK1']), trickWith(['5H', 'JK1', '2H'], 1)).map(words);
     expect(lines.some((l) => /cancel|second Joker/.test(l))).toBe(false);
   });
 });

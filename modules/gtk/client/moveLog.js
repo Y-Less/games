@@ -2,6 +2,7 @@
 // compared with the one before, and what changed becomes a line.  Each line is a message (`{ key, params }`, see
 // shared/messages.js) under the game's `log.*` keys, put into words by the table when it is drawn, so the list reads in
 // the player's language whenever they switch.  Nothing here needs the server to keep a log.
+import { endOfGame, entering, newlyFlagged } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -19,16 +20,12 @@ export function newEntries(prev, next) {
   const sameQuestion = sameRound && prev.question === next.question;
 
   if (next.phase === 'writing' && !(prev?.phase === 'writing' && sameRound)) out.push(msg('log.roundStart', { n: next.round, total: next.roundsTotal, name: next.subjectName }));
-  if (next.phase === 'writing' && sameRound && prev.phase === 'writing') {
-    for (const p of next.players) if (p.written && !prev.players.find((q) => q.id === p.id)?.written) out.push(msg('log.written', { name: p.name }));
-  }
+  if (next.phase === 'writing' && sameRound && prev.phase === 'writing') out.push(...newlyFlagged(prev, next, 'written', 'log.written'));
   if (next.phase === 'picking' && !(prev?.phase === 'picking' && sameQuestion)) {
     if (prev?.phase === 'writing') out.push(msg('log.answersIn'));
     out.push(msg('log.questionUp', { n: next.question, prompt: next.prompts[next.question - 1] ?? '' }));
   }
-  if (next.phase === 'picking' && sameQuestion && prev.phase === 'picking') {
-    for (const p of next.players) if (p.picked && !prev.players.find((q) => q.id === p.id)?.picked) out.push(msg('log.picked', { name: p.name }));
-  }
+  if (next.phase === 'picking' && sameQuestion && prev.phase === 'picking') out.push(...newlyFlagged(prev, next, 'picked', 'log.picked'));
   if (next.phase === 'reveal' && !(prev?.phase === 'reveal' && sameQuestion) && next.options.length) {
     const truth = next.options.find((o) => o.truth);
     out.push(msg('log.truthWas', { answer: truth?.text ?? '' }));
@@ -39,10 +36,7 @@ export function newEntries(prev, next) {
       for (const author of option.authors) out.push(msg('log.fooled', { name: author.name, count: option.pickedBy.length, answer: option.text }));
     }
   }
-  if (next.phase === 'finished' && prev?.phase !== 'finished') {
-    const winners = next.players.filter((p) => p.winner).map((p) => p.name);
-    if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
-  }
-  if (next.phase === 'abandoned' && prev?.phase !== 'abandoned') out.push(msg('log.abandoned'));
+  out.push(...endOfGame(prev, next));
+  if (entering(prev, next, 'abandoned')) out.push(msg('log.abandoned'));
   return out;
 }

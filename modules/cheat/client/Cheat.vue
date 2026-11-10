@@ -15,7 +15,7 @@
 import { ref } from 'vue';
 import GameShell from '../../../src/components/GameShell.vue';
 import { useGameText } from '../../../src/useGameText.js';
-import { advanceLog } from './log.js';
+import { advanceLog } from './moveLog.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 

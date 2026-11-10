@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import Cheat from './Cheat.vue';
 import Lobby from './Lobby.vue';
-import { advanceLog } from './log.js';
+import { advanceLog } from './moveLog.js';
 import { rankMsg } from './rank.js';
 import { messageText } from '../../../src/messageText.js';
 

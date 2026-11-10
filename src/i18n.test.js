@@ -32,7 +32,10 @@ const DRAWING = /^[MmLlHhVvCcSsQqTtAaZz\d\s.,+-]+$/;
  * that uses one is asking for those keys as surely as if the code were in its own server.js, so the shared file is read
  * with the module's own.  (The room server needs no entry here: the errors it raises are the site's, not a game's.)
  */
-const SHARED_ASKERS = [['createStrokeRelay', '../shared/strokeRelay.js']];
+const SHARED_ASKERS = [
+  ['createStrokeRelay', '../shared/strokeRelay.js'], // the drawing games' refusals
+  ['endOfGame', '../shared/logDiff.js'], // the "Recent moves" lines every game's log has
+];
 
 const moduleOf = (file) => file.match(/modules\/([^/]+)\//)?.[1] ?? null;
 const units = ['site', ...Object.keys(moduleMessages).map(moduleOf).sort()];

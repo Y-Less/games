@@ -2,6 +2,7 @@
 // compared with the one before, and what changed becomes a line.  Nothing here needs the server to keep a log.
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by
 // the table when it is drawn, so the list reads in the player's language whenever they switch.
+import { endOfGame, entering } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -30,10 +31,7 @@ export function newEntries(prev, next) {
     for (const gone of next.result.missed) out.push(msg('log.missed', { name: gone.name }));
     out.push(msg('log.answer', { answer: next.question.answers[next.result.correct] ?? '' }));
   }
-  if (next.phase === 'finished' && prev?.phase !== 'finished') {
-    const winners = next.players.filter((p) => p.winner).map((p) => p.name);
-    if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
-  }
-  if (next.phase === 'abandoned' && prev?.phase !== 'abandoned') out.push(msg('log.ranOut'));
+  out.push(...endOfGame(prev, next));
+  if (entering(prev, next, 'abandoned')) out.push(msg('log.ranOut'));
   return out;
 }

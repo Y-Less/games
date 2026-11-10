@@ -5,6 +5,7 @@
 //
 // The guesses themselves are not in here: they are in the guesses panel beside the board.  This is the scoring and the
 // turns, as in every other game.
+import { endOfGame, nameIn } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -17,8 +18,7 @@ import { msg } from '../../../shared/messages.js';
  */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
-  /** A player's name from the new state, or the site's "Someone" if they are not found (a string, or a message). */
-  const name = (id) => next.players.find((p) => p.id === id)?.name ?? msg('common.someone');
+  const name = nameIn(next);
   const out = [];
   const sameTurn = prev && prev.round === next.round && prev.turn === next.turn;
 
@@ -40,9 +40,6 @@ export function newEntries(prev, next) {
     out.push(msg('log.wordWas', { word: reveal.word ?? '' }));
   }
   if (next.phase === 'scores' && prev?.phase !== 'scores') out.push(msg('log.roundOver', { n: next.round, of: next.rounds }));
-  if (next.phase === 'finished' && prev?.phase !== 'finished') {
-    const winners = next.players.filter((p) => p.winner).map((p) => p.name);
-    if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
-  }
+  out.push(...endOfGame(prev, next));
   return out;
 }

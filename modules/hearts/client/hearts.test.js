@@ -6,7 +6,7 @@ import Hearts from './Hearts.vue';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
 import { cardName } from '../../../shared/cards.js';
-import { advanceLog } from './log.js';
+import { advanceLog } from './moveLog.js';
 import { messageText } from '../../../src/messageText.js';
 
 // A log line (a message) in English, as the table draws it.

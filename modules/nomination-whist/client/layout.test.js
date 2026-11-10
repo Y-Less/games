@@ -5,7 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import * as game from '../game.js';
 import { leaveOffer } from '../../../src/playBar.js';
 import { messageText } from '../../../src/messageText.js';
-import { movesBetween } from './log.js';
+import { newEntries } from './moveLog.js';
 import NominationWhist from './NominationWhist.vue';
 import Table from './Table.vue';
 
@@ -154,27 +154,27 @@ describe('Recent moves', () => {
 
   it('starts with the round and adds a line for each nomination, card and trick', () => {
     const before = base();
-    expect(movesBetween(null, before).map(words)).toEqual([expect.stringMatching(/^Round 1: 7 cards each, .* are trumps\.$/)]);
+    expect(newEntries(null, before).map(words)).toEqual([expect.stringMatching(/^Round 1: 7 cards each, .* are trumps\.$/)]);
     const nominated = copy(before);
     nominated.seats[1].bid = 2;
-    expect(movesBetween(before, nominated).map(words)).toEqual([`${nominated.seats[1].name} nominated 2.`]);
+    expect(newEntries(before, nominated).map(words)).toEqual([`${nominated.seats[1].name} nominated 2.`]);
     const one = copy(before);
     one.trick = [{ seat: 2, card: 'QS' }];
-    expect(movesBetween(before, one).map(words)).toEqual([`${one.seats[2].name} played the queen of spades.`]);
+    expect(newEntries(before, one).map(words)).toEqual([`${one.seats[2].name} played the queen of spades.`]);
     const full = copy(one);
     full.trick = [0, 1, 2, 3].map((seat) => ({ seat, card: 'QS' }));
     full.trickWinner = 1;
-    expect(movesBetween(one, full).map(words).at(-1)).toBe(`${full.seats[1].name} won the trick.`);
+    expect(newEntries(one, full).map(words).at(-1)).toBe(`${full.seats[1].name} won the trick.`);
   });
 
   it('says nothing when nothing changed, and starts afresh with a new round', () => {
     const state = base();
-    expect(movesBetween(state, copy(state))).toEqual([]);
+    expect(newEntries(state, copy(state))).toEqual([]);
     const later = copy(state);
     later.round.number = 2;
     later.round.cards = 6;
-    expect(words(movesBetween(state, later)[0])).toMatch(/^Round 2: 6 cards each/);
-    expect(movesBetween(null, { ...state, phase: 'lobby' })).toEqual([]);
+    expect(words(newEntries(state, later)[0])).toMatch(/^Round 2: 6 cards each/);
+    expect(newEntries(null, { ...state, phase: 'lobby' })).toEqual([]);
   });
 
   it('is shown in the log box, and is kept by the page so that every state is seen even when two arrive in one redraw', async () => {

@@ -2,6 +2,7 @@
 // with the one before, and what changed becomes a line.  Nothing here needs the server to keep a log.
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by the
 // table when it is drawn, so the list reads in the player's language whenever they switch.
+import { endOfGame, entering, nameIn, newlyFlagged } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -16,8 +17,7 @@ import { msg } from '../../../shared/messages.js';
  */
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
-  // Returns the name of a player in the new view, or the site's "Someone" if they have gone.
-  const name = (id) => next.players.find((p) => p.id === id)?.name ?? msg('common.someone');
+  const name = nameIn(next);
   const out = [];
   // True when the step is within one turn (so a changed clue or guess is news, not a new turn's starting state).
   const sameTurn = prev && prev.turn === next.turn;
@@ -27,9 +27,7 @@ export function newEntries(prev, next) {
     out.push(msg('log.turnStart', { n: next.turn, total: next.turnsTotal, name: name(next.psychic), left, right }));
   }
   if (sameTurn && next.clue && next.clue !== prev.clue) out.push(msg('log.clue', { name: name(next.psychic), clue: next.clue }));
-  if (sameTurn && prev.phase === next.phase) {
-    for (const p of next.players) if (p.guessed && !prev.players.find((q) => q.id === p.id)?.guessed) out.push(msg('log.guessed', { name: p.name }));
-  }
+  if (sameTurn && prev.phase === next.phase) out.push(...newlyFlagged(prev, next, 'guessed', 'log.guessed'));
 
   if (next.phase === 'reveal' && prev?.phase !== 'reveal' && next.result) {
     // The list is read newest first, so the guesses go in before the line that says how the psychic did.
@@ -37,10 +35,7 @@ export function newEntries(prev, next) {
     else for (const e of next.result.entries) out.push(msg(e.bullseye ? 'log.bullseye' : e.points ? 'log.inTarget' : 'log.missed', { name: e.name, points: e.points }));
     out.push(msg('log.reveal', { name: next.result.psychicName, points: next.result.psychicPoints }));
   }
-  if (next.phase === 'finished' && prev?.phase !== 'finished') {
-    const winners = next.players.filter((p) => p.winner).map((p) => p.name);
-    if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
-  }
-  if (next.phase === 'abandoned' && prev?.phase !== 'abandoned') out.push(msg('log.abandoned'));
+  out.push(...endOfGame(prev, next));
+  if (entering(prev, next, 'abandoned')) out.push(msg('log.abandoned'));
   return out;
 }

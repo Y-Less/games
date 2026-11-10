@@ -13,7 +13,7 @@ import { cardMsg, msg, suitMsg } from '../../../shared/messages.js';
  * @returns {{ key: string, params?: object }[]} new log entries, oldest first
  * Side effects: none.
  */
-export function movesBetween(prev, next) {
+export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby' || !next.round) return [];
   // Returns a seat's display name, or the site's "Someone" if that seat is empty.
   const name = (seat) => next.seats[seat]?.name ?? msg('common.someone');

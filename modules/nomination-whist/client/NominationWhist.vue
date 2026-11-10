@@ -17,7 +17,7 @@ import GameShell from '../../../src/components/GameShell.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import Lobby from './Lobby.vue';
 import Table from './Table.vue';
-import { movesBetween } from './log.js';
+import { newEntries } from './moveLog.js';
 
 /** How many lines of "Recent moves" are kept. */
 const LOG_KEPT = 120;
@@ -41,7 +41,7 @@ const log = ref([]); // Recent moves, worked out from the states as they arrive 
  */
 function onState(next, previous) {
   try {
-    log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...movesBetween(previous, next)].slice(-LOG_KEPT);
+    log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-LOG_KEPT);
   } catch {
     log.value = []; // the list is only a convenience: never let it stop the table from updating
   }
