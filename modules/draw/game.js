@@ -24,6 +24,8 @@ import { AI } from './ai.js';
 import { pairings } from './pairings.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn } from './tally.js';
 
+/** How many draw at once, which is what makes a turn a pair rather than a person (see pairings.js). */
+export const DRAWERS_PER_TURN = 2;
 /** Two to draw and at least one to guess. */
 export const MIN_PLAYERS = 3;
 /** Every pair of players draws, so the rounds grow fast: eight is twenty-eight rounds already. */
@@ -88,6 +90,14 @@ const playerOf = (room, id) => room.players.find((p) => p.id === id);
  * Side effects: none.
  */
 export const drawersOf = (room) => room.order?.[room.turn] ?? [];
+
+/** How many boards a turn has: one for each drawer, and a pair draws, so two even between turns when `order` has
+ * nothing to say yet.  The stroke relay sizes the turn's boards from this rather than writing the number down.
+ * @param {object} room  not changed
+ * @returns {number}
+ * Side effects: none.
+ */
+export const boardsOf = (room) => drawersOf(room).length || DRAWERS_PER_TURN;
 
 /**
  * Is this player one of the two drawing this turn?
@@ -348,7 +358,7 @@ export function playAgain(room, id) {
   if (room.phase === 'lobby') return fail('alreadyInLobby');
   nextGame(room); // the game just played keeps its scoreboard; this is the next one
   for (const player of room.players) Object.assign(player, { score: 0, lastScore: 0, tries: 0 }, newCounters());
-  Object.assign(room, { phase: 'lobby', round: 0, order: [], drawers: [], choices: {}, preChoice: {}, words: {}, winner: null, reveal: null, feed: [], used: [], history: [], deadline: null, recorded: false });
+  Object.assign(room, { phase: 'lobby', turn: 0, order: [], choices: {}, preChoice: {}, words: {}, winner: null, reveal: null, feed: [], used: [], history: [], deadline: null, recorded: false });
   return ok();
 }
 

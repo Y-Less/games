@@ -78,14 +78,14 @@ test('both boards reach everybody, and only a drawer may put strokes on their ow
 
   // Each drawer's strokes reach the others, tagged with the board they belong to.
   const seen = [];
-  for (const p of people) p.socket.on('draw', (message) => seen.push({ who: p.name, slot: message.slot, ops: message.ops.length }));
+  for (const p of people) p.socket.on('draw', (message) => seen.push({ who: p.name, board: message.board, ops: message.ops.length }));
   for (const p of drawers) assert.equal((await p.call('line', { x: 10, y: 10, x2: 20, y2: 20, c: 3, w: 8 })).ok, true);
   await until(() => seen.filter((s) => s.who === guesser.name).length === 2, 'the guesser sees a stroke on each board');
-  assert.deepEqual(seen.filter((s) => s.who === guesser.name).map((s) => s.slot).sort(), [0, 1], 'one for each board');
+  assert.deepEqual(seen.filter((s) => s.who === guesser.name).map((s) => s.board).sort(), [0, 1], 'one for each board');
   // A drawer is not sent their own strokes back, only the other board's.
   const toDrawer = seen.filter((s) => s.who === drawers[0].name);
   assert.equal(toDrawer.length, 1, 'the other board only');
-  assert.notEqual(toDrawer[0].slot, drawers[0].state.boards.findIndex((b) => b.yours));
+  assert.notEqual(toDrawer[0].board, drawers[0].state.boards.findIndex((b) => b.yours));
 
   // Opening the game on a second device mid-round is sent both boards as they stand.
   const phone = await guesser.twin();
@@ -94,7 +94,7 @@ test('both boards reach everybody, and only a drawer may put strokes on their ow
   assert.equal((await phone.call('resume', { code })).ok, true);
   assert.equal((await phone.call('canvas')).ok, true);
   await until(() => boards.length >= 2, 'both boards');
-  assert.deepEqual([...new Set(boards.map((b) => b.slot))].sort(), [0, 1]);
+  assert.deepEqual([...new Set(boards.map((b) => b.board))].sort(), [0, 1]);
   assert.ok(boards.some((b) => b.ops.length > 0), 'with the strokes already on them');
 });
 
@@ -112,7 +112,7 @@ test('a drawer who walks out mid-round leaves their strokes behind for the compu
   await until(() => people.every((p) => p.state?.phase === 'drawing'), 'drawing');
 
   const leaving = drawers[0];
-  const slot = leaving.state.boards.findIndex((b) => b.yours);
+  const theirBoard = leaving.state.boards.findIndex((b) => b.yours);
   assert.equal((await leaving.call('line', { x: 30, y: 30, x2: 40, y2: 40, c: 7, w: 8 })).ok, true);
   assert.equal((await leaving.call('leave')).ok, true);
   await until(() => leaving.state === null, 'they are out');
@@ -123,7 +123,7 @@ test('a drawer who walks out mid-round leaves their strokes behind for the compu
   watcher.socket.on('canvas', (message) => boards.push(message));
   assert.equal((await watcher.call('canvas')).ok, true);
   await until(() => boards.length >= 2, 'both boards again');
-  const theirs = boards.filter((b) => b.slot === slot).flatMap((b) => b.ops);
+  const theirs = boards.filter((b) => b.board === theirBoard).flatMap((b) => b.ops);
   assert.ok(theirs.length > 0, 'the stroke they drew before leaving is still on the board');
 });
 

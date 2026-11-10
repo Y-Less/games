@@ -4,7 +4,9 @@
 // small beside it.
 //
 // The drawings are not in the state: the strokes arrive as `draw` and `canvas` events, each tagged with the board
-// they belong to (`slot`), and are handed to whichever board that is.  See ../server.js.
+// they belong to (`board`, its place in the state's `boards`), and are handed to whichever board that is.  The word
+// is deliberately not `slot`, which on this site is a member's place in a room and nothing to do with a canvas.
+// See ../server.js.
 //
 // Props: state (the server's view), send (function), socket (to listen for strokes).  Emits: none.  Slots: none.
 // Side effects: listens for `draw` and `canvas` on the socket while mounted; sends word, guess, line, fill, draw,
@@ -31,38 +33,39 @@ const props = defineProps({
 const { t } = useGameText();
 
 const tool = newTool();
-// One board component per slot, in the order the server numbers them.
+// One board component per board, in the order the server numbers them.
 const panels = [ref(null), ref(null)];
 const { secondsLeft } = useTurnClock(() => props.state);
 
 const youDraw = computed(() => props.state.youDraw);
-// Which slot is this viewer's own (-1 for a guesser, who owns neither).
+// Which board is this viewer's own (-1 for a guesser, who owns neither).
 const mine = computed(() => props.state.boards.findIndex((board) => board.yours));
-// The boards in the order they are shown: a drawer's own goes first, so it is the big one on the left.
+// The boards in the order they are shown: a drawer's own goes first, so it is the big one on the left.  `at` is the
+// board's own number, kept through the reordering because it is what the stroke events are tagged with.
 const shown = computed(() => {
-  const list = props.state.boards.map((board, slot) => ({ ...board, slot }));
+  const list = props.state.boards.map((board, at) => ({ ...board, at }));
   return mine.value > 0 ? [list[mine.value], list[1 - mine.value]] : list;
 });
-// The frame measures its own main area and hands the size to the slot, so the boards are sized from the room there
+// The frame measures its own main area and hands the size to the board, so the boards are sized from the room there
 // is rather than from anything about the game: nothing moves while playing.
 const sizesIn = (box) => boardSizes(box, youDraw.value);
 
 /**
  * Hands strokes to the board they belong to.
- * @param {{ slot: number, ops: object[] }} message  what the server sent
+ * @param {{ board: number, ops: object[] }} message  what the server sent
  * @returns {void}
  * Side effects: draws on one of the boards.
  */
-const onDraw = ({ slot, ops }) => panels[slot]?.value?.apply(ops ?? []);
+const onDraw = ({ board, ops }) => panels[board]?.value?.apply(ops ?? []);
 
 /**
  * A board as it now stands, in chunks: the first chunk replaces what was there, the rest are added.
- * @param {{ slot: number, ops: object[], first: boolean }} message  what the server sent
+ * @param {{ board: number, ops: object[], first: boolean }} message  what the server sent
  * @returns {void}
  * Side effects: redraws or adds to one of the boards.
  */
-const onCanvas = ({ slot, ops, first }) => {
-  const panel = panels[slot]?.value;
+const onCanvas = ({ board, ops, first }) => {
+  const panel = panels[board]?.value;
   if (!panel) return;
   if (first) panel.reset(ops ?? []);
   else panel.apply(ops ?? []);
@@ -143,14 +146,14 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
       <!-- The frame's main area is a subgrid, so everything on the table goes in one child that spans it all. -->
       <div class="table-area">
         <div class="boards">
-          <figure v-for="(board, n) in shown" :key="board.slot" class="board" :class="{ yours: board.yours, won: board.won }">
+          <figure v-for="(board, n) in shown" :key="board.at" class="board" :class="{ yours: board.yours, won: board.won }">
             <figcaption>
               <template v-if="board.yours && board.word">{{ t('table.yourWord', { word: board.word }) }}</template>
               <template v-else-if="board.word">{{ t('table.wasDrawing', { name: board.name, word: board.word }) }}</template>
               <template v-else>{{ t('table.theirBoard', { name: board.name }) }}</template>
             </figcaption>
             <DrawingBoard
-              :ref="(el) => (panels[board.slot].value = el)"
+              :ref="(el) => (panels[board.at].value = el)"
               :active="board.yours && state.phase === 'drawing'"
               :tool="tool"
               :width="n === 0 ? sizesIn(box).mine.width : sizesIn(box).theirs.width"

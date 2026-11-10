@@ -61,19 +61,24 @@ table size, every number of cycles and forty seeds each.
 ## Two boards, and why they are known by their place
 
 The drawings are not in the view, for the same reason as in Scribblers: a view is the whole state of a room, sent to
-everybody on every change, and a drawing is thousands of instructions.  The strokes live in `server.js`, in memory,
-and are relayed as they are made — with one field added, because there are two of them:
+everybody on every change, and a drawing is thousands of instructions.  The strokes are `shared/strokeRelay.js` —
+literally the same code Scribblers runs — and are relayed as they are made.  Draw! has a board for each of the pair
+drawing rather than one, so it is the game, not the relay, that adds a field saying which:
 
 ```
 client -> server   line | fill | draw { ops } | clear | undo      (on your own board; the server knows which)
-server -> client   draw { slot, ops }                             more strokes for one of the boards
-                   canvas { slot, ops, first, done }              a board as it stands, in chunks
+server -> client   draw { board, ops }                            more strokes for one of the boards
+                   canvas { board, ops, first, done }             a board as it stands, in chunks
 ```
 
-**A board is known by its place (`slot`: 0 or 1), not by who is drawing it.**  That matters when somebody walks out
-mid-round: a computer player takes their place under a new id, and a board keyed by drawer would leave their strokes
-orphaned under the old one and hand the computer player a blank canvas beside them.  Keyed by place, a takeover
-changes nothing about the drawing at all, which is what `server.test.js` checks.
+**A board is known by its place (`board`: its index in the view's `boards`, so 0 or 1), not by who is drawing it.**
+That matters when somebody walks out mid-turn: a computer player takes their place under a new id, and a board keyed
+by drawer would leave their strokes orphaned under the old one and hand the computer player a blank canvas beside
+them.  Keyed by place, a takeover changes nothing about the drawing at all, which is what `server.test.js` checks.
+
+The field is `board` and not `slot` on purpose: a slot on this site is a member's place in a room (`"s0"`, and the
+field `kick` and `removeBot` take), and two different numberings of two different things should not share a word on
+one wire.
 
 ## The clock
 

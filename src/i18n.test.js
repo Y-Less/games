@@ -27,9 +27,21 @@ const NOT_WORDS = /^(?:Aa|JOKER|[\s\d.,:;/+\-–—×…·•%()&#;'"?!|]*)$/;
 /** SVG path or points data ("M12 1.5 L22.5 12 Z"): drawing commands and numbers, never anything anyone reads. */
 const DRAWING = /^[MmLlHhVvCcSsQqTtAaZz\d\s.,+-]+$/;
 
+/**
+ * Shared parts that raise a game's own error codes on its behalf, by the call a module makes to ask for one.  A module
+ * that uses one is asking for those keys as surely as if the code were in its own server.js, so the shared file is read
+ * with the module's own.  (The room server needs no entry here: the errors it raises are the site's, not a game's.)
+ */
+const SHARED_ASKERS = [['createStrokeRelay', '../shared/strokeRelay.js']];
+
 const moduleOf = (file) => file.match(/modules\/([^/]+)\//)?.[1] ?? null;
 const units = ['site', ...Object.keys(moduleMessages).map(moduleOf).sort()];
-const filesOf = (unit) => Object.entries(sources).filter(([file]) => !NOT_PLAYER_FACING.test(file) && (unit === 'site' ? file.startsWith('./') : moduleOf(file) === unit));
+const filesOf = (unit) => {
+  const own = Object.entries(sources).filter(([file]) => !NOT_PLAYER_FACING.test(file) && (unit === 'site' ? file.startsWith('./') : moduleOf(file) === unit));
+  if (unit === 'site') return own;
+  const shared = SHARED_ASKERS.filter(([call]) => own.some(([, code]) => code.includes(call))).map(([, file]) => [file, sources[file]]);
+  return [...own, ...shared];
+};
 const messagesOf = (unit) => (unit === 'site' ? siteMessages : Object.entries(moduleMessages).find(([file]) => moduleOf(file) === unit)[1]);
 
 /**

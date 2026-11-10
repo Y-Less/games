@@ -6,18 +6,18 @@
 // The module's id is `draw`, which is also the name of one of its socket events; they are different layers (a
 // namespace and an event within it) and never meet, so neither needs renaming.
 //
-// **The drawings are not part of the view.**  A view is the whole state of a room, sent to everybody on every change;
-// a drawing is thousands of instructions.  So the strokes live in this file, in memory, for the round being drawn, and
-// are relayed as they are made - the same protocol as Scribblers (shared/drawing.js), with one field added, because
-// there are two boards:
+// **The drawings are not part of the view**, and are not kept here either: they are shared/strokeRelay.js, which
+// Scribblers uses as well.  Draw! has a board for each of the pair drawing rather than one, so it is the game that
+// adds a field saying which:
 //
 //   client -> server   line { x, y, x2, y2, c, w } | fill { x, y, c } | draw { ops } | clear | undo
-//   server -> client   draw { slot, ops }                 more strokes for one of the boards
-//                      canvas { slot, ops, first, done }  a board as it now stands, in chunks
+//   server -> client   draw { board, ops }                 more strokes for one of the boards
+//                      canvas { board, ops, first, done }  a board as it now stands, in chunks
 //
-// **A board is known by its place, not by who is drawing it** (`slot`: 0 or 1).  A computer player taking over from
-// somebody who leaves mid-round therefore inherits the strokes already on their board, rather than finding a blank one
-// under a new name.
+// **A board is known by its place, not by who is drawing it** (`board`: its index in the view's `boards`, so 0 or 1).
+// A computer player taking over from somebody who leaves mid-turn therefore inherits the strokes already on their
+// board, rather than finding a blank one under a new name.  The field is not called `slot`: on this site a slot is a
+// member's place in a room, and the two would be different numbers of different things on one wire.
 //
 // Timing can be changed through the environment (the tests make it fast):
 //   DRAW_CHOOSE_WAIT   milliseconds the drawers have to pick a word (default 5000)
@@ -30,41 +30,10 @@
 //
 // Depends on shared/roomServer.js, shared/drawing.js (what a drawing is made of), shared/picture.js (a word turned
 // into something to draw) and ./game.js (the rules).
-import { shuffle } from '../../shared/cards.js';
-import { MAX_BATCH, addOps, canvasMessages, clear, newDrawing, readOp, undo } from '../../shared/drawing.js';
-import { drawingFor, testPicture } from '../../shared/picture.js';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
+import { BOT_STROKE_RATE, createStrokeRelay, pictureSource, readRate } from '../../shared/strokeRelay.js';
 import * as game from './game.js';
-
-/** How often the server sends the next few strokes of a computer player's picture (milliseconds). */
-const STROKE_TICK = 100;
-/** How fast a computer player draws, in strokes a second, unless DRAW_BOT_RATE says otherwise. */
-const BOT_STROKE_RATE = 100;
-
-/**
- * Where a computer player's pictures come from.
- * @returns {(word: string) => Promise<{ ops: object[], url: string | null }>} the instructions for a word
- * Side effects: none itself; the "web" source fetches when it is called.
- */
-function pictureSource() {
-  const kind = process.env.DRAW_PICTURES ?? 'web';
-  if (kind === 'off') return async () => ({ ops: [], url: null });
-  if (kind === 'test') return async (word) => ({ ops: testPicture(word), url: null });
-  return (word) => drawingFor(word);
-}
-
-/**
- * How fast a computer player draws, from the environment.
- * @param {string} name  the environment variable
- * @param {number} fallback  strokes a second when it is unset or unusable
- * @returns {number}
- * Side effects: none (reads process.env).
- */
-function readRate(name, fallback) {
-  const value = Number(process.env[name] ?? fallback);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
 
 /**
  * Every timing the game runs on, from the environment.
@@ -80,9 +49,6 @@ const readDelays = () => ({
   botRate: readRate('DRAW_BOT_RATE', BOT_STROKE_RATE),
 });
 
-/** Waits a while, for the pacing of a computer player's picture. */
-const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * Starts the Draw! server half.
  * @param {object} ctx  the module context from the site (io, dataDir, codes, stats, users, log, ...)
@@ -91,92 +57,22 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 export default function (ctx) {
   const delays = readDelays();
-  const pictureFor = pictureSource();
   /** An account's display name (for rooms saved before names were kept). */
   const nameOf = (id) => ctx.users?.get(id)?.displayName ?? 'Someone';
 
-  /** The two drawings of the round each room is on: code -> { round, boards: [drawing, drawing] }. */
-  const canvases = new Map();
-  /** The boards a computer player has already been given a picture for: code -> Set of '<round>:<slot>'. */
-  const painted = new Map();
-
-  /**
-   * One of the two drawings of the round this room is on, starting fresh ones when the round has moved on.
-   * @param {object} room  the room
-   * @param {number} slot  0 or 1
-   * @returns {object} the drawing (see shared/drawing.js)
-   * Side effects: may replace this room's entry in `canvases`.
-   */
-  function canvasOf(room, slot) {
-    let entry = canvases.get(room.code);
-    if (!entry || entry.turn !== room.turn) {
-      entry = { turn: room.turn, boards: [newDrawing(), newDrawing()] };
-      canvases.set(room.code, entry);
-      painted.delete(room.code);
-    }
-    return entry.boards[slot];
-  }
-
-  /**
-   * Has this board still to be given its computer player's picture?  Only once a turn, and only while it is empty, so
-   * that a computer player standing in for somebody who left does not paint over what they had already drawn.
-   * @param {object} room  the room
-   * @param {number} slot  0 or 1
-   * @returns {boolean}
-   * Side effects: none (it reads the drawing without starting one).
-   */
-  function pictureDue(room, slot) {
-    if (painted.get(room.code)?.has(`${room.turn}:${slot}`)) return false;
-    const entry = canvases.get(room.code);
-    return !entry || entry.turn !== room.turn || entry.boards[slot].ops.length === 0;
-  }
-
-  /**
-   * Draws a computer player's word on its own board: a picture is fetched and then put on a few strokes a second, in
-   * a scattered order, so that it comes up out of nothing the way a drawing does.  It stops if the round moves on.
-   *
-   * @param {object} room  the room (its drawing is added to)
-   * @param {number} slot  which board
-   * @param {Function} relay  sends an event to everybody in the room
-   * @param {() => number} rng  random source, for the order the strokes go on in
-   * @param {() => number} now  the clock
-   * @returns {Promise<void>}
-   * Side effects: fetches over the network, fills the board, emits `draw` to the room, and logs.
-   */
-  async function paint(room, slot, relay, rng, now) {
-    const turn = room.turn;
-    const drawer = game.drawersOf(room)[slot];
-    const word = room.words[drawer];
-    if (!word) return;
-    const marks = painted.get(room.code) ?? new Set();
-    marks.add(`${turn}:${slot}`); // marked before the fetch, so a second timer cannot start the same picture again
-    painted.set(room.code, marks);
-    const here = () => room.turn === turn && room.phase === 'drawing' && room.words[game.drawersOf(room)[slot]] === word;
-    try {
-      const { ops } = await pictureFor(word);
-      if (!ops.length) {
-        ctx.log(`no picture was found for "${word}"`);
-        return;
-      }
-      const order = shuffle(ops, rng);
-      // How many strokes a tick is owed, kept as a running total rather than rounded each time.
-      const perTick = (delays.botRate * STROKE_TICK) / 1000;
-      let credit = 0;
-      for (let sent = 0; sent < order.length; ) {
-        await pause(STROKE_TICK);
-        if (!here()) return; // the round moved on while the picture was being fetched or drawn
-        credit += perTick;
-        const take = Math.min(Math.floor(credit), order.length - sent, MAX_BATCH);
-        if (take < 1) continue;
-        credit -= take;
-        const kept = addOps(canvasOf(room, slot), order.slice(sent, sent + take), now());
-        sent += take;
-        if (kept.length) relay(room, 'draw', { slot, ops: kept });
-      }
-    } catch (error) {
-      ctx.log(`could not draw "${word}":`, error.message);
-    }
-  }
+  // The boards, the strokes on them, and the pictures the computer players paint: shared/strokeRelay.js, which
+  // Scribblers uses too.  Draw! has a board for each of the pair drawing, so it says which on the wire.
+  const strokes = createStrokeRelay({
+    ctx,
+    game,
+    turnKey: (room) => room.turn,
+    boards: game.boardsOf,
+    boardOf: game.slotOf,
+    wordFor: (room, board) => room.words[game.drawersOf(room)[board]],
+    label: (board) => ({ board }),
+    pictureFor: pictureSource('DRAW_PICTURES'),
+    botRate: delays.botRate,
+  });
 
   return createRoomServer(ctx, {
     game,
@@ -186,17 +82,7 @@ export default function (ctx) {
     viewOptions: (room, userId, now) => ({ nameOf, now: now() }),
     createArgs: () => ({ chooseMs: delays.chooseMs, betweenMs: delays.betweenMs }),
     migrate: (room) => game.migrate(room, nameOf),
-    /**
-     * Forgets the drawings of a room that is not drawing, so that no room holds boards it will never show again.
-     * @param {object} room  the room that has just changed
-     * @returns {void}
-     * Side effects: may drop this room's entries from `canvases` and `painted`.
-     */
-    afterChange(room) {
-      if (['drawing', 'between'].includes(room.phase)) return;
-      canvases.delete(room.code);
-      painted.delete(room.code);
-    },
+    afterChange: strokes.forget,
     /**
      * The clock work of a round, run off the one timer the room server gives a game: a word picked for a drawer who
      * dithered, the end of the drawing, the next round, a computer player's move, the picture a computer player
@@ -227,9 +113,9 @@ export default function (ctx) {
       }
       // A computer player with a word and an empty board: fetch a picture of it and start painting (once a turn).
       if (room.phase === 'drawing') {
-        for (let slot = 0; slot < drawers.length; slot++) {
-          if (drawers[slot] && !game.isHuman(drawers[slot]) && pictureDue(room, slot)) {
-            return { key: `picture:${room.turn}:${slot}`, wait: delays.botDraw, run: () => void paint(room, slot, relay, rng, now) };
+        for (let board = 0; board < drawers.length; board++) {
+          if (drawers[board] && !game.isHuman(drawers[board]) && strokes.pictureDue(room, board)) {
+            return { key: `picture:${room.turn}:${board}`, wait: delays.botDraw, run: () => void strokes.paint(room, board, relay, rng, now) };
           }
         }
       }
@@ -264,80 +150,8 @@ export default function (ctx) {
       on('word', ({ n }) => act((room) => game.chooseWord(room, userId, n, now())));
       on('guess', ({ text }) => act((room) => game.guess(room, userId, text, now())));
 
-      /**
-       * The room and board this socket may draw on, or a refusal to send back.
-       * @returns {{ room: object, slot: number } | { error: object }}
-       */
-      const drawingRoom = () => {
-        const room = roomOf();
-        if (!room) return { error: { ok: false, error: 'notInAnyGame' } };
-        if (!game.canDraw(room, userId)) return { error: { ok: false, error: 'notYourTurnToDraw' } };
-        return { room, slot: game.slotOf(room, userId) };
-      };
-
-      /**
-       * Takes strokes from a drawer, keeps them with their board, and passes them to everybody else.
-       * @param {unknown[]} raws  what the client sent, one entry per instruction
-       * @param {string} [kind]  the instruction type when the event name says it ('line' or 'fill')
-       * @returns {object} the ack for the client
-       * Side effects: adds to one of this room's drawings and emits `draw` to the other players.
-       */
-      const draw = (raws, kind) => {
-        const { room, slot, error } = drawingRoom();
-        if (error) return error;
-        const ops = raws
-          .slice(0, MAX_BATCH)
-          .map((raw) => readOp(kind ? { ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}), t: kind } : raw))
-          .filter(Boolean);
-        if (!ops.length) return { ok: false, error: 'badDrawing' };
-        const kept = addOps(canvasOf(room, slot), ops, now());
-        if (kept.length) relay(room, 'draw', { slot, ops: kept }, { except: userId });
-        return { ok: true };
-      };
-
-      /**
-       * Sends a whole board, in chunks, either to this socket alone or to everybody in the room.
-       * @param {object} room  the room
-       * @param {number} slot  which board
-       * @param {object[]} ops  the instructions
-       * @param {boolean} [everyone]  true to send to the whole room, false for this socket only
-       * @returns {void}
-       * Side effects: emits `canvas` events.
-       */
-      const sendCanvas = (room, slot, ops, everyone = false) => {
-        for (const message of canvasMessages(ops)) {
-          if (everyone) relay(room, 'canvas', { slot, ...message });
-          else socket.emit('canvas', { slot, ...message });
-        }
-      };
-
-      on('line', (payload) => draw([payload], 'line'));
-      on('fill', (payload) => draw([payload], 'fill'));
-      on('draw', ({ ops }) => draw(Array.isArray(ops) ? ops : []));
-
-      on('clear', () => {
-        const { room, slot, error } = drawingRoom();
-        if (error) return error;
-        if (clear(canvasOf(room, slot))) sendCanvas(room, slot, [], true);
-        return { ok: true };
-      });
-
-      on('undo', () => {
-        const { room, slot, error } = drawingRoom();
-        if (error) return error;
-        const drawing = canvasOf(room, slot);
-        if (undo(drawing)) sendCanvas(room, slot, drawing.ops, true);
-        return { ok: true };
-      });
-
-      // Somebody opened the page, or came back, in the middle of a round: give them both boards as they stand.
-      on('canvas', () => {
-        const room = roomOf();
-        if (!room) return { ok: false, error: 'notInAnyGame' };
-        const live = ['drawing', 'between'].includes(room.phase);
-        for (let slot = 0; slot < 2; slot++) sendCanvas(room, slot, live ? canvasOf(room, slot).ops : []);
-        return { ok: true };
-      });
+      // line, fill, draw, clear, undo and canvas: the same relay Scribblers uses (shared/strokeRelay.js).
+      strokes.registerEvents({ on, userId, socket, now, roomOf, relay });
     },
   });
 

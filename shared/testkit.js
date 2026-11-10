@@ -65,18 +65,27 @@ export const CARD = /\b(?:[2-9]|10|[JQKA])[CDHS]\b/g;
 
 export { seeded } from './random.js';
 
+/** The shared files that register socket events of their own, by the call a server.js makes to ask for them. */
+const SHARED_EVENT_SOURCES = [
+  ['createRoomServer', 'roomServer.js'], // joining, the lobby, saving: the events every room game has
+  ['createStrokeRelay', 'strokeRelay.js'], // line, fill, draw, clear, undo, canvas: the drawing games
+];
+
 /**
- * Lists every socket event a module's server handles, sorted: those the module registers in its own server.js plus, if it is
- * built on the shared room server, the standard ones registered in shared/roomServer.js.  The robustness tests compare
- * this with the list of events they know how to attack, so a new event cannot go untested.
+ * Lists every socket event a module's server handles, sorted: those the module registers in its own server.js plus
+ * those registered on its behalf by whichever shared parts it is built on.  The robustness tests compare this with the
+ * list of events they know how to attack, so a new event cannot go untested — including one that arrives because a
+ * module took up a shared part that brings events with it.
  * @param {string} moduleDir  the module's folder (the test's own directory)
  * @returns {string[]} the event names, sorted, excluding 'connection' and 'disconnect'
- * Side effects: none (reads server.js and roomServer.js from disk).
+ * Side effects: none (reads server.js and the shared sources from disk).
  */
 export function handledSocketEvents(moduleDir) {
   const read = (file) => fs.readFileSync(file, 'utf8');
   let source = read(path.join(moduleDir, 'server.js'));
-  if (source.includes('createRoomServer')) source += read(path.join(platform, 'shared', 'roomServer.js'));
+  for (const [call, file] of SHARED_EVENT_SOURCES) {
+    if (source.includes(call)) source += read(path.join(platform, 'shared', file));
+  }
   return [...source.matchAll(/\bon\('(\w+)'/g)].map((m) => m[1]).filter((e) => !['connection', 'disconnect'].includes(e)).sort();
 }
 
