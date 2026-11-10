@@ -12,7 +12,9 @@ import { launchModule, sleep, until } from '../../shared/testkit.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'scribblers';
 
-process.env.SCRIBBLERS_CHOOSE_WAIT = '20000';
+// Longer than the 20 seconds `until` waits, so that a phase cannot end itself at the moment the wait for it gives up;
+// this file waits for `choosing` twice.  See modules/scribblers/robustness.test.js, where that race was found.
+process.env.SCRIBBLERS_CHOOSE_WAIT = '600000';
 process.env.SCRIBBLERS_BETWEEN_WAIT = '400';
 process.env.SCRIBBLERS_SCORES_WAIT = '20000';
 process.env.SCRIBBLERS_AWAY_WAIT = '20000';

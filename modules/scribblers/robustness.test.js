@@ -11,10 +11,20 @@ import { assertNoPollution, fuzzEvent, handledSocketEvents, launchModule, protot
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 // Short waits, so that reaching a phase is quick, but long enough that a phase holds still while it is being attacked.
-process.env.SCRIBBLERS_CHOOSE_WAIT = '20000';
-process.env.SCRIBBLERS_BETWEEN_WAIT = '400';
-process.env.SCRIBBLERS_SCORES_WAIT = '20000';
-process.env.SCRIBBLERS_AWAY_WAIT = '20000';
+//
+// "Long enough" has to mean longer than any wait this test makes, and it did not.  `until` gives up after 20 seconds
+// and `choosing` used to end itself after 20 seconds, so the phase and the wait watching it ran the same clock.  This
+// test takes about four and a half minutes on its own and nearer seventeen under the whole suite, and whenever it
+// arrived late the window had already shut: the server had chosen a word for the drawer (game.js `owed`), the room was
+// in `drawing`, and `everyone in choosing` was false from the first poll to the last.  It is not flakiness and it is
+// not load — load only made a race that was always there happen often enough to see.
+//
+// So the phases that end themselves now outlast anything that watches them.  Do not shorten these back: if a phase
+// needs to be caught while it is still there, it has to outlive the waiting, not merely usually outlive it.
+process.env.SCRIBBLERS_CHOOSE_WAIT = '600000';
+process.env.SCRIBBLERS_BETWEEN_WAIT = '400'; // the exception: 'between' is meant to pass by itself, and is waited for past
+process.env.SCRIBBLERS_SCORES_WAIT = '600000';
+process.env.SCRIBBLERS_AWAY_WAIT = '600000';
 process.env.SCRIBBLERS_BOT_DELAY = '50-150';
 process.env.SCRIBBLERS_BOT_DRAW = '100';
 process.env.SCRIBBLERS_BOT_RATE = '5000'; // a computer player draws its picture in one go here, rather than at its usual pace
@@ -96,7 +106,9 @@ test('garbage payloads on every event, in every phase, from members and stranger
   async function arrange(phase) {
     for (const person of [...members, eve]) await person.call('leave', {});
     await until(() => [...members, eve].every((p) => p.state == null), 'everyone out');
-    const created = await ann.call('create', { rounds: 2, drawTime: 30, wordChoices: 3 });
+    // The longest drawing time the game allows, for the same reason as the waits above: `drawing` is the other phase
+    // that ends on its own, and at the 30 seconds this used to ask for it cleared the 20-second wait by only ten.
+    const created = await ann.call('create', { rounds: 2, drawTime: 240, wordChoices: 3 });
     assert.equal(created.ok, true, created.error);
     for (const person of [bob, cat]) assert.equal((await person.call('join', { code: created.code })).ok, true);
     await until(() => members.every((p) => p.state?.phase === 'lobby' && p.state.players.length === 3), 'a lobby of three');
