@@ -26,7 +26,7 @@ const EVENTS = {
   voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
-  settings: ['cycles', 'drawTime', 'wordChoices'],
+  settings: ['rounds', 'drawTime', 'wordChoices'],
   addBot: ['seat'],
   fillBots: ['count'],
   removeBot: ['slot'],
@@ -57,7 +57,7 @@ function assertValidView(view, who) {
   }
   if (view.phase === 'drawing') assert.equal(view.choices.length, 0, note('nothing left to choose'));
   for (const row of view.players) assert.ok(Number.isInteger(row.score) && row.score >= 0, note('a sane score'));
-  assert.equal(view.scoreboard.rounds.length <= view.round, true, note('no more rounds than have been played'));
+  assert.equal(view.scoreboard.rounds.length <= view.turn, true, note('no more scoreboard rows than turns played'));
 }
 
 test('every socket event survives garbage in every phase, and a round can still be played afterwards', async (t) => {

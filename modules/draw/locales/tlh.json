@@ -10,20 +10,20 @@
   "lobby": {
     "title": "QujwI'pu' loSlu'",
     "share": "juppu'lI'vaD mI' tlhegh pagh ghelmeH tlhegh yInob. wej QujwI'pu' poQlu': qonwI' cha' 'ej loywI' wa'.",
-    "cycles": "Hoch QujwI'ghommey wa'logh | Hoch QujwI'ghommey {count}logh",
-    "fewerCycles": "logh puS",
-    "moreCycles": "logh law'",
+    "rounds": "wa' may' | {count} may'mey",
+    "fewerRounds": "may'mey puS",
+    "moreRounds": "may'mey law'",
     "drawTime": "mIlloghvaD {count} lup",
     "fasterDrawing": "qonmeH poH puS",
     "slowerDrawing": "qonmeH poH law'",
     "choices": "{count} mu'mey wIvlu'",
     "fewerChoices": "mu'mey puS noblu'",
     "moreChoices": "mu'mey law' noblu'",
-    "length": "{rounds} may'mey, 'ej {drawings}logh bIqon",
+    "length": "{turns} Qu'mey, 'ej {drawings}logh bIqon",
     "waitingForHost": "Quj taghmeH che'wI' loSlu'."
   },
   "table": {
-    "round": "may' {n} ({total}vo')",
+    "turn": "Qu' {n} ({total}vo')",
     "yourWord": "Daqonbogh: {word}",
     "theirBoard": "qontaH {name}",
     "named": "{drawer} mIllogh pong {guesser}: {word}",
@@ -32,7 +32,7 @@
     "guessHere": "mIllogh vay' yIpong",
     "guessing": "loymey",
     "nothingYet": "pagh loylu'pu'.",
-    "youDrawSoNoGuessing": "bIqonmo' may'vamDaq bIloylaHbe'.",
+    "youDrawSoNoGuessing": "bIqonmo' Qu'vamDaq bIloylaHbe'.",
     "undo": "yIteqqa'",
     "clear": "nagh beQ yISay'moH",
     "pen": "ghItlhwI'",
@@ -56,13 +56,13 @@
     "over": "rIn Quj."
   },
   "scoreboard": {
-    "round": "may' {n} ({of}vo')"
+    "turn": "Qu' {n} ({of}vo')"
   },
   "notes": {
     "drew": "{word} qonpu'"
   },
   "errors": {
-    "cycles": "Hoch QujwI'ghommey {min}logh {max}logh je joj yIwIv.",
+    "rounds": "may'mey {min} {max} je joj yIwIv.",
     "drawTime": "{min} lup {max} lup je joj taH mIllogh.",
     "wordChoices": "{min} mu'mey {max} mu'mey je joj yInob.",
     "notChoosing": "DaH mu' wIvmeH poH 'oHbe'.",
@@ -70,11 +70,11 @@
     "alreadyChosen": "mu'lIj DawIvpu'.",
     "pickAWord": "Danoblu'bogh mu'mey yIwIv.",
     "notGuessing": "DaH pagh loylu'.",
-    "drawersDoNotGuess": "may'vamDaq bIqonmo' bIloybe'.",
+    "drawersDoNotGuess": "Qu'vamDaq bIqonmo' bIloybe'.",
     "typeGuess": "wa'DIch loy yIghItlh.",
     "nothingToMoveOn": "DataHmeH pagh tu'lu'.",
-    "nothingToSkip": "Dalonlu'meH may' tu'lu'be'.",
-    "notYourTurnToDraw": "may'vamDaq bIqonbe'.",
+    "nothingToSkip": "Dalonlu'meH Qu' tu'lu'be'.",
+    "notYourTurnToDraw": "Qu'vamDaq bIqonbe'.",
     "badDrawing": "qonlu'laHbe'bogh 'oH.",
     "hostOnlyEnd": "Quj rInmoHlaH che'wI' neH.",
     "alreadyInLobby": "loSmeH DaqDaq Quj.",

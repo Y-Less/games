@@ -26,17 +26,17 @@ const RECORDED = ['drawn', 'guessedFirst', 'wasNamed', 'wentUnnamed'];
 export const tallyGuess = (player) => bump(player, 'guesses');
 
 /**
- * Counts a finished round: both drawers drew, and if anybody named a drawing, that drawer and that guesser get their
+ * Counts a finished turn: both drawers drew, and if anybody named a drawing, that drawer and that guesser get their
  * counter.  A drawing nobody named counts against its drawer, which is what "went unnamed" is for.
  *
- * @param {object} round
- * @param {object[]} round.drawers  the two who drew
- * @param {object | null} round.winner  the drawer whose drawing was named, or null when neither was
- * @param {object | null} round.guesser  the player who named it, or null
+ * @param {object} turn
+ * @param {object[]} turn.drawers  the two who drew
+ * @param {object | null} turn.winner  the drawer whose drawing was named, or null when neither was
+ * @param {object | null} turn.guesser  the player who named it, or null
  * @returns {void}
  * Side effects: increments counters on the players given.
  */
-export function tallyRound({ drawers, winner, guesser }) {
+export function tallyTurn({ drawers, winner, guesser }) {
   for (const drawer of drawers) {
     bump(drawer, 'drawn');
     if (drawer !== winner) bump(drawer, 'wentUnnamed');

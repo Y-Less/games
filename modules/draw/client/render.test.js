@@ -8,11 +8,11 @@ import { seeded } from '../../../shared/random.js';
 import * as game from '../game.js';
 
 /** Plays a whole game of four and records the view every player was sent after every move. */
-function recordedViews({ cycles = 1, guessRight = true } = {}) {
+function recordedViews({ rounds = 1, guessRight = true } = {}) {
   const rng = seeded(11);
   const room = game.createRoom({ code: 'draw-test-game', hostId: 1, hostName: 'Ann', chooseMs: 5000, betweenMs: 4000, now: 0 });
   for (const [id, name] of [[2, 'Bob'], [3, 'Cat'], [4, 'Dan']]) game.addHuman(room, id, name);
-  game.setSettings(room, 1, { cycles });
+  game.setSettings(room, 1, { rounds });
   const views = [];
   let clock = 0;
   const look = () => room.players.forEach((p) => views.push(game.viewFor(room, p.id, { online: () => true, now: clock })));
@@ -22,15 +22,15 @@ function recordedViews({ cycles = 1, guessRight = true } = {}) {
   for (let guard = 0; guard < 400 && room.phase !== 'finished'; guard++) {
     clock += 1000;
     if (room.phase === 'choosing') {
-      for (const drawer of room.drawers) if (!room.words[drawer]) game.chooseWord(room, drawer, 0, clock);
+      for (const drawer of game.drawersOf(room)) if (!room.words[drawer]) game.chooseWord(room, drawer, 0, clock);
     } else if (room.phase === 'drawing') {
       const guesser = room.players.find((p) => !game.isDrawer(room, p.id));
       // Guess one of the two words, so that a round that is won is drawn as well as one that is not.
-      const word = guessRight ? room.words[room.drawers[0]] : 'not it at all';
+      const word = guessRight ? room.words[game.drawersOf(room)[0]] : 'not it at all';
       game.guess(room, guesser.id, word, clock);
       if (room.phase === 'drawing') game.timeUp(room, rng, clock + room.drawTime * 1000);
     } else {
-      game.nextRound(room, rng, clock);
+      game.nextTurn(room, rng, clock);
     }
     look();
   }

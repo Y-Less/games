@@ -10,20 +10,20 @@
   "lobby": {
     "title": "プレイヤーを待っています",
     "share": "このコードか招待リンクを友達に伝えましょう。描く人ふたりと当てる人ひとり、最低3人必要です。",
-    "cycles": "すべての組み合わせを{count}周",
-    "fewerCycles": "周る回数を減らす",
-    "moreCycles": "周る回数を増やす",
+    "rounds": "{count}ラウンド",
+    "fewerRounds": "ラウンドを減らす",
+    "moreRounds": "ラウンドを増やす",
     "drawTime": "1枚につき{count}秒",
     "fasterDrawing": "描く時間を短く",
     "slowerDrawing": "描く時間を長く",
     "choices": "選べる言葉は{count}個",
     "fewerChoices": "選べる言葉を減らす",
     "moreChoices": "選べる言葉を増やす",
-    "length": "全{rounds}ラウンド、あなたは{drawings}回描きます",
+    "length": "全{turns}手番、あなたは{drawings}回描きます",
     "waitingForHost": "ホストがゲームを始めるのを待っています。"
   },
   "table": {
-    "round": "ラウンド{n} / {total}",
+    "turn": "手番{n} / {total}",
     "yourWord": "あなたのお題：{word}",
     "theirBoard": "{name}が描いています",
     "named": "{guesser}が{drawer}の絵を当てました：{word}",
@@ -32,7 +32,7 @@
     "guessHere": "どちらかの絵の答えを入力",
     "guessing": "回答",
     "nothingYet": "まだ回答はありません。",
-    "youDrawSoNoGuessing": "あなたは描く番なので、このラウンドは回答できません。",
+    "youDrawSoNoGuessing": "あなたは描く番なので、この手番は回答できません。",
     "undo": "元に戻す",
     "clear": "ボードを消す",
     "pen": "ペン",
@@ -47,7 +47,7 @@
   "status": {
     "choose": "お題を選びましょう。5秒です！",
     "chosen": "準備完了。もうひとりの描き手を待っています。",
-    "draw": "描きましょう！先に当てられたほうの絵がラウンドの勝ちです。",
+    "draw": "描きましょう！先に当てられたほうの絵が手番の勝ちです。",
     "guess": "どちらの絵でも当てられます。入力欄はひとつ、絵はふたつ。",
     "waiting": "描き手を待っています…",
     "wonIt": "当たりです！",
@@ -56,13 +56,13 @@
     "over": "ゲーム終了です。"
   },
   "scoreboard": {
-    "round": "ラウンド{n} / {of}"
+    "turn": "手番{n} / {of}"
   },
   "notes": {
     "drew": "{word}を描きました"
   },
   "errors": {
-    "cycles": "すべての組み合わせを周る回数は{min}〜{max}で選んでください。",
+    "rounds": "ラウンド数は{min}〜{max}で選んでください。",
     "drawTime": "1枚の持ち時間は{min}〜{max}秒です。",
     "wordChoices": "選べる言葉は{min}〜{max}個にしてください。",
     "notChoosing": "いまはお題を選ぶときではありません。",
@@ -70,11 +70,11 @@
     "alreadyChosen": "すでにお題を選んでいます。",
     "pickAWord": "提示された言葉のなかから選んでください。",
     "notGuessing": "いま当てられるものはありません。",
-    "drawersDoNotGuess": "このラウンドは描く番なので、回答はできません。",
+    "drawersDoNotGuess": "この手番は描く番なので、回答はできません。",
     "typeGuess": "まず回答を入力してください。",
     "nothingToMoveOn": "次に進むものがありません。",
-    "nothingToSkip": "やめられるラウンドがありません。",
-    "notYourTurnToDraw": "このラウンドは描く番ではありません。",
+    "nothingToSkip": "やめられる手番がありません。",
+    "notYourTurnToDraw": "この手番は描く番ではありません。",
     "badDrawing": "それは描けるものではありません。",
     "hostOnlyEnd": "ゲームを終われるのはホストだけです。",
     "alreadyInLobby": "ゲームはすでにロビーに戻っています。",

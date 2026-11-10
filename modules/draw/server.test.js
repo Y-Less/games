@@ -36,18 +36,18 @@ test('a person and two computer players play a whole game: every pair draws, and
   await until(() => ann.state?.players.length === 3, 'a table of three');
   assert.equal((await ann.call('settings', { drawTime: 10 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
-  await until(() => ann.state.rounds === 3, 'three pairs of three players');
+  await until(() => ann.state.turns === 3, 'three pairs of three players');
 
   // Play it out: Ann draws when she is drawn, and guesses nonsense when she is not, so the clock ends each round.
   const started = Date.now();
   while (ann.state?.phase !== 'finished') {
-    assert.ok(Date.now() - started < 60000, `stalled in ${ann.state?.phase} round ${ann.state?.round}`);
+    assert.ok(Date.now() - started < 60000, `stalled in ${ann.state?.phase} turn ${ann.state?.turn}`);
     const s = ann.state;
     if (s?.phase === 'choosing' && s.choices.length) await ann.call('word', { n: 0 });
     else if (s?.phase === 'drawing' && !s.youDraw) await ann.call('guess', { text: 'not the word' });
     else await sleep(10);
   }
-  assert.equal(ann.state.round, 3, 'every pair of the three drew');
+  assert.equal(ann.state.turn, 3, 'every pair of the three drew');
   assert.equal(ann.state.scoreboard.rounds.length, 3);
 
   await sleep(100);
@@ -142,8 +142,8 @@ test('a round neither drawer is there for is given up, and the game carries on',
   for (const p of drawers) await p.call('word', { n: 0 });
   await until(() => watcher.state.phase === 'drawing', 'drawing');
 
-  const round = watcher.state.round;
+  const turn = watcher.state.turn;
   for (const p of drawers) p.socket.close();
-  await until(() => watcher.state.round !== round || watcher.state.phase !== 'drawing', 'the round given up', { timeout: 10000 });
+  await until(() => watcher.state.turn !== turn || watcher.state.phase !== 'drawing', 'the turn given up', { timeout: 10000 });
   assert.notEqual(watcher.state.phase, 'drawing', 'nobody was left to draw either of them');
 });

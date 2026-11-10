@@ -2,11 +2,12 @@
 // Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in
 // the game's locale file or the site's (see MODULES.md, Languages).
 //
-// A round: TWO players draw at once, each their own word, and everybody else races to guess either drawing.  The
-// first drawing anybody names wins the round, and only that drawer and that guesser score.  A game plays every pair
-// of players (`cycles` times over), so at a table of four everybody draws three times, over six rounds.
+// A turn: TWO players draw at once, each their own word, and everybody else races to guess either drawing.  The first
+// drawing anybody names wins the turn, and only that drawer and that guesser score.  A round is every pair of players
+// having drawn once, and the host may ask for several, so at a table of four everybody draws three times over the six
+// turns of one round.
 //
-// It is meant to be quick: five seconds to pick a word, no letters revealed, and no scores to close between rounds.
+// It is meant to be quick: five seconds to pick a word, no letters revealed, and no scores to close between turns.
 // The drawings themselves are not in the view - see server.js, and shared/drawing.js.
 //
 // Depends on: shared/input.js, shared/messages.js, shared/scores.js, shared/seats.js, shared/roster.js (the lobby),
@@ -21,7 +22,7 @@ import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
 import { AI } from './ai.js';
 import { pairings } from './pairings.js';
-import { newCounters, statsExtras, tallyGuess, tallyRound } from './tally.js';
+import { newCounters, statsExtras, tallyGuess, tallyTurn } from './tally.js';
 
 /** Two to draw and at least one to guess. */
 export const MIN_PLAYERS = 3;
@@ -29,8 +30,11 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 8;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-/** How many times the game runs through every pair of drawers. */
-export const CYCLES = { min: 1, max: 5, default: 1 };
+/**
+ * How many times the game runs through every pair of drawers.  One pass is a round, as it is everywhere else on the
+ * site; a round of eight players is twenty-eight turns, because every pair draws.
+ */
+export const ROUNDS = { min: 1, max: 5, default: 1 };
 /** How long a drawing lasts, in seconds. */
 export const DRAW_TIME = { min: 10, max: 120, default: 45 };
 /** How many words a drawer is offered. */
@@ -74,13 +78,25 @@ export const isLive = (room) => LIVE.includes(room.phase);
 const playerOf = (room, id) => room.players.find((p) => p.id === id);
 
 /**
- * Is this player one of the two drawing this round?
+ * The pair drawing this turn.
+ *
+ * It is not kept on the room: it is `order[turn]` and nothing else, so storing it would be a second copy of something
+ * the turn already says, to be kept in step on every rename and every replay.
+ *
+ * @param {object} room  not changed
+ * @returns {Array<number | string>} the two drawers' ids, or an empty list before the game starts
+ * Side effects: none.
+ */
+export const drawersOf = (room) => room.order?.[room.turn] ?? [];
+
+/**
+ * Is this player one of the two drawing this turn?
  * @param {object} room  not changed
  * @param {number | string} id  a player id
  * @returns {boolean}
  * Side effects: none.
  */
-export const isDrawer = (room, id) => (room.drawers ?? []).includes(id);
+export const isDrawer = (room, id) => drawersOf(room).includes(id);
 
 /**
  * The players who are guessing this round: everybody who is not drawing.
@@ -132,15 +148,14 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     language: typeof language === 'string' ? language : DEFAULT_LANGUAGE,
     chooseMs,
     betweenMs,
-    cycles: CYCLES.default,
+    rounds: ROUNDS.default,
     drawTime: DRAW_TIME.default,
     wordChoices: WORD_CHOICES.default,
-    round: 0, // 1-based once the game starts
+    turn: 0, // which pair of `order` is drawing, from 0; who they are is drawersOf(room)
     order: [], // the pairs of drawers, in the order they draw (see pairings.js)
     players: [],
     size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextBot: 1,
-    drawers: [], // the two drawing this round
     choices: {}, // drawer id -> the words they were offered
     preChoice: {}, // drawer id -> which of them the clock picks for them
     words: {}, // drawer id -> the word they are drawing, once they have chosen
@@ -169,7 +184,6 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
  */
 export function migrate(room, nameOf) {
   migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
-  room.drawers ??= [];
   room.choices ??= {};
   room.preChoice ??= {};
   room.words ??= {};
@@ -177,7 +191,7 @@ export function migrate(room, nameOf) {
   room.feed ??= [];
   room.nextFeed ??= 1;
   room.order ??= [];
-  room.cycles ??= CYCLES.default;
+  room.rounds ??= ROUNDS.default;
   if (!Array.isArray(room.history)) room.history = [];
   for (const player of room.players) {
     player.score ??= 0;
@@ -206,8 +220,7 @@ export function migrate(room, nameOf) {
 function renameId(room, from, to, name) {
   const renamed = (x) => (x === from ? to : x);
   const rekey = (table) => Object.fromEntries(Object.entries(table ?? {}).map(([key, value]) => [String(key) === String(from) ? to : key, value]));
-  room.order = room.order.map((pair) => pair.map(renamed));
-  room.drawers = room.drawers.map(renamed);
+  room.order = room.order.map((pair) => pair.map(renamed)); // and with it whoever is drawing, which is read from it
   room.choices = rekey(room.choices);
   room.preChoice = rekey(room.preChoice);
   room.words = rekey(room.words);
@@ -259,7 +272,7 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
 // ---------- settings ----------
 
 /** The settings the host may choose, and what each one will take. */
-const SETTINGS = { cycles: CYCLES, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES };
+const SETTINGS = { rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES };
 
 /**
  * The host changes the settings.  Only the settings that are given are changed, and one that is out of bounds is
@@ -267,9 +280,9 @@ const SETTINGS = { cycles: CYCLES, drawTime: DRAW_TIME, wordChoices: WORD_CHOICE
  *
  * @param {object} room  the room to change
  * @param {number} id  who is asking (must be the host)
- * @param {object} [settings]  { cycles?, drawTime?, wordChoices? }
+ * @param {object} [settings]  { rounds?, drawTime?, wordChoices? }
  * @returns {{ ok: boolean, error?: string, params?: object }}
- * Side effects: may set room.cycles, room.drawTime and room.wordChoices.
+ * Side effects: may set room.rounds, room.drawTime and room.wordChoices.
  */
 export function setSettings(room, id, settings = {}) {
   const refused = hostInLobby(room, id);
@@ -295,7 +308,7 @@ export function setSettings(room, id, settings = {}) {
  * @returns {number}
  * Side effects: none.
  */
-export const roundsInGame = (room) => ((room.players.length * (room.players.length - 1)) / 2) * room.cycles;
+export const turnsInGame = (room) => ((room.players.length * (room.players.length - 1)) / 2) * room.rounds;
 
 // ---------- the game ----------
 
@@ -313,13 +326,13 @@ export function start(room, id, rng, now) {
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
-  room.order = pairings(room.players.map((p) => p.id), room.cycles, rng);
-  room.round = 0;
+  room.order = pairings(room.players.map((p) => p.id), room.rounds, rng);
+  room.turn = 0;
   room.used = [];
   room.feed = [];
   room.history = [];
   for (const player of room.players) Object.assign(player, { score: 0, lastScore: 0, tries: 0 }, newCounters());
-  beginRound(room, rng, now);
+  beginTurn(room, rng, now);
   return ok();
 }
 
@@ -345,11 +358,10 @@ export function playAgain(room, id) {
  * @param {() => number} rng  random source for the words
  * @param {number} now  the clock
  * @returns {void}
- * Side effects: sets round, drawers, choices, preChoice, words, winner, reveal, deadline and phase ('choosing').
+ * Side effects: sets choices, preChoice, words, winner, reveal, deadline and phase ('choosing').  It does not set who
+ *   is drawing: that is `room.turn`, which the caller has already moved on.
  */
-function beginRound(room, rng, now) {
-  room.round++;
-  room.drawers = [...(room.order[room.round - 1] ?? [])];
+function beginTurn(room, rng, now) {
   room.choices = {};
   room.preChoice = {};
   room.words = {};
@@ -357,7 +369,7 @@ function beginRound(room, rng, now) {
   room.reveal = null;
   // Each drawer is offered their own words, and no word is offered to both of them in the same round.
   const taken = [...room.used];
-  for (const drawer of room.drawers) {
+  for (const drawer of drawersOf(room)) {
     const words = pickWords(room.wordChoices, taken, rng, room.language);
     room.choices[drawer] = words;
     room.preChoice[drawer] = Math.min(words.length - 1, Math.floor(rng() * words.length));
@@ -389,7 +401,7 @@ export function chooseWord(room, id, n, now) {
   if (!Number.isInteger(place) || place < 0 || place >= offered.length) return fail('pickAWord');
   room.words[id] = offered[place];
   room.used.push(offered[place]);
-  if (room.drawers.every((drawer) => room.words[drawer])) beginDrawing(room, now);
+  if (drawersOf(room).every((drawer) => room.words[drawer])) beginDrawing(room, now);
   return ok();
 }
 
@@ -415,12 +427,12 @@ function beginDrawing(room, now) {
  * @param {() => number} rng  random source
  * @param {number} now  the clock
  * @returns {{ ok: boolean, error?: string, finished?: boolean }}
- * Side effects: as chooseWord, endRound or nextRound, whichever the phase calls for.
+ * Side effects: as chooseWord, endTurn or nextTurn, whichever the phase calls for.
  */
 export function timeUp(room, rng, now) {
   if (room.phase === 'choosing') {
     // Whoever has not chosen gets the word the clock had ready for them; the drawing starts either way.
-    for (const drawer of room.drawers) {
+    for (const drawer of drawersOf(room)) {
       if (room.words[drawer]) continue;
       const offered = room.choices[drawer] ?? [];
       const word = offered[room.preChoice[drawer] ?? 0];
@@ -431,10 +443,10 @@ export function timeUp(room, rng, now) {
     return ok();
   }
   if (room.phase === 'drawing') {
-    endRound(room, now);
+    endTurn(room, now);
     return ok();
   }
-  if (room.phase === 'between') return nextRound(room, rng, now);
+  if (room.phase === 'between') return nextTurn(room, rng, now);
   return fail('nothingToMoveOn');
 }
 
@@ -447,7 +459,7 @@ export function timeUp(room, rng, now) {
  * @param {string} text  what they typed
  * @param {number} now  the clock, for the rate limit
  * @returns {{ ok: boolean, error?: string, quality?: string }} `quality` is 'exact', 'close' or 'wrong'
- * Side effects: adds a line to the guess panel; a right guess ends the round (see endRound).
+ * Side effects: adds a line to the guess panel; a right guess ends the round (see endTurn).
  */
 export function guess(room, id, text, now) {
   if (!hasPlayer(room, id)) return fail('notInGame');
@@ -460,14 +472,14 @@ export function guess(room, id, text, now) {
   player.tries = (player.tries ?? 0) + 1;
   tallyGuess(player);
   // One guess, two drawings: it is tried against both, and naming either of them wins the round.
-  const named = room.drawers.find((drawer) => room.words[drawer] && guessQuality(clean, room.words[drawer]) === 'exact');
+  const named = drawersOf(room).find((drawer) => room.words[drawer] && guessQuality(clean, room.words[drawer]) === 'exact');
   if (named !== undefined) {
     room.winner = { drawer: named, guesser: id, word: room.words[named] };
     addFeed(room, { kind: 'correct', id, name: player.name, text: '' });
-    endRound(room, now);
+    endTurn(room, now);
     return ok({ quality: 'exact' });
   }
-  const close = room.drawers.some((drawer) => room.words[drawer] && guessQuality(clean, room.words[drawer]) === 'close');
+  const close = drawersOf(room).some((drawer) => room.words[drawer] && guessQuality(clean, room.words[drawer]) === 'close');
   addFeed(room, { kind: close ? 'close' : 'guess', id, name: player.name, text: clean });
   return ok({ quality: close ? 'close' : 'wrong' });
 }
@@ -507,7 +519,7 @@ function addFeed(room, line) {
  * @returns {void}
  * Side effects: scores, bumps the counters, adds a scoreboard row, sets reveal, the deadline and phase ('between').
  */
-function endRound(room, now) {
+function endTurn(room, now) {
   const deltas = Object.fromEntries(room.players.map((p) => [p.slot, 0]));
   for (const player of room.players) player.lastScore = 0;
   if (room.winner) {
@@ -519,8 +531,8 @@ function endRound(room, now) {
       deltas[player.slot] = POINT;
     }
   }
-  tallyRound({
-    drawers: room.drawers.map((id) => playerOf(room, id)).filter(Boolean),
+  tallyTurn({
+    drawers: drawersOf(room).map((id) => playerOf(room, id)).filter(Boolean),
     winner: room.winner ? playerOf(room, room.winner.drawer) : null,
     guesser: room.winner ? playerOf(room, room.winner.guesser) : null,
   });
@@ -530,12 +542,12 @@ function endRound(room, now) {
   // (`slotOf` in this file is Draw's own word for which of the two boards somebody is drawing on, so the player's slot
   // is taken straight off the player rather than looked up through it.)
   const notes = {};
-  for (const drawer of room.drawers) {
+  for (const drawer of drawersOf(room)) {
     const player = playerOf(room, drawer);
     if (player && room.words[drawer]) notes[player.slot] = msg('notes.drew', { word: room.words[drawer] });
   }
-  room.history.push({ label: msg('scoreboard.round', { n: room.round, of: room.order.length }), deltas, notes });
-  room.reveal = { words: { ...room.words }, winner: room.winner, drawers: [...room.drawers] };
+  room.history.push({ label: msg('scoreboard.turn', { n: room.turn + 1, of: room.order.length }), deltas, notes });
+  room.reveal = { words: { ...room.words }, winner: room.winner, drawers: [...drawersOf(room)] };
   room.deadline = now + (room.betweenMs ?? BETWEEN_MS);
   room.phase = 'between';
 }
@@ -548,15 +560,16 @@ function endRound(room, now) {
  * @returns {{ ok: boolean, error?: string, finished?: boolean }}
  * Side effects: begins the next round, or sets phase 'finished'.
  */
-export function nextRound(room, rng, now) {
+export function nextTurn(room, rng, now) {
   if (room.phase !== 'between') return fail('nothingToMoveOn');
-  if (room.round >= room.order.length) {
+  if (room.turn + 1 >= room.order.length) {
     room.phase = 'finished';
     room.deadline = null;
     room.reveal = null;
     return ok({ finished: true });
   }
-  beginRound(room, rng, now);
+  room.turn++;
+  beginTurn(room, rng, now);
   return ok({ finished: false });
 }
 
@@ -565,12 +578,12 @@ export function nextRound(room, rng, now) {
  * @param {object} room  the room (mutated)
  * @param {number} now  the clock
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: as endRound.
+ * Side effects: as endTurn.
  */
-export function skipRound(room, now) {
+export function skipTurn(room, now) {
   if (!['choosing', 'drawing'].includes(room.phase)) return fail('nothingToSkip');
   room.winner = null;
-  endRound(room, now);
+  endTurn(room, now);
   return ok();
 }
 
@@ -617,7 +630,7 @@ const shapeOf = (word) => (word ? [...word].map((ch) => (ALWAYS_SHOWN.includes(c
  */
 function boardsFor(room, userId, nameOf) {
   const over = ['between', 'finished'].includes(room.phase);
-  return (room.drawers ?? []).map((drawer) => ({
+  return drawersOf(room).map((drawer) => ({
     drawer,
     name: nameOf(drawer),
     yours: drawer === userId,
@@ -705,8 +718,8 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     phase: room.phase,
     you: userId,
     hostId: room.hostId,
-    round: room.round,
-    rounds: room.order.length,
+    turn: room.turn + 1, // counted from one for the person reading it; `room.turn` is an index
+    turns: room.order.length,
     youDraw: drawing,
     boards: boardsFor(room, userId, nameOf),
     choices: room.phase === 'choosing' && drawing && !room.words[userId] ? (room.choices[userId] ?? []) : [],
@@ -717,9 +730,9 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     players: room.players.map((p) => playerView(room, p, { online, final, nameOf })),
     scoreboard: scoreboardView(room, userId, { online, nameOf }),
     size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, cycles: CYCLES, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, guessLength: GUESS_LENGTH },
-    settings: { cycles: room.cycles, drawTime: room.drawTime, wordChoices: room.wordChoices },
-    roundsToPlay: room.phase === 'lobby' ? roundsInGame(room) : room.order.length,
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICES, guessLength: GUESS_LENGTH },
+    settings: { rounds: room.rounds, drawTime: room.drawTime, wordChoices: room.wordChoices },
+    turnsToPlay: room.phase === 'lobby' ? turnsInGame(room) : room.order.length,
   };
 }
 
@@ -742,7 +755,7 @@ export const canDraw = (room, id) => room.phase === 'drawing' && isDrawer(room, 
  * @returns {number} 0, 1 or -1
  * Side effects: none.
  */
-export const slotOf = (room, id) => (room.drawers ?? []).indexOf(id);
+export const slotOf = (room, id) => drawersOf(room).indexOf(id);
 
 // ---------- computer players ----------
 
@@ -775,7 +788,7 @@ export function aiContext(room, id, rng) {
  */
 export function pendingBotAction(room) {
   if (room.phase === 'choosing') {
-    const waiting = room.drawers.map((id) => playerOf(room, id)).find((p) => p && isBot(p) && !room.words[p.id] && (room.choices[p.id] ?? []).length);
+    const waiting = drawersOf(room).map((id) => playerOf(room, id)).find((p) => p && isBot(p) && !room.words[p.id] && (room.choices[p.id] ?? []).length);
     return waiting ? { type: 'word', id: waiting.id } : null;
   }
   if (room.phase !== 'drawing') return null;

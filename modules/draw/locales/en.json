@@ -6,20 +6,20 @@
   "lobby": {
     "title": "Waiting for players",
     "share": "Share this code, or the invite link, with your friends. Three players at least: two to draw and one to guess.",
-    "cycles": "Once through every pair | Once through every pair | {count} times through every pair",
-    "fewerCycles": "Fewer times through",
-    "moreCycles": "More times through",
+    "rounds": "{count} round | {count} round | {count} rounds",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
     "drawTime": "{count} seconds a drawing",
     "fasterDrawing": "Less time to draw",
     "slowerDrawing": "More time to draw",
     "choices": "{count} words to choose from",
     "fewerChoices": "Fewer words offered",
     "moreChoices": "More words offered",
-    "length": "{rounds} rounds, and you will draw {drawings} times",
+    "length": "{turns} turns, and you will draw {drawings} times",
     "waitingForHost": "Waiting for the host to start the game."
   },
   "table": {
-    "round": "Round {n} of {total}",
+    "turn": "Turn {n} of {total}",
     "yourWord": "You are drawing: {word}",
     "theirBoard": "{name} is drawing",
     "named": "{guesser} named {drawer}'s drawing: {word}",
@@ -28,7 +28,7 @@
     "guessHere": "Type what either drawing is",
     "guessing": "Guesses",
     "nothingYet": "Nothing guessed yet.",
-    "youDrawSoNoGuessing": "You are drawing, so you do not guess this round.",
+    "youDrawSoNoGuessing": "You are drawing, so you do not guess this turn.",
     "undo": "Undo",
     "clear": "Clear the board",
     "pen": "Pen",
@@ -43,7 +43,7 @@
   "status": {
     "choose": "Pick one of the words. Five seconds!",
     "chosen": "Ready. Waiting for the other drawer.",
-    "draw": "Draw it! The first drawing anybody names wins the round.",
+    "draw": "Draw it! The first drawing anybody names wins the turn.",
     "guess": "Name either drawing. One box, two pictures.",
     "waiting": "Waiting for the drawers…",
     "wonIt": "You named it!",
@@ -52,13 +52,13 @@
     "over": "The game is over."
   },
   "scoreboard": {
-    "round": "Round {n} of {of}"
+    "turn": "Turn {n} of {of}"
   },
   "notes": {
     "drew": "drew {word}"
   },
   "errors": {
-    "cycles": "Choose between {min} and {max} times through every pair.",
+    "rounds": "Choose between {min} and {max} rounds.",
     "drawTime": "A drawing lasts between {min} and {max} seconds.",
     "wordChoices": "Offer between {min} and {max} words.",
     "notChoosing": "It is not time to pick a word.",
@@ -66,11 +66,11 @@
     "alreadyChosen": "You have already picked your word.",
     "pickAWord": "Pick one of the words you were offered.",
     "notGuessing": "There is nothing to guess at just now.",
-    "drawersDoNotGuess": "You are drawing this round, so you do not guess.",
+    "drawersDoNotGuess": "You are drawing this turn, so you do not guess.",
     "typeGuess": "Type a guess first.",
     "nothingToMoveOn": "There is nothing to move on from.",
-    "nothingToSkip": "There is no round to give up.",
-    "notYourTurnToDraw": "You are not drawing this round.",
+    "nothingToSkip": "There is no turn to give up.",
+    "notYourTurnToDraw": "You are not drawing this turn.",
     "badDrawing": "That is not something that can be drawn.",
     "hostOnlyEnd": "Only the host can end the game.",
     "alreadyInLobby": "The game is already in the lobby.",

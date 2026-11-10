@@ -22,7 +22,7 @@
 // Timing can be changed through the environment (the tests make it fast):
 //   DRAW_CHOOSE_WAIT   milliseconds the drawers have to pick a word (default 5000)
 //   DRAW_BETWEEN_WAIT  milliseconds the two words stay up between rounds (default 4000)
-//   DRAW_AWAY_WAIT     milliseconds a round waits for drawers who have gone (default 8000)
+//   DRAW_AWAY_WAIT     milliseconds a turn waits for drawers who have gone (default 8000)
 //   DRAW_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing or guessing (default 700-1300)
 //   DRAW_BOT_DRAW      milliseconds before a computer player starts drawing its picture (default 1200)
 //   DRAW_BOT_RATE      strokes a second a computer player draws at (default 10; the tests turn it right up)
@@ -109,8 +109,8 @@ export default function (ctx) {
    */
   function canvasOf(room, slot) {
     let entry = canvases.get(room.code);
-    if (!entry || entry.round !== room.round) {
-      entry = { round: room.round, boards: [newDrawing(), newDrawing()] };
+    if (!entry || entry.turn !== room.turn) {
+      entry = { turn: room.turn, boards: [newDrawing(), newDrawing()] };
       canvases.set(room.code, entry);
       painted.delete(room.code);
     }
@@ -118,7 +118,7 @@ export default function (ctx) {
   }
 
   /**
-   * Has this board still to be given its computer player's picture?  Only once a round, and only while it is empty, so
+   * Has this board still to be given its computer player's picture?  Only once a turn, and only while it is empty, so
    * that a computer player standing in for somebody who left does not paint over what they had already drawn.
    * @param {object} room  the room
    * @param {number} slot  0 or 1
@@ -126,9 +126,9 @@ export default function (ctx) {
    * Side effects: none (it reads the drawing without starting one).
    */
   function pictureDue(room, slot) {
-    if (painted.get(room.code)?.has(`${room.round}:${slot}`)) return false;
+    if (painted.get(room.code)?.has(`${room.turn}:${slot}`)) return false;
     const entry = canvases.get(room.code);
-    return !entry || entry.round !== room.round || entry.boards[slot].ops.length === 0;
+    return !entry || entry.turn !== room.turn || entry.boards[slot].ops.length === 0;
   }
 
   /**
@@ -144,14 +144,14 @@ export default function (ctx) {
    * Side effects: fetches over the network, fills the board, emits `draw` to the room, and logs.
    */
   async function paint(room, slot, relay, rng, now) {
-    const round = room.round;
-    const drawer = room.drawers[slot];
+    const turn = room.turn;
+    const drawer = game.drawersOf(room)[slot];
     const word = room.words[drawer];
     if (!word) return;
     const marks = painted.get(room.code) ?? new Set();
-    marks.add(`${round}:${slot}`); // marked before the fetch, so a second timer cannot start the same picture again
+    marks.add(`${turn}:${slot}`); // marked before the fetch, so a second timer cannot start the same picture again
     painted.set(room.code, marks);
-    const here = () => room.round === round && room.phase === 'drawing' && room.words[room.drawers[slot]] === word;
+    const here = () => room.turn === turn && room.phase === 'drawing' && room.words[game.drawersOf(room)[slot]] === word;
     try {
       const { ops } = await pictureFor(word);
       if (!ops.length) {
@@ -210,25 +210,26 @@ export default function (ctx) {
      * Side effects: none itself; the returned run() moves the room on, or starts a picture.
      */
     nextAction(room, rng, now, { online, relay }) {
-      const inRound = ['choosing', 'drawing'].includes(room.phase);
-      const drawers = (room.drawers ?? []).map((id) => room.players.find((p) => p.id === id));
-      // A board whose drawer is a person who has gone will stay empty; the round goes on for the other one, and is
+      const inTurn = ['choosing', 'drawing'].includes(room.phase);
+      const playerOf = (id) => room.players.find((p) => p.id === id);
+      const drawers = game.drawersOf(room).map(playerOf);
+      // A board whose drawer is a person who has gone will stay empty; the turn goes on for the other one, and is
       // only given up when neither of them is there to draw at all.
       const canStillDraw = (p) => p && (!game.isHuman(p) || online(p.id));
-      if (inRound && drawers.length && !drawers.some(canStillDraw)) {
+      if (inTurn && drawers.length && !drawers.some(canStillDraw)) {
         return {
-          key: `away:${room.round}`,
+          key: `away:${room.turn}`,
           wait: delays.awayMs,
           run() {
-            if (!room.drawers.map((id) => room.players.find((p) => p.id === id)).some(canStillDraw)) insist(game.skipRound(room, now()));
+            if (!game.drawersOf(room).map(playerOf).some(canStillDraw)) insist(game.skipTurn(room, now()));
           },
         };
       }
-      // A computer player with a word and an empty board: fetch a picture of it and start painting (once a round).
+      // A computer player with a word and an empty board: fetch a picture of it and start painting (once a turn).
       if (room.phase === 'drawing') {
         for (let slot = 0; slot < drawers.length; slot++) {
           if (drawers[slot] && !game.isHuman(drawers[slot]) && pictureDue(room, slot)) {
-            return { key: `picture:${room.round}:${slot}`, wait: delays.botDraw, run: () => void paint(room, slot, relay, rng, now) };
+            return { key: `picture:${room.turn}:${slot}`, wait: delays.botDraw, run: () => void paint(room, slot, relay, rng, now) };
           }
         }
       }
@@ -238,7 +239,7 @@ export default function (ctx) {
       if (bot) {
         const tries = room.players.find((p) => p.id === bot.id)?.tries ?? 0;
         due.push({
-          key: `bot:${room.round}:${bot.type}:${bot.id}:${tries}`,
+          key: `bot:${room.turn}:${bot.type}:${bot.id}:${tries}`,
           at: now() + botWait(delays.bot, rng),
           run() {
             if (!game.runBotAction(room, rng, now(), bot)) throw new Error(`the computer move ${bot.type} for ${bot.id} was refused`);
@@ -246,7 +247,7 @@ export default function (ctx) {
         });
       }
       if (room.deadline !== null && room.deadline !== undefined) {
-        due.push({ key: `deadline:${room.round}:${room.phase}`, at: room.deadline, run: () => insist(game.timeUp(room, rng, now())) });
+        due.push({ key: `deadline:${room.turn}:${room.phase}`, at: room.deadline, run: () => insist(game.timeUp(room, rng, now())) });
       }
       if (!due.length) return null;
       const soonest = due.reduce((first, next) => (next.at < first.at ? next : first));
@@ -359,5 +360,5 @@ export default function (ctx) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['cycles', 'drawTime', 'wordChoices', 'size']);
+  return pickKeys(payload, ['rounds', 'drawTime', 'wordChoices', 'size']);
 }

@@ -78,9 +78,9 @@ onBeforeUnmount(() => {
   props.socket.off('canvas', onCanvas);
 });
 
-// A new round means two blank boards, and the strokes of the one being drawn now.
+// A new turn means two blank boards, and the strokes of the one being drawn now.
 watch(
-  () => props.state.round,
+  () => props.state.turn,
   async () => {
     await nextTick();
     for (const panel of panels) panel.value?.reset([]);
@@ -180,7 +180,7 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
     <template #status>
       <GameStatus :headline="status.headline" :mine="status.mine" :lines="status.lines">
         <template #facts>
-          <strong>{{ t('table.round', { n: state.round, total: state.rounds }) }}</strong>
+          <strong>{{ t('table.turn', { n: state.turn, total: state.turns }) }}</strong>
           <span v-if="secondsLeft !== null">{{ secondsLeft }}</span>
         </template>
       </GameStatus>

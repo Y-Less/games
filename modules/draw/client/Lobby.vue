@@ -16,13 +16,13 @@ const isHost = computed(() => props.state.hostId === props.state.you);
 const limits = computed(() => props.state.limits);
 const settings = computed(() => props.state.settings);
 const canStart = computed(() => props.state.players.length >= limits.value.min);
-// How many rounds this table will play, and how many drawings that is each.
-const rounds = computed(() => props.state.roundsToPlay);
-const drawings = computed(() => (props.state.players.length - 1) * settings.value.cycles);
+// How many turns this table will play, and how many drawings that is each.
+const turns = computed(() => props.state.turnsToPlay);
+const drawings = computed(() => (props.state.players.length - 1) * settings.value.rounds);
 
 /** The three settings, each with its bounds and the words that go round it. */
 const dials = computed(() => [
-  { key: 'cycles', value: settings.value.cycles, bounds: limits.value.cycles, label: t('lobby.cycles', { count: settings.value.cycles }, settings.value.cycles), less: t('lobby.fewerCycles'), more: t('lobby.moreCycles') },
+  { key: 'rounds', value: settings.value.rounds, bounds: limits.value.rounds, label: t('lobby.rounds', { count: settings.value.rounds }, settings.value.rounds), less: t('lobby.fewerRounds'), more: t('lobby.moreRounds') },
   { key: 'drawTime', value: settings.value.drawTime, bounds: limits.value.drawTime, step: 5, label: t('lobby.drawTime', { count: settings.value.drawTime }), less: t('lobby.fasterDrawing'), more: t('lobby.slowerDrawing') },
   { key: 'wordChoices', value: settings.value.wordChoices, bounds: limits.value.wordChoices, label: t('lobby.choices', { count: settings.value.wordChoices }), less: t('lobby.fewerChoices'), more: t('lobby.moreChoices') },
 ]);
@@ -57,7 +57,7 @@ const dials = computed(() => [
         <strong>{{ dial.label }}</strong>
         <button :disabled="!isHost || dial.value >= dial.bounds.max" :aria-label="dial.more" @click="send('settings', { [dial.key]: dial.value + (dial.step ?? 1) })">+</button>
       </div>
-      <p v-if="canStart" class="muted">{{ t('lobby.length', { rounds, drawings }) }}</p>
+      <p v-if="canStart" class="muted">{{ t('lobby.length', { turns, drawings }) }}</p>
       <div class="row">
         <button v-if="isHost" class="primary" :disabled="!canStart" @click="send('start')">{{ $t('lobby.start') }}</button>
         <span v-if="isHost && !canStart" class="muted">{{ $t('errors.minPlayers', { min: limits.min }) }}</span>
