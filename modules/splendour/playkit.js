@@ -87,7 +87,12 @@ export async function playOn(people, done, { timeout = 60000 } = {}) {
   while (!done()) {
     assert.ok(Date.now() - started < timeout, `the game got stuck: ${JSON.stringify(people.map((p) => [p.name, p.state?.phase, p.state?.turn, p.state?.round]))}`);
     let moved = false;
-    for (const p of people) moved = (await step(p)) || moved;
+    // Asked again before each person, not only once a sweep: a step can be the very thing the caller is waiting to
+    // see, so a sweep that began before it arrived must not carry on acting after it has.
+    for (const p of people) {
+      if (done()) break;
+      moved = (await step(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }

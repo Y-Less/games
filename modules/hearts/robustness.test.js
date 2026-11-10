@@ -76,12 +76,18 @@ async function stepOnce(p) {
   return false;
 }
 
+// Asked again before each person, not only once a sweep: `stepOnce` presses `next` at a hand's end, so a sweep that
+// begins before the last person's `handEnd` has arrived and ends after it deals the next hand under a caller that
+// asked to stop at this one.
 async function playOn(people, until_) {
   const started = Date.now();
   while (!until_()) {
     assert.ok(Date.now() - started < 40000, 'the game got stuck');
     let moved = false;
-    for (const p of people) moved = (await stepOnce(p)) || moved;
+    for (const p of people) {
+      if (until_()) break;
+      moved = (await stepOnce(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }

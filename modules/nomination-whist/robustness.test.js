@@ -79,7 +79,12 @@ async function playOn(people, until_) {
   while (!until_()) {
     assert.ok(Date.now() - started < 40000, 'the game got stuck');
     let moved = false;
-    for (const p of people) moved = (await stepOnce(p)) || moved;
+    // Asked again before each person, not only once a sweep: a step can be the very thing the caller is waiting to
+    // see, so a sweep that began before it arrived must not carry on acting after it has.
+    for (const p of people) {
+      if (until_()) break;
+      moved = (await stepOnce(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }

@@ -24,12 +24,18 @@ async function step(p) {
   if (s.phase === 'handEnd') return (await p.call('next', {})).ok;
   return false;
 }
+// `done` is asked again before each person, not only once a sweep.  `step` presses `next` at a hand's end, so a sweep
+// that begins before the last person's `handEnd` has arrived and ends after it would press for everybody and deal the
+// next hand — leaving the caller that asked to stop *at* a hand's end at the end of the hand after it.
 async function playOn(people, done, limit = 40000) {
   const started = Date.now();
   while (!done()) {
     assert.ok(Date.now() - started < limit, 'stuck');
     let moved = false;
-    for (const p of people) moved = (await step(p)) || moved;
+    for (const p of people) {
+      if (done()) break;
+      moved = (await step(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }

@@ -23,7 +23,12 @@ async function playOn(people, done, limit = 40000) {
   while (!done()) {
     assert.ok(Date.now() - started < limit, 'stuck');
     let moved = false;
-    for (const p of people) moved = (await step(p)) || moved;
+    // Asked again before each person, not only once a sweep: a step can be the very thing the caller is waiting to
+    // see, so a sweep that began before it arrived must not carry on acting after it has.
+    for (const p of people) {
+      if (done()) break;
+      moved = (await step(p)) || moved;
+    }
     if (!moved) await sleep(3);
   }
 }
@@ -124,7 +129,11 @@ test('disconnecting and reconnecting in every phase keeps the seat, the hand and
   const mover = ann.state.play.turn === ann.state.you ? ann : bob;
   const inPlay = await drop(mover);
   assert.equal(inPlay.play.turn, inPlay.you, 'still our turn after coming back');
-  await playOn([ann, bob], () => ann.state.phase === 'show' && bob.state.phase === 'show' && !ann.state.seats[0].ready);
+  // Stop playing the moment anybody reaches the show, and only then wait for the rest of it.  `step` presses `ready`
+  // during a show, so a driver still running cannot be asked to wait for a show nobody is ready in: it would press
+  // Ann's and the wait could never come true again.  The watching is left to `until`, which never acts.
+  await playOn([ann, bob], () => [ann, bob].some((p) => p.state.phase === 'show'));
+  await until(() => ann.state.phase === 'show' && bob.state.phase === 'show' && !ann.state.seats[0].ready, 'the show, before anyone has closed it');
   const inShow = await drop(ann);
   assert.ok(['show', 'finished'].includes(inShow.phase));
   assert.ok(inShow.show.entries.length >= 1);
