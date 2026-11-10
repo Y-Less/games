@@ -16,17 +16,44 @@ import { numberFrom } from './input.js';
 /** Names computer players are given, in order, until they run out (then "Computer", "Computer 2", ...). */
 export const DEFAULT_BOT_NAMES = ['Hazel', 'Otis', 'Mabel', 'Felix', 'Ivy', 'Rufus', 'Nell', 'Boris', 'Pearl', 'Hugo'];
 
-/** A failed rule. */
-// `error` is a code: a key under `errors.` in the game's or the site's locale file (src/locales/en.json), which the client
-// puts into words; `params` are the values the words need.  See shared/messages.js.
+/**
+ * A failed rule.
+ *
+ * `error` is a code: a key under `errors.` in the game's or the site's locale file (src/locales/en.json), which the
+ * client puts into words; `params` are the values the words need.  See shared/messages.js.
+ *
+ * @param {string} error  the code
+ * @param {object} [params]  the values its words need
+ * @returns {{ ok: false, error: string, params?: object }}
+ */
 export const fail = (error, params) => (params ? { ok: false, error, params } : { ok: false, error });
-/** A successful rule, with any extra facts about what happened. */
+
+/**
+ * A successful rule, with any extra facts about what happened.
+ * @param {object} [extra]
+ * @returns {{ ok: true } & Record<string, any>}
+ */
 export const ok = (extra = {}) => ({ ok: true, ...extra });
 
-/** Is this place held by a person?  (An empty seat is null, so this is false for it.) */
-export const isHuman = (member) => member?.kind === 'human';
-/** Is this place held by a computer player? */
-export const isBot = (member) => member?.kind === 'bot';
+// These two say what they prove, not just what they answer: a person's id is an account id, which is a number, while a
+// computer player's is the string "bot:<n>".  Saying so here is what lets the places that read an id off a member — the
+// scoreboard, `online(id)` — know which of the two they are holding, instead of each one deciding for itself.
+
+/**
+ * Is this place held by a person?  (An empty seat is null, so this is false for it.)
+ * @template T
+ * @param {T} member
+ * @returns {member is T & { kind: 'human', id: number }}
+ */
+export const isHuman = (member) => /** @type {any} */ (member)?.kind === 'human';
+
+/**
+ * Is this place held by a computer player?
+ * @template T
+ * @param {T} member
+ * @returns {member is T & { kind: 'bot', id: string }}
+ */
+export const isBot = (member) => /** @type {any} */ (member)?.kind === 'bot';
 
 /**
  * Shuts somebody out of a room for good.  Being put out by other people is not the same as leaving: the invitation

@@ -93,7 +93,7 @@ export function createQuestionBank(db, { now = Date.now } = {}) {
      */
     count(filters) {
       const { sql, values } = where(filters);
-      return db.prepare(`SELECT COUNT(*) AS n FROM trivia_questions${sql}`).get(...values).n;
+      return /** @type {{ n: number }} */ (db.prepare(`SELECT COUNT(*) AS n FROM trivia_questions${sql}`).get(...values)).n;
     },
 
     /**

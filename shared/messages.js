@@ -6,6 +6,13 @@
 import { isJoker, isRed, rankOf, suitOf } from './cards.js';
 
 /**
+ * An Error that a rule threw on purpose, carrying a code the client can put into words rather than a developer's
+ * sentence.  It is an ordinary Error with two marks on it, so anything that catches Errors still catches these.
+ *
+ * @typedef {Error & { refusal?: boolean, params?: object }} Refusal
+ */
+
+/**
  * A message for the client to put into words.
  * @param {string} key  the locale key, relative to the game's locale file or the site's ('scoreboard.hand', 'errors.notYourTurn')
  * @param {object} [params]  named values the text needs; a message or a list of messages is translated first, and `count` chooses the plural
@@ -46,11 +53,11 @@ const CODE = /^[a-zA-Z][a-zA-Z0-9]*$/;
  * and it may carry the values the words need, so the server can answer the client as it answers any other refusal.
  * @param {string} code  a key under `errors.` in the game's locale file or the site's
  * @param {object} [params]  the values the text needs
- * @returns {Error}
+ * @returns {Refusal}
  * Side effects: none.
  */
 export function refusal(code, params) {
-  const error = new Error(code);
+  const error = /** @type {Refusal} */ (new Error(code));
   error.refusal = true;
   if (params) error.params = params;
   return error;
@@ -59,7 +66,7 @@ export function refusal(code, params) {
 /**
  * The reply for an Error thrown out of `createRoom`: its own code when it is a refusal, otherwise a plain server error
  * (a rules bug must not show the player a developer's sentence, in English or at all).
- * @param {Error} error  what was thrown
+ * @param {Refusal} error  what was thrown
  * @returns {{ ok: false, error: string, params?: object }}
  * Side effects: none.
  */

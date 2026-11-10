@@ -94,29 +94,39 @@ const whole = (value) => {
 const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
 
 /**
+ * One drawing instruction, once it has been read and checked: a flood fill at a square, or a line between two points
+ * of a given width.  Both carry the colour as an index into the palette.
+ *
+ * @typedef {{ t: 'fill', x: number, y: number, c: number }
+ *          | { t: 'line', x: number, y: number, x2: number, y2: number, c: number, w: number }} Op
+ */
+
+/**
  * Reads one drawing instruction out of whatever a client sent, or returns null if it is not one.  Sizes and colours are
  * brought into range rather than refused (a client with a different idea of the limits still draws something sensible),
  * but anything that is not a number at all is refused.
  *
  * @param {unknown} raw  the payload from a client
- * @returns {object | null} the instruction to keep and relay, or null
+ * @returns {Op | null} the instruction to keep and relay, or null
  * Side effects: none.
  */
 export function readOp(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const colour = whole(raw.c);
+  // Whatever arrived is a bag of unknowns until each field has been read and checked, which is the whole job below.
+  const sent = /** @type {Record<string, unknown>} */ (raw);
+  const colour = whole(sent.c);
   if (colour === null || colour < 0 || colour >= COLOURS) return null;
-  if (raw.t === 'fill') {
-    const x = whole(raw.x);
-    const y = whole(raw.y);
+  if (sent.t === 'fill') {
+    const x = whole(sent.x);
+    const y = whole(sent.y);
     if (x === null || y === null || x < 0 || y < 0 || x >= BOARD.width || y >= BOARD.height) return null;
     return { t: 'fill', x, y, c: colour };
   }
-  if (raw.t !== 'line') return null;
-  const points = [raw.x, raw.y, raw.x2, raw.y2].map(whole);
+  if (sent.t !== 'line') return null;
+  const points = [sent.x, sent.y, sent.x2, sent.y2].map(whole);
   if (points.some((n) => n === null)) return null;
   const [x, y, x2, y2] = points;
-  const width = whole(raw.w);
+  const width = whole(sent.w);
   if (width === null) return null;
   const inX = (n) => clamp(n, -OVERREACH, BOARD.width + OVERREACH);
   const inY = (n) => clamp(n, -OVERREACH, BOARD.height + OVERREACH);

@@ -1,0 +1,33 @@
+{
+  "//": [
+    "Type checking for the JavaScript that is already here.  Nothing is compiled and no file is renamed: `tsc --noEmit`",
+    "reads the JSDoc the codebase has written all along (4,690 @param and 2,319 @returns at the time this was added) and",
+    "says where it does not match what the code does.  `npm test` runs it.",
+    "",
+    "Scope is shared/ and server/ — the code every game depends on.  The sixteen game modules and the client are not in",
+    "it, deliberately: typing them is a far larger job (164 .vue files, and the room bags that each game extends with its",
+    "own fields), and it would have to wait for its own decision rather than riding along with this one.",
+    "",
+    "The tests are left out.  They pass malformed input on purpose — that is most of what shared/leaks.js and the fuzz",
+    "tests are for — so checking them would report that deliberate nonsense as hundreds of errors and drown the rest.",
+    "",
+    "`strict` is off.  Turning it on is a separate, larger piece of work: it is mostly strictNullChecks, which this code",
+    "answers with `??` and early returns rather than with types, and it would multiply the count several times over."
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "target": "esnext",
+    "lib": ["esnext"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["shared/**/*.js", "server/**/*.js"],
+  "exclude": ["**/*.test.js", "node_modules", "dist"]
+}

@@ -6,7 +6,6 @@ export class AuthError extends Error {
    * @param {string} code  which refusal, as a key under `errors.` in the site's locale files (the client puts it into words)
    * @param {number} [status]  the HTTP status (400 by default)
    * @param {object} [params]  the values the text needs ({ min, max }, say)
-   * @returns {AuthError}
    * Side effects: none.
    */
   constructor(code, status = 400, params) {

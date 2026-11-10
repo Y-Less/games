@@ -17,7 +17,12 @@ const catalogue = [];
 const byId = new Map();
 /**
  * Puts an item in the catalogue.
- * @param {{ id: string, type: string, name: string, price: number }} item
+ *
+ * Every item has the first four; the rest are what a particular kind of item needs and nothing else reads — which
+ * part of a name an animation plays on, a theme's colour variables, a font's two faces, an avatar's slot and option.
+ *
+ * @param {{ id: string, type: string, name: string, price: number,
+ *   part?: string, colours?: object, display?: string, body?: string, slot?: string, option?: string }} item
  * @returns {void}
  * @throws {Error} when the id is already taken
  * Side effects: adds to the module's catalogue.
@@ -206,7 +211,13 @@ export function checkSettings(db, userId, { background, cardBack, nameStyle, ava
 /**
  * The shop's operations on a database.
  * @param {import('node:sqlite').DatabaseSync} db
- * @returns {{ owns: Function, customised: Function, purchases: Function, listing: Function, buy: Function }}
+ * @returns {{
+ *   owns: (userId: number, itemId: string) => boolean,
+ *   customised: (userId: number) => number,
+ *   purchases: (userId: number) => number,
+ *   listing: Function,
+ *   buy: Function,
+ * }}
  * Side effects: none until a method is called.
  */
 export function createShop(db) {

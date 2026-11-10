@@ -63,7 +63,7 @@ export async function walkViews(Root, views, { user = { id: 1, displayName: 'Ann
   try {
     wrapper = mount(Root, {
       props: { socket, user, search: '', setSearch: () => {} },
-      global: { config: { errorHandler: (error) => problems.push(`thrown: ${error?.stack ?? error}`), warnHandler: (message) => problems.push(`warn: ${message}`) } },
+      global: { config: { errorHandler: (error) => problems.push(`thrown: ${/** @type {any} */ (error)?.stack ?? error}`), warnHandler: (message) => problems.push(`warn: ${message}`) } },
     });
     await flushPromises();
     socket.fire('connect');

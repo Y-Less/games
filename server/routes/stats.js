@@ -5,7 +5,7 @@ import { asSubject, personNamed } from './people.js';
 /**
  * Registers GET /stats/me, GET /stats/user/:who, GET /stats/leaderboard/:game and GET /leaderboard.
  * @param {import('express').Router} api  the router mounted at /api
- * @param {{ stats: object, presence: object, auth: object, listGames: () => Array<{ id: string }>, requireUser: import('express').RequestHandler }} deps
+ * @param {{ stats: object, presence: object, auth: object, listGames: () => Array<{ id: string, name: string }>, requireUser: import('express').RequestHandler }} deps
  * @returns {void}
  * Side effects: adds routes.
  */

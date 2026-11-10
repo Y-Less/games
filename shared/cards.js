@@ -19,14 +19,8 @@ export const isJoker = (card) => card.startsWith('JK');
 export const suitOf = (card) => (isJoker(card) ? 'J' : card.slice(-1));
 // Returns a card's rank string ("2".."10", J, Q, K, A) by dropping the suit letter; a Joker gives "JK".
 export const rankOf = (card) => card.slice(0, -1);
-/**
- * Hand display order: the trump suit first if there is one, then hearts, spades, diamonds, and clubs (the Jokers last),
- * each suit high to low, so that the highest card is at the left, at the back of the fan.
- * @param {string[]} cards  the hand to order
- * @param {string|null} [trump]  suit letter to put first, or null for the default order
- * @returns {string[]} a new sorted array (the input is not changed)
- * Side effects: none.
- */
+// How high a card counts, 2 low to 14 for an ace, and 15 for either Joker.  (This had sortHand's documentation on it
+// by mistake, describing parameters it does not have; sortHand's own copy is still where it belongs, further down.)
 export const rankValue = (card) => (isJoker(card) ? 15 : RANKS.indexOf(rankOf(card)) + 2);
 // True for hearts, diamonds, and the red Joker (JK2).
 export const isRed = (card) => card === 'JK2' || suitOf(card) === 'D' || suitOf(card) === 'H';

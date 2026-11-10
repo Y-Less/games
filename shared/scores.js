@@ -62,7 +62,7 @@ export function winnersOf(scores, options) {
  * @param {number} state.me  the viewer's seat, or -1
  * @param {boolean} state.current  whether it is this seat's turn
  * @param {(id: number) => boolean} state.online  says who is connected, so that people who have left the table show as away
- * @returns {{ id: number, name: string, userId: number | undefined, score: number, isMe: boolean, bot: boolean, current: boolean, away: boolean }}
+ * @returns {{ id: number, slot: string, name: string, userId: number | undefined, score: number, isMe: boolean, bot: boolean, current: boolean, away: boolean }}
  */
 export function seatScoreboardEntry(seat, index, { score, me, current, online }) {
   return { id: index, slot: slotForSeat(index), name: seat.name, userId: isHuman(seat) ? seat.id : undefined, score, isMe: index === me, bot: isBot(seat), current, away: isGone(seat) || (isHuman(seat) && !online(seat.id)) };
@@ -71,7 +71,7 @@ export function seatScoreboardEntry(seat, index, { score, me, current, online })
 /**
  * One player's entry in the standard scoreboard's `players`, for games whose players are identified by account id.
  *
- * @param {{ kind: string, id: number | string, score: number }} player
+ * @param {{ kind: string, id: number | string, name?: string, slot?: string, score: number }} player
  * @param {object} state
  * @param {string} state.name  the name to show
  * @param {number} state.me  the viewer's account id

@@ -37,6 +37,17 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
   const isBot = db.prepare('SELECT is_bot FROM users WHERE id = ?');
   const insertResult = db.prepare('INSERT INTO results (game, code, finished_at) VALUES (?, ?, ?)');
   const insertPlayer = db.prepare('INSERT INTO result_players (result_id, user_id, placement, score, outcome, extras) VALUES (?, ?, ?, ?, ?, ?)');
+  // What each SELECT below actually produces.  `node:sqlite` types every column `string | number | bigint | Uint8Array
+  // | null`, because that is all SQLite itself promises — a column has no type until there is a value in it.  The code
+  // that wrote the query knows what it asked for, so it says so here, once, beside the query.  These are statements
+  // about the schema, not conversions: nothing happens at run time.
+  /**
+   * @typedef {{ game: string, played: number, wins: number, losses: number, draws: number, totalScore: number, bestScore: number | null }} TotalsRow
+   * @typedef {{ game: string, extras: string }} ExtrasRow
+   * @typedef {{ game: string, finishedAt: number, outcome: string, score: number, placement: number | null, players: number }} RecentRow
+   * @typedef {{ userId: number, name: string, played: number, wins: number }} TopRow
+   * @typedef {{ userId: number, name: string, played: number, wins: number, bestScore: number | null }} StandingRow
+   */
   const userTotals = db.prepare(
     `SELECT r.game AS game, COUNT(*) AS played,
             SUM(rp.outcome = 'win') AS wins, SUM(rp.outcome = 'loss') AS losses, SUM(rp.outcome = 'draw') AS draws,
@@ -113,6 +124,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function cleanExtras(extras) {
+    /** @type {Record<string, number>} */
     const out = {};
     for (const [key, value] of Object.entries(extras ?? {})) if (Number.isFinite(value)) out[key] = value;
     return out;
@@ -125,8 +137,8 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function forUser(userId) {
-    const totals = userTotals.all(userId);
-    const extraRows = userExtras.all(userId);
+    const totals = /** @type {TotalsRow[]} */ (userTotals.all(userId));
+    const extraRows = /** @type {ExtrasRow[]} */ (userExtras.all(userId));
 
     const games = listGames();
     const perGame = totals.map((row) => {
@@ -160,7 +172,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
       (all, g) => ({ played: all.played + g.played, wins: all.wins + g.wins, losses: all.losses + g.losses, draws: all.draws + g.draws }),
       { played: 0, wins: 0, losses: 0, draws: 0 },
     );
-    const recent = userRecent.all(userId).map((row) => ({ ...row, name: games.find((g) => g.id === row.game)?.name ?? row.game }));
+    const recent = /** @type {RecentRow[]} */ (userRecent.all(userId)).map((row) => ({ ...row, name: games.find((g) => g.id === row.game)?.name ?? row.game }));
     return { summary: { ...summary, winRate: summary.played ? summary.wins / summary.played : 0 }, perGame, recent };
   }
 
@@ -172,7 +184,7 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function leaderboard(game, { limit = 10, includeBots = false } = {}) {
-    return topPlayers.all(game, includeBots ? 1 : 0, limit);
+    return /** @type {TopRow[]} */ (topPlayers.all(game, includeBots ? 1 : 0, limit));
   }
 
   /**
@@ -191,8 +203,9 @@ export function createStats(db, listGames, { onPlayerRecorded, onRecorded } = {}
    * Side effects: none.
    */
   function standings(game, { viewerId = null, top = TOP_PLAYERS, includeBots = false } = {}) {
-    const all = gameStandings.all(game, includeBots ? 1 : 0);
+    const all = /** @type {StandingRow[]} */ (gameStandings.all(game, includeBots ? 1 : 0));
 
+    /** @type {Map<number, Record<string, number>>} */
     const ranks = new Map(all.map((row) => [row.userId, {}]));
     const keep = new Set();
     for (const [key, order] of Object.entries(ORDERS)) {

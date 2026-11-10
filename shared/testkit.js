@@ -32,14 +32,21 @@ import { openRoomDb } from './roomDb.js';
 export function savedRooms(dataDir) {
   const db = openRoomDb(dataDir);
   try {
+    // By room *and* game, as shared/roomStore.js `load` does: a room that has played again holds the rounds of every
+    // game played in it, and what a test asks for is the one being played now.
     const rounds = new Map();
-    for (const row of db.prepare('SELECT code, seq, entry_json FROM room_history ORDER BY code, seq').all()) {
-      if (!rounds.has(row.code)) rounds.set(row.code, []);
-      rounds.get(row.code).push(JSON.parse(row.entry_json));
+    const key = (code, game) => `${code}\u0000${game}`;
+    const history = /** @type {{ code: string, game_seq: number, seq: number, entry_json: string }[]} */ (
+      db.prepare('SELECT code, game_seq, seq, entry_json FROM room_history ORDER BY code, game_seq, seq').all()
+    );
+    for (const row of history) {
+      const at = key(row.code, row.game_seq);
+      if (!rounds.has(at)) rounds.set(at, []);
+      rounds.get(at).push(JSON.parse(row.entry_json));
     }
-    return db.prepare('SELECT code, state_json FROM rooms ORDER BY code').all().map((row) => {
+    return /** @type {{ code: string, state_json: string }[]} */ (db.prepare('SELECT code, state_json FROM rooms ORDER BY code').all()).map((row) => {
       const saved = JSON.parse(row.state_json);
-      const entries = rounds.get(row.code) ?? [];
+      const entries = rounds.get(key(row.code, saved.gameSeq ?? 0)) ?? [];
       // A room saved before histories existed has none, and must not be handed an empty one (see roomStore's stateOf).
       if (Array.isArray(saved.history) || entries.length) saved.history = entries;
       return saved;
@@ -107,7 +114,7 @@ export async function until(condition, what, { timeout = 20000, step = 5 } = {})
  * @returns {Promise<{ site: object, base: string, dataDir: string, person: (name: string) => object, stop: () => Promise<void>, alive: () => Promise<boolean>, people: object[], logs: string[], serverErrors: () => string[] }>} handles for driving the running site
  * Side effects: copies files into dataDir, starts an HTTP/socket server on a random port, and registers a t.after cleanup (stops it, deletes dataDir unless keep, and checks the server log).
  */
-export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-kit-`)), keep = false, setup, allowServerErrors = false } = {}) {
+export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `${id}-kit-`)), keep = false, setup, allowServerErrors = false }) {
   const copy = path.join(dataDir, 'copy');
   const modulesDir = path.join(copy, 'modules');
   if (!fs.existsSync(modulesDir)) {
@@ -199,7 +206,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
         this.states.push(s);
       });
       await new Promise((resolve, reject) => {
-        socket.once('connect', resolve);
+        socket.once('connect', () => resolve(undefined));
         socket.once('connect_error', reject);
       });
       return this;
@@ -272,6 +279,7 @@ export async function launchModule(t, { id, moduleDir, dataDir = fs.mkdtempSync(
 const polluting = () => JSON.parse('{"__proto__":{"polluted":1},"constructor":{"prototype":{"polluted":1}}}');
 // Builds a value nested `n` levels deep (objects wrapping arrays) for stack-depth abuse tests.
 const deep = (n) => {
+  /** @type {any} */ // it starts as a string and becomes a tower of objects; that is the point of it
   let value = 'x';
   for (let i = 0; i < n; i++) value = { a: [value] };
   return value;
@@ -330,12 +338,14 @@ export function garbageValues() {
  */
 export function assertReply(reply, { what, secrets = [] }) {
   assert.ok(reply && typeof reply === 'object' && !Array.isArray(reply), `${what}: the reply was not an object: ${String(reply).slice(0, 80)}`);
-  assert.ok(reply.ok === true || reply.ok === false, `${what}: ok must be true or false, was ${String(reply.ok)}`);
-  if (reply.ok === false) {
-    assert.equal(typeof reply.error, 'string', `${what}: a failure needs an error message`);
-    assert.ok(reply.error.length > 0 && reply.error.length < 400, `${what}: the error message has a sensible length (${reply.error.length})`);
-    assert.ok(!reply.error.includes('AAAAAAAAAA'), `${what}: the error must not echo the payload back`);
-    assert.ok(!/\bat .*\.js:\d+/.test(reply.error), `${what}: the error must not contain a stack trace`);
+  // What arrived is unknown until the assertions below have had their say; this names the two fields they ask about.
+  const ack = /** @type {{ ok?: unknown, error?: string }} */ (reply);
+  assert.ok(ack.ok === true || ack.ok === false, `${what}: ok must be true or false, was ${String(ack.ok)}`);
+  if (ack.ok === false) {
+    assert.equal(typeof ack.error, 'string', `${what}: a failure needs an error message`);
+    assert.ok(ack.error.length > 0 && ack.error.length < 400, `${what}: the error message has a sensible length (${ack.error.length})`);
+    assert.ok(!ack.error.includes('AAAAAAAAAA'), `${what}: the error must not echo the payload back`);
+    assert.ok(!/\bat .*\.js:\d+/.test(ack.error), `${what}: the error must not contain a stack trace`);
   }
   const text = JSON.stringify(reply);
   assert.ok(text.length < 5000, `${what}: the reply is suspiciously large (${text.length})`);
@@ -397,9 +407,10 @@ export const cardsIn = (value) => JSON.stringify(value).match(CARD) ?? [];
  */
 export function assertNoPollution(before) {
   assert.deepEqual(Object.getOwnPropertyNames(Object.prototype).sort(), before, 'Object.prototype was changed');
-  assert.equal({}.polluted, undefined);
-  assert.equal({}.x, undefined);
-  assert.equal([].polluted, undefined);
+  // Deliberately reading properties nothing should have: that is the check.
+  assert.equal(/** @type {any} */ ({}).polluted, undefined);
+  assert.equal(/** @type {any} */ ({}).x, undefined);
+  assert.equal(/** @type {any} */ ([]).polluted, undefined);
 }
 // Returns the sorted own property names of Object.prototype, to compare with later via assertNoPollution.
 export const prototypeNames = () => Object.getOwnPropertyNames(Object.prototype).sort();

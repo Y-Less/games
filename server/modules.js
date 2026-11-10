@@ -29,10 +29,29 @@ function withStandardAchievements(own) {
 }
 
 /**
+ * What a module says about itself, once its module.json has been read and every default filled in.  This is the shape
+ * the whole site relies on — the menu, the leaderboards, the achievements check — so it is written down rather than
+ * described.
+ *
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   description: string,
+ *   minPlayers: number,
+ *   maxPlayers: number,
+ *   category: string,
+ *   rules: string | null,
+ *   stats: Array<{ key: string, label: string, agg?: string, hidden?: boolean }>,
+ *   achievements: object[],
+ *   rejectedAchievements: string[],
+ * }} ModuleMeta
+ */
+
+/**
  * Reads and tidies a module's module.json, filling defaults so the rest of the site can rely on every field.
  * @param {string} dir  the modules directory
  * @param {string} folder  the module's folder name, which must equal the manifest's id
- * @returns {object} { id, name, description, minPlayers, maxPlayers, category, rules, stats, achievements }
+ * @returns {ModuleMeta}
  * Side effects: reads module.json; throws if it is missing, malformed, or its id does not match the folder.
  */
 function readManifest(dir, folder) {
@@ -138,7 +157,7 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
   }
 
   return {
-    /** The loaded modules' manifests, sorted by name.  Side effects: none. */
+    /** The loaded modules' manifests, sorted by name.  @returns {ModuleMeta[]}  Side effects: none. */
     list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
     /**
      * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder.  With a

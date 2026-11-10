@@ -9,9 +9,10 @@
     "dev": "concurrently -n server,client -c blue,green \"node --watch server/index.js\" \"vite\"",
     "build": "vite build",
     "start": "node server/index.js",
-    "test": "node --test server/*.test.js shared/*.test.js modules/*/*.test.js && vitest run",
+    "test": "tsc --noEmit && node --test server/*.test.js shared/*.test.js modules/*/*.test.js && vitest run",
     "test:server": "node --test server/*.test.js shared/*.test.js modules/*/*.test.js",
     "test:client": "vitest run",
+    "test:types": "tsc --noEmit",
     "test:ui": "node --test --test-concurrency=1 ui-tests/*.test.js"
   },
   "dependencies": {
@@ -27,11 +28,13 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/test-utils": "^2.5.1",
     "concurrently": "^10.0.6",
     "jsdom": "^29.1.1",
     "puppeteer-core": "^25.16.0",
+    "typescript": "^5.7.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
   }

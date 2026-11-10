@@ -114,7 +114,7 @@ export const webp = (size = 64) => Buffer.concat([Buffer.from('RIFF'), Buffer.fr
  * @returns {Promise<{ status: number, headers: object, body: Buffer }>} the reply
  * Side effects: makes one HTTP request.
  */
-export function rawRequest(base, { method = 'GET', path: requestPath, headers = {}, body } = {}) {
+export function rawRequest(base, { method = 'GET', path: requestPath, headers = {}, body }) {
   const url = new URL(base);
   return new Promise((resolve, reject) => {
     const req = http.request({ host: url.hostname, port: url.port, method, path: requestPath, headers }, (res) => {

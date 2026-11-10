@@ -90,7 +90,7 @@ export async function searchImage(word, { fetchImpl = fetch, width = 512 } = {})
   });
   const response = await fetchImpl(`${SEARCH}?${query}`, { headers: { 'user-agent': AGENT, accept: 'application/json' } });
   if (!response.ok) return null;
-  const body = await response.json();
+  const body = /** @type {{ query?: { pages?: Record<string, { index?: number } & Record<string, any>> } } | null} */ (await response.json());
   const pages = Object.values(body?.query?.pages ?? {});
   // `index` is the order the search put them in; the object they arrive in has no order of its own.
   pages.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -125,7 +125,7 @@ async function imageDecoders() {
  * Side effects: may load the decoders (see imageDecoders).
  */
 export async function decodePicture(bytes) {
-  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(/** @type {ArrayBuffer} */ (bytes));
   const { jpeg, PNG } = await imageDecoders();
   if (buffer.length > 8 && buffer.readUInt32BE(0) === 0x89504e47) {
     const png = PNG.sync.read(buffer);

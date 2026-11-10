@@ -183,7 +183,7 @@ export const AVATAR_SLOTS = [
 ];
 
 // Fast lookup: slot name -> (option id -> option), built once from AVATAR_SLOTS.
-const bySlot = new Map(AVATAR_SLOTS.map((s) => [s.slot, new Map(s.options.map((o) => [o.id, o]))]));
+const bySlot = new Map(AVATAR_SLOTS.map((s) => /** @type {[string, Map<string, object>]} */ ([s.slot, new Map(s.options.map((o) => /** @type {[string, object]} */ ([o.id, o])))])));
 
 /** An avatar with the first (free) option of every slot. */
 export const DEFAULT_AVATAR = Object.freeze(Object.fromEntries(AVATAR_SLOTS.map((s) => [s.slot, s.options[0].id])));
@@ -213,6 +213,7 @@ export function avatarItems() {
  * Side effects: none.
  */
 export function normaliseAvatar(input) {
+  /** @type {Record<string, string>} */
   const out = {};
   for (const { slot } of AVATAR_SLOTS) out[slot] = isAvatarOption(slot, input?.[slot]) ? input[slot] : DEFAULT_AVATAR[slot];
   return out;

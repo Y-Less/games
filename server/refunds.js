@@ -43,7 +43,7 @@ export function createRefunds(db) {
      * Side effects: none.
      */
     countFor(userId) {
-      return sql.countFor.get(userId).n;
+      return /** @type {{ n: number }} */ (sql.countFor.get(userId)).n;
     },
   };
 }

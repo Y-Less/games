@@ -152,7 +152,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
     async login({ username, password, ip = '' }) {
       username = textFrom(username).trim();
       throttle(`${ip}|${username.toLowerCase()}`);
-      const row = sql.byLowerName.get(username.toLowerCase());
+      const row = /** @type {{ id: number, password_hash: string } | undefined} */ (sql.byLowerName.get(username.toLowerCase()));
       // Always do the hashing work, so a missing user takes as long as a wrong password.
       const ok = await checkPassword(textFrom(password), row?.password_hash ?? 'scrypt$00$00');
       if (!row || !ok) throw new AuthError('wrongLogin', 401);
@@ -199,7 +199,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
      * Side effects: updates the password hash; deletes the user's other sessions.
      */
     async changePassword(userId, currentPassword, newPassword, keepToken) {
-      const row = sql.byId.get(userId);
+      const row = /** @type {{ password_hash: string } | undefined} */ (sql.byId.get(userId));
       // 403, not 401: they are signed in, they simply typed the wrong password.  A 401 means "your session has gone"
       // to the client (src/api.js), which signs them out of the site over a typo.
       if (!row || !(await checkPassword(textFrom(currentPassword), row.password_hash))) throw new AuthError('wrongCurrentPassword', 403);
@@ -228,6 +228,7 @@ export function createAuth(db, { canUse = () => {} } = {}) {
  * Side effects: none.
  */
 export function parseCookies(header = '') {
+  /** @type {Record<string, string>} */
   const cookies = {};
   for (const part of String(header).split(';')) {
     const index = part.indexOf('=');

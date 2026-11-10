@@ -26,7 +26,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * Builds and starts the site.
  * @param {{ port?: number, dataDir?: string, modulesDir?: string, distDir?: string, log?: (...args: *[]) => void, memory?: boolean }} [options]
  *   all optional; the defaults come from the PORT, DATA_DIR and MODULES_DIR environment variables, then the project folders
- * @returns {Promise<{ server: import('node:http').Server, port: number, db: object, stats: object, achievements: object, close: () => Promise<void> }>}
+ * @returns {Promise<{ server: import('node:http').Server, port: number, db: object, stats: object, achievements: object, questions: object, close: () => Promise<void> }>}
  * Side effects: creates the data and uploads folders and the database, starts the modules, listens on the port and
  * starts an hourly sweep of expired sessions (stopped by `close`).
  */
@@ -91,8 +91,9 @@ export async function startSite(options = {}) {
   const sweep = setInterval(() => auth.deleteExpiredSessions(), 60 * 60 * 1000);
   sweep.unref();
 
-  await new Promise((resolve) => server.listen(port, resolve));
-  const actualPort = server.address().port;
+  await new Promise((resolve) => server.listen(port, () => resolve(undefined)));
+  // Listening on a TCP port, so the address is an AddressInfo rather than the pipe name a unix socket would give.
+  const actualPort = /** @type {import('node:net').AddressInfo} */ (server.address()).port;
   log(`Game hub listening on http://localhost:${actualPort} with ${moduleList.length} game(s): ${moduleList.map((g) => g.id).join(', ') || 'none'}`);
 
   return {

@@ -76,8 +76,8 @@ export function createPresence(db, { now = Date.now } = {}) {
      * Side effects: none.
      */
     seconds(userId) {
-      const stored = read.get(userId)?.seconds ?? 0;
-      const session = open.get(userId);
+      const stored = /** @type {{ seconds: number } | undefined} */ (read.get(userId))?.seconds ?? 0;
+      const session = /** @type {{ since: number } | undefined} */ (open.get(userId));
       return stored + (session ? Math.floor((now() - session.since) / SECOND) : 0);
     },
 

@@ -28,7 +28,9 @@ export function rotated(lineup, game) {
  * @returns {Record<string, { games: number, total: number, wins: number, mean: number, winRate: number }>}
  */
 export function roundRobin(lineup, { games = 100, seed = 1, play, totalOf }) {
-  const tally = Object.fromEntries([...new Set(lineup)].map((id) => [id, { games: 0, total: 0, wins: 0 }]));
+  // Every column a row ever has, from the start: the last two are only filled in once the games are played, and a row
+  // that says so is a row whose shape matches what this returns.
+  const tally = Object.fromEntries([...new Set(lineup)].map((id) => [id, { games: 0, total: 0, wins: 0, mean: 0, winRate: 0 }]));
   for (let game = 0; game < games; game++) {
     const table = rotated(lineup, game);
     const room = play(table, seed * 100000 + game, game);

@@ -28,6 +28,12 @@ export function createCoins(db) {
   const sum = db.prepare('SELECT COALESCE(SUM(amount), 0) AS balance FROM coin_ledger WHERE user_id = ?');
   const spentSum = db.prepare('SELECT COALESCE(-SUM(amount), 0) AS spent FROM coin_ledger WHERE user_id = ? AND amount < 0');
   const history = db.prepare('SELECT amount, reason, result_id AS resultId, created_at AS createdAt FROM coin_ledger WHERE user_id = ? ORDER BY id DESC LIMIT ?');
+
+  // SQLite promises only `string | number | bigint | Uint8Array | null` for any column, because a column has no type
+  // until there is a value in it.  `COALESCE(SUM(amount), 0)` is a whole number of Gilders, and saying so once here is
+  // what lets the two places that compare it do arithmetic.  A statement about the schema, not a conversion.
+  /** What this account has, in Gilders. @param {number} userId @returns {number} */
+  const balanceOf = (userId) => /** @type {{ balance: number }} */ (sum.get(userId)).balance;
   const unpaidResults = db.prepare(
     `SELECT rp.result_id AS resultId, rp.user_id AS userId, rp.placement AS placement, rp.outcome AS outcome, r.finished_at AS finishedAt
      FROM result_players rp
@@ -45,7 +51,7 @@ export function createCoins(db) {
      * @returns {number} the balance
      * Side effects: none.
      */
-    balance: (userId) => sum.get(userId).balance,
+    balance: (userId) => balanceOf(userId),
 
     /**
      * The total number of coins the user has ever spent.
@@ -53,7 +59,7 @@ export function createCoins(db) {
      * @returns {number} the sum of their negative ledger rows, as a positive number
      * Side effects: none.
      */
-    spent: (userId) => spentSum.get(userId).spent,
+    spent: (userId) => /** @type {{ spent: number }} */ (spentSum.get(userId)).spent,
 
     /**
      * Their latest ledger rows, newest first.
@@ -62,7 +68,7 @@ export function createCoins(db) {
      * @returns {Array<{ amount: number, reason: string, resultId: number | null, createdAt: number }>} the rows
      * Side effects: none.
      */
-    history: (userId, limit = 20) => history.all(userId, limit),
+    history: (userId, limit = 20) => /** @type {{ amount: number, reason: string, resultId: number, createdAt: number }[]} */ (history.all(userId, limit)),
 
     /**
      * Pays one player for one recorded game (once only: a repeat for the same result is ignored).
@@ -122,7 +128,7 @@ export function createCoins(db) {
     spend(userId, amount, reason) {
       if (!Number.isInteger(amount) || amount < 0) throw new Error('A price must be a whole number of Gilders.');
       if (amount === 0) return;
-      if (sum.get(userId).balance < amount) throw new Error('Not enough Gilders.');
+      if (balanceOf(userId) < amount) throw new Error('Not enough Gilders.');
       insert.run(userId, -amount, reason, null, Date.now());
     },
   };

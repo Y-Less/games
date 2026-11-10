@@ -36,7 +36,7 @@ function createApiRouter() {
 /**
  * Registers every route on the app.
  * @param {import('express').Express} app
- * @param {{ auth: object, achievements: object, coins: object, shop: object, refunds: object, stats: object, modules: object, uploads: object, canUse: Function, listGames: () => object[], distDir: string }} deps
+ * @param {{ auth: object, achievements: object, coins: object, shop: object, refunds: object, stats: object, presence: object, modules: object, uploads: object, canUse: Function, listGames: () => Array<{ id: string, name: string }>, distDir: string }} deps
  * @returns {void}
  * Side effects: adds all routes and middleware to the app (the order matters: API, then the client, then the error handler).
  */

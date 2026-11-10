@@ -59,7 +59,7 @@ export const CATEGORIES = {
 };
 
 /** Every name the API answers to, against the one a question carries: 'movies' -> 'film_and_tv'. */
-const CANONICAL = new Map(Object.entries(CATEGORIES).flatMap(([name, aliases]) => [[name, name], ...aliases.map((alias) => [alias, name])]));
+const CANONICAL = new Map(Object.entries(CATEGORIES).flatMap(([name, aliases]) => /** @type {[string, string][]} */ ([[name, name], ...aliases.map((alias) => [alias, name])])));
 
 /**
  * One category name in the form a question carries it, so that one filter finds the same questions at either source.
@@ -240,7 +240,7 @@ export function createTriviaStore(options = {}) {
         try {
           const reply = await fetchImpl(`${API_COUNT}?${query(these)}`, { headers: { accept: 'application/json' } });
           if (!reply?.ok) throw new Error(`the API answered ${reply?.status ?? '(no response)'}`);
-          const body = await reply.json();
+          const body = /** @type {{ count?: number } | null} */ (await reply.json());
           theirs = Number.isFinite(body?.count) && body.count > 0 ? body.count : 0;
         } catch {
           theirs = was?.api ?? 0; // likewise an API that will not say

@@ -42,7 +42,7 @@ export function createCollections(db) {
     const key = `${userId}:${id}`;
     let set = loaded.get(key);
     if (!set) {
-      const bits = Uint8Array.from(read.get(userId, id)?.bits ?? []);
+      const bits = Uint8Array.from(/** @type {{ bits: Uint8Array } | undefined} */ (read.get(userId, id))?.bits ?? []);
       set = { bits, count: bits.reduce((sum, byte) => sum + bitCount(byte), 0) };
       loaded.set(key, set);
     }

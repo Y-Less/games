@@ -272,9 +272,13 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
   /**
    * Null if this person is the host and the game is still in the lobby, otherwise the failure to return.
    *
+   * Which failure depends on what they were trying to do, because the codes are in four locale files and each one
+   * names the thing refused: adding a computer player, removing one, or changing how many players the game is for.
+   * The last of those is an ordinary lobby setting, so it answers with the codes every other setting answers with.
+   *
    * @param {object} room
    * @param {number} userId
-   * @param {'add' | 'remove'} what
+   * @param {'add' | 'remove' | 'size'} what
    * @returns {{ ok: false, error: string } | null}
    * Side effects: none.
    */

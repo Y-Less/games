@@ -42,7 +42,10 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
    */
   const isDerived = (definition) => Boolean(definition.stat || definition.sum || definition.wonEvery || definition.measure);
   // A player's saved progress for a full id, or 0 when there is none.
-  const savedValue = (userId, id) => read.get(userId, id)?.value ?? 0;
+  // What the queries above produce.  SQLite promises only `string | number | bigint | Uint8Array | null` for any
+  // column, because a column has no type until there is a value in it; the code that wrote the query knows better and
+  // says so here.  These are statements about the schema, not conversions: nothing happens at run time.
+  const savedValue = (userId, id) => /** @type {{ value: number } | undefined} */ (read.get(userId, id))?.value ?? 0;
   // Whether this id is a real person's account (bots and unknown ids collect nothing).
   const isPerson = (userId) => Number.isInteger(userId) && isBot.get(userId)?.is_bot === 0;
 
@@ -200,7 +203,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
     return fresh;
   }
   // The "id:level" pairs a player has already been paid for, as a Set.
-  const paidLevels = (userId) => new Set(awarded.all(userId).map((row) => `${row.id}:${row.level}`));
+  const paidLevels = (userId) => new Set(/** @type {{ id: string, level: number }[]} */ (awarded.all(userId)).map((row) => `${row.id}:${row.level}`));
 
   /**
    * Works out one achievement for one player and pays what it newly unlocked (after a game saves progress).
@@ -244,7 +247,7 @@ export function createAchievements(db, { listGames, statsFor, notify = () => {},
    * Side effects: none.
    */
   function pending(userId) {
-    return unseen.all(userId).flatMap((row) => {
+    return /** @type {{ id: string, level: number, coins: number }[]} */ (unseen.all(userId)).flatMap((row) => {
       const found = find(row.id);
       if (!found) return []; // a game has since dropped it
       const { section, definition } = found;

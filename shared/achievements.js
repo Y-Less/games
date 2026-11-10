@@ -114,7 +114,7 @@ const KEY = /^[a-zA-Z][a-zA-Z0-9]{0,30}$/;
  * Validates one achievement definition from a module.json and normalises it.
  * Rejects bad keys, empty names/text and non-ascending or non-positive levels; a string `levels` is looked up in TIERS.
  * @param {object} input  the raw definition object
- * @returns {{ key: string, name: string, text: string, one: string|null, levels: number[], stat: string|null }|null} the tidied definition, or null when unusable
+ * @returns {{ key: string, name: string, text: string, one: string|null, label: string|null, levels: number[], stat: string|null }|null} the tidied definition, or null when unusable
  * Side effects: none.
  */
 export function cleanDefinition(input) {

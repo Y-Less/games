@@ -379,9 +379,18 @@ checks one game).  Hearts (`modules/hearts`) is the reference for a converted ga
 
 ## Tests
 
-Put module tests next to the module as `modules/<id>/*.test.js`; `npm test` runs `server/*.test.js`, `shared/*.test.js`
+Put module tests next to the module as `modules/<id>/*.test.js`; `npm test` first type-checks (see below), then runs
+`server/*.test.js`, `shared/*.test.js`
 and `modules/*/*.test.js` with Node's test runner, then the vitest component tests (`src/**/*.test.js` and
-`modules/*/client/**/*.test.js`).  Test the rules without sockets where possible, and the socket protocol against a real
+`modules/*/client/**/*.test.js`).
+
+**The JSDoc in `shared/` and `server/` is checked, and your module's is not.**  `npm test` runs `tsc --noEmit` over
+those two folders (`npm run test:types` on its own), which reads the `@param` and `@returns` already written there and
+reports where they no longer match the code — a `@param {object}` whose fields are then read, a `@returns` that has
+lost a field somebody added later, a documentation block that has drifted onto the wrong function.  Nothing is
+compiled and no file is renamed.  Game modules and the client are out of scope for now, so your `game.js` is checked
+only where it calls into `shared/`; the discipline is still worth keeping, because a module that documents itself
+honestly is one that can be brought in later without a day of corrections.  Test the rules without sockets where possible, and the socket protocol against a real
 site with `launchModule(t, { id, moduleDir })` from `shared/testkit.js` (or `startSite({ port: 0, dataDir, modulesDir })`
 from `server/index.js`; see `server/hub.test.js`). `launchModule` fails the test if the server logged a failure (a
 handler or a scheduled move that threw, a save that failed); a test that provokes one on purpose passes

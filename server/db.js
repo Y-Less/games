@@ -170,7 +170,7 @@ export function openDatabase(dataDir) {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
-  const columns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  const columns = /** @type {{ name: string }[]} */ (db.prepare('PRAGMA table_info(users)').all()).map((c) => c.name);
   for (const step of MIGRATIONS) step.run(db, columns);
   return db;
 }

@@ -92,11 +92,12 @@ export function pickKeys(payload, keys) {
  * A refusal as the client receives it: the rules' code and, when its words need them, the values to put in (see
  * shared/messages.js).  Without the values a sentence such as "You need at least {min} players." reaches the player with
  * the gap still in it.
- * @param {{ error: string, params?: object }} outcome  what a rule returned
+ * @param {{ error?: string, params?: object }} outcome  what a rule returned, which the caller has already found to
+ *   have failed — so it has an error, even though a rule result on its own only says it might
  * @returns {{ ok: false, error: string, params?: object }}
  * Side effects: none.
  */
-const refused = (outcome) => ({ ok: false, error: outcome.error, ...(outcome.params ? { params: outcome.params } : {}) });
+const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome.error), ...(outcome.params ? { params: outcome.params } : {}) });
 
 /**
  * Builds the server half of a seated game.
@@ -376,7 +377,7 @@ export function createRoomServer(ctx, options) {
    * a person without a live game is shown the menu.
    * @param {object} socket  the connected socket (needs `data.user`)
    * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here
-   * @returns {{ ok: boolean, code?: string | null, error?: string }} the ack for the client
+   * @returns {{ ok: boolean, code?: string | null, error?: string, params?: object }} the ack for the client
    * Side effects: attaches the socket to a room or emits a null 'state'; joining adds the person to the room, leaves other rooms, and calls `changed`.
    */
   function enter(socket, rawCode) {

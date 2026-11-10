@@ -73,9 +73,9 @@ export function cleanBackground(input) {
 }
 
 /**
- * Checks a card-back setting: one of the presets, or the user's own uploaded picture.
+ * Checks a card-back setting: one of the presets, the user's own uploaded picture, or their avatar drawn onto the back.
  * @param {*} input  what the client sent
- * @returns {{ type: 'preset', value: string } | { type: 'image', file: string }}
+ * @returns {{ type: 'preset', value: string } | { type: 'image', file: string } | { type: 'avatar' }}
  * @throws {AuthError} 400 when it is not a valid card back
  * Side effects: none.
  */
