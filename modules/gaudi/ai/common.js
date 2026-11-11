@@ -241,17 +241,27 @@ export function placementsOf(state, seat, options) {
  *
  * Side effects: none (other than advancing rng).
  */
-export function chooseStep(state, seat, rng, policy) {
-  const { turn } = state;
-  if (turn.placements >= allowedPlacements(state)) return { type: 'end' };
-  const grid = state.grids[seat];
-  const pattern = patternOf(state.patterns[seat]);
-  const context = policy.context?.(state, seat) ?? null;
-  const noise = policy.noise ?? 0.3;
-  /** The policy's score for a placement, plus a little random jitter so equal choices are not always broken the same way.
-   * Side effects: advances rng. */
-  const scoreOf = (die, cell, options) => policy.score(state, seat, die, cell, options ?? null, context) + rng() * noise;
+/**
+ * The two tools that change the face of a die in the pool and then place it under the ordinary rules.  They differ
+ * only in which faces they can reach and what the move is called, so they are written as a pair of descriptors rather
+ * than as two branches; the others each do something of their own shape and are written out below.
+ */
+const FACE_TOOLS = [
+  { id: 'lathe', faces: (v) => [v - 1, v + 1].filter((f) => f >= 1 && f <= 6), params: (die, v) => ({ die: die.id, delta: v - die.v }) },
+  { id: 'mirror', faces: (v) => [7 - v], params: (die) => ({ die: die.id }) },
+];
 
+/**
+ * The best placement available without any tool, and the best each pool die can manage on its own (which is how the
+ * exchange tool decides whose die to give away).
+ * @param {object} state  the AI's snapshot
+ * @param {object} grid  the seat's grid
+ * @param {object} pattern  the seat's pattern
+ * @param {(die: object, cell: number, options?: object) => number} scoreOf  the jittered score of one placement
+ * @returns {{ best: { die: *, cell: number, score: number } | null, bestPerDie: Map<*, number> }}
+ * Side effects: advances rng once for every placement considered, through `scoreOf`.
+ */
+function bestPlacement(state, grid, pattern, scoreOf) {
   let best = null;
   const bestPerDie = new Map();
   for (const die of state.pool) {
@@ -261,35 +271,31 @@ export function chooseStep(state, seat, rng, policy) {
       if (!bestPerDie.has(die.id) || score > bestPerDie.get(die.id)) bestPerDie.set(die.id, score);
     }
   }
-  /** The plain placement chosen so far (or ending the turn when nothing fits).  Side effects: none. */
-  const place = () => (best ? { type: 'place', die: best.die, cell: best.cell } : { type: 'end' });
-  if (turn.toolUsed || policy.tools === 'never' || !state.tools.length) return place();
-  const stuck = !best;
-  if (!stuck && policy.tools !== 'eager') return place();
+  return { best, bestPerDie };
+}
 
-  const tokenValue = policy.tokenValue ?? 3;
+/**
+ * Every placement a tool would make possible, each already charged for what the tool costs, so that they can be
+ * compared with one another and with the best plain placement on one scale.
+ * @param {object} state  the AI's snapshot
+ * @param {number} seat  the seat deciding
+ * @param {object} ctx  { grid, pattern, scoreOf, tokenValue, stuck, policy, bestPerDie }
+ * @returns {object[]} candidates of { tool, params, score }
+ * Side effects: advances rng once per candidate, through `scoreOf`.
+ */
+function toolCandidates(state, seat, { grid, pattern, scoreOf, tokenValue, stuck, policy, bestPerDie }) {
   const candidates = [];
-  /**
-   * Adds every placement a tool would make possible as a candidate, charged for its cost.
-   *
-   * @param {object} die  the die as the tool would leave it
-   * @param {number} cost  the tool's cost in tokens
-   * @param {object} make  { tool, params } to report if this candidate wins
-   * @param {object} [options]  placement rules relaxed by the tool
-   * @returns {void}
-   *
-   * Side effects: pushes onto candidates.
-   */
+  /** Adds every placement this die would make possible, charged for the tool's cost.  Side effects: pushes onto candidates. */
   const consider = (die, cost, make, options) => {
     for (const cell of legalCells(grid, pattern, die, options)) candidates.push({ ...make, score: scoreOf(die, cell, options) - tokenValue * cost });
   };
   for (const pooled of state.pool) {
-    for (const id of ['lathe', 'mirror']) {
-      const cost = affordable(state, seat, id);
+    for (const tool of FACE_TOOLS) {
+      const cost = affordable(state, seat, tool.id);
       if (!cost) continue;
-      const faces = id === 'mirror' ? [7 - pooled.v] : [pooled.v - 1, pooled.v + 1].filter((v) => v >= 1 && v <= 6);
-      for (const v of faces) consider({ ...pooled, v }, cost, { tool: id, params: id === 'mirror' ? { die: pooled.id } : { die: pooled.id, delta: v - pooled.v } });
+      for (const v of tool.faces(pooled.v)) consider({ ...pooled, v }, cost, { tool: tool.id, params: tool.params(pooled, v) });
     }
+    // Not a face tool: the die is unchanged and it is the placement rule that gives way.
     const free = affordable(state, seat, 'free-pane');
     if (free && (stuck || policy.freePane)) {
       for (const cell of legalCells(grid, pattern, pooled, { ignoreTouch: true })) {
@@ -297,6 +303,7 @@ export function chooseStep(state, seat, rng, policy) {
       }
     }
   }
+  // Nor is this one: the die comes from the track rather than the pool.
   const swap = affordable(state, seat, 'exchange');
   if (swap && state.pool.length && (stuck || policy.exchange)) {
     // Give away the pool die that is least use to us, and try each kind of die on the track once.
@@ -311,11 +318,47 @@ export function chooseStep(state, seat, rng, policy) {
       }
     }
   }
-  if (!candidates.length && stuck) {
-    if (affordable(state, seat, 'refire') && state.pool.length) return { type: 'tool', tool: 'refire', params: { die: pickOne(state.pool, rng).id } };
-    if (affordable(state, seat, 'kiln') && turn.number === 2 && turn.placements === 0 && state.pool.length) return { type: 'tool', tool: 'kiln', params: {} };
-    return { type: 'end' };
-  }
+  return candidates;
+}
+
+/**
+ * What to do when there is nothing to place and no tool can make a placement either: shake up the pool, or take the
+ * one-off opening tool while it is still the opening, or give the turn up.
+ * @param {object} state  the AI's snapshot
+ * @param {number} seat  the seat deciding
+ * @param {object} turn  state.turn
+ * @param {() => number} rng  random source, for which die to refire
+ * @returns {object} the move
+ * Side effects: advances rng when it refires.
+ */
+function lastResort(state, seat, turn, rng) {
+  if (affordable(state, seat, 'refire') && state.pool.length) return { type: 'tool', tool: 'refire', params: { die: pickOne(state.pool, rng).id } };
+  if (affordable(state, seat, 'kiln') && turn.number === 2 && turn.placements === 0 && state.pool.length) return { type: 'tool', tool: 'kiln', params: {} };
+  return { type: 'end' };
+}
+
+export function chooseStep(state, seat, rng, policy) {
+  const { turn } = state;
+  if (turn.placements >= allowedPlacements(state)) return { type: 'end' };
+  const grid = state.grids[seat];
+  const pattern = patternOf(state.patterns[seat]);
+  const context = policy.context?.(state, seat) ?? null;
+  const noise = policy.noise ?? 0.3;
+  /** The policy's score for a placement, plus a little random jitter so equal choices are not always broken the same way.
+   * Side effects: advances rng. */
+  const scoreOf = (die, cell, options) => policy.score(state, seat, die, cell, options ?? null, context) + rng() * noise;
+
+  const { best, bestPerDie } = bestPlacement(state, grid, pattern, scoreOf);
+  /** The plain placement chosen so far (or ending the turn when nothing fits).  Side effects: none. */
+  const place = () => (best ? { type: 'place', die: best.die, cell: best.cell } : { type: 'end' });
+  if (turn.toolUsed || policy.tools === 'never' || !state.tools.length) return place();
+  const stuck = !best;
+  if (!stuck && policy.tools !== 'eager') return place();
+
+  const tokenValue = policy.tokenValue ?? 3;
+  const candidates = toolCandidates(state, seat, { grid, pattern, scoreOf, tokenValue, stuck, policy, bestPerDie });
+  if (!candidates.length && stuck) return lastResort(state, seat, turn, rng);
+
   const top = candidates.reduce((winner, c) => (!winner || c.score > winner.score ? c : winner), null);
   if (!top) return place();
   if (stuck) return { type: 'tool', tool: top.tool, params: top.params };
