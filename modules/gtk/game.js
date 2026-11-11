@@ -491,45 +491,68 @@ export function choose(room, id, n, nameOf = String) {
  * Side effects: changes scores, bumps statistics counters (tallyQuestion), sets room.result and room.roundPicks,
  *   pushes room.history, clears ready, and sets phase 'reveal'.
  */
-function scoreQuestion(room, nameOf = String) {
+/**
+ * What a scored question turns on, read off the room once so that the scoring, the notes, the tallies and the
+ * statistics all answer from the same facts rather than working them out again.
+ * @param {object} room  not changed
+ * @returns {{ truth: number, fooled: number[], right: Set<*>, matched: Set<*>, named: Set<*> }}
+ *   which option was true, how many picked each one, who found it, whose made-up answer happened to be it, and who
+ *   every other player named (told now, with the answers, and never before)
+ * Side effects: none.
+ */
+function questionFacts(room) {
   const truth = truthIndex(room);
+  const fooled = room.options.map(() => 0);
+  for (const pick of room.picks) fooled[pick.n]++;
+  return {
+    truth,
+    fooled,
+    right: new Set(room.picks.filter((pick) => pick.n === truth).map((pick) => pick.id)),
+    matched: new Set(room.options[truth]?.authors ?? []),
+    named: new Set(namedBy(room, room.question).map((p) => p.id)),
+  };
+}
+
+/**
+ * Awards a question's points: for finding the true answer, for having written it by accident, and for every person
+ * taken in by a made-up one.
+ * @param {object} room  the players' scores are changed
+ * @param {object} facts  from questionFacts
+ * @returns {{ deltas: object, gave: object }} the points each slot gained, and how many people each author fooled
+ * Side effects: adds to `player.score`.
+ */
+function awardPoints(room, { fooled, right, matched }) {
   // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
   // is what survives that, so a finished question is written once and never touched again.  viewFor sends it back out
   // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   const deltas = Object.fromEntries(room.players.map((p) => [p.slot, 0]));
-  const fooled = room.options.map(() => 0); // how many people picked each option
-  for (const pick of room.picks) fooled[pick.n]++;
-  const right = new Set(room.picks.filter((pick) => pick.n === truth).map((pick) => pick.id));
-  const matched = new Set(room.options[truth]?.authors ?? []); // people whose made-up answer was the true one
-  const gave = {}; // how many people each author fooled this question
-
-  for (const id of right) {
+  const gave = {};
+  /** Gives one player their points, and answers with them, or with null when they have left.  Side effects: scores. */
+  const award = (id, points) => {
     const player = playerOf(room, id);
-    if (!player) continue;
-    player.score += POINTS.correct;
-    deltas[player.slot] += POINTS.correct;
-  }
-  for (const id of matched) {
-    const player = playerOf(room, id);
-    if (!player) continue;
-    player.score += POINTS.matched;
-    deltas[player.slot] += POINTS.matched;
-  }
+    if (!player) return null;
+    player.score += points;
+    deltas[player.slot] += points;
+    return player;
+  };
+  for (const id of right) award(id, POINTS.correct);
+  for (const id of matched) award(id, POINTS.matched);
   for (const [n, option] of room.options.entries()) {
     if (option.truth || !fooled[n]) continue;
-    for (const id of option.authors) {
-      const player = playerOf(room, id);
-      if (!player) continue;
-      gave[id] = (gave[id] ?? 0) + fooled[n];
-      player.score += POINTS.fooled * fooled[n];
-      deltas[player.slot] += POINTS.fooled * fooled[n];
-    }
+    for (const id of option.authors) if (award(id, POINTS.fooled * fooled[n])) gave[id] = (gave[id] ?? 0) + fooled[n];
   }
+  return { deltas, gave };
+}
 
-  // Anybody every other player named: told now, with the answers, and never before.
-  const named = new Set(namedBy(room, room.question).map((p) => p.id));
-
-  // One note per player, the most interesting thing they did: fooling somebody beats finding the answer.
+/**
+ * One note per player, the most interesting thing they did: fooling somebody beats finding the answer.
+ * @param {object} room  not changed
+ * @param {object} facts  from questionFacts
+ * @param {object} gave  how many people each author fooled, from awardPoints
+ * @returns {object} the note for each slot that earned one
+ * Side effects: none.
+ */
+function notesFor(room, { right, matched, named }, gave) {
   const notes = {};
   for (const p of room.players) {
     if (gave[p.id]) notes[p.slot] = msg('notes.fooled', { count: gave[p.id] });
@@ -538,7 +561,18 @@ function scoreQuestion(room, nameOf = String) {
     else if (right.has(p.id)) notes[p.slot] = msg('notes.right');
     else if (p.id === room.subject) notes[p.slot] = msg('notes.theirRound');
   }
+  return notes;
+}
 
+/**
+ * Keeps how each player has done over the round's questions, which the round's own scores read.  The subject does not
+ * answer their own question, so they are not asked and not counted.
+ * @param {object} room  room.roundPicks is changed
+ * @param {object} facts  from questionFacts
+ * @returns {void}
+ * Side effects: creates and adds to room.roundPicks.
+ */
+function recordRoundPicks(room, { right, matched }) {
   room.roundPicks ??= {};
   for (const p of room.players) {
     if (p.id === room.subject) continue;
@@ -546,6 +580,17 @@ function scoreQuestion(room, nameOf = String) {
     tally.asked++;
     if (right.has(p.id) || matched.has(p.id)) tally.rights++;
   }
+}
+
+/**
+ * Hands the question to the statistics, as players rather than ids, so that somebody who has left counts for nothing
+ * instead of counting for somebody else.
+ * @param {object} room  not changed
+ * @param {object} facts  from questionFacts
+ * @returns {void}
+ * Side effects: bumps the statistics counters.
+ */
+function recordStatistics(room, { truth, fooled, right, matched, named }) {
   tallyQuestion({
     subject: playerOf(room, room.subject) ?? null,
     picks: room.picks.map((pick) => ({ player: playerOf(room, pick.id) ?? null, right: pick.n === truth })),
@@ -554,8 +599,17 @@ function scoreQuestion(room, nameOf = String) {
     // Nobody found the subject out: every pick went to a made-up answer, and nobody wrote the true one by accident.
     foundByNobody: room.picks.length > 0 && right.size === 0 && matched.size === 0,
   });
+}
 
-  room.result = {
+/**
+ * What the reveal shows: the true answer, and every option with who wrote it and who picked it.
+ * @param {object} room  not changed
+ * @param {number} truth  which option was the true one
+ * @returns {object} room.result
+ * Side effects: none.
+ */
+function revealOf(room, truth) {
+  return {
     question: room.question,
     questionId: room.questions[room.question]?.id ?? null,
     subject: room.subject,
@@ -568,6 +622,16 @@ function scoreQuestion(room, nameOf = String) {
       pickedBy: room.picks.filter((pick) => pick.n === n).map((pick) => pick.id),
     })),
   };
+}
+
+function scoreQuestion(room, nameOf = String) {
+  const facts = questionFacts(room);
+  const { deltas, gave } = awardPoints(room, facts);
+  const notes = notesFor(room, facts, gave);
+  recordRoundPicks(room, facts);
+  recordStatistics(room, facts);
+
+  room.result = revealOf(room, facts.truth);
   room.history.push({ label: msg('scoreboard.question', { round: room.round + 1, total: room.roundsTotal, name: nameOf(room.subject), n: room.question + 1 }), deltas, notes });
   room.ready = [];
   room.deadline = null; // the reveal has a wait of its own, which the server keeps
