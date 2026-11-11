@@ -11,8 +11,8 @@
 //   { target, by, yes: [ids], no: [ids], until }
 // There is no timer anywhere.  A vote simply stops counting once `until` has passed, which is checked whenever the
 // vote is read, so a vote nobody answers cannot block the next one for ever.
-// Depends on: ./seats.js (fail, ok).
-import { fail, ok } from './seats.js';
+// Depends on: ./members.js (fail, ok) and, for the adapter at the foot of this file, ./layout.js's idea of a slot.
+import { fail, ok } from './members.js';
 
 /** How long a vote stands before it lapses (ms). */
 export const VOTE_MS = 60_000;
@@ -145,4 +145,66 @@ export function voteView(room, forId, people, now) {
   const voters = people.filter((p) => p.id !== vote.target).length;
   const answered = vote.yes.includes(forId) ? true : vote.no.includes(forId) ? false : null;
   return { target: vote.target, by: vote.by, yes: vote.yes.length, no: vote.no.length, needed: needed(voters), answered, mine: vote.by === forId };
+}
+
+/**
+ * The rules above in the terms a room is actually spoken about in.
+ *
+ * Everybody is named from outside by their slot — "s0", "s1" — whichever family the game belongs to, so that a vote
+ * about somebody says the same thing in every game and a client never has to know which kind of game it is drawing.
+ * The votes themselves are kept in account ids, because that is what the rules remove by, so something has to stand
+ * between the two; this is that something, and it is the only place either naming is translated.
+ *
+ * @param {object} options
+ * @param {object} options.game  the rules (isHuman)
+ * @param {(room: object) => object[]} options.members  everybody in the room, the way this family keeps them
+ * @param {object} options.layout  how this family addresses a place (shared/layout.js)
+ * @param {() => number} options.now  the clock
+ * @returns {object} peopleIn, accountNamed, viewFor, ask, answer, drop, tidy
+ * Side effects: none here; `ask`, `answer`, `drop` and `tidy` change `room.vote` as the rules above do.
+ */
+export function createVoteKick({ game, members, layout, now }) {
+  /** Everybody in the room who is a person. */
+  const peopleIn = (room) => (members(room) ?? []).filter((member) => game.isHuman?.(member));
+  /** The account in that slot, or null when nobody is. */
+  const accountNamed = (room, slot) => {
+    const member = layout.at(room, slot);
+    return game.isHuman?.(member) ? member.id : null;
+  };
+  /** The other way round: the slot that account is sitting in, or null. */
+  const nameFor = (room, account) => {
+    const list = members(room) ?? [];
+    const index = list.findIndex((m) => game.isHuman?.(m) && m.id === account);
+    return index === -1 ? null : layout.slotOf(list[index], index);
+  };
+
+  return {
+    peopleIn,
+    accountNamed,
+    /** The vote running in a room as one person is shown it, or null; the players named the way the game names them. */
+    viewFor(room, forId) {
+      const view = voteView(room, forId, peopleIn(room), now());
+      return view && { ...view, target: nameFor(room, view.target), by: nameFor(room, view.by) };
+    },
+    /** Asks for whoever is in a slot to be put out. */
+    ask(room, byId, slot) {
+      const target = accountNamed(room, slot);
+      if (target === null) return fail('playerNotInGame');
+      return askToRemove(room, byId, peopleIn(room), target, now());
+    },
+    /**
+     * Answers the vote that is running, and says who is to go if that answer carried it.  The target is read before
+     * the answer, because a vote that passes is over and no longer there to be asked.
+     * @returns {{ ok: boolean, error?: string, passed?: boolean, target?: * }} `target` is null unless it passed
+     */
+    answer(room, byId, agree) {
+      const target = room.vote?.target ?? null;
+      const answered = answerRemoval(room, byId, agree, peopleIn(room), now());
+      return answered.ok ? { ...answered, target: answered.passed ? target : null } : answered;
+    },
+    /** Gives up a vote you asked for. */
+    drop: (room, byId) => dropVote(room, byId, now()),
+    /** Forgets a vote about somebody who has gone, or one too few people are left to decide. */
+    tidy: (room) => tidyVote(room, peopleIn(room), now()),
+  };
 }

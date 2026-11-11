@@ -1,8 +1,8 @@
 // Small helpers for a game's tally: the counters it keeps about each player for the statistics and achievements.  A tally is a
 // plain object of numbers that is saved with the room, so a room saved before a counter existed has no such key; that is why
 // these read a missing key as 0 instead of the game assuming it is there.
-// Depends on: ./seats.js (isHuman).
-import { isHuman } from './seats.js';
+// Depends on: ./members.js (isHuman), which is true of a seat or a player alike — a tally belongs to either family.
+import { isHuman } from './members.js';
 
 /**
  * Builds a tally with every key at zero.

@@ -8,8 +8,9 @@
 //     target: 121               // optional: the score the game is played to
 //   }
 // `rounds` holds every finished round, oldest first, so the whole history can be shown.
-// Depends on: ./seats.js (isBot, isHuman).
-import { isBot, isGone, isHuman } from './seats.js';
+// Depends on: ./members.js (isBot, isHuman: true of either family) and ./seats.js (isGone, which only a seat can be).
+import { isBot, isHuman } from './members.js';
+import { isGone } from './seats.js';
 import { slotForSeat } from './layout.js';
 
 /**
