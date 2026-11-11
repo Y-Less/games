@@ -2,7 +2,31 @@
 // (`{ key, params }`, see shared/messages.js) that the table puts into the player's language with `text()`.
 import { computed } from 'vue';
 import { msg } from '../../../shared/messages.js';
+import { useSend } from './choiceState.js';
 import { gemMsg } from './gems.js';
+
+/**
+ * What clicking a gem stack means, as a decision rather than as a change: either the picks it leaves, or the reason
+ * it leaves them alone.  Written apart from the composable because it is the rule of the game at this table — two of
+ * a kind need four in the stack, three different ones at most, an empty stack is not a pick — and a rule is easier to
+ * trust when it can be read, and tested, without a table around it.
+ *
+ * @param {number} c  the gem colour clicked (0 to 4)
+ * @param {object} state  { picks, isPair, supply, available }
+ * @returns {{ picks: number[] } | { message: object }} the new picks, or what to say instead
+ * Side effects: none.
+ */
+export function gemClick(c, { picks, isPair, supply, available }) {
+  if (isPair) return { picks: c === picks[0] ? [] : [c] };
+  if (picks.includes(c)) {
+    if (picks.length === 1 && supply[c] >= 4) return { picks: [c, c] };
+    if (picks.length === 1 && available.length > 1) return { message: msg('take.pairNeedsFour', { gem: gemMsg(c) }) };
+    return { picks: picks.filter((x) => x !== c) };
+  }
+  if (supply[c] < 1) return { message: msg('take.noneOfColour', { gem: gemMsg(c) }) };
+  if (picks.length >= 3) return { message: msg('take.atMostThree') };
+  return { picks: [...picks, c] };
+}
 
 /**
  * Gem taking.
@@ -15,6 +39,7 @@ import { gemMsg } from './gems.js';
  * @returns {object} available, isPair, takeCheck ({ ok, text }, where `text` is a message), clickGem(colour), confirmTake(), clearPicks()
  */
 export function useGemTake(view, shared, send) {
+  const request = useSend(shared, send);
   // Gem colours (0 to 4, not Gold) that still have tokens in the supply.
   const available = computed(() => [0, 1, 2, 3, 4].filter((c) => view.supply[c] > 0));
   // True when the picks are the same colour twice (a take of two of a kind).
@@ -46,26 +71,9 @@ export function useGemTake(view, shared, send) {
       shared.message = view.s.pending ? msg('status.finishFirst') : msg('errors.notYourTurn');
       return;
     }
-    const p = shared.picks;
-    if (isPair.value) {
-      shared.picks = c === p[0] ? [] : [c];
-      return;
-    }
-    if (p.includes(c)) {
-      if (p.length === 1 && view.supply[c] >= 4) shared.picks = [c, c];
-      else if (p.length === 1 && available.value.length > 1) shared.message = msg('take.pairNeedsFour', { gem: gemMsg(c) });
-      else shared.picks = p.filter((x) => x !== c);
-      return;
-    }
-    if (view.supply[c] < 1) {
-      shared.message = msg('take.noneOfColour', { gem: gemMsg(c) });
-      return;
-    }
-    if (p.length >= 3) {
-      shared.message = msg('take.atMostThree');
-      return;
-    }
-    shared.picks = [...p, c];
+    const outcome = gemClick(c, { picks: shared.picks, isPair: isPair.value, supply: view.supply, available: available.value });
+    if (outcome.picks) shared.picks = outcome.picks;
+    else shared.message = outcome.message;
   }
 
   /**
@@ -74,11 +82,9 @@ export function useGemTake(view, shared, send) {
    * Side effects: sets the shared busy flag while waiting; sends 'takeTwo' or 'take'; clears picks on success.
    */
   async function confirmTake() {
-    if (!takeCheck.value.ok || shared.busy) return;
-    shared.busy = true;
-    const reply = isPair.value ? await send('takeTwo', { colour: shared.picks[0] }) : await send('take', { colours: shared.picks });
-    shared.busy = false;
-    if (reply.ok) shared.picks = [];
+    if (!takeCheck.value.ok) return;
+    const [action, payload] = isPair.value ? ['takeTwo', { colour: shared.picks[0] }] : ['take', { colours: shared.picks }];
+    await request(action, payload, clearPicks);
   }
 
   /**

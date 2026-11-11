@@ -4,7 +4,28 @@ import { computed, watch } from 'vue';
 import { msg } from '../../../shared/messages.js';
 import { CARD_BY_ID } from '../cards.js';
 import { MAX_RESERVED } from '../rules.js';
+import { useSend } from './choiceState.js';
 import { sum } from './tableView.js';
+
+/**
+ * A payment with more Gold in it than the quote asked for: each extra Gold replaces a gem of whichever colour is
+ * being paid most, which is the one the player is most likely to want to keep.
+ * @param {number[]} pay  the quote's payment, six slots, Gold last (not changed)
+ * @param {number} extra  how many more Gold to spend than the quote's minimum
+ * @returns {number[]} the payment
+ * Side effects: none.
+ */
+export function withExtraGold(pay, extra) {
+  const out = [...pay];
+  for (let left = extra; left > 0; left--) {
+    let best = -1;
+    for (let c = 0; c < 5; c++) if (out[c] > 0 && (best === -1 || out[c] > out[best])) best = c;
+    if (best === -1) break; // nothing but Gold left to replace
+    out[best]--;
+    out[5]++;
+  }
+  return out;
+}
 
 /**
  * Card choosing.
@@ -19,6 +40,7 @@ import { sum } from './tableView.js';
  *   goldLeft, pickCard(id), pickDeck(level), setGold(n), cancel(), buy(), reserve()
  */
 export function useCardChoice(view, shared, send) {
+  const request = useSend(shared, send);
   // Id of the selected card, or null (a pile or nothing is selected).
   const selectedCard = computed(() => (shared.sel?.kind === 'card' ? shared.sel.id : null));
   // Level of the selected pile, or null.
@@ -32,18 +54,7 @@ export function useCardChoice(view, shared, send) {
   // How much Gold you will pay with: your choice, clamped to what the quote allows (default: the least).
   const goldUsed = computed(() => (quote.value ? Math.min(quote.value.maxGold, Math.max(quote.value.minGold, shared.payGold ?? quote.value.minGold)) : 0));
   /** The payment for the chosen amount of Gold: Gold replaces gems, starting with the colour paid most. */
-  const payPlan = computed(() => {
-    if (!quote.value) return null;
-    const pay = [...quote.value.pay];
-    for (let extra = goldUsed.value - quote.value.minGold; extra > 0; extra--) {
-      let best = -1;
-      for (let c = 0; c < 5; c++) if (pay[c] > 0 && (best === -1 || pay[c] > pay[best])) best = c;
-      if (best === -1) break;
-      pay[best]--;
-      pay[5]++;
-    }
-    return pay;
-  });
+  const payPlan = computed(() => (quote.value ? withExtraGold(quote.value.pay, goldUsed.value - quote.value.minGold) : null));
   // For an unaffordable selected card: what is still short per colour (left), the Gold needed to cover it, and the total.
   const missing = computed(() => {
     if (!selectedCard.value || quote.value) return null;
@@ -111,12 +122,9 @@ export function useCardChoice(view, shared, send) {
    * Side effects: sets the shared busy flag while waiting; sends a 'buy' request; clears sel on success.
    */
   async function buy() {
-    if (!quote.value || !view.myTurn || shared.busy) return;
-    shared.busy = true;
+    if (!quote.value || !view.myTurn) return;
     const custom = goldUsed.value !== quote.value.minGold;
-    const reply = await send('buy', custom ? { card: selectedCard.value, pay: payPlan.value } : { card: selectedCard.value });
-    shared.busy = false;
-    if (reply.ok) shared.sel = null;
+    await request('buy', custom ? { card: selectedCard.value, pay: payPlan.value } : { card: selectedCard.value }, cancel);
   }
   /**
    * Reserves the selected card, or the top card of the selected pile.
@@ -124,11 +132,8 @@ export function useCardChoice(view, shared, send) {
    * Side effects: sets the shared busy flag while waiting; sends a 'reserve' request; clears sel on success.
    */
   async function reserve() {
-    if (!canReserve.value || shared.busy) return;
-    shared.busy = true;
-    const reply = await send('reserve', shared.sel.kind === 'deck' ? { level: shared.sel.level } : { card: shared.sel.id });
-    shared.busy = false;
-    if (reply.ok) shared.sel = null;
+    if (!canReserve.value) return;
+    await request('reserve', shared.sel.kind === 'deck' ? { level: shared.sel.level } : { card: shared.sel.id }, cancel);
   }
 
   // A card that left the table (or the reserve) while selected is no longer selected.

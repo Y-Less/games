@@ -23,6 +23,26 @@ export function createChoiceState() {
 }
 
 /**
+ * Sends one move and settles up after it: nothing else may be sent while it is on its way, and what the player chose
+ * is forgotten only when the server has agreed to it, so a refusal leaves their half-made choice on screen to fix
+ * rather than wiping it.  Every move at this table goes through here — taking gems, buying, reserving, giving back.
+ *
+ * @param {object} shared  the shared choice state (its `busy` is held for the round trip)
+ * @param {Function} send  sends an action to the server and resolves with its reply
+ * @returns {(action: string, payload: object, accepted?: () => void) => Promise<void>} the sender
+ * Side effects: sets and clears `shared.busy`, sends to the server, and runs `accepted` when it agrees.
+ */
+export function useSend(shared, send) {
+  return async function request(action, payload, accepted) {
+    if (shared.busy) return;
+    shared.busy = true;
+    const reply = await send(action, payload);
+    shared.busy = false;
+    if (reply.ok) accepted?.();
+  };
+}
+
+/**
  * Forgets half-made choices whenever the turn, the round, or the kind of pending choice changes.
  *
  * Side effects: a watcher that resets picks, giveBack, payGold, and message on the shared state.

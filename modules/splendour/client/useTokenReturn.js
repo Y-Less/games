@@ -1,7 +1,7 @@
 // Returning tokens (when over the limit) and choosing a noble at the Splendour table: the two choices the server can ask
 // of you between turns.
 import { computed } from 'vue';
-import { noTokens } from './choiceState.js';
+import { noTokens, useSend } from './choiceState.js';
 import { sum } from './tableView.js';
 
 /**
@@ -16,6 +16,7 @@ import { sum } from './tableView.js';
  * @returns {object} giveTotal, choosingNoble, canPickNoble(id), addGive(c), removeGive(c), clickToken(c), clear(), confirmGive(), chooseNoble(id)
  */
 export function useTokenReturn(view, shared, send) {
+  const request = useSend(shared, send);
   // How many tokens are currently marked for return.
   const giveTotal = computed(() => sum(shared.giveBack));
   // True when the server is waiting for you to pick a noble.
@@ -78,11 +79,8 @@ export function useTokenReturn(view, shared, send) {
    * Side effects: sets the shared busy flag while waiting; sends 'giveBack'; clears the marks on success.
    */
   async function confirmGive() {
-    if (!view.pendingMine || giveTotal.value !== view.pendingMine.count || shared.busy) return;
-    shared.busy = true;
-    const reply = await send('giveBack', { tokens: shared.giveBack });
-    shared.busy = false;
-    if (reply.ok) clear();
+    if (!view.pendingMine || giveTotal.value !== view.pendingMine.count) return;
+    await request('giveBack', { tokens: shared.giveBack }, clear);
   }
   /**
    * Chooses a noble.
