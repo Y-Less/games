@@ -161,48 +161,84 @@ const without = (cards, bad) => {
  * @returns {string} the card the model says the seat plays.
  * Side effects: none.
  */
+/**
+ * What the model leads with: a moon chaser leads its highest card that is not a heart, and anybody else leads a low
+ * spade to draw the Queen out (while they are not holding her themselves), or else their lowest safe card.
+ * @param {string[]} legal  the seat's legal cards
+ * @param {object} ctx  { hand, chasing, queenGone, notJack }
+ * @returns {string} the card
+ * Side effects: none.
+ */
+function modelLead(legal, { hand, chasing, queenGone, notJack }) {
+  if (chasing) return highestOf(without(legal, (c) => suit(c) === 'H'));
+  const lowSpades = legal.filter((c) => suit(c) === 'S' && rv(c) < 12);
+  if (lowSpades.length && !hand.includes(QUEEN) && !queenGone) return lowestOf(lowSpades);
+  let options = notJack(legal);
+  if (hand.includes(QUEEN)) options = without(options, (c) => suit(c) === 'S');
+  options = without(options, (c) => suit(c) === 'H');
+  return lowestOf(options);
+}
+
+/**
+ * What the model plays when it can follow suit: a chaser takes the trick if it can, the Jack of Diamonds is taken
+ * when the trick is otherwise harmless, and everybody else ducks under the trick, keeping the Queen back.
+ * @param {object} sim  look-ahead state
+ * @param {string[]} following  the legal cards of the suit led
+ * @param {string} led  the suit led
+ * @param {object} ctx  { chasing, jackOn, notJack }
+ * @returns {string} the card
+ * Side effects: none.
+ */
+function modelFollow(sim, following, led, { chasing, jackOn, notJack }) {
+  let best = 0;
+  for (const p of sim.trick) if (suit(p.card) === led && rv(p.card) > best) best = rv(p.card);
+  const last = sim.trick.length === sim.n - 1;
+  const winning = following.filter((c) => rv(c) > best);
+  const ducking = following.filter((c) => rv(c) < best);
+  if (chasing) return winning.length ? highestOf(winning) : lowestOf(following);
+  if (jackOn && led === 'D' && sim.trick.some((p) => p.card === JACK) && !sim.trick.some((p) => isPointCard(p.card)) && winning.length) {
+    return last ? lowestOf(winning) : highestOf(winning);
+  }
+  if (ducking.length) return highestOf(notJack(ducking));
+  return last ? highestOf(without(following, (c) => c === QUEEN)) : lowestOf(without(following, (c) => c === QUEEN));
+}
+
+/**
+ * How glad the model would be to be rid of a card it cannot follow with.  The numbers are bands rather than a scale:
+ * the Queen goes before any heart, a high spade before any plain card, and a chaser wants the opposite of all of it.
+ * @param {string} card  the card
+ * @param {object} ctx  { chasing, jackOn, queenGone }
+ * @returns {number} higher means discard this one sooner
+ * Side effects: none.
+ */
+function discardWorry(card, { chasing, jackOn, queenGone }) {
+  const rank = rv(card);
+  if (chasing) return -rank - (isPointCard(card) ? 100 : 0);
+  if (card === QUEEN) return 1000;
+  if (jackOn && card === JACK) return -1000;
+  if (suit(card) === 'S' && rank >= 13 && !queenGone) return 700 + rank;
+  if (suit(card) === 'H') return 500 + rank * 10;
+  return rank * 10;
+}
+
 function modelPlay(sim, seat, legal) {
   if (legal.length === 1) return legal[0];
   const hand = sim.hands[seat];
   const chasing = sim.chaser === seat;
   const jackOn = sim.jack;
   const notJack = (cards) => (jackOn ? without(cards, (c) => c === JACK) : cards);
-  if (!sim.trick.length) {
-    if (chasing) return highestOf(without(legal, (c) => suit(c) === 'H'));
-    const lowSpades = legal.filter((c) => suit(c) === 'S' && rv(c) < 12);
-    if (lowSpades.length && !hand.includes(QUEEN) && !sim.queenGone) return lowestOf(lowSpades);
-    let options = notJack(legal);
-    if (hand.includes(QUEEN)) options = without(options, (c) => suit(c) === 'S');
-    options = without(options, (c) => suit(c) === 'H');
-    return lowestOf(options);
-  }
+  if (!sim.trick.length) return modelLead(legal, { hand, chasing, queenGone: sim.queenGone, notJack });
+
   const led = suit(sim.trick[0].card);
   const following = legal.filter((c) => suit(c) === led);
-  if (following.length) {
-    let best = 0;
-    for (const p of sim.trick) if (suit(p.card) === led && rv(p.card) > best) best = rv(p.card);
-    const last = sim.trick.length === sim.n - 1;
-    const winning = following.filter((c) => rv(c) > best);
-    const ducking = following.filter((c) => rv(c) < best);
-    if (chasing) return winning.length ? highestOf(winning) : lowestOf(following);
-    if (jackOn && led === 'D' && sim.trick.some((p) => p.card === JACK) && !sim.trick.some((p) => isPointCard(p.card)) && winning.length) {
-      return last ? lowestOf(winning) : highestOf(winning);
-    }
-    if (ducking.length) return highestOf(notJack(ducking));
-    return last ? highestOf(without(following, (c) => c === QUEEN)) : lowestOf(without(following, (c) => c === QUEEN));
-  }
-  const queenGone = sim.queenGone || hand.includes(QUEEN);
+  if (following.length) return modelFollow(sim, following, led, { chasing, jackOn, notJack });
+
+  // Cannot follow: throw whatever it would least like to be holding later.
+  const ctx = { chasing, jackOn, queenGone: sim.queenGone || hand.includes(QUEEN) };
   let bestCard = legal[0];
   let bestWorry = -Infinity;
   for (const card of legal) {
-    const rank = rv(card);
-    let worry;
-    if (chasing) worry = -rank - (isPointCard(card) ? 100 : 0);
-    else if (card === QUEEN) worry = 1000;
-    else if (jackOn && card === JACK) worry = -1000;
-    else if (suit(card) === 'S' && rank >= 13 && !queenGone) worry = 700 + rank;
-    else if (suit(card) === 'H') worry = 500 + rank * 10;
-    else worry = rank * 10;
+    const worry = discardWorry(card, ctx);
     if (worry > bestWorry) {
       bestWorry = worry;
       bestCard = card;
