@@ -23,37 +23,79 @@ const IN_ROUND = ['word', 'picking', 'voting'];
  * @returns {object[]} The new lines as messages, oldest first (empty for a lobby or no state).
  * Side effects: none.
  */
-export function newEntries(prev, next) {
-  if (!next || next.phase === 'lobby') return [];
-  // Returns the name of a player id in the new state (the site's "Someone" if they have gone).  Ids read out of a
-  // table's keys are text, while a person's id is their account number, so the two are matched as text.
-  const name = (id) => next.players.find((p) => String(p.id) === String(id))?.name ?? msg('common.someone');
+/**
+ * The lines that open a round: the one that was skipped to get here, if one was, and whose word it now is.  A round
+ * is new when the phase is `word` and either the game was not in it before or the chooser has changed under it.
+ * @param {object | null} prev  the state before
+ * @param {object} next  the state that has just arrived
+ * @param {(id: *) => *} name  names a player
+ * @returns {object[]} the lines
+ * Side effects: none.
+ */
+function roundOpening(prev, next, name) {
+  if (next.phase !== 'word' || (prev && prev.phase === 'word' && prev.chooserId === next.chooserId)) return [];
   const out = [];
+  // A round left behind without being completed: say so before announcing the one replacing it.
+  if (prev && IN_ROUND.includes(prev.phase) && prev.completedRounds === next.completedRounds) out.push(msg('log.skipped'));
+  out.push(msg('log.choosing', { n: roundNumber(next), name: name(next.chooserId) }));
+  return out;
+}
 
-  if (next.phase === 'word' && (!prev || prev.phase !== 'word' || prev.chooserId !== next.chooserId)) {
-    if (prev && IN_ROUND.includes(prev.phase) && prev.completedRounds === next.completedRounds) out.push(msg('log.skipped'));
-    out.push(msg('log.choosing', { n: roundNumber(next), name: name(next.chooserId) }));
-  }
-  if (prev?.phase === 'word' && next.phase === 'picking') out.push(msg('log.chose', { name: name(next.chooserId) }));
-
-  if (prev && prev.phase === next.phase && ['picking', 'voting'].includes(next.phase)) {
-    for (const p of next.players) {
+/**
+ * The lines for people who have just done the thing the phase is waiting for: put a card down, or voted on them.
+ * Only for somebody who was already there a state ago, so that a computer player stepping into a seat mid-round does
+ * not announce the move it inherited.
+ * @param {object | null} prev  the state before
+ * @param {object} next  the state that has just arrived
+ * @returns {object[]} the lines
+ * Side effects: none.
+ */
+function duringRound(prev, next) {
+  if (!prev || prev.phase !== next.phase || !['picking', 'voting'].includes(next.phase)) return [];
+  const voting = next.phase === 'voting';
+  const flag = voting ? 'hasVoted' : 'hasPlayed';
+  const key = voting ? (next.judging === 'everyone' ? 'log.voted' : 'log.decided') : 'log.played';
+  return next.players
+    .filter((p) => {
       const was = prev.players.find((q) => q.id === p.id);
-      if (!was) continue;
-      if (next.phase === 'picking' && p.hasPlayed && !was.hasPlayed) out.push(msg('log.played', { name: p.name }));
-      if (next.phase === 'voting' && p.hasVoted && !was.hasVoted) out.push(msg(next.judging === 'everyone' ? 'log.voted' : 'log.decided', { name: p.name }));
-    }
-  }
+      return was && p[flag] && !was[flag];
+    })
+    .map((p) => msg(key, { name: p.name }));
+}
 
+/**
+ * The lines for how a round turned out, and for the end of the game.
+ * @param {object | null} prev  the state before
+ * @param {object} next  the state that has just arrived
+ * @param {(id: *) => *} name  names a player
+ * @returns {object[]} the lines
+ * Side effects: none.
+ */
+function roundOutcome(prev, next, name) {
+  const out = [];
   if (prev?.phase === 'picking' && next.phase === 'voting') out.push(msg('log.allOnTable'));
   if (prev?.phase === 'voting' && next.phase === 'results' && next.results) {
     const r = next.results;
     if (r.judging === 'favourite') out.push(msg('log.favourite', { chooser: name(next.chooserId), winner: name(r.winnerId) }));
     else out.push(msg(r.groupCorrect ? 'log.imposterCaught' : 'log.imposterFooled', { name: name(r.imposterId) }));
   }
-  if (next.phase === 'finished' && prev?.phase !== 'finished' && prev) {
+  // Dix'nt marks its winners on the state rather than on each player, so this is not shared/logDiff.js's endOfGame.
+  if (prev && next.phase === 'finished' && prev.phase !== 'finished') {
     const winners = next.players.filter((p) => next.winners.includes(p.id)).map((p) => p.name);
     if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
   }
   return out;
+}
+
+export function newEntries(prev, next) {
+  if (!next || next.phase === 'lobby') return [];
+  // Returns the name of a player id in the new state (the site's "Someone" if they have gone).  Ids read out of a
+  // table's keys are text, while a person's id is their account number, so the two are matched as text.
+  const name = (id) => next.players.find((p) => String(p.id) === String(id))?.name ?? msg('common.someone');
+  return [
+    ...roundOpening(prev, next, name),
+    ...(prev?.phase === 'word' && next.phase === 'picking' ? [msg('log.chose', { name: name(next.chooserId) })] : []),
+    ...duringRound(prev, next),
+    ...roundOutcome(prev, next, name),
+  ];
 }
