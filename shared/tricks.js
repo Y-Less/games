@@ -29,6 +29,24 @@ export const nextSeat = (seat, count) => (seat + 1) % count;
 export const turnAfterPlay = (seat, played, count) => (played === count ? null : nextSeat(seat, count));
 
 /**
+ * Is a finished trick sitting on the table with another one still to lead?
+ *
+ * A trick stays up for a moment after the last card so that everybody can see who took it, and while it is up
+ * `turnAfterPlay` has left nobody on turn.  The person who won it leads the next one, and need not sit through the
+ * pause to do so: playing a card clears the trick and leads with it.  The pause is still there for everybody else,
+ * and for the winner who would rather look at it a moment longer.
+ *
+ * The last trick of a round is not this: there is nothing left to lead, so it ends the round as it always did.
+ *
+ * @param {{ phase: string, trick: object[], seats: unknown[], tricksPlayed: number }} room  not changed
+ * @param {number} tricksInRound  how many tricks this round has
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const settlingTrick = (room, tricksInRound) =>
+  room.phase === 'playing' && room.trick.length === room.seats.length && room.tricksPlayed + 1 < tricksInRound;
+
+/**
  * The cards of a hand that follow the suit led (a Joker is never "of the suit").
  *
  * @param {string[]} hand

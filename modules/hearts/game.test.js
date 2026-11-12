@@ -6,6 +6,7 @@ import * as g from './game.js';
 import * as bot from './bot.js';
 import { STAT_KEYS } from './tally.js';
 import { passStandard } from './ai/standard.js';
+import { tricksFor } from './deals.js';
 import { newTally, tallyExchange } from './tally.js';
 
 function seeded(seed) {
@@ -287,8 +288,8 @@ test('a finished trick goes to its winner, who leads next', () => {
   assert.equal(room.turn, 3);
   const last = g.playCard(room, 3, '2D');
   assert.equal(last.complete, true);
-  assert.equal(room.turn, null, 'nobody plays while a trick waits to be cleared');
-  assert.equal(g.playCard(room, 0, '9C').ok, false);
+  assert.equal(room.turn, null, 'nobody is on turn while a trick waits to be cleared');
+  assert.equal(g.playCard(room, 0, '9C').ok, false, 'and nobody but its winner may play into that moment');
   assert.equal(bot.pendingAction(room).type, 'resolve');
   const outcome = g.resolveTrick(room);
   assert.deepEqual([outcome.winner, outcome.handOver], [1, false]);
@@ -297,6 +298,32 @@ test('a finished trick goes to its winner, who leads next', () => {
   assert.equal(room.tricksPlayed, 2);
   assert.deepEqual(room.trick, []);
   assert.equal(g.resolveTrick(room).ok, false);
+});
+
+test('the winner of a trick need not wait for the pause: leading clears it and plays the card', () => {
+  // Seat 0 is the person (account 1), and leads the ace, so they win the trick and lead the next one.
+  const room = midHand([['AD', '9C'], ['5D', '9H'], ['6D', '9S'], ['2D', '9D']], { turn: 0 });
+  for (const [seat, card] of [[0, 'AD'], [1, '5D'], [2, '6D'], [3, '2D']]) g.playCard(room, seat, card);
+  assert.equal(g.trickWinner(room.trick), 0);
+  assert.equal(room.turn, null, 'nobody is on turn: the trick is still on the table');
+  assert.equal(g.toPlay(room), 0, 'but the table is waiting for the player who won it');
+  assert.ok(g.viewFor(room, 1).legal !== null, 'whose cards stay live through the pause');
+  assert.equal(g.playCard(room, 2, '9S').ok, false, 'while nobody else may play into that moment');
+
+  // They lead a club straight away: the trick they won is cleared and the club is the new lead.
+  assert.equal(g.playCard(room, 0, '9C').ok, true);
+  assert.deepEqual(room.trick, [{ seat: 0, card: '9C' }]);
+  assert.deepEqual(room.taken[0].sort(), ['2D', '5D', '6D', 'AD'], 'the trick went to them all the same');
+  assert.equal(room.tricksPlayed, 2);
+  assert.equal(room.turn, 1, 'and the next player is on turn');
+  assert.equal(bot.pendingAction(room).type, 'play', 'the pause that would have cleared it is no longer owed');
+});
+
+test('a hand still ends on its last trick, which has nothing to lead', () => {
+  const room = midHand([['5D'], ['AD'], ['6D'], ['2D']], { turn: 0, tricksPlayed: tricksFor(4) - 1 });
+  for (const [seat, card] of [[0, '5D'], [1, 'AD'], [2, '6D'], [3, '2D']]) g.playCard(room, seat, card);
+  assert.equal(g.settling(room), false, 'there is no next trick to lead');
+  assert.equal(bot.pendingAction(room).type, 'resolve');
 });
 
 // ---- scoring ----

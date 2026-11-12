@@ -1,7 +1,7 @@
 // Tests for the shared trick-taking helpers (shared/tricks.js).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bestCard, followCards, nextSeat, trickWinnerSeat, turnAfterPlay } from './tricks.js';
+import { bestCard, followCards, nextSeat, settlingTrick, trickWinnerSeat, turnAfterPlay } from './tricks.js';
 
 test('the next seat goes round the table', () => {
   assert.equal(nextSeat(0, 4), 1);
@@ -13,6 +13,15 @@ test('after a play the turn passes on, and after the last card of a trick it bel
   assert.equal(turnAfterPlay(1, 2, 4), 2);
   assert.equal(turnAfterPlay(3, 4, 4), null);
   assert.equal(turnAfterPlay(0, 3, 3), null);
+});
+
+test('a finished trick is settling while there is another one to lead', () => {
+  const room = (trick, tricksPlayed, phase = 'playing') => ({ phase, trick: Array(trick).fill(null), seats: [0, 0, 0, 0], tricksPlayed });
+  assert.equal(settlingTrick(room(4, 0), 13), true);
+  assert.equal(settlingTrick(room(4, 11), 13), true);
+  assert.equal(settlingTrick(room(4, 12), 13), false, 'the last trick of a round has nothing to lead');
+  assert.equal(settlingTrick(room(3, 0), 13), false, 'an unfinished trick is simply somebody\'s turn');
+  assert.equal(settlingTrick(room(4, 0, 'roundEnd'), 13), false, 'and a round that is over is not waiting for a card');
 });
 
 test('following suit keeps only cards of the suit led, in hand order', () => {

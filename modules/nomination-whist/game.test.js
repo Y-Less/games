@@ -189,6 +189,48 @@ test('trick winners: highest trump, else highest of the suit led, and the no-tru
   assert.equal(winningCard(['5C', 'KC', 'AD', '2H'], 'H'), '2H');
 });
 
+/** A three-seat room part-way through a round, with hands dealt and then replaced by the ones given. */
+function midRound(hands, { roundIndex = 0, tricksPlayed = 0, nominations = [1, 0, 0] } = {}) {
+  const room = fullRoom(3);
+  assert.ok(g.start(room, 1, seeded(1)).ok);
+  room.roundIndex = roundIndex;
+  room.dealer = 2;
+  g.dealRound(room, seeded(2));
+  room.hands = hands;
+  room.nominations = [...nominations];
+  room.taken = [0, 0, 0];
+  room.tricksPlayed = tricksPlayed;
+  room.phase = 'playing';
+  room.turn = 0;
+  return room;
+}
+
+test('the winner of a trick need not wait for the pause: leading clears it and plays the card', () => {
+  // Round 0 is a hearts round, and nobody plays one, so the ace of spades takes it for seat 0 (the person, account 1).
+  const room = midRound([['AS', '9C'], ['5S', '9H'], ['6S', '9D']]);
+  for (const [seat, card] of [[0, 'AS'], [1, '5S'], [2, '6S']]) assert.ok(g.playCard(room, seat, card).ok);
+  assert.equal(room.turn, null, 'nobody is on turn: the trick is still on the table');
+  assert.equal(g.toPlay(room), 0, 'but the table is waiting for the player who won it');
+  assert.ok(g.viewFor(room, 1).legal !== null, 'whose cards stay live through the pause');
+  assert.equal(g.playCard(room, 1, '9H').ok, false, 'while nobody else may play into that moment');
+
+  // They lead a club straight away: the trick they won is cleared and the club is the new lead.
+  assert.ok(g.playCard(room, 0, '9C').ok);
+  assert.deepEqual(room.trick, [{ seat: 0, card: '9C' }]);
+  assert.deepEqual(room.taken, [1, 0, 0], 'the trick went to them all the same');
+  assert.equal(room.tricksPlayed, 1);
+  assert.equal(room.turn, 1, 'and the next player is on turn');
+  assert.equal(bot.pendingAction(room).type, 'play', 'the pause that would have cleared it is no longer owed');
+});
+
+test('a round still ends on its last trick, which has nothing to lead', () => {
+  const room = midRound([['AS'], ['5S'], ['6S']], { roundIndex: 5, tricksPlayed: 1 });
+  assert.equal(g.cardsThisRound(room), 2);
+  for (const [seat, card] of [[0, 'AS'], [1, '5S'], [2, '6S']]) assert.ok(g.playCard(room, seat, card).ok);
+  assert.equal(g.settling(room), false, 'there is no next trick to lead');
+  assert.equal(bot.pendingAction(room).type, 'resolve');
+});
+
 test('the dealer\'s forbidden nomination, in every combination', () => {
   for (let cards = 1; cards <= 7; cards++) {
     for (let others = 0; others <= 8; others++) {

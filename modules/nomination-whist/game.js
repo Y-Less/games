@@ -12,7 +12,7 @@ import { deckFor, isJoker, shuffle, sortHand } from '../../shared/cards.js';
 import { msg, suitMsg } from '../../shared/messages.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
-import { nextSeat, turnAfterPlay } from '../../shared/tricks.js';
+import { nextSeat, settlingTrick, turnAfterPlay } from '../../shared/tricks.js';
 import { AIS } from './ai/index.js';
 import { contextModel, lutv } from './ai/lut.js';
 import { handModel } from './sim/hand-model.js';
@@ -474,7 +474,9 @@ export function nominate(room, seat, number) {
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return msg('errors.notInHand');
-  const trick = room.trick.map((p) => p.card);
+  // While a finished trick is still on the table its winner may lead the next one (see `settling`), and the question
+  // is about the trick they would be leading: nothing down, so anything in hand will do.
+  const trick = settling(room) ? [] : room.trick.map((p) => p.card);
   if (legalCardsFor(hand, trick).includes(card)) return null;
   const led = suitMsg(ledSuit(trick));
   return isJoker(card) ? msg('errors.jokerOnlyWhenVoid', { suit: led }) : msg('errors.followSuit', { suit: led });
@@ -490,6 +492,12 @@ export function illegalReason(room, seat, card) {
  */
 export const legalCards = (room, seat) => room.hands[seat].filter((card) => illegalReason(room, seat, card) === null);
 
+/** A finished trick still on the table, with another to lead (shared/tricks.js); its winner may lead at once. */
+export const settling = (room) => settlingTrick(room, cardsThisRound(room));
+
+/** Whose card the table is waiting for: the turn, or the winner of a trick that is still on the table. */
+export const toPlay = (room) => (settling(room) ? trickWinner(room.trick, trumpThisRound(room)) : room.turn);
+
 /**
  * Plays a card to the trick, if the seat may.
  * Side effects: takes the card from the hand, adds it to the trick and the played pile, and moves the turn on (to nobody once the trick is full).
@@ -501,10 +509,13 @@ export const legalCards = (room, seat) => room.hands[seat].filter((card) => ille
  */
 export function playCard(room, seat, card) {
   if (room.phase !== 'playing') return fail('notPlaying');
-  if (room.turn !== seat) return fail('notYourTurn');
+  if (toPlay(room) !== seat) return fail('notYourTurn');
   if (typeof card !== 'string') return fail('notACard');
   const reason = illegalReason(room, seat, card);
   if (reason) return fail(reason.key.slice('errors.'.length), reason.params);
+  // Everything that could refuse has been asked, so nothing below changes a room that was not going to be changed.
+  // Leading before the pause is over clears the trick first; the scheduler then drops the timer that would have.
+  if (settling(room)) resolveTrick(room);
   const n = room.seats.length;
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
@@ -956,7 +967,8 @@ function roundView(room) {
  * Side effects: none.
  */
 function playView(room, me) {
-  const canPlay = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
+  const canPlay =
+    room.phase === 'playing' && toPlay(room) === me && (settling(room) || room.trick.length < room.seats.length);
   return {
     round: roundView(room),
     hand: room.hands[me] ?? [],

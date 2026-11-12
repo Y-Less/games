@@ -87,7 +87,8 @@ function checkView(room, userId, label) {
   if (room.phase !== 'lobby') assert.deepEqual(view.hand, me === -1 ? [] : room.hands[me]);
   assert.ok(view.seats.every((s) => !s || (!('hand' in s) && typeof s.cards === 'number')));
   assert.ok(!('hands' in view) && !('played' in view));
-  if (view.legal) assert.equal(me, room.turn);
+  // The winner of a trick that is still on the table may lead it away early, so `toPlay` rather than the turn.
+  if (view.legal) assert.equal(me, game.toPlay(room));
   if (view.forbidden !== null && view.forbidden !== undefined) assert.equal(room.turn, room.dealer, `${label}: the forbidden number is only shown on the dealer's turn`);
 }
 

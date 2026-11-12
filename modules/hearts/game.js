@@ -10,7 +10,7 @@
 // for seats, cards, tricks, scores, and AI selection under ../../shared.
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
-import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
+import { followCards, settlingTrick, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks.js';
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { cardMsg, msg, refusal, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
@@ -344,20 +344,31 @@ function exchange(room) {
 export function illegalReason(room, seat, card) {
   const hand = room.hands[seat];
   if (!hand.includes(card)) return msg('errors.notInHand');
-  if (room.trick.length === 0) {
-    if (room.tricksPlayed === 0) {
+  // While a finished trick is still on the table its winner may lead the next one (see `settling`), and the question
+  // is about the trick they would be leading: no cards down, and one more trick played than the room yet says.
+  const ahead = settling(room);
+  const trick = ahead ? [] : room.trick;
+  const tricksPlayed = ahead ? room.tricksPlayed + 1 : room.tricksPlayed;
+  if (trick.length === 0) {
+    if (tricksPlayed === 0) {
       const opening = openingCard(room.seats.length);
       return card === opening ? null : msg('errors.mustLead', { card: cardMsg(opening) });
     }
     if (isHeart(card) && !room.heartsBroken && hand.some((c) => !isHeart(c))) return msg('errors.heartsNotBroken');
     return null;
   }
-  const led = suitOf(room.trick[0].card);
+  const led = suitOf(trick[0].card);
   if (suitOf(card) === led) return null;
   if (followCards(hand, led).length) return msg('errors.followSuit', { suit: suitMsg(led) });
-  if (room.tricksPlayed === 0 && isPointCard(card) && hand.some((c) => !isPointCard(c))) return msg('errors.noPointsFirstTrick');
+  if (tricksPlayed === 0 && isPointCard(card) && hand.some((c) => !isPointCard(c))) return msg('errors.noPointsFirstTrick');
   return null;
 }
+
+/** A finished trick still on the table, with another to lead (shared/tricks.js); its winner may lead at once. */
+export const settling = (room) => settlingTrick(room, tricksFor(room.seats.length));
+
+/** Whose card the table is waiting for: the turn, or the winner of a trick that is still on the table. */
+export const toPlay = (room) => (settling(room) ? trickWinner(room.trick) : room.turn);
 
 /**
  * The cards a seat may legally play right now.
@@ -379,10 +390,13 @@ export const legalCards = (room, seat) => room.hands[seat].filter((card) => ille
  */
 export function playCard(room, seat, card) {
   if (room.phase !== 'playing') return fail('notPlaying');
-  if (room.turn !== seat) return fail('notYourTurn');
+  if (toPlay(room) !== seat) return fail('notYourTurn');
   if (typeof card !== 'string') return fail('notACard');
   const reason = illegalReason(room, seat, card);
   if (reason) return fail(reason.key.slice('errors.'.length), reason.params);
+  // Everything that could refuse has been asked, so nothing below changes a room that was not going to be changed.
+  // Leading before the pause is over clears the trick first; the scheduler then drops the timer that would have.
+  if (settling(room)) resolveTrick(room);
   room.hands[seat] = room.hands[seat].filter((c) => c !== card);
   room.trick.push({ seat, card });
   if (isHeart(card) || card === QUEEN) room.heartsBroken = true; // the queen breaks hearts too
@@ -822,7 +836,8 @@ function scoreboardView(room, me, online) {
  * Side effects: none.
  */
 function playView(room, me) {
-  const myTurn = room.phase === 'playing' && room.turn === me && room.trick.length < room.seats.length;
+  // The winner of a trick that is still on the table may lead at once, so their cards stay live through the pause.
+  const myTurn = room.phase === 'playing' && toPlay(room) === me && (settling(room) || room.trick.length < room.seats.length);
   const hand = room.hands[me] ?? [];
   return {
     hand,

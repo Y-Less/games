@@ -95,7 +95,8 @@ function checkView(room, userId, label) {
   if (me !== -1 && room.phase !== 'lobby') assert.deepEqual(view.hand, room.hands[me]);
   assert.ok(view.seats.every((s) => !s || (!('hand' in s) && typeof s.cards === 'number')));
   assert.ok(!('hands' in view) && !('passes' in view) && !('taken' in view));
-  if (view.legal) assert.equal(me, room.turn, `${label}: only the player to move gets legal moves`);
+  // Whoever the table is waiting for: the turn, or the winner of a trick still on the table, who may lead at once.
+  if (view.legal) assert.equal(me, game.toPlay(room), `${label}: only the player to move gets legal moves`);
   return view;
 }
 

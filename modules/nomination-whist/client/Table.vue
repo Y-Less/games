@@ -51,6 +51,9 @@ const hand = computed(() => sortHand(props.state.hand, props.state.round?.trump)
 const nameOf = (seat) => seats.value[seat]?.name ?? '';
 // True when it is your turn to nominate or play.
 const myTurn = computed(() => props.state.turn === you.value);
+// True when the server will take a card from you.  That is usually your turn, but it also covers the moment after you
+// have won a trick: it is still on the table, and playing a card clears it and leads with it rather than waiting.
+const canPlay = computed(() => props.state.phase === 'playing' && Boolean(props.state.legal));
 // Sum of all nominations made so far (a player who has not nominated counts as 0).
 const total = computed(() => seats.value.reduce((sum, s) => sum + (s.bid ?? 0), 0));
 // True when every seat has nominated.
@@ -136,7 +139,7 @@ const mineNow = computed(
   () =>
     !finished.value &&
     ((props.state.phase === 'nominating' && myTurn.value) ||
-      (props.state.phase === 'playing' && myTurn.value && props.state.turn !== null) ||
+      canPlay.value ||
       (props.state.phase === 'roundEnd' && !seats.value[you.value].ready)),
 );
 // Extra Status lines: the hint, the suggestion, the dealer's forbidden number, and the follow-suit reminder.
@@ -261,7 +264,7 @@ const roomFor = (area) => {
           <CardFan class="hand" role="group" :aria-label="t('table.yourHand')" :items="hand" :item-key="(card) => card" :size="roomFor(area).hand" :max="MOST_CARDS" :straight="!roomFor(area).fanned">
             <template #default="{ item: card }">
               <div class="slot" :title="state.legal?.[card] ? text(state.legal[card]) : undefined">
-                <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="state.phase === 'playing' && myTurn" :dimmed="Boolean(state.legal?.[card])" :trump="Boolean(round.trump) && suitOf(card) === round.trump" @pick="pick" />
+                <PlayingCard :card="card" :size="roomFor(area).hand" :clickable="canPlay" :dimmed="Boolean(state.legal?.[card])" :trump="Boolean(round.trump) && suitOf(card) === round.trump" @pick="pick" />
               </div>
             </template>
           </CardFan>

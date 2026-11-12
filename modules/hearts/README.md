@@ -54,7 +54,8 @@ e2e.test.js    the real site: whole games, lobby, hidden hands, reconnects, conc
 Seats hold `{ kind: 'human', id: <account id> }` or `{ kind: 'bot', id: 'bot:<n>' }`.  Computers pass the Queen of Spades,
 high spades and high hearts; lead low (flushing the Queen with low spades); duck tricks with points; dump the Queen and
 high hearts when they cannot follow suit; and only chase the moon with an overwhelming hand, giving up as soon as
-anyone else takes a point.  They act after a random delay, and a finished trick stays on the table for a moment.
+anyone else takes a point.  They act after a random delay, and a finished trick stays on the table for a moment --
+though whoever took it need not wait that out: playing a card clears the trick and leads the next one with it.
 Both can be changed through the environment (the tests make them fast):
 
 - `HEARTS_BOT_DELAY` as `min-max` milliseconds (default `300-700`)
