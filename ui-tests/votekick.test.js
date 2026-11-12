@@ -87,6 +87,8 @@ test("the pop-up offers a vote about somebody else, but never about yourself or 
 }));
 
 test('asking puts the tally in front of everybody, and the second yes carries it', { timeout: 90000 }, guarded('vote', async () => {
+  const seated = () => host.page.$$eval('.score-bar li.chip', (els) => els.length);
+  const before = await seated();
   await openChip(host, 'Third Tom');
   assert.ok(await pressInPopup(host, 'Vote to remove'), 'the button is there');
   assert.ok(await pressInPopup(host, 'Yes, ask them'), 'and its confirmation');
@@ -108,7 +110,7 @@ test('asking puts the tally in front of everybody, and the second yes carries it
     { timeout: 20000 },
     'Third Tom',
   );
-  assert.equal(await host.page.$$eval('.score-bar li.chip', (els) => els.length), 5, 'the table is the same size');
+  assert.equal(await seated(), before, 'the table is the same size: a computer player took the seat');
 }));
 
 test('and the invitation does not let him back in', { timeout: 90000 }, guarded('barred', async () => {
