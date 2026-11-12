@@ -125,7 +125,7 @@ async function setUp(people, { seats, length = 'full', missPoints, instantWin = 
   assert.ok(created.ok, created.error);
   for (const p of others) assert.ok((await p.send('join', { code: created.code })).ok);
   await until(() => host.state?.seats.filter((s) => s && !s.bot).length === people.length, 'everyone in the lobby');
-  assert.ok((await host.send('fillBots')).ok);
+  assert.ok((await host.send('fillBots', { count: seats })).ok); // the table is filled; filling on its own makes up a four
   await until(() => host.state.seats.every(Boolean), 'full seats');
   return created.code;
 }
@@ -212,7 +212,7 @@ async function assertRecorded(p, { seats, won = null }) {
   assert.equal(extras.bidsMade, rounds.filter((r) => r.bids[p.state.you] === r.taken[p.state.you]).length);
   assert.equal(extras.tricksWon, rounds.reduce((sum, r) => sum + r.taken[p.state.you], 0));
   assert.equal(extras.perfectGames, extras.bidsMade === extras.roundsPlayed ? 1 : 0);
-  assert.equal(stats.recent[0].players, p.state.settings.seats - p.state.seats.filter((s) => s.bot).length, 'only accounts are recorded');
+  assert.equal(stats.recent[0].players, p.state.seats.length - p.state.seats.filter((s) => s.bot).length, 'only accounts are recorded');
   assert.equal(stats.recent[0].placement, 1 + p.state.seats.filter((s) => s.score > mine.score).length);
   if (won !== null) assert.equal(winner, won);
   void seats;
@@ -316,7 +316,7 @@ test('the lobby: only the host changes things, seats and computer players, and t
   const created = await ann.send('create', {});
   assert.ok(created.ok);
   assert.equal((await ann.send('create')).ok, false, 'already in a game');
-  assert.equal(ann.state.seats.length, 4);
+  assert.equal(ann.state.seats.length, 7, 'a room opens as big as the game allows');
   assert.equal(ann.state.settings.instantWin, true, 'the instant win is on by default');
   assert.equal((await bob.send('settings', { instantWin: false })).ok, false, 'only the host');
   assert.equal((await ann.send('settings', { instantWin: 'yes' })).ok, false);
@@ -336,7 +336,7 @@ test('the lobby: only the host changes things, seats and computer players, and t
   assert.equal((await bob.send('settings', { seats: 5 })).ok, false);
   assert.equal((await bob.send('addBot', {})).ok, false);
   assert.equal((await bob.send('start')).ok, false);
-  assert.equal((await ann.send('start')).ok, false, 'empty seats');
+  assert.equal((await ann.send('start')).ok, false, 'two is too few');
   assert.ok((await ann.send('settings', { seats: 6, length: 'short', missPoints: false })).ok);
   await until(() => bob.state.seats.length === 6 && bob.state.settings.length === 'short', 'new settings');
   assert.equal((await ann.send('settings', { seats: 9 })).ok, false);
@@ -345,8 +345,11 @@ test('the lobby: only the host changes things, seats and computer players, and t
   await until(() => ann.state.seats[5]?.bot, 'a computer in seat 5');
   assert.ok((await ann.send('removeBot', { slot: 's5' })).ok);
   assert.equal((await ann.send('removeBot', { slot: 's0' })).ok, false);
-  assert.ok((await ann.send('fillBots')).ok);
-  assert.ok((await ann.send('settings', { seats: 3 })).ok, 'fewer seats drop computer players');
+  assert.ok((await ann.send('fillBots', { count: 6 })).ok);
+  // A table is never cut below the people at it: the host takes the computer players out first.
+  assert.equal((await ann.send('settings', { seats: 3 })).ok, false, 'six are seated');
+  for (const slot of ['s5', 's4', 's3']) assert.ok((await ann.send('removeBot', { slot })).ok);
+  assert.ok((await ann.send('settings', { seats: 3 })).ok);
   await until(() => ann.state.seats.length === 3 && ann.state.seats.every((x) => x.name), 'three seats');
   const stranger = await person('cat');
   assert.equal((await stranger.send('join', { code: created.code })).ok, false, 'the game is full');

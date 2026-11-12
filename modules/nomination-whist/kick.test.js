@@ -168,9 +168,9 @@ test('sockets: the host removes a person mid-game and a computer player takes th
   process.env.NOMINATION_WHIST_BOT_DELAY = '0-3';
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { length: 'short' });
+  const { code } = await ann.call('create', { length: 'short', seats: 4 });
   assert.equal((await bob.call('join', { code })).ok, true);
-  assert.equal((await ann.call('fillBots', {})).ok, true);
+  assert.equal((await ann.call('fillBots', { count: 4 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'full table');
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'started');

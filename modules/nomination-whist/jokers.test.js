@@ -96,7 +96,7 @@ test('the option is a setting, off by default, and only a boolean is accepted', 
 /** A started game with Ann (user 1) as the only person and computer players elsewhere. */
 function started(seats, jokers, seed) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, jokers } });
-  assert.ok(g.fillWithBots(room, 1).ok);
+  assert.ok(g.fillWithBots(room, 1, seats).ok);
   assert.ok(g.start(room, 1, seeded(seed)).ok);
   return room;
 }
@@ -166,7 +166,7 @@ test('with Jokers the suggested nomination comes from the table learned for them
   let offered = 0;
   for (let seed = 1; seed <= 60; seed++) {
     const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 3 + (seed % 5), jokers: true } });
-    g.fillWithBots(room, 1);
+    g.fillWithBots(room, 1, room.seats.length);
     g.start(room, 1, rng);
     while (room.phase === 'nominating' && room.turn !== 0) bot.runPending(room, rng);
     const view = g.viewFor(room, 1);
@@ -199,7 +199,7 @@ test('a Joker makes a hand worth more tricks in the Jokers table', { skip: !cont
 
 test('without the Jokers option the table for games without Jokers is used, so existing games are unchanged', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: 4 } });
-  g.fillWithBots(room, 1);
+  g.fillWithBots(room, 1, 4);
   g.start(room, 1, seeded(9));
   assert.equal(room.settings.jokers, false);
   while (room.turn !== 0) bot.runPending(room, seeded(9));

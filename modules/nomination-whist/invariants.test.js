@@ -17,13 +17,12 @@ function newRoom(rng) {
   const room = game.createRoom({ code: 'a-b-c', hostId: 101, hostName: 'h101', settings, now: 1 });
   const humans = 1 + Math.floor(rng() * Math.min(3, settings.seats));
   for (let i = 1; i < humans; i++) assert.equal(game.addHuman(room, 101 + i, `h${101 + i}`).ok, true);
-  assert.equal(game.fillWithBots(room, 101).ok, true);
+  assert.equal(game.fillWithBots(room, 101, settings.seats).ok, true);
   return room;
 }
 
 function checkRoom(room, label) {
   const n = room.seats.length;
-  assert.equal(n, room.settings.seats);
   if (['nominating', 'playing'].includes(room.phase)) {
     const cards = game.cardsThisRound(room);
     const all = [...room.hands.flat(), ...room.played];

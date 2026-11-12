@@ -104,7 +104,7 @@ test('Random stays random: it does not know about the last chance', () => {
 function lastRoundFor(scores, { seats = 3, seed = 5, settings = {} } = {}) {
   const rng = seeded(seed);
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, ...settings } });
-  assert.ok(g.fillWithBots(room, 1).ok);
+  assert.ok(g.fillWithBots(room, 1, seats).ok);
   assert.ok(g.start(room, 1, rng).ok);
   room.roundIndex = room.settings.length === 'short' ? 6 : 13;
   room.dealer = seats - 1; // so that Ann nominates first

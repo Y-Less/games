@@ -24,7 +24,10 @@ import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSea
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
 export const LENGTHS = ['full', 'short'];
-export const DEFAULT_SETTINGS = { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false, hints: true };
+// How many are playing is not one of these: it is the length of `room.seats`, and the shared rules keep it (see
+// `sizeOf` and `setSize` in shared/members.js).  DEFAULT_SEATS is what "fill with computer players" makes up to.
+export const DEFAULT_SEATS = 4;
+export const DEFAULT_SETTINGS = { length: 'full', missPoints: true, instantWin: true, jokers: false, hints: true };
 export const FULL_SCHEDULE = [7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7];
 export const SHORT_SCHEDULE = [7, 6, 5, 4, 3, 2, 1];
 export const TRUMP_ORDER = ['H', 'C', 'D', 'S', null];
@@ -187,10 +190,6 @@ export const winnersOf = (scores) => scores.flatMap((score, seat) => (score === 
  */
 export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
   const next = { ...current };
-  if (input?.seats !== undefined) {
-    if (!Number.isInteger(input.seats) || input.seats < MIN_SEATS || input.seats > MAX_SEATS) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
-    next.seats = input.seats;
-  }
   if (input?.length !== undefined) {
     if (!LENGTHS.includes(input.length)) return fail('lengthSetting');
     next.length = input.length;
@@ -229,12 +228,15 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(`A room cannot be created with those settings (${normalised.error}).`);
+  // A room opens as big as the game allows; the host may bring it down in the lobby.
+  const count = settings.seats ?? MAX_SEATS;
+  if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(`A game is for ${MIN_SEATS} to ${MAX_SEATS} players.`);
   const room = {
     code,
     hostId,
     phase: 'lobby',
     settings: normalised.settings,
-    seats: [{ kind: 'human', id: hostId, name: hostName }, ...Array(normalised.settings.seats - 1).fill(null)],
+    seats: [{ kind: 'human', id: hostId, name: hostName }, ...Array(count - 1).fill(null)],
     nextBot: 1,
     createdAt: now,
     updatedAt: now,
@@ -285,6 +287,9 @@ function resetGame(room) {
  */
 const seats = createSeatRules({
   isMidGame: (room) => MID_GAME.includes(room.phase),
+  minPlayers: MIN_SEATS,
+  maxPlayers: MAX_SEATS,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   takeOver: (room, oldId, bot, rng) => {
     bot.ai = pickAI(AIS, rng).id;
@@ -292,25 +297,10 @@ const seats = createSeatRules({
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
   finishedSeat: goneSeat,
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
-/**
- * Changes the number of seats: the people and computer players keep their order, and surplus computer players go.
- *
- * @param {object} room   the room (lobby only); mutates room.seats
- * @param {number} count  the new number of seats
- * @returns {{ ok: boolean, error?: string }} fails, changing nothing, when there are more people than seats
- */
-function resizeSeats(room, count) {
-  const occupants = room.seats.filter(Boolean);
-  while (occupants.length > count) {
-    const index = occupants.findLastIndex(isBot);
-    if (index === -1) return fail('removeBeforeFewerSeats');
-    occupants.splice(index, 1);
-  }
-  room.seats = [...occupants, ...Array(count - occupants.length).fill(null)];
-  return ok();
-}
 
 /**
  * The host changes the game's settings (lobby only).  Changing the number of seats resizes the table and resets the game.
@@ -325,10 +315,11 @@ export function setSettings(room, userId, input) {
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
-  if (next.settings.seats !== room.seats.length) {
-    const resized = resizeSeats(room, next.settings.seats);
-    if (!resized.ok) return resized;
-    resetGame(room);
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
+  if (input?.seats !== undefined) {
+    const sized = seats.setSize(room, userId, input.seats);
+    if (!sized.ok) return sized;
+    resetGame(room); // the hands and the scores are as long as the table, which has just changed length
   }
   room.settings = next.settings;
   return ok();
@@ -347,8 +338,11 @@ export function setSettings(room, userId, input) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   room.dealer = Math.floor(rng() * room.seats.length);
   dealRound(room, rng);
@@ -1020,7 +1014,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     instantWin: room.instantWin ?? null,
-    limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
+    limits: { min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
   return view;

@@ -11,30 +11,37 @@ const make = (settings = {}) => game.createRoom({ now: 0, code: 'a-b-c', hostId:
 test('settings: bad values are refused and change nothing; valid ones resize the table', () => {
   const room = make();
   const before = JSON.stringify(room);
-  for (const input of [{ seats: 2 }, { seats: 8 }, { seats: 4.5 }, { seats: '4' }, { length: 'medium' }, { missPoints: 'yes' }, { instantWin: 'yes' }, { instantWin: 1 }, { seats: null }]) {
+  for (const input of [{ seats: 2 }, { seats: 8 }, { length: 'medium' }, { missPoints: 'yes' }, { instantWin: 'yes' }, { instantWin: 1 }, { seats: null }]) {
     assert.equal(game.setSettings(room, 1, input).ok, false, JSON.stringify(input));
   }
+  assert.equal(JSON.stringify(room), before);
+  // A number written out, or one that is not quite whole, is read rather than refused: the shared rule rounds it and
+  // then checks the range.  The table opens at seven, so asking for 7.4 or "7" asks for the table it already has.
+  for (const input of [{ seats: 7.4 }, { seats: '7' }]) assert.equal(game.setSettings(room, 1, input).ok, true, JSON.stringify(input));
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.setSettings(room, 1, { seats: 6 }).ok, true);
   assert.equal(room.seats.length, 6);
   assert.equal(room.scores.length, 6, 'scores follow the table size');
   assert.equal(game.setSettings(room, 1, { seats: 3, length: 'short', missPoints: false }).ok, true);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true, jokers: false, hints: true });
-  assert.equal(room.seats.length, 3);
+  assert.deepEqual(room.settings, { length: 'short', missPoints: false, instantWin: true, jokers: false, hints: true });
+  assert.equal(room.seats.length, 3, 'how many are playing is the table, not a setting');
   assert.throws(() => make({ seats: 99 }));
 });
 
-test('shrinking the table drops computer players first and refuses when only people would have to go', () => {
+test('a table is never cut below the people at it, computer players included', () => {
+  // It used to drop the computer players itself, which chose for the host who was to go.  The shared rule refuses
+  // instead, as it does for the games with a list of players, and the host takes somebody out first.
   const room = make({ seats: 5 });
   game.addHuman(room, 2, 'bob');
   game.addHuman(room, 3, 'cat');
   game.addHuman(room, 4, 'dan');
   game.addBot(room, 1);
+  assert.equal(game.setSettings(room, 1, { seats: 4 }).error, 'removeBeforeFewerPlayers');
+  assert.equal(room.seats.filter(game.isBot).length, 1, 'the computer player stays until the host says otherwise');
+  assert.ok(game.removeBot(room, 1, 's4').ok);
   assert.equal(game.setSettings(room, 1, { seats: 4 }).ok, true);
-  assert.equal(room.seats.filter(game.isBot).length, 0, 'the computer player went');
   assert.equal(game.setSettings(room, 1, { seats: 3 }).ok, false, 'four people cannot sit at three seats');
   assert.equal(room.seats.length, 4);
-  assert.equal(room.settings.seats, 4);
 });
 
 test('names: people with the same name get numbered, and computer players never clash', () => {
@@ -42,14 +49,14 @@ test('names: people with the same name get numbered, and computer players never 
   game.addHuman(room, 2, 'ann');
   game.addHuman(room, 3, 'ANN');
   assert.deepEqual(room.seats.slice(0, 3).map((s) => s.name), ['ann', 'ann (2)', 'ANN (3)']);
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, 5);
   assert.equal(new Set(room.seats.map((s) => s.name.toLowerCase())).size, 5);
 });
 
 test('after the end: a person who leaves keeps a "gone" seat; play again clears it and starts a lobby', () => {
   const room = make({ seats: 3, length: 'short' });
   game.addHuman(room, 2, 'bob');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, 3);
   const rng = seeded(8);
   game.start(room, 1, rng);
   while (room.phase !== 'finished') {
@@ -92,7 +99,7 @@ test('the trump suit cycles hearts, clubs, diamonds, spades, no trumps; the deal
 test('refused nominations and plays leave the room exactly as it was', () => {
   const room = make({ seats: 3, length: 'short' });
   game.addHuman(room, 2, 'bob');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, 3);
   game.start(room, 1, seeded(21));
   while (bot.pendingAction(room)) bot.runPending(room, seeded(1));
   const seat = room.turn;

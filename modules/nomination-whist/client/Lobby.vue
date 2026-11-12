@@ -27,8 +27,6 @@ const seats = computed(() =>
 );
 // Returns the index of the first empty seat (-1 if full), where a computer player is added.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
-// The selectable seat counts, from the server's minimum to its maximum inclusive.
-const seatOptions = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
 // Number of rounds in the chosen game length (a short game is 7 rounds, a full one 14).
 const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14));
 </script>
@@ -43,20 +41,18 @@ const rounds = computed(() => (props.state.settings.length === 'short' ? 7 : 14)
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => send('settings', { seats: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.options') }}</h3>
-        <div class="option">
-          <span class="muted">{{ t('lobby.seats') }}</span>
-          <div class="row">
-            <button v-for="n in seatOptions" :key="n" :class="{ primary: state.settings.seats === n }" :disabled="!isHost" :aria-pressed="state.settings.seats === n" @click="send('settings', { seats: n })">{{ n }}</button>
-          </div>
-        </div>
         <div class="option">
           <span class="muted">{{ t('lobby.length') }}</span>
           <div class="row">

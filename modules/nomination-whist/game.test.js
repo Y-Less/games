@@ -19,7 +19,7 @@ function seeded(seed) {
 /** A room with one human (id 1) as host and computer players in every other seat, ready to start. */
 function fullRoom(seats = 4, settings = {}) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, ...settings } });
-  assert.ok(g.fillWithBots(room, 1).ok);
+  assert.ok(g.fillWithBots(room, 1, seats).ok); // the table is filled; filling on its own makes up a normal four
   return room;
 }
 
@@ -44,7 +44,8 @@ test('the hand sizes run 7 down to 1 and back up, or 7 down to 1 only', () => {
   assert.equal(g.roundCount({ length: 'full' }), 14);
   assert.equal(g.roundCount({ length: 'short' }), 7);
   assert.deepEqual(Array.from({ length: 7 }, (_, i) => g.handSize({ length: 'short' }, i)), [7, 6, 5, 4, 3, 2, 1]);
-  assert.deepEqual(g.DEFAULT_SETTINGS, { seats: 4, length: 'full', missPoints: true, instantWin: true, jokers: false, hints: true });
+  // How many are playing is not a setting: it is the length of the table, kept by the shared rules.
+  assert.deepEqual(g.DEFAULT_SETTINGS, { length: 'full', missPoints: true, instantWin: true, jokers: false, hints: true });
 });
 
 test('the trump suit repeats hearts, clubs, diamonds, spades, no trumps across all 14 rounds', () => {
@@ -89,15 +90,17 @@ test('dealing gives every seat the right number of distinct cards, including 7 p
   assert.equal(room.hands.flat().length, 49);
 });
 
-test('a game needs every seat filled and a human, and only the host starts it', () => {
+test('a game needs three players and a human, and only the host starts it', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(g.start(room, 1, Math.random).error, 'seatsNeedPlayers');
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 3 } }, 'the host on their own');
+  assert.equal(room.seats.length, g.MAX_SEATS, 'and a start that was refused left the table alone');
   assert.ok(g.addBot(room, 1).ok);
+  assert.equal(g.start(room, 1, Math.random).error, 'minPlayers', 'two is still too few');
   assert.ok(g.addBot(room, 1, 3).ok);
-  assert.equal(g.start(room, 1, Math.random).error, 'seatsNeedPlayers');
   assert.ok(g.addHuman(room, 2, 'Bob').ok);
   assert.equal(g.start(room, 2, Math.random).error, 'hostOnly');
   assert.ok(g.start(room, 1, Math.random).ok);
+  assert.equal(room.seats.length, 4, 'the game is for the four who were here');
   assert.equal(room.phase, 'nominating');
   assert.equal(g.start(room, 1, Math.random).ok, false);
   assert.equal(g.addHuman(room, 3, 'Cat').ok, true, 'a latecomer takes a computer player seat rather than being turned away');
@@ -105,18 +108,22 @@ test('a game needs every seat filled and a human, and only the host starts it', 
 
 test('lobby seats: the number of seats, adding, removing and filling computer players', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(room.seats.length, 4);
-  assert.ok(g.setSettings(room, 1, { seats: 7 }).ok);
-  assert.equal(room.seats.length, 7);
-  assert.equal(g.viewFor(room, 1).seats.length, 7, 'the lobby view copes with the new seats');
+  assert.equal(room.seats.length, g.MAX_SEATS, 'a room opens as big as the game allows');
+  assert.equal(g.viewFor(room, 1).seats.length, 7, 'the lobby view copes with the whole table');
   assert.ok(g.addBot(room, 1, 6).ok);
   assert.equal(g.viewFor(room, 1).seats[6].bot, true);
   assert.equal(g.setSettings(room, 1, { seats: 8 }).ok, false);
   assert.equal(g.setSettings(room, 1, { seats: 2 }).ok, false);
-  assert.equal(g.setSettings(room, 1, { seats: 4.5 }).ok, false);
   assert.equal(g.setSettings(room, 2, { seats: 5 }).ok, false, 'only the host');
-  assert.ok(g.fillWithBots(room, 1).ok);
+  // A size that is not quite whole is rounded and then checked, as it is for the games with a list of players.
+  assert.ok(g.setSettings(room, 1, { seats: 4.5 }).ok);
+  assert.equal(room.seats.length, 5);
+  assert.ok(g.setSettings(room, 1, { seats: 7 }).ok);
+  assert.ok(g.fillWithBots(room, 1, 7).ok);
   assert.ok(room.seats.every(Boolean));
+  // A table is never cut below the people at it: the host takes somebody out first, rather than the rules choosing.
+  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerPlayers');
+  for (const slot of ['s6', 's5', 's4', 's3']) assert.ok(g.removeBot(room, 1, slot).ok);
   assert.ok(g.setSettings(room, 1, { seats: 3 }).ok);
   assert.equal(room.seats.length, 3);
   assert.equal(room.seats[0].kind, 'human', 'the host keeps a seat');
@@ -136,7 +143,8 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   assert.equal(g.setSettings(room, 1, { length: 'weird' }).ok, false);
   assert.equal(g.setSettings(room, 1, { missPoints: 'yes' }).ok, false);
   assert.ok(g.setSettings(room, 1, { length: 'short', missPoints: false }).ok);
-  assert.deepEqual(room.settings, { seats: 3, length: 'short', missPoints: false, instantWin: true, jokers: false, hints: true });
+  assert.deepEqual(room.settings, { length: 'short', missPoints: false, instantWin: true, jokers: false, hints: true });
+  assert.equal(room.seats.length, 3, 'how many are playing is the table, not a setting');
 });
 
 test('too many people cannot be squeezed into fewer seats', () => {
@@ -144,8 +152,8 @@ test('too many people cannot be squeezed into fewer seats', () => {
   g.addHuman(room, 2, 'Bob');
   g.addHuman(room, 3, 'Cat');
   g.addHuman(room, 4, 'Dan');
-  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerSeats');
-  assert.equal(room.seats.length, 4);
+  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerPlayers');
+  assert.equal(room.seats.length, g.MAX_SEATS);
 });
 
 test('follow-suit legality', () => {

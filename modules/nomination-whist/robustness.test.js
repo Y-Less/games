@@ -44,9 +44,12 @@ function validateView(s, who) {
   if (s === null || s === undefined) return;
   const label = `${who} (${s.phase})`;
   assert.ok(['lobby', 'nominating', 'playing', 'roundEnd', 'finished'].includes(s.phase), `${label}: a known phase`);
-  const { seats, length, missPoints, instantWin } = s.settings;
-  assert.ok(Number.isInteger(seats) && seats >= MIN_SEATS && seats <= MAX_SEATS && LENGTHS.includes(length) && typeof missPoints === 'boolean' && typeof instantWin === 'boolean', `${label}: valid settings ${JSON.stringify(s.settings)}`);
-  assert.equal(s.seats.length, seats, `${label}: as many seats as the setting`);
+  const { length, missPoints, instantWin } = s.settings;
+  assert.ok(LENGTHS.includes(length) && typeof missPoints === 'boolean' && typeof instantWin === 'boolean', `${label}: valid settings ${JSON.stringify(s.settings)}`);
+  // How many are playing is the table rather than a setting, and the garbage can resize it, so what is checked is
+  // that whatever came back is a table the game allows.
+  const seats = s.seats.length;
+  assert.ok(seats >= MIN_SEATS && seats <= MAX_SEATS, `${label}: a table of ${seats}`);
   assert.ok(s.you === -1 || (s.you >= 0 && s.you < seats && s.seats[s.you]), `${label}: seated where it says`);
   assert.ok(s.hostSeat === -1 || s.seats[s.hostSeat]?.bot === false, `${label}: the host is a person`);
   for (const [i, seat] of s.seats.entries()) {
@@ -115,14 +118,14 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
       await p.call('leave', {});
     }
     await sleep(15);
-    const created = await ann.call('create', { length: 'short' });
+    const created = await ann.call('create', { length: 'short', seats: 4 });
     assert.equal(created.ok, true, created.error);
     const code = created.code;
     assert.equal((await bob.call('join', { code })).ok, true);
     assert.equal((await annTwo.call('resume', { code })).ok, true);
     await until(() => ann.state?.seats[1] && annTwo.state?.you === 0, 'the lobby');
     if (phase === 'lobby') return code;
-    assert.equal((await ann.call('fillBots', {})).ok, true);
+    assert.equal((await ann.call('fillBots', { count: 4 })).ok, true);
     assert.equal((await ann.call('start', {})).ok, true);
     await until(() => ann.state?.phase === 'nominating' && bob.state?.phase === 'nominating', 'nominating');
     if (phase === 'nominating') return code;
@@ -177,9 +180,9 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
 
   // A completely normal game, with new accounts, still works afterwards.
   const [cat, dan] = await Promise.all(['cat', 'dan'].map((n) => site.person(n).open()));
-  const { code } = await cat.call('create', { length: 'short' });
+  const { code } = await cat.call('create', { length: 'short', seats: 4 });
   assert.equal((await dan.call('join', { code })).ok, true);
-  assert.equal((await cat.call('fillBots', {})).ok, true);
+  assert.equal((await cat.call('fillBots', { count: 4 })).ok, true);
   assert.equal((await cat.call('start', {})).ok, true);
   await playOn([cat, dan], () => cat.state?.phase === 'finished' && dan.state?.phase === 'finished');
   validateView(cat.state, 'cat');
@@ -192,9 +195,9 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   fast();
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob, eve] = await Promise.all(['ann', 'bob', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { length: 'short' });
+  const { code } = await ann.call('create', { length: 'short', seats: 4 });
   await bob.call('join', { code });
-  await ann.call('fillBots', {});
+  await ann.call('fillBots', { count: 4 });
   await ann.call('start', {});
   await until(() => ann.state?.phase === 'nominating' && bob.state?.phase === 'nominating', 'nominating');
   // `code` is the refusal code expected (a string), or a pattern when more than one code would be right.

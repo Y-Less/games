@@ -54,7 +54,7 @@ function playCtx({ hand, plays = [], trump = 'H', players = 3, seat = 2, bids, t
 
 function fullRoom(seats, settings = {}) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats, ...settings } });
-  assert.ok(g.fillWithBots(room, 1).ok);
+  assert.ok(g.fillWithBots(room, 1, seats).ok); // the table is filled; filling on its own makes up a normal four
   return room;
 }
 
@@ -360,9 +360,9 @@ test('the view names the AI of computer players only', () => {
 test('a person who leaves is replaced by a computer player that picks an AI at that moment', () => {
   const picks = new Set();
   for (let seed = 1; seed <= 60; seed++) {
-    const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+    const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: g.DEFAULT_SEATS } });
     g.addHuman(room, 2, 'Bob');
-    g.fillWithBots(room, 1);
+    g.fillWithBots(room, 1, room.seats.length);
     g.start(room, 1, seeded(1));
     assert.equal(room.seats[1].ai, undefined);
     assert.equal(g.removeHuman(room, 2, seeded(seed)).replaced, true);

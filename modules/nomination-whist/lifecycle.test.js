@@ -45,9 +45,9 @@ async function started(t, opts = {}) {
   fast();
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { length: 'short' });
+  const { code } = await ann.call('create', { length: 'short', seats: 4 });
   assert.equal((await bob.call('join', { code })).ok, true);
-  await ann.call('fillBots', {});
+  await ann.call('fillBots', { count: 4 });
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state?.phase === 'nominating' && bob.state?.phase === 'nominating', 'nominating');
   return { site, ann, bob, code };
@@ -58,10 +58,10 @@ test('both pressing start in the same tick starts exactly one game', async (t) =
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
   const twin = await ann.twin();
-  const { code } = await ann.call('create', {});
+  const { code } = await ann.call('create', { seats: 4 });
   await bob.call('join', { code });
   await twin.call('resume', { code });
-  await ann.call('fillBots', {});
+  await ann.call('fillBots', { count: 4 });
   const replies = await Promise.all([ann.call('start', {}), twin.call('start', {}), bob.call('start', {})]);
   assert.equal(oks(replies), 1, JSON.stringify(replies));
   await until(() => ann.state.phase === 'nominating', 'nominating');
@@ -77,7 +77,7 @@ test('four people racing for the last seat: exactly one gets it and everybody ag
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const names = ['ann', 'bob', 'cat', 'dan', 'eve', 'fay'];
   const [ann, ...rest] = await Promise.all(names.map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', {});
+  const { code } = await ann.call('create', { seats: 4 }); // a table of four, so that there is a last seat to race for
   await ann.call('addBot', { seat: 1 });
   await ann.call('addBot', { seat: 2 });
   const racers = rest.slice(0, 5);
