@@ -453,12 +453,28 @@ function recordHistory(room, nameOf, found) {
 }
 
 /**
+ * Moves one field of a saved object to the name it goes by now, if it is still under the old one.
+ * @param {object} holder  the object to change
+ * @param {string} was  the old field name
+ * @param {string} now  the name it has today
+ * @returns {void}
+ * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and an object that already
+ * holds `now` keeps what is there.
+ */
+function renameField(holder, was, now) {
+  if (!holder || holder[was] === undefined) return;
+  if (holder[now] === undefined) holder[now] = holder[was];
+  delete holder[was];
+}
+
+/**
  * Brings a room saved by an older version up to date: its players are given a `kind` (saved `bot: true` becomes
- * `kind: 'bot'`; people saved without a name get one from `nameOf`), its squares are renamed for the finer grid, it gets a
+ * `kind: 'bot'`; people saved without a name get one from `nameOf`), its guesses are numbered by hint rather than by
+ * "round", its squares are renamed for the finer grid, it gets a
  * history, and if the scores are more than the history adds up to (turns scored before the history was kept) the difference
  * becomes one "Earlier turns" entry, so the totals always equal the scores.
  *
- * Side effects: mutates the room (players, squares, grid version, history).  Running it twice changes nothing more.
+ * Side effects: mutates the room (players, guesses, squares, grid version, history).  Running it twice changes nothing more.
  *
  * @param {object} room  the saved room
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
@@ -467,6 +483,15 @@ function recordHistory(room, nameOf, found) {
 export function migrate(room, nameOf) {
   migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
   room.ready ??= [];
+  // The two guesses of a turn used to be called rounds and are numbered by the hint they follow now.  A stored guess
+  // never carried the number — `room.first` and `room.second` are the two lists, and `guessesView` numbers them from
+  // that — but a saved reveal and a saved history note both do, so those are renamed on the way in, once.
+  for (const e of room.result?.entries ?? []) renameField(e, 'round', 'hintNumber');
+  for (const row of Array.isArray(room.history) ? room.history : []) {
+    for (const notes of Object.values(row?.notes ?? {})) {
+      for (const note of Array.isArray(notes) ? notes : []) if (note?.params) renameField(note.params, 'round', 'n');
+    }
+  }
   if (room.grid !== GRID_VERSION) {
     // A room saved with the old 24 x 10 grid: every square is renamed to the same colour in the finer grid.
     // An older room has its squares renamed to the nearest square of the same colour: first to the 48 x 24 grid (version 4), then to this one.

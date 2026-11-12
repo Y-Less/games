@@ -15,7 +15,7 @@ export const DEFAULT_SEATS = 4;
  * tricks), the cards passed, and the passing rotation as offsets to the left (0 is "no passing"): offset 1 is the next
  * player in turn order, offset seats - 1 is the player on the right.
  *
- * One turn of the rotation is a round in the sense the rest of the site uses — every passing option used once — but
+ * One pass through the rotation is a round in the sense the rest of the site uses — every passing option used once — but
  * Hearts is played to a target score rather than to a number of rounds, so nothing here counts them and no player
  * ever sees the word.
  */

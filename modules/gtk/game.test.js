@@ -582,6 +582,32 @@ test('an ordinary question names nobody', () => {
   assert.equal(subject.namedAsTruth, 0);
 });
 
+test('a room saved when a turn was called a round is renamed on the way in, however often it is loaded', () => {
+  const { room, rng } = started(3);
+  writeAll(room, rng);
+  const saved = JSON.parse(JSON.stringify(room));
+  // Put it back the way a room saved before the rename holds it.
+  saved.round = saved.turn;
+  saved.roundsEach = saved.rounds;
+  saved.roundsTotal = saved.turnsTotal;
+  saved.questionsPerRound = saved.questionsPerTurn;
+  saved.roundPicks = saved.turnPicks;
+  saved.history = [{ label: { key: 'scoreboard.question', params: { round: 1, total: 3, name: 'P1', n: 1 } }, deltas: {}, notes: {} }];
+  for (const was of ['turn', 'rounds', 'turnsTotal', 'questionsPerTurn', 'turnPicks']) delete saved[was];
+
+  const once = game.migrate(saved, names);
+  const twice = game.migrate(JSON.parse(JSON.stringify(once)), names);
+  for (const reloaded of [once, twice]) {
+    assert.equal(reloaded.turn, room.turn);
+    assert.equal(reloaded.rounds, room.rounds);
+    assert.equal(reloaded.turnsTotal, room.turnsTotal);
+    assert.equal(reloaded.questionsPerTurn, room.questionsPerTurn);
+    assert.deepEqual(reloaded.turnPicks, room.turnPicks);
+    assert.deepEqual(reloaded.history[0].label.params, { turn: 1, total: 3, name: 'P1', n: 1 });
+    for (const was of ['round', 'roundsEach', 'roundsTotal', 'questionsPerRound', 'roundPicks']) assert.ok(!(was in reloaded), was);
+  }
+});
+
 test('answers are tidied before they are compared, and the comparison ignores the trimmings', () => {
   const { room, rng } = started(3, { seed: 121 });
   const subject = room.subject;

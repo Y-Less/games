@@ -385,6 +385,39 @@ test('migrate: an old room without a history gets one, with the earlier points a
   assert.deepEqual(game.viewFor(legacy, 1).scoreboard.rounds, [], 'a view of an unmigrated room still works');
 });
 
+test('migrate: a room saved when the two guesses were called rounds is numbered by hint instead', () => {
+  const room = started([1, 2, 3, 4]);
+  hint(room);
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'N5');
+  game.guess(room, 4, 'A1');
+  game.advance(room, 1, Math.random);
+  game.guess(room, 2, 'M4');
+  game.guess(room, 3, 'M4');
+  game.guess(room, 4, 'L4');
+  game.advance(room, 1, Math.random);
+  assert.equal(room.phase, 'reveal');
+
+  const saved = JSON.parse(JSON.stringify(room));
+  // Put it back the way a room saved before the rename holds it: the reveal and the history notes.  A stored guess
+  // never held the number at all — which list it is in says which hint it followed.
+  assert.ok(saved.first.every((g) => !('hintNumber' in g) && !('round' in g)), 'a stored guess is just id and cell');
+  for (const e of saved.result.entries) { e.round = e.hintNumber; delete e.hintNumber; }
+  saved.history = [{ label: { key: 'scoreboard.turn', params: { n: 1, name: 'P1' } }, deltas: {}, notes: { s1: [{ key: 'notes.exact', params: { round: 2 } }] } }];
+
+  const once = game.migrate(saved);
+  const twice = game.migrate(JSON.parse(JSON.stringify(once)));
+  for (const reloaded of [once, twice]) {
+    assert.deepEqual(reloaded.result.entries.map((e) => e.hintNumber), room.result.entries.map((e) => e.hintNumber));
+    // migrate may unshift an "Earlier turns" row in front, so the saved row is found by its label rather than by place.
+    const row = reloaded.history.find((r) => r.label.key === 'scoreboard.turn');
+    assert.deepEqual(row.notes.s1, [{ key: 'notes.exact', params: { n: 2 } }]);
+    assert.ok(reloaded.result.entries.every((e) => !('round' in e)), 'the old name is gone');
+  }
+  // And the guesses still read out of a view under the name the client looks for.
+  assert.ok(game.viewFor(once, 1).guesses.every((g) => g.hintNumber === 1 || g.hintNumber === 2));
+});
+
 test('the first hint is mandatory: an empty or blank one is refused and changes nothing', () => {
   const room = started();
   for (const bad of ['', '   ', '\n\t ', null, undefined]) {

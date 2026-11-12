@@ -643,8 +643,23 @@ function scoreQuestion(room, nameOf = String) {
 }
 
 /**
+ * Moves one field of a saved room to the name it goes by now, if it is still under the old one.
+ * @param {object} room  the room to change
+ * @param {string} was  the old field name
+ * @param {string} now  the name it has today
+ * @returns {void}
+ * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and a room that already
+ * holds `now` keeps what is there.
+ */
+function renameField(room, was, now) {
+  if (room[was] === undefined) return;
+  if (room[now] === undefined) room[now] = room[was];
+  delete room[was];
+}
+
+/**
  * Brings a saved room up to date: players saved with `bot: true` become `kind: 'bot'` (and people saved without a name get
- * one from `nameOf`), and fields added since are filled in.
+ * one from `nameOf`), the words it was saved under are renamed (see below), and fields added since are filled in.
  * @param {object} room  the saved room (mutated)
  * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
  * @returns {object} the same room
@@ -652,6 +667,20 @@ function scoreQuestion(room, nameOf = String) {
  */
 export function migrate(room, nameOf) {
   migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
+  // GTK used to call one player's go as the subject a round.  A turn is that go now, and a round is everybody having
+  // had one, so a room saved under the old words has its fields and its history labels renamed on the way in, once.
+  renameField(room, 'round', 'turn');
+  renameField(room, 'roundsEach', 'rounds');
+  renameField(room, 'roundsTotal', 'turnsTotal');
+  renameField(room, 'questionsPerRound', 'questionsPerTurn');
+  renameField(room, 'roundPicks', 'turnPicks');
+  for (const entry of Array.isArray(room.history) ? room.history : []) {
+    const params = entry?.label?.params;
+    if (params && params.round !== undefined && params.turn === undefined) {
+      entry.label = { ...entry.label, params: { ...params, turn: params.round } };
+      delete entry.label.params.round;
+    }
+  }
   room.used ??= [];
   room.questions ??= [];
   room.answers ??= [];
