@@ -18,10 +18,10 @@ const isHost = computed(() => props.state.hostId === props.state.you);
 const taken = computed(() => new Set(props.state.players.map((p) => p.colour)));
 // This player's own entry in the player list.
 const mine = computed(() => props.state.players.find((p) => p.id === props.state.you));
-// The allowed numbers of turns each, from the server's limits.
-const turns = computed(() => props.state.limits.turns);
-// Total turns in the game: turns each times the number of players.
-const total = computed(() => props.state.turnsEach * props.state.players.length);
+// The allowed numbers of rounds, from the server's limits.
+const rounds = computed(() => props.state.limits.rounds);
+// Total turns in the game: everybody is the hinter once a round.
+const total = computed(() => props.state.rounds * props.state.players.length);
 // True when there are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
@@ -75,9 +75,9 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
     <section class="panel stack">
       <h3>{{ t('lobby.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.turnsEach <= turns.min" :aria-label="t('lobby.fewerTurns')" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
-        <strong>{{ t('lobby.turnsEach', { count: state.turnsEach }, state.turnsEach) }}</strong>
-        <button :disabled="!isHost || state.turnsEach >= turns.max" :aria-label="t('lobby.moreTurns')" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.rounds <= rounds.min" :aria-label="t('lobby.fewerRounds')" @click="send('settings', { rounds: state.rounds - 1 })">-</button>
+        <strong>{{ t('lobby.rounds', { count: state.rounds }, state.rounds) }}</strong>
+        <button :disabled="!isHost || state.rounds >= rounds.max" :aria-label="t('lobby.moreRounds')" @click="send('settings', { rounds: state.rounds + 1 })">+</button>
       </div>
       <p class="muted">{{ t('lobby.turnsInAll', { turns: t('lobby.turnCount', { count: total }, total), players: t('games.players', { count: state.players.length }, state.players.length) }) }}</p>
       <div class="row">

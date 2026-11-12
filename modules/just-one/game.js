@@ -25,10 +25,10 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 7;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-// How many turns as the guesser each player gets: bounds and default for the host's setting.  That is also the number
-// of rounds, a round being everybody having had a turn, but Just One never counts or names them: the setting is the
-// number a player chooses, and "turns each" is what they are choosing.
-export const TURNS_EACH = { min: 1, max: 5, default: 2 };
+// How many rounds the game runs for: bounds and default for the host's setting.  A round is everybody having had a
+// turn as the guesser, so this is also how many turns each player gets, and `room.turnsTotal` is it multiplied by
+// the players.
+export const ROUNDS = { min: 1, max: 5, default: 2 };
 // The longest clue and guess accepted, in characters (keeps the table readable and stops pasted essays).
 export const CLUE_LENGTH = 24;
 const GUESS_LENGTH = 40;
@@ -109,18 +109,18 @@ const allWritten = (room) => writers(room).every((p) => clueOf(room, p.id));
  * @param {string} args.code        the invite code
  * @param {number} args.hostId      the host's account id
  * @param {string} [args.hostName]  the host's display name
- * @param {object} [args.settings]  settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
- * @param {number} [args.turnsEach] turns each (default 2); `settings.turnsEach` wins if both are given
+ * @param {object} [args.settings]  settings the host chose when creating it ({ rounds }); invalid ones are ignored
+ * @param {number} [args.rounds] how many rounds (default 2); `settings.rounds` wins if both are given
  * @param {number} args.now       the time to stamp it with
  * @returns {object} the room, in the lobby
  * Side effects: none outside the new room (an invalid setting is silently left at its default).
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now, rounds = ROUNDS.default }) {
   const room = {
     code,
     hostId,
     phase: 'lobby',
-    turnsEach,
+    rounds,
     turnsTotal: 0,
     turn: 0,
     players: [],
@@ -169,17 +169,17 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  *
  * @param {object} room
  * @param {number} id        who is asking (must be the host)
- * @param {object} settings  { turnsEach? }
+ * @param {object} settings  { rounds? }
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: may change room.turnsEach (via setTurnsEach).
+ * Side effects: may change room.rounds (via setRounds).
  */
 export function setSettings(room, id, settings = {}) {
   if (settings.size !== undefined) {
     const sized = roster.setSize(room, id, settings.size);
     if (!sized.ok) return sized;
   }
-  if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
-  return setTurnsEach(room, id, settings.turnsEach);
+  if (settings.rounds === undefined) return hostInLobby(room, id) ?? ok();
+  return setRounds(room, id, settings.rounds);
 }
 
 /**
@@ -197,17 +197,17 @@ export function playAgain() {
  *
  * @param {object} room
  * @param {number} id          who is asking (must be the host)
- * @param {number} turnsEach   a whole number from TURNS_EACH.min to TURNS_EACH.max
+ * @param {number} rounds   a whole number from ROUNDS.min to ROUNDS.max
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: sets room.turnsEach on success.
+ * Side effects: sets room.rounds on success.
  */
-export function setTurnsEach(room, id, turnsEach) {
+export function setRounds(room, id, rounds) {
   if (id !== room.hostId) return fail('hostOnlySettings');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
-  if (!Number.isInteger(turnsEach) || turnsEach < TURNS_EACH.min || turnsEach > TURNS_EACH.max) {
-    return fail('turnsEach', { min: TURNS_EACH.min, max: TURNS_EACH.max });
+  if (!Number.isInteger(rounds) || rounds < ROUNDS.min || rounds > ROUNDS.max) {
+    return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
   }
-  room.turnsEach = turnsEach;
+  room.rounds = rounds;
   return ok();
 }
 
@@ -258,7 +258,7 @@ export function start(room, id, rng) {
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
-  room.turnsTotal = room.turnsEach * room.players.length;
+  room.turnsTotal = room.rounds * room.players.length;
   room.turn = 0;
   room.used = [];
   room.nextIdx = Math.floor(rng() * room.players.length);
@@ -722,7 +722,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true } =
     phase: room.phase,
     you: userId,
     hostId: room.hostId,
-    turnsEach: room.turnsEach,
+    rounds: room.rounds,
     turn: Math.min(room.turn + 1, room.turnsTotal),
     turnsTotal: room.turnsTotal,
     guesser: room.guesser,
@@ -734,7 +734,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true } =
     players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
     scoreboard: scoreboardView(room, userId, { nameOf, online }),
     size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS },
   };
 }
 

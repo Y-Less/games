@@ -13,7 +13,7 @@ function view(extra = {}) {
     phase: 'guessing',
     you: 1,
     hostId: 1,
-    turnsEach: 1,
+    rounds: 1,
     mode: 'solo',
     turn: 1,
     turnsTotal: 3,
@@ -29,7 +29,7 @@ function view(extra = {}) {
     scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 1, away: false })), rounds: [], lowIsBetter: false },
     colours: ['#ff0000', '#0000ff', '#00ff00'],
     canCustomColour: false,
-    limits: { min: 2, max: 8, turns: { min: 1, max: 5 } },
+    limits: { min: 2, max: 8, rounds: { min: 1, max: 5 } },
     ...extra,
   };
 }

@@ -9,9 +9,9 @@
     "chooseColour": "マーカーの色{colour}を選ぶ",
     "chooseAnyColour": "好きなマーカーの色を選ぶ",
     "unlockColour": "好きな色はショップで解放できます。いつも使う色はプロフィールで設定できます。",
-    "fewerTurns": "ターンを減らす",
-    "moreTurns": "ターンを増やす",
-    "turnsEach": "1人{count}ターン",
+    "fewerRounds": "ラウンドを減らす",
+    "moreRounds": "ラウンドを増やす",
+    "rounds": "{count}ラウンド",
     "turnCount": "{count}ターン",
     "turnsInAll": "{players}で全部で{turns}です。全員が順番にヒントを出します。"
   },

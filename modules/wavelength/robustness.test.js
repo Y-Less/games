@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const EVENTS = {
   resume: ['code'],
   join: ['code'],
-  create: ['turnsEach', 'mode'],
+  create: ['rounds', 'mode'],
   leave: [],
   kick: ['userId'],
   voteKick: ['slot'],
@@ -22,7 +22,7 @@ const EVENTS = {
   fillBots: ['count'],
   removeBot: ['slot'],
   colour: ['colour'],
-  settings: ['turnsEach'],
+  settings: ['rounds'],
   mode: ['mode'],
   start: [],
   clue: ['text'],
@@ -89,7 +89,7 @@ test('garbage payloads on every event, in every phase and mode, from members and
   async function arrange(mode, phase) {
     for (const p of [...members, eve]) await p.call('leave', {});
     await until(() => [...members, eve].every((p) => p.state == null), 'everyone out');
-    const created = await ann.call('create', { turnsEach: 1, mode });
+    const created = await ann.call('create', { rounds: 1, mode });
     assert.equal(created.ok, true, created.error);
     for (const p of [bob, cat]) assert.equal((await p.call('join', { code: created.code })).ok, true);
     await until(() => members.every((p) => p.state?.phase === 'lobby' && p.state.players.length === 3), 'a lobby of three');
@@ -135,9 +135,9 @@ test('garbage payloads on every event, in every phase and mode, from members and
         removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 8 }, { count: 0 }, { count: 99 }],
         colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }, { colour: '#123456' }],
-        settings: [{ turnsEach: 3 }, { turnsEach: 0 }, { turnsEach: 6 }, { turnsEach: '3' }],
+        settings: [{ rounds: 3 }, { rounds: 0 }, { rounds: 6 }, { rounds: '3' }],
         mode: [{ mode: 'team' }, { mode: 'solo' }, { mode: 'TEAM' }, { mode: ['team'] }],
-        create: [{ turnsEach: 3, mode: 'team' }, { turnsEach: 99, mode: 'solo' }, { mode: 'chaos' }],
+        create: [{ rounds: 3, mode: 'team' }, { rounds: 99, mode: 'solo' }, { mode: 'chaos' }],
         join: [{ code: 'boss-aware-you' }, { code: 'Boss Aware You' }, { code: '?boss-aware-you' }],
         resume: [{ code: 'boss-aware-you' }, { code: 'no-such-game' }],
       }[event];
@@ -166,7 +166,7 @@ test('garbage payloads on every event, in every phase and mode, from members and
 test('actions from outsiders and out of turn are refused and change nothing', async (t) => {
   const site = await launchModule(t, { id: 'wavelength', moduleDir: here });
   const [ann, bob, cat, eve] = await Promise.all(['ann', 'bob', 'cat', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1, mode: 'team' });
+  const { code } = await ann.call('create', { rounds: 1, mode: 'team' });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state?.players.length === 3, 'three players');

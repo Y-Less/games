@@ -141,7 +141,7 @@ test('settings accept numeric strings and fractions by rounding, and refuse anyt
     assert.equal(game.setSettings(room, 1, { handSize: bad }).error, 'handSizeRange', `${String(bad)} is refused`);
     assert.equal(room.handSize, before);
   }
-  for (const bad of [0, 11, 'x', NaN, null]) assert.equal(game.setSettings(room, 1, { rounds: bad }).error, 'turnsEach');
+  for (const bad of [0, 11, 'x', NaN, null]) assert.equal(game.setSettings(room, 1, { rounds: bad }).error, 'rounds');
   assert.equal(game.setSettings(room, 1, { judging: 'dice' }).error, 'unknownJudging');
   assert.equal(game.setSettings(room, 1, { categories: 'all' }).error, 'needCategory');
   assert.equal(game.setSettings(room, 1, { categories: ['all', 'all', 'nope'] }).error, 'unknownCategory');

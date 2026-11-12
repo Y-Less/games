@@ -92,7 +92,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   assert.equal((await ann.send('join', { code: 'nonsense' })).ok, false);
   assert.equal((await ann.send('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
 
-  const created = await ann.send('create', { turnsEach: 1 });
+  const created = await ann.send('create', { rounds: 1 });
   assert.ok(created.ok);
   assert.match(created.code, /^[a-z]+-[a-z]+-[a-z]+$/);
   assert.equal((await ann.send('create')).ok, false, 'already in a game');
@@ -106,8 +106,8 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   assert.equal((await bob.send('start')).ok, false, 'only the host starts');
   assert.equal((await bob.send('colour', { colour: ann.state.players[0].colour })).ok, false, 'colours are unique');
   assert.ok((await bob.send('colour', { colour: '#ff2d95' })).ok);
-  assert.equal((await cat.send('settings', { turnsEach: 3 })).ok, false, 'only the host sets turns');
-  assert.ok((await ann.send('settings', { turnsEach: 1 })).ok);
+  assert.equal((await cat.send('settings', { rounds: 3 })).ok, false, 'only the host sets turns');
+  assert.ok((await ann.send('settings', { rounds: 1 })).ok);
   await cat.until((s) => s.players.find((p) => p.name === 'bob').colour === '#ff2d95', 'the new colour');
 
   const stranger = await (await account('dan')).open();
@@ -271,7 +271,7 @@ test('rooms survive a restart of the site, and the game can be finished afterwar
   const first = await launch(t, dataDir);
   const accounts = [await first.account('ann'), await first.account('bob')];
   const [ann, bob] = await Promise.all(accounts.map((a) => a.open()));
-  const { code } = await ann.send('create', { turnsEach: 1 });
+  const { code } = await ann.send('create', { rounds: 1 });
   await bob.send('join', { code });
   await ann.send('start');
   await ann.until((s) => s.phase === 'guessing1');
@@ -340,7 +340,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   const first = await launch(t, dataDir);
   const accounts = [await first.account('ann'), await first.account('bob')];
   const [ann, bob] = await Promise.all(accounts.map((a) => a.open()));
-  const { code } = await ann.send('create', { turnsEach: 2 });
+  const { code } = await ann.send('create', { rounds: 2 });
   await bob.send('join', { code });
   await ann.send('start');
   const both = [ann, bob];
@@ -409,7 +409,7 @@ test('at the reveal, someone who is away (never closes the scores) does not hold
   t.after(() => delete process.env.TINTS_NEXT_WAIT);
   const { account } = await launch(t);
   const [ann, bob] = [await (await account('ann')).open(), await (await account('bob')).open()];
-  const { code } = await ann.send('create', { turnsEach: 2 });
+  const { code } = await ann.send('create', { rounds: 2 });
   await bob.send('join', { code });
   await ann.until((s) => s?.players.length === 2);
   await ann.send('start');

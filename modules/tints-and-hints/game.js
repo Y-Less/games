@@ -30,11 +30,11 @@ export const MAX_PLAYERS = 8;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 /**
- * How many turns each person gets as hinter: the game lasts turnsEach x players turns.  That is also the number of
- * rounds, a round being everybody having had a turn, but Tints and Hints never counts or names them: the setting is
- * the number a player chooses, and "turns each" is what they are choosing.
+ * How many rounds the game runs for: bounds and default for the host's setting.  A round is everybody having had a
+ * turn as the hinter, so this is also how many turns each player gets, and `room.turnsTotal` is it multiplied by the
+ * players.
  */
-export const TURNS_EACH = { min: 1, max: 5, default: 2 };
+export const ROUNDS = { min: 1, max: 5, default: 2 };
 /** The longest hint, in characters; longer ones are cut. */
 export const HINT_LENGTH = 80;
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
@@ -138,20 +138,20 @@ const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.col
  * @param {string} args.code         the invite code
  * @param {number} args.hostId       the host's account id
  * @param {string} [args.hostName]   the host's display name
- * @param {object} [args.settings]   settings the host chose when creating it ({ turnsEach }); invalid ones are ignored
- * @param {number} [args.turnsEach]  turns each (default 2); `settings.turnsEach` wins if both are given
+ * @param {object} [args.settings]   settings the host chose when creating it ({ rounds }); invalid ones are ignored
+ * @param {number} [args.rounds]  how many rounds (default 2); `settings.rounds` wins if both are given
  * @param {string | null} [args.colour]  the host's default marker colour, already checked to be one they may use (ctx.markers.preferred)
  * @param {number} args.now        the time to stamp it with
  * @returns {object} the room, in the lobby
  *
  * Side effects: none outside the new room (it is built and returned, not stored).
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now, turnsEach = TURNS_EACH.default, colour = null }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now, rounds = ROUNDS.default, colour = null }) {
   const room = {
     code,
     hostId,
     phase: 'lobby',
-    turnsEach,
+    rounds,
     turnsTotal: 0,
     turn: 0,
     players: [],
@@ -199,18 +199,18 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  *
  * @param {object} room
  * @param {number} id        who is asking (must be the host)
- * @param {object} settings  { turnsEach? }
+ * @param {object} settings  { rounds? }
  * @returns {{ ok: boolean, error?: string }}
  *
- * Side effects: sets room.turnsEach when given.
+ * Side effects: sets room.rounds when given.
  */
 export function setSettings(room, id, settings = {}) {
   if (settings.size !== undefined) {
     const sized = roster.setSize(room, id, settings.size);
     if (!sized.ok) return sized;
   }
-  if (settings.turnsEach === undefined) return hostInLobby(room, id) ?? ok();
-  return setTurnsEach(room, id, settings.turnsEach);
+  if (settings.rounds === undefined) return hostInLobby(room, id) ?? ok();
+  return setRounds(room, id, settings.rounds);
 }
 
 /**
@@ -250,18 +250,18 @@ export function setColour(room, id, colour, canCustom = false) {
  *
  * @param {object} room  the room (must be in the lobby)
  * @param {number} id  who is asking (must be the host)
- * @param {number} turnsEach  an integer from TURNS_EACH.min to TURNS_EACH.max
+ * @param {number} rounds  an integer from ROUNDS.min to ROUNDS.max
  * @returns {{ ok: boolean, error?: string }} ok, or why not
  *
- * Side effects: sets room.turnsEach.
+ * Side effects: sets room.rounds.
  */
-export function setTurnsEach(room, id, turnsEach) {
+export function setRounds(room, id, rounds) {
   if (id !== room.hostId) return fail('hostOnlySettings');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
-  if (!Number.isInteger(turnsEach) || turnsEach < TURNS_EACH.min || turnsEach > TURNS_EACH.max) {
-    return fail('turnsEach', { min: TURNS_EACH.min, max: TURNS_EACH.max });
+  if (!Number.isInteger(rounds) || rounds < ROUNDS.min || rounds > ROUNDS.max) {
+    return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
   }
-  room.turnsEach = turnsEach;
+  room.rounds = rounds;
   return ok();
 }
 
@@ -302,7 +302,7 @@ export function start(room, id, rng) {
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
-  room.turnsTotal = room.turnsEach * room.players.length;
+  room.turnsTotal = room.rounds * room.players.length;
   room.turn = 0;
   room.collected = null;
   room.nextIdx = Math.floor(rng() * room.players.length);
@@ -819,7 +819,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     phase: room.phase,
     you: userId,
     hostId: room.hostId,
-    turnsEach: room.turnsEach,
+    rounds: room.rounds,
     turn: Math.min(room.turn + 1, room.turnsTotal),
     turnsTotal: room.turnsTotal,
     hinter: room.hinter,
@@ -832,7 +832,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
     colours: COLOURS,
     canCustomColour: Boolean(canCustom), // this player may pick any colour (a shop unlock)
     size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, turns: TURNS_EACH },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS },
   };
 }
 

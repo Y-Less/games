@@ -21,7 +21,7 @@ const snapshot = (room) => JSON.stringify(room);
 function playRandomGame(seed) {
   const rng = seeded(seed);
   let nextId = 1;
-  const room = game.createRoom({ now: 0, code: `game-${seed}-x`, hostId: nextId++, turnsEach: 1 + Math.floor(rng() * 5) });
+  const room = game.createRoom({ now: 0, code: `game-${seed}-x`, hostId: nextId++, rounds: 1 + Math.floor(rng() * 5) });
   const log = [];
   let steps = 0;
   const check = (what) => {
@@ -53,10 +53,10 @@ function playRandomGame(seed) {
     if (!result.ok) assert.ok(['notAColour', 'colourIsUnlock', 'colourTaken'].includes(result.error), `a colour was refused with ${result.error}`);
     check('colour');
   }
-  illegal('a non-host changing the turns', () => game.setTurnsEach(room, 999, 2));
-  illegal('turns out of range', () => game.setTurnsEach(room, room.hostId, 6));
-  illegal('turns as a fraction', () => game.setTurnsEach(room, room.hostId, 2.5));
-  assert.equal(game.setTurnsEach(room, room.hostId, 1 + Math.floor(rng() * 5)).ok, true);
+  illegal('a non-host changing the turns', () => game.setRounds(room, 999, 2));
+  illegal('turns out of range', () => game.setRounds(room, room.hostId, 6));
+  illegal('turns as a fraction', () => game.setRounds(room, room.hostId, 2.5));
+  assert.equal(game.setRounds(room, room.hostId, 1 + Math.floor(rng() * 5)).ok, true);
   if (rng() < 0.3 && room.players.length > 2) {
     const leaver = pick(rng, room.players.filter((p) => p.id !== room.hostId));
     assert.equal(game.removeHuman(room, leaver.id, rng).ok, true);
@@ -114,7 +114,7 @@ function playRandomGame(seed) {
         () => game.advance(room, stranger, rng),
         () => game.start(room, room.hostId, rng),
         () => game.setColour(room, any.id, game.COLOURS[0]),
-        () => game.setTurnsEach(room, room.hostId, 3),
+        () => game.setRounds(room, room.hostId, 3),
         () => game.addBot(room, room.hostId), // computer players are added in the lobby and nowhere else
       ];
       const before = snapshot(room);
@@ -184,10 +184,10 @@ test('300 seeded random games with illegal actions, leavers and views: invariant
   assert.deepEqual(ends, { finished: 300, abandoned: 0 }, 'leavers are replaced by computer players, so every game is played to the end');
 });
 
-test('random games without leavers always finish with exactly turnsEach turns per player, in joining order', () => {
+test('random games without leavers always finish with exactly rounds turns per player, in joining order', () => {
   for (let seed = 1000; seed < 1100; seed++) {
     const rng = seeded(seed);
-    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, turnsEach: 1 + Math.floor(rng() * 5) });
+    const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, rounds: 1 + Math.floor(rng() * 5) });
     const n = 2 + Math.floor(rng() * 7);
     for (let i = 2; i <= n; i++) game.addHuman(room, i);
     game.start(room, 1, rng);
@@ -203,11 +203,11 @@ test('random games without leavers always finish with exactly turnsEach turns pe
       game.advance(room, room.hinter, rng);
       checkRoom(room, `seed ${seed}`);
     }
-    assert.equal(hinters.length, room.turnsEach * n);
-    for (const p of room.players) assert.equal(hinters.filter((h) => h.id === p.id).length, room.turnsEach, `seed ${seed}`);
+    assert.equal(hinters.length, room.rounds * n);
+    for (const p of room.players) assert.equal(hinters.filter((h) => h.id === p.id).length, room.rounds, `seed ${seed}`);
     hinters.forEach((h, i) => assert.equal(h.id, hinters[i % n].id, 'a fixed rotation'));
     assert.equal(room.history.length, room.turnsTotal);
-    assert.ok(room.players.every((p) => p.hintsGiven === room.turnsEach));
+    assert.ok(room.players.every((p) => p.hintsGiven === room.rounds));
   }
 });
 

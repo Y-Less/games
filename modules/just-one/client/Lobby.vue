@@ -12,10 +12,10 @@ const { t } = useGameText();
 
 // Only the host may change the length of the game and start it.
 const isHost = computed(() => props.state.hostId === props.state.you);
-// The fewest and most turns each player may be given ({ min, max } from the server).
-const turns = computed(() => props.state.limits.turns);
-// Turns in the whole game: everyone takes the same number as the guesser.
-const total = computed(() => props.state.turnsEach * props.state.players.length);
+// The fewest and most rounds the game may run for ({ min, max } from the server).
+const rounds = computed(() => props.state.limits.rounds);
+// Turns in the whole game: everyone is the guesser once a round.
+const total = computed(() => props.state.rounds * props.state.players.length);
 // There are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
@@ -46,9 +46,9 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
     <section class="panel stack">
       <h3>{{ t('settings.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.turnsEach <= turns.min" :aria-label="t('settings.fewerTurns')" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
-        <strong>{{ t('settings.turnsEach', { count: state.turnsEach }, state.turnsEach) }}</strong>
-        <button :disabled="!isHost || state.turnsEach >= turns.max" :aria-label="t('settings.moreTurns')" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.rounds <= rounds.min" :aria-label="t('settings.fewerRounds')" @click="send('settings', { rounds: state.rounds - 1 })">-</button>
+        <strong>{{ t('settings.rounds', { count: state.rounds }, state.rounds) }}</strong>
+        <button :disabled="!isHost || state.rounds >= rounds.max" :aria-label="t('settings.moreRounds')" @click="send('settings', { rounds: state.rounds + 1 })">+</button>
       </div>
       <p class="muted">{{ t('settings.total', { count: total, players: state.players.length }, total) }}</p>
       <div class="row">

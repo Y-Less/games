@@ -10,9 +10,9 @@
   "leaveConfirm": "bIcheghlaHbe'.",
   "settings": {
     "length": "Quj poH",
-    "fewerTurns": "Qu'mey puS",
-    "moreTurns": "Qu'mey law'",
-    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "fewerRounds": "may'mey puS",
+    "moreRounds": "may'mey law'",
+    "rounds": "{count} may' | {count} may'mey",
     "total": "{players} QujwI'pu' tu'lu'DI' {count} Qu' Hoch. loywI' moj Hoch. | {players} QujwI'pu' tu'lu'DI' {count} Qu'mey Hoch. loywI' moj Hoch."
   },
   "scoreboard": {

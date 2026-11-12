@@ -18,9 +18,9 @@
     "team": "One team",
     "teamText": "The guessers share one marker, move it together and anyone locks it in. Everyone scores the same.",
     "hostChooses": "The host chooses.",
-    "fewerTurns": "Fewer turns",
-    "moreTurns": "More turns",
-    "turnsEach": "{count} turn each | {count} turns each",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
+    "rounds": "{count} round | {count} rounds",
     "totalTurns": "{turns} turns in all with {players} players. Everyone takes turns as the psychic."
   },
   "dial": {

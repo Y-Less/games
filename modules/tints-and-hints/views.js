@@ -6,9 +6,9 @@ import { seeded } from '../../shared/random.js';
 
 
 /** Plays a seeded game (the first player is made to act through the computer's judgement) and returns every view. */
-export function recordedViews(seed, size, turnsEach) {
+export function recordedViews(seed, size, rounds) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1, turnsEach });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1, rounds });
   assert.equal(game.addHuman(room, 2).ok, true);
   const names = (id) => `Player ${id}`;
   const views = [];

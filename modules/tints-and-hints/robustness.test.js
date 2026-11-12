@@ -13,14 +13,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const EVENTS = {
   resume: ['code'],
   join: ['code'],
-  create: ['turnsEach'],
+  create: ['rounds'],
   leave: [],
   kick: ['userId'],
   voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
   colour: ['colour'],
-  settings: ['turnsEach'],
+  settings: ['rounds'],
   start: [],
   hint: ['text'],
   guess: ['cell'],
@@ -56,7 +56,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
   async function arrange(phase) {
     for (const p of [...members, eve]) await p.call('leave', {});
     await until(() => [...members, eve].every((p) => p.state == null), 'everyone out');
-    const created = await ann.call('create', { turnsEach: 1 });
+    const created = await ann.call('create', { rounds: 1 });
     assert.equal(created.ok, true, created.error);
     for (const p of [bob, cat]) assert.equal((await p.call('join', { code: created.code })).ok, true);
     await until(() => members.every((p) => p.state?.phase === 'lobby' && p.state.players.length === 3), 'a lobby of three');
@@ -100,8 +100,8 @@ test('garbage payloads on every event, in every phase, from members and stranger
         hint: [{ text: 'a pleasant hint' }, { text: 'x'.repeat(81) }, { text: '   ' }],
         kick: [{ userId: bob.id }, { userId: cat.id }, { userId: ann.id }, { userId: 0 }, { userId: -5 }, { userId: 999999 }, { userId: String(bob.id) }],
         colour: [{ colour: '#ff2d95' }, { colour: '#FF2D95' }, { colour: '#ff2d95 ' }],
-        settings: [{ turnsEach: 3 }, { turnsEach: 0 }, { turnsEach: 6 }, { turnsEach: '3' }],
-        create: [{ turnsEach: 3 }, { turnsEach: 99 }],
+        settings: [{ rounds: 3 }, { rounds: 0 }, { rounds: 6 }, { rounds: '3' }],
+        create: [{ rounds: 3 }, { rounds: 99 }],
         join: [{ code: 'boss-aware-you' }, { code: 'Boss Aware You' }, { code: '?boss-aware-you' }],
         resume: [{ code: 'boss-aware-you' }, { code: 'no-such-game' }],
       }[event];
@@ -134,7 +134,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
 test('actions from outsiders and out of turn are refused and change nothing', async (t) => {
   const site = await launchModule(t, { id: 'tints-and-hints', moduleDir: here });
   const [ann, bob, cat, eve] = await Promise.all(['ann', 'bob', 'cat', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state?.players.length === 3, 'three players');
@@ -144,12 +144,12 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['advance', {}]]) {
     for (const p of everyone) assert.equal((await p.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }], ['start', {}], ['kick', { slot: 's1' }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
+  for (const [event, payload] of [['colour', { colour: '#000000' }], ['settings', { rounds: 2 }], ['start', {}], ['kick', { slot: 's1' }], ['guess', { cell: 'A1' }], ['hint', { text: 'x' }], ['advance', {}]]) {
     const reply = await eve.call(event, payload);
     assert.deepEqual(reply, { ok: false, error: 'notInAnyGame' }, event);
   }
   assert.equal((await bob.call('start', {})).ok, false, 'only the host starts');
-  assert.equal((await bob.call('settings', { turnsEach: 3 })).ok, false, 'only the host changes the settings');
+  assert.equal((await bob.call('settings', { rounds: 3 })).ok, false, 'only the host changes the settings');
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => everyone.every((p) => p.state?.phase === 'guessing1'), 'guessing1');
   const hinter = everyone.find((p) => p.state.hinter === p.id);
@@ -162,7 +162,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
     assert.equal((await g.call('advance', {})).ok, false, 'guessers cannot advance');
     assert.equal((await g.call('colour', { colour: '#000000' })).ok, false, 'colours are fixed once started');
     assert.equal((await g.call('start', {})).ok, false);
-    assert.equal((await g.call('settings', { turnsEach: 3 })).ok, false);
+    assert.equal((await g.call('settings', { rounds: 3 })).ok, false);
   }
   assert.equal((await hinter.call('advance', {})).ok, false, 'the hinter must wait for the guesses');
   assert.equal((await hinter.call('hint', { text: 'warm' })).ok, true);
@@ -193,7 +193,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
 test('error messages and replies never carry the tint or anyone else\'s guess', async (t) => {
   const site = await launchModule(t, { id: 'tints-and-hints', moduleDir: here });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state?.players.length === 3, 'three players');
@@ -205,7 +205,7 @@ test('error messages and replies never carry the tint or anyone else\'s guess', 
   const replies = [];
   for (const [who, event, payload] of [
     [g2, 'guess', { cell: 'nonsense' }], [g2, 'hint', { text: 'x' }], [g2, 'advance', {}], [g1, 'guess', { cell: 'K6' }], [g1, 'guess', { cell: 'K7' }],
-    [g2, 'kick', { slot: 's0' }], [g2, 'kick', { slot: 's1' }], [g2, 'colour', { colour: 'K6' }], [g1, 'settings', { turnsEach: 'K6' }],
+    [g2, 'kick', { slot: 's0' }], [g2, 'kick', { slot: 's1' }], [g2, 'colour', { colour: 'K6' }], [g1, 'settings', { rounds: 'K6' }],
   ]) replies.push(await who.call(event, payload));
   const text = JSON.stringify(replies);
   assert.ok(!text.includes(`"${hinter.state.tint}"`) || ['K6', 'K7'].includes(hinter.state.tint));

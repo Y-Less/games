@@ -6,9 +6,9 @@
   "leaveConfirm": "一度退出すると、戻ってこられません。",
   "settings": {
     "length": "ゲームの長さ",
-    "fewerTurns": "ターンを減らす",
-    "moreTurns": "ターンを増やす",
-    "turnsEach": "1人{count}ターン",
+    "fewerRounds": "ラウンドを減らす",
+    "moreRounds": "ラウンドを増やす",
+    "rounds": "{count}ラウンド",
     "total": "{players}人で全{count}ターンです。全員が順番に回答者になります。"
   },
   "scoreboard": {

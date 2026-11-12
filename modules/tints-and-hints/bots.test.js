@@ -22,8 +22,8 @@ function seededRng(seed = 1) {
 }
 
 /** A lobby with one person (the host, id 1) and `bots` computer players. */
-function lobbyWith(bots, { turnsEach = 1 } = {}) {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, turnsEach });
+function lobbyWith(bots, { rounds = 1 } = {}) {
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, rounds });
   for (let i = 0; i < bots; i++) assert.equal(game.addBot(room, 1).ok, true);
   return room;
 }
@@ -301,7 +301,7 @@ async function playThrough(p, what) {
 test('one person fills the lobby with computers, plays a whole game over sockets and is the only one recorded', async (t) => {
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  const created = await ann.call('create', { turnsEach: 1 });
+  const created = await ann.call('create', { rounds: 1 });
   assert.equal(created.ok, true);
   await until(() => ann.state?.phase === 'lobby', 'the lobby');
   assert.equal((await ann.call('start')).ok, false, 'alone is not enough');
@@ -352,7 +352,7 @@ function checkSeenNoTint(person) {
 test('the host cannot remove a computer player mid-game, and the computers never keep a game alive once the last person leaves', async (t) => {
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  assert.equal((await ann.call('create', { turnsEach: 5 })).ok, true);
+  assert.equal((await ann.call('create', { rounds: 5 })).ok, true);
   await ann.call('fillBots', { count: 4 });
   await until(() => ann.state.players.length === 4);
   await ann.call('start');
@@ -370,7 +370,7 @@ test('the host cannot remove a computer player mid-game, and the computers never
 test('only the host can use the computer-player events, and a game with people and computers lets people leave', async (t) => {
   const site = await launch(t);
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
-  const created = await ann.call('create', { turnsEach: 2 });
+  const created = await ann.call('create', { rounds: 2 });
   await bob.call('join', { code: created.code });
   await cat.call('join', { code: created.code });
   await until(() => ann.state.players.length === 3);
@@ -409,7 +409,7 @@ test('computers stay on time: a game of two people and a computer moves on by it
   const site = await launch(t);
   const ann = await site.person('ann').open();
   const bob = await site.person('bob').open();
-  const created = await ann.call('create', { turnsEach: 1 });
+  const created = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code: created.code });
   await ann.call('addBot');
   await until(() => ann.state.players.length === 3);

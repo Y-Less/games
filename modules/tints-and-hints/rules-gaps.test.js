@@ -10,8 +10,8 @@ import { checkRoom, readyAll } from './checks.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const first = () => 0;
 
-function started(n = 3, turnsEach = 2) {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, turnsEach });
+function started(n = 3, rounds = 2) {
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, rounds });
   for (let i = 2; i <= n; i++) game.addHuman(room, i);
   game.start(room, 1, first);
   return room;
@@ -122,7 +122,7 @@ test('viewFor a finished game gives placements and shows the tint', () => {
 test('sockets: the host cannot send anyone away once the game has ended; the result keeps everybody and is recorded once', async (t) => {
   const site = await launchModule(t, { id: 'tints-and-hints', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await until(() => ann.state?.players.length === 2, 'two players');
   await ann.call('start', {});

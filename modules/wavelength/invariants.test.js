@@ -67,7 +67,7 @@ function playRandom(seed) {
   if (room.players.length < 2) game.addHuman(room, 2);
   const actions = [
     (id) => game.setMode(room, id, pick(rng, ['solo', 'team', 'chaos', null])),
-    (id) => game.setTurnsEach(room, id, pick(rng, [1, 2, 3, 0, 9, '2'])),
+    (id) => game.setRounds(room, id, pick(rng, [1, 2, 3, 0, 9, '2'])),
     (id) => game.setColour(room, id, pick(rng, [...game.COLOURS, '#123456', 'red', null]), rng() < 0.5),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [2, 4, 8, 99, 'x'])),
@@ -126,7 +126,7 @@ test('whatever the order of play, a finished game has a history that adds up and
     game.addHuman(room, 2);
     if (rng() < 0.5) game.addHuman(room, 3);
     if (rng() < 0.5) game.addBot(room, 1);
-    game.setTurnsEach(room, 1, 1 + Math.floor(rng() * 2));
+    game.setRounds(room, 1, 1 + Math.floor(rng() * 2));
     game.setMode(room, 1, rng() < 0.5 ? 'team' : 'solo');
     game.start(room, 1, rng);
     for (let step = 0; step < 500 && room.phase !== 'finished'; step++) {

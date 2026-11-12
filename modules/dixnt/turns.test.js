@@ -41,9 +41,9 @@ test('each player chooses twice by default, so four players play two rounds of f
 test('the number of rounds is configurable by the host, in the lobby, within limits', () => {
   const { game, room, rng } = setup(['Ann', 'Bob', 'Cat']);
   assert.equal(game.setSettings(room, 2, { rounds: 3 }).error, 'hostOnly');
-  assert.equal(game.setSettings(room, 1, { rounds: 0 }).error, 'turnsEach');
-  assert.equal(game.setSettings(room, 1, { rounds: 11 }).error, 'turnsEach');
-  assert.equal(game.setSettings(room, 1, { rounds: 'lots' }).error, 'turnsEach');
+  assert.equal(game.setSettings(room, 1, { rounds: 0 }).error, 'rounds');
+  assert.equal(game.setSettings(room, 1, { rounds: 11 }).error, 'rounds');
+  assert.equal(game.setSettings(room, 1, { rounds: 'lots' }).error, 'rounds');
   assert.equal(game.setSettings(room, 1, { rounds: 1 }).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
   assert.equal(game.viewFor(room, 1).rounds, 1);

@@ -557,7 +557,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     }
     if (settings.rounds !== undefined) {
       const n = Math.round(numberFrom(settings.rounds));
-      if (!(n >= MIN_ROUNDS && n <= MAX_ROUNDS)) return fail('turnsEach', { min: MIN_ROUNDS, max: MAX_ROUNDS });
+      if (!(n >= MIN_ROUNDS && n <= MAX_ROUNDS)) return fail('rounds', { min: MIN_ROUNDS, max: MAX_ROUNDS });
       wanted.rounds = n;
     }
     if (settings.judging !== undefined) {

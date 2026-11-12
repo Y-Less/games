@@ -8,7 +8,7 @@ const bot = (id, name) => ({ id, slot: `s${id}`, name, colour: '#aa0000', online
 
 function make({ players, you = 1, hostId = 1, max = 8 }) {
   const send = vi.fn();
-  const state = { code: 'a-b-c', phase: 'lobby', you, hostId, turnsEach: 2, players, colours: ['#000001', '#aa0000'], limits: { min: 2, max, turns: { min: 1, max: 5 } } };
+  const state = { code: 'a-b-c', phase: 'lobby', you, hostId, rounds: 2, players, colours: ['#000001', '#aa0000'], limits: { min: 2, max, rounds: { min: 1, max: 5 } } };
   return { wrapper: mount(Lobby, { props: { state, send } }), send };
 }
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
@@ -27,7 +27,7 @@ describe('Tints and Hints lobby computer players', () => {
 
   it('offers to fill up to a normal table while there are fewer than that', async () => {
     const { wrapper, send } = make({ players: [person(1, 'Ann')] });
-    await button(wrapper, 'Fill up to 4 players').trigger('click');
+    await button(wrapper, 'Fill up to 4 seats').trigger('click');
     expect(send).toHaveBeenLastCalledWith('fillBots', { count: 4 });
   });
 
@@ -54,7 +54,7 @@ describe('lobby marker colours', () => {
     expect(plain.wrapper.text()).toContain('Unlock any colour in the shop');
 
     const send = vi.fn();
-    const state = { code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, turnsEach: 2, players: [{ ...people[0], colour: '#123456' }, people[1]], colours: ['#000001', '#aa0000'], canCustomColour: true, limits: { min: 2, max: 8, turns: { min: 1, max: 5 } } };
+    const state = { code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, rounds: 2, players: [{ ...people[0], colour: '#123456' }, people[1]], colours: ['#000001', '#aa0000'], canCustomColour: true, limits: { min: 2, max: 8, rounds: { min: 1, max: 5 } } };
     const wrapper = mount(Lobby, { props: { state, send } });
     expect(wrapper.find('[title="Your own colour"]').exists()).toBe(true);
     const picker = wrapper.find('input[aria-label="Choose any marker colour"]');

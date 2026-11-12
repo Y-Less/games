@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const EVENTS = {
   resume: ['code'],
   join: ['code'],
-  create: ['turnsEach'],
+  create: ['rounds'],
   leave: [],
   kick: ['userId'],
   voteKick: ['slot'],
@@ -21,7 +21,7 @@ const EVENTS = {
   addBot: [],
   fillBots: ['count'],
   removeBot: ['slot'],
-  settings: ['turnsEach'],
+  settings: ['rounds'],
   start: [],
   clue: ['text'],
   guess: ['text'],
@@ -77,7 +77,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
   async function arrange(phase) {
     for (const p of [...members, eve]) await p.call('leave', {});
     await until(() => [...members, eve].every((p) => p.state == null), 'everyone out');
-    const created = await ann.call('create', { turnsEach: 1 });
+    const created = await ann.call('create', { rounds: 1 });
     assert.equal(created.ok, true, created.error);
     for (const p of [bob, cat]) assert.equal((await p.call('join', { code: created.code })).ok, true);
     await until(() => members.every((p) => p.state?.phase === 'lobby' && p.state.players.length === 3), 'a lobby of three');
@@ -124,8 +124,8 @@ test('garbage payloads on every event, in every phase, from members and stranger
         kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
         removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 7 }, { count: 0 }, { count: 99 }],
-        settings: [{ turnsEach: 3 }, { turnsEach: 0 }, { turnsEach: 6 }, { turnsEach: '3' }],
-        create: [{ turnsEach: 3 }, { turnsEach: 99 }],
+        settings: [{ rounds: 3 }, { rounds: 0 }, { rounds: 6 }, { rounds: '3' }],
+        create: [{ rounds: 3 }, { rounds: 99 }],
         join: [{ code: 'boss-aware-you' }, { code: 'Boss Aware You' }, { code: '?boss-aware-you' }],
         resume: [{ code: 'boss-aware-you' }, { code: 'no-such-game' }],
       }[event];
@@ -154,7 +154,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
 test('actions from outsiders and out of turn are refused and change nothing', async (t) => {
   const site = await launchModule(t, { id: 'just-one', moduleDir: here });
   const [ann, bob, cat, eve] = await Promise.all(['ann', 'bob', 'cat', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state?.players.length === 3, 'three players');
@@ -162,7 +162,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['ready', {}]]) {
     for (const who of everyone) assert.equal((await who.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { turnsEach: 3 }]]) {
+  for (const [event, payload] of [['start', {}], ['clue', { text: 'x' }], ['guess', { text: 'x' }], ['pass', {}], ['best', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { rounds: 3 }]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.ok((await ann.call('start')).ok);

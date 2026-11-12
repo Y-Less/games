@@ -496,7 +496,7 @@
     "alreadyGuessed": "You have already guessed. Wait for the others.",
     "waitForClue": "Wait for the clue.",
     "coloursBeforeStart": "Colours can only be chosen before the game starts.",
-    "turnsEach": "Choose between {min} and {max} turns each.",
+    "rounds": "Choose between {min} and {max} rounds.",
     "everySeatTaken": "Every seat is taken.",
     "noSuchSeat": "There is no such seat.",
     "seatTaken": "That seat is taken.",

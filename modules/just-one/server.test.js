@@ -16,7 +16,7 @@ test('a whole game with four people: create, join, start, clues, guess, best hin
 
   assert.deepEqual(await ann.call('resume'), { ok: true, code: null });
   assert.equal((await ann.call('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
-  const created = await ann.call('create', { turnsEach: 1 });
+  const created = await ann.call('create', { rounds: 1 });
   assert.ok(created.ok);
   assert.equal((await ann.call('create')).ok, false, 'already in a game');
   for (const p of [bob, cat, dan]) assert.ok((await p.call('join', { code: created.code })).ok);
@@ -77,7 +77,7 @@ test('computer players fill the table, write, guess, pick the best hint and fini
   process.env.JUST_ONE_BOT_DELAY = '0-5';
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  assert.ok((await ann.call('create', { turnsEach: 1 })).ok);
+  assert.ok((await ann.call('create', { rounds: 1 })).ok);
   assert.ok((await ann.call('fillBots', { count: 4 })).ok);
   await until(() => ann.state.players.length === 4, 'three computers');
   assert.ok(ann.state.players.slice(1).every((p) => p.bot && p.online));

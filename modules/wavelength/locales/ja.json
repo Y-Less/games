@@ -18,9 +18,9 @@
     "team": "1つのチーム",
     "teamText": "回答者はマーカーを1つ共有し、みんなで動かして、誰でも確定できます。得点は全員同じです。",
     "hostChooses": "ホストが選びます。",
-    "fewerTurns": "ターンを減らす",
-    "moreTurns": "ターンを増やす",
-    "turnsEach": "1人{count}ターン",
+    "fewerRounds": "ラウンドを減らす",
+    "moreRounds": "ラウンドを増やす",
+    "rounds": "{count}ラウンド",
     "totalTurns": "{players}人で全{turns}ターンです。全員が順番にサイキックになります。"
   },
   "dial": {

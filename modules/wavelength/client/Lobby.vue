@@ -1,6 +1,6 @@
 <script setup>
 // The waiting room: the invite code, the player list (PlayerListPanel) with marker colours, and the host's game options.
-// Props: state (the server view: code, players, you, hostId, mode, turnsEach, limits), send (sends an action to the server).
+// Props: state (the server view: code, players, you, hostId, mode, rounds, limits), send (sends an action to the server).
 // Emits: none (everything goes through `send`).
 // Slots: none (it fills PlayerListPanel's `lead` slot with each player's colour chip).
 // Side effects: the template's buttons send add/remove bot, kick, colour, mode, settings, and start requests.
@@ -18,10 +18,10 @@ const isHost = computed(() => props.state.hostId === props.state.you);
 const taken = computed(() => new Set(props.state.players.map((p) => p.colour)));
 // Your own player record.
 const mine = computed(() => props.state.players.find((p) => p.id === props.state.you));
-// The allowed range for turns per player ({ min, max }).
-const turns = computed(() => props.state.limits.turns);
-// How many turns the whole game will last (turns each times players).
-const total = computed(() => props.state.turnsEach * props.state.players.length);
+// The allowed range for the number of rounds ({ min, max }).
+const rounds = computed(() => props.state.limits.rounds);
+// How many turns the whole game will last: everybody is the psychic once a round.
+const total = computed(() => props.state.rounds * props.state.players.length);
 // True once there are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
@@ -89,9 +89,9 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
       <p v-if="!isHost" class="muted">{{ t('lobby.hostChooses') }}</p>
       <h3>{{ t('lobby.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.turnsEach <= turns.min" :aria-label="t('lobby.fewerTurns')" @click="send('settings', { turnsEach: state.turnsEach - 1 })">-</button>
-        <strong>{{ t('lobby.turnsEach', { count: state.turnsEach }, state.turnsEach) }}</strong>
-        <button :disabled="!isHost || state.turnsEach >= turns.max" :aria-label="t('lobby.moreTurns')" @click="send('settings', { turnsEach: state.turnsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.rounds <= rounds.min" :aria-label="t('lobby.fewerRounds')" @click="send('settings', { rounds: state.rounds - 1 })">-</button>
+        <strong>{{ t('lobby.rounds', { count: state.rounds }, state.rounds) }}</strong>
+        <button :disabled="!isHost || state.rounds >= rounds.max" :aria-label="t('lobby.moreRounds')" @click="send('settings', { rounds: state.rounds + 1 })">+</button>
       </div>
       <p class="muted">{{ t('lobby.totalTurns', { turns: total, players: state.players.length }) }}</p>
       <div class="row">

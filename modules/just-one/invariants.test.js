@@ -60,7 +60,7 @@ function playRandom(seed) {
   for (const id of people.slice(1)) if (rng() < 0.7) game.addHuman(room, id);
   for (const id of people) if (room.players.length < 3) game.addHuman(room, id); // at least three, whoever joined
   const actions = [
-    (id) => game.setTurnsEach(room, id, pick(rng, [1, 2, 0, 9, '2'])),
+    (id) => game.setRounds(room, id, pick(rng, [1, 2, 0, 9, '2'])),
     (id) => game.addBot(room, id),
     (id) => game.fillWithBots(room, id, pick(rng, [3, 5, 99, 'x'])),
     (id) => game.removeBot(room, id, pick(rng, ['s0', 's1', 's2', 's99']), Math.random),
@@ -107,7 +107,7 @@ test('whatever the order of play, a finished game has a history that adds up and
     game.addHuman(room, 2);
     game.addHuman(room, 3);
     if (rng() < 0.5) game.addBot(room, 1);
-    game.setTurnsEach(room, 1, 1 + Math.floor(rng() * 2));
+    game.setRounds(room, 1, 1 + Math.floor(rng() * 2));
     game.start(room, 1, rng);
     for (let step = 0; step < 600 && room.phase !== 'finished'; step++) {
       const writers = room.players.filter((p) => p.id !== room.guesser);

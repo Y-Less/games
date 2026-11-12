@@ -7,10 +7,10 @@ import { AIS } from './ai/index.js';
 import { seeded } from '../../shared/testkit.js';
 
 /** A started room of the given user ids; the first player is the first guesser when the seed says so (see `guesserOf`). */
-function started(ids = [1, 2, 3, 4], { turnsEach = 1, seed = 4 } = {}) {
+function started(ids = [1, 2, 3, 4], { rounds = 1, seed = 4 } = {}) {
   const room = game.createRoom({ now: 0, code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
-  assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
+  assert.ok(game.setRounds(room, ids[0], rounds).ok);
   assert.ok(game.start(room, ids[0], seeded(seed)).ok);
   return room;
 }
@@ -47,9 +47,9 @@ test('a lobby: players, settings and computer players', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   assert.ok(game.addHuman(room, 2).ok);
   assert.ok(game.addHuman(room, 2).ok, 'joining twice is harmless');
-  assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
-  assert.equal(game.setTurnsEach(room, 1, 9).ok, false);
-  assert.ok(game.setTurnsEach(room, 1, 3).ok);
+  assert.equal(game.setRounds(room, 2, 3).ok, false, 'only the host');
+  assert.equal(game.setRounds(room, 1, 9).ok, false);
+  assert.ok(game.setRounds(room, 1, 3).ok);
   assert.equal(game.start(room, 1, Math.random).ok, false, 'three players are needed');
   assert.equal(game.addBot(room, 2).ok, false, 'only the host adds computers');
   assert.ok(game.fillWithBots(room, 1, 5).ok);
@@ -191,8 +191,8 @@ test('the scoreboard marks whoever the game is waiting for: the writers still to
   assert.deepEqual(current(), [guesser], 'who also picks the best hint');
 });
 
-test('everyone is the guesser turnsEach times, words do not repeat, and the game finishes with its history', () => {
-  const room = started([1, 2, 3], { turnsEach: 2 });
+test('everyone is the guesser rounds times, words do not repeat, and the game finishes with its history', () => {
+  const room = started([1, 2, 3], { rounds: 2 });
   const guessers = [];
   const words = [];
   while (room.phase !== 'finished') {
@@ -296,13 +296,13 @@ test('a saved room comes back as it was', () => {
 
 // ---------- computer players ----------
 
-function botGame(seed, { turnsEach = 2, count = 4 } = {}) {
+function botGame(seed, { rounds = 2, count = 4 } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1 });
   game.fillWithBots(room, 1, count);
   room.players[0].kind = 'bot'; // every seat is a computer, so the whole game plays itself
   room.players[0].name = 'Host';
-  room.turnsEach = turnsEach;
+  room.rounds = rounds;
   assert.ok(game.start(room, 1, rng).ok);
   let moves = 0;
   while (room.phase !== 'finished') {

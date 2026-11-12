@@ -9,9 +9,9 @@
     "chooseColour": "Choose marker colour {colour}",
     "chooseAnyColour": "Choose any marker colour",
     "unlockColour": "Unlock any colour in the shop. Set your usual one under Profile.",
-    "fewerTurns": "Fewer turns",
-    "moreTurns": "More turns",
-    "turnsEach": "{count} turn each | {count} turns each",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
+    "rounds": "{count} round | {count} rounds",
     "turnCount": "{count} turn | {count} turns",
     "turnsInAll": "{turns} in all with {players}. Everyone takes turns giving the hints."
   },

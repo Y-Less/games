@@ -13,10 +13,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'just-one';
 const launch = (t) => launchModule(t, { id: ID, moduleDir: here });
 
-async function gameOf(site, names, { turnsEach = 1 } = {}) {
+async function gameOf(site, names, { rounds = 1 } = {}) {
   const people = await Promise.all(names.map((n) => site.person(n).open()));
   const [host, ...others] = people;
-  const created = await host.call('create', { turnsEach });
+  const created = await host.call('create', { rounds });
   assert.equal(created.ok, true, created.error);
   for (const p of others) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === people.length), 'everyone in the lobby');
@@ -29,7 +29,7 @@ test('a room survives a restart of the site: the clues, the cancelling and the g
   const first = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });
   const people = await Promise.all(['ann', 'bob', 'cat', 'dan'].map((n) => first.person(n).open()));
   const [ann, bob, cat, dan] = people;
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   for (const p of [bob, cat, dan]) await p.call('join', { code });
   await ann.call('start');
   await allIn(people, 'clues');
@@ -127,7 +127,7 @@ test('a writer who has gone away holds up the clues until the host removes them;
 
 test('when the guesser is gone the host removes them, and a computer player guesses in their place: the turn is not lost', async (t) => {
   const site = await launch(t);
-  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { turnsEach: 2 });
+  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 2 });
   await g.host.call('start');
   await allIn(g.people, 'clues');
   const guesser = g.guesser();

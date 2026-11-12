@@ -22,9 +22,9 @@
     "team": "wa' ghom",
     "teamText": "wa' 'angwI' lughaj loywI'pu'; ghomtaHvIS luvIHmoH, 'ej ngaQmoHlaH Hoch. mI' rap Suq Hoch.",
     "hostChooses": "wIv che'wI'.",
-    "fewerTurns": "Qu'mey puS",
-    "moreTurns": "Qu'mey law'",
-    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "fewerRounds": "may'mey puS",
+    "moreRounds": "may'mey law'",
+    "rounds": "{count} may' | {count} may'mey",
     "totalTurns": "{players} QujwI'pu' tu'lu'DI' {turns} Qu'mey Hoch. qeSwI' moj Hoch."
   },
   "dial": {

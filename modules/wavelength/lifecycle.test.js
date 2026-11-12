@@ -13,10 +13,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'wavelength';
 const launch = (t) => launchModule(t, { id: ID, moduleDir: here });
 
-async function gameOf(site, names, { turnsEach = 1, mode = 'solo' } = {}) {
+async function gameOf(site, names, { rounds = 1, mode = 'solo' } = {}) {
   const people = await Promise.all(names.map((n) => site.person(n).open()));
   const [host, ...others] = people;
-  const created = await host.call('create', { turnsEach, mode });
+  const created = await host.call('create', { rounds, mode });
   assert.equal(created.ok, true, created.error);
   for (const p of others) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === people.length), 'everyone in the lobby');
@@ -28,7 +28,7 @@ test('rooms survive a restart of the site: a guess made before it still counts, 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wavelength-restart-'));
   const first = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => first.person(n).open()));
-  const { code } = await ann.call('create', { turnsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await ann.call('start');
@@ -80,7 +80,7 @@ test('a team room keeps its mode and marker over a restart, and the team can car
   const first = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });
   const people = await Promise.all(['ann', 'bob', 'cat'].map((n) => first.person(n).open()));
   const [ann, bob, cat] = people;
-  const { code } = await ann.call('create', { turnsEach: 1, mode: 'team' });
+  const { code } = await ann.call('create', { rounds: 1, mode: 'team' });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await ann.call('start');
@@ -193,7 +193,7 @@ test('a guesser who goes away does not stop the team locking in, though the reve
 
 test('when the psychic is gone the host removes them, and a computer player gives the clue in their place: the turn is not lost', async (t) => {
   const site = await launch(t);
-  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { turnsEach: 2 });
+  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 2 });
   await g.host.call('start');
   await allIn(g.people, 'clue');
   const psychic = g.psychic();

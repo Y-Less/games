@@ -54,7 +54,7 @@ sentence:
 - **Refusals.** Every rule returns `{ ok: false, error: <code>, params? }`, where the code is a refusal **code** and
   `params` are the values that text needs.  A code is looked up under `errors.` in `locales/en.json` first and
   `src/locales/en.json` second, so Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`
-  ...) sit beside the shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `turnsEach`, `noGameWithCode` ...).
+  ...) sit beside the shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `rounds`, `noGameWithCode` ...).
   An unexpected throw becomes `serverError`.
 - **Text in a view.** The scoreboard's turn labels and notes are messages (above), and so is the label of the
   made-up "all cards" category (`lobby.allCards`) used when there is no `categories.json`.  The labels and

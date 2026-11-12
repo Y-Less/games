@@ -142,10 +142,10 @@ export default function (ctx) {
  * Only the settings (turns each), whatever else a client sends.
  *
  * @param {object} payload  the settings the client sent (untrusted)
- * @returns {object} a new object with just `turnsEach`
+ * @returns {object} a new object with just `rounds`
  *
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['turnsEach', 'size']);
+  return pickKeys(payload, ['rounds', 'size']);
 }

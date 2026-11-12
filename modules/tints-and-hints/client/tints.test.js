@@ -22,7 +22,7 @@ function view(extra = {}) {
     phase: 'guessing1',
     you: 1,
     hostId: 1,
-    turnsEach: 1,
+    rounds: 1,
     turn: 1,
     turnsTotal: 3,
     hinter: 2,

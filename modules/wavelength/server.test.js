@@ -19,7 +19,7 @@ test('a whole game with three people: create, join, start, clue, guess, reveal, 
   assert.deepEqual(await ann.call('resume'), { ok: true, code: null });
   assert.equal((await ann.call('join', { code: 'nonsense' })).ok, false);
   assert.equal((await ann.call('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
-  const created = await ann.call('create', { turnsEach: 1 });
+  const created = await ann.call('create', { rounds: 1 });
   assert.ok(created.ok);
   assert.equal((await ann.call('create')).ok, false, 'already in a game');
   assert.ok((await bob.call('join', { code: ` ${created.code.toUpperCase()} ` })).ok);
@@ -86,7 +86,7 @@ test('computer players fill the table, play their own turns and finish a game', 
   process.env.WAVELENGTH_BOT_DELAY = '0-5';
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  assert.ok((await ann.call('create', { turnsEach: 1 })).ok);
+  assert.ok((await ann.call('create', { rounds: 1 })).ok);
   assert.equal((await ann.call('removeBot', { slot: 's99' })).ok, false);
   assert.ok((await ann.call('fillBots', { count: 3 })).ok);
   await until(() => ann.state.players.length === 3, 'two computers');
@@ -168,7 +168,7 @@ test('team mode: guessers share one marker over the sockets, the psychic never s
   const site = await launch(t);
   const people = [await site.person('ann').open(), await site.person('bob').open(), await site.person('cat').open()];
   const [ann, bob, cat] = people;
-  const { code } = await ann.call('create', { turnsEach: 1, mode: 'team' });
+  const { code } = await ann.call('create', { rounds: 1, mode: 'team' });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state.players.length === 3, 'three players');
@@ -209,7 +209,7 @@ test('team mode with computer players: a team of computers plays itself, and a l
   process.env.WAVELENGTH_BOT_DELAY = '0-5';
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  assert.ok((await ann.call('create', { turnsEach: 1, mode: 'team' })).ok);
+  assert.ok((await ann.call('create', { rounds: 1, mode: 'team' })).ok);
   await ann.call('fillBots', { count: 3 });
   assert.ok((await ann.call('start')).ok);
   for (let turn = 1; turn <= 3; turn++) {

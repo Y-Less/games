@@ -13,9 +13,9 @@
     "chooseColour": "'angwI' rItlh {colour} yIwIv",
     "chooseAnyColour": "'angwI' rItlh vay' yIwIv",
     "unlockColour": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv.",
-    "fewerTurns": "Qu'mey puS",
-    "moreTurns": "Qu'mey law'",
-    "turnsEach": "{count} Qu' Hoch | {count} Qu'mey Hoch",
+    "fewerRounds": "may'mey puS",
+    "moreRounds": "may'mey law'",
+    "rounds": "{count} may' | {count} may'mey",
     "turnCount": "{count} Qu' | {count} Qu'mey",
     "turnsInAll": "{players} tu'lu'DI' {turns} Hoch. ngoDHommey nob Hoch."
   },

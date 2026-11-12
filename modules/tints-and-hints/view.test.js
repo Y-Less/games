@@ -31,5 +31,5 @@ for (const [label, args] of [
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, now: 1 });
-  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostId', 'turnsEach', 'turn', 'turnsTotal', 'hinter', 'tint', 'hints', 'guesses', 'result', 'players', 'scoreboard', 'colours', 'canCustomColour', 'size', 'limits']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostId', 'rounds', 'turn', 'turnsTotal', 'hinter', 'tint', 'hints', 'guesses', 'result', 'players', 'scoreboard', 'colours', 'canCustomColour', 'size', 'limits']);
 });

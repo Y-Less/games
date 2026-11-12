@@ -17,7 +17,7 @@ function view(extra = {}) {
     phase: 'clues',
     you: 1,
     hostId: 1,
-    turnsEach: 1,
+    rounds: 1,
     turn: 1,
     turnsTotal: 4,
     guesser: 2,
@@ -187,7 +187,7 @@ describe('Just One lobby and recent moves', () => {
   const make = (you, hostId = 1) => {
     const send = vi.fn();
     const players = [player(1, 'Ann'), player(2, 'Bob')];
-    const state = { code: 'a-b-c', phase: 'lobby', you, hostId, turnsEach: 2, players, limits: { min: 3, max: 7, turns: { min: 1, max: 5 } } };
+    const state = { code: 'a-b-c', phase: 'lobby', you, hostId, rounds: 2, players, limits: { min: 3, max: 7, rounds: { min: 1, max: 5 } } };
     return { w: mount(Lobby, { props: { state, send } }), send };
   };
 
@@ -198,7 +198,7 @@ describe('Just One lobby and recent moves', () => {
     await w.findAll('button').find((b) => b.text().includes('Fill up to 4')).trigger('click');
     expect(send).toHaveBeenLastCalledWith('fillBots', { count: 4 });
     await w.find('button[aria-label="More turns"]').trigger('click');
-    expect(send).toHaveBeenLastCalledWith('settings', { turnsEach: 3 });
+    expect(send).toHaveBeenLastCalledWith('settings', { rounds: 3 });
   });
 
   it('shows others only that they are waiting for the host', () => {

@@ -10,10 +10,10 @@ import { checkRun } from './checks.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const launch = (t) => launchModule(t, { id: 'tints-and-hints', moduleDir: here });
 
-async function gameOf(site, names, { turnsEach = 1 } = {}) {
+async function gameOf(site, names, { rounds = 1 } = {}) {
   const people = await Promise.all(names.map((n) => site.person(n).open()));
   const [host, ...others] = people;
-  const created = await host.call('create', { turnsEach });
+  const created = await host.call('create', { rounds });
   assert.equal(created.ok, true);
   for (const p of others) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === people.length), 'everyone in the lobby');
@@ -228,7 +228,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   await until(() => bob.state === null && bobTab.state === null, 'room gone for both tabs');
   for (const p of [ann, bob, bobTab]) {
     assert.deepEqual(await p.call('join', { code: g.code }), { ok: false, error: 'noGameWithCode' });
-    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { slot: 's0' }], ['colour', { colour: '#000000' }], ['settings', { turnsEach: 2 }]]) {
+    for (const [event, payload] of [['start', {}], ['advance', {}], ['hint', { text: 'x' }], ['guess', { cell: 'A1' }], ['kick', { slot: 's0' }], ['colour', { colour: '#000000' }], ['settings', { rounds: 2 }]]) {
       const reply = await p.call(event, payload);
       assert.equal(reply.ok, false, event);
     }

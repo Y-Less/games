@@ -2,7 +2,7 @@
 // Depends on node:assert, grid.js (isCell), and game.js (the limits and palette).  Nothing here changes any game state.
 import assert from 'node:assert/strict';
 import { isCell } from './grid.js';
-import { COLOURS, HINT_LENGTH, MAX_PLAYERS, TURNS_EACH } from './game.js';
+import { COLOURS, HINT_LENGTH, MAX_PLAYERS, ROUNDS } from './game.js';
 
 /** Every phase a room can be in. */
 export const PHASES = ['lobby', 'guessing1', 'guessing2', 'reveal', 'finished', 'abandoned'];
@@ -37,7 +37,7 @@ export function checkRoom(room, what = 'room') {
   const colours = room.players.map((p) => p.colour);
   assert.equal(new Set(colours).size, colours.length, `${what}: colours are shared`);
   assert.ok(colours.every((c) => COLOURS.includes(c)), `${what}: a colour is not on the palette`);
-  assert.ok(room.turnsEach >= TURNS_EACH.min && room.turnsEach <= TURNS_EACH.max && Number.isInteger(room.turnsEach));
+  assert.ok(room.rounds >= ROUNDS.min && room.rounds <= ROUNDS.max && Number.isInteger(room.rounds));
   for (const p of room.players) {
     const total = room.history.reduce((sum, round) => sum + (round.deltas[p.slot] ?? 0), 0);
     assert.equal(p.score, total, `${what}: score of ${p.id} (${p.score}) differs from its history (${total})`);

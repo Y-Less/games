@@ -13,9 +13,9 @@
     "chooseColour": "Выбрать цвет маркера {colour}",
     "chooseAnyColour": "Выбрать любой цвет маркера",
     "unlockColour": "Любой цвет открывается в магазине. Привычный задайте в профиле.",
-    "fewerTurns": "Меньше ходов",
-    "moreTurns": "Больше ходов",
-    "turnsEach": "{count} ход на каждого | {count} хода на каждого | {count} ходов на каждого",
+    "fewerRounds": "Меньше раундов",
+    "moreRounds": "Больше раундов",
+    "rounds": "{count} раунд | {count} раунда | {count} раундов",
     "turnCount": "{count} ход | {count} хода | {count} ходов",
     "turnsInAll": "{turns} всего при {players}. Подсказки дают все по очереди."
   },

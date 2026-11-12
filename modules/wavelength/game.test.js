@@ -7,10 +7,10 @@ import { AIS } from './ai/index.js';
 import { seeded } from '../../shared/testkit.js';
 
 /** A room of the given user ids, started with the first player as the first psychic. */
-function started(ids = [1, 2, 3], { turnsEach = 2, seed = 7 } = {}) {
+function started(ids = [1, 2, 3], { rounds = 2, seed = 7 } = {}) {
   const room = game.createRoom({ now: 0, code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
-  assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
+  assert.ok(game.setRounds(room, ids[0], rounds).ok);
   const rng = seeded(seed);
   assert.ok(game.start(room, ids[0], rng).ok);
   return room;
@@ -48,9 +48,9 @@ test('a lobby: players, colours, settings and computer players', () => {
   assert.ok(game.addHuman(room, 2).ok, 'joining twice is harmless');
   assert.equal(game.setColour(room, 2, room.players[0].colour).ok, false, 'colours are unique');
   assert.equal(game.setColour(room, 2, '#123456').ok, false);
-  assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
-  assert.equal(game.setTurnsEach(room, 1, 9).ok, false);
-  assert.ok(game.setTurnsEach(room, 1, 3).ok);
+  assert.equal(game.setRounds(room, 2, 3).ok, false, 'only the host');
+  assert.equal(game.setRounds(room, 1, 9).ok, false);
+  assert.ok(game.setRounds(room, 1, 3).ok);
   assert.equal(game.addBot(room, 2).ok, false, 'only the host adds computers');
   assert.ok(game.fillWithBots(room, 1, 4).ok);
   assert.equal(room.players.length, 4);
@@ -108,8 +108,8 @@ test('a turn: clue, guesses, reveal and ready', () => {
   assert.equal(room.clue, '');
 });
 
-test('everyone is the psychic turnsEach times, spectra do not repeat, and the game finishes', () => {
-  const room = started([1, 2, 3], { turnsEach: 2 });
+test('everyone is the psychic rounds times, spectra do not repeat, and the game finishes', () => {
+  const room = started([1, 2, 3], { rounds: 2 });
   const psychics = [];
   const spectra = [];
   while (room.phase !== 'finished') {
@@ -273,15 +273,15 @@ test('statistics list the people, with their bullseyes and clues', () => {
 
 // ---------- computer players ----------
 
-function playBots(seed, { turnsEach = 2, count = 4 } = {}) {
+function playBots(seed, { rounds = 2, count = 4 } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 'bot:0' });
   room.players.length = 0;
   room.hostId = null;
   for (let i = 0; i < count; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}` });
   room.nextBot = count + 1;
-  room.turnsEach = turnsEach;
-  room.turnsTotal = turnsEach * count;
+  room.rounds = rounds;
+  room.turnsTotal = rounds * count;
   game.migrate(room);
   // start() needs a host; give it one that is a bot, which is fine for a rules test
   room.hostId = room.players[0].id;
@@ -314,7 +314,7 @@ test('a good computer player beats a random one, and every AI is legal on its ow
     room.players.length = 0;
     for (let i = 0; i < 4; i++) room.players.push({ id: `bot:${i + 1}`, colour: game.COLOURS[i], score: 0, bullseyes: 0, cluesGiven: 0, kind: 'bot', name: `B${i}`, ai: i < 2 ? 'standard' : 'random' });
     room.hostId = 'bot:1';
-    room.turnsEach = 2;
+    room.rounds = 2;
     game.start(room, 'bot:1', rng);
     for (const p of room.players) p.ai = p.id <= 'bot:2' ? 'standard' : 'random';
     while (room.phase !== 'finished') {
@@ -385,7 +385,7 @@ test('marker colours: a default is used when free, any colour needs the unlock, 
 function teamRoom(ids = [1, 2, 3, 4], seed = 5) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: ids[0] });
   for (const id of ids.slice(1)) game.addHuman(room, id);
-  assert.ok(game.setTurnsEach(room, ids[0], 1).ok);
+  assert.ok(game.setRounds(room, ids[0], 1).ok);
   assert.ok(game.setMode(room, ids[0], 'team').ok);
   assert.ok(game.start(room, ids[0], seeded(seed)).ok);
   return room;

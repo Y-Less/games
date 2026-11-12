@@ -6,9 +6,9 @@
   "leaveConfirm": "You will not be able to come back.",
   "settings": {
     "length": "Length of the game",
-    "fewerTurns": "Fewer turns",
-    "moreTurns": "More turns",
-    "turnsEach": "{count} turn each | {count} turns each",
+    "fewerRounds": "Fewer rounds",
+    "moreRounds": "More rounds",
+    "rounds": "{count} round | {count} rounds",
     "total": "{count} turn in all with {players} players. Everyone takes turns as the guesser. | {count} turns in all with {players} players. Everyone takes turns as the guesser."
   },
   "scoreboard": {

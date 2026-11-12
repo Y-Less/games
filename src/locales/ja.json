@@ -492,7 +492,7 @@
     "alreadyGuessed": "もう答えました。他の人を待ってください。",
     "waitForClue": "ヒントを待ってください。",
     "coloursBeforeStart": "色はゲームが始まる前にしか選べません。",
-    "turnsEach": "1人あたりの手番は{min}〜{max}で選んでください。",
+    "rounds": "ラウンド数は{min}〜{max}で選んでください。",
     "everySeatTaken": "席はすべて埋まっています。",
     "noSuchSeat": "そのような席はありません。",
     "seatTaken": "その席は埋まっています。",

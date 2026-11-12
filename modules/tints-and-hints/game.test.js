@@ -11,10 +11,10 @@ const sequence = (...values) => {
 };
 
 /** A room of the given user ids, started with the first player as the first hinter and "M4" as the tint. */
-function started(ids = [1, 2, 3], { turnsEach = 2 } = {}) {
+function started(ids = [1, 2, 3], { rounds = 2 } = {}) {
   const room = game.createRoom({ now: 0, code: 'boss-aware-you', hostId: ids[0] });
   for (const id of ids.slice(1)) assert.ok(game.addHuman(room, id).ok);
-  assert.ok(game.setTurnsEach(room, ids[0], turnsEach).ok);
+  assert.ok(game.setRounds(room, ids[0], rounds).ok);
   // rng: first value picks the first hinter (0 = first player), the next picks the column (M), then the row (4, the fourth).
   assert.ok(game.start(room, ids[0], sequence(0, 12.5 / 52, 3.5 / 24)).ok);
   assert.equal(room.tint, 'M4');
@@ -70,9 +70,9 @@ test('a lobby: colours are unique, the host sets the turns and the game needs tw
   assert.ok(game.setColour(room, 2, game.COLOURS[7]).ok);
   assert.equal(room.players[1].colour, game.COLOURS[7]);
 
-  assert.equal(game.setTurnsEach(room, 2, 3).ok, false, 'only the host');
-  for (const bad of [0, 6, 1.5, '2', null]) assert.equal(game.setTurnsEach(room, 1, bad).ok, false, String(bad));
-  assert.ok(game.setTurnsEach(room, 1, 5).ok);
+  assert.equal(game.setRounds(room, 2, 3).ok, false, 'only the host');
+  for (const bad of [0, 6, 1.5, '2', null]) assert.equal(game.setRounds(room, 1, bad).ok, false, String(bad));
+  assert.ok(game.setRounds(room, 1, 5).ok);
   assert.equal(game.start(room, 2, Math.random).ok, false, 'only the host starts');
   assert.ok(game.start(room, 1, Math.random).ok);
   assert.equal(room.turnsTotal, 10);
@@ -131,7 +131,7 @@ test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per pe
 });
 
 test('turns rotate in joining order until everyone has had the set number of turns, then the game finishes', () => {
-  const room = started([1, 2, 3], { turnsEach: 2 });
+  const room = started([1, 2, 3], { rounds: 2 });
   const hinters = [];
   for (let turn = 0; turn < 6; turn++) {
     hinters.push(room.hinter);
@@ -259,7 +259,7 @@ test('the order of play is unchanged when someone leaves: the computer player ke
 });
 
 test('a hinter who leaves on the last turn does not end the game early: the computer player plays it', () => {
-  const room = started([1, 2, 3], { turnsEach: 1 });
+  const room = started([1, 2, 3], { rounds: 1 });
   room.turn = 2;
   assert.equal(game.removeHuman(room, 1, seeded(1)).replaced, true);
   assert.equal(room.phase, 'guessing1');
@@ -348,7 +348,7 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
 });
 
 test('history: a turn skipped because its hinter left adds nothing, and totals still match', () => {
-  const room = started([1, 2, 3, 4], { turnsEach: 2 });
+  const room = started([1, 2, 3, 4], { rounds: 2 });
   hint(room);
   game.guess(room, 2, 'M4');
   game.guess(room, 3, 'M4');
