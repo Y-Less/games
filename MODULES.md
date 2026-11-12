@@ -61,6 +61,7 @@ export default function (ctx) {
 | `ctx.achievements` | save progress towards achievements and read anyone's (see Achievements below) |
 | `ctx.users.get(userId)` | `{ id, username, displayName, isBot, background }` or `null` |
 | `ctx.codes` | `generate(isTaken)` makes a three-word room code such as `boss-aware-you`; `normalise(raw)` tidies a typed or pasted one (returns `''` if it is not a code) |
+| `ctx.games` | the *other* games: `list()` their manifests (never this one's), `open(id, options)` a started room in one of them, `onFinished(handler)` to hear when any game anywhere ends (below) |
 | `ctx.dataDir` | a folder this module may save files in (the site creates it) |
 | `ctx.mount(subpath, folder, options)` | serve a folder at `/assets/<id><subpath>` (e.g. card images kept elsewhere) |
 | `ctx.log(...)` | logging, prefixed with the module id |
@@ -203,6 +204,28 @@ In tests, read what was saved with `savedRooms(dataDir)` from `shared/testkit.js
 the one place that knows where rooms are kept.  To rig a saved room and restart — a dealt hand you want to control, a
 room aged a fortnight — write it as a `rooms.json` beside an emptied database and let the start-up import pick it up,
 which exercises the path a real site upgrading takes once (`modules/nomination-whist/e2e.test.js` does this).
+
+## Reaching the other games (`ctx.games`)
+
+Modules are sealed from one another: each has its own socket namespace, its own rooms, its own saved file and its own
+codes, and that is deliberate — a game should not be able to reach into another one.  The single exception is a module
+whose whole job is to decide *which* game is played next (the tour), and `ctx.games` is the narrow door it uses.  Most
+games will never touch it.
+
+- `ctx.games.list()` — every **other** loaded module's manifest, by name.  `minPlayers` and `maxPlayers` are what you
+  want: they say which games a given number of people could actually play.
+- `ctx.games.open(id, { hostId, hostName, people, size, settings })` — opens a room in that game **already under way**,
+  and answers `{ ok: true, code, seated }`.  It seats the host and as many of `people` as the game will hold (`seated`
+  says who got in), fills the rest of `size` with computer players, and starts it.  Nobody is connected to it: the
+  people walk in by code, through the ordinary `join`, exactly as they would from an invitation.  A game that refuses
+  answers `{ ok: false, error }` — it never throws.  A module that is not room-based cannot be opened.
+- `ctx.games.onFinished(handler)` — `handler(gameId, room)` whenever a game in **any** module finishes.  It is called
+  once per game, from the same place and under the same guard as the statistics (`shared/roomLife.js`), so a room that
+  goes on changing afterwards does not report itself twice.  It returns a function that stops listening.
+
+Nothing is asked of a game to take part in this.  `openFor` is on the handle `createRoomServer` already returns and
+`ctx.onGameFinished` is supplied by the site, so every room-based module is openable and reports its finished games
+without a word in its own `server.js`.
 
 ## Statistics
 

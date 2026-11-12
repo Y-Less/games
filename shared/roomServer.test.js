@@ -242,3 +242,89 @@ test('a room already stale when the server starts is swept during start-up, not 
   t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
   assert.deepEqual([...server.rooms.keys()], ['warm'], 'the cold room went and the warm one stayed');
 });
+
+// ---- opening a room for somebody else, and saying when it is over ----
+//
+// Both are for a part of the site that runs games on other people's behalf (a tour, which picks a game by vote and
+// sends everybody to it).  Neither has anything to do with the rules, so both are tested here rather than in a game.
+
+/** A server over an empty folder, with codes, for the openFor tests.  `rules` replaces the game. */
+function openable(t, rules, extra = {}) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'room-open-'));
+  const logs = [];
+  let made = 0;
+  const ctx = {
+    io: new EventEmitter(),
+    dataDir,
+    log: (...args) => logs.push(args.map(String).join(' ')),
+    codes: { generate: () => `boss-aware-${(made += 1)}`, normalise: (c) => c ?? '' },
+    stats: { record() {} },
+  };
+  const server = createRoomServer(ctx, { game: rules, pickSettings: (p) => p, nextAction: () => null, registerEvents() {}, rng: seeded(7), ...extra });
+  t.after(() => { server.dispose(); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  return { server, logs };
+}
+
+test('openFor seats the people it is given, fills up with computer players, starts the game and saves it', (t) => {
+  const { server } = openable(t, game); // the real Hearts rules: a game opened this way is a game like any other
+  const opened = server.openFor({ hostId: 1, hostName: 'Ann', people: [{ id: 2, name: 'Bob' }], size: 4 });
+  assert.equal(opened.ok, true, opened.error);
+  assert.deepEqual(opened.seated, [1, 2], 'it says who actually got in');
+  const room = server.rooms.get(opened.code);
+  assert.ok(room, 'the room was kept');
+  assert.notEqual(room.phase, 'lobby', 'and it is already under way: nobody has to press Start');
+  assert.equal(room.seats.length, 4);
+  assert.deepEqual(room.seats.filter(game.isHuman).map((s) => s.id), [1, 2]);
+  assert.equal(room.seats.filter(game.isBot).length, 2, 'the rest are computer players');
+});
+
+test('openFor leaves out anybody the game will not seat, rather than refusing the lot', (t) => {
+  const { server } = openable(t, game);
+  // Hearts holds seven; the eighth person cannot be seated, and the other seven still get their game.
+  const people = [2, 3, 4, 5, 6, 7, 8].map((id) => ({ id, name: `P${id}` }));
+  const opened = server.openFor({ hostId: 1, hostName: 'Ann', people, size: 7 });
+  assert.equal(opened.ok, true, opened.error);
+  assert.deepEqual(opened.seated, [1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(server.rooms.get(opened.code).seats.length, 7);
+});
+
+test('a rules refusal while opening comes back as an answer, and a rules throw does not escape', (t) => {
+  const refusing = { isLive: () => true, createRoom: ({ code }) => ({ code, phase: 'lobby', seats: [] }), addHuman: () => ({ ok: true }), fillWithBots: () => ({ ok: true }), start: () => ({ ok: false, error: 'minPlayers', params: { min: 3 } }) };
+  const { server } = openable(t, refusing);
+  assert.deepEqual(server.openFor({ hostId: 1, hostName: 'Ann' }), { ok: false, error: 'minPlayers', params: { min: 3 } });
+
+  const throwing = { isLive: () => true, createRoom: () => { throw new Error('Play to 61 or 121.'); } };
+  const { server: second, logs } = openable(t, throwing);
+  const outcome = second.openFor({ hostId: 1, hostName: 'Ann' });
+  assert.equal(outcome.ok, false, 'a throw out of the rules is an answer, not a crash');
+  assert.ok(logs.some((line) => line.includes('Play to 61 or 121.')), `logged: ${logs.join(' | ')}`);
+});
+
+test('a finished game tells the site once, however many times the room changes afterwards', async (t) => {
+  const finished = [];
+  let ran = 0;
+  const { cleanup } = serverWith(
+    (room) => ({ wait: 1, run: () => { ran += 1; room.phase = 'finished'; } }),
+    { game: { isLive: () => true, statsPlayers: () => [] }, members: (room) => room.players, onFinished: (room) => finished.push(room.code) },
+  );
+  t.after(cleanup);
+  await sleep(60);
+  assert.ok(ran >= 2, `the room changed ${ran} times, so it was told more than once if it was going to be`);
+  assert.deepEqual(finished, ['a-b-c']);
+});
+
+test('a watcher of finished games that throws is logged, and the game is still recorded', async (t) => {
+  let recorded = 0;
+  const { cleanup, logs } = serverWith(
+    (room) => ({ wait: 1, run: () => { room.phase = 'finished'; } }),
+    {
+      game: { isLive: () => true, statsPlayers: () => { recorded += 1; return []; } },
+      members: (room) => room.players,
+      onFinished: () => { throw new Error('the tour fell over'); },
+    },
+  );
+  t.after(cleanup);
+  await sleep(60);
+  assert.equal(recorded, 1, 'the statistics were taken, once, despite the watcher');
+  assert.ok(logs.some((line) => line.includes('the tour fell over')), `logged: ${logs.join(' | ')}`);
+});

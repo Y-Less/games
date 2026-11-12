@@ -145,18 +145,70 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
  * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
  *   anybody (for something the game does once per change, such as handing out achievements).  A throw is logged and ignored.
+ * @param {(room: object) => void} [options.onFinished]  told once when a game here ends, for something outside this module
+ *   that is waiting on it (a tour).  A game does not pass this: it comes from the site as `ctx.onGameFinished`, so that
+ *   every module is heard without any of their server.js files knowing anything about it.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
- * @returns {{ dispose: () => void, rooms: Map<string, object> }} dispose() stops timers and saves; `rooms` is exposed for tests
+ * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function }} dispose() stops timers and saves;
+ *   `rooms` is exposed for tests; `openFor` opens a started room for people who did not ask for it themselves (see below)
  */
 export function createRoomServer(ctx, options) {
-  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, rng = Math.random, now = Date.now } = options;
+  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, rng = Math.random, now = Date.now } = options;
 
   // Everything that happens to a room, as against anybody asking for it: shared/roomLife.js owns the saved rooms, the
   // open sockets, the timers, and the vote running in a room.  What is left in this file is the protocol — the events
   // a client may send, what each of them is allowed to do, and what it is told back.
-  const life = createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, rng, now });
+  const life = createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, rng, now });
   const { votes } = life;
+
+  /**
+   * Opens a room in this game for people who are not asking for it themselves, and starts it.  This is the `create`
+   * event above with the socket taken out: another part of the site (a tour, which is choosing games on their behalf)
+   * seats the people it already has and hands them the code to walk in with.
+   *
+   * Nobody is attached to it, because nobody is here yet; each person joins by code through `enter` in the ordinary
+   * way, exactly as they would from an invitation.  Whoever cannot be seated is left out rather than refused: the
+   * caller is given back who actually got in, since a game may hold fewer people than the caller has.
+   *
+   * @param {object} options
+   * @param {number} options.hostId  whose room it is (the first person seated)
+   * @param {string} options.hostName  their display name
+   * @param {{ id: number, name: string }[]} [options.people]  everybody else to seat, in order
+   * @param {number} [options.size]  how many places the game should have (bots fill the rest); the game's own default when left out
+   * @param {object} [options.settings]  settings for the game, run through its own `pickSettings`
+   * @returns {{ ok: true, code: string, seated: number[] } | { ok: false, error: string, params?: object }}
+   * Side effects: creates, saves, starts and schedules a room.  It never throws: a rules refusal comes back as `ok: false`.
+   */
+  function openFor({ hostId, hostName, people = [], size, settings = {} }) {
+    let room;
+    try {
+      room = game.createRoom({
+        code: ctx.codes.generate((c) => life.taken(c)),
+        hostId,
+        hostName,
+        settings: pickSettings(settings),
+        now: now(),
+        ...playerExtras(hostId),
+        ...createArgs(settings),
+      });
+    } catch (error) {
+      ctx.log('could not open a room for somebody else:', error.message);
+      return refusalReply(error);
+    }
+    const seated = [hostId];
+    for (const person of people) {
+      if (person.id === hostId) continue;
+      if (game.addHuman(room, person.id, person.name, playerExtras(person.id)).ok) seated.push(person.id);
+    }
+    const filled = game.fillWithBots(room, hostId, size ?? seated.length);
+    if (!filled.ok) return refused(filled);
+    const started = (startRule ?? game.start)(room, hostId, rng, now());
+    if (!started.ok) return refused(started);
+    life.keep(room);
+    life.changed(room);
+    return { ok: true, code: room.code, seated };
+  }
 
   // One connection per browser tab: track the socket, register the shared events, then the game-specific ones.
   ctx.io.on('connection', (socket) => {
@@ -305,5 +357,5 @@ export function createRoomServer(ctx, options) {
     });
   });
 
-  return { rooms: life.rooms, dispose: life.dispose };
+  return { rooms: life.rooms, dispose: life.dispose, openFor };
 }

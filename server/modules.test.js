@@ -206,7 +206,55 @@ test("ctx gives a module its id, namespace, users, codes and a prefixed log", as
   assert.equal(reply.nobody, null);
   assert.match(reply.generated, /^[a-z]+-[a-z]+-[a-z]+$/);
   assert.equal(reply.normalised, 'boss-aware-you');
-  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'id', 'io', 'log', 'markers', 'mount', 'stats', 'users']);
+  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'games', 'id', 'io', 'log', 'markers', 'mount', 'onGameFinished', 'stats', 'users']);
+});
+
+test('ctx.games shows a module the other games, and tells it when any game anywhere finishes', async (t) => {
+  // What a tour needs: it must be able to see what else is playable, open one of those games, and hear that it ended.
+  // Each of those crosses from one module to another, which nothing else in the site does.
+  const modulesDir = writeModules(t, {
+    watcher: {
+      'module.json': manifest('watcher'),
+      'server.js': `export default function (ctx) {
+        const heard = [];
+        ctx.games.onFinished((id, room) => heard.push(\`\${id}:\${room.code}\`));
+        ctx.io.on('connection', (socket) => {
+          socket.on('probe', (payload, ack) => ack({
+            others: ctx.games.list().map((m) => m.id),
+            counts: ctx.games.list().map((m) => [m.id, m.minPlayers, m.maxPlayers]),
+            missing: ctx.games.open('nowhere', {}),
+            notRoomBased: ctx.games.open('player', {}),
+            heard,
+          }));
+        });
+      }`,
+    },
+    // Not a room-based module, so it has no openFor; it finishes a "game" by hand to prove the fan-out.
+    player: {
+      'module.json': manifest('player'),
+      'server.js': `export default function (ctx) {
+        ctx.io.on('connection', (socket) => {
+          socket.on('finish', (payload, ack) => { ctx.onGameFinished({ code: payload.code }); ack({ ok: true }); });
+        });
+      }`,
+    },
+  });
+  const { client } = await withSite(t, { modulesDir });
+  const c = client();
+  await register(c, 'tourist', 'password1');
+
+  const playing = c.socket('/player');
+  await connected(playing);
+  await ask(playing, 'finish', { code: 'boss-aware-you' });
+
+  const watching = c.socket('/watcher');
+  await connected(watching);
+  const reply = await ask(watching, 'probe', {});
+  assert.deepEqual(reply.others, ['player'], 'a module is not offered itself');
+  assert.deepEqual(reply.counts, [['player', 1, 2]], 'with the player counts a tour picks by');
+  assert.deepEqual(reply.missing, { ok: false, error: 'noSuchGame' });
+  assert.deepEqual(reply.notRoomBased, { ok: false, error: 'gameCannotBeOpened' });
+  assert.deepEqual(reply.heard, ['player:boss-aware-you'], 'the finished game was reported, with whose game it was');
 });
 
 test('socket users carry id, display name and bot flag, and a rename shows on the next connection', async (t) => {

@@ -39,12 +39,14 @@ const SWEEP_EVERY_MS = 60 * 60 * 1000;
  * @param {(userId: number) => object} options.playerExtras  extra fields for somebody joining
  * @param {(room: object, rng: () => number, now: () => number, who: { online: (id: number) => boolean, relay: Function }) => ({ key?: string, wait: number, run: () => void } | null)} options.nextAction  what the server owes the room next
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date
+ * @param {(room: object) => void} [options.onFinished]  told once when a game in this module ends, for something outside
+ *   it that is waiting (a tour).  It runs beside the statistics, under the same `recorded` guard, and a throw is logged.
  * @param {() => number} options.rng  random source
  * @param {() => number} options.now  the clock
  * @returns {object} rooms, votes, and the operations the protocol performs on a room
  * Side effects: loads the saved rooms, starts the hourly sweep and each room's timer.
  */
-export function createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, rng, now }) {
+export function createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, rng, now }) {
   // Naming people by slot, and the vote that uses it (shared/voteKick.js).
   const votes = createVoteKick({ game, members, layout, now });
   // Where the rooms are kept between restarts (shared/roomStore.js); nothing here touches the file itself.
@@ -167,6 +169,14 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
       ctx.stats.record({ code: room.code, players: game.statsPlayers(room) });
     } catch (error) {
       ctx.log('could not record the statistics:', error.message);
+    }
+    // Anybody outside this game waiting for it to be over is told here, and for the same reason the statistics are:
+    // this is the one place a game is noticed to have ended, and `recorded` makes it the once.  A tour running a game
+    // in another module is the caller this exists for; the watcher's own failure is not this room's problem.
+    try {
+      onFinished?.(room);
+    } catch (error) {
+      ctx.log('a watcher of finished games failed:', error);
     }
   }
 

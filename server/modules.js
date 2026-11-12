@@ -91,7 +91,43 @@ function readManifest(dir, folder) {
  *   runs each module's server.js, and wraps each connected socket's `emit` to time slow turns.
  */
 export async function loadModules({ dir, io, app, auth, stats, achievements, dataDir, owns = () => false, log = console.log }) {
-  const modules = new Map(); // id -> { meta, dispose }
+  const modules = new Map(); // id -> { meta, dir, dispose, openFor }
+  // Whoever is waiting for any game anywhere to finish.  A module that runs games on other modules' behalf (the tour)
+  // subscribes here; `shared/roomLife.js` is what calls it, once per finished game.
+  const finishWatchers = new Set();
+
+  /**
+   * The other games, as a module may reach them.  Every method looks `modules` up when it is called, never when this
+   * object is made: a module's ctx is built before the rest of them have loaded, and the tour asks long afterwards.
+   * @param {string} me  the id of the module being given this, which is left out of `list`
+   * @returns {{ list: Function, open: Function, onFinished: Function }}
+   * Side effects: none here; `open` creates and starts a room in another module.
+   */
+  const gamesFor = (me) => ({
+    /** Every other loaded game's manifest, by name.  @returns {object[]} */
+    list: () => [...modules.values()].map((m) => m.meta).filter((meta) => meta.id !== me).sort((a, b) => a.name.localeCompare(b.name)),
+    /**
+     * Opens a started room in another game and gives back its code, for people to walk into by invitation.
+     * @param {string} id  the game to open
+     * @param {object} options  as shared/roomServer.js's openFor: { hostId, hostName, people, size, settings }
+     * @returns {{ ok: boolean, code?: string, seated?: number[], error?: string, params?: object }}
+     */
+    open(id, options) {
+      const entry = modules.get(id);
+      if (!entry) return { ok: false, error: 'noSuchGame' };
+      if (!entry.openFor) return { ok: false, error: 'gameCannotBeOpened' }; // a module that is not room-based
+      return entry.openFor(options);
+    },
+    /**
+     * Calls back whenever a game in any module finishes.
+     * @param {(id: string, room: object) => void} handler
+     * @returns {() => void} stops listening
+     */
+    onFinished(handler) {
+      finishWatchers.add(handler);
+      return () => finishWatchers.delete(handler);
+    },
+  });
   const folders = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((d) => fs.statSync(path.join(dir, d.name), { throwIfNoEntry: false })?.isDirectory()) : [];
 
   for (const folder of folders) {
@@ -140,6 +176,23 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
           },
         },
         codes,
+        /** The other games: what they are, opening one, and hearing that any game anywhere has finished. */
+        games: gamesFor(meta.id),
+        /**
+         * Told by shared/roomLife.js, once, whenever a game in this module ends.  A module never sets this; it is here
+         * so that every room-based game reports a finished game without its server.js saying anything at all.
+         * @param {object} room  the finished room
+         * @returns {void}  Side effects: runs every watcher; one that throws is logged and the others still run.
+         */
+        onGameFinished(room) {
+          for (const watcher of finishWatchers) {
+            try {
+              watcher(meta.id, room);
+            } catch (error) {
+              log(`[${meta.id}] a watcher of finished games failed:`, error);
+            }
+          }
+        },
         /** Serves a folder of the module's files (e.g. images) at /assets/<id>/<subpath>. */
         mount: (subpath, folderPath, options = {}) => app.use(`/assets/${meta.id}${subpath}`, express.static(folderPath, options)),
         log: (...args) => log(`[${meta.id}]`, ...args),
@@ -149,7 +202,9 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
 
       const entry = await import(pathToFileURL(path.join(dir, meta.id, 'server.js')).href);
       const handle = (await entry.default(ctx)) ?? {};
-      modules.set(meta.id, { meta, dir: path.join(dir, meta.id), dispose: handle.dispose });
+      // `openFor` is on the handle every room-based game returns from createRoomServer, so collecting it here reaches
+      // all of them without a single module's server.js mentioning it.
+      modules.set(meta.id, { meta, dir: path.join(dir, meta.id), dispose: handle.dispose, openFor: handle.openFor });
       log(`module loaded: ${meta.id} (${meta.name})`);
     } catch (error) {
       console.error(`Could not load module "${folder.name}":`, error);
