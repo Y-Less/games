@@ -66,10 +66,10 @@ describe('the lobby', () => {
     const r = room({ seats: 4, started: false });
     const send = vi.fn(() => Promise.resolve({ ok: true }));
     const lobby = mount(Lobby, { props: { state: view(r), send } });
-    expect(lobby.text()).toContain('room for 4 players');
+    expect(lobby.text()).toContain('4 seats');
     // The deal is described for the people at the table, who are who the game will be for.
     expect(lobby.text()).toContain('4 players: one pack, 13 cards each');
-    await lobby.find('[aria-label="Room for more players"]').trigger('click');
+    await lobby.find('[aria-label="More seats"]').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { seats: 5 });
     lobby.unmount();
   });

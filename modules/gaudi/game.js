@@ -20,7 +20,7 @@ import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { seatScoreboardEntry } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { msg } from '../../shared/messages.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, uniqueName } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { STAT_KEYS } from './tally.js';
 import {
@@ -57,7 +57,7 @@ export { MAX_PLAYERS, MIN_PLAYERS, ROUNDS, bagSize, dicePerColour, poolSize };
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
 // The number of seats a game may have, and the default for a new room.
 export const SIZES = [2, 3, 4, 5];
-export const DEFAULT_SIZE = 4;
+export const DEFAULT_SEATS = 4; // how many "fill with computer players" makes up to
 // The one setting: whether private-colour dice are worth a flat 3 (see rules.js privatePoints).
 export const DEFAULT_SETTINGS = { badPrivate: false };
 // The extra statistics recorded for each finished game (see statsPlayers).  They live in tally.js, as every other
@@ -639,7 +639,7 @@ const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'windows' || room.phase === 'playing',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  fillTo: DEFAULT_SIZE,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   /**
    * Called with the computer player about to replace a person who left.  Writes the log line and chooses its AI.
@@ -660,8 +660,6 @@ const seats = createSeatRules({
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The AI a computer seat plays with (rooms saved before AIs existed fall back to the first).
@@ -733,9 +731,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  if (taken(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   // Two double-sided cards (four windows) each, no card dealt twice.
   const cards = shuffle(PATTERN_CARDS, rng);
@@ -1411,7 +1409,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, rounds: ROUNDS },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SEATS, rounds: ROUNDS },
     log: recentMoves(room, 14),
   };
   if (room.phase === 'windows') Object.assign(view, windowChoiceView(room, me));

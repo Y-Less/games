@@ -11,6 +11,7 @@
 // extras go in the #lead slot (shown before the name, e.g. a colour chip; it gets the `player`).
 // Players: [{ id, name, bot?, online? }].  Emits addBot, removeBot(id), kick(id), fillBots(count): the lobby does the sending.
 import { computed } from 'vue';
+import { defaultPlayers } from '../../shared/members.js';
 import BotIcon from './BotIcon.vue';
 
 const props = defineProps({
@@ -30,12 +31,11 @@ const cap = computed(() => (props.size >= props.min ? props.size : props.max));
 const capFloor = computed(() => Math.max(props.min, props.players.length));
 
 /**
- * How many players "fill with computer players" makes up to: a comfortable table of four rather than as many as the
- * game could possibly hold, which in a game for twelve would be a surprise.  It is the same number the rules use
- * (shared/roster.js defaultPlayers), and it is never below the game's own minimum or above a cap the host has set.
+ * How many seats "fill with computer players" makes up to: a comfortable table of four rather than as many as the
+ * game could possibly hold, which in a game for twelve would be a surprise.  The number is the rules' own
+ * (`defaultPlayers` in shared/members.js) rather than a copy of it, and never more than the seats the host has kept.
  */
-const FILL_TO = 4;
-const fillTo = computed(() => Math.min(cap.value, props.max, Math.max(props.min, FILL_TO)));
+const fillTo = computed(() => Math.min(cap.value, defaultPlayers(props.min, props.max)));
 </script>
 
 <template>

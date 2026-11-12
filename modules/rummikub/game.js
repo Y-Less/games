@@ -37,12 +37,12 @@ import {
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { msg } from '../../shared/messages.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
-import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, uniqueName } from '../../shared/seats.js';
+import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName } from '../../shared/seats.js';
 import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
 
 export { DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS };
 export const SIZES = [2, 3, 4, 5, 6];
-export const DEFAULT_SIZE = 4;
+export const DEFAULT_SEATS = 4; // how many "fill with computer players" makes up to
 export { STAT_KEYS };
 export const BOT_NAMES = ['Mabel', 'Hugo', 'Ivy', 'Otto', 'Nell', 'Felix', 'Dora', 'Ezra'];
 
@@ -56,8 +56,6 @@ export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
 /** The name at a seat for a log line: the name, or the site's "Someone" message for an empty seat.  Takes (room, seat); no side effects. */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? msg('common.someone');
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 /** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)?  Takes the room; returns a boolean; no side effects. */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
@@ -180,7 +178,7 @@ const seats = createSeatRules({
   isMidGame: inRound,
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  fillTo: DEFAULT_SIZE,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   /** Gives the replacement computer player its AI and tells the table (mutates the room's log). */
   takeOver(room, oldId, bot, rng, now, seat) {
@@ -250,12 +248,12 @@ export function start(room, userId, rng, now) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  const playing = atTable(room);
+  const playing = taken(room);
   if (playing < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
   const tooSmall = startProblem(room.settings, playing);
   if (tooSmall) return refuse(tooSmall);
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   room.first = Math.floor(rng() * room.seats.length);
   room.phase = 'playing';
@@ -714,9 +712,9 @@ export function viewFor(room, userId, { online = () => true, now } = {}) {
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, ...LIMITS },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SEATS, ...LIMITS },
     // What would be dealt if the game began now, which in the lobby is to whoever is here rather than to the whole table.
-    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, atTable(room)), jokerValue: JOKER_VALUE },
+    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, taken(room)), jokerValue: JOKER_VALUE },
     log: recentMoves(room, 14),
   };
   if (hasStarted(room)) Object.assign(view, playView(room, me, now));

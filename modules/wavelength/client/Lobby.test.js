@@ -36,7 +36,7 @@ describe('Wavelength lobby computer players', () => {
     await wrapper.findAll('.players li')[1].find('button.quiet').trigger('click');
     expect(send).toHaveBeenLastCalledWith('kick', { slot: 's2' });
     expect(button(wrapper, 'Add a computer player').attributes('disabled')).toBeDefined();
-    expect(wrapper.text()).toContain('The table is full (3 players)');
+    expect(wrapper.text()).toContain('The table is full (3 seats)');
   });
 
   it('shows nobody but the host any computer-player controls', () => {

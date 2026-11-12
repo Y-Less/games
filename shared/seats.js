@@ -28,6 +28,8 @@ export const humanSeats = (room) => room.seats.flatMap((s, i) => (isHuman(s) ? [
 export const botSeats = (room) => room.seats.flatMap((s, i) => (isBot(s) ? [i] : []));
 /** The index of the first empty seat, or -1 if the table is full. */
 export const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
+/** How many seats somebody is in: fewer than there are in the lobby, and all of them once the game has started. */
+export const taken = (room) => room.seats.filter(Boolean).length;
 /** A list of n empty seats. */
 export const emptySeats = (n) => Array.from({ length: n }, () => null);
 

@@ -63,7 +63,7 @@ describe('SeatLobby host controls', () => {
     expect(button(make({ seats: full, fillTo: 2 }), 'Fill')).toBeUndefined();
     const w = make({ seats: mostlyEmpty });
     const fill = button(w, 'Fill up to');
-    expect(fill.text()).toBe('Fill up to 3 players with computer players'); // never more than the table holds
+    expect(fill.text()).toBe('Fill up to 3 seats with computer players'); // never more than the seats there are
     await fill.trigger('click');
     expect(w.emitted('fillBots')).toEqual([[3]]);
   });

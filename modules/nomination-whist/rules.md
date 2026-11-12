@@ -4,7 +4,7 @@ A trick-taking game for 3 to 7 players, in the "Oh Hell" family.  Before each ro
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The table has room for seven; the host may make it smaller, fill the seats with friends or **computer players**, pick the options, and start once there are at least three.  The game is for whoever is at the table then, and the empty seats go.
+- One player creates a game and shares the three-word code (or the invite link).  There are seven seats; the host may take some away, fill them with friends or **computer players**, pick the options, and start once three of them are taken.  The game is for the seats somebody is in by then, and the empty ones go.
 - A standard 52-card pack is used.  With 7 players and 7 cards, 49 cards are dealt.
 
 ## The rounds

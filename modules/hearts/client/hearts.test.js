@@ -261,16 +261,16 @@ describe('Hearts lobby', () => {
     const send = makeSend();
     const state = view(roomOf(5, { started: false }));
     const w = mount(Lobby, { props: { state, send } });
-    expect(w.text()).toContain('room for 5 players');
+    expect(w.text()).toContain('5 seats');
     // The deal is described for the people at the table, who are who the game will be for.
     expect(w.text()).toContain('Five players: 10 cards each, 2C and 2D removed, pass 3 cards.');
-    await w.find('[aria-label="Room for more players"]').trigger('click');
+    await w.find('[aria-label="More seats"]').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { seats: 6 });
     const checkbox = w.find('input[type=checkbox]');
     expect(checkbox.element.checked).toBe(true); // the Jack of Diamonds is on by default
     const guest = mount(Lobby, { props: { state: { ...state, hostSeat: 3 }, send } });
     expect(guest.find('fieldset[disabled]').exists()).toBe(true);
-    expect(guest.find('[aria-label="Room for more players"]').exists()).toBe(false);
+    expect(guest.find('[aria-label="More seats"]').exists()).toBe(false);
     const six = mount(Lobby, { props: { state: view(roomOf(6, { started: false })), send } });
     expect(six.text()).toContain('Six players: 8 cards each, 2C, 3C, 2D and 3D removed, pass 2 cards.');
     expect(mount(Lobby, { props: { state: view(roomOf(4, { started: false })), send } }).text()).toContain('Four players: 13 cards each, none removed, pass 3 cards.');

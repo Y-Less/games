@@ -141,7 +141,7 @@ describe('Gaudi lobby', () => {
     const w = mount(Lobby, { props: { state: lobbyView(), send } });
     expect(w.text()).toContain('a-b-c');
     expect(w.text()).toContain('dice in the bag');
-    await w.find('[aria-label="Room for fewer players"]').trigger('click');
+    await w.find('[aria-label="Fewer seats"]').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { size: 3 });
     await w.find('input[type=checkbox]').setValue(true);
     expect(send).toHaveBeenCalledWith('settings', { badPrivate: true });
@@ -157,11 +157,11 @@ describe('Gaudi lobby', () => {
     const guest = mount(Lobby, { props: { state: game.viewFor(room, 2), send: makeSend() } });
     expect(guest.find('input[type=checkbox]').attributes('disabled')).toBeDefined();
     expect(guest.text()).toContain('Only the host can change these');
-    expect(guest.find('[aria-label="Room for fewer players"]').exists()).toBe(false);
+    expect(guest.find('[aria-label="Fewer seats"]').exists()).toBe(false);
     const host = mount(Lobby, { props: { state: game.viewFor(room, 1), send: makeSend() } });
-    expect(host.text()).toContain('room for 3 players');
-    expect(host.find('[aria-label="Room for fewer players"]').attributes('disabled')).toBeDefined(); // three are here
-    expect(host.find('[aria-label="Room for more players"]').attributes('disabled')).toBeUndefined();
+    expect(host.text()).toContain('3 seats');
+    expect(host.find('[aria-label="Fewer seats"]').attributes('disabled')).toBeDefined(); // three are here
+    expect(host.find('[aria-label="More seats"]').attributes('disabled')).toBeUndefined();
   });
 
   it('describes the bad private scoring rule when on', () => {

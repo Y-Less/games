@@ -401,7 +401,7 @@ describe('lobby', () => {
     await w.find('#opt-colours').setValue('6');
     await w.find('#opt-colours').trigger('change');
     expect(send).toHaveBeenCalledWith('settings', { colours: 6 });
-    await w.find('[aria-label="Room for more players"]').trigger('click');
+    await w.find('[aria-label="More seats"]').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { size: 5 });
     await w.find('#opt-timer').setValue('60');
     expect(send).toHaveBeenCalledWith('settings', { timer: 60 });

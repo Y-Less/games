@@ -42,36 +42,36 @@ describe('PlayerListPanel', () => {
     const full = make({ min: 2, max: 3 });
     expect(button(full, 'Add a computer player').attributes('disabled')).toBeDefined();
     expect(button(full, 'Fill up')).toBeUndefined();
-    expect(full.text()).toContain('The table is full (3 players).');
+    expect(full.text()).toContain('The table is full (3 seats).');
   });
 
   it('fills to a normal table of four, and never past the game or the host', async () => {
     // Not "as many as will fit": a game for twelve filling to twelve would be a surprise.
     const roomy = make({ players: players.slice(0, 1), min: 2, max: 12 });
-    await button(roomy, 'Fill up to 4 players').trigger('click');
+    await button(roomy, 'Fill up to 4 seats').trigger('click');
     expect(roomy.emitted().fillBots).toEqual([[4]]);
     // A game that wants more than four still asks for what it wants.
     const five = make({ players: players.slice(0, 1), min: 5, max: 8 });
-    expect(button(five, 'Fill up to 5 players')).toBeDefined();
+    expect(button(five, 'Fill up to 5 seats')).toBeDefined();
     // One that cannot hold four is not offered four.
     const pair = make({ players: players.slice(0, 1), min: 2, max: 2 });
-    await button(pair, 'Fill up to 2 players').trigger('click');
+    await button(pair, 'Fill up to 2 seats').trigger('click');
     expect(pair.emitted().fillBots).toEqual([[2]]);
-    // And a host who has capped the room is not offered more than the cap.
+    // And a host who has taken seats away is not offered more than the seats that are left.
     const capped = make({ players: players.slice(0, 1), min: 2, max: 12, size: 3 });
-    await button(capped, 'Fill up to 3 players').trigger('click');
+    await button(capped, 'Fill up to 3 seats').trigger('click');
     expect(capped.emitted().fillBots).toEqual([[3]]);
   });
 
-  it('lets the host say how many the room will hold, between those here and what the game allows', async () => {
+  it('lets the host say how many seats there are, between those taken and what the game allows', async () => {
     const w = make({ players, min: 2, max: 8, size: 5 });
     expect(w.text()).toContain('Players (3 of 5)');
-    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Room for more players').trigger('click');
+    await w.findAll('button').find((b) => b.attributes('aria-label') === 'More seats').trigger('click');
     expect(w.emitted().size).toEqual([[6]]);
-    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Room for fewer players').trigger('click');
+    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Fewer seats').trigger('click');
     expect(w.emitted().size).toEqual([[6], [4]]);
     const tight = make({ players, min: 2, max: 8, size: 3 });
-    expect(tight.findAll('button').find((b) => b.attributes('aria-label') === 'Room for fewer players').attributes('disabled')).toBeDefined();
+    expect(tight.findAll('button').find((b) => b.attributes('aria-label') === 'Fewer seats').attributes('disabled')).toBeDefined();
   });
 
   it('renders the lead slot for each player and the default slot after the list', () => {

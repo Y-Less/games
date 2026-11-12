@@ -69,7 +69,7 @@ test('three people start a game together', { timeout: 90000 }, guarded('start', 
     await who.waitForText('Waiting for players');
   }
   await host.waitForNoText('more seat'); // three people: enough to play
-  await host.clickButton('Fill up to 4 players with computer players'); // and one computer player makes up the table
+  await host.clickButton('Fill up to 4 seats with computer players'); // and one computer player makes up the table
   await host.clickButton('Start the game', { exact: true });
   await host.waitForText('Hand 1');
 }));

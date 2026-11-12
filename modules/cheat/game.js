@@ -16,7 +16,7 @@
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { RANKS, fullDeck, rankOf, shuffle, sortHand } from '../../shared/cards.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { nextSeat as seatAfter } from '../../shared/tricks.js';
@@ -62,7 +62,7 @@ const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
  * @param {string} args.code      the invite code
  * @param {number} args.hostId    the host's account id
  * @param {string} args.hostName  the host's name
- * @param {{ seats?: number }} [args.settings]  the number of seats (default DEFAULT_SEATS)
+ * @param {{ seats?: number }} [args.settings]  how many seats to open with (default: as many as the game allows)
  * @param {number} args.now     the creation time in milliseconds
  * @returns {object} the room
  * @throws {Error} if the number of seats is not allowed
@@ -128,8 +128,6 @@ const seats = createSeatRules({
   finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the lobby settings (just the number of seats).  Everyone stays seated (see resizeSeats).
@@ -169,9 +167,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
+  if (taken(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   const n = room.seats.length;
   const deck = shuffle(deckFor(n), rng);

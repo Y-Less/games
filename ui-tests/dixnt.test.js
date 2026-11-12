@@ -164,7 +164,7 @@ test('a host on their own fills the table with built-in computer players, starts
   assert.equal((await seats()).filter((s) => s.bot).length, 1);
   await solo.clickButton('Remove', { scope: 'ul.players li.row:nth-child(2)' });
   await solo.waitForText('Need 2 more players');
-  await solo.clickButton('Fill up to 3 players with computer players');
+  await solo.clickButton('Fill up to 3 seats with computer players');
   await solo.waitForText('Start the game');
   const rows = await seats();
   assert.deepEqual(rows.map((s) => s.bot), [false, true, true]);

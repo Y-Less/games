@@ -388,16 +388,16 @@ export function createMemberRules({
   const sizeOf = (room) => capacity(room);
 
   /**
-   * Starting settles how many are playing: the room becomes exactly as big as the people and computer players in it.
-   * A host who wants a place kept open for a friend fills it with a computer player first, and the friend takes it
-   * over when they arrive — which is what already happens to somebody who leaves a game under way.
+   * Starting settles the seats: the room keeps exactly the ones a person or a computer player is in, and the empty
+   * ones go.  Nothing is being held for anybody — a computer player in the lobby is a player like any other, and it
+   * is only once the game is under way that a seat stands in for somebody (see `stoodInFor` and `sitInForBot`).
    *
    * It is the game's own `start` that calls this, before anything is dealt, because from then on how much there is to
-   * deal is read off the room's size.
+   * deal is read off the seats.
    *
    * @param {object} room  the room to change
    * @returns {void}
-   * Side effects: the room is resized to the members in it (a table loses its empty seats; a list writes `room.size`).
+   * Side effects: the empty seats go (a table drops them; a list writes the count to `room.size`).
    */
   function lockSize(room) {
     layout.settle(room);
@@ -418,7 +418,7 @@ export function createMemberRules({
     if (problem) return problem;
     const wanted = Math.round(numberFrom(size));
     if (!Number.isInteger(wanted) || wanted < minPlayers || wanted > maxPlayers) return fail('playersRange', { min: minPlayers, max: maxPlayers });
-    if (members(room).length > wanted) return fail('removeBeforeFewerPlayers');
+    if (members(room).length > wanted) return fail('removeBeforeFewerSeats');
     layout.resize(room, wanted);
     return ok();
   }

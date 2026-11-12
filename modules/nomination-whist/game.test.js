@@ -122,7 +122,7 @@ test('lobby seats: the number of seats, adding, removing and filling computer pl
   assert.ok(g.fillWithBots(room, 1, 7).ok);
   assert.ok(room.seats.every(Boolean));
   // A table is never cut below the people at it: the host takes somebody out first, rather than the rules choosing.
-  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerPlayers');
+  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerSeats');
   for (const slot of ['s6', 's5', 's4', 's3']) assert.ok(g.removeBot(room, 1, slot).ok);
   assert.ok(g.setSettings(room, 1, { seats: 3 }).ok);
   assert.equal(room.seats.length, 3);
@@ -152,7 +152,7 @@ test('too many people cannot be squeezed into fewer seats', () => {
   g.addHuman(room, 2, 'Bob');
   g.addHuman(room, 3, 'Cat');
   g.addHuman(room, 4, 'Dan');
-  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerPlayers');
+  assert.equal(g.setSettings(room, 1, { seats: 3 }).error, 'removeBeforeFewerSeats');
   assert.equal(room.seats.length, g.MAX_SEATS);
 });
 

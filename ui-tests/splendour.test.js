@@ -30,9 +30,9 @@ test('the seat lobby: seat count, play-to target and computer players; Start nee
 
   // The table opens as big as the game allows (four here), and filling makes up the same four.
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty']);
-  await user.waitForText('room for 4 players');
+  await user.waitForText('4 seats');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('Fill up to 4 players with computer players');
+  await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);
@@ -251,7 +251,7 @@ test('with four players the five nobles sit in two columns inside the market and
   await user.waitForText('Start a new game');
   await user.clickButton('Start a new game');
   await user.waitForText('Waiting for players');
-  await user.clickButton('Fill up to 4 players with computer players');
+  await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');

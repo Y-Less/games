@@ -169,8 +169,8 @@ test(`Hearts with ${seats} players at ${at}: the table, hand, bottom boxes and e
       lobby: async (u) => {
         // The table opens at seven; bring it down to the count under test, then fill it.  Fill is a quick start of
         // four, so a bigger table is made up the rest of the way one computer player at a time.
-        for (let n = 7; n > seats; n--) await u.page.click('[aria-label="Room for fewer players"]');
-        await u.waitForText(`room for ${seats} players`);
+        for (let n = 7; n > seats; n--) await u.page.click('[aria-label="Fewer seats"]');
+        await u.waitForText(`${seats} seats`);
         await fillTable(u);
         for (let guard = 0; guard < seats; guard++) {
           if (!(await u.buttonState('Add a computer player')).present) break;
@@ -521,7 +521,7 @@ test(`Dixnt at ${at}: the table, controls and hand zones keep one size and posit
     await user.goto('/play/dixnt');
     await user.clickButton('Start a new game');
     await user.waitForText('Waiting for players');
-    await user.clickButton('Fill up to 3 players with computer players');
+    await user.clickButton('Fill up to 3 seats with computer players');
     await user.clickButton('Add a computer player');
     await user.clickButton('Start the game', { exact: true });
     await user.waitForText('Round 1 of');

@@ -19,7 +19,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
-import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, asHost } from '../../shared/seats.js';
+import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, asHost } from '../../shared/seats.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { HEELS_POINTS, pipValue, scoreHand, scorePlay } from './scoring.js';
 import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
@@ -244,8 +244,6 @@ const seats = createSeatRules({
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
 });
 export const { removeHuman, removeBot, kick, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * Seats a person (see the shared addHuman) and gives their seat this game's fields.
@@ -456,9 +454,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
+  if (taken(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   for (const s of room.seats) Object.assign(s, { score: 0, back: 0 });
   room.winner = null;
   room.handNo = 0;

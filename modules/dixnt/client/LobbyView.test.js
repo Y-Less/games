@@ -71,7 +71,7 @@ describe('Dixnt lobby computer players', () => {
     const players = [person('ann', 'Ann'), ...Array.from({ length: 11 }, (_, i) => bot(`b${i}`, `Bot ${i}`))];
     const { wrapper } = make({ players });
     expect(button(wrapper, 'Add a computer player').attributes('disabled')).toBeDefined();
-    expect(wrapper.text()).toContain('The table is full (12 players)');
+    expect(wrapper.text()).toContain('The table is full (12 seats)');
   });
 
   it('sends the whole settings message when the host changes one', async () => {

@@ -178,7 +178,7 @@ test('a host on their own fills the lobby with computer players and plays until 
   await solo.clickButton('Remove', { scope: '.players li:nth-child(2)' });
   await solo.waitForText('Players (1 of 8)');
   // Filling makes a table worth playing rather than the bare minimum of two, so this alone gives three.
-  await solo.clickButton('Fill up to 3 players with computer players');
+  await solo.clickButton('Fill up to 3 seats with computer players');
   await solo.waitForText('Players (3 of 8)');
   const rows = await seats();
   assert.match(rows[0], /Sol.*host/);

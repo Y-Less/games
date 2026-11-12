@@ -193,10 +193,10 @@ for (const [family, make, members, people] of families) {
     assert.equal(rules.addHuman(room, 3, 'Cy').error, 'gameFull', 'a room capped at two is full with two');
     assert.equal(rules.setSize(room, 1, 3).ok, true, 'until the host makes room again');
     assert.equal(rules.addHuman(room, 3, 'Cy').ok, true);
-    assert.equal(rules.setSize(room, 1, 2).error, 'removeBeforeFewerPlayers', 'and capping below those here is refused');
+    assert.equal(rules.setSize(room, 1, 2).error, 'removeBeforeFewerSeats', 'and taking seats away from under them is refused');
   });
 
-  test(`${family}: starting settles the size, so a place kept open has to be a computer player holding it`, () => {
+  test(`${family}: starting settles the seats at the ones somebody is in, and the empty ones go`, () => {
     const { rules, room } = make();
     rules.addHuman(room, 2, 'Bob');
     assert.equal(rules.sizeOf(room), 3, 'until then it is as big as the game allows');

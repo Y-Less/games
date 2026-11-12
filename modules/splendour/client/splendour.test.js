@@ -128,8 +128,8 @@ describe('Splendour lobby', () => {
     const send = makeSend();
     const w = mount(Lobby, { props: { state: lobbyView(), send } });
     expect(w.text()).toContain('a-b-c');
-    expect(w.text()).toContain('room for 4 players');
-    await w.find('[aria-label="Room for fewer players"]').trigger('click');
+    expect(w.text()).toContain('4 seats');
+    await w.find('[aria-label="Fewer seats"]').trigger('click');
     await button(w, '20').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { seats: 3 });
     expect(send).toHaveBeenCalledWith('settings', { target: 20 });
@@ -145,7 +145,7 @@ describe('Splendour lobby', () => {
     expect(w.find('fieldset').attributes('disabled')).toBeDefined();
     expect(w.text()).toContain('Only the host can change these');
     expect(button(w, '15 (usual)').attributes('aria-pressed')).toBe('true');
-    expect(w.find('[aria-label="Room for fewer players"]').exists()).toBe(false);
+    expect(w.find('[aria-label="Fewer seats"]').exists()).toBe(false);
   });
 
   it('will not cut the table below the people already in it', () => {
@@ -154,8 +154,8 @@ describe('Splendour lobby', () => {
     game.addHuman(room, 3, 'cat');
     game.addHuman(room, 4, 'dan');
     const w = mount(Lobby, { props: { state: game.viewFor(room, 1), send: makeSend() } });
-    expect(w.find('[aria-label="Room for fewer players"]').attributes('disabled')).toBeDefined();
-    expect(w.find('[aria-label="Room for more players"]').attributes('disabled')).toBeDefined(); // four is the most
+    expect(w.find('[aria-label="Fewer seats"]').attributes('disabled')).toBeDefined();
+    expect(w.find('[aria-label="More seats"]').attributes('disabled')).toBeDefined(); // four is the most
   });
 });
 

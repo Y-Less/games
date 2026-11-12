@@ -111,17 +111,18 @@ capitals; and `kick` is refused once the game is over.  A person who leaves a *f
 `goneSeat` marker (`{ kind: 'gone', name }`, pass it as `finishedSeat`) rather than an empty seat, so the final scores
 still name them and the table never meets a missing seat; `playAgain` then calls `freeGoneSeats(room)`.
 
-**How many a room holds is one question, and both families answer it the same way.**  Tell `createSeatRules` or
-`createRosterRules` the game's `minPlayers`, `maxPlayers`, and `fillTo` (how many "fill with computer players" makes
-up to; the default is a table of four, or the nearest the game allows — Cribbage says two), and you get `sizeOf`,
-`setSize`, and `lockSize` beside the rest.  A room opens as big as the game allows, so nobody who could have joined it
-is turned away; `setSize` lets the host bring it down, within the limits and never below the people already in it (the
-host takes somebody out first — the rules never choose who goes); and the game's `start` calls `lockSize` **before it
-deals**, because from then on how much there is to deal is read off the room's size.  Answer every refusal before
-`lockSize`, since settling renumbers the seats and a start that does not happen must leave the lobby as it was.  Send
-the size to the client as `sizeOf(room)` and never keep a second copy of it: a seated room is as big as `room.seats`,
-and a list keeps `room.size`.  A place held open for a friend is a computer player holding it, which they take over
-when they arrive.
+**How many seats a room has is one question, and both families answer it the same way.**  Tell `createSeatRules` or
+`createRosterRules` the game's `minPlayers`, `maxPlayers`, and `fillTo` (how many seats "fill with computer players"
+makes up, four by default, or the nearest the game allows — Cribbage says two), and you get `sizeOf`, `setSize`, and
+`lockSize` beside the rest.  A room opens with every seat the game allows, so nobody who could have joined it is
+turned away; `setSize` lets the host take seats away, within the limits and never below the people already sitting
+(the host puts somebody out first — the rules never choose who goes); and the game's `start` calls `lockSize`
+**before it deals**, because from then on how much there is to deal is read off the seats.  Answer every refusal
+before `lockSize`, since settling renumbers the seats and a start that does not happen must leave the lobby as it was.
+Send the count to the client as `sizeOf(room)` and never keep a second copy of it: a seated room's seats are
+`room.seats`, and a list counts them in `room.size`.  Seats are only ever taken away in the lobby, and a computer
+player sitting in one there is a player like any other, holding it for nobody; it is only once the game is under way
+that a seat stands in for somebody who left, and that a latecomer can take one over.
 
 **A place changes hands both ways.**  When somebody leaves a game under way, a computer player takes their place, keeps
 their score and whatever else was theirs, and remembers whose place it is holding (`stoodInFor`).  When somebody joins a

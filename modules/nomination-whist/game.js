@@ -19,7 +19,7 @@ import { handModel } from './sim/hand-model.js';
 import { FULL_HAND, newTally, STAT_KEYS, tallyDeal, tallyRound } from './tally.js';
 import { ledSuit, legalCards as legalCardsFor, winningCard } from './trick.js';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isGone, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
 
 export const MIN_SEATS = 3;
 export const MAX_SEATS = 7;
@@ -298,8 +298,6 @@ const seats = createSeatRules({
   finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 
 /**
@@ -340,9 +338,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
+  if (taken(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   room.dealer = Math.floor(rng() * room.seats.length);
   dealRound(room, rng);

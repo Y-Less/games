@@ -62,7 +62,7 @@ test('settings: the host picks 3 to 7 seats, and not fewer than are filled', () 
   assert.equal(g.setSettings(room, 1, { seats: 7 }).ok, true);
   assert.equal(room.seats.length, 7);
   g.fillWithBots(room, 1, 7);
-  assert.deepEqual(g.setSettings(room, 1, { seats: 3 }), { ok: false, error: 'removeBeforeFewerPlayers' }, 'someone would lose their seat');
+  assert.deepEqual(g.setSettings(room, 1, { seats: 3 }), { ok: false, error: 'removeBeforeFewerSeats' }, 'someone would lose their seat');
   assert.throws(() => g.createRoom({ now: 0, code: 'x', hostId: 1, hostName: 'Ann', settings: { seats: 2 } }));
 });
 

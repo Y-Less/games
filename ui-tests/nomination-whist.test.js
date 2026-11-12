@@ -28,14 +28,14 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
 
   // The table opens as big as the game allows; filling makes up a normal four, and the game is for whoever is here.
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty']);
-  await user.waitForText('room for 7 players');
+  await user.waitForText('7 seats');
   assert.equal((await user.buttonState('Leave game', { scope: '.field' })).present, false, 'the lobby has no Leave button of its own');
   assert.equal((await user.buttonState('Leave game', { scope: 'header.bar' })).present, true, 'the header offers it');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
   await user.clickButton('Add a computer player');
   await user.waitForText('1 more seat to fill.');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('Fill up to 4 players with computer players');
+  await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty', 'empty', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);

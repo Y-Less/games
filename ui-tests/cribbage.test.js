@@ -28,8 +28,8 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/cribbage?${code}`);
 
-  // The table opens as big as the game allows; the host may bring it down, and the game is for whoever is here.
-  await user.waitForText('room for 5 players');
+  // A room opens with every seat the game allows; the host may take some away, and the game is for the seats somebody is in.
+  await user.waitForText('5 seats');
   await user.waitForText('1 more seat to fill.');
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
@@ -39,15 +39,15 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
   // Filling makes up a table of two, which is the game Cribbage usually is, so there is nothing left to fill.
   await user.clickButton('Remove', { scope: '.seat.bot' });
   await user.waitForText('1 more seat to fill.');
-  await user.clickButton('Fill up to 2 players with computer players');
+  await user.clickButton('Fill up to 2 seats with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty', 'empty']);
-  // The table may be brought down to the two who are in it, but no further.
+  // Seats may be taken away down to the two somebody is in, but no further.
   for (const n of [4, 3, 2]) {
-    await user.page.click('[aria-label="Room for fewer players"]');
-    await user.waitForText(`room for ${n} players`);
+    await user.page.click('[aria-label="Fewer seats"]');
+    await user.waitForText(`${n} seats`);
   }
-  assert.equal(await user.page.$eval('[aria-label="Room for fewer players"]', (b) => b.disabled), true, 'two are seated');
+  assert.equal(await user.page.$eval('[aria-label="Fewer seats"]', (b) => b.disabled), true, 'two are seated');
   assert.deepEqual(await seatKinds(), ['human', 'bot']);
   // Leave game is in the site's header, not in the lobby.
   assert.deepEqual(await playAreaLeaveButtons(), [], 'no Leave button in the lobby');

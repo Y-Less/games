@@ -36,7 +36,7 @@ test('a table is never cut below the people at it, computer players included', (
   game.addHuman(room, 3, 'cat');
   game.addHuman(room, 4, 'dan');
   game.addBot(room, 1);
-  assert.equal(game.setSettings(room, 1, { seats: 4 }).error, 'removeBeforeFewerPlayers');
+  assert.equal(game.setSettings(room, 1, { seats: 4 }).error, 'removeBeforeFewerSeats');
   assert.equal(room.seats.filter(game.isBot).length, 1, 'the computer player stays until the host says otherwise');
   assert.ok(game.removeBot(room, 1, 's4').ok);
   assert.equal(game.setSettings(room, 1, { seats: 4 }).ok, true);

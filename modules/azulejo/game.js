@@ -11,7 +11,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg, refusal } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyTake } from './tally.js';
@@ -51,7 +51,7 @@ export { MAX_PLAYERS, MIN_PLAYERS, factoryCount, takesMarker };
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf };
 // The table sizes on offer, the default, the one setting (free wall off: the fixed wall), and the names given to computer players.
 export const SIZES = [2, 3, 4, 5];
-export const DEFAULT_SIZE = 4;
+export const DEFAULT_SEATS = 4; // how many "fill with computer players" makes up to
 export const DEFAULT_SETTINGS = { freeWall: false };
 export { STAT_KEYS };
 export const BOT_NAMES = ['Isabel', 'Tomas', 'Beatriz', 'Duarte', 'Ines', 'Rui', 'Carmo', 'Vasco', 'Leonor', 'Nuno'];
@@ -247,7 +247,7 @@ const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'playing' || room.phase === 'tiling',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  fillTo: DEFAULT_SIZE,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   /**
    * Turns the shared computer player into the one that replaces a person who left.
@@ -267,8 +267,6 @@ const seats = createSeatRules({
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the settings (lobby only).
@@ -326,9 +324,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  if (taken(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   room.bag = makeBag(rng);
   room.first = Math.floor(rng() * room.seats.length);
@@ -879,7 +877,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, tiles: TILES },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SEATS, tiles: TILES },
     log: recentMoves(room, 14),
   };
   if (hasStarted(room)) Object.assign(view, playView(room, me));

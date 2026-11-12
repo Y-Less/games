@@ -29,14 +29,14 @@ test('the lobby: a table as big as the game allows, the deal described, and Star
   await user.clickButton('Start a new game of Cheat');
   await user.waitForText('Waiting for players');
   // Seven seats to begin with, and the deal is described for the people here rather than for the empty seats.
-  await user.waitForText('room for 7 players');
+  await user.waitForText('7 seats');
   assert.equal((await seatKinds()).length, 7);
   await user.waitForText('3 players: one pack, 17 cards each (and 1 player gets one more).');
-  await user.page.click('[aria-label="Room for fewer players"]');
-  await user.waitForText('room for 6 players');
+  await user.page.click('[aria-label="Fewer seats"]');
+  await user.waitForText('6 seats');
   assert.equal((await seatKinds()).length, 6);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('Fill up to 4 players with computer players');
+  await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   await user.waitForText('4 players: one pack, 13 cards each.');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty', 'empty']);

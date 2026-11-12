@@ -4,7 +4,7 @@ An engine-building game for two to four players.  Gems buy cards, cards give per
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The table has room for four; the host may make it smaller, fill the seats with friends or **computer players**, pick the target prestige (10, 15 or 20, usually 15), and start once there are at least two.  The game is for whoever is at the table then, and the empty seats go.
+- One player creates a game and shares the three-word code (or the invite link).  There are four seats; the host may take some away, fill them with friends or **computer players**, pick the target prestige (10, 15 or 20, usually 15), and start once two of them are taken.  The game is for the seats somebody is in by then, and the empty ones go.
 - There are five gem colours (Diamond, Sapphire, Emerald, Ruby, Onyx) and **Gold**, which is wild.
 - Each colour has 4 tokens with two players, 5 with three, and 7 with four.  There are always 5 Gold.
 - Four development cards of each of the three levels lie face up, with a face-down pile for each level.  There is one more noble than there are players.

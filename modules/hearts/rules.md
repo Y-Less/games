@@ -4,7 +4,7 @@ A game for three to seven players (four is the usual number).  Nobody wants poin
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The table has room for seven; the host may make it smaller, fill the seats with friends or **computer players**, choose the settings, and start once there are at least three.  The game is for whoever is at the table then, and the empty seats go.
+- One player creates a game and shares the three-word code (or the invite link).  There are seven seats; the host may take some away, fill them with friends or **computer players**, choose the settings, and start once three of them are taken.  The game is for the seats somebody is in by then, and the empty ones go.
 - To deal evenly, a few low cards are taken out of the pack first, and then everybody is dealt the same number of cards.  The Queen of Spades and all the hearts are always kept.  The game is played over several hands until somebody reaches the target score.
 
 | Players | Cards removed | Cards each (and tricks) | Cards passed | Passing, hand by hand |

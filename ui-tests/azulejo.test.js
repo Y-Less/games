@@ -42,9 +42,9 @@ test('the seat lobby: players, the free-wall option and computer players; Start 
   // The table opens as big as the game allows; filling makes up a normal four, and the game is for whoever is left
   // when the host starts it.
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.waitForText('room for 5 players');
+  await user.waitForText('5 seats');
   await user.waitForText('1 more seat to fill.');
-  await user.clickButton('Fill up to 4 players with computer players');
+  await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty']);
   await user.clickButton('Remove', { scope: '.seat.bot' });

@@ -14,7 +14,7 @@ import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { cardMsg, msg, refusal, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyClaim, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
@@ -185,8 +185,6 @@ const seats = createSeatRules({
   finishedSeat: goneSeat,
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * Lets the host change settings (and the number of seats) while in the lobby.
@@ -279,9 +277,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
+  if (taken(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   deal(room, rng);
   // Every computer player picks its AI for the whole game (after the deal, so the deal itself is unchanged).
@@ -892,7 +890,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     winners: room.winners,
     seatCount: sizeOf(room),
     // What would be dealt if the game began now, which in the lobby is to whoever is here rather than the whole table.
-    deal: dealView(Math.max(MIN_SEATS, atTable(room))),
+    deal: dealView(Math.max(MIN_SEATS, taken(room))),
     limits: { targets: TARGETS, moonModes: MOON_MODES, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') Object.assign(view, playView(room, me));

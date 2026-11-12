@@ -13,7 +13,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { AIS } from './ai/index.js';
 import { extrasOf, statsRows } from '../../shared/tally.js';
 import { newTally, STAT_KEYS, tallyBuy, tallyNoble, tallyNobleChoice, tallyReserve, tallyReturn, tallyTurn } from './tally.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
 import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, cardsOfLevel, isCardId, isNobleId } from './cards.js';
 import { GOLD, GOLD_SUPPLY, MAX_RESERVED, MAX_TOKENS, needOf, quoteFor, supplyPerColour } from './rules.js';
 
@@ -251,8 +251,6 @@ const seats = createSeatRules({
   },
 });
 export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
-/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
-export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the target prestige or the number of seats (lobby only).  Shrinking the table keeps everyone seated,
@@ -315,9 +313,9 @@ export function start(room, userId, rng) {
   if (problem) return problem;
   // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
   // exactly as it was rather than quietly renumbering the seats.
-  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
+  if (taken(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
-  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
+  seats.lockSize(room); // the game is for the seats somebody is in; the empty ones go
   resetGame(room);
   room.seats = shuffle(room.seats, rng); // so that the first player is not always the host
   const n = room.seats.length;
