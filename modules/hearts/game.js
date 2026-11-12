@@ -14,7 +14,7 @@ import { followCards, trickWinnerSeat, turnAfterPlay } from '../../shared/tricks
 import { cardName, rankValue, shuffle, sortHand, suitOf, SUIT_NAMES } from '../../shared/cards.js';
 import { cardMsg, msg, refusal, suitMsg } from '../../shared/messages.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
-import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
+import { DEFAULT_BOT_NAMES, asHost, botSeats, createSeatRules, emptySeats, fail, freeGoneSeats, goneSeat, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, wouldPlay } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyClaim, tallyExchange, tallyHand, tallyTrick } from './tally.js';
 import { wantsMoon as standardWantsMoon, passStandard } from './ai/standard.js';
@@ -889,8 +889,8 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     lastHand: room.lastHand,
     winners: room.winners,
     seatCount: sizeOf(room),
-    // What would be dealt if the game began now, which in the lobby is to whoever is here rather than the whole table.
-    deal: dealView(Math.max(MIN_SEATS, taken(room))),
+    // What would be dealt if the game began now: to the people who would be playing, not to the whole table.
+    deal: dealView(wouldPlay(room, MIN_SEATS)),
     limits: { targets: TARGETS, moonModes: MOON_MODES, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') Object.assign(view, playView(room, me));

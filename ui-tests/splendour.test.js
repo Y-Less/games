@@ -164,8 +164,7 @@ test('after the game ends, a reload still shows the result and Play again starts
 test('the site header shows the title, Help and Leave game, and the play area has none of them', { timeout: 60000 }, guarded('header', async () => {
   await user.goto('/play/splendour');
   await user.clickButton('Start a new game');
-  await user.clickButton('2 players', { exact: true });
-  await user.clickButton('Add a computer player');
+  await user.clickButton('Add a computer player'); // a game of two: the seats nobody takes go when it starts
   await user.waitForNoText('more seat');
   const lobbyInPlay = await user.page.$$eval('.field button', (bs) => bs.map((b) => b.innerText.trim()).filter((t) => /^Leave/.test(t)));
   assert.deepEqual(lobbyInPlay, [], 'no Leave button in the lobby: the header has it');

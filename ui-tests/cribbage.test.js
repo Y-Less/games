@@ -20,7 +20,7 @@ const playAreaLeaveButtons = () => user.page.$$eval('.field button', (bs) => bs.
 const headerButtons = () => user.page.$$eval('header.bar button', (bs) => bs.map((b) => b.innerText.trim()));
 const seatKinds = () => user.page.$$eval('.seats .seat', (els) => els.map((e) => [...e.classList].find((c) => ['human', 'bot', 'empty'].includes(c))));
 
-test('the seat lobby: Start stays disabled until every seat is filled', { timeout: 60000 }, guarded('lobby', async () => {
+test('the seat lobby: Start stays disabled until two seats are taken', { timeout: 60000 }, guarded('lobby', async () => {
   await user.goto('/play/cribbage');
   await user.clickButton('Start a new game');
   await user.waitForText('Waiting for players');

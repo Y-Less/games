@@ -96,7 +96,28 @@ function assertStable(game, result, { sizeOnly = [], centreOnly = [], tolerateMi
  */
 async function fillTable(user) {
   const label = await user.page.$$eval('button', (bs) => bs.map((b) => b.innerText.trim()).find((t) => t.startsWith('Fill up to')) ?? null);
+  const before = await seatsTaken(user);
   await user.clickButton(label ?? 'Add a computer player');
+  await user.page.waitForFunction((was) => [...document.querySelectorAll('.seats .seat')].filter((e) => !e.classList.contains('empty')).length > was, {}, before);
+}
+
+/** How many seats somebody is in, read off the lobby. */
+const seatsTaken = (user) => user.page.$$eval('.seats .seat', (els) => els.filter((e) => !e.classList.contains('empty')).length);
+
+/**
+ * Takes the table down to `seats` and fills every one of them.  Filling is a quick start of four, so a bigger table is
+ * made up the rest of the way one computer player at a time — and each click is waited for, because the next one would
+ * otherwise go to a seat that has just been taken.
+ */
+async function sizedTable(user, seats) {
+  for (let n = 7; n > seats; n--) await user.page.click('[aria-label="Fewer seats"]');
+  await user.waitForText(`${seats} seats`);
+  await fillTable(user);
+  while ((await seatsTaken(user)) < seats) {
+    const before = await seatsTaken(user);
+    await user.clickButton('Add a computer player');
+    await user.page.waitForFunction((was) => [...document.querySelectorAll('.seats .seat')].filter((e) => !e.classList.contains('empty')).length > was, {}, before);
+  }
 }
 
 async function startGame(user, path, startLabel, { fill = true, lobby = null } = {}) {
@@ -166,17 +187,7 @@ test(`Hearts with ${seats} players at ${at}: the table, hand, bottom boxes and e
   await world.guard('hearts layout', async () => {
     await user.signUp('hlay', { displayName: 'Hearty' });
     await startGame(user, '/play/hearts', 'Start a new game of Hearts', {
-      lobby: async (u) => {
-        // The table opens at seven; bring it down to the count under test, then fill it.  Fill is a quick start of
-        // four, so a bigger table is made up the rest of the way one computer player at a time.
-        for (let n = 7; n > seats; n--) await u.page.click('[aria-label="Fewer seats"]');
-        await u.waitForText(`${seats} seats`);
-        await fillTable(u);
-        for (let guard = 0; guard < seats; guard++) {
-          if (!(await u.buttonState('Add a computer player')).present) break;
-          await u.clickButton('Add a computer player');
-        }
-      },
+      lobby: (u) => sizedTable(u, seats),
     });
     await user.waitForText('Hand 1');
     await user.waitForSelector('.hand button.playing-card');
@@ -466,7 +477,7 @@ wholeGameLayout({
   stopWhen: '.box.status .standings',
   newest: { '.box.log .game-log': 0 },
   lobby: async (user) => {
-    // Two seats and a low target keep the game short: the seats the host leaves empty go when it starts.
+    // One computer player and a low target keep the game short: a game of two, and the seats nobody took go.
     await user.clickButton('Add a computer player');
     await user.clickButton('10', { exact: true });
   },

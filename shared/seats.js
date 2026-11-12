@@ -30,6 +30,16 @@ export const botSeats = (room) => room.seats.flatMap((s, i) => (isBot(s) ? [i] :
 export const firstEmpty = (room) => room.seats.findIndex((s) => s === null);
 /** How many seats somebody is in: fewer than there are in the lobby, and all of them once the game has started. */
 export const taken = (room) => room.seats.filter(Boolean).length;
+/**
+ * How many the game would be for if it began now, which is what a lobby's "this is what you would be dealt" lines are
+ * worked out from.  It is the seats somebody is in, but never fewer than the game needs: a room with one person in it
+ * cannot start at all, so the smallest game it could become is the honest thing to show them.
+ * @param {{ seats: Array<object | null> }} room  not changed
+ * @param {number} min  the fewest the game can be played with
+ * @returns {number}
+ * Side effects: none.
+ */
+export const wouldPlay = (room, min) => Math.max(min, taken(room));
 /** A list of n empty seats. */
 export const emptySeats = (n) => Array.from({ length: n }, () => null);
 

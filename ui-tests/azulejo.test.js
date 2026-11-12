@@ -30,7 +30,7 @@ const finder = () => {
   return document.querySelector('.workshop button.pick:not(:disabled)');
 };
 
-test('the seat lobby: players, the free-wall option and computer players; Start needs every seat filled', { timeout: 60000 }, guarded('lobby', async () => {
+test('the seat lobby: the seats, the free-wall option and computer players; Start waits for two', { timeout: 60000 }, guarded('lobby', async () => {
   await user.goto('/play/azulejo');
   await user.clickButton('Start a new game');
   await user.waitForText('Waiting for players');
