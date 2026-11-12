@@ -1,13 +1,13 @@
 <script setup>
 // The main area of a Dixnt game, in three fixed zones that never move between phases: the table of played cards on
-// top, a one-line zone of controls (the chooser's word, the next-round button, the host's buttons), and your hand along
+// top, a one-line zone of controls (the chooser's word, the next-turn button, the host's buttons), and your hand along
 // the bottom.  Every size comes from the room the frame gives (`width` x `height`), never from the game.
 //
 // Props:
 //   width   {number}  required.  Width of the main area in pixels.
 //   height  {number}  required.  Height of the main area in pixels.
 // Emits: none.  Slots: none.
-// Side effects: sends submitWord, hints, nextRound, again and abortRound requests (the last two after a confirm
+// Side effects: sends submitWord, hints, nextTurn, again and abortTurn requests (the last two after a confirm
 // dialog); keeps local word/hints/busy state, cleared when you stop being the chooser; focuses the word box when you
 // become the chooser.
 import { computed, nextTick, ref, watch } from 'vue';
@@ -35,10 +35,10 @@ const finished = computed(() => phase.value === 'finished');
 // ---- the sizes ----
 // Size of a card in your hand: sized for a full hand so the zone never changes.
 const hand = computed(() => handCard(props.width, props.height, Math.max(state.value.handSize, state.value.me.hand.length, 1)));
-// How many players are in this round: everybody in the room, since a place is never empty while a game is on.
-const inRound = computed(() => players.value.length);
+// How many players are in this turn: everybody in the room, since a place is never empty while a game is on.
+const inTurn = computed(() => players.value.length);
 // Size and grid of the cards on the table, from what is left after the controls and the hand.
-const cards = computed(() => fitCards(inRound.value, props.width, props.height - CONTROLS - hand.value.height - GAP * 2));
+const cards = computed(() => fitCards(inTurn.value, props.width, props.height - CONTROLS - hand.value.height - GAP * 2));
 // The CSS grid rows of the three fixed zones: table (flexible), controls, hand.
 const rows = computed(() => `minmax(0, 1fr) ${CONTROLS}px ${hand.value.height}px`);
 
@@ -64,7 +64,7 @@ async function getHints() {
   if (reply.ok) hints.value = reply.hints;
 }
 /**
- * Sends the typed word to start the round (ignored if empty or already sending).
+ * Sends the typed word to start the turn (ignored if empty or already sending).
  * @returns {Promise<void>}
  * Side effects: sends `submitWord`; toggles `busy`.
  */
@@ -85,9 +85,9 @@ watch(choosing, async (now) => {
   input.value?.focus();
 }, { immediate: true, flush: 'post' });
 
-// ---- the end of a round, and the host's buttons ----
-// True when the round just finished was the last one.
-const isLastRound = computed(() => state.value.completedRounds >= state.value.totalRounds);
+// ---- the end of a turn, and the host's buttons ----
+// True when the turn just finished was the last one.
+const isLastTurn = computed(() => state.value.completedTurns >= state.value.totalTurns);
 // Name of the player who chooses the next word (the next in seat order after the current chooser).
 const nextChooser = computed(() => {
   const list = players.value;
@@ -103,12 +103,12 @@ async function endGame() {
   if (window.confirm(t('table.confirmEnd'))) await send('again');
 }
 /**
- * Host only: abandons the current round (no points) and moves to the next chooser, after asking.
+ * Host only: abandons the current turn (no points) and moves to the next chooser, after asking.
  * @returns {Promise<void>}
- * Side effects: shows a confirm dialog; sends `abortRound` if confirmed.
+ * Side effects: shows a confirm dialog; sends `abortTurn` if confirmed.
  */
-async function skipRound() {
-  if (window.confirm(t('table.confirmSkip'))) await send('abortRound');
+async function skipTurn() {
+  if (window.confirm(t('table.confirmSkip'))) await send('abortTurn');
 }
 </script>
 
@@ -119,7 +119,7 @@ async function skipRound() {
       <div v-else-if="choosing && hints.length" class="ideas" :aria-label="t('table.ideas')">
         <button v-for="hint in hints" :key="hint" type="button" class="chip" :class="{ picked: word === hint }" @click="word = hint">{{ hint }}</button>
       </div>
-      <Table v-else :card-width="cards.width" :card-height="cards.height" :count="inRound" :columns="cards.columns" />
+      <Table v-else :card-width="cards.width" :card-height="cards.height" :count="inTurn" :columns="cards.columns" />
     </div>
 
     <div class="controls">
@@ -129,13 +129,13 @@ async function skipRound() {
         <button class="primary" :disabled="!word.trim() || busy">{{ t('table.lockIn') }}</button>
       </form>
       <template v-else-if="phase === 'results'">
-        <button v-if="isLastRound" class="primary" @click="send('nextRound')">{{ t('table.lastRound') }}</button>
-        <button v-else class="primary" @click="send('nextRound')">{{ t('table.nextRound', { name: nextChooser }) }}</button>
+        <button v-if="isLastTurn" class="primary" @click="send('nextTurn')">{{ t('table.lastTurn') }}</button>
+        <button v-else class="primary" @click="send('nextTurn')">{{ t('table.nextTurn', { name: nextChooser }) }}</button>
       </template>
       <button v-else-if="finished && isHost" class="primary" @click="send('again')">{{ t('table.backToLobby') }}</button>
       <span class="spacer" />
       <div v-if="isHost && !finished" class="host">
-        <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipRound">{{ t('table.skipRound') }}</button>
+        <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipTurn">{{ t('table.skipTurn') }}</button>
         <button class="quiet" @click="endGame">{{ t('table.endGame') }}</button>
       </div>
     </div>

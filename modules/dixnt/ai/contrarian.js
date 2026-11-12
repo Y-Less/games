@@ -30,7 +30,7 @@ export const contrarian = {
   /**
    * Suspects whoever played the card that fits the clue best (too neat to be honest); in the favourite style it
    * picks the card closest to half-fitting as the most interesting.
-   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the round as the voter sees it
+   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @param {() => number} rng  random source for ties and for the no-information fallback
    * @returns {string} a player id from `targets`
    * Side effects: none.

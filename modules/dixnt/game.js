@@ -1,10 +1,13 @@
 // Pure game rules for the Dixnt game.  No networking in here, so it is easy to test.
 //
-// Round flow:  word -> picking -> voting -> results -> (next round) word ...
+// A TURN is one player's go as the word-chooser, and a ROUND is everyone having had one: the host sets how many
+// rounds the game runs for, so a table of five playing two rounds plays ten turns.
+//
+// Turn flow:  word -> picking -> voting -> results -> (next turn) word ...
 //   word        the chooser types a word or phrase
 //   picking     everyone except the chooser plays a card; one random player (the imposter) sees "???"
 //   voting      all cards and the real word are shown.  The group talks, and anyone can vote at any time
-//               (changing their vote until the last vote is in).  The round ends once everyone has voted.
+//               (changing their vote until the last vote is in).  The turn ends once everyone has voted.
 //   results     the imposter is revealed and points are awarded
 //
 // Three play styles (the 'judging' setting), chosen by the host in the lobby:
@@ -18,8 +21,9 @@
 //
 // The deck is built from the categories the host selects (cards come in categories; see getCategories below).
 //
-// Length: the game ends once every player has chosen the word `roundsEach` times (a round only counts as a turn
-// once it has been completed).  Then the phase becomes 'finished' and the host can start a new game from the lobby.
+// Length: the game ends once every player has chosen the word `rounds` times (a turn only counts once it has been
+// completed, so a skipped one is played again).  Then the phase becomes 'finished' and the host can start a new game
+// from the lobby.
 //
 // A ROOM is a plain object that can be saved as JSON, exactly as in every other game on the site, and the lobby —
 // joining, leaving, the host's removals, and the computer players — is the shared player-list code of
@@ -44,16 +48,16 @@ import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
-import { newCounters, statsExtras, tallyRound } from './tally.js';
+import { newCounters, statsExtras, tallyTurn } from './tally.js';
 
 export const POINTS_PER_VOTE = 1;
 export const CHOOSER_CORRECT_POINTS = 1;
 export const CHOOSER_FOOLED_POINTS = 5;
 export const FAVOURITE_POINTS = 2;
 export const JUDGING_MODES = ['everyone', 'chooser', 'favourite'];
-export const MIN_ROUNDS_EACH = 1;
-export const MAX_ROUNDS_EACH = 10;
-export const DEFAULT_ROUNDS_EACH = 2;
+export const MIN_ROUNDS = 1;
+export const MAX_ROUNDS = 10;
+export const DEFAULT_ROUNDS = 2;
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 12;
 /** How many a new game is for, until the host says otherwise. */
@@ -68,10 +72,10 @@ const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hana', 
 /** Used only if the word list is empty, so a computer chooser can always give a word. */
 const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 
-/** The phases in which a round is under way (or its results are showing). */
-const ROUND_PHASES = ['word', 'picking', 'voting', 'results'];
+/** The phases in which a turn is under way (or its results are showing). */
+const TURN_PHASES = ['word', 'picking', 'voting', 'results'];
 /** Every phase but 'finished': the lobby counts as live, because people are still arriving. */
-const LIVE = ['lobby', ...ROUND_PHASES];
+const LIVE = ['lobby', ...TURN_PHASES];
 
 /**
  * A table keyed by player id, keyed by slot instead: what the scoreboard history is written with.
@@ -130,7 +134,7 @@ export function shuffle(items, rng) {
 export const playerOf = (room, id) => room.players.find((p) => p.id === id);
 
 /**
- * Players who play a card this round: everyone except the chooser.
+ * Players who play a card this turn: everyone except the chooser.
  *
  * @param {object} room  not changed
  * @returns {object[]} the players
@@ -139,7 +143,7 @@ export const playerOf = (room, id) => room.players.find((p) => p.id === id);
 export const cardPlayers = (room) => room.players.filter((p) => p.id !== room.chooserId);
 
 /**
- * The players whose votes are needed before the round can end: everybody, or the chooser alone.
+ * The players whose votes are needed before the turn can end: everybody, or the chooser alone.
  *
  * @param {object} room  not changed
  * @returns {object[]} the players
@@ -148,9 +152,9 @@ export const cardPlayers = (room) => room.players.filter((p) => p.id !== room.ch
 export const voters = (room) => (room.judging === 'everyone' ? room.players : room.players.filter((p) => p.id === room.chooserId));
 
 /**
- * Is the round waiting for this player to do something?  The chooser while the word is chosen, everybody still to play
+ * Is the turn waiting for this player to do something?  The chooser while the word is chosen, everybody still to play
  * a card, then everybody still to vote.  The scoreboard shows it as `current` and the site's `global.slow` clock
- * reads it, so it must mean "it is your move", not "it is your round".
+ * reads it, so it must mean "it is your move", not "it is your go as the chooser".
  *
  * @param {object} room  not changed
  * @param {object} p  a player
@@ -299,7 +303,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   // ---------- the room ----------
 
   /**
-   * Gives a bare player ({ kind, id, name }) the fields Dixnt keeps for everybody: the score, how many rounds they
+   * Gives a bare player ({ kind, id, name }) the fields Dixnt keeps for everybody: the score, how many turns they
    * have chosen the word for, their hand, and the statistics counters.
    *
    * @param {object} room  not changed (part of the shared makePlayer contract)
@@ -332,13 +336,13 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       handSize: DEFAULT_HAND_SIZE,
       judging: 'everyone',
       categories: [], // the selected category keys; normaliseSettings fills in "all of them"
-      roundsEach: DEFAULT_ROUNDS_EACH, // how many times every player chooses the word
-      completed: 0, // rounds finished so far (abandoned rounds don't count)
-      // One entry per completed round, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
+      rounds: DEFAULT_ROUNDS, // how many rounds the game runs for: every player chooses the word once a round
+      completedTurns: 0, // turns finished so far (abandoned turns don't count)
+      // One entry per completed turn, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
       // Shown to everyone as the standard scoreboard.
       history: [],
       pointScale: 1, // 1 when points are the small numbers of today; a game saved with hundreds has none and is scaled down
-      round: 0,
+      turn: 0,
       nextChooserIdx: 0,
       chooserId: null,
       draw: [],
@@ -349,7 +353,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       tableOrder: [], // playerIds, shuffled once all cards are in
       votes: {}, // playerId -> playerId
       results: null,
-      collectedRound: -1, // the round whose hands have been reported to the `art` achievement (-1: none yet)
+      collectedTurn: -1, // the turn whose hands have been reported to the `art` achievement (-1: none yet)
       recorded: false,
       createdAt: now,
       updatedAt: now,
@@ -363,7 +367,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   /**
    * Brings a saved room up to date: the player list (shared/roster.js), the fields added since it was written, and
    * the deck, which is rebuilt from the cards that are on disk now.  A player left without a hand by an older
-   * version (Dixnt used to seat a latecomer as a spectator) is dealt one, so the round cannot stall waiting for a
+   * version (Dixnt used to seat a latecomer as a spectator) is dealt one, so the turn cannot stall waiting for a
    * card they could never play.
    *
    * @param {object} room  the room to bring up to date
@@ -372,6 +376,22 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @returns {object} the same room
    * Side effects: mutates the room.  Running it twice changes nothing more.
    */
+  /**
+   * Moves one field of a saved room to the name it goes by now, if it is still under the old one.
+   *
+   * @param {object} room  the room to change
+   * @param {string} was  the old field name
+   * @param {string} now  the name it has today
+   * @returns {void}
+   * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and a room that already
+   * holds `now` keeps what is there.
+   */
+  function renameField(room, was, now) {
+    if (room[was] === undefined) return;
+    if (room[now] === undefined) room[now] = room[was];
+    delete room[was];
+  }
+
   function migrate(room, nameOf, rng = () => 0.5) {
     migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
     const hadHistory = Array.isArray(room.history);
@@ -382,18 +402,29 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     room.tableOrder ??= [];
     room.draw ??= [];
     room.discard ??= [];
-    room.collectedRound ??= -1;
+    // Dixnt used to call one player's go a round, and so a saved room calls it that in four places and labels its
+    // history rows with it.  A turn is that go now, and a round is everybody having had one; the words the rules use
+    // are renamed on the way in, once, so that nothing below this line has to know the old ones.
+    renameField(room, 'round', 'turn');
+    renameField(room, 'completed', 'completedTurns');
+    renameField(room, 'roundsEach', 'rounds');
+    renameField(room, 'collectedRound', 'collectedTurn');
+    for (const entry of Array.isArray(room.history) ? room.history : []) {
+      if (entry?.label?.key === 'round.label') entry.label = { ...entry.label, key: 'turn.label' };
+      else if (entry?.label?.key === 'round.earlier') entry.label = { ...entry.label, key: 'turn.earlier' };
+    }
+    room.collectedTurn ??= -1;
     room.handSize ??= DEFAULT_HAND_SIZE;
-    room.roundsEach ??= DEFAULT_ROUNDS_EACH;
-    room.completed ??= 0;
-    room.round ??= 0;
+    room.rounds ??= DEFAULT_ROUNDS;
+    room.completedTurns ??= 0;
+    room.turn ??= 0;
     room.nextChooserIdx ??= 0;
     if (!Array.isArray(room.history)) room.history = [];
     for (const p of room.players) {
       p.hand ??= [];
       p.score ??= 0;
       p.turns ??= 0;
-      delete p.waiting; // a latecomer now takes a computer player's place instead of sitting the round out
+      delete p.waiting; // a latecomer now takes a computer player's place instead of sitting the turn out
       delete p.token; // a person's id is their account id, and a computer player's is 'bot:<n>'
     }
     // A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today.
@@ -403,13 +434,13 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       for (const entry of room.history) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
     }
     room.pointScale = 1;
-    // A game saved before the history existed shows the scores it already has as one "Earlier rounds" row.
+    // A game saved before the history existed shows the scores it already has as one "Earlier turns" row.
     if (!hadHistory && room.phase !== 'lobby' && room.players.some((p) => p.score)) {
-      room.history.push({ label: msg('round.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.slot, p.score])), notes: {} });
+      room.history.push({ label: msg('turn.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.slot, p.score])), notes: {} });
     }
     normaliseSettings(room);
     syncCards(room, rng);
-    if (ROUND_PHASES.includes(room.phase)) for (const p of room.players) drawUp(room, p, rng);
+    if (TURN_PHASES.includes(room.phase)) for (const p of room.players) drawUp(room, p, rng);
     return room;
   }
 
@@ -422,7 +453,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * computer player's — and both are this same renaming.
    *
    * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place,
-   * so a finished round is never rewritten.
+   * so a finished turn is never rewritten.
    *
    * @param {object} room  the room to change
    * @param {number | string} from  the id leaving
@@ -507,9 +538,9 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    *
    * @param {object} room  the room to change
    * @param {number} id  who is asking (must be the host)
-   * @param {object} [settings]  { handSize?, roundsEach?, judging?, categories? }
+   * @param {object} [settings]  { handSize?, rounds?, judging?, categories? }
    * @returns {{ ok: boolean, error?: string, params?: object }}
-   * Side effects: may change room.handSize, room.roundsEach, room.judging and room.categories.
+   * Side effects: may change room.handSize, room.rounds, room.judging and room.categories.
    */
   function setSettings(room, id, settings = {}) {
     const refused = hostInLobby(room, id);
@@ -524,10 +555,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       if (!(n >= MIN_HAND_SIZE && n <= MAX_HAND_SIZE)) return fail('handSizeRange', { min: MIN_HAND_SIZE, max: MAX_HAND_SIZE });
       wanted.handSize = n;
     }
-    if (settings.roundsEach !== undefined) {
-      const n = Math.round(numberFrom(settings.roundsEach));
-      if (!(n >= MIN_ROUNDS_EACH && n <= MAX_ROUNDS_EACH)) return fail('turnsEach', { min: MIN_ROUNDS_EACH, max: MAX_ROUNDS_EACH });
-      wanted.roundsEach = n;
+    if (settings.rounds !== undefined) {
+      const n = Math.round(numberFrom(settings.rounds));
+      if (!(n >= MIN_ROUNDS && n <= MAX_ROUNDS)) return fail('turnsEach', { min: MIN_ROUNDS, max: MAX_ROUNDS });
+      wanted.rounds = n;
     }
     if (settings.judging !== undefined) {
       if (!JUDGING_MODES.includes(settings.judging)) return fail('unknownJudging');
@@ -548,7 +579,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
 
   /**
    * The host starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs,
-   * and begins the first round.
+   * and begins the first turn.
    *
    * @param {object} room  the room to change
    * @param {number} id  who is asking (must be the host)
@@ -568,16 +599,16 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     room.discard = [];
     for (const p of room.players) Object.assign(p, { hand: [], score: 0, turns: 0 }, newCounters());
     room.history = [];
-    room.round = 0;
-    room.completed = 0;
+    room.turn = 0;
+    room.completedTurns = 0;
     room.nextChooserIdx = 0;
     room.recorded = false;
-    room.collectedRound = -1;
+    room.collectedTurn = -1;
     // Every computer player gets an AI for the whole game.
     const bots = room.players.filter(isBot);
     const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
     for (const p of bots) p.ai = picks[p.id];
-    startRound(room, rng);
+    startTurn(room, rng);
     return ok();
   }
 
@@ -588,7 +619,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @param {object} room  the room to change
    * @param {number | null} [id]  who is asking (must be the host); null when the rules do it themselves
    * @returns {{ ok: boolean, error?: string }}
-   * Side effects: resets the round, the deck, scores, hands, counters, and history.
+   * Side effects: resets the turn, the deck, scores, hands, counters, and history.
    */
   function playAgain(room, id = null) {
     if (id !== null && id !== room.hostId) return fail('hostOnlyEnd');
@@ -596,8 +627,8 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     nextGame(room); // the game just played keeps its scoreboard; this is the next one
     Object.assign(room, {
       phase: 'lobby',
-      round: 0,
-      completed: 0,
+      turn: 0,
+      completedTurns: 0,
       history: [],
       chooserId: null,
       draw: [],
@@ -609,7 +640,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       votes: {},
       results: null,
       recorded: false,
-      collectedRound: -1,
+      collectedTurn: -1,
     });
     for (const p of room.players) {
       Object.assign(p, { hand: [], turns: 0, score: 0 }, newCounters());
@@ -618,22 +649,22 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     return ok();
   }
 
-  // ---------- round flow ----------
+  // ---------- turn flow ----------
 
   /**
-   * Begins a round: the next chooser is picked and everybody's hand is topped up.
+   * Begins a turn: the next chooser is picked and everybody's hand is topped up.
    *
    * @param {object} room  the room to change
    * @param {() => number} rng  random source for the shuffles
    * @returns {void}
-   * Side effects: increments room.round, picks room.chooserId, clears the table, and enters the 'word' phase.
+   * Side effects: increments room.turn, picks room.chooserId, clears the table, and enters the 'word' phase.
    */
-  function startRound(room, rng) {
+  function startTurn(room, rng) {
     syncCards(room, rng);
-    room.round++;
+    room.turn++;
     // Normally just the next player in join order; anyone who has already had all their turns is skipped while
-    // somebody else still owes some (this happens after skipped rounds).
-    const owes = (player) => (player.turns ?? 0) < room.roundsEach;
+    // somebody else still owes some (this happens after skipped turns).
+    const owes = (player) => (player.turns ?? 0) < room.rounds;
     const someoneOwes = room.players.some(owes);
     let idx = room.nextChooserIdx % room.players.length;
     for (let step = 0; step < room.players.length; step++) {
@@ -651,18 +682,18 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * Abandons the current round without scoring or discarding, and moves to the next chooser.
+   * Abandons the current turn without scoring or discarding, and moves to the next chooser.
    *
    * @param {object} room  the room to change
    * @param {number} id  who is asking (must be the host)
-   * @param {() => number} rng  random source for the next round
+   * @param {() => number} rng  random source for the next turn
    * @returns {{ ok: boolean, error?: string }}
-   * Side effects: starts a new round.
+   * Side effects: starts a new turn.
    */
-  function abortRound(room, id, rng) {
+  function abortTurn(room, id, rng) {
     if (id !== room.hostId) return fail('hostOnlySkip');
-    if (!['word', 'picking', 'voting'].includes(room.phase)) return fail('noRoundToSkip');
-    startRound(room, rng);
+    if (!['word', 'picking', 'voting'].includes(room.phase)) return fail('noTurnToSkip');
+    startTurn(room, rng);
     return ok();
   }
 
@@ -722,7 +753,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     if (room.phase !== 'picking') return fail('notTimeToPlay');
     const player = playerOf(room, id);
     if (!player) return fail('notInGame');
-    if (id === room.chooserId) return fail('notPlayingThisRound');
+    if (id === room.chooserId) return fail('notPlayingThisTurn');
     if (!player.hand.includes(cardId)) return fail('notInHand');
     room.picks[id] = cardId;
     if (cardPlayers(room).every((p) => p.id in room.picks)) openVoting(room, rng);
@@ -744,13 +775,13 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * A player votes (or changes their vote).  When the last needed vote is in, the round is resolved.
+   * A player votes (or changes their vote).  When the last needed vote is in, the turn is resolved.
    *
    * @param {object} room  the room to change
    * @param {number | string} id  the voter
    * @param {number | string} targetId  whose card they suspect (or, when favouring, like best)
    * @returns {{ ok: boolean, error?: string }}
-   * Side effects: records the vote and may resolve the round.
+   * Side effects: records the vote and may resolve the turn.
    */
   function vote(room, id, targetId) {
     if (room.phase !== 'voting') return fail('notTimeToVote');
@@ -764,7 +795,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * Scores the round according to the play style (everyone, chooser, or favourite) and shows the results.
+   * Scores the turn according to the play style (everyone, chooser, or favourite) and shows the results.
    *
    * @param {object} room  the room to change
    * @returns {void}
@@ -793,9 +824,9 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     }
     for (const p of room.players) p.score += deltas[p.id];
 
-    const notes = roundNotes(room, { judging: 'everyone', groupCorrect });
+    const notes = turnNotes(room, { judging: 'everyone', groupCorrect });
     room.results = { judging: 'everyone', imposterId: room.imposterId, groupCorrect, tally, deltas, votes: { ...room.votes } };
-    completeRound(room, notes);
+    completeTurn(room, notes);
   }
 
   /**
@@ -813,10 +844,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     else deltas[room.imposterId] = CHOOSER_FOOLED_POINTS;
     for (const p of room.players) p.score += deltas[p.id];
 
-    const notes = roundNotes(room, { judging: 'chooser', groupCorrect });
+    const notes = turnNotes(room, { judging: 'chooser', groupCorrect });
     const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === accusedId ? 1 : 0]));
     room.results = { judging: 'chooser', imposterId: room.imposterId, accusedId, groupCorrect, tally, deltas, votes: { ...room.votes } };
-    completeRound(room, notes);
+    completeTurn(room, notes);
   }
 
   /**
@@ -832,10 +863,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     deltas[winnerId] = FAVOURITE_POINTS;
     for (const p of room.players) p.score += deltas[p.id];
 
-    const notes = roundNotes(room, { judging: 'favourite', winnerId });
+    const notes = turnNotes(room, { judging: 'favourite', winnerId });
     const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === winnerId ? 1 : 0]));
     room.results = { judging: 'favourite', imposterId: null, winnerId, groupCorrect: null, tally, deltas, votes: { ...room.votes } };
-    completeRound(room, notes);
+    completeTurn(room, notes);
   }
 
   /**
@@ -849,7 +880,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @returns {Object<string, object>} playerId -> remark (a message, see shared/messages.js)
    * Side effects: none.
    */
-  function roundNotes(room, { judging, groupCorrect, winnerId }) {
+  function turnNotes(room, { judging, groupCorrect, winnerId }) {
     const notes = {};
     if (room.chooserId !== null) notes[room.chooserId] = msg('notes.chooser');
     if (judging === 'favourite') {
@@ -863,36 +894,39 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * Records a finished round (abandoned rounds never get here): it counts as a turn for the chooser, is counted
+   * Records a finished turn (abandoned turns never get here): it counts as a turn for the chooser, is counted
    * towards everybody's statistics, goes into the scoreboard history, and the results are shown.
    *
    * @param {object} room  the room to change
-   * @param {Object<string, object>} [notes]  the scoreboard remarks from roundNotes (messages)
+   * @param {Object<string, object>} [notes]  the scoreboard remarks from turnNotes (messages)
    * @returns {void}
-   * Side effects: increments the chooser's turns and room.completed, bumps the counters, adds a history row, and
-   * enters 'results'.
+   * Side effects: increments the chooser's turns and room.completedTurns, bumps the counters, adds a history row,
+   * marks the results when this turn closed a round, and enters 'results'.
    */
-  function completeRound(room, notes = {}) {
+  function completeTurn(room, notes = {}) {
     const chooser = playerOf(room, room.chooserId);
+    const roundsBefore = roundsDone(room);
     if (chooser) chooser.turns = (chooser.turns ?? 0) + 1;
-    countRound(room);
-    room.completed++;
-    // `room.results` is the round on show and stays keyed by player id, because that is what the table is drawing and
+    countTurn(room);
+    room.completedTurns++;
+    // Whether everybody has now had a turn they had not had before: the one moment the scores are worth stopping for.
+    room.results.roundOver = roundsDone(room) > roundsBefore;
+    // `room.results` is the turn on show and stays keyed by player id, because that is what the table is drawing and
     // renameId keeps it straight.  The history row is keyed by slot instead, so that it is written once and never
     // touched again; viewFor sends it back out by id (shared/roster.js historyView).
-    room.history.push({ label: msg('round.label', { n: room.completed }), deltas: bySlot(room, room.results.deltas), notes: bySlot(room, notes) });
+    room.history.push({ label: msg('turn.label', { n: room.completedTurns }), deltas: bySlot(room, room.results.deltas), notes: bySlot(room, notes) });
     room.phase = 'results';
   }
 
   /**
-   * Counts the round just resolved towards each person's statistics.  Everything is read off the players, so the ids
+   * Counts the turn just resolved towards each person's statistics.  Everything is read off the players, so the ids
    * handed to the tally are the real ones (a table keyed by player id has text keys, and a person's id is a number).
    *
    * @param {object} room  the room whose counters are bumped
    * @returns {void}
    * Side effects: increments the counters on the people in the room (computer players keep none).
    */
-  function countRound(room) {
+  function countTurn(room) {
     // The counters live on the player; a computer player's are not recorded, so it is told to skip them.
     const counterOf = (id) => {
       const player = playerOf(room, id);
@@ -900,22 +934,22 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     };
     const pickers = room.players.filter((p) => p.id in room.picks).map((p) => p.id);
     const votes = room.players.filter((p) => p.id in room.votes).map((p) => [p.id, room.votes[p.id]]);
-    tallyRound(counterOf, { pickers, votes, results: room.results });
+    tallyTurn(counterOf, { pickers, votes, results: room.results });
   }
 
   /**
-   * Leaves the results: the played cards are discarded and the next round (or the end of the game) begins.
+   * Leaves the results: the played cards are discarded and the next turn (or the end of the game) begins.
    *
    * @param {object} room  the room to change
    * @param {number | string} id  who is asking (anybody in the room)
-   * @param {() => number} rng  random source for the next round
+   * @param {() => number} rng  random source for the next turn
    * @returns {{ ok: boolean, error?: string }}
-   * Side effects: moves cards to the discard pile, then starts a round or finishes the game.
+   * Side effects: moves cards to the discard pile, then starts a turn or finishes the game.
    */
-  function nextRound(room, id, rng) {
-    if (room.phase !== 'results') return fail('roundNotOver');
+  function nextTurn(room, id, rng) {
+    if (room.phase !== 'results') return fail('turnNotOver');
     if (!playerOf(room, id)) return fail('notInGame');
-    // Played cards go to the discard pile; startRound() then tops everyone's hand back up.
+    // Played cards go to the discard pile; startTurn() then tops everyone's hand back up.
     for (const p of room.players) {
       const cardId = room.picks[p.id];
       if (cardId === undefined) continue;
@@ -923,7 +957,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       room.discard.push(cardId);
     }
     if (allDone(room)) room.phase = 'finished';
-    else startRound(room, rng);
+    else startTurn(room, rng);
     return ok();
   }
 
@@ -960,7 +994,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @param {object} player  the computer player
    * @param {string} decision  the AI's method to call ('chooseWord', 'playCard' or 'vote')
    * @param {any[]} options  the legal answers
-   * @param {object} input  what the AI is told (the game adds the cards, round and judging style)
+   * @param {object} input  what the AI is told (the game adds the cards, turn and judging style)
    * @param {() => number} rng  random source for the AI and the fallback
    * @returns {any} one of `options`
    * Side effects: calls the AI; nothing in the room is changed.
@@ -968,7 +1002,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   function botDecide(room, player, decision, options, input, rng) {
     let answer;
     try {
-      answer = aiById(AIS, player.ai)[decision]({ ...input, cards: buildCardInfo({ categories: categoriesOf() }), round: room.round, judging: room.judging }, rng);
+      answer = aiById(AIS, player.ai)[decision]({ ...input, cards: buildCardInfo({ categories: categoriesOf() }), turn: room.turn, judging: room.judging }, rng);
     } catch {
       answer = undefined; // a broken AI must not stop the game
     }
@@ -1146,13 +1180,13 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * How many more rounds are needed before everyone has had all their turns.
+   * How many more turns are needed before everyone has had all of theirs.
    *
    * @param {object} room  not changed
    * @returns {number}
    * Side effects: none.
    */
-  const roundsRemaining = (room) => room.players.reduce((sum, p) => sum + Math.max(0, room.roundsEach - (p.turns ?? 0)), 0);
+  const turnsRemaining = (room) => room.players.reduce((sum, p) => sum + Math.max(0, room.rounds - (p.turns ?? 0)), 0);
 
   /**
    * Has every player chosen the word as many times as the host asked for?
@@ -1161,7 +1195,19 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @returns {boolean}
    * Side effects: none.
    */
-  const allDone = (room) => room.players.every((p) => (p.turns ?? 0) >= room.roundsEach);
+  const allDone = (room) => room.players.every((p) => (p.turns ?? 0) >= room.rounds);
+
+  /**
+   * How many rounds are behind the game: a round is everybody having had a turn as the chooser, so it is the number
+   * of turns the player with the fewest has had.  Counting it this way, rather than by dividing the turns played by
+   * the players, survives a skipped turn (which hands the go to somebody else and is played again later) and a place
+   * changing hands (the newcomer inherits the turns).
+   *
+   * @param {object} room  not changed
+   * @returns {number}
+   * Side effects: none.
+   */
+  const roundsDone = (room) => (room.players.length ? Math.min(...room.players.map((p) => p.turns ?? 0)) : 0);
 
   /**
    * What one player is allowed to see of the game: their own hand, the word (unless they are the imposter while cards
@@ -1179,10 +1225,11 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     return {
       code: room.code,
       phase: room.phase,
-      round: room.round,
-      roundsEach: room.roundsEach,
-      completedRounds: room.completed,
-      totalRounds: room.completed + roundsRemaining(room),
+      turn: room.turn,
+      rounds: room.rounds,
+      completedTurns: room.completedTurns,
+      totalTurns: room.completedTurns + turnsRemaining(room),
+      completedRounds: roundsDone(room),
       winners: room.phase === 'finished' ? winnerIds(room) : [],
       handSize: room.handSize,
       chooserId: room.chooserId,
@@ -1228,20 +1275,20 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     playAgain,
     ...roster,
     // Dixnt's own actions and what the server needs to drive its computer players.
-    abortRound,
+    abortTurn,
     allDone,
     availableIds,
     cardPlayers,
     mustAct,
     nextHints,
-    nextRound,
+    nextTurn,
     pendingBotAction,
     playCard,
     playerOf,
     renameId, // the server needs it to bring games saved before rooms.json over to account ids
-    roundsRemaining,
+    turnsRemaining,
     runBotAction,
-    startRound,
+    startTurn,
     submitWord,
     syncCards, // the deck follows the cards on disk; the tests drive it directly
     vote,

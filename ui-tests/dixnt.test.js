@@ -1,4 +1,4 @@
-// Dixnt: four people in four browsers play a round through the UI, and the host removes one of them mid-game.
+// Dixnt: four people in four browsers play a turn through the UI, and the host removes one of them mid-game.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, drive } from './helpers.js';
@@ -60,23 +60,23 @@ test('the host creates a game and three people join: by invite link, by typing t
   await fourth.waitForText('Waiting for the host to start the game.');
   await host.waitForText('Fay');
 
-  // One turn at choosing the word each: a four-round game, of which we play the first round.
+  // One round, which is one turn at choosing the word each: four turns, of which we play the first.
   await host.fill('label.row:nth-of-type(2) input.num', '1');
   await host.page.keyboard.press('Tab');
-  await host.waitForText('4 rounds with 4 players');
+  await host.waitForText('4 turns with 4 players');
   assert.equal((await host.buttonState('Start the game')).disabled, false);
 }));
 
-test('a round: the chooser types a word, everyone plays a card and votes, and the scores pop-up shows Round 1', { timeout: 150000 }, guarded('round', async () => {
+test('a turn: the chooser types a word, everyone plays a card and votes, and no pop-up interrupts', { timeout: 150000 }, guarded('turn', async () => {
   const all = [host, second, third, fourth];
   const popups = new Map(all.map((u) => [u, null]));
   await host.clickButton('Start the game', { exact: true });
-  await host.waitForText('Round 1 of 4');
+  await host.waitForText('Turn 1 of 4');
 
   const step = async (u) => {
     const title = await u.modalTitle();
     if (title) {
-      if (/^Scores after/.test(title)) popups.set(u, { title, text: await u.page.$eval('.modal', (e) => e.innerText) });
+      popups.set(u, title);
       await u.page.keyboard.press('Escape');
       return true;
     }
@@ -98,31 +98,27 @@ test('a round: the chooser types a word, everyone plays a card and votes, and th
   };
   await drive({
     act: async () => (await Promise.all(all.map(step))).some(Boolean),
-    finished: async () => all.every((u) => popups.get(u)),
+    finished: async () => /Next turn: .* chooses the word/.test(await host.text()),
     timeout: 90000,
-    what: 'a round of Dixnt',
+    what: 'a turn of Dixnt',
   });
 
-  for (const u of all) {
-    const popup = popups.get(u);
-    assert.equal(popup.title, 'Scores after Round 1');
-    assert.match(popup.text, /Round 1/);
-    assert.match(popup.text, /was the imposter/);
-    assert.match(popup.text, /Total/);
-  }
+  // One turn is not a round, and the scores no longer open themselves until everyone has had a go: nothing was
+  // closed on the way here, by anybody.
+  assert.deepEqual([...popups.values()], [null, null, null, null], 'a pop-up interrupted the turn');
   // The word the chooser typed was shown to everyone, and the results page is up.
   await host.waitForText('Dragon');
-  await host.waitForText(/Next round: .* chooses the word/);
+  await host.waitForText(/was the imposter/);
   await host.clickButton('All rounds', { exact: true });
   await host.waitForSelector('.modal');
   assert.equal(await host.modalTitle(), 'Scores so far');
-  assert.deepEqual(await host.page.$$eval('.modal .score-table tbody th', (els) => els.map((e) => e.textContent.trim())), ['Round 1']);
+  assert.deepEqual(await host.page.$$eval('.modal .score-table tbody th', (els) => els.map((e) => e.textContent.trim())), ['Turn 1']);
   await host.closeModalWithEsc();
 }));
 
 test('a reload mid-game puts you back in the same game', { timeout: 60000 }, guarded('reload', async () => {
   await second.page.reload({ waitUntil: 'domcontentloaded' });
-  await second.waitForText('Round 1 of 4');
+  await second.waitForText('Turn 1 of 4');
   await second.waitForCodeInUrl(code);
   await second.waitForSelector('.score-bar');
 }));

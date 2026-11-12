@@ -41,7 +41,7 @@ export const sharp = {
   /**
    * Accuses the card that fits the clue worst and sits apart from the rest of the table (deterministic ties by id);
    * in the favourite style picks the best fit.
-   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the round as the voter sees it
+   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @returns {string} a player id from `targets`
    * Side effects: none.
    */

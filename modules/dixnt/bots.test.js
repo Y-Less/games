@@ -14,15 +14,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.DIXNT_BOT_DELAY = '0-3';
 
 /** A lobby with one person (the host, account 1) and `bots` computer players, ready to start. */
-const lobbyWith = (bots, { judging = 'everyone', seed = 5, roundsEach = 1, handSize = 4 } = {}) =>
-  makeRoom(['Host'], { cardCount: 400, hints: cards(30).map((n) => `hint ${n}`), bots, judging, roundsEach, handSize, seed });
+const lobbyWith = (bots, { judging = 'everyone', seed = 5, rounds = 1, handSize = 4 } = {}) =>
+  makeRoom(['Host'], { cardCount: 400, hints: cards(30).map((n) => `hint ${n}`), bots, judging, rounds, handSize, seed });
 
 /** Does whatever a person at the table would do next, using their own view; returns false if there is nothing to do. */
 function personActs({ game, room, rng }, id) {
   const view = game.viewFor(room, id);
   if (room.phase === 'results') {
     if (room.hostId !== id) return false;
-    game.nextRound(room, id, rng);
+    game.nextTurn(room, id, rng);
   } else if (room.phase === 'word' && view.me.isChooser) game.submitWord(room, id, 'a word', rng);
   else if (room.phase === 'picking' && !view.me.isChooser && view.me.myPick === null) game.playCard(room, id, view.me.hand[0], rng);
   else if (room.phase === 'voting' && view.voteTargets.length && view.me.myVote === null) game.vote(room, id, view.voteTargets[0]);
@@ -122,7 +122,7 @@ test('starting deals every computer player an AI from the game rng, and the view
 for (const judging of JUDGING_MODES) {
   for (const bots of [MIN_PLAYERS - 1, MAX_PLAYERS - 1]) {
     test(`the host and ${bots} computer players play a whole "${judging}" game, computers choosing, playing and voting`, () => {
-      const made = lobbyWith(bots, { judging, roundsEach: 2, seed: bots });
+      const made = lobbyWith(bots, { judging, rounds: 2, seed: bots });
       const { game, room, rng } = made;
       game.start(room, 1, rng);
       const chosenBy = new Set();
@@ -132,10 +132,10 @@ for (const judging of JUDGING_MODES) {
         if (!personActs(made, 1)) assert.fail(`stuck in ${room.phase}`);
       }
       assert.equal(room.phase, 'finished');
-      assert.equal(room.completed, (bots + 1) * 2);
+      assert.equal(room.completedTurns, (bots + 1) * 2);
       assert.ok(room.players.every((p) => p.turns === 2));
       assert.equal(chosenBy.size, bots + 1, 'computer players and the person each chose the word');
-      assert.equal(room.history.length, room.completed, 'the shared scoreboard has every round');
+      assert.equal(room.history.length, room.completedTurns, 'the shared scoreboard has every round');
       for (const p of room.players) {
         assert.equal(p.score, room.history.reduce((sum, r) => sum + (r.deltas[p.slot] ?? 0), 0), 'columns add up');
       }
@@ -152,7 +152,7 @@ test('computer players decide from what a person in their place sees: no clue fo
   AIS.push(spy);
   try {
     for (const judging of JUDGING_MODES) {
-      const made = lobbyWith(5, { judging, roundsEach: 1, seed: 11 });
+      const made = lobbyWith(5, { judging, rounds: 1, seed: 11 });
       const { game, room, rng } = made;
       game.start(room, 1, rng);
       for (const p of room.players) if (p.kind === 'bot') p.ai = 'spy';
@@ -205,7 +205,7 @@ test('a broken or illegal AI answer is replaced by a random legal move', () => {
   };
   AIS.push(broken);
   try {
-    const made = lobbyWith(4, { roundsEach: 1 });
+    const made = lobbyWith(4, { rounds: 1 });
     made.game.start(made.room, 1, made.rng);
     for (const p of made.room.players) if (p.kind === 'bot') p.ai = 'broken';
     playOut(made, [1]);
@@ -226,18 +226,18 @@ test('a computer chooser still gives a word when the hint list is empty', () => 
 });
 
 test('computer players never block the results screen: only the host moves on', () => {
-  const made = lobbyWith(3, { roundsEach: 2 });
+  const made = lobbyWith(3, { rounds: 2 });
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   while (room.phase !== 'results') if (!game.runBotAction(room, rng)) assert.ok(personActs(made, 1));
   assert.equal(game.pendingBotAction(room), null, 'they wait at the results');
   assert.equal(game.runBotAction(room, rng), false);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   assert.equal(room.phase, 'word');
 });
 
 test('a person leaving mid-round is replaced by a computer player who keeps their hand, score and played card', () => {
-  const made = lobbyWith(1, { roundsEach: 2 });
+  const made = lobbyWith(1, { rounds: 2 });
   const { game, room, rng } = made;
   assert.equal(game.addHuman(room, 2, 'Guest').ok, true);
   assert.equal(game.addHuman(room, 3, 'Third').ok, true);
@@ -269,7 +269,7 @@ test('a person leaving mid-round is replaced by a computer player who keeps thei
 
 test('a person who was the chooser, or who still owed a card or a vote, is replaced and the game still finishes', () => {
   for (const phase of ['word', 'picking', 'voting', 'results']) {
-    const made = lobbyWith(1, { roundsEach: 1, seed: 21 });
+    const made = lobbyWith(1, { rounds: 1, seed: 21 });
     const { game, room, rng } = made;
     assert.equal(game.addHuman(room, 2, 'Guest').ok, true);
     game.start(room, 1, rng);
@@ -317,7 +317,7 @@ test('leavers in the lobby or after the game, and the place somebody comes back 
 });
 
 test('computer players survive a save and reload', () => {
-  const made = lobbyWith(3, { roundsEach: 2 });
+  const made = lobbyWith(3, { rounds: 2 });
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   for (let i = 0; i < 6; i++) game.runBotAction(room, rng);
@@ -362,7 +362,7 @@ async function drive(people, { limit = 30000 } = {}) {
       if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: 'a word' });
       else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
       else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
-      else if (s.phase === 'results' && p === host) reply = await p.call('nextRound');
+      else if (s.phase === 'results' && p === host) reply = await p.call('nextTurn');
       if (reply) {
         assert.equal(reply.ok, true, reply.error);
         acted = true;
@@ -381,12 +381,12 @@ test('over sockets: the host fills with computer players and starts, the server 
   assert.equal((await ann.call('start')).ok, false, 'one player is not enough');
   assert.equal((await ann.call('fillBots')).ok, true);
   await until(() => ann.state.players.length === 4, 'a normal table of computer players');
-  assert.equal((await ann.call('settings', { roundsEach: 1 })).ok, true);
+  assert.equal((await ann.call('settings', { rounds: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'the game to start');
   assert.ok(ann.state.players.filter((p) => p.bot).every((p) => p.ai && p.connected));
   await drive([ann]);
-  assert.equal(ann.state.completedRounds, 4);
+  assert.equal(ann.state.completedTurns, 4);
   await sleep(100);
   assert.equal((await ann.stats()).perGame[0].played, 1);
   assert.equal(resultRows(site), 1, 'one account in the result: the computer players are not recorded');
@@ -413,11 +413,11 @@ test('over sockets: three people and computer players at the maximum size finish
   assert.equal((await bob.call('removeBot', { slot: botSlot })).ok, false);
   assert.equal((await ann.call('removeBot', { slot: botSlot })).ok, true);
   assert.equal((await ann.call('removeBot', { slot: botSlot })).ok, false, 'already gone');
-  assert.equal((await ann.call('settings', { handSize: 3, roundsEach: 1 })).ok, true);
+  assert.equal((await ann.call('settings', { handSize: 3, rounds: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await drive(people);
   assert.equal(ann.state.players.length, MAX_PLAYERS - 1);
-  assert.equal(ann.state.completedRounds, MAX_PLAYERS - 1);
+  assert.equal(ann.state.completedTurns, MAX_PLAYERS - 1);
   await sleep(100);
   for (const p of people) assert.equal((await p.stats()).perGame[0].played, 1);
   assert.equal(resultRows(site), 1, 'one game');
@@ -430,11 +430,11 @@ test('over sockets: computer players play the "chooser" and "favourite" styles t
     const ann = await site.person(`ann-${mode}`).open();
     await ann.call('create');
     await ann.call('fillBots', { count: 4 });
-    await ann.call('settings', { judging: mode, roundsEach: 1 });
+    await ann.call('settings', { judging: mode, rounds: 1 });
     assert.equal((await ann.call('start')).ok, true);
     await drive([ann]);
     assert.equal(ann.state.judging, mode);
-    assert.equal(ann.state.completedRounds, 4);
+    assert.equal(ann.state.completedTurns, 4);
   }
 });
 
@@ -445,7 +445,7 @@ test('over sockets: a person leaving or removed mid-game is replaced, and the on
   const { code } = await ann.call('create');
   for (const p of [bob, cat]) await p.call('join', { code });
   await ann.call('addBot');
-  await ann.call('settings', { roundsEach: 1 });
+  await ann.call('settings', { rounds: 1 });
   assert.equal((await ann.call('start')).ok, true);
   await until(() => bob.state?.phase === 'word', 'started');
   assert.equal((await bob.call('leave')).ok, true);
@@ -480,7 +480,7 @@ test('over sockets: computer players keep playing after the server restarts, and
   const ann = await first.person('ann').open();
   const { code } = await ann.call('create');
   await ann.call('fillBots', { count: 5 });
-  await ann.call('settings', { roundsEach: 1 });
+  await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => ann.state.phase !== 'lobby', 'started');
   const aisBefore = ann.state.players.map((p) => p.ai?.id ?? null);
@@ -495,7 +495,7 @@ test('over sockets: computer players keep playing after the server restarts, and
   await until(() => back.state?.players.length === 5, 'the saved game');
   assert.deepEqual(back.state.players.map((p) => p.ai?.id ?? null), aisBefore);
   await drive([back]);
-  assert.equal(back.state.completedRounds, 5);
+  assert.equal(back.state.completedTurns, 5);
 });
 
 test('over sockets: a lobby with only computer players left is dropped', async (t) => {
@@ -528,7 +528,7 @@ test('over sockets: garbage to the computer-player events is refused and harms n
   assert.equal((await ann.call('removeBot', { slot: ann.state.players.find((p) => p.id === bob.id).slot })).ok, false, 'people are not computer players');
   await until(() => ann.state.players.length >= 3, 'still a lobby');
   assert.ok(ann.state.players.length <= MAX_PLAYERS);
-  assert.equal((await ann.call('settings', { roundsEach: 1 })).ok, true);
+  assert.equal((await ann.call('settings', { rounds: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   assert.equal((await ann.call('addBot')).ok, false, 'none once started');
   assert.equal((await ann.call('fillBots')).ok, false);

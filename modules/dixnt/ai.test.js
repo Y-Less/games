@@ -22,13 +22,13 @@ const idsOf = (key) => categories.find((c) => c.key === key).ids;
 const firstOf = (key) => idsOf(key)[0];
 
 /** Plays a whole game, every place driven by the AI named in `lineup` (an AI id per place); returns the finished room. */
-function playGame(lineup, { judging = 'everyone', seed = 1, roundsEach = 2, handSize = 6 } = {}) {
+function playGame(lineup, { judging = 'everyone', seed = 1, rounds = 2, handSize = 6 } = {}) {
   const rng = seeded(seed);
   const game = createRules({ getCategories: () => categories, hints });
   const room = game.createRoom({ code: 'ai-test-game-here', hostId: 1, hostName: 'P0', now: 0 });
   for (let i = 1; i < lineup.length; i++) assert.equal(game.addHuman(room, i + 1, `P${i}`).ok, true);
   const aiOf = Object.fromEntries(room.players.map((p, i) => [p.id, byId[lineup[i]]]));
-  assert.equal(game.setSettings(room, 1, { handSize, roundsEach, judging }).ok, true);
+  assert.equal(game.setSettings(room, 1, { handSize, rounds, judging }).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
   const imposters = new Set();
   let guard = 0;
@@ -37,27 +37,27 @@ function playGame(lineup, { judging = 'everyone', seed = 1, roundsEach = 2, hand
     if (room.phase === 'word') {
       const view = game.viewFor(room, room.chooserId);
       const offered = game.nextHints(room, 3, rng);
-      const word = aiOf[room.chooserId].chooseWord({ hints: offered, hand: view.me.hand, cards, round: room.round, judging }, rng);
+      const word = aiOf[room.chooserId].chooseWord({ hints: offered, hand: view.me.hand, cards, turn: room.turn, judging }, rng);
       assert.ok(offered.includes(word), 'a chosen word is one of the hints');
       assert.equal(game.submitWord(room, room.chooserId, word, rng).ok, true);
     } else if (room.phase === 'picking') {
       for (const p of game.cardPlayers(room)) {
         const view = game.viewFor(room, p.id);
-        if (view.wordHidden) imposters.add(`${room.round}:${p.id}`);
-        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.me.hand, cards, round: room.round, judging }, rng);
-        assert.ok(view.me.hand.includes(cardId), 'the card is from the hand');
+        if (view.wordHidden) imposters.add(`${room.turn}:${p.id}`);
+        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.me.hand, cards, turn: room.turn, judging }, rng);
+assert.ok(view.me.hand.includes(cardId), 'the card is from the hand');
         assert.equal(game.playCard(room, p.id, cardId, rng).ok, true);
       }
     } else if (room.phase === 'voting') {
       for (const p of game.voters(room)) {
         if (room.phase !== 'voting') break;
         const view = game.viewFor(room, p.id);
-        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${room.round}:${p.id}`), chooser: view.me.isChooser, judging, cards, scores: {} }, rng);
+        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${room.turn}:${p.id}`), chooser: view.me.isChooser, judging, cards, scores: {} }, rng);
         assert.ok(view.voteTargets.includes(targetId), 'the vote is for a legal target');
         assert.equal(game.vote(room, p.id, targetId).ok, true);
       }
     } else if (room.phase === 'results') {
-      assert.equal(game.nextRound(room, room.hostId, rng).ok, true);
+      assert.equal(game.nextTurn(room, room.hostId, rng).ok, true);
     }
   }
   return room;
@@ -84,7 +84,7 @@ test('every AI plays complete, legal games in every judging style', () => {
       for (const seed of [1, 2, 3]) {
         const room = playGame([ai.id, ai.id, ai.id, ai.id], { judging, seed });
         assert.equal(room.phase, 'finished', `${ai.id} ${judging}`);
-        assert.equal(room.completed, 8, 'each of four players chose twice');
+        assert.equal(room.completedTurns, 8, 'each of four players chose twice');
       }
     }
     assert.equal(playGame(AIS.map((a) => a.id), { judging, seed: 9 }).phase, 'finished', 'all five mixed');
@@ -171,7 +171,7 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
     let caught = 0;
     let rounds = 0;
     for (let seed = 1; seed <= 150; seed++) {
-      const room = playGame(Array(players).fill(ai), { seed, judging: 'everyone', roundsEach: 3 });
+      const room = playGame(Array(players).fill(ai), { seed, judging: 'everyone', rounds: 3 });
       for (const round of room.history) {
         // The notes a view carries are messages: `{ key: 'notes.imposterCaught' }` and friends.
         for (const note of Object.values(round.notes)) {

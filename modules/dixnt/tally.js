@@ -1,6 +1,8 @@
 // What Dixnt counts about each player in a game for the statistics and achievements (see module.json "stats").  The
 // counters live on the player in the room, like their score, so they follow a place when it changes hands; the rules
-// call tallyRound once a round is finished (see game.js, completeRound).  Nothing here changes the game.
+// call tallyTurn once a turn is finished (see game.js, completeTurn).  Nothing here changes the game.
+// `roundsAsImposter` counts turns, not rounds: it is a stat key recorded against people's accounts, so it keeps the
+// name it was first written under while its label says what it really counts (see module.json).
 // Depends on shared/tally.js for the counter helpers.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
@@ -16,28 +18,28 @@ export const newCounters = () => freshTally(COUNTERS);
 /** The stats a game records for each person, besides the two worked out from the counters in statsExtras. */
 const RECORDED = ['roundsAsImposter', 'timesFooledGroup', 'correctGuesses', 'cardsPlayed', 'soleCorrect', 'favouritePicks', 'loneDissent'];
 
-/** The fewest rounds of voting that make "voted for the imposter every round" worth anything. */
-export const MIN_SPYMASTER_ROUNDS = 3;
+/** The fewest turns of voting that make "voted for the imposter every turn" worth anything. */
+export const MIN_SPYMASTER_TURNS = 3;
 
-/** The fewest rounds as the imposter that make "nobody ever pointed at me" worth anything. */
-export const MIN_UNACCUSED_IMPOSTER_ROUNDS = 2;
+/** The fewest turns as the imposter that make "nobody ever pointed at me" worth anything. */
+export const MIN_UNACCUSED_IMPOSTER_TURNS = 2;
 /** The fewest players for the same: with two there is hardly a crowd to go unnoticed in. */
 export const MIN_UNACCUSED_PLAYERS = 3;
 /** The fewest voters who must agree before standing alone against them is worth counting. */
 export const MIN_CROWD = 2;
 
 /**
- * Counts a finished round.  Every id is a real player id (a table keyed by player id has text keys, and a person's
+ * Counts a finished turn.  Every id is a real player id (a table keyed by player id has text keys, and a person's
  * id is their account number), which is why the votes arrive as pairs rather than as the results' own object.
  *
  * @param {(playerId: number | string) => (object | null)} counterOf  a person's counters (null for a computer player)
- * @param {{ pickers: Array<number | string>, votes: Array<Array<number | string>>, results: object }} round
- *   who played a card, every vote as [voter, who they voted for], and the round's results (judging, imposterId,
+ * @param {{ pickers: Array<number | string>, votes: Array<Array<number | string>>, results: object }} turn
+ *   who played a card, every vote as [voter, who they voted for], and the turn's results (judging, imposterId,
  *   groupCorrect, winnerId)
  * @returns {void} nothing
  * Side effects: increments counters on the objects `counterOf` returns.
  */
-export function tallyRound(counterOf, { pickers, votes, results }) {
+export function tallyTurn(counterOf, { pickers, votes, results }) {
   // Bumps one counter for a player, skipping computer players (counterOf gives null).
   const count = (id, key) => {
     const counters = counterOf(id);
@@ -69,7 +71,7 @@ export function tallyRound(counterOf, { pickers, votes, results }) {
  * The group must be a real one (MIN_CROWD agreeing), and a tie for the most votes settles on no card at all.
  *
  * @param {(id: number | string, key: string) => void} count  bumps a counter for a person (computer players are skipped)
- * @param {Array<Array<number | string>>} votes  every vote of the round, as [voter, who they voted for]
+ * @param {Array<Array<number | string>>} votes  every vote of the turn, as [voter, who they voted for]
  * @returns {void} nothing
  * Side effects: increments `loneDissent` on the lone dissenter, when there is exactly one.
  */
@@ -92,18 +94,18 @@ function countLoneDissent(count, votes) {
  * @param {object} tally  the person's finished counters (the player themselves: the counters live on them)
  * @param {{ players?: number, score?: number|null }} [game]  the people left in the game, and this person's final score
  * @returns {object} the stat values to record, plus mostFooled, spymaster (they accused the imposter in every voting
- *   round, over enough rounds), neverAccused (no vote all game ever named them, over enough rounds as the imposter) and
+ *   turn, over enough turns), neverAccused (no vote all game ever named them, over enough turns as the imposter) and
  *   scorelessGames (they played and finished on nothing)
  * Side effects: none.
  */
 export function statsExtras(tally, { players = 0, score = null } = {}) {
   const votes = tally.votesCast ?? 0;
   const asImposter = tally.roundsAsImposter ?? 0;
-  const unaccused = players >= MIN_UNACCUSED_PLAYERS && asImposter >= MIN_UNACCUSED_IMPOSTER_ROUNDS && (tally.votesAgainst ?? 0) === 0;
+  const unaccused = players >= MIN_UNACCUSED_PLAYERS && asImposter >= MIN_UNACCUSED_IMPOSTER_TURNS && (tally.votesAgainst ?? 0) === 0;
   return {
     ...extrasOf(tally, RECORDED),
     mostFooled: tally.timesFooledGroup ?? 0,
-    spymaster: votes >= MIN_SPYMASTER_ROUNDS && tally.correctGuesses === votes ? 1 : 0,
+    spymaster: votes >= MIN_SPYMASTER_TURNS && tally.correctGuesses === votes ? 1 : 0,
     neverAccused: unaccused ? 1 : 0,
     scorelessGames: score === 0 && (tally.cardsPlayed ?? 0) > 0 ? 1 : 0,
   };

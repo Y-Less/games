@@ -4,7 +4,7 @@ import { createRules, POINTS_PER_VOTE } from './game.js';
 import { cards, makeRoom, seededRng } from './harness.js';
 
 /** A started game of the named people (accounts 1, 2, 3 ... in order), with plenty of rounds left to play. */
-const makeGame = (names, options = {}) => makeRoom(names, { handSize: 8, roundsEach: 10, seed: 7, start: true, ...options });
+const makeGame = (names, options = {}) => makeRoom(names, { handSize: 8, rounds: 10, seed: 7, start: true, ...options });
 
 /** Plays a round up to the voting phase and returns who is who. */
 function toVoting({ game, room, rng }) {
@@ -59,7 +59,7 @@ test('the chooser cannot play a card and only the chooser can set the word', () 
   const { game, room, rng } = makeGame(['Ann', 'Bob', 'Cat']);
   assert.equal(game.submitWord(room, 2, 'x', rng).error, 'chooserOnlyWord');
   assert.equal(game.submitWord(room, 1, 'x', rng).ok, true);
-  assert.equal(game.playCard(room, 1, game.playerOf(room, 1).hand[0], rng).error, 'notPlayingThisRound');
+  assert.equal(game.playCard(room, 1, game.playerOf(room, 1).hand[0], rng).error, 'notPlayingThisTurn');
   assert.equal(game.playCard(room, 2, 9999, rng).error, 'notInHand');
 });
 
@@ -179,9 +179,9 @@ test('next round: next player chooses, played cards are discarded, everyone draw
   for (const p of [chooser, ...others]) game.vote(room, p.id, imposter.id);
   game.vote(room, imposter.id, others[0].id);
   assert.equal(room.phase, 'results');
-  game.nextRound(room, 4, rng);
+  game.nextTurn(room, 4, rng);
   assert.equal(room.phase, 'word');
-  assert.equal(room.round, 2);
+  assert.equal(room.turn, 2);
   assert.equal(room.chooserId, 2, 'chooser rotates in order');
   for (const p of room.players) assert.equal(p.hand.length, 8);
   for (const c of played) {
@@ -200,7 +200,7 @@ test('chooser wraps around after the last player', () => {
     const { imposter, others, chooser } = toVoting(made);
     for (const v of [chooser, ...others]) game.vote(room, v.id, imposter.id);
     game.vote(room, imposter.id, others[0].id);
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
   }
   assert.deepEqual(chosen, [1, 2, 3, 1]);
 });
@@ -213,7 +213,7 @@ test('discard pile is reshuffled when the draw pile runs out and no card is dupl
     const { imposter, others, chooser } = toVoting(made);
     for (const v of [chooser, ...others]) game.vote(room, v.id, imposter.id);
     game.vote(room, imposter.id, others[0].id);
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
     const all = [...room.draw, ...room.discard, ...room.players.flatMap((p) => p.hand)];
     assert.equal(all.length, 30);
     assert.equal(new Set(all).size, 30);

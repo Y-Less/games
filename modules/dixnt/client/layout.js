@@ -3,7 +3,7 @@
 // Shared by Arena.vue and the components under it: pure sizing helpers for cards on the table and in the hand.
 export const ASPECT = 640 / 936; // a card's width over its height
 export const CAPTION = 32; // the fixed room under each card on the table: one line with the player's name and the vote button or vote count
-export const CONTROLS = 38; // the fixed-height zone for the word entry, the next-round button, and the host's buttons
+export const CONTROLS = 38; // the fixed-height zone for the word entry, the next-turn button, and the host's buttons
 export const GAP = 8; // the space between the three zones of the arena (table, controls, hand)
 
 /**

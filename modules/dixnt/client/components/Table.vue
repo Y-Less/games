@@ -1,5 +1,5 @@
 <script setup>
-// The cards played this round, large, in the main area.  Each card has a fixed caption under it (the player's name,
+// The cards played this turn, large, in the main area.  Each card has a fixed caption under it (the player's name,
 // then the vote button or the votes it got), so the table is the same size in every phase.  While people are still
 // choosing, a face-down card marks each one who has played and a dashed slot each who has not.  Click a card to look
 // closer (the viewer steps through the whole table).
@@ -7,11 +7,11 @@
 // Props:
 //   cardWidth   {number}  required.  Card width in pixels.
 //   cardHeight  {number}  required.  Card height in pixels.
-//   count       {number}  required.  How many cards the table is sized for: everyone in the round.
+//   count       {number}  required.  How many cards the table is sized for: everyone in the turn.
 //   columns     {number}  required.  How many cards fit in a row.
 // Emits: none.  Slots: none.
 // Side effects: sets store.zoom to open the card viewer; sends `vote` requests (after a confirm dialog when a single
-// decision ends the round).
+// decision ends the turn).
 import { computed } from 'vue';
 import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
@@ -21,7 +21,7 @@ import CardImg from './CardImg.vue';
 const props = defineProps({
   cardWidth: { type: Number, required: true },
   cardHeight: { type: Number, required: true },
-  count: { type: Number, required: true }, // how many cards the table is sized for: everyone in the round
+  count: { type: Number, required: true }, // how many cards the table is sized for: everyone in the turn
   columns: { type: Number, required: true }, // how many fit in a row
 });
 
@@ -32,7 +32,7 @@ const { nameOf, send, store } = useDixnt();
 const state = computed(() => store.state);
 // True during the voting phase.
 const voting = computed(() => state.value.phase === 'voting');
-// The round's results (null until there are some).
+// The turn's results (null until there are some).
 const results = computed(() => state.value.results);
 // True once the played cards are face up (voting and results).
 const revealed = computed(() => voting.value || state.value.phase === 'results');
@@ -64,7 +64,7 @@ const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : t(
 
 /**
  * Casts a vote (or the chooser's decision) for a player.  Votes in the 'everyone' style can be changed, but a chooser's
- * decision ends the round, so that asks first.
+ * decision ends the turn, so that asks first.
  * @param {string} playerId  The player voted for.
  * @returns {void}
  * Side effects: may show a confirm dialog; sends a `vote` request.

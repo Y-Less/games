@@ -3,7 +3,7 @@
 // never changes between phases or as cards are played.  Click a card to look closer; while cards are being played the
 // closer look has the Play button.
 //
-// A card you have played leaves your hand at once, even though the game holds it back until the round is over: the
+// A card you have played leaves your hand at once, even though the game holds it back until the turn is over: the
 // hand shown here is your hand without your pick.  Playing another card still swaps them, and the first one comes
 // back into the hand as it goes.
 //
@@ -27,7 +27,7 @@ const { send, store } = useDixnt();
 
 // The current state.
 const state = computed(() => store.state);
-// The cards still in your hand: the one you have played is not among them until the round is over and it is replaced.
+// The cards still in your hand: the one you have played is not among them until the turn is over and it is replaced.
 const hand = computed(() => state.value.me.hand.filter((cardId) => cardId !== state.value.me.myPick));
 // True when the viewer may play a card now: the picking phase, and not the chooser.
 const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser);

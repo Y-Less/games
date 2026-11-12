@@ -26,7 +26,7 @@ export function seededRng(seed = 1) {
  * @param {object[]} [options.categories]  the categories the cards come in
  * @param {string[]} [options.hints]     the chooser's suggestions
  * @param {number} [options.handSize]    cards in a hand
- * @param {number} [options.roundsEach]  how many times each player chooses the word
+ * @param {number} [options.rounds]  how many times each player chooses the word
  * @param {string} [options.judging]     the play style
  * @param {number} [options.bots]        computer players the host adds before the game starts
  * @param {number} [options.seed]        the seed for the random source (ignored when `rng` is given)
@@ -36,7 +36,7 @@ export function seededRng(seed = 1) {
  * @returns {{ game: object, room: object, rng: () => number, players: object[] }} `players` is the room's live list
  * Side effects: none outside the new room.
  */
-export function makeRoom(names, { cardCount = 100, categories = null, hints = [], handSize, roundsEach, judging, bots = 0, seed = 7, rng = seededRng(seed), start = false, code = 'test-game-here' } = {}) {
+export function makeRoom(names, { cardCount = 100, categories = null, hints = [], handSize, rounds, judging, bots = 0, seed = 7, rng = seededRng(seed), start = false, code = 'test-game-here' } = {}) {
   const game = createRules(categories ? { getCategories: () => categories, hints } : { getCardIds: () => cards(cardCount), hints });
   const room = game.createRoom({ code, hostId: 1, hostName: names[0], now: 0 });
   // A host sizes the game for the people they are expecting, which is what a test is doing when it names them.
@@ -45,7 +45,7 @@ export function makeRoom(names, { cardCount = 100, categories = null, hints = []
   for (let i = 0; i < bots; i++) assert.equal(game.addBot(room, 1).ok, true, 'a computer player joins');
   const settings = {};
   if (handSize !== undefined) settings.handSize = handSize;
-  if (roundsEach !== undefined) settings.roundsEach = roundsEach;
+  if (rounds !== undefined) settings.rounds = rounds;
   if (judging !== undefined) settings.judging = judging;
   const set = game.setSettings(room, 1, settings);
   assert.equal(set.ok, true, `the settings are accepted (${set.error})`);

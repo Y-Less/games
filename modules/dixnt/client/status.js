@@ -86,7 +86,7 @@ export function statusFor(state, { isHost = false } = {}) {
 
   if (state.phase === 'results' && state.results) {
     const r = state.results;
-    // Returns the points a player gained this round (0 if none recorded).
+    // Returns the points a player gained this turn (0 if none recorded).
     const gained = (id) => r.deltas?.[id] ?? 0;
     const further = [];
     if (r.judging === 'favourite') {
@@ -125,7 +125,7 @@ export function statusFor(state, { isHost = false } = {}) {
       headline: winners.length > 1 ? msg('status.tie', { names: winners }) : msg('scoreboard.wins', { name: winners[0] ?? msg('status.nobody') }),
       mine: false,
       lines: [
-        muted(msg('status.gameOverAfter', { count: state.completedRounds })),
+        muted(msg('status.gameOverAfter', { count: state.completedTurns })),
         muted(msg(isHost ? 'status.hostAgain' : 'status.waitingHost')),
       ],
     };

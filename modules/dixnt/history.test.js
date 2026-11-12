@@ -42,12 +42,12 @@ test('every completed round is added to the history, with notes, and the totals 
     const rounds = game.viewFor(room, 1).scoreboard.rounds;
     assert.equal(rounds.length, i);
     const last = rounds.at(-1);
-    assert.deepEqual(last.label, { key: 'round.label', params: { n: i } });
+    assert.deepEqual(last.label, { key: 'turn.label', params: { n: i } });
     assert.deepEqual(last.deltas, room.results.deltas);
     assert.deepEqual(last.notes[chooserId], { key: 'notes.chooser' });
     assert.ok(['notes.imposterCaught', 'notes.imposterFooledAll'].includes(last.notes[room.imposterId].key));
     assertAddsUp(made);
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
   }
 });
 
@@ -79,7 +79,7 @@ test('nothing is revealed early: the history only grows when the round is over',
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   playRound(made);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   // `current` marks who must act, so it moves as the round goes on; the scores and rounds must not.
   const board = () => game.viewFor(room, 1).scoreboard;
   const scores = () => JSON.stringify({ ...board(), players: board().players.map(({ current, ...p }) => p) });
@@ -97,13 +97,13 @@ test('abandoned rounds are not recorded, and labels count completed rounds only'
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   playRound(made);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   game.submitWord(room, room.chooserId, 'word', rng);
-  game.abortRound(room, 1, rng);
-  game.abortRound(room, 1, rng);
+  game.abortTurn(room, 1, rng);
+  game.abortTurn(room, 1, rng);
   assert.equal(room.history.length, 1);
   playRound(made);
-  assert.deepEqual(room.history.map((r) => r.label), [{ key: 'round.label', params: { n: 1 } }, { key: 'round.label', params: { n: 2 } }]);
+  assert.deepEqual(room.history.map((r) => r.label), [{ key: 'turn.label', params: { n: 1 } }, { key: 'turn.label', params: { n: 2 } }]);
   assertAddsUp(made);
 });
 
@@ -128,9 +128,9 @@ test('a place that changes hands keeps its column, so the table still adds up', 
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   playRound(made);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   playRound(made);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   assertAddsUp(made);
 
   const dan = game.playerOf(room, 4);
@@ -162,17 +162,17 @@ test('older saves without a history still load: existing scores become one "Earl
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   playRound(made);
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   const old = JSON.parse(JSON.stringify(room));
   delete old.history;
   const game2 = rules();
   const loaded = game2.migrate(old);
   const { rounds } = game2.viewFor(loaded, 1).scoreboard;
   assert.equal(rounds.length, 1);
-  assert.deepEqual(rounds[0].label, { key: 'round.earlier' });
+  assert.deepEqual(rounds[0].label, { key: 'turn.earlier' });
   assertAddsUp({ game: game2, room: loaded });
   playRound({ game: game2, room: loaded, rng });
-  assert.deepEqual(loaded.history.map((r) => r.label), [{ key: 'round.earlier' }, { key: 'round.label', params: { n: 2 } }]);
+  assert.deepEqual(loaded.history.map((r) => r.label), [{ key: 'turn.earlier' }, { key: 'turn.label', params: { n: 2 } }]);
   assertAddsUp({ game: game2, room: loaded });
 
   const empty = rules().migrate({ phase: 'lobby', players: [] });

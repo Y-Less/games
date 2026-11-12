@@ -1,7 +1,7 @@
 // The socket layer for Dixnt.  The rules live in game.js; the rooms, saving, views, joining, leaving and the lobby
 // events are the shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js.
 // This file says only what is particular to Dixnt: where the cards and the word suggestions come from, its settings,
-// its own socket events (hints, submitWord, playCard, vote, nextRound, abortRound), what the server must do by itself
+// its own socket events (hints, submitWord, playCard, vote, nextTurn, abortTurn), what the server must do by itself
 // (a computer player's move), and the cards each person has been dealt (the `art` achievement).
 //
 // Timing can be changed through the environment (the tests make it fast):
@@ -69,7 +69,7 @@ const userIdOf = (token) => (/^user:\d+$/.test(String(token)) ? Number(String(to
  * @returns {object} a copy with only the allowed keys
  * Side effects: none.
  */
-const pickSettings = (payload) => pickKeys(payload, ['handSize', 'roundsEach', 'judging', 'categories', 'size']);
+const pickSettings = (payload) => pickKeys(payload, ['handSize', 'rounds', 'judging', 'categories', 'size']);
 
 /**
  * Brings the games saved before Dixnt used the shared room server (`games.json`, one entry per invite code, seats
@@ -211,15 +211,15 @@ export default function (ctx) {
 
   /**
    * Adds the cards each person now holds to the ones they have been dealt (the `art` achievement).  Hands only change
-   * when cards are dealt, which happens when a round starts, so this is done once a round rather than at every change.
+   * when cards are dealt, which happens when a turn starts, so this is done once a turn rather than at every change.
    *
    * @param {object} room  the room that has just changed
    * @returns {void}
-   * Side effects: calls ctx.achievements.collect for each person and stamps room.collectedRound; a failure is logged.
+   * Side effects: calls ctx.achievements.collect for each person and stamps room.collectedTurn; a failure is logged.
    */
   function collectCards(room) {
-    if (room.phase === 'lobby' || room.round === room.collectedRound) return;
-    room.collectedRound = room.round;
+    if (room.phase === 'lobby' || room.turn === room.collectedTurn) return;
+    room.collectedTurn = room.turn;
     for (const player of room.players) {
       if (player.kind !== 'human' || !player.hand?.length) continue;
       try {
@@ -274,8 +274,8 @@ export default function (ctx) {
       on('submitWord', ({ word }) => act((room) => game.submitWord(room, userId, word, eventRng)));
       on('playCard', ({ cardId }) => act((room) => game.playCard(room, userId, numberFrom(cardId), eventRng)));
       on('vote', ({ targetId }) => act((room) => game.vote(room, userId, targetId)));
-      on('nextRound', () => act((room) => game.nextRound(room, userId, eventRng)));
-      on('abortRound', () => act((room) => game.abortRound(room, userId, eventRng)));
+      on('nextTurn', () => act((room) => game.nextTurn(room, userId, eventRng)));
+      on('abortTurn', () => act((room) => game.abortTurn(room, userId, eventRng)));
     },
   });
 

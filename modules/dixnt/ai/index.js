@@ -2,8 +2,8 @@
 // functions that take plain data and return a plain answer, so they work the same in the bot process, in a test and
 // anywhere else.  None of them touches the network, the clock or Math.random: the `rng` argument is the only randomness.
 //
-//   chooseWord({ hints: string[], hand: number[], cards, round, judging }, rng)           -> one of `hints`
-//   playCard({ word: string | null, hand: number[], cards, round, judging }, rng)         -> one of `hand`
+//   chooseWord({ hints: string[], hand: number[], cards, turn, judging }, rng)            -> one of `hints`
+//   playCard({ word: string | null, hand: number[], cards, turn, judging }, rng)          -> one of `hand`
 //        (word is null when this player is the imposter and cannot see the clue)
 //   vote({ word, table: [{ playerId, cardId }], targets: string[], me, imposter: boolean,
 //          chooser: boolean, judging, cards, scores: { [playerId]: number } }, rng)       -> one of `targets`

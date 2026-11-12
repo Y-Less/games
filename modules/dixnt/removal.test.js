@@ -6,7 +6,7 @@ import { makeRoom } from './harness.js';
 
 /** Ann (the host), Bob, Cat and one computer player, in a game under way. */
 function started() {
-  const made = makeRoom(['Ann', 'Bob', 'Cat'], { bots: 1, roundsEach: 10, rng: () => 0.5, start: true });
+  const made = makeRoom(['Ann', 'Bob', 'Cat'], { bots: 1, rounds: 10, rng: () => 0.5, start: true });
   return { ...made, botId: 'bot:1' };
 }
 

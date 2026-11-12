@@ -14,7 +14,7 @@ export function seededRng(seed = 1) {
 /** Does whatever the host would do next, using their own view; returns false if there is nothing to do. */
 function hostActs(game, room, hostId, rng) {
   const view = game.viewFor(room, hostId);
-  if (room.phase === 'results') game.nextRound(room, hostId, rng);
+  if (room.phase === 'results') game.nextTurn(room, hostId, rng);
   else if (room.phase === 'word' && view.me.isChooser) game.submitWord(room, hostId, 'a word', rng);
   else if (room.phase === 'picking' && !view.me.isChooser && view.me.myPick === null) game.playCard(room, hostId, view.me.hand[0], rng);
   else if (room.phase === 'voting' && view.voteTargets.length && view.me.myVote === null) game.vote(room, hostId, view.voteTargets[0]);
@@ -29,7 +29,7 @@ export function recordedViews(judging, seed) {
   const hostId = 1;
   const room = game.createRoom({ code: 'seeded-game-here', hostId, hostName: 'Host', now: 0 });
   game.fillWithBots(room, hostId, 4);
-  game.setSettings(room, hostId, { judging, roundsEach: 2, handSize: 4 });
+  game.setSettings(room, hostId, { judging, rounds: 2, handSize: 4 });
   const views = [];
   const look = () => {
     for (const p of room.players) {

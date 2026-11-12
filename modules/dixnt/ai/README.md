@@ -8,7 +8,7 @@ the server plays them.  The decision logic is in this folder: one file per AI, a
 
 - **Choosing.** When a game starts, `Game.start` deals every computer player an AI with `assignAIs(AIS, ids, rng)`
   (weighted random, using the game's rng, so seeded games repeat) and stores its id on the seat; the seat is saved with
-  the room, and a new game deals again.  A person who leaves mid-round is replaced by a computer player that gets a random
+  the room, and a new game deals again.  A person who leaves mid-turn is replaced by a computer player that gets a random
   AI with `pickAI`.
 - **View.** `players[].ai` is `{ id, name }` for computer players once a game has started and `null` for people (and
   for computer players still in the lobby).  A seat saved with an AI that no longer exists falls back to the first AI
@@ -58,7 +58,7 @@ the vote onto a decoy.  In the "favourite" style it picks the best fit.
 
 Limitations common to the smart AIs: clue matching uses a hand-written word list (`lexicon.js`) that recognises only
 about 32% of the 1024 hints, and the card metadata (`cards.js`) is category-only, so otherwise they fall back to
-table-based or random choices.  No AI tracks vote accuracy across rounds.
+table-based or random choices.  No AI tracks vote accuracy across turns.
 
 ## How strong are they?
 
@@ -86,8 +86,8 @@ seeded games each:
    still be chosen with `--ai`).
 2. Implement the three functions, each taking one plain-data context and the `rng`, and returning one of the legal
    options:
-   - `chooseWord({ hints, hand, cards, round, judging }, rng)` returns one of `hints`.
-   - `playCard({ word, hand, cards, round, judging }, rng)` returns one of `hand`. `word` is `null` when the player is
+   - `chooseWord({ hints, hand, cards, turn, judging }, rng)` returns one of `hints`.
+   - `playCard({ word, hand, cards, turn, judging }, rng)` returns one of `hand`. `word` is `null` when the player is
      the imposter and cannot see the clue.
    - `vote({ word, table, targets, me, imposter, chooser, judging, cards, scores }, rng)` returns one of `targets`.
      `table` is `[{ playerId, cardId }]`; in the "favourite" style this is the chooser picking the best card.

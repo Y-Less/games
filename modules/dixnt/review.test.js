@@ -17,7 +17,7 @@ import { savedRooms } from '../../shared/testkit.js';
 /** A game of `count` people (Ann hosts), started, with plenty of rounds and the given judging style. */
 function started(count = 5, judging = 'everyone') {
   const names = ['Ann', 'Bob', 'Cat', 'Dan', 'Eve', 'Fay'].slice(0, count);
-  return makeRoom(names, { cardCount: 200, seed: 11, roundsEach: 10, judging, start: true });
+  return makeRoom(names, { cardCount: 200, seed: 11, rounds: 10, judging, start: true });
 }
 
 /** Moves the game on to `phase`, using the first card of each hand and voting for the first target. */
@@ -33,16 +33,16 @@ function advanceTo({ game, room, rng }, phase) {
 // ---------- (1) somebody leaving never costs the round ----------
 
 for (const phase of ['word', 'picking', 'voting', 'results']) {
-  test(`a person leaving in the ${phase} phase leaves the round exactly where it was`, () => {
+  test(`a person leaving in the ${phase} phase leaves the turn exactly where it was`, () => {
     const made = started();
     const { game, room, rng } = made;
     advanceTo(made, phase);
-    const before = { phase: room.phase, round: room.round, completed: room.completed, picks: Object.keys(room.picks).length, votes: Object.keys(room.votes).length };
+    const before = { phase: room.phase, turn: room.turn, completed: room.completedTurns, picks: Object.keys(room.picks).length, votes: Object.keys(room.votes).length };
     const leaver = room.players.find((p) => p.kind === 'human' && p.id !== room.hostId);
     assert.equal(game.removeHuman(room, leaver.id, rng, 0).ok, true);
     assert.equal(room.phase, before.phase, 'the phase is untouched');
-    assert.equal(room.round, before.round, 'the round was not abandoned');
-    assert.equal(room.completed, before.completed);
+    assert.equal(room.turn, before.turn, 'the turn was not abandoned');
+    assert.equal(room.completedTurns, before.completed);
     assert.equal(Object.keys(room.picks).length, before.picks, 'their card is still on the table');
     assert.equal(Object.keys(room.votes).length, before.votes, 'and their vote still counts');
     assert.equal(room.players.length, 5);
@@ -53,9 +53,9 @@ test('even the chooser leaving keeps the round: a computer player chooses the wo
   const made = started();
   const { game, room, rng } = made;
   const chooser = room.chooserId;
-  const round = room.round;
+  const round = room.turn;
   assert.equal(game.removeHuman(room, chooser, rng, 0).ok, true);
-  assert.equal(room.round, round, 'the round was not abandoned');
+  assert.equal(room.turn, round, 'the round was not abandoned');
   assert.equal(room.phase, 'word');
   const now = game.playerOf(room, room.chooserId);
   assert.equal(now.kind, 'bot');
@@ -67,9 +67,9 @@ test('the imposter leaving keeps the round, and the computer player standing in 
   const { game, room, rng } = made;
   advanceTo(made, 'picking');
   const imposter = room.imposterId;
-  const round = room.round;
+  const round = room.turn;
   assert.equal(game.removeHuman(room, imposter, rng, 0).ok, true);
-  assert.equal(room.round, round);
+  assert.equal(room.turn, round);
   assert.equal(room.phase, 'picking');
   assert.notEqual(room.imposterId, imposter, 'the place has a new name');
   assert.equal(game.viewFor(room, room.imposterId).word, null, 'whoever holds it is still in the dark');
@@ -119,7 +119,7 @@ test('a person leaving while the results are up keeps them, and the next round s
   const stand = room.players.find((p) => p.stoodInFor === leaver.id);
   assert.equal(room.results.deltas[stand.id], room.history.at(-1).deltas[leaver.id] ?? room.results.deltas[stand.id]);
   assert.equal(stand.score, score, 'the score stayed with the place');
-  assert.equal(game.nextRound(room, room.hostId, rng).ok, true);
+  assert.equal(game.nextTurn(room, room.hostId, rng).ok, true);
   assert.equal(room.phase, 'word');
 });
 
@@ -321,6 +321,12 @@ test('games saved before the shared room server are brought over, people and all
   assert.deepEqual(room.players.map((p) => p.slot), ['s0', 's1', 's2']);
   assert.equal(room.players[0].cardsPlayed, 3, 'the counters came with the person');
   assert.ok(room.players.every((p) => !('token' in p) && !('waiting' in p)));
+  // A game saved when one player's go was called a round speaks of turns now, fields and history label alike.
+  assert.deepEqual(
+    { turn: room.turn, completedTurns: room.completedTurns, rounds: room.rounds, label: room.history[0].label.key },
+    { turn: 2, completedTurns: 1, rounds: 2, label: 'turn.label' },
+  );
+  assert.ok(!('round' in room) && !('completed' in room) && !('roundsEach' in room), 'the old names are gone');
 
   // And the people are let back in where they were.
   const socket = connect(5, 'Bob');
@@ -347,6 +353,6 @@ test('cards are collected once per round, not after every action', async (t) => 
   assert.equal(collected.length, 3, 'playing cards collects nothing more');
   for (const socket of sockets) if (socket.state.voteTargets.length) await socket.call('vote', { targetId: socket.state.voteTargets[0] });
   assert.equal(collected.length, 3, 'voting collects nothing more');
-  assert.equal((await sockets[0].call('nextRound')).ok, true);
+  assert.equal((await sockets[0].call('nextTurn')).ok, true);
   assert.equal(collected.length, 6, 'the next round deals new cards, which are collected');
 });

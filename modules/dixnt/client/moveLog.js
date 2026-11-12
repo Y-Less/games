@@ -6,25 +6,33 @@
 import { msg } from '../../../shared/messages.js';
 
 /**
- * Gives the round number as the scoreboard labels it (skipped rounds do not count).
- * @param {object} state  The game state: completedRounds, totalRounds, and phase.
- * @returns {number} The current round (the one just finished while showing results), never above totalRounds.
+ * Gives the turn number as the scoreboard labels it (skipped turns do not count).
+ * @param {object} state  The game state: completedTurns, totalTurns, and phase.
+ * @returns {number} The current turn (the one just finished while showing results), never above totalTurns.
  * Side effects: none.
  */
-export const roundNumber = (state) => Math.min(state.completedRounds + (state.phase === 'results' ? 0 : 1), state.totalRounds);
-
-// The phases in which a round is under way (a skipped round is one that leaves these without being completed).
-const IN_ROUND = ['word', 'picking', 'voting'];
+export const turnNumber = (state) => Math.min(state.completedTurns + (state.phase === 'results' ? 0 : 1), state.totalTurns);
 
 /**
- * Works out the lines that the step from `prev` to `next` adds (none for a first state, except the start of a round).
+ * Gives the round number: the one being played, or, while the results of the turn that closed one are up, that round.
+ * @param {object} state  The game state: completedRounds, rounds, results, and phase.
+ * @returns {number} The current round, never above the number the host asked for.
+ * Side effects: none.
+ */
+export const roundNumber = (state) => Math.min(state.completedRounds + (state.results?.roundOver ? 0 : 1), state.rounds);
+
+// The phases in which a turn is under way (a skipped turn is one that leaves these without being completed).
+const IN_TURN = ['word', 'picking', 'voting'];
+
+/**
+ * Works out the lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn).
  * @param {object | null} prev  The previous state, or null if there was none.
  * @param {object | null} next  The state that has just arrived (null when the player left the game).
  * @returns {object[]} The new lines as messages, oldest first (empty for a lobby or no state).
  * Side effects: none.
  */
 /**
- * The lines that open a round: the one that was skipped to get here, if one was, and whose word it now is.  A round
+ * The lines that open a turn: the one that was skipped to get here, if one was, and whose word it now is.  A turn
  * is new when the phase is `word` and either the game was not in it before or the chooser has changed under it.
  * @param {object | null} prev  the state before
  * @param {object} next  the state that has just arrived
@@ -32,25 +40,25 @@ const IN_ROUND = ['word', 'picking', 'voting'];
  * @returns {object[]} the lines
  * Side effects: none.
  */
-function roundOpening(prev, next, name) {
+function turnOpening(prev, next, name) {
   if (next.phase !== 'word' || (prev && prev.phase === 'word' && prev.chooserId === next.chooserId)) return [];
   const out = [];
-  // A round left behind without being completed: say so before announcing the one replacing it.
-  if (prev && IN_ROUND.includes(prev.phase) && prev.completedRounds === next.completedRounds) out.push(msg('log.skipped'));
-  out.push(msg('log.choosing', { n: roundNumber(next), name: name(next.chooserId) }));
+  // A turn left behind without being completed: say so before announcing the one replacing it.
+  if (prev && IN_TURN.includes(prev.phase) && prev.completedTurns === next.completedTurns) out.push(msg('log.skipped'));
+  out.push(msg('log.choosing', { n: turnNumber(next), name: name(next.chooserId) }));
   return out;
 }
 
 /**
  * The lines for people who have just done the thing the phase is waiting for: put a card down, or voted on them.
- * Only for somebody who was already there a state ago, so that a computer player stepping into a seat mid-round does
+ * Only for somebody who was already there a state ago, so that a computer player stepping into a seat mid-turn does
  * not announce the move it inherited.
  * @param {object | null} prev  the state before
  * @param {object} next  the state that has just arrived
  * @returns {object[]} the lines
  * Side effects: none.
  */
-function duringRound(prev, next) {
+function duringTurn(prev, next) {
   if (!prev || prev.phase !== next.phase || !['picking', 'voting'].includes(next.phase)) return [];
   const voting = next.phase === 'voting';
   const flag = voting ? 'hasVoted' : 'hasPlayed';
@@ -64,14 +72,14 @@ function duringRound(prev, next) {
 }
 
 /**
- * The lines for how a round turned out, and for the end of the game.
+ * The lines for how a turn turned out, and for the end of the game.
  * @param {object | null} prev  the state before
  * @param {object} next  the state that has just arrived
  * @param {(id: *) => *} name  names a player
  * @returns {object[]} the lines
  * Side effects: none.
  */
-function roundOutcome(prev, next, name) {
+function turnOutcome(prev, next, name) {
   const out = [];
   if (prev?.phase === 'picking' && next.phase === 'voting') out.push(msg('log.allOnTable'));
   if (prev?.phase === 'voting' && next.phase === 'results' && next.results) {
@@ -93,9 +101,9 @@ export function newEntries(prev, next) {
   // table's keys are text, while a person's id is their account number, so the two are matched as text.
   const name = (id) => next.players.find((p) => String(p.id) === String(id))?.name ?? msg('common.someone');
   return [
-    ...roundOpening(prev, next, name),
+    ...turnOpening(prev, next, name),
     ...(prev?.phase === 'word' && next.phase === 'picking' ? [msg('log.chose', { name: name(next.chooserId) })] : []),
-    ...duringRound(prev, next),
-    ...roundOutcome(prev, next, name),
+    ...duringTurn(prev, next),
+    ...turnOutcome(prev, next, name),
   ];
 }

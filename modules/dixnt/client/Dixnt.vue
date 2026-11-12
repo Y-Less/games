@@ -32,7 +32,7 @@ import Arena from './components/Arena.vue';
 import Lightbox from './components/Lightbox.vue';
 import LobbyView from './components/LobbyView.vue';
 import WordPopup from './components/WordPopup.vue';
-import { roundNumber } from './moveLog.js';
+import { roundNumber, turnNumber } from './moveLog.js';
 import { statusFor, styleName } from './status.js';
 
 const props = defineProps({
@@ -56,7 +56,7 @@ provide(DIXNT_KEY, dixnt);
 const { store, isHost, send, busy, initialCode } = dixnt;
 // The current personalised state (null when not in a game).
 const state = computed(() => store.state);
-// The results of the round while they are on show, else null.
+// The results of the turn while they are on show, else null.
 const results = computed(() => (state.value?.phase === 'results' ? state.value.results : null));
 // Returns a player's name by id.
 const nameOf = dixnt.nameOf;
@@ -97,6 +97,11 @@ const status = computed(() => {
 });
 // The word as this viewer sees it: the stand-in for the one player kept in the dark.
 const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
+// The scoreboard adds a row every turn, but a turn is one player's go: stopping the table to close a pop-up after
+// each of them is four interruptions a round at a table of four.  So the pop-up is held back for the turn that closes
+// a round — everybody has had a go, and the scores are worth reading — and for the end of the game.  The "All rounds"
+// button opens it at any time, as everywhere else on the site.
+const scoresWorthStopping = computed(() => Boolean(state.value.results?.roundOver) || state.value.phase === 'finished');
 // Nobody in Dixnt is told it is their turn: everybody plays at once, and the chooser has the whole table waiting on
 // them anyway.  The one small pop-up left is for the player who was kept in the dark, who is let in on the word as
 // the voting opens ({ word, key } from the store, or null when there is nothing to tell).
@@ -128,6 +133,7 @@ const imposterWord = computed(() => store.imposterWord);
         :rounds="state.scoreboard.rounds"
         :low-is-better="state.scoreboard.lowIsBetter"
         :finished="state.phase === 'finished'"
+        :auto-open="scoresWorthStopping"
         :sticky="false"
         v-bind="scoreProps"
       >
@@ -167,7 +173,8 @@ const imposterWord = computed(() => store.imposterWord);
       <GameStatus :headline="status.headline" :mine="status.mine" :popup="false" :lines="status.lines">
         <template #facts>
           <strong v-if="state.phase === 'finished'">{{ t('facts.gameOver') }}</strong>
-          <strong v-else>{{ t('facts.round', { n: roundNumber(state), total: state.totalRounds }) }}</strong>
+          <strong v-else>{{ t('facts.turn', { n: turnNumber(state), total: state.totalTurns }) }}</strong>
+          <span v-if="state.phase !== 'finished'">{{ t('facts.round', { n: roundNumber(state), total: state.rounds }) }}</span>
           <span>{{ text(styleName(state.judging)) }}</span>
           <span v-if="state.phase !== 'finished'">{{ t('facts.chooser', { name: nameOf(state.chooserId) }) }}</span>
           <span v-if="word" class="word">{{ t('facts.word', { word }) }}</span>

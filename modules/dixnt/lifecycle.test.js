@@ -29,7 +29,7 @@ async function lobby(site, names, { rounds = 1 } = {}) {
   assert.equal(created.ok, true, created.error);
   for (const p of rest) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === names.length), 'everybody in the lobby');
-  assert.equal((await host.call('settings', { roundsEach: rounds })).ok, true);
+  assert.equal((await host.call('settings', { rounds: rounds })).ok, true);
   return { people, host, code: created.code };
 }
 
@@ -80,7 +80,7 @@ async function finish(people, host) {
       if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: 'w' });
       else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
       else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
-      else if (s.phase === 'results' && p === host) reply = await p.call('nextRound');
+      else if (s.phase === 'results' && p === host) reply = await p.call('nextTurn');
       if (reply) {
         assert.equal(reply.ok, true, reply.error);
         acted = true;
@@ -105,14 +105,14 @@ test('two people acting in the same tick: both cards count once, both votes coun
   const votes = await Promise.all(voters.map((p) => p.call('vote', { targetId: p.state.voteTargets[0] })));
   assert.ok(votes.every((r) => r.ok), JSON.stringify(votes));
   await everyone(people, 'results');
-  assert.equal(host.state.completedRounds, 1);
+  assert.equal(host.state.completedTurns, 1);
   assert.equal(host.state.scoreboard.rounds.length, 1, 'scored once');
   // Pressing "next round" from everybody at once moves on exactly one round (the game has one round each: 4 rounds).
-  await Promise.all(people.map((p) => p.call('nextRound')));
+  await Promise.all(people.map((p) => p.call('nextTurn')));
   await until(() => host.state.phase === 'word', 'the next round');
-  assert.equal(host.state.round, 2, 'only one round was started');
+  assert.equal(host.state.turn, 2, 'only one turn was started');
   await sleep(30);
-  assert.equal(host.state.round, 2);
+  assert.equal(host.state.turn, 2);
 });
 
 test('both pressing start in the same tick starts one game; a second socket of the host acts at the same time', async (t) => {
@@ -124,7 +124,7 @@ test('both pressing start in the same tick starts one game; a second socket of t
   assert.equal(replies.filter((r) => r.ok).length, 1, 'exactly one start worked');
   assert.ok(replies.filter((r) => !r.ok).every((r) => typeof r.error === 'string'));
   await everyone([...people, second], 'word');
-  for (const p of [...people, second]) assert.equal(p.state.round, 1);
+  for (const p of [...people, second]) assert.equal(p.state.turn, 1);
   assert.deepEqual(host.state.me.hand, second.state.me.hand, 'both sockets of one account share one hand');
 
   // Both sockets choose the word at once (whichever account is the chooser): one succeeds.
@@ -195,7 +195,7 @@ test('disconnecting and reconnecting in every phase keeps the same seat, hand an
     if (phase === 'results') break;
   }
   await finish(people, host);
-  assert.equal(host.state.completedRounds, 3);
+  assert.equal(host.state.completedTurns, 3);
   await sleep(100);
   for (const p of people) assert.equal((await p.stats()).perGame[0].played, 1);
 });

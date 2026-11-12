@@ -20,7 +20,7 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
     categories: [{ key: 'all', label: 'All', description: '', count: 400, selected: true }],
     availableCards: 400,
     handSize: 8,
-    roundsEach: 2,
+    rounds: 2,
     pointsPerVote: 1,
     pointsChooserCorrect: 1,
     pointsFooledChooser: 5,
@@ -85,7 +85,7 @@ describe('Dixnt lobby computer players', () => {
     expect(send).toHaveBeenLastCalledWith('settings', { handSize: '6' });
     numbers[1].element.value = '3';
     await numbers[1].trigger('change');
-    expect(send).toHaveBeenLastCalledWith('settings', { roundsEach: '3' });
+    expect(send).toHaveBeenLastCalledWith('settings', { rounds: '3' });
     await wrapper.find('input[type="checkbox"]').trigger('change');
     expect(send).toHaveBeenLastCalledWith('settings', { categories: [] });
   });

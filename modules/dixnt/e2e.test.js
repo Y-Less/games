@@ -135,41 +135,41 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
 }
 
 /**
- * Plays a game to the end. `humans` are the people this test controls (the first is the host, who moves rounds on); any
- * other players (bots) act for themselves.  Returns what each finished round showed.
+ * Plays a game to the end. `humans` are the people this test controls (the first is the host, who moves turns on); any
+ * other players (bots) act for themselves.  Returns what each finished turn showed.
  */
-async function playToEnd(humans, { vote = (p, round) => p.state.voteTargets[round % p.state.voteTargets.length], log = () => '' } = {}) {
+async function playToEnd(humans, { vote = (p, turn) => p.state.voteTargets[turn % p.state.voteTargets.length], log = () => '' } = {}) {
   const [host] = humans;
-  const rounds = [];
-  const waitFor = (condition, what) => until(condition, what, { extra: () => `\nphase=${host.state?.phase} round=${host.state?.round}${log()}` });
-  const roundOf = () => host.state.round;
+  const turns = [];
+  const waitFor = (condition, what) => until(condition, what, { extra: () => `\nphase=${host.state?.phase} turn=${host.state?.turn}${log()}` });
+  const turnOf = () => host.state.turn;
   for (let guard = 0; guard < 100; guard++) {
-    const { phase, round } = host.state;
-    if (phase === 'finished') return rounds;
-    await waitFor(() => humans.every((p) => p.state?.phase === phase && p.state.round === round), `everyone to see ${phase}`);
+    const { phase, turn } = host.state;
+    if (phase === 'finished') return turns;
+    await waitFor(() => humans.every((p) => p.state?.phase === phase && p.state.turn === turn), `everyone to see ${phase}`);
     if (phase === 'word') {
       const chooser = humans.find((p) => p.state.me.isChooser);
-      if (chooser) assert.equal((await chooser.call('submitWord', { word: `a word for round ${round}` })).ok, true);
-      await waitFor(() => host.state.phase !== 'word' || roundOf() !== round, 'the word to be chosen');
+      if (chooser) assert.equal((await chooser.call('submitWord', { word: `a word for turn ${turn}` })).ok, true);
+      await waitFor(() => host.state.phase !== 'word' || turnOf() !== turn, 'the word to be chosen');
     } else if (phase === 'picking') {
       for (const p of humans) {
         if (p.state.me.isChooser || p.state.me.myPick !== null) continue;
         const reply = await p.call('playCard', { cardId: p.state.me.hand[0] });
         assert.equal(reply.ok, true, reply.error);
       }
-      await waitFor(() => host.state.phase !== 'picking' || roundOf() !== round, 'every card to be played');
+      await waitFor(() => host.state.phase !== 'picking' || turnOf() !== turn, 'every card to be played');
     } else if (phase === 'voting') {
       for (const p of humans) {
         if (!p.state.voteTargets.length || p.state.me.myVote !== null) continue;
-        const reply = await p.call('vote', { targetId: vote(p, round) });
+        const reply = await p.call('vote', { targetId: vote(p, turn) });
         assert.equal(reply.ok, true, reply.error);
       }
-      await waitFor(() => host.state.phase !== 'voting' || roundOf() !== round, 'the verdict');
+      await waitFor(() => host.state.phase !== 'voting' || turnOf() !== turn, 'the verdict');
     } else if (phase === 'results') {
       const { results, players, chooserId } = host.state;
-      rounds.push({ results, chooserId, names: Object.fromEntries(players.map((p) => [p.id, p.name])) });
-      assert.equal((await host.call('nextRound')).ok, true);
-      await waitFor(() => host.state.phase !== 'results', 'the next round');
+      turns.push({ results, chooserId, names: Object.fromEntries(players.map((p) => [p.id, p.name])) });
+      assert.equal((await host.call('nextTurn')).ok, true);
+      await waitFor(() => host.state.phase !== 'results', 'the next turn');
     } else {
       assert.fail(`unexpected phase ${phase}`);
     }
@@ -264,7 +264,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   await until(() => ann.state.players.length === 4, 'the twin to leave');
 
   assert.equal((await bob.call('start')).ok, false, 'only the host can start');
-  assert.equal((await ann.call('settings', { roundsEach: 1, handSize: 8 })).ok, true);
+  assert.equal((await ann.call('settings', { rounds: 1, handSize: 8 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => cat.state?.phase === 'word', 'the game to start');
   assert.equal(cat.state.me.hand.length, 8);
@@ -279,7 +279,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   const final = ann.state;
   assert.ok(final.winners.length >= 1);
   assertScoreboard(players, 4);
-  assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), [1, 2, 3, 4].map((n) => ({ key: 'round.label', params: { n } })));
+  assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), [1, 2, 3, 4].map((n) => ({ key: 'turn.label', params: { n } })));
 
   // Reconnecting restores the player given the game's code; without one, a finished game is not resumed (back from the menu starts afresh).
   const before = bob.me().score;
@@ -310,7 +310,7 @@ test('a game ended early by the host, or abandoned, is not recorded', async (t) 
   const [ann, bob, cat, dan] = players;
   await ann.join();
   for (const p of [bob, cat, dan]) await p.join(ann.code);
-  await ann.call('settings', { roundsEach: 1 });
+  await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   assert.equal((await ann.call('again')).ok, true, 'the host ends it early');
@@ -335,7 +335,7 @@ test('a tied game counts as a win for every tied winner, with a shared placement
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('settings', { judging: 'favourite', roundsEach: 1 });
+  await ann.call('settings', { judging: 'favourite', rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
 
@@ -363,7 +363,7 @@ test('the chooser-decides style records who fooled the chooser', async (t) => {
   const [ann, bob, cat, dan] = players;
   await ann.join();
   for (const p of [bob, cat, dan]) await p.join(ann.code);
-  await ann.call('settings', { judging: 'chooser', roundsEach: 1 });
+  await ann.call('settings', { judging: 'chooser', rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   const rounds = await playToEnd(players);
@@ -378,7 +378,7 @@ test('the game state, and the fact that it was recorded, survive a restart', asy
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('settings', { roundsEach: 1 });
+  await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
   const hand = bob.state.me.hand;
@@ -429,11 +429,11 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   const [ann, bob, cat] = players;
   await ann.join();
   for (const p of [bob, cat]) await p.join(ann.code);
-  await ann.call('settings', { roundsEach: 2 });
+  await ann.call('settings', { rounds: 2 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
-  assert.equal((await ann.call('abortRound')).ok, true, 'the host skips the first round');
-  await until(() => players.every((p) => p.state?.round === 2 && p.state.phase === 'word'), 'the next round');
+  assert.equal((await ann.call('abortTurn')).ok, true, 'the host skips the first round');
+  await until(() => players.every((p) => p.state?.turn === 2 && p.state.phase === 'word'), 'the next turn');
   assertScoreboard(players, 0);
 
   // Play one round by hand.
@@ -445,7 +445,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   for (const p of players) if (p.state.voteTargets.length) await p.call('vote', { targetId: p.state.voteTargets[0] });
   await until(() => players.every((p) => p.state?.phase === 'results'), 'the results');
   assertScoreboard(players, 1);
-  assert.deepEqual(ann.state.scoreboard.rounds[0].label, { key: 'round.label', params: { n: 1 } }, 'the skipped round does not use up a number');
+  assert.deepEqual(ann.state.scoreboard.rounds[0].label, { key: 'turn.label', params: { n: 1 } }, 'the skipped round does not use up a number');
   const history = ann.state.scoreboard.rounds;
   const code = ann.code;
   const cookies = players.map((p) => p.cookie);
@@ -480,8 +480,8 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   fs.writeFileSync(path.join(moduleDir, 'rooms.json'), JSON.stringify(saved));
   const third = await reload('from the old save');
   assertScoreboard(third.again, 1);
-  assert.deepEqual(third.again[0].state.scoreboard.rounds[0].label, { key: 'round.earlier' });
-  assert.equal((await third.again[0].call('nextRound')).ok, true, 'the game carries on');
+  assert.deepEqual(third.again[0].state.scoreboard.rounds[0].label, { key: 'turn.earlier' });
+  assert.equal((await third.again[0].call('nextTurn')).ok, true, 'the game carries on');
   t.after(() => fs.rmSync(first.dataDir, { recursive: true, force: true })); // after the sites have stopped
 });
 
@@ -500,7 +500,7 @@ async function playComputerGame(t, { judging, categories }) {
     [['alpha', 120, true], ['beta', 120, true]],
     'the server offers both categories, all selected by default',
   );
-  assert.equal((await human.call('settings', { judging, categories, roundsEach: 1 })).ok, true);
+  assert.equal((await human.call('settings', { judging, categories, rounds: 1 })).ok, true);
 
   assert.equal((await human.call('fillBots', { count: 4 })).ok, true);
   await until(() => human.state?.players.length === 4, 'the computer players to join');

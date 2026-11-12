@@ -29,7 +29,7 @@ export const literal = {
   },
   /**
    * Accuses the player whose card fits the clue worst (in the favourite style, picks the best fit instead).
-   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the round as the voter sees it
+   * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @param {() => number} rng  random source for ties and fallback
    * @returns {string} a player id from `targets`
    * Side effects: none.

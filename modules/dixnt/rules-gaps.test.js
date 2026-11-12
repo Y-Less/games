@@ -9,8 +9,8 @@ import { seeded } from '../../shared/testkit.js';
 const ids = (n, from = 1) => Array.from({ length: n }, (_, i) => from + i);
 const HINTS = ['h1', 'h2', 'h3', 'h4', 'h5'];
 
-const setup = (names, { cards = 100, handSize = 4, roundsEach = 5, judging = 'everyone', seed = 3, start = true } = {}) =>
-  makeRoom(names, { cardCount: cards, hints: HINTS, handSize, roundsEach, judging, rng: seeded(seed), start });
+const setup = (names, { cards = 100, handSize = 4, rounds = 5, judging = 'everyone', seed = 3, start = true } = {}) =>
+  makeRoom(names, { cardCount: cards, hints: HINTS, handSize, rounds, judging, rng: seeded(seed), start });
 
 function playRoundTo({ game, room, rng }, phase) {
   game.submitWord(room, room.chooserId, 'word', rng);
@@ -24,7 +24,7 @@ function playRoundTo({ game, room, rng }, phase) {
 }
 
 test('the last person leaving empties the room, so the server can drop it', () => {
-  const { game, room, rng } = setup(['Ann', 'Bob', 'Cat'], { handSize: 6, roundsEach: 3, judging: 'chooser' });
+  const { game, room, rng } = setup(['Ann', 'Bob', 'Cat'], { handSize: 6, rounds: 3, judging: 'chooser' });
   assert.equal(game.removeHuman(room, 2, rng, 0).empty, false, 'a computer player keeps the place');
   assert.equal(game.removeHuman(room, 3, rng, 0).empty, false);
   const last = game.removeHuman(room, 1, rng, 0);
@@ -58,7 +58,7 @@ test('a saved game from an older version is brought up to date', () => {
   assert.equal(loaded.judging, 'everyone');
   assert.deepEqual(loaded.categories, ['all']);
   assert.equal(loaded.history.length, 1);
-  assert.deepEqual(loaded.history[0].label, { key: 'round.earlier' });
+  assert.deepEqual(loaded.history[0].label, { key: 'turn.earlier' });
   assert.deepEqual(loaded.history[0].deltas, { s0: 3, s1: 1, s2: 0 }, 'the old hundreds are scaled down, under the slots the players were given');
   assert.deepEqual(game.viewFor(loaded, 1).scoreboard.rounds[0].deltas, { 1: 3, 2: 1, 3: 0 }, 'and the scoreboard still names the people');
   // Without scores there is nothing to explain, and in a lobby neither.
@@ -91,12 +91,12 @@ test('the deck follows the cards on disk: missing cards vanish everywhere, new o
 });
 
 test('hands are topped up from the discard pile, reshuffled, when the draw pile runs dry', () => {
-  const made = setup(['A', 'B', 'C'], { cards: 15, handSize: 4, roundsEach: 5 });
+  const made = setup(['A', 'B', 'C'], { cards: 15, handSize: 4, rounds: 5 });
   const { game, room, rng } = made;
   assert.equal(room.draw.length, 3);
   for (let round = 0; round < 6; round++) {
     playRoundTo(made, 'results');
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
     const all = [...room.draw, ...room.discard, ...room.players.flatMap((p) => p.hand)];
     assert.equal(new Set(all).size, 15, 'no card lost or doubled');
     assert.ok(room.players.every((p) => p.hand.length === 4), 'full hands every round');
@@ -122,7 +122,7 @@ test('names are made unique in the room, and the settings are lobby-only', () =>
   assert.equal(game.addHuman(room, 3, 'Ann Lee').ok, true);
   assert.equal(new Set(room.players.map((p) => p.name.toLowerCase())).size, 3, 'no two people answer to the same name');
   assert.equal(game.start(room, 1, rng).ok, true);
-  for (const settings of [{ handSize: 5 }, { roundsEach: 2 }, { judging: 'chooser' }, { categories: ['all'] }]) {
+  for (const settings of [{ handSize: 5 }, { rounds: 2 }, { judging: 'chooser' }, { categories: ['all'] }]) {
     assert.equal(game.setSettings(room, 1, settings).error, 'settingsBeforeStart');
   }
   assert.equal(game.playAgain(room, 'someone else').error, 'hostOnlyEnd');
@@ -134,14 +134,14 @@ test('settings accept numeric strings and fractions by rounding, and refuse anyt
   assert.equal(room.handSize, 5);
   game.setSettings(room, 1, { handSize: 7.4 });
   assert.equal(room.handSize, 7);
-  game.setSettings(room, 1, { roundsEach: '3' });
-  assert.equal(room.roundsEach, 3);
+  game.setSettings(room, 1, { rounds: '3' });
+  assert.equal(room.rounds, 3);
   for (const bad of [NaN, 'abc', Infinity, -1, [], {}, 2.4, 12.6]) {
     const before = room.handSize;
     assert.equal(game.setSettings(room, 1, { handSize: bad }).error, 'handSizeRange', `${String(bad)} is refused`);
     assert.equal(room.handSize, before);
   }
-  for (const bad of [0, 11, 'x', NaN, null]) assert.equal(game.setSettings(room, 1, { roundsEach: bad }).error, 'turnsEach');
+  for (const bad of [0, 11, 'x', NaN, null]) assert.equal(game.setSettings(room, 1, { rounds: bad }).error, 'turnsEach');
   assert.equal(game.setSettings(room, 1, { judging: 'dice' }).error, 'unknownJudging');
   assert.equal(game.setSettings(room, 1, { categories: 'all' }).error, 'needCategory');
   assert.equal(game.setSettings(room, 1, { categories: ['all', 'all', 'nope'] }).error, 'unknownCategory');
@@ -166,7 +166,7 @@ test('playing a card: the chooser cannot, strangers cannot, changing your pick i
   const chooser = room.chooserId;
   const [p1, p2, p3] = room.players.filter((p) => p.id !== chooser);
   game.submitWord(room, chooser, 'w', rng);
-  assert.equal(game.playCard(room, chooser, game.playerOf(room, chooser).hand[0], rng).error, 'notPlayingThisRound');
+  assert.equal(game.playCard(room, chooser, game.playerOf(room, chooser).hand[0], rng).error, 'notPlayingThisTurn');
   assert.equal(game.playCard(room, 'stranger', 1, rng).error, 'notInGame');
   assert.equal(game.playCard(room, p1.id, p2.hand[0], rng).error, 'notInHand');
   game.playCard(room, p1.id, p1.hand[0], rng);
@@ -234,18 +234,18 @@ test('voting rules: not before the cards are in, never for yourself or a non-car
   game.vote(room, chooser, p1.id);
   assert.equal(room.phase, 'results');
   assert.equal(game.vote(room, p1.id, p2.id).error, 'notTimeToVote');
-  assert.equal(game.abortRound(room, room.hostId, rng).error, 'noRoundToSkip');
+  assert.equal(game.abortTurn(room, room.hostId, rng).error, 'noTurnToSkip');
 });
 
 test('skipping a round gives nobody a turn, a score or a history row, and the next chooser follows', () => {
-  const made = setup(['A', 'B', 'C'], { roundsEach: 1 });
+  const made = setup(['A', 'B', 'C'], { rounds: 1 });
   const { game, room, rng } = made;
   const first = room.chooserId;
-  assert.equal(game.abortRound(room, 2, rng).error, 'hostOnlySkip');
-  assert.equal(game.abortRound(room, 1, rng).ok, true);
+  assert.equal(game.abortTurn(room, 2, rng).error, 'hostOnlySkip');
+  assert.equal(game.abortTurn(room, 1, rng).ok, true);
   assert.notEqual(room.chooserId, first);
-  assert.equal(room.round, 2);
-  assert.equal(room.completed, 0);
+  assert.equal(room.turn, 2);
+  assert.equal(room.completedTurns, 0);
   assert.deepEqual(room.history, []);
   assert.ok(room.players.every((p) => p.turns === 0 && p.score === 0));
   // Every player still gets their turn: three rounds complete the game.
@@ -253,19 +253,19 @@ test('skipping a round gives nobody a turn, a score or a history row, and the ne
   for (let i = 0; i < 3; i++) {
     chosen.push(room.chooserId);
     playRoundTo(made, 'results');
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
   }
   assert.equal(new Set(chosen).size, 3);
   assert.equal(room.phase, 'finished');
 });
 
 test('a place that changes hands keeps its column and its cards, and chooser order stays fair', () => {
-  const made = setup(['A', 'B', 'C', 'D', 'E'], { roundsEach: 2 });
+  const made = setup(['A', 'B', 'C', 'D', 'E'], { rounds: 2 });
   const { game, room, rng } = made;
   playRoundTo(made, 'results');
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   playRoundTo(made, 'results');
-  game.nextRound(room, 1, rng);
+  game.nextTurn(room, 1, rng);
   const leaver = room.players[1];
   const heldCards = [...leaver.hand];
   const score = leaver.score;
@@ -285,7 +285,7 @@ test('a place that changes hands keeps its column and its cards, and chooser ord
   assert.equal(game.kick(room, 3, game.playerOf(room, 4).slot, rng, 0).error, 'hostOnlyRemove');
   assert.equal(game.kick(room, 1, 'nobody', rng, 0).error, 'playerNotInGame');
   // The turn counts: nobody who still owes a turn is skipped.
-  const owing = room.players.filter((p) => p.turns < room.roundsEach).map((p) => p.id);
+  const owing = room.players.filter((p) => p.turns < room.rounds).map((p) => p.id);
   if (owing.length) assert.ok(owing.includes(room.chooserId));
 });
 
@@ -301,7 +301,7 @@ test('hosting passes to the first remaining person, and starting again clears th
   assert.deepEqual([room.picks, room.votes, room.results, room.word], [{}, {}, null, null]);
   assert.equal(game.start(room, room.hostId, rng).ok, true);
   assert.equal(room.phase, 'word');
-  assert.equal(room.round, 1, 'a new game starts from round one');
+  assert.equal(room.turn, 1, 'a new game starts from round one');
 });
 
 test('hints cycle without repeats until the pool runs out, then reshuffle', () => {

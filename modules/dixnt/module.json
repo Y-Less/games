@@ -7,15 +7,15 @@
   "category": "party",
   "rules": "rules.md",
   "stats": [
-    { "key": "roundsAsImposter", "label": "Rounds as the imposter", "agg": "sum" },
+    { "key": "roundsAsImposter", "label": "Turns as the imposter", "agg": "sum" },
     { "key": "timesFooledGroup", "label": "Times you fooled the group", "agg": "sum" },
     { "key": "correctGuesses", "label": "Imposters correctly spotted", "agg": "sum" },
     { "key": "cardsPlayed", "label": "Cards played", "agg": "sum" },
     { "key": "soleCorrect", "label": "Times you alone spotted an imposter nobody found", "agg": "sum", "hidden": true },
     { "key": "favouritePicks", "label": "Times your card was picked as the favourite", "agg": "sum", "hidden": true },
     { "key": "mostFooled", "label": "Most times you fooled the group in one game", "agg": "max", "hidden": true },
-    { "key": "spymaster", "label": "Games you spotted the imposter every round", "agg": "sum", "hidden": true },
-    { "key": "loneDissent", "label": "Rounds you alone voted against the card the group settled on", "agg": "sum", "hidden": true },
+    { "key": "spymaster", "label": "Games you spotted the imposter every turn", "agg": "sum", "hidden": true },
+    { "key": "loneDissent", "label": "Turns you alone voted against the card the group settled on", "agg": "sum", "hidden": true },
     { "key": "neverAccused", "label": "Games nobody ever voted for you", "agg": "sum", "hidden": true },
     { "key": "scorelessGames", "label": "Games you finished without a point", "agg": "sum", "hidden": true }
   ],
@@ -61,7 +61,7 @@
     {
       "key": "spymaster",
       "name": "Spymaster",
-      "text": "Vote for the imposter correctly in every round of a game",
+      "text": "Vote for the imposter correctly in every turn of a game",
       "levels": "unlock",
       "stat": "spymaster"
     },

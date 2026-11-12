@@ -46,20 +46,20 @@ export function createStore({ socket, user, search = '', setSearch = () => {}, l
    */
   function onState(next, previous) {
     log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
-    // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per round.
+    // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per turn.
     if (next && previous?.phase === 'word' && next.phase === 'picking') {
       // `hidden` says the viewer is the one kept in the dark; the pop-up itself writes what they see instead.
-      wordPopup.value = { word: next.wordHidden ? null : next.word, key: `${next.round}:${next.completedRounds}`, hidden: Boolean(next.wordHidden), at: Date.now() };
+      wordPopup.value = { word: next.wordHidden ? null : next.word, key: `${next.turn}:${next.completedTurns}`, hidden: Boolean(next.wordHidden), at: Date.now() };
     }
     // The player who was kept in the dark is let in on the word as the voting opens, in a small pop-up of their own:
     // everybody else has known it all along, so it is news to them alone.  `wordHidden` says so only while the cards
     // are going down, which is why it is the state before this one that is asked.
     if (next?.phase === 'voting' && previous?.phase === 'picking' && previous.wordHidden) {
-      imposterWord.value = { word: next.word, key: `${next.round}:${next.completedRounds}` };
+      imposterWord.value = { word: next.word, key: `${next.turn}:${next.completedTurns}` };
     }
-    // A new round, the lobby, or no game at all: last round's word is not news any more.
+    // A new turn, the lobby, or no game at all: last turn's word is not news any more.
     if (!next || next.phase === 'word' || next.phase === 'lobby') imposterWord.value = null;
-    // Back in the lobby, or out of the game, nothing from the last round may be left to show: the word pop-up is
+    // Back in the lobby, or out of the game, nothing from the last turn may be left to show: the word pop-up is
     // replayed by the next game's pop-up component when it mounts, and a lightbox would still hold a card from before.
     if (!next || next.phase === 'lobby') {
       wordPopup.value = null;
@@ -76,7 +76,7 @@ export function createStore({ socket, user, search = '', setSearch = () => {}, l
   // Returns a player's name by id ('?' if unknown).  A table keyed by a player id has text keys, while a person's id
   // is their account number, so the two are matched as text.
   const nameOf = (id) => players.value.find((p) => String(p.id) === String(id))?.name ?? '?';
-  // The player choosing the word this round, or null.
+  // The player choosing the word this turn, or null.
   const chooser = computed(() => players.value.find((p) => p.isChooser) ?? null);
   // True when the viewer is the host.
   const isHost = computed(() => Boolean(store.state) && store.state.hostId === store.state.me.id);

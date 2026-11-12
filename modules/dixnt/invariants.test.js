@@ -21,7 +21,7 @@ const byKey = (room, key) => room.players.find((p) => String(p.id) === String(ke
 
 /** Everything that must hold whatever has happened so far. */
 function check(game, room, memory, where) {
-  const note = `${where} (phase ${room.phase}, round ${room.round})`;
+  const note = `${where} (phase ${room.phase}, round ${room.turn})`;
   const hands = room.players.flatMap((p) => p.hand);
   const all = [...room.draw, ...room.discard, ...hands];
   assert.equal(new Set(all).size, all.length, `${note}: a card exists twice`);
@@ -38,7 +38,7 @@ function check(game, room, memory, where) {
   }
   // The history names slots, and a slot stays with its place through every takeover, so every one of them is still held.
   for (const r of room.history) for (const slot of Object.keys(r.deltas)) assert.ok(room.players.some((p) => p.slot === slot), `${note}: history mentions a slot nobody holds`);
-  assert.equal(room.history.length, room.completed, `${note}: one history row per completed round`);
+  assert.equal(room.history.length, room.completedTurns, `${note}: one history row per completed round`);
   if (room.phase !== 'lobby') assert.ok(room.players.length >= MIN_PLAYERS, `${note}: a game needs ${MIN_PLAYERS} players`);
   if (['word', 'picking', 'voting', 'results'].includes(room.phase)) {
     assert.ok(game.playerOf(room, room.chooserId), `${note}: the chooser is a current player`);
@@ -54,9 +54,9 @@ function check(game, room, memory, where) {
     const sum = Object.values(room.results.deltas).reduce((a, b) => a + b, 0);
     assert.ok(sum >= 0, `${note}: results add points`);
   }
-  if (room.phase === 'finished') assert.ok(room.players.every((p) => p.turns >= room.roundsEach), `${note}: finished only when everybody has had their turns`);
-  assert.ok(room.completed >= memory.completed || memory.reset, `${note}: completed rounds never go backwards`);
-  memory.completed = room.completed;
+  if (room.phase === 'finished') assert.ok(room.players.every((p) => p.turns >= room.rounds), `${note}: finished only when everybody has had their turns`);
+  assert.ok(room.completedTurns >= memory.completed || memory.reset, `${note}: completed rounds never go backwards`);
+  memory.completed = room.completedTurns;
   memory.reset = false;
   if (room.players.length) assert.ok(game.playerOf(room, room.hostId), `${note}: the host is a current player`);
   // The views: nobody sees what they must not.
@@ -102,7 +102,7 @@ function randomAction(game, room, rng, names) {
     return true;
   }
   if (roll < 0.08 && ['word', 'picking', 'voting'].includes(room.phase)) {
-    game.abortRound(room, host, rng);
+    game.abortTurn(room, host, rng);
     return true;
   }
   if (roll < 0.09) {
@@ -126,7 +126,7 @@ function randomAction(game, room, rng, names) {
       return true;
     }
     case 'results':
-      game.nextRound(room, pick(room.players).id, rng);
+      game.nextTurn(room, pick(room.players).id, rng);
       return true;
     case 'finished':
       if (rng() < 0.5) {
@@ -147,15 +147,15 @@ for (const judging of JUDGING_MODES) {
       const room = newRoom(game, 4);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const names = { n: 0 };
-      assert.equal(game.setSettings(room, room.hostId, { judging, roundsEach: 1 + Math.floor(rng() * 3), handSize: 3 + Math.floor(rng() * 8) }).ok, true);
+      assert.equal(game.setSettings(room, room.hostId, { judging, rounds: 1 + Math.floor(rng() * 3), handSize: 3 + Math.floor(rng() * 8) }).ok, true);
       assert.equal(game.start(room, room.hostId, rng).ok, true);
       check(game, room, memory, `seed ${seed} start`);
       let sawFinished = false;
       for (let step = 0; step < 600; step++) {
         const before = room.phase;
-        const completed = room.completed;
+        const completed = room.completedTurns;
         randomAction(game, room, rng, names);
-        if (room.phase === 'lobby' || room.completed < completed) memory.reset = true;
+        if (room.phase === 'lobby' || room.completedTurns < completed) memory.reset = true;
         check(game, room, memory, `seed ${seed} step ${step} after ${before}`);
         if (room.phase === 'finished') {
           sawFinished = true;
@@ -177,7 +177,7 @@ test('without leaves or skips every game terminates after exactly players x roun
       const room = newRoom(game, count);
       const host = room.hostId;
       const each = 1 + Math.floor(rng() * 3);
-      assert.equal(game.setSettings(room, host, { judging, roundsEach: each, handSize: 3 + Math.floor(rng() * 4) }).ok, true);
+      assert.equal(game.setSettings(room, host, { judging, rounds: each, handSize: 3 + Math.floor(rng() * 4) }).ok, true);
       assert.equal(game.start(room, host, rng).ok, true);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const chosen = new Set();
@@ -194,10 +194,10 @@ test('without leaves or skips every game terminates after exactly players x roun
             const targets = game.cardPlayers(room).filter((p) => p.id !== v.id);
             game.vote(room, v.id, targets[Math.floor(rng() * targets.length)].id);
           }
-        } else game.nextRound(room, host, rng);
+        } else game.nextTurn(room, host, rng);
         check(game, room, memory, `${judging} seed ${seed}`);
       }
-      assert.equal(room.completed, count * each);
+      assert.equal(room.completedTurns, count * each);
       assert.ok(room.players.every((p) => p.turns === each), 'everyone chose the word equally often');
       assert.equal(chosen.size, count);
     }

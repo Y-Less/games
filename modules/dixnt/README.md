@@ -21,23 +21,28 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
 - `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
-- `*.test.js` the rules tests (`game`, `judging`, `rounds`, `favourite`, `history`, `bots`) and `e2e.test.js`, `lifecycle.test.js`
+- `*.test.js` the rules tests (`game`, `judging`, `turns`, `favourite`, `history`, `bots`) and `e2e.test.js`, `lifecycle.test.js`
   and friends, which run the real site.
 
 ## Scoreboard
 
-Every completed round is appended to `history` in the room state (saved in `rooms.json`):
+A **turn** is one player's go as the word-chooser; a **round** is everyone having had one, and `rooms.rounds` is how
+many rounds the host set the game to run for.  Every completed turn is appended to `history` in the room state (saved
+in `rooms.json`):
 `{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
-(`{ key, params? }`, see `shared/messages.js`), never English: `msg('round.label', { n })` or `msg('round.earlier')`
+(`{ key, params? }`, see `shared/messages.js`), never English: `msg('turn.label', { n })` or `msg('turn.earlier')`
 for the label, and one of `notes.chooser`, `notes.cardPicked`, `notes.chooserCardPicked`, `notes.imposterCaught`,
 `notes.imposterFooledAll`, `notes.chooserSpotted`, `notes.chooserFooled` for a note. `ScoreBoard` and `ScoreTable`
 put them into the player's language.
-Abandoned (skipped) rounds are not recorded and do not use up a number.  Every player's view carries the standard
+Abandoned (skipped) turns are not recorded and do not use up a number.  Every player's view carries the standard
 scoreboard (`view.scoreboard`, see `shared/scores.js`: players with `isMe` and `away`, `rounds`, `lowIsBetter: false`,
-no target), drawn by the shared `<ScoreBoard>`: a sticky bar, and a pop-up after every round and at the end.  Choices:
+no target), drawn by the shared `<ScoreBoard>`: a sticky bar, and a pop-up after every **round** and at the end.  The
+history gains a row every turn, so the pop-up is held back with `auto-open`, which Dixnt binds to `results.roundOver`
+(set by `completeTurn` when the player with the fewest turns gains one) or the finished phase; "All rounds" opens it
+at any time.  Choices:
 a player who leaves is removed from every history row (the table always adds up to the scores of the players still
-in the game); late joiners appear with 0 and a zero in earlier rounds; returning to the lobby clears scores and
-history.  A saved room from before the history existed loads with its scores shown as one `round.earlier` row.  A room saved
+in the game); late joiners appear with 0 and a zero in earlier turns; returning to the lobby clears scores and
+history.  A saved room from before the history existed loads with its scores shown as one `turn.earlier` row.  A room saved
 before the labels and notes became messages holds English strings there; the client shows a plain string as it is, so
 those rows keep their original wording.
 
@@ -51,7 +56,7 @@ sentence:
   `src/locales/en.json` second, so Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`
   ...) sit beside the shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `turnsEach`, `noGameWithCode` ...).
   An unexpected throw becomes `serverError`.
-- **Text in a view.** The scoreboard's round labels and notes are messages (above), and so is the label of the
+- **Text in a view.** The scoreboard's turn labels and notes are messages (above), and so is the label of the
   made-up "all cards" category (`lobby.allCards`) used when there is no `categories.json`.  The labels and
   descriptions *in* `categories.json`, the hints in `hints.txt`, the chooser's word, the card pictures, and the
   computer players' names are content and stay as they are.
@@ -76,8 +81,9 @@ winners (see `dixit/STYLE_GUIDE.md` and `dixit/JUDGING.md`).
 
 When a game reaches the finished phase it is reported once with `ctx.stats.record`: winners (everyone tied on the top
 score) get `win`, the rest `loss`, placements follow the score (ties share one), and the extras are
-`roundsAsImposter`, `timesFooledGroup`, `correctGuesses` and `cardsPlayed`.  Games ended early by the host, or
-abandoned, are not recorded.  The per-round counters live on the player in the room (as their score does), so they
+`roundsAsImposter` (a stat key that counts turns: it keeps the name it was recorded under), `timesFooledGroup`,
+`correctGuesses` and `cardsPlayed`.  Games ended early by the host, or
+abandoned, are not recorded.  The per-turn counters live on the player in the room (as their score does), so they
 survive a restart, follow a place when it changes hands, and never record a game twice.
 
 ## Computer players (built in)
@@ -102,13 +108,13 @@ places.  The rest of the lobby (the play style, the categories, the hand size an
   what a person in the seat would: its hand, the clue unless it is the imposter, the table once cards are in.  An AI that
   throws or answers with something illegal is replaced by a random legal choice, and an empty hint list falls back to a
   few built-in words.  Timers are rebuilt when the server starts, so saved rooms carry on.
-- **Next round.** Bots never press "Next round" or start the game: the host does, as before, so they cannot hold
+- **Next turn.** Bots never press "Next turn" or start the game: the host does, as before, so they cannot hold
   anything up.
 - **Leaving and arriving.** This is the shared behaviour of `shared/roster.js`, and nothing about it is Dixnt's own.
   While a game is on, a person who leaves or is removed by the host is replaced by a computer player in their place,
   keeping their hand, score, turns, the card they played, the vote they cast and their scoreboard column; the new
   computer player gets a name and a random AI, remembers whose place it is keeping warm (`stoodInFor`), and the host
-  role passes to the first remaining person.  So a round is never abandoned for somebody leaving, whoever they were.
+  role passes to the first remaining person.  So a turn is never abandoned for somebody leaving, whoever they were.
   Somebody arriving at a game under way takes a computer player's place the same way round — their own first, if it is
   still being kept for them — so a game of nothing but people answers `gameFull`.  In the lobby a place is simply given
   up, and a finished game keeps its final standings for everybody who played.  A game with no people left is dropped,

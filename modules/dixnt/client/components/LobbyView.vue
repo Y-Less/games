@@ -1,6 +1,6 @@
 <script setup>
 // Dixnt lobby: the invite code, the shared players panel (the host can remove people and add computer players), and
-// the host's settings: play style, card categories, hand size, and number of rounds.  Everyone else sees them
+// the host's settings: play style, card categories, hand size, and how many rounds the game runs for.  Everyone else sees them
 // read-only.  Every word comes from a locale file (the game's own first, then the site's); a category's label may be
 // a message the server sent, so it is drawn with text().
 //
@@ -137,21 +137,21 @@ function toggleCategory(key) {
         />
       </label>
       <label class="row">
-        {{ t('lobby.roundsEach') }}
+        {{ t('lobby.rounds') }}
         <input
           type="number"
           class="num"
           min="1"
           max="10"
-          :value="state.roundsEach"
-          @change="send('settings', { roundsEach: $event.target.value })"
+          :value="state.rounds"
+          @change="send('settings', { rounds: $event.target.value })"
         />
       </label>
       <p class="muted">
         {{
           t('lobby.gameLength', {
-            times: t('lobby.times', { count: state.roundsEach }, state.roundsEach),
-            rounds: t('lobby.rounds', { count: players.length * state.roundsEach }, players.length * state.roundsEach),
+            times: t('lobby.times', { count: state.rounds }, state.rounds),
+            turns: t('lobby.turns', { count: players.length * state.rounds }, players.length * state.rounds),
             players: t('lobby.playerCount', { count: players.length }, players.length),
           })
         }}
@@ -163,7 +163,7 @@ function toggleCategory(key) {
       </button>
     </template>
     <p v-else class="muted">
-      {{ t('lobby.waitingToStart', { handSize: state.handSize, times: t('lobby.times', { count: state.roundsEach }, state.roundsEach) }) }}
+      {{ t('lobby.waitingToStart', { handSize: state.handSize, times: t('lobby.times', { count: state.rounds }, state.rounds) }) }}
     </p>
   </section>
 

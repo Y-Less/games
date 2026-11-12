@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import Dixnt from './Dixnt.vue';
 import { ASPECT, CAPTION, barSpan, fitCards, handCard } from './layout.js';
-import { newEntries, roundNumber } from './moveLog.js';
+import { newEntries, turnNumber } from './moveLog.js';
 import { statusFor, styleName } from './status.js';
 import { leaveOffer, playBar } from '../../../src/playBar.js';
 import { messageText } from '../../../src/messageText.js';
@@ -21,10 +21,10 @@ function view(extra = {}, me = {}) {
   return {
     code: 'a-b-c',
     phase: 'picking',
-    round: 1,
-    roundsEach: 1,
-    completedRounds: 0,
-    totalRounds: 4,
+    turn: 1,
+    rounds: 1,
+    completedTurns: 0,
+    totalTurns: 4,
     winners: [],
     handSize: 6,
     chooserId: 'ann',
@@ -148,7 +148,7 @@ describe('Dixnt Status words', () => {
   });
 
   it('names the winner at the end, with the way on for the host and for the others', () => {
-    const over = (isHost) => statusFor(view({ phase: 'finished', winners: ['bob'], completedRounds: 4 }), { isHost });
+    const over = (isHost) => statusFor(view({ phase: 'finished', winners: ['bob'], completedTurns: 4 }), { isHost });
     expect(words(over(true).headline)).toBe('Bob wins!');
     expect(over(true).lines.map(lineWords).join(' ')).toMatch(/Back to the lobby/);
     expect(over(false).lines.map(lineWords).join(' ')).toMatch(/Waiting for the host/);
@@ -160,7 +160,7 @@ describe('Dixnt move log', () => {
   const stepped = (before, after) => newEntries(before, after).map(words);
   it('notes each round, the word, every card played and every vote, and the result', () => {
     const word = view({ phase: 'word' });
-    expect(stepped(null, word)).toEqual(['Round 1: Ann is choosing a word.']);
+    expect(stepped(null, word)).toEqual(['Turn 1: Ann is choosing a word.']);
     const picking = view({ phase: 'picking' });
     expect(stepped(word, picking)).toEqual(['Ann chose the word.']);
     const played = view({ phase: 'picking', players: picking.players.map((p) => (p.id === 'bob' ? { ...p, hasPlayed: true } : p)) });
@@ -178,12 +178,12 @@ describe('Dixnt move log', () => {
   it('notes a skipped round and the end of the game, and nothing for the lobby or a repeated state', () => {
     const picking = view({ phase: 'picking' });
     const next = view({ phase: 'word', chooserId: 'bob', players: picking.players.map((p) => ({ ...p, isChooser: p.id === 'bob' })) });
-    expect(stepped(picking, next)).toEqual(['The round was skipped.', 'Round 1: Bob is choosing a word.']);
+    expect(stepped(picking, next)).toEqual(['The turn was skipped.', 'Turn 1: Bob is choosing a word.']);
     expect(stepped(view({ phase: 'results' }), view({ phase: 'finished', winners: ['ann', 'bob'] }))).toEqual(['The game is over: Ann and Bob win.']);
     expect(stepped(picking, picking)).toEqual([]);
     expect(stepped(null, view({ phase: 'lobby' }))).toEqual([]);
-    expect(roundNumber(view({ phase: 'results', completedRounds: 2 }))).toBe(2);
-    expect(roundNumber(view({ phase: 'voting', completedRounds: 2 }))).toBe(3);
+    expect(turnNumber(view({ phase: 'results', completedTurns: 2 }))).toBe(2);
+    expect(turnNumber(view({ phase: 'voting', completedTurns: 2 }))).toBe(3);
   });
 });
 
@@ -309,7 +309,7 @@ describe('Dixnt screen', () => {
     wrapper.unmount();
   });
 
-  it('shows the chooser a word field in the controls zone, and the next round button at the results', async () => {
+  it('shows the chooser a word field in the controls zone, and the next turn button at the results', async () => {
     const { wrapper, socket } = await mountGame(view({ phase: 'word' }));
     const form = wrapper.find('.controls form.word');
     expect(form.exists()).toBe(true);
@@ -319,7 +319,7 @@ describe('Dixnt screen', () => {
     expect(socket.emit).toHaveBeenCalledWith('submitWord', { word: 'Lantern' }, expect.any(Function));
     socket.handlers.state(view({ phase: 'results', results: { judging: 'favourite', winnerId: 'bob', votes: {}, tally: {}, deltas: {} }, table: [{ playerId: 'bob', cardId: 3 }] }));
     await flushPromises();
-    expect(wrapper.find('.controls').text()).toContain('Next round: Bob chooses the word');
+    expect(wrapper.find('.controls').text()).toContain('Next turn: Bob chooses the word');
     wrapper.unmount();
   });
 
@@ -332,7 +332,7 @@ describe('Dixnt screen', () => {
     expect(log).toContain('Bob played a card.');
     expect(log.indexOf('Bob played a card.')).toBeLessThan(log.indexOf('Ann chose the word.')); // newest first
     const status = wrapper.find('.box.status').text();
-    expect(status).toContain('Round 1 of 4');
+    expect(status).toContain('Turn 1 of 4');
     expect(status).toContain('Everyone votes');
     expect(status).toContain('Word: Dragon');
     wrapper.unmount();
@@ -383,6 +383,38 @@ describe('Dixnt pop-ups', () => {
     socket.handlers.state(asBob({ phase: 'voting' }, { myPick: 3 }));
     await flushPromises();
     expect(popups()).toHaveLength(0);
+    wrapper.unmount();
+  });
+});
+
+describe('Dixnt scores', () => {
+  const results = (roundOver) => ({ judging: 'favourite', winnerId: 'bob', votes: {}, tally: {}, deltas: {}, roundOver });
+  const scored = (roundOver, extra = {}) =>
+    view({
+      phase: 'results',
+      results: results(roundOver),
+      table: [{ playerId: 'bob', cardId: 3 }],
+      scoreboard: { ...view().scoreboard, rounds: [{ label: { key: 'turn.label', params: { n: 1 } }, deltas: {}, notes: {} }] },
+      ...extra,
+    });
+  const modal = () => document.body.querySelector('.modal');
+
+  it('leaves the scores alone at the end of a turn that is not the end of a round', async () => {
+    document.body.innerHTML = '';
+    const { wrapper, socket } = await mountGame(view({ phase: 'voting' }));
+    socket.handlers.state(scored(false));
+    await flushPromises();
+    expect(modal()).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('opens them once everybody has had a turn, and again when the game is over', async () => {
+    document.body.innerHTML = '';
+    const { wrapper, socket } = await mountGame(view({ phase: 'voting' }));
+    socket.handlers.state(scored(true));
+    await flushPromises();
+    expect(modal()).not.toBeNull();
+    expect(modal().textContent).toContain('Scores after Turn 1');
     wrapper.unmount();
   });
 });

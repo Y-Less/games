@@ -144,7 +144,7 @@ describe('state updates', () => {
 
   it('keeps the Recent moves of a round, and drops them in the lobby', async () => {
     const { api, socket } = make();
-    const base = { code: 'a-b-c', round: 1, completedRounds: 0, totalRounds: 2, chooserId: 1, judging: 'everyone', me: { id: 1 }, players: [{ id: 1, name: 'Ann', isChooser: true }] };
+    const base = { code: 'a-b-c', turn: 1, completedTurns: 0, totalTurns: 2, chooserId: 1, judging: 'everyone', me: { id: 1 }, players: [{ id: 1, name: 'Ann', isChooser: true }] };
     socket.trigger('state', { ...base, phase: 'word' });
     await flushPromises();
     expect(api.store.log.length).toBeGreaterThan(0);
@@ -155,7 +155,7 @@ describe('state updates', () => {
 });
 
 describe('the word popup', () => {
-  const picking = { code: 'a-b-c', phase: 'picking', round: 1, completedRounds: 0, word: 'sunshine', wordHidden: false, me: { id: 1 }, players: [] };
+  const picking = { code: 'a-b-c', phase: 'picking', turn: 1, completedTurns: 0, word: 'sunshine', wordHidden: false, me: { id: 1 }, players: [] };
 
   it('is announced when the word is locked in', () => {
     const { api, socket } = make();

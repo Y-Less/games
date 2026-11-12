@@ -85,7 +85,7 @@ test('favourite style: works with rounds, so everyone is judged in turn and the 
     const { chooser, cardPlayers } = toVoting(made);
     choosers.push(chooser.id);
     game.vote(room, chooser.id, cardPlayers[0].id);
-    game.nextRound(room, 1, rng);
+    game.nextTurn(room, 1, rng);
     assert.ok(choosers.length <= 6);
   }
   assert.equal(choosers.length, 6, 'three players, two turns each by default');
