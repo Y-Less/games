@@ -17,9 +17,9 @@
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { rosterLayout, withSlot } from './layout.js';
-import { asHost, createMemberRules, fail, freeName, isBot, isHuman, ok } from './members.js';
+import { asHost, createMemberRules, defaultPlayers, fail, freeName, isBot, isHuman, ok } from './members.js';
 
-export { barFromRoom, isBarred, isBot, isHuman, nextGame } from './members.js';
+export { barFromRoom, defaultPlayers, isBarred, isBot, isHuman, nextGame } from './members.js';
 export { withSlot } from './layout.js';
 
 /**
@@ -189,17 +189,6 @@ function migrateSlots(room) {
     round.notes = bySlot(round.notes);
   }
 }
-
-/**
- * How many players "fill with computer players" makes up to: a comfortable table of four, or the nearest a game that
- * cannot hold four allows.  It is a quick start — most games are played by about four, whatever the most they allow
- * is — and not "as many as will fit", which in a game for twelve would be a surprise.
- *
- * @param {number} min  the fewest the game can be played with
- * @param {number} max  the most
- * @returns {number}
- */
-export const defaultPlayers = (min, max) => Math.min(max, Math.max(min, 4));
 
 /** The codes this family's clients already know.  The two families never used the same ones. */
 const ROSTER_ERRORS = {

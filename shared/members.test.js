@@ -7,16 +7,21 @@
 //
 // The one place they genuinely do differ is what happens to somebody who leaves a game that is already over: a seated
 // game leaves a marker in their seat so the final scores still name them (and the table never meets a hole), while a
-// game with a list leaves them in the list untouched and tells the caller that nothing changed.
+// game with a list leaves them in the list untouched and tells the caller that nothing changed.  How big a room is
+// used to be another, and is not any more: a room of either kind opens as big as the game allows, the host may bring
+// it down, filling makes up a normal table, and starting settles it at whoever came.  What differs is only what a
+// room of a given size looks like, which is shared/layout.js's business and nobody else's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSeatRules, emptySeats, goneSeat } from './seats.js';
 import { createRosterRules, migratePlayers } from './roster.js';
 
-/** A seated game: three seats, Ann hosting, with the hooks a real game provides. */
+/** A seated game: a table that opens at the three the game allows, Ann hosting, with the hooks a real game provides. */
 function seated({ phase = 'lobby' } = {}) {
   const log = [];
   const rules = createSeatRules({
+    minPlayers: 2,
+    maxPlayers: 3,
     isMidGame: (room) => !['lobby', 'finished'].includes(room.phase),
     takeOver: (room, bot, seat, rng) => {
       log.push(`takeOver:${seat}`);
@@ -168,53 +173,50 @@ for (const [family, make, members, people] of families) {
     assert.equal(rules.addBot(room, 1).ok, false, 'not once the game has started');
     assert.equal(rules.removeBot(room, 1, members(room)[1].slot ?? 's1').ok, false);
   });
+
+  test(`${family}: a room opens as big as the game allows, so nobody who could join before is turned away`, () => {
+    const { rules, room } = make();
+    assert.equal(rules.sizeOf(room), 3);
+    assert.equal(rules.addHuman(room, 2, 'Bob').ok, true);
+    assert.equal(rules.addHuman(room, 3, 'Cy').ok, true, 'up to the most the game holds, with nothing to set first');
+  });
+
+  test(`${family}: the host may cap the room to keep people out, within the limits and never below those here`, () => {
+    const { rules, room } = make();
+    rules.addHuman(room, 2, 'Bob');
+    assert.equal(rules.setSize(room, 2, 3).ok, false, 'only the host');
+    assert.equal(rules.setSize(room, 1, 1).error, 'playersRange', 'and only within what the game allows');
+    assert.equal(rules.setSize(room, 1, 9).error, 'playersRange');
+    assert.equal(rules.setSize(room, 1, 'x').error, 'playersRange');
+    assert.equal(rules.setSize(room, 1, 2).ok, true);
+    assert.equal(rules.sizeOf(room), 2);
+    assert.equal(rules.addHuman(room, 3, 'Cy').error, 'gameFull', 'a room capped at two is full with two');
+    assert.equal(rules.setSize(room, 1, 3).ok, true, 'until the host makes room again');
+    assert.equal(rules.addHuman(room, 3, 'Cy').ok, true);
+    assert.equal(rules.setSize(room, 1, 2).error, 'removeBeforeFewerPlayers', 'and capping below those here is refused');
+  });
+
+  test(`${family}: starting settles the size, so a place kept open has to be a computer player holding it`, () => {
+    const { rules, room } = make();
+    rules.addHuman(room, 2, 'Bob');
+    assert.equal(rules.sizeOf(room), 3, 'until then it is as big as the game allows');
+    rules.lockSize(room);
+    room.phase = 'playing';
+    assert.equal(rules.sizeOf(room), 2, 'now it is exactly the people who are playing');
+    assert.equal(members(room).length, 2, 'and there is nowhere left that nobody is in');
+    assert.equal(rules.setSize(room, 1, 3).ok, false, 'and the host cannot reopen it');
+  });
+
+  test(`${family}: filling with computer players makes up a normal table, not as many as the game could hold`, () => {
+    // The quick start: most of these are played by about four, whatever the most they allow is.  Somebody who wants
+    // more adds them one at a time with the button that is already there.
+    const { rules, room } = make();
+    assert.equal(rules.fillWithBots(room, 1).ok, true);
+    assert.equal(members(room).length, 3, 'a normal table, or the most this small game holds');
+  });
 }
 
 // The real differences, written out rather than glossed over.
-
-test('seated: filling with computer players fills the table, because every seat is a seat at it', () => {
-  const { rules, room } = seated();
-  assert.equal(rules.fillWithBots(room, 1).ok, true);
-  assert.equal(room.seats.filter(Boolean).length, 3, 'every seat');
-});
-
-test('listed: a room opens as big as the game allows, so nobody who could join before is turned away', () => {
-  const { rules, room } = listed();
-  assert.equal(rules.addHuman(room, 2, 'Bob').ok, true);
-  assert.equal(rules.addHuman(room, 3, 'Cy').ok, true, 'up to the most the game holds, with nothing to set first');
-});
-
-test('listed: the host may cap the room to keep people out, within the limits and never below those here', () => {
-  const { rules, room } = listed();
-  rules.addHuman(room, 2, 'Bob');
-  assert.equal(rules.setSize(room, 2, 3).ok, false, 'only the host');
-  assert.equal(rules.setSize(room, 1, 1).error, 'playersRange', 'and only within what the game allows');
-  assert.equal(rules.setSize(room, 1, 9).error, 'playersRange');
-  assert.equal(rules.setSize(room, 1, 'x').error, 'playersRange');
-  assert.equal(rules.setSize(room, 1, 2).ok, true);
-  assert.equal(rules.addHuman(room, 3, 'Cy').error, 'gameFull', 'a room capped at two is full with two');
-  assert.equal(rules.setSize(room, 1, 3).ok, true, 'until the host makes room again');
-  assert.equal(rules.addHuman(room, 3, 'Cy').ok, true);
-  assert.equal(rules.setSize(room, 1, 2).error, 'removeBeforeFewerPlayers', 'and capping below the people here is refused');
-});
-
-test('listed: starting settles the size, so a place kept open has to be a computer player holding it', () => {
-  const { rules, room } = listed();
-  rules.addHuman(room, 2, 'Bob');
-  assert.equal(rules.sizeOf(room), 3, 'until then it is as big as the game allows');
-  rules.lockSize(room);
-  room.phase = 'playing';
-  assert.equal(room.size, 2, 'now it is exactly the people who are playing');
-  assert.equal(rules.setSize(room, 1, 3).ok, false, 'and the host cannot reopen it');
-});
-
-test('listed: filling with computer players makes up a normal table, not as many as the game could hold', () => {
-  // The quick start: most games are played by about four, whatever the most they allow is.  Somebody who wants more
-  // adds them one at a time, as the lobby's per-place buttons do.
-  const { rules, room } = listed();
-  assert.equal(rules.fillWithBots(room, 1).ok, true);
-  assert.equal(room.players.length, 3, 'a normal table, or the most this small game holds');
-});
 
 test('listed: a room saved before the host could choose keeps the game it had', () => {
   // A game that was played had as many players as are in its list; a lobby had room for as many as the game allows,

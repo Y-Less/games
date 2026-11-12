@@ -14,9 +14,9 @@
 // A place is named from outside by its slot ("s0", "s1"), which here is the seat number; see shared/layout.js.
 // Depends on: shared/members.js, shared/layout.js.
 import { seatLayout } from './layout.js';
-import { createMemberRules, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
+import { createMemberRules, defaultPlayers, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
 
-export { DEFAULT_BOT_NAMES, asHost, barFromRoom, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, nextGame, ok } from './members.js';
+export { DEFAULT_BOT_NAMES, asHost, barFromRoom, defaultPlayers, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, nextGame, ok } from './members.js';
 
 /** The index of a person's seat, or -1 if they are not in the room. */
 export const seatOf = (room, userId) => room.seats.findIndex((s) => isHuman(s) && s.id === userId);
@@ -95,14 +95,23 @@ const SEAT_ERRORS = {
  *   and at least one person remains (for example, they may have been the only one the game was waiting for)
  * @param {(seat: object) => (object | null)} [config.finishedSeat]  what a seat becomes when its person leaves a finished
  *   game (default null; Nomination Whist keeps a { kind: 'gone', name } marker so the final scores still make sense)
- * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick
+ * @param {number} [config.minPlayers]  the fewest the game can be played with: the fewest seats the host may ask for,
+ *   and what `start` needs before it settles the table
+ * @param {number} [config.maxPlayers]  the most it allows: the size a lobby opens at, and the most the host may ask for
+ * @param {number} [config.fillTo]  how many "fill with computer players" makes up to (default: a table of four, or the
+ *   nearest this game allows)
+ * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf,
+ *   lockSize
  */
-export function createSeatRules({ isMidGame, botNames, takeOver, handOver, replacement, afterRemoval, finishedSeat = () => null }) {
+export function createSeatRules({ isMidGame, botNames, takeOver, handOver, replacement, afterRemoval, finishedSeat = () => null, minPlayers, maxPlayers, fillTo = defaultPlayers(minPlayers, maxPlayers) }) {
   const rules = createMemberRules({
     layout: seatLayout,
     errors: SEAT_ERRORS,
     isLive: (room) => room.phase !== 'finished',
     isMidGame,
+    minPlayers,
+    maxPlayers,
+    fillTo,
     botNames,
     takeOver,
     handOver,
@@ -155,5 +164,5 @@ export function createSeatRules({ isMidGame, botNames, takeOver, handOver, repla
     return ok();
   }
 
-  return { newBot: rules.newBot, addHuman: rules.addHuman, removeHuman: rules.removeHuman, addBot, removeBot, fillWithBots: rules.fillWithBots, kick: rules.kick };
+  return { newBot: rules.newBot, addHuman: rules.addHuman, removeHuman: rules.removeHuman, addBot, removeBot, fillWithBots: rules.fillWithBots, kick: rules.kick, setSize: rules.setSize, sizeOf: rules.sizeOf, lockSize: rules.lockSize };
 }

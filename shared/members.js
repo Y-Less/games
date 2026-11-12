@@ -103,6 +103,18 @@ export function nextGame(room) {
   room.gameSeq = (room.gameSeq ?? 0) + 1;
 }
 
+/**
+ * How many "fill with computer players" makes up to when a game does not say: a comfortable table of four, or the
+ * nearest a game that cannot seat four allows.  It is a quick start — most of these are played by about four whatever
+ * the most they allow is — and not "as many as will fit", which in a game for twelve would be a surprise rather than
+ * a convenience.  A game whose natural table is a different size (Cribbage is two) says so instead.
+ *
+ * @param {number} min  the fewest the game can be played with
+ * @param {number} max  the most
+ * @returns {number}
+ */
+export const defaultPlayers = (min, max) => Math.min(max, Math.max(min, 4));
+
 /** Null if this account is the host, otherwise the failure to return. */
 export const asHost = (room, userId) => (room.hostId === userId ? null : fail('hostOnly'));
 /** Null while the game is still in the lobby, otherwise the failure to return. */

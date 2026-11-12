@@ -473,6 +473,7 @@
     "noGameWithCode": "そのコードのゲームはありません。",
     "startFromMenu": "メニューから新しいゲームを始めてください。",
     "removeBeforeFewerSeats": "席を減らす前に、プレイヤーを外してください。",
+    "removeBeforeFewerPlayers": "人数を減らす前に、プレイヤーを外してください。",
     "removePlayerFirst": "先にプレイヤーを外してください。席が足りなくなります。",
     "notAComputer": "それはコンピュータープレイヤーではありません。",
     "playerNotInGame": "そのプレイヤーはゲームにいません。",
