@@ -27,7 +27,9 @@ export function newEntries(prev, next) {
   next.seats.forEach((seat, i) => {
     if (seat.bid !== null && prev.seats[i]?.bid === null) out.push(msg('log.nominated', { name: name(i), bid: seat.bid }));
   });
-  for (const play of next.trick.slice(prev.trick.length)) out.push(msg('log.played', { name: name(play.seat), card: cardMsg(play.card) }));
+  // A trick that grew has the old cards still under it; one that was led away early is a new trick, every card of it new.
+  const grew = next.trick.length >= prev.trick.length && prev.trick.every((p, i) => p.seat === next.trick[i].seat && p.card === next.trick[i].card);
+  for (const play of grew ? next.trick.slice(prev.trick.length) : next.trick) out.push(msg('log.played', { name: name(play.seat), card: cardMsg(play.card) }));
   if (next.trick.length === next.seats.length && prev.trick.length !== next.seats.length) {
     const jokers = next.trick.filter((p) => isJoker(p.card));
     if (jokers.length === 2) out.push(isJoker(next.trick[0].card) ? msg('log.secondJokerWins') : msg('log.jokersCancel'));

@@ -167,6 +167,17 @@ describe('Recent moves', () => {
     expect(newEntries(one, full).map(words).at(-1)).toBe(`${full.seats[1].name} won the trick.`);
   });
 
+  it('logs the lead when the winner takes the trick away before the pause is over', () => {
+    const full = copy(base());
+    full.trick = [0, 1, 2, 3].map((seat) => ({ seat, card: 'QS' }));
+    full.trickWinner = 1;
+    // Seat 1 leads straight away: the state jumps from a full trick to a one-card one, which is a new trick, not a shorter one.
+    const led = copy(full);
+    led.trick = [{ seat: 1, card: '7H' }];
+    led.trickWinner = null;
+    expect(newEntries(full, led).map(words)).toEqual([`${led.seats[1].name} played the 7 of hearts.`]);
+  });
+
   it('says nothing when nothing changed, and starts afresh with a new round', () => {
     const state = base();
     expect(newEntries(state, copy(state))).toEqual([]);

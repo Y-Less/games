@@ -152,6 +152,22 @@ function playGame(seed, { leaves = true, check = checkRoom } = {}) {
       }
       continue;
     }
+    // Sometimes a person who has just taken a trick leads it away rather than sitting through the pause.
+    if (game.settling(room) && game.isHuman(room.seats[game.toPlay(room)]) && rng() < 0.5) {
+      const seat = game.toPlay(room);
+      const other = (seat + 1) % room.seats.length;
+      const after = JSON.parse(JSON.stringify(room));
+      assert.ok(game.resolveTrick(after).ok);
+      assert.deepEqual(game.legalCards(room, seat), game.legalCards(after, seat), `${label}: leading early offers exactly what leading after the pause would`);
+      const before = JSON.stringify(room);
+      assert.equal(game.playCard(room, other, room.hands[other][0]).ok, false, `${label}: only the winner may play into the pause`);
+      assert.equal(JSON.stringify(room), before, `${label}: and being refused changes nothing`);
+      const card = pick(rng, game.legalCards(room, seat));
+      checkPlayRules(after, seat, card, label);
+      assert.equal(game.playCard(room, seat, card).ok, true);
+      assert.equal(room.tricksPlayed, after.tricksPlayed, `${label}: the trick it led away still counts`);
+      continue;
+    }
     if (pending) {
       const wasTrick = room.trick.length;
       bot.runPending(room, rng);
