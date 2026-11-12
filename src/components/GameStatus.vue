@@ -9,7 +9,7 @@
 //   mine       true when the headline is about you (your turn, something you must do): drawn in the accent colour, and a small
 //              "It's your turn" pop-up (YourTurnPopup) appears when it becomes true, in every game
 //   turn       what the pop-up follows when that is not the same as `mine`.  Games in which everyone acts together, apart from one
-//              special chooser (Dixnt, Tints and Hints, Wavelength), set it true only for the chooser's own turn to choose, so
+//              special player (Tints and Hints, Wavelength, Just One), set it true only for that player's own turn, so
 //              that the others, who all go at once, get no pop-up.  Leave it out and the pop-up follows `mine`.
 //   popup      false to leave that pop-up out (default true)
 //   lines      further lines: a string, or { text, tone } with tone 'mine' | 'muted' | 'warn'

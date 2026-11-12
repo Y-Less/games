@@ -339,8 +339,8 @@ describe('Dixnt screen', () => {
   });
 });
 
-describe('Dixnt turn pop-up', () => {
-  const popups = () => document.body.querySelectorAll('.your-turn').length;
+describe('Dixnt pop-ups', () => {
+  const popups = () => document.body.querySelectorAll('.your-turn');
   const show = async (state) => {
     document.body.innerHTML = '';
     const game = await mountGame(state);
@@ -348,38 +348,56 @@ describe('Dixnt turn pop-up', () => {
     return game;
   };
 
-  it('tells the chooser it is their turn to choose the word, but nobody else while they wait', async () => {
-    let game = await show(view({ phase: 'word' }));
-    expect(popups()).toBe(1);
-    game.wrapper.unmount();
-    game = await show(asBob({ phase: 'word' }));
-    expect(popups()).toBe(0);
-    game.wrapper.unmount();
+  it('never tells anybody it is their turn: not the chooser, not the players who all go at once', async () => {
+    for (const state of [
+      view({ phase: 'word' }), // the chooser, with the whole table waiting on them
+      asBob({ phase: 'picking' }, { myPick: null }),
+      asBob({ phase: 'voting', judging: 'everyone' }, { myVote: null }),
+      view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: null }),
+      view({ phase: 'voting', judging: 'chooser' }, { isChooser: true, myVote: null }),
+    ]) {
+      const game = await show(state);
+      expect(popups()).toHaveLength(0);
+      game.wrapper.unmount();
+    }
   });
 
-  it('gives no pop-up to the players who all play a card at the same time, even though it is their turn', async () => {
-    const game = await show(asBob({ phase: 'picking' }, { myPick: null }));
-    expect(game.wrapper.text()).toContain('Your turn: play the card that fits the word best.');
-    expect(popups()).toBe(0);
-    game.wrapper.unmount();
+  it('tells the player who was kept in the dark what the word was, once the voting opens', async () => {
+    document.body.innerHTML = '';
+    const { wrapper, socket } = await mountGame(asBob({ phase: 'picking', wordHidden: true, word: null }, { myPick: 3 }));
+    expect(popups()).toHaveLength(0);
+    socket.handlers.state(asBob({ phase: 'voting', word: 'Dragon' }, { myPick: 3 }));
+    await flushPromises();
+    expect(popups()).toHaveLength(1);
+    expect(popups()[0].textContent).toContain('The word is Dragon');
+    // The next round is a clean slate: nothing left over to announce.
+    socket.handlers.state(asBob({ phase: 'word', word: null }));
+    await flushPromises();
+    expect(popups()).toHaveLength(0);
+    wrapper.unmount();
   });
 
-  it('gives none for the group vote either, but does for the chooser when they must pick or decide', async () => {
-    let game = await show(asBob({ phase: 'voting', judging: 'everyone' }, { myVote: null }));
-    expect(game.wrapper.text()).toContain('Your turn: vote');
-    expect(popups()).toBe(0);
-    game.wrapper.unmount();
-    game = await show(view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: null }));
-    expect(popups()).toBe(1);
-    game.wrapper.unmount();
-    game = await show(view({ phase: 'voting', judging: 'chooser' }, { isChooser: true, myVote: null }));
-    expect(popups()).toBe(1);
-    game.wrapper.unmount();
+  it('says nothing to the players who knew the word all along', async () => {
+    document.body.innerHTML = '';
+    const { wrapper, socket } = await mountGame(asBob({ phase: 'picking' }, { myPick: 3 }));
+    socket.handlers.state(asBob({ phase: 'voting' }, { myPick: 3 }));
+    await flushPromises();
+    expect(popups()).toHaveLength(0);
+    wrapper.unmount();
   });
+});
 
-  it('does not tell the chooser again once they have chosen', async () => {
-    const game = await show(view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: 'bob' }));
-    expect(popups()).toBe(0);
-    game.wrapper.unmount();
+describe('Dixnt hand', () => {
+  it('takes a card you have played out of your hand, and gives it back when you swap it', async () => {
+    const { wrapper, socket } = await mountGame(asBob({ phase: 'picking' }, { myPick: null }));
+    expect(wrapper.findAll('.hand .slot')).toHaveLength(6);
+    socket.handlers.state(asBob({ phase: 'picking' }, { myPick: 3 }));
+    await flushPromises();
+    expect(wrapper.findAll('.hand .slot')).toHaveLength(5);
+    socket.handlers.state(asBob({ phase: 'picking' }, { myPick: 5 }));
+    await flushPromises();
+    const left = wrapper.findAll('.hand .slot').map((slot) => slot.attributes('aria-label'));
+    expect(left).toEqual(['Card 1', 'Card 2', 'Card 3', 'Card 4', 'Card 6']);
+    wrapper.unmount();
   });
 });

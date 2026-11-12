@@ -1,7 +1,9 @@
 <script setup>
 // Dixnt: the root component.  It creates the game store (see store.js) and provides it to every component below, then
 // chooses the screen: the start screen, the lobby, or the table (in the standard GameFrame, with the score bar, the
-// play area, the Recent moves, and the Status box).  Also owns the player pop-up and the "Leave game" button's behaviour.
+// play area, the Recent moves, and the Status box).  Also owns the player pop-up, the pop-up that tells the player
+// who was kept in the dark what the word was, and the "Leave game" button's behaviour.  Dixnt has no "It's your turn"
+// pop-up: everybody but the chooser plays at once, so there is no turn to announce.
 //
 // Props:
 //   socket     {Object}    required.  The platform's socket connection for this game.
@@ -21,6 +23,7 @@ import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import RoomEntry from '../../../src/components/RoomEntry.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import YourTurnPopup from '../../../src/components/YourTurnPopup.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { createStore } from './store.js';
@@ -94,6 +97,10 @@ const status = computed(() => {
 });
 // The word as this viewer sees it: the stand-in for the one player kept in the dark.
 const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : state.value.word));
+// Nobody in Dixnt is told it is their turn: everybody plays at once, and the chooser has the whole table waiting on
+// them anyway.  The one small pop-up left is for the player who was kept in the dark, who is let in on the word as
+// the voting opens ({ word, key } from the store, or null when there is nothing to tell).
+const imposterWord = computed(() => store.imposterWord);
 
 </script>
 
@@ -157,7 +164,7 @@ const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : st
     </template>
 
     <template #status>
-      <GameStatus :headline="status.headline" :mine="status.mine" :turn="status.mine && Boolean(state.me?.isChooser)" :lines="status.lines">
+      <GameStatus :headline="status.headline" :mine="status.mine" :popup="false" :lines="status.lines">
         <template #facts>
           <strong v-if="state.phase === 'finished'">{{ t('facts.gameOver') }}</strong>
           <strong v-else>{{ t('facts.round', { n: roundNumber(state), total: state.totalRounds }) }}</strong>
@@ -173,6 +180,7 @@ const word = computed(() => (state.value.wordHidden ? t('table.hiddenWord') : st
 
   <Lightbox />
   <WordPopup v-if="state && state.phase !== 'lobby'" />
+  <YourTurnPopup v-if="imposterWord" :key="imposterWord.key" :active="true" :message="t('table.imposterWord', { word: imposterWord.word })" />
 
   <ErrorToast v-if="state && store.notice" :text="store.notice" />
   <Teleport to="body">

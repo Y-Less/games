@@ -107,9 +107,6 @@
     "confirmEnd": "ゲームを終えて、全員をロビーに戻しますか？得点はリセットされます。",
     "confirmSkip": "このラウンドをやめて（得点なし）、次の出題者に移りますか？",
     "card": "カード{id}",
-    "cardPlayed": "カード{id}、提出済み",
-    "played": "提出済み",
-    "alreadyPlayed": "すでに出しました",
     "playThis": "このカードを出す",
     "playInstead": "こちらに差し替える",
     "lookCloser": "{name}のカードを大きく見る",
@@ -130,7 +127,8 @@
     "nextCard": "次のカード",
     "position": "{total}枚中{n}枚目",
     "wordChosenHidden": "お題は決まりましたが、あなたには見えません",
-    "wordIs": "お題は"
+    "wordIs": "お題は",
+    "imposterWord": "お題は{word}です"
   },
   "finished": {
     "tie": "引き分け！{names}の勝ちです",

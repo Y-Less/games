@@ -3,6 +3,10 @@
 // never changes between phases or as cards are played.  Click a card to look closer; while cards are being played the
 // closer look has the Play button.
 //
+// A card you have played leaves your hand at once, even though the game holds it back until the round is over: the
+// hand shown here is your hand without your pick.  Playing another card still swaps them, and the first one comes
+// back into the hand as it goes.
+//
 // Props:
 //   cardWidth   {number}  required.  Card width in pixels.
 //   cardHeight  {number}  required.  Card height in pixels.
@@ -23,6 +27,8 @@ const { send, store } = useDixnt();
 
 // The current state.
 const state = computed(() => store.state);
+// The cards still in your hand: the one you have played is not among them until the round is over and it is replaced.
+const hand = computed(() => state.value.me.hand.filter((cardId) => cardId !== state.value.me.myPick));
 // True when the viewer may play a card now: the picking phase, and not the chooser.
 const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser);
 
@@ -31,19 +37,15 @@ const canPlay = computed(() => state.value.phase === 'picking' && !state.value.m
  * @param {number} cardId  The card showing in the viewer.
  * @returns {Array<{label: string, primary: boolean, run: () => any}>} The actions (empty when you cannot play);
  *   each label is already in the player's language.
- * Side effects: none (the `run` callback sends `playCard` unless that card is already the one played).
+ * Side effects: none (the `run` callback sends `playCard`, which swaps your pick when you have already played).
  */
 function actionsFor(cardId) {
-  const actions = [];
-  if (canPlay.value) {
-    const chosen = state.value.me.myPick === cardId;
-    actions.push({
-      label: t(chosen ? 'table.alreadyPlayed' : state.value.me.myPick === null ? 'table.playThis' : 'table.playInstead'),
-      primary: true,
-      run: () => !chosen && send('playCard', { cardId }),
-    });
-  }
-  return actions;
+  if (!canPlay.value) return [];
+  return [{
+    label: t(state.value.me.myPick === null ? 'table.playThis' : 'table.playInstead'),
+    primary: true,
+    run: () => send('playCard', { cardId }),
+  }];
 }
 
 /**
@@ -53,7 +55,7 @@ function actionsFor(cardId) {
  * Side effects: sets store.zoom.
  */
 function open(cardId) {
-  store.zoom = { cardId, cards: [...state.value.me.hand], actionsFor };
+  store.zoom = { cardId, cards: [...hand.value], actionsFor };
 }
 </script>
 
@@ -61,15 +63,14 @@ function open(cardId) {
   <section class="hand" :aria-label="t('table.yourHand')" :style="{ '--card-w': `${cardWidth}px`, '--card-h': `${cardHeight}px` }">
     <div class="cards">
       <button
-        v-for="cardId in state.me.hand"
+        v-for="cardId in hand"
         :key="cardId"
         class="slot"
-        :class="{ played: state.phase === 'picking' && state.me.myPick === cardId, dim: state.phase === 'picking' && state.me.myPick !== null && state.me.myPick !== cardId }"
-        :aria-label="t(state.phase === 'picking' && state.me.myPick === cardId ? 'table.cardPlayed' : 'table.card', { id: cardId })"
+        :class="{ dim: state.phase === 'picking' && state.me.myPick !== null }"
+        :aria-label="t('table.card', { id: cardId })"
         @click="open(cardId)"
       >
         <CardImg :card-id="cardId" size="small" />
-        <span v-if="state.phase === 'picking' && state.me.myPick === cardId" class="badge">{{ t('table.played') }}</span>
       </button>
     </div>
   </section>
@@ -105,22 +106,7 @@ function open(cardId) {
   background: none;
   transform: translateY(-6px);
 }
-.slot.played {
-  box-shadow: 0 0 0 3px var(--amber);
-}
 .slot.dim {
   opacity: 0.55;
-}
-.badge {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  background: var(--amber);
-  color: var(--amber-ink);
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.1rem 0.55rem;
-  border-radius: 999px;
 }
 </style>

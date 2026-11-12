@@ -107,9 +107,6 @@
     "confirmEnd": "End the game and return everyone to the lobby? Scores are reset.",
     "confirmSkip": "Abandon this round (no points) and move on to the next word-chooser?",
     "card": "Card {id}",
-    "cardPlayed": "Card {id}, played",
-    "played": "Played",
-    "alreadyPlayed": "Already played",
     "playThis": "Play this card",
     "playInstead": "Play this one instead",
     "lookCloser": "Look closer at {name}'s card",
@@ -130,7 +127,8 @@
     "nextCard": "Next card",
     "position": "{n} of {total}",
     "wordChosenHidden": "The word has been chosen, but you cannot see it",
-    "wordIs": "The word is"
+    "wordIs": "The word is",
+    "imposterWord": "The word is {word}"
   },
   "finished": {
     "tie": "It's a tie! {names} win",

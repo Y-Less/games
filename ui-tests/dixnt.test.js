@@ -90,7 +90,9 @@ test('a round: the chooser types a word, everyone plays a card and votes, and th
       return u.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
     }
     const text = await u.text();
-    if (/play the card that fits|you did not see the word/i.test(text) && !(await u.page.$('.hand .slot.played'))) return u.clickFound(() => document.querySelector('.hand .slot'));
+    // A card that has been played leaves the hand at once, so the Status box is what says whether this player still
+    // owes one: once they have played, it says so instead of asking for a card.
+    if (/play the card that fits|you did not see the word/i.test(text)) return u.clickFound(() => document.querySelector('.hand .slot'));
     if (!text.includes('Your pick')) return u.clickFound(() => [...document.querySelectorAll('.table figcaption button')].find((b) => b.innerText.trim() === 'Vote'));
     return false;
   };

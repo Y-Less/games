@@ -111,9 +111,6 @@
     "confirmEnd": "Quj yIrInmoH 'ej loSmeH pa'Daq Hoch yIchegh'a'? taghqa'lu' mI'mey.",
     "confirmSkip": "may'vam yIlon (mI' pagh) 'ej mu' wIvwI' vebDaq yItaH'a'?",
     "card": "nav {id}",
-    "cardPlayed": "nav {id}, lanlu'pu'",
-    "played": "lanlu'pu'",
-    "alreadyPlayed": "lanlu'pu'bej",
     "playThis": "navvam yIlan",
     "playInstead": "navvam'e' yIlan",
     "lookCloser": "{name} nav yIleghchu'",
@@ -134,7 +131,8 @@
     "nextCard": "nav veb",
     "position": "{total}vo' {n}",
     "wordChosenHidden": "wIvlu'pu' mu', 'ach DaleghlaHbe'",
-    "wordIs": "mu' 'oH"
+    "wordIs": "mu' 'oH",
+    "imposterWord": "mu' 'oH {word}'e'"
   },
   "finished": {
     "tie": "rap! yay luchav {names}",

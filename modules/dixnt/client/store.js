@@ -28,12 +28,13 @@ export const cardUrl = (cardId, size = 'medium') => `/assets/dixnt/cards/${size}
  * @param {(state: object) => string} [options.leaveConfirm]  what to ask before leaving, or '' to leave at once
  * @returns {object} { store, user, send, busy, initialCode, players, nameOf, chooser, isHost, cardUrl }.
  *   `store` holds `state`, `loaded`, `notice` and `connected` from the shared plumbing, and Dixnt's own `log`,
- *   `wordPopup` and `zoom`: all reactive, and writable where a component needs to set them.
+ *   `wordPopup`, `imposterWord` and `zoom`: all reactive, and writable where a component needs to set them.
  * Side effects: through useGameSocket, listens on the socket and resumes the player's room on every connection.
  */
 export function createStore({ socket, user, search = '', setSearch = () => {}, leaveConfirm = () => '' }) {
   const log = ref([]); // "Recent moves": worked out here from the changes between one state and the next
   const wordPopup = ref(null); // { word, key, hidden, at }: the word just chosen, shown large to everyone for a few seconds
+  const imposterWord = ref(null); // { word, key }: the word the viewer was kept from, told to them as the voting opens
   const zoom = ref(null); // { cardId, actions: [{ label, run, primary }] } for the card lightbox
 
   /**
@@ -41,7 +42,7 @@ export function createStore({ socket, user, search = '', setSearch = () => {}, l
    * @param {object | null} next  The new state.
    * @param {object | null} previous  The state it replaces.
    * @returns {void}
-   * Side effects: updates `log`, `wordPopup` and `zoom`.
+   * Side effects: updates `log`, `wordPopup`, `imposterWord` and `zoom`.
    */
   function onState(next, previous) {
     log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
@@ -50,6 +51,14 @@ export function createStore({ socket, user, search = '', setSearch = () => {}, l
       // `hidden` says the viewer is the one kept in the dark; the pop-up itself writes what they see instead.
       wordPopup.value = { word: next.wordHidden ? null : next.word, key: `${next.round}:${next.completedRounds}`, hidden: Boolean(next.wordHidden), at: Date.now() };
     }
+    // The player who was kept in the dark is let in on the word as the voting opens, in a small pop-up of their own:
+    // everybody else has known it all along, so it is news to them alone.  `wordHidden` says so only while the cards
+    // are going down, which is why it is the state before this one that is asked.
+    if (next?.phase === 'voting' && previous?.phase === 'picking' && previous.wordHidden) {
+      imposterWord.value = { word: next.word, key: `${next.round}:${next.completedRounds}` };
+    }
+    // A new round, the lobby, or no game at all: last round's word is not news any more.
+    if (!next || next.phase === 'word' || next.phase === 'lobby') imposterWord.value = null;
     // Back in the lobby, or out of the game, nothing from the last round may be left to show: the word pop-up is
     // replayed by the next game's pop-up component when it mounts, and a lightbox would still hold a card from before.
     if (!next || next.phase === 'lobby') {
@@ -60,7 +69,7 @@ export function createStore({ socket, user, search = '', setSearch = () => {}, l
 
   const { state, loaded, busy, notice, connected, initialCode, send } = useGameSocket({ socket, search, setSearch, leaveConfirm, onState });
   // A reactive object of refs: Vue unwraps them, so a component reads `store.state` and writes `store.zoom` as before.
-  const store = reactive({ state, loaded, busy, notice, connected, log, wordPopup, zoom });
+  const store = reactive({ state, loaded, busy, notice, connected, log, wordPopup, imposterWord, zoom });
 
   // Everyone in the game ([] before there is a state).
   const players = computed(() => store.state?.players ?? []);
