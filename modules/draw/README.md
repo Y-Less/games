@@ -14,13 +14,13 @@ things, and those four are most of what this module is:
 
 | | Scribblers | Draw! |
 | --- | --- | --- |
-| drawers a round | one | **two**, each with their own word |
+| drawers a turn | one | **two**, each with their own word |
 | what a guesser sees | one board | **both boards, the same size**, and one box to type in |
 | scoring | everybody who guesses scores, and the drawer gets a share | **only** the drawer whose drawing was named and the guesser who named it, a point each |
 | the length of a game | rounds × players | **every pair of players**, `cycles` times over |
 
 It is also meant to be quick, which is why there are no letters revealed, five seconds to pick a word, and no scores
-to close between rounds: `<ScoreBoard>` is given `round-popups="false"`, so the only pop-up is the final one and the
+to close between turns: `<ScoreBoard>` is given `round-popups="false"`, so the only pop-up is the final one and the
 one the "All rounds" button opens.  What a guesser does get is the shape of each word — one blank per letter, and the
 spaces and hyphens — over the board it belongs to, in both the drawer's view and the guesser's.
 
@@ -29,10 +29,10 @@ spaces and hyphens — over the board it belongs to, in both the drawer's view a
 | | |
 | --- | --- |
 | `pairings.js` | who draws against whom, and in what order (below) |
-| `game.js` | the rules: rooms, rounds, choosing, guessing, scoring, the views.  No sockets, no files, no canvas |
+| `game.js` | the rules: rooms, turns, choosing, guessing, scoring, the views.  No sockets, no files, no canvas |
 | `tally.js` | the counters kept for each player, for the statistics and achievements |
 | `ai.js` | the one computer player: which word to draw, and what to guess |
-| `server.js` | the socket layer: the shared room server, the clock work of a round, and the two stroke relays |
+| `server.js` | the socket layer: the shared room server, the clock work of a turn, and the two stroke relays |
 | `client/` | the table: the two boards, the toolbox, the guesses panel |
 
 The drawing itself is not here.  It is the site's, shared with Scribblers:
@@ -47,17 +47,17 @@ the screen is in, the words drawn and guessed are English ones, as they are in S
 
 ## Who draws against whom
 
-Every pair of players draws together once, or `cycles` times over, and **nobody draws three rounds running** — drawing
+Every pair of players draws together once, or `cycles` times over, and **nobody draws three turns running** — drawing
 is work, and three in a row is a chore rather than a game.
 
 `pairings.js` gets that from the circle method, the usual way of scheduling a round-robin tournament: the players
-stand in a circle, one is held still and the rest rotate, and each turn of the circle pairs everybody off at once.
-Emitting the pairs a turn at a time is what keeps the rule, and it keeps it for free rather than by searching: three
-consecutive rounds can only ever reach into two turns of the circle, and a player is in each turn exactly once.
+stand in a circle, one is held still and the rest rotate, and each pass of the circle pairs everybody off at once.
+Emitting the pairs a pass at a time is what keeps the rule, and it keeps it for free rather than by searching: three
+consecutive turns can only ever reach into two passes of the circle, and a player is in each pass exactly once.
 
-A table of three is the one exception, because its turns are a single pair each and so give no separation at all.
+A table of three is the one exception, because its passes are a single pair each and so give no separation at all.
 There the circle's own order is kept — rotated to a random starting point, and then repeated — which is a cycle in
-which everybody sits out every third round.  `restful()` is the rule written down, and the tests check it over every
+which everybody sits out every third turn.  `restful()` is the rule written down, and the tests check it over every
 table size, every number of cycles and forty seeds each.
 
 ## Two boards, and why they are known by their place
@@ -85,12 +85,12 @@ one wire.
 ## The clock
 
 Everything is run off the one timer the room server gives a game (`nextAction`): a word picked for a drawer who
-dithered, the end of the drawing, the next round, a computer player's move, and the picture a computer player paints.
+dithered, the end of the drawing, the next turn, a computer player's move, and the picture a computer player paints.
 Whichever is due soonest is the one scheduled.
 
-Draw! has no letters to reveal, so unlike Scribblers it has no intermediate timer ticking through a round.  That is
+Draw! has no letters to reveal, so unlike Scribblers it has no intermediate timer ticking through a turn.  That is
 why `shared/roomServer.js` now works out the next action when a socket **disconnects** as well as when the room
-changes: without it, a round whose drawers had both shut the tab would sit there until the drawing time ran out.
+changes: without it, a turn whose drawers had both shut the tab would sit there until the drawing time ran out.
 
 Timings come from the environment, and the tests turn them right down: `DRAW_CHOOSE_WAIT`, `DRAW_BETWEEN_WAIT`,
 `DRAW_AWAY_WAIT`, `DRAW_BOT_DELAY`, `DRAW_BOT_DRAW`, `DRAW_BOT_RATE` and `DRAW_PICTURES` (see the header of

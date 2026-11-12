@@ -1,6 +1,6 @@
 // The socket layer for Draw!.  The rules live in game.js; the rooms, saving, views, joining and the lobby events are
 // the shared room server (shared/roomServer.js), driven through the player-list rules of shared/roster.js.  This file
-// says what is particular to Draw!: its settings, its own socket events, the clock work of a round, the computer
+// says what is particular to Draw!: its settings, its own socket events, the clock work of a turn, the computer
 // players, and the two drawings.
 //
 // The module's id is `draw`, which is also the name of one of its socket events; they are different layers (a

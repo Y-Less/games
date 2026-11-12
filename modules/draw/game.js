@@ -28,7 +28,7 @@ import { newCounters, statsExtras, tallyGuess, tallyTurn } from './tally.js';
 export const DRAWERS_PER_TURN = 2;
 /** Two to draw and at least one to guess. */
 export const MIN_PLAYERS = 3;
-/** Every pair of players draws, so the rounds grow fast: eight is twenty-eight rounds already. */
+/** Every pair of players draws, so the turns grow fast: eight players is twenty-eight turns in a single round. */
 export const MAX_PLAYERS = 8;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
@@ -43,7 +43,7 @@ export const DRAW_TIME = { min: 10, max: 120, default: 45 };
 export const WORD_CHOICES = { min: 2, max: 5, default: 3 };
 /** How long a drawer has to pick a word.  Five seconds: this is a quick-fire game, and both of them are waiting. */
 export const CHOOSE_MS = 5000;
-/** How long the two words stay up before the next round.  No scores to close: the game simply carries on. */
+/** How long the two words stay up before the next turn.  No scores to close: the game simply carries on. */
 export const BETWEEN_MS = 4000;
 /** The longest a guess may be. */
 export const GUESS_LENGTH = 60;
@@ -55,8 +55,8 @@ const TALK_BURST = 5;
 const TALK_WINDOW_MS = 3000;
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hattie'];
 const LIVE = ['lobby', 'choosing', 'drawing', 'between'];
-/** The phases in which a round is under way. */
-const ROUND = ['choosing', 'drawing', 'between'];
+/** The phases in which a turn is under way. */
+const TURN = ['choosing', 'drawing', 'between'];
 /** Characters a guesser always sees in the shape of a word, because they are not letters to be guessed. */
 const ALWAYS_SHOWN = [' ', '-', '_', '.', '/'];
 
@@ -109,7 +109,7 @@ export const boardsOf = (room) => drawersOf(room).length || DRAWERS_PER_TURN;
 export const isDrawer = (room, id) => drawersOf(room).includes(id);
 
 /**
- * The players who are guessing this round: everybody who is not drawing.
+ * The players who are guessing this turn: everybody who is not drawing.
  * @param {object} room  not changed
  * @returns {object[]}
  * Side effects: none.
@@ -127,7 +127,7 @@ const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 
 /**
  * Gives a bare player ({ kind, id, name }) the fields Draw! keeps for everybody: the score, what they scored last
- * round, and the statistics counters.
+ * turn, and the statistics counters.
  * @param {object} room  unused here; part of the shared makePlayer contract
  * @param {object} base  { kind: 'human' | 'bot', id, name? }
  * @returns {object} the player
@@ -145,7 +145,7 @@ const makePlayer = (room, base) => ({ ...base, score: 0, lastScore: 0, tries: 0,
  * @param {object} [args.settings]  what the host chose when creating it; an invalid setting is left at its default
  * @param {string} [args.language]  which word list to draw from
  * @param {number} [args.chooseMs]  how long a drawer has to pick (the socket layer shortens it for a test)
- * @param {number} [args.betweenMs]  how long the words stay up between rounds
+ * @param {number} [args.betweenMs]  how long the words stay up between turns
  * @param {number} args.now  the time to stamp it with
  * @returns {object} the room, in the lobby
  * Side effects: none outside the new room.
@@ -173,9 +173,9 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     feed: [], // what the guess panel shows: [{ n, kind, id, name, text }]
     nextFeed: 1,
     deadline: null, // when this phase runs out (ms), or null
-    reveal: null, // between rounds: { words, winner }
+    reveal: null, // between turns: { words, winner }
     used: [], // the words played this game
-    history: [], // one entry per round, for the scoreboard
+    history: [], // one entry per turn, for the scoreboard
     recorded: false,
     createdAt: now,
     updatedAt: now,
@@ -351,7 +351,7 @@ export function start(room, id, rng, now) {
  * @param {object} room  the room to change
  * @param {number} id  who is asking (must be the host)
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: resets the round, the drawings and the history.
+ * Side effects: resets the turn, the drawings and the history.
  */
 export function playAgain(room, id) {
   if (id !== room.hostId) return fail('hostOnlyEnd');
@@ -377,7 +377,7 @@ function beginTurn(room, rng, now) {
   room.words = {};
   room.winner = null;
   room.reveal = null;
-  // Each drawer is offered their own words, and no word is offered to both of them in the same round.
+  // Each drawer is offered their own words, and no word is offered to both of them in the same turn.
   const taken = [...room.used];
   for (const drawer of drawersOf(room)) {
     const words = pickWords(room.wordChoices, taken, rng, room.language);
@@ -469,7 +469,7 @@ export function timeUp(room, rng, now) {
  * @param {string} text  what they typed
  * @param {number} now  the clock, for the rate limit
  * @returns {{ ok: boolean, error?: string, quality?: string }} `quality` is 'exact', 'close' or 'wrong'
- * Side effects: adds a line to the guess panel; a right guess ends the round (see endTurn).
+ * Side effects: adds a line to the guess panel; a right guess ends the turn (see endTurn).
  */
 export function guess(room, id, text, now) {
   if (!hasPlayer(room, id)) return fail('notInGame');
@@ -481,7 +481,7 @@ export function guess(room, id, text, now) {
   if (tooFast(player, now)) return fail('tooFast');
   player.tries = (player.tries ?? 0) + 1;
   tallyGuess(player);
-  // One guess, two drawings: it is tried against both, and naming either of them wins the round.
+  // One guess, two drawings: it is tried against both, and naming either of them wins the turn.
   const named = drawersOf(room).find((drawer) => room.words[drawer] && guessQuality(clean, room.words[drawer]) === 'exact');
   if (named !== undefined) {
     room.winner = { drawer: named, guesser: id, word: room.words[named] };
@@ -521,7 +521,7 @@ function addFeed(room, line) {
 }
 
 /**
- * Ends the round: the drawer whose drawing was named and the guesser who named it each score a point, both words go
+ * Ends the turn: the drawer whose drawing was named and the guesser who named it each score a point, both words go
  * up for everybody to see, and the room waits before the next pair draw.  When nobody guessed, nobody scores.
  *
  * @param {object} room  the room (mutated)
@@ -547,7 +547,7 @@ function endTurn(room, now) {
     guesser: room.winner ? playerOf(room, room.winner.guesser) : null,
   });
   // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
-  // is what survives that, so a finished round is written once and never touched again.  viewFor sends it back out
+  // is what survives that, so a finished turn is written once and never touched again.  viewFor sends it back out
   // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
   // (`slotOf` in this file is Draw's own word for which of the two boards somebody is drawing on, so the player's slot
   // is taken straight off the player rather than looked up through it.)
@@ -568,7 +568,7 @@ function endTurn(room, now) {
  * @param {() => number} rng  random source for the next words
  * @param {number} now  the clock
  * @returns {{ ok: boolean, error?: string, finished?: boolean }}
- * Side effects: begins the next round, or sets phase 'finished'.
+ * Side effects: begins the next turn, or sets phase 'finished'.
  */
 export function nextTurn(room, rng, now) {
   if (room.phase !== 'between') return fail('nothingToMoveOn');
@@ -584,7 +584,7 @@ export function nextTurn(room, rng, now) {
 }
 
 /**
- * Ends a round nobody is there to draw: both drawers have gone, or the one who was going to draw has.  Nobody scores.
+ * Ends a turn nobody is there to draw: both drawers have gone, or the one who was going to draw has.  Nobody scores.
  * @param {object} room  the room (mutated)
  * @param {number} now  the clock
  * @returns {{ ok: boolean, error?: string }}
@@ -630,7 +630,7 @@ const shapeOf = (word) => (word ? [...word].map((ch) => (ALWAYS_SHOWN.includes(c
 
 /**
  * The two drawings as one person sees them: who is drawing each, whether they have a word yet, and the word itself
- * only for the person drawing it (and for everybody once the round is over).
+ * only for the person drawing it (and for everybody once the turn is over).
  *
  * @param {object} room  not changed
  * @param {number | string} userId  the viewer
@@ -678,7 +678,7 @@ function playerView(room, p, { online, final, nameOf }) {
     lastScore: p.lastScore ?? 0,
     online: isBot(p) || online(p.id),
     bot: isBot(p),
-    drawing: isDrawer(room, p.id) && ROUND.includes(room.phase),
+    drawing: isDrawer(room, p.id) && TURN.includes(room.phase),
     placement: final.get(p.id)?.placement ?? null,
     winner: final.get(p.id)?.winner ?? false,
   };
@@ -722,7 +722,7 @@ function scoreboardView(room, userId, { online, nameOf }) {
 export function viewFor(room, userId, { nameOf = String, online = () => true, now = 0 } = {}) {
   nameOf = namer(room, nameOf);
   const final = finalStandings(room.players, room.phase === 'finished');
-  const drawing = isDrawer(room, userId) && ROUND.includes(room.phase);
+  const drawing = isDrawer(room, userId) && TURN.includes(room.phase);
   return {
     code: room.code,
     phase: room.phase,
@@ -758,7 +758,7 @@ export const canDraw = (room, id) => room.phase === 'drawing' && isDrawer(room, 
 
 /**
  * Which of the two boards this player draws on: 0, 1, or -1 for everybody else.  The boards are known by their place
- * rather than by who is drawing them, so that a computer player taking somebody's place mid-round inherits the
+ * rather than by who is drawing them, so that a computer player taking somebody's place mid-turn inherits the
  * strokes already on it instead of starting a blank one beside the old.
  * @param {object} room  not changed
  * @param {number | string} id  the player
@@ -791,7 +791,7 @@ export function aiContext(room, id, rng) {
 
 /**
  * The next thing a computer player has to do, or null: pick a word to draw, or have another guess.  Several of them
- * take it in turns to guess, the one with the fewest guesses this round going next.
+ * take it in turns to guess, the one with the fewest guesses this turn going next.
  * @param {object} room  not changed
  * @returns {{ type: 'word' | 'guess', id: number | string } | null}
  * Side effects: none.
