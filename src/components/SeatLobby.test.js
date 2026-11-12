@@ -10,7 +10,8 @@ const full = [
 const partly = [...full.slice(0, 2), { kind: 'empty' }];
 const mostlyEmpty = [full[0], { kind: 'empty' }, { kind: 'empty' }];
 
-const make = (props = {}, slots = {}) => mount(SeatLobby, { props: { seats: full, isHost: true, ...props }, slots });
+// A game for two to five, whose "fill" makes up the usual four.
+const make = (props = {}, slots = {}) => mount(SeatLobby, { props: { seats: full, isHost: true, min: 2, max: 5, fillTo: 4, ...props }, slots });
 const button = (w, text) => w.findAll('button').find((b) => b.text().includes(text));
 const start = (w) => w.find('button.primary');
 
@@ -57,11 +58,14 @@ describe('SeatLobby host controls', () => {
     expect(w.findAll('li.seat button')).toHaveLength(0);
   });
 
-  it('offers fill only when more than one seat is empty', async () => {
-    expect(button(make({ seats: partly }), 'Fill')).toBeUndefined();
+  it('offers fill until a normal table is made up, and says how many that is', async () => {
+    // Three at a table of three is already more than the two this fill would make up, so there is nothing to offer.
+    expect(button(make({ seats: full, fillTo: 2 }), 'Fill')).toBeUndefined();
     const w = make({ seats: mostlyEmpty });
-    await button(w, 'Fill the empty seats').trigger('click');
-    expect(w.emitted('fillBots')).toHaveLength(1);
+    const fill = button(w, 'Fill up to');
+    expect(fill.text()).toBe('Fill up to 3 players with computer players'); // never more than the table holds
+    await fill.trigger('click');
+    expect(w.emitted('fillBots')).toEqual([[3]]);
   });
 
   it('hides every bot button when bots are not allowed', () => {
@@ -77,20 +81,20 @@ describe('SeatLobby host controls', () => {
 });
 
 describe('SeatLobby start', () => {
-  it('enables Start once every seat is filled', async () => {
-    const w = make();
+  it('enables Start once enough are here, empty seats or not', async () => {
+    const w = make({ seats: partly }); // two people and an empty seat, at a game for two
     expect(start(w).attributes('disabled')).toBeUndefined();
     await start(w).trigger('click');
     expect(w.emitted('start')).toHaveLength(1);
   });
 
-  it('disables Start while a seat is empty and counts the remaining seats', async () => {
-    const w = make({ seats: partly });
+  it('disables Start while there are too few, and counts how many more are needed', async () => {
+    const w = make({ seats: mostlyEmpty, min: 3 });
     expect(start(w).attributes('disabled')).toBeDefined();
-    expect(w.text()).toContain('1 more seat to fill.');
+    expect(w.text()).toContain('2 more seats to fill.');
     await start(w).trigger('click');
     expect(w.emitted('start')).toBeUndefined();
-    expect(make({ seats: mostlyEmpty }).text()).toContain('2 more seats to fill.');
+    expect(make({ seats: partly, min: 3 }).text()).toContain('1 more seat to fill.');
   });
 
   it('needs at least one human', () => {

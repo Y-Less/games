@@ -4,7 +4,7 @@ Draft painted tiles and fit them into a patterned wall.  Two to five players.  T
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The host chooses **how many seats** there are (2 to 5), fills them with friends or **computer players**, and starts the game once every seat is taken.
+- One player creates a game and shares the three-word code (or the invite link).  The table has room for five; the host may make it smaller, fill the seats with friends or **computer players**, and start once there are at least two.  The game is for whoever is at the table then, and the empty seats go.
 - The bag holds **100 tiles**: 20 each of five colours.  Every colour also has its own pattern, so no tile depends on colour alone.
 - There are **2 x players + 1** display plates (5, 7, 9 or 11).  At the start of every round each plate is filled with 4 tiles drawn blindly from the bag.  When the bag is empty, the lid (every tile discarded so far) is shuffled back into it.  If both are empty, play on with what there is.
 - Everything on the table is public except the contents and order of the bag.

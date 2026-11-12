@@ -9,8 +9,6 @@
   },
   "lobby": {
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
-    "seats": "QujwI'pu' (quSmey)",
-    "players": "{count} QujwI' | {count} QujwI'pu'",
     "fewer": "{setting} puS",
     "more": "{setting} law'",
     "range": "{hint} ({min}vo' {max})",

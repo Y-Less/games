@@ -251,7 +251,7 @@ test('with four players the five nobles sit in two columns inside the market and
   await user.waitForText('Start a new game');
   await user.clickButton('Start a new game');
   await user.waitForText('Waiting for players');
-  await user.clickButton('Fill the empty seats with computer players');
+  await user.clickButton('Fill up to 4 players with computer players');
   await user.waitForNoText('more seat');
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');

@@ -193,8 +193,6 @@
   },
   "lobby": {
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
-    "players": "QujwI'pu' (quSmey)",
-    "playerCount": "{n} QujwI'pu'",
     "dice": "ngaSwI'Daq {dice} mI'naghmey, rItlhvaD {each}: wa'maH may'mey poQbogh 'ar nIb.",
     "badPrivate": "pegh ngoQ mI' qab",
     "badPrivateDefault": "(motlh: chu'Ha'lu')",

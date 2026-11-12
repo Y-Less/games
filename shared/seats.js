@@ -95,9 +95,9 @@ const SEAT_ERRORS = {
  *   and at least one person remains (for example, they may have been the only one the game was waiting for)
  * @param {(seat: object) => (object | null)} [config.finishedSeat]  what a seat becomes when its person leaves a finished
  *   game (default null; Nomination Whist keeps a { kind: 'gone', name } marker so the final scores still make sense)
- * @param {number} [config.minPlayers]  the fewest the game can be played with: the fewest seats the host may ask for,
+ * @param {number} config.minPlayers  the fewest the game can be played with: the fewest seats the host may ask for,
  *   and what `start` needs before it settles the table
- * @param {number} [config.maxPlayers]  the most it allows: the size a lobby opens at, and the most the host may ask for
+ * @param {number} config.maxPlayers  the most it allows: the size a lobby opens at, and the most the host may ask for
  * @param {number} [config.fillTo]  how many "fill with computer players" makes up to (default: a table of four, or the
  *   nearest this game allows)
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf,

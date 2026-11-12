@@ -189,8 +189,6 @@
   },
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "players": "Players (seats)",
-    "playerCount": "{n} players",
     "dice": "{dice} dice in the bag, {each} of each colour: exactly what ten rounds use.",
     "badPrivate": "Bad private scoring",
     "badPrivateDefault": "(off by default)",

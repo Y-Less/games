@@ -64,7 +64,7 @@ Nothing the server sends is a sentence (see MODULES.md, "Languages").  What that
 - **Refusals** are codes: `fail('kilnSecondTurn')`, `fail('notEnoughTokens', { count, have })`, and the placement rules'
   own reasons (`needsColour`, `mustTouch`, `colourBeside`, ...) travel as messages that `placeDie` and `useTool` turn
   into codes.  The English for each is `errors.<code>` in `locales/en.json`, or the site's file for the shared ones
-  (`notYourTurn`, `notPlaying`, `needPerson`, `seatsNeedPlayers`, `playersRange`, `removeBeforeFewerSeats`, `notOver`).
+  (`notYourTurn`, `notPlaying`, `needPerson`, `minPlayers`, `playersRange`, `removeBeforeFewerPlayers`, `notOver`).
 - **Log entries** are `{ seat, key, params }` (`log.placed`, `log.usedTool`, `log.usedToolNote`, `log.extraTurn`,
   `log.skipTurn`, `log.roundOver`, `log.gameOver`, `log.begin`, `log.takeOver`); a tool's note is a message of its own
   (`notes.<tool id>`) passed in as a parameter, and `count` is the favour tokens paid, which picks the plural.

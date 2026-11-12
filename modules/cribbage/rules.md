@@ -1,6 +1,6 @@
 # Cribbage
 
-A game for 2, 3, 4 or 5 players, everyone playing for themselves.  The first to reach the target score wins: 121, or 61 for a short game.  The host chooses the number of seats (empty seats can be filled with computer players), the target, and whether the stinkhole rule applies.
+A game for 2, 3, 4 or 5 players, everyone playing for themselves.  The first to reach the target score wins: 121, or 61 for a short game.  The table has room for five and the host may make it smaller; empty seats can be filled with computer players, and the game is for whoever is at the table when it starts.  The host also picks the target and whether the stinkhole rule applies.
 
 ## Dealing
 

@@ -5,8 +5,6 @@
   },
   "lobby": {
     "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
-    "players": "人数",
-    "playerCount": "{count}人",
     "playTo": "目標（威信点）",
     "targetUsual": "{n}（標準）"
   },

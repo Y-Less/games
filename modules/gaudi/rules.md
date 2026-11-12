@@ -4,7 +4,7 @@ Build a stained-glass window from drafted dice.  Two to five players, ten rounds
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The host chooses **how many seats** there are (2 to 5), fills them with friends or **computer players**, and starts the game once every seat is taken.
+- One player creates a game and shares the three-word code (or the invite link).  The table has room for five; the host may make it smaller, fill the seats with friends or **computer players**, and start once there are at least two.  The game is for whoever is at the table then, and the empty seats go.
 - The host can switch on **Bad private scoring** in the lobby (see Private objectives).  It is off by default, and everyone can see which rule applies.
 - Everyone is privately dealt **four windows** (two double-sided cards).  Choose one, all at the same time.  Nobody sees the others' choices until everyone has chosen.
 - Your window's **difficulty** (3 to 6) is how many **favour tokens** you receive.

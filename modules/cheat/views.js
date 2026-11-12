@@ -11,7 +11,7 @@ export function recordedViews(seats, seed) {
   const rng = seeded(seed);
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats }, now: 1 });
   const views = [JSON.stringify(game.viewFor(room, 1)), JSON.stringify(game.viewFor(room, 99))];
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, seats); // the table is filled; filling on its own makes up a normal four
   views.push(JSON.stringify(game.viewFor(room, 1)));
   assert.equal(game.start(room, 1, rng).ok, true);
   const person = room.seats[0];

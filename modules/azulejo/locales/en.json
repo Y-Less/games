@@ -20,8 +20,6 @@
   "bonuses": "Bonuses",
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "players": "Players (seats)",
-    "playerCount": "{n} players",
     "plates": "{plates} display plates of {perPlate} tiles each, from a bag of {tiles} tiles ({perColour} of each colour).",
     "offByDefault": "(off by default)",
     "freeWallOn": "The wall starts blank. When a line scores, its owner chooses the column for the tile in that row; no colour may repeat in a row or a column. A line can only be used while its row still has a free column for that colour.",

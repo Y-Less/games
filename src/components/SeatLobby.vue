@@ -21,12 +21,12 @@ const props = defineProps({
   startLabel: { type: String, default: '' }, // '' : "Start the game"
   allowBots: { type: Boolean, default: true },
   title: { type: String, default: '' }, // '' : "Waiting for players"
-  // The game's limits.  A game that gives them is on the shared size rules: its table opens as big as the game allows,
-  // the host may bring it down, and starting settles it at whoever is here.  One that gives none is not yet, and keeps
-  // the older rule of a table chosen up front that every seat must fill.  (The last game to move takes that with it.)
-  min: { type: Number, default: 0 },
-  max: { type: Number, default: 0 },
-  fillTo: { type: Number, default: 0 }, // how many "fill with computer players" makes up to
+  // The game's limits: the fewest it can be played with, the most it allows, and how many "fill with computer players"
+  // makes up to.  The table opens as big as the game allows, the host may bring it down to as few as are sitting, and
+  // starting settles it at whoever is here.
+  min: { type: Number, required: true },
+  max: { type: Number, required: true },
+  fillTo: { type: Number, required: true },
 });
 const { t } = useGameText();
 const emit = defineEmits(['addBot', 'removeBot', 'fillBots', 'kick', 'size', 'start']);
@@ -37,21 +37,19 @@ const empty = computed(() => props.seats.filter((s) => s.kind === 'empty').lengt
 const humans = computed(() => props.seats.filter((s) => s.kind === 'human').length);
 // Everybody at the table, people and computer players alike.
 const seated = computed(() => props.seats.length - empty.value);
-// Is this game on the shared size rules?
-const sized = computed(() => props.max > 0);
 // How many the table holds: a seated room is as big as its table, so this is simply how many seats there are.
 const cap = computed(() => props.seats.length);
 // The table may not be cut below the people already at it, nor below what the game needs.
 const capFloor = computed(() => Math.max(props.min, seated.value));
-// What enables Start: enough players to play, and at least one of them a person.  Before the shared size rules that
-// meant a full table, because the host had said up front how big it was.
-const ready = computed(() => (sized.value ? seated.value >= props.min : empty.value === 0) && humans.value >= 1);
+// What enables Start: enough players to play, and at least one of them a person.  Empty seats are no longer in the
+// way, because starting settles the table at whoever is here.
+const ready = computed(() => seated.value >= props.min && humans.value >= 1);
 </script>
 
 <template>
   <section class="lobby panel stack">
     <h2>{{ title || t('lobby.title') }}</h2>
-    <div v-if="isHost && sized" class="row cap">
+    <div v-if="isHost" class="row cap">
       <button :disabled="cap <= capFloor" :aria-label="t('lobby.fewerPlayers')" @click="emit('size', cap - 1)">-</button>
       <span class="muted">{{ t('lobby.roomFor', { count: cap }, cap) }}</span>
       <button :disabled="cap >= max" :aria-label="t('lobby.morePlayers')" @click="emit('size', cap + 1)">+</button>
@@ -76,10 +74,8 @@ const ready = computed(() => (sized.value ? seated.value >= props.min : empty.va
       </li>
     </ul>
 
-    <div v-if="isHost && allowBots && (sized ? seated < fillTo : empty > 1)" class="row">
-      <button @click="emit('fillBots', sized ? fillTo : undefined)">
-        {{ sized ? t('lobby.fillUpTo', { count: fillTo }, fillTo) : t('lobby.fillBots') }}
-      </button>
+    <div v-if="isHost && allowBots && seated < Math.min(cap, fillTo)" class="row">
+      <button @click="emit('fillBots', Math.min(cap, fillTo))">{{ t('lobby.fillUpTo', { count: Math.min(cap, fillTo) }, Math.min(cap, fillTo)) }}</button>
     </div>
 
     <slot name="settings" />
@@ -87,8 +83,7 @@ const ready = computed(() => (sized.value ? seated.value >= props.min : empty.va
     <div class="row">
       <button v-if="isHost" class="primary" :disabled="!ready || starting" @click="emit('start')">{{ startLabel || t('lobby.start') }}</button>
       <span v-else class="muted">{{ t('lobby.waitingForHost') }}</span>
-      <span v-if="isHost && !sized && empty" class="muted">{{ t('lobby.seatsToFill', { count: empty }, empty) }}</span>
-      <span v-else-if="isHost && sized && !ready" class="muted">{{ t('lobby.seatsToFill', { count: min - seated }, min - seated) }}</span>
+      <span v-if="isHost && !ready" class="muted">{{ t('lobby.seatsToFill', { count: min - seated }, min - seated) }}</span>
       <slot name="footer" />
     </div>
   </section>

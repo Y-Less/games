@@ -5,8 +5,6 @@
   },
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "players": "Number of players",
-    "playerCount": "{count} player | {count} players",
     "playTo": "Play to (prestige points)",
     "targetUsual": "{n} (usual)"
   },

@@ -5,8 +5,6 @@
   },
   "lobby": {
     "share": "このコードか招待リンクを友達に教えましょう。空席はコンピュータープレイヤーで埋められます。",
-    "seats": "プレイヤー（席数）",
-    "players": "{count}人",
     "fewer": "{setting}を減らす",
     "more": "{setting}を増やす",
     "range": "{hint}（{min}〜{max}）",

@@ -44,7 +44,7 @@ test('the host starts a four-seat game with one friend and two computer players'
 
   await flake.goto(link);
   await flake.waitForText('Waiting for players');
-  await host.clickButton('Fill the empty seats');
+  await host.clickButton('Fill up to 4 players with computer players');
   await host.clickButton('Start the game', { exact: true });
   await host.waitForText('Hand 1');
   const seated = await players(host);

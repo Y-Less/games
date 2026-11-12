@@ -4,7 +4,7 @@ A bluffing game for three to seven players.  The first player to get rid of all 
 
 ## Starting
 
-- One player creates a game and shares the three-word code (or the invite link).  The host fills the other seats with friends or **computer players**, chooses the number of players (3 to 7, normally 4) and starts the game once every seat is taken.
+- One player creates a game and shares the three-word code (or the invite link).  The table has room for seven; the host may make it smaller, fill the seats with friends or **computer players**, and start once there are at least three.  The game is for whoever is at the table then, and the empty seats go.
 - The whole pack is dealt out, so some players may have one card more than others.  With six or seven players two packs are used, so that there are enough cards to go round.
 - The player holding the Ace of Spades goes first.
 

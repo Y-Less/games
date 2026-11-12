@@ -28,9 +28,10 @@ e2e.test.js    the real site: whole games, lobby, hidden hands, reconnects, conc
   21).
 - The game ends at the end of the hand in which someone reaches the target; the lowest total wins, ties all win.
   Scores can go negative.
-- Number of players: 3 to 7, a room setting (`seats`, default 4) that the host changes in the lobby with
-  `settings { seats }` (or `create { seats }`); it cannot go below the number of seats already taken, and 2 and 8
-  are refused. `room.seats.length` is the seat count; shrinking closes up gaps if it has to.
+- Number of players: 3 to 7.  A room opens with seven seats, and the host brings it down in the lobby with
+  `settings { seats }` (or opens a smaller one with `create { seats }`); it cannot go below the people already at the
+  table, and 2 and 8 are refused.  `room.seats.length` is the seat count; shrinking closes up gaps if it has to, and
+  starting settles the table at whoever is there.
 - The deal (see `deals.js` and `rules.md`): 3 players 17 cards (2C out), 4 players 13, 5 players 10 (2C, 2D out),
   6 players 8 (2C 3C 2D 3D out), 7 players 7 (2C 2D 3D out).  Passing 3 cards (2 with 6 or 7 players).  The Queen of
   Spades, the Jack of Diamonds, and all hearts are always in the deck, so a hand is always 26 points and a moon scores

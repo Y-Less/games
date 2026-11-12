@@ -6,7 +6,6 @@
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
     "options": "Game options",
-    "seats": "Number of seats",
     "full": "Full: 7 down to 1 and back (14 rounds)",
     "short": "7 down to 1 only (7 rounds)",
     "missPoints": "Misses score the tricks taken",

@@ -89,16 +89,22 @@ function assertStable(game, result, { sizeOnly = [], centreOnly = [], tolerateMi
   assert.deepEqual(problems, [], `${game}: the layout moved while playing`);
 }
 
+/**
+ * Makes the table up with computer players, whatever the game's fill makes up to.  The button says the number, which
+ * differs per game (Cribbage makes up two, the rest four), so it is found by what every one of them starts with; a
+ * table already at that number offers no such button and only the per-seat "Add a computer player".
+ */
+async function fillTable(user) {
+  const label = await user.page.$$eval('button', (bs) => bs.map((b) => b.innerText.trim()).find((t) => t.startsWith('Fill up to')) ?? null);
+  await user.clickButton(label ?? 'Add a computer player');
+}
+
 async function startGame(user, path, startLabel, { fill = true, lobby = null } = {}) {
   await user.goto(path);
   await user.clickButton(startLabel);
   await user.waitForText('Waiting for players');
   if (lobby) await lobby(user); // a game that wants its own lobby settings (fewer seats, a lower target)
-  else if (fill) {
-    // Two or more empty seats offer "Fill the empty seats"; a single empty seat only offers "Add a computer player".
-    const bulk = await user.buttonState('Fill the empty seats with computer players');
-    await user.clickButton(bulk.present ? 'Fill the empty seats with computer players' : 'Add a computer player');
-  }
+  else if (fill) await fillTable(user);
   await user.waitForNoText('more seat');
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');
@@ -161,8 +167,15 @@ test(`Hearts with ${seats} players at ${at}: the table, hand, bottom boxes and e
     await user.signUp('hlay', { displayName: 'Hearty' });
     await startGame(user, '/play/hearts', 'Start a new game of Hearts', {
       lobby: async (u) => {
-        if (seats !== 4) await u.clickButton(String(seats), { exact: true, scope: 'fieldset' });
-        await u.clickButton('Fill the empty seats with computer players');
+        // The table opens at seven; bring it down to the count under test, then fill it.  Fill is a quick start of
+        // four, so a bigger table is made up the rest of the way one computer player at a time.
+        for (let n = 7; n > seats; n--) await u.page.click('[aria-label="Room for fewer players"]');
+        await u.waitForText(`room for ${seats} players`);
+        await fillTable(u);
+        for (let guard = 0; guard < seats; guard++) {
+          if (!(await u.buttonState('Add a computer player')).present) break;
+          await u.clickButton('Add a computer player');
+        }
       },
     });
     await user.waitForText('Hand 1');

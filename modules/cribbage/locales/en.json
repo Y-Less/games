@@ -7,7 +7,6 @@
   "lobby": {
     "share": "Share this code (click it to copy the invite link). Every seat must be filled (add computer players if you like) before the host starts.",
     "game": "Game",
-    "seats": "Seats",
     "playTo": "Play to",
     "stinkhole": "Stinkhole",
     "stinkholeNote": "(one short of home, only an exact one gets you out)",

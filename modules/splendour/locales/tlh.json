@@ -9,8 +9,6 @@
   },
   "lobby": {
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
-    "players": "QujwI'pu' 'ar",
-    "playerCount": "{count} QujwI' | {count} QujwI'pu'",
     "playTo": "ngoQ (quv mI'mey)",
     "targetUsual": "{n} (motlh)"
   },

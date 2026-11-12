@@ -168,10 +168,10 @@ export function nextBotName(used, botNames) {
  *   computer players (the two families answer with different codes)
  * @param {(room: object, slot: string, leaving: object) => boolean} config.leaveFinished  what a place becomes when
  *   its holder leaves a game that is already over, and whether that counts as a change worth telling anybody about
- * @param {number} [config.maxPlayers]  the most the game allows: the size a room opens at, and the most `setSize` lets
+ * @param {number} config.maxPlayers  the most the game allows: the size a room opens at, and the most `setSize` lets
  *   the host ask for
- * @param {number} [config.minPlayers]  the fewest it can be played with, and the fewest `setSize` lets them ask for
- * @param {number} [config.fillTo]  how many "fill with computer players" makes up to
+ * @param {number} config.minPlayers  the fewest it can be played with, and the fewest `setSize` lets them ask for
+ * @param {number} config.fillTo  how many "fill with computer players" makes up to
  * @param {string[]} [config.botNames]  the names computer players get (default DEFAULT_BOT_NAMES)
  * @param {(room: object, base: object, extras?: object) => object} [config.makePlayer]  turns the bare member into the
  *   game's own shape (adds the score, the counters, a marker colour...).  Default: the bare member.
@@ -196,7 +196,7 @@ export function createMemberRules({
   isMidGame,
   guardFill,
   leaveFinished,
-  minPlayers = 0,
+  minPlayers,
   maxPlayers,
   fillTo,
   botNames = DEFAULT_BOT_NAMES,
@@ -358,11 +358,10 @@ export function createMemberRules({
   }
 
   /**
-   * The host fills the room with computer players, up to `target`.
-   *
-   * A seated game fills the table, because every seat is a seat at it.  A game with a list makes up a normal table of
-   * players instead — most are played by about four whatever the most they allow is, and a "fill" that handed you
-   * eleven computer players would be a surprise rather than a convenience.
+   * The host makes the room up to `target` with computer players, which without one is a normal table (`fillTo`) and
+   * never more than the room holds.  It is a quick start, not "as many as will fit": a fill that handed you eleven
+   * computer players would be a surprise rather than a convenience, and somebody who wants more adds them one at a
+   * time with the button that is already there.
    *
    * @param {object} room  the room to change
    * @param {number} userId  who is asking (must be the host)
@@ -374,9 +373,7 @@ export function createMemberRules({
     const refused = guardFill(room, userId);
     if (refused) return refused;
     const asked = Math.round(numberFrom(target)) || fillTo;
-    const wanted = Number.isInteger(maxPlayers)
-      ? Math.min(capacity(room), maxPlayers, Math.max(minPlayers, asked))
-      : capacity(room);
+    const wanted = Math.min(capacity(room), maxPlayers, Math.max(minPlayers, asked));
     while (members(room).length < wanted) if (layout.place(room, newBot(room)) === null) break;
     return ok();
   }

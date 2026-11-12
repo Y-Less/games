@@ -111,6 +111,18 @@ capitals; and `kick` is refused once the game is over.  A person who leaves a *f
 `goneSeat` marker (`{ kind: 'gone', name }`, pass it as `finishedSeat`) rather than an empty seat, so the final scores
 still name them and the table never meets a missing seat; `playAgain` then calls `freeGoneSeats(room)`.
 
+**How many a room holds is one question, and both families answer it the same way.**  Tell `createSeatRules` or
+`createRosterRules` the game's `minPlayers`, `maxPlayers`, and `fillTo` (how many "fill with computer players" makes
+up to; the default is a table of four, or the nearest the game allows — Cribbage says two), and you get `sizeOf`,
+`setSize`, and `lockSize` beside the rest.  A room opens as big as the game allows, so nobody who could have joined it
+is turned away; `setSize` lets the host bring it down, within the limits and never below the people already in it (the
+host takes somebody out first — the rules never choose who goes); and the game's `start` calls `lockSize` **before it
+deals**, because from then on how much there is to deal is read off the room's size.  Answer every refusal before
+`lockSize`, since settling renumbers the seats and a start that does not happen must leave the lobby as it was.  Send
+the size to the client as `sizeOf(room)` and never keep a second copy of it: a seated room is as big as `room.seats`,
+and a list keeps `room.size`.  A place held open for a friend is a computer player holding it, which they take over
+when they arrive.
+
 **A place changes hands both ways.**  When somebody leaves a game under way, a computer player takes their place, keeps
 their score and whatever else was theirs, and remembers whose place it is holding (`stoodInFor`).  When somebody joins a
 game under way — a friend slow to open the invitation, or the leaver coming back — they take a computer player's place
@@ -355,7 +367,7 @@ so a translator can reorder it. vue-i18n's syntax: `{name}` is a param, `|` sepa
 **On the server** nothing is ever a sentence.  A refusal is `fail(code, params)` (`shared/seats.js`), where `code` is a
 key under `errors.` in the game's file first and the site's second; the site's `src/locales/en.json` has the refusals
 every game shares (`notYourTurn`, `notInGame`, `hostOnly`, `gameFull`, `settingsBeforeStart`, `needPerson`,
-`allSeatsNeedPlayers` with `{ seats }`, `playersRange` with `{ min, max }` ...), and a game's own go in its file.
+`minPlayers` with `{ min }`, `playersRange` with `{ min, max }`, `removeBeforeFewerPlayers` ...), and a game's own go in its file.
 HTTP routes throw `new AuthError(code, status, params)` the same way.  The room server forwards a refusal's `params`
 to the client, so a sentence with a number in it arrives with the number. `createRoom` cannot return a refusal, so it
 refuses by throwing `refusal(code, params)` (`shared/messages.js`); anything else it throws is a bug in the rules, and
@@ -476,15 +488,16 @@ Card games share a few pieces so they look and behave alike:
   with the viewer's chosen **card back** (Profile > Card back: a preset design or their own uploaded picture, exposed
   as the CSS variable `--card-back`; any element can use it through the global `.card-back` class).  Props: `size`
   (`sm`/`md`/`lg`), `clickable` (renders a button and emits `pick`), `disabled`, `selected`, `dimmed`.
-- **Built-in computer players.** A room has a fixed number of seats; the host can add or remove computer players in the
-  lobby, and the game starts only when every seat is taken.  Computer players are not accounts: give them ids like
+- **Built-in computer players.** A room opens as big as the game allows and the host can add or remove computer players
+  in the lobby; the game starts with whoever is there, and the empty seats go (see *How many a room holds*).  Computer players are not accounts: give them ids like
   `bot:1` and `kind: 'bot'`, drive their turns on the server after a short random delay (so people can follow the play), and leave them
   out of `ctx.stats.record` (only accounts are recorded).
 - Hidden information stays on the server: send each player their own hand, and only the *count* of everyone else's.
-- `src/components/SeatLobby.vue`: the waiting room for fixed-seat games (seats, add/remove/fill computer players,
-  remove a human, Start enabled only when every seat is filled).  Pass `seats` (`{ id, name, kind: 'human' | 'bot' |
-  'empty', isHost, isMe, away }`), put the game's own options in the `#settings` slot, and handle `addBot`,
-  `removeBot`, `fillBots`, `kick` and `start`.
+- `src/components/SeatLobby.vue`: the waiting room for fixed-seat games (seats, how many the game is for, add/remove/fill
+  computer players, remove a human, Start enabled once the game's minimum is at the table).  Pass `seats` (`{ id, name,
+  kind: 'human' | 'bot' | 'empty', isHost, isMe, away }`) and the game's `min`, `max`, and `fillTo`, put the game's own
+  options in the `#settings` slot, and handle `addBot`, `removeBot`, `fillBots`, `size`, `kick`, and `start`.
+  `src/components/PlayerListPanel.vue` is the same panel for a game with a list of players.
 - **The host can remove any other player at any time** (the Remove button of `PlayerPopup`), so every game's server has a
   host-only removal that the table calls with the seat or account id (never the host's own, never garbage): `kick` for a
   person and `removeBot` for a computer player.  In the lobby the seat is freed.  In a game

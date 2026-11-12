@@ -9,7 +9,10 @@ function lobby() {
   return { hostId: 1, phase: 'lobby', nextBot: 1, seats: [{ kind: 'human', id: 1, name: 'Ann' }, null, null] };
 }
 
-const rules = createSeatRules({ isMidGame: (room) => room.phase === 'playing' });
+/** The limits every set of rules here is built with: a game for two to three, filling to the table it has. */
+const LIMITS = { minPlayers: 2, maxPlayers: 3, fillTo: 3 };
+
+const rules = createSeatRules({ ...LIMITS, isMidGame: (room) => room.phase === 'playing' });
 
 test('addHuman seats a newcomer, once, and gives them a name nobody else has', () => {
   const room = lobby();
@@ -79,6 +82,7 @@ test('coming back puts you in your own seat, which is where your cards still are
 test('handOver is given the person, the computer player and the seat, and changes the person where they sit', () => {
   const seen = [];
   const own = createSeatRules({
+    ...LIMITS,
     isMidGame: (room) => room.phase === 'playing',
     handOver: (room, botId, person, bot, seat) => {
       seen.push({ person: { ...person }, seat, bot: { ...bot }, botId });
@@ -112,7 +116,7 @@ test('only the host changes the lobby, and only in the lobby', () => {
 
 test('computer players take the names in order, then fall back to Computer', () => {
   const room = lobby();
-  const small = createSeatRules({ isMidGame: () => false, botNames: ['Zed'] });
+  const small = createSeatRules({ ...LIMITS, isMidGame: () => false, botNames: ['Zed'] });
   small.fillWithBots(room, 1);
   assert.deepEqual(room.seats.slice(1).map((s) => s.name), ['Zed', 'Computer']);
   assert.deepEqual(room.seats.slice(1).map((s) => s.id), ['bot:1', 'bot:2']);
@@ -132,6 +136,7 @@ test('removeHuman frees the seat in the lobby and passes the host on', () => {
 test('removeHuman mid-game puts a computer player in the seat, via the takeOver hook', () => {
   const calls = [];
   const custom = createSeatRules({
+    ...LIMITS,
     isMidGame: () => true,
     takeOver: (room, oldId, bot, rng, now, seat) => {
       calls.push(seat);
@@ -156,7 +161,7 @@ test('removeHuman reports an empty room when the last person goes', () => {
 });
 
 test('a finished game can keep a marker for the person who left', () => {
-  const keeping = createSeatRules({ isMidGame: () => false, finishedSeat: (seat) => ({ kind: 'gone', name: seat.name }) });
+  const keeping = createSeatRules({ ...LIMITS, isMidGame: () => false, finishedSeat: (seat) => ({ kind: 'gone', name: seat.name }) });
   const room = lobby();
   keeping.addHuman(room, 2, 'Bob');
   room.phase = 'finished';
@@ -197,7 +202,7 @@ test('drawUnused never repeats until everything has been drawn, then starts agai
 });
 
 test('a person who leaves a finished game leaves a gone marker, which play-again clears', () => {
-  const gone = createSeatRules({ isMidGame: (room) => room.phase === 'playing', finishedSeat: goneSeat });
+  const gone = createSeatRules({ ...LIMITS, isMidGame: (room) => room.phase === 'playing', finishedSeat: goneSeat });
   const room = { hostId: 1, phase: 'finished', nextBot: 1, seats: [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }, { kind: 'bot', id: 'bot:1', name: 'Hazel' }] };
   assert.deepEqual(gone.removeHuman(room, 1, seeded(1), 0), { ok: true, empty: false, seat: 0, replaced: false });
   assert.deepEqual(room.seats[0], { kind: 'gone', name: 'Ann' });
@@ -214,7 +219,7 @@ test('computer players are named without regard to capitals, like people', () =>
   const room = { hostId: 1, phase: 'lobby', nextBot: 1, seats: [{ kind: 'human', id: 1, name: 'hazel' }, { kind: 'human', id: 2, name: 'COMPUTER' }, null, null] };
   const first = rules.newBot(room);
   assert.notEqual(first.name.toLowerCase(), 'hazel', 'the first list name is taken, whatever its capitals');
-  const bots = createSeatRules({ isMidGame: () => false, botNames: ['hazel'] });
+  const bots = createSeatRules({ ...LIMITS, isMidGame: () => false, botNames: ['hazel'] });
   assert.equal(bots.newBot(room).name, 'Computer 2', 'the fallback is numbered past the person called COMPUTER');
   assert.equal(nextBotName(['Otis', 'computer', 'COMPUTER 2'], ['Otis']), 'Computer 3', 'past the list, Computer is numbered without regard to capitals');
   assert.equal(freeName(['Ann', 'ann (2)'], 'ANN', (w, n) => `${w} (${n})`), 'ANN (3)');

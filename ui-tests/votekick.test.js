@@ -63,14 +63,13 @@ test('three people start a game together', { timeout: 90000 }, guarded('start', 
   await host.clickButton('Start a new game of Hearts');
   await host.waitForText('Waiting for players');
   link = `/play/hearts?${await host.inviteCode()}`;
-  await host.clickButton('5', { exact: true, scope: 'fieldset' }); // five seats, so three people leave two for computers
-  await host.waitForText('4 more seats to fill.');
+  await host.waitForText('2 more seats to fill.'); // three are needed, and the host is alone
   for (const who of [second, third]) {
     await who.goto(link);
     await who.waitForText('Waiting for players');
   }
-  await host.waitForText('2 more seats to fill.'); // five seats, three people
-  await host.clickButton('Fill the empty seats with computer players');
+  await host.waitForNoText('more seat'); // three people: enough to play
+  await host.clickButton('Fill up to 4 players with computer players'); // and one computer player makes up the table
   await host.clickButton('Start the game', { exact: true });
   await host.waitForText('Hand 1');
 }));

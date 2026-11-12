@@ -823,8 +823,12 @@ test('play again: host only, only when finished, back to an empty history with t
   assert.equal(room.phase, 'lobby');
   assert.deepEqual(room.history, []);
   assert.deepEqual(room.scores, [0, 0]);
-  assert.equal(room.seats.length, 2);
+  assert.equal(room.seats.length, 2, 'the next game is for the two who just played');
   assert.equal(room.recorded, false);
+  // The lobby it reopens is as big as the game it just played, not as big as the game allows, so the host opens it up
+  // again themselves if they want somebody else.
+  assert.equal(game.setSize(room, 1, 4).ok, true);
+  assert.equal(room.seats.length, 4);
 });
 
 test('the room survives being saved as JSON in every phase', () => {

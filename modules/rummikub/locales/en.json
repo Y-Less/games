@@ -5,8 +5,6 @@
   },
   "lobby": {
     "share": "Share this code, or the invite link, with your friends. Empty seats can be filled by computer players.",
-    "seats": "Players (seats)",
-    "players": "{count} player | {count} players",
     "fewer": "Fewer {setting}",
     "more": "More {setting}",
     "range": "{hint} ({min} to {max})",

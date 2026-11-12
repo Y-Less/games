@@ -24,8 +24,6 @@
   "bonuses": "nobmey",
   "lobby": {
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang. quSmey chIm teblaH De'wI' QujwI'pu'.",
-    "players": "QujwI'pu' (quSmey)",
-    "playerCount": "{n} QujwI'pu'",
     "plates": "{plates} cha'wI'mey; {perPlate} naghHommey ghaj Hoch. {tiles} naghHommey ngaS ngaSwI' ({perColour} Hoch rItlhvaD).",
     "offByDefault": "(motlh: chu'Ha'lu')",
     "freeWallOn": "chIm reD taghDI' Quj. mI' Suq tlheghDI', tlheghvetlhDaq naghHomvaD tlhegh Qam wIv ghajwI'. tlheghDaq joq tlhegh QamDaq joq not qaSqa' rItlh. rItlhvetlhvaD tlhegh Qam tlhab ghajtaHvIS tlhegh neH, lo'lu'laH.",
