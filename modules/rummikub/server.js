@@ -38,8 +38,8 @@ export default function (ctx) {
   return createRoomServer(ctx, {
     game,
     pickSettings,
-    /** The extra argument for a new room: the number of seats the host asked for (the default size if none). */
-    createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
+    /** The extra argument for a new room: the number of seats the host asked for, or a table as big as the game allows. */
+    createArgs: (payload) => ({ size: payload.seats === undefined ? game.MAX_PLAYERS : payload.seats }),
     /** The view needs the clock, to show how long is left on the turn timer. */
     viewOptions: (room, userId, now) => ({ now: now() }),
     /**
@@ -58,9 +58,8 @@ export default function (ctx) {
       if (room.phase === 'between') return { key: `between:${room.round}`, wait: delays.roundWait, run: () => game.forceNext(room, rng, now()) };
       return null;
     },
-    /** Rummikub's own events: a whole turn (play), a draw, Continue between rounds, and the number of seats. */
-    registerEvents({ act, on, userId, rng, now }) {
-      on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
+    /** Rummikub's own events: a whole turn (play), a draw, and Continue between rounds. */
+    registerEvents({ act, on, rng, now }) {
       on('play', ({ table }) => act((room, seat) => game.play(room, seat, { table }, now())));
       on('draw', () => act((room, seat) => game.draw(room, seat, now())));
       on('next', () => act((room, seat) => game.next(room, seat, rng, now())));
@@ -72,9 +71,9 @@ export default function (ctx) {
  * Only the host-set options, whatever else a client sends.
  *
  * @param {object | undefined} payload  what the client sent with 'create' or 'settings'
- * @returns {object} a new object holding just the rule limits and `playOnMeld` that were given
+ * @returns {object} a new object holding just the rule limits, `playOnMeld` and `size` that were given
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, [...Object.keys(LIMITS), 'playOnMeld']);
+  return pickKeys(payload, [...Object.keys(LIMITS), 'playOnMeld', 'size']);
 }

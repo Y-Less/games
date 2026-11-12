@@ -30,10 +30,11 @@ export const STD = { numbers: 13, colours: 4, wildcards: 2, rounds: 1, meld: 30,
 export function playingRoom(n, { seed = 1, settings = {}, bots = false } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings });
-  if (bots) game.fillWithBots(room, 1);
+  if (bots) assert.equal(game.fillWithBots(room, 1, n).ok, true); // the count is said out loud: filling makes up a normal table, not the whole one
   else for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
   const result = game.start(room, 1, rng, Date.now());
   assert.equal(result.ok, true, result.error);
+  assert.equal(room.seats.length, n, 'starting settles the table at the people who came');
   return { room, rng };
 }
 
@@ -70,13 +71,13 @@ export function assertInvariants(room, label = '') {
   assert.ok(all.every((id) => Number.isInteger(id) && id >= 0 && id < totalTiles(s)), `${where}: ids in range`);
   assert.ok(room.scores.every(Number.isInteger), `${where}: integer scores`);
   const sum = room.scores.reduce((a, b) => a + b, 0);
-  assert.ok(sum <= 0 && sum > -room.size * room.round, `${where}: scores are zero-sum up to rounding (${sum})`);
-  for (let seat = 0; seat < room.size; seat++) {
+  assert.ok(sum <= 0 && sum > -room.seats.length * room.round, `${where}: scores are zero-sum up to rounding (${sum})`);
+  for (let seat = 0; seat < room.seats.length; seat++) {
     const total = room.history.reduce((t, h) => t + h.deltas[seat], 0);
     assert.equal(total, room.scores[seat], `${where}: seat ${seat} score = history`);
   }
   if (room.phase === 'playing') {
-    assert.ok(room.turn >= 0 && room.turn < room.size, `${where}: a turn`);
+    assert.ok(room.turn >= 0 && room.turn < room.seats.length, `${where}: a turn`);
     assert.ok(room.racks.every((r) => r.length > 0), `${where}: nobody has an empty rack mid-round`);
   }
 }

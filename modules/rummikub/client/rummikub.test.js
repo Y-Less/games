@@ -401,15 +401,19 @@ describe('lobby', () => {
     await w.find('#opt-colours').setValue('6');
     await w.find('#opt-colours').trigger('change');
     expect(send).toHaveBeenCalledWith('settings', { colours: 6 });
-    await w.findAll('button').find((b) => b.text() === '5 players').trigger('click');
-    expect(send).toHaveBeenCalledWith('size', { seats: 5 });
+    await w.find('[aria-label="Room for more players"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('settings', { size: 5 });
     await w.find('#opt-timer').setValue('60');
     expect(send).toHaveBeenCalledWith('settings', { timer: 60 });
     expect(w.findAll('.colours .tile')).toHaveLength(4);
   });
 
-  it('warns when the tile set is too small for the players', () => {
-    const w = mount(Lobby, { props: { state: lobby({ size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } }), send: vi.fn() } });
+  it('warns when the tile set is too small for the players who are here', () => {
+    // The warning is about the people at the table, not the seats around it, because the game will be for them.
+    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } });
+    expect(mount(Lobby, { props: { state: game.viewFor(room, 1), send: vi.fn() } }).find('[role="alert"]').exists()).toBe(false);
+    game.fillWithBots(room, 1, 6);
+    const w = mount(Lobby, { props: { state: game.viewFor(room, 1), send: vi.fn() } });
     expect(w.find('[role="alert"]').text()).toMatch(/too few/);
   });
 

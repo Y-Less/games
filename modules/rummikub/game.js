@@ -56,6 +56,8 @@ export const isLive = (room) => LIVE.includes(room.phase);
 export { hasPlayer, humanSeats, isBot, isHuman, seatOf, uniqueName };
 /** The name at a seat for a log line: the name, or the site's "Someone" message for an empty seat.  Takes (room, seat); no side effects. */
 export const seatName = (room, seat) => room.seats[seat]?.name ?? msg('common.someone');
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 /** Is a round under way or waiting to be followed by the next one (so a person who leaves is replaced by a computer)?  Takes the room; returns a boolean; no side effects. */
 export const inRound = (room) => room.phase === 'playing' || room.phase === 'between';
 
@@ -87,14 +89,15 @@ export { normaliseSettings };
  * @param {string} args.code  the invite code
  * @param {number} args.hostId  the host's account id
  * @param {string} args.hostName  the host's display name
- * @param {number} [args.size]  how many seats (one of SIZES)
+ * @param {number} [args.size]  how many seats to open with (one of SIZES; the default is as many as the game allows,
+ *   and the host may bring it down in the lobby)
  * @param {object} [args.settings]  the host's rule choices (checked by normaliseSettings)
  * @param {number} args.now  the clock, in milliseconds
  * @returns {object} the room
  * @throws {Error} if the size or a setting is not allowed (a developer's message: the client never sees it)
  * Side effects: none (builds and returns a new room object).
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
+export function createRoom({ code, hostId, hostName, size = MAX_PLAYERS, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(`a setting is not allowed: ${normalised.error.key}`);
@@ -102,7 +105,6 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
     code,
     hostId,
     phase: 'lobby',
-    size,
     settings: normalised.settings,
     seats: Array.from({ length: size }, (_, i) => (i === 0 ? { kind: 'human', id: hostId, name: hostName } : null)),
     nextBot: 1,
@@ -120,7 +122,7 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
  * @param {object} room
  */
 function resetGame(room) {
-  const n = room.size;
+  const n = room.seats.length;
   Object.assign(room, {
     pool: [],
     racks: Array.from({ length: n }, () => []),
@@ -176,6 +178,9 @@ const refuse = (message) => fail(message.key.slice('errors.'.length), message.pa
  */
 const seats = createSeatRules({
   isMidGame: inRound,
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  fillTo: DEFAULT_SIZE,
   botNames: BOT_NAMES,
   /** Gives the replacement computer player its AI and tells the table (mutates the room's log). */
   takeOver(room, oldId, bot, rng, now, seat) {
@@ -187,7 +192,7 @@ const seats = createSeatRules({
     if (room.phase === 'between') advanceIfReady(room, rng, now);
   },
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
 
 /**
  * The host changes the rule options.  Lobby only.
@@ -201,6 +206,11 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
+  if (input.size !== undefined) {
+    const sized = setSize(room, userId, input.size);
+    if (!sized.ok) return sized;
+  }
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return refuse(next.error);
   room.settings = next.settings;
@@ -208,24 +218,19 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * The host chooses how many seats there are (2-6).  People and computer players are kept, in order.  Lobby only.
+ * The host chooses how many seats there are (2-6): the shared rule, and then a fresh game, because every per-seat
+ * array here (the racks, the scores, the tallies) is as long as the table and has just changed length.
  *
- * @param {object} room  mutated: seats and size change and the game is reset
+ * @param {object} room  mutated: the seats change and the game is reset
  * @param {number} userId  who is asking (must be the host)
  * @param {number} size  the new number of seats
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: on success changes room.size and room.seats and resets the game fields; nothing changes on failure.
+ * Side effects: on success changes room.seats and resets the game fields; nothing changes on failure.
  */
 export function setSize(room, userId, size) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!SIZES.includes(size)) return fail('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS });
-  const seated = room.seats.filter(Boolean);
-  if (seated.length > size) return fail('removeBeforeFewerSeats');
-  room.size = size;
-  room.seats = [...seated, ...Array.from({ length: size - seated.length }, () => null)];
-  resetGame(room);
-  return ok();
+  const result = seats.setSize(room, userId, size);
+  if (result.ok) resetGame(room);
+  return result;
 }
 
 // ---- starting ----
@@ -243,12 +248,16 @@ export function setSize(room, userId, size) {
 export function start(room, userId, rng, now) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  const playing = atTable(room);
+  if (playing < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
-  const tooSmall = startProblem(room.settings, room.size);
+  const tooSmall = startProblem(room.settings, playing);
   if (tooSmall) return refuse(tooSmall);
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
-  room.first = Math.floor(rng() * room.size);
+  room.first = Math.floor(rng() * room.seats.length);
   room.phase = 'playing';
   const s = room.settings;
   addLog(room, null, 'log.begins', { count: s.rounds, tiles: totalTiles(s) });
@@ -281,16 +290,16 @@ function setDeadline(room, now) {
 function startRound(room, rng, now) {
   const s = room.settings;
   const tiles = shuffle(Array.from({ length: totalTiles(s) }, (_, i) => i), rng);
-  const hand = dealSize(s, room.size);
+  const hand = dealSize(s, room.seats.length);
   room.racks = room.seats.map(() => tiles.splice(0, hand).sort((a, b) => a - b));
   room.pool = tiles;
   room.table = [];
-  room.melded = Array(room.size).fill(false);
-  room.drawn = Array(room.size).fill(null);
+  room.melded = Array(room.seats.length).fill(false);
+  room.drawn = Array(room.seats.length).fill(null);
   room.idle = 0;
   room.lastPlay = null;
   room.ready = [];
-  room.pairSeen = Array(room.size).fill(false);
+  room.pairSeen = Array(room.seats.length).fill(false);
   room.seats.forEach((_, seat) => noteRack(room, seat));
   room.round++;
   room.turn = room.first;
@@ -310,7 +319,7 @@ function startRound(room, rng, now) {
  * Side effects: updates room.tally[seat] and room.pairSeen (created here for rooms saved before it existed).
  */
 function noteRack(room, seat) {
-  room.pairSeen ??= Array(room.size).fill(false);
+  room.pairSeen ??= Array(room.seats.length).fill(false);
   room.pairSeen[seat] = tallyRack(room.tally[seat], room.settings, room.racks[seat], room.pairSeen[seat]);
 }
 
@@ -321,7 +330,7 @@ function noteRack(room, seat) {
  * @returns {(number | null)[]} one entry per seat
  * Side effects: none (the room is not changed; a fresh array is returned if there is none).
  */
-const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
+const withDrawn = (room) => room.drawn ?? Array(room.seats.length).fill(null);
 
 /**
  * Passes the turn to the next seat, clears that seat's "just drawn" mark and restarts the turn timer.  Side effect:
@@ -331,7 +340,7 @@ const withDrawn = (room) => room.drawn ?? Array(room.size).fill(null);
  * @param {number} now  the clock, in milliseconds
  */
 function nextTurn(room, now) {
-  room.turn = (room.turn + 1) % room.size;
+  room.turn = (room.turn + 1) % room.seats.length;
   room.drawn = withDrawn(room);
   room.drawn[room.turn] = null; // a drawn tile stays marked until its owner's next turn begins
   room.moves++;
@@ -405,7 +414,7 @@ export function draw(room, seat, now, timedOut = false) {
     addLog(room, seat, timedOut ? 'log.passedTimeout' : 'log.passed', { name: seatName(room, seat) });
   }
   room.lastPlay = null;
-  if (!room.pool.length && room.idle >= room.size) return finishRound(room, 'blocked', null, now);
+  if (!room.pool.length && room.idle >= room.seats.length) return finishRound(room, 'blocked', null, now);
   nextTurn(room, now);
   return ok();
 }
@@ -447,7 +456,7 @@ function finishRound(room, reason, winnersIn, now) {
   const deltas = {};
   const notes = {};
   let pot = 0;
-  for (let i = 0; i < room.size; i++) {
+  for (let i = 0; i < room.seats.length; i++) {
     if (winners.includes(i)) continue;
     const lost = totals[i] - best;
     deltas[i] = -lost;
@@ -460,7 +469,7 @@ function finishRound(room, reason, winnersIn, now) {
     notes[w] = reason === 'out' ? msg('notes.wentOut') : msg('notes.lowestRack', { points: totals[w] });
     bump(room.tally[w], 'roundsWon'); // not `++`: a room saved before this counter existed has no such key
   }
-  for (let i = 0; i < room.size; i++) room.scores[i] += deltas[i];
+  for (let i = 0; i < room.seats.length; i++) room.scores[i] += deltas[i];
   room.history.push({ label: msg('round', { n: room.round }), deltas, notes });
   room.lastRound = { round: room.round, reason, winners, racks: room.racks.map((r) => [...r]), totals, deltas };
   if (reason === 'out') addLog(room, null, 'log.wentOut', { name: seatName(room, winners[0]), n: room.round });
@@ -533,7 +542,7 @@ function advanceIfReady(room, rng, now) {
  * @param {number} now  the clock, in milliseconds
  */
 function startNextRound(room, rng, now) {
-  room.first = (room.first + 1) % room.size;
+  room.first = (room.first + 1) % room.seats.length;
   startRound(room, rng, now);
 }
 
@@ -700,13 +709,14 @@ export function viewFor(room, userId, { online = () => true, now } = {}) {
     phase: room.phase,
     you: me,
     hostSeat: seatOf(room, room.hostId),
-    size: room.size,
+    size: sizeOf(room),
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { sizes: SIZES, ...LIMITS },
-    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, room.size), jokerValue: JOKER_VALUE },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, ...LIMITS },
+    // What would be dealt if the game began now, which in the lobby is to whoever is here rather than to the whole table.
+    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, atTable(room)), jokerValue: JOKER_VALUE },
     log: recentMoves(room, 14),
   };
   if (hasStarted(room)) Object.assign(view, playView(room, me, now));

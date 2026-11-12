@@ -35,8 +35,8 @@ test('the lobby fills with computer players, has no Leave button of its own, and
   assert.equal((await user.buttonState('Start the game')).disabled, true);
   assert.equal((await user.buttonState('Leave game', { scope: '.field' })).present, false, 'the lobby has no Leave button of its own');
   assert.equal((await user.buttonState('Leave game', { scope: 'header.bar' })).present, true, 'the header offers it');
-  const bulk = await user.buttonState('Fill the empty seats with computer players');
-  await user.clickButton(bulk.present ? 'Fill the empty seats with computer players' : 'Add a computer player');
+  const bulk = await user.buttonState('Fill up to 4 players with computer players');
+  await user.clickButton(bulk.present ? 'Fill up to 4 players with computer players' : 'Add a computer player');
   await user.waitForNoText('more seat');
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.score-bar');

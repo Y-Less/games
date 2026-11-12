@@ -63,19 +63,20 @@ test('starting: the deal, the pool, and refusing games that cannot be played', (
   assert.equal(room.pool.length, 106 - 56);
   assertInvariants(room);
   const small = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } });
-  game.fillWithBots(small, 1);
+  game.fillWithBots(small, 1, 6); // a full table is asked for: filling on its own makes up a normal one
   const refused = game.start(small, 1, Math.random, Date.now());
   assert.equal(refused.ok, false);
   assert.deepEqual(refused, { ok: false, error: 'tooFewTiles', params: { tiles: 12, players: 6, min: 6 } });
   assert.equal(small.phase, 'lobby');
+  assert.equal(small.seats.length, 6, 'and a start that was refused left the table alone');
   const fewer = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 6, settings: { numbers: 10, colours: 4, wildcards: 2 } });
-  game.fillWithBots(fewer, 1);
+  game.fillWithBots(fewer, 1, 6);
   assert.equal(game.start(fewer, 1, Math.random, Date.now()).ok, true);
   assert.ok(fewer.racks.every((r) => r.length === 11), 'a smaller deal for a smaller tile set');
   assert.ok(fewer.pool.length >= 11);
   assert.equal(game.start(fewer, 1, Math.random, Date.now()).ok, false, 'already started');
-  const empty = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
-  assert.equal(game.start(empty, 1, Math.random, Date.now()).error, 'seatsNeedPlayers', 'empty seats');
+  const alone = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
+  assert.deepEqual(game.start(alone, 1, Math.random, Date.now()), { ok: false, error: 'minPlayers', params: { min: 2 } }, 'the host on their own');
   const impossible = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2, settings: { numbers: 2, colours: 2, wildcards: 8 } });
   game.fillWithBots(impossible, 1);
   assert.equal(game.start(impossible, 1, Math.random, Date.now()).error, 'fewNumbersColours');

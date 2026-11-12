@@ -1,6 +1,7 @@
 <script setup>
-// The Rummikub lobby: the invite code, the seats, and the host's rules for this game (seat count, tile settings, first meld,
-// turn timer) with a start button supplied by SeatLobby.  Non-hosts see the rules but cannot change them.
+// The Rummikub lobby: the invite code, the seats, and the host's rules for this game (tile settings, first meld, turn
+// timer) with the table size, the computer players and a start button supplied by SeatLobby.  Non-hosts see the rules
+// but cannot change them.
 // Props: state (the server view: code, seats, you, hostSeat, settings, size, deal, limits), send (sends an action to the server).
 // Emits: none (everything goes through `send`).
 // Slots: none (it fills SeatLobby's `settings` slot itself).
@@ -39,15 +40,16 @@ const s = computed(() => props.state.settings);
 const total = computed(() => props.state.deal.total);
 // How many tiles each player would be dealt.
 const hand = computed(() => props.state.deal.hand);
-// Why the game cannot start with these settings (an empty or falsy value when it can).
-const problem = computed(() => startProblem(s.value, props.state.size));
+// Why the game cannot start with these settings (an empty or falsy value when it can).  It is asked of the people who
+// are actually here, which is who the game would be for, and not of the seats the table happens to have room for.
+const problem = computed(() => startProblem(s.value, seated.value));
 // The turn limits offered, in seconds (0 means no limit).
 const timerChoices = [0, 30, 60, 90, 120, 180, 300];
 
 // The numeric rules shown as spin boxes: the key in the settings, with its name and short explanation in the player's language.
 const fields = computed(() => ['numbers', 'colours', 'wildcards', 'rounds', 'meld'].map((key) => ({ key, label: t(`settings.${key}`), hint: t(`lobby.hints.${key}`) })));
 // How many tiles start in the pool with the current settings.
-const pool = computed(() => total.value - hand.value * props.state.size);
+const pool = computed(() => total.value - hand.value * seated.value);
 
 /**
  * A number was typed into a rule's box: send it, or put the stored value back if what was typed is not a number.
@@ -77,31 +79,18 @@ const bump = (key, by) => props.send('settings', { [key]: s.value[key] + by });
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => send('settings', { size: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.seats') }}</legend>
-          <div class="row">
-            <button
-              v-for="n in state.limits.sizes"
-              :key="n"
-              :class="{ primary: state.size === n }"
-              :aria-pressed="state.size === n"
-              :disabled="seated > n"
-              :title="seated > n ? t('lobby.removeFirst') : ''"
-              @click="send('size', { seats: n })"
-            >
-              {{ t('lobby.players', { count: n }, n) }}
-            </button>
-          </div>
-        </fieldset>
-
         <div class="fields">
           <div v-for="f in fields" :key="f.key" class="field">
             <label :for="`opt-${f.key}`">{{ f.label }}</label>

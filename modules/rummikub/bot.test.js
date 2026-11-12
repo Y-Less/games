@@ -118,7 +118,7 @@ for (const players of [2, 3, 4, 5, 6]) {
     SETTINGS.forEach((settings, index) => {
       const rng = seeded(players * 100 + index);
       const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: players, settings: { rounds: 1, ...settings } });
-      game.fillWithBots(room, 1);
+      game.fillWithBots(room, 1, players);
       const started = game.start(room, 1, rng, Date.now());
       if (!started.ok) {
         skipped++;

@@ -111,8 +111,7 @@ const EVENTS = {
   voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
-  settings: ['numbers', 'colours', 'wildcards', 'rounds', 'meld', 'timer'],
-  size: ['seats'],
+  settings: ['numbers', 'colours', 'wildcards', 'rounds', 'meld', 'timer', 'size'],
   addBot: ['seat'],
   removeBot: ['slot'],
   fillBots: [],
@@ -166,8 +165,8 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   await twin.call('resume', { code });
   await all(bob, Object.keys(EVENTS).filter((e) => !['leave', 'create'].includes(e)), 'bob in the lobby');
   await all(ann, Object.keys(EVENTS).filter((e) => !['leave', 'create', 'kick', 'start'].includes(e)), 'host in the lobby');
-  await all(twin, ['settings', 'size', 'kick', 'play', 'draw'], 'the host second socket');
-  await all(outsider, ['settings', 'size', 'start', 'play'], 'outsider with a room open');
+  await all(twin, ['settings', 'kick', 'play', 'draw'], 'the host second socket');
+  await all(outsider, ['settings', 'start', 'play'], 'outsider with a room open');
   assert.equal(ann.state.phase, 'lobby');
   // the garbage may have changed the options (and clamped them): put sensible ones back so the game is quick
   assert.equal((await ann.call('settings', { numbers: 9, colours: 4, wildcards: 2, rounds: 1, meld: 30, timer: 0 })).ok, true);
@@ -175,7 +174,7 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state?.phase === 'playing', 'play');
   await all(bob, Object.keys(EVENTS).filter((e) => !['leave', 'create'].includes(e)), 'bob playing');
-  await all(ann, ['play', 'draw', 'settings', 'size', 'addBot', 'start', 'kick', 'next', 'again'], 'ann playing');
+  await all(ann, ['play', 'draw', 'settings', 'addBot', 'start', 'kick', 'next', 'again'], 'ann playing');
   await all(outsider, ['play', 'draw', 'next', 'again', 'start'], 'outsider while a game runs');
   validateView(ann.state, 'ann');
   await playToEnd([ann, bob]);
@@ -198,8 +197,8 @@ test('kicking in the lobby, one live room per account, joining by code, and a ro
   await until(() => cat.state === null, 'cat is told');
   await until(() => ann.state.seats.filter(Boolean).length === 2, 'the seat is free');
   assert.equal((await cat.call('create', { seats: 2 })).ok, true, 'cat can start her own game');
-  assert.equal((await ann.call('size', { seats: 2 })).ok, true);
-  assert.equal((await ann.call('size', { seats: 1 })).ok, false);
+  assert.equal((await ann.call('settings', { size: 2 })).ok, true, 'how many the game is for arrives with the other settings');
+  assert.equal((await ann.call('settings', { size: 1 })).ok, false);
   assert.equal((await ann.call('settings', { numbers: 99, timer: 2 })).ok, true);
   assert.equal(ann.state.settings.numbers, 20, 'clamped');
   assert.equal(ann.state.settings.timer, 15, 'raised to the minimum');

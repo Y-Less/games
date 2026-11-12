@@ -33,7 +33,7 @@ function position(room, { racks, table = [], turn = 0, melded = [], pool }) {
 function botRoom(ais, { seed = 1, settings = {} } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: ais.length, settings });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, ais.length);
   const started = game.start(room, 1, rng, Date.now());
   if (!started.ok) return { room, rng, error: started.error };
   room.seats[0] = { kind: 'bot', id: 'bot:0', name: 'Zed' }; // the host's seat plays too
@@ -74,7 +74,7 @@ test('Rummikub has the six AIs, the classic one first, each with a name, descrip
 test('starting a game gives every computer seat an AI (repeatably, with the game\'s generator) and no person one', () => {
   const run = (seed) => {
     const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: 6 });
-    game.fillWithBots(room, 1);
+    game.fillWithBots(room, 1, 6);
     assert.equal(game.start(room, 1, seeded(seed), Date.now()).ok, true);
     return room;
   };
@@ -97,7 +97,7 @@ test('the view names a computer seat\'s AI once the game has started, and never 
     assert.equal(typeof view.seats[seat].ai.plan, 'undefined');
   }
   const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'h', size: 3 });
-  game.fillWithBots(lobby, 1);
+  game.fillWithBots(lobby, 1, 3);
   assert.equal(game.viewFor(lobby, 1).seats[1].ai, undefined, 'nothing is chosen in the lobby');
 });
 
