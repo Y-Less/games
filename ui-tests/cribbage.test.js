@@ -28,30 +28,26 @@ test('the seat lobby: Start stays disabled until every seat is filled', { timeou
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/cribbage?${code}`);
 
-  await user.clickButton('3', { exact: true }); // three seats
-  await user.waitForText('2 more seats to fill.');
-  assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty']);
+  // The table opens as big as the game allows; the host may bring it down, and the game is for whoever is here.
+  await user.waitForText('room for 5 players');
+  await user.waitForText('1 more seat to fill.');
+  assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
   await user.clickButton('Add a computer player');
-  await user.waitForText('1 more seat to fill.');
-  assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('2', { exact: true }); // back to two seats: the one computer player fills it
   await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot']);
-  assert.equal((await user.buttonState('Start the game')).disabled, false);
-  // Four seats again, and "fill" tops up the empty ones.
-  await user.clickButton('4', { exact: true });
-  await user.waitForText('2 more seats to fill.');
-  await user.clickButton('Fill the empty seats with computer players');
-  await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot']);
-  // Take two computer players away again (a seat count cannot drop below the people seated), for a quicker two-player game.
+  assert.equal((await user.buttonState('Start the game')).disabled, false, 'two is a game of Cribbage');
+  // Filling makes up a table of two, which is the game Cribbage usually is, so there is nothing left to fill.
   await user.clickButton('Remove', { scope: '.seat.bot' });
   await user.waitForText('1 more seat to fill.');
-  await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.waitForText('2 more seats to fill.');
-  await user.clickButton('2', { exact: true });
+  await user.clickButton('Fill up to 2 players with computer players');
   await user.waitForNoText('more seat');
+  assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty', 'empty']);
+  // The table may be brought down to the two who are in it, but no further.
+  for (const n of [4, 3, 2]) {
+    await user.page.click('[aria-label="Room for fewer players"]');
+    await user.waitForText(`room for ${n} players`);
+  }
+  assert.equal(await user.page.$eval('[aria-label="Room for fewer players"]', (b) => b.disabled), true, 'two are seated');
   assert.deepEqual(await seatKinds(), ['human', 'bot']);
   // Leave game is in the site's header, not in the lobby.
   assert.deepEqual(await playAreaLeaveButtons(), [], 'no Leave button in the lobby');

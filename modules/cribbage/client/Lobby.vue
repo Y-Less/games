@@ -28,10 +28,9 @@ const seats = computed(() =>
 const taken = computed(() => props.state.seats.filter(Boolean).length);
 // The scores the host may choose to play to.
 const targets = computed(() => props.state.limits.targets);
-// The seat counts the host can choose, from the server's minimum to its maximum.
-const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
-// One sentence describing the deal for the chosen seat count (cribbage deals differently for 2, 3, 4 and 5 players).
-const dealing = computed(() => t(`lobby.deal.${props.state.seatCount}`));
+// One sentence describing the deal for the people who are here, since the game will be for them (cribbage deals
+// differently for 2, 3, 4 and 5 players).
+const dealing = computed(() => t(`lobby.deal.${Math.max(props.state.limits.min, taken.value)}`));
 </script>
 
 <template>
@@ -44,18 +43,18 @@ const dealing = computed(() => t(`lobby.deal.${props.state.seatCount}`));
     <SeatLobby
       :seats="seats"
       :is-host="state.isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot')"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => send('settings', { seats: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.game') }}</h3>
-        <div class="row">
-          <span class="muted label">{{ t('lobby.seats') }}</span>
-          <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="!state.isHost || n < taken" :aria-pressed="state.seatCount === n" @click="send('settings', { seats: n })">{{ n }}</button>
-        </div>
         <div class="row">
           <span class="muted label">{{ t('lobby.playTo') }}</span>
           <button v-for="t in targets" :key="t" :class="{ primary: state.target === t }" :disabled="!state.isHost" :aria-pressed="state.target === t" @click="send('settings', { target: t })">{{ t }}</button>

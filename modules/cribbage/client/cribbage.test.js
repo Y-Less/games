@@ -23,7 +23,7 @@ function seeded(seed = 1) {
 /** A real room: seat 0 is the person (user 1), the others computer players. */
 function room({ seats = 2, started = true } = {}) {
   const r = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'Alex', settings: { target: 121, seats } });
-  expect(game.fillWithBots(r, 1).ok).toBe(true);
+  expect(game.fillWithBots(r, 1, seats).ok).toBe(true);
   if (started) expect(game.start(r, 1, seeded(5)).ok).toBe(true);
   return r;
 }

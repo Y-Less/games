@@ -143,7 +143,8 @@ function fitName(room, raw) {
  * Side effects: none outside the room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
-  const { target = 121, seats: count = DEFAULT_SEATS, stinkhole: stink = false } = settings;
+  // A room opens as big as the game allows; the host may bring it down in the lobby.
+  const { target = 121, seats: count = MAX_SEATS, stinkhole: stink = false } = settings;
   if (!TARGETS.includes(target)) throw new Error(`Play to ${TARGETS.join(' or ')}.`);
   if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} seats.`);
   return {
@@ -223,6 +224,10 @@ export function migrate(room) {
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['discard', 'play', 'show'].includes(room.phase),
+  minPlayers: MIN_SEATS,
+  maxPlayers: MAX_SEATS,
+  // Cribbage's natural table is two, not the four the shared default would make up, so it says so.
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   // The computer player keeps everything about the seat except who is sitting in it — this game keeps its pegs and
   // its cards on the seat, not in arrays beside it, so the seat carries them over rather than starting afresh.
@@ -238,7 +243,9 @@ const seats = createSeatRules({
   finishedSeat: (seat) => ({ ...seat, kind: 'gone', id: null }),
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
 });
-export const { removeHuman, removeBot, kick } = seats;
+export const { removeHuman, removeBot, kick, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * Seats a person (see the shared addHuman) and gives their seat this game's fields.
@@ -273,16 +280,18 @@ export function addBot(room, userId, seat) {
 }
 
 /**
- * The host fills every empty seat with a computer player, each given this game's fields.
+ * The host makes the table up with computer players, each given this game's fields.  Without a count it makes up a
+ * table of two, which is the game Cribbage usually is.
  *
- * Side effects: fills the empty seats of the room.
+ * Side effects: fills empty seats of the room.
  *
  * @param {object} room
  * @param {number} userId  who is asking (must be the host)
+ * @param {number} [target]  how many players the table should have
  * @returns {{ ok: boolean, error?: string }}
  */
-export function fillWithBots(room, userId) {
-  const filled = seats.fillWithBots(room, userId);
+export function fillWithBots(room, userId, target) {
+  const filled = seats.fillWithBots(room, userId, target);
   if (filled.ok) room.seats = room.seats.map(withGameFields);
   return filled;
 }
@@ -302,11 +311,10 @@ export function setSettings(room, userId, { target, seats: count, stinkhole: sti
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
   if (target !== undefined && !TARGETS.includes(target)) return fail('targetScore', { targets: TARGETS.join(', ') });
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
   if (count !== undefined) {
-    if (!Number.isInteger(count) || count < MIN_SEATS || count > MAX_SEATS) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
-    if (count < room.seats.filter(Boolean).length) return fail('removePlayerFirst');
-    if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
-    room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
+    const sized = seats.setSize(room, userId, count);
+    if (!sized.ok) return sized;
   }
   if (target !== undefined) room.target = target;
   if (stink !== undefined) room.stinkhole = Boolean(stink);
@@ -446,8 +454,11 @@ function deal(room, rng) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   for (const s of room.seats) Object.assign(s, { score: 0, back: 0 });
   room.winner = null;
   room.handNo = 0;
@@ -983,12 +994,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     code: room.code,
     phase: room.phase,
     target: room.target,
-    seatCount: room.seats.length,
+    seatCount: sizeOf(room),
     you: me,
     isHost: room.hostId === userId,
     handNo: room.handNo,
     dealer: room.phase === 'lobby' ? null : room.dealer,
-    limits: { targets: TARGETS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
+    limits: { targets: TARGETS, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
     skunkLine: SKUNK_LINE[room.target],
     stinkhole: Boolean(room.stinkhole),
     stinkholeAt: room.stinkhole ? stinkhole(room.target) : null,

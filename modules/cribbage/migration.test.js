@@ -43,7 +43,7 @@ function asOldRoom(room) {
  */
 function startedRoom(seed = 4, seats = 2) {
   const room = game.createRoom({ now: 0, code: 'old-room-code', hostId: 1, hostName: 'Ann', settings: { seats } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, seats);
   assert.ok(game.start(room, 1, seeded(seed)).ok);
   return room;
 }

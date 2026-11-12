@@ -29,10 +29,12 @@ test('settings: the seat count cannot drop below the people seated, and bad valu
   game.addHuman(room, 3, 'cat');
   const before = JSON.stringify(room);
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, false);
-  assert.equal(game.setSettings(room, 1, { seats: 3.5 }).ok, false);
   assert.equal(game.setSettings(room, 1, { target: 100 }).ok, false);
   assert.equal(game.setSettings(room, 1, { seats: 3, target: 99 }).ok, false);
   assert.equal(game.setSettings(room, 2, { seats: 3 }).ok, false);
+  // A size that is not quite whole is rounded and then checked, as it is for the games with a list of players, so
+  // asking for 3.5 at a table of four asks for four, and nothing changes.
+  assert.equal(game.setSettings(room, 1, { seats: 3.5 }).ok, true);
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.setSettings(room, 1, { seats: 3, target: 61 }).ok, true);
   assert.equal(room.seats.length, 3);

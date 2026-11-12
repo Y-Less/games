@@ -42,7 +42,7 @@ const playCtx = (hand, sequence = [], extra = {}) => ({
 /** Every seat is a computer player; `ais` names each seat's AI.  Returns the finished room. */
 function allBotGame(ais, { seed = 1, target = 61 } = {}) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { target, seats: ais.length } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, ais.length);
   const rng = seeded(seed);
   assert.ok(game.start(room, 1, rng).ok);
   room.seats[0].kind = 'bot';
@@ -233,14 +233,14 @@ test('tournament: sharp beats standard, and standard beats random', () => {
 
 function newRoom(seats = 4, seed = 4) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, seats);
   game.start(room, 1, seeded(seed));
   return room;
 }
 
 test('each computer player picks an AI when the game starts; people and lobbies have none', () => {
   const lobby = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex', settings: { seats: 3 } });
-  game.fillWithBots(lobby, 1);
+  game.fillWithBots(lobby, 1, 3);
   assert.ok(lobby.seats.every((s) => s.ai === undefined));
   assert.ok(game.viewFor(lobby, 1).seats.every((s) => s.ai === null));
   const room = newRoom(4);

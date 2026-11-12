@@ -166,8 +166,8 @@ async function startGame(humans, { seats = humans.length, target = 61, autoplay 
   const [host, ...rest] = humans;
   const code = await host.create({ seats, target });
   for (const p of rest) assert.ok((await p.join(code)).ok);
-  assert.ok((await host.call('fillBots')).ok);
-  await host.until((s) => s.seats.length === seats, 'all seats filled');
+  assert.ok((await host.call('fillBots', { count: seats })).ok); // the table is filled; filling on its own makes up a two
+  await host.until((s) => s.seats.every(Boolean), 'all seats filled');
   humans.forEach((p) => (p.autoplay = autoplay));
   assert.ok((await host.call('start')).ok);
   return code;
@@ -242,7 +242,7 @@ test('lobby rules: host only, full seats, a full room and a started room refuse 
   const code = await host.create({ seats: 3 });
   assert.equal(host.state.phase, 'lobby');
   assert.equal(host.state.target, 121);
-  assert.equal((await host.call('start')).ok, false, 'not every seat is filled');
+  assert.equal((await host.call('start')).ok, false, 'the host is on their own');
   assert.ok((await guest.join(code)).ok);
   assert.equal((await guest.call('addBot')).ok, false, 'only the host');
   assert.equal((await guest.call('start')).ok, false);
@@ -259,7 +259,7 @@ test('lobby rules: host only, full seats, a full room and a started room refuse 
   assert.ok((await host.call('addBot')).ok);
   assert.equal(host.state.seats.filter((s) => s.bot).length, 1);
   assert.ok((await host.call('removeBot', { slot: 's2' })).ok);
-  assert.ok((await host.call('fillBots')).ok);
+  assert.ok((await host.call('fillBots', { count: 3 })).ok);
   assert.ok((await host.call('start')).ok);
   await guest.until((s) => s.phase === 'discard', 'the game to start');
   assert.equal((await fourth.join(code)).ok, true, 'a started game is joined by taking a computer player seat');
@@ -343,7 +343,7 @@ test('a human leaving mid-game is replaced by a computer player; the others carr
   const [host, leaver] = [await person('host').open(), await person('leaver').open()];
   const code = await host.create({ seats: 3, target: 61 });
   await leaver.join(code);
-  await host.call('fillBots');
+  await host.call('fillBots', { count: 3 });
   await host.call('start');
   await host.until((s) => s.phase === 'discard', 'dealt');
   assert.ok((await leaver.call('leave')).ok);

@@ -18,7 +18,7 @@ function seeded(seed = 1) {
 /** A started room: seat 0 is a person (user 1), the others computer players. */
 function started(seats, { target = 121, seed = 5 } = {}) {
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'Alex', settings: { target, seats } });
-  assert.ok(game.fillWithBots(room, 1).ok);
+  assert.ok(game.fillWithBots(room, 1, room.seats.length).ok); // the table is filled; filling on its own makes up a two
   assert.ok(game.start(room, 1, seeded(seed)).ok);
   return room;
 }
@@ -54,9 +54,9 @@ const logNames = (room) => room.log.map((l) => l.params.name);
 
 test('lobby: seats, settings, computer players and starting', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Alex' });
-  assert.equal(room.seats.length, 2);
+  assert.equal(room.seats.length, game.MAX_SEATS, 'a room opens as big as the game allows');
   assert.equal(room.target, 121);
-  assert.equal(game.start(room, 1, Math.random).ok, false, 'a seat is empty');
+  assert.deepEqual(game.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 2 } }, 'the host on their own');
   assert.equal(game.addBot(room, 2).ok, false, 'only the host');
   assert.ok(game.setSettings(room, 1, { seats: 4, target: 61 }).ok);
   assert.equal(game.setSettings(room, 1, { seats: 6 }).ok, false);
@@ -66,15 +66,14 @@ test('lobby: seats, settings, computer players and starting', () => {
   assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), [false, true], 'the scoreboard marks computer players');
   assert.equal(game.addBot(room, 1).ok, false, 'full');
   assert.equal(game.setSettings(room, 1, { seats: 3 }).ok, true);
-  assert.ok(game.fillWithBots(room, 1).ok);
+  assert.ok(game.fillWithBots(room, 1, 3).ok);
   assert.deepEqual(room.seats.map((s) => s.kind === 'bot'), [false, true, true]);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3, 'distinct names');
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, false, 'cannot drop below the occupied seats');
   assert.ok(game.removeBot(room, 1, 's2').ok);
   assert.equal(game.removeBot(room, 1, 's0').ok, false, 'a person is not a computer player');
-  assert.equal(game.start(room, 1, Math.random).ok, false);
-  assert.ok(game.setSettings(room, 1, { seats: 2 }).ok);
-  assert.ok(game.start(room, 1, Math.random).ok);
+  assert.ok(game.start(room, 1, Math.random).ok, 'two at a table of three is a game of two');
+  assert.equal(room.seats.length, 2, 'and the empty seat is gone');
   assert.deepEqual(game.addHuman(room, 9, 'Late'), { ok: true, seat: 1, tookOver: 'Robin' }, 'a latecomer takes a computer player seat');
 });
 

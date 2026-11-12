@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertNoPollution, cardsIn, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
+import { MIN_SEATS, MAX_SEATS } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.CRIBBAGE_BOT_DELAY = '0-2';
@@ -39,7 +40,7 @@ function validateView(s, who) {
   const label = `${who} (${s.phase})`;
   assert.ok(['lobby', 'discard', 'play', 'show', 'finished'].includes(s.phase), `${label}: a known phase`);
   assert.ok([61, 121].includes(s.target), `${label}: a valid target`);
-  assert.ok(s.seatCount >= 2 && s.seatCount <= 4 && s.seats.length <= s.seatCount, `${label}: seats within limits`);
+  assert.ok(s.seatCount >= MIN_SEATS && s.seatCount <= MAX_SEATS && s.seats.length <= s.seatCount, `${label}: seats within limits`);
   assert.ok(s.you === -1 || (s.you < s.seats.length && !s.seats[s.you].bot), `${label}: seated where it says`);
   for (const [i, seat] of s.seats.entries()) {
     if (!seat) continue; // an empty seat in the lobby
@@ -161,7 +162,7 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
   const [cat, dan] = await Promise.all(['cat', 'dan'].map((n) => site.person(n).open()));
   const { code } = await cat.call('create', { target: 61, seats: 3 });
   assert.equal((await dan.call('join', { code })).ok, true);
-  assert.equal((await cat.call('fillBots', {})).ok, true);
+  assert.equal((await cat.call('fillBots', { count: 3 })).ok, true);
   assert.equal((await cat.call('start', {})).ok, true);
   await playOn([cat, dan], () => cat.state?.phase === 'finished' && dan.state?.phase === 'finished');
   validateView(cat.state, 'cat');
@@ -185,7 +186,11 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   };
   // Lobby: settings and seats.
   for (const target of [0, 60, 122, '61', null, [61], 61.5]) await refused(ann, 'settings', { target }, 'targetScore');
-  for (const seats of [1, 6, 2.5, '3', -2, null, [3]]) await refused(ann, 'settings', { seats }, 'playersRange');
+  for (const seats of [1, 6, -2, null, [3]]) await refused(ann, 'settings', { seats }, 'playersRange');
+  // A number written out, or one that is not quite whole, is read rather than refused: the shared rule rounds it and
+  // then checks the range, which is how the games with a list of players have taken it since they got a size.
+  assert.equal((await ann.call('settings', { seats: '3' })).ok, true);
+  assert.equal((await ann.call('settings', { seats: 2.4 })).ok, true, 'and back to the two this test wants');
   await refused(bob, 'settings', { target: 121 }, 'hostOnly');
   await refused(ann, 'addBot', {}, 'everySeatTaken');
   await refused(ann, 'removeBot', { slot: 's0' }, 'noBotInSeat');
