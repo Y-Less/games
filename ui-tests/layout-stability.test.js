@@ -583,8 +583,8 @@ test(`Tints and Hints at ${at}: every zone keeps one size and position through a
     await second.goto(`/play/tints-and-hints?${code}`);
     await second.waitForText('Waiting for the host to start.');
     await host.waitForText('Players (2 of 8)');
-    await host.clickButton('Fewer turns');
-    await host.waitForText('1 turn each');
+    await host.clickButton('Fewer rounds');
+    await host.waitForText('1 round');
     await host.clickButton('Start the game', { exact: true });
     await host.waitForText('Turn 1 of');
     await startRecording(host, ['.score-bar', '.game-frame', '.arena', '.board', '.side', '.side .block', '.bars', '.box.log', '.box.status', '.box.log .game-log', ...(process.env.LAYOUT_EXTRA ? process.env.LAYOUT_EXTRA.split(',') : [])]);

@@ -1,4 +1,4 @@
-// Wavelength: a person plays a whole (one turn each) game against two computer players through the UI, on a desktop
+// Wavelength: a person plays a whole (one round) game against two computer players through the UI, on a desktop
 // and a phone-sized window.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,8 +37,8 @@ test('the host sets up a game with computer players and starts it', { timeout: 6
   await host.clickButton('Add a computer player');
   await host.clickButton('Add a computer player');
   await host.waitForText('Players (3 of 8)');
-  await host.clickButton('Fewer turns');
-  await host.waitForText('1 turn each');
+  await host.clickButton('Fewer rounds');
+  await host.waitForText('1 round');
   await host.clickButton('Start the game', { exact: true });
   await host.waitForSelector('.game-frame');
 }));
@@ -108,8 +108,8 @@ test('team mode: the lobby setting, one shared marker, and a whole game to the e
   await lone.clickButton('Add a computer player');
   await lone.clickFound(() => document.querySelector('input[name="mode"][value="team"]')?.closest('label'));
   await lone.waitForSelector('input[name="mode"][value="team"]:checked');
-  await lone.clickButton('Fewer turns');
-  await lone.waitForText('1 turn each');
+  await lone.clickButton('Fewer rounds');
+  await lone.waitForText('1 round');
   await lone.clickButton('Start the game', { exact: true });
   await lone.waitForSelector('.game-frame');
 

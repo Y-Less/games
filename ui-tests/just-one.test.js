@@ -1,4 +1,4 @@
-// Just One: a person plays a whole (one turn each) game against two computer players through the UI, on a desktop and on a
+// Just One: a person plays a whole (one round) game against two computer players through the UI, on a desktop and on a
 // phone-sized window.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,8 +24,8 @@ test('the host sets up a game with computer players and starts it', { timeout: 6
   await host.clickButton('Add a computer player');
   await host.clickButton('Add a computer player');
   await host.waitForText('Players (3 of 7)');
-  await host.clickButton('Fewer turns');
-  await host.waitForText('1 turn each');
+  await host.clickButton('Fewer rounds');
+  await host.waitForText('1 round');
   await host.clickButton('Start the game', { exact: true });
   await host.waitForSelector('.game-frame');
 }));

@@ -1,4 +1,4 @@
-// Tints and Hints: three people in three browsers play a whole (one turn each) game through the UI.
+// Tints and Hints: three people in three browsers play a whole (one round) game through the UI.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, drive } from './helpers.js';
@@ -58,9 +58,9 @@ test('the host creates a game; the others join by invite link and by typing the 
   await second.page.click(`button[aria-label="${free.label}"]`);
   await third.page.waitForSelector(`button[aria-label="${free.label}"]:disabled`);
 
-  // One turn each keeps the game short.
-  await host.clickButton('Fewer turns');
-  await host.waitForText('1 turn each');
+  // One round keeps the game short.
+  await host.clickButton('Fewer rounds');
+  await host.waitForText('1 round');
   await host.waitForText('3 turns in all');
   assert.equal((await host.buttonState('Start the game')).disabled, false);
 }));
@@ -184,8 +184,8 @@ test('a host on their own fills the lobby with computer players and plays until 
   assert.match(rows[0], /Sol.*host/);
   assert.match(rows[1], /computer/);
   assert.match(rows[2], /computer/);
-  await solo.clickButton('Fewer turns');
-  await solo.waitForText('1 turn each');
+  await solo.clickButton('Fewer rounds');
+  await solo.waitForText('1 round');
   await solo.clickButton('Start the game', { exact: true });
 
   let title = null;
