@@ -18,6 +18,15 @@ after(async () => {
 
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
 const seatKinds = () => user.page.$$eval('.seats .seat', (els) => els.map((e) => [...e.classList].find((c) => ['human', 'bot', 'empty'].includes(c))));
+/**
+ * Takes the first computer player out and waits for its seat to empty.  Without the wait, a second Remove can find a
+ * button that the re-render after the first one is about to replace, and the click lands on a detached node.
+ */
+const removeBot = async () => {
+  const before = (await seatKinds()).filter((k) => k === 'bot').length;
+  await user.clickButton('Remove', { scope: '.seat.bot' });
+  await user.page.waitForFunction((was) => document.querySelectorAll('.seats .seat.bot').length < was, {}, before);
+};
 
 /** One click of a human playing Gaudi, decided inside the page: returns the element to click, or null. */
 const finder = () => {
@@ -59,8 +68,8 @@ test('the seat lobby: the seats, the private-scoring option and computer players
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty']);
   // Taking a computer player out empties its seat where it sits: a seat keeps its number until the game starts.
-  await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.clickButton('Remove', { scope: '.seat.bot' });
+  await removeBot();
+  await removeBot();
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'bot', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, false, 'two is enough');
 
