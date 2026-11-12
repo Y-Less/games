@@ -150,7 +150,8 @@ describe('Azulejo lobby', () => {
     const send = makeSend();
     const w = mount(Lobby, { props: { state: lobbyView(), send } });
     expect(w.text()).toContain('a-b-c');
-    expect(w.text()).toContain('3 display plates'); // the host alone so far: the note follows who is here, not the seats
+    // The host is alone, and a game of one cannot be played: the note describes the smallest game it could become.
+    expect(w.text()).toContain('5 display plates');
     await w.find('[aria-label="Fewer seats"]').trigger('click');
     expect(send).toHaveBeenCalledWith('settings', { size: 3 });
     await w.find('input[type=checkbox]').setValue(true);

@@ -25,13 +25,12 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
-// How many seats are taken: who the game would be for if it began now.
-const taken = computed(() => props.state.seats.filter(Boolean).length);
-// One line about the deal for the people who are here, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
+// One line about the deal of the game that would be played now, e.g. "Five players: 10 cards each, 2C and 2D removed,
+// pass 3 cards".
 const dealing = computed(() => {
   const { cardsEach, removed, passCount } = props.state.deal;
   return t('lobby.deal', {
-    players: t(`number.${Math.max(props.state.limits.min, taken.value)}`),
+    players: t(`number.${props.state.playing}`),
     cardsEach,
     removed: removed.length ? t('lobby.removed', { cards: list(removed) }) : t('lobby.noneRemoved'),
     passCount,

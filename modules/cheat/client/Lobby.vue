@@ -29,11 +29,9 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
-// How many are at the table: who the game would be for if it began now.
-const taken = computed(() => props.state.seats.filter(Boolean).length);
-// One sentence describing the deal for the people who are here (packs, cards each, and any extra card).
+// One sentence describing the deal of the game that would be played now (packs, cards each, and any extra card).
 const dealing = computed(() => {
-  const players = Math.max(props.state.limits.min, taken.value);
+  const players = props.state.playing;
   const cards = props.state.decks * 52;
   const each = Math.floor(cards / players);
   const extra = cards % players;

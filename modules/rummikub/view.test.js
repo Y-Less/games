@@ -43,8 +43,8 @@ for (const [label, record] of [
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: NOW });
-  assert.deepEqual(Object.keys(game.viewFor(room, 1, { now: NOW })), ['code', 'phase', 'you', 'hostSeat', 'size', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'deal', 'log']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1, { now: NOW })), ['code', 'phase', 'you', 'hostSeat', 'size', 'playing', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'deal', 'log']);
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(3), NOW);
-  assert.deepEqual(Object.keys(game.viewFor(room, 1, { now: NOW })), ['code', 'phase', 'you', 'hostSeat', 'size', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'deal', 'log', 'round', 'first', 'turn', 'version', 'table', 'poolCount', 'rack', 'drawn', 'lastPlay', 'remaining', 'lastRound', 'final']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1, { now: NOW })), ['code', 'phase', 'you', 'hostSeat', 'size', 'playing', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'deal', 'log', 'round', 'first', 'turn', 'version', 'table', 'poolCount', 'rack', 'drawn', 'lastPlay', 'remaining', 'lastRound', 'final']);
 });

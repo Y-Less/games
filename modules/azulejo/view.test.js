@@ -26,8 +26,8 @@ for (const [label, record] of [
 
 test('a view lists its parts in a fixed order', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1 });
-  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'size', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'log']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'size', 'playing', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'log']);
   game.fillWithBots(room, 1);
   game.start(room, 1, seeded(3));
-  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'size', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'log', 'round', 'first', 'turn', 'factories', 'centre', 'markerInCentre', 'bagCount', 'lid', 'lastTiling', 'choosing', 'choice', 'final']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'size', 'playing', 'settings', 'seats', 'scoreboard', 'winners', 'limits', 'log', 'round', 'first', 'turn', 'factories', 'centre', 'markerInCentre', 'bagCount', 'lid', 'lastTiling', 'choosing', 'choice', 'final']);
 });

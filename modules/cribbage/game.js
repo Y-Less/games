@@ -19,7 +19,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
-import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, asHost } from '../../shared/seats.js';
+import { botSeats, createSeatRules, emptySeats, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, wouldPlay, asHost } from '../../shared/seats.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { HEELS_POINTS, pipValue, scoreHand, scorePlay } from './scoring.js';
 import { newTally, STAT_KEYS, tallyDeal, tallyDiscard, tallyShown } from './tally.js';
@@ -993,6 +993,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     phase: room.phase,
     target: room.target,
     seatCount: sizeOf(room),
+    playing: wouldPlay(room, MIN_SEATS), // how many the game would be for if it began now: what the lobby describes
     you: me,
     isHost: room.hostId === userId,
     handNo: room.handNo,

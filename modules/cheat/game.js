@@ -515,6 +515,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     seatCount: sizeOf(room),
+    playing: wouldPlay(room, MIN_SEATS), // how many the game would be for if it began now: what the lobby describes
     // How many packs the game would need, counted for the people who would be playing rather than for the seats
     // around them, since that is who it would be dealt to.  The lobby's sentence about the deal is drawn from this.
     decks: decksFor(wouldPlay(room, MIN_SEATS)),

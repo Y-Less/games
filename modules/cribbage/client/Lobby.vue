@@ -24,13 +24,10 @@ const seats = computed(() =>
       : { id: null, name: '', kind: 'empty', index: i },
   ),
 );
-// How many seats are taken: the seat-count buttons below that number are disabled.
-const taken = computed(() => props.state.seats.filter(Boolean).length);
 // The scores the host may choose to play to.
 const targets = computed(() => props.state.limits.targets);
-// One sentence describing the deal for the people who are here, since the game will be for them (cribbage deals
-// differently for 2, 3, 4 and 5 players).
-const dealing = computed(() => t(`lobby.deal.${Math.max(props.state.limits.min, taken.value)}`));
+// One sentence describing the deal of the game that would be played now (cribbage deals differently for 2 to 5).
+const dealing = computed(() => t(`lobby.deal.${props.state.playing}`));
 </script>
 
 <template>

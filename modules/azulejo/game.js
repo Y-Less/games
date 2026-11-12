@@ -11,7 +11,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg, refusal } from '../../shared/messages.js';
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry, winnersOf } from '../../shared/scores.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, wouldPlay } from '../../shared/seats.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
 import { AIS } from './ai/index.js';
 import { newTally, STAT_KEYS, tallyTake } from './tally.js';
@@ -873,6 +873,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     size: sizeOf(room),
+    playing: wouldPlay(room, MIN_PLAYERS), // how many the game would be for if it began now: what the lobby describes
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),

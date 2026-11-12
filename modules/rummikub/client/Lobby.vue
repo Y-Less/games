@@ -32,8 +32,6 @@ const seats = computed(() =>
 );
 // Returns the number of the first empty seat, or -1 when every seat is taken.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
-// How many seats are taken (the player count cannot be lowered below this).
-const seated = computed(() => props.state.seats.filter(Boolean).length);
 // The game settings.
 const s = computed(() => props.state.settings);
 // How many tiles are in the whole set with the current settings.
@@ -42,14 +40,14 @@ const total = computed(() => props.state.deal.total);
 const hand = computed(() => props.state.deal.hand);
 // Why the game cannot start with these settings (an empty or falsy value when it can).  It is asked of the people who
 // are actually here, which is who the game would be for, and not of the seats the table happens to have room for.
-const problem = computed(() => startProblem(s.value, seated.value));
+const problem = computed(() => startProblem(s.value, props.state.playing));
 // The turn limits offered, in seconds (0 means no limit).
 const timerChoices = [0, 30, 60, 90, 120, 180, 300];
 
 // The numeric rules shown as spin boxes: the key in the settings, with its name and short explanation in the player's language.
 const fields = computed(() => ['numbers', 'colours', 'wildcards', 'rounds', 'meld'].map((key) => ({ key, label: t(`settings.${key}`), hint: t(`lobby.hints.${key}`) })));
 // How many tiles start in the pool with the current settings.
-const pool = computed(() => total.value - hand.value * seated.value);
+const pool = computed(() => total.value - hand.value * props.state.playing);
 
 /**
  * A number was typed into a rule's box: send it, or put the stored value back if what was typed is not a number.

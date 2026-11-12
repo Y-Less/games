@@ -124,6 +124,14 @@ Send the count to the client as `sizeOf(room)` and never keep a second copy of i
 player sitting in one there is a player like any other, holding it for nobody; it is only once the game is under way
 that a seat stands in for somebody who left, and that a latecomer can take one over.
 
+**A lobby that says what you would be dealt asks `wouldPlay`, and sends the answer.**  The seats a room has and the
+game it would make are two different numbers: a room of seven with two people in it would be a game of two.  So a
+lobby that describes the deal — Hearts' "Five players: 10 cards each", Cheat's packs, Cribbage's cards, Azulejo's
+plates, Gaudi's dice, Rummikub's hands — works it out from `wouldPlay(room, min)` (`shared/seats.js`) and sends it as
+`playing` in the view, rather than each client counting seats for itself.  The floor matters: a host sitting alone is
+not a game of one, and the smallest game the room could become is the honest thing to show them — some of these
+sentences are looked up per count (`lobby.deal.2`) and have nothing to say below the minimum.
+
 **A place changes hands both ways.**  When somebody leaves a game under way, a computer player takes their place, keeps
 their score and whatever else was theirs, and remembers whose place it is holding (`stoodInFor`).  When somebody joins a
 game under way — a friend slow to open the invitation, or the leaver coming back — they take a computer player's place

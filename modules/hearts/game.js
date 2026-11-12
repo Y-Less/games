@@ -889,6 +889,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     lastHand: room.lastHand,
     winners: room.winners,
     seatCount: sizeOf(room),
+    playing: wouldPlay(room, MIN_SEATS), // how many the game would be for if it began now: what the lobby describes
     // What would be dealt if the game began now: to the people who would be playing, not to the whole table.
     deal: dealView(wouldPlay(room, MIN_SEATS)),
     limits: { targets: TARGETS, moonModes: MOON_MODES, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },

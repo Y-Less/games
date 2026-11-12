@@ -32,10 +32,8 @@ const seats = computed(() =>
 );
 // Returns the index of the first empty seat (-1 if full), where an added bot goes.
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
-// Number of occupied seats; the player count cannot be lowered below this.
-const seated = computed(() => props.state.seats.filter(Boolean).length);
-// Number of display plates for the people who are here, since the game will be for them (two per player plus one).
-const plates = computed(() => 2 * seated.value + 1);
+// Number of display plates for the game that would be played now (the rule: two per player plus one).
+const plates = computed(() => 2 * props.state.playing + 1);
 </script>
 
 <template>

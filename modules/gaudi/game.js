@@ -20,7 +20,7 @@ import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { seatScoreboardEntry } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { msg } from '../../shared/messages.js';
-import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName } from '../../shared/seats.js';
+import { asHost, botSeats, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName, wouldPlay } from '../../shared/seats.js';
 import { AIS } from './ai/index.js';
 import { STAT_KEYS } from './tally.js';
 import {
@@ -1405,6 +1405,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     size: sizeOf(room),
+    playing: wouldPlay(room, MIN_PLAYERS), // how many the game would be for if it began now: what the lobby describes
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),

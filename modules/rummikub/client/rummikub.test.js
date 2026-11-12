@@ -408,9 +408,10 @@ describe('lobby', () => {
     expect(w.findAll('.colours .tile')).toHaveLength(4);
   });
 
-  it('warns when the tile set is too small for the players who are here', () => {
-    // The warning is about the people at the table, not the seats around it, because the game will be for them.
-    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', size: 6, settings: { numbers: 3, colours: 2, wildcards: 0 } });
+  it('warns when the tile set is too small for the game that would be played', () => {
+    // The warning follows the game the table would make, not the seats around it.  Forty tiles deal to two but not
+    // to six; the host alone counts as two, because two is the smallest game this could become.
+    const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'ann', size: 6, settings: { numbers: 5, colours: 4, wildcards: 0 } });
     expect(mount(Lobby, { props: { state: game.viewFor(room, 1), send: vi.fn() } }).find('[role="alert"]').exists()).toBe(false);
     game.fillWithBots(room, 1, 6);
     const w = mount(Lobby, { props: { state: game.viewFor(room, 1), send: vi.fn() } });

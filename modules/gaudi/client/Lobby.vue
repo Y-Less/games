@@ -39,19 +39,13 @@ const seats = computed(() =>
  */
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
 /**
- * How many seats are taken (the table cannot shrink below this).
- * @returns {number}
- * Side effects: none.
- */
-const seated = computed(() => props.state.seats.filter(Boolean).length);
-/**
  * A line saying how many dice the bag holds for this many seats (the bag is five colours of equal count, sized so that ten
  * rounds of a pool of 2n + 1 dice use every die).
  * @returns {string}
  * Side effects: none.
  */
-// The dice the game would use, counted for the people who are here, since the game will be for them.
-const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * seated.value + 1), each: 2 * (2 * seated.value + 1) }));
+// The dice the game would use if it began now: ten per display plate, two of each colour (two plates per player, plus one).
+const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * props.state.playing + 1), each: 2 * (2 * props.state.playing + 1) }));
 </script>
 
 <template>

@@ -37,7 +37,7 @@ import {
 import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { msg } from '../../shared/messages.js';
 import { bump, extrasOf, statsRows } from '../../shared/tally.js';
-import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName } from '../../shared/seats.js';
+import { asHost, createSeatRules, fail, hasPlayer, hostInLobby, humanSeats, isBot, isHuman, nextGame, ok, seatOf, taken, uniqueName, wouldPlay } from '../../shared/seats.js';
 import { newTally, STAT_KEYS, tallyDraw, tallyPlay, tallyRack } from './tally.js';
 
 export { DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS };
@@ -708,13 +708,14 @@ export function viewFor(room, userId, { online = () => true, now } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     size: sizeOf(room),
+    playing: wouldPlay(room, MIN_PLAYERS), // how many the game would be for if it began now: what the lobby describes
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
     limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SEATS, ...LIMITS },
-    // What would be dealt if the game began now, which in the lobby is to whoever is here rather than to the whole table.
-    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, taken(room)), jokerValue: JOKER_VALUE },
+    // What would be dealt if the game began now: to the people who would be playing, not to the whole table.
+    deal: { total: totalTiles(room.settings), hand: dealSize(room.settings, wouldPlay(room, MIN_PLAYERS)), jokerValue: JOKER_VALUE },
     log: recentMoves(room, 14),
   };
   if (hasStarted(room)) Object.assign(view, playView(room, me, now));
