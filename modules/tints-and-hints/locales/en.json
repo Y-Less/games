@@ -29,7 +29,7 @@
     "sent": "Sent",
     "sendHint": "Send hint",
     "lockIn": "Lock in guess",
-    "secondRound": "Continue to the second round",
+    "secondHintStage": "Continue to the second hint",
     "revealTint": "Reveal the tint",
     "legend": "Dotted rings are first guesses, solid rings are second guesses.",
     "yourColour": "your colour",
@@ -43,7 +43,7 @@
     "stillToGuess": "still to guess"
   },
   "facts": {
-    "round": "Round {n} of 2",
+    "hint": "Hint {n} of 2",
     "hinter": "Hinter: {name}"
   },
   "status": {
@@ -66,7 +66,7 @@
     "tintWas": "The tint was {cell}.",
     "hinterScores": "{name} scores {points} for the hints.",
     "summary": "The tint was {cell}. {name} scores {points} for the hints.",
-    "entry": "round {round}, {cell}",
+    "entry": "hint {n}, {cell}",
     "kind": {
       "exact": "Exactly right",
       "close": "Close",
@@ -76,24 +76,24 @@
   "board": {
     "label": "Colour grid",
     "theTint": "the tint",
-    "guess": "{name} round {round}"
+    "guess": "{name}, hint {n}"
   },
   "scoreboard": {
     "turn": "Turn {n}: {name}",
     "earlier": "Earlier turns"
   },
   "notes": {
-    "exact": "exact in round {round}",
-    "close": "close in round {round}",
+    "exact": "exact after hint {n}",
+    "close": "close after hint {n}",
     "found": "nobody found it | {count} found it | {count} found it"
   },
   "log": {
     "turnStart": "Turn {n} of {total}: {name} is the hinter.",
-    "secondRound": "Second round: guess again with the second hint.",
+    "secondHintStage": "Second hint: guess again.",
     "firstHint": "{name} gave the hint “{text}”.",
     "secondHint": "{name} gave the second hint “{text}”.",
     "guessed": "{name} guessed.",
-    "guess": "{name} guessed {cell} in round {round}: {kind} (+{points}).",
+    "guess": "{name} guessed {cell} after hint {n}: {kind} (+{points}).",
     "kind": {
       "exact": "exactly right",
       "close": "close",

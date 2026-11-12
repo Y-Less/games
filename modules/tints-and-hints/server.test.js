@@ -179,7 +179,7 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
         assert.equal(board.rounds.reduce((n, r) => n + (r.deltas[bp.id] ?? 0), 0), bp.score, 'the history adds up to the score');
       }
     }
-    assert.deepEqual(revealed.result.entries.map((e) => [e.round, e.kind]), [[1, 'exact'], [1, 'miss'], [2, 'exact'], [2, 'miss']]);
+    assert.deepEqual(revealed.result.entries.map((e) => [e.hintNumber, e.kind]), [[1, 'exact'], [1, 'miss'], [2, 'exact'], [2, 'miss']]);
 
     if (turn === 2) {
       // A phone loses its connection and comes back: the same game, with the same view.
@@ -357,7 +357,7 @@ test('the history is saved with the room, survives a restart, and rooms saved wi
   const board = revealed.scoreboard;
   assert.equal(board.rounds.length, 1);
   assert.deepEqual(board.rounds[0].deltas, { [guesser.state.you]: 5, [hinter.state.you]: 3 });
-  assert.deepEqual(board.rounds[0].notes[guesser.state.you], [{ key: 'notes.exact', params: { round: 1 } }]);
+  assert.deepEqual(board.rounds[0].notes[guesser.state.you], [{ key: 'notes.exact', params: { n: 1 } }]);
   await first.close();
   const saved = savedRooms(moduleDir);
   assert.equal(saved[0].history.length, 1, 'saved to disk');

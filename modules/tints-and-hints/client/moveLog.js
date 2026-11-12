@@ -22,7 +22,7 @@ export function newEntries(prev, next) {
   const samePhase = prev && prev.phase === next.phase && prev.turn === next.turn;
 
   if (next.phase === 'guessing1' && prev?.phase !== 'guessing1') out.push(msg('log.turnStart', { n: next.turn, total: next.turnsTotal, name: name(next.hinter) }));
-  if (next.phase === 'guessing2' && prev?.phase === 'guessing1') out.push(msg('log.secondRound'));
+  if (next.phase === 'guessing2' && prev?.phase === 'guessing1') out.push(msg('log.secondHintStage'));
 
   if (prev && prev.turn === next.turn && next.phase !== 'reveal') {
     for (const key of ['first', 'second']) {
@@ -34,7 +34,7 @@ export function newEntries(prev, next) {
 
   if (next.phase === 'reveal' && prev?.phase !== 'reveal' && next.result) {
     // The list is read newest first, so the guesses go in before the line that says what the tint was.
-    for (const e of next.result.entries) out.push(msg('log.guess', { name: e.name, cell: e.cell, round: e.round, kind: KIND[e.kind] ? msg(KIND[e.kind]) : e.kind, points: e.points }));
+    for (const e of next.result.entries) out.push(msg('log.guess', { name: e.name, cell: e.cell, n: e.hintNumber, kind: KIND[e.kind] ? msg(KIND[e.kind]) : e.kind, points: e.points }));
     out.push(msg('reveal.summary', { cell: next.result.tint, name: next.result.hinterName, points: next.result.hinterPoints }));
   }
   out.push(...endOfGame(prev, next));

@@ -2,9 +2,11 @@
 // Every action returns { ok: true, ... } or { ok: false, error }.
 //
 // A turn: the hinter sees a secret square (the tint) on a colour grid and gives a hint; everyone else guesses the square
-// (round one).  The hinter may then give a second hint and everyone guesses again (round two), after which the tint is
-// revealed and scored: exact and close (neighbouring) squares score, more in round one, and the hinter scores for each
-// guesser who found the exact square.
+// (hint one).  The hinter may then give a second hint and everyone guesses again (hint two), after which the tint is
+// revealed and scored: exact and close (neighbouring) squares score, more on the first hint, and the hinter scores for
+// each guesser who found the exact square.  A turn is one player's go as the hinter; the two guesses within it are
+// numbered by the hint they follow (`hintNumber`, 1 or 2), and are never called rounds — a round on this site is
+// everybody having had a turn.
 //
 // Depends on: ./grid.js (the grid and its geometry), ./tally.js (statistics counters), ./ai (computer players), and shared/
 // (scores, tally, ai, markerColours, seats, roster) for the rules common to all games.  Sockets, timers, and saving are not
@@ -34,7 +36,7 @@ export const HINT_LENGTH = 80;
 export const COLOURS = MARKER_COLOURS; // the free palette; any other colour is a shop unlock (shared/markerColours.js)
 /**
  * The scoring table.  Guessers: the exact square or a close one (touching it, diagonals included), with more for guessing
- * earlier (round one, before the second hint).  The hinter earns hinterPerGuesser for each guesser who found the exact square,
+ * earlier (on the first hint, before the second).  The hinter earns hinterPerGuesser for each guesser who found the exact square,
  * which rewards hints that are clear without giving the square away.
  */
 export const POINTS = { firstExact: 5, firstClose: 2, secondExact: 4, secondClose: 1, hinterPerGuesser: 3 };
@@ -309,13 +311,13 @@ export function start(room, id, rng) {
 }
 
 /**
- * The hinter writes a hint for the round that is being played (the first hint in round one, the second in round two).
+ * The hinter writes the hint for the guessing that is being played (the first hint, then the second).
  *
  * The first hint is required (nobody can guess before it is in), but a second hint is optional.  Writing the second hint is
- * allowed as soon as round two has begun, which is to say after every first guess is in and the hinter has pressed
+ * allowed as soon as the second guessing has begun, which is to say after every first guess is in and the hinter has pressed
  * "continue".  That is INTENTIONAL, not a loophole: the second hint exists precisely so that the hinter can steer people
- * after seeing where the first round's guesses fell.  (The hint of the round being played can also be rewritten until the
- * round is closed.) Do not "fix" this by locking the second hint away.
+ * after seeing where the first guesses fell.  (The hint being played can also be rewritten until that guessing is
+ * closed.) Do not "fix" this by locking the second hint away.
  *
  * Side effect: replaces room.hints.first or room.hints.second.
  *
@@ -333,8 +335,8 @@ export function setHint(room, id, text) {
 }
 
 /**
- * A guesser picks a square for the round being played.  Each person guesses once per round and the guess stays hidden from
- * the other guessers until the round is closed (see guessesView).
+ * A guesser picks a square for the hint being played.  Each person guesses once per hint and the guess stays hidden from
+ * the other guessers until that guessing is closed (see guessesView).
  *
  * @param {object} room  the room (must be in a guessing phase, with the first hint in)
  * @param {number} id  who is guessing (not the hinter)
@@ -356,7 +358,7 @@ export function guess(room, id, cell) {
 }
 
 /**
- * Whether every guesser has guessed in the round being played (the hinter can then close the round).
+ * Whether every guesser has guessed on the hint being played (the hinter can then close that guessing).
  *
  * @param {object} room  the room, in a guessing phase
  * @returns {boolean} true if nobody is still to guess
@@ -370,9 +372,9 @@ const allGuessed = (room) => {
 
 /**
  * Scores the turn exactly as the original game did (see README.md for its quirks): each guess scores by whether it is the
- * tint (exact), touches it (close), or neither, with round one worth more; the hinter scores per guesser who found it.
+ * tint (exact), touches it (close), or neither, with the first hint worth more; the hinter scores per guesser who found it.
  *
- * @param {object} room  the room, with both rounds' guesses in
+ * @param {object} room  the room, with both hints' guesses in
  * @param {(id: number|string) => string} [nameOf]  names for the history label
  * @returns {void}
  *
@@ -382,7 +384,7 @@ const allGuessed = (room) => {
 function scoreTurn(room, nameOf = String) {
   const entries = [];
   const got = new Set();
-  for (const [round, list] of [[1, room.first], [2, room.second]]) {
+  for (const [hintNumber, list] of [[1, room.first], [2, room.second]]) {
     for (const { id, cell } of list) {
       const player = playerOf(room, id);
       if (!player) continue;
@@ -390,14 +392,14 @@ function scoreTurn(room, nameOf = String) {
       let points = 0;
       if (cell === room.tint) {
         kind = 'exact';
-        points = round === 1 ? POINTS.firstExact : POINTS.secondExact;
+        points = hintNumber === 1 ? POINTS.firstExact : POINTS.secondExact;
         got.add(id);
       } else if (isClose(cell, room.tint)) {
         kind = 'close';
-        points = round === 1 ? POINTS.firstClose : POINTS.secondClose;
+        points = hintNumber === 1 ? POINTS.firstClose : POINTS.secondClose;
       }
       player.score += points;
-      entries.push({ id, round, cell, kind, points });
+      entries.push({ id, hintNumber, cell, kind, points });
     }
   }
   const hinter = playerOf(room, room.hinter);
@@ -411,7 +413,7 @@ function scoreTurn(room, nameOf = String) {
 }
 
 /**
- * Appends the finished turn to room.history (the standard round shape of shared/scores.js).  This only happens when
+ * Appends the finished turn to room.history (the standard row shape of shared/scores.js).  This only happens when
  * the turn is scored, i.e. at the reveal, so the history never shows anything the players have yet to see.
  * A turn that is skipped because its hinter left is never scored and so appends nothing (the next entry's number
  * simply jumps ahead, which is honest about the skipped turn).
@@ -421,13 +423,13 @@ function scoreTurn(room, nameOf = String) {
  * @param {number} found  how many guessers found the exact square (for the hinter's note)
  * @returns {void}
  *
- * Side effects: pushes one round onto room.history.
+ * Side effects: pushes one turn onto room.history.
  */
 function recordHistory(room, nameOf, found) {
   const deltas = {};
   const notes = {};
-  /** Describes one scoring guess for the history note, as a message ("exact in round 1"). */
-  const phrase = (kind, round) => msg(`notes.${kind}`, { round });
+  /** Describes one scoring guess for the history note, as a message ("exact after hint 1"). */
+  const phrase = (kind, hintNumber) => msg(`notes.${kind}`, { n: hintNumber });
   // Keyed by slot, not by id: a person who leaves is replaced by a computer player with a different id, and the slot
   // is what survives that, so a finished turn is written once and never touched again.  viewFor sends it back out
   // keyed by id (shared/roster.js historyView), so the scoreboard sees what it always did.
@@ -435,7 +437,7 @@ function recordHistory(room, nameOf, found) {
     const mine = room.result.entries.filter((e) => e.id === p.id);
     if (!mine.length) continue;
     deltas[p.slot] = mine.reduce((sum, e) => sum + e.points, 0);
-    const scored = mine.filter((e) => e.kind !== 'miss').map((e) => phrase(e.kind, e.round));
+    const scored = mine.filter((e) => e.kind !== 'miss').map((e) => phrase(e.kind, e.hintNumber));
     notes[p.slot] = scored.length ? scored : msg('notes.missed'); // a list of messages: the client joins it as its language joins lists
   }
   const hinter = playerOf(room, room.hinter);
@@ -475,8 +477,8 @@ export function migrate(room, nameOf) {
     room.grid = GRID_VERSION;
   }
   if (!Array.isArray(room.history)) room.history = [];
-  // By slot, like the history itself: migratePlayers has already given every player one and rewritten the rounds that
-  // were saved before slots existed, so this reconciliation sees the same keys the rounds are written under.
+  // By slot, like the history itself: migratePlayers has already given every player one and rewritten the rows that
+  // were saved before slots existed, so this reconciliation sees the same keys the rows are written under.
   const totals = totalsFromRounds(room.history, room.players.map((p) => p.slot));
   const missing = Object.fromEntries(room.players.map((p) => [p.slot, p.score - totals[p.slot]]).filter(([, diff]) => diff !== 0));
   if (Object.keys(missing).length) room.history.unshift({ label: msg('scoreboard.earlier'), deltas: missing, notes: {} });
@@ -504,8 +506,8 @@ function finishTurn(room, rng) {
 }
 
 /**
- * Moves on: the hinter closes each round of guessing.  (The reveal is closed by everyone, see `ready`.) Closing round one opens
- * round two; closing round two scores the turn and opens the reveal.
+ * Moves on: the hinter closes each hint's guessing.  (The reveal is closed by everyone, see `ready`.) Closing the first
+ * opens the second; closing the second scores the turn and opens the reveal.
  *
  * @param {object} room  the room (must be in a guessing phase, with everyone having guessed)
  * @param {number} id  who is asking (must be the hinter)
@@ -513,7 +515,7 @@ function finishTurn(room, rng) {
  * @param {(id: number) => string} [nameOf]  fallback names for the history label
  * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok (the game never finishes here), or why not
  *
- * Side effects: moves the phase on; at the end of round two also scores the turn (scores, history, result) and clears room.ready.
+ * Side effects: moves the phase on; after the second hint also scores the turn (scores, history, result) and clears room.ready.
  */
 export function advance(room, id, rng, nameOf = String) {
   nameOf = namer(room, nameOf);
@@ -673,21 +675,21 @@ export function statsPlayers(room) {
 
 /**
  * The guesses a viewer may see: the hinter and everybody after the reveal see all of them; before that a guesser sees their own,
- * and the first round's guesses are shown once the second hint is out.
+ * and the first hint's guesses are shown once the second hint is out.
  *
  * @param {object} room  not changed
  * @param {number} userId  the viewer
- * @returns {{ id: number, cell: string, round: number }[]} both rounds' guesses, first round first
+ * @returns {{ id: number, cell: string, hintNumber: number }[]} both hints' guesses, the first hint's first
  *
  * Side effects: none.
  */
 function guessesView(room, userId) {
   const isHinter = room.hinter === userId;
   const revealed = ['reveal', 'finished'].includes(room.phase);
-  /** One round's guesses as this viewer may see them: all if the round is closed (or they are the hinter), otherwise only their own. */
-  const list = (guesses, round) => {
-    const open = isHinter || revealed || (round === 1 && room.phase !== 'guessing1') || (round === 2 && room.phase !== 'guessing2');
-    return guesses.filter((g) => open || g.id === userId).map((g) => ({ id: g.id, cell: g.cell, round }));
+  /** One hint's guesses as this viewer may see them: all if that guessing is closed (or they are the hinter), otherwise only their own. */
+  const list = (guesses, hintNumber) => {
+    const open = isHinter || revealed || (hintNumber === 1 && room.phase !== 'guessing1') || (hintNumber === 2 && room.phase !== 'guessing2');
+    return guesses.filter((g) => open || g.id === userId).map((g) => ({ id: g.id, cell: g.cell, hintNumber }));
   };
   return [...list(room.first, 1), ...list(room.second, 2)];
 }
@@ -748,7 +750,7 @@ function playerView(room, p, { nameOf, online, final }) {
  */
 function scoreboardView(room, userId, { nameOf, online }) {
   // `current` marks who the game is waiting for: the hinter for the first hint and to continue once everyone has guessed,
-  // otherwise the guessers still to guess in this round.
+  // otherwise the guessers still to guess on this hint.
   const mustAct = (p) => {
     if (!['guessing1', 'guessing2'].includes(room.phase)) return false;
     const list = room.phase === 'guessing1' ? room.first : room.second;
@@ -765,8 +767,8 @@ function scoreboardView(room, userId, { nameOf, online }) {
 }
 
 /**
- * What one person may see.  Only the hinter knows the target until the reveal, and guesses made in the current round
- * stay hidden from the other guessers until the round is closed.
+ * What one person may see.  Only the hinter knows the target until the reveal, and guesses made on the current hint
+ * stay hidden from the other guessers until that guessing is closed.
  *
  * @param {object} room  not changed
  * @param {number} userId  the account looking
@@ -849,7 +851,7 @@ export function runBotAction(room, rng, action = pendingBotAction(room), nameOf 
   const player = playerOf(room, action.id);
   const ai = aiById(AIS, player.ai);
   const view = viewFor(room, action.id, { nameOf });
-  const round = room.phase === 'guessing1' ? 1 : 2;
+  const hintNumber = room.phase === 'guessing1' ? 1 : 2;
   /** Runs an AI decision, returning undefined if it throws (a broken AI must not stop the game). */
   const attempt = (decide) => {
     try {
@@ -859,12 +861,12 @@ export function runBotAction(room, rng, action = pendingBotAction(room), nameOf 
     }
   };
   if (action.type === 'hint') {
-    const text = attempt(() => ai.hint({ round, tint: view.tint }, rng));
+    const text = attempt(() => ai.hint({ hintNumber, tint: view.tint }, rng));
     const clean = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
     return setHint(room, action.id, clean || 'something').ok;
   }
   if (action.type === 'guess') {
-    const cell = attempt(() => ai.guess({ round, cells: ALL_CELLS, hints: view.hints, guesses: view.guesses }, rng));
+    const cell = attempt(() => ai.guess({ hintNumber, cells: ALL_CELLS, hints: view.hints, guesses: view.guesses }, rng));
     return guess(room, action.id, isCell(cell) ? cell : randomCell(rng)).ok;
   }
   return advance(room, action.id, rng, nameOf).ok;

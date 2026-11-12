@@ -101,7 +101,7 @@ describe('Tints and Hints layout sums', () => {
 });
 
 describe('Tints and Hints move log', () => {
-  it('notes the start of a turn, hints, guesses, the second round and the reveal', () => {
+  it('notes the start of a turn, hints, guesses, the second hint and the reveal', () => {
     const first = view();
     expect(newEntries(null, first).map(words)).toEqual(['Turn 1 of 3: Bob is the hinter.']);
     const hinted = view({ hints: { first: 'a warm evening', second: '' } });
@@ -109,15 +109,15 @@ describe('Tints and Hints move log', () => {
     const guessed = view({ hints: hinted.hints, players: first.players.map((p) => (p.id === 3 ? { ...p, guessed: true } : p)) });
     expect(newEntries(hinted, guessed).map(words)).toEqual(['Cy guessed.']);
     const second = view({ phase: 'guessing2', hints: hinted.hints });
-    expect(newEntries(guessed, second).map(words)).toEqual(['Second round: guess again with the second hint.']);
+    expect(newEntries(guessed, second).map(words)).toEqual(['Second hint: guess again.']);
     const reveal = view({
       phase: 'reveal',
       tint: 'J6',
-      result: { tint: 'J6', hinterName: 'Bob', hinterPoints: 6, entries: [{ id: 1, name: 'Ann', round: 1, cell: 'J6', kind: 'exact', points: 5 }, { id: 3, name: 'Cy', round: 1, cell: 'A1', kind: 'miss', points: 0 }] },
+      result: { tint: 'J6', hinterName: 'Bob', hinterPoints: 6, entries: [{ id: 1, name: 'Ann', hintNumber: 1, cell: 'J6', kind: 'exact', points: 5 }, { id: 3, name: 'Cy', hintNumber: 1, cell: 'A1', kind: 'miss', points: 0 }] },
     });
     const lines = newEntries(second, reveal).map(words);
     expect(lines.at(-1)).toBe('The tint was J6. Bob scores 6 for the hints.'); // the newest is last, and the list shows newest first
-    expect(lines).toContain('Ann guessed J6 in round 1: exactly right (+5).');
+    expect(lines).toContain('Ann guessed J6 after hint 1: exactly right (+5).');
   });
 
   it('notes the end of the game, and nothing for the lobby or an unchanged state', () => {
@@ -150,14 +150,14 @@ describe('Tints and Hints screen', () => {
     expect(playBar.leave).toBeNull();
   });
 
-  it('draws the grid, slim bars for the others, and the standard boxes with the turn, round and hint in Status', async () => {
+  it('draws the grid, slim bars for the others, and the standard boxes with the turn, the hint number and the hint in Status', async () => {
     const { wrapper } = await mountGame(view({ hints: { first: 'a warm evening', second: '' } }));
     expect(wrapper.findAll('.board button.cell')).toHaveLength(1248);
     expect(wrapper.findAll('ul[aria-label="Players"] li').map((li) => li.find('.who').text())).toEqual(['Bob', 'Cy']); // everyone but you
     expect(wrapper.find('ul[aria-label="Players"] li .hint-tag').text()).toBe('hinter');
     const status = wrapper.find('.box.status').text();
     expect(status).toContain('Turn 1 of 3');
-    expect(status).toContain('Round 1 of 2');
+    expect(status).toContain('Hint 1 of 2');
     expect(status).toContain('Hinter: Bob');
     expect(wrapper.find('.box.status .hint-text').text()).toContain('a warm evening');
     expect(wrapper.find('.box.log').text()).toContain('Recent moves');
@@ -179,7 +179,7 @@ describe('Tints and Hints screen', () => {
     await flushPromises();
     expect(wrapper.findAll('.side .block')).toHaveLength(3);
     expect(wrapper.find('form.hint input').exists()).toBe(true);
-    expect(button(wrapper, 'Continue to the second round').attributes('disabled')).toBeDefined(); // nobody has guessed yet
+    expect(button(wrapper, 'Continue to the second hint').attributes('disabled')).toBeDefined(); // nobody has guessed yet
     expect(wrapper.find('.swatch').text()).toBe('J6');
     wrapper.unmount();
   });
@@ -270,7 +270,7 @@ describe('Tints and Hints turn pop-up', () => {
     game.wrapper.unmount();
   });
 
-  it('does not nag a guesser who is still waiting for the first hint, or the hinter again when the second round starts', async () => {
+  it('does not nag a guesser who is still waiting for the first hint, or the hinter again when the second hint starts', async () => {
     document.body.innerHTML = '';
     let game = await mountGame(view());
     await settle();

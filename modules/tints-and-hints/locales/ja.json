@@ -29,7 +29,7 @@
     "sent": "送信済み",
     "sendHint": "ヒントを送る",
     "lockIn": "回答を確定",
-    "secondRound": "2回目に進む",
+    "secondHintStage": "2つ目のヒントに進む",
     "revealTint": "色を公開する",
     "legend": "点線の輪が1回目、実線の輪が2回目の回答です。",
     "yourColour": "あなたの色",
@@ -43,7 +43,7 @@
     "stillToGuess": "まだ回答していません"
   },
   "facts": {
-    "round": "ラウンド {n}/2",
+    "hint": "ヒント {n}/2",
     "hinter": "ヒント役：{name}"
   },
   "status": {
@@ -66,7 +66,7 @@
     "tintWas": "色は{cell}でした。",
     "hinterScores": "{name}はヒントで{points}点です。",
     "summary": "色は{cell}でした。{name}はヒントで{points}点です。",
-    "entry": "ラウンド{round}、{cell}",
+    "entry": "ヒント{n}、{cell}",
     "kind": {
       "exact": "ぴったり正解",
       "close": "惜しい",
@@ -76,24 +76,24 @@
   "board": {
     "label": "カラーグリッド",
     "theTint": "その色",
-    "guess": "{name} ラウンド{round}"
+    "guess": "{name} ヒント{n}"
   },
   "scoreboard": {
     "turn": "ターン{n}：{name}",
     "earlier": "前のターン"
   },
   "notes": {
-    "exact": "ラウンド{round}でぴったり",
-    "close": "ラウンド{round}で惜しい",
+    "exact": "ヒント{n}でぴったり",
+    "close": "ヒント{n}で惜しい",
     "found": "誰も見つけられず | {count}人が発見 | {count}人が発見"
   },
   "log": {
     "turnStart": "ターン {n}/{total}：{name}がヒント役です。",
-    "secondRound": "2回目：2つ目のヒントでもう一度当てましょう。",
+    "secondHintStage": "2つ目のヒント：もう一度当てましょう。",
     "firstHint": "{name}がヒント「{text}」を出しました。",
     "secondHint": "{name}が2つ目のヒント「{text}」を出しました。",
     "guessed": "{name}が回答しました。",
-    "guess": "{name}がラウンド{round}で{cell}を選びました：{kind}（+{points}）。",
+    "guess": "{name}がヒント{n}で{cell}を選びました：{kind}（+{points}）。",
     "kind": {
       "exact": "ぴったり正解",
       "close": "惜しい",

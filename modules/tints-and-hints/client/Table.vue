@@ -39,17 +39,18 @@ const s = computed(() => props.state);
 const phase = computed(() => s.value.phase);
 // True when you are this turn's hinter.
 const isHinter = computed(() => s.value.hinter === s.value.you);
-// True during either guessing round.
+// True while either hint is being guessed on.
 const guessing = computed(() => phase.value === 'guessing1' || phase.value === 'guessing2');
 // True when the game is over (finished or abandoned).
 const ended = computed(() => phase.value === 'finished' || phase.value === 'abandoned');
-// The guessing round number: 2 in the second round, otherwise 1.
-const round = computed(() => (phase.value === 'guessing2' ? 2 : 1));
+// Which hint is being guessed on: 2 after the second hint, otherwise 1.  Never called a round: a round on this site
+// is everybody having had a turn, and a turn here is one player's go as the hinter.
+const hintNumber = computed(() => (phase.value === 'guessing2' ? 2 : 1));
 // The hinter's name, with a fallback while they are not in the list.
 const hinterName = computed(() => s.value.players.find((p) => p.id === s.value.hinter)?.name ?? t('table.theHinter'));
 // Everyone except the hinter.
 const guessers = computed(() => s.value.players.filter((p) => p.id !== s.value.hinter));
-// How many guessers have locked in a guess this round.
+// How many guessers have locked in a guess on this hint.
 const guessedCount = computed(() => guessers.value.filter((p) => p.guessed).length);
 // True when every guesser has guessed.
 const allGuessed = computed(() => guessedCount.value === guessers.value.length);
@@ -57,8 +58,8 @@ const allGuessed = computed(() => guessedCount.value === guessers.value.length);
 const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
 // Everyone except you, shown as slim bars.
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
-// The hint to show now: the second one in round two if it exists, otherwise the first.
-const hint = computed(() => (round.value === 2 && s.value.hints.second ? s.value.hints.second : s.value.hints.first));
+// The hint to show now: the second one if we are past it and it exists, otherwise the first.
+const hint = computed(() => (hintNumber.value === 2 && s.value.hints.second ? s.value.hints.second : s.value.hints.first));
 // True on the game's final turn.
 const lastTurn = computed(() => s.value.turn >= s.value.turnsTotal);
 // True while the tint is being revealed.
@@ -66,7 +67,7 @@ const reveal = computed(() => phase.value === 'reveal');
 // Names of players who have not yet closed the reveal scores.
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
 // True once there is a hint to guess from.
-const hintGiven = computed(() => round.value === 2 || Boolean(s.value.hints.first)); // nobody guesses until the first hint is in
+const hintGiven = computed(() => hintNumber.value === 2 || Boolean(s.value.hints.first)); // nobody guesses until the first hint is in
 // True when you may pick and lock in a guess now.
 const canGuess = computed(() => guessing.value && !isHinter.value && !mine.value?.guessed && hintGiven.value);
 // Players ordered by score, highest first.
@@ -79,7 +80,7 @@ watch(
   () => `${s.value.turn}-${phase.value}`,
   () => {
     picked.value = null;
-    hintText.value = isHinter.value && guessing.value ? (round.value === 2 ? s.value.hints.second : s.value.hints.first) : '';
+    hintText.value = isHinter.value && guessing.value ? (hintNumber.value === 2 ? s.value.hints.second : s.value.hints.first) : '';
     hintSaved.value = false;
   },
   { immediate: true },
@@ -123,7 +124,7 @@ const headline = computed(() => {
   if (isHinter.value) return hintGiven.value ? t('status.hintAgain') : t('status.hintFirst');
   if (!hintGiven.value) return t('status.waitingFirstHint', { name: hinterName.value });
   if (mine.value?.guessed) return t('status.lockedIn', { guessed: guessedCount.value, total: guessers.value.length });
-  return round.value === 1 ? t('status.guessFirst') : t('status.guessSecond');
+  return hintNumber.value === 1 ? t('status.guessFirst') : t('status.guessSecond');
 });
 // True when it is your move (hint or guess), which highlights the Status box.
 const mineNow = computed(() => guessing.value && (isHinter.value || canGuess.value)); // a guesser's turn starts once the first hint is in
@@ -197,7 +198,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
             <ul class="entries">
               <li v-for="(e, i) in state.result.entries" :key="i" class="row">
                 <span class="name">{{ e.name }}</span>
-                <span class="muted">{{ t('reveal.entry', { round: e.round, cell: e.cell }) }}</span>
+                <span class="muted">{{ t('reveal.entry', { n: e.hintNumber, cell: e.cell }) }}</span>
                 <span :class="e.kind">{{ t(`reveal.kind.${e.kind}`) }}</span>
                 <strong>+{{ e.points }}</strong>
               </li>
@@ -251,15 +252,15 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
 
           <div class="block action">
             <form v-if="isHinter && guessing" class="hint row" @submit.prevent="saveHint">
-              <input v-model="hintText" maxlength="80" :placeholder="round === 1 ? t('table.firstHint') : t('table.secondHint')" :aria-label="t('table.hint')" @input="hintSaved = false" />
-              <button type="submit" :disabled="round === 1 && !hintText.trim()">{{ hintSaved ? t('table.sent') : t('table.sendHint') }}</button>
+              <input v-model="hintText" maxlength="80" :placeholder="hintNumber === 1 ? t('table.firstHint') : t('table.secondHint')" :aria-label="t('table.hint')" @input="hintSaved = false" />
+              <button type="submit" :disabled="hintNumber === 1 && !hintText.trim()">{{ hintSaved ? t('table.sent') : t('table.sendHint') }}</button>
             </form>
             <button v-else-if="canGuess" class="primary wide" :disabled="!picked" @click="lockIn">{{ t('table.lockIn') }}</button>
           </div>
 
           <div class="block action">
             <button v-if="isHinter && guessing" class="primary wide" :disabled="!allGuessed" @click="send('advance')">
-              {{ round === 1 ? t('table.secondRound') : t('table.revealTint') }}
+              {{ hintNumber === 1 ? t('table.secondHintStage') : t('table.revealTint') }}
             </button>
           </div>
 
@@ -300,7 +301,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
         <template #facts>
           <strong v-if="!ended">{{ t('facts.turn', { n: state.turn, total: state.turnsTotal }) }}</strong>
           <strong v-else>{{ t('facts.gameOver') }}</strong>
-          <span v-if="guessing">{{ t('facts.round', { n: round }) }}</span>
+          <span v-if="guessing">{{ t('facts.hint', { n: hintNumber }) }}</span>
           <span v-if="!ended">{{ t('facts.hinter', { name: hinterName }) }}</span>
         </template>
         <p v-if="guessing && !isHinter" class="hint-text" :class="{ hidden: !hint }">&ldquo;{{ hint }}&rdquo;</p>

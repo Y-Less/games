@@ -14,6 +14,10 @@ export const DEFAULT_SEATS = 4;
  * Per number of players: the cards taken out of the deck, the cards each player is dealt (which is also the number of
  * tricks), the cards passed, and the passing rotation as offsets to the left (0 is "no passing"): offset 1 is the next
  * player in turn order, offset seats - 1 is the player on the right.
+ *
+ * One turn of the rotation is a round in the sense the rest of the site uses — every passing option used once — but
+ * Hearts is played to a target score rather than to a number of rounds, so nothing here counts them and no player
+ * ever sees the word.
  */
 export const DEALS = {
   3: { removed: ['2C'], each: 17, pass: 3, rotation: [1, 2, 0] },

@@ -23,7 +23,7 @@ server.test.js     end-to-end tests against the real site (whole game, abandonme
 ## Rules in brief
 
 - 2 to 8 players, one hinter per turn, in joining order, starting with a random player.
-- Round one: guessers each pick a square (hidden from one another); the hinter continues; round two: guess again, now seeing the first guesses; the hinter continues and the target is revealed.
+- Hint one: guessers each pick a square (hidden from one another); the hinter continues; hint two: guess again, now seeing the first guesses; the hinter continues and the target is revealed.  The two are numbered by the hint they follow (`hintNumber`), never called rounds: a round on this site is everybody having had a turn, which here is `turnsEach` circuits of the table.
 - Score: exact 5 / close 2 in round one, exact 4 / close 1 in round two; the hinter gets 3 for each player who found the exact square.  Close means within one square, diagonals included, with no wrap-around from AZ to A.
 - The original is endless; here a game lasts `turnsEach x players` turns (host's choice, 1 to 5, default 2).
 - Finished games are reported once: tied leaders all `win`, the rest `loss`, with placement, score, and the extras `exactGuesses`, `closeGuesses` and `hintsGiven`.  Abandoned games (fewer than two players left) are not recorded.
@@ -31,12 +31,12 @@ server.test.js     end-to-end tests against the real site (whole game, abandonme
 ## Socket protocol
 
 Client to server (each takes a payload and an acknowledgement `{ ok }` or `{ ok: false, error, params? }`, where
-`error` is a refusal code looked up under `errors.` in this game's locale file and then the site's, never a sentence): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance` (the hinter closing a round of guessing), `ready` (at the reveal: this person closed the scores pop-up).
+`error` is a refusal code looked up under `errors.` in this game's locale file and then the site's, never a sentence): `resume {code?}`, `join {code}`, `create {turnsEach?}`, `leave`, `kick {userId}`, `addBot`, `removeBot {seat}`, `fillBots {count?}`, `colour {colour}`, `settings {turnsEach}`, `start`, `hint {text}`, `guess {cell}`, `advance` (the hinter closing one hint's guessing), `ready` (at the reveal: this person closed the scores pop-up).
 
 Server to client: `state`, a view personalised for that account (or `null` when not in a game).  The hidden target is only in the hinter's view until the reveal.
 
 Every word in a view is a message (`{ key, params? }`, see `shared/messages.js`), which the client puts into the player's
-language: a scoreboard round's `label` (`scoreboard.turn` with `{ n, name }`, or `scoreboard.earlier` for the points of a
+language: a scoreboard row's `label` (`scoreboard.turn` with `{ n, name }`, or `scoreboard.earlier` for the points of a
 room saved before the history was kept) and its `notes` (the hinter's `notes.found` with a numeric `count`; a guesser's
 list of `notes.exact` / `notes.close` messages, which the client joins as its language joins lists, or `notes.missed`).
 Players' hints and names stay as they are: they are what people typed.  The "Recent moves" list is the client's own

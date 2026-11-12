@@ -48,16 +48,16 @@ test('two actions in the same tick: only one wins (start, guess, advance), from 
   assert.equal(mine.length, 1, 'the hinter sees exactly one guess from that account');
   assert.deepEqual(first.state.guesses, firstTab.state.guesses, 'both of the account\'s sockets agree');
 
-  // Two simultaneous advances close one round, not two.
+  // Two simultaneous advances close one hint's guessing, not two.
   const hinterTab = await hinter.twin();
   await hinterTab.call('resume', {});
   await until(() => hinterTab.state?.phase === 'guessing1', 'the hinter tab');
   const adv = await Promise.all([hinter.call('advance', {}), hinterTab.call('advance', {}), hinter.call('advance', {})]);
-  assert.equal(adv.filter((r) => r.ok).length, 1, 'the round closes once');
+  assert.equal(adv.filter((r) => r.ok).length, 1, 'the guessing closes once');
   await allIn(people, 'guessing2');
   await sleep(30);
   assert.equal(host.state.phase, 'guessing2', 'it did not skip on to the reveal');
-  assert.equal(host.state.guesses.length === 0 || host.state.guesses.every((x) => x.round === 1), true);
+  assert.equal(host.state.guesses.length === 0 || host.state.guesses.every((x) => x.hintNumber === 1), true);
 
   // Both rounds again, then everyone being ready (some twice) at the reveal moves exactly one turn on.
   for (const p of [first, second]) assert.equal((await p.call('guess', { cell: 'A1' })).ok, true);
@@ -138,7 +138,7 @@ test('disconnecting and reconnecting in every phase keeps your place, your guess
   const second = await bounce('guessing2');
   assert.equal(second.hints.first, 'quite bright');
   for (const p of guessers) await p.call('guess', { cell: 'H8' });
-  await until(() => hinter.state.guesses.filter((x) => x.round === 2).length === 2, 'round two guesses');
+  await until(() => hinter.state.guesses.filter((x) => x.hintNumber === 2).length === 2, 'guesses on the second hint');
   assert.equal((await hinter.call('advance', {})).ok, true);
   await allIn(people, 'reveal');
   const revealed = await bounce('reveal');

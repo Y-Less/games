@@ -30,18 +30,18 @@ export const random = {
    */
   hint: ({ tint }, rng) => describeCell(tint) ?? 'a colour',
   /**
-   * Picks a random square from the block the latest hint describes (round 2 uses the second hint, otherwise the first).
+   * Picks a random square from the block the latest hint describes (the second hint once it is out, otherwise the first).
    * If the hint is not one of the known descriptions (a person's own words) it picks from all legal squares instead,
    * since there is nothing to narrow the choice.  Defaults let it run with partial context in tests.
    *
-   * @param {{round?: number, cells?: string[], hints?: {first?: string, second?: string}}} ctx  the round, the legal squares and the visible hints
+   * @param {{hintNumber?: number, cells?: string[], hints?: {first?: string, second?: string}}} ctx  which hint is being guessed on, the legal squares and the visible hints
    * @param {() => number} rng  random source
    * @returns {string} one of `cells`
    *
    * Side effects: none.
    */
-  guess: ({ round = 1, cells = COLS.flatMap((c) => ROWS.map((r) => c + r)), hints = {} }, rng) => {
-    const block = cellsDescribedBy(round === 2 ? hints.second : hints.first);
+  guess: ({ hintNumber = 1, cells = COLS.flatMap((c) => ROWS.map((r) => c + r)), hints = {} }, rng) => {
+    const block = cellsDescribedBy(hintNumber === 2 ? hints.second : hints.first);
     return pick(block ? block.filter((c) => cells.includes(c)) : cells, rng);
   },
 };

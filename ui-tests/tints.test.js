@@ -88,7 +88,7 @@ test('everyone plays three turns: hints, guesses, the reveal, and the pop-ups', 
     }
     const lock = await u.buttonState('Lock in guess');
     if (lock.present && lock.disabled) return u.clickFound((n) => document.querySelectorAll('.board button.cell:not([disabled])')[n], cellIndex[u.label]);
-    const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint'];
+    const buttons = ['Lock in guess', 'Continue to the second hint', 'Reveal the tint'];
     return u.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
   };
   const finished = async () => all.every((u) => seen.get(u).has('Final scores'));
@@ -200,7 +200,7 @@ test('a host on their own fills the lobby with computer players and plays until 
     }
     const lock = await solo.buttonState('Lock in guess');
     if (lock.present && lock.disabled) return solo.clickFound((n) => document.querySelectorAll('.board button.cell:not([disabled])')[n], 77);
-    const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint'];
+    const buttons = ['Lock in guess', 'Continue to the second hint', 'Reveal the tint'];
     return solo.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
   };
   await drive({ act: step, finished: async () => /^Scores after Turn/.test(title ?? ''), timeout: 100000, what: 'a turn result with computer players' });

@@ -15,7 +15,7 @@ The grid has 52 columns (A to Z, then AA to AZ, which run round the colour wheel
 ## A turn
 
 1. The **hinter** sees the secret square and gives a first hint in the hint box; it is required, and nobody can guess until it is sent.  Hints should describe the colour, not name the square.
-2. Everyone else picks a square and locks it in.  You only get one guess a round.  Guesses stay hidden from the other guessers until the round is closed.
+2. Everyone else picks a square and locks it in.  You only get one guess on each hint.  Guesses stay hidden from the other guessers until that guessing is closed.
 3. When everyone has guessed, the hinter presses **Continue**.  The first guesses are now visible to all, and the hinter gives a second hint to help.
 4. Everyone guesses again.  This time you can see where people guessed the first time.
 5. The hinter presses **Continue** again.  The secret square is revealed and the points are handed out.
@@ -25,10 +25,10 @@ The grid has 52 columns (A to Z, then AA to AZ, which run round the colour wheel
 
 A guess is **close** if it is within one square of the target in any direction, diagonals included.  The colours do not wrap round from AZ to A.
 
-- First round: **5 points** for the exact square, **2 points** for a close one.
-- Second round: **4 points** for the exact square, **1 point** for a close one.
-- The hinter scores **3 points for every player who found the exact square** (in either round, each player counts once).
-- A player who guesses exactly right in both rounds scores for both.
+- First hint: **5 points** for the exact square, **2 points** for a close one.
+- Second hint: **4 points** for the exact square, **1 point** for a close one.
+- The hinter scores **3 points for every player who found the exact square** (after either hint, each player counts once).
+- A player who guesses exactly right after both hints scores for both.
 
 The player with the most points at the end wins.  Tied leaders all win.
 

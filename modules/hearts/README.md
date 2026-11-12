@@ -39,8 +39,14 @@ e2e.test.js    the real site: whole games, lobby, hidden hands, reconnects, conc
   across, none); 5 players 1, 2, 3, 4, 0; 6 players 1 to 5, 0; 7 players 1 to 6, 0. `room.passDirection` names the
   pass ('left', 'right', 'across', 'none', or 'left2', 'left3', 'right2'... for further along) and `room.passOffset` is
   the offset to the left.
+
+  One turn of that rotation — every passing option used once — is a **round** in the sense the rest of this site uses
+  the word, and nothing in the code counts them: the game is played to a target score rather than to a number of
+  rounds, and the scoreboard's rows are hands.  `rules.md` uses the word once, for the hand with no passing that ends
+  each turn of the rotation, which is this same meaning.  It is written down here so that "round" means the same
+  thing in this module as it does in every other.
 - The first trick is led by the holder of the lowest club still in the deck (2C, or 3C, or 4C), who must lead it.
-- Passing: see above.  Each hand's score line is kept as the round history.  Each hand's score line is kept as the round history.
+- Passing: see above.  Each hand's score line is kept as one row of the scoreboard history.
 
 ## Computer players
 

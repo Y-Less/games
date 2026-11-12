@@ -138,7 +138,7 @@ function playRandomGame(seed) {
         const cell = rng() < 0.5 ? near(room.tint, rng) : randomCell(rng);
         assert.equal(game.guess(room, who.id, cell).ok, true);
         const again = game.guess(room, who.id, randomCell(rng));
-        assert.equal(again.ok, false, 'a second guess in the same round');
+        assert.equal(again.ok, false, 'a second guess on the same hint');
         check('guess');
       } else {
         const wrongPerson = guessers[0]?.id;

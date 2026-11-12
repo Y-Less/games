@@ -72,7 +72,7 @@ export function checkRoom(room, what = 'room') {
       if (room.phase.startsWith('guessing')) assert.notEqual(g.id, room.hinter, `${what}: the hinter guessed`);
     }
   }
-  if (room.phase === 'guessing1') assert.equal(room.second.length, 0, `${what}: second-round guesses in the first round`);
+  if (room.phase === 'guessing1') assert.equal(room.second.length, 0, `${what}: guesses on the second hint before it is out`);
 }
 
 /**
@@ -105,8 +105,8 @@ export function checkView(view, what = 'view') {
     assert.ok(ids.includes(view.hinter), `${what}: the hinter is not a player`);
     if (!hinterView) {
       assert.equal(view.result, null);
-      const round = view.phase === 'guessing1' ? 1 : 2;
-      assert.ok(view.guesses.filter((g) => g.round === round).every((g) => g.id === view.you), `${what}: another guesser's current guess was shown`);
+      const hintNumber = view.phase === 'guessing1' ? 1 : 2;
+      assert.ok(view.guesses.filter((g) => g.hintNumber === hintNumber).every((g) => g.id === view.you), `${what}: another guesser's current guess was shown`);
     }
     if (view.phase === 'guessing1') assert.equal(view.hints.second, '', `${what}: the second hint is shown early`);
   }
@@ -115,7 +115,7 @@ export function checkView(view, what = 'view') {
   for (const key of ['first', 'second']) assert.ok(view.hints[key].length <= HINT_LENGTH);
   const seen = new Set();
   for (const g of view.guesses) {
-    const key = `${g.round}:${g.id}`;
+    const key = `${g.hintNumber}:${g.id}`;
     assert.ok(!seen.has(key), `${what}: ${key} guessed twice`);
     seen.add(key);
     assert.ok(isCell(g.cell));

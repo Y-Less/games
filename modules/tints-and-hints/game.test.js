@@ -87,7 +87,7 @@ test('a game holds at most eight players', () => {
   assert.equal(new Set(room.players.map((p) => p.colour)).size, 8);
 });
 
-test('guessing: the hinter cannot guess, each person guesses once a round, and squares are checked', () => {
+test('guessing: the hinter cannot guess, each person guesses once a hint, and squares are checked', () => {
   const room = started();
   assert.equal(room.hinter, 1);
   hint(room);
@@ -101,7 +101,7 @@ test('guessing: the hinter cannot guess, each person guesses once a round, and s
   assert.ok(game.guess(room, 3, 'B1').ok);
   assert.ok(game.advance(room, 1, Math.random).ok);
   assert.equal(room.phase, 'guessing2');
-  assert.ok(game.guess(room, 2, 'C1').ok, 'a fresh guess in the second round');
+  assert.ok(game.guess(room, 2, 'C1').ok, 'a fresh guess after the second hint');
   assert.equal(game.advance(room, 1, Math.random).ok, false);
 });
 
@@ -112,7 +112,7 @@ test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per pe
   game.guess(room, 3, 'N5'); // close first: 2
   game.guess(room, 4, 'A1'); // miss
   game.advance(room, 1, Math.random);
-  game.guess(room, 2, 'M4'); // exact again in round two: 4 (and the hinter still only counts them once)
+  game.guess(room, 2, 'M4'); // exact again after the second hint: 4 (and the hinter still only counts them once)
   game.guess(room, 3, 'M4'); // exact second: 4
   game.guess(room, 4, 'L4'); // close second: 1
   game.advance(room, 1, Math.random);
@@ -121,7 +121,7 @@ test('scoring follows the original code: 5 and 2 first, 4 and 1 second, 3 per pe
   assert.equal(score(room, 3), 6);
   assert.equal(score(room, 4), 1);
   assert.equal(score(room, 1), 6, 'two people found it, 3 each');
-  assert.deepEqual(room.result.entries.map((e) => [e.id, e.round, e.kind, e.points]), [
+  assert.deepEqual(room.result.entries.map((e) => [e.id, e.hintNumber, e.kind, e.points]), [
     [2, 1, 'exact', 5], [3, 1, 'close', 2], [4, 1, 'miss', 0], [2, 2, 'exact', 4], [3, 2, 'exact', 4], [4, 2, 'close', 1],
   ]);
   assert.equal(room.result.hinterPoints, 6);
@@ -266,7 +266,7 @@ test('a hinter who leaves on the last turn does not end the game early: the comp
   assert.equal(room.turn, 2);
 });
 
-test('views: only the hinter sees the tint until the reveal, and same-round guesses are hidden from other guessers', () => {
+test('views: only the hinter sees the tint until the reveal, and guesses on the same hint are hidden from other guessers', () => {
   const room = started([1, 2, 3]);
   hint(room);
   game.guess(room, 2, 'B1');
@@ -287,7 +287,7 @@ test('views: only the hinter sees the tint until the reveal, and same-round gues
   game.advance(room, 1, Math.random);
   assert.equal(view(2).guesses.length, 2, 'first guesses open up for the second round');
   game.guess(room, 2, 'D3');
-  assert.equal(view(3).guesses.filter((g) => g.round === 2).length, 0);
+  assert.equal(view(3).guesses.filter((g) => g.hintNumber === 2).length, 0);
   assert.equal(view(3).tint, null);
   game.guess(room, 3, 'D3');
   game.advance(room, 1, Math.random);
@@ -324,8 +324,8 @@ test('history: each scored turn appends its deltas and notes, and the totals equ
     deltas: { 1: 3, 2: 9, 3: 2 },
     notes: {
       1: { key: 'notes.found', params: { count: 1 } },
-      2: [{ key: 'notes.exact', params: { round: 1 } }, { key: 'notes.exact', params: { round: 2 } }],
-      3: [{ key: 'notes.close', params: { round: 1 } }],
+      2: [{ key: 'notes.exact', params: { n: 1 } }, { key: 'notes.exact', params: { n: 2 } }],
+      3: [{ key: 'notes.close', params: { n: 1 } }],
     },
   });
   assert.deepEqual(v.scoreboard.players.map((p) => [p.id, p.score, p.isMe]), [[1, 3, false], [2, 9, false], [3, 2, true]]);

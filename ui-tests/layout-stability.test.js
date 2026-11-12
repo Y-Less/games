@@ -592,7 +592,7 @@ test(`Tints and Hints at ${at}: every zone keeps one size and position through a
       }
       const lock = await u.buttonState('Lock in guess');
       if (lock.present && lock.disabled) return u.clickFound(() => document.querySelectorAll('.board button.cell:not([disabled])')[40]);
-      const buttons = ['Lock in guess', 'Continue to the second round', 'Reveal the tint', 'Next turn', 'Finish the game'];
+      const buttons = ['Lock in guess', 'Continue to the second hint', 'Reveal the tint', 'Next turn', 'Finish the game'];
       return u.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
     };
     await drive({ act: async () => (await Promise.all(all.map(step))).some(Boolean), finished: async () => seen.has('Final scores'), timeout: 120000, what: 'Tints and Hints' });

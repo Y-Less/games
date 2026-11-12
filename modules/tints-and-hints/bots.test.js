@@ -65,19 +65,19 @@ test('the random AI: describes the 4 x 4 block of its square, and guesses inside
   for (const cell of all) assert.ok(cellsDescribedBy(describeCell(cell)).includes(cell), cell);
   for (let i = 0; i < 400; i++) {
     const tint = all[Math.floor(rng() * all.length)];
-    const hint = ai.hint({ round: 1, tint }, rng);
+    const hint = ai.hint({ hintNumber: 1, tint }, rng);
     assert.equal(hint, describeCell(tint));
     assert.ok(hint.length <= game.HINT_LENGTH);
     const block = cellsDescribedBy(hint);
     assert.equal(block.length, 16);
-    for (const round of [1, 2]) {
-      const cell = ai.guess({ round, cells: all, hints: { first: hint, second: hint } }, rng);
+    for (const hintNumber of [1, 2]) {
+      const cell = ai.guess({ hintNumber, cells: all, hints: { first: hint, second: hint } }, rng);
       assert.ok(block.includes(cell), `${cell} is in the block for ${hint}`);
     }
   }
-  const spread = new Set(Array.from({ length: 200 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'fresh grass', second: '' } }, rng)));
+  const spread = new Set(Array.from({ length: 200 }, () => ai.guess({ hintNumber: 1, cells: all, hints: { first: 'fresh grass', second: '' } }, rng)));
   assert.ok(spread.size > 10, 'it picks among the 16');
-  const any = new Set(Array.from({ length: 400 }, () => ai.guess({ round: 1, cells: all, hints: { first: 'my own words', second: '' } }, rng)));
+  const any = new Set(Array.from({ length: 400 }, () => ai.guess({ hintNumber: 1, cells: all, hints: { first: 'my own words', second: '' } }, rng)));
   assert.ok(any.size > 100, 'a hint that is not a description gives a random square');
 });
 
@@ -138,7 +138,7 @@ test('starting deals each computer player an AI, shown as { id, name } on bot se
   assert.ok(seen.every((text) => !text.includes(`"tint"`) && !text.includes(room.tint)), "a guesser never sees the tint");
 });
 
-test('computer hints and guesses are legal on every pending action, in both rounds', () => {
+test('computer hints and guesses are legal on every pending action, after both hints', () => {
   const room = lobbyWith(3);
   const rng = seededRng(4);
   game.start(room, 1, rng);
@@ -157,10 +157,10 @@ test('computer hints and guesses are legal on every pending action, in both roun
   assert.equal(room.phase, 'finished');
   for (const word of [room.history.length]) assert.equal(word, room.turnsTotal);
   assert.ok(log.includes('hint') && log.includes('guess'));
-  for (const round of [1, 2]) assert.ok(game.viewFor(room, 1).guesses.some((g) => g.round === round), `guesses were made in round ${round}`);
+  for (const n of [1, 2]) assert.ok(game.viewFor(room, 1).guesses.some((g) => g.hintNumber === n), `guesses were made after hint ${n}`);
 });
 
-test('a bot guess in round two is also random and may ignore the first one', () => {
+test('a bot guess after the second hint is also random and may ignore the first one', () => {
   const room = lobbyWith(3);
   game.start(room, 1, seededRng(2));
   const rng = seededRng(77);

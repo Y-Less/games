@@ -33,7 +33,7 @@
     "sent": "Отправлено",
     "sendHint": "Отправить подсказку",
     "lockIn": "Подтвердить догадку",
-    "secondRound": "Перейти ко второму раунду",
+    "secondHintStage": "Перейти ко второй подсказке",
     "revealTint": "Открыть оттенок",
     "legend": "Пунктирные кольца — первые догадки, сплошные — вторые.",
     "yourColour": "ваш цвет",
@@ -47,7 +47,7 @@
     "stillToGuess": "ещё не ответил"
   },
   "facts": {
-    "round": "Раунд {n} из 2",
+    "hint": "Подсказка {n} из 2",
     "hinter": "Подсказчик: {name}"
   },
   "status": {
@@ -70,7 +70,7 @@
     "tintWas": "Оттенок — {cell}.",
     "hinterScores": "{name} получает {points} за подсказки.",
     "summary": "Оттенок — {cell}. {name} получает {points} за подсказки.",
-    "entry": "раунд {round}, {cell}",
+    "entry": "подсказка {n}, {cell}",
     "kind": {
       "exact": "Точно в цель",
       "close": "Близко",
@@ -80,24 +80,24 @@
   "board": {
     "label": "Цветовая сетка",
     "theTint": "оттенок",
-    "guess": "{name}, раунд {round}"
+    "guess": "{name}, подсказка {n}"
   },
   "scoreboard": {
     "turn": "Ход {n}: {name}",
     "earlier": "Прошлые ходы"
   },
   "notes": {
-    "exact": "точно в раунде {round}",
-    "close": "близко в раунде {round}",
+    "exact": "точно по подсказке {n}",
+    "close": "близко по подсказке {n}",
     "found": "нашли: {count} | нашли: {count} | нашли: {count}"
   },
   "log": {
     "turnStart": "Ход {n} из {total}: подсказывает {name}.",
-    "secondRound": "Второй раунд: отвечайте снова, уже со второй подсказкой.",
+    "secondHintStage": "Вторая подсказка: отвечайте снова.",
     "firstHint": "{name} даёт подсказку «{text}».",
     "secondHint": "{name} даёт вторую подсказку «{text}».",
     "guessed": "{name} отвечает.",
-    "guess": "{name} называет {cell} в раунде {round}: {kind} (+{points}).",
+    "guess": "{name} называет {cell} по подсказке {n}: {kind} (+{points}).",
     "kind": {
       "exact": "точно в цель",
       "close": "близко",

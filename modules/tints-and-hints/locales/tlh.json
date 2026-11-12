@@ -33,7 +33,7 @@
     "sent": "ngeHlu'pu'",
     "sendHint": "ngoDHom yIngeH",
     "lockIn": "loy yIngaQmoH",
-    "secondRound": "may' cha'DIchDaq yItaH",
+    "secondHintStage": "ngoDHom cha'DIchDaq yItaH",
     "revealTint": "rItlh yI'ang",
     "legend": "loymey wa'DIch 'oS pe'lu'bogh HeH tlheghmey; loymey cha'DIch 'oS naQbogh HeH tlheghmey.",
     "yourColour": "rItlhlIj",
@@ -47,7 +47,7 @@
     "stillToGuess": "wej loy"
   },
   "facts": {
-    "round": "may' {n}/2",
+    "hint": "ngoDHom {n}/2",
     "hinter": "ghojmoHwI': {name}"
   },
   "status": {
@@ -70,7 +70,7 @@
     "tintWas": "{cell} 'oH rItlh'e'.",
     "hinterScores": "ngoDHommeymo' {points} Suq {name}.",
     "summary": "{cell} 'oH rItlh'e'. ngoDHommeymo' {points} Suq {name}.",
-    "entry": "may' {round}, {cell}",
+    "entry": "ngoDHom {n}, {cell}",
     "kind": {
       "exact": "lughchu'",
       "close": "Sum",
@@ -80,24 +80,24 @@
   "board": {
     "label": "rItlh Daqmey",
     "theTint": "rItlh",
-    "guess": "{name} may' {round}"
+    "guess": "{name} ngoDHom {n}"
   },
   "scoreboard": {
     "turn": "Qu' {n}: {name}",
     "earlier": "Qu'mey wa'DIch"
   },
   "notes": {
-    "exact": "may' {round}Daq lughchu'",
-    "close": "may' {round}Daq Sum",
+    "exact": "ngoDHom {n}Daq lughchu'",
+    "close": "ngoDHom {n}Daq Sum",
     "found": "Sampu' pagh | Sampu' {count} | Sampu' {count}"
   },
   "log": {
     "turnStart": "{total}vo' Qu' {n}: ghojmoHwI' ghaH {name}'e'.",
-    "secondRound": "may' cha'DIch: ngoDHom cha'DIchmo' yIloyqa'.",
+    "secondHintStage": "ngoDHom cha'DIch: yIloyqa'.",
     "firstHint": "“{text}” ngoDHom nob {name}.",
     "secondHint": "“{text}” ngoDHom cha'DIch nob {name}.",
     "guessed": "loypu' {name}.",
-    "guess": "may' {round}Daq {cell} loy {name}: {kind} (+{points}).",
+    "guess": "ngoDHom {n}Daq {cell} loy {name}: {kind} (+{points}).",
     "kind": {
       "exact": "lughchu'",
       "close": "Sum",

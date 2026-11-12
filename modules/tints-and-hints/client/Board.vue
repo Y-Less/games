@@ -1,9 +1,9 @@
 <script setup>
-// Props: guesses {Array} guesses to draw (id, cell, round); players {Array} players (id, name, colour) used to colour markers;
+// Props: guesses {Array} guesses to draw (id, cell, hintNumber); players {Array} players (id, name, colour) used to colour markers;
 // target {String|null} the secret tint's cell, once revealed; selected {String|null} the cell chosen but not yet locked in;
 // disabled {Boolean} true when squares cannot be clicked; cell {Number} side of one square in pixels.
 // Emits: pick(cell) when a square is clicked.  Slots: none.  Side effects: none.
-// The colour grid.  Guesses are drawn as nested rings in each player's colour: dotted for the first round and solid
+// The colour grid.  Guesses are drawn as nested rings in each player's colour: dotted for the first hint and solid
 // for the second.  It is drawn at an exact size (`cell`, the side of one square in pixels) so that it fits the room the
 // table gives it and never changes size while the game is played.
 import { computed } from 'vue';
@@ -34,7 +34,7 @@ const markers = computed(() => {
 // per square: the grid is 1,248 squares and every one of them is labelled twice.
 const extras = computed(() => {
   const out = {};
-  for (const [cell, here] of Object.entries(markers.value)) out[cell] = here.map((m) => t('board.guess', { name: m.name, round: m.round }));
+  for (const [cell, here] of Object.entries(markers.value)) out[cell] = here.map((m) => t('board.guess', { name: m.name, n: m.hintNumber }));
   if (props.target) (out[props.target] ??= []).unshift(t('board.theTint'));
   return out;
 });
@@ -69,9 +69,9 @@ const style = computed(() => ({
       >
         <span
           v-for="(m, i) in markers[c + r]"
-          :key="m.id + '-' + m.round"
+          :key="m.id + '-' + m.hintNumber"
           class="ring"
-          :class="m.round === 1 ? 'first' : 'second'"
+          :class="m.hintNumber === 1 ? 'first' : 'second'"
           :style="{ inset: `calc(var(--ring) * 0.7 + ${i} * var(--step))`, borderColor: m.colour }"
         />
       </button>
