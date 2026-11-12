@@ -65,7 +65,7 @@ test('creating a room: sizes 2 to 5 only, the host in seat 0, free wall off by d
     assert.equal(room.phase, 'lobby');
     assert.deepEqual(room.settings, { freeWall: false });
   }
-  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).seats.length, 5, 'as big as the game allows by default');
   // The host's size comes straight from the client, so a bad one must refuse with a code the player can read in their
   // own language, never with the developer's sentence (see refusalReply in shared/messages.js).
   for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) {
@@ -75,7 +75,7 @@ test('creating a room: sizes 2 to 5 only, the host in seat 0, free wall off by d
   assert.equal(mk(3, { settings: { freeWall: true } }).settings.freeWall, true);
 });
 
-test('seat count and the free wall option: only the host, only in the lobby, keeping everyone seated', () => {
+test('how many the game is for, and the free wall option: only the host, only in the lobby, keeping everyone seated', () => {
   const room = mk(5);
   assert.equal(game.addHuman(room, 2, 'B').ok, true);
   assert.equal(game.setSize(room, 2, 3).ok, false, 'not the host');
@@ -85,7 +85,9 @@ test('seat count and the free wall option: only the host, only in the lobby, kee
   assert.equal(game.addHuman(room, 3, 'C').ok, false, 'full');
   assert.equal(game.setSize(room, 1, 1).ok, false);
   assert.equal(game.setSize(room, 1, 6).ok, false);
-  assert.equal(game.setSize(room, 1, '4').ok, false);
+  assert.equal(game.setSize(room, 1, '4').ok, true, 'a number written out, which is how a client sends one');
+  assert.equal(room.seats.length, 4);
+  assert.equal(game.setSize(room, 1, 2).ok, true);
   assert.equal(game.setSettings(room, 2, { freeWall: true }).ok, false);
   assert.equal(game.setSettings(room, 1, { freeWall: 1 }).ok, false);
   assert.equal(room.settings.freeWall, false);
@@ -93,14 +95,20 @@ test('seat count and the free wall option: only the host, only in the lobby, kee
   assert.equal(room.settings.freeWall, true);
   assert.equal(game.setSettings(room, 1, {}).ok, true, 'nothing to change');
   assert.equal(room.settings.freeWall, true);
-  game.addBot(room, 1);
   assert.equal(game.setSize(room, 1, 5).ok, true);
+  game.addBot(room, 1);
   assert.deepEqual(game.viewFor(room, 1).scoreboard.players.map((p) => p.bot), room.seats.filter(Boolean).map((s) => s.kind === 'bot'), 'the scoreboard marks computer players');
-  assert.equal(game.start(room, 1, Math.random).ok, false, 'empty seats');
-  game.fillWithBots(room, 1);
-  assert.equal(game.start(room, 1, Math.random).ok, true);
+  assert.equal(game.start(room, 1, Math.random).ok, true, 'three at a table of five is a game of three');
+  assert.equal(room.seats.length, 3, 'and the two empty seats are gone');
   assert.equal(game.setSize(room, 1, 3).ok, false, 'after the start');
   assert.equal(game.setSettings(room, 1, { freeWall: false }).ok, false, 'after the start');
+});
+
+test('a game needs two: the host on their own is refused, and the lobby is left alone', () => {
+  const room = mk(5);
+  assert.deepEqual(game.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 2 } });
+  assert.equal(room.seats.length, 5, 'a start that was refused did not settle the table');
+  assert.equal(room.phase, 'lobby');
 });
 
 test('computer players: add, remove, fill; the game needs one person', () => {

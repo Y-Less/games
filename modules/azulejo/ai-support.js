@@ -18,7 +18,7 @@ import { seeded } from '../../shared/testkit.js';
 export function playBotGame(ais, { seed = 1, free = false, onStep = null, limit = 5000 } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: ais.length, settings: { freeWall: free } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, ais.length); // the count is said out loud: filling makes up a normal table, not the whole one
   room.seats[0] = { kind: 'human', id: 1, name: 'p1' }; // somebody has to be able to start it
   assert(game.start(room, 1, rng).ok, 'the game starts');
   // Seat the requested AIs now that the game has started (start() would have chosen random ones).

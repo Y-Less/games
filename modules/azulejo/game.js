@@ -148,7 +148,8 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * @param {string} args.code  the invite code
  * @param {number} args.hostId  the host's account id
  * @param {string} args.hostName  the host's display name
- * @param {number} [args.size]  seats at the table (one of SIZES)
+ * @param {number} [args.size]  seats to open with (one of SIZES; the default is as many as the game allows, and the
+ *   host may bring it down in the lobby)
  * @param {object} [args.settings]  settings to validate (see normaliseSettings)
  * @param {number} args.now  the creation time in milliseconds
  * @returns {object} the room
@@ -157,7 +158,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  *
  * Side effects: none on shared state: it only builds and returns a new room.
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
+export function createRoom({ code, hostId, hostName, size = MAX_PLAYERS, settings = {}, now }) {
   if (!SIZES.includes(size)) throw refusal('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS }); // reachable: the host's `seats` comes from the client
 
   const normalised = normaliseSettings(settings);
@@ -166,7 +167,6 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
     code,
     hostId,
     phase: 'lobby',
-    size,
     settings: normalised.settings,
     seats: Array.from({ length: size }, (_, i) => (i === 0 ? { kind: 'human', id: hostId, name: hostName } : null)),
     nextBot: 1,
@@ -184,7 +184,7 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
  * @param {object} room
  */
 function resetGame(room) {
-  const n = room.size;
+  const n = room.seats.length;
   Object.assign(room, {
     bag: [],
     lid: [],
@@ -245,6 +245,9 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 // (Creating the rules has no side effects: the handlers it returns, exported just below, mutate the room they are given.)
 const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'playing' || room.phase === 'tiling',
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  fillTo: DEFAULT_SIZE,
   botNames: BOT_NAMES,
   /**
    * Turns the shared computer player into the one that replaces a person who left.
@@ -263,7 +266,9 @@ const seats = createSeatRules({
     bot.ai = pickAI(AIS, rng).id;
   },
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the settings (lobby only).
@@ -277,6 +282,11 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
+  if (input.size !== undefined) {
+    const sized = setSize(room, userId, input.size);
+    if (!sized.ok) return sized;
+  }
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
   room.settings = next.settings;
@@ -284,7 +294,8 @@ export function setSettings(room, userId, input) {
 }
 
 /**
- * The host chooses how many seats there are (2-5).  People and computer players are kept, in order.
+ * The host chooses how many seats there are (2-5): the shared rule, and then a fresh game, because every per-seat
+ * array here (the lines, the walls, the scores) is as long as the table and has just changed length.
  * Side effects: mutates `room` (the seats and the whole game state are reset).
  *
  * @param {object} room
@@ -293,22 +304,16 @@ export function setSettings(room, userId, input) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function setSize(room, userId, size) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!SIZES.includes(size)) return fail('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS });
-  const seated = room.seats.filter(Boolean);
-  if (seated.length > size) return fail('removeBeforeFewerSeats');
-  room.size = size;
-  room.seats = [...seated, ...Array.from({ length: size - seated.length }, () => null)];
-  resetGame(room);
-  return ok();
+  const result = seats.setSize(room, userId, size);
+  if (result.ok) resetGame(room);
+  return result;
 }
 
 // ---- starting ----
 
 /**
- * The host starts the game: shuffles the bag, picks who goes first, deals the first round, and gives each computer
- * player its AI.  Needs every seat filled and at least one person.
+ * The host starts the game: settles the table at whoever came, shuffles the bag, picks who goes first, deals the first
+ * round, and gives each computer player its AI.  Needs enough players and at least one person.
  * Side effects: mutates `room` (phase, bag, factories, log, the computer seats' `ai`).
  *
  * @param {object} room
@@ -319,11 +324,14 @@ export function setSize(room, userId, size) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   room.bag = makeBag(rng);
-  room.first = Math.floor(rng() * room.size);
+  room.first = Math.floor(rng() * room.seats.length);
   room.phase = 'playing';
   addLog(room, null, 'log.begins', { name: seatName(room, room.first) });
   startRound(room, rng);
@@ -361,7 +369,7 @@ function drawFromBag(room, rng) {
  */
 function startRound(room, rng) {
   const factories = [];
-  for (let f = 0; f < factoryCount(room.size); f++) {
+  for (let f = 0; f < factoryCount(room.seats.length); f++) {
     const tiles = [];
     for (let i = 0; i < FACTORY_TILES; i++) {
       const tile = drawFromBag(room, rng);
@@ -493,7 +501,7 @@ export function takeTiles(room, seat, args, rng) {
   addLog(room, seat, marker ? 'log.tookMarker' : 'log.took', { name: seatName(room, seat), tiles: tilesMsg(count, colour), source: sourceMsg(source), result });
 
   if (roundOver(room)) startTiling(room, rng);
-  else room.turn = (seat + 1) % room.size;
+  else room.turn = (seat + 1) % room.seats.length;
   return ok();
 }
 
@@ -512,7 +520,7 @@ function startTiling(room, rng) {
   room.turn = null;
   room.tiling = room.seats.map(() => ({ cursor: 0, placed: [], gained: 0, newRows: 0, dropped: [] }));
   room.pending = room.seats.map(() => null);
-  for (let seat = 0; seat < room.size; seat++) advanceTiling(room, seat);
+  for (let seat = 0; seat < room.seats.length; seat++) advanceTiling(room, seat);
   settleTiling(room, rng);
 }
 
@@ -618,7 +626,7 @@ function finishTiling(room, rng) {
   const deltas = {};
   const notes = {};
   const summary = [];
-  for (let seat = 0; seat < room.size; seat++) {
+  for (let seat = 0; seat < room.seats.length; seat++) {
     const t = room.tiling[seat];
     const floor = room.floors[seat];
     const before = room.scores[seat];
@@ -866,12 +874,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     phase: room.phase,
     you: me,
     hostSeat: seatOf(room, room.hostId),
-    size: room.size,
+    size: sizeOf(room),
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { sizes: SIZES, tiles: TILES },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, tiles: TILES },
     log: recentMoves(room, 14),
   };
   if (hasStarted(room)) Object.assign(view, playView(room, me));

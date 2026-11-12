@@ -1,6 +1,6 @@
 <script setup>
-// Azulejo lobby: shows the invite code and the seats (via the shared SeatLobby), and lets the host pick the number of
-// seats and whether the wall is "free".  Everyone else sees the settings read-only.
+// Azulejo lobby: shows the invite code and the seats (via the shared SeatLobby, which also carries the table size and
+// the computer players), and lets the host say whether the wall is "free".  Everyone else sees the settings read-only.
 //
 // Props:
 //   state  {Object}    required.  The player's view of the game (phase 'lobby'): code, seats, you, hostSeat, size, limits, settings.
@@ -34,8 +34,8 @@ const seats = computed(() =>
 const firstEmpty = () => props.state.seats.findIndex((s) => !s);
 // Number of occupied seats; the player count cannot be lowered below this.
 const seated = computed(() => props.state.seats.filter(Boolean).length);
-// Number of display plates for the chosen player count (the game's rule: two per player plus one).
-const plates = computed(() => 2 * props.state.size + 1);
+// Number of display plates for the people who are here, since the game will be for them (two per player plus one).
+const plates = computed(() => 2 * seated.value + 1);
 </script>
 
 <template>
@@ -48,31 +48,19 @@ const plates = computed(() => 2 * props.state.size + 1);
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => send('settings', { size: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.players') }}</legend>
-          <div class="row">
-            <button
-              v-for="n in state.limits.sizes"
-              :key="n"
-              :class="{ primary: state.size === n }"
-              :aria-pressed="state.size === n"
-              :disabled="seated > n"
-              :title="seated > n ? t('lobby.removeFirst') : ''"
-              @click="send('size', { seats: n })"
-            >
-              {{ t('lobby.playerCount', { n }) }}
-            </button>
-          </div>
-          <p class="muted small">{{ t('lobby.plates', { plates, perPlate: FACTORY_TILES, tiles: state.limits.tiles, perColour: PER_COLOUR }) }}</p>
-        </fieldset>
+        <p class="muted small">{{ t('lobby.plates', { plates, perPlate: FACTORY_TILES, tiles: state.limits.tiles, perColour: PER_COLOUR }) }}</p>
         <label class="check">
           <input type="checkbox" :checked="state.settings.freeWall" :disabled="!isHost" @change="send('settings', { freeWall: $event.target.checked })" />
           <span><strong>{{ t('freeWall') }}</strong> {{ t('lobby.offByDefault') }}</span>

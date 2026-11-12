@@ -31,7 +31,7 @@ export default function (ctx) {
      *
      * Side effects: none.
      */
-    createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
+    createArgs: (payload) => ({ size: payload.seats === undefined ? game.MAX_PLAYERS : payload.seats }),
     /**
      * A computer move or column choice, if one is due.  The server calls it after every change and schedules what it returns.
      *
@@ -56,9 +56,7 @@ export default function (ctx) {
      *
      * Side effects: registers handlers; each event, when it arrives, mutates the room through game.js.
      */
-    registerEvents({ act, on, userId, rng }) {
-      // Host only (game.setSize checks): change the number of seats in the lobby.
-      on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
+    registerEvents({ act, on, rng }) {
       // Take tiles from a source and put them on a pattern line or the floor (game.takeTiles checks it all).
       on('move', ({ source, colour, line }) => act((room, seat) => game.takeTiles(room, seat, { source, colour, line }, rng)));
       // Free wall only: choose the column for a completed pattern line (game.chooseColumn checks it).
@@ -76,5 +74,5 @@ export default function (ctx) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['freeWall']);
+  return pickKeys(payload, ['freeWall', 'size']);
 }

@@ -22,6 +22,7 @@ export function playingRoom(n, { seed = 1, free = false } = {}) {
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n, settings: { freeWall: free } });
   for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
+  assert.equal(room.seats.length, n, 'starting settles the table at the people who came');
   return { room, rng };
 }
 
@@ -54,7 +55,7 @@ export function setWall(room, seat, rows) {
  * Side effects: mutates `room` (factories, centre, marker, turn, phase, and the bag and lid when given).
  */
 export function setTable(room, { factories = [], centre = [], marker = true, turn = 0, bag = null, lid = null } = {}) {
-  room.factories = Array.from({ length: game.factoryCount(room.size) }, (_, i) => factories[i] ?? []);
+  room.factories = Array.from({ length: game.factoryCount(room.seats.length) }, (_, i) => factories[i] ?? []);
   room.centre = centre;
   room.markerInCentre = marker;
   room.turn = turn;
@@ -75,7 +76,7 @@ export function setTable(room, { factories = [], centre = [], marker = true, tur
 export function assertInvariants(room, label = '') {
   const where = `${label} (round ${room.round}, ${room.phase})`;
   if (!['playing', 'tiling', 'finished'].includes(room.phase)) return;
-  const n = room.size;
+  const n = room.seats.length;
   const everything = [
     ...room.bag,
     ...room.lid,

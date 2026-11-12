@@ -38,7 +38,7 @@ export function pendingAction(room) {
  */
 export function snapshot(room) {
   return {
-    size: room.size,
+    size: room.seats.length,
     settings: room.settings,
     round: room.round,
     first: room.first,

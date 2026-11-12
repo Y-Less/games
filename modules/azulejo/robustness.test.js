@@ -22,8 +22,7 @@ const EVENTS = {
   voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
-  settings: ['freeWall'],
-  size: ['seats'],
+  settings: ['freeWall', 'size'],
   addBot: ['seat'],
   removeBot: ['slot'],
   fillBots: [],
@@ -84,23 +83,24 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   assert.equal((await ann.call('create', { seats: 5 })).ok, true);
   assert.equal((await bob.call('join', { code: ann.state.code })).ok, true);
   await until(() => ann.state.seats[1], 'bob');
-  checked += await fuzzAll(ann, Object.keys(EVENTS), { site, skip: ['leave', 'start', 'fillBots', 'size'] });
-  checked += await fuzzAll(twin, ['move', 'column', 'settings', 'size', 'kick'], { site, who: 'twin' });
+  // 'settings' now carries how many the game is for, so the garbage may resize the table; it is set back below.
+  checked += await fuzzAll(ann, Object.keys(EVENTS), { site, skip: ['leave', 'start', 'fillBots'] });
+  checked += await fuzzAll(twin, ['move', 'column', 'settings', 'kick'], { site, who: 'twin' });
   checked += await fuzzAll(bob, Object.keys(EVENTS), { site, who: 'bob (not host)', skip: ['leave', 'start', 'fillBots', 'again'] });
-  checked += await fuzzAll(outsider, ['kick', 'settings', 'size', 'start', 'move', 'column', 'addBot', 'removeBot', 'fillBots', 'again'], { site, who: 'outsider in a lobby' });
+  checked += await fuzzAll(outsider, ['kick', 'settings', 'start', 'move', 'column', 'addBot', 'removeBot', 'fillBots', 'again'], { site, who: 'outsider in a lobby' });
   assert.equal(ann.state.phase, 'lobby', 'garbage did not start the game');
   assert.equal(bob.state.you, 1, 'garbage did not move anybody');
   assert.equal(outsider.state === null || outsider.state === undefined, true, 'an outsider is still outside');
 
   // Start the game and fuzz the play.
-  assert.equal((await ann.call('size', { seats: 5 })).ok, true);
-  assert.equal((await ann.call('fillBots')).ok, true);
+  assert.equal((await ann.call('settings', { size: 5 })).ok, true);
+  assert.equal((await ann.call('fillBots', { count: 5 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'all seated');
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state?.phase === 'playing' && bob.state?.phase === 'playing', 'the game to begin');
-  checked += await fuzzAll(outsider, ['move', 'column', 'kick', 'settings', 'size'], { site, who: 'outsider in a game' });
-  checked += await fuzzAll(bob, ['move', 'column', 'settings', 'size', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, who: 'bob playing' });
-  checked += await fuzzAll(ann, ['move', 'column', 'settings', 'size', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, who: 'ann playing' });
+  checked += await fuzzAll(outsider, ['move', 'column', 'kick', 'settings'], { site, who: 'outsider in a game' });
+  checked += await fuzzAll(bob, ['move', 'column', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, who: 'bob playing' });
+  checked += await fuzzAll(ann, ['move', 'column', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, who: 'ann playing' });
   assert.ok(checked > 3000, `${checked} replies checked`);
   assert.equal(ann.state.phase === 'playing' || ann.state.phase === 'finished', true);
   assert.equal(ann.state.settings.freeWall, false);
@@ -128,7 +128,7 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   await playToEnd([ann, bob]);
   validateView(ann.state, 'ann finished');
   validateView(bob.state, 'bob finished');
-  checked += await fuzzAll(bob, ['move', 'column', 'settings', 'size', 'kick', 'start', 'addBot', 'removeBot', 'fillBots'], { site, who: 'bob finished' });
+  checked += await fuzzAll(bob, ['move', 'column', 'settings', 'kick', 'start', 'addBot', 'removeBot', 'fillBots'], { site, who: 'bob finished' });
   assert.equal(ann.state.phase, 'finished');
   assert.equal((await bob.call('again')).ok, false, 'only the host');
   assert.equal((await ann.call('again')).ok, true);
@@ -157,7 +157,7 @@ test('garbage while a free-wall player has a column to choose, and from the othe
     if (chooser) {
       const other = chooser === ann ? bob : ann;
       const row = chooser.state.choice.row;
-      await fuzzAll(other, ['column', 'move', 'start', 'size', 'settings'], { site, who: 'the other player during tiling' });
+      await fuzzAll(other, ['column', 'move', 'start', 'settings'], { site, who: 'the other player during tiling' });
       const afterOther = chooser.state;
       assert.ok(afterOther.phase === 'tiling' || afterOther.phase === 'playing');
       if (afterOther.phase === 'tiling' && afterOther.choice) assert.equal(afterOther.choice.row, row, 'garbage from the other changed nothing');

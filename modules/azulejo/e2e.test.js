@@ -51,8 +51,8 @@ for (const seats of [2, 3, 4, 5]) {
     await until(() => ann.state?.phase === 'lobby', 'the lobby');
     assert.equal(ann.state.size, seats);
     assert.equal(ann.state.seats.length, seats);
-    assert.equal((await ann.call('start')).ok, false, 'seats are empty');
-    assert.equal((await ann.call('fillBots')).ok, true);
+    assert.equal((await ann.call('start')).ok, false, 'the host is on their own');
+    assert.equal((await ann.call('fillBots', { count: seats })).ok, true);
     await until(() => ann.state.seats.every(Boolean), 'every seat filled');
     assert.equal((await ann.call('start')).ok, true);
     await until(() => ann.state.phase === 'playing', 'the game');
@@ -135,7 +135,7 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   const [ann, bob, cat, dan, eve] = await named(site, ['ann', 'bob', 'cat', 'dan', 'eve']);
   for (const bad of [1, 6, 'x', 2.5, null]) assert.equal((await ann.call('create', { seats: bad })).ok, false, `seats ${bad}`);
   await ann.call('create', {});
-  assert.equal(ann.state.size, 4, 'four by default');
+  assert.equal(ann.state.size, 5, 'as big as the game allows by default');
   assert.equal(ann.state.settings.freeWall, false, 'the free wall is off by default');
   assert.equal((await bob.call('join', { code: 'nonsense' })).ok, false);
   assert.equal((await bob.call('join', { code: 'boss-aware-you' })).ok, false, 'no such game');
@@ -144,7 +144,7 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   assert.equal(bob.state.you, 1);
   assert.equal(bob.state.hostSeat, 0);
 
-  assert.equal((await bob.call('size', { seats: 5 })).ok, false, 'only the host');
+  assert.equal((await bob.call('settings', { size: 5 })).ok, false, 'only the host');
   assert.equal((await bob.call('addBot')).ok, false);
   assert.equal((await bob.call('settings', { freeWall: true })).ok, false, 'only the host');
   assert.equal(bob.state.settings.freeWall, false);
@@ -153,16 +153,16 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   await until(() => bob.state.settings.freeWall === true, 'the option shown to everyone');
   assert.equal((await ann.call('settings', { freeWall: false })).ok, true);
   await until(() => bob.state.settings.freeWall === false, 'and switched off again');
-  assert.equal((await ann.call('size', { seats: 2 })).ok, true);
+  assert.equal((await ann.call('settings', { size: 2 })).ok, true);
   await until(() => bob.state.size === 2 && bob.state.seats.length === 2, 'two seats');
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, false, 'the room is full');
-  assert.equal((await ann.call('size', { seats: 1 })).ok, false);
-  assert.equal((await ann.call('size', { seats: 5 })).ok, true);
+  assert.equal((await ann.call('settings', { size: 1 })).ok, false);
+  assert.equal((await ann.call('settings', { size: 5 })).ok, true);
   assert.equal((await ann.call('create', {})).ok, false, 'one game per account');
   assert.equal((await bob.call('create', {})).ok, false);
 
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, true);
-  assert.equal((await ann.call('size', { seats: 2 })).ok, false, 'three people are seated');
+  assert.equal((await ann.call('settings', { size: 2 })).ok, false, 'three people are seated');
   assert.equal((await ann.call('kick', { slot: 's2' })).ok, true);
   await until(() => cat.state === null, 'cat removed');
   assert.equal((await cat.call('kick', { slot: 's1' })).ok, false, 'not in a game');
@@ -183,7 +183,7 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase === 'playing', 'the game');
   assert.equal((await eve.call('join', { code: ann.state.code })).ok, true, 'a started game is joined by taking a computer player seat');
-  assert.equal((await ann.call('size', { seats: 3 })).ok, false);
+  assert.equal((await ann.call('settings', { size: 3 })).ok, false);
   assert.equal((await ann.call('settings', { freeWall: true })).ok, false);
   assert.equal((await ann.call('kick', { slot: `s${ann.state.you}` })).ok, false, 'not yourself');
   assert.equal((await ann.call('addBot')).ok, false);
