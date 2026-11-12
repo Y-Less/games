@@ -122,6 +122,21 @@ const style = computed(() => {
 
 /* The dots of the stars, snow and embers are placed as percentages of a tile, so a preview can use smaller tiles. */
 
+/* The drifting effects below (snow, embers, fireflies, rain) move their whole layer with a transform, never by sliding
+   `background-position`: that is a paint, and painting the whole window every frame makes the picture tear on some
+   machines, which is exactly what a background is not supposed to do.  Embers and fireflies fade at the same time, and
+   a layer that is being repainted and faded at once is the worst of it.  The layer is one tile larger on every side and
+   the pattern repeats every tile, so moving it by a tile covers the window the whole way and ends where it began.  The
+   `gradient` effect above does the same thing for the same reason.  (Rain is already larger than the window, because it
+   is turned; it keeps its own `inset`.) */
+[data-fx='snow']::before,
+[data-fx='snow']::after,
+[data-fx='embers']::before,
+[data-fx='fireflies']::before,
+[data-fx='fireflies']::after {
+  inset: calc(var(--tile) * -1);
+}
+
 /* Two layers of stars that fade in and out at different speeds. */
 [data-fx='stars']::before {
   --tile: 200px;
@@ -181,7 +196,7 @@ const style = computed(() => {
 }
 @keyframes fx-fall {
   to {
-    background-position: calc(var(--tile) * 0.15) var(--tile);
+    transform: translate(calc(var(--tile) * 0.15), var(--tile));
   }
 }
 
@@ -208,7 +223,7 @@ const style = computed(() => {
 }
 @keyframes fx-rise {
   to {
-    background-position: calc(var(--tile) * -0.12) calc(var(--tile) * -1);
+    transform: translate(calc(var(--tile) * -0.12), calc(var(--tile) * -1));
   }
 }
 @keyframes fx-flicker {
@@ -254,12 +269,12 @@ const style = computed(() => {
 }
 @keyframes fx-drift {
   to {
-    background-position: var(--tile) calc(var(--tile) * -1);
+    transform: translate(var(--tile), calc(var(--tile) * -1));
   }
 }
 @keyframes fx-drift-back {
   to {
-    background-position: calc(var(--tile) * -1) var(--tile);
+    transform: translate(calc(var(--tile) * -1), var(--tile));
   }
 }
 @keyframes fx-blink {
@@ -275,7 +290,8 @@ const style = computed(() => {
    screen, so the drops lean and still reach every corner. */
 [data-fx='rain']::before,
 [data-fx='rain']::after {
-  inset: -25%;
+  /* A quarter of the window over each edge for the turn, and a tile more for the fall (see the note above the snow). */
+  inset: calc(-25% - var(--tile));
   transform: rotate(12deg);
   background-repeat: repeat;
 }
@@ -303,9 +319,14 @@ const style = computed(() => {
   background-image: radial-gradient(1.5px 6px at 30% 35%, rgb(205 225 255 / 0.7), transparent), radial-gradient(1.5px 8px at 72% 82%, rgb(205 225 255 / 0.75), transparent),
     radial-gradient(1.5px 5px at 92% 12%, rgb(205 225 255 / 0.6), transparent);
 }
+/* The turn is repeated in both frames: a transform animation replaces the one on the rule, so the rain would straighten
+   up without it, and the drops have to fall along their own slant rather than straight down the window. */
 @keyframes fx-pour {
+  from {
+    transform: rotate(12deg) translateY(0);
+  }
   to {
-    background-position: 0 var(--tile);
+    transform: rotate(12deg) translateY(var(--tile));
   }
 }
 

@@ -4,7 +4,7 @@
 // animation, and the interface's own transitions.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld } from './helpers.js';
+import { createWorld, sleep } from './helpers.js';
 
 let world;
 let user;
@@ -71,3 +71,56 @@ test('"always" plays every animation, whatever the device asks for', { timeout: 
 test('"never" stops every animation, whatever the device asks for', { timeout: 60000 }, guarded('off, no preference', async () => {
   assert.deepEqual(await motion({ device: 'no-preference', choice: false }), { background: 'none', name: 'none', interfaceMoves: false });
 }));
+
+/**
+ * Turns this background effect on and looks at its two layers: how big each one is against the window, and whether it
+ * has moved a moment later.  Only a real browser can answer either, since both are the browser's own reckoning of the
+ * stylesheet.
+ * @param {string} effect  the effect's id (see shared/animations.js)
+ * @returns {Promise<object>} the window's size, each layer's size and place, and whether each one moved
+ */
+async function drifting(effect) {
+  await user.page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
+  await user.api('PATCH', '/api/me', { backgroundAnimation: effect, playAnimations: true });
+  await user.goto('/');
+  await user.waitForSelector(`.bg-fx[data-fx="${effect}"]`);
+  const read = () =>
+    user.page.evaluate(() => {
+      const el = document.querySelector('.bg-fx');
+      const layer = (part) => {
+        const style = getComputedStyle(el, part);
+        return { top: Number.parseFloat(style.top), width: Number.parseFloat(style.width), height: Number.parseFloat(style.height), at: style.transform, animated: style.animationName !== 'none' };
+      };
+      return { window: { width: window.innerWidth, height: window.innerHeight }, before: layer('::before'), after: layer('::after') };
+    });
+  const first = await read();
+  await sleep(400);
+  const second = await read();
+  return { ...first, moved: { before: first.before.at !== second.before.at, after: first.after.at !== second.after.at } };
+}
+
+// The drifting effects used to slide `background-position`, which repaints the whole window every frame and tears the
+// picture on some machines.  They move the layer itself instead, which means the layer has to be bigger than the window
+// or the drift would uncover an edge of it.  Both halves of that are checked here: it covers, and it moves.
+for (const [effect, layers] of [
+  ['snow', ['before', 'after']],
+  ['embers', ['before']], // its `after` is the still glow along the bottom, which is meant to stay where it is
+  ['fireflies', ['before', 'after']],
+  ['rain', ['before', 'after']],
+]) {
+  test(`${effect} drifts a layer that is bigger than the window, without repainting it`, { timeout: 60000 }, guarded(`drift ${effect}`, async () => {
+    const fx = await drifting(effect);
+    for (const part of ['before', 'after']) {
+      const layer = fx[part];
+      if (!layers.includes(part)) {
+        assert.equal(fx.moved[part], false, `${effect}: ::${part} stands still`);
+        continue;
+      }
+      assert.ok(layer.animated, `${effect}: ::${part} is animated`);
+      assert.ok(layer.top < 0, `${effect}: ::${part} starts above the window (top ${layer.top})`);
+      assert.ok(layer.width > fx.window.width, `${effect}: ::${part} is wider than the window (${layer.width} vs ${fx.window.width})`);
+      assert.ok(layer.height > fx.window.height, `${effect}: ::${part} is taller than the window (${layer.height} vs ${fx.window.height})`);
+      assert.ok(fx.moved[part], `${effect}: ::${part} moved while we watched`);
+    }
+  }));
+}

@@ -1,8 +1,18 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import BackgroundFx from './BackgroundFx.vue';
 
 describe('BackgroundFx', () => {
+  // The drifting effects cover the whole window, so sliding `background-position` repaints all of it every frame, which
+  // tears the picture on some machines.  They move their layer with a transform instead; this is the guard on that.
+  it('never drifts a layer by repainting it', () => {
+    const source = readFileSync('src/components/BackgroundFx.vue', 'utf8'); // the suite runs from the project root
+    const frames = [...source.matchAll(/@keyframes\s+([\w-]+)\s*\{([\s\S]*?)\n\}/g)];
+    expect(frames.length).toBeGreaterThan(8);
+    expect(frames.filter(([, , body]) => /background-position\s*:/.test(body)).map(([, name]) => name)).toEqual([]);
+  });
+
   it('draws nothing for no effect, a still one or an unset one', () => {
     for (const effect of [undefined, 'none', '']) expect(mount(BackgroundFx, { props: { effect } }).find('.bg-fx').exists()).toBe(false);
   });
