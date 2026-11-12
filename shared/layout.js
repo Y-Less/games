@@ -6,7 +6,10 @@
 // taking a place over and people taking it back is the same in both, and it is written once, in shared/members.js.
 //
 // This is the part that cannot be: how a place is named from outside, how to find who is in it, how a newcomer is
-// given one, and what an empty one is.  Everybody is named by a **slot** — "s0", "s1" — which is the seat number in
+// given one, what an empty one is, and how the room comes to hold more or fewer of them.  How many a room holds, who
+// may change it and when are the same question in both families, and so are asked once, in shared/members.js; what a
+// room with that many places actually looks like is the one thing only the layout knows, and that is `resize` and
+// `settle` below.  Everybody is named by a **slot** — "s0", "s1" — which is the seat number in
 // one family and the key handed out when a player joins in the other.  A slot is a string in both, deliberately: an
 // account id is a small number too, and the two are indistinguishable once either is a key of an object or a field of
 // a message, which is a mistake that has already been made twice and found late both times.
@@ -51,6 +54,18 @@ export const seatLayout = {
   list: (room) => room.seats.filter(Boolean),
   /** How many places the room has: a seated game is as big as its table. */
   capacity: (room) => room.seats.length,
+  /**
+   * Changes how many places the room holds: the table gains or loses seats, and the people and computer players at it
+   * keep their order.  Shrinking never puts anybody out, because the rules refuse a size smaller than the room holds.
+   */
+  resize(room, size) {
+    const seated = room.seats.filter(Boolean);
+    room.seats = [...seated, ...Array.from({ length: Math.max(0, size - seated.length) }, () => null)];
+  },
+  /** The room becomes exactly as big as the members in it: the empty seats go, and the rest keep their order. */
+  settle(room) {
+    room.seats = room.seats.filter(Boolean);
+  },
   /** The seat number behind a slot, or -1 when there is no such seat. */
   indexOf(room, slot) {
     const index = numberIn(slot);
@@ -103,6 +118,14 @@ export const rosterLayout = {
   list: (room) => room.players,
   /** How many players the room will hold: what the host settled on, or the whole game until they do. */
   capacity: (room, maxPlayers) => (Number.isInteger(room.size) ? room.size : maxPlayers),
+  /** Changes how many places the room holds.  There are no seats to add or take away, only the number itself. */
+  resize(room, size) {
+    room.size = size;
+  },
+  /** The room becomes exactly as big as the members in it. */
+  settle(room) {
+    room.size = room.players.length;
+  },
   /** Where in the list that slot is, or -1. */
   indexOf: (room, slot) => room.players.findIndex((p) => p.slot === slot),
   /** Who is in that slot, or null. */

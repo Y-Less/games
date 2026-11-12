@@ -156,8 +156,9 @@ export function nextBotName(used, botNames) {
  *   computer players (the two families answer with different codes)
  * @param {(room: object, slot: string, leaving: object) => boolean} config.leaveFinished  what a place becomes when
  *   its holder leaves a game that is already over, and whether that counts as a change worth telling anybody about
- * @param {number} [config.maxPlayers]  the most the game allows, for families whose room size is not its seat count
- * @param {number} [config.minPlayers]  the fewest it can be played with
+ * @param {number} [config.maxPlayers]  the most the game allows: the size a room opens at, and the most `setSize` lets
+ *   the host ask for
+ * @param {number} [config.minPlayers]  the fewest it can be played with, and the fewest `setSize` lets them ask for
  * @param {number} [config.fillTo]  how many "fill with computer players" makes up to
  * @param {string[]} [config.botNames]  the names computer players get (default DEFAULT_BOT_NAMES)
  * @param {(room: object, base: object, extras?: object) => object} [config.makePlayer]  turns the bare member into the
@@ -172,7 +173,9 @@ export function nextBotName(used, botNames) {
  *   mirror: runs after somebody joining a game under way has taken a computer player's place.
  * @param {(room: object, rng: () => number, now: number) => void} [config.afterRemoval]  runs after somebody has left
  *   and at least one person remains (they may have been the only one the game was waiting for)
- * @returns {object} the shared rules; each family adds the few of its own
+ * @returns {object} the shared rules — newBot, addHuman, sitInForBot, removeHuman, takeOut, fillWithBots, kick,
+ *   setSize, sizeOf, lockSize, and the small questions the two front doors ask of them; each family adds the few of
+ *   its own
  */
 export function createMemberRules({
   layout,
@@ -367,6 +370,51 @@ export function createMemberRules({
   }
 
   /**
+   * How many this room will hold.  A room opens as big as the game allows, so that nobody who could have joined one
+   * yesterday is turned away today; a host who wants it smaller says so, and starting settles it for good.
+   * @param {object} room  not changed
+   * @returns {number}
+   * Side effects: none.
+   */
+  const sizeOf = (room) => capacity(room);
+
+  /**
+   * Starting settles how many are playing: the room becomes exactly as big as the people and computer players in it.
+   * A host who wants a place kept open for a friend fills it with a computer player first, and the friend takes it
+   * over when they arrive — which is what already happens to somebody who leaves a game under way.
+   *
+   * It is the game's own `start` that calls this, before anything is dealt, because from then on how much there is to
+   * deal is read off the room's size.
+   *
+   * @param {object} room  the room to change
+   * @returns {void}
+   * Side effects: the room is resized to the members in it (a table loses its empty seats; a list writes `room.size`).
+   */
+  function lockSize(room) {
+    layout.settle(room);
+  }
+
+  /**
+   * The host chooses how many the game is for.  Lobby only, within the game's limits, and never fewer than are already
+   * here — the host takes somebody out first, rather than having the rules decide who goes.
+   *
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (must be the host)
+   * @param {number} size  how many the game is for
+   * @returns {{ ok: boolean, error?: string }} success, or why it failed
+   * Side effects: resizes the room on success; nothing on failure.
+   */
+  function setSize(room, userId, size) {
+    const problem = hostInLobby(room, userId);
+    if (problem) return problem;
+    const wanted = Math.round(numberFrom(size));
+    if (!Number.isInteger(wanted) || wanted < minPlayers || wanted > maxPlayers) return fail('playersRange', { min: minPlayers, max: maxPlayers });
+    if (members(room).length > wanted) return fail('removeBeforeFewerPlayers');
+    layout.resize(room, wanted);
+    return ok();
+  }
+
+  /**
    * The host removes another person, at any time before the game is over: in the lobby they go, and in a game a
    * computer player takes their place (as when somebody leaves).  A finished game has nobody to remove.  The result
    * names the person, so the server can send them home.
@@ -389,5 +437,5 @@ export function createMemberRules({
     return ok({ userId: target.id, replaced: Boolean(removed.replaced) });
   }
 
-  return { newBot, addHuman, sitInForBot, removeHuman, takeOut, fillWithBots, kick, capacity, isFull, members, people, names, unique, slotToTake };
+  return { newBot, addHuman, sitInForBot, removeHuman, takeOut, fillWithBots, kick, setSize, sizeOf, lockSize, capacity, isFull, members, people, names, unique, slotToTake };
 }

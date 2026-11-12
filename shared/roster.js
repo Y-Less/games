@@ -16,9 +16,8 @@
 // Every rule returns { ok: true, ... } or { ok: false, error } and (like all the rules) mutates the room it is given.
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
-import { numberFrom } from './input.js';
 import { rosterLayout, withSlot } from './layout.js';
-import { asHost, createMemberRules, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
+import { asHost, createMemberRules, fail, freeName, isBot, isHuman, ok } from './members.js';
 
 export { barFromRoom, isBarred, isBot, isHuman, nextGame } from './members.js';
 export { withSlot } from './layout.js';
@@ -262,28 +261,19 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
   });
 
   /**
-   * The most people this game will hold.  A room opens as big as the game allows, so nobody is turned away who could
-   * have joined before; a host who wants to keep it smaller says so, and starting settles it for good.
-   * @param {object} room  not changed
-   * @returns {number}
-   */
-  const sizeOf = (room) => rules.capacity(room);
-
-  /**
    * Null if this person is the host and the game is still in the lobby, otherwise the failure to return.
    *
    * Which failure depends on what they were trying to do, because the codes are in four locale files and each one
-   * names the thing refused: adding a computer player, removing one, or changing how many players the game is for.
-   * The last of those is an ordinary lobby setting, so it answers with the codes every other setting answers with.
+   * names the thing refused: adding a computer player, or removing one.  (Changing how many players the game is for
+   * is an ordinary lobby setting, and `setSize` answers with the codes every other setting answers with.)
    *
    * @param {object} room
    * @param {number} userId
-   * @param {'add' | 'remove' | 'size'} what
+   * @param {'add' | 'remove'} what
    * @returns {{ ok: false, error: string } | null}
    * Side effects: none.
    */
   function lobbyHostOnly(room, userId, what) {
-    if (what === 'size') return hostInLobby(room, userId);
     if (userId !== room.hostId) return fail(what === 'add' ? 'hostOnlyAddBots' : 'hostOnlyRemoveBots');
     if (room.phase !== 'lobby') return fail(what === 'add' ? 'botsLobbyOnly' : 'botsRemoveLobbyOnly');
     return null;
@@ -308,39 +298,6 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
   }
 
   /**
-   * Starting settles how many are playing: the room becomes exactly as big as the people and computer players in it.
-   * A host who wants a place kept open for a friend fills it with a computer player first, and the friend takes it
-   * over when they arrive.
-   *
-   * @param {object} room  the room to change
-   * @returns {void}
-   * Side effects: sets `room.size`.
-   */
-  function lockSize(room) {
-    room.size = room.players.length;
-  }
-
-  /**
-   * The host chooses how many players the game is for.  Lobby only, within the game's limits, and never fewer than are
-   * already here (the host takes somebody out first).
-   *
-   * @param {object} room  the room to change
-   * @param {number} userId  who is asking (must be the host)
-   * @param {number} size  how many players the game is for
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: sets `room.size` on success; nothing on failure.
-   */
-  function setSize(room, userId, size) {
-    const problem = lobbyHostOnly(room, userId, 'size');
-    if (problem) return problem;
-    const wanted = Math.round(numberFrom(size));
-    if (!Number.isInteger(wanted) || wanted < minPlayers || wanted > maxPlayers) return fail('playersRange', { min: minPlayers, max: maxPlayers });
-    if (room.players.length > wanted) return fail('removeBeforeFewerPlayers');
-    room.size = wanted;
-    return ok();
-  }
-
-  /**
    * The host removes a computer player, in the lobby only: once the game is under way every player's turns are part of
    * the game, so a computer player stays (as in the seated games).
    *
@@ -362,5 +319,5 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
     return ok();
   }
 
-  return { newBot: rules.newBot, addHuman: rules.addHuman, removeHuman: rules.removeHuman, addBot, removeBot, fillWithBots: rules.fillWithBots, kick: rules.kick, setSize, sizeOf, lockSize };
+  return { newBot: rules.newBot, addHuman: rules.addHuman, removeHuman: rules.removeHuman, addBot, removeBot, fillWithBots: rules.fillWithBots, kick: rules.kick, setSize: rules.setSize, sizeOf: rules.sizeOf, lockSize: rules.lockSize };
 }
