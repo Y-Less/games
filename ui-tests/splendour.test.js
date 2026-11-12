@@ -19,7 +19,7 @@ after(async () => {
 const guarded = (name, body) => (t) => world.guard(name, body)(t);
 const seatKinds = () => user.page.$$eval('.seats .seat', (els) => els.map((e) => [...e.classList].find((c) => ['human', 'bot', 'empty'].includes(c))));
 
-test('the seat lobby: seat count, play-to target and computer players; Start needs every seat filled', { timeout: 60000 }, guarded('lobby', async () => {
+test('the seat lobby: the seats, the play-to target and computer players; Start waits for two', { timeout: 60000 }, guarded('lobby', async () => {
   await user.goto('/play/splendour');
   await user.clickButton('Start a new game');
   await user.waitForText('Waiting for players');

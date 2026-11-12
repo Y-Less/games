@@ -177,13 +177,12 @@ test('a host on their own fills the lobby with computer players and plays until 
   await solo.waitForText('Players (2 of 8)');
   await solo.clickButton('Remove', { scope: '.players li:nth-child(2)' });
   await solo.waitForText('Players (1 of 8)');
-  // Filling makes a table worth playing rather than the bare minimum of two, so this alone gives three.
-  await solo.clickButton('Fill up to 3 seats with computer players');
-  await solo.waitForText('Players (3 of 8)');
+  // Filling makes up a normal table of four rather than the bare minimum of two, so this alone is a game.
+  await solo.clickButton('Fill up to 4 seats with computer players');
+  await solo.waitForText('Players (4 of 8)');
   const rows = await seats();
   assert.match(rows[0], /Sol.*host/);
-  assert.match(rows[1], /computer/);
-  assert.match(rows[2], /computer/);
+  for (const row of rows.slice(1)) assert.match(row, /computer/);
   await solo.clickButton('Fewer rounds');
   await solo.waitForText('1 round');
   await solo.clickButton('Start the game', { exact: true });
