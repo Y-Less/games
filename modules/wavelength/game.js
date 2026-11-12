@@ -26,7 +26,11 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-/** How many turns each person gets as psychic: the game lasts turnsEach x players turns. */
+/**
+ * How many turns each person gets as psychic: the game lasts turnsEach x players turns.  That is also the number of
+ * rounds, a round being everybody having had a turn, but Wavelength never counts or names them: the setting is the
+ * number a player chooses, and "turns each" is what they are choosing.
+ */
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 /** The longest clue, in characters; longer ones are cut (so a clue cannot swamp the table). */
 export const CLUE_LENGTH = 80;

@@ -25,7 +25,9 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 7;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-// How many turns as the guesser each player gets: bounds and default for the host's setting.
+// How many turns as the guesser each player gets: bounds and default for the host's setting.  That is also the number
+// of rounds, a round being everybody having had a turn, but Just One never counts or names them: the setting is the
+// number a player chooses, and "turns each" is what they are choosing.
 export const TURNS_EACH = { min: 1, max: 5, default: 2 };
 // The longest clue and guess accepted, in characters (keeps the table readable and stops pasted essays).
 export const CLUE_LENGTH = 24;
