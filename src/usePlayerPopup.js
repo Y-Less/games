@@ -169,11 +169,18 @@ export function usePlayerPopup({ players, hostId = () => null, isHost = () => fa
   // Calls off the vote this person asked for.  Side effects: as sendVote.
   const dropAboutSelected = () => sendVote(dropVote);
 
-  /** The vote the server is running, but only when it is about the player whose pop-up is open. */
+  /**
+   * The vote the server is running, but only when it is about the player whose pop-up is open.
+   *
+   * Both are named by slot ("s2"), which is how a place is addressed on the wire (shared/layout.js): it is what
+   * `askVote` sends and what `createVoteKick`'s view comes back with.  A player's `id` is the game's own name for
+   * them and is not the same thing — a seat number in one family and an account id in the other — so comparing
+   * against it never matched, and the tally never appeared for anybody.
+   */
   const voteOnSelected = computed(() => {
     const running = vote();
     const target = selected.value;
-    return running && target && running.target === target.id ? running : null;
+    return running && target && running.target === target.slot ? running : null;
   });
 
   // The path is read from the event, not the target's ancestors: the button that was clicked may already have been

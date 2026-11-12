@@ -12,15 +12,17 @@ afterEach(() => {
 });
 
 // A table in miniature: the standard score bar and pop-up, wired together as the games do.
-function table({ host = true, remove = vi.fn(() => Promise.resolve({ ok: true })) } = {}) {
+function table({ host = true, remove = vi.fn(() => Promise.resolve({ ok: true })), vote = () => null, askVote } = {}) {
+  // A seated game's scoreboard entries (shared/scores.js seatScoreboardEntry): `id` is the seat number and `slot` is
+  // what the wire calls that place.  The two are deliberately different, and the vote is named by the slot.
   const players = ref([
-    { id: 0, name: 'Ann', score: 3, isMe: true },
-    { id: 1, name: 'Bob', score: 2 },
-    { id: 2, name: 'Robo', score: 1, bot: true },
+    { id: 0, slot: 's0', name: 'Ann', score: 3, isMe: true },
+    { id: 1, slot: 's1', name: 'Bob', score: 2 },
+    { id: 2, slot: 's2', name: 'Robo', score: 1, bot: true },
   ]);
   const Table = defineComponent({
     setup() {
-      const { scoreProps, popupProps, openId } = usePlayerPopup({ players: () => players.value, hostId: () => 0, isHost: () => host, remove });
+      const { scoreProps, popupProps, openId } = usePlayerPopup({ players: () => players.value, hostId: () => 0, isHost: () => host, remove, vote, askVote });
       return () => [
         h(ScoreBoard, { players: players.value, ...scoreProps.value }),
         popupProps.value ? h(PlayerPopup, popupProps.value, { default: () => h('p', { class: 'panel-text' }, `open: ${openId.value}`) }) : null,
@@ -167,5 +169,35 @@ describe('usePlayerPopup', () => {
     players.value = players.value.filter((p) => p.id !== 1);
     await flushPromises();
     expect(popup().exists()).toBe(false);
+  });
+});
+
+describe('usePlayerPopup voting', () => {
+  // The server names the vote's target by slot, because that is how a place is addressed on the wire.  A player's
+  // `id` is the game's own name for them -- a seat number here, an account id in a game with a list -- so the two
+  // must not be compared: doing so matched nothing, and the tally never appeared for anybody.
+  const running = { target: 's1', by: 's0', yes: 1, no: 0, needed: 2, answered: null, mine: true };
+
+  it('shows the tally in the pop-up of the player the vote is about', async () => {
+    table({ vote: () => running });
+    await chip(1).trigger('click');
+    expect(popup().text()).toContain('1 of 2 to remove Bob');
+  });
+
+  it('shows no tally in anybody else\'s pop-up, and offers no second vote while one is running', async () => {
+    table({ vote: () => running, askVote: vi.fn() });
+    await chip(2).trigger('click');
+    expect(popup().text()).not.toContain('to remove');
+    expect(popupButton('Vote to remove')).toBeUndefined();
+  });
+
+  it('asks about a player by their slot, not by their id', async () => {
+    const askVote = vi.fn(() => Promise.resolve({ ok: true }));
+    table({ host: false, askVote });
+    await chip(1).trigger('click');
+    await popupButton('Vote to remove').trigger('click');
+    await popup().find('[data-ask]').trigger('click');
+    await flushPromises();
+    expect(askVote).toHaveBeenCalledWith(1, expect.objectContaining({ slot: 's1' }));
   });
 });
