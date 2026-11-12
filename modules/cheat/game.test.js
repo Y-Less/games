@@ -8,7 +8,7 @@ import * as bot from './bot.js';
 /** A started game with one person (account 1) in seat 0 and computers elsewhere. */
 function started(n = 4, seed = 1) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n } });
-  assert.equal(g.fillWithBots(room, 1).ok, true);
+  assert.equal(g.fillWithBots(room, 1, n).ok, true); // the table is filled; filling on its own makes up a normal four
   assert.equal(g.start(room, 1, seeded(seed)).ok, true);
   return room;
 }
@@ -52,24 +52,28 @@ test('the holder of the Ace of Spades starts', () => {
 
 test('settings: the host picks 3 to 7 seats, and not fewer than are filled', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(room.seats.length, g.DEFAULT_SEATS);
+  assert.equal(room.seats.length, g.MAX_SEATS, 'a room opens as big as the game allows');
   assert.deepEqual(g.setSettings(room, 2, { seats: 5 }), { ok: false, error: 'hostOnly' }, 'only the host');
   assert.deepEqual(g.setSettings(room, 1, { seats: 2 }), { ok: false, error: 'playersRange', params: { min: 3, max: 7 } });
   assert.equal(g.setSettings(room, 1, { seats: 8 }).error, 'playersRange');
-  assert.equal(g.setSettings(room, 1, { seats: 5.5 }).error, 'playersRange');
+  // A number that is not quite whole is rounded and then checked, as it is for the games with a list of players.
+  assert.equal(g.setSettings(room, 1, { seats: 5.4 }).ok, true);
+  assert.equal(room.seats.length, 5);
   assert.equal(g.setSettings(room, 1, { seats: 7 }).ok, true);
   assert.equal(room.seats.length, 7);
-  g.fillWithBots(room, 1);
-  assert.deepEqual(g.setSettings(room, 1, { seats: 3 }), { ok: false, error: 'removePlayerFirst' }, 'someone would lose their seat');
+  g.fillWithBots(room, 1, 7);
+  assert.deepEqual(g.setSettings(room, 1, { seats: 3 }), { ok: false, error: 'removeBeforeFewerPlayers' }, 'someone would lose their seat');
   assert.throws(() => g.createRoom({ now: 0, code: 'x', hostId: 1, hostName: 'Ann', settings: { seats: 2 } }));
 });
 
-test('starting needs every seat filled and only the host may start', () => {
+test('starting needs three players and only the host may start', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'allSeatsNeedPlayers', params: { seats: 4 } }, 'empty seats');
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 3 } }, 'the host on their own');
+  assert.equal(room.seats.length, g.MAX_SEATS, 'and a start that was refused left the table alone');
   g.fillWithBots(room, 1);
   assert.deepEqual(g.start(room, 2, Math.random), { ok: false, error: 'hostOnly' });
   assert.equal(g.start(room, 1, Math.random).ok, true);
+  assert.equal(room.seats.length, 4, 'the game is for the four who were here');
   assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'settingsBeforeStart' }, 'already started');
 });
 

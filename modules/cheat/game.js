@@ -69,7 +69,7 @@ const nextSeat = (room, seat) => seatAfter(seat, room.seats.length);
  * Side effects: none outside the new room it builds.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
-  const seatCount = settings.seats ?? DEFAULT_SEATS;
+  const seatCount = settings.seats ?? MAX_SEATS; // a room opens as big as the game allows; the host may bring it down
   if (!isSeatCount(seatCount)) throw new Error(`A game has ${MIN_SEATS} to ${MAX_SEATS} players.`);
   const room = {
     code,
@@ -118,13 +118,18 @@ function resetGame(room) {
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['playing', 'check'].includes(room.phase),
+  minPlayers: MIN_SEATS,
+  maxPlayers: MAX_SEATS,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   takeOver: (room, oldId, bot, rng) => {
     bot.ai = pickAI(AIS, rng).id;
   },
   finishedSeat: goneSeat,
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the lobby settings (just the number of seats).  Everyone stays seated (see resizeSeats).
@@ -138,27 +143,13 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = 
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
+  // How many the game is for is this game's only lobby setting, and arrives the way every other one does.
   if (input?.seats !== undefined) {
-    if (!isSeatCount(input.seats)) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
-    const seated = room.seats.filter(Boolean).length;
-    if (input.seats < seated) return fail('removePlayerFirst');
-    resizeSeats(room, input.seats);
+    const sized = seats.setSize(room, userId, input.seats);
+    if (!sized.ok) return sized;
+    resetGame(room); // the hands and the tallies are as long as the table, which has just changed length
   }
   return ok();
-}
-
-/**
- * Grows or shrinks the table.  Shrinking keeps everyone seated, closing up the gaps in turn order if it has to.
- * Side effects: mutates room (its seats, and resets the game state).
- *
- * @param {object} room  the room to resize in place
- * @param {number} count  the new number of seats (already checked to be allowed and not fewer than the people seated)
- * @returns {void}
- */
-function resizeSeats(room, count) {
-  if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
-  room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
-  resetGame(room);
 }
 
 // ---- starting ----
@@ -176,8 +167,11 @@ function resizeSeats(room, count) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   const n = room.seats.length;
   const deck = shuffle(deckFor(n), rng);
@@ -522,12 +516,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     phase: room.phase,
     you: me,
     hostSeat: seatOf(room, room.hostId),
-    seatCount: room.seats.length,
+    seatCount: sizeOf(room),
     decks: decksFor(room.seats.length),
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winner: room.winner,
-    limits: { minSeats: MIN_SEATS, maxSeats: MAX_SEATS, maxPlay: MAX_PLAY },
+    limits: { min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS, maxPlay: MAX_PLAY },
   };
   if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
   return view;

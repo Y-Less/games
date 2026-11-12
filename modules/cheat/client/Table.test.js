@@ -24,7 +24,7 @@ function seeded(seed) {
 /** A real room: seat 0 is the person (account 1) and the rest are computers. */
 function room({ seats = 4, started = true } = {}) {
   const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats } });
-  game.fillWithBots(r, 1);
+  game.fillWithBots(r, 1, seats);
   if (started) expect(game.start(r, 1, seeded(3)).ok).toBe(true);
   return r;
 }
@@ -62,13 +62,15 @@ afterEach(() => {
 });
 
 describe('the lobby', () => {
-  it('lets the host pick the number of players and says how the cards are dealt', async () => {
+  it('lets the host say how many the game is for and says how the cards are dealt', async () => {
     const r = room({ seats: 4, started: false });
     const send = vi.fn(() => Promise.resolve({ ok: true }));
     const lobby = mount(Lobby, { props: { state: view(r), send } });
+    expect(lobby.text()).toContain('room for 4 players');
+    // The deal is described for the people at the table, who are who the game will be for.
     expect(lobby.text()).toContain('4 players: one pack, 13 cards each');
-    await lobby.findAll('button').find((b) => b.text() === '6').trigger('click');
-    expect(send).toHaveBeenCalledWith('settings', { seats: 6 });
+    await lobby.find('[aria-label="Room for more players"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('settings', { seats: 5 });
     lobby.unmount();
   });
 

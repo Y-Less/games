@@ -70,7 +70,7 @@ test('computer players fill the table, play, call and finish a game; a person ca
   const site = await launch(t);
   const ann = await site.person('ann').open();
   assert.ok((await ann.call('create', { seats: 5 })).ok);
-  assert.ok((await ann.call('fillBots')).ok);
+  assert.ok((await ann.call('fillBots', { count: 5 })).ok);
   await until(() => ann.state.seats.every(Boolean), 'full table');
   assert.ok((await ann.call('start')).ok);
   await until(() => ann.state.phase !== 'lobby', 'started');

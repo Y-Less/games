@@ -24,27 +24,29 @@ const rect = (selector) =>
     return { left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
   }, selector);
 
-test('the lobby: three to seven players, the deal described, and Start waits for every seat', { timeout: 60000 }, guarded('lobby', async () => {
+test('the lobby: a table as big as the game allows, the deal described, and Start waits for three', { timeout: 60000 }, guarded('lobby', async () => {
   await user.goto('/play/cheat');
   await user.clickButton('Start a new game of Cheat');
   await user.waitForText('Waiting for players');
-  await user.waitForText('4 players: one pack, 13 cards each.');
-  for (const [n, line] of [[6, '6 players: two packs, 17 cards each (and 2 players get one more).'], [3, '3 players: one pack, 17 cards each (and 1 player gets one more).']]) {
-    await user.clickButton(String(n), { exact: true, scope: 'fieldset' });
-    await user.waitForText(line);
-    assert.equal((await seatKinds()).length, n);
-  }
+  // Seven seats to begin with, and the deal is described for the people here rather than for the empty seats.
+  await user.waitForText('room for 7 players');
+  assert.equal((await seatKinds()).length, 7);
+  await user.waitForText('3 players: one pack, 17 cards each (and 1 player gets one more).');
+  await user.page.click('[aria-label="Room for fewer players"]');
+  await user.waitForText('room for 6 players');
+  assert.equal((await seatKinds()).length, 6);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('Fill the empty seats with computer players');
+  await user.clickButton('Fill up to 4 players with computer players');
   await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot']);
+  await user.waitForText('4 players: one pack, 13 cards each.');
+  assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);
 }));
 
 test('the table at the start: your hand, the rank to claim and the status, with no your-turn popup', { timeout: 60000 }, guarded('start', async () => {
   await user.clickButton('Start the game', { exact: true });
   await user.waitForSelector('.felt');
-  assert.ok((await user.page.$$('.hand .playing-card')).length >= 17);
+  assert.ok((await user.page.$$('.hand .playing-card')).length >= 13); // one pack between the four who were here
   assert.match(await user.page.$eval('.claim b', (e) => e.textContent.trim()), /^(?:[2-9]|10|[JQKA])$/, 'a rank to claim (the computer players may already have played)');
   assert.equal(await user.page.$('.your-turn'), null, 'no popup in a card game');
 }));

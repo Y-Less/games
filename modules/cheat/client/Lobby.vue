@@ -29,16 +29,15 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
-// The player counts the host can choose, from the server's minimum to its maximum.
-const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
-// Number of occupied seats; the player count cannot go below this.
+// How many are at the table: who the game would be for if it began now.
 const taken = computed(() => props.state.seats.filter(Boolean).length);
-// One sentence describing the deal for the chosen player count (packs, cards each, and any extra card).
+// One sentence describing the deal for the people who are here (packs, cards each, and any extra card).
 const dealing = computed(() => {
+  const players = Math.max(props.state.limits.min, taken.value);
   const cards = props.state.decks * 52;
-  const each = Math.floor(cards / props.state.seatCount);
-  const extra = cards % props.state.seatCount;
-  const params = { players: props.state.seatCount, packs: t(`lobby.packs.${props.state.decks}`), cardsEach: each };
+  const each = Math.floor(cards / players);
+  const extra = cards % players;
+  const params = { players, packs: t(`lobby.packs.${props.state.decks}`), cardsEach: each };
   return extra ? t('lobby.dealExtra', { ...params, count: extra }, extra) : t('lobby.deal', params);
 });
 // Returns the index of the first empty seat (-1 if full), where an added bot goes.
@@ -57,21 +56,19 @@ const change = (settings) => props.send('settings', settings);
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => change({ seats: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.players') }}</legend>
-          <div class="row">
-            <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="n < taken" :aria-pressed="state.seatCount === n" @click="change({ seats: n })">{{ n }}</button>
-          </div>
-          <p class="muted deal">{{ dealing }}</p>
-        </fieldset>
+        <p class="muted deal">{{ dealing }}</p>
         <p v-if="!isHost" class="muted">{{ t('lobby.hostOnly') }}</p>
       </template>
     </SeatLobby>
