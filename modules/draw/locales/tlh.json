@@ -26,6 +26,7 @@
     "turn": "Qu' {n} ({total}vo')",
     "yourWord": "Daqonbogh: {word}",
     "theirBoard": "qontaH {name}",
+    "wordShape": "mu' tIq'a'",
     "named": "{drawer} mIllogh pong {guesser}: {word}",
     "wasDrawing": "{word} qonpu' {name}",
     "offline": "bIrIHbe'. jIcheghqa' 'e' vInIDtaH…",

@@ -22,6 +22,7 @@
     "turn": "Turn {n} of {total}",
     "yourWord": "You are drawing: {word}",
     "theirBoard": "{name} is drawing",
+    "wordShape": "How long the word is",
     "named": "{guesser} named {drawer}'s drawing: {word}",
     "wasDrawing": "{name} was drawing {word}",
     "offline": "You are offline. Trying to get back…",

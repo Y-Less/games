@@ -26,6 +26,7 @@
     "turn": "Ход {n} из {total}",
     "yourWord": "Вы рисуете: {word}",
     "theirBoard": "Рисует {name}",
+    "wordShape": "Длина слова",
     "named": "{guesser} называет рисунок игрока {drawer}: {word}",
     "wasDrawing": "Рисунок игрока {name}: {word}",
     "offline": "Вы не в сети. Пробуем вернуться…",

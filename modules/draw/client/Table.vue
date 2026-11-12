@@ -3,6 +3,11 @@
 // same size with one box to type in; a drawer sees their own large with their tools under it and the other drawing
 // small beside it.
 //
+// The line over each board says whose it is, and, for a word this viewer may not read, how long that word is: one
+// blank per letter (`board.shape`, which never reveals a letter — see ../game.js).  Both views get it, so a drawer
+// racing the other board has the same hint about it as the guessers do.  The scores are the bar alone until the game
+// is over: this is a quick-fire game, and a pop-up between turns is a door shut in the middle of it.
+//
 // The drawings are not in the state: the strokes arrive as `draw` and `canvas` events, each tagged with the board
 // they belong to (`board`, its place in the state's `boards`), and are handed to whichever board that is.  The word
 // is deliberately not `slot`, which on this site is a member's place in a room and nothing to do with a canvas.
@@ -131,6 +136,7 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
         :rounds="state.scoreboard.rounds"
         :low-is-better="state.scoreboard.lowIsBetter"
         :finished="state.phase === 'finished'"
+        :round-popups="false"
         v-bind="scoreProps"
       />
     </template>
@@ -148,9 +154,14 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
         <div class="boards">
           <figure v-for="(board, n) in shown" :key="board.at" class="board" :class="{ yours: board.yours, won: board.won }">
             <figcaption>
-              <template v-if="board.yours && board.word">{{ t('table.yourWord', { word: board.word }) }}</template>
-              <template v-else-if="board.word">{{ t('table.wasDrawing', { name: board.name, word: board.word }) }}</template>
-              <template v-else>{{ t('table.theirBoard', { name: board.name }) }}</template>
+              <span class="who">
+                <template v-if="board.yours && board.word">{{ t('table.yourWord', { word: board.word }) }}</template>
+                <template v-else-if="board.word">{{ t('table.wasDrawing', { name: board.name, word: board.word }) }}</template>
+                <template v-else>{{ t('table.theirBoard', { name: board.name }) }}</template>
+              </span>
+              <span v-if="!board.word && (board.shape ?? []).length" class="shape" :aria-label="t('table.wordShape')">
+                <span v-for="(ch, at) in board.shape" :key="at" class="ch" :class="{ blank: ch === null }">{{ ch ?? '_' }}</span>
+              </span>
             </figcaption>
             <DrawingBoard
               :ref="(el) => (panels[board.at].value = el)"
@@ -214,11 +225,37 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
   gap: 0.2rem;
 }
 .board figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.6rem;
   font-size: 0.85rem;
   color: var(--muted);
   height: 1.2rem;
   overflow: hidden;
   white-space: nowrap;
+}
+/* The hint is the useful half of the line, so the name gives way first when the board is the small one. */
+.who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shape {
+  flex: none;
+  display: flex;
+  gap: 0.15rem;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  color: var(--parchment);
+}
+.ch {
+  min-width: 0.7em;
+  text-align: center;
+}
+.ch.blank {
+  color: var(--muted);
 }
 .board.yours figcaption {
   color: var(--amber);

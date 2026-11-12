@@ -26,6 +26,7 @@
     "turn": "手番{n} / {total}",
     "yourWord": "あなたのお題：{word}",
     "theirBoard": "{name}が描いています",
+    "wordShape": "お題の長さ",
     "named": "{guesser}が{drawer}の絵を当てました：{word}",
     "wasDrawing": "{name}のお題は{word}でした",
     "offline": "オフラインです。つなぎ直しています…",

@@ -20,7 +20,9 @@ things, and those four are most of what this module is:
 | the length of a game | rounds × players | **every pair of players**, `cycles` times over |
 
 It is also meant to be quick, which is why there are no letters revealed, five seconds to pick a word, and no scores
-to close between rounds.
+to close between rounds: `<ScoreBoard>` is given `round-popups="false"`, so the only pop-up is the final one and the
+one the "All rounds" button opens.  What a guesser does get is the shape of each word — one blank per letter, and the
+spaces and hyphens — over the board it belongs to, in both the drawer's view and the guesser's.
 
 ## The parts
 
