@@ -45,29 +45,18 @@ const change = (settings) => props.send('settings', settings);
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => change({ seats: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.players') }}</legend>
-          <div class="row">
-            <button
-              v-for="n in state.limits.seatCounts"
-              :key="n"
-              :class="{ primary: state.settings.seats === n }"
-              :aria-pressed="state.settings.seats === n"
-              :disabled="occupied > n"
-              @click="change({ seats: n })"
-            >
-              {{ t('lobby.playerCount', { count: n }, n) }}
-            </button>
-          </div>
-        </fieldset>
         <fieldset class="group" :disabled="!isHost">
           <legend class="muted">{{ t('lobby.playTo') }}</legend>
           <div class="row">

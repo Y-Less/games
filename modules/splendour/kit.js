@@ -21,7 +21,7 @@ export const ID = /\bc\d\d\b/g;
  */
 export function started(seats = 4, rng = () => 0.5, { target = 15 } = {}) {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats, target } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, seats); // the table is filled; filling on its own makes up a normal four
   const outcome = game.start(room, 1, rng);
   assert.equal(outcome.ok, true, outcome.error);
   return room;

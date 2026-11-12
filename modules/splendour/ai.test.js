@@ -143,7 +143,9 @@ for (const ai of AIS) {
 }
 
 test('a game cannot be started for one player (so there is no one-player game to play)', () => {
-  assert.equal(game.normaliseSettings({ seats: 1 }).ok, false);
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  assert.equal(game.setSettings(room, 1, { seats: 1 }).ok, false);
+  assert.deepEqual(game.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 2 } });
 });
 
 // ---- the character of each AI ----

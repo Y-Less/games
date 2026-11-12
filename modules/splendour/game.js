@@ -18,8 +18,13 @@ import { CARD_BY_ID, LEVELS, NOBLES, NOBLE_BY_ID, cardsOfLevel, isCardId, isNobl
 import { GOLD, GOLD_SUPPLY, MAX_RESERVED, MAX_TOKENS, needOf, quoteFor, supplyPerColour } from './rules.js';
 
 export const SEAT_COUNTS = [2, 3, 4];
+export const MIN_SEATS = SEAT_COUNTS[0];
+export const MAX_SEATS = SEAT_COUNTS.at(-1);
+export const DEFAULT_SEATS = 4; // how many "fill with computer players" makes up to
 export const TARGETS = [10, 15, 20];
-export const DEFAULT_SETTINGS = { target: 15, seats: 4 };
+// How many are playing is not one of these: it is the length of `room.seats`, and the shared rules keep it (see
+// `sizeOf` and `setSize` in shared/members.js).
+export const DEFAULT_SETTINGS = { target: 15 };
 export { MAX_TOKENS, MAX_RESERVED, GOLD_SUPPLY, supplyPerColour, needOf };
 const BOARD_SLOTS = 4;
 export const MAX_ROUNDS = 100; // a safety net: a game nobody can win ends after this many rounds
@@ -146,10 +151,6 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
     if (!TARGETS.includes(input.target)) return fail('targetPrestige', { targets: TARGETS.join(', ') });
     next.target = input.target;
   }
-  if (input?.seats !== undefined) {
-    if (!SEAT_COUNTS.includes(input.seats)) return fail('playersRange', { min: SEAT_COUNTS[0], max: SEAT_COUNTS.at(-1) });
-    next.seats = input.seats;
-  }
   return ok({ settings: next });
 }
 
@@ -169,12 +170,15 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(`invalid settings: ${normalised.error}`);
+  // A room opens as big as the game allows; the host may bring it down in the lobby.
+  const count = settings.seats ?? MAX_SEATS;
+  if (!SEAT_COUNTS.includes(count)) throw new Error(`a game is for ${MIN_SEATS} to ${MAX_SEATS} players`);
   const room = {
     code,
     hostId,
     phase: 'lobby',
     settings: normalised.settings,
-    seats: [{ kind: 'human', id: hostId, name: hostName }, ...Array(normalised.settings.seats - 1).fill(null)],
+    seats: [{ kind: 'human', id: hostId, name: hostName }, ...Array(count - 1).fill(null)],
     nextBot: 1,
     createdAt: now,
     updatedAt: now,
@@ -222,6 +226,9 @@ function resetGame(room) {
  */
 const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'playing',
+  minPlayers: MIN_SEATS,
+  maxPlayers: MAX_SEATS,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   /**
    * The computer player taking over a seat gets an AI of its own, recorded under its id.
@@ -243,7 +250,9 @@ const seats = createSeatRules({
     if (room.ais) delete room.ais[botId];
   },
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The host changes the target prestige or the number of seats (lobby only).  Shrinking the table keeps everyone seated,
@@ -261,10 +270,10 @@ export function setSettings(room, userId, input) {
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
-  if (next.settings.seats !== room.seats.length) {
-    const occupied = room.seats.filter(Boolean);
-    if (occupied.length > next.settings.seats) return fail('removeBeforeFewerSeats');
-    room.seats = [...occupied, ...Array(next.settings.seats - occupied.length).fill(null)];
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
+  if (input?.seats !== undefined) {
+    const sized = seats.setSize(room, userId, input.seats);
+    if (!sized.ok) return sized;
   }
   room.settings = next.settings;
   return ok();
@@ -304,8 +313,11 @@ export function shuffle(list, rng) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   room.seats = shuffle(room.seats, rng); // so that the first player is not always the host
   const n = room.seats.length;
@@ -968,7 +980,7 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     settings: room.settings,
-    limits: { targets: TARGETS, seatCounts: SEAT_COUNTS },
+    limits: { targets: TARGETS, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, seatCounts: SEAT_COUNTS },
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, me, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,

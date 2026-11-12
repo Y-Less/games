@@ -28,24 +28,22 @@ test('the seat lobby: seat count, play-to target and computer players; Start nee
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/splendour?${code}`);
 
+  // The table opens as big as the game allows (four here), and filling makes up the same four.
   assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'empty']);
+  await user.waitForText('room for 4 players');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.clickButton('Fill the empty seats with computer players');
+  await user.clickButton('Fill up to 4 players with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);
 
-  // Two bots go again, then two seats and a low target keep the game short (one bot is left to fill the second seat).
+  // Two bots go again, then a low target keeps the game short.  The two who are left are the game.
   await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.waitForText('1 more seat to fill.');
   await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.waitForText('2 more seats to fill.');
-  await user.clickButton('2 players', { exact: true });
-  await user.waitForNoText('more seat');
+  assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty']);
   await user.clickButton('10', { exact: true });
   await user.page.waitForFunction(() => [...document.querySelectorAll('button[aria-pressed="true"]')].some((b) => b.innerText.trim() === '10'));
   await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);
 }));
 

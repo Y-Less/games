@@ -60,30 +60,34 @@ test('supply sizes depend on the player count: 4, 5, 7 gems of each colour and 5
   }
 });
 
-test('starting needs every seat filled and a human, and only the host can start', () => {
+test('starting needs two players and a human, and only the host can start', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 3 } });
-  assert.equal(game.start(room, 1, Math.random).ok, false);
+  assert.deepEqual(game.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 2 } }, 'the host on their own');
+  assert.equal(room.seats.length, 3, 'and a start that was refused left the table alone');
   game.addHuman(room, 2, 'bob');
   assert.match(game.start(room, 2, Math.random).error, /host/);
-  assert.equal(game.start(room, 1, Math.random).ok, false);
   game.addBot(room, 1);
   assert.equal(game.start(room, 1, Math.random).ok, true);
+  assert.equal(room.seats.length, 3);
   assert.equal(room.phase, 'playing');
   assert.ok(game.viewFor(room, 1).scoreboard.players.some((p) => p.bot), 'the scoreboard marks computer players');
   assert.equal(game.start(room, 1, Math.random).ok, false, 'cannot start twice');
   const bots = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: 2 } });
-  game.fillWithBots(bots, 1);
+  game.fillWithBots(bots, 1, 2);
   game.removeHuman(bots, 1, Math.random);
   assert.equal(bots.seats.some((s) => game.isHuman(s)), false);
 });
 
 test('settings: target 10, 15 or 20 and 2 to 4 seats, host only, lobby only', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
-  assert.deepEqual(room.settings, { target: 15, seats: 4 });
-  assert.equal(room.seats.length, 4);
+  assert.deepEqual(room.settings, { target: 15 }, 'how many are playing is the table, not a setting');
+  assert.equal(room.seats.length, 4, 'a room opens as big as the game allows');
   for (const target of [10, 15, 20]) assert.equal(game.setSettings(room, 1, { target }).ok, true);
   for (const bad of [0, 5, 16, '15', null, 15.5, [15], {}]) assert.equal(game.setSettings(room, 1, { target: bad }).ok, false);
-  for (const bad of [1, 5, 0, '3', NaN, null]) assert.equal(game.setSettings(room, 1, { seats: bad }).ok, false);
+  for (const bad of [1, 5, 0, NaN, null]) assert.equal(game.setSettings(room, 1, { seats: bad }).ok, false);
+  // A number written out is read rather than refused, as it is for the games with a list of players.
+  assert.equal(game.setSettings(room, 1, { seats: '3' }).ok, true);
+  assert.equal(room.seats.length, 3);
   assert.equal(room.settings.target, 20);
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, true);
   assert.equal(room.seats.length, 2);
@@ -93,7 +97,6 @@ test('settings: target 10, 15 or 20 and 2 to 4 seats, host only, lobby only', ()
   assert.equal(game.addHuman(room, 3, 'cat').ok, true);
   assert.equal(game.setSettings(room, 1, { seats: 2 }).ok, false, 'three people are seated');
   assert.match(game.setSettings(room, 2, { target: 10 }).error, /host/);
-  game.fillWithBots(room, 1);
   game.start(room, 1, Math.random);
   assert.equal(game.setSettings(room, 1, { target: 10 }).ok, false);
 });

@@ -124,36 +124,38 @@ describe('Splendour shell', () => {
 });
 
 describe('Splendour lobby', () => {
-  it('lets the host change settings and manage seats', async () => {
+  it('lets the host change the settings and the size of the table', async () => {
     const send = makeSend();
     const w = mount(Lobby, { props: { state: lobbyView(), send } });
     expect(w.text()).toContain('a-b-c');
-    await button(w, '2 players').trigger('click');
+    expect(w.text()).toContain('room for 4 players');
+    await w.find('[aria-label="Room for fewer players"]').trigger('click');
     await button(w, '20').trigger('click');
-    expect(send).toHaveBeenCalledWith('settings', { seats: 2 });
+    expect(send).toHaveBeenCalledWith('settings', { seats: 3 });
     expect(send).toHaveBeenCalledWith('settings', { target: 20 });
     await button(w, 'Add a computer player').trigger('click');
     expect(send).toHaveBeenCalledWith('addBot', { seat: 1 });
     expect(button(w, 'Leave game')).toBeUndefined(); // Leave game is in the site header
   });
 
-  it('marks the current settings and disables them for non-hosts', () => {
+  it('marks the current settings and keeps them, and the table size, to the host', () => {
     const room = lobbyRoom();
     game.addHuman(room, 2, 'bob');
     const w = mount(Lobby, { props: { state: game.viewFor(room, 2), send: makeSend() } });
     expect(w.find('fieldset').attributes('disabled')).toBeDefined();
     expect(w.text()).toContain('Only the host can change these');
-    expect(button(w, '4 players').attributes('aria-pressed')).toBe('true');
-    expect(button(w, '2 players').attributes('aria-pressed')).toBe('false');
+    expect(button(w, '15 (usual)').attributes('aria-pressed')).toBe('true');
+    expect(w.find('[aria-label="Room for fewer players"]').exists()).toBe(false);
   });
 
-  it('disables a seat count smaller than the number of people seated', () => {
+  it('will not cut the table below the people already in it', () => {
     const room = lobbyRoom();
     game.addHuman(room, 2, 'bob');
     game.addHuman(room, 3, 'cat');
+    game.addHuman(room, 4, 'dan');
     const w = mount(Lobby, { props: { state: game.viewFor(room, 1), send: makeSend() } });
-    expect(button(w, '2 players').attributes('disabled')).toBeDefined();
-    expect(button(w, '3 players').attributes('disabled')).toBeUndefined();
+    expect(w.find('[aria-label="Room for fewer players"]').attributes('disabled')).toBeDefined();
+    expect(w.find('[aria-label="Room for more players"]').attributes('disabled')).toBeDefined(); // four is the most
   });
 });
 

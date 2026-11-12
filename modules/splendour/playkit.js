@@ -157,7 +157,7 @@ export function validateView(s, who) {
   if (s === null || s === undefined) return;
   const label = `${who} (${s.phase})`;
   assert.ok(['lobby', 'playing', 'finished'].includes(s.phase), `${label}: a known phase`);
-  assert.ok([2, 3, 4].includes(s.seats.length) && s.seats.length === s.settings.seats, `${label}: seats match the setting`);
+  assert.ok([2, 3, 4].includes(s.seats.length), `${label}: a table the game allows`);
   assert.ok([10, 15, 20].includes(s.settings.target), `${label}: valid target`);
   assert.ok(s.you === -1 || (s.you >= 0 && s.you < s.seats.length && s.seats[s.you]), `${label}: seated where it says`);
   assert.ok(s.hostSeat === -1 || s.seats[s.hostSeat]?.bot === false, `${label}: the host is a person`);

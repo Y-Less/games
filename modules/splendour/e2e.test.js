@@ -30,9 +30,10 @@ test('one person and three computer players play a whole game; the result is rec
   assert.equal((await ann.call('create', { target: 10 })).ok, true);
   await until(() => ann.state?.phase === 'lobby', 'the lobby');
   assert.match(ann.state.code, /^[a-z]+-[a-z]+-[a-z]+$/);
-  assert.deepEqual(ann.state.settings, { target: 10, seats: 4 });
-  assert.equal((await ann.call('start')).ok, false, 'three seats are empty');
-  assert.equal((await ann.call('fillBots')).ok, true);
+  assert.deepEqual(ann.state.settings, { target: 10 });
+  assert.equal(ann.state.seats.length, 4, 'a room opens as big as the game allows');
+  assert.equal((await ann.call('start')).ok, false, 'the host is on their own');
+  assert.equal((await ann.call('fillBots', { count: 4 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'four seats');
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase === 'playing', 'the deal');
@@ -88,7 +89,7 @@ for (const seats of [2, 3, 4]) {
     const ann = await person('ann').open();
     const bob = await person('bob').open();
     await lobbyOf([ann, bob], ann, { seats, target: 10 });
-    await ann.call('fillBots');
+    await ann.call('fillBots', { count: seats });
     await until(() => ann.state.seats.every(Boolean), 'full');
     assert.equal(ann.state.seats.length, seats);
     assert.equal((await ann.call('start')).ok, true);
@@ -138,7 +139,7 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await ann.call('settings', { seats: 1 })).ok, false);
   assert.equal((await ann.call('settings', { target: 20, hostId: 5, seats: 4 })).ok, true);
   await until(() => bob.state.settings.target === 20 && bob.state.seats.length === 4, 'the settings to reach bob');
-  assert.deepEqual(bob.state.settings, { target: 20, seats: 4 });
+  assert.deepEqual(bob.state.settings, { target: 20 });
   assert.equal((await ann.call('settings', { seats: 2 })).ok, true);
   assert.equal((await ann.call('settings', { seats: 3 })).ok, true);
 
@@ -323,7 +324,7 @@ test('a restart loses nothing: the room comes back and the computer players carr
   const first = await launch(t, { dataDir, keep: true });
   const ann = await first.person('ann').open();
   await ann.call('create', { target: 10, seats: 3 });
-  await ann.call('fillBots');
+  await ann.call('fillBots', { count: 3 });
   await ann.call('start');
   await until(() => ann.state?.phase === 'playing', 'the game');
   for (let i = 0; i < 25 && ann.state.phase === 'playing'; i++) {
@@ -361,7 +362,7 @@ test('a restart after the game has finished does not record it a second time', a
   const first = await launch(t, { dataDir, keep: true });
   const ann = await first.person('ann').open();
   await ann.call('create', { target: 10, seats: 2 });
-  await ann.call('fillBots');
+  await ann.call('fillBots', { count: 2 });
   await ann.call('start');
   await playToEnd([ann]);
   await sleep(150);
@@ -383,7 +384,7 @@ test('a bot-only continuation: when the only person goes away the room stays unt
   const { person } = await launch(t);
   const ann = await person('ann').open();
   await ann.call('create', { seats: 2, target: 10 });
-  await ann.call('fillBots');
+  await ann.call('fillBots', { count: 2 });
   await ann.call('start');
   await until(() => ann.state.phase === 'playing', 'the game');
   const code = ann.state.code;
