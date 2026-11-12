@@ -28,7 +28,7 @@ function view(extra = {}) {
     points: { guesser: 2, bestHint: 1 },
     players,
     scoreboard: { players: players.map((p) => ({ id: p.id, name: p.name, score: p.score, isMe: p.id === 1, away: false })), rounds: [], lowIsBetter: false },
-    limits: { min: 3, max: 7, turns: { min: 1, max: 5 } },
+    limits: { min: 3, max: 7, rounds: { min: 1, max: 5 } },
     ...extra,
   };
 }
@@ -197,7 +197,7 @@ describe('Just One lobby and recent moves', () => {
     expect(w.find('button.primary').attributes('disabled')).toBeDefined();
     await w.findAll('button').find((b) => b.text().includes('Fill up to 4')).trigger('click');
     expect(send).toHaveBeenLastCalledWith('fillBots', { count: 4 });
-    await w.find('button[aria-label="More turns"]').trigger('click');
+    await w.find('button[aria-label="More rounds"]').trigger('click');
     expect(send).toHaveBeenLastCalledWith('settings', { rounds: 3 });
   });
 

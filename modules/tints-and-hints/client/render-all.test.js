@@ -9,7 +9,7 @@ import { walkViews } from '../../../shared/renderWalk.js';
 describe('rendering every state of a whole game', () => {
   for (const [label, record] of [
   ['a four-player game', () => recordedViews(111, 4, 1)],
-  ['a three-player game of two turns each', () => recordedViews(112, 3, 2)],
+  ['a three-player game of two rounds', () => recordedViews(112, 3, 2)],
   ]) {
     it(`draws every view of ${label} without an error or a warning`, async () => {
       const { views, finished } = record();
