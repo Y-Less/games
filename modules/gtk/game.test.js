@@ -34,34 +34,34 @@ const stillToPick = (room) => room.players.filter((p) => p.id !== room.subject &
 const wrongFor = (room, player) => room.options.findIndex((o) => !o.truth && !o.authors.includes(player.id));
 
 test('a new room is in the lobby with the host in it, and the settings it was given', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 7, hostName: 'Ann', now: 5, settings: { roundsEach: 2 } });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 7, hostName: 'Ann', now: 5, settings: { rounds: 2 } });
   assert.equal(room.phase, 'lobby');
-  assert.equal(room.roundsEach, 2);
+  assert.equal(room.rounds, 2);
   assert.deepEqual(room.players.map((p) => [p.kind, p.id, p.name, p.score]), [['human', 7, 'Ann', 0]]);
   assert.equal(game.isLive(room), true);
-  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 7, now: 5, settings: { roundsEach: 99 } }).roundsEach, game.ROUNDS_EACH.default, 'a setting the host got wrong is left at its default');
+  assert.equal(game.createRoom({ code: 'a-b-c', hostId: 7, now: 5, settings: { rounds: 99 } }).rounds, game.ROUNDS.default, 'a setting the host got wrong is left at its default');
 });
 
 test('only the host changes the settings, and only before the game starts', () => {
   const room = lobby(3);
-  assert.equal(game.setRoundsEach(room, 2, 2).error, 'hostOnlySettings');
-  assert.equal(game.setRoundsEach(room, 1, 0).error, 'roundsEach');
-  assert.equal(game.setRoundsEach(room, 1, 2.5).error, 'roundsEach');
-  assert.equal(game.setRoundsEach(room, 1, game.ROUNDS_EACH.max + 1).error, 'roundsEach');
-  assert.equal(game.setRoundsEach(room, 1, 2).ok, true);
-  assert.equal(room.roundsEach, 2);
+  assert.equal(game.setRounds(room, 2, 2).error, 'hostOnlySettings');
+  assert.equal(game.setRounds(room, 1, 0).error, 'rounds');
+  assert.equal(game.setRounds(room, 1, 2.5).error, 'rounds');
+  assert.equal(game.setRounds(room, 1, game.ROUNDS.max + 1).error, 'rounds');
+  assert.equal(game.setRounds(room, 1, 2).ok, true);
+  assert.equal(room.rounds, 2);
   assert.equal(game.setSettings(room, 1, {}).ok, true, 'no setting given is no change');
   assert.equal(game.setSettings(room, 2, {}).error, 'hostOnly');
   game.start(room, 1, seeded(1));
-  assert.equal(game.setRoundsEach(room, 1, 1).error, 'alreadyStarted');
+  assert.equal(game.setRounds(room, 1, 1).error, 'alreadyStarted');
 });
 
 test('the host sets how many questions a round has, and every round then has that many', () => {
   const room = lobby(3);
-  assert.equal(room.questionsPerRound, game.QUESTIONS_EACH.default);
-  assert.equal(game.setQuestionsPerRound(room, 2, 3).error, 'hostOnlySettings');
-  for (const bad of [0, 1.5, game.QUESTIONS_EACH.max + 1, '2', null]) assert.equal(game.setQuestionsPerRound(room, 1, bad).error, 'questionsPerRound', `${bad}`);
-  assert.equal(game.setQuestionsPerRound(room, 1, 4).ok, true);
+  assert.equal(room.questionsPerTurn, game.QUESTIONS_EACH.default);
+  assert.equal(game.setQuestionsPerTurn(room, 2, 3).error, 'hostOnlySettings');
+  for (const bad of [0, 1.5, game.QUESTIONS_EACH.max + 1, '2', null]) assert.equal(game.setQuestionsPerTurn(room, 1, bad).error, 'questionsPerTurn', `${bad}`);
+  assert.equal(game.setQuestionsPerTurn(room, 1, 4).ok, true);
   const rng = seeded(3);
   game.start(room, 1, rng);
   assert.equal(room.questions.length, 4);
@@ -69,11 +69,11 @@ test('the host sets how many questions a round has, and every round then has tha
   assert.equal(game.viewFor(room, 1, { nameOf: names }).prompts.length, 4);
   assert.equal(game.submitAnswers(room, 1, ['a', 'b', 'c'], rng, names).error, 'answerEachQuestion', 'three will not do when four were asked');
   assert.equal(game.submitAnswers(room, 1, ['a', 'b', 'c', 'd'], rng, names).ok, true);
-  assert.equal(game.setQuestionsPerRound(room, 1, 2).error, 'alreadyStarted');
+  assert.equal(game.setQuestionsPerTurn(room, 1, 2).error, 'alreadyStarted');
 });
 
 test('a round of one question works the same way', () => {
-  const room = lobby(3, { questionsPerRound: 1 });
+  const room = lobby(3, { questionsPerTurn: 1 });
   const rng = seeded(4);
   game.start(room, 1, rng);
   assert.equal(room.questions.length, 1);
@@ -81,7 +81,7 @@ test('a round of one question works the same way', () => {
   for (const p of stillToPick(room)) game.choose(room, p.id, truthAt(room), names);
   assert.equal(room.phase, 'reveal');
   assert.equal(game.forceNext(room, rng, names).ok, true);
-  assert.equal(room.round, 1, 'one question is a whole round');
+  assert.equal(room.turn, 1, 'one question is a whole round');
   assert.equal(room.phase, 'writing');
 });
 
@@ -93,20 +93,20 @@ test('the host sets the time to answer, within bounds and in whole steps', () =>
   for (const bad of [0, 10, 61, 1000, 1.5, '30', null]) assert.equal(game.setSeconds(room, 1, bad).error, 'seconds', `${bad}`);
   assert.equal(game.setSeconds(room, 1, 30).ok, true);
   assert.equal(room.seconds, 30);
-  assert.equal(game.setSettings(room, 1, { roundsEach: 2, questionsPerRound: 3, seconds: 90 }).ok, true);
-  assert.deepEqual([room.roundsEach, room.questionsPerRound, room.seconds], [2, 3, 90], 'the three settings travel together');
-  assert.equal(game.setSettings(room, 1, { roundsEach: 2, seconds: 7 }).error, 'seconds', 'one bad setting refuses the lot');
+  assert.equal(game.setSettings(room, 1, { rounds: 2, questionsPerTurn: 3, seconds: 90 }).ok, true);
+  assert.deepEqual([room.rounds, room.questionsPerTurn, room.seconds], [2, 3, 90], 'the three settings travel together');
+  assert.equal(game.setSettings(room, 1, { rounds: 2, seconds: 7 }).error, 'seconds', 'one bad setting refuses the lot');
 });
 
 test('the host starts the game when there are enough players, and everybody gets the same number of rounds', () => {
   const small = lobby(2);
   assert.equal(game.start(small, 1, seeded(1)).error, 'minPlayers');
-  const room = lobby(4, { roundsEach: 2 });
+  const room = lobby(4, { rounds: 2 });
   assert.equal(game.start(room, 2, seeded(1)).error, 'hostOnlyStart');
   assert.equal(game.start(room, 1, seeded(1)).ok, true);
-  assert.equal(room.roundsTotal, 8);
+  assert.equal(room.turnsTotal, 8);
   assert.equal(room.phase, 'writing');
-  assert.equal(room.questions.length, room.questionsPerRound);
+  assert.equal(room.questions.length, room.questionsPerTurn);
   assert.notEqual(room.questions[0].id, room.questions[1].id, 'the two questions differ');
   assert.ok(room.players.some((p) => p.id === room.subject), 'somebody is the subject');
   assert.equal(game.start(room, 1, seeded(1)).error, 'alreadyStarted');
@@ -281,7 +281,7 @@ test('after both questions the next player is the subject, and the game ends aft
   }
   assert.equal(room.phase, 'finished');
   assert.deepEqual([...new Set(subjects)].sort(), room.players.map((p) => p.id).sort(), 'everybody was the subject');
-  assert.equal(room.history.length, room.roundsTotal * room.questionsPerRound);
+  assert.equal(room.history.length, room.turnsTotal * room.questionsPerTurn);
   assert.equal(game.forceNext(room, rng, names).error, 'nothingToMoveOn');
   assert.equal(game.isLive(room), false);
   assert.equal(game.playAgain().error, 'startFromMenu');
@@ -292,7 +292,7 @@ test('after both questions the next player is the subject, and the game ends aft
 });
 
 test('no question is asked twice in a game, and the used list is kept with the room', () => {
-  const { room, rng } = started(4, { seed: 61, settings: { roundsEach: 2 } });
+  const { room, rng } = started(4, { seed: 61, settings: { rounds: 2 } });
   const asked = [];
   for (let guard = 0; guard < 300 && room.phase !== 'finished'; guard++) {
     if (room.phase === 'writing') {
@@ -342,11 +342,11 @@ test('a room saved and loaded again is the room it was', () => {
   assert.deepEqual(game.migrate(copy, names), room, 'bringing it up to date twice changes nothing');
   const old = JSON.parse(JSON.stringify(room));
   delete old.used;
-  delete old.roundPicks;
+  delete old.turnPicks;
   delete old.ready;
   old.history = null;
   const fixed = game.migrate(old, names);
-  assert.deepEqual([fixed.used, fixed.roundPicks, fixed.ready, fixed.history], [[], {}, [], []]);
+  assert.deepEqual([fixed.used, fixed.turnPicks, fixed.ready, fixed.history], [[], {}, [], []]);
 });
 
 test('a stranger sees no questions and no answers', () => {

@@ -13,10 +13,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ID = 'gtk';
 const launch = (t) => launchModule(t, { id: ID, moduleDir: here });
 
-async function gameOf(site, names, { roundsEach = 1, seconds } = {}) {
+async function gameOf(site, names, { rounds = 1, seconds } = {}) {
   const people = await Promise.all(names.map((n) => site.person(n).open()));
   const [host, ...others] = people;
-  const created = await host.call('create', { roundsEach, ...(seconds === undefined ? {} : { seconds }) });
+  const created = await host.call('create', { rounds, ...(seconds === undefined ? {} : { seconds }) });
   assert.equal(created.ok, true, created.error);
   for (const p of others) assert.equal((await p.call('join', { code: created.code })).ok, true);
   await until(() => people.every((p) => p.state?.players.length === people.length), 'everyone in the lobby');
@@ -30,7 +30,7 @@ test('a room survives a restart of the site: the answers on the table and who wr
   const first = await launchModule(t, { id: ID, moduleDir: here, dataDir, keep: true });
   const people = await Promise.all(['ann', 'bob', 'cat', 'dan'].map((n) => first.person(n).open()));
   const [ann] = people;
-  const { code } = await ann.call('create', { roundsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   for (const p of people.slice(1)) await p.call('join', { code });
   await ann.call('start');
   await allIn(people, 'writing');
@@ -133,7 +133,7 @@ test('a writer who has gone away holds the round up until the host removes them;
 test('when the subject is gone the host removes them and a computer player answers for them: the round is not lost', async (t) => {
   process.env.GTK_BOT_DELAY = '0-5';
   const site = await launch(t);
-  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { roundsEach: 1 });
+  const g = await gameOf(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 1 });
   await g.host.call('start');
   await allIn(g.people, 'writing');
   const subject = g.subject();
@@ -143,7 +143,7 @@ test('when the subject is gone the host removes them and a computer player answe
   assert.ok((await g.host.call('kick', { slot: g.host.state.players.find((p) => p.id === subject.id).slot })).ok);
   await until(() => g.host.state.players.some((p) => p.bot && p.subject), 'the computer player is the subject');
   assert.equal(g.host.state.players.length, 4, 'nobody is lost');
-  assert.equal(g.host.state.roundsTotal, 4, 'and no round is lost');
+  assert.equal(g.host.state.turnsTotal, 4, 'and no round is lost');
 });
 
 test('the clock answers for somebody who never writes, and the round carries on without them', async (t) => {

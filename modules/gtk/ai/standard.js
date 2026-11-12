@@ -27,7 +27,7 @@ export function makeStandard({ id, name, description, weight, share, style }) {
     name,
     description,
     weight,
-    // An answer from its half of the pool; `offset` separates the two questions of a round so it does not repeat itself.
+    // An answer from its half of the pool; `offset` separates the two questions of a turn so it does not repeat itself.
     write: ({ pool, offset = 0 }, rng) => {
       if (!pool.length) return '';
       // The two slices overlap in the middle, so the computer players do not forever agree with each other.

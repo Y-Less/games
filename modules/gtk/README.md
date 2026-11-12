@@ -1,6 +1,6 @@
 # GTK (Getting To Know)
 
-A party game for 3 to 8 players.  Each round is about one player: they answer two questions about themselves truthfully,
+A party game for 3 to 8 players.  Each turn is about one player: they answer two questions about themselves truthfully,
 everybody else invents an answer to the same two, and then everybody but the subject tries to spot the true one.  Points
 go to whoever finds the truth, and to whoever's invention is mistaken for it.
 
@@ -19,14 +19,17 @@ The player's rules are in `rules.md`; this file is for whoever is working on the
 | `client/` | the Vue half: `Gtk.vue` (the screens), `Lobby.vue`, `Table.vue`, `moveLog.js` (Recent moves, worked out from the views) |
 | `views.js` | plays whole seeded games and records every view, for `view.test.js` and `client/render-all.test.js` |
 
-## The shape of a round
+## The shape of a turn
 
-`phase` runs `lobby` → (`writing` → then a `picking`/`reveal` pair for each question) per round → `finished`.  Every
-question of the round is answered in one `writing` phase; the `picking`/`reveal` pairs then work through them, which is
-why the room carries `question` (0-based, below `room.questionsPerRound`) beside `round`.
+A **turn** is one player's go as the subject; a **round** is everybody having had one.  The host's `rounds` setting
+counts rounds, and `room.turnsTotal` is that multiplied by the players.
 
-The host sets three things, all of them in `pickSettings` and all refused once the game has started: `roundsEach`,
-`questionsPerRound` (1 to 4, default 2) and `seconds` (15 to 180 in steps of 15, default 60).
+`phase` runs `lobby` → (`writing` → then a `picking`/`reveal` pair for each question) per turn → `finished`.  Every
+question of the turn is answered in one `writing` phase; the `picking`/`reveal` pairs then work through them, which is
+why the room carries `question` (0-based, below `room.questionsPerTurn`) beside `turn`.
+
+The host sets three things, all of them in `pickSettings` and all refused once the game has started: `rounds`,
+`questionsPerTurn` (1 to 4, default 2) and `seconds` (15 to 180 in steps of 15, default 60).
 
 Three things about the rules are worth knowing before changing them:
 
@@ -37,7 +40,7 @@ Three things about the rules are worth knowing before changing them:
   asked to pick that question (`toPick` leaves them out).  That is what keeps a question from deadlocking when
   everybody happens to write the true answer: `openPicking` scores it the moment it opens if nobody is left to pick.
 - **You can never pick an answer you wrote**, which the server enforces (`mayPick`) as well as the table.
-- **Writing and picking are on a clock.**  `room.deadline` is an absolute time set by `startRound` and `openPicking`
+- **Writing and picking are on a clock.**  `room.deadline` is an absolute time set by `startTurn` and `openPicking`
   and cleared by `scoreQuestion`; the view turns it into `remaining` milliseconds and the table counts it down with
   `useTurnClock`.  When it passes, `server.js` calls `fillTimedOut`, which writes from the question's pool or picks at
   random for whoever is left, exactly as a computer player would.  **Every path that opens a timed phase must be handed

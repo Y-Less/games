@@ -2,7 +2,7 @@
 // recorded at the end of a game.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_SHARP_PICKS, newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
+import { MIN_SHARP_PICKS, newCounters, statsExtras, tallyQuestion, tallyTurn } from './tally.js';
 
 const player = () => newCounters();
 
@@ -77,7 +77,7 @@ test('a finished round counts the subject and whoever got every question of it r
   const subject = player();
   const perfect = player();
   const partial = player();
-  tallyRound({
+  tallyTurn({
     subject,
     pickers: [
       { player: perfect, rights: 2, asked: 2 },

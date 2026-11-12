@@ -1,7 +1,7 @@
 {
   "id": "gtk",
   "name": "GTK",
-  "description": "Getting To Know. Each round is about one player: they answer two questions about themselves, everybody else makes an answer up, and then you all try to spot the truth.",
+  "description": "Getting To Know. Each turn is about one player: they answer two questions about themselves, everybody else makes an answer up, and then you all try to spot the truth.",
   "minPlayers": 3,
   "maxPlayers": 8,
   "category": "party",
@@ -47,7 +47,7 @@
     },
     {
       "key": "perfectRounds",
-      "label": "Rounds with both questions right",
+      "label": "Turns with both questions right",
       "agg": "sum",
       "hidden": true
     },
@@ -122,8 +122,8 @@
     {
       "key": "bothright",
       "name": "Knows you well",
-      "text": "Get every question of a round right {n} times",
-      "one": "Get every question of a round right",
+      "text": "Get every question of a turn right {n} times",
+      "one": "Get every question of a turn right",
       "levels": "medium",
       "stat": "perfectRounds"
     },

@@ -1,19 +1,19 @@
 {
   "entry": {
     "noun": "game of GTK",
-    "intro": "Every round is about one of you. They answer two questions truthfully, everybody else makes an answer up, and then you all try to spot the truth. You get a code to share."
+    "intro": "Every turn is about one of you. They answer two questions truthfully, everybody else makes an answer up, and then you all try to spot the truth. You get a code to share."
   },
   "leaveConfirm": "You will not be able to come back.",
   "settings": {
     "length": "Length of the game",
     "fewerRounds": "Fewer rounds",
     "moreRounds": "More rounds",
-    "roundsEach": "{count} round each | {count} rounds each",
-    "total": "{count} round in all with {players} players, and {questions} questions a round. | {count} rounds in all with {players} players, and {questions} questions a round.",
-    "questions": "Questions each round",
+    "rounds": "{count} round | {count} rounds",
+    "total": "{count} turn in all with {players} players, and {questions} questions a turn. | {count} turns in all with {players} players, and {questions} questions a turn.",
+    "questions": "Questions each turn",
     "fewerQuestions": "Fewer questions",
     "moreQuestions": "More questions",
-    "questionsEach": "{count} question a round | {count} questions a round",
+    "questionsEach": "{count} question a turn | {count} questions a turn",
     "time": "Time to answer",
     "lessTime": "Less time",
     "moreTime": "More time",
@@ -21,14 +21,14 @@
     "timeNote": "When the time runs out an answer is made up for anybody who has not sent one, and a pick is made for anybody who has not picked."
   },
   "scoreboard": {
-    "question": "Round {round}: {name}, question {n}"
+    "question": "Turn {turn}: {name}, question {n}"
   },
   "notes": {
     "right": "spotted it",
     "fooled": "fooled {count} | fooled {count}",
     "matched": "wrote the truth",
     "named": "was the answer",
-    "theirRound": "the round is about them"
+    "theirTurn": "the turn is about them"
   },
   "table": {
     "subjectTag": "it",
@@ -36,7 +36,7 @@
     "pickedTag": "picked",
     "players": "The other players",
     "nothingYet": "Nothing has happened yet.",
-    "theQuestions": "This round's questions",
+    "theQuestions": "This turn's questions",
     "questionNumber": "Question {n} of {total}",
     "yourAnswers": "Your answers",
     "answerPlaceholder": "A short answer",
@@ -54,9 +54,8 @@
     "waitingForPicks": "Waiting for the others to pick."
   },
   "facts": {
-    "round": "Round {n} of {total}",
     "question": "Question {n} of {total}",
-    "subject": "This round is about {name}",
+    "subject": "This turn is about {name}",
     "gameOver": "Game over",
     "time": "{count} second left | {count} seconds left"
   },
@@ -64,7 +63,7 @@
     "plays": "Plays as",
     "score": "Score",
     "now": "Now",
-    "subject": "the round is about them",
+    "subject": "the turn is about them",
     "written": "has written their answers",
     "toWrite": "still writing",
     "picked": "has picked",
@@ -93,7 +92,7 @@
     "hurryPick": "The time is nearly up: a pick will be made for you."
   },
   "log": {
-    "roundStart": "Round {n} of {total}: this one is about {name}.",
+    "turnStart": "Turn {n} of {total}: this one is about {name}.",
     "written": "{name} has written their answers.",
     "answersIn": "The answers are in.",
     "questionUp": "Question {n}: {prompt}",
@@ -112,13 +111,13 @@
     "answerTooLong": "An answer is at most {max} characters.",
     "answerNeedsWords": "An answer needs some words in it.",
     "notTimeToPick": "It is not time to pick an answer.",
-    "subjectDoesNotPick": "This round is about you, so you do not pick.",
+    "subjectDoesNotPick": "This turn is about you, so you do not pick.",
     "alreadyPicked": "You have already picked.",
     "pickAnAnswer": "Pick one of the answers.",
     "notYourOwnAnswer": "You cannot pick your own answer.",
     "yoursWasTrue": "You wrote the true answer, so there is nothing for you to pick.",
-    "roundsEach": "Choose between {min} and {max} rounds each.",
-    "questionsPerRound": "Choose between {min} and {max} questions a round.",
+    "rounds": "Choose between {min} and {max} rounds.",
+    "questionsPerTurn": "Choose between {min} and {max} questions a turn.",
     "seconds": "Choose between {min} and {max} seconds."
   }
 }

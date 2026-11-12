@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const EVENTS = {
   resume: ['code'],
   join: ['code'],
-  create: ['roundsEach', 'questionsPerRound', 'seconds'],
+  create: ['rounds', 'questionsPerTurn', 'seconds'],
   leave: [],
   kick: ['slot'],
   voteKick: ['slot'],
@@ -21,7 +21,7 @@ const EVENTS = {
   addBot: [],
   fillBots: ['count'],
   removeBot: ['slot'],
-  settings: ['roundsEach', 'questionsPerRound', 'seconds'],
+  settings: ['rounds', 'questionsPerTurn', 'seconds'],
   start: [],
   answers: ['texts'],
   choose: ['n'],
@@ -37,15 +37,15 @@ const PHASES = ['lobby', 'writing', 'picking', 'reveal', 'finished'];
 
 /** Every state a person was sent is well formed, and nobody saw what they should not have. */
 function checkStates(person) {
-  let round = 0;
+  let turn = 0;
   for (const s of person.states) {
     if (!s) {
-      round = 0;
+      turn = 0;
       continue;
     }
-    if (s.phase === 'lobby') round = 0;
-    assert.ok(s.round >= round, `${person.name}: the round only moves forward`);
-    round = s.round;
+    if (s.phase === 'lobby') turn = 0;
+    assert.ok(s.turn >= turn, `${person.name}: the turn only moves forward`);
+    turn = s.turn;
     assert.ok(['lobby', 'writing', 'picking', 'reveal', 'finished', 'abandoned'].includes(s.phase), `${person.name}: phase ${s.phase}`);
     if (['writing', 'picking'].includes(s.phase)) {
       assert.equal(s.truth, null, `${person.name}: the true answer was sent early`);
@@ -57,8 +57,8 @@ function checkStates(person) {
     const ids = s.players.map((p) => p.id);
     assert.equal(new Set(ids).size, ids.length, 'no player twice');
     assert.ok(s.players.length <= s.limits.max);
-    assert.ok(s.question >= 1 && s.question <= s.questionsPerRound, `${person.name}: question ${s.question}`);
-    assert.ok(s.questionsPerRound >= s.limits.questions.min && s.questionsPerRound <= s.limits.questions.max, `${person.name}: questions a round`);
+    assert.ok(s.question >= 1 && s.question <= s.questionsPerTurn, `${person.name}: question ${s.question}`);
+    assert.ok(s.questionsPerTurn >= s.limits.questions.min && s.questionsPerTurn <= s.limits.questions.max, `${person.name}: questions a round`);
     assert.ok(s.seconds >= s.limits.time.min && s.seconds <= s.limits.time.max, `${person.name}: the time to answer`);
     assert.ok(s.remaining === null || (s.remaining >= 0 && s.remaining <= s.seconds * 1000), `${person.name}: the countdown is within the time allowed`);
     if (['writing', 'picking'].includes(s.phase)) assert.notEqual(s.remaining, null, `${person.name}: ${s.phase} is timed`);
@@ -86,7 +86,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
   async function arrange(phase) {
     for (const p of [...members, eve]) await p.call('leave', {});
     await until(() => [...members, eve].every((p) => p.state == null), 'everyone out');
-    const created = await ann.call('create', { roundsEach: 1 });
+    const created = await ann.call('create', { rounds: 1 });
     assert.equal(created.ok, true, created.error);
     for (const p of [bob, cat]) assert.equal((await p.call('join', { code: created.code })).ok, true);
     await until(() => members.every((p) => p.state?.phase === 'lobby' && p.state.players.length === 3), 'a lobby of three');
@@ -96,7 +96,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
     if (phase === 'writing') return;
     // One question: everybody writes, then everybody but the subject picks something they are allowed to.
     const question = async (how) => {
-      for (const p of members) if (!p.state.yourAnswers) assert.equal((await p.call('answers', { texts: p.state.prompts.map((_, n) => `${p.name} says ${p.state.round} ${n}`) })).ok, true);
+      for (const p of members) if (!p.state.yourAnswers) assert.equal((await p.call('answers', { texts: p.state.prompts.map((_, n) => `${p.name} says ${p.state.turn} ${n}`) })).ok, true);
       await everyoneIn('picking');
       if (how === 'picking') return;
       for (const p of members) {
@@ -130,8 +130,8 @@ test('garbage payloads on every event, in every phase, from members and stranger
         kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
         removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],
         fillBots: [{ count: 8 }, { count: 0 }, { count: 99 }],
-        settings: [{ roundsEach: 2 }, { roundsEach: 0 }, { roundsEach: 9 }, { roundsEach: '2' }, { questionsPerRound: 1 }, { questionsPerRound: 0 }, { questionsPerRound: 9 }, { seconds: 30 }, { seconds: 7 }, { seconds: 1000 }, { roundsEach: 2, questionsPerRound: 3, seconds: 45 }],
-        create: [{ roundsEach: 2 }, { roundsEach: 99 }, { questionsPerRound: 4 }, { questionsPerRound: 0 }, { seconds: 15 }, { seconds: 1 }],
+        settings: [{ rounds: 2 }, { rounds: 0 }, { rounds: 9 }, { rounds: '2' }, { questionsPerTurn: 1 }, { questionsPerTurn: 0 }, { questionsPerTurn: 9 }, { seconds: 30 }, { seconds: 7 }, { seconds: 1000 }, { rounds: 2, questionsPerTurn: 3, seconds: 45 }],
+        create: [{ rounds: 2 }, { rounds: 99 }, { questionsPerTurn: 4 }, { questionsPerTurn: 0 }, { seconds: 15 }, { seconds: 1 }],
         join: [{ code: 'boss-aware-you' }, { code: 'Boss Aware You' }, { code: '?boss-aware-you' }],
         resume: [{ code: 'boss-aware-you' }, { code: 'no-such-game' }],
       }[event];
@@ -160,7 +160,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
 test('actions from outsiders and out of turn are refused and change nothing', async (t) => {
   const site = await launchModule(t, { id: 'gtk', moduleDir: here });
   const [ann, bob, cat, eve] = await Promise.all(['ann', 'bob', 'cat', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { roundsEach: 1 });
+  const { code } = await ann.call('create', { rounds: 1 });
   await bob.call('join', { code });
   await cat.call('join', { code });
   await until(() => ann.state?.players.length === 3, 'three players');
@@ -168,7 +168,7 @@ test('actions from outsiders and out of turn are refused and change nothing', as
   for (const [event, payload] of [['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['ready', {}]]) {
     for (const who of everyone) assert.equal((await who.call(event, payload)).ok, false, `${event} in the lobby`);
   }
-  for (const [event, payload] of [['start', {}], ['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { roundsEach: 2 }]]) {
+  for (const [event, payload] of [['start', {}], ['answers', { texts: ['a', 'b'] }], ['choose', { n: 0 }], ['kick', { slot: 's1' }], ['addBot', {}], ['settings', { rounds: 2 }]]) {
     assert.equal((await eve.call(event, payload)).ok, false, `${event} by an outsider`);
   }
   assert.ok((await ann.call('start')).ok);

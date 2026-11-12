@@ -8,13 +8,13 @@ import { seeded } from '../../shared/random.js';
  * Plays a seeded game (the two people are made to act through the computer's judgement) and returns every view.
  * @param {number} seed  the seed for the random source
  * @param {number} size  how many players the table has (people plus computer players)
- * @param {number} roundsEach  how many rounds each player is the subject of
+ * @param {number} rounds  how many rounds the game runs for (each player is the subject once a round)
  * @returns {{ views: string[], finished: boolean }} every view as JSON text, and whether the game ran to the end
  * Side effects: none outside the room it builds.
  */
-export function recordedViews(seed, size, roundsEach) {
+export function recordedViews(seed, size, rounds) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, now: 1, roundsEach });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, now: 1, rounds });
   assert.equal(game.addHuman(room, 2).ok, true);
   const names = (id) => `Player ${id}`;
   const views = [];

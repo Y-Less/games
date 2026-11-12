@@ -2,11 +2,14 @@
 // Every action returns { ok: true, ... } or { ok: false, error, params? }, where `error` is a code under `errors.` in the game's
 // locale file or the site's (see MODULES.md, Languages); anything else the client shows is a message (shared/messages.js).
 //
-// A round: one player is the subject, and both of the round's questions are about them ("What is your favourite
+// A TURN: one player is the subject, and both of the turn's questions are about them ("What is your favourite
 // fruit?" to them, "What is Ann's favourite fruit?" to everybody else).  Everybody writes an answer to both: the
 // subject writes the truth, the others write something they hope will pass for it.  Then the first question's answers
 // go up together and everybody but the subject picks the one they believe is true, then the second question's.  A
 // right pick scores; so does a made-up answer, once for every person who fell for it.  You can never pick your own.
+//
+// A ROUND is everybody having been the subject once, which is what the host's `rounds` setting counts: a round at a
+// table of five is five turns, and `turnsTotal` is the two multiplied together.
 //
 // Depends on: shared/scores.js (standings and scoreboard rows), shared/tally.js (statistics rows), shared/ai.js (computer
 // player choice), shared/seats.js (result helpers), shared/messages.js (scoreboard labels and notes), shared/roster.js
@@ -21,7 +24,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
-import { newCounters, statsExtras, tallyQuestion, tallyRound } from './tally.js';
+import { newCounters, statsExtras, tallyQuestion, tallyTurn } from './tally.js';
 import { QUESTIONS, answersFor, normal } from './questions.js';
 
 // Table size limits (three are needed for anybody to have somebody to fool; eight is the most the screen shows comfortably).
@@ -29,9 +32,10 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 8;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-// How many rounds each player is the subject of: bounds and default for the host's setting.
-export const ROUNDS_EACH = { min: 1, max: 3, default: 1 };
-// How many questions are asked about each subject in their round: bounds and default for the host's setting.
+// How many rounds the game runs for, which is how many times each player is the subject: bounds and default for the
+// host's setting.
+export const ROUNDS = { min: 1, max: 3, default: 1 };
+// How many questions are asked about each subject in their turn: bounds and default for the host's setting.
 export const QUESTIONS_EACH = { min: 1, max: 4, default: 2 };
 // How long everybody has to write their answers, and to pick one: bounds, step and default for the host's setting, in
 // seconds.  When it runs out the server answers or picks for whoever is left, so one person cannot hold up the table.
@@ -77,7 +81,7 @@ const playerOf = (room, id) => room.players.find((p) => p.id === id);
  */
 const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 /**
- * What a player wrote this round, or undefined.
+ * What a player wrote this turn, or undefined.
  * @param {object} room  the room
  * @param {number | string} id  the player
  * @returns {{ id: *, texts: string[] } | undefined} their two answers
@@ -85,7 +89,7 @@ const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
  */
 const answersOf = (room, id) => room.answers.find((a) => a.id === id);
 /**
- * Has everybody, the subject included, written their answers to both of this round's questions?
+ * Has everybody, the subject included, written their answers to both of this turn's questions?
  * @param {object} room  the room
  * @returns {boolean} true once they are all in
  * Side effects: none.
@@ -94,7 +98,7 @@ const allWritten = (room) => room.players.every((p) => answersOf(room, p.id));
 /**
  * Puts a question to the person it is about, or to everybody else with their name in it.
  * @param {{ you: string, about: string }} question  a question from questions.js
- * @param {string} subjectName  the name of the player the round is about
+ * @param {string} subjectName  the name of the player the turn is about
  * @param {boolean} isSubject  whether the reader is that player
  * @returns {string} the question as that reader sees it ('' when there is no question yet)
  * Side effects: none.
@@ -116,38 +120,38 @@ const makePlayer = (room, base) => ({ ...base, score: 0, ...newCounters() });
  * @param {string} args.code        the invite code
  * @param {number} args.hostId      the host's account id
  * @param {string} [args.hostName]  the host's display name
- * @param {object} [args.settings]  settings the host chose when creating it ({ roundsEach, questionsPerRound, seconds });
+ * @param {object} [args.settings]  settings the host chose when creating it ({ rounds, questionsPerTurn, seconds });
  *   invalid ones are ignored
- * @param {number} [args.roundsEach] rounds each (default 1); `settings.roundsEach` wins if both are given
+ * @param {number} [args.rounds] rounds each (default 1); `settings.rounds` wins if both are given
  * @param {number} args.now         the time to stamp it with
  * @returns {object} the room, in the lobby
  * Side effects: none outside the new room (an invalid setting is silently left at its default).
  */
-export function createRoom({ code, hostId, hostName, settings = {}, now, roundsEach = ROUNDS_EACH.default }) {
+export function createRoom({ code, hostId, hostName, settings = {}, now, rounds = ROUNDS.default }) {
   const room = {
     code,
     hostId,
     phase: 'lobby',
-    roundsEach,
-    questionsPerRound: QUESTIONS_EACH.default,
+    rounds,
+    questionsPerTurn: QUESTIONS_EACH.default,
     seconds: SECONDS.default, // how long a writing or picking phase lasts before the server acts for whoever is left
     deadline: null, // when the phase now under way runs out (milliseconds, the server's clock), or null when nothing is timed
-    roundsTotal: 0,
-    round: 0,
-    question: 0, // which of the round's questions is being picked or revealed (0 or 1)
+    turnsTotal: 0,
+    turn: 0,
+    question: 0, // which of the turn's questions is being picked or revealed (0 or 1)
     players: [],
     size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
     nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
-    subject: null, // the player this round is about
-    questions: [], // this round's questions, as taken from questions.js
+    subject: null, // the player this turn is about
+    questions: [], // this turn's questions, as taken from questions.js
     used: [], // the ids of the questions already asked this game
     answers: [], // [{ id, texts: [first, second] }]: what everybody wrote, the subject's being the true ones
     options: [], // the answers on the table for the question being picked: [{ text, authors, truth }], in a shuffled order
     picks: [], // [{ id, n }]: who picked which option
     result: null, // the question just scored, shown at the reveal
-    roundPicks: {}, // player id -> { asked, rights } for this round, for the "got both right" counter
+    turnPicks: {}, // player id -> { asked, rights } for this turn, for the "got both right" counter
     history: [],
     recorded: false,
     createdAt: now,
@@ -178,9 +182,9 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * The host changes the settings.  Only the settings that are given are changed.
  * @param {object} room  the room
  * @param {number} id        who is asking (must be the host)
- * @param {object} settings  { roundsEach?, questionsPerRound?, seconds? }
+ * @param {object} settings  { rounds?, questionsPerTurn?, seconds? }
  * @returns {{ ok: boolean, error?: string }} the first refusal, or ok
- * Side effects: may change room.roundsEach, room.questionsPerRound and room.seconds.
+ * Side effects: may change room.rounds, room.questionsPerTurn and room.seconds.
  */
 export function setSettings(room, id, settings = {}) {
   if (settings.size !== undefined) {
@@ -188,8 +192,8 @@ export function setSettings(room, id, settings = {}) {
     if (!sized.ok) return sized;
   }
   const asked = [
-    ['roundsEach', setRoundsEach],
-    ['questionsPerRound', setQuestionsPerRound],
+    ['rounds', setRounds],
+    ['questionsPerTurn', setQuestionsPerTurn],
     ['seconds', setSeconds],
   ].filter(([key]) => settings[key] !== undefined);
   if (!asked.length) return hostInLobby(room, id) ?? ok();
@@ -213,35 +217,35 @@ export function playAgain() {
  * The host changes how many rounds each player is the subject of.
  * @param {object} room  the room
  * @param {number} id          who is asking (must be the host)
- * @param {number} roundsEach  a whole number from ROUNDS_EACH.min to ROUNDS_EACH.max
+ * @param {number} rounds  a whole number from ROUNDS.min to ROUNDS.max
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: sets room.roundsEach on success.
+ * Side effects: sets room.rounds on success.
  */
-export function setRoundsEach(room, id, roundsEach) {
+export function setRounds(room, id, rounds) {
   if (id !== room.hostId) return fail('hostOnlySettings');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
-  if (!Number.isInteger(roundsEach) || roundsEach < ROUNDS_EACH.min || roundsEach > ROUNDS_EACH.max) {
-    return fail('roundsEach', { min: ROUNDS_EACH.min, max: ROUNDS_EACH.max });
+  if (!Number.isInteger(rounds) || rounds < ROUNDS.min || rounds > ROUNDS.max) {
+    return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
   }
-  room.roundsEach = roundsEach;
+  room.rounds = rounds;
   return ok();
 }
 
 /**
- * The host changes how many questions are asked about each subject in their round.
+ * The host changes how many questions are asked about each subject in their turn.
  * @param {object} room  the room
  * @param {number} id  who is asking (must be the host)
- * @param {number} questionsPerRound  a whole number from QUESTIONS_EACH.min to QUESTIONS_EACH.max
+ * @param {number} questionsPerTurn  a whole number from QUESTIONS_EACH.min to QUESTIONS_EACH.max
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: sets room.questionsPerRound on success.
+ * Side effects: sets room.questionsPerTurn on success.
  */
-export function setQuestionsPerRound(room, id, questionsPerRound) {
+export function setQuestionsPerTurn(room, id, questionsPerTurn) {
   if (id !== room.hostId) return fail('hostOnlySettings');
   if (room.phase !== 'lobby') return fail('alreadyStarted');
-  if (!Number.isInteger(questionsPerRound) || questionsPerRound < QUESTIONS_EACH.min || questionsPerRound > QUESTIONS_EACH.max) {
-    return fail('questionsPerRound', { min: QUESTIONS_EACH.min, max: QUESTIONS_EACH.max });
+  if (!Number.isInteger(questionsPerTurn) || questionsPerTurn < QUESTIONS_EACH.min || questionsPerTurn > QUESTIONS_EACH.max) {
+    return fail('questionsPerTurn', { min: QUESTIONS_EACH.min, max: QUESTIONS_EACH.max });
   }
-  room.questionsPerRound = questionsPerRound;
+  room.questionsPerTurn = questionsPerTurn;
   return ok();
 }
 
@@ -264,21 +268,21 @@ export function setSeconds(room, id, seconds) {
 }
 
 /**
- * Sets the room up for the next round: the next player in order is the subject, two questions nobody has been asked
- * this game are drawn, and the last round's answers, options and result are wiped.
+ * Sets the room up for the next turn: the next player in order is the subject, two questions nobody has been asked
+ * this game are drawn, and the last turn's answers, options and result are wiped.
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source for the questions
  * @param {number} [now]  the time the writing phase starts, which its deadline is measured from
  * @returns {void}
- * Side effects: sets subject, nextIdx, used, questions, answers, options, picks, result, roundPicks, question, ready,
+ * Side effects: sets subject, nextIdx, used, questions, answers, options, picks, result, turnPicks, question, ready,
  *   deadline, and phase ('writing').
  */
-function startRound(room, rng, now = 0) {
+function startTurn(room, rng, now = 0) {
   room.subject = room.players[room.nextIdx].id;
   room.nextIdx = (room.nextIdx + 1) % room.players.length;
   room.used ??= [];
   room.questions = [];
-  for (let n = 0; n < room.questionsPerRound; n++) {
+  for (let n = 0; n < room.questionsPerTurn; n++) {
     const id = drawUnused(QUESTIONS.map((entry) => entry.id), room.used, rng);
     room.questions.push({ ...QUESTIONS.find((entry) => entry.id === id) });
   }
@@ -286,7 +290,7 @@ function startRound(room, rng, now = 0) {
   room.options = [];
   room.picks = [];
   room.result = null;
-  room.roundPicks = {};
+  room.turnPicks = {};
   room.question = 0;
   room.ready = [];
   room.deadline = now + room.seconds * 1000;
@@ -301,7 +305,7 @@ function startRound(room, rng, now = 0) {
  * @param {() => number} rng  random source for the order, the questions, and the AIs
  * @param {number} [now]  the time the game starts, which the first deadline is measured from
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: changes the phase and everything a round sets up (see startRound), and sets roundsTotal, round, used,
+ * Side effects: changes the phase and everything a turn sets up (see startTurn), and sets turnsTotal, turn, used,
  *   and each computer player's `ai`.
  */
 export function start(room, id, rng, now = 0) {
@@ -309,11 +313,11 @@ export function start(room, id, rng, now = 0) {
   if (room.phase !== 'lobby') return fail('alreadyStarted');
   if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
-  room.roundsTotal = room.roundsEach * room.players.length;
-  room.round = 0;
+  room.turnsTotal = room.rounds * room.players.length;
+  room.turn = 0;
   room.used = [];
   room.nextIdx = Math.floor(rng() * room.players.length);
-  startRound(room, rng, now);
+  startTurn(room, rng, now);
   // Every computer player gets an AI for the whole game.
   const bots = room.players.filter(isBot);
   const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
@@ -335,7 +339,7 @@ export function answerProblem(text) {
 }
 
 /**
- * Everybody's answers to both of the round's questions, sent together: the subject's are the truth, everybody else's
+ * Everybody's answers to both of the turn's questions, sent together: the subject's are the truth, everybody else's
  * are what they hope will pass for it.  Once they are all in, the first question goes up for picking.
  * @param {object} room  the room (mutated)
  * @param {number | string} id  who is writing
@@ -351,7 +355,7 @@ export function submitAnswers(room, id, texts, rng, nameOf = String, now = 0) {
   if (!hasPlayer(room, id)) return fail('notInGame');
   if (answersOf(room, id)) return fail('alreadyAnswered');
   const list = Array.isArray(texts) ? texts : [texts];
-  if (list.length !== room.questionsPerRound) return fail('answerEachQuestion', { count: room.questionsPerRound });
+  if (list.length !== room.questionsPerTurn) return fail('answerEachQuestion', { count: room.questionsPerTurn });
   const clean = list.map((text) => textFrom(text).replace(/\s+/g, ' ').trim());
   for (const text of clean) {
     const problem = answerProblem(text);
@@ -442,7 +446,7 @@ const toPick = (room) => room.players.filter((p) => p.id !== room.subject && !ro
  * yourself is not somebody else naming you.  Worked out only when a question is scored, so that nobody is told who was
  * named — and so told the answer — while the question is still open.
  * @param {object} room  the room (not changed)
- * @param {number} [n]  which of the round's questions (default: the one being scored)
+ * @param {number} [n]  which of the turn's questions (default: the one being scored)
  * @returns {object[]} the players everybody else named, in the order they are seated (very rarely any)
  * Side effects: none.
  */
@@ -488,7 +492,7 @@ export function choose(room, id, n, nameOf = String) {
  * @param {object} room  the room (mutated)
  * @param {(id: *) => string} [nameOf]  name lookup for the history label
  * @returns {void}
- * Side effects: changes scores, bumps statistics counters (tallyQuestion), sets room.result and room.roundPicks,
+ * Side effects: changes scores, bumps statistics counters (tallyQuestion), sets room.result and room.turnPicks,
  *   pushes room.history, clears ready, and sets phase 'reveal'.
  */
 /**
@@ -559,24 +563,24 @@ function notesFor(room, { right, matched, named }, gave) {
     else if (named.has(p.id)) notes[p.slot] = msg('notes.named');
     else if (matched.has(p.id)) notes[p.slot] = msg('notes.matched');
     else if (right.has(p.id)) notes[p.slot] = msg('notes.right');
-    else if (p.id === room.subject) notes[p.slot] = msg('notes.theirRound');
+    else if (p.id === room.subject) notes[p.slot] = msg('notes.theirTurn');
   }
   return notes;
 }
 
 /**
- * Keeps how each player has done over the round's questions, which the round's own scores read.  The subject does not
+ * Keeps how each player has done over the turn's questions, which the turn's own scores read.  The subject does not
  * answer their own question, so they are not asked and not counted.
- * @param {object} room  room.roundPicks is changed
+ * @param {object} room  room.turnPicks is changed
  * @param {object} facts  from questionFacts
  * @returns {void}
- * Side effects: creates and adds to room.roundPicks.
+ * Side effects: creates and adds to room.turnPicks.
  */
-function recordRoundPicks(room, { right, matched }) {
-  room.roundPicks ??= {};
+function recordTurnPicks(room, { right, matched }) {
+  room.turnPicks ??= {};
   for (const p of room.players) {
     if (p.id === room.subject) continue;
-    const tally = (room.roundPicks[p.id] ??= { asked: 0, rights: 0 });
+    const tally = (room.turnPicks[p.id] ??= { asked: 0, rights: 0 });
     tally.asked++;
     if (right.has(p.id) || matched.has(p.id)) tally.rights++;
   }
@@ -628,11 +632,11 @@ function scoreQuestion(room, nameOf = String) {
   const facts = questionFacts(room);
   const { deltas, gave } = awardPoints(room, facts);
   const notes = notesFor(room, facts, gave);
-  recordRoundPicks(room, facts);
+  recordTurnPicks(room, facts);
   recordStatistics(room, facts);
 
   room.result = revealOf(room, facts.truth);
-  room.history.push({ label: msg('scoreboard.question', { round: room.round + 1, total: room.roundsTotal, name: nameOf(room.subject), n: room.question + 1 }), deltas, notes });
+  room.history.push({ label: msg('scoreboard.question', { turn: room.turn + 1, total: room.turnsTotal, name: nameOf(room.subject), n: room.question + 1 }), deltas, notes });
   room.ready = [];
   room.deadline = null; // the reveal has a wait of its own, which the server keeps
   room.phase = 'reveal';
@@ -654,9 +658,9 @@ export function migrate(room, nameOf) {
   room.options ??= [];
   room.picks ??= [];
   room.ready ??= []; // ready() reads it unguarded
-  room.roundPicks ??= {};
+  room.turnPicks ??= {};
   room.question ??= 0;
-  room.questionsPerRound ??= QUESTIONS_EACH.default;
+  room.questionsPerTurn ??= QUESTIONS_EACH.default;
   room.seconds ??= SECONDS.default;
   room.deadline ??= null;
   if (!Array.isArray(room.history)) room.history = [];
@@ -664,34 +668,34 @@ export function migrate(room, nameOf) {
 }
 
 /**
- * Ends the reveal: moves on to the round's second question, or counts the round and either finishes the game or starts
- * the next round.
+ * Ends the reveal: moves on to the turn's second question, or counts the turn and either finishes the game or starts
+ * the next turn.
  * @param {object} room  the room (mutated)
- * @param {() => number} rng  random source for the next question's shuffle and the next round
+ * @param {() => number} rng  random source for the next question's shuffle and the next turn
  * @param {(id: *) => string} [nameOf]  name lookup for history labels
  * @param {number} [now]  the time, which the next phase's deadline is measured from
- * @returns {boolean} true if that was the last question of the last round and the game is now finished
- * Side effects: clears ready, and either opens the next question, starts the next round, or sets phase 'finished'.
+ * @returns {boolean} true if that was the last question of the last turn and the game is now finished
+ * Side effects: clears ready, and either opens the next question, starts the next turn, or sets phase 'finished'.
  */
 function finishQuestion(room, rng, nameOf = String, now = 0) {
   room.ready = [];
-  if (room.question + 1 < room.questionsPerRound) {
+  if (room.question + 1 < room.questionsPerTurn) {
     room.question++;
     room.result = null;
     openPicking(room, rng, namer(room, nameOf), now);
     return false;
   }
-  tallyRound({
+  tallyTurn({
     subject: playerOf(room, room.subject) ?? null,
-    pickers: Object.entries(room.roundPicks ?? {}).map(([id, { asked, rights }]) => ({ player: room.players.find((p) => String(p.id) === id) ?? null, asked, rights })),
+    pickers: Object.entries(room.turnPicks ?? {}).map(([id, { asked, rights }]) => ({ player: room.players.find((p) => String(p.id) === id) ?? null, asked, rights })),
   });
-  room.round++;
-  if (room.round >= room.roundsTotal) {
+  room.turn++;
+  if (room.turn >= room.turnsTotal) {
     room.deadline = null;
     room.phase = 'finished';
     return true;
   }
-  startRound(room, rng, now);
+  startTurn(room, rng, now);
   return false;
 }
 
@@ -802,7 +806,7 @@ export const waitingForReady = (room) => room.phase === 'reveal';
  * @param {() => number} rng  random source
  * @param {number} [now]  the clock, which the next phase's deadline is measured from if the game moves on
  * @returns {void}
- * Side effects: mutates the room (the bot, subject, answers, options, picks, ready, roundPicks, result, history) and may move on.
+ * Side effects: mutates the room (the bot, subject, answers, options, picks, ready, turnPicks, result, history) and may move on.
  */
 /**
  * Renames one player's id everywhere this game writes one down.  A place changes hands in both directions — a computer
@@ -823,9 +827,9 @@ function renameId(room, from, to) {
   for (const answer of room.answers) answer.id = renamed(answer.id);
   for (const option of room.options) option.authors = option.authors.map(renamed);
   for (const pick of room.picks) pick.id = renamed(pick.id);
-  if (room.roundPicks && Object.hasOwn(room.roundPicks, from)) {
-    room.roundPicks[to] = room.roundPicks[from];
-    delete room.roundPicks[from];
+  if (room.turnPicks && Object.hasOwn(room.turnPicks, from)) {
+    room.turnPicks[to] = room.turnPicks[from];
+    delete room.turnPicks[from];
   }
   if (room.result) {
     room.result.subject = renamed(room.result.subject);
@@ -845,7 +849,7 @@ function takeOver(room, oldId, bot, rng, now = 0) {
 
 /**
  * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
- * here.  Nothing is ready on their behalf any more, which is why a round that was about to end now waits for them.
+ * here.  Nothing is ready on their behalf any more, which is why a turn that was about to end now waits for them.
  *
  * @param {object} room  the room to change
  * @param {string} botId  the computer player whose place was taken
@@ -974,11 +978,11 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     phase: room.phase,
     you: userId,
     hostId: room.hostId,
-    roundsEach: room.roundsEach,
-    round: Math.min(room.round + 1, Math.max(room.roundsTotal, 1)),
-    roundsTotal: room.roundsTotal,
+    rounds: room.rounds,
+    turn: Math.min(room.turn + 1, Math.max(room.turnsTotal, 1)),
+    turnsTotal: room.turnsTotal,
     question: room.question + 1,
-    questionsPerRound: room.questionsPerRound,
+    questionsPerTurn: room.questionsPerTurn,
     seconds: room.seconds,
     remaining: isTimed(room) ? Math.max(0, room.deadline - now) : null,
     subject: room.subject,
@@ -993,7 +997,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     players: room.players.map((p) => playerView(room, p, { nameOf, online, final })),
     scoreboard: scoreboardView(room, userId, { nameOf, online }),
     size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
-    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS_EACH, questions: QUESTIONS_EACH, time: SECONDS, answer: ANSWER_LENGTH },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, rounds: ROUNDS, questions: QUESTIONS_EACH, time: SECONDS, answer: ANSWER_LENGTH },
   };
 }
 

@@ -6,7 +6,7 @@ import { endOfGame, entering, newlyFlagged } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
- * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a round).  The caller
+ * The lines that the step from `prev` to `next` adds (none for a first state, except the start of a turn).  The caller
  * appends them to its list, so a line is only produced on the one step where its event happens.
  * @param {object | null} prev  the state before (null for the first state received)
  * @param {object | null} next  the state that has just arrived
@@ -16,11 +16,11 @@ import { msg } from '../../../shared/messages.js';
 export function newEntries(prev, next) {
   if (!next || next.phase === 'lobby') return [];
   const out = [];
-  const sameRound = prev && prev.round === next.round && prev.phase !== 'lobby';
-  const sameQuestion = sameRound && prev.question === next.question;
+  const sameTurn = prev && prev.turn === next.turn && prev.phase !== 'lobby';
+  const sameQuestion = sameTurn && prev.question === next.question;
 
-  if (next.phase === 'writing' && !(prev?.phase === 'writing' && sameRound)) out.push(msg('log.roundStart', { n: next.round, total: next.roundsTotal, name: next.subjectName }));
-  if (next.phase === 'writing' && sameRound && prev.phase === 'writing') out.push(...newlyFlagged(prev, next, 'written', 'log.written'));
+  if (next.phase === 'writing' && !(prev?.phase === 'writing' && sameTurn)) out.push(msg('log.turnStart', { n: next.turn, total: next.turnsTotal, name: next.subjectName }));
+  if (next.phase === 'writing' && sameTurn && prev.phase === 'writing') out.push(...newlyFlagged(prev, next, 'written', 'log.written'));
   if (next.phase === 'picking' && !(prev?.phase === 'picking' && sameQuestion)) {
     if (prev?.phase === 'writing') out.push(msg('log.answersIn'));
     out.push(msg('log.questionUp', { n: next.question, prompt: next.prompts[next.question - 1] ?? '' }));

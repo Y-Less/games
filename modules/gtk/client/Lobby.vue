@@ -12,14 +12,14 @@ const { t } = useGameText();
 
 // Only the host may change the length of the game and start it.
 const isHost = computed(() => props.state.hostId === props.state.you);
-// The fewest and most rounds each player may be the subject of ({ min, max } from the server).
+// The fewest and most rounds the game may run for ({ min, max } from the server).
 const rounds = computed(() => props.state.limits.rounds);
-// The fewest and most questions a round may have ({ min, max } from the server).
+// The fewest and most questions a turn may have ({ min, max } from the server).
 const questions = computed(() => props.state.limits.questions);
 // The shortest and longest time to answer, and the step the buttons move it by ({ min, max, step } from the server).
 const time = computed(() => props.state.limits.time);
-// Rounds in the whole game: everybody is the subject the same number of times.
-const total = computed(() => props.state.roundsEach * props.state.players.length);
+// Turns in the whole game: everybody is the subject once a round.
+const total = computed(() => props.state.rounds * props.state.players.length);
 // There are enough players to start.
 const canStart = computed(() => props.state.players.length >= props.state.limits.min);
 </script>
@@ -50,17 +50,17 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
     <section class="panel stack">
       <h3>{{ t('settings.length') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.roundsEach <= rounds.min" :aria-label="t('settings.fewerRounds')" @click="send('settings', { roundsEach: state.roundsEach - 1 })">-</button>
-        <strong>{{ t('settings.roundsEach', { count: state.roundsEach }, state.roundsEach) }}</strong>
-        <button :disabled="!isHost || state.roundsEach >= rounds.max" :aria-label="t('settings.moreRounds')" @click="send('settings', { roundsEach: state.roundsEach + 1 })">+</button>
+        <button :disabled="!isHost || state.rounds <= rounds.min" :aria-label="t('settings.fewerRounds')" @click="send('settings', { rounds: state.rounds - 1 })">-</button>
+        <strong>{{ t('settings.rounds', { count: state.rounds }, state.rounds) }}</strong>
+        <button :disabled="!isHost || state.rounds >= rounds.max" :aria-label="t('settings.moreRounds')" @click="send('settings', { rounds: state.rounds + 1 })">+</button>
       </div>
-      <p class="muted">{{ t('settings.total', { count: total, players: state.players.length, questions: state.questionsPerRound }, total) }}</p>
+      <p class="muted">{{ t('settings.total', { count: total, players: state.players.length, questions: state.questionsPerTurn }, total) }}</p>
 
       <h3>{{ t('settings.questions') }}</h3>
       <div class="row">
-        <button :disabled="!isHost || state.questionsPerRound <= questions.min" :aria-label="t('settings.fewerQuestions')" @click="send('settings', { questionsPerRound: state.questionsPerRound - 1 })">-</button>
-        <strong>{{ t('settings.questionsEach', { count: state.questionsPerRound }, state.questionsPerRound) }}</strong>
-        <button :disabled="!isHost || state.questionsPerRound >= questions.max" :aria-label="t('settings.moreQuestions')" @click="send('settings', { questionsPerRound: state.questionsPerRound + 1 })">+</button>
+        <button :disabled="!isHost || state.questionsPerTurn <= questions.min" :aria-label="t('settings.fewerQuestions')" @click="send('settings', { questionsPerTurn: state.questionsPerTurn - 1 })">-</button>
+        <strong>{{ t('settings.questionsEach', { count: state.questionsPerTurn }, state.questionsPerTurn) }}</strong>
+        <button :disabled="!isHost || state.questionsPerTurn >= questions.max" :aria-label="t('settings.moreQuestions')" @click="send('settings', { questionsPerTurn: state.questionsPerTurn + 1 })">+</button>
       </div>
 
       <h3>{{ t('settings.time') }}</h3>

@@ -65,7 +65,7 @@ export default function (ctx) {
       // wandered off cannot hold up the table.  The same key keeps the same timer, so a pick does not extend it.
       if (game.isTimed(room)) {
         return {
-          key: `time:${room.round}:${room.question}:${room.phase}`,
+          key: `time:${room.turn}:${room.question}:${room.phase}`,
           wait: Math.max(0, room.deadline - now()),
           run() {
             if (!game.fillTimedOut(room, rng, nameOf, now())) throw new Error('nobody was left to answer or pick when the time ran out');
@@ -76,7 +76,7 @@ export default function (ctx) {
       // somebody closes the pop-up: the same question's timer keeps running.
       if (game.waitingForReady(room)) {
         return {
-          key: `next:${room.round}:${room.question}`,
+          key: `next:${room.turn}:${room.question}`,
           wait: delays.nextWait,
           run() {
             const outcome = game.forceNext(room, rng, nameOf, now());
@@ -101,11 +101,11 @@ export default function (ctx) {
 }
 
 /**
- * Only the settings (rounds each, questions a round, and the time to answer), whatever else a client sends.
+ * Only the settings (rounds, questions a turn, and the time to answer), whatever else a client sends.
  * @param {object} payload  the untrusted settings object from the client
  * @returns {object} a copy with only the allowed keys
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['roundsEach', 'questionsPerRound', 'seconds', 'size']);
+  return pickKeys(payload, ['rounds', 'questionsPerTurn', 'seconds', 'size']);
 }

@@ -11,7 +11,7 @@ const words = (line) => messageText(line, 'gtk');
 const player = (id, name, extra = {}) => ({ id, name, score: 0, online: true, bot: false, ai: null, subject: false, written: false, picked: false, ready: false, placement: null, winner: false, ...extra });
 const who = (id, name) => ({ id, name });
 
-/** A view of a four-player game in which the round is about Bob (player 2) and you are Ann (player 1). */
+/** A view of a four-player game in which the turn is about Bob (player 2) and you are Ann (player 1). */
 function view(extra = {}) {
   const players = extra.players ?? [player(1, 'Ann'), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')];
   return {
@@ -19,11 +19,11 @@ function view(extra = {}) {
     phase: 'writing',
     you: 1,
     hostId: 1,
-    roundsEach: 1,
-    round: 1,
-    roundsTotal: 4,
+    rounds: 1,
+    turn: 1,
+    turnsTotal: 4,
     question: 1,
-    questionsPerRound: 2,
+    questionsPerTurn: 2,
     seconds: 60,
     remaining: 42000,
     subject: 2,
@@ -122,8 +122,8 @@ describe('GTK: writing the answers', () => {
     expect(ticked).toEqual(['Ann', 'Bob']);
   });
 
-  it('puts each question straight above its own box, and takes however many the round has', async () => {
-    const { socket } = await mountGame(view({ questionsPerRound: 3, prompts: ['First?', 'Second?', 'Third?'] }));
+  it('puts each question straight above its own box, and takes however many the turn has', async () => {
+    const { socket } = await mountGame(view({ questionsPerTurn: 3, prompts: ['First?', 'Second?', 'Third?'] }));
     expect(wrapper.findAll('.write-form .field .question').map((q) => q.text())).toEqual(['First?', 'Second?', 'Third?']);
     expect(wrapper.findAll('.write-form input')).toHaveLength(3);
     for (const [n, text] of ['A', 'B', 'C'].entries()) await answerBox(n + 1).setValue(text);
@@ -131,18 +131,18 @@ describe('GTK: writing the answers', () => {
     expect(sent(socket, 'answers')).toEqual([{ texts: ['A', 'B', 'C'] }]);
   });
 
-  it('says "answer" rather than "all your answers" when a round has only one question', async () => {
-    await mountGame(view({ questionsPerRound: 1, prompts: ['Only one?'] }));
+  it('says "answer" rather than "all your answers" when a turn has only one question', async () => {
+    await mountGame(view({ questionsPerTurn: 1, prompts: ['Only one?'] }));
     expect(button('Send your answer')).toBeTruthy();
     expect(button('Send all your answers')).toBeUndefined();
     expect(wrapper.text()).toContain('Make up an answer that could pass for Bob’s own.');
   });
 
-  it('empties the boxes when the next round starts', async () => {
+  it('empties the boxes when the next turn starts', async () => {
     const { show } = await mountGame(view());
     await answerBox(1).setValue('Satsumas');
     expect(answerBox(1).element.value).toBe('Satsumas');
-    await show(view({ round: 2, subject: 3, subjectName: 'Cy', prompts: ['What is Cy’s dream job?', 'What is Cy’s worst chore?'] }));
+    await show(view({ turn: 2, subject: 3, subjectName: 'Cy', prompts: ['What is Cy’s dream job?', 'What is Cy’s worst chore?'] }));
     expect(answerBox(1).element.value).toBe('');
   });
 });
@@ -243,8 +243,8 @@ describe('GTK: the reveal', () => {
     expect(socket.emit).toBeTruthy();
   });
 
-  it('calls the last question of the last round the final scores', async () => {
-    await mountGame(revealed({ round: 4, question: 2, players: [player(1, 'Ann', { ready: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')] }));
+  it('calls the last question of the last turn the final scores', async () => {
+    await mountGame(revealed({ turn: 4, question: 2, players: [player(1, 'Ann', { ready: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')] }));
     expect(wrapper.text()).toContain('to be ready for the final scores');
   });
 });
@@ -259,8 +259,8 @@ describe('GTK: the end of the game', () => {
 });
 
 describe('GTK: the Recent moves list', () => {
-  it('says when a round starts, who has written, and which question is up', () => {
-    expect(newEntries(null, view()).map(words)).toEqual(['Round 1 of 4: this one is about Bob.']);
+  it('says when a turn starts, who has written, and which question is up', () => {
+    expect(newEntries(null, view()).map(words)).toEqual(['Turn 1 of 4: this one is about Bob.']);
     const before = view({ players: [player(1, 'Ann'), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')] });
     const after = view({ players: [player(1, 'Ann', { written: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')] });
     expect(newEntries(before, after).map(words)).toEqual(['Ann has written their answers.']);

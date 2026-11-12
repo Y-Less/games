@@ -23,7 +23,7 @@ test('a whole game with four people: create, join, start, answers, picking, the 
 
   assert.deepEqual(await ann.call('resume'), { ok: true, code: null });
   assert.equal((await ann.call('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
-  const created = await ann.call('create', { roundsEach: 1 });
+  const created = await ann.call('create', { rounds: 1 });
   assert.ok(created.ok);
   assert.equal((await ann.call('create')).ok, false, 'already in a game');
   for (const p of people.slice(1)) assert.ok((await p.call('join', { code: created.code })).ok);
@@ -31,12 +31,12 @@ test('a whole game with four people: create, join, start, answers, picking, the 
   assert.equal((await bob.call('start')).ok, false, 'only the host starts');
   assert.ok((await ann.call('start')).ok);
 
-  for (let round = 1; round <= 4; round++) {
-    await until(() => people.every((p) => p.state?.phase === 'writing' && p.state.round === round), `round ${round}`);
+  for (let turn = 1; turn <= 4; turn++) {
+    await until(() => people.every((p) => p.state?.phase === 'writing' && p.state.turn === turn), `turn ${turn}`);
     const subject = people.find((p) => p.state.isSubject);
     const others = people.filter((p) => p !== subject);
-    assert.equal(subject.state.prompts.length, 2, 'two questions a round');
-    assert.ok(others[0].state.prompts[0].includes(subject.state.subjectName), 'the others are told whose round it is');
+    assert.equal(subject.state.prompts.length, 2, 'two questions a turn');
+    assert.ok(others[0].state.prompts[0].includes(subject.state.subjectName), 'the others are told whose turn it is');
     assert.equal((await subject.call('answers', { texts: ['only one'] })).ok, false, 'both questions need an answer');
     assert.equal((await subject.call('choose', { n: 0 })).ok, false, 'nothing to pick yet');
     await everybodyWrites(people);
@@ -74,7 +74,7 @@ test('a whole game with four people: create, join, start, answers, picking, the 
 test('the true answer never reaches anybody before the reveal', async (t) => {
   const site = await launch(t);
   const people = [await site.person('ann').open(), await site.person('bob').open(), await site.person('cat').open()];
-  const { code } = await people[0].call('create', { roundsEach: 1 });
+  const { code } = await people[0].call('create', { rounds: 1 });
   for (const p of people.slice(1)) await p.call('join', { code });
   await until(() => people[0].state.players.length === 3, 'three players');
   await people[0].call('start');
@@ -97,7 +97,7 @@ test('computer players fill the table, write, pick and finish a game', async (t)
   process.env.GTK_BOT_DELAY = '0-5';
   const site = await launch(t);
   const ann = await site.person('ann').open();
-  assert.ok((await ann.call('create', { roundsEach: 1 })).ok);
+  assert.ok((await ann.call('create', { rounds: 1 })).ok);
   assert.ok((await ann.call('fillBots', { count: 4 })).ok);
   await until(() => ann.state.players.length === 4, 'three computer players');
   assert.ok(ann.state.players.slice(1).every((p) => p.bot && p.online));

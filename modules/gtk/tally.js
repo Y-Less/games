@@ -1,6 +1,8 @@
 // What GTK counts about each player for the statistics and achievements (see module.json "stats").  The counters live on
 // the player and are saved with the room.  The game calls tallyQuestion once a question has been scored, and
-// tallyRound once both questions of a round are done; nothing here changes the game.
+// tallyTurn once both questions of a turn are done; nothing here changes the game.
+// `perfectRounds` and `roundsAsSubject` count turns, not rounds: they are stat keys recorded against people's
+// accounts, so they keep the names they were first written under while their labels say what they really count.
 // Depends on shared/tally.js for the counter helpers.
 import { bump, extrasOf, freshTally } from '../../shared/tally.js';
 
@@ -13,7 +15,7 @@ export const STAT_KEYS = ['rightAnswers', 'peopleFooled', 'answersWritten', 'mat
  */
 export const newCounters = () => freshTally(STAT_KEYS);
 
-/** The fewest picks that make "found every true answer" worth recording, so one lucky round is not a clean game. */
+/** The fewest picks that make "found every true answer" worth recording, so one lucky turn is not a clean game. */
 export const MIN_SHARP_PICKS = 4;
 
 /**
@@ -50,15 +52,16 @@ export function tallyQuestion({ subject, picks, fakes, named = [], foundByNobody
 }
 
 /**
- * Counts a finished round (both of its questions).
- * @param {object} round
- * @param {object | null} round.subject  the player the round was about, if they are still here
- * @param {Array<{ player: object | null, rights: number, asked: number }>} round.pickers  how many of the round's
+ * Counts a finished turn (both of its questions).
+ * @param {object} turn
+ * @param {object | null} turn.subject  the player the turn was about, if they are still here
+ * @param {Array<{ player: object | null, rights: number, asked: number }>} turn.pickers  how many of the turn's
  *   questions each picker got right, out of how many they were asked
  * @returns {void}
- * Side effects: increments roundsAsSubject on the subject and perfectRounds on anybody who got every question right.
+ * Side effects: increments roundsAsSubject on the subject and perfectRounds on anybody who got every question right
+ *   (both count turns; see the note at the top of this file).
  */
-export function tallyRound({ subject, pickers }) {
+export function tallyTurn({ subject, pickers }) {
   if (subject) bump(subject, 'roundsAsSubject');
   for (const { player, rights, asked } of pickers) {
     if (player && asked > 0 && rights === asked) bump(player, 'perfectRounds');

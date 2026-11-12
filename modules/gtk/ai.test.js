@@ -9,13 +9,13 @@ import { seeded } from '../../shared/random.js';
 
 /**
  * Plays a whole game of computer players, forcing every one of them to use `aiId` when one is named.
- * @param {object} options  { seed, size, roundsEach, aiId }
+ * @param {object} options  { seed, size, rounds, aiId }
  * @returns {object} the finished room
  * Side effects: none outside the room it builds.
  */
-function playGame({ seed = 1, size = 4, roundsEach = 1, aiId = null } = {}) {
+function playGame({ seed = 1, size = 4, rounds = 1, aiId = null } = {}) {
   const rng = seeded(seed);
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1, roundsEach });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1, rounds });
   assert.equal(game.fillWithBots(room, 1, size).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
   room.players[0].kind = 'bot'; // the host plays by the computer's judgement too, so no human input is needed
@@ -38,7 +38,7 @@ test('every AI plays whole games to the end, legally, at every table size', () =
       for (const size of [game.MIN_PLAYERS, 5, game.MAX_PLAYERS]) {
         const room = playGame({ seed, size, aiId: ai.id });
         assert.equal(room.phase, 'finished', `${ai.id}, seed ${seed}, ${size} players`);
-        assert.equal(room.history.length, room.roundsTotal * room.questionsPerRound);
+        assert.equal(room.history.length, room.turnsTotal * room.questionsPerTurn);
         for (const p of room.players) assert.ok(Number.isInteger(p.score) && p.score >= 0);
       }
     }
@@ -46,9 +46,9 @@ test('every AI plays whole games to the end, legally, at every table size', () =
 });
 
 test('a game of several rounds each finishes too, and asks a fresh question every time', () => {
-  const room = playGame({ seed: 9, size: 3, roundsEach: game.ROUNDS_EACH.max });
+  const room = playGame({ seed: 9, size: 3, rounds: game.ROUNDS.max });
   assert.equal(room.phase, 'finished');
-  assert.equal(room.used.length, room.roundsTotal * room.questionsPerRound);
+  assert.equal(room.used.length, room.turnsTotal * room.questionsPerTurn);
   assert.equal(new Set(room.used).size, room.used.length);
 });
 

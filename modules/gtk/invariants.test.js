@@ -19,21 +19,21 @@ function checkRoom(room, label) {
   for (const p of room.players) assert.ok(Number.isInteger(p.score) && p.score >= 0, `${label}: ${p.id} has a sound score`);
   assert.ok(['lobby', 'writing', 'picking', 'reveal', 'finished', 'abandoned'].includes(room.phase), `${label}: phase ${room.phase}`);
   assert.equal(new Set(room.answers.map((a) => a.id)).size, room.answers.length, `${label}: one set of answers each`);
-  assert.ok(room.answers.every((a) => ids.includes(a.id) && a.texts.length === room.questionsPerRound), `${label}: the answers are from players in the room`);
+  assert.ok(room.answers.every((a) => ids.includes(a.id) && a.texts.length === room.questionsPerTurn), `${label}: the answers are from players in the room`);
   assert.ok(room.picks.every((k) => ids.includes(k.id) && k.id !== room.subject && k.n >= 0 && k.n < room.options.length), `${label}: the picks are of real answers by real pickers`);
   assert.equal(new Set(room.picks.map((k) => k.id)).size, room.picks.length, `${label}: one pick each`);
   assert.ok(room.options.every((o) => o.authors.every((id) => ids.includes(id) && id !== room.subject)), `${label}: answers are written by players who are not the subject`);
   assert.ok(room.options.filter((o) => o.truth).length <= 1, `${label}: there is at most one true answer`);
   assert.equal(new Set(room.options.map((o) => normal(o.text))).size, room.options.length, `${label}: no two options are the same answer`);
   assert.ok(room.ready.every((id) => ids.includes(id)), `${label}: ready is a subset of the players`);
-  assert.ok(room.question >= 0 && room.question < room.questionsPerRound, `${label}: the question number is one of the round's`);
-  assert.ok(Number.isInteger(room.questionsPerRound) && room.questionsPerRound >= game.QUESTIONS_EACH.min && room.questionsPerRound <= game.QUESTIONS_EACH.max, `${label}: questions a round`);
+  assert.ok(room.question >= 0 && room.question < room.questionsPerTurn, `${label}: the question number is one of the round's`);
+  assert.ok(Number.isInteger(room.questionsPerTurn) && room.questionsPerTurn >= game.QUESTIONS_EACH.min && room.questionsPerTurn <= game.QUESTIONS_EACH.max, `${label}: questions a round`);
   assert.ok(Number.isInteger(room.seconds) && room.seconds >= game.SECONDS.min && room.seconds <= game.SECONDS.max, `${label}: the time to answer`);
   assert.ok(room.deadline === null || Number.isFinite(room.deadline), `${label}: the deadline is a time or nothing`);
   if (['reveal', 'finished', 'lobby'].includes(room.phase)) assert.equal(room.deadline, null, `${label}: nothing is timed in ${room.phase}`);
   if (['writing', 'picking'].includes(room.phase)) {
     assert.ok(ids.includes(room.subject), `${label}: the subject is in the room`);
-    assert.equal(room.questions.length, room.questionsPerRound, `${label}: the round has its questions`);
+    assert.equal(room.questions.length, room.questionsPerTurn, `${label}: the round has its questions`);
     assert.ok(room.questions.every((q) => QUESTIONS.some((real) => real.id === q.id)), `${label}: real questions`);
   }
   if (room.phase === 'writing') assert.ok(!room.options.length && !room.picks.length, `${label}: nothing is on the table yet`);
@@ -79,8 +79,8 @@ function playRandom(seed) {
   for (const id of people.slice(1)) if (rng() < 0.7) game.addHuman(room, id);
   for (const id of people) if (room.players.length < game.MIN_PLAYERS) game.addHuman(room, id); // at least three, whoever joined
   const actions = [
-    (id) => game.setRoundsEach(room, id, pick(rng, [1, 2, 0, 9, '2'])),
-    (id) => game.setQuestionsPerRound(room, id, pick(rng, [1, 2, 3, 4, 0, 9, '2'])),
+    (id) => game.setRounds(room, id, pick(rng, [1, 2, 0, 9, '2'])),
+    (id) => game.setQuestionsPerTurn(room, id, pick(rng, [1, 2, 3, 4, 0, 9, '2'])),
     (id) => game.setSeconds(room, id, pick(rng, [15, 30, 60, 180, 7, 1000, '30'])),
     () => game.fillTimedOut(room, rng, String, 0),
     (id) => game.addBot(room, id),
@@ -126,7 +126,7 @@ test('whatever the order of play, a finished game has a history that adds up and
     game.addHuman(room, 2);
     game.addHuman(room, 3);
     if (rng() < 0.5) game.addBot(room, 1);
-    game.setRoundsEach(room, 1, 1 + Math.floor(rng() * 2));
+    game.setRounds(room, 1, 1 + Math.floor(rng() * 2));
     game.start(room, 1, rng);
     for (let step = 0; step < 2000 && room.phase !== 'finished'; step++) {
       if (room.phase === 'writing') {
@@ -146,7 +146,7 @@ test('whatever the order of play, a finished game has a history that adds up and
       }
     }
     assert.equal(room.phase, 'finished', `seed ${seed} finishes`);
-    assert.equal(room.history.length, room.roundsTotal * room.questionsPerRound, `seed ${seed}: one history entry a question`);
+    assert.equal(room.history.length, room.turnsTotal * room.questionsPerTurn, `seed ${seed}: one history entry a question`);
     for (const p of room.players) assert.equal(room.history.reduce((n, r) => n + (r.deltas[p.slot] ?? 0), 0), p.score, `seed ${seed}: the history adds up for ${p.id}`);
     const stats = game.statsPlayers(room);
     assert.deepEqual(stats.map((s) => s.userId).sort(), room.players.filter((p) => p.kind === 'human').map((p) => p.id).sort(), 'only people are recorded');
@@ -154,8 +154,8 @@ test('whatever the order of play, a finished game has a history that adds up and
     const total = room.players.reduce((n, p) => n + p.score, 0);
     const earned = room.players.reduce((n, p) => n + p.rightAnswers * game.POINTS.correct + p.peopleFooled * game.POINTS.fooled + p.matchedTruth * game.POINTS.matched, 0);
     assert.equal(total, earned, `seed ${seed}: points come only from right picks, fooling people, and writing the truth`);
-    const asked = room.roundsTotal * room.questionsPerRound;
+    const asked = room.turnsTotal * room.questionsPerTurn;
     for (const p of room.players) assert.equal(p.answersWritten, asked, `seed ${seed}: ${p.id} wrote an answer to every question`);
-    for (const p of room.players) assert.equal(p.roundsAsSubject, room.roundsEach, `seed ${seed}: ${p.id} was the subject of their share of rounds`);
+    for (const p of room.players) assert.equal(p.roundsAsSubject, room.rounds, `seed ${seed}: ${p.id} was the subject once a round`);
   }
 });

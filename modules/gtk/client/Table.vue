@@ -1,14 +1,14 @@
 <script setup>
-// The GTK table, for every phase of a game: the score bar, this round's questions, the answers, and the controls for
+// The GTK table, for every phase of a game: the score bar, this turn's questions, the answers, and the controls for
 // the moment, slim bars for the other players, and the two standard boxes along the bottom.  Everybody writes an
-// answer to both of the round's questions; then the answers to each question in turn go up together and everybody but
+// answer to both of the turn's questions; then the answers to each question in turn go up together and everybody but
 // the subject picks the one they believe is the subject's own.
 //
 // Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves, an
 // array of messages kept by Gtk.vue, see moveLog.js).
 // Emits: none.  Slots: none (it fills GameFrame's scorebar, main, others, log, and status slots).
 // Side effects: sends 'answers', 'choose', 'ready', 'removeBot', and 'kick' requests; one watcher on the view empties
-// the answer boxes when the round changes.
+// the answer boxes when the turn changes.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
@@ -35,13 +35,13 @@ const writing = computed(() => phase.value === 'writing');
 const picking = computed(() => phase.value === 'picking');
 const reveal = computed(() => phase.value === 'reveal');
 const ended = computed(() => phase.value === 'finished' || phase.value === 'abandoned');
-// This round is about you, so you answer honestly and do not pick.
+// This turn is about you, so you answer honestly and do not pick.
 const isSubject = computed(() => s.value.isSubject);
 // Your own player entry.
 const mine = computed(() => s.value.players.find((p) => p.id === s.value.you));
 // Everyone but you, drawn as the slim bars.
 const others = computed(() => s.value.players.filter((p) => p.id !== s.value.you));
-// The answers you have already sent this round, or null.
+// The answers you have already sent this turn, or null.
 const sent = computed(() => s.value.yourAnswers);
 // You still have both answers to write.
 const canWrite = computed(() => writing.value && !sent.value);
@@ -55,8 +55,8 @@ const writtenCount = computed(() => s.value.players.filter((p) => p.written).len
 const pickers = computed(() => s.value.scoreboard.players.filter((p) => p.id !== s.value.subject));
 // How many of them have picked.
 const pickedCount = computed(() => s.value.players.filter((p) => p.picked).length);
-// This is the last question of the last round.
-const lastQuestion = computed(() => s.value.round >= s.value.roundsTotal && s.value.question >= s.value.questionsPerRound);
+// This is the last question of the last turn.
+const lastQuestion = computed(() => s.value.turn >= s.value.turnsTotal && s.value.question >= s.value.questionsPerTurn);
 // Names of the players who have not yet closed the question's scores (reveal phase only).
 const waitingFor = computed(() => (reveal.value ? s.value.players.filter((p) => !p.ready).map((p) => p.name) : []));
 // A copy of the players ordered by score, highest first.
@@ -73,9 +73,9 @@ const { secondsLeft } = useTurnClock(() => props.state);
 const HURRY_AT = 10;
 const hurrying = computed(() => secondsLeft.value !== null && secondsLeft.value <= HURRY_AT && (canWrite.value || canPick.value));
 
-// Typed answers belong to one round: they are emptied when it changes (and once at the start).
+// Typed answers belong to one turn: they are emptied when it changes (and once at the start).
 watch(
-  () => `${s.value.round}`,
+  () => `${s.value.turn}`,
   () => {
     drafts.value = s.value.prompts.map(() => '');
   },
@@ -97,7 +97,7 @@ const headline = computed(() => {
     return truth ? t('status.revealTruth', { name: s.value.subjectName, answer: truth.text }) : '';
   }
   if (writing.value) {
-    const count = s.value.questionsPerRound;
+    const count = s.value.questionsPerTurn;
     if (canWrite.value) return isSubject.value ? t('status.writeSubject', { count }, count) : t('status.writeOther', { name: s.value.subjectName, count }, count);
     return t('status.writeSent', { written: writtenCount.value, total: s.value.players.length });
   }
@@ -221,7 +221,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 
 
       <div class="arena">
         <section v-if="!writing" class="question-card" :aria-label="t('table.theQuestions')">
-          <span class="caption muted">{{ t('table.questionNumber', { n: state.question, total: state.questionsPerRound }) }}</span>
+          <span class="caption muted">{{ t('table.questionNumber', { n: state.question, total: state.questionsPerTurn }) }}</span>
           <strong class="question-now">{{ prompt }}</strong>
         </section>
 
@@ -232,11 +232,11 @@ const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 
               <span class="question">{{ line }}</span>
               <input v-model="drafts[n]" :maxlength="state.limits.answer" :placeholder="t('table.answerPlaceholder')" autocomplete="off" />
             </label>
-            <button type="submit" class="primary wide" :disabled="!ready">{{ t('table.sendAnswers', { count: state.questionsPerRound }, state.questionsPerRound) }}</button>
+            <button type="submit" class="primary wide" :disabled="!ready">{{ t('table.sendAnswers', { count: state.questionsPerTurn }, state.questionsPerTurn) }}</button>
           </form>
           <ul v-else-if="writing && sent" class="mine-list" :aria-label="t('table.yourAnswers')">
             <li v-for="(answer, n) in sent" :key="n">
-              <span class="muted">{{ t('table.questionNumber', { n: n + 1, total: state.questionsPerRound }) }}</span>
+              <span class="muted">{{ t('table.questionNumber', { n: n + 1, total: state.questionsPerTurn }) }}</span>
               <strong>{{ answer }}</strong>
             </li>
           </ul>
@@ -299,9 +299,9 @@ const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 
     <template #status>
       <GameStatus :headline="headline" :mine="mineNow" :turn="Boolean(isSubject && canWrite)" :lines="lines">
         <template #facts>
-          <strong v-if="!ended">{{ t('facts.round', { n: state.round, total: state.roundsTotal }) }}</strong>
+          <strong v-if="!ended">{{ t('facts.turn', { n: state.turn, total: state.turnsTotal }) }}</strong>
           <strong v-else>{{ t('facts.gameOver') }}</strong>
-          <span v-if="!ended && !writing">{{ t('facts.question', { n: state.question, total: state.questionsPerRound }) }}</span>
+          <span v-if="!ended && !writing">{{ t('facts.question', { n: state.question, total: state.questionsPerTurn }) }}</span>
           <span v-if="!ended">{{ t('facts.subject', { name: state.subjectName }) }}</span>
           <span v-if="secondsLeft !== null" class="clock" :class="{ low: secondsLeft <= 10 }">{{ t('facts.time', { count: secondsLeft }, secondsLeft) }}</span>
         </template>
@@ -366,7 +366,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 
   border-radius: var(--radius);
 }
 /* Writing: the questions and their boxes are given room to breathe, because this is the one screen a player reads
-   carefully.  The whole form is centred and spaced evenly down the box however many questions a round has. */
+   carefully.  The whole form is centred and spaced evenly down the box however many questions a turn has. */
 .answers-box.writing {
   justify-content: center;
   padding: 1rem clamp(0.8rem, 4vw, 2.5rem);
