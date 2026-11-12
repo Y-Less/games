@@ -210,3 +210,29 @@ test('saved games from before rounds existed still load, defaulting to two turns
   assert.equal(reloaded.rounds, 2);
   assert.equal(createRules({ getCardIds: () => range(1, 200) }).viewFor(reloaded, 1).totalTurns, 6);
 });
+
+test('a room saved under the old words is renamed on the way in, history labels and all, however often it is loaded', () => {
+  const { game, room, rng } = setup(['Ann', 'Bob', 'Cat'], 1);
+  game.start(room, 1, rng);
+  playTurn({ game, room, rng });
+  const saved = JSON.parse(JSON.stringify(room));
+  // Put it back the way a room saved before this rename holds it.
+  saved.round = saved.turn;
+  saved.completed = saved.completedTurns;
+  saved.roundsEach = saved.rounds;
+  saved.collectedRound = saved.collectedTurn;
+  saved.history = [{ label: { key: 'round.label', params: { n: 1 } }, deltas: {}, notes: {} }, { label: { key: 'round.earlier' }, deltas: {}, notes: {} }];
+  for (const was of ['turn', 'completedTurns', 'rounds', 'collectedTurn']) delete saved[was];
+
+  const rules = createRules({ getCardIds: () => range(1, 200) });
+  const once = rules.migrate(saved);
+  const twice = rules.migrate(JSON.parse(JSON.stringify(once)));
+  for (const reloaded of [once, twice]) {
+    assert.equal(reloaded.turn, room.turn);
+    assert.equal(reloaded.completedTurns, 1);
+    assert.equal(reloaded.rounds, 1);
+    assert.equal(reloaded.collectedTurn, room.collectedTurn);
+    assert.deepEqual(reloaded.history.map((row) => row.label.key), ['turn.label', 'turn.earlier']);
+    assert.ok(!('round' in reloaded) && !('completed' in reloaded) && !('roundsEach' in reloaded) && !('collectedRound' in reloaded));
+  }
+});

@@ -25,6 +25,7 @@ function view(extra = {}, me = {}) {
     rounds: 1,
     completedTurns: 0,
     totalTurns: 4,
+    completedRounds: 0,
     winners: [],
     handSize: 6,
     chooserId: 'ann',
@@ -333,6 +334,7 @@ describe('Dixnt screen', () => {
     expect(log.indexOf('Bob played a card.')).toBeLessThan(log.indexOf('Ann chose the word.')); // newest first
     const status = wrapper.find('.box.status').text();
     expect(status).toContain('Turn 1 of 4');
+    expect(status).toContain('Round 1 of 1'); // the turn and the round it belongs to, as Scribblers shows them
     expect(status).toContain('Everyone votes');
     expect(status).toContain('Word: Dragon');
     wrapper.unmount();
@@ -408,13 +410,26 @@ describe('Dixnt scores', () => {
     wrapper.unmount();
   });
 
-  it('opens them once everybody has had a turn, and again when the game is over', async () => {
+  it('opens them once everybody has had a turn', async () => {
     document.body.innerHTML = '';
     const { wrapper, socket } = await mountGame(view({ phase: 'voting' }));
     socket.handlers.state(scored(true));
     await flushPromises();
     expect(modal()).not.toBeNull();
     expect(modal().textContent).toContain('Scores after Turn 1');
+    wrapper.unmount();
+  });
+
+  it('opens them at the end of the game, where there are no results to go by', async () => {
+    document.body.innerHTML = '';
+    const { wrapper, socket } = await mountGame(view({ phase: 'voting' }));
+    socket.handlers.state(scored(false)); // the last turn did not close a round, so nothing opened
+    await flushPromises();
+    expect(modal()).toBeNull();
+    socket.handlers.state(view({ phase: 'finished', results: null, winners: ['bob'], me: { id: 'ann', isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false } }));
+    await flushPromises();
+    expect(modal()).not.toBeNull();
+    expect(modal().textContent).toContain('Final scores');
     wrapper.unmount();
   });
 });

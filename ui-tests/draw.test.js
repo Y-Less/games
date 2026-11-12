@@ -44,8 +44,8 @@ test('three people join, and the lobby says how long the game will be', { timeou
     await user.waitForText('Waiting for the host to start the game.');
   }
   await host.waitForText('Tam');
-  // Three players is three pairs, and everybody draws twice.
-  await host.waitForText('3 rounds, and you will draw 2 times');
+  // Three players is three pairs, so one round is three turns, and everybody draws twice.
+  await host.waitForText('3 turns, and you will draw 2 times');
   assert.equal((await host.buttonState('Start the game')).disabled, false);
 }));
 

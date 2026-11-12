@@ -530,12 +530,13 @@ test(`Dixnt at ${at}: the table, controls and hand zones keep one size and posit
         return user.clickFound(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Lock it in' && !b.disabled));
       }
       const text = await user.text();
-      if (/play the card that fits|you did not see the word/i.test(text) && !(await user.page.$('.hand .slot.played'))) return user.clickFound(() => document.querySelector('.hand .slot'));
+      // A played card leaves the hand at once, so the Status box is what says whether this player still owes one.
+      if (/play the card that fits|you did not see the word/i.test(text)) return user.clickFound(() => document.querySelector('.hand .slot'));
       {
         const voted = await user.clickFound(() => [...document.querySelectorAll('.table figcaption button')].find((b) => /^(Vote|Pick this one)$/.test(b.innerText.trim())));
         if (voted) return true;
       }
-      return user.clickFound(() => [...document.querySelectorAll('button.primary')].find((b) => /^(Next round|That was the last round)/.test(b.innerText.trim())));
+      return user.clickFound(() => [...document.querySelectorAll('button.primary')].find((b) => /^(Next turn|That was the last turn)/.test(b.innerText.trim())));
     };
     await drive({ act, finished: () => user.page.$('.standings').then(Boolean), what: 'a game of Dixnt', timeout: 150000 });
     // Every zone keeps its size AND its position through word, picking, voting, and results, and the page never scrolls.

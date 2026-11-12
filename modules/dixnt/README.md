@@ -26,7 +26,7 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 
 ## Scoreboard
 
-A **turn** is one player's go as the word-chooser; a **round** is everyone having had one, and `rooms.rounds` is how
+A **turn** is one player's go as the word-chooser; a **round** is everyone having had one, and `room.rounds` is how
 many rounds the host set the game to run for.  Every completed turn is appended to `history` in the room state (saved
 in `rooms.json`):
 `{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
