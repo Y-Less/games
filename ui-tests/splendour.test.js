@@ -37,10 +37,11 @@ test('the seat lobby: seat count, play-to target and computer players; Start nee
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot']);
   assert.equal((await user.buttonState('Start the game')).disabled, false);
 
-  // Two bots go again, then a low target keeps the game short.  The two who are left are the game.
+  // Two computer players go again, then a low target keeps the game short.  The two who are left are the game, and
+  // each empty seat keeps its number until the game starts.
   await user.clickButton('Remove', { scope: '.seat.bot' });
   await user.clickButton('Remove', { scope: '.seat.bot' });
-  assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty']);
+  assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'bot']);
   await user.clickButton('10', { exact: true });
   await user.page.waitForFunction(() => [...document.querySelectorAll('button[aria-pressed="true"]')].some((b) => b.innerText.trim() === '10'));
   await user.waitForNoText('more seat');

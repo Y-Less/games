@@ -47,9 +47,10 @@ test('the seat lobby: players, the free-wall option and computer players; Start 
   await user.clickButton('Fill up to 4 seats with computer players');
   await user.waitForNoText('more seat');
   assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty']);
+  // Taking a computer player out empties its seat where it sits: a seat keeps its number until the game starts.
   await user.clickButton('Remove', { scope: '.seat.bot' });
   await user.clickButton('Remove', { scope: '.seat.bot' });
-  assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty', 'empty']);
+  assert.deepEqual(await seatKinds(), ['human', 'empty', 'empty', 'bot', 'empty']);
   assert.equal((await user.buttonState('Start the game')).disabled, false, 'two is enough');
 
   await user.page.click('input[type="checkbox"]');

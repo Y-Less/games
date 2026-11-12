@@ -164,14 +164,14 @@ test('a host on their own fills the table with built-in computer players, starts
   assert.equal((await seats()).filter((s) => s.bot).length, 1);
   await solo.clickButton('Remove', { scope: 'ul.players li.row:nth-child(2)' });
   await solo.waitForText('Need 2 more players');
-  await solo.clickButton('Fill up to 3 seats with computer players');
+  // Filling makes up a normal table of four, not the three this game could settle for.
+  await solo.clickButton('Fill up to 4 seats with computer players');
   await solo.waitForText('Start the game');
   const rows = await seats();
-  assert.deepEqual(rows.map((s) => s.bot), [false, true, true]);
+  assert.deepEqual(rows.map((s) => s.bot), [false, true, true, true]);
   assert.match(rows[0].text, /Sol.*you.*host/i);
   assert.match(rows[1].text, /computer/i);
   assert.equal((await solo.buttonState('Start the game')).disabled, false);
-  await solo.clickButton('Add a computer player'); // a third computer player, so that one can be removed mid-game later
   await solo.waitForNoText('Need');
 
   // The host is the first chooser.

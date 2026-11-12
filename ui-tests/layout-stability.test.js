@@ -466,7 +466,7 @@ wholeGameLayout({
   stopWhen: '.box.status .standings',
   newest: { '.box.log .game-log': 0 },
   lobby: async (user) => {
-    await user.clickButton('2 players', { exact: true });
+    // Two seats and a low target keep the game short: the seats the host leaves empty go when it starts.
     await user.clickButton('Add a computer player');
     await user.clickButton('10', { exact: true });
   },
@@ -521,8 +521,7 @@ test(`Dixnt at ${at}: the table, controls and hand zones keep one size and posit
     await user.goto('/play/dixnt');
     await user.clickButton('Start a new game');
     await user.waitForText('Waiting for players');
-    await user.clickButton('Fill up to 3 seats with computer players');
-    await user.clickButton('Add a computer player');
+    await user.clickButton('Fill up to 4 seats with computer players');
     await user.clickButton('Start the game', { exact: true });
     await user.waitForText('Round 1 of');
     await startRecording(user, ['.score-bar', '.game-frame', '.arena', '.table-zone', '.controls', '.hand-zone', '.hand .cards', '.box.log', '.box.status', '.box.log .game-log'], { stopWhen: '.standings' });

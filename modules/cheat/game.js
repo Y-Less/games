@@ -515,7 +515,9 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     you: me,
     hostSeat: seatOf(room, room.hostId),
     seatCount: sizeOf(room),
-    decks: decksFor(room.seats.length),
+    // How many packs the game would need, counted for the people at the table rather than the seats around them,
+    // since that is who it will be dealt to.  The lobby's sentence about the deal is drawn from this.
+    decks: decksFor(Math.max(MIN_SEATS, taken(room))),
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winner: room.winner,
