@@ -206,7 +206,7 @@ test("ctx gives a module its id, namespace, users, codes and a prefixed log", as
   assert.equal(reply.nobody, null);
   assert.match(reply.generated, /^[a-z]+-[a-z]+-[a-z]+$/);
   assert.equal(reply.normalised, 'boss-aware-you');
-  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'games', 'id', 'io', 'log', 'markers', 'mount', 'onGameFinished', 'stats', 'users']);
+  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'games', 'id', 'io', 'log', 'markers', 'mount', 'onGameFinished', 'stats', 'tell', 'users']);
 });
 
 test('ctx.games shows a module the other games, and tells it when any game anywhere finishes', async (t) => {

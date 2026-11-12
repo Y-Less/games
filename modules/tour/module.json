@@ -1,0 +1,10 @@
+{
+  "id": "tour",
+  "name": "Tour",
+  "description": "An evening rather than a game: gather everybody once, then vote on what to play next, and again after every game.",
+  "minPlayers": 2,
+  "maxPlayers": 12,
+  "category": "other",
+  "rules": "rules.md",
+  "stats": []
+}

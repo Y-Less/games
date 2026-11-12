@@ -150,8 +150,9 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  *   every module is heard without any of their server.js files knowing anything about it.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
- * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function }} dispose() stops timers and saves;
- *   `rooms` is exposed for tests; `openFor` opens a started room for people who did not ask for it themselves (see below)
+ * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function, changed: Function }} dispose() stops
+ *   timers and saves; `rooms` is exposed for tests; `openFor` opens a started room for people who did not ask for it
+ *   themselves (see below); `changed` saves and sends a room that something outside the protocol has altered
  */
 export function createRoomServer(ctx, options) {
   const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, rng = Math.random, now = Date.now } = options;
@@ -357,5 +358,7 @@ export function createRoomServer(ctx, options) {
     });
   });
 
-  return { rooms: life.rooms, dispose: life.dispose, openFor };
+  // `changed` is here for something outside the protocol that has altered a room and must have it saved and sent: the
+  // tour, whose rooms move on when a game in another module ends rather than when anybody sends anything.
+  return { rooms: life.rooms, dispose: life.dispose, openFor, changed: life.changed };
 }

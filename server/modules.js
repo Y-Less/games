@@ -179,6 +179,18 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
         /** The other games: what they are, opening one, and hearing that any game anywhere has finished. */
         games: gamesFor(meta.id),
         /**
+         * Sends an event to one person on the site's own socket, which they hold open on every page (server/siteSocket.js).
+         * This reaches them wherever they are — including inside a different game — where `ctx.io` only reaches somebody
+         * looking at this module.  A tour needs it to say that the game it sent everybody to is over.
+         * @param {number} userId  the account to tell
+         * @param {string} event  the event name
+         * @param {object} [payload]  what to send
+         * @returns {void}  Side effects: emits on the default namespace.
+         */
+        tell(userId, event, payload) {
+          io.to(`user:${userId}`).emit(event, payload);
+        },
+        /**
          * Told by shared/roomLife.js, once, whenever a game in this module ends.  A module never sets this; it is here
          * so that every room-based game reports a finished game without its server.js saying anything at all.
          * @param {object} room  the finished room

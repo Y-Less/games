@@ -1,0 +1,13 @@
+{
+  "errors": {
+    "noSettings": "A tour has nothing to set: what is played is voted on.",
+    "notVoting": "There is no vote running.",
+    "notInThisTour": "You are not in this tour.",
+    "notOnOffer": "That game is not one of the choices.",
+    "notOpening": "The tour is not opening a game.",
+    "notPlaying": "The tour is not playing a game.",
+    "notFinished": "The tour is not over yet.",
+    "hostOnlyAgain": "Only the host can start another tour.",
+    "noGamesForThisMany": "No game here can be played by {count}."
+  }
+}
