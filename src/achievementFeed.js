@@ -1,17 +1,18 @@
 // Achievement unlocks as they happen, wherever on the site the player is.  The server tells the player's browser (on the site's
 // own socket) that there is something new; the unlocks themselves are fetched from the API, and each is marked as shown once
 // its pop-up has been seen, so a player who was away still gets them the next time they come back.
-// Depends on: vue, socket.io-client, api.js and shopStore.js (the coin balance is refreshed on new unlocks).
+// The socket itself is not ours — siteFeed.js holds the one the whole site shares — so this only says what it wants to hear.
+// Depends on: vue, siteFeed.js, api.js and shopStore.js (the coin balance is refreshed on new unlocks).
 import { reactive } from 'vue';
-import { io } from 'socket.io-client';
 import { api } from './api.js';
 import { refreshShop } from './shopStore.js';
+import { onSite, startSite, stopSite } from './siteFeed.js';
 
 /** `queue` holds the unlocks waiting for a pop-up: { id, level, game, name, text, coins }. */
 export const feed = reactive({ queue: [] });
 
-// The site socket once started, else null.
-let socket = null;
+// How to stop listening, while we are, else null.
+let listening = null;
 /**
  * A unlock's identity in the queue.
  * @param {{ id: string, level: number }} unlock
@@ -37,26 +38,28 @@ export async function fetchPending() {
 }
 
 /**
- * Starts listening (once).
+ * Starts listening (once), opening the site's socket if nothing else has yet.
  * @param {() => import('socket.io-client').Socket} [connect]  makes the site socket (replaceable in tests)
  * @returns {void}
  * Side effects: opens the site socket and asks for what is pending on every connection and 'achievements' event.
  */
-export function startFeed(connect = io) {
-  if (socket) return;
-  socket = connect();
-  socket.on('connect', fetchPending);
-  socket.on('achievements', fetchPending);
+export function startFeed(connect) {
+  if (listening) return;
+  const offs = [onSite('connect', fetchPending), onSite('achievements', fetchPending)];
+  listening = () => offs.forEach((off) => off());
+  startSite(connect);
 }
 
 /**
- * Stops listening and forgets what was waiting (the player has signed out).
+ * Stops listening and forgets what was waiting (the player has signed out).  The site's socket goes with it, since
+ * signing out is the one thing that ends it for everybody.
  * @returns {void}
  * Side effects: closes the socket and empties feed.queue.
  */
 export function stopFeed() {
-  socket?.close();
-  socket = null;
+  listening?.();
+  listening = null;
+  stopSite();
   feed.queue.splice(0);
 }
 
