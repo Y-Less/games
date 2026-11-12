@@ -113,7 +113,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  * Side effects: none; throws an Error when the seat count or the settings are invalid.
  */
 export function createRoom({ code, hostId, hostName, settings = {}, now }) {
-  const seatCount = settings.seats ?? DEFAULT_SEATS;
+  const seatCount = settings.seats ?? MAX_SEATS; // a room opens as big as the game allows; the host may bring it down
   if (!isSeatCount(seatCount)) throw refusal('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
   const normalised = normaliseSettings(settings);
   const room = {
@@ -174,6 +174,9 @@ function resetGame(room) {
  */
 const seats = createSeatRules({
   isMidGame: (room) => ['passing', 'playing', 'handEnd'].includes(room.phase),
+  minPlayers: MIN_SEATS,
+  maxPlayers: MAX_SEATS,
+  fillTo: DEFAULT_SEATS,
   botNames: BOT_NAMES,
   takeOver: (room, oldId, bot, rng) => {
     bot.ai = pickAI(AIS, rng).id;
@@ -181,7 +184,9 @@ const seats = createSeatRules({
   afterRemoval: (room, rng) => advanceIfReady(room, rng),
   finishedSeat: goneSeat,
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * Lets the host change settings (and the number of seats) while in the lobby.
@@ -196,28 +201,14 @@ export function setSettings(room, userId, input) {
   if (problem) return problem;
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
   if (input?.seats !== undefined) {
-    if (!isSeatCount(input.seats)) return fail('playersRange', { min: MIN_SEATS, max: MAX_SEATS });
-    const seated = room.seats.filter(Boolean).length;
-    if (input.seats < seated) return fail('removePlayerFirst');
-    resizeSeats(room, input.seats);
+    const sized = seats.setSize(room, userId, input.seats);
+    if (!sized.ok) return sized;
+    resetGame(room); // the hands, the scores and the tallies are all as long as the table, which has just changed
   }
   room.settings = next.settings;
   return ok();
-}
-
-/** Grows or shrinks the table.  Shrinking keeps everyone seated, closing up the gaps in turn order if it has to. */
-/**
- * Grows or shrinks the table to `count` seats, closing gaps when shrinking would otherwise drop a player.
- * @param {object} room  the room.
- * @param {number} count  the new number of seats.
- * @returns {void}
- * Side effects: replaces room.seats and resets the game state.
- */
-function resizeSeats(room, count) {
-  if (count < room.seats.length && room.seats.slice(count).some(Boolean)) room.seats = room.seats.filter(Boolean);
-  room.seats = [...room.seats.slice(0, count), ...emptySeats(Math.max(0, count - room.seats.length))];
-  resetGame(room);
 }
 
 // ---- dealing and passing ----
@@ -286,8 +277,11 @@ function setMoonBid(room) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('allSeatsNeedPlayers', { seats: room.seats.length });
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_SEATS) return fail('minPlayers', { min: MIN_SEATS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   deal(room, rng);
   // Every computer player picks its AI for the whole game (after the deal, so the deal itself is unchanged).
@@ -896,9 +890,10 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     handNumber: room.handNumber + 1,
     lastHand: room.lastHand,
     winners: room.winners,
-    seatCount: room.seats.length,
-    deal: dealView(room.seats.length),
-    limits: { targets: TARGETS, moonModes: MOON_MODES, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
+    seatCount: sizeOf(room),
+    // What would be dealt if the game began now, which in the lobby is to whoever is here rather than the whole table.
+    deal: dealView(Math.max(MIN_SEATS, atTable(room))),
+    limits: { targets: TARGETS, moonModes: MOON_MODES, min: MIN_SEATS, max: MAX_SEATS, fillTo: DEFAULT_SEATS, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
   };
   if (room.phase !== 'lobby') Object.assign(view, playView(room, me));
   view.pass = passView(room, me);

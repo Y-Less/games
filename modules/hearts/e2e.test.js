@@ -140,7 +140,8 @@ async function launch(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hear
       return withDeadline(new Promise((resolve) => this.socket.emit(event, payload, resolve)), `the site to answer "${event}" for ${this.name}`);
     }
     async create(settings = {}) {
-      const reply = await this.call('create', settings);
+      // A room now opens as big as the game allows; these tests mean the usual four unless they say otherwise.
+      const reply = await this.call('create', { seats: 4, ...settings });
       assert.equal(reply.ok, true, reply.error);
       this.code = reply.code;
       return reply;
@@ -282,7 +283,7 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   await until(() => bob.state.settings.target === 150, 'the settings to reach bob');
   assert.deepEqual(bob.state.settings, { target: 150, jackOfDiamonds: true, moon: 'self' });
 
-  const again = await ann.call('create');
+  const again = await ann.call('create', { seats: 4 });
   assert.equal(again.ok, false, 'one game per account');
   assert.equal((await bob.call('create')).ok, false);
 
@@ -432,7 +433,7 @@ test('the host chooses the number of players: a six-player game of one person an
   assert.equal((await ann.call('settings', { seats: 5 })).ok, true);
   await until(() => ann.state.seatCount === 5, 'five seats');
   assert.equal((await ann.call('settings', { seats: 6 })).ok, true);
-  assert.equal((await ann.call('fillBots')).ok, true);
+  assert.equal((await ann.call('fillBots', { count: 6 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'six seats');
   assert.equal((await ann.call('settings', { seats: 3 })).ok, false, 'cannot shrink below the seated players');
   assert.equal((await ann.call('start')).ok, true);

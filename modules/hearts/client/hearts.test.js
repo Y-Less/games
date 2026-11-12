@@ -24,8 +24,8 @@ function seeded(seed) {
 }
 /** A real room: seat 0 is the person (user 1), the rest are computers. */
 function room({ started = true, settings = {} } = {}) {
-  const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
-  game.fillWithBots(r, 1);
+  const r = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: game.DEFAULT_SEATS, ...settings } });
+  game.fillWithBots(r, 1, r.seats.length);
   if (started) expect(game.start(r, 1, seeded(3)).ok).toBe(true);
   return r;
 }
@@ -257,19 +257,20 @@ describe('Hearts for 3 to 7 players', () => {
 });
 
 describe('Hearts lobby', () => {
-  it('lets the host pick 3 to 7 players and describes the deal; a guest cannot', async () => {
+  it('lets the host say how many the game is for and describes the deal; a guest cannot', async () => {
     const send = makeSend();
     const state = view(roomOf(5, { started: false }));
     const w = mount(Lobby, { props: { state, send } });
-    expect(w.findAll('fieldset button').filter((b) => /^[3-7]$/.test(b.text())).map((b) => b.text())).toEqual(['3', '4', '5', '6', '7']);
+    expect(w.text()).toContain('room for 5 players');
+    // The deal is described for the people at the table, who are who the game will be for.
     expect(w.text()).toContain('Five players: 10 cards each, 2C and 2D removed, pass 3 cards.');
-    const seven = w.findAll('fieldset button').find((b) => b.text() === '7');
-    await seven.trigger('click');
-    expect(send).toHaveBeenCalledWith('settings', { seats: 7 });
+    await w.find('[aria-label="Room for more players"]').trigger('click');
+    expect(send).toHaveBeenCalledWith('settings', { seats: 6 });
     const checkbox = w.find('input[type=checkbox]');
     expect(checkbox.element.checked).toBe(true); // the Jack of Diamonds is on by default
     const guest = mount(Lobby, { props: { state: { ...state, hostSeat: 3 }, send } });
     expect(guest.find('fieldset[disabled]').exists()).toBe(true);
+    expect(guest.find('[aria-label="Room for more players"]').exists()).toBe(false);
     const six = mount(Lobby, { props: { state: view(roomOf(6, { started: false })), send } });
     expect(six.text()).toContain('Six players: 8 cards each, 2C, 3C, 2D and 3D removed, pass 2 cards.');
     expect(mount(Lobby, { props: { state: view(roomOf(4, { started: false })), send } }).text()).toContain('Four players: 13 cards each, none removed, pass 3 cards.');

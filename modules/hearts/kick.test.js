@@ -10,7 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const snapshot = (room) => JSON.stringify(room);
 
 function lobby() {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS } });
   game.addHuman(room, 2, 'bob');
   game.addHuman(room, 3, 'cat');
   return room;
@@ -47,7 +47,7 @@ test('rules: only the host can kick, and never themselves', () => {
 test('rules: the host can remove a person in any phase but the last: a computer player takes the seat mid-game', () => {
   for (const phase of ['passing', 'playing', 'handEnd', 'finished']) {
     const room = lobby();
-    game.fillWithBots(room, 1);
+    game.fillWithBots(room, 1, room.seats.length);
     assert.equal(game.start(room, 1, Math.random).ok, true);
     room.phase = phase;
     const before = snapshot(room);
@@ -67,7 +67,7 @@ test('rules: the host can remove a person in any phase but the last: a computer 
 });
 
 test('rules: a computer player, an empty seat or a nonsense seat cannot be kicked', () => {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS } });
   game.addHuman(room, 2, 'bob');
   game.addBot(room, 1, 2);
   const before = snapshot(room);
@@ -168,9 +168,9 @@ test('sockets: the host removes a person mid-game and a computer player takes th
   process.env.HEARTS_BOT_DELAY = '0-3';
   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { target: 50 });
+  const { code } = await ann.call('create', { target: 50, seats: 4 });
   assert.equal((await bob.call('join', { code })).ok, true);
-  assert.equal((await ann.call('fillBots', {})).ok, true);
+  assert.equal((await ann.call('fillBots', { count: 4 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'full table');
   assert.equal((await ann.call('start', {})).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'started');

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertNoPollution, cardsIn, fuzzEvent, handledSocketEvents, launchModule, prototypeNames, sleep, until } from '../../shared/testkit.js';
-import { TARGETS, MOON_MODES } from './game.js';
+import { TARGETS, MOON_MODES, MIN_SEATS, MAX_SEATS } from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fast = () => {
@@ -46,9 +46,12 @@ function validateView(s, who) {
   if (s === null || s === undefined) return;
   const label = `${who} (${s.phase})`;
   assert.ok(['lobby', 'passing', 'playing', 'handEnd', 'finished'].includes(s.phase), `${label}: a known phase`);
-  assert.equal(s.seats.length, 4, label);
+  // The garbage can resize the table, since how many the game is for arrives with the other settings, so what is
+  // checked is that whatever came back is a table the game allows.
+  assert.ok(s.seats.length >= MIN_SEATS && s.seats.length <= MAX_SEATS, `${label}: a table of ${s.seats.length}`);
+  assert.equal(s.seats.length, s.seatCount, `${label}: the seat count is the seats`);
   assert.ok(TARGETS.includes(s.settings.target) && typeof s.settings.jackOfDiamonds === 'boolean' && MOON_MODES.includes(s.settings.moon), `${label}: valid settings ${JSON.stringify(s.settings)}`);
-  assert.ok(s.you === -1 || (s.you >= 0 && s.you < 4 && s.seats[s.you]), `${label}: seated where it says`);
+  assert.ok(s.you === -1 || (s.you >= 0 && s.you < s.seats.length && s.seats[s.you]), `${label}: seated where it says`);
   assert.ok(s.hostSeat === -1 || s.seats[s.hostSeat]?.bot === false, `${label}: the host is a person`);
   assert.equal(s.scoreboard.players.length, s.seats.filter(Boolean).length, label);
   for (const [i, seat] of s.seats.entries()) {
@@ -56,7 +59,7 @@ function validateView(s, who) {
     assert.equal(seat.score, s.scoreboard.rounds.reduce((sum, r) => sum + (r.deltas[i] ?? 0), 0), `${label}: seat ${i} score equals its history`);
   }
   if (s.phase === 'lobby') return;
-  assert.ok(s.phase === 'finished' || s.seats.every(Boolean), `${label}: a game in progress has four seats`);
+  assert.ok(s.phase === 'finished' || s.seats.every(Boolean), `${label}: a game in progress has every seat filled`);
   const held = s.seats.reduce((sum, seat) => sum + (seat ? seat.cards + seat.tricks * 4 : 0), 0) + s.trick.length;
   if (s.phase === 'playing') {
     assert.equal(held, 52, `${label}: 52 cards accounted for`);
@@ -118,7 +121,7 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
       await p.call('leave', {});
     }
     await sleep(15);
-    const created = await ann.call('create', { target: 50 });
+    const created = await ann.call('create', { target: 50, seats: 4 });
     assert.equal(created.ok, true, created.error);
     const code = created.code;
     assert.equal((await bob.call('join', { code })).ok, true);
@@ -180,7 +183,7 @@ test('garbage in every phase: the server stays up, replies sensibly, keeps the g
 
   // A completely normal game, with new accounts, still works afterwards.
   const [cat, dan] = await Promise.all(['cat', 'dan'].map((n) => site.person(n).open()));
-  const { code } = await cat.call('create', { target: 50 });
+  const { code } = await cat.call('create', { target: 50, seats: 4 });
   assert.equal((await dan.call('join', { code })).ok, true);
   assert.equal((await cat.call('fillBots', {})).ok, true);
   assert.equal((await cat.call('start', {})).ok, true);
@@ -195,7 +198,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   fast();
   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
   const [ann, bob, eve] = await Promise.all(['ann', 'bob', 'eve'].map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', { target: 50 });
+  const { code } = await ann.call('create', { target: 50, seats: 4 });
   await bob.call('join', { code });
   await ann.call('fillBots', {});
   await ann.call('start', {});

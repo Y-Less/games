@@ -18,7 +18,7 @@ function newRoom(rng, humans, seats = 3 + Math.floor(rng() * 5)) {
   const settings = { seats, target: pick(rng, game.TARGETS), jackOfDiamonds: rng() < 0.5, moon: pick(rng, game.MOON_MODES) };
   const room = game.createRoom({ code: 'a-b-c', hostId: 101, hostName: 'h101', settings, now: 1 });
   for (let i = 1; i < humans; i++) assert.equal(game.addHuman(room, 101 + i, `h${101 + i}`).ok, true);
-  assert.equal(game.fillWithBots(room, 101).ok, true);
+  assert.equal(game.fillWithBots(room, 101, room.seats.length).ok, true);
   return room;
 }
 

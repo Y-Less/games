@@ -20,7 +20,7 @@ export { seeded };
  */
 export function playGame({ ais, seed, settings = {}, rng = seeded(seed) }) {
   const room = g.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 100, jackOfDiamonds: false, seats: ais.length, ...settings } });
-  g.fillWithBots(room, 1);
+  g.fillWithBots(room, 1, room.seats.length); // the table is filled, where filling on its own makes up a normal four
   g.start(room, 1, rng);
   room.seats[0] = { kind: 'bot', id: 'bot:90', name: 'Zed' };
   room.seats.forEach((seat, i) => (seat.ai = ais[i]));

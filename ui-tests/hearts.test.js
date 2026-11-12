@@ -29,37 +29,35 @@ test('the seat lobby: Start stays disabled until every seat is filled with a per
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/hearts?${code}`, 'the invite pill copies the invite link');
 
-  // The host chooses 3 to 7 players (four to begin with); the seat list and the line about the deal follow.
-  assert.equal(await user.page.$eval('fieldset button[aria-pressed="true"]', (b) => b.innerText.trim()), '4');
+  // The table opens as big as the game allows, and the host may bring it down; the line about the deal follows the
+  // people who are actually here, since the game will be for them.
+  await user.waitForText('room for 7 players');
   assert.ok(await user.page.$eval('input[type=checkbox]', (c) => c.checked), 'the Jack of Diamonds is on by default');
-  await user.waitForText('Four players: 13 cards each, none removed, pass 3 cards.');
-  for (const [n, line] of [[7, 'Seven players: 7 cards each, 2C, 2D and 3D removed, pass 2 cards.'], [3, 'Three players: 17 cards each, 2C removed, pass 3 cards.'], [5, 'Five players: 10 cards each, 2C and 2D removed, pass 3 cards.']]) {
-    await user.clickButton(String(n), { exact: true, scope: 'fieldset' });
-    await user.waitForText(line);
-    assert.equal((await seatTags()).length, n, `${n} seats`);
-    await user.waitForText(`${n - 1} more seats to fill.`);
-  }
-  await user.clickButton('4', { exact: true, scope: 'fieldset' });
-  await user.waitForText('Four players:');
   let seats = await seatTags();
-  assert.equal(seats.length, 4);
-  assert.deepEqual(seats.map((s) => s.kind), ['human', 'empty', 'empty', 'empty']);
+  assert.equal(seats.length, 7, 'seven seats');
+  assert.deepEqual(seats.map((s) => s.kind), ['human', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty']);
   assert.match(seats[0].text, /Hearty.*you.*host/i);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.waitForText('3 more seats to fill.');
-
-  // Add one computer player, then take it away again, then fill the rest.
-  await user.clickButton('Add a computer player');
   await user.waitForText('2 more seats to fill.');
+  await user.waitForText('Three players: 17 cards each, 2C removed, pass 3 cards.');
+  await user.page.click('[aria-label="Room for fewer players"]');
+  await user.waitForText('room for 6 players');
+  assert.equal((await seatTags()).length, 6);
+  await user.page.click('[aria-label="Room for more players"]');
+  await user.waitForText('room for 7 players');
+
+  // Add one computer player, then take it away again, then fill up to a normal table.
+  await user.clickButton('Add a computer player');
+  await user.waitForText('1 more seat to fill.');
   assert.equal((await seatTags()).filter((s) => s.kind === 'bot').length, 1);
   assert.equal((await user.buttonState('Start the game')).disabled, true);
   await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.waitForText('3 more seats to fill.');
-  await user.clickButton('Add a computer player');
-  await user.clickButton('Fill the empty seats with computer players');
+  await user.waitForText('2 more seats to fill.');
+  await user.clickButton('Fill up to 4 players with computer players');
   await user.waitForNoText('more seat');
   seats = await seatTags();
-  assert.deepEqual(seats.map((s) => s.kind), ['human', 'bot', 'bot', 'bot']);
+  assert.deepEqual(seats.map((s) => s.kind), ['human', 'bot', 'bot', 'bot', 'empty', 'empty', 'empty']);
+  await user.waitForText('Four players: 13 cards each, none removed, pass 3 cards.');
   assert.equal((await user.buttonState('Start the game')).disabled, false);
   // The game's own options are on the lobby page too.
   await user.waitForText('Rules for this game');

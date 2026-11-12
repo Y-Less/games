@@ -25,15 +25,13 @@ const seats = computed(() =>
     away: Boolean(seat && !seat.bot && !seat.online),
   })),
 );
-// The player counts the host may choose, from the server's minimum to its maximum.
-const seatCounts = computed(() => Array.from({ length: props.state.limits.maxSeats - props.state.limits.minSeats + 1 }, (_, i) => props.state.limits.minSeats + i));
-// How many seats are taken (the table cannot shrink below this).
+// How many seats are taken: who the game would be for if it began now.
 const taken = computed(() => props.state.seats.filter(Boolean).length);
-// One line about the deal for the chosen number of players, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
+// One line about the deal for the people who are here, e.g. "Five players: 10 cards each, 2C and 2D removed, pass 3 cards".
 const dealing = computed(() => {
   const { cardsEach, removed, passCount } = props.state.deal;
   return t('lobby.deal', {
-    players: t(`number.${props.state.seatCount}`),
+    players: t(`number.${Math.max(props.state.limits.min, taken.value)}`),
     cardsEach,
     removed: removed.length ? t('lobby.removed', { cards: list(removed) }) : t('lobby.noneRemoved'),
     passCount,
@@ -57,21 +55,19 @@ const change = (settings) => props.send('settings', settings);
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => change({ seats: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.players') }}</legend>
-          <div class="row">
-            <button v-for="n in seatCounts" :key="n" :class="{ primary: state.seatCount === n }" :disabled="n < taken" :aria-pressed="state.seatCount === n" @click="change({ seats: n })">{{ n }}</button>
-          </div>
-          <p class="muted deal">{{ dealing }}</p>
-        </fieldset>
+        <p class="muted deal">{{ dealing }}</p>
         <fieldset class="group" :disabled="!isHost">
           <legend class="muted">{{ t('lobby.playTo') }}</legend>
           <div class="row">

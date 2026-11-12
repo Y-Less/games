@@ -21,8 +21,8 @@ function seeded(seed) {
 
 /** A started game: seat 0 is the human (account 1), the rest are computers. */
 function started(settings = {}, rng = seeded(1)) {
-  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { jackOfDiamonds: false, ...settings } });
-  g.fillWithBots(room, 1);
+  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: g.DEFAULT_SEATS, jackOfDiamonds: false, ...settings } });
+  g.fillWithBots(room, 1, room.seats.length);
   assert.equal(g.start(room, 1, rng).ok, true);
   return room;
 }
@@ -48,11 +48,14 @@ const botsOnly = (settings, rng) => {
   return room;
 };
 
+/** A lobby of the usual four, which is what most of these tests mean by "a game". */
+const mk = (settings = {}) => g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: g.DEFAULT_SEATS, ...settings } });
+
 /** Turns every seat into a computer and plays the whole game, checking every move.  Returns the finished room. */
 function simulate(settings, seed) {
   const rng = seeded(seed);
-  const room = g.createRoom({ now: 0, code: 'x-y-z', hostId: 1, hostName: 'Ann', settings });
-  g.fillWithBots(room, 1);
+  const room = g.createRoom({ now: 0, code: 'x-y-z', hostId: 1, hostName: 'Ann', settings: { seats: g.DEFAULT_SEATS, ...settings } });
+  g.fillWithBots(room, 1, room.seats.length);
   g.start(room, 1, rng);
   room.seats[0] = { kind: 'bot', id: 'bot:9', name: 'Zed' };
   for (let guard = 0; guard < 20000 && room.phase !== 'finished'; guard++) {
@@ -74,16 +77,16 @@ function simulate(settings, seed) {
 
 // ---- settings and seats ----
 
-test('a new room has the default settings and the host in the first seat', () => {
+test('a new room has the default settings, a table as big as the game allows, and the host in the first seat', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 7, hostName: 'Ann' });
   assert.deepEqual(room.settings, { target: 100, jackOfDiamonds: true, moon: 'others' }, 'the Jack of Diamonds is on by default');
   assert.equal(room.phase, 'lobby');
   assert.deepEqual(room.seats[0], { kind: 'human', id: 7, name: 'Ann' });
-  assert.deepEqual(room.seats.slice(1), [null, null, null]);
+  assert.deepEqual(room.seats.slice(1), [null, null, null, null, null, null], 'seven seats, which the host may bring down');
 });
 
 test('settings are validated and only the host can change them, before the game starts', () => {
-  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = mk();
   assert.equal(g.setSettings(room, 1, { target: 50, jackOfDiamonds: true, moon: 'self' }).ok, true);
   assert.deepEqual(room.settings, { target: 50, jackOfDiamonds: true, moon: 'self' });
   assert.equal(g.setSettings(room, 1, { target: 75 }).ok, false);
@@ -91,14 +94,14 @@ test('settings are validated and only the host can change them, before the game 
   assert.equal(g.setSettings(room, 1, { moon: 'both' }).ok, false);
   assert.deepEqual(room.settings, { target: 50, jackOfDiamonds: true, moon: 'self' }, 'a bad change changes nothing');
   assert.equal(g.setSettings(room, 2, { target: 100 }).ok, false);
-  g.fillWithBots(room, 1);
+  g.fillWithBots(room, 1, 4);
   g.start(room, 1, Math.random);
   assert.equal(g.setSettings(room, 1, { target: 100 }).ok, false);
   assert.throws(() => g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { target: 3 } }));
 });
 
 test('humans take the first empty seat, and a full room is refused', () => {
-  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = mk();
   assert.equal(g.addHuman(room, 2, 'Bob').seat, 1);
   assert.equal(g.addHuman(room, 2, 'Bob').seat, 1, 'joining twice is harmless');
   assert.equal(g.addHuman(room, 3, 'Cat').seat, 2);
@@ -106,9 +109,9 @@ test('humans take the first empty seat, and a full room is refused', () => {
   assert.equal(g.addHuman(room, 5, 'Eve').ok, false);
 });
 
-test('the host adds, removes and fills computer players; the game needs four seats and a person', () => {
-  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(g.start(room, 1, Math.random).ok, false, 'three seats are empty');
+test('the host adds, removes and fills computer players; the game needs three players and a person', () => {
+  const room = mk();
+  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 3 } }, 'the host on their own');
   assert.equal(g.addBot(room, 2).ok, false, 'not the host');
   const added = g.addBot(room, 1);
   assert.equal(added.seat, 1);
@@ -120,7 +123,7 @@ test('the host adds, removes and fills computer players; the game needs four sea
   assert.equal(g.removeBot(room, 1, 's0').ok, false, 'a person is not removed this way');
   assert.equal(g.removeBot(room, 1, 's1').ok, true);
   assert.equal(room.seats[1], null);
-  assert.equal(g.fillWithBots(room, 1).ok, true);
+  assert.equal(g.fillWithBots(room, 1, 4).ok, true);
   assert.deepEqual(room.seats.map((s) => s.kind), ['human', 'bot', 'bot', 'bot']);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 4, 'names are distinct');
   assert.equal(new Set(room.seats.map((s) => s.id)).size, 4);
@@ -132,7 +135,7 @@ test('the host adds, removes and fills computer players; the game needs four sea
 });
 
 test('leaving the lobby frees the seat and passes on hosting; the last person out closes the room', () => {
-  const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
+  const room = mk();
   g.addHuman(room, 2, 'Bob');
   g.addBot(room, 1);
   assert.deepEqual(g.removeHuman(room, 1, Math.random), { ok: true, empty: false, seat: 0, replaced: false });

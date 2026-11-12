@@ -77,7 +77,7 @@ test('four people racing for the last seat: exactly one gets it and everybody ag
   const site = await launchModule(t, { id: 'hearts', moduleDir: here });
   const names = ['ann', 'bob', 'cat', 'dan', 'eve', 'fay'];
   const [ann, ...rest] = await Promise.all(names.map((n) => site.person(n).open()));
-  const { code } = await ann.call('create', {});
+  const { code } = await ann.call('create', { seats: 4 }); // a table of four, so that there is a last seat to race for
   await ann.call('addBot', { seat: 1 });
   await ann.call('addBot', { seat: 2 });
   const racers = rest.slice(0, 5);

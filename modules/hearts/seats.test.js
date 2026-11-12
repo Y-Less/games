@@ -16,7 +16,7 @@ const sorted = (cards) => [...cards].sort();
 /** A lobby for `n` seats with one person (account 1) and computers in every other seat. */
 function lobby(n, settings = {}) {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: n, ...settings } });
-  assert.equal(g.fillWithBots(room, 1).ok, true);
+  assert.equal(g.fillWithBots(room, 1, n).ok, true); // the table is filled; filling on its own makes up a normal four
   return room;
 }
 
@@ -179,21 +179,29 @@ test('scoring: a hand is 26 points for every count; a moon scores 26 for each ot
 
 test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody seated is lost', () => {
   const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann' });
-  assert.equal(room.seats.length, 4, 'four seats by default');
-  assert.equal(g.viewFor(room, 1).seatCount, 4);
+  assert.equal(room.seats.length, 7, 'as many seats as the game allows by default');
+  assert.equal(g.viewFor(room, 1).seatCount, 7);
   assert.deepEqual([g.viewFor(room, 1).limits.minSeats, g.viewFor(room, 1).limits.maxSeats], [3, 7]);
   for (const n of [3, 5, 6, 7, 4]) {
     assert.equal(g.setSettings(room, 1, { seats: n }).ok, true);
     assert.equal(room.seats.length, n);
     assert.equal(g.viewFor(room, 1).seatCount, n);
     assert.equal(g.viewFor(room, 1).seats.length, n);
-    assert.equal(g.viewFor(room, 1).deal.cardsEach, DEALS[n].each);
   }
-  for (const bad of [2, 8, 0, -1, 4.5, '5', null, NaN, 100]) {
+  // The deal the lobby promises is for the people at the table, who are who the game will be for, and not for the
+  // seats still waiting for somebody.
+  for (const n of COUNTS) assert.equal(g.viewFor(lobby(n), 1).deal.cardsEach, DEALS[n].each);
+  for (const bad of [2, 8, 0, -1, null, NaN, 100]) {
     const before = room.seats.length;
     assert.equal(g.setSettings(room, 1, { seats: bad }).ok, false, `${String(bad)} is refused`);
     assert.equal(room.seats.length, before);
   }
+  // A number written out, or one that is not quite whole, is read rather than refused: the shared rule rounds it and
+  // then checks the range, which is how the games with a list of players have taken it since they got a size.
+  assert.equal(g.setSettings(room, 1, { seats: '5' }).ok, true);
+  assert.equal(room.seats.length, 5);
+  assert.equal(g.setSettings(room, 1, { seats: 4.4 }).ok, true);
+  assert.equal(room.seats.length, 4);
   assert.equal(g.setSettings(room, 2, { seats: 5 }).ok, false, 'only the host');
   // Settings are all-or-nothing.
   assert.equal(g.setSettings(room, 1, { seats: 6, target: 77 }).ok, false);
@@ -215,16 +223,15 @@ test('lobby: the host chooses 3 to 7 seats, nothing else is accepted, and nobody
   // Growing keeps them where they are; the new seats are empty.
   assert.equal(g.setSettings(room, 1, { seats: 7 }).ok, true);
   assert.equal(room.seats.filter((s) => !s).length, 3);
-  // Seat numbers are checked against the room's size, and the game needs every seat filled.
+  // Seat numbers are checked against the room's size.  The game no longer needs every seat filled: it is for whoever
+  // is at the table when the host starts it, and the empty seats go.
   assert.equal(g.addBot(room, 1, 6).ok, true);
   assert.equal(g.addBot(room, 1, 7).ok, false);
   assert.equal(g.removeBot(room, 1, 's6').ok, true);
-  assert.equal(g.start(room, 1, Math.random).ok, false);
-  assert.deepEqual(g.start(room, 1, Math.random), { ok: false, error: 'allSeatsNeedPlayers', params: { seats: 7 } });
-  g.fillWithBots(room, 1);
-  assert.equal(room.seats.every(Boolean), true);
+  assert.equal(room.seats.filter(Boolean).length, 4, 'four at a table of seven');
   assert.equal(g.start(room, 1, seeded(3)).ok, true);
-  assert.equal(room.hands.length, 7);
+  assert.equal(room.seats.length, 4, 'and the game is for the four of them');
+  assert.equal(room.hands.length, 4);
   // Once started it cannot change.
   assert.equal(g.setSettings(room, 1, { seats: 5 }).ok, false);
 });
@@ -273,7 +280,7 @@ test('whole seeded games for every count: cards conserved, every hand 26 points,
       const rng = seeded(seed * 100 + n);
       const settings = { seats: n, target: 50, jackOfDiamonds: seed % 2 === 0, moon: seed === 3 ? 'self' : 'others' };
       const room = g.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'Ann', settings });
-      g.fillWithBots(room, 1);
+      g.fillWithBots(room, 1, n);
       g.start(room, 1, rng);
       room.seats[0] = { kind: 'bot', id: 'bot:90', name: 'Zed', ai: 'standard' };
       const deck = sorted(deckFor(n));

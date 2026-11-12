@@ -25,9 +25,9 @@ for (const [label, record] of [
 }
 
 test('a view lists its parts in a fixed order', () => {
-  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', now: 1 });
+  const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Ann', settings: { seats: game.DEFAULT_SEATS }, now: 1 });
   assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'settings', 'seats', 'scoreboard', 'handNumber', 'lastHand', 'winners', 'seatCount', 'deal', 'limits', 'pass']);
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, room.seats.length);
   game.start(room, 1, seeded(3));
   assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'you', 'hostSeat', 'settings', 'seats', 'scoreboard', 'handNumber', 'lastHand', 'winners', 'seatCount', 'deal', 'limits', 'hand', 'received', 'trick', 'trickWinner', 'lastTrick', 'turn', 'canClaim', 'lastClaim', 'heartsBroken', 'trickNumber', 'legal', 'pass']);
 });

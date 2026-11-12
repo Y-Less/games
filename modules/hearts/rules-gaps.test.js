@@ -6,14 +6,14 @@ import * as game from './game.js';
 import { seeded } from '../../shared/testkit.js';
 
 const full = (settings) => {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS, ...settings } });
   game.addHuman(room, 2, 'bob');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, room.seats.length);
   return room;
 };
 
 test('settings: each bad value is refused with its own message and changes nothing', () => {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS } });
   const before = JSON.stringify(room.settings);
   for (const input of [{ target: 75 }, { target: '100' }, { target: null }, { jackOfDiamonds: 'yes' }, { jackOfDiamonds: 1 }, { moon: 'both' }, { moon: null }, { target: 50, moon: 'x' }]) {
     const result = game.setSettings(room, 1, input);
@@ -27,7 +27,7 @@ test('settings: each bad value is refused with its own message and changes nothi
 });
 
 test('addBot and removeBot: seats must exist, be free or hold a computer player', () => {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS } });
   for (const seat of [-1, 4, 1.5, '1', null, NaN]) assert.equal(game.addBot(room, 1, seat).ok, false, String(seat));
   assert.equal(game.addBot(room, 1, 0).ok, false, 'a taken seat');
   assert.equal(game.addBot(room, 1, 2).ok, true);
@@ -35,16 +35,16 @@ test('addBot and removeBot: seats must exist, be free or hold a computer player'
   assert.equal(game.removeBot(room, 1, 0).ok, false, 'a person is not a computer player');
   assert.equal(game.removeBot(room, 1, 3).ok, false, 'an empty seat');
   assert.equal(game.removeBot(room, 2, 2).ok, false, 'only the host');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, room.seats.length);
   assert.equal(game.addBot(room, 1).ok, false, 'every seat is taken');
   assert.deepEqual(room.seats.map((s) => s.name).length, 4);
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 4, 'computer players get different names');
 });
 
 test('start needs four seats and at least one person', () => {
-  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann' });
+  const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'ann', settings: { seats: game.DEFAULT_SEATS } });
   assert.equal(game.start(room, 1, Math.random).ok, false);
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, room.seats.length);
   room.seats[0] = room.seats[1];
   assert.equal(game.start(room, 1, Math.random).ok, false, 'no person is seated');
 });
@@ -54,7 +54,7 @@ test('leaving: in the lobby the seat is freed, mid-game a computer takes it, and
   assert.deepEqual(game.removeHuman(room, 2, Math.random), { ok: true, empty: false, seat: 1, replaced: false });
   assert.equal(room.seats[1], null);
   assert.equal(game.removeHuman(room, 2, Math.random).ok, false, 'not in the game any more');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, room.seats.length);
   game.start(room, 1, seeded(1));
   const outcome = game.removeHuman(room, 1, Math.random);
   assert.equal(outcome.empty, true);
