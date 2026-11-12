@@ -49,20 +49,19 @@ test('the seat lobby: players, the private-scoring option and computer players; 
   await user.waitForCodeInUrl(code);
   assert.equal(await user.copyInvite(), `${world.base}/play/gaudi?${code}`);
 
-  assert.equal((await seatKinds()).length, 4, 'four seats to begin with');
+  // The table opens as big as the game allows; filling makes up a normal four, and the game is for whoever is left
+  // when the host starts it.
+  assert.equal((await seatKinds()).length, 5, 'as many seats as the game allows to begin with');
   assert.equal((await user.buttonState('Start the game')).disabled, true);
-  await user.waitForText('3 more seats to fill.');
-  await user.clickButton('Fill the empty seats with computer players');
-  await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot']);
-  await user.clickButton('Remove', { scope: '.seat.bot' });
+  await user.waitForText('room for 5 players');
   await user.waitForText('1 more seat to fill.');
-  await user.clickButton('Remove', { scope: '.seat.bot' });
-  await user.waitForText('2 more seats to fill.');
-  await user.clickButton('2 players', { exact: true });
+  await user.clickButton('Fill up to 4 players with computer players');
   await user.waitForNoText('more seat');
-  assert.deepEqual(await seatKinds(), ['human', 'bot']);
-  assert.equal((await user.buttonState('Start the game')).disabled, false);
+  assert.deepEqual(await seatKinds(), ['human', 'bot', 'bot', 'bot', 'empty']);
+  await user.clickButton('Remove', { scope: '.seat.bot' });
+  await user.clickButton('Remove', { scope: '.seat.bot' });
+  assert.deepEqual(await seatKinds(), ['human', 'bot', 'empty', 'empty', 'empty']);
+  assert.equal((await user.buttonState('Start the game')).disabled, false, 'two is enough');
 
   await user.page.click('input[type="checkbox"]');
   await user.waitForText('The weaker rule applies');

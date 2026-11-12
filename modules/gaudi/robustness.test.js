@@ -23,8 +23,7 @@ const EVENTS = {
   voteKick: ['slot'],
   voteAnswer: ['agree'],
   voteDrop: [],
-  settings: ['badPrivate'],
-  size: ['seats'],
+  settings: ['badPrivate', 'size'],
   addBot: ['seat'],
   removeBot: ['slot'],
   fillBots: [],
@@ -98,31 +97,32 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   assert.equal((await ann.call('create', { seats: 5 })).ok, true);
   assert.equal((await bob.call('join', { code: ann.state.code })).ok, true);
   await until(() => ann.state.seats[1], 'bob');
-  checked += await fuzzAll(ann, Object.keys(EVENTS), { site, secrets, skip: ['leave', 'start', 'fillBots', 'size'] });
-  checked += await fuzzAll(twin, ['place', 'tool', 'end', 'window', 'settings', 'size', 'kick'], { site, secrets, who: 'twin' });
+  // 'settings' now carries how many the game is for, so the garbage may resize the table; it is set back below.
+  checked += await fuzzAll(ann, Object.keys(EVENTS), { site, secrets, skip: ['leave', 'start', 'fillBots'] });
+  checked += await fuzzAll(twin, ['place', 'tool', 'end', 'window', 'settings', 'kick'], { site, secrets, who: 'twin' });
   checked += await fuzzAll(bob, Object.keys(EVENTS), { site, secrets, who: 'bob (not host)', skip: ['leave', 'start', 'fillBots', 'again'] });
-  checked += await fuzzAll(outsider, ['kick', 'settings', 'size', 'start', 'window', 'place', 'tool', 'end', 'addBot', 'removeBot', 'fillBots', 'again'], { site, secrets, who: 'outsider in a lobby' });
+  checked += await fuzzAll(outsider, ['kick', 'settings', 'start', 'window', 'place', 'tool', 'end', 'addBot', 'removeBot', 'fillBots', 'again'], { site, secrets, who: 'outsider in a lobby' });
   assert.equal(ann.state.phase, 'lobby', 'garbage did not start the game');
   assert.equal(bob.state.you, 1, 'garbage did not move anybody');
   assert.equal(outsider.state === null || outsider.state === undefined, true, 'an outsider is still outside');
 
   // Start the game; fuzz the window phase before anybody has chosen.
-  assert.equal((await ann.call('size', { seats: 5 })).ok, true);
-  assert.equal((await ann.call('fillBots')).ok, true);
+  assert.equal((await ann.call('settings', { size: 5 })).ok, true);
+  assert.equal((await ann.call('fillBots', { count: 5 })).ok, true);
   await until(() => ann.state.seats.every(Boolean), 'all seated');
   assert.equal((await ann.call('start')).ok, true);
   await until(() => bob.state?.phase === 'windows' || bob.state?.phase === 'playing', 'the windows phase');
   if (bob.state.phase === 'windows') {
-    checked += await fuzzAll(bob, ['window', 'place', 'tool', 'end', 'settings', 'size', 'start', 'kick', 'addBot', 'removeBot', 'fillBots', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob in windows' });
+    checked += await fuzzAll(bob, ['window', 'place', 'tool', 'end', 'settings', 'start', 'kick', 'addBot', 'removeBot', 'fillBots', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob in windows' });
     checked += await fuzzAll(outsider, ['window', 'place', 'tool', 'end'], { site, secrets, who: 'outsider in windows' });
     assert.equal(bob.state.phase === 'windows' || bob.state.phase === 'playing', true);
   }
   // Choose windows the normal way, then fuzz the game itself.
   for (const p of [ann, bob]) if (p.state.phase === 'windows' && !p.state.chosen) assert.equal((await p.call('window', { pid: p.state.options[0].pid })).ok, true);
   await until(() => ann.state.phase === 'playing' && bob.state.phase === 'playing', 'the game to begin');
-  checked += await fuzzAll(outsider, ['place', 'tool', 'end', 'window', 'kick', 'settings', 'size'], { site, secrets, who: 'outsider in a game' });
-  checked += await fuzzAll(bob, ['place', 'tool', 'window', 'settings', 'size', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob playing' });
-  checked += await fuzzAll(ann, ['place', 'tool', 'window', 'settings', 'size', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'ann playing' });
+  checked += await fuzzAll(outsider, ['place', 'tool', 'end', 'window', 'kick', 'settings'], { site, secrets, who: 'outsider in a game' });
+  checked += await fuzzAll(bob, ['place', 'tool', 'window', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob playing' });
+  checked += await fuzzAll(ann, ['place', 'tool', 'window', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'ann playing' });
   assert.ok(checked > 3000, `${checked} replies checked`);
   assert.equal(ann.state.phase === 'playing' || ann.state.phase === 'finished', true);
   assert.equal(ann.state.settings.badPrivate, false);
@@ -151,7 +151,7 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   validateView(ann.state, 'ann finished');
   validateView(bob.state, 'bob finished');
   // Finished: the events that act on a finished game.
-  checked += await fuzzAll(bob, ['place', 'tool', 'end', 'window', 'settings', 'size', 'kick', 'start', 'addBot', 'removeBot', 'fillBots'], { site, secrets, who: 'bob finished' });
+  checked += await fuzzAll(bob, ['place', 'tool', 'end', 'window', 'settings', 'kick', 'start', 'addBot', 'removeBot', 'fillBots'], { site, secrets, who: 'bob finished' });
   assert.equal(ann.state.phase, 'finished');
   assert.equal((await bob.call('again')).ok, false, 'only the host');
   assert.equal((await ann.call('again')).ok, true);

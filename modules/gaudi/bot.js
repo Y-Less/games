@@ -42,7 +42,7 @@ export function pendingAction(room) {
 export function botSnapshot(room, seat) {
   return structuredClone({
     seat,
-    size: room.size,
+    size: room.seats.length,
     settings: room.settings,
     round: room.round,
     order: room.order,

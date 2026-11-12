@@ -21,7 +21,7 @@ import { seeded } from '../../shared/testkit.js';
 export function playBotGame(ais, { seed = 1, badPrivate = false, onStep = null, limit = 20000 } = {}) {
   const rng = seeded(seed);
   const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', size: ais.length, settings: { badPrivate } });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, ais.length); // the count is said out loud: filling makes up a normal table, not the whole one
   room.seats[0] = { kind: 'human', id: 1, name: 'p1' }; // somebody has to be able to start it
   if (!game.start(room, 1, rng).ok) throw new Error('the game does not start');
   ais.forEach((id, seat) => (room.seats[seat] = { kind: 'bot', id: `bot:${seat}`, name: `Bot ${seat}`, ai: id }));

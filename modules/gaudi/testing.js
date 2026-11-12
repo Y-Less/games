@@ -37,6 +37,7 @@ export function playingRoom(n, { seed = 1, pick = null } = {}) {
   const room = game.createRoom({ now: 0, code: 'one-two-three', hostId: 1, hostName: 'p1', size: n });
   for (let i = 2; i <= n; i++) assert.equal(game.addHuman(room, i, `p${i}`).ok, true);
   assert.equal(game.start(room, 1, rng).ok, true);
+  assert.equal(room.seats.length, n, 'starting settles the table at the people who came');
   for (let seat = 0; seat < n; seat++) {
     const pid = pick?.[seat] && room.options[seat].includes(pick[seat]) ? pick[seat] : room.options[seat][0];
     assert.equal(game.chooseWindow(room, seat, pid, rng).ok, true);
@@ -86,7 +87,7 @@ export function allDice(room) {
 export function assertInvariants(room, label = '') {
   const where = `${label} (round ${room.round}, ${room.phase})`;
   if (!['playing', 'finished'].includes(room.phase)) return;
-  const n = room.size;
+  const n = room.seats.length;
   const dice = allDice(room);
   assert.equal(dice.length, bagSize(n), `${where}: bag + pool + track + windows = ${bagSize(n)} dice`);
   assert.equal(new Set(dice.map((d) => d.id)).size, dice.length, `${where}: every die is in exactly one place`);

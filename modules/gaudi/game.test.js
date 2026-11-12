@@ -57,7 +57,7 @@ test('creating a room: sizes 2 to 5 only, the host in seat 0', () => {
     assert.equal(room.phase, 'lobby');
     assert.deepEqual(room.settings, { badPrivate: false });
   }
-  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).size, 4, 'four by default');
+  assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H' }).seats.length, 5, 'as big as the game allows by default');
   for (const bad of [1, 6, 0, -1, 2.5, '3', null, NaN]) assert.throws(() => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', size: bad }));
   assert.throws(() => game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: 'yes' } }));
   assert.equal(game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'H', settings: { badPrivate: true } }).settings.badPrivate, true);
@@ -80,14 +80,15 @@ test('seat count: only the host, only in the lobby, keeping everyone seated', ()
   assert.equal(room.seats.length, 5);
   assert.equal(game.addHuman(room, 3, 'C').ok, true);
   assert.equal(room.seats[3].name, 'C');
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, 5);
   game.start(room, 1, Math.random);
   assert.equal(game.setSize(room, 1, 4).ok, false, 'not once the game has started');
 });
 
 test('seats and computer players: fill, add, remove, kick, start conditions', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 3 });
-  assert.equal(game.start(room, 1, Math.random).ok, false, 'empty seats');
+  assert.deepEqual(game.start(room, 1, Math.random), { ok: false, error: 'minPlayers', params: { min: 2 } }, 'the host on their own');
+  assert.equal(room.seats.length, 3, 'and a start that was refused did not settle the table');
   assert.equal(game.addBot(room, 2).ok, false, 'not the host');
   assert.equal(game.addBot(room, 1, 9).ok, false);
   assert.equal(game.addBot(room, 1, 0).ok, false, 'taken');
@@ -98,7 +99,7 @@ test('seats and computer players: fill, add, remove, kick, start conditions', ()
   assert.match(room.seats[1].id, /^bot:\d+$/);
   assert.equal(game.removeBot(room, 1, 's0').ok, false, 'a person is not a computer player');
   assert.equal(game.removeBot(room, 1, 's1').ok, true);
-  assert.equal(game.fillWithBots(room, 1).ok, true);
+  assert.equal(game.fillWithBots(room, 1, 3).ok, true);
   assert.ok(room.seats.every(Boolean));
   assert.equal(new Set(room.seats.map((s) => s.name)).size, 3);
   assert.equal(game.addBot(room, 1).ok, false, 'full');
@@ -115,7 +116,7 @@ test('seats and computer players: fill, add, remove, kick, start conditions', ()
 
 test('a game needs a person: all computer players cannot be started', () => {
   const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: 2 });
-  game.fillWithBots(room, 1);
+  game.fillWithBots(room, 1, 2);
   room.seats[0] = { kind: 'bot', id: 'bot:50', name: 'Robot' };
   assert.equal(game.start(room, 1, Math.random).ok, false);
 });
@@ -171,7 +172,7 @@ test('leaving: a seat is freed in the lobby, a computer takes over mid-game, the
 test('every player is dealt four windows from two distinct cards, for two to five players', () => {
   for (const n of SIZES) for (let seed = 1; seed <= 40; seed++) {
     const room = game.createRoom({ now: 0, code: 'a-b-c', hostId: 1, hostName: 'A', size: n });
-    game.fillWithBots(room, 1);
+    game.fillWithBots(room, 1, n);
     game.start(room, 1, seeded(seed));
     assert.equal(room.phase, 'windows');
     const all = room.options.flat();

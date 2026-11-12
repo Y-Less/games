@@ -1,8 +1,8 @@
 <script setup>
-// The Gaudi lobby: the invite code, the seat list (shared SeatLobby), and the host's rules (table size, bad private scoring).
+// The Gaudi lobby: the invite code, the seat list and table size (shared SeatLobby), and the host's rules (bad private scoring).
 // Props: state (the server's lobby view), send (function: (event, payload) -> Promise<{ ok, error }>).  Emits: none.
 // Slots: none (it fills SeatLobby's `settings` slot).
-// Side effects: the buttons and checkbox send 'size', 'settings', 'addBot', 'removeBot', 'fillBots', 'kick', and 'start'.
+// Side effects: the buttons and checkbox send 'settings', 'addBot', 'removeBot', 'fillBots', 'kick', and 'start'.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
 import SeatLobby from '../../../src/components/SeatLobby.vue';
@@ -50,7 +50,8 @@ const seated = computed(() => props.state.seats.filter(Boolean).length);
  * @returns {string}
  * Side effects: none.
  */
-const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * props.state.size + 1), each: 2 * (2 * props.state.size + 1) }));
+// The dice the game would use, counted for the people who are here, since the game will be for them.
+const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * seated.value + 1), each: 2 * (2 * seated.value + 1) }));
 </script>
 
 <template>
@@ -63,31 +64,19 @@ const diceLine = computed(() => t('lobby.dice', { dice: 10 * (2 * props.state.si
     <SeatLobby
       :seats="seats"
       :is-host="isHost"
+      :min="state.limits.min"
+      :max="state.limits.max"
+      :fill-to="state.limits.fillTo"
       @add-bot="send('addBot', { seat: firstEmpty() })"
       @remove-bot="(slot) => send('removeBot', { slot })"
-      @fill-bots="send('fillBots')"
+      @fill-bots="(count) => send('fillBots', { count })"
       @kick="(slot) => send('kick', { slot })"
+      @size="(n) => send('settings', { size: n })"
       @start="send('start')"
     >
       <template #settings>
         <h3>{{ t('lobby.rules') }}</h3>
-        <fieldset class="group" :disabled="!isHost">
-          <legend class="muted">{{ t('lobby.players') }}</legend>
-          <div class="row">
-            <button
-              v-for="n in state.limits.sizes"
-              :key="n"
-              :class="{ primary: state.size === n }"
-              :aria-pressed="state.size === n"
-              :disabled="seated > n"
-              :title="seated > n ? t('lobby.removeFirst') : ''"
-              @click="send('size', { seats: n })"
-            >
-              {{ t('lobby.playerCount', { n }) }}
-            </button>
-          </div>
-          <p class="muted small">{{ diceLine }}</p>
-        </fieldset>
+        <p class="muted small">{{ diceLine }}</p>
         <label class="check">
           <input type="checkbox" :checked="state.settings.badPrivate" :disabled="!isHost" @change="send('settings', { badPrivate: $event.target.checked })" />
           <span><strong>{{ t('lobby.badPrivate') }}</strong> {{ t('lobby.badPrivateDefault') }}</span>

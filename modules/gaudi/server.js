@@ -41,7 +41,7 @@ export default function (ctx) {
      *
      * Side effects: none.
      */
-    createArgs: (payload) => ({ size: payload.seats === undefined ? game.DEFAULT_SIZE : payload.seats }),
+    createArgs: (payload) => ({ size: payload.seats === undefined ? game.MAX_PLAYERS : payload.seats }),
     /**
      * The next computer move (choosing a window or taking a turn), if the game is waiting for a computer player.
      *
@@ -63,8 +63,7 @@ export default function (ctx) {
      *
      * Side effects: registers the socket handlers; each handler, when called, mutates the room via game.js.
      */
-    registerEvents({ act, on, userId, rng }) {
-      on('size', ({ seats }) => act((room) => game.setSize(room, userId, seats)));
+    registerEvents({ act, on, rng }) {
       on('window', ({ pid }) => act((room, seat) => game.chooseWindow(room, seat, pid, rng)));
       on('place', ({ die, cell }) => act((room, seat) => game.placeDie(room, seat, { die, cell }, rng)));
       on('tool', ({ tool, params }) => act((room, seat) => game.useTool(room, seat, { tool, params }, rng)));
@@ -83,5 +82,5 @@ export default function (ctx) {
  * Side effects: none.
  */
 function pickSettings(payload) {
-  return pickKeys(payload, ['badPrivate']);
+  return pickKeys(payload, ['badPrivate', 'size']);
 }

@@ -552,7 +552,7 @@ export function normaliseSettings(input, current = DEFAULT_SETTINGS) {
  *
  * Side effects: none (builds a new room; nothing is stored).
  */
-export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settings = {}, now }) {
+export function createRoom({ code, hostId, hostName, size = MAX_PLAYERS, settings = {}, now }) {
   if (!SIZES.includes(size)) throw new Error(`A game is for ${MIN_PLAYERS} to ${MAX_PLAYERS} players.`);
   const normalised = normaliseSettings(settings);
   if (!normalised.ok) throw new Error(normalised.error);
@@ -560,7 +560,6 @@ export function createRoom({ code, hostId, hostName, size = DEFAULT_SIZE, settin
     code,
     hostId,
     phase: 'lobby',
-    size,
     settings: normalised.settings,
     seats: Array.from({ length: size }, (_, i) => (i === 0 ? { kind: 'human', id: hostId, name: hostName } : null)),
     nextBot: 1,
@@ -606,7 +605,7 @@ function resetGame(room) {
     history: [],
     snapshot: [],
     log: [],
-    tally: Array.from({ length: room.size }, () => ({ dicePlaced: 0, toolsUsed: 0, toolsSeen: [] })),
+    tally: Array.from({ length: room.seats.length }, () => ({ dicePlaced: 0, toolsUsed: 0, toolsSeen: [] })),
     final: null,
     winners: null,
     recorded: false,
@@ -638,6 +637,9 @@ function addLog(room, seat, line) {
 // (The shared seat rules, configured for Gaudi; addHuman, addBot, etc. below are taken from it.)
 const seats = createSeatRules({
   isMidGame: (room) => room.phase === 'windows' || room.phase === 'playing',
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  fillTo: DEFAULT_SIZE,
   botNames: BOT_NAMES,
   /**
    * Called with the computer player about to replace a person who left.  Writes the log line and chooses its AI.
@@ -657,7 +659,9 @@ const seats = createSeatRules({
     addLog(room, seat, msg('log.takeOver', { name: bot.name }));
   },
 });
-export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman } = seats;
+export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, sizeOf } = seats;
+/** How many are actually at the table: in the lobby that is fewer than the seats, and once started it is all of them. */
+export const atTable = (room) => room.seats.filter(Boolean).length;
 
 /**
  * The AI a computer seat plays with (rooms saved before AIs existed fall back to the first).
@@ -683,6 +687,11 @@ export const aiOf = (room, seat) => aiById(AIS, room.seats[seat]?.ai);
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
+  // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
+  if (input?.size !== undefined) {
+    const sized = setSize(room, userId, input.size);
+    if (!sized.ok) return sized;
+  }
   const next = normaliseSettings(input, room.settings);
   if (!next.ok) return next;
   room.settings = next.settings;
@@ -700,15 +709,9 @@ export function setSettings(room, userId, input) {
  * @returns {{ ok: boolean, error?: string }}
  */
 export function setSize(room, userId, size) {
-  const problem = hostInLobby(room, userId);
-  if (problem) return problem;
-  if (!SIZES.includes(size)) return fail('playersRange', { min: MIN_PLAYERS, max: MAX_PLAYERS });
-  const seated = room.seats.filter(Boolean);
-  if (seated.length > size) return fail('removeBeforeFewerSeats');
-  room.size = size;
-  room.seats = [...seated, ...Array.from({ length: size - seated.length }, () => null)];
-  resetGame(room);
-  return ok();
+  const result = seats.setSize(room, userId, size);
+  if (result.ok) resetGame(room); // every per-seat array here is as long as the table, which has just changed length
+  return result;
 }
 
 // ---- starting: choosing windows ----
@@ -728,8 +731,11 @@ export function setSize(room, userId, size) {
 export function start(room, userId, rng) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
-  if (room.seats.some((s) => !s)) return fail('seatsNeedPlayers');
+  // Every refusal is answered before the table is settled, so that a start which does not happen leaves the lobby
+  // exactly as it was rather than quietly renumbering the seats.
+  if (atTable(room) < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
   if (!humanSeats(room).length) return fail('needPerson');
+  seats.lockSize(room); // the game is for whoever is here; a seat kept open is a computer player holding it
   resetGame(room);
   // Two double-sided cards (four windows) each, no card dealt twice.
   const cards = shuffle(PATTERN_CARDS, rng);
@@ -739,7 +745,7 @@ export function start(room, userId, rng) {
   room.tools = shuffle(TOOL_IDS, rng).slice(0, TOOL_COUNT);
   room.spent = room.tools.map(() => 0);
   room.publicIds = shuffle(OBJECTIVE_IDS, rng).slice(0, PUBLIC_COUNT);
-  room.privateColours = shuffle(COLOURS, rng).slice(0, room.size);
+  room.privateColours = shuffle(COLOURS, rng).slice(0, room.seats.length);
   room.picked = room.seats.map(() => null);
   room.phase = 'windows';
   // Each computer player gets one AI for the whole game (picked last, so it does not change the deal).
@@ -779,7 +785,7 @@ export function chooseWindow(room, seat, pid, rng) {
  * @param {() => number} rng
  */
 function beginGame(room, rng) {
-  const n = room.size;
+  const n = room.seats.length;
   room.patterns = room.picked.slice();
   room.grids = room.seats.map(() => emptyGrid());
   room.tokens = room.patterns.map((pid) => patternOf(pid).difficulty);
@@ -807,10 +813,10 @@ function beginGame(room, rng) {
  */
 function startRound(room, rng) {
   room.round++;
-  room.order = snakeOrder(room.first, room.size);
+  room.order = snakeOrder(room.first, room.seats.length);
   room.skip = room.seats.map(() => false);
   room.pool = [];
-  for (let i = 0; i < poolSize(room.size) && room.bag.length; i++) {
+  for (let i = 0; i < poolSize(room.seats.length) && room.bag.length; i++) {
     const { id, c } = room.bag.pop();
     room.pool.push({ id, c, v: rollFace(rng) });
   }
@@ -913,7 +919,7 @@ function advanceTurn(room, rng) {
     room.turnIndex++;
     if (room.turnIndex >= room.order.length) return endRound(room, rng);
     const seat = room.order[room.turnIndex];
-    const number = room.turnIndex < room.size ? 1 : 2;
+    const number = room.turnIndex < room.seats.length ? 1 : 2;
     if (number === 2 && room.skip[seat]) {
       addLog(room, seat, msg('log.skipTurn', { name: seatName(room, seat) }));
       continue;
@@ -969,7 +975,7 @@ function endRound(room, rng) {
   room.snapshot = now;
   addLog(room, null, msg('log.roundOver', { n: room.round }));
   if (room.round >= ROUNDS) return finishGame(room);
-  room.first = (room.first + 1) % room.size;
+  room.first = (room.first + 1) % room.seats.length;
   startRound(room, rng);
 }
 
@@ -985,7 +991,7 @@ function endRound(room, rng) {
  * Side effects: none.
  */
 export function finalTable(room) {
-  const last = room.order.length ? room.order : snakeOrder(room.first, room.size);
+  const last = room.order.length ? room.order : snakeOrder(room.first, room.seats.length);
   const rows = room.seats.map((seat, i) => {
     const publics = room.publicIds.map((id) => ({ id, ...objectivePoints(id, room.grids[i]) }));
     const publicSum = publics.reduce((sum, p) => sum + p.points, 0);
@@ -1400,12 +1406,12 @@ export function viewFor(room, userId, { online = () => true } = {}) {
     phase: room.phase,
     you: me,
     hostSeat: seatOf(room, room.hostId),
-    size: room.size,
+    size: sizeOf(room),
     settings: room.settings,
     seats: room.seats.map((seat, i) => (seat ? seatView(room, i, online) : null)),
     scoreboard: scoreboardView(room, me, online),
     winners: room.winners,
-    limits: { sizes: SIZES, rounds: ROUNDS },
+    limits: { min: MIN_PLAYERS, max: MAX_PLAYERS, fillTo: DEFAULT_SIZE, rounds: ROUNDS },
     log: recentMoves(room, 14),
   };
   if (room.phase === 'windows') Object.assign(view, windowChoiceView(room, me));
