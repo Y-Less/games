@@ -22,10 +22,24 @@ import { createRoomLife } from './roomLife.js';
 import { seatLayout } from './layout.js';
 
 /**
+ * How long a computer player seems to think before it acts, as "min-max" milliseconds.  The pause is not for the
+ * computer's sake — it decides in a millisecond or two — but so that a person can see what happened before the next
+ * thing happens.
+ */
+export const THINKING = '600-1400';
+/**
+ * The same, for a game of cards.  A card game asks for far more moves than a board game does, and each one is
+ * smaller: a hand of Hearts is fifty-two plays, where a game of Azulejo is a few dozen.  A pause long enough to
+ * follow a move that rearranges a board is dead time fifty times over when the move is one card, so a card game's
+ * computer players think for about half as long.
+ */
+export const CARD_THINKING = '300-700';
+
+/**
  * Reads a "min-max" milliseconds range from the environment (the tests make computer players fast this way).
  *
  * @param {string} name       the environment variable, e.g. 'HEARTS_BOT_DELAY'
- * @param {string} fallback   the range used when it is unset or malformed, e.g. '600-1400'
+ * @param {string} fallback   the range used when it is unset or malformed, e.g. THINKING
  * @returns {{ min: number, max: number }} min is never negative and max is never below min
  * Side effects: none (reads process.env).
  */

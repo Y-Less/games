@@ -4,10 +4,10 @@
 // the wait for everyone to close the score pop-up between hands).
 //
 // Timing can be changed through the environment (the tests make it fast):
-//   HEARTS_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
-//   HEARTS_TRICK_PAUSE milliseconds a finished trick stays on the table (default 1500)
+//   HEARTS_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 300-700)
+//   HEARTS_TRICK_PAUSE milliseconds a finished trick stays on the table (default 1500), unless the winner leads first
 //   HEARTS_NEXT_WAIT   milliseconds to wait for everyone to close the score pop-up between hands (default 60000)
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { CARD_THINKING, botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 import * as bot from './bot.js';
 
@@ -21,7 +21,7 @@ import * as bot from './bot.js';
  */
 function readDelays() {
   return {
-    bot: readDelayRange('HEARTS_BOT_DELAY', '600-1400'),
+    bot: readDelayRange('HEARTS_BOT_DELAY', CARD_THINKING),
     trick: readDelayMs('HEARTS_TRICK_PAUSE', 1500),
     nextWait: readDelayMs('HEARTS_NEXT_WAIT', 60000),
   };

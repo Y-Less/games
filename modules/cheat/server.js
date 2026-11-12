@@ -4,8 +4,8 @@
 // or its decision about the last play).
 //
 // Timing can be changed through the environment (the tests make it fast):
-//   CHEAT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 900-1800)
-import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
+//   CHEAT_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 300-700)
+import { CARD_THINKING, botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 import * as bot from './bot.js';
 
@@ -16,7 +16,7 @@ import * as bot from './bot.js';
  * Side effects: none (reads process.env).
  */
 function readDelays() {
-  return { bot: readDelayRange('CHEAT_BOT_DELAY', '900-1800') };
+  return { bot: readDelayRange('CHEAT_BOT_DELAY', CARD_THINKING) };
 }
 
 /**

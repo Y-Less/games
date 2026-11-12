@@ -27,7 +27,7 @@ The rules players see are in `rules.md`; the module contract is in `../../MODULE
 
 ## Configuration
 
-`CRIBBAGE_BOT_DELAY` sets the computer players' thinking time in milliseconds as `min-max` (default `600-1400`); the tests use `0-3`.
+`CRIBBAGE_BOT_DELAY` sets the computer players' thinking time in milliseconds as `min-max` (default `300-700`); the tests use `0-3`.
 
 ## Socket protocol
 

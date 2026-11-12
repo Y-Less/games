@@ -6,9 +6,9 @@
 // Depends on shared/roomServer.js and ./game.js.
 //
 // Timing can be changed through the environment (the tests make it fast):
-//   CRIBBAGE_BOT_DELAY   "min-max" milliseconds a computer player thinks before acting (default 600-1400)
+//   CRIBBAGE_BOT_DELAY   "min-max" milliseconds a computer player thinks before acting (default 300-700)
 //   CRIBBAGE_NEXT_WAIT   milliseconds to wait for everyone to close the show between hands (default 60000)
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { CARD_THINKING, botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 
 /**
@@ -21,7 +21,7 @@ import * as game from './game.js';
  * @returns {{ dispose: () => void }} the handle the site calls to stop the server half
  */
 export default function (ctx) {
-  const thinkTime = readDelayRange('CRIBBAGE_BOT_DELAY', '600-1400');
+  const thinkTime = readDelayRange('CRIBBAGE_BOT_DELAY', CARD_THINKING);
   const nextWait = readDelayMs('CRIBBAGE_NEXT_WAIT', 60000);
   return createRoomServer(ctx, {
     game,

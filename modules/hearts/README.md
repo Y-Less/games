@@ -57,7 +57,7 @@ high hearts when they cannot follow suit; and only chase the moon with an overwh
 anyone else takes a point.  They act after a random delay, and a finished trick stays on the table for a moment.
 Both can be changed through the environment (the tests make them fast):
 
-- `HEARTS_BOT_DELAY` as `min-max` milliseconds (default `600-1400`)
+- `HEARTS_BOT_DELAY` as `min-max` milliseconds (default `300-700`)
 - `HEARTS_TRICK_PAUSE` in milliseconds (default `1500`)
 
 A person who leaves a started game is replaced by a computer player in the same seat; with nobody left the room is

@@ -28,7 +28,7 @@ e2e.test.js        end-to-end tests against the real site
 
 ## Seats and computer players
 
-A room opens with seven seats; the host may bring it down to as few as are sitting (lobby option `seats`), add or remove computer players (ids `bot:<n>`), or make the table up to four with one button, and can start once three are at the table with at least one person among them.  Starting settles the table at whoever is there, and the empty seats go.  Computer players are not accounts and are never recorded.  They act after a random 600 to 1400 ms. The environment variables `NOMINATION_WHIST_BOT_DELAY` (`min-max`, milliseconds) and `NOMINATION_WHIST_TRICK_PAUSE` (milliseconds) shorten that for tests.
+A room opens with seven seats; the host may bring it down to as few as are sitting (lobby option `seats`), add or remove computer players (ids `bot:<n>`), or make the table up to four with one button, and can start once three are at the table with at least one person among them.  Starting settles the table at whoever is there, and the empty seats go.  Computer players are not accounts and are never recorded.  They act after a random 300 to 700 ms. The environment variables `NOMINATION_WHIST_BOT_DELAY` (`min-max`, milliseconds) and `NOMINATION_WHIST_TRICK_PAUSE` (milliseconds) shorten that for tests.
 
 A person who leaves mid-game is replaced by a computer player.  When no person is left the room is discarded and nothing is recorded.  After a restart, saved rooms are reloaded and computer turns resume.
 

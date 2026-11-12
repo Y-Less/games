@@ -4,10 +4,10 @@
 // wait for everyone to close the score pop-up between rounds).
 //
 // Timing can be changed through the environment (the tests make it fast):
-//   NOMINATION_WHIST_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 600-1400)
-//   NOMINATION_WHIST_TRICK_PAUSE milliseconds a finished trick stays on the table (default 1500)
+//   NOMINATION_WHIST_BOT_DELAY   "min-max" milliseconds a computer player waits before acting (default 300-700)
+//   NOMINATION_WHIST_TRICK_PAUSE milliseconds a finished trick stays on the table (default 1500), unless the winner leads first
 //   NOMINATION_WHIST_NEXT_WAIT   milliseconds to wait for everyone to close the score pop-up between rounds (default 60000)
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { CARD_THINKING, botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import * as game from './game.js';
 import * as bot from './bot.js';
 
@@ -20,7 +20,7 @@ import * as bot from './bot.js';
  */
 function readDelays() {
   return {
-    bot: readDelayRange('NOMINATION_WHIST_BOT_DELAY', '600-1400'),
+    bot: readDelayRange('NOMINATION_WHIST_BOT_DELAY', CARD_THINKING),
     trick: readDelayMs('NOMINATION_WHIST_TRICK_PAUSE', 1500),
     nextWait: readDelayMs('NOMINATION_WHIST_NEXT_WAIT', 60000),
   };
