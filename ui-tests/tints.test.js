@@ -203,7 +203,8 @@ test('a host on their own fills the lobby with computer players and plays until 
     return solo.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
   };
   await drive({ act: step, finished: async () => /^Scores after Turn/.test(title ?? ''), timeout: 100000, what: 'a turn result with computer players' });
-  assert.equal((await solo.page.$$('.score-bar .bot-icon')).length, 2, 'the computers carry the robot icon in the score bar');
+  // Everybody at the table but the host is a computer player, and each one is marked as one.
+  assert.equal((await solo.page.$$('.score-bar .bot-icon')).length, rows.length - 1, 'the computers carry the robot icon in the score bar');
   await solo.closeModalWithEsc();
 }));
 
