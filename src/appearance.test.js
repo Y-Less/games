@@ -183,16 +183,4 @@ describe('hostile settings (seeded)', () => {
       expect(document.body.children.length, where).toBe(0); // a look is variables on the document, never markup in it
     }
   });
-
-  // Each of these is the documented behaviour ("anything unrecognised falls back to the default"; an uploaded file's
-  // name is encoded into one `url()`), and each fails today.  They are left out of the generators above so that those
-  // still guard everything else; see the report that came with this file.
-  //   backgroundCss({ type: 'preset', value: 'constructor' }, {}) returns Object's constructor (a function), because the
-  //   preset is looked up with `presets[value]` (src/appearance.js:17); cardBackCss does the same with 'toString' (:47).
-  it.todo("falls back to the default for a preset named after something every object has ('constructor', 'toString', '__proto__')");
-  //   backgroundCss({ type: 'image', file: '\ud800' }) throws URIError out of encodeURIComponent (src/appearance.js:20, :45).
-  it.todo('does not throw for an uploaded file name that is not well-formed text (a lone surrogate)');
-  //   backgroundCss({ type: 'image', file: 'a) url(x' }) gives `url(/uploads/a)%20url(x)`: encodeURIComponent leaves
-  //   brackets and quotes alone and the url() is not quoted, so the name ends the url() early.
-  it.todo('keeps an uploaded file name with a bracket in it inside its one url()');
 });

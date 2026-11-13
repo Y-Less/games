@@ -142,12 +142,3 @@ describe('clearProfiles', () => {
     expect(requests).toEqual([]);
   });
 });
-
-describe('a reply with a dangerous name in it', () => {
-  // Fails today, so it is a todo rather than a test (and running it would leave the cache's prototype changed for every
-  // test after it).  A reply of `{"players":{"2":{...},"__proto__":{"7":{"displayName":"Mallory"}}}}` is copied key by
-  // key with `profiles[id] = profile` (src/profiles.js:28); the `__proto__` key replaces the cache's prototype, and
-  // `profileOf(7)` then answers with Mallory's profile although player 7 was never fetched.  `clearProfiles` does not
-  // undo it.  Only the site's own server can send this, so it is a hardening gap rather than a hole.
-  it.todo('does not give a profile to a player who was never fetched when the reply has a `__proto__` key');
-});

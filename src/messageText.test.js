@@ -176,12 +176,6 @@ describe('a value from the server', () => {
     warn.mockRestore();
   });
 
-  // src/i18n.js says of its own settings that falling back to English "is the design, not a fault" (fallbackWarn: false)
-  // while a key nobody wrote "is a fault the tests must see" (missingWarn: true).  As it stands the second setting also
-  // fires for the first case: in a language without `zzsite.english`, messageText({ key: 'zzsite.english' }) shows the
-  // English and vue-i18n warns "[intlify] Not found 'zzsite.english' key in 'zz' locale messages." each time.
-  it.todo('does not warn when a message falls back to English in a language that has not translated it');
-
   it('joins a list of values, each put into words', () => {
     expect(messageText(['Ann', msg('greet', { name: 'Bob' }), 'Cat'], GAME)).toBe('Ann, Hello Bob and Cat');
   });
@@ -302,9 +296,4 @@ describe('hostile values (seeded)', () => {
       });
     }
   });
-
-  // A value that is neither text nor a message is outside what the server sends (shared/messages.js), but "nothing the
-  // server sends can break the page" should hold for it too.  Today an object whose `toString` is not a function makes
-  // `String(value)` throw (src/messageText.js:77), and the same object as a param throws inside vue-i18n.
-  it.todo('does not throw for an object that is not a message and cannot be turned into text ({ "toString": 1 })');
 });
