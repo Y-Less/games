@@ -55,14 +55,34 @@ Timing can be changed through the environment (the tests make it fast):
 
 - `TOUR_BOT_DELAY` as `min-max` milliseconds (default `600-1400`)
 
+## The client (`client/`)
+
+`Tour.vue` is the usual GameShell with two screens: `Lobby.vue` (the invite code and the shared player panel) and
+`Table.vue`, which is the vote, or a note that a game is being played elsewhere, or the end.  A tour's "table" is
+never a game.
+
+`end.js` holds the one word both halves must agree on (`END`, the choice that is not a game).  It is a file of its own
+so the client can have it without pulling the rules, and the room vocabulary they import, into the browser's bundle.
+
+## Getting people back (`src/components/TourBand.vue`)
+
+While you are playing the game a tour sent you to, you are not looking at the tour: another page, another socket,
+another room.  So the tour says where it has got to on the **site's** socket (`ctx.tell`), `src/tourSession.js` keeps
+the last thing it said, and the band offers a link to wherever that is.
+
+It never moves anybody by itself.  Being pulled off a final scoreboard you were still reading would be worse than
+having to click.
+
+Two things to know: the band only knows what the tour has told you *this session*, so reloading mid-game loses it
+until the tour next moves (which is when it matters, as that is when there is somewhere new to go); and its words live
+under `tourBand.` rather than `tour.`, because each module's locale file is loaded under its own id and `tour.` is
+this module's namespace.
+
 ## Tests
 
 - `game.test.js` — the rules: the lobby, the draw, the vote, the cycle, and what a saved tour looks like.
 - `e2e.test.js` — the crossing, which no unit test can reach: a tour against the real site, opening a room in another
   module and hearing it finish.  The other module is a stand-in written in the test, so a whole cycle takes
   milliseconds and nothing depends on how a real game happens to deal.
-
-## Still to come
-
-The client half (`client/`) and the band that brings people back from a game they were sent to.  Until those land the
-tour runs, but only a test can see it.
+- `client/table.test.js` — the four screens.
+- `src/components/TourBand.test.js` — the band, including that it keeps quiet about the page you are already on.

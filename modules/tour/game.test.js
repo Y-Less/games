@@ -193,7 +193,8 @@ test('the view shows the vote, the game in hand and what has been played, and hi
   g.vote(room, 1, room.choices[0]);
   const view = g.viewFor(room, 1, { catalogue: CATALOGUE, nameOf: () => 'Ann' });
   assert.equal(view.phase, 'voting');
-  assert.equal(view.you, g.slotOf(room, 1));
+  assert.equal(view.you, 1, 'the account id, which the shared lobby panel matches players by');
+  assert.equal(view.hostId, 1);
   assert.equal(view.isHost, true);
   assert.equal(view.yourVote, room.choices[0]);
   assert.equal(view.choices.length, g.CHOICES);

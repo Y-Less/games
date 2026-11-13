@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AchievementPopups from './components/AchievementPopups.vue';
 import BackgroundFx from './components/BackgroundFx.vue';
+import TourBand from './components/TourBand.vue';
 import AvatarFigure from './components/AvatarFigure.vue';
 import StyledName from './components/StyledName.vue';
 import { clearProfiles } from './profiles.js';
@@ -151,6 +152,7 @@ async function leaveSite() {
 
     <HelpDialog v-if="helpOpen" :html="helpHtml" :title="help?.title ?? $t('common.help')" @close="helpOpen = false" />
     <AchievementPopups />
+    <TourBand v-if="session.user" />
 
     <main class="field">
       <RouterView v-if="session.user || route.meta.public" :key="route.fullPath.split('?')[0]" />

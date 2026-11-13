@@ -264,6 +264,15 @@
     "unavailable": "That game is not available.",
     "unreachable": "Could not reach the game. Trying again…"
   },
+  "tourBand": {
+    "voting": "Your tour is voting on what to play next.",
+    "opening": "Your tour is opening the game that won…",
+    "playing": "Your tour is playing {name}.",
+    "toVote": "Back to the vote",
+    "toGame": "Go to the game",
+    "toTour": "The tour",
+    "hide": "Hide this"
+  },
   "entry": {
     "noun": "game",
     "create": "Start a new {noun}",

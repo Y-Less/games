@@ -1,4 +1,43 @@
 {
+  "entry": {
+    "noun": "tour",
+    "intro": "Gather everybody once, then let the table vote on what to play — a fresh three to pick from after every game."
+  },
+  "leaveConfirm": "Leave the tour? The rest of the evening will carry on without you.",
+  "lobby": {
+    "title": "Waiting for players",
+    "intro": "Everybody joins here once. When you start, the table votes on what to play first.",
+    "start": "Start the tour",
+    "willOffer": "Three of the {count} game that suits this many will be offered each time. | Three of the {count} games that suit this many will be offered each time.",
+    "none": "No game here suits {count} players. Add somebody, or a computer player, and the vote can open."
+  },
+  "vote": {
+    "title": "What next?",
+    "pick": "Pick one, or vote to finish. You can change your mind until the vote closes.",
+    "end": "End the tour",
+    "votes": "{n} vote | {n} votes",
+    "waiting": "Waiting for {names} to vote.",
+    "closes": "The vote closes in {seconds}s.",
+    "trouble": "That game would not open, so here is another vote."
+  },
+  "playing": {
+    "now": "Playing {name}",
+    "go": "Go to the game",
+    "note": "The tour waits here until that game ends, and then votes again."
+  },
+  "played": {
+    "title": "Played so far"
+  },
+  "finished": {
+    "title": "The tour is over",
+    "played": "You played {count} game. | You played {count} games.",
+    "nothing": "The tour ended before anything was played.",
+    "again": "Start another tour"
+  },
+  "status": {
+    "opening": "Opening the game…",
+    "waitingHost": "Waiting for the host to start the tour."
+  },
   "errors": {
     "noSettings": "A tour has nothing to set: what is played is voted on.",
     "notVoting": "There is no vote running.",

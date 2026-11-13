@@ -19,6 +19,7 @@
 import { textFrom } from '../../shared/input.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { createRosterRules, defaultPlayers, hasPlayer, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { END } from './end.js';
 
 // A tour needs two people to be worth voting in; twelve is the most any game here seats, so it is the most a tour can
 // hold without the lobby promising games it could never open.
@@ -28,8 +29,7 @@ export const MAX_PLAYERS = 12;
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
 /** How many games a vote offers.  Fewer are offered when fewer suit the number of people here. */
 export const CHOICES = 3;
-/** The standing choice that is not a game: finish the tour. */
-export const END = 'end';
+export { END };
 /** How long a vote stands before the clock settles it with whatever has been cast (ms). */
 export const VOTE_MS = 60_000;
 /** How long a tour waits for a game it opened before giving up on it and voting again (ms). */
@@ -387,13 +387,17 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, ca
   return {
     phase: room.phase,
     code: room.code,
-    you: me,
-    host: slotOf(room, room.hostId),
+    // `you` and `hostId` are account ids, not slots: that is what the shared lobby panel compares players by.
+    you: userId,
+    hostId: room.hostId,
     isHost: userId === room.hostId,
     size: sizeOf(room),
     min: MIN_PLAYERS,
     max: MAX_PLAYERS,
     fillTo: DEFAULT_PLAYERS,
+    // How many games this many people could be offered.  The lobby says so before anybody commits to starting, and
+    // the client never sees the catalogue itself.
+    suitable: playable(catalogue, room.players.length).length,
     players: room.players.map((player) => ({
       slot: player.slot,
       id: player.id,
