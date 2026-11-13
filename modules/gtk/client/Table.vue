@@ -51,8 +51,11 @@ const matched = computed(() => s.value.yoursWasTrue);
 const canPick = computed(() => picking.value && !isSubject.value && !matched.value && !mine.value?.picked);
 // How many players have written both answers, and how many are being waited for.
 const writtenCount = computed(() => s.value.players.filter((p) => p.written).length);
-// The players who have to pick this question (everybody but the subject, and not those who wrote the true answer).
-const pickers = computed(() => s.value.scoreboard.players.filter((p) => s.value.players.find((q) => q.id === p.id)?.toPick));
+// The players who pick this question: everybody but the subject.  Somebody who wrote the true answer by accident is
+// among them, and counts as having picked it: leaving them out would tell the table what they had written.
+const pickers = computed(() => s.value.scoreboard.players.filter((p) => p.id !== s.value.subject));
+// Has this player picked?  You have, as far as your own screen goes, if your answer was the true one.
+const hasPicked = (id) => Boolean(s.value.players.find((q) => q.id === id)?.picked) || (matched.value && id === s.value.you);
 // How many of them have picked.
 const pickedCount = computed(() => s.value.players.filter((p) => p.picked).length);
 // This is the last question of the last turn.
@@ -248,15 +251,16 @@ const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 
           <ul v-if="picking" class="cards" :aria-label="t('table.pickOne')">
             <li v-for="o in state.options" :key="o.n">
               <button v-if="canPick && o.canPick" type="button" class="card pick" @click="send('choose', { n: o.n })">{{ o.text }}</button>
-              <span v-else class="card" :class="{ yours: o.yours }">
+              <span v-else class="card" :class="{ yours: o.yours && !matched, chosen: o.yours && matched }">
                 <span class="answer-text">{{ o.text }}</span>
-                <small v-if="o.yours" class="tag">{{ t('table.yourAnswerTag') }}</small>
+                <small v-if="o.yours && matched" class="tag">{{ t('table.pickedTag') }}</small>
+                <small v-else-if="o.yours" class="tag">{{ t('table.yourAnswerTag') }}</small>
               </span>
             </li>
           </ul>
           <ul v-if="picking" class="who" :aria-label="t('table.whoPicked')">
-            <li v-for="p in pickers" :key="p.id" :class="{ done: state.players.find((q) => q.id === p.id)?.picked }">
-              {{ p.name }}<span v-if="state.players.find((q) => q.id === p.id)?.picked"> &#10003;</span>
+            <li v-for="p in pickers" :key="p.id" :class="{ done: hasPicked(p.id) }">
+              {{ p.name }}<span v-if="hasPicked(p.id)"> &#10003;</span>
             </li>
           </ul>
 
@@ -465,6 +469,7 @@ button.card.pick:focus-visible {
 .card.yours {
   opacity: 0.6;
 }
+.card.chosen,
 .card.true {
   border-color: var(--amber);
   box-shadow: 0 0 0 3px var(--amber);

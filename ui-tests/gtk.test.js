@@ -223,6 +223,10 @@ for (const [k, turn] of TURNS.entries()) {
         // "the two are shown as one answer, you score for having guessed right, and you do not pick that question"
         assert.deepEqual(shown.b.filter((card) => card.pickable), [], 'somebody who wrote the truth has nothing to press');
         await b.waitForText('You wrote the true answer, so this one is already yours. Watch the others guess.');
+        // Their own card, which is the true one, is shown to them as the one they picked.
+        assert.deepEqual(await b.page.$$eval('.answers-box .card.chosen .answer-text', (els) => els.map((el) => el.textContent.trim())), [textOf.truth], 'the true answer is shown to them as picked');
+        // And to the one who still has to pick, nothing marks any card or anybody out.
+        assert.equal(await a.page.$$eval('.answers-box .card.chosen', (els) => els.length), 0, 'nobody else sees a card marked');
         whoHadToPick = await a.page.$$eval('.answers-box ul.who li', (els) => els.map((el) => el.textContent.replace('✓', '').trim()));
       } else {
         assert.deepEqual(shown.b.filter((card) => card.pickable).map((card) => card.text).sort(), onTable.filter((text) => text !== textOf.b).sort(), 'b may pick any answer but their own');
@@ -291,10 +295,10 @@ for (const [k, turn] of TURNS.entries()) {
   }));
 }
 
-test('a made-up answer that is the true one leaves its writer out of those who have to pick', () => {
+test('somebody whose made-up answer is the true one is still listed among those picking, so nothing gives it away', () => {
   assert.ok(whoHadToPick, 'the question where somebody wrote the truth was played');
-  const a = people[(people.indexOf(subjects[MATCHED.turn]) + 1) % people.length];
-  assert.deepEqual(whoHadToPick, [a.displayName], 'only the one player with something to pick is being waited for');
+  const others = people.filter((user) => user !== subjects[MATCHED.turn]).map((user) => user.displayName);
+  assert.deepEqual([...whoHadToPick].sort(), others.sort(), 'everybody but the subject, the one who wrote the truth included');
 });
 
 test('the game ends after the last turn: the first subject wins, and every question is in All rounds', { timeout: 120000 }, guarded('finish', async () => {

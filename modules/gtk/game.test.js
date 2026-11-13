@@ -232,6 +232,34 @@ test('a made-up answer that is really the truth joins it: its writer scores and 
   assert.equal(copier.score, game.POINTS.matched);
 });
 
+test('somebody who wrote the truth looks to the table like any other player who has yet to pick, and then like one who has', () => {
+  // Nothing may say before the reveal that an answer was written twice.  So the copier is not ticked from the moment
+  // the answers go up (that would be a tick nobody could have earned yet), and is ticked once a real pick is in.
+  const { room, rng } = started(4, { seed: 21 });
+  const subject = room.subject;
+  const [copier, ...rest] = room.players.filter((p) => p.id !== subject);
+  assert.equal(game.submitAnswers(room, subject, ['Apples', 'Blue'], rng, names).ok, true);
+  assert.equal(game.submitAnswers(room, copier.id, ['apple', 'Green'], rng, names).ok, true);
+  for (const p of rest) assert.equal(game.submitAnswers(room, p.id, [`${p.id} one`, `${p.id} two`], rng, names).ok, true);
+  assert.equal(room.phase, 'picking');
+  const pickedAsSeenBy = (viewer) => Object.fromEntries(game.viewFor(room, viewer, { nameOf: names }).players.map((p) => [p.id, p.picked]));
+
+  for (const viewer of rest) {
+    const seen = pickedAsSeenBy(viewer.id);
+    assert.equal(seen[copier.id], false, 'not ticked before anybody can have picked');
+    for (const p of rest) assert.equal(seen[p.id], false);
+    assert.equal('toPick' in game.viewFor(room, viewer.id, { nameOf: names }).players[0], false, 'and no field says who has an answer to pick');
+  }
+
+  assert.equal(game.choose(room, rest[0].id, truthAt(room), names).ok, true);
+  assert.equal(room.phase, 'picking', 'one of them has still to pick');
+  const seen = pickedAsSeenBy(rest[1].id);
+  assert.equal(seen[rest[0].id], true);
+  assert.equal(seen[copier.id], true, 'treated as having picked, like the one who really has');
+  assert.equal(seen[rest[1].id], false);
+  assert.equal(seen[subject], false, 'the subject never picks');
+});
+
 test('a question nobody is left to pick is scored the moment it opens', () => {
   const { room, rng } = started(3, { seed: 31 });
   const subject = room.subject;

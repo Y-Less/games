@@ -958,10 +958,11 @@ function playerView(room, p, { nameOf, online, final }) {
     ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
     subject: room.phase !== 'lobby' && p.id === room.subject,
     written: room.phase === 'writing' ? Boolean(answersOf(room, p.id)) : false,
-    picked: room.phase === 'picking' ? room.picks.some((pick) => pick.id === p.id) : false,
-    // Has an answer to pick this question: everybody but the subject, and not somebody whose made-up answer turned
-    // out to be the true one.  It says only that they wrote it, which the reveal will say anyway, not which it is.
-    toPick: room.phase === 'picking' && p.id !== room.subject && !room.options[truthIndex(room)]?.authors.includes(p.id),
+    // Somebody whose made-up answer turned out to be the true one has nothing to pick, and is treated as having picked
+    // it.  To everybody else they must look like any other player, or the table would know before the reveal that
+    // one of the answers was written twice; so they are shown as having picked once the first real pick is in, never
+    // from the moment the answers go up.
+    picked: room.phase === 'picking' ? room.picks.some((pick) => pick.id === p.id) || (room.picks.length > 0 && Boolean(room.options[truthIndex(room)]?.authors.includes(p.id))) : false,
     ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
     placement: final.get(p.id)?.placement ?? null,
     winner: final.get(p.id)?.winner ?? false,

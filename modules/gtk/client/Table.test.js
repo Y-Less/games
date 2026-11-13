@@ -8,7 +8,7 @@ import { messageText } from '../../../src/messageText.js';
 // A log line (a message) in English, as the table draws it.
 const words = (line) => messageText(line, 'gtk');
 
-const player = (id, name, extra = {}) => ({ id, name, score: 0, online: true, bot: false, ai: null, subject: false, written: false, picked: false, toPick: false, ready: false, placement: null, winner: false, ...extra });
+const player = (id, name, extra = {}) => ({ id, name, score: 0, online: true, bot: false, ai: null, subject: false, written: false, picked: false, ready: false, placement: null, winner: false, ...extra });
 const who = (id, name) => ({ id, name });
 
 /** A view of a four-player game in which the turn is about Bob (player 2) and you are Ann (player 1). */
@@ -184,21 +184,36 @@ describe('GTK: picking the true answer', () => {
 
   it('once you have picked, it waits for the rest', async () => {
     await mountGame(picking({
-      players: [player(1, 'Ann', { picked: true, toPick: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy', { picked: true, toPick: true }), player(4, 'Di', { toPick: true })],
+      players: [player(1, 'Ann', { picked: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy', { picked: true }), player(4, 'Di')],
       options: openOptions().map((o) => ({ ...o, canPick: false })),
     }));
     expect(wrapper.text()).toContain('Picked. Waiting for the others (2 of 3).');
   });
 
-  it('does not wait for somebody whose made-up answer was the true one: they have nothing to pick', async () => {
-    // Writing the truth by accident: "you do not pick that question" (rules.md).  The server says who has an answer
-    // to pick, and Di, who wrote the truth, is not one of them.
+  it('shows somebody whose made-up answer was the truth their card as already picked, and themselves as done', async () => {
+    // They are treated as having picked the true answer: their card is the chosen one, and their own name is ticked
+    // whatever the table has been told so far.
     await mountGame(picking({
-      players: [player(1, 'Ann', { picked: true, toPick: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy', { toPick: true }), player(4, 'Di')],
+      yoursWasTrue: true,
+      players: [player(1, 'Ann'), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di')],
+      options: openOptions().map((o) => ({ ...o, canPick: false, yours: o.n === 0 })),
+    }));
+    const chosen = wrapper.findAll('.card.chosen');
+    expect(chosen).toHaveLength(1);
+    expect(chosen[0].text()).toContain('picked');
+    expect(wrapper.findAll('.card.yours')).toHaveLength(0);
+    expect(wrapper.findAll('ul.who li.done').map((li) => li.text().replace(/\s*✓$/, ''))).toEqual(['Ann']);
+  });
+
+  it('lists everybody but the subject among those picking, so that nothing says who wrote the truth', async () => {
+    // Di wrote the true answer by accident.  To Ann she is one more player who has or has not picked: the list is the
+    // same four-less-the-subject it always is, and the count is out of three.
+    await mountGame(picking({
+      players: [player(1, 'Ann', { picked: true }), player(2, 'Bob', { subject: true }), player(3, 'Cy'), player(4, 'Di', { picked: true })],
       options: openOptions().map((o) => ({ ...o, canPick: false })),
     }));
-    expect(wrapper.text()).toContain('Picked. Waiting for the others (1 of 2).');
-    expect(wrapper.findAll('ul.who li').map((li) => li.text().replace(/\s*✓$/, ''))).toEqual(['Ann', 'Cy']);
+    expect(wrapper.findAll('ul.who li').map((li) => li.text().replace(/\s*✓$/, ''))).toEqual(['Ann', 'Cy', 'Di']);
+    expect(wrapper.text()).toContain('Picked. Waiting for the others (2 of 3).');
   });
 });
 

@@ -37,7 +37,8 @@ you.  That way nobody who has wandered off can hold the table up.  The host sets
   is 3 points.
 - **Writing the truth by accident:** 1 point.  If what you made up comes to the same thing as the subject's own answer
   (ignoring capitals, punctuation and a plural "s"), the two are shown as one answer, you score for having guessed
-  right, and you do not pick that question.
+  right, and you do not pick that question: the true answer is shown to you as the one you picked.  Nobody else is
+  told until the answers are revealed.
 - The subject scores nothing in their own turn, so everybody gets the same number of turns off.  Getting away
   with it has its own reward: there is an achievement for a question of yours that nobody gets right.
 
