@@ -346,7 +346,6 @@ test('one person plays a whole game against two computer players, and scores not
       about: /This turn is about ([^\n]+)/.exec(document.body.innerText)?.[1]?.trim() ?? null,
       mine: Number(document.querySelector('.score-bar .chip.me .points')?.textContent ?? NaN),
       writing: Boolean(document.querySelector('.write-form')),
-      boxes: document.querySelectorAll('.write-form input').length,
     }));
     if (seen.about) about.add(seen.about);
     if (seen.about === me && Number.isFinite(seen.mine)) mineInMyTurn.add(seen.mine);
@@ -356,7 +355,18 @@ test('one person plays a whole game against two computer players, and scores not
       return true;
     }
     if (seen.writing) {
-      for (let n = 0; n < seen.boxes; n++) await solo.fill(`.write-form label:nth-of-type(${n + 1}) input`, `Zebra crossing ${n + 1}`);
+      // Filled in one go, in the page.  The look above can be of a form that has just been sent and is about to go
+      // (the server has not answered yet); typing into it box by box then waited out a whole timeout for a box that
+      // was never coming back, which failed this test about one run in three.  A form that has gone is simply no move.
+      const filled = await solo.page.evaluate(() => {
+        const inputs = [...document.querySelectorAll('.write-form input')];
+        for (const [n, input] of inputs.entries()) {
+          input.value = `Zebra crossing ${n + 1}`;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        return inputs.length > 0;
+      });
+      if (!filled) return false;
       return solo.clickFound(() => [...document.querySelectorAll('.write-form button')].find((button) => !button.disabled) ?? null);
     }
     return solo.clickFound(() => document.querySelector('button.card.pick'));
