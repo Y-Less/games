@@ -84,5 +84,14 @@ this module's namespace.
 - `e2e.test.js` — the crossing, which no unit test can reach: a tour against the real site, opening a room in another
   module and hearing it finish.  The other module is a stand-in written in the test, so a whole cycle takes
   milliseconds and nothing depends on how a real game happens to deal.
+- `invariants.test.js` — a hundred seeded evenings, with everything that should always be true of a tour checked after
+  every step.  A tour holds no cards and keeps no score, so what there is to get wrong is all *shape*: whose votes
+  count, what may be offered, and what it remembers.  It is also where the draw is measured for even-handedness, since
+  a draw that quietly favoured the front of the catalogue would pass every scripted test.
+- `robustness.test.js` — garbage on every event in every phase, from members and from a stranger.
 - `client/table.test.js` — the four screens.
 - `src/components/TourBand.test.js` — the band, including that it keeps quiet about the page you are already on.
+
+`fixtures/standIn.js` is the module the tests open: the smallest thing the room server will accept, which starts when
+opened and finishes on command.  Both the end-to-end and the fuzz test build a temporary modules folder from it,
+because `ctx.games` only exists once the real site has loaded more than one module.

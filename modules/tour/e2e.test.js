@@ -12,11 +12,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as connect } from 'socket.io-client';
 import { startSite } from '../../server/index.js';
+import { modulesWithStandIns } from './fixtures/standIn.js';
 
 process.env.TOUR_BOT_DELAY = '1-4';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const platform = path.join(here, '..', '..');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(condition, what, timeout = 20000) {
@@ -28,72 +28,11 @@ async function until(condition, what, timeout = 20000) {
   assert.fail(`timed out waiting for: ${what}`);
 }
 
-/** The stand-in game: a room-based module with no rules worth the name, which ends when a player says 'endIt'. */
-const MINI_SERVER = `import { rosterLayout } from '../../shared/layout.js';
-import { createRoomServer } from '../../shared/roomServer.js';
-import { createRosterRules, hasPlayer, isBot, isHuman, seatOf, withSlot } from '../../shared/roster.js';
-
-const isLive = (room) => room.phase !== 'finished';
-const makePlayer = (room, base) => ({ ...base });
-const roster = createRosterRules({ isLive, minPlayers: 2, maxPlayers: 8, makePlayer });
-
-const game = {
-  ...roster,
-  isLive,
-  isHuman,
-  isBot,
-  hasPlayer,
-  seatOf,
-  createRoom({ code, hostId, hostName, now }) {
-    const room = { code, hostId, phase: 'lobby', players: [], size: 8, nextIdx: 0, nextBot: 1, recorded: false, createdAt: now, updatedAt: now };
-    room.players.push(withSlot(room, makePlayer(room, { kind: 'human', id: hostId, name: hostName })));
-    return room;
-  },
-  setSettings: () => ({ ok: false, error: 'noSettings' }),
-  start(room) {
-    room.phase = 'playing';
-    return { ok: true };
-  },
-  playAgain(room) {
-    room.phase = 'lobby';
-    return { ok: true };
-  },
-  statsPlayers: () => [],
-  viewFor: (room) => ({ phase: room.phase, players: room.players.map((p) => ({ slot: p.slot, id: p.id, name: p.name, bot: isBot(p) })) }),
-};
-
-export default function (ctx) {
-  return createRoomServer(ctx, {
-    game,
-    pickSettings: () => ({}),
-    members: (room) => room.players,
-    layout: rosterLayout,
-    nextAction: () => null,
-    registerEvents({ on, act }) {
-      on('endIt', () => act((room) => {
-        room.phase = 'finished';
-        return { ok: true };
-      }));
-    },
-  });
-}
-`;
-
-/** A modules folder holding the tour and the stand-in, and the shared code both import. */
-function modulesFor(root) {
-  const dir = path.join(root, 'modules');
-  fs.cpSync(here, path.join(dir, 'tour'), { recursive: true, filter: (source) => !/\.test\.js$/.test(source) && path.basename(source) !== 'client' });
-  fs.cpSync(path.join(platform, 'shared'), path.join(root, 'shared'), { recursive: true, filter: (source) => !/\.test\.js$/.test(source) });
-  fs.mkdirSync(path.join(dir, 'mini'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'mini', 'module.json'), JSON.stringify({ id: 'mini', name: 'Mini', description: 'A stand-in.', minPlayers: 2, maxPlayers: 8, category: 'other' }));
-  fs.writeFileSync(path.join(dir, 'mini', 'server.js'), MINI_SERVER);
-  return dir;
-}
 
 async function launch(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tour-e2e-'));
   const logs = [];
-  const site = await startSite({ port: 0, dataDir: path.join(root, 'site'), modulesDir: modulesFor(root), log: (...args) => logs.push(args.map(String).join(' ')) });
+  const site = await startSite({ port: 0, dataDir: path.join(root, 'site'), modulesDir: modulesWithStandIns(root, here), log: (...args) => logs.push(args.map(String).join(' ')) });
   const base = `http://127.0.0.1:${site.port}`;
   const sockets = [];
   t.after(async () => {

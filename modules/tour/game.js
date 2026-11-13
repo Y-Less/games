@@ -266,6 +266,10 @@ export function playing(room, game, code, now) {
   room.until = now + GAME_MS;
   room.trouble = null;
   room.chosen = null;
+  // The vote is over and has been acted on.  Clearing it here rather than when the next one opens keeps a finished
+  // vote from riding along in the view for as long as the game lasts, and from being mistaken for a running one.
+  room.choices = [];
+  room.votes = {};
   return ok();
 }
 
