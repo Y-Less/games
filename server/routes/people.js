@@ -3,7 +3,10 @@
 // the same way, so they share this.
 import { textFrom } from '../../shared/input.js';
 
-/** A path segment that is all digits is an account id; anything else is the name somebody signs in with. */
+/**
+ * A path segment that is all digits may be an account id.  It may also be the name somebody signs in with, because a
+ * name made only of digits is allowed, so it is looked up as a name when no account has that id.
+ */
 const ID = /^\d{1,15}$/;
 
 /**
@@ -17,7 +20,9 @@ const ID = /^\d{1,15}$/;
 export function personNamed(auth, who) {
   const asked = textFrom(who).trim();
   if (!asked) return null;
-  return ID.test(asked) ? auth.userById(Number(asked)) : auth.userByName(asked);
+  // The id is tried first: the site's own links are made of ids (the leaderboard's, say), and a name must not be able
+  // to take one of them over by being the same digits.
+  return (ID.test(asked) ? auth.userById(Number(asked)) : null) ?? auth.userByName(asked);
 }
 
 /**

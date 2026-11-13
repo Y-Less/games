@@ -27,6 +27,21 @@ test('a person is found by their account id or by the name they sign in with, an
   assert.equal(personNamed(auth, 'nobody'), null);
 });
 
+test('digits are an account id first, and a name only when no account has that id', () => {
+  // The site's own links are made of ids (the leaderboard's, say), so a name must not be able to take one over by
+  // being the same digits; but a name made only of digits is allowed, and its owner has to be findable by it.
+  const tom = { id: 42, username: 'tom', displayName: 'Tom Thumb' };
+  const sevens = { id: 9, username: '777', displayName: 'Sevens' };
+  const impostor = { id: 10, username: '042', displayName: 'Not Tom' };
+  const fortyTwo = { id: 11, username: '42', displayName: 'Also Not Tom' };
+  const people = [tom, sevens, impostor, fortyTwo];
+  const auth = { userById: (id) => people.find((p) => p.id === id) ?? null, userByName: (name) => people.find((p) => p.username === name) ?? null };
+  assert.equal(personNamed(auth, '777'), sevens, 'no account 777, so it is the name');
+  assert.equal(personNamed(auth, '42'), tom, 'account 42 is who a link to 42 means, whatever anybody is called');
+  assert.equal(personNamed(auth, '9'), sevens, 'and they are still found by their id');
+  assert.equal(personNamed(auth, '555'), null);
+});
+
 test('a segment that names nobody at all is nobody, without the database being asked', () => {
   const auth = recordingAuth();
   for (const who of ['', '   ', undefined, null, {}, [], ['tom'], { toString: () => 'tom' }, Object.create(null), true]) {
@@ -65,9 +80,9 @@ test("your own statistics carry your time on the site as a whole number of secon
 });
 
 // people-http.test.js says <who> is "the name they sign in with or their account id".  A username may be all digits
-// (server/auth.js USERNAME allows it), and such a name is taken for an id (routes/people.js ID), so its owner cannot
-// be found by the name they sign in with, and the address finds whoever has that id instead.
-test('somebody whose username is all digits is still found by that name', { todo: 'routes/people.js:7 treats every all-digit segment as an account id, so /api/stats/user/<digits> never looks up the username; an account named "2" is unreachable by name and the address shows account 2 instead' }, async (t) => {
+// (server/auth.js USERNAME allows it), and such a name used to be taken for an id and nothing else (routes/people.js
+// ID), so its owner could not be found by the name they sign in with.
+test('somebody whose username is all digits is still found by that name', async (t) => {
   const { client } = await withSite(t);
   const first = client();
   await register(first, 'first', 'correct horse 1');
