@@ -338,7 +338,7 @@ test('a wildcard left in a rack costs thirty, and every other tile its number', 
   assert.equal(rackValue(s, [0, 12, 104]), 1 + 13 + 30, 'a 1, a 13, and a wildcard');
 });
 
-test('settings that are refused leave the lobby exactly as it was, the number of seats included', { todo: 'setSettings applies `size` (and resets the game) before it checks the other settings, so a refusal leaves the table resized: game.js setSettings says "nothing changes on failure"' }, () => {
+test('settings that are refused leave the lobby exactly as it was, the number of seats included', () => {
   const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'p1', now: 0 });
   const seats = room.seats.length;
   const result = game.setSettings(room, 1, { size: 3, numbers: 'lots' });

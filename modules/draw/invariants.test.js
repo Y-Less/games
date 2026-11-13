@@ -319,7 +319,7 @@ test('a game is the same game every time for a seed: the rules use only the rand
   for (const seed of [6, 40, 91]) assert.equal(JSON.stringify(playGame(seed).room), JSON.stringify(playGame(seed).room), `seed ${seed}`);
 });
 
-test('a person replaced between turns is renamed everywhere the room names them, the two words being shown included', { todo: 'renameId (game.js) renames reveal.words and reveal.winner but leaves reveal.drawers holding the id of the person who left, though it says it renames an id "everywhere this game writes one down"; every view sent while the words are up carries it' }, () => {
+test('a person replaced between turns is renamed everywhere the room names them, the two words being shown included', () => {
   const rng = seeded(1);
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Zeb1', now: 0 });
   game.addHuman(room, 2, 'Zeb2');
@@ -336,7 +336,7 @@ test('a person replaced between turns is renamed everywhere the room names them,
   assert.deepEqual(game.viewFor(room, 1).reveal.drawers, game.drawersOf(room), 'what everybody is sent names the two who are drawing now');
 });
 
-test('settings that are refused leave the lobby exactly as it was, the number of players included', { todo: 'setSettings applies `size` before it checks the other settings, so a refusal leaves the room resized: game.js setSettings says a setting out of bounds "is refused without changing any of them, so the room is never left half changed"' }, () => {
+test('settings that are refused leave the lobby exactly as it was, the number of players included', () => {
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Zeb1', now: 0 });
   const size = room.size;
   const result = game.setSettings(room, 1, { size: 4, rounds: 99 });

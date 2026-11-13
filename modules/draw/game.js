@@ -242,7 +242,10 @@ function renameId(room, from, to, name) {
     room.reveal.winner.drawer = renamed(room.reveal.winner.drawer);
     room.reveal.winner.guesser = renamed(room.reveal.winner.guesser);
   }
-  if (room.reveal) room.reveal.words = rekey(room.reveal.words);
+  if (room.reveal) {
+    room.reveal.words = rekey(room.reveal.words);
+    if (room.reveal.drawers) room.reveal.drawers = room.reveal.drawers.map(renamed);
+  }
   for (const line of room.feed) {
     if (line.id === from) {
       line.id = to;
@@ -297,16 +300,17 @@ const SETTINGS = { rounds: ROUNDS, drawTime: DRAW_TIME, wordChoices: WORD_CHOICE
 export function setSettings(room, id, settings = {}) {
   const refused = hostInLobby(room, id);
   if (refused) return refused;
-  if (settings.size !== undefined) {
-    const sized = roster.setSize(room, id, settings.size);
-    if (!sized.ok) return sized;
-  }
   const wanted = {};
   for (const [key, bounds] of Object.entries(SETTINGS)) {
     if (settings[key] === undefined) continue;
     const n = Math.round(numberFrom(settings[key]));
     if (!Number.isFinite(n) || n < bounds.min || n > bounds.max) return fail(key, { min: bounds.min, max: bounds.max });
     wanted[key] = n;
+  }
+  // The size goes last of the things that can be refused, so that a refusal of anything leaves the room as it was.
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
   }
   Object.assign(room, wanted);
   return ok();

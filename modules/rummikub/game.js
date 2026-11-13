@@ -204,13 +204,15 @@ export const { addHuman, addBot, removeBot, fillWithBots, kick, removeHuman, siz
 export function setSettings(room, userId, input) {
   const problem = hostInLobby(room, userId);
   if (problem) return problem;
+  // The other settings are checked before the size is touched: resizing the table resets the game, and a change that
+  // is then refused for something else must not leave the table a different size from the one it was asked about.
+  const next = normaliseSettings(input, room.settings);
+  if (!next.ok) return refuse(next.error);
   // How many the game is for is an ordinary lobby setting, and arrives with the rest of them.
   if (input.size !== undefined) {
     const sized = setSize(room, userId, input.size);
     if (!sized.ok) return sized;
   }
-  const next = normaliseSettings(input, room.settings);
-  if (!next.ok) return refuse(next.error);
   room.settings = next.settings;
   return ok();
 }
