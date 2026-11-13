@@ -424,6 +424,7 @@
     "tooLarge": "That is too large.",
     "sendJson": "Send JSON.",
     "invalidJson": "That was not valid JSON.",
+    "badRequest": "That request could not be understood.",
     "serverError": "Something went wrong on the server.",
     "noRules": "No rules for that game.",
     "noSuchGame": "No such game.",

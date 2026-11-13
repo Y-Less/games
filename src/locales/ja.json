@@ -413,6 +413,7 @@
     "tooLarge": "大きすぎます。",
     "sendJson": "JSONを送ってください。",
     "invalidJson": "正しいJSONではありません。",
+    "badRequest": "リクエストを理解できませんでした。",
     "serverError": "サーバーで問題が起きました。",
     "noRules": "そのゲームのルールはありません。",
     "noSuchGame": "そのゲームはありません。",

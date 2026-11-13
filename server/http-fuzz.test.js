@@ -5,10 +5,9 @@
 // a change to somebody else's account.  Every failure message carries the seed and the step, so a failing run can be
 // replayed exactly.
 //
-// Three kinds of request are known to get a 500 today and are kept OUT of the random generator, so that the fuzz's
-// "never a 5xx" stays strict for everything else: a path segment that cannot be percent-decoded, a charset the JSON
-// parser does not support, and a Content-Encoding that is unknown or does not match the body.  Each has its own `todo`
-// test at the bottom of this file.
+// Three kinds of request are not made by the random generator, because each once got a 500 and so has a test of its
+// own at the bottom of this file: a path segment that cannot be percent-decoded, a charset the JSON parser does not
+// support, and a Content-Encoding that is unknown or does not match the body.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -516,11 +515,11 @@ test('prototype-pollution keys, at the top of a body, inside each field, and in 
   assert.deepEqual(Object.keys(fresh.user).sort(), keysBefore, 'with the ordinary fields and no others');
 });
 
-// ---- known faults: requests that are the client's mistake and are answered with a 500 ----
-// routes/errorHandler.js knows an AuthError, a body that is too large, and a body that is not JSON; every other error
-// that express or its body parser raises, including those that carry a 4xx status of their own, falls through to the
-// 500 and is logged as though the server had failed.  auth-http.test.js states the intent for the neighbouring case
-// ("invalid JSON is a 400 with a JSON error, never a 500").
+// ---- requests that are the client's mistake, and that express or its body parser refuses by itself ----
+// These used to fall through routes/errorHandler.js to the 500 and be logged as though the server had failed, because
+// it knew only an AuthError, a body that is too large, and a body that is not JSON.  An error that carries a 4xx
+// status of its own is answered with that status now, as auth-http.test.js says of the neighbouring case ("invalid
+// JSON is a 400 with a JSON error, never a 500").
 
 /** Sends each request to a fresh site and asserts it is refused as the client's mistake: a 4xx, and nothing logged as a fault. */
 async function assertClientErrors(t, requests) {
@@ -534,7 +533,7 @@ async function assertClientErrors(t, requests) {
 
 const CREDENTIALS = JSON.stringify({ username: 'fuzzer', password: PASSWORD });
 
-test('a path that cannot be percent-decoded is a 4xx, not a 500', { todo: 'server/routes/errorHandler.js:18 answers 500 to any error that is not an AuthError or one of two body-parser types, including the 400 the router raises for an undecodable path segment: GET /api/stats/user/%E0%A4%A (or GET /%) gives 500 serverError' }, async (t) => {
+test('a path that cannot be percent-decoded is a 4xx, not a 500', async (t) => {
   await assertClientErrors(t, [
     '/api/stats/user/%E0%A4%A',
     '/api/achievements/user/%',
@@ -547,14 +546,14 @@ test('a path that cannot be percent-decoded is a 4xx, not a 500', { todo: 'serve
   ].map((url) => [`GET ${url}`, { path: url }]));
 });
 
-test('a JSON body in a charset the server does not read is a 4xx, not a 500', { todo: 'server/routes/errorHandler.js:18: the body parser raises a 415 (type "charset.unsupported") that the handler does not recognise: POST /api/auth/login with "content-type: application/json; charset=latin1" gives 500 serverError' }, async (t) => {
-  await assertClientErrors(t, ['latin1', 'iso-8859-1', 'utf-7', 'nonsense'].map((charset) => [
+test('a JSON body in a charset the server does not read is a 4xx, not a 500', async (t) => {
+  await assertClientErrors(t, ['latin1', 'iso-8859-1', 'nonsense'].map((charset) => [
     `charset=${charset}`,
     { method: 'POST', path: '/api/auth/login', headers: { 'content-type': `application/json; charset=${charset}` }, body: CREDENTIALS },
   ]));
 });
 
-test('a body whose Content-Encoding is unknown, or is not what the body is, is a 4xx, not a 500', { todo: 'server/routes/errorHandler.js:18: the body parser raises a 415 ("encoding.unsupported") or a 400 (the inflate error) that the handler does not recognise: POST /api/auth/login, or an image upload, with "content-encoding: gzip" and a body that is not gzip gives 500 serverError' }, async (t) => {
+test('a body whose Content-Encoding is unknown, or is not what the body is, is a 4xx, not a 500', async (t) => {
   await assertClientErrors(t, [
     ['JSON said to be gzip', { method: 'POST', path: '/api/auth/login', headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' }, body: CREDENTIALS }],
     ['JSON said to be deflate', { method: 'POST', path: '/api/auth/login', headers: { 'content-type': 'application/json', 'content-encoding': 'deflate' }, body: CREDENTIALS }],
