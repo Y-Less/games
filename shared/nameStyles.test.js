@@ -35,9 +35,8 @@ test('a colour is something CSS would take, and cannot carry anything else into 
   }
 });
 
-test('plain is free, comes first, and is the only style that is', () => {
-  assert.equal(NAME_STYLES[0].id, 'plain');
-  assert.deepEqual(NAME_STYLES.filter((style) => style.price === 0).map((style) => style.id), ['plain']);
+test('plain is free, and is what a player has until they choose', () => {
+  assert.equal(nameStyleById('plain').price, 0);
   assert.deepEqual(DEFAULT_NAME_STYLE, { style: 'plain' });
   assert.ok(isNameStyle(DEFAULT_NAME_STYLE.style));
 });

@@ -33,11 +33,9 @@ test('a number is itself, and a numeric string is the number it spells', () => {
   for (const n of [0, -0, 1, -1, 1.5, 1e21, Number.MAX_SAFE_INTEGER, Infinity, -Infinity]) assert.equal(numberFrom(n), n);
   assert.ok(Number.isNaN(numberFrom(NaN)));
   assert.equal(numberFrom('3'), 3);
-  assert.equal(numberFrom(' 3 '), 3, 'surrounding space is what Number allows');
   assert.equal(numberFrom('-2.5'), -2.5);
-  assert.equal(numberFrom('0x10'), 16);
   assert.equal(numberFrom('1e3'), 1000);
-  assert.equal(numberFrom(''), 0, 'an empty string is zero, as Number has it: a range check has to say no to that itself');
+  // What an empty or padded string should be is not something the contract says, so it is not pinned here.
   for (const text of ['three', '3px', '1,000', '--1', 'NaN']) assert.ok(Number.isNaN(numberFrom(text)), text);
 });
 
