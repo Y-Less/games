@@ -76,8 +76,9 @@ export const seatLayout = {
     const index = this.indexOf(room, slot);
     return index === -1 ? null : (room.seats[index] ?? null);
   },
-  /** The slot this id is in, or undefined.  An empty seat holds nobody, so it never matches. */
+  /** The slot this id is in, or undefined.  An empty seat holds nobody, so it never matches: not even no id at all. */
   slotOfId(room, id) {
+    if (id === undefined || id === null) return undefined;
     const index = room.seats.findIndex((seat) => seat?.id === id);
     return index === -1 ? undefined : slotForSeat(index);
   },

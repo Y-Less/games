@@ -125,7 +125,7 @@ test('seats: the slot somebody is in is found from their id, and a stranger has 
   assert.equal(seatLayout.slotOfId(room, '7'), undefined, 'an id is matched as it is, not as text that looks like it');
 });
 
-test('seats: an empty seat never matches an id, even no id at all', { todo: 'seatLayout.slotOfId(room, undefined) answers with the first empty seat: `seat?.id` is undefined for a hole, which equals an undefined id' }, () => {
+test('seats: an empty seat never matches an id, even no id at all', () => {
   const room = { seats: [human(7), null, null] };
   assert.equal(seatLayout.slotOfId(room, undefined), undefined);
 });
