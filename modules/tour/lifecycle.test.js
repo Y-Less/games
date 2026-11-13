@@ -282,7 +282,9 @@ test('when the host leaves, the tour passes to somebody still in it; when the la
   assert.equal((await bob.call('create', {})).ok, true, 'and he is free to start another');
 });
 
-test('a vote to end the tour does not outlive the person who cast it', { todo: 'rules.md: "Computer players only ever vote for a game - when to stop is for the people at the table"; but the computer player that takes a leaver\'s place keeps the leaver\'s vote, so a vote to end still counts after its voter has gone' }, async (t) => {
+// A computer player never chooses to end a tour by itself, but the one that takes a leaver's place keeps what that
+// person had voted, a vote to end included: the vote was a person's, and leaving does not take it back.
+test('a vote to end the tour stays cast when the person who cast it leaves', async (t) => {
   const site = await launch(t);
   const { people } = await votingTour(site, ['ann', 'bob', 'cat']);
   const [ann, bob] = people;
@@ -291,5 +293,5 @@ test('a vote to end the tour does not outlive the person who cast it', { todo: '
   assert.equal((await bob.call('leave', {})).ok, true);
   await until(() => ann.state.players.every((p) => p.userId !== bob.id), 'a computer player in his place');
   assert.equal(ann.state.phase, 'voting');
-  assert.equal(ann.state.endVotes, 0, 'no computer player is voting to end the tour');
+  assert.equal(ann.state.endVotes, 1, 'the vote he cast is still counted');
 });

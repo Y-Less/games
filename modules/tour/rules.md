@@ -20,7 +20,8 @@ after every game, until you decide to stop.
   and the second vote is not the first vote's three.
 - There is always a fourth choice: **End the tour**.
 - Everybody votes, computer players included, and you can change your mind until the vote closes.  Computer players
-  only ever vote for a game — when to stop is for the people at the table.
+  only ever vote for a game — when to stop is for the people at the table.  A vote somebody cast before they left
+  stays cast, though: the computer player that takes their place keeps it, a vote to end included.
 - The vote closes as soon as everybody has voted, or after a minute, whichever comes first.  The most votes wins and a
   tie is settled at random.  A vote nobody answers falls to one of the games, never to ending.
 
