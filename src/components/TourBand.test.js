@@ -42,14 +42,24 @@ describe('the tour band', () => {
     expect(links).toEqual(['/play/hearts?x-y-z', '/play/tour?boss-aware-you']);
   });
 
-  it('keeps quiet about the page you are already on', async () => {
+  it('says nothing on the tour page when the tour is where you already are', async () => {
     Object.assign(tour, { code: 'boss-aware-you', phase: 'voting' });
     expect((await band('/play/tour')).find('.tour-band').exists()).toBe(false);
+  });
 
+  it('offers the tour back from inside the game it sent you to', async () => {
+    // The band is the way back, so on the game's own page it points at the tour rather than hiding itself.
     Object.assign(tour, { code: 'boss-aware-you', phase: 'playing', game: 'hearts', gameCode: 'x-y-z' });
-    expect((await band('/play/hearts')).find('.tour-band').exists()).toBe(false);
-    // From the tour's own page it is still worth offering, because the game is somewhere else.
-    expect((await band('/play/tour')).find('.tour-band').exists()).toBe(true);
+    const w = await band('/play/hearts');
+    expect(w.find('.tour-band').exists()).toBe(true);
+    expect(w.findAll('a').map((a) => a.attributes('href'))).toEqual(['/play/tour?boss-aware-you']);
+    expect(w.text()).toContain('The tour');
+  });
+
+  it('offers the game from the tour page while one is being played', async () => {
+    Object.assign(tour, { code: 'boss-aware-you', phase: 'playing', game: 'hearts', gameCode: 'x-y-z' });
+    const w = await band('/play/tour');
+    expect(w.findAll('a').map((a) => a.attributes('href'))).toEqual(['/play/hearts?x-y-z'], 'and does not offer the page you are on');
   });
 
   it('can be hidden, and stays hidden until the tour moves again', async () => {

@@ -29,10 +29,24 @@ const gameName = computed(() => {
   return meta ? catalogue.gameName(meta) : tour.game;
 });
 
-/** Where this band is pointing: the game while one is being played, otherwise the tour. */
-const target = computed(() => (tour.phase === 'playing' && gameLink.value ? gameLink.value : tourLink.value));
-/** Show it only when there is a tour, you have not hidden it, and it is not pointing at the page you are already on. */
-const shown = computed(() => Boolean(tour.code) && !tour.dismissed && route.path !== target.value.split('?')[0]);
+const onTour = computed(() => route.path === '/play/tour');
+const onGame = computed(() => Boolean(tour.game) && route.path === `/play/${tour.game}`);
+const playing = computed(() => tour.phase === 'playing' && Boolean(gameLink.value));
+
+/**
+ * The way the band offers, or null when there is nowhere worth offering.  There are two places a tour can put you —
+ * the tour itself and the game it is playing — so the band points at whichever you are not looking at, and says
+ * nothing at all when you are already where it would send you.
+ */
+const primary = computed(() => {
+  if (playing.value && !onGame.value) return { to: gameLink.value, label: 'toGame' };
+  if (onTour.value) return null;
+  return { to: tourLink.value, label: playing.value ? 'toTour' : 'toVote' };
+});
+/** The tour, offered more quietly, when the band is pointing at the game and you are at neither. */
+const secondary = computed(() => (playing.value && !onGame.value && !onTour.value ? tourLink.value : null));
+/** Show it when there is a tour, you have not hidden it, and there is somewhere to go. */
+const shown = computed(() => Boolean(tour.code) && !tour.dismissed && primary.value !== null);
 </script>
 
 <template>
@@ -42,11 +56,8 @@ const shown = computed(() => Boolean(tour.code) && !tour.dismissed && route.path
       <template v-else-if="tour.phase === 'opening'">{{ $t('tourBand.opening') }}</template>
       <template v-else>{{ $t('tourBand.voting') }}</template>
     </span>
-    <RouterLink class="button primary" :to="target">
-      <template v-if="tour.phase === 'playing'">{{ $t('tourBand.toGame') }}</template>
-      <template v-else>{{ $t('tourBand.toVote') }}</template>
-    </RouterLink>
-    <RouterLink v-if="tour.phase === 'playing'" class="quiet-link" :to="tourLink">{{ $t('tourBand.toTour') }}</RouterLink>
+    <RouterLink class="button primary" :to="primary.to">{{ $t(`tourBand.${primary.label}`) }}</RouterLink>
+    <RouterLink v-if="secondary" class="quiet-link" :to="secondary">{{ $t('tourBand.toTour') }}</RouterLink>
     <button type="button" class="quiet" :aria-label="$t('tourBand.hide')" @click="clearTour(true)">×</button>
   </aside>
 </template>
