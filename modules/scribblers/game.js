@@ -753,10 +753,20 @@ export function timeUp(room, rng, now, nameOf = String) {
  * @param {object} room  the room (mutated)
  * @param {number} now  the clock
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: as endTurn (nobody scores, since nobody can have guessed).
+ * Side effects: as endTurn, but nobody scores: what a guesser was given for finding the word before the drawer went is
+ *   taken back first, so the drawer is paid nothing for it either.
  */
 export function skipTurn(room, now) {
   if (!['choosing', 'drawing'].includes(room.phase)) return fail('nothingToSkip');
+  // A guess scores the moment it is made, so a drawer who vanishes after one leaves points on the table.  The rules
+  // say a turn given up scores for nobody, and that includes the people who were quick.
+  for (const { id, points } of room.guessed ?? []) {
+    const guesser = playerOf(room, id);
+    if (!guesser) continue;
+    guesser.score -= points;
+    guesser.lastScore = 0;
+  }
+  room.guessed = [];
   endTurn(room, 'drawerAway', now);
   return ok();
 }

@@ -229,10 +229,8 @@ function playRandom(seed) {
     (id) => game.playAgain(room, id),
     () => game.pendingBotAction(room) && { ok: game.runBotAction(room, rng, now) },
     () => (room.phase === 'scores' ? game.forceNextRound(room, rng, now) : null),
-    // A drawer whose connection has gone has the turn given up.  The server gives up any such turn; this test holds
-    // back to turns nobody has guessed yet, because a turn given up after a right guess is the subject of its own
-    // test below (which is marked todo).
-    () => (['choosing', 'drawing'].includes(room.phase) && !room.guessed.length && rng() < 0.3 ? game.skipTurn(room, now) : null),
+    // A drawer whose connection has gone has the turn given up, whether or not anybody had guessed the word by then.
+    () => (['choosing', 'drawing'].includes(room.phase) && rng() < 0.3 ? game.skipTurn(room, now) : null),
   ];
 
   // The scores as the turn being played began, by place; null for a turn this test did not see the start of.
@@ -262,6 +260,7 @@ function playRandom(seed) {
     else if (room.phase === 'scores' && rng() < 0.5) action = (who) => game.ready(room, who, rng, now);
 
     const before = snapshot(room);
+    const turnWasOn = ['choosing', 'drawing'].includes(room.phase);
     const result = action(id);
     if (result && result.ok === false) {
       assert.equal(typeof result.error, 'string', `${label}: a refusal says why`);
@@ -273,9 +272,17 @@ function playRandom(seed) {
     checkRoom(room, label);
     checkViews(room, label, now);
 
-    // Nobody's score ever goes down, whatever the table makes of their drawing.
+    // Nobody's score ever goes down, whatever the table makes of their drawing; with the one exception the rules make,
+    // which is a turn given up because its drawer has gone: "nobody scores", so what a quick guesser had been given
+    // for that turn is taken back, and nobody comes out of it with anything.
+    const givenUp = turnWasOn && room.phase === 'between' && room.reveal?.reason === 'drawerAway';
+    if (givenUp) {
+      assert.deepEqual(room.reveal.points, {}, `${label}: somebody scored on a turn that was given up`);
+      for (const p of room.players) assert.equal(p.lastScore ?? 0, 0, `${label}: ${p.id} scored on a turn that was given up`);
+    }
     for (const p of room.players) {
-      assert.ok(p.score >= (highest.get(p.slot) ?? 0), `${label}: the score of ${p.id} went down`);
+      if (givenUp) assert.ok(p.score >= 0 && p.score <= (highest.get(p.slot) ?? 0), `${label}: the score of ${p.id} is ${p.score} after a turn that was given up`);
+      else assert.ok(p.score >= (highest.get(p.slot) ?? 0), `${label}: the score of ${p.id} went down`);
       highest.set(p.slot, p.score);
     }
     // A drawing nobody guessed is worth nothing to anybody.
@@ -400,7 +407,7 @@ test('the drawer of a drawing somebody guessed scores the average of the guesser
   }
 });
 
-test('a turn given up because its drawer has gone scores for nobody, even when somebody had already guessed the word', { todo: 'rules.md says "nobody scores and play moves on", and skipTurn assumes "nobody can have guessed"; but a drawer whose connection drops after a right guess leaves the guesser their points and is paid the average too' }, () => {
+test('a turn given up because its drawer has gone scores for nobody, even when somebody had already guessed the word', () => {
   const rng = seeded(77);
   const now = 1_000_000;
   const room = game.createRoom({ code: 'a-b-c', hostId: 1, hostName: 'Player 1', settings: { rounds: 1, drawTime: 60 }, now, chooseMs: 1000, betweenMs: 500 });
