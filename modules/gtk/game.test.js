@@ -232,6 +232,38 @@ test('a made-up answer that is really the truth joins it: its writer scores and 
   assert.equal(copier.score, game.POINTS.matched);
 });
 
+test('when everybody writes the true answer there is nothing to pick: the question is scored at once, a point each', () => {
+  // The whole table knows the subject too well.  Every made-up answer joins the true one, so there is one card and
+  // nobody with anything to choose between; a question that waited for a pick here would wait for ever.
+  const { room, rng } = started(4, { seed: 21 });
+  const subject = room.subject;
+  const others = room.players.filter((p) => p.id !== subject);
+  assert.equal(game.submitAnswers(room, subject, ['Apples', 'Blue'], rng, names).ok, true);
+  // The same answer to the first question, each written their own way (capitals, punctuation, and a plural "s" are
+  // ignored); different answers to the second, so only the first question is the one everybody got.
+  const spellings = ['apple', 'APPLES!', 'Apples.'];
+  for (const [n, p] of others.entries()) {
+    assert.equal(game.submitAnswers(room, p.id, [spellings[n], `${p.id} two`], rng, names).ok, true);
+  }
+
+  assert.equal(room.phase, 'reveal', 'straight to the scores, with nobody asked to pick');
+  assert.equal(room.question, 0, 'and it is the first question that is being shown');
+  for (const p of others) assert.equal(p.score, game.POINTS.matched, `${names(p.id)} scores for having guessed right`);
+  assert.equal(room.players.find((p) => p.id === subject).score, 0, 'the subject scores nothing in their own turn');
+
+  // What the table is shown: one answer, the subject's own words, written by all of them and picked by nobody.
+  for (const viewer of room.players) {
+    const view = game.viewFor(room, viewer.id, { nameOf: names });
+    assert.equal(view.options.length, 1, 'the matching answers are one card');
+    assert.equal(view.options[0].text, 'Apples');
+    assert.equal(view.options[0].truth, true);
+    assert.deepEqual(view.options[0].authors.map((a) => a.id).sort(), others.map((p) => p.id).sort());
+    assert.deepEqual(view.options[0].pickedBy, []);
+  }
+  // Nobody tries to pick now, and nobody can.
+  for (const p of room.players) assert.equal(game.choose(room, p.id, 0, names).ok, false);
+});
+
 test('somebody who wrote the truth looks to the table like any other player who has yet to pick, and then like one who has', () => {
   // Nothing may say before the reveal that an answer was written twice.  So the copier is not ticked from the moment
   // the answers go up (that would be a tick nobody could have earned yet), and is ticked once a real pick is in.
