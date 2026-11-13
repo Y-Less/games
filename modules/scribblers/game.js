@@ -23,6 +23,7 @@ import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
+import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
@@ -191,7 +192,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     updatedAt: now,
   };
   room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
-  setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
+  eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
   return room;
 }
 
@@ -221,6 +222,11 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * Side effects: sets room.rounds, room.drawTime and room.wordChoices.
  */
 export function setSettings(room, id, settings = {}) {
+  return allOrNothing(room, () => applySettings(room, id, settings));
+}
+
+/** The change itself, a setting at a time; setSettings is what makes a refusal undo the settings applied before it. */
+function applySettings(room, id, settings) {
   const refused = hostInLobby(room, id);
   if (refused) return refused;
   if (settings.size !== undefined) {

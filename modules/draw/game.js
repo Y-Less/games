@@ -17,6 +17,7 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
+import { eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
@@ -181,7 +182,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, language = D
     updatedAt: now,
   };
   room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
-  setSettings(room, hostId, settings);
+  eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
   return room;
 }
 

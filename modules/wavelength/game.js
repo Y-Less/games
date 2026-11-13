@@ -14,6 +14,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
+import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
@@ -197,7 +198,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, rounds 
     updatedAt: now,
   };
   room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId }, { colour })));
-  setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
+  eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
   return room;
 }
 
@@ -226,9 +227,14 @@ export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = 
  * @param {object} settings  { rounds?, mode? }
  * @returns {{ ok: boolean, error?: string }}
  *
- * Side effects: sets room.rounds and/or room.mode when given; if the first is accepted and the second refused, the first stays changed.
+ * Side effects: sets the size, room.rounds, and room.mode as given; a refusal of any of them changes nothing.
  */
 export function setSettings(room, id, settings = {}) {
+  return allOrNothing(room, () => applySettings(room, id, settings));
+}
+
+/** The change itself, a setting at a time; setSettings is what makes a refusal undo the settings applied before it. */
+function applySettings(room, id, settings) {
   if (settings.size !== undefined) {
     const sized = roster.setSize(room, id, settings.size);
     if (!sized.ok) return sized;

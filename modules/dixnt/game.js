@@ -45,6 +45,7 @@ import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
+import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
@@ -360,7 +361,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     };
     normaliseSettings(room);
     room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
-    setSettings(room, hostId, settings); // a setting the host got wrong is simply left at its default
+    eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
     return room;
   }
 
@@ -543,6 +544,11 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * Side effects: may change room.handSize, room.rounds, room.judging and room.categories.
    */
   function setSettings(room, id, settings = {}) {
+    return allOrNothing(room, () => applySettings(room, id, settings));
+  }
+
+  /** The change itself; setSettings is what makes a refusal undo the resize that came before it. */
+  function applySettings(room, id, settings) {
     const refused = hostInLobby(room, id);
     if (refused) return refused;
     if (settings.size !== undefined) {
