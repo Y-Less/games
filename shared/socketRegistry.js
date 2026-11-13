@@ -108,10 +108,10 @@ export function createSocketRegistry() {
     },
 
     /**
-     * Points a socket at a room.
+     * Points a socket at a room, or at none.
      * @param {number} userId  the account behind it
      * @param {object} socket  the socket
-     * @param {string} code  the room's code
+     * @param {string | null} code  the room's code, or null for the menu
      * @returns {void}
      * Side effects: sets `socket.data.code` and moves it in the room index.
      */

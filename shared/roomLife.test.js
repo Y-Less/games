@@ -240,7 +240,6 @@ for (const [name, how] of [
 ]) {
   test(
     `a socket looking at a finished game that ${name} is shown the menu, and from then on is at the menu`,
-    { todo: 'enter emits a null state on these branches without detaching the socket, so `socket.data.code` still names the room, the person still counts as connected to it, and its next change is sent to a socket that was told it is at the menu' },
     (t) => {
       const { life, room, socket } = world(t);
       const finished = room('a-b-c', [1, 2], { phase: 'finished' });

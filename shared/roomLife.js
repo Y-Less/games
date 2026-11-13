@@ -157,6 +157,21 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   }
 
   /**
+   * Shows one socket the menu, and lets go of whatever room it was looking at.  For a socket that asked to enter a room
+   * and could not: it may still have been pointed at a finished game, and a socket told it is at the menu must not go on
+   * counting as there or being sent that room's changes.
+   * @param {object} socket  the socket
+   * @returns {void}
+   * Side effects: clears `socket.data.code`, emits a null 'state' to it, and tells the room it left that somebody has gone.
+   */
+  function showMenu(socket) {
+    const left = socket.data.code ? rooms.get(socket.data.code) : null;
+    registry.attach(socket.data.user.id, socket, null);
+    socket.emit('state', null);
+    if (left) push(left);
+  }
+
+  /**
    * Tells the statistics about a finished game, once.
    * @param {object} room  the room to check
    * @returns {void}
@@ -255,7 +270,7 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
    * @param {object} socket  the connected socket (needs `data.user`)
    * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here
    * @returns {{ ok: boolean, code?: string | null, error?: string, params?: object }} the ack for the client
-   * Side effects: attaches the socket to a room or emits a null 'state'; joining adds the person to the room, leaves other rooms, and calls `changed`.
+   * Side effects: attaches the socket to a room, or shows it the menu and lets go of the room it was looking at; joining adds the person to the room, leaves other rooms, and calls `changed`.
    */
   function enter(socket, rawCode) {
     const userId = socket.data.user.id;
@@ -272,12 +287,12 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     }
     if (!code) {
       // A finished game is not resumed without its invite code: coming back from the menu starts afresh.
-      socket.emit('state', null);
+      showMenu(socket);
       return { ok: true, code: null };
     }
     const room = rooms.get(code);
     if (!room) {
-      socket.emit('state', null);
+      showMenu(socket);
       return { ok: false, error: 'noGameWithCode' };
     }
     if (game.hasPlayer(room, userId)) {
@@ -286,7 +301,7 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     }
     const added = game.addHuman(room, userId, socket.data.user.name, playerExtras(userId));
     if (!added.ok) {
-      socket.emit('state', null);
+      showMenu(socket);
       return room.phase === 'finished' ? { ok: false, error: 'thatGameFinished' } : added;
     }
     leaveAllRooms(userId, room);
