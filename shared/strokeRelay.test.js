@@ -489,9 +489,11 @@ test('a word with no picture anywhere leaves the board empty, says so in the log
   assert.deepEqual(relay.canvasOf(room).ops, []);
 });
 
-const ONCE_A_TURN = 'canvasOf forgets every painted mark of the room when it starts a turn’s boards, even when paint has already marked a board of that same turn; so if the boards are first started after paint began (a canvas request, a stroke on another board), a picture still being fetched, or not found, is due again';
+// canvasOf used to forget every painted mark of the room when it started a turn's boards, even one paint had already
+// made for that same turn.  So if the boards were first started after paint began (a canvas request, a stroke on
+// another board), a picture still being fetched, or not found, came due again.
 
-test('somebody asking for the canvas while a picture is being fetched does not make it due a second time', { todo: ONCE_A_TURN }, async (t) => {
+test('somebody asking for the canvas while a picture is being fetched does not make it due a second time', async (t) => {
   keepAlive(t);
   let deliver;
   const fetched = new Promise((resolve) => { deliver = resolve; });
@@ -504,7 +506,7 @@ test('somebody asking for the canvas while a picture is being fetched does not m
   assert.equal(due, false, 'a second timer would start the same picture again, and it would go on twice');
 });
 
-test('a person drawing on their own board does not make the computer player’s board due its picture again', { todo: ONCE_A_TURN }, async (t) => {
+test('a person drawing on their own board does not make the computer player’s board due its picture again', async (t) => {
   keepAlive(t);
   let deliver;
   const fetched = new Promise((resolve) => { deliver = resolve; });
@@ -517,7 +519,7 @@ test('a person drawing on their own board does not make the computer player’s 
   assert.equal(due, false);
 });
 
-test('a word with no picture is not looked up again this turn, even after somebody has asked for the canvas', { todo: ONCE_A_TURN }, async (t) => {
+test('a word with no picture is not looked up again this turn, even after somebody has asked for the canvas', async (t) => {
   keepAlive(t);
   const { relay, room, send, as } = rig({ relay: { pictureFor: async () => ({ ops: [] }) } });
   await relay.paint(room, 0, send, seeded(1), () => 0);

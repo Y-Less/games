@@ -121,7 +121,11 @@ export function createStrokeRelay({
     if (!entry || entry.key !== key) {
       entry = { key, boards: Array.from({ length: boards(room) }, () => newDrawing()) };
       canvases.set(room.code, entry);
-      painted.delete(room.code);
+      // The marks of turns gone by are forgotten, and only those: `paint` may already have marked a board of this
+      // turn before anything asked for its boards (the picture is still on its way, and somebody opened the page), and
+      // forgetting that mark too made the same picture due a second time.
+      const marks = painted.get(room.code);
+      if (marks) for (const mark of marks) if (!mark.startsWith(`${key}:`)) marks.delete(mark);
     }
     return entry.boards[board];
   }
