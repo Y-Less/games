@@ -291,7 +291,7 @@ for (const [k, turn] of TURNS.entries()) {
   }));
 }
 
-test('a made-up answer that is the true one leaves its writer out of those who have to pick', { todo: 'modules/gtk/client/Table.vue lists everybody but the subject under "Who has picked", though its own comment (and the rules) leave out whoever wrote the true answer' }, () => {
+test('a made-up answer that is the true one leaves its writer out of those who have to pick', () => {
   assert.ok(whoHadToPick, 'the question where somebody wrote the truth was played');
   const a = people[(people.indexOf(subjects[MATCHED.turn]) + 1) % people.length];
   assert.deepEqual(whoHadToPick, [a.displayName], 'only the one player with something to pick is being waited for');

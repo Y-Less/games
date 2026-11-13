@@ -959,6 +959,9 @@ function playerView(room, p, { nameOf, online, final }) {
     subject: room.phase !== 'lobby' && p.id === room.subject,
     written: room.phase === 'writing' ? Boolean(answersOf(room, p.id)) : false,
     picked: room.phase === 'picking' ? room.picks.some((pick) => pick.id === p.id) : false,
+    // Has an answer to pick this question: everybody but the subject, and not somebody whose made-up answer turned
+    // out to be the true one.  It says only that they wrote it, which the reveal will say anyway, not which it is.
+    toPick: room.phase === 'picking' && p.id !== room.subject && !room.options[truthIndex(room)]?.authors.includes(p.id),
     ready: room.phase === 'reveal' ? isBot(p) || room.ready.includes(p.id) : false,
     placement: final.get(p.id)?.placement ?? null,
     winner: final.get(p.id)?.winner ?? false,

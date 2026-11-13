@@ -52,7 +52,7 @@ const canPick = computed(() => picking.value && !isSubject.value && !matched.val
 // How many players have written both answers, and how many are being waited for.
 const writtenCount = computed(() => s.value.players.filter((p) => p.written).length);
 // The players who have to pick this question (everybody but the subject, and not those who wrote the true answer).
-const pickers = computed(() => s.value.scoreboard.players.filter((p) => p.id !== s.value.subject));
+const pickers = computed(() => s.value.scoreboard.players.filter((p) => s.value.players.find((q) => q.id === p.id)?.toPick));
 // How many of them have picked.
 const pickedCount = computed(() => s.value.players.filter((p) => p.picked).length);
 // This is the last question of the last turn.
