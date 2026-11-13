@@ -84,7 +84,7 @@ test('the drawer chooses one of the words they were offered, and nobody else doe
   assert.equal(game.start(room, 1, seeded(4), NOW).ok, true);
   const other = room.players.find((p) => p.id !== room.drawer).id;
   assert.equal(game.chooseWord(room, other, 0, NOW).ok, false, 'only the drawer');
-  for (const bad of [-1, 99, 0.5, 'two', null]) assert.equal(game.chooseWord(room, room.drawer, bad, NOW).ok, false, String(bad));
+  for (const bad of [-1, 99, 0.5, 'two', null, '', ' ']) assert.equal(game.chooseWord(room, room.drawer, bad, NOW).ok, false, String(bad));
   const offered = [...room.choices];
   assert.equal(game.chooseWord(room, room.drawer, 1, NOW).ok, true);
   assert.equal(room.word, offered[1]);

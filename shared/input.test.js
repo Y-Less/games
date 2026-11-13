@@ -35,8 +35,13 @@ test('a number is itself, and a numeric string is the number it spells', () => {
   assert.equal(numberFrom('3'), 3);
   assert.equal(numberFrom('-2.5'), -2.5);
   assert.equal(numberFrom('1e3'), 1000);
-  // What an empty or padded string should be is not something the contract says, so it is not pinned here.
   for (const text of ['three', '3px', '1,000', '--1', 'NaN']) assert.ok(Number.isNaN(numberFrom(text)), text);
+});
+
+test('an empty or blank string is not zero: a field left empty must not mean "the first one"', () => {
+  // Number('') is 0, and every index check lets 0 through, so a blank choice used to pick the first word or answer.
+  for (const blank of ['', ' ', '   ', '\t', '\n', '\r\n', ' ', ' \t\n ']) assert.ok(Number.isNaN(numberFrom(blank)), JSON.stringify(blank));
+  assert.equal(numberFrom('0'), 0, 'a zero that was actually written is still zero');
 });
 
 test('anything that is neither a number nor a string is NaN, without being asked to become one', () => {

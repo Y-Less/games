@@ -4,12 +4,13 @@
 // Depends on: nothing.
 
 /**
- * The number a client payload field holds: a number as it is, a numeric string parsed, anything else NaN.
+ * The number a client payload field holds: a number as it is, a numeric string parsed, anything else NaN.  An empty or
+ * blank string is not a number (`Number('')` is 0, which made a field left empty mean "the first one").
  * @param {unknown} value  the field as sent
  * @returns {number} a number, or NaN (which every range check then refuses)
  * Side effects: none.
  */
-export const numberFrom = (value) => (typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN);
+export const numberFrom = (value) => (typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN);
 
 /**
  * The text a client payload field holds: a string as it is, a number written out, anything else '' (so a range or
