@@ -22,16 +22,6 @@ import { asHost, createMemberRules, defaultPlayers, fail, freeName, isBot, isHum
 export { barFromRoom, defaultPlayers, isBarred, isBot, isHuman, nextGame } from './members.js';
 export { withSlot } from './layout.js';
 
-/**
- * Renames one player's id wherever a room's scoreboard history refers to it (the `deltas` and `notes` of every round), so
- * that the totals still add up after a computer player has taken a person's place.  Games rename their own fields themselves.
- *
- * @param {{ history?: Array<{ deltas: object, notes: object }> }} room  the room to change
- * @param {number | string} oldId
- * @param {string} newId
- * @returns {void}
- * Side effects: mutates every round of `room.history`.
- */
 /** The slot of whoever holds this id, or -1 if nobody does. */
 export const slotOf = (room, id) => room.players.find((p) => p.id === id)?.slot ?? -1;
 
@@ -54,17 +44,6 @@ export function historyView(room) {
   const idOf = new Map((room.players ?? []).map((p) => [p.slot, p.id]));
   const byId = (table) => Object.fromEntries(Object.entries(table ?? {}).flatMap(([slot, value]) => (idOf.has(slot) ? [[idOf.get(slot), value]] : [])));
   return (room.history ?? []).map((round) => ({ ...round, deltas: byId(round.deltas), notes: byId(round.notes) }));
-}
-
-export function renameInHistory(room, oldId, newId) {
-  for (const round of room.history ?? []) {
-    for (const table of [round.deltas, round.notes]) {
-      if (table && Object.hasOwn(table, oldId)) {
-        table[newId] = table[oldId];
-        delete table[oldId];
-      }
-    }
-  }
 }
 
 /**
@@ -334,13 +313,13 @@ const ROSTER_ERRORS = {
  * @param {(room: object, botId: string, person: object) => void} [config.handOver]  the mirror of takeOver: runs after
  *   somebody joining a game under way has taken a computer player's place.  `person` is already in the list where the
  *   computer player was, with its score, counters and colour but the joiner's id and name.  The game renames the
- *   computer player's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory
- *   does the scoreboard history) and drops anything else that only a computer player has.  The default does nothing.
+ *   computer player's id in its own fields (whose turn it is, their clues or guesses, the ready list; never the
+ *   scoreboard history, which is written by slot) and drops anything else that only a computer player has.  The default does nothing.
  * @param {(room: object, oldId: number | string, bot: object, rng: () => number, now: number) => void} [config.takeOver]  runs after a
  *   computer player has taken the place of a person who left a game under way: `bot` is already in the list where the
  *   person was, with their score, counters and colour but the new id and name.  The game gives it an AI, renames the
- *   person's id in its own fields (whose turn it is, their clues or guesses, the ready list; renameInHistory does the
- *   scoreboard history) and moves on if the game was only waiting for that person.  The default does nothing.
+ *   person's id in its own fields (whose turn it is, their clues or guesses, the ready list; never the
+ *   scoreboard history, which is written by slot) and moves on if the game was only waiting for that person.  The default does nothing.
  * @returns {object} the rules: newBot, addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, setSize, sizeOf, lockSize
  */
 export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = defaultPlayers(minPlayers, maxPlayers), botNames, makePlayer, takeOver, handOver }) {

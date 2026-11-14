@@ -13,8 +13,7 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
   (joining, leaving, removing, the computer players) is the shared player-list code of `shared/roster.js`.
 - `server.js` the socket half, a short call to `createRoomServer` (`shared/roomServer.js`): where the cards and the
   hints come from, the settings it accepts, its own events, the computer players' timer, and the `art` achievement.
-  Rooms are saved to `ctx.dataDir/rooms.json`; a `games.json` from before this is brought over once (see
-  `importOldSave`) and kept as `games.json.imported`.
+  Rooms are kept by the shared room store (`shared/roomStore.js`), as in every game.
 - `client/` the Vue half. `index.js` exports `Dixnt.vue`, which builds the store (`store.js`) from the props the site
   passes (`socket`, `user`, `search`, `setSearch`) and shares it with the components through `useDixnt.js`.  The store
   is the site's own plumbing (`src/useGameSocket.js`: the socket, the room's state, the refusal notice and the

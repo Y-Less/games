@@ -431,15 +431,13 @@ export function migrate(room, nameOf, rng = () => 0.5) {
  * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place,
  * so a finished turn is never rewritten.
  *
- * It is exported for the server, which needs it to bring games saved before rooms.json over to account ids.
- *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
  * @param {number | string} to  the id taking its place
  * @returns {void}
- * Side effects: mutates the room's own fields and its scoreboard history.
+ * Side effects: mutates the room's own fields; the scoreboard history is not touched.
  */
-export function renameId(room, from, to) {
+function renameId(room, from, to) {
   const renamed = (x) => (x === from ? to : x);
   // An object keyed by player id has string keys, so the id is matched by its text and put back as it is given.
   const rekey = (table, mapValue = (v) => v) => {

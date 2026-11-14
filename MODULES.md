@@ -188,9 +188,6 @@ numbers too, so a numeric slot and an id cannot be told apart once either is a k
 by the wrong one finds *the wrong player's points* rather than finding nothing.  Two bugs were written exactly that way
 while slots were being introduced, and in both the test that should have caught it passed.
 
-Do not reach for `renameInHistory`.  It exists for one legacy importer and is the thing slots were introduced to stop
-needing.
-
 **The small things every list game wants are written once.**  `shared/roster.js` has `playerOf(room, id)`,
 `namer(room, nameOf)` (a player's saved name, else the account's), and `renameField(holder, was, now)` for a `migrate`
 that has renamed something a saved room still calls by its old word.  `shared/roomServer.js` has `accountNames(ctx)`,

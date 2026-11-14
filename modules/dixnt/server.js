@@ -16,7 +16,6 @@ import { numberFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { accountNames, botMove, botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
-import { renameInHistory } from '../../shared/roster.js';
 import * as game from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -54,15 +53,6 @@ function loadHints() {
 }
 
 /**
- * The account id a saved game's seat token named ('user:7'), or null for a computer player or anything unreadable.
- *
- * @param {string} token  the token of a seat in a game saved before rooms.json
- * @returns {number | null}
- * Side effects: none.
- */
-const userIdOf = (token) => (/^user:\d+$/.test(String(token)) ? Number(String(token).slice(5)) : null);
-
-/**
  * Only the settings Dixnt accepts, whatever else a client sends.
  *
  * @param {object} payload  the untrusted settings object from the client
@@ -70,75 +60,6 @@ const userIdOf = (token) => (/^user:\d+$/.test(String(token)) ? Number(String(to
  * Side effects: none.
  */
 const pickSettings = (payload) => pickKeys(payload, ['handSize', 'rounds', 'judging', 'categories', 'size']);
-
-/**
- * Brings the games saved before Dixnt used the shared room server (`games.json`, one entry per invite code, seats
- * with made-up public ids and `user:<n>` tokens) over to `rooms.json` (an array of rooms whose people are known by
- * their account id).  It runs once: afterwards the old file is kept as `games.json.imported`, so nothing is thrown
- * away and the import is not tried again.
- *
- * @param {object} ctx  the module context (for dataDir and log)
- * @param {object} rules  the rules, for renameId
- * @returns {void}
- * Side effects: may write rooms.json and rename games.json; logs what it did.
- */
-function importOldSave(ctx, rules) {
-  const oldFile = path.join(ctx.dataDir, 'games.json');
-  const newFile = path.join(ctx.dataDir, 'rooms.json');
-  if (!fs.existsSync(oldFile) || fs.existsSync(newFile)) return;
-  let saved;
-  try {
-    saved = JSON.parse(fs.readFileSync(oldFile, 'utf8'));
-  } catch (error) {
-    ctx.log(`the old saved games could not be read (${error.message}); starting with none`);
-    return;
-  }
-  const rooms = [];
-  for (const [code, entry] of Object.entries(saved?.games ?? {})) {
-    try {
-      const room = entry.game;
-      if (!room || !Array.isArray(room.players)) continue;
-      room.code = code;
-      room.createdAt = entry.touched;
-      room.updatedAt = entry.touched;
-      room.recorded = Boolean(entry.recorded);
-      // A person is known by their account from now on, and a computer player by the id its token already was.
-      let dropped = false;
-      for (const player of [...room.players]) {
-        const account = userIdOf(player.token);
-        const wasHost = room.hostId === player.id;
-        const newId = player.kind === 'bot' || player.bot === true ? String(player.token) : account;
-        if (newId === null) {
-          dropped = true;
-          break;
-        }
-        // The counters used to be kept beside the game, one set per person; they belong to the player now.
-        if (account !== null) Object.assign(player, entry.tally?.[player.token] ?? {});
-        rules.renameId(room, player.id, newId);
-        // This room was saved before slots existed, so its history is still keyed by the made-up public ids; rename
-        // those too, and `migrate` below turns the whole lot into slots.  Everywhere else the history is written by
-        // slot and a rename never touches it.
-        renameInHistory(room, player.id, newId);
-        player.id = newId;
-        if (wasHost) room.hostId = newId;
-      }
-      if (dropped) {
-        ctx.log(`the saved game ${code} named somebody the site does not know; it was left behind`);
-        continue;
-      }
-      rooms.push(rules.migrate(room));
-    } catch (error) {
-      ctx.log(`the saved game ${code} could not be brought over: ${error.message}`);
-    }
-  }
-  try {
-    fs.writeFileSync(newFile, JSON.stringify(rooms));
-    fs.renameSync(oldFile, `${oldFile}.imported`);
-    ctx.log(`${rooms.length} saved game(s) brought over to rooms.json`);
-  } catch (error) {
-    ctx.log(`the saved games could not be brought over: ${error.message}`);
-  }
-}
 
 /**
  * Starts the Dixnt server half.
@@ -205,8 +126,6 @@ export default function (ctx) {
   game.setCards({ getCategories, hints });
   /** An account's display name (for rooms saved before names were kept). */
   const nameOf = accountNames(ctx);
-
-  importOldSave(ctx, game);
 
   /**
    * Adds the cards each person now holds to the ones they have been dealt (the `art` achievement).  Hands only change

@@ -11,7 +11,6 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { cards, makeRoom, rulesWith, seededRng } from './harness.js';
 import createServer from './server.js';
-import { savedRooms } from '../../shared/testkit.js';
 
 /** A game of `count` people (Ann hosts), started, with plenty of rounds and the given judging style. */
 function started(count = 5, judging = 'everyone') {
@@ -258,82 +257,6 @@ test('a rooms.json with a room that cannot be brought up to date keeps a copy an
   assert.ok(logs.some((line) => /bad-game/.test(line)), `logged: ${logs.join(' | ')}`);
   assert.equal(fs.existsSync(`${roomsFile}.imported`), true, 'the file it came from is kept');
   assert.ok(logs.some((line) => /1 saved games/.test(line)), 'the good game was loaded');
-});
-
-test('games saved before the shared room server are brought over, people and all', (t) => {
-  const { logs, dataDir, connect } = launch(t, {
-    setup: (dir) => {
-      // The old shape: one entry per code, seats with a made-up public id and a `user:<n>` token, and the counters
-      // kept beside the game.
-      const old = {
-        version: 1,
-        games: {
-          'old-game': {
-            touched: Date.now(),
-            tally: { 'user:4': { cardsPlayed: 3 } },
-            game: {
-              phase: 'picking',
-              hostId: 'aaa',
-              players: [
-                { id: 'aaa', kind: 'human', token: 'user:4', name: 'Ann', score: 2, turns: 1, hand: [1, 2, 3], waiting: false },
-                { id: 'bbb', kind: 'human', token: 'user:5', name: 'Bob', score: 0, turns: 0, hand: [4, 5, 6], waiting: false },
-                { id: 'ccc', kind: 'bot', token: 'bot:1', name: 'Ada', score: 1, turns: 0, hand: [7, 8, 9], waiting: false },
-              ],
-              nextBot: 2,
-              handSize: 3,
-              judging: 'everyone',
-              categories: null,
-              roundsEach: 2,
-              completed: 1,
-              history: [{ label: { key: 'round.label', params: { n: 1 } }, deltas: { aaa: 2, bbb: 0, ccc: 1 }, notes: {} }],
-              pointScale: 1,
-              round: 2,
-              nextChooserIdx: 1,
-              chooserId: 'aaa',
-              draw: [10, 11, 12],
-              discard: [],
-              word: 'lighthouse',
-              imposterId: 'bbb',
-              picks: { ccc: 7 },
-              tableOrder: [],
-              votes: {},
-              results: null,
-            },
-          },
-        },
-      };
-      fs.writeFileSync(path.join(dir, 'games.json'), JSON.stringify(old));
-    },
-  });
-  assert.ok(logs.some((line) => /brought over/.test(line)), `logged: ${logs.join(' | ')}`);
-  assert.equal(fs.existsSync(path.join(dataDir, 'games.json')), false, 'the old file is kept under another name');
-  assert.ok(fs.existsSync(path.join(dataDir, 'games.json.imported')));
-
-  const [room] = savedRooms(dataDir);
-  assert.deepEqual(room.players.map((p) => p.id), [4, 5, 'bot:1'], 'a person is their account now');
-  assert.equal(room.hostId, 4);
-  assert.equal(room.chooserId, 4);
-  assert.equal(room.imposterId, 5);
-  assert.deepEqual(room.picks, { 'bot:1': 7 });
-  // The old public ids became slots on the way in, and the scoreboard names the accounts they turned into.
-  assert.deepEqual(room.history[0].deltas, { s0: 2, s1: 0, s2: 1 });
-  assert.deepEqual(room.players.map((p) => p.slot), ['s0', 's1', 's2']);
-  assert.equal(room.players[0].cardsPlayed, 3, 'the counters came with the person');
-  assert.ok(room.players.every((p) => !('token' in p) && !('waiting' in p)));
-  // A game saved when one player's go was called a round speaks of turns now, fields and history label alike.
-  assert.deepEqual(
-    { turn: room.turn, completedTurns: room.completedTurns, rounds: room.rounds, label: room.history[0].label.key },
-    { turn: 2, completedTurns: 1, rounds: 2, label: 'turn.label' },
-  );
-  assert.ok(!('round' in room) && !('completed' in room) && !('roundsEach' in room), 'the old names are gone');
-
-  // And the people are let back in where they were.
-  const socket = connect(5, 'Bob');
-  return socket.call('resume', { code: 'old-game' }).then((reply) => {
-    assert.equal(reply.ok, true, reply.error);
-    assert.equal(socket.state.phase, 'picking');
-    assert.equal(socket.state.me.id, 5);
-  });
 });
 
 test('cards are collected once per round, not after every action', async (t) => {

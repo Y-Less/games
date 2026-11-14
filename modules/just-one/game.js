@@ -16,7 +16,7 @@ import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { backToLobby, createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, renameInHistory, seatOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
 import { WORDS, normal, relatedTo } from './words.js';
@@ -498,15 +498,17 @@ export const { ready, forceNext, waitingForReady } = readiness;
  */
 /**
  * Renames one player's id everywhere this game writes one down: whose turn it is to guess, who wrote which clue, the
- * clues struck out, the turn order, and the round just revealed (renameInHistory does the scoreboard).  A place
- * changes hands in both directions — a computer player takes a person's, and a latecomer takes a computer player's —
- * and both are this same renaming.
+ * clues struck out, the turn order, and the round just revealed.  A place changes hands in both directions — a
+ * computer player takes a person's, and a latecomer takes a computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place, so
+ * a finished turn is never rewritten.
  *
  * @param {object} room  the room to change
  * @param {number | string} from  the id leaving
  * @param {number | string} to  the id taking its place
  * @returns {void}
- * Side effects: mutates the room's own fields and its scoreboard history.
+ * Side effects: mutates the room's own fields.
  */
 function renameId(room, from, to) {
   const renamed = (x) => (x === from ? to : x);
@@ -520,7 +522,6 @@ function renameId(room, from, to) {
     room.result.best = renamed(room.result.best);
     for (const clue of room.result.clues) clue.id = renamed(clue.id);
   }
-  renameInHistory(room, from, to);
 }
 
 function takeOver(room, oldId, bot, rng) {

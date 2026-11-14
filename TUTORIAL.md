@@ -227,13 +227,14 @@ A place changes hands in both directions, and both are the same renaming: everyt
 player's id down has to be told the id has changed.
 
 ```js
-const renameId = (room, from, to) => renameInHistory(room, from, to);
+const renameId = (room, from, to) => {}; // Coin Flip writes no player's id down anywhere
 ```
 
-Coin Flip keeps each player's call *on the player*, so the player object carries it to the new owner by itself and the
-only thing naming anybody is the scoreboard history.  A game that keeps `room.whoseTurn`, or `room.clues[playerId]`,
-renames those here too — and gets it wrong the first time, which is why the fuzz tests in the bigger games check that
-no answer is ever left under an id nobody has.
+Coin Flip keeps each player's call *on the player*, so the player object carries it to the new owner by itself, and
+its scoreboard history is written by slot (`deltas[player.slot]`), which goes with the place and is never renamed.
+So there is nothing for it to do, and you could leave both hooks out.  A game that keeps `room.whoseTurn`, or
+`room.clues[playerId]`, renames those here — and gets it wrong the first time, which is why the fuzz tests in the
+bigger games check that no answer is ever left under an id nobody has.
 
 ## The lobby screen
 
