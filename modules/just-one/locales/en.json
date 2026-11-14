@@ -46,6 +46,8 @@
     "guesser": "Guesser: {name}"
   },
   "popup": {
+    "wordIs": "The word is",
+    "wordHidden": "There is a word for you to guess",
     "guesser": "the guesser this turn",
     "written": "has written a clue",
     "toWrite": "still to write a clue"

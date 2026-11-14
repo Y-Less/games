@@ -1,97 +1,27 @@
 <script setup>
-// When the chooser locks in the word, it pops up large for everyone at the same moment, and the person who is not told
-// the word sees ??? instead, so that they learn a word was chosen when the others do.  It floats over the play area (it
-// takes no room, so nothing moves), goes by itself after a few seconds, or on a click.
+// When the chooser locks in the word, it pops up large for everyone at the same moment (the shared
+// src/components/WordPopup.vue), and the person who is not told the word sees ??? instead, so that they learn a word
+// was chosen when the others do.
 //
 // Props: none.  Emits: none.  Slots: none.
-// Side effects: watches store.wordPopup; sets a timer to hide itself (cleared on hide, on a new popup, and on unmount).
-import { onBeforeUnmount, ref, watch } from 'vue';
+// Side effects: none of its own; the shared pop-up watches what it is given and hides itself after a few seconds.
+import { computed } from 'vue';
+import WordPopup from '../../../../src/components/WordPopup.vue';
 import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
 const { t } = useGameText();
 const { store } = useDixnt();
-const SHOWN_MS = 4000; // how long the popup stays up, in milliseconds
-// The popup being shown ({ word, hidden, ... }), or null.
-const shown = ref(null);
-let timer = null; // the pending hide, if any
-/**
- * Hides the popup now.
- * @returns {void}
- * Side effects: cancels the timer and clears `shown`.
- */
-const hide = () => {
-  clearTimeout(timer);
-  shown.value = null;
-};
-watch(
-  () => store.wordPopup,
-  (popup) => {
-    clearTimeout(timer);
-    // A popup that was already shown (and has gone) is not shown again when this component is mounted later.
-    const age = popup?.at ? Date.now() - popup.at : 0;
-    shown.value = age < SHOWN_MS ? popup : null;
-    if (shown.value) timer = setTimeout(hide, SHOWN_MS - age);
-  },
-  { immediate: true },
-);
-onBeforeUnmount(() => clearTimeout(timer));
+
+// The store's pop-up ({ word, hidden, at }) in the words this viewer reads, or null.
+const popup = computed(() => {
+  const announced = store.wordPopup;
+  if (!announced) return null;
+  const hidden = Boolean(announced.hidden);
+  return { label: t(hidden ? 'table.wordChosenHidden' : 'table.wordIs'), word: hidden ? t('table.hiddenWord') : announced.word, dark: hidden, at: announced.at };
+});
 </script>
 
 <template>
-  <Transition name="fade">
-    <button v-if="shown" class="word-popup" :class="{ dark: shown.hidden }" role="status" aria-live="polite" @click="hide">
-      <span class="label">{{ t(shown.hidden ? 'table.wordChosenHidden' : 'table.wordIs') }}</span>
-      <span class="word">{{ shown.hidden ? t('table.hiddenWord') : shown.word }}</span>
-    </button>
-  </Transition>
+  <WordPopup :popup="popup" />
 </template>
-
-<style scoped>
-.word-popup {
-  position: fixed;
-  top: 32%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  max-width: min(70rem, 90vw);
-  padding: 1.2rem 2.5rem;
-  border: 2px solid var(--amber);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--bg-raised) 94%, black);
-  box-shadow: 0 14px 50px rgb(0 0 0 / 0.65);
-  text-align: center;
-}
-.word-popup.dark {
-  border-color: var(--rust);
-}
-.label {
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-.word {
-  font-family: var(--display);
-  font-size: clamp(2.4rem, 6vw, 4.5rem);
-  line-height: 1.1;
-  color: var(--amber);
-  overflow-wrap: anywhere;
-}
-.dark .word {
-  color: var(--danger);
-  letter-spacing: 0.2em;
-}
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.25s;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

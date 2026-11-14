@@ -33,6 +33,8 @@
     "guessedTag": "guessed"
   },
   "popup": {
+    "firstHint": "The hint is",
+    "secondHint": "The second hint is",
     "colour": "Colour",
     "hinterNow": "the hinter this turn",
     "hasGuessed": "has guessed",
