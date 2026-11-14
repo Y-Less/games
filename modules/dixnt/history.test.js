@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules } from './game.js';
-import { makeRoom, range } from './harness.js';
+import { makeRoom, range, rulesWith } from './harness.js';
 import { totalsFromRounds } from '../../shared/scores.js';
 
-const rules = () => createRules({ getCardIds: () => range(1, 200) });
+const rules = () => rulesWith({ getCardIds: () => range(1, 200) });
 const setup = (names, judging = 'everyone') => makeRoom(names, { cardCount: 200, seed: 7, judging });
 
 /** Plays a round to its results. `right` says whether everyone who votes names the imposter. */

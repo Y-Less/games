@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
 import { seeded } from '../../shared/testkit.js';
-import { createRules, JUDGING_MODES } from './game.js';
+import { JUDGING_MODES } from './game.js';
+import { rulesWith } from './harness.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -24,7 +25,7 @@ const firstOf = (key) => idsOf(key)[0];
 /** Plays a whole game, every place driven by the AI named in `lineup` (an AI id per place); returns the finished room. */
 function playGame(lineup, { judging = 'everyone', seed = 1, rounds = 2, handSize = 6 } = {}) {
   const rng = seeded(seed);
-  const game = createRules({ getCategories: () => categories, hints });
+  const game = rulesWith({ getCategories: () => categories, hints });
   const room = game.createRoom({ code: 'ai-test-game-here', hostId: 1, hostName: 'P0', now: 0 });
   for (let i = 1; i < lineup.length; i++) assert.equal(game.addHuman(room, i + 1, `P${i}`).ok, true);
   const aiOf = Object.fromEntries(room.players.map((p, i) => [p.id, byId[lineup[i]]]));
@@ -191,7 +192,7 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
 });
 
 test('an AI is dealt to a computer player, shown as { id, name } for them only, saved and restored', () => {
-  const game = createRules({ getCategories: () => categories, hints });
+  const game = rulesWith({ getCategories: () => categories, hints });
   const rng = seeded(4);
   const room = game.createRoom({ code: 'ai-dealt-here', hostId: 1, hostName: 'Host', now: 0 });
   assert.equal(game.addHuman(room, 2, 'Human').ok, true);

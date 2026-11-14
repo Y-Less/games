@@ -8,7 +8,8 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 - `module.json` the menu entry, player limits (3 to 12), and the statistics the game reports.
 - `rules.md` the player-facing rules, shown by the site's "Rules" button.
 - `game.js` the pure rules and what each player may see (no networking), including the computer players.
-  `createRules({ getCategories, hints })` builds the rules object `shared/roomServer.js` drives; the lobby itself
+  They are plain functions of a room, as in every other game; the cards are on disk rather than in the room, so
+  the socket layer says where to look, once, with `setCards({ getCategories, hints })`.  The lobby itself
   (joining, leaving, removing, the computer players) is the shared player-list code of `shared/roster.js`.
 - `server.js` the socket half, a short call to `createRoomServer` (`shared/roomServer.js`): where the cards and the
   hints come from, the settings it accepts, its own events, the computer players' timer, and the `art` achievement.

@@ -1,7 +1,7 @@
 // Plays whole seeded games and records every view the rules send, for the view test (node) and the client's
 // render-everything test (vitest): the same views reach both, so what the server sends is also what the table draws.
 import assert from 'node:assert/strict';
-import { createRules } from './game.js';
+import { rulesWith } from './harness.js';
 
 export const cards = (n) => Array.from({ length: n }, (_, i) => i + 1);
 export function seededRng(seed = 1) {
@@ -25,7 +25,7 @@ function hostActs(game, room, hostId, rng) {
 /** Plays a whole game (the host acts for themselves, computers for the rest) and returns every view of every seat. */
 export function recordedViews(judging, seed) {
   const rng = seededRng(seed);
-  const game = createRules({ getCardIds: () => cards(400), hints: cards(30).map((n) => `hint ${n}`) });
+  const game = rulesWith({ getCardIds: () => cards(400), hints: cards(30).map((n) => `hint ${n}`) });
   const hostId = 1;
   const room = game.createRoom({ code: 'seeded-game-here', hostId, hostName: 'Host', now: 0 });
   game.fillWithBots(room, hostId, 4);

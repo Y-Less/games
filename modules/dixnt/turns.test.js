@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules, ROUNDS } from './game.js';
-import { makeRoom, range } from './harness.js';
+import { ROUNDS } from './game.js';
+import { makeRoom, range, rulesWith } from './harness.js';
 
 /** A lobby of the named people, judged by the chooser alone so that a turn takes few calls. */
 const setup = (names, rounds) => makeRoom(names, { cardCount: 200, seed: 3, judging: 'chooser', rounds });
@@ -206,9 +206,9 @@ test('saved games from before rounds existed still load, defaulting to two turns
   delete saved.rounds;
   delete saved.completedTurns;
   for (const p of saved.players) delete p.turns;
-  const reloaded = createRules({ getCardIds: () => range(1, 200) }).migrate(saved);
+  const reloaded = rulesWith({ getCardIds: () => range(1, 200) }).migrate(saved);
   assert.equal(reloaded.rounds, 2);
-  assert.equal(createRules({ getCardIds: () => range(1, 200) }).viewFor(reloaded, 1).totalTurns, 6);
+  assert.equal(rulesWith({ getCardIds: () => range(1, 200) }).viewFor(reloaded, 1).totalTurns, 6);
 });
 
 test('a room saved under the old words is renamed on the way in, history labels and all, however often it is loaded', () => {
@@ -224,7 +224,7 @@ test('a room saved under the old words is renamed on the way in, history labels 
   saved.history = [{ label: { key: 'round.label', params: { n: 1 } }, deltas: {}, notes: {} }, { label: { key: 'round.earlier' }, deltas: {}, notes: {} }];
   for (const was of ['turn', 'completedTurns', 'rounds', 'collectedTurn']) delete saved[was];
 
-  const rules = createRules({ getCardIds: () => range(1, 200) });
+  const rules = rulesWith({ getCardIds: () => range(1, 200) });
   const once = rules.migrate(saved);
   const twice = rules.migrate(JSON.parse(JSON.stringify(once)));
   for (const reloaded of [once, twice]) {

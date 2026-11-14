@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules, POINTS_PER_VOTE } from './game.js';
-import { cards, makeRoom, seededRng } from './harness.js';
+import { POINTS_PER_VOTE } from './game.js';
+import { cards, makeRoom, rulesWith, seededRng } from './harness.js';
 
 /** A started game of the named people (accounts 1, 2, 3 ... in order), with plenty of rounds left to play. */
 const makeGame = (names, options = {}) => makeRoom(names, { handSize: 8, rounds: 10, seed: 7, start: true, ...options });
@@ -306,7 +306,7 @@ test('a room survives a save and reload, and newly created cards join the deck',
   const { game, room, rng } = makeGame(['Ann', 'Bob', 'Cat'], { cardCount: 60 });
   game.submitWord(room, 1, 'x', rng);
   const saved = JSON.parse(JSON.stringify(room));
-  const later = createRules({ getCardIds: () => cards(70), hints: [] });
+  const later = rulesWith({ getCardIds: () => cards(70), hints: [] });
   const reloaded = later.migrate(saved, undefined, rng);
   assert.equal(reloaded.phase, 'picking');
   assert.equal(reloaded.draw.length, room.draw.length + 10);

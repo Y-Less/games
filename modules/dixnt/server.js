@@ -17,7 +17,7 @@ import { msg } from '../../shared/messages.js';
 import { accountNames, botMove, botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { renameInHistory } from '../../shared/roster.js';
-import { createRules } from './game.js';
+import * as game from './game.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** How long the list of categories is reused before the card folder is read again. */
@@ -201,7 +201,8 @@ export default function (ctx) {
     return value;
   }
 
-  const game = createRules({ getCategories, hints });
+  // The rules are told where the cards are, once; from here on they are plain functions of a room, as in every game.
+  game.setCards({ getCategories, hints });
   /** An account's display name (for rooms saved before names were kept). */
   const nameOf = accountNames(ctx);
 

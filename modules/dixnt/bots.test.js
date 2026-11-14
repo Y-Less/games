@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchModule, sleep, until } from '../../shared/testkit.js';
 import { AIS } from './ai/index.js';
-import { createRules, JUDGING_MODES, MAX_PLAYERS, MIN_PLAYERS } from './game.js';
-import { cards, makeRoom, seededRng } from './harness.js';
+import { JUDGING_MODES, MAX_PLAYERS, MIN_PLAYERS } from './game.js';
+import { cards, makeRoom, rulesWith, seededRng } from './harness.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.env.DIXNT_BOT_DELAY = '0-3';
@@ -323,7 +323,7 @@ test('computer players survive a save and reload', () => {
   const { game, room, rng } = made;
   game.start(room, 1, rng);
   for (let i = 0; i < 6; i++) game.runBotAction(room, rng);
-  const later = createRules({ getCardIds: () => cards(400), hints: cards(30).map(String) });
+  const later = rulesWith({ getCardIds: () => cards(400), hints: cards(30).map(String) });
   const again = later.migrate(JSON.parse(JSON.stringify(room)), undefined, seededRng(9));
   assert.deepEqual(again.players.map((p) => [p.kind, p.ai ?? null]), room.players.map((p) => [p.kind, p.ai ?? null]));
   playOut({ game: later, room: again, rng: seededRng(9) }, [1]);

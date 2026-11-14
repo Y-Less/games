@@ -2,8 +2,8 @@
 // places changing hands, ties, deck reshuffles, chooser order, and the exact refusals of each action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules, MAX_WORD_LENGTH, POINTS_PER_VOTE } from './game.js';
-import { makeRoom } from './harness.js';
+import { MAX_WORD_LENGTH, POINTS_PER_VOTE } from './game.js';
+import { makeRoom, rulesWith } from './harness.js';
 import { seeded } from '../../shared/testkit.js';
 
 const ids = (n, from = 1) => Array.from({ length: n }, (_, i) => from + i);
@@ -41,7 +41,7 @@ test('the last person leaving the lobby empties it too', () => {
 });
 
 test('a saved game from an older version is brought up to date', () => {
-  const rules = () => createRules({ getCardIds: () => ids(50) });
+  const rules = () => rulesWith({ getCardIds: () => ids(50) });
   const { game, room } = setup(['A', 'B', 'C'], { cards: 50 });
   const saved = JSON.parse(JSON.stringify(room));
   delete saved.history;
@@ -69,7 +69,7 @@ test('a saved game from an older version is brought up to date', () => {
 
 test('the deck follows the cards on disk: missing cards vanish everywhere, new ones join the draw pile mid-game', () => {
   let available = ids(60);
-  const game = createRules({ getCardIds: () => available });
+  const game = rulesWith({ getCardIds: () => available });
   const rng = seeded(5);
   const room = game.createRoom({ code: 'deck-test-here', hostId: 1, hostName: 'A', now: 0 });
   game.addHuman(room, 2, 'B');
@@ -309,13 +309,13 @@ test('hosting passes to the first remaining person, and starting again clears th
 });
 
 test('hints cycle without repeats until the pool runs out, then reshuffle', () => {
-  const game = createRules({ getCardIds: () => ids(10), hints: ['a', 'b', 'c', 'd', 'e', 'f'] });
+  const game = rulesWith({ getCardIds: () => ids(10), hints: ['a', 'b', 'c', 'd', 'e', 'f'] });
   const rng = seeded(2);
   const room = game.createRoom({ code: 'hint-test-here', hostId: 1, hostName: 'A', now: 0 });
   const first = [...game.nextHints(room, 3, rng), ...game.nextHints(room, 3, rng)];
   assert.equal(new Set(first).size, 6, 'two draws of three use the six hints once each');
   assert.equal(game.nextHints(room, 3, rng).length, 3, 'then the pool is refilled');
-  const none = createRules({ getCardIds: () => ids(10), hints: [] });
+  const none = rulesWith({ getCardIds: () => ids(10), hints: [] });
   assert.deepEqual(none.nextHints(none.createRoom({ code: 'no-hints-here', hostId: 1, hostName: 'A', now: 0 }), 3, rng), []);
 });
 

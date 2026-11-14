@@ -19,7 +19,7 @@
 //   'favourite' no imposter: everybody sees the word, and the chooser just picks the card they like best.  The
 //               player who played it scores FAVOURITE_POINTS.
 //
-// The deck is built from the categories the host selects (cards come in categories; see getCategories below).
+// The deck is built from the categories the host selects (cards come in categories; see setCards below).
 //
 // Length: the game ends once every player has chosen the word `rounds` times (a turn only counts once it has been
 // completed, so a skipped one is played again).  Then the phase becomes 'finished' and the host can start a new game
@@ -35,13 +35,16 @@
 // Randomness: nothing in this file calls Math.random.  Every random choice (shuffles, the imposter, the AIs'
 // fallbacks) goes through the `rng` the caller passes, so a test can make a whole game deterministic.
 //
-// The rules that need to know which cards exist, or what the chooser may be offered, are built by
-// createRules({ getCategories, hints }): those come from the server's disk, not from the room.
+// **The cards are not in the room.**  Which cards exist, and what the chooser may be offered as a word, come from
+// the server's disk, where they can change while a game is being played; a room holds only the ids it has dealt.  So
+// the socket layer tells this file where to look, once, with setCards({ getCategories, hints }), and every rule here
+// is then a plain function of the room, as in every other game.  Until it is told, there is one empty category.
 //
-// Depends on: shared/input.js, shared/ai.js, shared/messages.js, shared/scores.js, shared/seats.js,
-// shared/roster.js (the lobby and player-list rules), shared/tally.js, ./ai/index.js and ./tally.js.
+// Depends on: shared/input.js, shared/ai.js, shared/cards.js (shuffle), shared/messages.js, shared/scores.js,
+// shared/seats.js, shared/settings.js, shared/roster.js (the lobby and player-list rules), shared/tally.js,
+// ./ai/index.js and ./tally.js.
 import { numberFrom, textFrom } from '../../shared/input.js';
-import { aiById, assignAIs, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, attempt, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
@@ -76,6 +79,39 @@ const FALLBACK_WORDS = ['Journey', 'Secret', 'Midnight', 'Garden'];
 const TURN_PHASES = ['word', 'picking', 'voting', 'results'];
 /** Every phase but 'finished': the lobby counts as live, because people are still arriving. */
 const LIVE = ['lobby', ...TURN_PHASES];
+
+// ---------- where the cards come from ----------
+
+/** The cards currently available, grouped into categories: () => [{ key, label, description?, ids }].  See setCards. */
+let categoriesOf;
+/** Word and phrase suggestions for the chooser.  See setCards. */
+let hints;
+// The suggestions not yet given out, one pool per room so that two tables are not offered the same word at once.
+// It is held here rather than in the room because it is worth nothing after a restart and would bloat every save;
+// a room that is forgotten takes its pool with it.
+let hintPools;
+
+/**
+ * Tells the rules what is on disk: which cards exist (grouped into categories) and the word suggestions the chooser
+ * may be offered.  The socket layer calls it once, as it starts; a test calls it for the deck it wants to play with.
+ * The categories are asked for afresh every time a rule needs them, so cards added to the folder while a game is
+ * being played join its deck at the next turn (see syncCards).
+ *
+ * @param {object} [source]
+ * @param {() => {key: string, label: *, description?: string, ids: number[]}[]} [source.getCategories]  the cards
+ *        currently available, grouped into categories
+ * @param {() => number[]} [source.getCardIds]  shortcut for a single category holding every card
+ * @param {string[]} [source.hints]  word and phrase suggestions for the chooser
+ * @returns {void}
+ * Side effects: replaces where every rule in this file looks for the cards and the suggestions; a different list of
+ * suggestions also forgets which of them each room has already been given.
+ */
+export function setCards({ getCategories, getCardIds, hints: suggestions = [] } = {}) {
+  categoriesOf = getCategories ?? (() => [{ key: 'all', label: msg('lobby.allCards'), description: '', ids: getCardIds ? getCardIds() : [] }]);
+  if (suggestions !== hints || !hintPools) hintPools = new WeakMap();
+  hints = suggestions;
+}
+setCards(); // until the socket layer says where the cards are, there is one category with no cards in it
 
 /**
  * A table keyed by player id, keyed by slot instead: what the scoreboard history is written with.
@@ -184,1059 +220,999 @@ export function statsPlayers(room) {
   }));
 }
 
+// ---------- the deck ----------
+
 /**
- * Builds the rules that need to know what is on disk: which cards exist (grouped into categories) and the word
- * suggestions the chooser may be offered.  Everything else in this file is a plain function of the room.
- *
- * @param {object} [options]
- * @param {() => {key: string, label: *, description?: string, ids: number[]}[]} [options.getCategories]  the cards
- *        currently available, grouped into categories
- * @param {() => number[]} [options.getCardIds]  shortcut for a single category holding every card
- * @param {string[]} [options.hints]  word and phrase suggestions for the chooser
- * @returns {object} the rules module shared/roomServer.js drives, plus Dixnt's own actions
- * Side effects: none (the rules it returns mutate the rooms they are given).
+ * The categories the host has selected, in the standard order.
+ * @param {object} room  not changed
+ * @returns {object[]} the categories
+ * Side effects: none.
  */
-export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
-  const categoriesOf = getCategories ?? (() => [{ key: 'all', label: msg('lobby.allCards'), description: '', ids: getCardIds ? getCardIds() : [] }]);
+const selectedCategories = (room) => categoriesOf().filter((c) => room.categories.includes(c.key));
 
-  // The suggestions not yet given out, one pool per room so that two tables are not offered the same word at once.
-  // It is held here rather than in the room because it is worth nothing after a restart and would bloat every save;
-  // a room that is forgotten takes its pool with it.
-  const hintPools = new WeakMap();
+/**
+ * Ids of every card in the selected categories.
+ * @param {object} room  not changed
+ * @returns {number[]} the card ids, each one once
+ * Side effects: none.
+ */
+export const availableIds = (room) => [...new Set(selectedCategories(room).flatMap((c) => c.ids))];
 
-  // ---------- the deck ----------
+/**
+ * Makes sure the saved settings are valid for the categories that exist now.
+ * @param {object} room  the room to tidy
+ * @returns {void}
+ * Side effects: may reset room.judging and room.categories.
+ */
+function normaliseSettings(room) {
+  if (!JUDGING_MODES.includes(room.judging)) room.judging = 'everyone';
+  const known = categoriesOf().map((c) => c.key);
+  const chosen = Array.isArray(room.categories) ? room.categories.filter((key) => known.includes(key)) : [];
+  room.categories = chosen.length ? chosen : known;
+}
 
-  /**
-   * The categories the host has selected, in the standard order.
-   * @param {object} room  not changed
-   * @returns {object[]} the categories
-   * Side effects: none.
-   */
-  const selectedCategories = (room) => categoriesOf().filter((c) => room.categories.includes(c.key));
-
-  /**
-   * Ids of every card in the selected categories.
-   * @param {object} room  not changed
-   * @returns {number[]} the card ids, each one once
-   * Side effects: none.
-   */
-  const availableIds = (room) => [...new Set(selectedCategories(room).flatMap((c) => c.ids))];
-
-  /**
-   * Makes sure the saved settings are valid for the categories that exist now.
-   * @param {object} room  the room to tidy
-   * @returns {void}
-   * Side effects: may reset room.judging and room.categories.
-   */
-  function normaliseSettings(room) {
-    if (!JUDGING_MODES.includes(room.judging)) room.judging = 'everyone';
-    const known = categoriesOf().map((c) => c.key);
-    const chosen = Array.isArray(room.categories) ? room.categories.filter((key) => known.includes(key)) : [];
-    room.categories = chosen.length ? chosen : known;
+/**
+ * Keeps the deck in step with the cards on disk: new cards join the draw pile, missing ones vanish.  The server
+ * needs nothing of it; it is exported because the tests drive it directly.
+ * @param {object} room  the room to tidy
+ * @param {() => number} rng  random source for the shuffle
+ * @returns {void}
+ * Side effects: edits the draw pile, discard pile, and every hand; may shuffle the draw pile.
+ */
+export function syncCards(room, rng) {
+  const available = new Set(availableIds(room));
+  const known = new Set();
+  // Keeps a card only if it is still available and not already seen in another pile or hand (drops duplicates).
+  const keep = (id) => available.has(id) && !known.has(id) && known.add(id);
+  room.draw = room.draw.filter(keep);
+  room.discard = room.discard.filter(keep);
+  for (const p of room.players) p.hand = p.hand.filter(keep);
+  const fresh = [...available].filter((id) => !known.has(id));
+  if (room.phase !== 'lobby' && fresh.length) {
+    room.draw = shuffle([...room.draw, ...fresh], rng);
   }
+}
 
-  /**
-   * Keeps the deck in step with the cards on disk: new cards join the draw pile, missing ones vanish.
-   * @param {object} room  the room to tidy
-   * @param {() => number} rng  random source for the shuffle
-   * @returns {void}
-   * Side effects: edits the draw pile, discard pile, and every hand; may shuffle the draw pile.
-   */
-  function syncCards(room, rng) {
-    const available = new Set(availableIds(room));
-    const known = new Set();
-    // Keeps a card only if it is still available and not already seen in another pile or hand (drops duplicates).
-    const keep = (id) => available.has(id) && !known.has(id) && known.add(id);
-    room.draw = room.draw.filter(keep);
-    room.discard = room.discard.filter(keep);
-    for (const p of room.players) p.hand = p.hand.filter(keep);
-    const fresh = [...available].filter((id) => !known.has(id));
-    if (room.phase !== 'lobby' && fresh.length) {
-      room.draw = shuffle([...room.draw, ...fresh], rng);
+/**
+ * Deals a player cards until their hand is full, reshuffling the discard pile if the draw pile runs out.
+ * @param {object} room  the room to change
+ * @param {object} player  the player to deal to
+ * @param {() => number} rng  random source for the reshuffle
+ * @returns {void}
+ * Side effects: moves cards from the draw (and discard) pile into the hand.
+ */
+function drawUp(room, player, rng) {
+  while (player.hand.length < room.handSize) {
+    if (!room.draw.length) {
+      if (!room.discard.length) return; // nothing left anywhere
+      room.draw = shuffle(room.discard, rng);
+      room.discard = [];
+    }
+    player.hand.push(room.draw.pop());
+  }
+}
+
+// ---------- the room ----------
+
+/**
+ * Gives a bare player ({ kind, id, name }) the fields Dixnt keeps for everybody: the score, how many turns they
+ * have chosen the word for, their hand, and the statistics counters.
+ *
+ * @param {object} room  not changed (part of the shared makePlayer contract)
+ * @param {object} base  { kind: 'human' | 'bot', id, name? }
+ * @returns {object} the player
+ * Side effects: none.
+ */
+const makePlayer = (room, base) => ({ ...base, score: 0, turns: 0, hand: [], ...newCounters() });
+
+/**
+ * Makes a new room with the host in it.
+ *
+ * @param {object} args
+ * @param {string} args.code        the invite code
+ * @param {number} args.hostId      the host's account id
+ * @param {string} [args.hostName]  the host's display name
+ * @param {object} [args.settings]  settings the host chose when creating it; invalid ones are ignored
+ * @param {number} args.now         the time to stamp it with
+ * @returns {object} the room, in the lobby
+ * Side effects: none outside the new room (an invalid setting is silently left at its default).
+ */
+export function createRoom({ code, hostId, hostName, settings = {}, now }) {
+  const room = {
+    code,
+    hostId,
+    phase: 'lobby',
+    players: [],
+    size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
+    nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
+    handSize: HAND_SIZE.default,
+    judging: 'everyone',
+    categories: [], // the selected category keys; normaliseSettings fills in "all of them"
+    rounds: ROUNDS.default, // how many rounds the game runs for: every player chooses the word once a round
+    completedTurns: 0, // turns finished so far (abandoned turns don't count)
+    // One entry per completed turn, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
+    // Shown to everyone as the standard scoreboard.
+    history: [],
+    pointScale: 1, // 1 when points are the small numbers of today; a game saved with hundreds has none and is scaled down
+    turn: 0,
+    nextChooserIdx: 0,
+    chooserId: null,
+    draw: [],
+    discard: [],
+    word: null,
+    imposterId: null,
+    picks: {}, // playerId -> cardId
+    tableOrder: [], // playerIds, shuffled once all cards are in
+    votes: {}, // playerId -> playerId
+    results: null,
+    collectedTurn: -1, // the turn whose hands have been reported to the `art` achievement (-1: none yet)
+    recorded: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  normaliseSettings(room);
+  room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
+  eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
+  return room;
+}
+
+/**
+ * Brings a saved room up to date: the player list (shared/roster.js), the fields added since it was written, and
+ * the deck, which is rebuilt from the cards that are on disk now.  A player left without a hand by an older
+ * version (Dixnt used to seat a latecomer as a spectator) is dealt one, so the turn cannot stall waiting for a
+ * card they could never play.
+ *
+ * @param {object} room  the room to bring up to date
+ * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
+ * @param {() => number} [rng]  random source for the shuffles (Math.random is never used here)
+ * @returns {object} the same room
+ * Side effects: mutates the room.  Running it twice changes nothing more.
+ */
+export function migrate(room, nameOf, rng = () => 0.5) {
+  migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
+  const hadHistory = Array.isArray(room.history);
+  if (room.phase === 'discussion') room.phase = 'voting'; // saved by an older version that had a separate step
+  delete room.ready; // and by one that waited for everybody to close the scores
+  room.picks ??= {};
+  room.votes ??= {};
+  room.tableOrder ??= [];
+  room.draw ??= [];
+  room.discard ??= [];
+  // Dixnt used to call one player's go a round, and so a saved room calls it that in four places and labels its
+  // history rows with it.  A turn is that go now, and a round is everybody having had one; the words the rules use
+  // are renamed on the way in, once, so that nothing below this line has to know the old ones.
+  renameField(room, 'round', 'turn');
+  renameField(room, 'completed', 'completedTurns');
+  renameField(room, 'roundsEach', 'rounds');
+  renameField(room, 'collectedRound', 'collectedTurn');
+  for (const entry of Array.isArray(room.history) ? room.history : []) {
+    if (entry?.label?.key === 'round.label') entry.label = { ...entry.label, key: 'turn.label' };
+    else if (entry?.label?.key === 'round.earlier') entry.label = { ...entry.label, key: 'turn.earlier' };
+  }
+  room.collectedTurn ??= -1;
+  room.handSize ??= HAND_SIZE.default;
+  room.rounds ??= ROUNDS.default;
+  room.completedTurns ??= 0;
+  room.turn ??= 0;
+  room.nextChooserIdx ??= 0;
+  if (!Array.isArray(room.history)) room.history = [];
+  for (const p of room.players) {
+    p.hand ??= [];
+    p.score ??= 0;
+    p.turns ??= 0;
+    delete p.waiting; // a latecomer now takes a computer player's place instead of sitting the turn out
+    delete p.token; // a person's id is their account id, and a computer player's is 'bot:<n>'
+  }
+  // A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today.
+  if (room.pointScale === undefined && room.phase !== 'lobby') {
+    const scale = (points) => Math.round(points / 100);
+    for (const p of room.players) p.score = scale(p.score);
+    for (const entry of room.history) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
+  }
+  room.pointScale = 1;
+  // A game saved before the history existed shows the scores it already has as one "Earlier turns" row.
+  if (!hadHistory && room.phase !== 'lobby' && room.players.some((p) => p.score)) {
+    room.history.push({ label: msg('turn.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.slot, p.score])), notes: {} });
+  }
+  normaliseSettings(room);
+  syncCards(room, rng);
+  if (TURN_PHASES.includes(room.phase)) for (const p of room.players) drawUp(room, p, rng);
+  return room;
+}
+
+// ---------- the lobby ----------
+
+/**
+ * Renames one player's id everywhere this game writes one down: who is choosing the word, who the imposter is, who
+ * played which card, the order the cards lie in, every vote (both who cast it and who it names), and the results
+ * on show.  A place changes hands in both directions — a computer player takes a person's, and a latecomer takes a
+ * computer player's — and both are this same renaming.
+ *
+ * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place,
+ * so a finished turn is never rewritten.
+ *
+ * It is exported for the server, which needs it to bring games saved before rooms.json over to account ids.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} from  the id leaving
+ * @param {number | string} to  the id taking its place
+ * @returns {void}
+ * Side effects: mutates the room's own fields and its scoreboard history.
+ */
+export function renameId(room, from, to) {
+  const renamed = (x) => (x === from ? to : x);
+  // An object keyed by player id has string keys, so the id is matched by its text and put back as it is given.
+  const rekey = (table, mapValue = (v) => v) => {
+    const out = {};
+    for (const [key, value] of Object.entries(table ?? {})) out[String(key) === String(from) ? to : key] = mapValue(value);
+    return out;
+  };
+  room.chooserId = renamed(room.chooserId);
+  room.imposterId = renamed(room.imposterId);
+  room.tableOrder = room.tableOrder.map(renamed);
+  room.picks = rekey(room.picks);
+  room.votes = rekey(room.votes, renamed);
+  if (room.results) {
+    room.results.imposterId = renamed(room.results.imposterId);
+    if ('accusedId' in room.results) room.results.accusedId = renamed(room.results.accusedId);
+    if ('winnerId' in room.results) room.results.winnerId = renamed(room.results.winnerId);
+    room.results.tally = rekey(room.results.tally);
+    room.results.deltas = rekey(room.results.deltas);
+    room.results.votes = rekey(room.results.votes, renamed);
+  }
+}
+
+/**
+ * Dixnt's part of a computer player taking the place of a person who left a game under way (the roster has already
+ * put it in the list, with the person's hand, score, turns and counters): it gets an AI, and everything that named
+ * the person now names it, so the card they played and the vote they cast still stand.  Whatever it now has to do
+ * is picked up by pendingBotAction.
+ *
+ * @param {object} room  the room to change
+ * @param {number} oldId  the account id of the person who left
+ * @param {object} bot  the computer player now in their place
+ * @param {() => number} rng  random source for the AI
+ * @returns {void}
+ * Side effects: mutates the room (the bot, and every field that named the person).
+ */
+function takeOver(room, oldId, bot, rng) {
+  bot.ai = pickAI(AIS, rng).id;
+  renameId(room, oldId, bot.id);
+}
+
+/**
+ * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
+ * here.  The roster has already taken the AI off; everything the computer player's id was written in now names them.
+ *
+ * @param {object} room  the room to change
+ * @param {string} botId  the computer player whose place was taken
+ * @param {object} person  the newcomer, already in its place in the list
+ * @returns {void}
+ * Side effects: mutates the room (as renameId).
+ */
+function handOver(room, botId, person) {
+  renameId(room, botId, person.id);
+}
+
+/**
+ * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.
+ * Side effects: each rule it provides mutates the room's player list.
+ */
+const roster = createRosterRules({
+  isLive,
+  minPlayers: MIN_PLAYERS,
+  maxPlayers: MAX_PLAYERS,
+  botNames: BOT_NAMES,
+  makePlayer,
+  takeOver,
+  handOver,
+});
+export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick, sizeOf, setSize, lockSize } = roster;
+
+// ---------- settings ----------
+
+/**
+ * The host changes the settings.  Only the settings that are given are changed, and the first one that is wrong
+ * stops the lot, so the room is never left half changed.
+ *
+ * @param {object} room  the room to change
+ * @param {number} id  who is asking (must be the host)
+ * @param {object} [settings]  { handSize?, rounds?, judging?, categories? }
+ * @returns {{ ok: boolean, error?: string, params?: object }}
+ * Side effects: may change room.handSize, room.rounds, room.judging and room.categories.
+ */
+export function setSettings(room, id, settings = {}) {
+  return allOrNothing(room, () => applySettings(room, id, settings));
+}
+
+/** The change itself; setSettings is what makes a refusal undo the resize that came before it. */
+function applySettings(room, id, settings) {
+  const refused = hostInLobby(room, id);
+  if (refused) return refused;
+  if (settings.size !== undefined) {
+    const sized = roster.setSize(room, id, settings.size);
+    if (!sized.ok) return sized;
+  }
+  const wanted = {};
+  if (settings.handSize !== undefined) {
+    const n = Math.round(numberFrom(settings.handSize));
+    if (!(n >= HAND_SIZE.min && n <= HAND_SIZE.max)) return fail('handSizeRange', { min: HAND_SIZE.min, max: HAND_SIZE.max });
+    wanted.handSize = n;
+  }
+  if (settings.rounds !== undefined) {
+    const n = Math.round(numberFrom(settings.rounds));
+    if (!(n >= ROUNDS.min && n <= ROUNDS.max)) return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
+    wanted.rounds = n;
+  }
+  if (settings.judging !== undefined) {
+    if (!JUDGING_MODES.includes(settings.judging)) return fail('unknownJudging');
+    wanted.judging = settings.judging;
+  }
+  if (settings.categories !== undefined) {
+    const known = categoriesOf();
+    const keys = [...new Set(Array.isArray(settings.categories) ? settings.categories : [])];
+    if (keys.some((key) => !known.some((c) => c.key === key))) return fail('unknownCategory');
+    if (!keys.length) return fail('needCategory');
+    wanted.categories = known.filter((c) => keys.includes(c.key)).map((c) => c.key); // keep the standard order
+  }
+  Object.assign(room, wanted);
+  return ok();
+}
+
+// ---------- starting and ending ----------
+
+/**
+ * The host starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs,
+ * and begins the first turn.
+ *
+ * @param {object} room  the room to change
+ * @param {number} id  who is asking (must be the host)
+ * @param {() => number} rng  random source for the deck, the AIs and the imposter
+ * @returns {{ ok: boolean, error?: string, params?: object }}
+ * Side effects: resets scores, turns, hands, counters, history, and the deck, and enters the 'word' phase.
+ */
+export function start(room, id, rng) {
+  if (id !== room.hostId) return fail('hostOnlyStart');
+  if (room.phase !== 'lobby') return fail('alreadyStarted');
+  if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
+  roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
+  normaliseSettings(room);
+  const cardIds = availableIds(room);
+  if (cardIds.length < room.players.length * room.handSize) return fail('notEnoughCards');
+  room.draw = shuffle(cardIds, rng);
+  room.discard = [];
+  for (const p of room.players) Object.assign(p, { hand: [], score: 0, turns: 0 }, newCounters());
+  room.history = [];
+  room.turn = 0;
+  room.completedTurns = 0;
+  room.nextChooserIdx = 0;
+  room.recorded = false;
+  room.collectedTurn = -1;
+  // Every computer player gets an AI for the whole game.
+  const bots = room.players.filter(isBot);
+  const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
+  for (const p of bots) p.ai = picks[p.id];
+  startTurn(room, rng);
+  return ok();
+}
+
+/**
+ * The host sends a finished game back to the lobby: the same code, people, and settings, ready for another.  It is
+ * the shared "play again" event, and like every other game's it is for a game that is over: there is no ending one
+ * early.
+ *
+ * @param {object} room  the room (must be finished)
+ * @param {number | string} id  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every hand, score, and counter is
+ *   cleared.
+ */
+export function playAgain(room, id) {
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  const freshPlayer = () => ({ hand: [], turns: 0, score: 0, ...newCounters() });
+  return backToLobby(room, id, { blank, keep: ['handSize', 'rounds', 'judging', 'categories'], freshPlayer });
+}
+
+// ---------- turn flow ----------
+
+/**
+ * Begins a turn: the next chooser is picked and everybody's hand is topped up.
+ *
+ * @param {object} room  the room to change
+ * @param {() => number} rng  random source for the shuffles
+ * @returns {void}
+ * Side effects: increments room.turn, picks room.chooserId, clears the table, and enters the 'word' phase.
+ */
+export function startTurn(room, rng) {
+  syncCards(room, rng);
+  room.turn++;
+  // Normally just the next player in join order; anyone who has already had all their turns is skipped while
+  // somebody else still owes some (this happens after skipped turns).
+  const owes = (player) => (player.turns ?? 0) < room.rounds;
+  const someoneOwes = room.players.some(owes);
+  let idx = room.nextChooserIdx % room.players.length;
+  for (let step = 0; step < room.players.length; step++) {
+    const candidate = (room.nextChooserIdx + step) % room.players.length;
+    if (!someoneOwes || owes(room.players[candidate])) {
+      idx = candidate;
+      break;
     }
   }
+  room.chooserId = room.players[idx].id;
+  room.nextChooserIdx = idx + 1;
+  Object.assign(room, { word: null, imposterId: null, picks: {}, tableOrder: [], votes: {}, results: null });
+  for (const p of room.players) drawUp(room, p, rng);
+  room.phase = 'word';
+}
 
-  /**
-   * Deals a player cards until their hand is full, reshuffling the discard pile if the draw pile runs out.
-   * @param {object} room  the room to change
-   * @param {object} player  the player to deal to
-   * @param {() => number} rng  random source for the reshuffle
-   * @returns {void}
-   * Side effects: moves cards from the draw (and discard) pile into the hand.
-   */
-  function drawUp(room, player, rng) {
-    while (player.hand.length < room.handSize) {
-      if (!room.draw.length) {
-        if (!room.discard.length) return; // nothing left anywhere
-        room.draw = shuffle(room.discard, rng);
-        room.discard = [];
-      }
-      player.hand.push(room.draw.pop());
+/**
+ * Abandons the current turn without scoring or discarding, and moves to the next chooser.
+ *
+ * @param {object} room  the room to change
+ * @param {number} id  who is asking (must be the host)
+ * @param {() => number} rng  random source for the next turn
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: starts a new turn.
+ */
+export function abortTurn(room, id, rng) {
+  if (id !== room.hostId) return fail('hostOnlySkip');
+  if (!['word', 'picking', 'voting'].includes(room.phase)) return fail('noTurnToSkip');
+  startTurn(room, rng);
+  return ok();
+}
+
+/**
+ * Suggestions for the chooser, without repeats until the list has been used up.
+ *
+ * @param {object} room  the room they are for (its pool is kept here, not saved with it)
+ * @param {number} count  how many to give
+ * @param {() => number} rng  random source for the shuffle
+ * @returns {string[]} up to `count` hints (fewer if the list is shorter)
+ * Side effects: takes the hints out of the room's pool, refilling (and shuffling) it when it runs low.
+ */
+export function nextHints(room, count, rng) {
+  let pool = hintPools.get(room) ?? [];
+  if (pool.length < count) pool = shuffle(hints, rng);
+  const taken = pool.splice(-count, count);
+  hintPools.set(room, pool);
+  return taken;
+}
+
+/**
+ * The chooser gives the word; the imposter is picked (except in the favourite style) and card-playing begins.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} id  who is asking (must be the chooser)
+ * @param {string} word  the word or phrase
+ * @param {() => number} rng  random source for the imposter
+ * @returns {{ ok: boolean, error?: string, params?: object }}
+ * Side effects: sets room.word and room.imposterId and enters the 'picking' phase (nothing is changed on a refusal).
+ */
+export function submitWord(room, id, word, rng) {
+  if (room.phase !== 'word') return fail('notTimeToChooseWord');
+  if (id !== room.chooserId) return fail('chooserOnlyWord');
+  const clean = textFrom(word).trim().replace(/\s+/g, ' ');
+  if (!clean) return fail('typeWord');
+  if (clean.length > MAX_WORD_LENGTH) return fail('wordTooLong', { max: MAX_WORD_LENGTH });
+  const candidates = cardPlayers(room);
+  if (!candidates.length) return fail('nobodyToPlay');
+  room.word = clean;
+  // In the favourite style nobody is kept in the dark, so there is no imposter.
+  room.imposterId = room.judging === 'favourite' ? null : candidates[Math.floor(rng() * candidates.length)].id;
+  room.phase = 'picking';
+  return ok();
+}
+
+/**
+ * A player puts a card from their hand on the table.  When the last card is down, voting opens.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} id  who is playing
+ * @param {number} cardId  the card to play
+ * @param {() => number} rng  random source for the order the cards are laid out in
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: records the pick (a player may change it until the last card is in) and may open voting.
+ */
+export function playCard(room, id, cardId, rng) {
+  if (room.phase !== 'picking') return fail('notTimeToPlay');
+  const player = playerOf(room, id);
+  if (!player) return fail('notInGame');
+  if (id === room.chooserId) return fail('notPlayingThisTurn');
+  if (!player.hand.includes(cardId)) return fail('notInHand');
+  room.picks[id] = cardId;
+  if (cardPlayers(room).every((p) => p.id in room.picks)) openVoting(room, rng);
+  return ok();
+}
+
+/**
+ * Lays the cards out in a random order and opens voting.
+ *
+ * @param {object} room  the room to change
+ * @param {() => number} rng  random source for the order
+ * @returns {void}
+ * Side effects: sets room.tableOrder, clears room.votes, and enters the 'voting' phase.
+ */
+function openVoting(room, rng) {
+  room.tableOrder = shuffle(cardPlayers(room).map((p) => p.id), rng);
+  room.votes = {};
+  room.phase = 'voting';
+}
+
+/**
+ * A player votes (or changes their vote).  When the last needed vote is in, the turn is resolved.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} id  the voter
+ * @param {number | string} targetId  whose card they suspect (or, when favouring, like best)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: records the vote and may resolve the turn.
+ */
+export function vote(room, id, targetId) {
+  if (room.phase !== 'voting') return fail('notTimeToVote');
+  if (!playerOf(room, id)) return fail('notInGame');
+  if (room.judging !== 'everyone' && id !== room.chooserId) return fail('chooserOnlyVotes');
+  if (id === targetId) return fail('voteSelf');
+  if (!cardPlayers(room).some((p) => p.id === targetId)) return fail('voteCardPlayer');
+  room.votes[id] = targetId;
+  if (voters(room).every((p) => p.id in room.votes)) resolveVotes(room);
+  return ok();
+}
+
+/**
+ * Scores the turn according to the play style (everyone, chooser, or favourite) and shows the results.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: changes scores, room.results, the counters, the history, the chooser's turns, and enters 'results'.
+ */
+function resolveVotes(room) {
+  if (room.judging === 'chooser') return resolveChooserVerdict(room);
+  if (room.judging === 'favourite') return resolveFavourite(room);
+  const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, 0]));
+  for (const target of Object.values(room.votes)) tally[target]++;
+
+  const imposterVotes = tally[room.imposterId];
+  // Read off the players rather than the table's keys, which are text: the id itself is a number for a person.
+  const bestOther = Math.max(0, ...cardPlayers(room).filter((p) => p.id !== room.imposterId).map((p) => tally[p.id]));
+  const groupCorrect = imposterVotes > bestOther;
+
+  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  const guessers = room.players.filter((p) => p.id !== room.imposterId);
+  if (groupCorrect) {
+    for (const guesser of guessers) {
+      if (room.votes[guesser.id] === room.imposterId) deltas[guesser.id] = POINTS_PER_VOTE;
     }
+  } else {
+    const fooled = guessers.filter((v) => room.votes[v.id] !== room.imposterId).length;
+    deltas[room.imposterId] = fooled * POINTS_PER_VOTE;
   }
+  for (const p of room.players) p.score += deltas[p.id];
 
-  // ---------- the room ----------
+  const notes = turnNotes(room, { judging: 'everyone', groupCorrect });
+  room.results = { judging: 'everyone', imposterId: room.imposterId, groupCorrect, tally, deltas, votes: { ...room.votes } };
+  completeTurn(room, notes);
+}
 
-  /**
-   * Gives a bare player ({ kind, id, name }) the fields Dixnt keeps for everybody: the score, how many turns they
-   * have chosen the word for, their hand, and the statistics counters.
-   *
-   * @param {object} room  not changed (part of the shared makePlayer contract)
-   * @param {object} base  { kind: 'human' | 'bot', id, name? }
-   * @returns {object} the player
-   * Side effects: none.
-   */
-  const makePlayer = (room, base) => ({ ...base, score: 0, turns: 0, hand: [], ...newCounters() });
+/**
+ * Chooser-only judging: spot the imposter and the chooser scores; get fooled and the imposter scores big.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: as resolveVotes.
+ */
+function resolveChooserVerdict(room) {
+  const accusedId = room.votes[room.chooserId];
+  const groupCorrect = accusedId === room.imposterId; // here it means "the judge was correct"
+  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  if (groupCorrect) deltas[room.chooserId] = CHOOSER_CORRECT_POINTS;
+  else deltas[room.imposterId] = CHOOSER_FOOLED_POINTS;
+  for (const p of room.players) p.score += deltas[p.id];
 
-  /**
-   * Makes a new room with the host in it.
-   *
-   * @param {object} args
-   * @param {string} args.code        the invite code
-   * @param {number} args.hostId      the host's account id
-   * @param {string} [args.hostName]  the host's display name
-   * @param {object} [args.settings]  settings the host chose when creating it; invalid ones are ignored
-   * @param {number} args.now         the time to stamp it with
-   * @returns {object} the room, in the lobby
-   * Side effects: none outside the new room (an invalid setting is silently left at its default).
-   */
-  function createRoom({ code, hostId, hostName, settings = {}, now }) {
-    const room = {
-      code,
-      hostId,
-      phase: 'lobby',
-      players: [],
-      size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
-      nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
-      handSize: HAND_SIZE.default,
-      judging: 'everyone',
-      categories: [], // the selected category keys; normaliseSettings fills in "all of them"
-      rounds: ROUNDS.default, // how many rounds the game runs for: every player chooses the word once a round
-      completedTurns: 0, // turns finished so far (abandoned turns don't count)
-      // One entry per completed turn, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
-      // Shown to everyone as the standard scoreboard.
-      history: [],
-      pointScale: 1, // 1 when points are the small numbers of today; a game saved with hundreds has none and is scaled down
-      turn: 0,
-      nextChooserIdx: 0,
-      chooserId: null,
-      draw: [],
-      discard: [],
-      word: null,
-      imposterId: null,
-      picks: {}, // playerId -> cardId
-      tableOrder: [], // playerIds, shuffled once all cards are in
-      votes: {}, // playerId -> playerId
-      results: null,
-      collectedTurn: -1, // the turn whose hands have been reported to the `art` achievement (-1: none yet)
-      recorded: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    normaliseSettings(room);
-    room.players.push(withSlot(room, makePlayer(room, typeof hostName === 'string' ? { kind: 'human', id: hostId, name: hostName } : { kind: 'human', id: hostId })));
-    eachSetting(settings, (one) => setSettings(room, hostId, one)); // a setting the host got wrong is simply left at its default
-    return room;
+  const notes = turnNotes(room, { judging: 'chooser', groupCorrect });
+  const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === accusedId ? 1 : 0]));
+  room.results = { judging: 'chooser', imposterId: room.imposterId, accusedId, groupCorrect, tally, deltas, votes: { ...room.votes } };
+  completeTurn(room, notes);
+}
+
+/**
+ * Favourite style: the chooser's favourite card scores, and nobody was bluffing.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: as resolveVotes.
+ */
+function resolveFavourite(room) {
+  const winnerId = room.votes[room.chooserId];
+  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  deltas[winnerId] = FAVOURITE_POINTS;
+  for (const p of room.players) p.score += deltas[p.id];
+
+  const notes = turnNotes(room, { judging: 'favourite', winnerId });
+  const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === winnerId ? 1 : 0]));
+  room.results = { judging: 'favourite', imposterId: null, winnerId, groupCorrect: null, tally, deltas, votes: { ...room.votes } };
+  completeTurn(room, notes);
+}
+
+/**
+ * Short public remarks for the scoreboard: who chose the word, who was the imposter and how it went.
+ *
+ * @param {object} room  not changed
+ * @param {object} outcome
+ * @param {string} outcome.judging         the play style
+ * @param {boolean} [outcome.groupCorrect] whether the imposter was caught
+ * @param {*} [outcome.winnerId]           the favourite style's winner
+ * @returns {Object<string, object>} playerId -> remark (a message, see shared/messages.js)
+ * Side effects: none.
+ */
+function turnNotes(room, { judging, groupCorrect, winnerId }) {
+  const notes = {};
+  if (room.chooserId !== null) notes[room.chooserId] = msg('notes.chooser');
+  if (judging === 'favourite') {
+    // The chooser never plays a card, so the only remark the winner can already have is the chooser's own.
+    if (winnerId !== undefined && winnerId !== null) notes[winnerId] = notes[winnerId] ? msg('notes.chooserCardPicked') : msg('notes.cardPicked');
+  } else if (room.imposterId !== null) {
+    notes[room.imposterId] = msg(groupCorrect ? 'notes.imposterCaught' : 'notes.imposterFooledAll');
+    if (judging === 'chooser') notes[room.chooserId] = msg(groupCorrect ? 'notes.chooserSpotted' : 'notes.chooserFooled');
   }
+  return notes;
+}
 
-  /**
-   * Brings a saved room up to date: the player list (shared/roster.js), the fields added since it was written, and
-   * the deck, which is rebuilt from the cards that are on disk now.  A player left without a hand by an older
-   * version (Dixnt used to seat a latecomer as a spectator) is dealt one, so the turn cannot stall waiting for a
-   * card they could never play.
-   *
-   * @param {object} room  the room to bring up to date
-   * @param {(id: number) => (string | undefined)} [nameOf]  looks up an account's display name
-   * @param {() => number} [rng]  random source for the shuffles (Math.random is never used here)
-   * @returns {object} the same room
-   * Side effects: mutates the room.  Running it twice changes nothing more.
-   */
-  function migrate(room, nameOf, rng = () => 0.5) {
-    migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
-    const hadHistory = Array.isArray(room.history);
-    if (room.phase === 'discussion') room.phase = 'voting'; // saved by an older version that had a separate step
-    delete room.ready; // and by one that waited for everybody to close the scores
-    room.picks ??= {};
-    room.votes ??= {};
-    room.tableOrder ??= [];
-    room.draw ??= [];
-    room.discard ??= [];
-    // Dixnt used to call one player's go a round, and so a saved room calls it that in four places and labels its
-    // history rows with it.  A turn is that go now, and a round is everybody having had one; the words the rules use
-    // are renamed on the way in, once, so that nothing below this line has to know the old ones.
-    renameField(room, 'round', 'turn');
-    renameField(room, 'completed', 'completedTurns');
-    renameField(room, 'roundsEach', 'rounds');
-    renameField(room, 'collectedRound', 'collectedTurn');
-    for (const entry of Array.isArray(room.history) ? room.history : []) {
-      if (entry?.label?.key === 'round.label') entry.label = { ...entry.label, key: 'turn.label' };
-      else if (entry?.label?.key === 'round.earlier') entry.label = { ...entry.label, key: 'turn.earlier' };
-    }
-    room.collectedTurn ??= -1;
-    room.handSize ??= HAND_SIZE.default;
-    room.rounds ??= ROUNDS.default;
-    room.completedTurns ??= 0;
-    room.turn ??= 0;
-    room.nextChooserIdx ??= 0;
-    if (!Array.isArray(room.history)) room.history = [];
-    for (const p of room.players) {
-      p.hand ??= [];
-      p.score ??= 0;
-      p.turns ??= 0;
-      delete p.waiting; // a latecomer now takes a computer player's place instead of sitting the turn out
-      delete p.token; // a person's id is their account id, and a computer player's is 'bot:<n>'
-    }
-    // A game saved when a vote was worth 100 points (it has no pointScale) is scaled down to the points of today.
-    if (room.pointScale === undefined && room.phase !== 'lobby') {
-      const scale = (points) => Math.round(points / 100);
-      for (const p of room.players) p.score = scale(p.score);
-      for (const entry of room.history) for (const id of Object.keys(entry.deltas ?? {})) entry.deltas[id] = scale(entry.deltas[id]);
-    }
-    room.pointScale = 1;
-    // A game saved before the history existed shows the scores it already has as one "Earlier turns" row.
-    if (!hadHistory && room.phase !== 'lobby' && room.players.some((p) => p.score)) {
-      room.history.push({ label: msg('turn.earlier'), deltas: Object.fromEntries(room.players.map((p) => [p.slot, p.score])), notes: {} });
-    }
-    normaliseSettings(room);
-    syncCards(room, rng);
-    if (TURN_PHASES.includes(room.phase)) for (const p of room.players) drawUp(room, p, rng);
-    return room;
-  }
+/**
+ * Records a finished turn (abandoned turns never get here): it counts as a turn for the chooser, is counted
+ * towards everybody's statistics, goes into the scoreboard history, and the results are shown.
+ *
+ * @param {object} room  the room to change
+ * @param {Object<string, object>} [notes]  the scoreboard remarks from turnNotes (messages)
+ * @returns {void}
+ * Side effects: increments the chooser's turns and room.completedTurns, bumps the counters, adds a history row,
+ * marks the results when this turn closed a round, and enters 'results'.
+ */
+function completeTurn(room, notes = {}) {
+  const chooser = playerOf(room, room.chooserId);
+  const roundsBefore = roundsDone(room);
+  if (chooser) chooser.turns = (chooser.turns ?? 0) + 1;
+  countTurn(room);
+  room.completedTurns++;
+  // Whether everybody has now had a turn they had not had before: the one moment the scores are worth stopping for.
+  room.results.roundOver = roundsDone(room) > roundsBefore;
+  // `room.results` is the turn on show and stays keyed by player id, because that is what the table is drawing and
+  // renameId keeps it straight.  The history row is keyed by slot instead, so that it is written once and never
+  // touched again; viewFor sends it back out by id (shared/roster.js historyView).
+  room.history.push({ label: msg('turn.label', { n: room.completedTurns }), deltas: bySlot(room, room.results.deltas), notes: bySlot(room, notes) });
+  room.phase = 'results';
+}
 
-  // ---------- the lobby ----------
-
-  /**
-   * Renames one player's id everywhere this game writes one down: who is choosing the word, who the imposter is, who
-   * played which card, the order the cards lie in, every vote (both who cast it and who it names), and the results
-   * on show.  A place changes hands in both directions — a computer player takes a person's, and a latecomer takes a
-   * computer player's — and both are this same renaming.
-   *
-   * The scoreboard history is deliberately not among them: it is written by slot, and the slot goes with the place,
-   * so a finished turn is never rewritten.
-   *
-   * @param {object} room  the room to change
-   * @param {number | string} from  the id leaving
-   * @param {number | string} to  the id taking its place
-   * @returns {void}
-   * Side effects: mutates the room's own fields and its scoreboard history.
-   */
-  function renameId(room, from, to) {
-    const renamed = (x) => (x === from ? to : x);
-    // An object keyed by player id has string keys, so the id is matched by its text and put back as it is given.
-    const rekey = (table, mapValue = (v) => v) => {
-      const out = {};
-      for (const [key, value] of Object.entries(table ?? {})) out[String(key) === String(from) ? to : key] = mapValue(value);
-      return out;
-    };
-    room.chooserId = renamed(room.chooserId);
-    room.imposterId = renamed(room.imposterId);
-    room.tableOrder = room.tableOrder.map(renamed);
-    room.picks = rekey(room.picks);
-    room.votes = rekey(room.votes, renamed);
-    if (room.results) {
-      room.results.imposterId = renamed(room.results.imposterId);
-      if ('accusedId' in room.results) room.results.accusedId = renamed(room.results.accusedId);
-      if ('winnerId' in room.results) room.results.winnerId = renamed(room.results.winnerId);
-      room.results.tally = rekey(room.results.tally);
-      room.results.deltas = rekey(room.results.deltas);
-      room.results.votes = rekey(room.results.votes, renamed);
-    }
-  }
-
-  /**
-   * Dixnt's part of a computer player taking the place of a person who left a game under way (the roster has already
-   * put it in the list, with the person's hand, score, turns and counters): it gets an AI, and everything that named
-   * the person now names it, so the card they played and the vote they cast still stand.  Whatever it now has to do
-   * is picked up by pendingBotAction.
-   *
-   * @param {object} room  the room to change
-   * @param {number} oldId  the account id of the person who left
-   * @param {object} bot  the computer player now in their place
-   * @param {() => number} rng  random source for the AI
-   * @returns {void}
-   * Side effects: mutates the room (the bot, and every field that named the person).
-   */
-  function takeOver(room, oldId, bot, rng) {
-    bot.ai = pickAI(AIS, rng).id;
-    renameId(room, oldId, bot.id);
-  }
-
-  /**
-   * The mirror of takeOver: somebody arriving has taken a computer player's place, so the game is theirs to play from
-   * here.  The roster has already taken the AI off; everything the computer player's id was written in now names them.
-   *
-   * @param {object} room  the room to change
-   * @param {string} botId  the computer player whose place was taken
-   * @param {object} person  the newcomer, already in its place in the list
-   * @returns {void}
-   * Side effects: mutates the room (as renameId).
-   */
-  function handOver(room, botId, person) {
-    renameId(room, botId, person.id);
-  }
-
-  /**
-   * The lobby, joining, leaving, and computer-player rules, from shared/roster.js.
-   * Side effects: each rule it provides mutates the room's player list.
-   */
-  const roster = createRosterRules({
-    isLive,
-    minPlayers: MIN_PLAYERS,
-    maxPlayers: MAX_PLAYERS,
-    botNames: BOT_NAMES,
-    makePlayer,
-    takeOver,
-    handOver,
-  });
-
-  // ---------- settings ----------
-
-  /**
-   * The host changes the settings.  Only the settings that are given are changed, and the first one that is wrong
-   * stops the lot, so the room is never left half changed.
-   *
-   * @param {object} room  the room to change
-   * @param {number} id  who is asking (must be the host)
-   * @param {object} [settings]  { handSize?, rounds?, judging?, categories? }
-   * @returns {{ ok: boolean, error?: string, params?: object }}
-   * Side effects: may change room.handSize, room.rounds, room.judging and room.categories.
-   */
-  function setSettings(room, id, settings = {}) {
-    return allOrNothing(room, () => applySettings(room, id, settings));
-  }
-
-  /** The change itself; setSettings is what makes a refusal undo the resize that came before it. */
-  function applySettings(room, id, settings) {
-    const refused = hostInLobby(room, id);
-    if (refused) return refused;
-    if (settings.size !== undefined) {
-      const sized = roster.setSize(room, id, settings.size);
-      if (!sized.ok) return sized;
-    }
-    const wanted = {};
-    if (settings.handSize !== undefined) {
-      const n = Math.round(numberFrom(settings.handSize));
-      if (!(n >= HAND_SIZE.min && n <= HAND_SIZE.max)) return fail('handSizeRange', { min: HAND_SIZE.min, max: HAND_SIZE.max });
-      wanted.handSize = n;
-    }
-    if (settings.rounds !== undefined) {
-      const n = Math.round(numberFrom(settings.rounds));
-      if (!(n >= ROUNDS.min && n <= ROUNDS.max)) return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
-      wanted.rounds = n;
-    }
-    if (settings.judging !== undefined) {
-      if (!JUDGING_MODES.includes(settings.judging)) return fail('unknownJudging');
-      wanted.judging = settings.judging;
-    }
-    if (settings.categories !== undefined) {
-      const known = categoriesOf();
-      const keys = [...new Set(Array.isArray(settings.categories) ? settings.categories : [])];
-      if (keys.some((key) => !known.some((c) => c.key === key))) return fail('unknownCategory');
-      if (!keys.length) return fail('needCategory');
-      wanted.categories = known.filter((c) => keys.includes(c.key)).map((c) => c.key); // keep the standard order
-    }
-    Object.assign(room, wanted);
-    return ok();
-  }
-
-  // ---------- starting and ending ----------
-
-  /**
-   * The host starts the game: builds and shuffles the deck, resets everyone, deals the computer players their AIs,
-   * and begins the first turn.
-   *
-   * @param {object} room  the room to change
-   * @param {number} id  who is asking (must be the host)
-   * @param {() => number} rng  random source for the deck, the AIs and the imposter
-   * @returns {{ ok: boolean, error?: string, params?: object }}
-   * Side effects: resets scores, turns, hands, counters, history, and the deck, and enters the 'word' phase.
-   */
-  function start(room, id, rng) {
-    if (id !== room.hostId) return fail('hostOnlyStart');
-    if (room.phase !== 'lobby') return fail('alreadyStarted');
-    if (room.players.length < MIN_PLAYERS) return fail('minPlayers', { min: MIN_PLAYERS });
-    roster.lockSize(room); // the game is for whoever is here now; a place kept open is a computer player holding it
-    normaliseSettings(room);
-    const cardIds = availableIds(room);
-    if (cardIds.length < room.players.length * room.handSize) return fail('notEnoughCards');
-    room.draw = shuffle(cardIds, rng);
-    room.discard = [];
-    for (const p of room.players) Object.assign(p, { hand: [], score: 0, turns: 0 }, newCounters());
-    room.history = [];
-    room.turn = 0;
-    room.completedTurns = 0;
-    room.nextChooserIdx = 0;
-    room.recorded = false;
-    room.collectedTurn = -1;
-    // Every computer player gets an AI for the whole game.
-    const bots = room.players.filter(isBot);
-    const picks = assignAIs(AIS, bots.map((p) => p.id), rng);
-    for (const p of bots) p.ai = picks[p.id];
-    startTurn(room, rng);
-    return ok();
-  }
-
-  /**
-   * The host sends a finished game back to the lobby: the same code, people, and settings, ready for another.  It is
-   * the shared "play again" event, and like every other game's it is for a game that is over: there is no ending one
-   * early.
-   *
-   * @param {object} room  the room (must be finished)
-   * @param {number | string} id  who is asking (must be the host)
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every hand, score, and counter is
-   *   cleared.
-   */
-  function playAgain(room, id) {
-    const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
-    const freshPlayer = () => ({ hand: [], turns: 0, score: 0, ...newCounters() });
-    return backToLobby(room, id, { blank, keep: ['handSize', 'rounds', 'judging', 'categories'], freshPlayer });
-  }
-
-  // ---------- turn flow ----------
-
-  /**
-   * Begins a turn: the next chooser is picked and everybody's hand is topped up.
-   *
-   * @param {object} room  the room to change
-   * @param {() => number} rng  random source for the shuffles
-   * @returns {void}
-   * Side effects: increments room.turn, picks room.chooserId, clears the table, and enters the 'word' phase.
-   */
-  function startTurn(room, rng) {
-    syncCards(room, rng);
-    room.turn++;
-    // Normally just the next player in join order; anyone who has already had all their turns is skipped while
-    // somebody else still owes some (this happens after skipped turns).
-    const owes = (player) => (player.turns ?? 0) < room.rounds;
-    const someoneOwes = room.players.some(owes);
-    let idx = room.nextChooserIdx % room.players.length;
-    for (let step = 0; step < room.players.length; step++) {
-      const candidate = (room.nextChooserIdx + step) % room.players.length;
-      if (!someoneOwes || owes(room.players[candidate])) {
-        idx = candidate;
-        break;
-      }
-    }
-    room.chooserId = room.players[idx].id;
-    room.nextChooserIdx = idx + 1;
-    Object.assign(room, { word: null, imposterId: null, picks: {}, tableOrder: [], votes: {}, results: null });
-    for (const p of room.players) drawUp(room, p, rng);
-    room.phase = 'word';
-  }
-
-  /**
-   * Abandons the current turn without scoring or discarding, and moves to the next chooser.
-   *
-   * @param {object} room  the room to change
-   * @param {number} id  who is asking (must be the host)
-   * @param {() => number} rng  random source for the next turn
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: starts a new turn.
-   */
-  function abortTurn(room, id, rng) {
-    if (id !== room.hostId) return fail('hostOnlySkip');
-    if (!['word', 'picking', 'voting'].includes(room.phase)) return fail('noTurnToSkip');
-    startTurn(room, rng);
-    return ok();
-  }
-
-  /**
-   * Suggestions for the chooser, without repeats until the list has been used up.
-   *
-   * @param {object} room  the room they are for (its pool is kept here, not saved with it)
-   * @param {number} count  how many to give
-   * @param {() => number} rng  random source for the shuffle
-   * @returns {string[]} up to `count` hints (fewer if the list is shorter)
-   * Side effects: takes the hints out of the room's pool, refilling (and shuffling) it when it runs low.
-   */
-  function nextHints(room, count, rng) {
-    let pool = hintPools.get(room) ?? [];
-    if (pool.length < count) pool = shuffle(hints, rng);
-    const taken = pool.splice(-count, count);
-    hintPools.set(room, pool);
-    return taken;
-  }
-
-  /**
-   * The chooser gives the word; the imposter is picked (except in the favourite style) and card-playing begins.
-   *
-   * @param {object} room  the room to change
-   * @param {number | string} id  who is asking (must be the chooser)
-   * @param {string} word  the word or phrase
-   * @param {() => number} rng  random source for the imposter
-   * @returns {{ ok: boolean, error?: string, params?: object }}
-   * Side effects: sets room.word and room.imposterId and enters the 'picking' phase (nothing is changed on a refusal).
-   */
-  function submitWord(room, id, word, rng) {
-    if (room.phase !== 'word') return fail('notTimeToChooseWord');
-    if (id !== room.chooserId) return fail('chooserOnlyWord');
-    const clean = textFrom(word).trim().replace(/\s+/g, ' ');
-    if (!clean) return fail('typeWord');
-    if (clean.length > MAX_WORD_LENGTH) return fail('wordTooLong', { max: MAX_WORD_LENGTH });
-    const candidates = cardPlayers(room);
-    if (!candidates.length) return fail('nobodyToPlay');
-    room.word = clean;
-    // In the favourite style nobody is kept in the dark, so there is no imposter.
-    room.imposterId = room.judging === 'favourite' ? null : candidates[Math.floor(rng() * candidates.length)].id;
-    room.phase = 'picking';
-    return ok();
-  }
-
-  /**
-   * A player puts a card from their hand on the table.  When the last card is down, voting opens.
-   *
-   * @param {object} room  the room to change
-   * @param {number | string} id  who is playing
-   * @param {number} cardId  the card to play
-   * @param {() => number} rng  random source for the order the cards are laid out in
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: records the pick (a player may change it until the last card is in) and may open voting.
-   */
-  function playCard(room, id, cardId, rng) {
-    if (room.phase !== 'picking') return fail('notTimeToPlay');
+/**
+ * Counts the turn just resolved towards each person's statistics.  Everything is read off the players, so the ids
+ * handed to the tally are the real ones (a table keyed by player id has text keys, and a person's id is a number).
+ *
+ * @param {object} room  the room whose counters are bumped
+ * @returns {void}
+ * Side effects: increments the counters on the people in the room (computer players keep none).
+ */
+function countTurn(room) {
+  // The counters live on the player; a computer player's are not recorded, so it is told to skip them.
+  const counterOf = (id) => {
     const player = playerOf(room, id);
-    if (!player) return fail('notInGame');
-    if (id === room.chooserId) return fail('notPlayingThisTurn');
-    if (!player.hand.includes(cardId)) return fail('notInHand');
-    room.picks[id] = cardId;
-    if (cardPlayers(room).every((p) => p.id in room.picks)) openVoting(room, rng);
-    return ok();
+    return player && !isBot(player) ? player : null;
+  };
+  const pickers = room.players.filter((p) => p.id in room.picks).map((p) => p.id);
+  const votes = room.players.filter((p) => p.id in room.votes).map((p) => [p.id, room.votes[p.id]]);
+  tallyTurn(counterOf, { pickers, votes, results: room.results });
+}
+
+/**
+ * Leaves the results: the played cards are discarded and the next turn (or the end of the game) begins.
+ *
+ * @param {object} room  the room to change
+ * @param {number | string} id  who is asking (anybody in the room)
+ * @param {() => number} rng  random source for the next turn
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: moves cards to the discard pile, then starts a turn or finishes the game.
+ */
+export function nextTurn(room, id, rng) {
+  if (room.phase !== 'results') return fail('turnNotOver');
+  if (!playerOf(room, id)) return fail('notInGame');
+  // Played cards go to the discard pile; startTurn() then tops everyone's hand back up.
+  for (const p of room.players) {
+    const cardId = room.picks[p.id];
+    if (cardId === undefined) continue;
+    p.hand = p.hand.filter((c) => c !== cardId);
+    room.discard.push(cardId);
   }
+  if (allDone(room)) room.phase = 'finished';
+  else startTurn(room, rng);
+  return ok();
+}
 
-  /**
-   * Lays the cards out in a random order and opens voting.
-   *
-   * @param {object} room  the room to change
-   * @param {() => number} rng  random source for the order
-   * @returns {void}
-   * Side effects: sets room.tableOrder, clears room.votes, and enters the 'voting' phase.
-   */
-  function openVoting(room, rng) {
-    room.tableOrder = shuffle(cardPlayers(room).map((p) => p.id), rng);
-    room.votes = {};
-    room.phase = 'voting';
-  }
+// ---------- computer players ----------
 
-  /**
-   * A player votes (or changes their vote).  When the last needed vote is in, the turn is resolved.
-   *
-   * @param {object} room  the room to change
-   * @param {number | string} id  the voter
-   * @param {number | string} targetId  whose card they suspect (or, when favouring, like best)
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: records the vote and may resolve the turn.
-   */
-  function vote(room, id, targetId) {
-    if (room.phase !== 'voting') return fail('notTimeToVote');
-    if (!playerOf(room, id)) return fail('notInGame');
-    if (room.judging !== 'everyone' && id !== room.chooserId) return fail('chooserOnlyVotes');
-    if (id === targetId) return fail('voteSelf');
-    if (!cardPlayers(room).some((p) => p.id === targetId)) return fail('voteCardPlayer');
-    room.votes[id] = targetId;
-    if (voters(room).every((p) => p.id in room.votes)) resolveVotes(room);
-    return ok();
-  }
-
-  /**
-   * Scores the turn according to the play style (everyone, chooser, or favourite) and shows the results.
-   *
-   * @param {object} room  the room to change
-   * @returns {void}
-   * Side effects: changes scores, room.results, the counters, the history, the chooser's turns, and enters 'results'.
-   */
-  function resolveVotes(room) {
-    if (room.judging === 'chooser') return resolveChooserVerdict(room);
-    if (room.judging === 'favourite') return resolveFavourite(room);
-    const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, 0]));
-    for (const target of Object.values(room.votes)) tally[target]++;
-
-    const imposterVotes = tally[room.imposterId];
-    // Read off the players rather than the table's keys, which are text: the id itself is a number for a person.
-    const bestOther = Math.max(0, ...cardPlayers(room).filter((p) => p.id !== room.imposterId).map((p) => tally[p.id]));
-    const groupCorrect = imposterVotes > bestOther;
-
-    const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
-    const guessers = room.players.filter((p) => p.id !== room.imposterId);
-    if (groupCorrect) {
-      for (const guesser of guessers) {
-        if (room.votes[guesser.id] === room.imposterId) deltas[guesser.id] = POINTS_PER_VOTE;
-      }
-    } else {
-      const fooled = guessers.filter((v) => room.votes[v.id] !== room.imposterId).length;
-      deltas[room.imposterId] = fooled * POINTS_PER_VOTE;
-    }
-    for (const p of room.players) p.score += deltas[p.id];
-
-    const notes = turnNotes(room, { judging: 'everyone', groupCorrect });
-    room.results = { judging: 'everyone', imposterId: room.imposterId, groupCorrect, tally, deltas, votes: { ...room.votes } };
-    completeTurn(room, notes);
-  }
-
-  /**
-   * Chooser-only judging: spot the imposter and the chooser scores; get fooled and the imposter scores big.
-   *
-   * @param {object} room  the room to change
-   * @returns {void}
-   * Side effects: as resolveVotes.
-   */
-  function resolveChooserVerdict(room) {
-    const accusedId = room.votes[room.chooserId];
-    const groupCorrect = accusedId === room.imposterId; // here it means "the judge was correct"
-    const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
-    if (groupCorrect) deltas[room.chooserId] = CHOOSER_CORRECT_POINTS;
-    else deltas[room.imposterId] = CHOOSER_FOOLED_POINTS;
-    for (const p of room.players) p.score += deltas[p.id];
-
-    const notes = turnNotes(room, { judging: 'chooser', groupCorrect });
-    const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === accusedId ? 1 : 0]));
-    room.results = { judging: 'chooser', imposterId: room.imposterId, accusedId, groupCorrect, tally, deltas, votes: { ...room.votes } };
-    completeTurn(room, notes);
-  }
-
-  /**
-   * Favourite style: the chooser's favourite card scores, and nobody was bluffing.
-   *
-   * @param {object} room  the room to change
-   * @returns {void}
-   * Side effects: as resolveVotes.
-   */
-  function resolveFavourite(room) {
-    const winnerId = room.votes[room.chooserId];
-    const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
-    deltas[winnerId] = FAVOURITE_POINTS;
-    for (const p of room.players) p.score += deltas[p.id];
-
-    const notes = turnNotes(room, { judging: 'favourite', winnerId });
-    const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, p.id === winnerId ? 1 : 0]));
-    room.results = { judging: 'favourite', imposterId: null, winnerId, groupCorrect: null, tally, deltas, votes: { ...room.votes } };
-    completeTurn(room, notes);
-  }
-
-  /**
-   * Short public remarks for the scoreboard: who chose the word, who was the imposter and how it went.
-   *
-   * @param {object} room  not changed
-   * @param {object} outcome
-   * @param {string} outcome.judging         the play style
-   * @param {boolean} [outcome.groupCorrect] whether the imposter was caught
-   * @param {*} [outcome.winnerId]           the favourite style's winner
-   * @returns {Object<string, object>} playerId -> remark (a message, see shared/messages.js)
-   * Side effects: none.
-   */
-  function turnNotes(room, { judging, groupCorrect, winnerId }) {
-    const notes = {};
-    if (room.chooserId !== null) notes[room.chooserId] = msg('notes.chooser');
-    if (judging === 'favourite') {
-      // The chooser never plays a card, so the only remark the winner can already have is the chooser's own.
-      if (winnerId !== undefined && winnerId !== null) notes[winnerId] = notes[winnerId] ? msg('notes.chooserCardPicked') : msg('notes.cardPicked');
-    } else if (room.imposterId !== null) {
-      notes[room.imposterId] = msg(groupCorrect ? 'notes.imposterCaught' : 'notes.imposterFooledAll');
-      if (judging === 'chooser') notes[room.chooserId] = msg(groupCorrect ? 'notes.chooserSpotted' : 'notes.chooserFooled');
-    }
-    return notes;
-  }
-
-  /**
-   * Records a finished turn (abandoned turns never get here): it counts as a turn for the chooser, is counted
-   * towards everybody's statistics, goes into the scoreboard history, and the results are shown.
-   *
-   * @param {object} room  the room to change
-   * @param {Object<string, object>} [notes]  the scoreboard remarks from turnNotes (messages)
-   * @returns {void}
-   * Side effects: increments the chooser's turns and room.completedTurns, bumps the counters, adds a history row,
-   * marks the results when this turn closed a round, and enters 'results'.
-   */
-  function completeTurn(room, notes = {}) {
+/**
+ * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }.  Computer players
+ * never start the game or move on from the results: the host does that, so they can never hold a game up.
+ *
+ * @param {object} room  not changed
+ * @returns {{ type: 'word' | 'card' | 'vote', id: number | string } | null}
+ * Side effects: none.
+ */
+export function pendingBotAction(room) {
+  if (room.phase === 'word') {
     const chooser = playerOf(room, room.chooserId);
-    const roundsBefore = roundsDone(room);
-    if (chooser) chooser.turns = (chooser.turns ?? 0) + 1;
-    countTurn(room);
-    room.completedTurns++;
-    // Whether everybody has now had a turn they had not had before: the one moment the scores are worth stopping for.
-    room.results.roundOver = roundsDone(room) > roundsBefore;
-    // `room.results` is the turn on show and stays keyed by player id, because that is what the table is drawing and
-    // renameId keeps it straight.  The history row is keyed by slot instead, so that it is written once and never
-    // touched again; viewFor sends it back out by id (shared/roster.js historyView).
-    room.history.push({ label: msg('turn.label', { n: room.completedTurns }), deltas: bySlot(room, room.results.deltas), notes: bySlot(room, notes) });
-    room.phase = 'results';
+    return chooser && isBot(chooser) ? { type: 'word', id: chooser.id } : null;
   }
-
-  /**
-   * Counts the turn just resolved towards each person's statistics.  Everything is read off the players, so the ids
-   * handed to the tally are the real ones (a table keyed by player id has text keys, and a person's id is a number).
-   *
-   * @param {object} room  the room whose counters are bumped
-   * @returns {void}
-   * Side effects: increments the counters on the people in the room (computer players keep none).
-   */
-  function countTurn(room) {
-    // The counters live on the player; a computer player's are not recorded, so it is told to skip them.
-    const counterOf = (id) => {
-      const player = playerOf(room, id);
-      return player && !isBot(player) ? player : null;
-    };
-    const pickers = room.players.filter((p) => p.id in room.picks).map((p) => p.id);
-    const votes = room.players.filter((p) => p.id in room.votes).map((p) => [p.id, room.votes[p.id]]);
-    tallyTurn(counterOf, { pickers, votes, results: room.results });
+  if (room.phase === 'picking') {
+    const bot = cardPlayers(room).find((p) => isBot(p) && !(p.id in room.picks) && p.hand.length);
+    return bot ? { type: 'card', id: bot.id } : null;
   }
-
-  /**
-   * Leaves the results: the played cards are discarded and the next turn (or the end of the game) begins.
-   *
-   * @param {object} room  the room to change
-   * @param {number | string} id  who is asking (anybody in the room)
-   * @param {() => number} rng  random source for the next turn
-   * @returns {{ ok: boolean, error?: string }}
-   * Side effects: moves cards to the discard pile, then starts a turn or finishes the game.
-   */
-  function nextTurn(room, id, rng) {
-    if (room.phase !== 'results') return fail('turnNotOver');
-    if (!playerOf(room, id)) return fail('notInGame');
-    // Played cards go to the discard pile; startTurn() then tops everyone's hand back up.
-    for (const p of room.players) {
-      const cardId = room.picks[p.id];
-      if (cardId === undefined) continue;
-      p.hand = p.hand.filter((c) => c !== cardId);
-      room.discard.push(cardId);
-    }
-    if (allDone(room)) room.phase = 'finished';
-    else startTurn(room, rng);
-    return ok();
+  if (room.phase === 'voting') {
+    const bot = voters(room).find((p) => isBot(p) && !(p.id in room.votes));
+    return bot ? { type: 'vote', id: bot.id } : null;
   }
+  return null;
+}
 
-  // ---------- computer players ----------
+/**
+ * Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead.
+ *
+ * @param {object} room  not changed
+ * @param {object} player  the computer player
+ * @param {string} decision  the AI's method to call ('chooseWord', 'playCard' or 'vote')
+ * @param {any[]} options  the legal answers
+ * @param {object} input  what the AI is told (the game adds the cards, turn and judging style)
+ * @param {() => number} rng  random source for the AI and the fallback
+ * @returns {any} one of `options`
+ * Side effects: calls the AI; nothing in the room is changed.
+ */
+function botDecide(room, player, decision, options, input, rng) {
+  // A broken AI must not stop the game: one that throws answers nothing (shared/ai.js `attempt`).
+  const answer = attempt(() => aiById(AIS, player.ai)[decision]({ ...input, cards: buildCardInfo({ categories: categoriesOf() }), turn: room.turn, judging: room.judging }, rng));
+  return options.includes(answer) ? answer : options[Math.floor(rng() * options.length)];
+}
 
-  /**
-   * The next thing a computer player has to do, or null: { type: 'word' | 'card' | 'vote', id }.  Computer players
-   * never start the game or move on from the results: the host does that, so they can never hold a game up.
-   *
-   * @param {object} room  not changed
-   * @returns {{ type: 'word' | 'card' | 'vote', id: number | string } | null}
-   * Side effects: none.
-   */
-  function pendingBotAction(room) {
-    if (room.phase === 'word') {
-      const chooser = playerOf(room, room.chooserId);
-      return chooser && isBot(chooser) ? { type: 'word', id: chooser.id } : null;
-    }
-    if (room.phase === 'picking') {
-      const bot = cardPlayers(room).find((p) => isBot(p) && !(p.id in room.picks) && p.hand.length);
-      return bot ? { type: 'card', id: bot.id } : null;
-    }
-    if (room.phase === 'voting') {
-      const bot = voters(room).find((p) => isBot(p) && !(p.id in room.votes));
-      return bot ? { type: 'vote', id: bot.id } : null;
-    }
-    return null;
+/**
+ * Plays one pending computer move.  Each decision is made from that player's own view (viewFor), so a computer
+ * player knows only what a person in the same place would: its hand, the clue (unless it is the imposter), the table.
+ *
+ * @param {object} room  the room to change
+ * @param {() => number} rng  random source handed to the AI
+ * @param {{ type: string, id: number | string } | null} [action]  the move to play (default: whatever is pending)
+ * @returns {boolean} false if there was nothing to do
+ * Side effects: submits a word, plays a card, or votes, as that player.
+ */
+export function runBotAction(room, rng, action = pendingBotAction(room)) {
+  if (!action) return false;
+  const player = playerOf(room, action.id);
+  const view = viewFor(room, action.id);
+  if (action.type === 'word') {
+    const suggestions = nextHints(room, 3, rng);
+    const options = suggestions.length ? suggestions : FALLBACK_WORDS;
+    return submitWord(room, action.id, botDecide(room, player, 'chooseWord', options, { hints: options, hand: view.me.hand }, rng), rng).ok;
   }
-
-  /**
-   * Asks the AI, and if it answers with something that is not a legal option, makes a random legal choice instead.
-   *
-   * @param {object} room  not changed
-   * @param {object} player  the computer player
-   * @param {string} decision  the AI's method to call ('chooseWord', 'playCard' or 'vote')
-   * @param {any[]} options  the legal answers
-   * @param {object} input  what the AI is told (the game adds the cards, turn and judging style)
-   * @param {() => number} rng  random source for the AI and the fallback
-   * @returns {any} one of `options`
-   * Side effects: calls the AI; nothing in the room is changed.
-   */
-  function botDecide(room, player, decision, options, input, rng) {
-    let answer;
-    try {
-      answer = aiById(AIS, player.ai)[decision]({ ...input, cards: buildCardInfo({ categories: categoriesOf() }), turn: room.turn, judging: room.judging }, rng);
-    } catch {
-      answer = undefined; // a broken AI must not stop the game
-    }
-    return options.includes(answer) ? answer : options[Math.floor(rng() * options.length)];
+  if (action.type === 'card') {
+    const cardId = botDecide(room, player, 'playCard', view.me.hand, { word: view.word, hand: view.me.hand }, rng);
+    return playCard(room, action.id, cardId, rng).ok;
   }
+  const targetId = botDecide(
+    room,
+    player,
+    'vote',
+    view.voteTargets,
+    {
+      word: view.word,
+      table: view.table,
+      targets: view.voteTargets,
+      me: action.id,
+      imposter: room.imposterId === action.id, // it saw ??? instead of the clue, so it knows
+      chooser: view.me.isChooser,
+      scores: Object.fromEntries(view.players.map((p) => [p.id, p.score])),
+    },
+    rng,
+  );
+  return vote(room, action.id, targetId).ok;
+}
 
-  /**
-   * Plays one pending computer move.  Each decision is made from that player's own view (viewFor), so a computer
-   * player knows only what a person in the same place would: its hand, the clue (unless it is the imposter), the table.
-   *
-   * @param {object} room  the room to change
-   * @param {() => number} rng  random source handed to the AI
-   * @param {{ type: string, id: number | string } | null} [action]  the move to play (default: whatever is pending)
-   * @returns {boolean} false if there was nothing to do
-   * Side effects: submits a word, plays a card, or votes, as that player.
-   */
-  function runBotAction(room, rng, action = pendingBotAction(room)) {
-    if (!action) return false;
-    const player = playerOf(room, action.id);
-    const view = viewFor(room, action.id);
-    if (action.type === 'word') {
-      const suggestions = nextHints(room, 3, rng);
-      const options = suggestions.length ? suggestions : FALLBACK_WORDS;
-      return submitWord(room, action.id, botDecide(room, player, 'chooseWord', options, { hints: options, hand: view.me.hand }, rng), rng).ok;
-    }
-    if (action.type === 'card') {
-      const cardId = botDecide(room, player, 'playCard', view.me.hand, { word: view.word, hand: view.me.hand }, rng);
-      return playCard(room, action.id, cardId, rng).ok;
-    }
-    const targetId = botDecide(
-      room,
-      player,
-      'vote',
-      view.voteTargets,
-      {
-        word: view.word,
-        table: view.table,
-        targets: view.voteTargets,
-        me: action.id,
-        imposter: room.imposterId === action.id, // it saw ??? instead of the clue, so it knows
-        chooser: view.me.isChooser,
-        scores: Object.fromEntries(view.players.map((p) => [p.id, p.score])),
-      },
-      rng,
-    );
-    return vote(room, action.id, targetId).ok;
-  }
+// ---------- what each player is allowed to see ----------
 
-  // ---------- what each player is allowed to see ----------
+/**
+ * The word as one player may see it: everybody but the imposter sees it while cards are being played, and
+ * everybody sees it once the voting starts.
+ *
+ * @param {object} room  not changed
+ * @param {number | string} id  the viewer
+ * @param {boolean} member  is the viewer in the room?  Somebody who is not never sees a word still being played for
+ * @returns {string | null} the word, or null when this player may not know it (yet)
+ * Side effects: none.
+ */
+function wordView(room, id, member) {
+  const revealed = ['voting', 'results'].includes(room.phase);
+  return room.word !== null && (revealed || (room.phase === 'picking' && member && id !== room.imposterId)) ? room.word : null;
+}
 
-  /**
-   * The word as one player may see it: everybody but the imposter sees it while cards are being played, and
-   * everybody sees it once the voting starts.
-   *
-   * @param {object} room  not changed
-   * @param {number | string} id  the viewer
-   * @param {boolean} member  is the viewer in the room?  Somebody who is not never sees a word still being played for
-   * @returns {string | null} the word, or null when this player may not know it (yet)
-   * Side effects: none.
-   */
-  function wordView(room, id, member) {
-    const revealed = ['voting', 'results'].includes(room.phase);
-    return room.word !== null && (revealed || (room.phase === 'picking' && member && id !== room.imposterId)) ? room.word : null;
-  }
+/**
+ * The categories the host can pick from, with how many cards each holds and whether it is selected.
+ *
+ * @param {object} room  not changed
+ * @returns {{ key: string, label: *, description: string, count: number, selected: boolean }[]}
+ * Side effects: none.
+ */
+const categoriesView = (room) =>
+  categoriesOf().map((c) => ({ key: c.key, label: c.label, description: c.description ?? '', count: c.ids.length, selected: room.categories.includes(c.key) }));
 
-  /**
-   * The categories the host can pick from, with how many cards each holds and whether it is selected.
-   *
-   * @param {object} room  not changed
-   * @returns {{ key: string, label: *, description: string, count: number, selected: boolean }[]}
-   * Side effects: none.
-   */
-  const categoriesView = (room) =>
-    categoriesOf().map((c) => ({ key: c.key, label: c.label, description: c.description ?? '', count: c.ids.length, selected: room.categories.includes(c.key) }));
+/**
+ * The viewer's own place: their hand, pick, and vote, and whether they were the imposter (only once that is revealed).
+ *
+ * @param {object} room  not changed
+ * @param {object | undefined} me  the viewer's player, or undefined for somebody who is not in the room
+ * @returns {object}
+ * Side effects: none.
+ */
+function meView(room, me) {
+  if (!me) return { id: null, isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false };
+  return {
+    id: me.id,
+    isChooser: me.id === room.chooserId,
+    hand: ['lobby', 'finished'].includes(room.phase) ? [] : me.hand,
+    myPick: room.picks[me.id] ?? null,
+    myVote: room.votes[me.id] ?? null,
+    isImposter: room.phase === 'results' && me.id === room.imposterId,
+  };
+}
 
-  /**
-   * The viewer's own place: their hand, pick, and vote, and whether they were the imposter (only once that is revealed).
-   *
-   * @param {object} room  not changed
-   * @param {object | undefined} me  the viewer's player, or undefined for somebody who is not in the room
-   * @returns {object}
-   * Side effects: none.
-   */
-  function meView(room, me) {
-    if (!me) return { id: null, isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false };
-    return {
-      id: me.id,
-      isChooser: me.id === room.chooserId,
-      hand: ['lobby', 'finished'].includes(room.phase) ? [] : me.hand,
-      myPick: room.picks[me.id] ?? null,
-      myVote: room.votes[me.id] ?? null,
-      isImposter: room.phase === 'results' && me.id === room.imposterId,
-    };
-  }
+/**
+ * Every player as the table shows them to everybody.
+ *
+ * @param {object} room  not changed
+ * @param {(id: number | string) => boolean} online  is this person connected?
+ * @returns {object[]}
+ * Side effects: none.
+ */
+function playersView(room, online) {
+  const inPlay = ['picking', 'voting', 'results'].includes(room.phase);
+  return room.players.map((p) => ({
+    id: p.id,
+    slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
+    name: p.name,
+    score: p.score,
+    turns: p.turns ?? 0,
+    connected: isBot(p) || online(p.id),
+    bot: isBot(p), // the client's word for it; the player itself says kind: 'bot'
+    ai: p.ai ? aiView(p.ai) : null, // computer players only
+    isChooser: p.id === room.chooserId,
+    hasPlayed: inPlay && p.id in room.picks,
+    hasVoted: room.phase === 'voting' ? p.id in room.votes : false,
+  }));
+}
 
-  /**
-   * Every player as the table shows them to everybody.
-   *
-   * @param {object} room  not changed
-   * @param {(id: number | string) => boolean} online  is this person connected?
-   * @returns {object[]}
-   * Side effects: none.
-   */
-  function playersView(room, online) {
-    const inPlay = ['picking', 'voting', 'results'].includes(room.phase);
-    return room.players.map((p) => ({
+/**
+ * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
+ * @returns {{ id: string, name: string }} how an AI is shown to the players
+ * Side effects: none.
+ */
+function aiView(aiId) {
+  const { id, name } = aiById(AIS, aiId);
+  return { id, name };
+}
+
+/**
+ * The standard scoreboard (shared/scores.js): the chooser has the turn.
+ *
+ * @param {object} room  not changed
+ * @param {number | string} id  the viewer
+ * @param {(id: number | string) => boolean} online  is this person connected?
+ * @returns {object}
+ * Side effects: none.
+ */
+function scoreboardView(room, id, online) {
+  return {
+    // A person's id IS their account, which the site needs for name styles and avatars; a computer player has none.
+    players: room.players.map((p) => ({
       id: p.id,
       slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
       name: p.name,
+      userId: isBot(p) ? undefined : p.id,
       score: p.score,
-      turns: p.turns ?? 0,
-      connected: isBot(p) || online(p.id),
-      bot: isBot(p), // the client's word for it; the player itself says kind: 'bot'
-      ai: p.ai ? aiView(p.ai) : null, // computer players only
-      isChooser: p.id === room.chooserId,
-      hasPlayed: inPlay && p.id in room.picks,
-      hasVoted: room.phase === 'voting' ? p.id in room.votes : false,
-    }));
-  }
+      isMe: p.id === id,
+      bot: isBot(p),
+      current: mustAct(room, p),
+      away: !isBot(p) && !online(p.id),
+    })),
+    rounds: historyView(room),
+    lowIsBetter: false,
+  };
+}
 
-  /**
-   * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
-   * @returns {{ id: string, name: string }} how an AI is shown to the players
-   * Side effects: none.
-   */
-  function aiView(aiId) {
-    const { id, name } = aiById(AIS, aiId);
-    return { id, name };
-  }
-
-  /**
-   * The standard scoreboard (shared/scores.js): the chooser has the turn.
-   *
-   * @param {object} room  not changed
-   * @param {number | string} id  the viewer
-   * @param {(id: number | string) => boolean} online  is this person connected?
-   * @returns {object}
-   * Side effects: none.
-   */
-  function scoreboardView(room, id, online) {
-    return {
-      // A person's id IS their account, which the site needs for name styles and avatars; a computer player has none.
-      players: room.players.map((p) => ({
-        id: p.id,
-        slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
-        name: p.name,
-        userId: isBot(p) ? undefined : p.id,
-        score: p.score,
-        isMe: p.id === id,
-        bot: isBot(p),
-        current: mustAct(room, p),
-        away: !isBot(p) && !online(p.id),
-      })),
-      rounds: historyView(room),
-      lowIsBetter: false,
-    };
-  }
-
-  /**
-   * The cards face up on the table (none while the cards are still being picked) and who this player may vote for.
-   *
-   * @param {object} room  not changed
-   * @param {number | string} id  the viewer
-   * @returns {{ table: object[], voteTargets: Array<number | string> }}
-   * Side effects: none.
-   */
-  function tableView(room, id) {
-    return {
-      table: room.phase === 'picking' ? [] : room.tableOrder.map((pid) => ({ playerId: pid, cardId: room.picks[pid] })),
-      voteTargets:
-        room.phase === 'voting' && voters(room).some((v) => v.id === id)
-          ? cardPlayers(room).filter((p) => p.id !== id).map((p) => p.id)
-          : [],
-    };
-  }
-
-  /**
-   * How many more turns are needed before everyone has had all of theirs.
-   *
-   * @param {object} room  not changed
-   * @returns {number}
-   * Side effects: none.
-   */
-  const turnsRemaining = (room) => room.players.reduce((sum, p) => sum + Math.max(0, room.rounds - (p.turns ?? 0)), 0);
-
-  /**
-   * Has every player chosen the word as many times as the host asked for?
-   *
-   * @param {object} room  not changed
-   * @returns {boolean}
-   * Side effects: none.
-   */
-  const allDone = (room) => room.players.every((p) => (p.turns ?? 0) >= room.rounds);
-
-  /**
-   * How many rounds are behind the game: a round is everybody having had a turn as the chooser, so it is the number
-   * of turns the player with the fewest has had.  Counting it this way, rather than by dividing the turns played by
-   * the players, survives a skipped turn (which hands the go to somebody else and is played again later) and a place
-   * changing hands (the newcomer inherits the turns).
-   *
-   * @param {object} room  not changed
-   * @returns {number}
-   * Side effects: none.
-   */
-  const roundsDone = (room) => (room.players.length ? Math.min(...room.players.map((p) => p.turns ?? 0)) : 0);
-
-  /**
-   * What one player is allowed to see of the game: their own hand, the word (unless they are the imposter while cards
-   * are being played), and only the public parts of everything else.
-   *
-   * @param {object} room  not changed
-   * @param {number | string} id  the viewer
-   * @param {{ online?: (id: number | string) => boolean }} [options]  who is connected
-   * @returns {object} the view sent to that person
-   * Side effects: none.
-   */
-  function viewFor(room, id, { online = () => true } = {}) {
-    const me = playerOf(room, id);
-    const { table, voteTargets } = tableView(room, id);
-    return {
-      code: room.code,
-      phase: room.phase,
-      turn: room.turn,
-      rounds: room.rounds,
-      completedTurns: room.completedTurns,
-      totalTurns: room.completedTurns + turnsRemaining(room),
-      completedRounds: roundsDone(room),
-      winners: room.phase === 'finished' ? winnerIds(room) : [],
-      handSize: room.handSize,
-      chooserId: room.chooserId,
-      hostId: room.hostId,
-      minPlayers: MIN_PLAYERS,
-      maxPlayers: MAX_PLAYERS,
-      size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
-      pointsPerVote: POINTS_PER_VOTE,
-      pointsChooserCorrect: CHOOSER_CORRECT_POINTS,
-      pointsFooledChooser: CHOOSER_FOOLED_POINTS,
-      pointsFavourite: FAVOURITE_POINTS,
-      judging: room.judging,
-      categories: categoriesView(room),
-      availableCards: availableIds(room).length,
-      drawCount: room.draw.length,
-      discardCount: room.discard.length,
-      word: wordView(room, id, Boolean(me)),
-      wordHidden: room.phase === 'picking' && id === room.imposterId,
-      me: meView(room, me),
-      players: playersView(room, online),
-      scoreboard: scoreboardView(room, id, online),
-      table,
-      voteTargets,
-      results: room.phase === 'results' ? room.results : null,
-    };
-  }
-
+/**
+ * The cards face up on the table (none while the cards are still being picked) and who this player may vote for.
+ *
+ * @param {object} room  not changed
+ * @param {number | string} id  the viewer
+ * @returns {{ table: object[], voteTargets: Array<number | string> }}
+ * Side effects: none.
+ */
+function tableView(room, id) {
   return {
-    // What shared/roomServer.js asks of a game.
-    createRoom,
-    migrate,
-    viewFor,
-    statsPlayers,
-    standings,
-    isLive,
-    isHuman,
-    isBot,
-    hasPlayer,
-    humans,
-    seatOf,
-    setSettings,
-    start,
-    playAgain,
-    ...roster,
-    // Dixnt's own actions and what the server needs to drive its computer players.
-    abortTurn,
-    allDone,
-    availableIds,
-    cardPlayers,
-    mustAct,
-    nextHints,
-    nextTurn,
-    pendingBotAction,
-    playCard,
-    playerOf,
-    renameId, // the server needs it to bring games saved before rooms.json over to account ids
-    turnsRemaining,
-    runBotAction,
-    startTurn,
-    submitWord,
-    syncCards, // the deck follows the cards on disk; the tests drive it directly
-    vote,
-    voters,
-    winnerIds,
+    table: room.phase === 'picking' ? [] : room.tableOrder.map((pid) => ({ playerId: pid, cardId: room.picks[pid] })),
+    voteTargets:
+      room.phase === 'voting' && voters(room).some((v) => v.id === id)
+        ? cardPlayers(room).filter((p) => p.id !== id).map((p) => p.id)
+        : [],
+  };
+}
+
+/**
+ * How many more turns are needed before everyone has had all of theirs.
+ *
+ * @param {object} room  not changed
+ * @returns {number}
+ * Side effects: none.
+ */
+export const turnsRemaining = (room) => room.players.reduce((sum, p) => sum + Math.max(0, room.rounds - (p.turns ?? 0)), 0);
+
+/**
+ * Has every player chosen the word as many times as the host asked for?
+ *
+ * @param {object} room  not changed
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const allDone = (room) => room.players.every((p) => (p.turns ?? 0) >= room.rounds);
+
+/**
+ * How many rounds are behind the game: a round is everybody having had a turn as the chooser, so it is the number
+ * of turns the player with the fewest has had.  Counting it this way, rather than by dividing the turns played by
+ * the players, survives a skipped turn (which hands the go to somebody else and is played again later) and a place
+ * changing hands (the newcomer inherits the turns).
+ *
+ * @param {object} room  not changed
+ * @returns {number}
+ * Side effects: none.
+ */
+const roundsDone = (room) => (room.players.length ? Math.min(...room.players.map((p) => p.turns ?? 0)) : 0);
+
+/**
+ * What one player is allowed to see of the game: their own hand, the word (unless they are the imposter while cards
+ * are being played), and only the public parts of everything else.
+ *
+ * @param {object} room  not changed
+ * @param {number | string} id  the viewer
+ * @param {{ online?: (id: number | string) => boolean }} [options]  who is connected
+ * @returns {object} the view sent to that person
+ * Side effects: none.
+ */
+export function viewFor(room, id, { online = () => true } = {}) {
+  const me = playerOf(room, id);
+  const { table, voteTargets } = tableView(room, id);
+  return {
+    code: room.code,
+    phase: room.phase,
+    turn: room.turn,
+    rounds: room.rounds,
+    completedTurns: room.completedTurns,
+    totalTurns: room.completedTurns + turnsRemaining(room),
+    completedRounds: roundsDone(room),
+    winners: room.phase === 'finished' ? winnerIds(room) : [],
+    handSize: room.handSize,
+    chooserId: room.chooserId,
+    hostId: room.hostId,
+    minPlayers: MIN_PLAYERS,
+    maxPlayers: MAX_PLAYERS,
+    size: roster.sizeOf(room), // the most who may join, which the host may lower in the lobby
+    pointsPerVote: POINTS_PER_VOTE,
+    pointsChooserCorrect: CHOOSER_CORRECT_POINTS,
+    pointsFooledChooser: CHOOSER_FOOLED_POINTS,
+    pointsFavourite: FAVOURITE_POINTS,
+    judging: room.judging,
+    categories: categoriesView(room),
+    availableCards: availableIds(room).length,
+    drawCount: room.draw.length,
+    discardCount: room.discard.length,
+    word: wordView(room, id, Boolean(me)),
+    wordHidden: room.phase === 'picking' && id === room.imposterId,
+    me: meView(room, me),
+    players: playersView(room, online),
+    scoreboard: scoreboardView(room, id, online),
+    table,
+    voteTargets,
+    results: room.phase === 'results' ? room.results : null,
   };
 }

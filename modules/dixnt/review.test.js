@@ -9,8 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import { createRules } from './game.js';
-import { cards, makeRoom, seededRng } from './harness.js';
+import { cards, makeRoom, rulesWith, seededRng } from './harness.js';
 import createServer from './server.js';
 import { savedRooms } from '../../shared/testkit.js';
 
@@ -180,7 +179,7 @@ test('a saved room with bot: true players is migrated to kind bot', () => {
     p.bot = p.kind === 'bot';
     delete p.kind;
   }
-  const loaded = createRules({ getCardIds: () => cards(100) }).migrate(old);
+  const loaded = rulesWith({ getCardIds: () => cards(100) }).migrate(old);
   assert.deepEqual(loaded.players.map((p) => p.kind), ['human', 'bot', 'bot']);
   assert.ok(loaded.players.every((p) => !('bot' in p)));
   assert.equal(game.humans(loaded).length, 1);
@@ -252,7 +251,7 @@ test('a missing rooms.json is normal: nothing logged as corrupt and no copy made
 test('a rooms.json with a room that cannot be brought up to date keeps a copy and still loads the others', (t) => {
   const { logs, roomsFile } = launch(t, {
     setup: (dir) => {
-      const good = createRules({ getCardIds: () => cards(60) }).createRoom({ code: 'good-game', hostId: 1, hostName: 'Ann', now: Date.now() });
+      const good = rulesWith({ getCardIds: () => cards(60) }).createRoom({ code: 'good-game', hostId: 1, hostName: 'Ann', now: Date.now() });
       fs.writeFileSync(path.join(dir, 'rooms.json'), JSON.stringify([good, { code: 'bad-game', players: 'nonsense' }]));
     },
   });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHOOSER_CORRECT_POINTS, CHOOSER_FOOLED_POINTS, createRules } from './game.js';
-import { makeRoom, range } from './harness.js';
+import { CHOOSER_CORRECT_POINTS, CHOOSER_FOOLED_POINTS } from './game.js';
+import { makeRoom, range, rulesWith } from './harness.js';
 
 const CATEGORIES = [
   { key: 'fantasy', label: 'Fantasy', description: 'Dragons', ids: range(10001, 40) },
@@ -155,12 +155,12 @@ test('categories: settings survive a save and reload, and a vanished category is
   game.setSettings(room, 1, { categories: ['food', 'games'], judging: 'chooser' });
   const saved = () => JSON.parse(JSON.stringify(room));
 
-  const reloaded = createRules({ getCategories: () => CATEGORIES }).migrate(saved());
+  const reloaded = rulesWith({ getCategories: () => CATEGORIES }).migrate(saved());
   assert.deepEqual(reloaded.categories, ['food', 'games']);
   assert.equal(reloaded.judging, 'chooser');
 
-  const withoutFood = createRules({ getCategories: () => CATEGORIES.filter((c) => c.key !== 'food') }).migrate(saved());
+  const withoutFood = rulesWith({ getCategories: () => CATEGORIES.filter((c) => c.key !== 'food') }).migrate(saved());
   assert.deepEqual(withoutFood.categories, ['games'], 'the missing category is dropped');
-  const onlyNew = createRules({ getCategories: () => [CATEGORIES[0]] }).migrate(saved());
+  const onlyNew = rulesWith({ getCategories: () => [CATEGORIES[0]] }).migrate(saved());
   assert.deepEqual(onlyNew.categories, ['fantasy'], 'if nothing selected still exists, fall back to everything');
 });

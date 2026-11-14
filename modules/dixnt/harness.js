@@ -2,7 +2,28 @@
 // for are accounts 1, 2, 3 ... in the order it names them, and the first of them is the host.
 // Depends on: ./game.js only.
 import assert from 'node:assert/strict';
-import { createRules } from './game.js';
+import * as rules from './game.js';
+
+/**
+ * The rules, playing with the deck a test names: the cards (as categories, or as one category of `getCardIds`) and
+ * the chooser's suggestions, exactly as the socket layer hands them to `setCards`.
+ *
+ * The rules look for the cards in one place, which a server sets once.  A test often wants two decks at once - the
+ * one a game was played with and the one on disk when it is loaded again - so what this gives back is the rules with
+ * that deck put in place before every call, and two of them can be used side by side.
+ *
+ * @param {{ getCategories?: Function, getCardIds?: Function, hints?: string[] }} [source]  as `setCards` takes it
+ * @returns {object} every export of ./game.js, the functions among them setting this deck first
+ * Side effects: none until one of its functions is called, which sets the deck the rules play with.
+ */
+export function rulesWith(source = {}) {
+  const deck = { ...source, hints: source.hints ?? [] }; // one list of suggestions, so that what a room has been given is remembered
+  const withDeck = (rule) => (...args) => {
+    rules.setCards(deck);
+    return rule(...args);
+  };
+  return Object.fromEntries(Object.entries(rules).map(([name, value]) => [name, typeof value === 'function' ? withDeck(value) : value]));
+}
 
 /** The ids of `n` made-up cards, 1 upwards. */
 export const cards = (n) => Array.from({ length: n }, (_, i) => i + 1);
@@ -37,7 +58,7 @@ export function seededRng(seed = 1) {
  * Side effects: none outside the new room.
  */
 export function makeRoom(names, { cardCount = 100, categories = null, hints = [], handSize, rounds, judging, bots = 0, seed = 7, rng = seededRng(seed), start = false, code = 'test-game-here' } = {}) {
-  const game = createRules(categories ? { getCategories: () => categories, hints } : { getCardIds: () => cards(cardCount), hints });
+  const game = rulesWith(categories ?{ getCategories: () => categories, hints } : { getCardIds: () => cards(cardCount), hints });
   const room = game.createRoom({ code, hostId: 1, hostName: names[0], now: 0 });
   // A host sizes the game for the people they are expecting, which is what a test is doing when it names them.
   room.size = Math.max(room.size, names.length + bots);

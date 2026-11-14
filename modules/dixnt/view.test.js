@@ -4,7 +4,7 @@
 // them without saying what moved.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules } from './game.js';
+import { rulesWith } from './harness.js';
 import { cards, recordedViews } from './views.js';
 
 const describeJudging = { everyone: 'everyone judges', chooser: 'the chooser judges', favourite: 'favourites are picked' };
@@ -28,7 +28,7 @@ for (const [judging, seed] of [
 }
 
 test('a view lists its parts in a fixed order, and an outsider is shown nothing of their own', () => {
-  const game = createRules({ getCardIds: () => cards(400), hints: [] });
+  const game = rulesWith({ getCardIds: () => cards(400), hints: [] });
   const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'Host', now: 0 });
   assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'phase', 'turn', 'rounds', 'completedTurns', 'totalTurns', 'completedRounds', 'winners', 'handSize', 'chooserId', 'hostId', 'minPlayers', 'maxPlayers', 'size', 'pointsPerVote', 'pointsChooserCorrect', 'pointsFooledChooser', 'pointsFavourite', 'judging', 'categories', 'availableCards', 'drawCount', 'discardCount', 'word', 'wordHidden', 'me', 'players', 'scoreboard', 'table', 'voteTargets', 'results']);
   const outsider = game.viewFor(room, 'nobody');
@@ -38,7 +38,7 @@ test('a view lists its parts in a fixed order, and an outsider is shown nothing 
 });
 
 test('somebody who is not in the room is never told a word that is still being played for', () => {
-  const game = createRules({ getCardIds: () => cards(400), hints: [] });
+  const game = rulesWith({ getCardIds: () => cards(400), hints: [] });
   const rng = () => 0.5;
   const room = game.createRoom({ code: 'four-five-six', hostId: 1, hostName: 'Host', now: 0 });
   game.fillWithBots(room, 1, 3);

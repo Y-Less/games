@@ -2,13 +2,14 @@
 // skipped) in every judging mode, checking the invariants of the game after every single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules, JUDGING_MODES, MIN_PLAYERS } from './game.js';
+import { JUDGING_MODES, MIN_PLAYERS } from './game.js';
+import { rulesWith } from './harness.js';
 import { seeded } from '../../shared/testkit.js';
 
 const CARDS = 90;
 const ids = (n) => Array.from({ length: n }, (_, i) => 1000 + i);
 
-const newRules = (cardCount = CARDS) => createRules({ getCardIds: () => ids(cardCount), hints: ['a', 'b', 'c', 'd', 'e'] });
+const newRules = (cardCount = CARDS) => rulesWith({ getCardIds: () => ids(cardCount), hints: ['a', 'b', 'c', 'd', 'e'] });
 /** A lobby of `count` people, accounts 1 upwards. */
 function newRoom(game, count) {
   const room = game.createRoom({ code: 'fuzz-room-here', hostId: 1, hostName: 'P1', now: 0 });
