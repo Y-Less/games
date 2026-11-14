@@ -3,6 +3,7 @@
 // settings stay, and everything else is as in a room just made.  The same promises are asserted of every such game.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import * as draw from '../modules/draw/game.js';
 import * as gtk from '../modules/gtk/game.js';
 import * as justOne from '../modules/just-one/game.js';
 import * as scribblers from '../modules/scribblers/game.js';
@@ -19,6 +20,7 @@ const NOW = 1_000_000;
  * (which the next game must keep), and anything else about the room the next game must keep.
  */
 const GAMES = [
+  { name: 'Draw!', game: draw, settings: { rounds: 2, drawTime: 60, wordChoices: 4 }, given: { chooseMs: 1000, betweenMs: 500 }, roomKeeps: ['chooseMs', 'betweenMs', 'language'], oneAi: true },
   { name: 'Just One', game: justOne, settings: { rounds: 3 } },
   { name: 'Tints and Hints', game: tints, settings: { rounds: 3 }, given: { colour: '#808080' }, playerKeeps: ['colour'] },
   { name: 'Wavelength', game: wavelength, settings: { rounds: 3, mode: 'team' }, given: { colour: '#808080' }, playerKeeps: ['colour'] },
@@ -106,6 +108,20 @@ for (const spec of GAMES) {
     }
   });
 
+  test(`${name}: whoever left once the game was over is on its standings, and not at the table for the next one`, () => {
+    const { room, rng } = underWay(spec);
+    finish(room);
+    const leaver = game.MIN_PLAYERS; // the last of the people to have joined
+    const scores = room.players.map((p) => [p.id, p.score]);
+    assert.equal(game.removeHuman(room, leaver, rng, NOW).ok, true);
+    assert.deepEqual(room.players.map((p) => [p.id, p.score]), scores, 'the final scores still name them');
+    assert.doesNotThrow(() => game.viewFor(room, 1), 'and the table that is left can still be shown them');
+    assert.equal(game.playAgain(room, 1).ok, true);
+    assert.equal(room.players.some((p) => p.id === leaver), false, 'they are not in the lobby of the next game');
+    assert.equal(room.players.some((p) => p.id === 1), true, 'the host, who stayed, is');
+    assert.equal(game.addHuman(room, leaver, 'Back again').ok, true, 'and they may join it afresh, like anybody with the code');
+  });
+
   test(`${name}: the same table can start another game, and everybody can be shown it`, () => {
     const { room, rng } = underWay(spec);
     finish(room);
@@ -113,7 +129,8 @@ for (const spec of GAMES) {
     assert.doesNotThrow(() => room.players.forEach((p) => game.viewFor(room, p.id)), 'the lobby of the next game');
     assert.equal(game.start(room, 1, rng, NOW + 5000).ok, true);
     assert.notEqual(room.phase, 'lobby');
-    assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => typeof p.ai === 'string'), 'the computer player has an AI again');
+    // Draw! has the one kind of computer player, and so deals none.
+    if (!spec.oneAi) assert.ok(room.players.filter((p) => p.kind === 'bot').every((p) => typeof p.ai === 'string'), 'the computer player has an AI again');
     assert.doesNotThrow(() => room.players.forEach((p) => game.viewFor(room, p.id)), 'the next game under way');
   });
 }

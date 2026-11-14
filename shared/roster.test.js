@@ -247,9 +247,23 @@ test('removeHuman in a game puts a computer player in their place, with their sc
   const done = lobby();
   rules.addHuman(done, 2, 'Bob');
   done.phase = 'finished';
-  const before = JSON.stringify(done);
-  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, replaced: false, changed: false }, 'and says so, so the room server does not save or send anything');
-  assert.equal(JSON.stringify(done), before);
+  // Once the game is over nobody is replaced: the leaver stays on the standings, marked as gone.
+  assert.deepEqual(rules.removeHuman(done, 2), { ok: true, empty: false, seat: 1, replaced: false });
+  assert.deepEqual(done.players.map((p) => [p.id, Boolean(p.left)]), [[1, false], [2, true]], 'the standings still name them');
+  assert.equal(done.hostId, 1);
+  assert.equal(rules.removeHuman(done, 1).empty, false, 'and the room stands when the last of them has gone: the invitation still shows the standings');
+  assert.deepEqual(done.players.map((p) => p.id), [1, 2]);
+});
+
+test('the host leaving a game that is over passes the hosting to somebody who is still there', () => {
+  const rules = makeRules();
+  const done = lobby();
+  rules.addHuman(done, 2, 'Bob');
+  rules.addHuman(done, 3, 'Cat');
+  done.phase = 'finished';
+  assert.equal(rules.removeHuman(done, 2).ok, true);
+  assert.equal(rules.removeHuman(done, 1).empty, false);
+  assert.equal(done.hostId, 3, 'not to Bob, who left before the host did');
 });
 
 test('kick: only the host, only another person, and never once the game is over', () => {

@@ -31,8 +31,13 @@ test('leaving a finished or abandoned game changes nothing and is harmless', () 
   closeRound(room);
   readyAll(game, room, first);
   assert.equal(room.phase, 'finished');
+  // Somebody who leaves once the game is over is not replaced: the standings still name them, marked as gone.
+  const scores = room.players.map((p) => [p.id, p.score]);
+  const left = game.removeHuman(room, 1, Math.random);
+  assert.deepEqual([left.ok, left.empty, left.replaced], [true, false, false]);
+  assert.deepEqual(room.players.map((p) => [p.id, p.score]), scores, 'everybody is still on the standings, with their score');
+  assert.equal(room.players.find((p) => p.id === 1).left, true);
   const before = JSON.stringify(room);
-  assert.deepEqual(game.removeHuman(room, 1, Math.random), { ok: true, empty: false, replaced: false, changed: false });
   assert.deepEqual(game.removeHuman(room, 999, Math.random), { ok: false, error: 'notInGame' }, 'a stranger is told so, and nothing changes');
   assert.equal(JSON.stringify(room), before);
   assert.equal(game.isLive(room), false);

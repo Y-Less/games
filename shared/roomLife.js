@@ -219,8 +219,8 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
 
   /**
    * Takes a person out of a room (a computer player replaces them mid-game) and tells everyone.  When the rules say the room
-   * was left as it was (`changed: false`: a finished list game keeps its standings), nobody is told and nothing is saved, so
-   * a finished room is not kept young for ever by its players starting other games.
+   * was left as it was (`changed: false`), nobody is told and nothing is saved.  (No shared rule answers that any
+   * more: a list game marks whoever leaves it once it is over, and a seated one leaves a marker in their seat.)
    * @param {object} room  the room being left
    * @param {number} userId  the account leaving
    * @returns {{ ok: boolean, empty?: boolean, changed?: boolean, error?: string }} the rules outcome (`empty` means the room was discarded)
@@ -296,7 +296,18 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
       return { ok: false, error: 'noGameWithCode' };
     }
     if (game.hasPlayer(room, userId)) {
+      // Somebody who left a list game once it was over is still on its standings, marked as gone; walking back in
+      // with the code makes them one of the room's people again, and so at the table if the host plays again.
+      const member = members(room).find((one) => one?.id === userId);
+      const cameBack = Boolean(member?.left);
+      if (cameBack) {
+        delete member.left;
+        // If the host has gone too, and nobody was there to take the hosting on, whoever is back has it: somebody
+        // in the room must be able to send it back to the lobby.
+        if (members(room).find((one) => one?.id === room.hostId)?.left) room.hostId = userId;
+      }
       attach(socket, room);
+      if (cameBack) changed(room);
       return { ok: true, code };
     }
     const added = game.addHuman(room, userId, socket.data.user.name, playerExtras(userId));

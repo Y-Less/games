@@ -243,12 +243,25 @@ test('seated: leaving a finished game leaves a marker, so the final scores still
   assert.equal(room.seats.length, 3, 'and the table never has a hole in it');
 });
 
-test('listed: leaving a finished game leaves them where they are, and nothing is sent', () => {
+test('listed: leaving a finished game leaves them on the standings, marked as gone', () => {
   const { rules, room } = listed();
   rules.addHuman(room, 2, 'Bob');
   room.phase = 'finished';
   const out = rules.removeHuman(room, 2, () => 0.5, 0);
   assert.equal(out.ok, true);
-  assert.equal(out.changed, false, 'nothing happened, so the room is neither saved nor sent');
+  assert.equal(out.changed ?? true, true, 'the table has changed, so everybody is told: the same as in a seated game');
   assert.deepEqual(room.players.map((p) => p.name), ['Ann', 'Bob'], 'they stay on the final standings');
+  assert.deepEqual(room.players.map((p) => Boolean(p.left)), [false, true], 'and the room knows which of them has gone');
+});
+
+// Here the two are meant to differ.  A seat that is left is a marker, and a table of nothing but markers has nobody to
+// show its scores to; a list still holds the players themselves, so its standings are kept for the invitation.
+test('when the last of the people leaves a finished game, a seated room is empty and a listed one stands', () => {
+  for (const [{ rules, room }, empty] of [[seated(), true], [listed(), false]]) {
+    rules.addHuman(room, 2, 'Bob');
+    room.phase = 'finished';
+    assert.equal(rules.removeHuman(room, 2, () => 0.5, 0).empty, false);
+    assert.equal(room.hostId, 1);
+    assert.equal(rules.removeHuman(room, 1, () => 0.5, 0).empty, empty);
+  }
 });

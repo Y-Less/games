@@ -179,7 +179,10 @@ with a list of players writes it as one call to `backToLobby(room, id, { blank, 
 (`shared/roster.js`), which does all of the above: `blank` is a room as `createRoom` makes it, copied over the old one
 so that a field added later is reset without anybody remembering to; `keep` names the settings that survive; and
 `freshPlayer` is what each player starts the next game with.  `shared/playAgain.test.js` asserts the same promises of
-every such game, so add yours to its list.  On the client, put `<PlayAgain :state="state" @again="send('again')" />`
+every such game, so add yours to its list.  Somebody who leaves a list game once it is over stays on its standings,
+marked `left`: the hosting passes to somebody still there, the room stands even when the last of them has gone (the
+invitation still shows the final scores), and `backToLobby` leaves them out of the next game.  Walking back in with
+the code takes the mark off.  On the client, put `<PlayAgain :state="state" @again="send('again')" />`
 (`src/components/PlayAgain.vue`) in the Status box: it draws the host's button once the game is over and nothing
 otherwise.
 

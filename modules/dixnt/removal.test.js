@@ -46,7 +46,8 @@ test('leaving a finished game leaves the final standings for the others', () => 
   room.phase = 'finished';
   const left = game.removeHuman(room, 2, rng, 0);
   assert.equal(left.ok, true);
-  assert.equal(left.changed, false, 'nothing about the room changed, so nobody is told');
+  assert.equal(left.replaced, false, 'no computer player takes their place once the game is over');
+  assert.equal(game.playerOf(room, 2).left, true, 'they are marked as gone');
   assert.deepEqual(room.players.map((p) => p.name), ['Ann', 'Bob', 'Cat', room.players[3].name], 'the standings still name everybody');
   assert.equal(game.kick(room, 1, game.playerOf(room, 3).slot, rng, 0).error, 'gameOverNobodyToRemove', 'the host cannot remove anybody once the game is over');
 });

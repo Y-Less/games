@@ -98,6 +98,7 @@ test('the first choice of a game has no clock: it waits for both drawers, howeve
 
 test('the first choice of the next game at the same table has no clock either', () => {
   const { made, rng } = drawing(['Ann', 'Bob', 'Cat']);
+  made.phase = 'finished'; // the game is over: what is asked here is how the next one begins
   assert.equal(game.playAgain(made, 1).ok, true);
   assert.equal(game.start(made, 1, rng, 5000).ok, true);
   assert.deepEqual([made.phase, made.turn, made.deadline], ['choosing', 0, null]);
@@ -297,13 +298,14 @@ test('a round nobody is there to draw is skipped, and scores nothing', () => {
 test('the host can start again from a finished game, with the scores cleared', () => {
   const { made, rng, guesser, words } = drawing(['Ann', 'Bob', 'Cat']);
   game.guess(made, guesser, words[game.drawersOf(made)[0]], 100);
+  assert.equal(game.playAgain(made, 1).error, 'notOver', 'not even the host ends a game early');
   made.phase = 'finished';
-  assert.equal(game.playAgain(made, 2).error, 'hostOnlyEnd');
+  assert.equal(game.playAgain(made, 2).error, 'hostOnly');
   assert.equal(game.playAgain(made, 1).ok, true);
   assert.equal(made.phase, 'lobby');
   assert.ok(made.players.every((p) => p.score === 0));
   assert.deepEqual(made.order, []);
-  assert.equal(game.playAgain(made, 1).error, 'alreadyInLobby');
+  assert.equal(game.playAgain(made, 1).error, 'notOver', 'already back in the lobby');
   assert.equal(game.start(made, 1, rng, 0).ok, true, 'and the table can play again');
 });
 

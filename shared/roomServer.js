@@ -188,7 +188,7 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  *   only what they should read, such as "Play to 61 or 121."),
  *   viewFor(room, userId, viewOptions), statsPlayers(room), isLive(room), isHuman(seat), hasPlayer(room, userId),
  *   seatOf(room, userId), addHuman(room, userId, name), removeHuman(room, userId, rng, now) (returns { ok, empty, ... };
- *   `changed: false` says the room was left as it was, e.g. a finished list game keeps its standings, so nothing is saved or sent),
+ *   `changed: false` says the room was left as it was, so nothing is saved or sent),
  *   kick(room, hostId, seat, rng, now), setSettings(room, userId, settings), addBot(room, userId, seat),
  *   removeBot(room, userId, seat, rng), fillWithBots(room, userId), start(room, userId, rng, now), playAgain(room, userId).
  *   Every rule returns { ok: true, ... } or { ok: false, error }.

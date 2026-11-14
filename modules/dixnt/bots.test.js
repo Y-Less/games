@@ -314,8 +314,9 @@ test('leavers in the lobby or after the game, and the place somebody comes back 
   playOut(again, [1]);
   assert.equal(again.room.phase, 'finished');
   const left = again.game.removeHuman(again.room, 1, again.rng, 0);
-  assert.equal(left.changed, false);
+  assert.deepEqual([left.ok, left.empty, left.replaced], [true, false, false], 'nobody takes their place, and the room stands');
   assert.equal(again.game.playerOf(again.room, 1).name, 'Host', 'they are still on the scoreboard');
+  assert.equal(again.game.playerOf(again.room, 1).left, true, 'marked as gone, so they are not at the table if the game is played again');
 });
 
 test('computer players survive a save and reload', () => {

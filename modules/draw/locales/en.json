@@ -63,8 +63,6 @@
     "nothingToSkip": "There is no turn to give up.",
     "notYourTurnToDraw": "You are not drawing this turn.",
     "badDrawing": "That is not something that can be drawn.",
-    "hostOnlyEnd": "Only the host can end the game.",
-    "alreadyInLobby": "The game is already in the lobby.",
     "tooFast": "Slow down a moment."
   }
 }

@@ -67,8 +67,6 @@
     "nothingToSkip": "やめられる手番がありません。",
     "notYourTurnToDraw": "この手番は描く番ではありません。",
     "badDrawing": "それは描けるものではありません。",
-    "hostOnlyEnd": "ゲームを終われるのはホストだけです。",
-    "alreadyInLobby": "ゲームはすでにロビーに戻っています。",
     "tooFast": "少し落ち着いてください。"
   },
   "stats": {

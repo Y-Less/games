@@ -19,7 +19,7 @@ import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, nextGame, playerOf, seatOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
 import { ALWAYS_SHOWN, GUESS_LENGTH, addFeed, botGuessText, botWordChoice, cleanGuess, nextGuesser, tooFast } from '../../shared/guessing.js';
@@ -336,20 +336,23 @@ export function start(room, id, rng, now) {
   return ok();
 }
 
+/** What the next game at the same table keeps: the host's settings, and what the socket layer gave the room when it
+ * was made (its language and its two waits). */
+const KEPT = ['rounds', 'drawTime', 'wordChoices', 'language', 'chooseMs', 'betweenMs'];
+
 /**
- * Everybody back to the lobby, with the scores cleared, so the same table can play again.
- * @param {object} room  the room to change
- * @param {number} id  who is asking (must be the host)
+ * The host sends a finished game back to the lobby: the same code, people, and settings, ready for another.  Like
+ * every other game's it is for a game that is over: there is no ending one early.
+ * @param {object} room  the room (must be finished)
+ * @param {number | string} id  who is asking (must be the host)
  * @returns {{ ok: boolean, error?: string }}
- * Side effects: resets the turn, the drawings and the history.
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every player is as one who has
+ *   just joined (no score, no counters, and nothing typed lately held against them).
  */
 export function playAgain(room, id) {
-  if (id !== room.hostId) return fail('hostOnlyEnd');
-  if (room.phase === 'lobby') return fail('alreadyInLobby');
-  nextGame(room); // the game just played keeps its scoreboard; this is the next one
-  for (const player of room.players) Object.assign(player, { score: 0, lastScore: 0, tries: 0 }, newCounters());
-  Object.assign(room, { phase: 'lobby', turn: 0, order: [], choices: {}, preChoice: {}, words: {}, winner: null, reveal: null, feed: [], used: [], history: [], deadline: null, recorded: false });
-  return ok();
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  const freshPlayer = () => ({ score: 0, lastScore: 0, tries: 0, talk: [], ...newCounters() });
+  return backToLobby(room, id, { blank, keep: KEPT, freshPlayer });
 }
 
 /**

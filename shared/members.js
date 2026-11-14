@@ -166,8 +166,10 @@ export function nextBotName(used, botNames) {
  *   leaves is replaced by a computer player rather than simply going
  * @param {(room: object, userId: number) => (object | null)} config.guardFill  what stops somebody adding or filling
  *   computer players (the two families answer with different codes)
- * @param {(room: object, slot: string, leaving: object) => boolean} config.leaveFinished  what a place becomes when
- *   its holder leaves a game that is already over, and whether that counts as a change worth telling anybody about
+ * @param {(room: object, slot: string, leaving: object) => (boolean | 'stands')} config.leaveFinished  what a place
+ *   becomes when its holder leaves a game that is already over, and whether that counts as a change worth telling
+ *   anybody about (false: nothing happened).  `'stands'` is a change after which the room is kept even when the last
+ *   of its people has gone, so that the invitation still shows the final standings
  * @param {number} config.maxPlayers  the most the game allows: the size a room opens at, and the most `setSize` lets
  *   the host ask for
  * @param {number} config.minPlayers  the fewest it can be played with, and the fewest `setSize` lets them ask for
@@ -209,7 +211,9 @@ export function createMemberRules({
   /** Everybody in the room, people and computer players, however the family stores them. */
   const members = (room) => layout.list(room);
   /** The people, as opposed to the computer players. */
-  const people = (room) => members(room).filter(isHuman);
+  // Somebody who left a list game that was already over is still on its standings, marked `left`: not one of the
+  // people in the room any more.
+  const people = (room) => members(room).filter((member) => isHuman(member) && !member.left);
   /** How many places this room has. */
   const capacity = (room) => layout.capacity(room, maxPlayers);
   /** Is there nowhere left to put anybody? */
@@ -325,8 +329,11 @@ export function createMemberRules({
     const seat = layout.indexOf(room, slot); // where they are now: a list closes up behind somebody who leaves it
     const leaving = layout.at(room, slot);
     const midGame = isMidGame(room);
+    let stands = false; // a finished room that is kept even once the last of its people has gone
     if (!isLive(room)) {
-      if (!leaveFinished(room, slot, leaving)) return ok({ empty: false, replaced: false, changed: false });
+      const outcome = leaveFinished(room, slot, leaving);
+      if (!outcome) return ok({ empty: false, replaced: false, changed: false });
+      stands = outcome === 'stands';
     } else if (midGame) {
       const bot = newBot(room);
       // The computer player remembers whose place it is keeping warm, so that they get it back if they come back.
@@ -336,7 +343,7 @@ export function createMemberRules({
       layout.vacate(room, slot);
     }
     const left = people(room);
-    if (!left.length) return ok({ empty: true, seat, replaced: midGame });
+    if (!left.length) return ok({ empty: !stands, seat, replaced: midGame });
     if (room.hostId === userId) room.hostId = left[0].id;
     afterRemoval(room, rng, now);
     return ok({ empty: false, seat, replaced: midGame });

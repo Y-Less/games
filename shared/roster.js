@@ -166,7 +166,8 @@ const KEPT_THROUGH_REPLAY = ['code', 'hostId', 'players', 'size', 'nextBot', 'ne
  *   counters, anything else the game keeps on them); their id, name, slot, and the rest are untouched
  * @returns {{ ok: boolean, error?: string }} ok, or `hostOnly` for anybody else, or `notOver` while a game is being
  *   played or the room is already in the lobby
- * Side effects: advances room.gameSeq, resets the room and every player, and takes each computer player's AI and
+ * Side effects: advances room.gameSeq, takes out of the list whoever left once the game was over (they stayed on its
+ *   standings, marked `left`), resets the room and every player, and takes each computer player's AI and
  *   the note of whose place it was holding off it: in the lobby a computer player holds a place for nobody, and a
  *   new AI is dealt at the next start.
  */
@@ -175,6 +176,8 @@ export function backToLobby(room, userId, { blank, keep, freshPlayer }) {
   if (problem) return problem;
   if (!['finished', 'abandoned'].includes(room.phase)) return fail('notOver');
   nextGame(room); // the game just played keeps its scoreboard; this is the next one
+  // Whoever left once the game was over stayed on its standings; they are not at the table for the next one.
+  room.players = room.players.filter((player) => !player.left);
   const kept = new Set([...KEPT_THROUGH_REPLAY, ...keep]);
   for (const [key, value] of Object.entries(blank)) if (!kept.has(key)) room[key] = value;
   Object.assign(room, { phase: 'lobby', history: [], recorded: false });
@@ -337,8 +340,15 @@ export function createRosterRules({ isLive, minPlayers, maxPlayers, fillTo = def
     takeOver,
     handOver,
     guardFill: (room, userId) => lobbyHostOnly(room, userId, 'add'),
-    // Somebody who leaves a game that is over simply stays on the final standings, so nothing happened.
-    leaveFinished: () => false,
+    // Somebody who leaves a game that is over stays on the final standings, which still name them and their score;
+    // they are marked as gone (`left`), so that they are no longer counted among the room's people — the hosting
+    // passes to somebody still there — and are not at the table when the host plays again (see backToLobby).  That
+    // is a change worth sending.  The room stands even when the last of them has gone: a finished game keeps its
+    // standings for anybody who opens the invitation again, and coming back makes them one of its people once more.
+    leaveFinished(room, slot, leaving) {
+      leaving.left = true;
+      return 'stands';
+    },
   });
 
   /**

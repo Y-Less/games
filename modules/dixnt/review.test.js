@@ -156,7 +156,7 @@ test('the host cannot remove anyone from a finished game, but people can still l
   assert.equal(room.players.length, 3);
   const left = game.removeHuman(room, 2, rng, 0);
   assert.equal(left.ok, true);
-  assert.equal(left.changed, false, 'leaving a finished game changes nothing for the others');
+  assert.equal(left.replaced, false, 'nobody takes their place once the game is over');
   assert.equal(room.players.length, 3, 'the final standings still name them');
 });
 
