@@ -35,7 +35,8 @@
     "youDrawSoNoGuessing": "bIqonmo' Qu'vamDaq bIloylaHbe'."
   },
   "status": {
-    "choose": "wa' mu' yIwIv. vagh lup neH!",
+    "choose": "wa' mu' yIwIv. wa'maH lup neH!",
+    "chooseFirst": "wa' mu' yIwIv. yIloS; wIvDI' cha' qonwI' taghlu'.",
     "chosen": "bIruchrup. qonwI' latlh loSlu'.",
     "draw": "yIqon! wa'DIch ponglu'bogh mIllogh Qap.",
     "guess": "mIllogh vay' yIpong. wa' ghItlhmeH Daq, cha' mIllogh.",

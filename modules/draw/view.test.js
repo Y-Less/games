@@ -144,7 +144,10 @@ function tour(seed, { people, bots, rounds = 1 }) {
         if (rng() < 0.3) continue;
         step(() => assert.equal(game.chooseWord(room, drawer, Math.floor(rng() * room.choices[drawer].length), now).ok, true));
       }
-      if (room.phase === 'choosing') step(() => assert.equal(game.timeUp(room, rng, now).ok, true));
+      // The first choice of a game has no clock to do the picking, so whoever dithered then picks after all.
+      if (room.phase === 'choosing' && room.deadline === null) {
+        for (const drawer of drawers) if (!room.words[drawer]) step(() => assert.equal(game.chooseWord(room, drawer, 0, now).ok, true));
+      } else if (room.phase === 'choosing') step(() => assert.equal(game.timeUp(room, rng, now).ok, true));
     } else if (room.phase === 'drawing') {
       const guessers = room.players.filter((p) => !drawers.includes(p.id));
       const word = room.words[pick(rng, drawers)];

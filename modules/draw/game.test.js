@@ -71,17 +71,64 @@ test('a guesser cannot choose a word, and a drawer cannot choose out of range', 
   assert.equal(game.chooseWord(made, game.drawersOf(made)[0], -1, 0).error, 'pickAWord');
 });
 
-test('five seconds to choose, and the clock picks for whoever has not', () => {
+/** Plays the first turn out, so the room is choosing for the second turn, which began at `at`. */
+function secondTurn(names, at = 100000) {
+  const { made, rng } = drawing(names);
+  assert.equal(game.timeUp(made, rng, at).ok, true, 'the first drawing ran out');
+  assert.equal(game.nextTurn(made, rng, at).ok, true);
+  assert.deepEqual([made.phase, made.turn], ['choosing', 1]);
+  return { made, rng, at };
+}
+
+test('the first choice of a game has no clock: it waits for both drawers, however long they take', () => {
   const { made, rng } = room(['Ann', 'Bob', 'Cat']);
   game.start(made, 1, rng, 0);
-  assert.equal(made.deadline, 5000, 'a quick-fire five seconds');
   const [first, second] = game.drawersOf(made);
-  game.chooseWord(made, first, 0, 0);
-  assert.equal(game.timeUp(made, rng, 5000).ok, true);
+  assert.equal(made.deadline, null, 'no clock on the first choice');
+  assert.equal(game.viewFor(made, first, { now: 0 }).remaining, null, 'and none shown');
+  assert.equal(game.chooseWord(made, first, 0, 0).ok, true);
+  assert.deepEqual([made.phase, made.deadline], ['choosing', null], 'one of them choosing starts nothing');
+  assert.equal(game.timeUp(made, rng, 1e9).ok, false, 'and there is no clock to run out, however late it is');
+  assert.equal(made.phase, 'choosing');
+  assert.equal(made.words[second], null, 'nothing was picked for the one still thinking');
+  assert.equal(game.chooseWord(made, second, 0, 1e9).ok, true);
+  assert.equal(made.phase, 'drawing', 'both have chosen: the drawing begins');
+  assert.equal(made.deadline, 1e9 + made.drawTime * 1000);
+});
+
+test('the first choice of the next game at the same table has no clock either', () => {
+  const { made, rng } = drawing(['Ann', 'Bob', 'Cat']);
+  assert.equal(game.playAgain(made, 1).ok, true);
+  assert.equal(game.start(made, 1, rng, 5000).ok, true);
+  assert.deepEqual([made.phase, made.turn, made.deadline], ['choosing', 0, null]);
+});
+
+test('ten seconds to choose by default, twice the five it used to be', () => {
+  assert.equal(game.CHOOSE_MS, 10000);
+  const made = game.createRoom({ code: 'test-draw-default', hostId: 1, hostName: 'Ann', now: 0 });
+  assert.equal(made.chooseMs, game.CHOOSE_MS);
+});
+
+test('after the first turn the choice is timed, and one drawer choosing does not cut it short', () => {
+  const { made, rng, at } = secondTurn(['Ann', 'Bob', 'Cat']);
+  const [first, second] = game.drawersOf(made);
+  assert.equal(made.deadline, at + made.chooseMs, 'the whole of the choosing time');
+  assert.equal(game.chooseWord(made, first, 0, at + 1).ok, true);
+  assert.deepEqual([made.phase, made.deadline], ['choosing', at + made.chooseMs], 'still waiting for the other one, on the same clock');
+  const chosen = made.words[first];
+  const offered = [...made.choices[second]];
+  assert.equal(game.timeUp(made, rng, at + made.chooseMs).ok, true);
   assert.equal(made.phase, 'drawing');
-  assert.ok(made.words[second], 'the clock chose for the one who dithered');
-  assert.equal(made.words[first], made.choices[first]?.[0] ?? made.words[first], 'and left the one who chose alone');
-  assert.equal(made.deadline, 5000 + made.drawTime * 1000);
+  assert.ok(offered.includes(made.words[second]), 'the clock chose for the one who dithered, from the words they were offered');
+  assert.equal(made.words[first], chosen, 'and left the one who chose alone');
+  assert.equal(made.deadline, at + made.chooseMs + made.drawTime * 1000);
+});
+
+test('after the first turn the drawing starts as soon as both have chosen, without waiting out the clock', () => {
+  const { made, at } = secondTurn(['Ann', 'Bob', 'Cat']);
+  for (const drawer of game.drawersOf(made)) assert.equal(game.chooseWord(made, drawer, 0, at + 1).ok, true);
+  assert.equal(made.phase, 'drawing');
+  assert.equal(made.deadline, at + 1 + made.drawTime * 1000);
 });
 
 test('one guess is tried against both drawings, and naming either wins the round', () => {

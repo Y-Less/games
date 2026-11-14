@@ -204,10 +204,16 @@ function playGame(seed) {
         seen.skipped++;
       } else if (roll < 0.25 || (room.phase === 'between' && roll < 0.6)) {
         // The clock runs out on whatever the room was waiting for.
-        now = Math.max(now, room.deadline);
+        now = Math.max(now, room.deadline ?? now);
         const outcome = game.timeUp(room, rng, now);
-        assert.equal(outcome.ok, true);
-        if (before.phase === 'choosing') {
+        if (before.phase === 'choosing' && before.turn === 0) {
+          // The first choice of a game has no clock, so there is none to run out: it waits for both drawers.  (That
+          // the refusal changed nothing is checked with every other refusal, below.)
+          assert.equal(room.deadline, null, 'the first choice of a game is not timed');
+          assert.equal(outcome.ok, false, 'and nothing moves it on but the drawers choosing');
+          result = outcome;
+        } else if (before.phase === 'choosing') {
+          assert.equal(outcome.ok, true);
           assert.equal(room.phase, 'drawing', 'dither, and the game picks for you');
           for (const drawer of before.drawers) {
             if (before.words[drawer]) assert.equal(room.words[drawer], before.words[drawer], 'a word already chosen stands');
@@ -217,9 +223,13 @@ function playGame(seed) {
             }
           }
           assert.equal(room.deadline, now + room.drawTime * 1000, 'the drawing lasts as long as the host set');
-        } else if (before.phase === 'drawing') checkTurnEnd(before, null);
-        else if (before.turn + 1 < room.order.length) assert.deepEqual([room.phase, room.turn], ['choosing', before.turn + 1], 'the next pair draw');
-        else assert.deepEqual([room.phase, outcome.finished], ['finished', true], 'the last pair have drawn: the game is over');
+        } else if (before.phase === 'drawing') {
+          assert.equal(outcome.ok, true);
+          checkTurnEnd(before, null);
+        } else if (before.turn + 1 < room.order.length) {
+          assert.deepEqual([outcome.ok, room.phase, room.turn], [true, 'choosing', before.turn + 1], 'the next pair draw');
+          assert.equal(room.deadline, now + room.chooseMs, 'with the whole of the choosing time, as every pair after the first has');
+        } else assert.deepEqual([outcome.ok, room.phase, outcome.finished], [true, 'finished', true], 'the last pair have drawn: the game is over');
       } else if (game.pendingBotAction(room) && roll < 0.5) {
         // A computer player picks its word, or has a guess (which may be right).
         const action = game.pendingBotAction(room);

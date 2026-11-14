@@ -5,8 +5,9 @@ drawings side by side with one box to type in.  The first drawing anybody names 
 
 ## How a turn works
 
-1. Both drawers are offered a few words and have **five seconds** to pick one.  Dither, and the game picks for you:
-   this is a quick-fire game.
+1. Both drawers are offered a few words and have **ten seconds** to pick one.  Dither, and the game picks for you:
+   this is a quick-fire game.  The drawing starts as soon as both have picked.  The very first turn of a game is the
+   exception: it has no clock, and waits until both drawers have picked.
 2. Both of them draw at once.  A drawer sees their own board large, and the other drawing smaller beside it — they
    have no idea what it is either.
 3. Everybody else races to type what either drawing is.  One box, two drawings: a guess is tried against both.

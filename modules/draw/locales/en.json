@@ -31,7 +31,8 @@
     "youDrawSoNoGuessing": "You are drawing, so you do not guess this turn."
   },
   "status": {
-    "choose": "Pick one of the words. Five seconds!",
+    "choose": "Pick one of the words. Ten seconds!",
+    "chooseFirst": "Pick one of the words. No hurry: the game starts once you have both picked.",
     "chosen": "Ready. Waiting for the other drawer.",
     "draw": "Draw it! The first drawing anybody names wins the turn.",
     "guess": "Name either drawing. One box, two pictures.",

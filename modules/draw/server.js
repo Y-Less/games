@@ -20,7 +20,7 @@
 // member's place in a room, and the two would be different numbers of different things on one wire.
 //
 // Timing can be changed through the environment (the tests make it fast):
-//   DRAW_CHOOSE_WAIT   milliseconds the drawers have to pick a word (default 5000)
+//   DRAW_CHOOSE_WAIT   milliseconds the drawers have to pick a word (default 10000; the first pick of a game is untimed)
 //   DRAW_BETWEEN_WAIT  milliseconds the two words stay up between rounds (default 4000)
 //   DRAW_AWAY_WAIT     milliseconds a turn waits for drawers who have gone (default 8000)
 //   DRAW_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing or guessing (default 700-1300)

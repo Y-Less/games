@@ -97,7 +97,9 @@ const status = computed(() => {
   }
   if (s.phase === 'choosing') {
     if (!s.youDraw) return { headline: t('status.waiting'), mine: false, lines: [] };
-    return s.choices.length ? { headline: t('status.choose'), mine: true, lines: [] } : { headline: t('status.chosen'), mine: false, lines: [] };
+    if (!s.choices.length) return { headline: t('status.chosen'), mine: false, lines: [] };
+    // The first choice of a game has no clock (`remaining` is null), so it is not hurried along like the others.
+    return { headline: t(s.remaining === null ? 'status.chooseFirst' : 'status.choose'), mine: true, lines: [] };
   }
   return s.youDraw ? { headline: t('status.draw'), mine: true, lines: [] } : { headline: t('status.guess'), mine: true, lines: [] };
 });

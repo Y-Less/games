@@ -7,7 +7,8 @@
 // having drawn once, and the host may ask for several, so at a table of four everybody draws three times over the six
 // turns of one round.
 //
-// It is meant to be quick: five seconds to pick a word, no letters revealed, and no scores to close between turns.
+// It is meant to be quick: ten seconds to pick a word, no letters revealed, and no scores to close between turns.
+// The one wait with no clock on it is the very first choice of a game, which lasts until both drawers have picked.
 // The drawings themselves are not in the view - see server.js, and shared/drawing.js.
 //
 // Depends on: shared/input.js, shared/messages.js, shared/scores.js, shared/seats.js, shared/roster.js (the lobby),
@@ -43,8 +44,11 @@ export const ROUNDS = { min: 1, max: 5, default: 1 };
 export const DRAW_TIME = { min: 10, max: 120, default: 45 };
 /** How many words a drawer is offered. */
 export const WORD_CHOICES = { min: 2, max: 5, default: 3 };
-/** How long a drawer has to pick a word.  Five seconds: this is a quick-fire game, and both of them are waiting. */
-export const CHOOSE_MS = 5000;
+/**
+ * How long a drawer has to pick a word.  Ten seconds: this is a quick-fire game, and both of them are waiting.  The
+ * first choice of a game is the exception, and has no clock at all (see beginTurn).
+ */
+export const CHOOSE_MS = 10000;
 /** How long the two words stay up before the next turn.  No scores to close: the game simply carries on. */
 export const BETWEEN_MS = 4000;
 // The longest guess accepted, how many lines the panel keeps, and how fast one player may type are the same for every
@@ -350,6 +354,11 @@ export function playAgain(room, id) {
 
 /**
  * Sets the room up for the next pair of drawers: each is offered words, and both have `chooseMs` to pick one.
+ *
+ * The first turn of a game is not timed: people are still settling in when the host presses start, so it waits for
+ * both drawers however long they take.  Every later turn waits for both of them or for the whole of `chooseMs`,
+ * whichever comes first.
+ *
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source for the words
  * @param {number} now  the clock
@@ -373,7 +382,7 @@ function beginTurn(room, rng, now) {
     taken.push(...words);
   }
   for (const player of room.players) player.tries = 0;
-  room.deadline = now + (room.chooseMs ?? CHOOSE_MS);
+  room.deadline = room.turn === 0 ? null : now + (room.chooseMs ?? CHOOSE_MS);
   room.phase = 'choosing';
 }
 
@@ -417,7 +426,8 @@ function beginDrawing(room, now) {
 
 /**
  * The clock has run out on whatever the room was waiting for: a word picked for a drawer who dithered, the end of the
- * drawing, or the end of the two words being shown.
+ * drawing, or the end of the two words being shown.  It is refused while the first pair of a game are choosing,
+ * because that wait has no clock.
  *
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source
@@ -427,6 +437,8 @@ function beginDrawing(room, now) {
  */
 export function timeUp(room, rng, now) {
   if (room.phase === 'choosing') {
+    // The first choice of a game has no clock, so there is none to run out: it waits for both drawers.
+    if (room.deadline === null) return fail('nothingToMoveOn');
     // Whoever has not chosen gets the word the clock had ready for them; the drawing starts either way.
     for (const drawer of drawersOf(room)) {
       if (room.words[drawer]) continue;

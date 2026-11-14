@@ -127,6 +127,40 @@ test('a drawer who walks out mid-round leaves their strokes behind for the compu
   assert.ok(theirs.length > 0, 'the stroke they drew before leaving is still on the board');
 });
 
+test('the first choice of a game waits for both drawers with no clock; a later one waits for both or its whole clock', async (t) => {
+  const site = await launch(t);
+  const people = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
+  const [ann, bob, cat] = people;
+  const { code } = await ann.call('create');
+  for (const p of [bob, cat]) await p.call('join', { code });
+  await until(() => people.every((p) => p.state?.players.length === 3), 'a table of three');
+  assert.equal((await ann.call('settings', { drawTime: 120 })).ok, true, 'long enough that the drawing never runs out here');
+  assert.equal((await ann.call('start')).ok, true);
+  await until(() => people.every((p) => p.state?.phase === 'choosing'), 'choosing');
+  assert.ok(people.every((p) => p.state.remaining === null), 'nobody is shown a clock for the first choice');
+
+  // One of the first pair picks, and the other sits on their hands for twice the choosing wait: nothing starts.
+  const [quick, slow] = people.filter((p) => p.state.youDraw);
+  assert.equal((await quick.call('word', { n: 0 })).ok, true);
+  await sleep(2 * Number(process.env.DRAW_CHOOSE_WAIT));
+  assert.ok(people.every((p) => p.state.phase === 'choosing'), 'still choosing: the first turn waits for both of them');
+  assert.equal(slow.state.choices.length > 0, true, 'and nothing was picked for the one still thinking');
+  assert.equal((await slow.call('word', { n: 0 })).ok, true);
+  await until(() => people.every((p) => p.state?.phase === 'drawing'), 'drawing, once both had picked');
+
+  // The first drawing is named, and the second pair choose: this time on a clock.
+  const guesser = people.find((p) => !p.state.youDraw);
+  assert.equal((await guesser.call('guess', { text: quick.state.boards.find((b) => b.yours).word })).ok, true);
+  await until(() => people.every((p) => p.state?.phase === 'choosing' && p.state.turn === 2), 'the second pair choosing');
+  assert.ok(people.every((p) => p.state.remaining !== null), 'a later choice is timed');
+  const [early, late] = people.filter((p) => p.state.youDraw);
+  assert.equal((await early.call('word', { n: 0 })).ok, true);
+  assert.ok(people.every((p) => p.state.phase === 'choosing'), 'one of them picking does not start the drawing');
+  assert.equal(late.state.choices.length > 0, true, 'the other still has their words to pick from');
+  await until(() => people.every((p) => p.state?.phase === 'drawing'), 'the clock picking for the one who dithered');
+  assert.ok(late.state.boards.find((b) => b.yours).word, 'who has a word to draw all the same');
+});
+
 test('a round neither drawer is there for is given up, and the game carries on', async (t) => {
   const site = await launch(t);
   const people = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
