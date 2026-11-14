@@ -196,11 +196,17 @@ test('the host walking out mid-game, and a second game at the same table: each g
   assert.equal(bob.state.seats.filter(Boolean).length, 3, 'everybody is still seated');
   assert.equal(bob.state.settings.target, 10, 'and the settings are kept');
   assert.equal(await played(bob), 1, 'going back to the lobby records nothing');
+  // What a fresh game looks like is asked of the first view of it, not of the latest: the two computer players are
+  // at this table too, and by the time the latest view is looked at one of them may well have taken its turn (and
+  // some tokens), which is the game being played and not anything carried over from the last one.
+  const sentBefore = bob.states.length;
   assert.equal((await bob.call('start')).ok, true);
-  await until(() => bob.state.phase === 'playing', 'the second game');
-  validateView(bob.state, 'bob');
-  assert.equal(bob.state.round, 1, 'a fresh game');
-  assert.ok(bob.state.seats.every((s) => s.prestige === 0 && sum(s.tokens) === 0), 'nobody carries anything over');
+  const dealt = () => bob.states.slice(sentBefore).find((s) => s?.phase === 'playing');
+  await until(() => Boolean(dealt()), 'the second game');
+  const fresh = dealt();
+  validateView(fresh, 'bob');
+  assert.equal(fresh.round, 1, 'a fresh game');
+  assert.ok(fresh.seats.every((s) => s.prestige === 0 && sum(s.tokens) === 0), 'nobody carries anything over');
   await playToEnd([bob]);
   await until(async () => (await played(bob)) === 2, 'the second game to be recorded as well');
 });
