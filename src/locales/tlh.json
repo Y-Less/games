@@ -518,6 +518,15 @@
     "yourHand": "navmeylIj"
   },
   "board": {
-    "label": "nagh beQ"
+    "label": "nagh beQ",
+    "colours": "rItlhmey",
+    "colour": "rItlh {n}",
+    "pen": "ghItlhwI' (Q)",
+    "rubber": "teqwI' (E)",
+    "fill": "tebwI' (W)",
+    "undo": "yIteqqa' (Ctrl+Z)",
+    "clear": "nagh beQ yISay'moH",
+    "guesses": "loymey",
+    "nothingYet": "pagh loylu'pu'."
   }
 }

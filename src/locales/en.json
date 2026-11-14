@@ -544,6 +544,23 @@
     "yourHand": "Your hand"
   },
   "board": {
-    "label": "The drawing board"
+    "label": "The drawing board",
+    "colours": "Colours",
+    "colour": "Colour {n}",
+    "tools": "Tools",
+    "pen": "Pen (Q)",
+    "rubber": "Rubber (E)",
+    "fill": "Fill (W)",
+    "widths": "Brush sizes",
+    "width": "Brush of {n}",
+    "wholeBoard": "The board",
+    "undo": "Undo the last stroke (Ctrl+Z)",
+    "clear": "Clear the board",
+    "guesses": "Guesses",
+    "nothingYet": "Nothing yet.",
+    "guessPlaceholder": "Your guess",
+    "send": "Send",
+    "close": "so close!",
+    "gotIt": "{name} has the word!"
   }
 }

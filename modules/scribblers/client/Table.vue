@@ -12,7 +12,7 @@
 // Emits: none.  Slots: none (it fills GameFrame's scorebar, main, log, and status slots).
 // Side effects: listens for `draw` and `canvas` on the socket while it is mounted; sends 'word', 'guess', 'vote',
 // 'ready', 'canvas', 'line', 'draw', 'fill', 'undo', 'clear', 'removeBot' and 'kick' requests.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
@@ -22,12 +22,13 @@ import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
 import Board from '../../../src/components/DrawingBoard.vue';
-import GuessPanel from './GuessPanel.vue';
-import Toolbox from './Toolbox.vue';
+import GuessPanel from '../../../src/components/GuessPanel.vue';
+import Toolbox from '../../../src/components/DrawingToolbox.vue';
+import { useDrawingTools } from '../../../src/useDrawingTools.js';
+import { useStrokeFeed } from '../../../src/useStrokeFeed.js';
 import Votes from './Votes.vue';
 import WordBar from './WordBar.vue';
 import { boardSize, boardSpan } from './layout.js';
-import { useTools } from './useTools.js';
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -65,35 +66,16 @@ const gotIt = computed(() => guessers.value.filter((p) => p.guessed).length);
 
 // ---- the board ----
 const board = ref(null); // the Board component, which owns the canvas
-const { tool } = useTools({ active: () => youDraw.value && drawing.value, undo: () => props.send('undo') });
-
-/**
- * Draws instructions somebody else has made.
- * @param {{ ops: object[] }} message  what the server relayed
- * @returns {void}
- * Side effects: draws on the board.
- */
-const onDraw = (message) => board.value?.apply(message?.ops ?? []);
-
-/**
- * The board as it now stands, in chunks: the first chunk starts it afresh, the rest are added to it.
- * @param {{ ops: object[], first: boolean }} message  one chunk
- * @returns {void}
- * Side effects: draws on the board.
- */
-const onCanvas = (message) => {
-  if (message?.first) board.value?.reset(message.ops ?? []);
-  else board.value?.apply(message?.ops ?? []);
-};
-
-/**
- * Asks the server for the board as it stands (after arriving, or coming back, in the middle of a turn).
- * @returns {void}
- * Side effects: sends a 'canvas' request.
- */
-function askForBoard() {
-  if (drawing.value || between.value) props.send('canvas');
-}
+const { tool, widths } = useDrawingTools({ active: () => youDraw.value && drawing.value, undo: () => props.send('undo') });
+// The strokes, which no view carries: relayed as they are made, and asked for whole after arriving, or coming back,
+// in the middle of a turn (src/useStrokeFeed.js).
+useStrokeFeed({
+  socket: props.socket,
+  send: props.send,
+  boards: () => [board.value],
+  turnKey: () => `${s.value.round}:${s.value.turn}`,
+  wanted: () => drawing.value || between.value,
+});
 
 /**
  * Sends what the player has just drawn: one stroke as a `line` (the shape scribble.rs's protocol has), a fill as a
@@ -111,27 +93,6 @@ function sendOps(ops) {
   }
   props.send('draw', { ops });
 }
-
-onMounted(() => {
-  props.socket.on('draw', onDraw);
-  props.socket.on('canvas', onCanvas);
-  props.socket.on('connect', askForBoard);
-  askForBoard();
-});
-onBeforeUnmount(() => {
-  props.socket.off('draw', onDraw);
-  props.socket.off('canvas', onCanvas);
-  props.socket.off('connect', askForBoard);
-});
-
-// Each turn starts on a blank board; then the server is asked for anything already drawn on it.
-watch(
-  () => `${s.value.round}:${s.value.turn}`,
-  () => {
-    board.value?.reset([]);
-    askForBoard();
-  },
-);
 
 /**
  * How the main area is shared out: how many of the frame's columns the board's side takes, and how big the canvas is.
@@ -274,11 +235,11 @@ const stageOf = (p) => {
             <Votes v-if="state.votes?.can" :votes="state.votes" :step="state.limits.voteStep" @vote="(dir) => send('vote', { dir })" />
           </div>
 
-          <Toolbox v-if="youDraw && drawing" :tool="tool" @undo="send('undo')" @clear="send('clear')" />
+          <Toolbox v-if="youDraw && drawing" :tool="tool" :widths="widths" @undo="send('undo')" @clear="send('clear')" />
         </div>
 
         <div class="panel-side" :style="{ gridColumn: `span ${area.columns - dims(area).span}` }">
-          <GuessPanel :feed="state.feed" :can-guess="canType" :you-draw="youDraw" :max-length="state.limits.guessLength" :height="dims(area).panel" @guess="(typed) => send('guess', { text: typed })" />
+          <GuessPanel :feed="state.feed" :can-guess="canType" :placeholder="youDraw ? t('panel.sayPlaceholder') : ''" :max-length="state.limits.guessLength" :height="dims(area).panel" @guess="(typed) => send('guess', { text: typed })" />
         </div>
       </div>
     </template>

@@ -64,6 +64,7 @@ export default function (ctx) {
 | `ctx.games` | the *other* games: `list()` their manifests (never this one's), `open(id, options)` a started room in one of them, `onFinished(handler)` to hear when any game anywhere ends (below) |
 | `ctx.dataDir` | a folder this module may save files in (the site creates it) |
 | `ctx.mount(subpath, folder, options)` | serve a folder at `/assets/<id><subpath>` (e.g. card images kept elsewhere) |
+| `ctx.markers` | marker colours (`shared/markerColours.js`): `canCustom(userId)` says whether a player has unlocked any colour, and `preferred(userId)` is the default they saved if they may still use it, else `null` |
 | `ctx.log(...)` | logging, prefixed with the module id |
 
 Rules of the road:
@@ -666,17 +667,22 @@ All in `src/components/`, import from `modules/<id>/client/` as `../../../src/co
 | `RoomEntry` | "start a new game / join with a code" screen |
 | `InviteCode` | the code pill that copies the invite link |
 | `SeatLobby` | seats and computer players waiting room |
+| `GameShell` | the root of a game's client: the loading line, the "new game or invite code" screen (`RoomEntry`), the error toast, and `useGameSocket` underneath.  Props `socket`, `search`, `setSearch`, `leaveConfirm`, `onState`, `noun`, `intro`, `lobbyPhase`; slots `lobby` and `table` (each given `{ state, send }`) and `overlay` (given `{ connected }`) |
 | `GameFrame` | the standard screen: a 12-column grid sized to the window (`data-fits-window`, no page scroll).  Slots `scorebar`, `main`, `others`, `log`, `status`; `main` and `others` receive `{ width, height, left, right, gap, mainSpan, columns }` (pixels) so a game can size its pieces.  Props `mainSpan` (columns for the left part of the main row, default 7) and `logSpan` (columns for Recent moves, default 6) set each row's split on the shared grid, so outer edges and gutters line up while splits differ; a game's main content may use `grid-template-columns: subgrid` and `grid-column: span N` |
 | `NoticePopup` | the generic small pop-up over the top of the page: slot content, `active`, `duration`, `autoHide` (false: stays until OK), OK button, `name` (extra class), `row` (stack two). `YourTurnPopup` and the achievement unlocks are built on it |
 | `GameStatus` | the content of the Status box: `headline` (+ `mine` for the accent colour), `lines` (strings or `{ text, tone }`), slot `facts` (the persistent round/bag/lid line) and a default slot; fills its box and scrolls inside |
 | `PlayingCard` | a CSS-drawn card, or a face-down card with the viewer's card back |
-| `DrawingBoard` | the 1600 x 900 drawing canvas of the games that draw, shown at whatever size there is room for.  Props `active` (may this viewer draw), `tool`, `width`/`height`; emits `ops` (what the player has just drawn, for the table to send on); exposes `apply(ops)` and `reset(ops)`.  A game with two boards on screen draws one of these per board (see `modules/draw`).  The instructions themselves, what the server will accept into a drawing, and the palette are `shared/drawing.js`; the brush and the flood fill are `src/drawBoard.js` |
+| `DrawingBoard` | the 1600 x 900 drawing canvas of the games that draw, shown at whatever size there is room for.  Props `active` (may this viewer draw), `tool`, `width`/`height`; emits `ops` (what the player has just drawn, for the table to send on); exposes `apply(ops)` and `reset(ops)`.  A game with two boards on screen draws one of these per board (see `modules/draw`).  The instructions themselves, what the server will accept into a drawing, and the palette are `shared/drawing.js`; the brush and the flood fill are `src/drawBoard.js`; `fitBoard(width, height)` in `src/boardFit.js` is the largest board that fits a box |
+| `DrawingToolbox` | the drawer's tools under a `DrawingBoard`: the palette, pen, rubber, and paint bucket, the brush sizes (`widths`), undo, and clear.  Props `tool` (from `useDrawingTools`, changed in place) and `widths`; emits `undo` and `clear`.  Its words are the site's (`board.*`) |
+| `GuessPanel` | what everybody has typed and the box to type in, for a game where people guess at a drawing.  Props `feed`, `canGuess`, `maxLength`, `placeholder`, `height` (0 fills its box), `bare` (no panel or title); emits `guess` |
 
 Three helpers beside them, imported from `modules/<id>/client/` as `../../../src/<name>.js`:
 
 | | |
 | --- | --- |
 | `useGameSocket({ socket, search, setSearch, leaveConfirm, onState })` | the client plumbing **every** room game shares, called once from the top component's setup: it resumes the player's room on every connection (using the invite link's code the first time), keeps that code in the address bar, and registers the header's "Leave game" button with the game's own confirmation text.  It gives back `state` (the view, null outside a room), `loaded` (the server has said which), `busy` (a request is in flight), `notice` (the last refusal, already in the player's language), `connected` (false while the socket is down, for a game that tells the player so), `initialCode` (for `RoomEntry`) and `send(event, payload)`.  `onState(next, previous)` is where a game works out what changed, such as its Recent moves |
+| `useDrawingTools({ active, undo, widths })` | the drawer's tool (`{ kind, colour, width }`), shared by the board and the toolbox, with its keyboard shortcuts (Q, W, E, the number keys for the brush, Ctrl+Z) |
+| `useStrokeFeed({ socket, send, boards, turnKey, wanted })` | the client half of `shared/strokeRelay.js`: hands relayed strokes to the board they belong to, and asks for the boards whole on mounting, on a new turn, and on every reconnection |
 | `useTurnClock(getState)` | counts the seconds down from the `remaining` milliseconds a view carries, re-anchoring to the local clock on every new view, so a game never depends on the server's clock agreeing with the player's (Rummikub, Scribblers) |
 | `usePlayerPopup(...)` | which player's details are open, and the host's removal (see `PlayerPopup` above) |
 

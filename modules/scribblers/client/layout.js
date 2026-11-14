@@ -2,6 +2,7 @@
 // playing).  All numbers are pixels unless they are said to be board units.
 // Depends on: shared/drawing.js (the board's own size, which the server and the board itself speak too).
 import { BOARD } from '../../../shared/drawing.js';
+import { fitBoard } from '../../../src/boardFit.js';
 
 /** The drawing board's own coordinate space, which every instruction speaks. */
 export const { width: BOARD_WIDTH, height: BOARD_HEIGHT } = BOARD;
@@ -22,10 +23,7 @@ const TOOLBOX = 96;
  */
 export function boardSize(area, across, withToolbox = false) {
   const room = Math.max(120, Math.floor(area.height - WORD_BAR - (withToolbox ? TOOLBOX : 0)));
-  const width = Math.max(120, Math.floor(across));
-  const byWidth = Math.floor((width * BOARD_HEIGHT) / BOARD_WIDTH);
-  if (byWidth <= room) return { width, height: byWidth };
-  return { width: Math.floor((room * BOARD_WIDTH) / BOARD_HEIGHT), height: room };
+  return fitBoard(Math.max(120, Math.floor(across)), room);
 }
 
 /**

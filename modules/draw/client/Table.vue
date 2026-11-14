@@ -16,19 +16,24 @@
 // Props: state (the server's view), send (function), socket (to listen for strokes).  Emits: none.  Slots: none.
 // Side effects: listens for `draw` and `canvas` on the socket while mounted; sends word, guess, line, fill, draw,
 // undo, clear and canvas.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import DrawingBoard from '../../../src/components/DrawingBoard.vue';
+import Toolbox from '../../../src/components/DrawingToolbox.vue';
+import GuessPanel from '../../../src/components/GuessPanel.vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
+import { useDrawingTools } from '../../../src/useDrawingTools.js';
+import { useStrokeFeed } from '../../../src/useStrokeFeed.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
-import GuessPanel from './GuessPanel.vue';
-import Toolbox from './Toolbox.vue';
+import { BRUSH } from '../../../shared/drawing.js';
 import { boards as boardSizes } from './layout.js';
-import { newTool } from './useTools.js';
+
+/** The three brush sizes this game offers: the thinnest and the thickest the server takes, and one between. */
+const WIDTHS = [BRUSH.min, Math.round((BRUSH.min + BRUSH.max) / 2), BRUSH.max];
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -37,7 +42,11 @@ const props = defineProps({
 });
 const { t } = useGameText();
 
-const tool = newTool();
+const { tool, widths } = useDrawingTools({
+  active: () => Boolean(props.state.youDraw) && props.state.phase === 'drawing',
+  undo: () => props.send('undo'),
+  widths: WIDTHS,
+});
 // One board component per board, in the order the server numbers them.
 const panels = [ref(null), ref(null)];
 const { secondsLeft } = useTurnClock(() => props.state);
@@ -55,46 +64,15 @@ const shown = computed(() => {
 // is rather than from anything about the game: nothing moves while playing.
 const sizesIn = (box) => boardSizes(box, youDraw.value);
 
-/**
- * Hands strokes to the board they belong to.
- * @param {{ board: number, ops: object[] }} message  what the server sent
- * @returns {void}
- * Side effects: draws on one of the boards.
- */
-const onDraw = ({ board, ops }) => panels[board]?.value?.apply(ops ?? []);
-
-/**
- * A board as it now stands, in chunks: the first chunk replaces what was there, the rest are added.
- * @param {{ board: number, ops: object[], first: boolean }} message  what the server sent
- * @returns {void}
- * Side effects: redraws or adds to one of the boards.
- */
-const onCanvas = ({ board, ops, first }) => {
-  const panel = panels[board]?.value;
-  if (!panel) return;
-  if (first) panel.reset(ops ?? []);
-  else panel.apply(ops ?? []);
-};
-
-onMounted(() => {
-  props.socket.on('draw', onDraw);
-  props.socket.on('canvas', onCanvas);
-  props.send('canvas'); // whatever is already on the two boards, for somebody arriving mid-round
+// The strokes, each tagged with the board it belongs to: relayed as they are made, and asked for whole on arriving
+// mid-round, on a new turn (two blank boards, then whatever is on them already), and on coming back from a dropped
+// connection (src/useStrokeFeed.js).
+useStrokeFeed({
+  socket: props.socket,
+  send: props.send,
+  boards: () => panels.map((panel) => panel.value),
+  turnKey: () => props.state.turn,
 });
-onBeforeUnmount(() => {
-  props.socket.off('draw', onDraw);
-  props.socket.off('canvas', onCanvas);
-});
-
-// A new turn means two blank boards, and the strokes of the one being drawn now.
-watch(
-  () => props.state.turn,
-  async () => {
-    await nextTick();
-    for (const panel of panels) panel.value?.reset([]);
-    props.send('canvas');
-  },
-);
 
 // Another player's details open from their chip in the score bar.
 const { openId, scoreProps, popupProps } = usePlayerPopup({
@@ -174,7 +152,7 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
           </figure>
         </div>
 
-        <Toolbox v-if="youDraw && state.phase === 'drawing'" :tool="tool" @undo="send('undo')" @clear="send('clear')" />
+        <Toolbox v-if="youDraw && state.phase === 'drawing'" :tool="tool" :widths="widths" @undo="send('undo')" @clear="send('clear')" />
 
         <div v-if="state.phase === 'choosing' && state.choices.length" class="choices row">
           <button v-for="(word, n) in state.choices" :key="word" class="primary" @click="send('word', { n })">{{ word }}</button>
@@ -184,8 +162,10 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
 
     <template #log>
       <GuessPanel
+        bare
         :feed="state.feed"
         :can-guess="state.phase === 'drawing' && !youDraw"
+        :placeholder="state.phase === 'drawing' && youDraw ? t('table.youDrawSoNoGuessing') : t('table.guessHere')"
         :max-length="state.limits.guessLength"
         @guess="(text) => send('guess', { text })"
       />

@@ -600,6 +600,15 @@
     }
   },
   "board": {
-    "label": "お絵かきボード"
+    "label": "お絵かきボード",
+    "colours": "色",
+    "colour": "色{n}",
+    "pen": "ペン (Q)",
+    "rubber": "消しゴム (E)",
+    "fill": "塗りつぶし (W)",
+    "undo": "元に戻す (Ctrl+Z)",
+    "clear": "ボードを消す",
+    "guesses": "回答",
+    "nothingYet": "まだ回答はありません。"
   }
 }

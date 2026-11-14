@@ -26,27 +26,8 @@
     },
     "total": "{count} turn in all with {players} players. Everybody draws once a round. | {count} turns in all with {players} players. Everybody draws once a round."
   },
-  "toolbox": {
-    "colours": "Colours",
-    "colour": "Colour {n}",
-    "tools": "Tools",
-    "pen": "Pen (Q)",
-    "rubber": "Rubber (E)",
-    "fill": "Fill (W)",
-    "widths": "Brush sizes",
-    "width": "Brush of {n}",
-    "board": "The board",
-    "undo": "Undo the last stroke (Ctrl+Z)",
-    "clear": "Clear the board"
-  },
   "panel": {
-    "title": "Guesses",
-    "nothingYet": "Nothing yet.",
-    "guessPlaceholder": "Your guess",
-    "sayPlaceholder": "Say something",
-    "send": "Send",
-    "close": "so close!",
-    "gotIt": "{name} has the word!"
+    "sayPlaceholder": "Say something"
   },
   "word": {
     "choosing": "{name} is choosing a word",

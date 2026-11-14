@@ -2,32 +2,17 @@
 // playing.  There are always two boards: a guesser sees them the same size side by side, and a drawer sees their own
 // as big as it will go with the other one small beside it.
 // All numbers are pixels unless they are said to be board units.
-// Depends on: shared/drawing.js (the board's own size, which the server and the board itself speak too).
-import { BOARD } from '../../../shared/drawing.js';
+// Depends on: src/boardFit.js (the board's shape fitted into a box).
+import { fitBoard as fit } from '../../../src/boardFit.js';
 
-/** The drawing board's own coordinate space, which every instruction speaks. */
-export const { width: BOARD_WIDTH, height: BOARD_HEIGHT } = BOARD;
 /** The gap between the two boards. */
 export const GAP = 12;
 /** How tall the line above the boards is (the word, or who is drawing what). */
 const CAPTION = 26;
-/** How tall the drawer's tools are, below their own board. */
-const TOOLBOX = 84;
+/** How tall the drawer's tools are, below their own board (the shared toolbox, which may wrap onto a second line). */
+const TOOLBOX = 96;
 /** The share of the width a drawer's own board takes; the other drawing gets the rest. */
 const YOURS = 0.68;
-
-/**
- * The largest board of the right shape that fits in a box.
- * @param {number} width  the room across
- * @param {number} height  the room down
- * @returns {{ width: number, height: number }} the board's size on screen
- * Side effects: none.
- */
-function fit(width, height) {
-  const byWidth = Math.floor((width * BOARD_HEIGHT) / BOARD_WIDTH);
-  if (byWidth <= height) return { width: Math.max(0, Math.floor(width)), height: Math.max(0, byWidth) };
-  return { width: Math.max(0, Math.floor((height * BOARD_WIDTH) / BOARD_HEIGHT)), height: Math.max(0, Math.floor(height)) };
-}
 
 /**
  * Where the two boards go, for whoever is looking.

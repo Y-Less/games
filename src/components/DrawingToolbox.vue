@@ -1,24 +1,32 @@
 <script setup>
-// The drawer's tools: the palette, the brush sizes, the pen, the rubber, the paint bucket, undo, and clear.  The two
-// rows of colours are the palette the instructions name by place (../drawing.js), bright ones above their darker twins.
-// Props: tool ({ kind, colour, width }, changed in place).
+// The drawer's tools, for the games that draw (Scribblers, Draw!): the palette, the pen, the rubber, the paint bucket,
+// the brush sizes, undo, and clear.  The two rows of colours are the palette the instructions name by place
+// (shared/drawing.js), the bright ones above their darker twins.
+// Depends on: src/drawBoard.js (the palette), src/useDrawingTools.js (the kinds of tool), and src/useGameText.js.
+// Props: tool ({ kind, colour, width }, changed in place: see useDrawingTools), widths (the brush sizes offered, in
+//   board units).
 // Emits: undo, clear.  Slots: none.
 // Side effects: none beyond changing the tool it was given.
-import { useGameText } from '../../../src/useGameText.js';
-import { PALETTE } from '../../../src/drawBoard.js';
-import { TOOLS, WIDTHS } from './useTools.js';
+import { PALETTE } from '../drawBoard.js';
+import { TOOLS, WIDTHS } from '../useDrawingTools.js';
+import { useGameText } from '../useGameText.js';
 
-const props = defineProps({ tool: { type: Object, required: true } });
+const props = defineProps({
+  tool: { type: Object, required: true },
+  widths: { type: Array, default: () => WIDTHS },
+});
 defineEmits(['undo', 'clear']);
 const { t } = useGameText();
 
 // The palette in two rows, as the colours were meant to be shown: the bright ones above their darker twins.
 const rows = [PALETTE.slice(0, 13), PALETTE.slice(13)];
+/** What each kind of tool looks like on its button. */
+const GLYPHS = { pen: '✏️', rubber: '🩹', fill: '🪣' };
 </script>
 
 <template>
   <div class="toolbox">
-    <div class="colours" :aria-label="t('toolbox.colours')" role="group">
+    <div class="colours" :aria-label="t('board.colours')" role="group">
       <div v-for="(row, r) in rows" :key="r" class="colour-row">
         <button
           v-for="(hex, n) in row"
@@ -27,8 +35,8 @@ const rows = [PALETTE.slice(0, 13), PALETTE.slice(13)];
           class="swatch"
           :class="{ picked: props.tool.colour === r * 13 + n && props.tool.kind !== 'rubber' }"
           :style="{ background: hex }"
-          :title="t('toolbox.colour', { n: r * 13 + n + 1 })"
-          :aria-label="t('toolbox.colour', { n: r * 13 + n + 1 })"
+          :title="t('board.colour', { n: r * 13 + n + 1 })"
+          :aria-label="t('board.colour', { n: r * 13 + n + 1 })"
           :aria-pressed="props.tool.colour === r * 13 + n && props.tool.kind !== 'rubber'"
           @click="
             props.tool.colour = r * 13 + n;
@@ -38,31 +46,31 @@ const rows = [PALETTE.slice(0, 13), PALETTE.slice(13)];
       </div>
     </div>
 
-    <div class="group" :aria-label="t('toolbox.tools')" role="group">
+    <div class="group" :aria-label="t('board.tools')" role="group">
       <button
         v-for="kind in TOOLS"
         :key="kind"
         type="button"
         class="tool"
         :class="{ picked: props.tool.kind === kind }"
-        :title="t(`toolbox.${kind}`)"
-        :aria-label="t(`toolbox.${kind}`)"
+        :title="t(`board.${kind}`)"
+        :aria-label="t(`board.${kind}`)"
         :aria-pressed="props.tool.kind === kind"
         @click="props.tool.kind = kind"
       >
-        <span aria-hidden="true">{{ { pen: '✏️', rubber: '🩹', fill: '🪣' }[kind] }}</span>
+        <span aria-hidden="true">{{ GLYPHS[kind] }}</span>
       </button>
     </div>
 
-    <div class="group" :aria-label="t('toolbox.widths')" role="group">
+    <div class="group" :aria-label="t('board.widths')" role="group">
       <button
-        v-for="w in WIDTHS"
+        v-for="w in widths"
         :key="w"
         type="button"
         class="tool"
         :class="{ picked: props.tool.width === w }"
-        :title="t('toolbox.width', { n: w })"
-        :aria-label="t('toolbox.width', { n: w })"
+        :title="t('board.width', { n: w })"
+        :aria-label="t('board.width', { n: w })"
         :aria-pressed="props.tool.width === w"
         @click="props.tool.width = w"
       >
@@ -70,9 +78,9 @@ const rows = [PALETTE.slice(0, 13), PALETTE.slice(13)];
       </button>
     </div>
 
-    <div class="group" :aria-label="t('toolbox.board')" role="group">
-      <button type="button" class="tool" :title="t('toolbox.undo')" :aria-label="t('toolbox.undo')" @click="$emit('undo')"><span aria-hidden="true">↶</span></button>
-      <button type="button" class="tool" :title="t('toolbox.clear')" :aria-label="t('toolbox.clear')" @click="$emit('clear')"><span aria-hidden="true">🗑️</span></button>
+    <div class="group" :aria-label="t('board.wholeBoard')" role="group">
+      <button type="button" class="tool" :title="t('board.undo')" :aria-label="t('board.undo')" @click="$emit('undo')"><span aria-hidden="true">↶</span></button>
+      <button type="button" class="tool" :title="t('board.clear')" :aria-label="t('board.clear')" @click="$emit('clear')"><span aria-hidden="true">🗑️</span></button>
     </div>
   </div>
 </template>

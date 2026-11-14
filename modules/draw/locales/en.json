@@ -28,18 +28,7 @@
     "offline": "You are offline. Trying to get back…",
     "guessHere": "Type what either drawing is",
     "guessing": "Guesses",
-    "nothingYet": "Nothing guessed yet.",
-    "youDrawSoNoGuessing": "You are drawing, so you do not guess this turn.",
-    "undo": "Undo",
-    "clear": "Clear the board",
-    "pen": "Pen",
-    "rubber": "Rubber",
-    "fill": "Fill",
-    "thin": "Thin",
-    "medium": "Medium",
-    "thick": "Thick",
-    "colours": "Colours",
-    "colour": "Colour {n}"
+    "youDrawSoNoGuessing": "You are drawing, so you do not guess this turn."
   },
   "status": {
     "choose": "Pick one of the words. Five seconds!",

@@ -1,25 +1,31 @@
 <script setup>
-// The guesses panel beside the board: what everybody has typed, and the box to type in.  It is a GameLog, so the
-// newest line stays in view unless the reader has scrolled away from it.
-// Props: feed (the lines the server sent this viewer), canGuess (may this viewer type), youDraw (the drawer sees the
-//   guesses but talks only to the others who know the word), maxLength (the longest guess the server takes), height (pixels).
+// The guesses panel of the games that draw (Scribblers, Draw!): what everybody has typed, and the box to type in.  It
+// is a GameLog, so the newest line stays in view unless the reader has scrolled away from it.
+// Depends on: GameLog.vue and src/useGameText.js.
+// Props: feed (the lines the server sent this viewer: { n, kind: 'guess' | 'close' | 'correct' | 'chat', name, text }),
+//   canGuess (may this viewer type), maxLength (the longest guess the server takes), placeholder (what the box
+//   invites, in the game's own words; '' for "Your guess"), height (pixels; 0 fills whatever it is put in), bare
+//   (true leaves off the panel and its title, for a game that puts it in a box that already has both).
 // Emits: guess (the text typed).  Slots: none.
 // Side effects: none beyond clearing its own input.
 import { computed, ref } from 'vue';
-import GameLog from '../../../src/components/GameLog.vue';
-import { useGameText } from '../../../src/useGameText.js';
+import GameLog from './GameLog.vue';
+import { useGameText } from '../useGameText.js';
 
 const props = defineProps({
   feed: { type: Array, default: () => [] },
   canGuess: { type: Boolean, default: false },
-  youDraw: { type: Boolean, default: false },
   maxLength: { type: Number, default: 60 },
-  height: { type: Number, default: 300 },
+  placeholder: { type: String, default: '' },
+  height: { type: Number, default: 0 },
+  bare: { type: Boolean, default: false },
 });
 const emit = defineEmits(['guess']);
 const { t } = useGameText();
 
 const text = ref('');
+// What the box invites.
+const invitation = computed(() => props.placeholder || t('board.guessPlaceholder'));
 
 /**
  * Sends what has been typed, if anything.
@@ -32,31 +38,28 @@ function send() {
   text.value = '';
   emit('guess', typed);
 }
-
-// What the box invites: the drawer may only talk to the others who know the word, everybody else is guessing.
-const placeholder = computed(() => (props.youDraw ? t('panel.sayPlaceholder') : t('panel.guessPlaceholder')));
 </script>
 
 <template>
-  <section class="guess-panel panel" :style="{ height: `${height}px` }">
-    <h3 class="title">{{ t('panel.title') }}</h3>
+  <section class="guess-panel" :class="{ panel: !bare, bare }" :style="{ height: height ? `${height}px` : '100%' }">
+    <h3 v-if="!bare" class="title">{{ t('board.guesses') }}</h3>
     <div class="feed">
-      <GameLog :entries="feed" :label="t('panel.title')" :empty="t('panel.nothingYet')">
+      <GameLog :entries="feed" :label="t('board.guesses')" :empty="t('board.nothingYet')">
         <template #default="{ entry }">
           <span class="line" :class="entry.kind">
-            <template v-if="entry.kind === 'correct'">{{ t('panel.gotIt', { name: entry.name }) }}</template>
+            <template v-if="entry.kind === 'correct'">{{ t('board.gotIt', { name: entry.name }) }}</template>
             <template v-else>
               <span class="who">{{ entry.name }}</span>
               <span class="said">{{ entry.text }}</span>
-              <em v-if="entry.kind === 'close'" class="hint">{{ t('panel.close') }}</em>
+              <em v-if="entry.kind === 'close'" class="hint">{{ t('board.close') }}</em>
             </template>
           </span>
         </template>
       </GameLog>
     </div>
     <form class="ask" @submit.prevent="send">
-      <input v-model="text" type="text" autocomplete="off" :maxlength="maxLength" :disabled="!canGuess" :placeholder="placeholder" :aria-label="placeholder" />
-      <button type="submit" class="primary" :disabled="!canGuess || !text.trim()">{{ t('panel.send') }}</button>
+      <input v-model="text" type="text" autocomplete="off" :maxlength="maxLength" :disabled="!canGuess" :placeholder="invitation" :aria-label="invitation" />
+      <button type="submit" class="primary" :disabled="!canGuess || !text.trim()">{{ t('board.send') }}</button>
     </form>
   </section>
 </template>
@@ -68,6 +71,9 @@ const placeholder = computed(() => (props.youDraw ? t('panel.sayPlaceholder') : 
   gap: 0.4rem;
   min-height: 0;
   padding: 0.5rem 0.7rem 0.6rem;
+}
+.guess-panel.bare {
+  padding: 0;
 }
 .title {
   flex: none;
