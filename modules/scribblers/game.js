@@ -820,7 +820,7 @@ function renameId(room, from, to, name) {
   }
 }
 
-function takeOver(room, oldId, bot, rng = Math.random) {
+function takeOver(room, oldId, bot, rng) {
   bot.ai = pickAI(AIS, rng).id;
   renameId(room, oldId, bot.id, bot.name);
   room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry

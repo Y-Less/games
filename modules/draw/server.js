@@ -25,7 +25,7 @@
 //   DRAW_AWAY_WAIT     milliseconds a turn waits for drawers who have gone (default 8000)
 //   DRAW_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing or guessing (default 700-1300)
 //   DRAW_BOT_DRAW      milliseconds before a computer player starts drawing its picture (default 1200)
-//   DRAW_BOT_RATE      strokes a second a computer player draws at (default 10; the tests turn it right up)
+//   DRAW_BOT_RATE      strokes a second a computer player draws at (default 100; the tests turn it right up)
 //   DRAW_PICTURES      where a computer player's pictures come from: "web" (default), "test" or "off"
 //
 // Depends on shared/roomServer.js, shared/drawing.js (what a drawing is made of), shared/picture.js (a word turned

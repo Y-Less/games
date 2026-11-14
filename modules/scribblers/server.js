@@ -18,7 +18,7 @@
 //   SCRIBBLERS_AWAY_WAIT     milliseconds a drawing waits for a drawer who has gone (default 8000)
 //   SCRIBBLERS_BOT_DELAY     "min-max" milliseconds a computer player waits before choosing a word or guessing (default 700-1300)
 //   SCRIBBLERS_BOT_DRAW      milliseconds before a computer player starts drawing its picture (default 1200)
-//   SCRIBBLERS_BOT_RATE      strokes a second a computer player draws at (default 10; the tests turn it right up)
+//   SCRIBBLERS_BOT_RATE      strokes a second a computer player draws at (default 100; the tests turn it right up)
 //   SCRIBBLERS_PICTURES      where a computer player's pictures come from: "web" (default), "test" (bands worked out
 //                            from the word, needing no network, which is what the tests use) or "off" (draw nothing)
 //
@@ -31,8 +31,8 @@
 // module's data folder, so it is offered in later games as well.  The rules never touch a file, so they are given the
 // saved words when a room is made.
 //
-// Depends on shared/roomServer.js (the room server and its timing helpers), ./game.js (the rules), ./drawing.js (the
-// canvas and what may go on it) and ./picture.js (a word turned into something to draw).
+// Depends on shared/roomServer.js (the room server and its timing helpers), ./game.js (the rules), and
+// shared/strokeRelay.js (the boards, the strokes on them, and the picture a computer player paints).
 import fs from 'node:fs';
 import path from 'node:path';
 import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
@@ -73,7 +73,6 @@ function readDelays() {
  */
 export default function (ctx) {
   const delays = readDelays();
-  const pictureFor = pictureSource();
   const wordsFile = path.join(ctx.dataDir, 'added-words.json');
 
   /**
