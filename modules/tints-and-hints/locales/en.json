@@ -5,10 +5,6 @@
   },
   "leaveConfirm": "You will not be able to come back.",
   "lobby": {
-    "yourColour": "Your marker colour",
-    "chooseColour": "Choose marker colour {colour}",
-    "chooseAnyColour": "Choose any marker colour",
-    "unlockColour": "Unlock any colour in the shop. Set your usual one under Profile.",
     "fewerRounds": "Fewer rounds",
     "moreRounds": "More rounds",
     "rounds": "{count} round | {count} rounds",

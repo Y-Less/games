@@ -9,10 +9,6 @@
   },
   "leaveConfirm": "bIcheghlaHbe'.",
   "lobby": {
-    "yourColour": "'angwI'lIj rItlh",
-    "chooseColour": "'angwI' rItlh {colour} yIwIv",
-    "chooseAnyColour": "'angwI' rItlh vay' yIwIv",
-    "unlockColour": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv.",
     "fewerRounds": "may'mey puS",
     "moreRounds": "may'mey law'",
     "rounds": "{count} may' | {count} may'mey",

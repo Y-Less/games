@@ -16,7 +16,8 @@ import { COLS, ROWS, isCell, isClose, fromOldCell, fromEarlierCell, fromV4Cell }
 import { finalStandings, playerScoreboardEntry, standingsOf, totalsFromRounds } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
-import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
+import { MARKER_COLOURS } from '../../shared/markerColours.js';
+import { chooseMarker, markerFor } from '../../shared/markerRules.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
@@ -98,19 +99,10 @@ const randomCell = (rng) => COLS[Math.floor(rng() * COLS.length)] + ROWS[Math.fl
  */
 const makePlayer = (room, base, extras = {}) => ({
   ...base,
-  colour: isBot(base) ? freeColour(room) : startingMarker(extras.colour ?? null, room.players.map((p) => p.colour), true),
+  colour: markerFor(room, base, extras),
   score: 0,
   ...newCounters(),
 });
-/**
- * The first palette colour no player has yet.
- *
- * @param {object} room  the room whose players are looked at
- * @returns {string|undefined} a free colour (undefined only if more players than colours, which MAX_PLAYERS prevents)
- *
- * Side effects: none.
- */
-const freeColour = (room) => COLOURS.find((c) => !room.players.some((p) => p.colour === c));
 
 /**
  * Makes a new room with the host in it.
@@ -210,26 +202,8 @@ export function playAgain() {
   return fail('startFromMenu');
 }
 
-/**
- * A player picks their marker colour in the lobby.
- *
- * Side effects: changes the player's colour (only if it is allowed and not taken by somebody else).
- *
- * @param {object} room  the room (must be in the lobby)
- * @param {number} id  the player choosing
- * @param {string} colour  the wanted colour
- * @param {boolean} [canCustom]  this player has unlocked any marker colour (otherwise only the free palette is allowed)
- * @returns {{ ok: boolean, error?: string }} ok, or why not
- */
-export function setColour(room, id, colour, canCustom = false) {
-  const player = playerOf(room, id);
-  if (!player) return fail('notInGame');
-  if (room.phase !== 'lobby') return fail('coloursBeforeStart');
-  const problem = markerProblem(colour, room.players.filter((p) => p.id !== id).map((p) => p.colour), canCustom);
-  if (problem) return fail(problem);
-  player.colour = normaliseMarker(colour);
-  return ok();
-}
+/** A player picks their marker colour in the lobby: setColour(room, id, colour, canCustom), in shared/markerRules.js. */
+export const setColour = chooseMarker;
 
 /**
  * The host sets how many turns each person gets as hinter.

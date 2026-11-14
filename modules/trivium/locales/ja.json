@@ -5,12 +5,6 @@
   },
   "leaveConfirm": "クイズはあなた抜きで続き、戻ってくることはできません。",
   "lobby": {
-    "yourColour": "あなたのマーカーの色",
-    "chooseColour": "マーカーの色 {colour} を選ぶ",
-    "ownColour": "あなた自身の色",
-    "anyColour": "好きな色",
-    "chooseAnyColour": "好きなマーカーの色を選ぶ",
-    "unlockColours": "ショップで好きな色を解放できます。いつもの色はプロフィールで設定します。",
     "fewerRounds": "ラウンドを減らす",
     "moreRounds": "ラウンドを増やす",
     "rounds": "{count}ラウンド",

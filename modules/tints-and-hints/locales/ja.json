@@ -5,10 +5,6 @@
   },
   "leaveConfirm": "一度退出すると、戻ってこられません。",
   "lobby": {
-    "yourColour": "あなたのマーカーの色",
-    "chooseColour": "マーカーの色{colour}を選ぶ",
-    "chooseAnyColour": "好きなマーカーの色を選ぶ",
-    "unlockColour": "好きな色はショップで解放できます。いつも使う色はプロフィールで設定できます。",
     "fewerRounds": "ラウンドを減らす",
     "moreRounds": "ラウンドを増やす",
     "rounds": "{count}ラウンド",

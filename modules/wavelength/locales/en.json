@@ -5,12 +5,6 @@
   },
   "leaveConfirm": "You will not be able to come back.",
   "lobby": {
-    "yourColour": "Your marker colour",
-    "chooseColour": "Choose marker colour {colour}",
-    "ownColour": "Your own colour",
-    "anyColour": "Any colour",
-    "chooseAnyColour": "Choose any marker colour",
-    "unlockColours": "Unlock any colour in the shop. Set your usual one under Profile.",
     "howYouPlay": "How you play",
     "mode": "Game mode",
     "solo": "Everyone for themselves",

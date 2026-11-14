@@ -9,10 +9,6 @@
   },
   "leaveConfirm": "Вернуться уже не получится.",
   "lobby": {
-    "yourColour": "Цвет вашего маркера",
-    "chooseColour": "Выбрать цвет маркера {colour}",
-    "chooseAnyColour": "Выбрать любой цвет маркера",
-    "unlockColour": "Любой цвет открывается в магазине. Привычный задайте в профиле.",
     "fewerRounds": "Меньше раундов",
     "moreRounds": "Больше раундов",
     "rounds": "{count} раунд | {count} раунда | {count} раундов",

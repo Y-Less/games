@@ -517,6 +517,14 @@
     "seeScores": "mI'mey yIlegh",
     "yourHand": "navmeylIj"
   },
+  "marker": {
+    "yourColour": "'angwI'lIj rItlh",
+    "choose": "'angwI' rItlh {colour} yIwIv",
+    "own": "rItlhlIj'e'",
+    "any": "rItlh vay'",
+    "chooseAny": "'angwI' rItlh vay' yIwIv",
+    "unlock": "malja'Daq rItlh vay' yIpoSmoH. De'lIjDaq motlhlIj yIwIv."
+  },
   "board": {
     "label": "nagh beQ",
     "colours": "rItlhmey",

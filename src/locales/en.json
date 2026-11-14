@@ -543,6 +543,14 @@
     "seeScores": "See the scores",
     "yourHand": "Your hand"
   },
+  "marker": {
+    "yourColour": "Your marker colour",
+    "choose": "Choose marker colour {colour}",
+    "own": "Your own colour",
+    "any": "Any colour",
+    "chooseAny": "Choose any marker colour",
+    "unlock": "Unlock any colour in the shop. Set your usual one under Profile."
+  },
   "board": {
     "label": "The drawing board",
     "colours": "Colours",

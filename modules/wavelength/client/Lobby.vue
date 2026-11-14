@@ -6,6 +6,7 @@
 // Side effects: the template's buttons send add/remove bot, kick, colour, mode, settings, and start requests.
 import { computed } from 'vue';
 import InviteCode from '../../../src/components/InviteCode.vue';
+import MarkerPicker from '../../../src/components/MarkerPicker.vue';
 import PlayerListPanel from '../../../src/components/PlayerListPanel.vue';
 import { useGameText } from '../../../src/useGameText.js';
 
@@ -14,10 +15,6 @@ const { t } = useGameText();
 
 // True if you are the host (only the host may change the options).
 const isHost = computed(() => props.state.hostId === props.state.you);
-// The marker colours already chosen, so the picker can show them as unavailable.
-const taken = computed(() => new Set(props.state.players.map((p) => p.colour)));
-// Your own player record.
-const mine = computed(() => props.state.players.find((p) => p.id === props.state.you));
 // The allowed range for the number of rounds ({ min, max }).
 const rounds = computed(() => props.state.limits.rounds);
 // How many turns the whole game will last: everybody is the psychic once a round.
@@ -49,27 +46,7 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
       @fill-bots="(count) => send('fillBots', { count })"
     >
       <template #lead="{ player }"><span class="chip" :style="{ background: player.colour }" /></template>
-      <div class="stack">
-        <span class="muted">{{ t('lobby.yourColour') }}</span>
-        <div class="row">
-          <button
-            v-for="c in state.colours"
-            :key="c"
-            class="swatch-pick"
-            :class="{ chosen: mine?.colour === c }"
-            :style="{ background: c }"
-            :disabled="taken.has(c) && mine?.colour !== c"
-            :aria-label="t('lobby.chooseColour', { colour: c })"
-            @click="send('colour', { colour: c })"
-          />
-          <span v-if="mine && !state.colours.includes(mine.colour)" class="swatch-pick chosen" :style="{ background: mine.colour }" :title="t('lobby.ownColour')" />
-          <label v-if="state.canCustomColour" class="custom muted">
-            {{ t('lobby.anyColour') }}
-            <input type="color" class="picker" :value="mine?.colour" :aria-label="t('lobby.chooseAnyColour')" @change="send('colour', { colour: $event.target.value })" />
-          </label>
-        </div>
-        <span v-if="!state.canCustomColour" class="muted">{{ t('lobby.unlockColours') }}</span>
-      </div>
+      <MarkerPicker :colours="state.colours" :players="state.players" :you="state.you" :can-custom="state.canCustomColour" @pick="(colour) => send('colour', { colour })" />
     </PlayerListPanel>
 
     <section class="panel stack">
@@ -132,26 +109,5 @@ const canStart = computed(() => props.state.players.length >= props.state.limits
   border-radius: 50%;
   border: 2px solid var(--line);
   flex: none;
-}
-.swatch-pick {
-  width: 2.4rem;
-  height: 2.4rem;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-}
-.custom {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.picker {
-  width: 2.8rem;
-  height: 2.4rem;
-  padding: 0.1rem;
-}
-.swatch-pick.chosen {
-  outline: 3px solid var(--amber);
-  outline-offset: 2px;
 }
 </style>
