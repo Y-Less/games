@@ -280,6 +280,8 @@ function playRandom(seed) {
       assert.deepEqual(room.reveal.points, {}, `${label}: somebody scored on a turn that was given up`);
       for (const p of room.players) assert.equal(p.lastScore ?? 0, 0, `${label}: ${p.id} scored on a turn that was given up`);
     }
+    // Back in the lobby it is the next game at the same table, and everybody starts that one from nothing.
+    if (room.phase === 'lobby') highest.clear();
     for (const p of room.players) {
       if (givenUp) assert.ok(p.score >= 0 && p.score <= (highest.get(p.slot) ?? 0), `${label}: the score of ${p.id} is ${p.score} after a turn that was given up`);
       else assert.ok(p.score >= (highest.get(p.slot) ?? 0), `${label}: the score of ${p.id} went down`);

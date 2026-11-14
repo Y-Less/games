@@ -224,6 +224,8 @@ function playRandom(seed) {
 
     checkRoom(room, label);
     checkViews(room, label, now);
+    // Nobody's score goes down in a quiz; back in the lobby it is the next quiz, which everybody starts from nothing.
+    if (room.phase === 'lobby') continue;
     for (const p of room.players) assert.ok(p.score >= (scores.get(p.slot) ?? 0), `${label}: the score of ${p.id} went down`);
   }
   return room;

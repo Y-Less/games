@@ -95,14 +95,6 @@ const nextChooser = computed(() => {
   return list[(current + 1) % list.length]?.name;
 });
 /**
- * Host only: ends the game and returns everyone to the lobby, after asking.
- * @returns {Promise<void>}
- * Side effects: shows a confirm dialog; sends `again` if confirmed (scores are reset).
- */
-async function endGame() {
-  if (window.confirm(t('table.confirmEnd'))) await send('again');
-}
-/**
  * Host only: abandons the current turn (no points) and moves to the next chooser, after asking.
  * @returns {Promise<void>}
  * Side effects: shows a confirm dialog; sends `abortTurn` if confirmed.
@@ -134,9 +126,8 @@ async function skipTurn() {
       </template>
       <button v-else-if="finished && isHost" class="primary" @click="send('again')">{{ t('table.backToLobby') }}</button>
       <span class="spacer" />
-      <div v-if="isHost && !finished" class="host">
-        <button v-if="['word', 'picking', 'voting'].includes(phase)" class="quiet" @click="skipTurn">{{ t('table.skipTurn') }}</button>
-        <button class="quiet" @click="endGame">{{ t('table.endGame') }}</button>
+      <div v-if="isHost && ['word', 'picking', 'voting'].includes(phase)" class="host">
+        <button class="quiet" @click="skipTurn">{{ t('table.skipTurn') }}</button>
       </div>
     </div>
 

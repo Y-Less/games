@@ -22,6 +22,7 @@ import Toolbox from '../../../src/components/DrawingToolbox.vue';
 import GuessPanel from '../../../src/components/GuessPanel.vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { useGameText } from '../../../src/useGameText.js';
@@ -179,6 +180,7 @@ const nameOf = (id) => props.state.players.find((p) => p.id === id)?.name ?? '?'
           <strong>{{ t('table.turn', { n: state.turn, total: state.turns }) }}</strong>
           <span v-if="secondsLeft !== null">{{ secondsLeft }}</span>
         </template>
+        <PlayAgain :state="state" @again="send('again')" />
       </GameStatus>
     </template>
   </GameFrame>

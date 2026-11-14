@@ -25,7 +25,7 @@ import { chooseMarker, markerFor } from '../../shared/markerRules.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { MAX_QUESTION_POINTS, pointsFor } from './scoring.js';
 import { buildWheel, pickSpin } from './wheel.js';
@@ -205,14 +205,23 @@ const roster = createRosterRules({
 /** addHuman(room, userId, name, { colour }) takes the person's preferred marker colour in its last argument. */
 export const { addHuman, removeHuman, addBot, removeBot, fillWithBots, kick } = roster;
 
+/** What the next game at the same table keeps: the host's two settings, and what the socket layer gave the room when
+ * it was made (the wheel, cut by how many questions there are of each category, and the four waits). */
+const KEPT = ['rounds', 'perRound', 'wheel', 'answerMs', 'spinMs', 'revealStep', 'revealHold'];
+
 /**
- * Trivium has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
+ * The host sends a game that is over back to the lobby: the same code, people, marker colours, and settings, ready
+ * for another.  A game that was abandoned can be played again as well as one that finished.
  *
- * @returns {{ ok: false, error: string }} always a refusal
- * Side effects: none.
+ * @param {object} room  the room (must be finished or abandoned)
+ * @param {number | string} id  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every score and counter is cleared.
  */
-export function playAgain() {
-  return fail('startFromMenu');
+export function playAgain(room, id) {
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  const freshPlayer = () => ({ score: 0, rightThisGame: 0, firstThisGame: 0, plan: null, ...newCounters() });
+  return backToLobby(room, id, { blank, keep: KEPT, freshPlayer });
 }
 
 /**

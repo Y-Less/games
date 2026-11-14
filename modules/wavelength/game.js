@@ -16,7 +16,7 @@ import { chooseMarker, markerFor } from '../../shared/markerRules.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
 import { SPECTRA, spectrumById } from './spectra.js';
@@ -220,14 +220,17 @@ function applySettings(room, id, settings) {
 }
 
 /**
- * Wavelength has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
+ * The host sends a finished game back to the lobby: the same code, people, marker colours, way of playing, and
+ * number of rounds, ready for another.
  *
- * @returns {{ ok: false, error: string }} always a refusal (the code of a message under `errors.`)
- *
- * Side effects: none.
+ * @param {object} room  the room (must be finished)
+ * @param {number | string} id  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every score and counter is cleared.
  */
-export function playAgain() {
-  return fail('startFromMenu');
+export function playAgain(room, id) {
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  return backToLobby(room, id, { blank, keep: ['rounds', 'mode'], freshPlayer: () => ({ score: 0, ...newCounters() }) });
 }
 
 /** A player picks their marker colour in the lobby: setColour(room, id, colour, canCustom), in shared/markerRules.js. */

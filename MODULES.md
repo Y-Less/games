@@ -173,6 +173,16 @@ saved under, which is what lets the game just finished keep its scoreboard: befo
 a replay deleted every round of the game before.  Do **not** reset `room.nextSlot` — the people carry on into the next
 game, so their slots must too, and somebody joining it must not be handed one that is already in use.
 
+**Every game plays again in place, and none is ended early.**  `playAgain` is for the host, and for a game that is
+over: anybody else is answered `hostOnly`, and a game under way (or a room already in its lobby) `notOver`.  A game
+with a list of players writes it as one call to `backToLobby(room, id, { blank, keep, freshPlayer })`
+(`shared/roster.js`), which does all of the above: `blank` is a room as `createRoom` makes it, copied over the old one
+so that a field added later is reset without anybody remembering to; `keep` names the settings that survive; and
+`freshPlayer` is what each player starts the next game with.  `shared/playAgain.test.js` asserts the same promises of
+every such game, so add yours to its list.  On the client, put `<PlayAgain :state="state" @again="send('again')" />`
+(`src/components/PlayAgain.vue`) in the Status box: it draws the host's button once the game is over and nothing
+otherwise.
+
 The slot is `"s0"` and not `0` for a reason worth knowing before you write a key by hand.  Account ids are small
 numbers too, so a numeric slot and an id cannot be told apart once either is a key of an object, and reading a history
 by the wrong one finds *the wrong player's points* rather than finding nothing.  Two bugs were written exactly that way

@@ -3,11 +3,13 @@
 // Props: headline, mine (it is your move), turn (the psychic is to give a clue), lines (the Status lines), state (the server
 //   view: turn and turnsTotal), ended (the game is over), psychicName.
 // Slots: none.
-// Emits: none.
+// Emits: again (the host asked for another game, once this one is over).
 // Side effects: none.
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import { useGameText } from '../../../src/useGameText.js';
 
+defineEmits(['again']);
 defineProps({
   headline: { type: String, required: true },
   mine: { type: Boolean, default: false },
@@ -27,5 +29,6 @@ const { t } = useGameText();
       <strong v-else>{{ t('facts.gameOver') }}</strong>
       <span v-if="!ended">{{ t('facts.psychic', { name: psychicName }) }}</span>
     </template>
+    <PlayAgain :state="state" @again="$emit('again')" />
   </GameStatus>
 </template>

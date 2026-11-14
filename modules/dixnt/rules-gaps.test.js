@@ -125,7 +125,8 @@ test('names are made unique in the room, and the settings are lobby-only', () =>
   for (const settings of [{ handSize: 5 }, { rounds: 2 }, { judging: 'chooser' }, { categories: ['all'] }]) {
     assert.equal(game.setSettings(room, 1, settings).error, 'settingsBeforeStart');
   }
-  assert.equal(game.playAgain(room, 'someone else').error, 'hostOnlyEnd');
+  assert.equal(game.playAgain(room, 'someone else').error, 'hostOnly');
+  assert.equal(game.playAgain(room, 1).error, 'notOver', 'and not even the host ends a game early');
 });
 
 test('settings accept numeric strings and fractions by rounding, and refuse anything outside the range', () => {
@@ -295,6 +296,9 @@ test('hosting passes to the first remaining person, and starting again clears th
   playRoundTo(made, 'results');
   assert.equal(game.removeHuman(room, 1, rng, 0).ok, true);
   assert.equal(room.hostId, 2);
+  assert.equal(game.playAgain(room, room.hostId).error, 'notOver', 'the new host cannot end the game early either');
+  room.phase = 'finished'; // the game is over: it is the new host who may send the table back to the lobby
+  assert.equal(game.playAgain(room, 1).error, 'hostOnly', 'the old host has gone');
   assert.equal(game.playAgain(room, room.hostId).ok, true);
   assert.equal(room.phase, 'lobby');
   assert.ok(room.players.every((p) => p.score === 0 && p.hand.length === 0));

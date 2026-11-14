@@ -17,7 +17,7 @@
 // This file imports only other shared files, because module tests copy `shared/*.js` flat into a temporary folder.
 // Depends on: ./seats.js (bot names, host check, result helpers).
 import { rosterLayout, withSlot } from './layout.js';
-import { asHost, createMemberRules, defaultPlayers, fail, freeName, isBot, isHuman, ok } from './members.js';
+import { asHost, createMemberRules, defaultPlayers, fail, freeName, isBot, isHuman, nextGame, ok } from './members.js';
 
 export { barFromRoom, defaultPlayers, isBarred, isBot, isHuman, nextGame } from './members.js';
 export { withSlot } from './layout.js';
@@ -164,6 +164,47 @@ export function createReadyRules({ finish, phase = 'reveal' }) {
     return ok({ finished: finish(room, ...rest) });
   };
   return { unready, ready, forceNext, waitingForReady };
+}
+
+/** What a room keeps through "play again" whatever the game: who it is, who is in it, and the numbers handed out in it. */
+const KEPT_THROUGH_REPLAY = ['code', 'hostId', 'players', 'size', 'nextBot', 'nextSlot', 'gameSeq', 'createdAt', 'updatedAt'];
+
+/**
+ * "Play again" for a game that keeps a list of players: the host sends a finished game back to the lobby, with the
+ * same code, people, and settings, ready for the next game among them (see `nextGame`).
+ *
+ * The room is put back as a room just made would be, by copying a `blank` one over it, so that a field a game adds
+ * later is reset without anybody remembering to.  What must survive is named instead: the game's settings, and
+ * anything the socket layer gave the room when it was made.  Whatever the room holds that a blank one does not
+ * (the players a vote barred, say) is left alone.
+ *
+ * @param {any} room  the room to change
+ * @param {number | string} userId  who is asking (must be the host)
+ * @param {object} options
+ * @param {any} options.blank  a room as the game's `createRoom` makes it
+ * @param {string[]} options.keep  the fields of the room that the next game keeps: its settings
+ * @param {(player: any) => object} options.freshPlayer  what each player starts the next game with (the score, the
+ *   counters, anything else the game keeps on them); their id, name, slot, and the rest are untouched
+ * @returns {{ ok: boolean, error?: string }} ok, or `hostOnly` for anybody else, or `notOver` while a game is being
+ *   played or the room is already in the lobby
+ * Side effects: advances room.gameSeq, resets the room and every player, and takes each computer player's AI and
+ *   the note of whose place it was holding off it: in the lobby a computer player holds a place for nobody, and a
+ *   new AI is dealt at the next start.
+ */
+export function backToLobby(room, userId, { blank, keep, freshPlayer }) {
+  const problem = asHost(room, userId);
+  if (problem) return problem;
+  if (!['finished', 'abandoned'].includes(room.phase)) return fail('notOver');
+  nextGame(room); // the game just played keeps its scoreboard; this is the next one
+  const kept = new Set([...KEPT_THROUGH_REPLAY, ...keep]);
+  for (const [key, value] of Object.entries(blank)) if (!kept.has(key)) room[key] = value;
+  Object.assign(room, { phase: 'lobby', history: [], recorded: false });
+  for (const player of room.players) {
+    Object.assign(player, freshPlayer(player));
+    delete player.ai;
+    delete player.stoodInFor;
+  }
+  return ok();
 }
 
 /**

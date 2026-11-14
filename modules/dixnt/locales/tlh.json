@@ -107,8 +107,6 @@
     "nextTurn": "Qu' veb: mu' wIv {name}",
     "backToLobby": "loSmeH pa'Daq yIchegh",
     "skipTurn": "Qu' yIlon",
-    "endGame": "Quj yIrInmoH",
-    "confirmEnd": "Quj yIrInmoH 'ej loSmeH pa'Daq Hoch yIchegh'a'? taghqa'lu' mI'mey.",
     "confirmSkip": "Qu'vam yIlon (mI' pagh) 'ej mu' wIvwI' vebDaq yItaH'a'?",
     "card": "nav {id}",
     "playThis": "navvam yIlan",
@@ -203,7 +201,6 @@
     "unknownCategory": "buv Sovbe'lu'.",
     "needCategory": "wa' buv pagh law' yIwIv.",
     "notEnoughCards": "wIvlu'pu'bogh buvmeyDaq QujwI'pu' law'vaD navmey yapbe'. buvmey law' tIwIv.",
-    "hostOnlyEnd": "Quj rInmoHlaH che'wI' neH.",
     "turnNotOver": "rInbe' Qu'.",
     "hostOnlySkip": "Qu' lonlaH che'wI' neH.",
     "noTurnToSkip": "DalonmeH Qu' tu'lu'be'.",
@@ -216,7 +213,6 @@
     "notTimeToVote": "wuqmeH poH 'oHbe'.",
     "chooserOnlyVotes": "QujvamDaq wuq mu' wIvwI' neH.",
     "voteSelf": "SoH'e' DawuqlaHbe'.",
-    "voteCardPlayer": "nav lanpu'bogh ghaH neH DawuqlaH.",
-    "alreadyInLobby": "loSmeH pa'Daq cheghpu' Quj."
+    "voteCardPlayer": "nav lanpu'bogh ghaH neH DawuqlaH."
   }
 }

@@ -471,7 +471,6 @@
     "hostOnlyRemove": "プレイヤーを外せるのはホストだけです。",
     "gameFull": "そのゲームは満席です。",
     "noGameWithCode": "そのコードのゲームはありません。",
-    "startFromMenu": "メニューから新しいゲームを始めてください。",
     "removeBeforeFewerSeats": "席を減らす前に、プレイヤーを外してください。",
     "removePlayerFirst": "先にプレイヤーを外してください。席が足りなくなります。",
     "notAComputer": "それはコンピュータープレイヤーではありません。",

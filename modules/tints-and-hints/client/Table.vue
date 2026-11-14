@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { spanWidth } from '../../../src/frameLayout.js';
@@ -305,6 +306,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <span v-if="!ended">{{ t('facts.hinter', { name: hinterName }) }}</span>
         </template>
         <p v-if="guessing && !isHinter" class="hint-text" :class="{ hidden: !hint }">&ldquo;{{ hint }}&rdquo;</p>
+        <PlayAgain :state="state" @again="send('again')" />
       </GameStatus>
     </template>
   </GameFrame>

@@ -103,8 +103,6 @@
     "nextTurn": "次のターン：{name}がお題を選びます",
     "backToLobby": "ロビーに戻る",
     "skipTurn": "ターンをとばす",
-    "endGame": "ゲームを終える",
-    "confirmEnd": "ゲームを終えて、全員をロビーに戻しますか？得点はリセットされます。",
     "confirmSkip": "このターンをやめて（得点なし）、次の出題者に移りますか？",
     "card": "カード{id}",
     "playThis": "このカードを出す",
@@ -199,7 +197,6 @@
     "unknownCategory": "不明なカテゴリーです。",
     "needCategory": "カテゴリーを少なくとも1つ選んでください。",
     "notEnoughCards": "選んだカテゴリーでは、その人数分のカードが足りません。カテゴリーをもっと選んでください。",
-    "hostOnlyEnd": "ゲームを終えられるのはホストだけです。",
     "turnNotOver": "ターンはまだ終わっていません。",
     "hostOnlySkip": "ターンをとばせるのはホストだけです。",
     "noTurnToSkip": "とばすターンがありません。",
@@ -212,8 +209,7 @@
     "notTimeToVote": "投票する場面ではありません。",
     "chooserOnlyVotes": "このゲームで投票するのは出題者だけです。",
     "voteSelf": "自分には投票できません。",
-    "voteCardPlayer": "投票できるのは、カードを出した人だけです。",
-    "alreadyInLobby": "ゲームはもうロビーに戻っています。"
+    "voteCardPlayer": "投票できるのは、カードを出した人だけです。"
   },
   "meta": {
     "name": "ディクスント",

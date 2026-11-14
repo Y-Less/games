@@ -2,11 +2,12 @@
 // The content of the Status box: the round and question the game is on, which category the wheel picked, how long is
 // left, and the one line that says what is happening and what to do about it.
 // Props: state (the server view), view (the reactive game view), lit (whether the right answer is up yet).
-// Emits: none.  Slots: none.
+// Emits: again (the host asked for another quiz, once this one is over).  Slots: none.
 // Side effects: none itself; useTurnClock runs a countdown while a question is up.
 import { computed } from 'vue';
 import { animationsPlaying } from '../../../src/appearance.js';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import { useGameText } from '../../../src/useGameText.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
 
@@ -15,6 +16,7 @@ const props = defineProps({
   view: { type: Object, required: true },
   lit: { type: Boolean, default: false },
 });
+defineEmits(['again']);
 const { t } = useGameText();
 const { secondsLeft } = useTurnClock(() => props.state);
 
@@ -66,5 +68,6 @@ const lines = computed(() => {
       <span v-if="category">{{ t('facts.category', { name: category }) }}</span>
       <span v-if="secondsLeft !== null">{{ t('facts.seconds', { count: secondsLeft }, secondsLeft) }}</span>
     </template>
+    <PlayAgain :state="state" @again="$emit('again')" />
   </GameStatus>
 </template>

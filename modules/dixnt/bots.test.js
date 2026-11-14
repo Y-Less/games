@@ -112,8 +112,10 @@ test('starting deals every computer player an AI from the game rng, and the view
   assert.ok(view.scoreboard.players.filter((p) => p.id !== 1).every((p) => !p.away), 'computer players are never away');
   assert.equal(JSON.stringify(view).includes('"token"'), false, 'no seat tokens anywhere');
 
-  // Back in the lobby the places stay, and the AIs are dealt again at the next start.
-  game.playAgain(room, 1);
+  // Back in the lobby after the game the places stay, and the AIs are dealt again at the next start.  (The room is
+  // simply told the game is over: what is asked here is what happens after one, not how one is played.)
+  room.phase = 'finished';
+  assert.equal(game.playAgain(room, 1).ok, true);
   assert.ok(room.players.slice(1).every((p) => p.kind === 'bot' && p.ai === undefined));
   game.start(room, 1, rng);
   assert.ok(room.players.slice(1).every((p) => p.ai));

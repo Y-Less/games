@@ -23,7 +23,7 @@ import { statsRows } from '../../shared/tally.js';
 import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyQuestion, tallyTurn } from './tally.js';
 import { QUESTIONS, answersFor, normal } from './questions.js';
@@ -195,12 +195,15 @@ function applySettings(room, id, settings) {
 }
 
 /**
- * GTK has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
- * @returns {{ ok: false, error: string }}
- * Side effects: none.
+ * The host sends a finished game back to the lobby: the same code, people, and settings, ready for another.
+ * @param {object} room  the room (must be finished)
+ * @param {number | string} id  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every score and counter is cleared.
  */
-export function playAgain() {
-  return fail('startFromMenu');
+export function playAgain(room, id) {
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  return backToLobby(room, id, { blank, keep: ['rounds', 'questionsPerTurn', 'seconds'], freshPlayer: () => ({ score: 0, ...newCounters() }) });
 }
 
 /**

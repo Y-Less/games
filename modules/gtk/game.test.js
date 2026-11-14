@@ -344,7 +344,6 @@ test('after both questions the next player is the subject, and the game ends aft
   assert.equal(room.history.length, room.turnsTotal * room.questionsPerTurn);
   assert.equal(game.forceNext(room, rng, names).error, 'nothingToMoveOn');
   assert.equal(game.isLive(room), false);
-  assert.equal(game.playAgain().error, 'startFromMenu');
   const stats = game.statsPlayers(room);
   assert.deepEqual(stats.map((s) => s.userId).sort(), room.players.map((p) => p.id).sort());
   assert.ok(stats.every((s) => ['win', 'loss'].includes(s.outcome)));

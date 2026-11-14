@@ -152,7 +152,8 @@ test('the history survives saving, and starting again clears it', () => {
   const copy = rules().migrate(JSON.parse(JSON.stringify(room)));
   assert.deepEqual(copy.history, room.history);
   assertAddsUp({ game: rules(), room: copy });
-  game.playAgain(room, 1);
+  room.phase = 'finished'; // the game is over: what is asked here is what the next one inherits
+  assert.equal(game.playAgain(room, 1).ok, true);
   assert.deepEqual(game.viewFor(room, 1).scoreboard.rounds, []);
   assert.ok(game.viewFor(room, 1).scoreboard.players.every((p) => p.score === 0));
 });

@@ -520,6 +520,10 @@ test('every guess is counted, right or wrong, and talk is not', () => {
   assert.equal(drawerPlayer.guesses ?? 0, 0, 'and nor is the drawer talking');
 });
 
-test('playing again is not offered: a new game is started from the menu', () => {
-  assert.equal(game.playAgain().ok, false);
+test('playing again is for a game that is over: there is no ending a turn, a round, or the scores early', () => {
+  const { room, guessers } = drawing(3);
+  assert.equal(game.playAgain(room, 1).error, 'notOver', 'while somebody is drawing');
+  assert.equal(game.guess(room, guessers[0], room.word, NOW + 1000).ok, true);
+  assert.equal(game.playAgain(room, 1).error, 'notOver', 'while the turn is being added up');
+  // What the next game at the table keeps and loses is asserted for every such game in shared/playAgain.test.js.
 });

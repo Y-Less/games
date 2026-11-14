@@ -363,6 +363,8 @@ test('a saved room from before these fields loads and plays', () => {
   assert.equal(game.start(brought, 1, seeded(1), 5000).ok, true);
 });
 
-test('there is no play again: a new quiz is started from the menu', () => {
-  assert.equal(game.playAgain().error, 'startFromMenu');
+test('playing again is for a quiz that is over, not one with a question up', () => {
+  const { room: r } = playing();
+  assert.equal(game.playAgain(r, 1).error, 'notOver');
+  // What the next quiz at the table keeps and loses is asserted for every such game in shared/playAgain.test.js.
 });

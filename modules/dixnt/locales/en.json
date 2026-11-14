@@ -103,8 +103,6 @@
     "nextTurn": "Next turn: {name} chooses the word",
     "backToLobby": "Back to the lobby",
     "skipTurn": "Skip turn",
-    "endGame": "End game",
-    "confirmEnd": "End the game and return everyone to the lobby? Scores are reset.",
     "confirmSkip": "Abandon this turn (no points) and move on to the next word-chooser?",
     "card": "Card {id}",
     "playThis": "Play this card",
@@ -199,7 +197,6 @@
     "unknownCategory": "Unknown category.",
     "needCategory": "Pick at least one category.",
     "notEnoughCards": "There are not enough cards in the chosen categories for that many players. Choose more categories.",
-    "hostOnlyEnd": "Only the host can end the game.",
     "turnNotOver": "The turn is not over.",
     "hostOnlySkip": "Only the host can skip a turn.",
     "noTurnToSkip": "There is no turn to skip.",
@@ -212,7 +209,6 @@
     "notTimeToVote": "It is not time to vote.",
     "chooserOnlyVotes": "In this game only the word-chooser votes.",
     "voteSelf": "You cannot vote for yourself.",
-    "voteCardPlayer": "You can only vote for someone who played a card.",
-    "alreadyInLobby": "The game is already in the lobby."
+    "voteCardPlayer": "You can only vote for someone who played a card."
   }
 }

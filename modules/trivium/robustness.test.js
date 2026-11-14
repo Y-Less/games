@@ -212,7 +212,7 @@ test('actions out of their time, and from outsiders, are refused and change noth
   assert.equal((await ann.call('start')).ok, true);
   await until(() => [ann, bob].every((p) => p.state?.question), 'a question', { timeout: 30000 });
   assert.equal((await ann.call('colour', { colour: ann.state.colours[5] })).error, 'coloursBeforeStart');
-  assert.equal((await ann.call('again')).error, 'startFromMenu');
+  assert.equal((await ann.call('again')).error, 'notOver', 'a quiz under way is not ended early');
   assert.equal((await ann.call('settings', { rounds: 3 })).ok, false, 'the settings are fixed');
   assert.equal((await eve.call('answer', { choice: 0, x: 0.5, y: 0.5 })).ok, false, 'an outsider cannot answer');
   assert.equal((await ann.call('answer', { choice: 0, x: 0.5, y: 0.5 })).ok, true);

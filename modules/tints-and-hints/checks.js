@@ -13,8 +13,8 @@ export const NEXT_PHASES = {
   guessing1: ['guessing1', 'guessing2', 'finished', 'abandoned'],
   guessing2: ['guessing2', 'reveal', 'guessing1', 'finished', 'abandoned'],
   reveal: ['reveal', 'guessing1', 'finished', 'abandoned'],
-  finished: ['finished'],
-  abandoned: ['abandoned'],
+  finished: ['finished', 'lobby'], // the host sends a game that is over back to the lobby for another
+  abandoned: ['abandoned', 'lobby'],
 };
 
 /**

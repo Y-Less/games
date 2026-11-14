@@ -99,7 +99,7 @@ const stageOf = (p) => {
     </template>
 
     <template #status>
-      <StatusPanel :headline="headline" :mine="mineNow" :turn="view.clueTime && view.isPsychic" :lines="lines" :state="state" :ended="view.ended" :psychic-name="view.psychicName" />
+      <StatusPanel :headline="headline" :mine="mineNow" :turn="view.clueTime && view.isPsychic" :lines="lines" :state="state" :ended="view.ended" :psychic-name="view.psychicName" @again="send('again')" />
     </template>
   </GameFrame>
 </template>

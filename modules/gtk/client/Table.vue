@@ -13,6 +13,7 @@ import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { barSpan } from '../../../src/frameLayout.js';
@@ -310,6 +311,7 @@ const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.leng
           <span v-if="!ended">{{ t('facts.subject', { name: state.subjectName }) }}</span>
           <span v-if="secondsLeft !== null" class="clock" :class="{ low: secondsLeft <= 10 }">{{ t('facts.time', { count: secondsLeft }, secondsLeft) }}</span>
         </template>
+        <PlayAgain :state="state" @again="send('again')" />
       </GameStatus>
     </template>
   </GameFrame>

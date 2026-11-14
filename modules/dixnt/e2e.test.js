@@ -304,7 +304,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   for (const p of players) assert.equal((await p.stats()).perGame[0].played, 1);
 });
 
-test('a game ended early by the host, or abandoned, is not recorded', async (t) => {
+test('a game cannot be ended early by the host, and one that is abandoned is not recorded', async (t) => {
   const { people4, site } = await startDixnt(t);
   const players = await people4(['ann', 'bob', 'cat', 'dan']);
   const [ann, bob, cat, dan] = players;
@@ -313,11 +313,9 @@ test('a game ended early by the host, or abandoned, is not recorded', async (t) 
   await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
-  assert.equal((await ann.call('again')).ok, true, 'the host ends it early');
-  await until(() => ann.state.phase === 'lobby', 'the lobby');
+  assert.equal((await ann.call('again')).error, 'notOver', 'play again is for a game that is over');
+  assert.equal(ann.state.phase, 'word', 'so the game carries on');
 
-  await ann.call('start');
-  await until(() => players.every((p) => p.state?.phase === 'word'), 'the second game to start');
   assert.equal((await bob.call('leave')).ok, true);
   assert.equal((await cat.call('leave')).ok, true, 'computer players take their seats, so the game carries on');
   await until(() => ann.state.players.filter((p) => p.bot).length === 2, 'two computer players');

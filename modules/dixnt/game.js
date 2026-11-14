@@ -47,7 +47,7 @@ import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { shuffle } from '../../shared/cards.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
@@ -577,40 +577,20 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
   }
 
   /**
-   * Sends everyone back to the lobby, clearing the game (the settings and the players are kept).  It is the shared
-   * "play again" event, and the host's "End the game" button is the same thing in the middle of one.
+   * The host sends a finished game back to the lobby: the same code, people, and settings, ready for another.  It is
+   * the shared "play again" event, and like every other game's it is for a game that is over: there is no ending one
+   * early.
    *
-   * @param {object} room  the room to change
-   * @param {number | null} [id]  who is asking (must be the host); null when the rules do it themselves
+   * @param {object} room  the room (must be finished)
+   * @param {number | string} id  who is asking (must be the host)
    * @returns {{ ok: boolean, error?: string }}
-   * Side effects: resets the turn, the deck, scores, hands, counters, and history.
+   * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every hand, score, and counter is
+   *   cleared.
    */
-  function playAgain(room, id = null) {
-    if (id !== null && id !== room.hostId) return fail('hostOnlyEnd');
-    if (room.phase === 'lobby') return fail('alreadyInLobby');
-    nextGame(room); // the game just played keeps its scoreboard; this is the next one
-    Object.assign(room, {
-      phase: 'lobby',
-      turn: 0,
-      completedTurns: 0,
-      history: [],
-      chooserId: null,
-      draw: [],
-      discard: [],
-      word: null,
-      imposterId: null,
-      picks: {},
-      tableOrder: [],
-      votes: {},
-      results: null,
-      recorded: false,
-      collectedTurn: -1,
-    });
-    for (const p of room.players) {
-      Object.assign(p, { hand: [], turns: 0, score: 0 }, newCounters());
-      if (isBot(p)) delete p.ai; // a new AI is dealt at the next start
-    }
-    return ok();
+  function playAgain(room, id) {
+    const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+    const freshPlayer = () => ({ hand: [], turns: 0, score: 0, ...newCounters() });
+    return backToLobby(room, id, { blank, keep: ['handSize', 'rounds', 'judging', 'categories'], freshPlayer });
   }
 
   // ---------- turn flow ----------

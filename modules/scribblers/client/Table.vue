@@ -16,6 +16,7 @@ import { computed, ref } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
+import PlayAgain from '../../../src/components/PlayAgain.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
@@ -256,6 +257,7 @@ const stageOf = (p) => {
           <span v-if="!ended && state.turns">{{ t('facts.turn', { n: Math.min(state.turn, state.turns), total: state.turns }) }}</span>
           <span v-if="!ended && state.drawerName">{{ t('facts.drawer', { name: state.drawerName }) }}</span>
         </template>
+        <PlayAgain :state="state" @again="send('again')" />
       </GameStatus>
     </template>
   </GameFrame>

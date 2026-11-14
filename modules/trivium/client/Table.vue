@@ -87,7 +87,7 @@ const stageOf = (player) => {
     </template>
 
     <template #status>
-      <StatusPanel :state="state" :view="view" :lit="reveal.answerShown" />
+      <StatusPanel :state="state" :view="view" :lit="reveal.answerShown" @again="send('again')" />
     </template>
   </GameFrame>
 </template>

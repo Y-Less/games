@@ -25,7 +25,7 @@ import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
 import { ALWAYS_SHOWN, GUESS_LENGTH, addFeed, botGuessText, botWordChoice, cleanGuess, nextGuesser, tooFast } from '../../shared/guessing.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
+import { backToLobby, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
 import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from '../../shared/words.js';
@@ -254,13 +254,23 @@ export function addWord(room, id, text) {
   return ok({ word });
 }
 
+/** What the next game at the same table keeps: the host's settings, the words this table added, and what the socket
+ * layer gave the room when it was made (its language, its two waits, and the words saved from earlier games). */
+const KEPT = ['rounds', 'drawTime', 'wordChoices', 'customWords', 'language', 'chooseMs', 'betweenMs', 'added'];
+
 /**
- * Scribblers has no "play again": a new game is made from the menu.  (The shared room server offers the event to every game.)
- * @returns {{ ok: false, error: string }}
- * Side effects: none.
+ * The host sends a finished game back to the lobby: the same code, people, settings, and added words, ready for
+ * another.
+ * @param {object} room  the room (must be finished)
+ * @param {number | string} id  who is asking (must be the host)
+ * @returns {{ ok: boolean, error?: string }}
+ * Side effects: as backToLobby (shared/roster.js): the room is as a new one, and every player is as one who has
+ *   just joined (no score, no counters, and nothing typed lately held against them).
  */
-export function playAgain() {
-  return fail('startFromMenu');
+export function playAgain(room, id) {
+  const blank = createRoom({ code: room.code, hostId: room.hostId, now: room.createdAt });
+  const freshPlayer = () => ({ score: 0, lastScore: 0, roundStart: 0, drewThisRound: null, tries: 0, talk: [], rated: [], ...newCounters() });
+  return backToLobby(room, id, { blank, keep: KEPT, freshPlayer });
 }
 
 /**
