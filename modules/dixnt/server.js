@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { numberFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
-import { botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, botMove, botWait, createRoomServer, pickKeys, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { renameInHistory } from '../../shared/roster.js';
 import { createRules } from './game.js';
@@ -143,8 +143,7 @@ function importOldSave(ctx, rules) {
 /**
  * Starts the Dixnt server half.
  *
- * @param {object} ctx  what the platform gives a module: io, mount, dataDir, codes, stats, achievements, users, log,
- *                      and optionally `rng` (a () => [0, 1) generator; the shared room server chooses the default)
+ * @param {object} ctx  what the platform gives a module: io, mount, dataDir, codes, stats, achievements, users, log
  * @returns {{ dispose: () => void }} stops the timers and saves the rooms
  * Side effects: mounts /cards, brings any old save over, and then as createRoomServer (reads the saved rooms, starts
  * timers, registers the socket events).
@@ -203,9 +202,8 @@ export default function (ctx) {
   }
 
   const game = createRules({ getCategories, hints });
-  const rng = ctx.rng; // undefined in the real site: the shared room server then chooses Math.random, once
   /** An account's display name (for rooms saved before names were kept). */
-  const nameOf = (id) => ctx.users?.get(id)?.displayName ?? 'Someone';
+  const nameOf = accountNames(ctx);
 
   importOldSave(ctx, game);
 
@@ -233,10 +231,11 @@ export default function (ctx) {
   const handle = createRoomServer(ctx, {
     game,
     pickSettings,
-    rng,
     members: (room) => room.players,
     layout: rosterLayout, // a list of players rather than numbered seats (shared/layout.js)
-    migrate: (room) => game.migrate(room, nameOf, rng ?? Math.random),
+    // Loading a room may shuffle cards that have appeared on disk since it was saved into its draw pile.  That is the
+    // one random choice made outside a game's own events, so it is given its source here, in the socket layer.
+    migrate: (room) => game.migrate(room, nameOf, Math.random),
     afterChange: collectCards,
     /**
      * A computer player's move, if one is due.  A move that is refused is reported as a failure (it would otherwise
@@ -249,13 +248,7 @@ export default function (ctx) {
      */
     nextAction(room, roomRng) {
       const action = game.pendingBotAction(room);
-      if (!action) return null;
-      return {
-        wait: botWait(botDelay, roomRng),
-        run() {
-          if (!game.runBotAction(room, roomRng, action)) throw new Error(`the computer move ${action.type} for ${action.id} was refused`);
-        },
-      };
+      return action ? botMove(action, botWait(botDelay, roomRng), () => game.runBotAction(room, roomRng, action)) : null;
     },
     /**
      * Registers Dixnt's own socket events; each one runs a game.js action for the connected user and shares the result.

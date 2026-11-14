@@ -46,7 +46,8 @@ import { msg } from '../../shared/messages.js';
 import { standingsOf, winnersOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
+import { shuffle } from '../../shared/cards.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { AIS, buildCardInfo } from './ai/index.js';
 import { newCounters, statsExtras, tallyTurn } from './tally.js';
@@ -56,16 +57,14 @@ export const CHOOSER_CORRECT_POINTS = 1;
 export const CHOOSER_FOOLED_POINTS = 5;
 export const FAVOURITE_POINTS = 2;
 export const JUDGING_MODES = ['everyone', 'chooser', 'favourite'];
-export const MIN_ROUNDS = 1;
-export const MAX_ROUNDS = 10;
-export const DEFAULT_ROUNDS = 2;
+/** How many rounds a game may run for (everybody chooses the word once a round), and how many unless the host says. */
+export const ROUNDS = { min: 1, max: 10, default: 2 };
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 12;
 /** How many a new game is for, until the host says otherwise. */
 export const DEFAULT_PLAYERS = defaultPlayers(MIN_PLAYERS, MAX_PLAYERS);
-export const MIN_HAND_SIZE = 3;
-export const MAX_HAND_SIZE = 12;
-export const DEFAULT_HAND_SIZE = 8;
+/** How many cards a hand may hold, and how many unless the host says. */
+export const HAND_SIZE = { min: 3, max: 12, default: 8 };
 export const MAX_WORD_LENGTH = 60;
 
 /** Names for the computer players, in the order they are used. */
@@ -107,32 +106,8 @@ export { hasPlayer, humans, isBot, isHuman, seatOf };
  */
 export const isLive = (room) => LIVE.includes(room.phase);
 
-/**
- * Shuffles an array in place (Fisher-Yates).
- *
- * @param {any[]} items        the array to shuffle
- * @param {() => number} rng   a random number generator returning [0, 1); there is no default, so a game's rules can
- *                             never reach for Math.random behind a test's back
- * @returns {any[]} the same array, shuffled
- * Side effects: reorders `items`.
- */
-export function shuffle(items, rng) {
-  for (let i = items.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [items[i], items[j]] = [items[j], items[i]];
-  }
-  return items;
-}
-
-/**
- * The player with this id, or undefined.
- *
- * @param {object} room  not changed
- * @param {number | string} id  an account id or a computer player's id
- * @returns {object | undefined} the player
- * Side effects: none.
- */
-export const playerOf = (room, id) => room.players.find((p) => p.id === id);
+// The player with this id, or undefined (shared/roster.js); the server and the tests ask for it through the rules.
+export { playerOf };
 
 /**
  * Players who play a card this turn: everyone except the chooser.
@@ -277,8 +252,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     for (const p of room.players) p.hand = p.hand.filter(keep);
     const fresh = [...available].filter((id) => !known.has(id));
     if (room.phase !== 'lobby' && fresh.length) {
-      room.draw.push(...fresh);
-      shuffle(room.draw, rng);
+      room.draw = shuffle([...room.draw, ...fresh], rng);
     }
   }
 
@@ -334,10 +308,10 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       players: [],
       size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
       nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
-      handSize: DEFAULT_HAND_SIZE,
+      handSize: HAND_SIZE.default,
       judging: 'everyone',
       categories: [], // the selected category keys; normaliseSettings fills in "all of them"
-      rounds: DEFAULT_ROUNDS, // how many rounds the game runs for: every player chooses the word once a round
+      rounds: ROUNDS.default, // how many rounds the game runs for: every player chooses the word once a round
       completedTurns: 0, // turns finished so far (abandoned turns don't count)
       // One entry per completed turn, oldest first: { label, deltas: { playerId: points }, notes: { playerId: text } }.
       // Shown to everyone as the standard scoreboard.
@@ -377,22 +351,6 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    * @returns {object} the same room
    * Side effects: mutates the room.  Running it twice changes nothing more.
    */
-  /**
-   * Moves one field of a saved room to the name it goes by now, if it is still under the old one.
-   *
-   * @param {object} room  the room to change
-   * @param {string} was  the old field name
-   * @param {string} now  the name it has today
-   * @returns {void}
-   * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and a room that already
-   * holds `now` keeps what is there.
-   */
-  function renameField(room, was, now) {
-    if (room[was] === undefined) return;
-    if (room[now] === undefined) room[now] = room[was];
-    delete room[was];
-  }
-
   function migrate(room, nameOf, rng = () => 0.5) {
     migratePlayers(room, nameOf, { maxPlayers: MAX_PLAYERS });
     const hadHistory = Array.isArray(room.history);
@@ -415,8 +373,8 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
       else if (entry?.label?.key === 'round.earlier') entry.label = { ...entry.label, key: 'turn.earlier' };
     }
     room.collectedTurn ??= -1;
-    room.handSize ??= DEFAULT_HAND_SIZE;
-    room.rounds ??= DEFAULT_ROUNDS;
+    room.handSize ??= HAND_SIZE.default;
+    room.rounds ??= ROUNDS.default;
     room.completedTurns ??= 0;
     room.turn ??= 0;
     room.nextChooserIdx ??= 0;
@@ -558,12 +516,12 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     const wanted = {};
     if (settings.handSize !== undefined) {
       const n = Math.round(numberFrom(settings.handSize));
-      if (!(n >= MIN_HAND_SIZE && n <= MAX_HAND_SIZE)) return fail('handSizeRange', { min: MIN_HAND_SIZE, max: MAX_HAND_SIZE });
+      if (!(n >= HAND_SIZE.min && n <= HAND_SIZE.max)) return fail('handSizeRange', { min: HAND_SIZE.min, max: HAND_SIZE.max });
       wanted.handSize = n;
     }
     if (settings.rounds !== undefined) {
       const n = Math.round(numberFrom(settings.rounds));
-      if (!(n >= MIN_ROUNDS && n <= MAX_ROUNDS)) return fail('rounds', { min: MIN_ROUNDS, max: MAX_ROUNDS });
+      if (!(n >= ROUNDS.min && n <= ROUNDS.max)) return fail('rounds', { min: ROUNDS.min, max: ROUNDS.max });
       wanted.rounds = n;
     }
     if (settings.judging !== undefined) {
@@ -601,7 +559,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
     normaliseSettings(room);
     const cardIds = availableIds(room);
     if (cardIds.length < room.players.length * room.handSize) return fail('notEnoughCards');
-    room.draw = shuffle([...cardIds], rng);
+    room.draw = shuffle(cardIds, rng);
     room.discard = [];
     for (const p of room.players) Object.assign(p, { hand: [], score: 0, turns: 0 }, newCounters());
     room.history = [];
@@ -714,7 +672,7 @@ export function createRules({ getCategories, getCardIds, hints = [] } = {}) {
    */
   function nextHints(room, count, rng) {
     let pool = hintPools.get(room) ?? [];
-    if (pool.length < count) pool = shuffle([...hints], rng);
+    if (pool.length < count) pool = shuffle(hints, rng);
     const taken = pool.splice(-count, count);
     hintPools.set(room, pool);
     return taken;

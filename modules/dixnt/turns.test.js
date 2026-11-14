@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRules, DEFAULT_ROUNDS } from './game.js';
+import { createRules, ROUNDS } from './game.js';
 import { makeRoom, range } from './harness.js';
 
 /** A lobby of the named people, judged by the chooser alone so that a turn takes few calls. */
@@ -19,7 +19,7 @@ function playTurn({ game, room, rng }, { guessRight = true } = {}) {
 }
 
 test('each player chooses twice by default, so four players play two rounds of four turns', () => {
-  assert.equal(DEFAULT_ROUNDS, 2);
+  assert.equal(ROUNDS.default, 2);
   const made = setup(['Ann', 'Bob', 'Cat', 'Dan']);
   const { game, room, rng } = made;
   assert.equal(game.start(room, 1, rng).ok, true);

@@ -45,10 +45,5 @@ export function handCard(width, height, slots, { gap = 10, share = 0.42, min = 9
   return { height: h, width: Math.round(h * ASPECT) };
 }
 
-/**
- * How the slim bars share the frame's 12 columns: each bar spans this many of them.
- * @param {number} count  How many bars there are.
- * @returns {number} 3 columns each for up to four bars, otherwise 2.
- * Side effects: none.
- */
-export const barSpan = (count) => (count <= 4 ? 3 : 2);
+// How the slim bars share the frame's columns is the same in every game that has them (src/frameLayout.js).
+export { barSpan } from '../../../src/frameLayout.js';
