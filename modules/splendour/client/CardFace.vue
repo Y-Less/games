@@ -4,7 +4,8 @@
 // Props: card (card id, or null for a back), level (level of a card back), need (five counts still to pay after the owner's
 //   bonuses, or null for the full cost), affordable, selected, clickable, dimmed, small (booleans for the look and behaviour),
 //   count (cards left, for a pile).
-// Emits: pick (the card was clicked while clickable).  Slots: none.
+// Emits: pick (the card was clicked while clickable), buy (a face-up card was double-clicked while clickable: the
+//   quick way to buy it; the two clicks of a double-click are still emitted as picks first).  Slots: none.
 // Side effects: none beyond the emit.
 import { computed } from 'vue';
 import { useGameText } from '../../../src/useGameText.js';
@@ -23,7 +24,7 @@ const props = defineProps({
   small: { type: Boolean, default: false },
   count: { type: Number, default: null }, // for a pile: how many cards are left
 });
-defineEmits(['pick']);
+defineEmits(['pick', 'buy']);
 const { t, list } = useGameText();
 
 // Static card data (level, points, bonus, cost) for a face-up card, or null for a card back.
@@ -51,6 +52,7 @@ const description = computed(() => {
     :aria-label="description"
     :aria-pressed="clickable ? selected : undefined"
     @click="clickable && $emit('pick')"
+    @dblclick="clickable && card && $emit('buy')"
   >
     <template v-if="info">
       <span class="top">

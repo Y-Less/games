@@ -256,6 +256,48 @@ describe('Splendour table: playing', () => {
     expect(w.find('.dev-card.selected').exists()).toBe(false);
   });
 
+  /** A double-click as a browser sends it: the two clicks first, then the double-click itself. */
+  const doubleClick = async (card) => {
+    await card.trigger('click');
+    await card.trigger('click');
+    await card.trigger('dblclick');
+    await flushPromises();
+  };
+
+  it('buys an affordable card on a double-click, without the Buy button', async () => {
+    const base = { ...playView(), turn: 0 };
+    const id = base.board[1][0];
+    const { w, send } = mountTable({ ...base, afford: { [id]: { pay: [0, 0, 0, 0, 0, 0], minGold: 0, maxGold: 0 } } });
+    await doubleClick(cardButton(w, 2, 0));
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('buy', { card: id });
+    expect(w.find('.dev-card.selected').exists()).toBe(false);
+  });
+
+  it('leaves a card you cannot afford selected on a double-click, and says what is missing', async () => {
+    const { w, send } = mountTable({ ...playView(), turn: 0 });
+    await doubleClick(cardButton(w, 2, 0));
+    expect(send).not.toHaveBeenCalled();
+    expect(cardButton(w, 2, 0).classes('selected')).toBe(true);
+    expect(w.find('.game-status .warn').text()).toContain('cannot afford');
+  });
+
+  it('buys nothing on a double-click when it is not your turn', async () => {
+    const base = { ...playView(), turn: 1 };
+    const id = base.board[1][0];
+    const { w, send } = mountTable({ ...base, afford: { [id]: { pay: [0, 0, 0, 0, 0, 0], minGold: 0, maxGold: 0 } } });
+    await doubleClick(cardButton(w, 2, 0));
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a double-click of a pile, which can only be reserved from', async () => {
+    const { w, send } = mountTable({ ...playView(), turn: 0 });
+    const pile = w.findAll('.level-row')[2].find('button.pile-button');
+    await pile.trigger('dblclick');
+    await flushPromises();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('explains what is missing for an unaffordable card and still lets you reserve it', async () => {
     const v = { ...playView(), turn: 0 };
     const id = v.board[1][0];

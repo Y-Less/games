@@ -105,7 +105,7 @@
     "lookOnly": "You can look at cards now, but can only act on your own turn.",
     "reserveBlind": "Reserve from the level {level} pile: you take the top card without seeing it first. Only you will know what it is until you buy it. You also take 1 Gold.",
     "reserveBlindNoGold": "Reserve from the level {level} pile: you take the top card without seeing it first. Only you will know what it is until you buy it. There is no Gold left, so you take none.",
-    "hint": "Click gems to take them, or click a card to buy or reserve it.",
+    "hint": "Click gems to take them, or click a card to buy or reserve it. Double-click a card to buy it at once.",
     "finishFirst": "Finish your current choice first.",
     "reserveFull": "You already have {count} reserved card. | You already have {count} reserved cards.",
     "endLimit": "The game reached its round limit.",

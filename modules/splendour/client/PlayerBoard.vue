@@ -5,7 +5,8 @@
 // Props: seat (the seat's view: tokens, bonuses, reserved cards, nobles, prestige), isMe, isTurn, interactive (cards can be
 //   picked), large (your own board: full-size reserved cards and bigger gems), selected (selected card id), afford (what you can
 //   afford, by card id), gem (gem size in px), pickTokens (tokens are the selector while returning), give (six counts marked to give back).
-// Emits: pick(card id) for a reserved card, token(colour) for a token while returning.
+// Emits: pick(card id) for a reserved card, buy(card id) for one that was double-clicked, token(colour) for a token
+//   while returning.
 // Slots: actions (shown at the bottom of a large board, for the action buttons).
 // Side effects: none beyond the emits.
 import { computed } from 'vue';
@@ -28,7 +29,7 @@ const props = defineProps({
   pickTokens: { type: Boolean, default: false }, // your own board while returning tokens: the tokens are the selector
   give: { type: Array, default: () => [0, 0, 0, 0, 0, 0] }, // how many of each token are marked to give back
 });
-defineEmits(['pick', 'token']);
+defineEmits(['pick', 'buy', 'token']);
 const { t } = useGameText();
 
 // The name of a gem colour, and of a noble, from the locale file.
@@ -96,6 +97,7 @@ const needOf = (id) => costAfterBonuses(CARD_BY_ID[id], props.seat.bonuses);
           :selected="selected === r.card"
           :clickable="isMe && interactive"
           @pick="$emit('pick', r.card)"
+          @buy="$emit('buy', r.card)"
         />
         <CardFace v-else :small="!large" :level="r.level" />
       </template>

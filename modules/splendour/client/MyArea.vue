@@ -37,6 +37,7 @@ defineEmits(['pass']);
       :pick-tokens="view.pendingMine?.type === 'return'"
       :give="shared.giveBack"
       @pick="card.pickCard"
+      @buy="card.buyCard"
       @token="give.clickToken"
     >
       <template #actions>

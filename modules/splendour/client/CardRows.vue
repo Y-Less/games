@@ -3,7 +3,7 @@
 // reserve its top card blind.
 // Props: board (card ids per level, with empty slots), decks (cards left per level), afford (what you can afford, by card id),
 //   needOf (function: a card's cost to you), selectedCard (id or null), selectedLevel (level of the selected pile or null).
-// Emits: pick-card(id) and pick-deck(level).  Slots: none.
+// Emits: pick-card(id), buy-card(id) for a card that was double-clicked, and pick-deck(level).  Slots: none.
 // Side effects: none.
 import { useGameText } from '../../../src/useGameText.js';
 import CardFace from './CardFace.vue';
@@ -16,7 +16,7 @@ defineProps({
   selectedCard: { type: String, default: null },
   selectedLevel: { type: Number, default: null },
 });
-defineEmits(['pick-card', 'pick-deck']);
+defineEmits(['pick-card', 'buy-card', 'pick-deck']);
 const { t } = useGameText();
 // Card levels in display order, top row first.
 const levels = [3, 2, 1];
@@ -36,7 +36,7 @@ const levels = [3, 2, 1];
         <CardFace :level="level" :count="decks[level]" />
       </button>
       <template v-for="(id, slot) in board[level]" :key="`${level}-${slot}`">
-        <CardFace v-if="id" clickable :card="id" :need="needOf(id)" :affordable="Boolean(afford?.[id])" :selected="selectedCard === id" @pick="$emit('pick-card', id)" />
+        <CardFace v-if="id" clickable :card="id" :need="needOf(id)" :affordable="Boolean(afford?.[id])" :selected="selectedCard === id" @pick="$emit('pick-card', id)" @buy="$emit('buy-card', id)" />
         <span v-else class="empty-slot" aria-hidden="true" />
       </template>
     </div>

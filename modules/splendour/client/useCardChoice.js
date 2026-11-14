@@ -30,14 +30,14 @@ export function withExtraGold(pay, extra) {
 /**
  * Card choosing.
  *
- * Side effects: pickCard and pickDeck change the shared sel, picks, message, and payGold; buy and reserve send requests and
- * clear the selection on success; a watcher drops a selected card that has left the table or the reserve.
+ * Side effects: pickCard and pickDeck change the shared sel, picks, message, and payGold; buy, buyCard, and reserve send
+ * requests and clear the selection on success; a watcher drops a selected card that has left the table or the reserve.
  *
  * @param {object} view    the table view (reactive)
  * @param {object} shared  the shared choice state (reactive)
  * @param {Function} send  sends an action to the server and resolves with its reply
  * @returns {object} selectedCard, selectedLevel (the level of the selected pile, or null), selectedInfo, inReserve, quote, goldUsed, payPlan, missing, canReserve, reserveWhy (a message),
- *   goldLeft, pickCard(id), pickDeck(level), setGold(n), cancel(), buy(), reserve()
+ *   goldLeft, pickCard(id), pickDeck(level), setGold(n), cancel(), buy(), buyCard(id), reserve()
  */
 export function useCardChoice(view, shared, send) {
   const request = useSend(shared, send);
@@ -127,6 +127,22 @@ export function useCardChoice(view, shared, send) {
     await request('buy', custom ? { card: selectedCard.value, pay: payPlan.value } : { card: selectedCard.value }, cancel);
   }
   /**
+   * Buys a card in one go: what a double-click on it does.  The card is selected, and bought with the least Gold,
+   * exactly as selecting it and pressing Buy would.  When it cannot be bought now (it is not your turn, or you cannot
+   * afford it) it is simply left selected, so the action bar says why, as it does for a single click.
+   *
+   * @param {string} id  a card id (on the table, or in your reserve)
+   * @returns {Promise<void>} resolves once the server has replied, or at once when nothing was sent
+   * Side effects: sets the shared sel, and clears picks, message, and payGold; then as `buy`.
+   */
+  async function buyCard(id) {
+    shared.message = null;
+    shared.picks = [];
+    shared.payGold = null;
+    shared.sel = { kind: 'card', id };
+    await buy();
+  }
+  /**
    * Reserves the selected card, or the top card of the selected pile.
    * @returns {Promise<void>} resolves once the server has replied (does nothing if reserving is not allowed or busy)
    * Side effects: sets the shared busy flag while waiting; sends a 'reserve' request; clears sel on success.
@@ -146,5 +162,5 @@ export function useCardChoice(view, shared, send) {
     },
   );
 
-  return { selectedCard, selectedLevel, selectedInfo, inReserve, quote, goldUsed, payPlan, missing, canReserve, reserveWhy, goldLeft, pickCard, pickDeck, setGold, cancel, buy, reserve };
+  return { selectedCard, selectedLevel, selectedInfo, inReserve, quote, goldUsed, payPlan, missing, canReserve, reserveWhy, goldLeft, pickCard, pickDeck, setGold, cancel, buy, buyCard, reserve };
 }

@@ -114,6 +114,65 @@ describe('useCardChoice', () => {
     expect(card.canReserve).toBeFalsy();
     expect(words(card.reserveWhy)).toBe('It is not your turn.');
   });
+
+  // A double-click on a card: buyCard(id).
+  const affordable = { afford: { x: { pay: [1, 0, 0, 0, 0, 1], minGold: 1, maxGold: 2 } }, board: { 1: ['x', 'y'], 2: [], 3: [] } };
+
+  it('buys a card in one go when it is your turn and you can afford it, paying with the least Gold', async () => {
+    const { view, shared, send } = setup(ref(makeState(affordable)));
+    const card = reactive(useCardChoice(view, shared, send));
+    await card.buyCard('x');
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('buy', { card: 'x' });
+    expect(card.selectedCard).toBe(null); // bought, so nothing is left selected
+  });
+
+  it('buys the card that was double-clicked, whatever was selected before, and forgets a Gold amount chosen for another', async () => {
+    const { view, shared, send } = setup(ref(makeState({ ...affordable, afford: { ...affordable.afford, y: { pay: [1, 0, 0, 0, 0, 0], minGold: 0, maxGold: 1 } } })));
+    const card = reactive(useCardChoice(view, shared, send));
+    card.pickCard('y');
+    card.setGold(1);
+    await card.buyCard('x');
+    expect(send).toHaveBeenCalledWith('buy', { card: 'x' });
+  });
+
+  it('only selects a card you cannot afford (the table then says what is missing: see splendour.test.js)', async () => {
+    const { view, shared, send } = setup(ref(makeState(affordable)));
+    const card = reactive(useCardChoice(view, shared, send));
+    await card.buyCard('y');
+    expect(send).not.toHaveBeenCalled();
+    expect(card.selectedCard).toBe('y');
+    expect(card.quote).toBe(null);
+  });
+
+  it('only selects a card when it is not your turn', async () => {
+    const { view, shared, send } = setup(ref(makeState({ ...affordable, turn: 1 })));
+    const card = reactive(useCardChoice(view, shared, send));
+    await card.buyCard('x');
+    expect(send).not.toHaveBeenCalled();
+    expect(card.selectedCard).toBe('x');
+  });
+
+  it('keeps the card selected when the server refuses the purchase', async () => {
+    const refuse = vi.fn(() => Promise.resolve({ ok: false, error: 'notYourTurn' }));
+    const { view, shared } = setup(ref(makeState(affordable)));
+    const card = reactive(useCardChoice(view, shared, refuse));
+    await card.buyCard('x');
+    expect(refuse).toHaveBeenCalledWith('buy', { card: 'x' });
+    expect(card.selectedCard).toBe('x');
+  });
+
+  it('does not send a second purchase while the first is still on its way', async () => {
+    let answer;
+    const slow = vi.fn(() => new Promise((resolve) => (answer = resolve)));
+    const { view, shared } = setup(ref(makeState(affordable)));
+    const card = reactive(useCardChoice(view, shared, slow));
+    const first = card.buyCard('x');
+    await card.buyCard('x');
+    expect(slow).toHaveBeenCalledTimes(1);
+    answer({ ok: true });
+    await first;
+  });
 });
 
 describe('useTokenReturn', () => {

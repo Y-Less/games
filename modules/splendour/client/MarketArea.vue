@@ -29,6 +29,7 @@ const { t } = useGameText();
       :selected-card="card.selectedCard"
       :selected-level="card.selectedLevel"
       @pick-card="card.pickCard"
+      @buy-card="card.buyCard"
       @pick-deck="card.pickDeck"
     />
   </section>
