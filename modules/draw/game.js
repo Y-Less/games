@@ -18,9 +18,10 @@ import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, nextGame, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, nextGame, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
+import { attempt } from '../../shared/ai.js';
 import { AI } from './ai.js';
 import { pairings } from './pairings.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn } from './tally.js';
@@ -71,14 +72,6 @@ export { hasPlayer, humans, isBot, isHuman, seatOf };
  */
 export const isLive = (room) => LIVE.includes(room.phase);
 
-/**
- * The player with this id, or undefined.
- * @param {object} room  not changed
- * @param {number | string} id  a player id
- * @returns {object | undefined}
- * Side effects: none.
- */
-const playerOf = (room, id) => room.players.find((p) => p.id === id);
 
 /**
  * The pair drawing this turn.
@@ -117,14 +110,6 @@ export const isDrawer = (room, id) => drawersOf(room).includes(id);
  */
 const guessers = (room) => room.players.filter((p) => !isDrawer(room, p.id));
 
-/**
- * A name lookup that prefers the name saved with the player (only rooms saved long ago lack one).
- * @param {object} room  not changed
- * @param {(id: *) => string} nameOf  fallback lookup
- * @returns {(id: *) => string}
- * Side effects: none.
- */
-const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 
 /**
  * Gives a bare player ({ kind, id, name }) the fields Draw! keeps for everybody: the score, what they scored last
@@ -831,13 +816,6 @@ export function runBotAction(room, rng, now, action = pendingBotAction(room), ai
   const player = playerOf(room, action.id);
   if (!player) return false;
   const context = aiContext(room, action.id, rng);
-  const attempt = (decide) => {
-    try {
-      return decide();
-    } catch {
-      return undefined; // a broken AI must not stop the game
-    }
-  };
   if (action.type === 'word') {
     const offered = room.choices[action.id] ?? [];
     const chosen = attempt(() => ai.chooseWord(context));

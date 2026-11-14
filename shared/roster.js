@@ -87,12 +87,84 @@ export const seatOf = (room, id) => room.players.findIndex((p) => p.id === id);
 export const hasPlayer = (room, id) => seatOf(room, id) !== -1;
 
 /**
+ * The player with this id, or undefined.
+ *
+ * @param {{ players: object[] }} room  not changed
+ * @param {number | string} id  an account id, or a computer player's ('bot:<n>')
+ * @returns {any} the player object, or undefined when nobody in the room has that id
+ * Side effects: none.
+ */
+export const playerOf = (room, id) => room.players.find((p) => p.id === id);
+
+/**
+ * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names,
+ * and somebody who has left the room has no player to hold one).
+ *
+ * @param {{ players: object[] }} room  the room whose players are searched
+ * @param {(id: any) => string} nameOf  the fallback lookup, such as the account's display name
+ * @returns {(id: number | string) => string} the name lookup
+ * Side effects: none.
+ */
+export const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
+
+/**
+ * Moves one field of a saved object to the name it goes by now, if it is still under the old one.  For a `migrate`
+ * that has renamed something a saved room still calls by its old word.
+ *
+ * @param {object | null | undefined} holder  the object to change (a room, or anything saved inside one)
+ * @param {string} was  the old field name
+ * @param {string} now  the name it has today
+ * @returns {void}
+ * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and an object that already
+ * holds `now` keeps what is there.
+ */
+export function renameField(holder, was, now) {
+  if (!holder || holder[was] === undefined) return;
+  if (holder[now] === undefined) holder[now] = holder[was];
+  delete holder[was];
+}
+
+/**
  * The people in the room (accounts), as opposed to computer players.
  *
  * @param {object} room
  * @returns {object[]} the player objects, in join order
  */
 export const humans = (room) => room.players.filter(isHuman);
+
+/**
+ * The rules for a phase that waits for everybody to close the scores before the game moves on: each person says they
+ * are ready (computer players always are), the last of them moves it on, and the server may move it on without them
+ * after a wait.  `room.ready` holds the ids of the people who have said so.
+ *
+ * Whatever comes after the room in a call - the random source, the clock, a name lookup - is handed straight on to
+ * `finish`, so each game keeps the arguments its own turn needs.
+ *
+ * @param {object} config
+ * @param {(room: any, ...rest: any[]) => boolean} config.finish  ends the turn on show and starts the next, or
+ *   finishes the game; answers whether the game is now over.  It is what empties `room.ready`.
+ * @param {string} [config.phase]  the phase that waits (default 'reveal')
+ * @returns {{ unready: (room: any) => any[], ready: (room: any, id: number | string, ...rest: any[]) => any,
+ *   forceNext: (room: any, ...rest: any[]) => any, waitingForReady: (room: any) => boolean }}
+ *   `unready(room)` is the people still to close the scores; `ready` and `forceNext` answer
+ *   { ok: true, finished } or a refusal (`notInGame`, `noScoresToClose`, `nothingToMoveOn`)
+ * Side effects: none here; `ready` adds to room.ready, and both it and `forceNext` may call `finish`.
+ */
+export function createReadyRules({ finish, phase = 'reveal' }) {
+  const unready = (room) => humans(room).filter((p) => !(room.ready ?? []).includes(p.id));
+  const waitingForReady = (room) => room.phase === phase;
+  const ready = (room, id, ...rest) => {
+    if (!hasPlayer(room, id)) return fail('notInGame');
+    if (room.phase !== phase) return fail('noScoresToClose');
+    if (!room.ready.includes(id)) room.ready.push(id);
+    return ok({ finished: unready(room).length === 0 ? finish(room, ...rest) : false });
+  };
+  const forceNext = (room, ...rest) => {
+    if (room.phase !== phase) return fail('nothingToMoveOn');
+    return ok({ finished: finish(room, ...rest) });
+  };
+  return { unready, ready, forceNext, waitingForReady };
+}
 
 /**
  * A name nobody else in the room has (ignoring capital letters): "Ann" becomes "Ann (2)" if "ann" is taken.

@@ -1,5 +1,6 @@
 // Sizes for the Gaudi table, worked out from the room the frame gives it (never from the game, so nothing moves while
 // playing).  All numbers are pixels.  The constants are the parts of a window that do not scale with its space size.
+import { spanWidth as frameSpanWidth } from '../../../src/frameLayout.js';
 import { COLS, ROWS } from '../rules.js';
 
 const WINDOW_FIXED = 26; // padding, border and the gaps between the spaces of a row
@@ -22,10 +23,7 @@ const clamp = (low, value, high) => Math.max(low, Math.min(high, value));
  * @returns {number} the width in pixels, rounded
  * Side effects: none.
  */
-export const spanWidth = (area, n) => {
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  return Math.round(unit * n + area.gap * (n - 1));
-};
+export const spanWidth = (area, n) => Math.round(frameSpanWidth(area, n));
 
 /**
  * The window size (px per space) for a window that must fit `width` x `height`: whichever of the two limits is tighter wins,

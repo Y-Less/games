@@ -10,12 +10,12 @@
 import { textFrom } from '../../shared/input.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '../../shared/markerColours.js';
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { BANDS, teamWinScore } from './scoring.js';
 import { SPECTRA, spectrumById } from './spectra.js';
@@ -63,26 +63,6 @@ export { hasPlayer, humans, isHuman, seatOf };
  * Side effects: none.
  */
 export const isLive = (room) => LIVE.includes(room.phase);
-/**
- * The player with this id, or undefined.
- *
- * @param {object} room  the room to search
- * @param {number|string} id  the player id (an account id, or 'bot:<n>')
- * @returns {object|undefined} the player
- *
- * Side effects: none.
- */
-const playerOf = (room, id) => room.players.find((p) => p.id === id);
-/**
- * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
- *
- * @param {object} room  the room whose players are searched
- * @param {(id: number) => string} nameOf  fallback lookup, such as the account's display name
- * @returns {(id: number|string) => string} the lookup
- *
- * Side effects: none.
- */
-const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 /**
  * Everybody but the psychic.
  *
@@ -583,57 +563,13 @@ function finishTurn(room, rng) {
   return false;
 }
 
-/**
- * The people who have yet to close the scores at the reveal (computer players never need to).
- *
- * @param {object} room  the room to look at
- * @returns {object[]} the human players not in room.ready
- *
- * Side effects: none.
- */
-const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
-
-/**
- * At the reveal, a person has closed the scores pop-up and is ready for the next turn.  Once every person is ready
- * (computer players always are) the next turn starts, or the game finishes after the last one.
- *
- * @param {object} room  the room (must be at the reveal)
- * @param {number} id  the person who closed the pop-up
- * @param {() => number} rng  random source for the next turn
- * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok with whether the game finished, or why not
- *
- * Side effects: adds the person to room.ready; may end the turn (see finishTurn).
- */
-export function ready(room, id, rng) {
-  if (!hasPlayer(room, id)) return fail('notInGame');
-  if (room.phase !== 'reveal') return fail('noScoresToClose');
-  if (!room.ready.includes(id)) room.ready.push(id);
-  return ok({ finished: unready(room).length === 0 ? finishTurn(room, rng) : false });
-}
-
-/**
- * Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait).
- *
- * @param {object} room  the room (must be at the reveal)
- * @param {() => number} rng  random source for the next turn
- * @returns {{ ok: boolean, error?: string, finished?: boolean }} ok with whether the game finished, or why not
- *
- * Side effects: ends the turn (see finishTurn).
- */
-export function forceNext(room, rng) {
-  if (room.phase !== 'reveal') return fail('nothingToMoveOn');
-  return ok({ finished: finishTurn(room, rng) });
-}
-
-/**
- * True while the reveal waits for people to close the scores (the server times this out).
- *
- * @param {object} room  the room to look at
- * @returns {boolean} whether the room is at the reveal
- *
- * Side effects: none.
- */
-export const waitingForReady = (room) => room.phase === 'reveal';
+// The reveal waits for everybody to close the scores (shared/roster.js): `ready(room, id, rng)` is a person saying
+// so, and the last of them ends the turn; `forceNext(room, rng)` moves on without them, which the server does after a
+// wait; `waitingForReady(room)` is true while the reveal is up; `unready(room)` is the people still to close it.
+// `ready` and `forceNext` answer { ok, finished }, finished being whether the game is over.
+const readiness = createReadyRules({ finish: finishTurn });
+const { unready } = readiness;
+export const { ready, forceNext, waitingForReady } = readiness;
 
 /**
  * Wavelength's part of a computer player taking the place of a person who left a game under way (the roster has already
@@ -891,14 +827,6 @@ export function runBotAction(room, rng, action = pendingBotAction(room), nameOf 
   const ai = aiById(AIS, player.ai);
   const view = viewFor(room, action.id, { nameOf });
   const anchors = spectrumById(room.spectrum?.id)?.anchors ?? [];
-  /** Runs an AI decision, returning undefined if it throws (a broken AI must not stop the game). */
-  const attempt = (decide) => {
-    try {
-      return decide();
-    } catch {
-      return undefined; // a broken AI must not stop the game
-    }
-  };
   if (action.type === 'clue') {
     const text = attempt(() => ai.clue({ target: view.target, anchors }, rng));
     const clean = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';

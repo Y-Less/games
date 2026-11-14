@@ -8,7 +8,7 @@
 //   GTK_NEXT_WAIT   milliseconds the reveal waits for everyone to close the scores before moving on (default 60000)
 //
 // Depends on shared/roomServer.js (the room server and its timing helpers) and ./game.js (the rules).
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, afterWait, botMove, botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import * as game from './game.js';
 
@@ -34,7 +34,7 @@ function readDelays() {
 export default function (ctx) {
   const delays = readDelays();
   /** An account's display name (used for people who have left the room, and for rooms saved before names were kept). */
-  const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
+  const nameOf = accountNames(ctx);
 
   return createRoomServer(ctx, {
     game,
@@ -53,14 +53,7 @@ export default function (ctx) {
      */
     nextAction(room, rng, now) {
       const action = game.pendingBotAction(room);
-      if (action) {
-        return {
-          wait: botWait(delays.bot, rng),
-          run() {
-            if (!game.runBotAction(room, rng, action, nameOf, now())) throw new Error(`the computer move ${action.type} for ${action.id} was refused`);
-          },
-        };
-      }
+      if (action) return botMove(action, botWait(delays.bot, rng), () => game.runBotAction(room, rng, action, nameOf, now()));
       // The clock has run out on writing or picking: answer or pick for whoever is left, so one person who has
       // wandered off cannot hold up the table.  The same key keeps the same timer, so a pick does not extend it.
       if (game.isTimed(room)) {
@@ -74,16 +67,7 @@ export default function (ctx) {
       }
       // Somebody has not closed the scores (away, or gone): move on without them.  The wait is not restarted when
       // somebody closes the pop-up: the same question's timer keeps running.
-      if (game.waitingForReady(room)) {
-        return {
-          key: `next:${room.turn}:${room.question}`,
-          wait: delays.nextWait,
-          run() {
-            const outcome = game.forceNext(room, rng, nameOf, now());
-            if (!outcome.ok) throw new Error(outcome.error);
-          },
-        };
-      }
+      if (game.waitingForReady(room)) return afterWait(`next:${room.turn}:${room.question}`, delays.nextWait, () => game.forceNext(room, rng, nameOf, now()));
       return null;
     },
     /**

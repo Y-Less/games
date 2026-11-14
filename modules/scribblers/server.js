@@ -35,7 +35,7 @@
 // shared/strokeRelay.js (the boards, the strokes on them, and the picture a computer player paints).
 import fs from 'node:fs';
 import path from 'node:path';
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { BOT_STROKE_RATE, createStrokeRelay, pictureSource, readRate } from '../../shared/strokeRelay.js';
 import * as game from './game.js';
@@ -112,7 +112,7 @@ export default function (ctx) {
     }
   }
   /** An account's display name (for people who have left the room, and for rooms saved before names were kept). */
-  const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
+  const nameOf = accountNames(ctx);
 
   // The board, the strokes on it, and the picture a computer player paints: shared/strokeRelay.js, which Draw! uses
   // too.  Scribblers has one board a turn, so it says nothing about which, and the relay's defaults are its own.
@@ -193,10 +193,8 @@ export default function (ctx) {
           key: `bot:${turnKey}:${bot.type}:${bot.id}:${tries}`,
           at: now() + botWait(delays.bot, rng),
           // runBotAction answers with whether it played, not with a rule's outcome, so a refusal is turned into a throw
-          // here instead (the room server then logs it and tries again after a pause).
-          run() {
-            if (!game.runBotAction(room, rng, now(), bot)) throw new Error(`the computer move ${bot.type} for ${bot.id} was refused`);
-          },
+          // (botMove), and the room server then logs it and tries again after a pause.
+          run: botMove(bot, 0, () => game.runBotAction(room, rng, now(), bot)).run,
         });
       }
       if (room.phase === 'scores') {
@@ -242,17 +240,6 @@ export default function (ctx) {
       strokes.registerEvents({ on, userId, socket, now, roomOf, relay });
     },
   });
-
-  /**
-   * Turns a refused clock action into a throw, so that the room server logs it and tries again rather than leaving the
-   * room waiting for ever on something that quietly did nothing.
-   * @param {{ ok: boolean, error?: string }} outcome  what the rule returned
-   * @returns {void}
-   * Side effects: throws on a refusal.
-   */
-  function insist(outcome) {
-    if (!outcome.ok) throw new Error(outcome.error);
-  }
 }
 
 /**

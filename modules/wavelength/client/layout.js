@@ -1,5 +1,6 @@
 // Sizes for the Wavelength table, worked out from the room available (never from the game, so nothing moves while
 // playing).  All numbers are pixels.
+import { barSpan, spanWidth } from '../../../src/frameLayout.js';
 import { VIEW } from './dial.js';
 
 // The thresholds and fixed heights below drive dialSpan, dialWidth, and dialLayout.
@@ -33,15 +34,8 @@ export function dialWidth(columnWidth, height, stacked = false) {
   return Math.max(180, Math.min(columnWidth, byHeight));
 }
 
-/**
- * How the slim bars share the frame's 12 columns: each bar spans this many of them.
- *
- * @param {number} count  how many bars there are
- * @returns {number} 3 columns each for up to four bars, otherwise 2
- *
- * Side effects: none.
- */
-export const barSpan = (count) => (count <= 4 ? 3 : 2);
+// How the slim bars share the frame's columns is the same in every game that has them (src/frameLayout.js).
+export { barSpan };
 
 /**
  * Where the dial goes in the area the frame gives the table: how many columns it spans and how wide it is drawn.
@@ -53,7 +47,6 @@ export const barSpan = (count) => (count <= 4 ? 3 : 2);
  */
 export function dialLayout(area) {
   const span = dialSpan(area);
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  const colWidth = Math.round(unit * span + area.gap * (span - 1));
+  const colWidth = Math.round(spanWidth(area, span));
   return { span, width: dialWidth(colWidth, area.height, span === area.columns) };
 }

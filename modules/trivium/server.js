@@ -24,7 +24,7 @@
 //
 // Depends on shared/roomServer.js, shared/trivia.js (the questions), ./game.js (the rules) and ./testing.js (the
 // questions the tests use).
-import { createRoomServer, pickKeys, readDelayMs } from '../../shared/roomServer.js';
+import { accountNames, createRoomServer, insist, pickKeys, readDelayMs } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { sharedTrivia } from '../../shared/trivia.js';
 import * as game from './game.js';
@@ -71,7 +71,7 @@ export default function (ctx) {
   const store = questionSource();
 
   /** An account's display name (for people who have left the room, and for rooms saved before names were kept). */
-  const nameOf = (id) => ctx.users.get(id)?.displayName ?? 'Someone';
+  const nameOf = accountNames(ctx);
 
   /** How many questions there are of each category, which is what the wheel's slices are cut by; null until counted. */
   let counts = null;
@@ -246,18 +246,6 @@ export default function (ctx) {
  * Side effects: none.
  */
 const answered = (played) => (played ? { ok: true } : { ok: false, error: 'botAnswerRefused' });
-
-/**
- * Turns a refused clock action into a throw, so that the room server logs it and tries again rather than leaving the
- * room waiting for ever on something that quietly did nothing.
- *
- * @param {{ ok: boolean, error?: string }} outcome  what the rule returned
- * @returns {void}
- * Side effects: throws on a refusal.
- */
-function insist(outcome) {
-  if (!outcome.ok) throw new Error(outcome.error);
-}
 
 /**
  * Only the settings the host may choose, whatever else a client sends.

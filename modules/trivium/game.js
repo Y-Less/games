@@ -24,7 +24,7 @@ import { MARKER_COLOURS, markerProblem, normaliseMarker, startingMarker } from '
 import { msg } from '../../shared/messages.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, slotOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, seatOf, slotOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { MAX_QUESTION_POINTS, pointsFor } from './scoring.js';
 import { buildWheel, pickSpin } from './wheel.js';
@@ -73,25 +73,7 @@ export { hasPlayer, humans, isHuman, seatOf };
  */
 export const isLive = (room) => LIVE.includes(room.phase);
 
-/**
- * The player with this id, or undefined.
- *
- * @param {object} room  the room to search
- * @param {number|string} id  the player id (an account id, or 'bot:<n>')
- * @returns {object|undefined} the player
- * Side effects: none.
- */
-const playerOf = (room, id) => room.players.find((p) => p.id === id);
 
-/**
- * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
- *
- * @param {object} room  the room whose players are searched
- * @param {(id: number) => string} nameOf  fallback lookup, such as the account's display name
- * @returns {(id: number|string) => string} the lookup
- * Side effects: none.
- */
-const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 
 /**
  * Gives a bare player ({ kind, id, name }) the fields Trivium keeps for everybody: their score, their counters, their

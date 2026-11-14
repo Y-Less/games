@@ -92,6 +92,62 @@ export function pickKeys(payload, keys) {
 }
 
 /**
+ * A lookup of an account's display name, for a game that names people who have left a room, or whose rooms were
+ * saved before names were kept with the players.
+ *
+ * @param {{ users?: { get: (id: any) => ({ displayName?: string } | null | undefined) } }} ctx  the module context
+ * @returns {(id: any) => string} the display name, or 'Someone' for an account the site does not know
+ * Side effects: none (each lookup reads the site's accounts).
+ */
+export const accountNames = (ctx) => (id) => ctx.users?.get(id)?.displayName ?? 'Someone';
+
+/**
+ * Turns a refused rule into a throw, for something the server does by itself (`nextAction`'s `run`): the room server
+ * then logs it and tries again, rather than leaving the room waiting for ever on something that quietly did nothing.
+ *
+ * @param {{ ok: boolean, error?: string }} outcome  what the rule returned
+ * @returns {void}
+ * Side effects: throws on a refusal.
+ */
+export function insist(outcome) {
+  if (!outcome.ok) throw new Error(outcome.error);
+}
+
+/**
+ * A computer player's move, as `nextAction` schedules one.  A move that plays nothing is reported as a failure (it
+ * would otherwise be asked for again for ever), so the room server's retry-with-a-pause takes over.
+ *
+ * @param {{ type: string, id: number | string }} action  what the rules said is pending, for the failure's words
+ * @param {number} wait  how long the computer player seems to think, in milliseconds (see botWait)
+ * @param {() => boolean} play  plays the move, answering whether one was played
+ * @returns {{ wait: number, run: () => void }} what `nextAction` returns; a game that runs several clocks adds a `key`
+ * Side effects: none itself; the returned run() plays the move and throws if nothing was played.
+ */
+export function botMove(action, wait, play) {
+  return {
+    wait,
+    run() {
+      if (!play()) throw new Error(`the computer move ${action.type} for ${action.id} was refused`);
+    },
+  };
+}
+
+/**
+ * Something the server does by itself when a wait runs out, as `nextAction` schedules it: moving on from the scores
+ * when somebody has not closed them, say.  The same `key` keeps its timer, so the wait is not started again by
+ * whatever else changes the room meanwhile.
+ *
+ * @param {string} key  names this wait, e.g. `next:${room.turn}`
+ * @param {number} wait  how long to wait, in milliseconds
+ * @param {() => { ok: boolean, error?: string }} rule  the rule to run, which must not be refused (see insist)
+ * @returns {{ key: string, wait: number, run: () => void }} what `nextAction` returns
+ * Side effects: none itself; the returned run() runs the rule and throws if it was refused.
+ */
+export function afterWait(key, wait, rule) {
+  return { key, wait, run: () => insist(rule()) };
+}
+
+/**
  * A refusal as the client receives it: the rules' code and, when its words need them, the values to put in (see
  * shared/messages.js).  Without the values a sentence such as "You need at least {min} players." reaches the player with
  * the gap still in it.

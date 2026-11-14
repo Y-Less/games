@@ -15,6 +15,7 @@ import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { barSpan } from '../../../src/frameLayout.js';
 import { keyFor } from '../../../src/messageText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useTurnClock } from '../../../src/useTurnClock.js';
@@ -171,7 +172,7 @@ const wroteLine = (option) => (option.truth ? t('table.subjectAnswer', { name: s
  */
 const choseLine = (option) => (option.pickedBy.length ? t('table.chose', { names: list(option.pickedBy.map((a) => a.name)) }) : t('table.nobodyChose'));
 // How many frame columns each slim bar spans: wider bars when four or fewer players are shown (a number, 3 or 2).
-const barStyle = computed(() => ({ gridColumn: `span ${others.value.length <= 4 ? 3 : 2}` }));
+const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.length)}` }));
 </script>
 
 <template>

@@ -3,6 +3,7 @@
 // Depends on: shared/drawing.js (the board's own size, which the server and the board itself speak too).
 import { BOARD } from '../../../shared/drawing.js';
 import { fitBoard } from '../../../src/boardFit.js';
+import { fewestSpan } from '../../../src/frameLayout.js';
 
 /** The drawing board's own coordinate space, which every instruction speaks. */
 export const { width: BOARD_WIDTH, height: BOARD_HEIGHT } = BOARD;
@@ -38,7 +39,5 @@ export function boardSize(area, across, withToolbox = false) {
 export function boardSpan(area, withToolbox = false) {
   const room = Math.max(120, area.height - WORD_BAR - (withToolbox ? TOOLBOX : 0));
   const wanted = (room * BOARD_WIDTH) / BOARD_HEIGHT; // the width the board would like, to be as tall as it may be
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  for (let span = 6; span <= 9; span++) if (unit * span + area.gap * (span - 1) >= wanted) return span;
-  return 9;
+  return fewestSpan(area, wanted, 6, 9);
 }

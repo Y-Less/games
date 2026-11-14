@@ -71,6 +71,22 @@ export function assignAIs(list, seatKeys, rng) {
 }
 
 /**
+ * Asks an AI for a decision without trusting it to answer: a throw comes back as undefined, so that the game's own
+ * fallback (a plain legal choice) takes over.  A broken AI must not stop a game.
+ * @template T
+ * @param {() => T} decide  calls the AI
+ * @returns {T | undefined} what it decided, or undefined if it threw
+ * Side effects: whatever `decide` does.
+ */
+export function attempt(decide) {
+  try {
+    return decide();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Reduces an AI to what the view may show (never the decision functions, which are not serialisable and not for clients).
  * @param {{ id: string, name: string, description?: string }} ai  the AI definition
  * @returns {{ id: string, name: string, description: string }} the public description

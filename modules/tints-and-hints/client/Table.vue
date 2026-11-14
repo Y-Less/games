@@ -12,6 +12,7 @@ import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
+import { spanWidth } from '../../../src/frameLayout.js';
 import { useGameText } from '../../../src/useGameText.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { cellColour } from '../grid.js';
@@ -154,8 +155,7 @@ const lines = computed(() => {
  */
 const dims = (area) => {
   const span = gridSpan(area);
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  const width = Math.round(unit * span + area.gap * (span - 1));
+  const width = Math.round(spanWidth(area, span));
   return { span, cell: gridCell(width, area.height) };
 };
 

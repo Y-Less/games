@@ -20,10 +20,10 @@ import { msg } from '../../shared/messages.js';
 import { drawUnused } from '../../shared/random.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createReadyRules, createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, playerOf, renameField, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyQuestion, tallyTurn } from './tally.js';
 import { QUESTIONS, answersFor, normal } from './questions.js';
@@ -65,22 +65,6 @@ export { hasPlayer, humans, isHuman, seatOf };
  * Side effects: none.
  */
 export const isLive = (room) => LIVE.includes(room.phase);
-/**
- * The player with this id, or undefined.
- * @param {object} room  the room
- * @param {number | string} id  a player id
- * @returns {object | undefined} the player
- * Side effects: none.
- */
-const playerOf = (room, id) => room.players.find((p) => p.id === id);
-/**
- * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
- * @param {object} room  the room
- * @param {(id: number | string) => string} nameOf  fallback lookup
- * @returns {(id: number | string) => string} the name lookup
- * Side effects: none.
- */
-const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 /**
  * What a player wrote this turn, or undefined.
  * @param {object} room  the room
@@ -648,20 +632,6 @@ function scoreQuestion(room, nameOf = String) {
   room.phase = 'reveal';
 }
 
-/**
- * Moves one field of a saved room to the name it goes by now, if it is still under the old one.
- * @param {object} room  the room to change
- * @param {string} was  the old field name
- * @param {string} now  the name it has today
- * @returns {void}
- * Side effects: writes `now` and deletes `was`.  Running it twice changes nothing more, and a room that already
- * holds `now` keeps what is there.
- */
-function renameField(room, was, now) {
-  if (room[was] === undefined) return;
-  if (room[now] === undefined) room[now] = room[was];
-  delete room[was];
-}
 
 /**
  * Brings a saved room up to date: players saved with `bot: true` become `kind: 'bot'` (and people saved without a name get
@@ -734,42 +704,14 @@ function finishQuestion(room, rng, nameOf = String, now = 0) {
   return false;
 }
 
-/**
- * The people who have yet to close the scores at the reveal (computer players never need to).
- * @param {object} room  the room
- * @returns {object[]} the humans not in room.ready
- * Side effects: none.
- */
-const unready = (room) => humans(room).filter((p) => !room.ready.includes(p.id));
-
-/**
- * At the reveal, a person has closed the scores pop-up and is ready to go on; when everybody has, the game moves on.
- * @param {object} room  the room (mutated)
- * @param {number | string} id  who is ready
- * @param {() => number} rng  random source for what comes next
- * @param {(id: *) => string} [nameOf]  name lookup for history labels
- * @returns {{ ok: boolean, error?: string, finished?: boolean }} finished is true if the game is over
- * Side effects: adds to room.ready, and may move on (finishQuestion).
- */
-export function ready(room, id, rng, nameOf = String, now = 0) {
-  if (!hasPlayer(room, id)) return fail('notInGame');
-  if (room.phase !== 'reveal') return fail('noScoresToClose');
-  if (!room.ready.includes(id)) room.ready.push(id);
-  return ok({ finished: unready(room).length === 0 ? finishQuestion(room, rng, nameOf, now) : false });
-}
-
-/**
- * Moves on from the reveal whether or not everyone has closed the pop-up (the server does this after a wait).
- * @param {object} room  the room (mutated)
- * @param {() => number} rng  random source for what comes next
- * @param {(id: *) => string} [nameOf]  name lookup for history labels
- * @returns {{ ok: boolean, error?: string, finished?: boolean }} finished is true if the game is over
- * Side effects: as finishQuestion.
- */
-export function forceNext(room, rng, nameOf = String, now = 0) {
-  if (room.phase !== 'reveal') return fail('nothingToMoveOn');
-  return ok({ finished: finishQuestion(room, rng, nameOf, now) });
-}
+// The reveal waits for everybody to close the scores (shared/roster.js): `ready(room, id, rng, nameOf, now)` is a
+// person saying so, and the last of them moves the game on; `forceNext(room, rng, nameOf, now)` moves on without
+// them, which the server does after a wait; `waitingForReady(room)` is true while the reveal is up; `unready(room)`
+// is the people still to close it.  `ready` and `forceNext` answer { ok, finished }, finished being whether the game
+// is over, and hand `rng`, `nameOf`, and `now` on to finishQuestion.
+const readiness = createReadyRules({ finish: finishQuestion });
+const { unready } = readiness;
+export const { ready, forceNext, waitingForReady } = readiness;
 
 /**
  * The writing or picking time has run out: the server answers or picks for everybody who is left, exactly as a
@@ -821,14 +763,6 @@ function poolAnswer(question, rng) {
  * Side effects: none.
  */
 export const isTimed = (room) => ['writing', 'picking'].includes(room.phase) && typeof room.deadline === 'number';
-
-/**
- * True while the reveal waits for people to close the scores (the server times this out).
- * @param {object} room  the room
- * @returns {boolean} whether the room is at the reveal
- * Side effects: none.
- */
-export const waitingForReady = (room) => room.phase === 'reveal';
 
 /**
  * GTK's part of a computer player taking the place of a person who left a game under way (the roster has already put it
@@ -1077,14 +1011,6 @@ export function runBotAction(room, rng, action = pendingBotAction(room), nameOf 
   if (!action) return false;
   const player = playerOf(room, action.id);
   const ai = aiById(AIS, player?.ai);
-  // Runs an AI decision, turning a throw into undefined so that the fallbacks below take over.
-  const attempt = (decide) => {
-    try {
-      return decide();
-    } catch {
-      return undefined; // a broken AI must not stop the game
-    }
-  };
   if (action.type === 'write') {
     const texts = room.questions.map((question, n) => {
       const pool = answersFor(question);

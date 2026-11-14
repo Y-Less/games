@@ -24,6 +24,7 @@ import { useTurnClock } from '../../../src/useTurnClock.js';
 import Board from '../../../src/components/DrawingBoard.vue';
 import GuessPanel from '../../../src/components/GuessPanel.vue';
 import Toolbox from '../../../src/components/DrawingToolbox.vue';
+import { spanWidth } from '../../../src/frameLayout.js';
 import { useDrawingTools } from '../../../src/useDrawingTools.js';
 import { useStrokeFeed } from '../../../src/useStrokeFeed.js';
 import Votes from './Votes.vue';
@@ -103,8 +104,7 @@ function sendOps(ops) {
 function dims(area) {
   const withToolbox = youDraw.value && drawing.value;
   const span = boardSpan(area, withToolbox);
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  const across = Math.round(unit * span + area.gap * (span - 1));
+  const across = Math.round(spanWidth(area, span));
   return { span, board: boardSize(area, across, withToolbox), panel: Math.max(160, area.height) };
 }
 

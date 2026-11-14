@@ -30,7 +30,7 @@
 //
 // Depends on shared/roomServer.js, shared/drawing.js (what a drawing is made of), shared/picture.js (a word turned
 // into something to draw) and ./game.js (the rules).
-import { botWait, createRoomServer, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { BOT_STROKE_RATE, createStrokeRelay, pictureSource, readRate } from '../../shared/strokeRelay.js';
 import * as game from './game.js';
@@ -58,7 +58,7 @@ const readDelays = () => ({
 export default function (ctx) {
   const delays = readDelays();
   /** An account's display name (for rooms saved before names were kept). */
-  const nameOf = (id) => ctx.users?.get(id)?.displayName ?? 'Someone';
+  const nameOf = accountNames(ctx);
 
   // The boards, the strokes on them, and the pictures the computer players paint: shared/strokeRelay.js, which
   // Scribblers uses too.  Draw! has a board for each of the pair drawing, so it says which on the wire.
@@ -127,9 +127,7 @@ export default function (ctx) {
         due.push({
           key: `bot:${room.turn}:${bot.type}:${bot.id}:${tries}`,
           at: now() + botWait(delays.bot, rng),
-          run() {
-            if (!game.runBotAction(room, rng, now(), bot)) throw new Error(`the computer move ${bot.type} for ${bot.id} was refused`);
-          },
+          run: botMove(bot, 0, () => game.runBotAction(room, rng, now(), bot)).run,
         });
       }
       if (room.deadline !== null && room.deadline !== undefined) {
@@ -154,17 +152,6 @@ export default function (ctx) {
       strokes.registerEvents({ on, userId, socket, now, roomOf, relay });
     },
   });
-
-  /**
-   * Turns a refused clock action into a throw, so that the room server logs it and tries again rather than leaving the
-   * room waiting for ever on something that quietly did nothing.
-   * @param {{ ok: boolean, error?: string }} outcome  what the rule returned
-   * @returns {void}
-   * Side effects: throws on a refusal.
-   */
-  function insist(outcome) {
-    if (!outcome.ok) throw new Error(outcome.error);
-  }
 }
 
 /**

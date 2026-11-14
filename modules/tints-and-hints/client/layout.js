@@ -1,5 +1,6 @@
 // Sizes for the Tints and Hints table, worked out from the room available (never from the game, so nothing moves while
 // playing).  All numbers are pixels.
+import { barSpan, fewestSpan } from '../../../src/frameLayout.js';
 import { COLS, ROWS } from '../grid.js';
 
 // Pixel measurements shared by the grid (Board.vue) and the table's fitting code.
@@ -38,15 +39,8 @@ export const gridSize = (cell) => ({ width: HEAD + COLS.length * (cell + GAP), h
  */
 export function gridSpan(area, { min = 7, max = 10 } = {}) {
   const wanted = gridSize(gridCell(Infinity, area.height, { max: 200 })).width;
-  const unit = (area.width - area.gap * (area.columns - 1)) / area.columns;
-  for (let span = min; span <= max; span++) if (unit * span + area.gap * (span - 1) >= wanted) return span;
-  return max;
+  return fewestSpan(area, wanted, min, max);
 }
 
-/**
- * How the slim bars share the frame's 12 columns: each bar spans this many of them.
- * @param {number} count  number of bars (other players)
- * @returns {number} columns each bar spans (3 for up to four bars, otherwise 2)
- * Side effects: none.
- */
-export const barSpan = (count) => (count <= 4 ? 3 : 2);
+// How the slim bars share the frame's columns is the same in every game that has them (src/frameLayout.js).
+export { barSpan };

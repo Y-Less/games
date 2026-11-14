@@ -21,10 +21,10 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
-import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, seatOf, withSlot } from '../../shared/roster.js';
+import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { AIS } from './ai/index.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn, tallyWord } from './tally.js';
 import { CUSTOM_LENGTH, CUSTOM_WORD, CUSTOM_WORDS, DEFAULT_LANGUAGE, guessQuality, isJuvenile, pickWords, wordList } from '../../shared/words.js';
@@ -80,23 +80,7 @@ export { hasPlayer, humans, isHuman, seatOf };
  */
 export const isLive = (room) => LIVE.includes(room.phase);
 
-/**
- * The player with this id, or undefined.
- * @param {object} room  the room
- * @param {number | string} id  a player id
- * @returns {object | undefined}
- * Side effects: none.
- */
-const playerOf = (room, id) => room.players.find((p) => p.id === id);
 
-/**
- * A function giving a player's name: the name saved with them, else `nameOf` (only rooms saved long ago lack names).
- * @param {object} room  the room
- * @param {(id: number | string) => string} nameOf  fallback lookup
- * @returns {(id: number | string) => string}
- * Side effects: none.
- */
-const namer = (room, nameOf) => (id) => playerOf(room, id)?.name ?? nameOf(id);
 
 /**
  * Everybody who is not the drawer this turn: the people guessing.
@@ -1106,14 +1090,7 @@ export function runBotAction(room, rng, now, action = pendingBotAction(room)) {
   if (!player) return false;
   const ai = aiById(AIS, player.ai);
   const context = aiContext(room, action.id, rng);
-  // An AI is not trusted to answer: a throw, or anything out of range, falls back to a plain legal choice.
-  const attempt = (decide) => {
-    try {
-      return decide();
-    } catch {
-      return undefined;
-    }
-  };
+  // An AI is not trusted to answer: a throw (see attempt), or anything out of range, falls back to a plain legal choice.
   if (action.type === 'word') {
     const chosen = attempt(() => ai.chooseWord(context));
     const n = Number.isInteger(chosen) && chosen >= 0 && chosen < room.choices.length ? chosen : Math.floor(rng() * room.choices.length);

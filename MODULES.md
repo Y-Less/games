@@ -181,6 +181,12 @@ while slots were being introduced, and in both the test that should have caught 
 Do not reach for `renameInHistory`.  It exists for one legacy importer and is the thing slots were introduced to stop
 needing.
 
+**The small things every list game wants are written once.**  `shared/roster.js` has `playerOf(room, id)`,
+`namer(room, nameOf)` (a player's saved name, else the account's), and `renameField(holder, was, now)` for a `migrate`
+that has renamed something a saved room still calls by its old word.  `shared/roomServer.js` has `accountNames(ctx)`,
+which is the `nameOf` a `server.js` hands to its rules, and `insist(outcome)`, which turns a refused rule into a throw
+inside a `nextAction`'s `run` so that the room server's retry takes over.
+
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players.  Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or
 `now` argument, so a test can replay a game from a seed.
@@ -680,6 +686,7 @@ Three helpers beside them, imported from `modules/<id>/client/` as `../../../src
 
 | | |
 | --- | --- |
+| `spanWidth`, `fewestSpan`, `barSpan` (`src/frameLayout.js`) | arithmetic on the area `GameFrame` gives its slots: the pixel width of `n` of its columns, the fewest columns wide enough for a piece, and how many columns each of the other players' slim bars spans |
 | `useGameSocket({ socket, search, setSearch, leaveConfirm, onState })` | the client plumbing **every** room game shares, called once from the top component's setup: it resumes the player's room on every connection (using the invite link's code the first time), keeps that code in the address bar, and registers the header's "Leave game" button with the game's own confirmation text.  It gives back `state` (the view, null outside a room), `loaded` (the server has said which), `busy` (a request is in flight), `notice` (the last refusal, already in the player's language), `connected` (false while the socket is down, for a game that tells the player so), `initialCode` (for `RoomEntry`) and `send(event, payload)`.  `onState(next, previous)` is where a game works out what changed, such as its Recent moves |
 | `useDrawingTools({ active, undo, widths })` | the drawer's tool (`{ kind, colour, width }`), shared by the board and the toolbox, with its keyboard shortcuts (Q, W, E, the number keys for the brush, Ctrl+Z) |
 | `useStrokeFeed({ socket, send, boards, turnKey, wanted })` | the client half of `shared/strokeRelay.js`: hands relayed strokes to the board they belong to, and asks for the boards whole on mounting, on a new turn, and on every reconnection |

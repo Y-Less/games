@@ -10,6 +10,7 @@
 // empties the clue and guess boxes when the turn or phase changes.
 import { computed, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
+import { barSpan } from '../../../src/frameLayout.js';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
 import PlayerPopup from '../../../src/components/PlayerPopup.vue';
@@ -158,8 +159,6 @@ const stageOf = (p) => {
  * Side effects: none.
  */
 const writerLine = (c) => (c.cancelled ? t('table.writerCancelled', { name: c.name }) : c.best ? t('table.writerBest', { name: c.name }) : c.name);
-// How many frame columns each slim bar spans: wider bars when four or fewer players are shown (a number, 3 or 2).
-const barSpan = (count) => (count <= 4 ? 3 : 2);
 // The grid style shared by every slim bar.
 const barStyle = computed(() => ({ gridColumn: `span ${barSpan(others.value.length)}` }));
 </script>
