@@ -120,7 +120,7 @@ export function statusFor(state, { isHost = false } = {}) {
   }
 
   if (state.phase === 'finished') {
-    const winners = players.filter((p) => state.winners.includes(p.id)).map((p) => p.name);
+    const winners = players.filter((p) => p.winner).map((p) => p.name);
     return {
       headline: winners.length > 1 ? msg('status.tie', { names: winners }) : msg('scoreboard.wins', { name: winners[0] ?? msg('status.nobody') }),
       mine: false,

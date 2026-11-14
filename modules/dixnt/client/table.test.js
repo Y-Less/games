@@ -15,18 +15,23 @@ const words = (value) => messageText(value, 'dixnt');
 const lineWords = (line) => words(line?.tone ? line.text : line);
 
 // ---- a state shaped like the server's view ----
-const player = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, score: 0, turns: 0, connected: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, ...extra });
-function view(extra = {}, me = {}) {
-  const players = extra.players ?? [player('ann', 'Ann', { isChooser: true }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
+const player = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, score: 0, turns: 0, online: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, placement: null, winner: false, ...extra });
+/** The usual table of four: Ann (who chooses the word), Bob, and two computer players. */
+const table = () => [player('ann', 'Ann', { isChooser: true }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
+/** The same table once the game is over, won by the players named (who share first place; the rest share second). */
+const wonBy = (...ids) => table().map((p) => ({ ...p, winner: ids.includes(p.id), placement: ids.includes(p.id) ? 1 : 2 }));
+/** A view for the viewer named by `me.id` (Ann unless it says otherwise); the rest of `me` is their own place. */
+function view(extra = {}, { id: you = 'ann', ...me } = {}) {
+  const players = extra.players ?? table();
   return {
     code: 'a-b-c',
+    you,
     phase: 'picking',
     turn: 1,
     rounds: 1,
     completedTurns: 0,
     totalTurns: 4,
     completedRounds: 0,
-    winners: [],
     handSize: 6,
     chooserId: 'ann',
     hostId: 'ann',
@@ -43,9 +48,9 @@ function view(extra = {}, me = {}) {
     discardCount: 2,
     word: 'Dragon',
     wordHidden: false,
-    me: { id: 'ann', isChooser: true, hand: [1, 2, 3, 4, 5, 6], myPick: null, myVote: null, isImposter: false, ...me },
+    me: { isChooser: true, hand: [1, 2, 3, 4, 5, 6], myPick: null, myVote: null, isImposter: false, ...me },
     players,
-    scoreboard: { players: players.map((p) => ({ id: p.id, slot: p.slot, name: p.name, score: p.score, isMe: p.id === 'ann', bot: p.bot, away: false })), rounds: [], lowIsBetter: false },
+    scoreboard: { players: players.map((p) => ({ id: p.id, slot: p.slot, name: p.name, score: p.score, isMe: p.id === you, bot: p.bot, away: false })), rounds: [], lowIsBetter: false },
     table: [],
     voteTargets: [],
     results: null,
@@ -149,7 +154,7 @@ describe('Dixnt Status words', () => {
   });
 
   it('names the winner at the end, with the way on for the host and for the others', () => {
-    const over = (isHost) => statusFor(view({ phase: 'finished', winners: ['bob'], completedTurns: 4 }), { isHost });
+    const over = (isHost) => statusFor(view({ phase: 'finished', players: wonBy('bob'), completedTurns: 4 }), { isHost });
     expect(words(over(true).headline)).toBe('Bob wins!');
     expect(over(true).lines.map(lineWords).join(' ')).toMatch(/Back to the lobby/);
     expect(over(false).lines.map(lineWords).join(' ')).toMatch(/Waiting for the host/);
@@ -180,7 +185,7 @@ describe('Dixnt move log', () => {
     const picking = view({ phase: 'picking' });
     const next = view({ phase: 'word', chooserId: 'bob', players: picking.players.map((p) => ({ ...p, isChooser: p.id === 'bob' })) });
     expect(stepped(picking, next)).toEqual(['The turn was skipped.', 'Turn 1: Bob is choosing a word.']);
-    expect(stepped(view({ phase: 'results' }), view({ phase: 'finished', winners: ['ann', 'bob'] }))).toEqual(['The game is over: Ann and Bob win.']);
+    expect(stepped(view({ phase: 'results' }), view({ phase: 'finished', players: wonBy('ann', 'bob') }))).toEqual(['The game is over: Ann and Bob win.']);
     expect(stepped(picking, picking)).toEqual([]);
     expect(stepped(null, view({ phase: 'lobby' }))).toEqual([]);
     expect(turnNumber(view({ phase: 'results', completedTurns: 2 }))).toBe(2);
@@ -426,7 +431,7 @@ describe('Dixnt scores', () => {
     socket.handlers.state(scored(false)); // the last turn did not close a round, so nothing opened
     await flushPromises();
     expect(modal()).toBeNull();
-    socket.handlers.state(view({ phase: 'finished', results: null, winners: ['bob'], me: { id: 'ann', isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false } }));
+    socket.handlers.state(view({ phase: 'finished', results: null, players: wonBy('bob') }, { isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false }));
     await flushPromises();
     expect(modal()).not.toBeNull();
     expect(modal().textContent).toContain('Final scores');

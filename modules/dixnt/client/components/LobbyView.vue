@@ -22,8 +22,6 @@ const missingPlayers = computed(() => Math.max(0, state.value.minPlayers - playe
 const cardsNeeded = computed(() => players.value.length * state.value.handSize);
 // True when the chosen categories hold enough cards for that deal.
 const enoughCards = computed(() => state.value.availableCards >= cardsNeeded.value);
-// The players as the shared panel wants them: it says `online` where the game's view says `connected`.
-const panelPlayers = computed(() => players.value.map((p) => ({ ...p, online: p.bot || p.connected })));
 // The categories currently in the deck.
 const selected = computed(() => state.value.categories.filter((c) => c.selected));
 // The names of the chosen categories, as the language joins a list.
@@ -58,8 +56,8 @@ function toggleCategory(key) {
   </section>
 
   <PlayerListPanel
-    :players="panelPlayers"
-    :you="state.me.id"
+    :players="players"
+    :you="state.you"
     :host-id="state.hostId"
     :is-host="isHost"
     :min="state.minPlayers"

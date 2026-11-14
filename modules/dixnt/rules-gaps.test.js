@@ -328,8 +328,8 @@ test('viewFor: results and the imposter appear only at the end; the table order 
     assert.equal(view.results, null);
     assert.equal(view.me.isImposter, false);
     assert.equal(view.word, 'word');
-    assert.equal(view.players.find((x) => x.id === p.id).connected, true);
-    assert.equal(view.players.filter((x) => x.connected).length, 1);
+    assert.equal(view.players.find((x) => x.id === p.id).online, true);
+    assert.equal(view.players.filter((x) => x.online).length, 1);
     assert.equal(view.voteTargets.includes(p.id), false, 'never vote for yourself');
   }
   for (const v of game.voters(room)) game.vote(room, v.id, game.cardPlayers(room).find((p) => p.id !== v.id).id);
@@ -337,6 +337,6 @@ test('viewFor: results and the imposter appear only at the end; the table order 
     const view = game.viewFor(room, p.id);
     assert.ok(view.results);
     assert.equal(view.me.isImposter, p.id === room.imposterId);
-    assert.equal(view.winners.length, 0, 'not finished');
+    assert.ok(view.players.every((x) => x.winner === false && x.placement === null), 'not finished, so nobody has won or been placed');
   }
 });

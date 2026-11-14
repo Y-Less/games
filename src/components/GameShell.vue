@@ -6,8 +6,8 @@
 // differs is only which components draw the lobby and the table, what they need, and when leaving mid-game is worth a
 // warning.  So the game passes its two screens as slots and keeps its own `send`, and everything else lives here.
 //
-// Dixnt is deliberately not written this way: its root component fills GameFrame's slots itself rather than handing off
-// to a lobby and a table, so it has no use for the middle of this.
+// A game whose components reach their state through a store of its own rather than through props (Dixnt) takes the
+// state and the sender from this component's exposed `state` and `send`, through a ref to it.
 //
 // Props:
 //   socket        {Object}    required.  The platform's socket connection for this game.

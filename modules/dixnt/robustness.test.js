@@ -60,7 +60,7 @@ function assertValidView(view, who) {
   const note = (m) => `${who}: ${m} (phase ${view.phase})`;
   const ids = view.players.map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length, note('player ids are unique'));
-  assert.ok(ids.includes(view.me.id), note('I am in the player list'));
+  assert.ok(ids.includes(view.you), note('I am in the player list'));
   assert.ok(view.me.hand.length <= view.handSize, note('hand within the hand size'));
   assert.equal(new Set(view.me.hand).size, view.me.hand.length, note('no duplicate cards in my hand'));
   const table = view.table.map((t) => t.cardId);
@@ -205,7 +205,7 @@ test('actions that need the right moment or the right person are refused with a 
     await refused(bob, event, payload, `${event} by a non-host`);
     await refused(eve, event, payload, `${event} by an outsider`);
   }
-  await refused(bob, 'kick', { slot: bob.state.players.find((p) => p.id === ann.state.me.id).slot }, 'a non-host removing the host');
+  await refused(bob, 'kick', { slot: bob.state.players.find((p) => p.id === ann.state.you).slot }, 'a non-host removing the host');
   await refused(ann, 'settings', { categories: [] }, 'no categories');
   await refused(ann, 'settings', { categories: ['alpha', 'nope'] }, 'an unknown category');
   await refused(ann, 'settings', { handSize: 2 }, 'too small a hand');
@@ -237,7 +237,7 @@ test('actions that need the right moment or the right person are refused with a 
   await refused(first, 'playCard', { cardId: second.state.me.hand[0] }, "someone else's card");
   await refused(first, 'playCard', { cardId: 99999 }, 'a card that does not exist');
   await refused(first, 'playCard', { cardId: `${first.state.me.hand[0]}abc` }, 'a card id with junk');
-  await refused(first, 'vote', { targetId: second.state.me.id }, 'voting while picking');
+  await refused(first, 'vote', { targetId: second.state.you }, 'voting while picking');
   await refused(eve, 'playCard', { cardId: 10001 }, 'an outsider playing');
   // A card given as a numeric string is the same card.
   assert.equal((await first.call('playCard', { cardId: String(first.state.me.hand[0]) })).ok, true);
@@ -269,15 +269,15 @@ test('voting refusals: yourself, a non-player, the chooser, and outsiders', asyn
     assert.equal(r.ok, false, why);
     assert.equal(typeof r.error, 'string');
   };
-  await refused(a, a.state.me.id, 'voting for yourself');
-  await refused(a, chooser.state.me.id, 'voting for the chooser, who played no card');
+  await refused(a, a.state.you, 'voting for yourself');
+  await refused(a, chooser.state.you, 'voting for the chooser, who played no card');
   await refused(a, 'nobody', 'voting for a made-up id');
   await refused(a, 12345, 'a number');
-  await refused(a, { id: b.state.me.id }, 'an object');
-  await refused(a, [b.state.me.id], 'an array');
-  await refused(eve, b.state.me.id, 'an outsider voting');
+  await refused(a, { id: b.state.you }, 'an object');
+  await refused(a, [b.state.you], 'an array');
+  await refused(eve, b.state.you, 'an outsider voting');
   await refused(a, undefined, 'no target');
   assert.equal(a.state.me.myVote, null, 'no refused vote was counted');
-  assert.equal((await a.call('vote', { targetId: b.state.me.id })).ok, true);
-  assert.equal((await a.call('vote', { targetId: b.state.me.id })).ok, true, 'changing your mind (to the same) is harmless');
+  assert.equal((await a.call('vote', { targetId: b.state.you })).ok, true);
+  assert.equal((await a.call('vote', { targetId: b.state.you })).ok, true, 'changing your mind (to the same) is harmless');
 });

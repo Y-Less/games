@@ -44,9 +44,9 @@
 // shared/seats.js, shared/settings.js, shared/roster.js (the lobby and player-list rules), shared/tally.js,
 // ./ai/index.js and ./tally.js.
 import { numberFrom, textFrom } from '../../shared/input.js';
-import { aiById, assignAIs, attempt, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
 import { msg } from '../../shared/messages.js';
-import { standingsOf, winnersOf } from '../../shared/scores.js';
+import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { shuffle } from '../../shared/cards.js';
@@ -178,19 +178,6 @@ export function mustAct(room, p) {
   if (room.phase === 'picking') return p.id !== room.chooserId && !(p.id in room.picks);
   if (room.phase === 'voting') return voters(room).some((x) => x.id === p.id) && !(p.id in room.votes);
   return false;
-}
-
-/**
- * Everyone sharing the highest score.
- *
- * @param {object} room  not changed
- * @returns {Array<number | string>} player ids
- * Side effects: none.
- */
-export function winnerIds(room) {
-  // winnersOf gives back the keys of the table it was handed, which are text; the players carry the real ids.
-  const best = winnersOf(Object.fromEntries(room.players.map((p) => [p.id, p.score])));
-  return room.players.filter((p) => best.includes(String(p.id))).map((p) => p.id);
 }
 
 /**
@@ -1038,6 +1025,7 @@ const categoriesView = (room) =>
 
 /**
  * The viewer's own place: their hand, pick, and vote, and whether they were the imposter (only once that is revealed).
+ * Who the viewer is is the view's `you`, as in every game.
  *
  * @param {object} room  not changed
  * @param {object | undefined} me  the viewer's player, or undefined for somebody who is not in the room
@@ -1045,9 +1033,8 @@ const categoriesView = (room) =>
  * Side effects: none.
  */
 function meView(room, me) {
-  if (!me) return { id: null, isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false };
+  if (!me) return { isChooser: false, hand: [], myPick: null, myVote: null, isImposter: false };
   return {
-    id: me.id,
     isChooser: me.id === room.chooserId,
     hand: ['lobby', 'finished'].includes(room.phase) ? [] : me.hand,
     myPick: room.picks[me.id] ?? null,
@@ -1061,10 +1048,12 @@ function meView(room, me) {
  *
  * @param {object} room  not changed
  * @param {(id: number | string) => boolean} online  is this person connected?
+ * @param {Map<number | string, { placement: number, winner: boolean }>} final  the final standings, once the game
+ *   is over (empty before then: see shared/scores.js `finalStandings`)
  * @returns {object[]}
  * Side effects: none.
  */
-function playersView(room, online) {
+function playersView(room, online, final) {
   const inPlay = ['picking', 'voting', 'results'].includes(room.phase);
   return room.players.map((p) => ({
     id: p.id,
@@ -1072,27 +1061,19 @@ function playersView(room, online) {
     name: p.name,
     score: p.score,
     turns: p.turns ?? 0,
-    connected: isBot(p) || online(p.id),
+    online: isBot(p) || online(p.id),
     bot: isBot(p), // the client's word for it; the player itself says kind: 'bot'
-    ai: p.ai ? aiView(p.ai) : null, // computer players only
+    ai: isBot(p) && p.ai ? describeAI(aiById(AIS, p.ai)) : null, // computer players only, once a game has started
     isChooser: p.id === room.chooserId,
     hasPlayed: inPlay && p.id in room.picks,
     hasVoted: room.phase === 'voting' ? p.id in room.votes : false,
+    placement: final.get(p.id)?.placement ?? null,
+    winner: final.get(p.id)?.winner ?? false,
   }));
 }
 
 /**
- * @param {string} aiId  an AI id; one that no longer exists falls back to the first AI
- * @returns {{ id: string, name: string }} how an AI is shown to the players
- * Side effects: none.
- */
-function aiView(aiId) {
-  const { id, name } = aiById(AIS, aiId);
-  return { id, name };
-}
-
-/**
- * The standard scoreboard (shared/scores.js): the chooser has the turn.
+ * The standard scoreboard (shared/scores.js): whoever the turn is waiting for has it.
  *
  * @param {object} room  not changed
  * @param {number | string} id  the viewer
@@ -1102,18 +1083,7 @@ function aiView(aiId) {
  */
 function scoreboardView(room, id, online) {
   return {
-    // A person's id IS their account, which the site needs for name styles and avatars; a computer player has none.
-    players: room.players.map((p) => ({
-      id: p.id,
-      slot: p.slot, // how the client names this place when it asks for somebody to be removed (shared/layout.js)
-      name: p.name,
-      userId: isBot(p) ? undefined : p.id,
-      score: p.score,
-      isMe: p.id === id,
-      bot: isBot(p),
-      current: mustAct(room, p),
-      away: !isBot(p) && !online(p.id),
-    })),
+    players: room.players.map((p) => playerScoreboardEntry(p, { name: p.name, me: id, current: mustAct(room, p), online })),
     rounds: historyView(room),
     lowIsBetter: false,
   };
@@ -1180,15 +1150,16 @@ const roundsDone = (room) => (room.players.length ? Math.min(...room.players.map
 export function viewFor(room, id, { online = () => true } = {}) {
   const me = playerOf(room, id);
   const { table, voteTargets } = tableView(room, id);
+  const final = finalStandings(room.players, room.phase === 'finished');
   return {
     code: room.code,
+    you: id,
     phase: room.phase,
     turn: room.turn,
     rounds: room.rounds,
     completedTurns: room.completedTurns,
     totalTurns: room.completedTurns + turnsRemaining(room),
     completedRounds: roundsDone(room),
-    winners: room.phase === 'finished' ? winnerIds(room) : [],
     handSize: room.handSize,
     chooserId: room.chooserId,
     hostId: room.hostId,
@@ -1207,7 +1178,7 @@ export function viewFor(room, id, { online = () => true } = {}) {
     word: wordView(room, id, Boolean(me)),
     wordHidden: room.phase === 'picking' && id === room.imposterId,
     me: meView(room, me),
-    players: playersView(room, online),
+    players: playersView(room, online, final),
     scoreboard: scoreboardView(room, id, online),
     table,
     voteTargets,

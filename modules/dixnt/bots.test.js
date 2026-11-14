@@ -106,8 +106,8 @@ test('starting deals every computer player an AI from the game rng, and the view
   assert.equal(view.players[0].bot, false);
   for (const p of view.players.slice(1)) {
     assert.equal(p.bot, true);
-    assert.deepEqual(Object.keys(p.ai).sort(), ['id', 'name']);
-    assert.equal(p.connected, true, 'a computer player is never shown as offline');
+    assert.deepEqual(Object.keys(p.ai).sort(), ['description', 'id', 'name'], 'what an AI is called and nothing of how it decides');
+    assert.equal(p.online, true, 'a computer player is never shown as offline');
   }
   assert.ok(view.scoreboard.players.filter((p) => p.id !== 1).every((p) => !p.away), 'computer players are never away');
   assert.equal(JSON.stringify(view).includes('"token"'), false, 'no seat tokens anywhere');
@@ -143,7 +143,7 @@ for (const judging of JUDGING_MODES) {
       }
       const view = game.viewFor(room, 1);
       assert.equal(view.phase, 'finished');
-      assert.ok(view.winners.length >= 1);
+      assert.ok(view.players.some((p) => p.winner), 'somebody won');
     });
   }
 }
@@ -387,7 +387,7 @@ test('over sockets: the host fills with computer players and starts, the server 
   assert.equal((await ann.call('settings', { rounds: 1 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state.phase !== 'lobby', 'the game to start');
-  assert.ok(ann.state.players.filter((p) => p.bot).every((p) => p.ai && p.connected));
+  assert.ok(ann.state.players.filter((p) => p.bot).every((p) => p.ai && p.online));
   await drive([ann]);
   assert.equal(ann.state.completedTurns, 4);
   await sleep(100);
@@ -458,7 +458,7 @@ test('over sockets: a person leaving or removed mid-game is replaced, and the on
 
   // His place was being kept warm for him, so the invitation lets him back into it.
   assert.equal((await bob.call('join', { code })).ok, true, 'he can take his place back');
-  await until(() => bob.state?.me.id === bob.id, 'bob back in');
+  await until(() => bob.state?.you === bob.id, 'bob back in');
   assert.equal(ann.state.players.length, 4);
   assert.equal((await bob.call('leave')).ok, true);
   await until(() => bob.state === null, 'bob out again');

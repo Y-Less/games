@@ -5,7 +5,6 @@
 // Props: none.  Emits: none.  Slots: none.
 // Side effects: none (pure rendering from the store).
 import { computed } from 'vue';
-import { placements } from '../../../../shared/scores.js';
 import { useGameText } from '../../../../src/useGameText.js';
 import { useDixnt } from '../useDixnt.js';
 
@@ -14,14 +13,10 @@ const { players, store } = useDixnt();
 
 // The current state (the game is finished, so it is never null here).
 const state = computed(() => store.state);
-// The same players and totals as the scores pop-up (state.scoreboard), best first; tied players share a place.
-const standings = computed(() => {
-  const rows = state.value.scoreboard.players;
-  const places = placements(Object.fromEntries(rows.map((p) => [p.id, p.score])));
-  return [...rows].sort((a, b) => b.score - a.score).map((p) => ({ ...p, place: places[p.id] }));
-});
+// The players best first, each with the place the server gave them; tied players share one.
+const standings = computed(() => [...players.value].sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0)));
 // The winning players (several if tied).
-const winners = computed(() => players.value.filter((p) => state.value.winners.includes(p.id)));
+const winners = computed(() => players.value.filter((p) => p.winner));
 // The winners' names as prose, joined the way the language joins a list: 'A', or 'A, B and C'.
 const winnerNames = computed(() => list(winners.value.map((p) => p.name)));
 // The heading: a tie names them all, one winner is named on their own.
@@ -34,8 +29,8 @@ const headline = computed(() => (winners.value.length > 1 ? t('finished.tie', { 
     <p v-if="winners.length" class="muted">{{ t('finished.withPoints', { count: winners[0].score }, winners[0].score) }}</p>
     <h3>{{ $t('scoreboard.final') }}</h3>
     <ol class="standings">
-      <li v-for="p in standings" :key="p.id" :class="{ top: state.winners.includes(p.id) }">
-        <span class="place">{{ p.place }}</span>
+      <li v-for="p in standings" :key="p.id" :class="{ top: p.winner }">
+        <span class="place">{{ p.placement }}</span>
         <span class="name">{{ p.name }}</span>
         <span class="score">{{ p.score }}</span>
       </li>

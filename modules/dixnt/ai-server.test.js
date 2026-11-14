@@ -30,7 +30,7 @@ test('a computer player is dealt an AI at the start, shown to everybody, and kep
   assert.equal((await ann.call('start')).ok, true);
   await until(() => ann.state?.players.some((p) => p.ai), 'the AI to appear in everyone’s view');
   const dealt = ann.state.players.find((p) => p.bot).ai;
-  assert.deepEqual(Object.keys(dealt).sort(), ['id', 'name']);
+  assert.deepEqual(Object.keys(dealt).sort(), ['description', 'id', 'name'], 'what the AI is called, and nothing of how it decides');
   for (const player of ann.state.players) assert.equal(Boolean(player.ai), player.bot, `${player.name}: an AI iff a computer player`);
   await until(() => cat.state?.players.find((p) => p.bot)?.ai?.id === dealt.id, 'and in everybody else’s');
 

@@ -115,7 +115,7 @@ function zoom(cardId) {
         :key="entry.playerId"
         class="played"
         :class="{
-          mine: entry.playerId === state.me.id,
+          mine: entry.playerId === state.you,
           chosen: voting && state.me.myVote === entry.playerId,
           imposter: results && results.imposterId === entry.playerId,
           winner: results && results.winnerId === entry.playerId,
@@ -127,7 +127,7 @@ function zoom(cardId) {
           <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">{{ t('table.favourite') }}</span>
         </button>
         <figcaption>
-          <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.me.id" class="muted"> {{ $t('common.youBracketed') }}</span></strong>
+          <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.you" class="muted"> {{ $t('common.youBracketed') }}</span></strong>
           <button v-if="canVoteFor(entry.playerId)" class="vote" :class="{ primary: state.me.myVote === entry.playerId }" @click="castVote(entry.playerId)">
             {{ voteLabel(entry.playerId) }}
           </button>

@@ -124,7 +124,7 @@ async function startDixnt(t, { dataDir = fs.mkdtempSync(path.join(os.tmpdir(), '
       return this.http('GET', '/api/stats/me').then((r) => r.data);
     }
     me() {
-      return this.state.players.find((p) => p.id === this.state.me.id);
+      return this.state.players.find((p) => p.id === this.state.you);
     }
   }
 
@@ -185,7 +185,7 @@ function assertScoreboard(people, rounds) {
     const { players, rounds: history, lowIsBetter } = p.state.scoreboard;
     assert.deepEqual(history, first.state.scoreboard.rounds, 'everybody sees the same history');
     assert.equal(lowIsBetter, false);
-    assert.equal(players.find((x) => x.isMe).id, p.state.me.id);
+    assert.equal(players.find((x) => x.isMe).id, p.state.you);
     for (const row of players) {
       const total = history.reduce((sum, r) => sum + (r.deltas[row.id] ?? 0), 0);
       assert.equal(total, row.score, `${row.name}'s column adds up to their score`);
@@ -221,7 +221,7 @@ async function assertRecorded(person, finalState, rounds, { players = finalState
   assert.equal(stats.perGame.length, 1);
   const [game] = stats.perGame;
   const mine = finalState.players.find((p) => p.name === person.name);
-  const winner = finalState.winners.includes(mine.id);
+  const winner = mine.winner;
   assert.equal(game.name, 'Dixnt');
   assert.equal(game.played, 1, 'the game is recorded exactly once');
   assert.equal(game.wins, winner ? 1 : 0);
@@ -277,7 +277,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   assert.equal(rounds.length, 4);
   await until(() => players.every((p) => p.state?.phase === 'finished'), 'everyone to see the end');
   const final = ann.state;
-  assert.ok(final.winners.length >= 1);
+  assert.ok(final.players.some((p) => p.winner), 'somebody won');
   assertScoreboard(players, 4);
   assert.deepEqual(ann.state.scoreboard.rounds.map((r) => r.label), [1, 2, 3, 4].map((n) => ({ key: 'turn.label', params: { n } })));
 
@@ -289,7 +289,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   assert.equal((await again.call('resume')).code, null, 'a finished game is not resumed without its code');
   assert.equal((await again.call('resume', { code: bob.state.code })).ok, true);
   await until(() => again.state, 'the state after resuming');
-  assert.equal(again.state.me.id, bob.state.me.id);
+  assert.equal(again.state.you, bob.state.you);
   assert.equal(again.me().score, before);
   const elsewhere = await again.call('resume', { code: 'some-other-game' });
   assert.equal(elsewhere.ok, false, 'a code that is not one of your games is refused');
@@ -343,7 +343,8 @@ test('a tied game counts as a win for every tied winner, with a shared placement
     vote: (p) => p.state.players.find((q) => q.name === next[p.name]).id,
   });
   await until(() => players.every((p) => p.state?.phase === 'finished'), 'the end');
-  assert.equal(ann.state.winners.length, 3);
+  assert.equal(ann.state.players.filter((p) => p.winner).length, 3);
+  assert.deepEqual(ann.state.players.map((p) => p.placement), [1, 1, 1], 'and they share first place');
   await sleep(100);
   for (const p of players) {
     const stats = await p.stats();
@@ -594,7 +595,7 @@ test('several games run side by side, each with its own invite code', async (t) 
   await second.connect();
   assert.equal((await second.call('resume')).ok, true);
   await until(() => second.state?.code === ann.code, 'the second device to see the game');
-  assert.equal(second.state.me.id, laptop.state.me.id);
+  assert.equal(second.state.you, laptop.state.you);
   assert.equal(ann.state.players.filter((p) => p.name === 'gus').length, 1);
 
   // The last player leaving closes the game, and its code stops working.

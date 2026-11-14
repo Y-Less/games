@@ -191,7 +191,7 @@ test('seeded tournament: how often a table of each AI catches the imposter (ever
   }
 });
 
-test('an AI is dealt to a computer player, shown as { id, name } for them only, saved and restored', () => {
+test('an AI is dealt to a computer player, shown by name for them only, saved and restored', () => {
   const game = rulesWith({ getCategories: () => categories, hints });
   const rng = seeded(4);
   const room = game.createRoom({ code: 'ai-dealt-here', hostId: 1, hostName: 'Host', now: 0 });
@@ -202,7 +202,7 @@ test('an AI is dealt to a computer player, shown as { id, name } for them only, 
 
   assert.equal(game.start(room, 1, rng).ok, true);
   const dealt = seat(room, 'bot:1').ai;
-  assert.deepEqual(Object.keys(dealt).sort(), ['id', 'name'], 'only the public part is shown');
+  assert.deepEqual(Object.keys(dealt).sort(), ['description', 'id', 'name'], 'only the public part is shown');
   assert.ok(AIS.some((ai) => ai.id === dealt.id), `${dealt.id} is one of the AIs`);
   assert.equal(seat(room, 1).ai, null, 'and a person has none');
   assert.equal(seat(room, 2).ai, null);
@@ -216,6 +216,6 @@ test('an AI is dealt to a computer player, shown as { id, name } for them only, 
   saved.players.find((p) => p.id === 'bot:1').ai = 'retired';
   delete saved.players.find((p) => p.id === 2).ai;
   const old = game.migrate(saved);
-  assert.deepEqual(seat(old, 'bot:1').ai, { id: 'standard', name: 'Standard' });
+  assert.equal(seat(old, 'bot:1').ai.id, AIS[0].id, 'the first AI, which is the one computer players had before there was a choice');
   assert.equal(seat(old, 2).ai, null);
 });

@@ -3,6 +3,7 @@
 // Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put into words by
 // the component that draws the list, so Recent moves reads in the player's language whenever they switch.
 // Used by store.js, which appends the lines to the Recent moves list.
+import { endOfGame } from '../../../shared/logDiff.js';
 import { msg } from '../../../shared/messages.js';
 
 /**
@@ -87,11 +88,8 @@ function turnOutcome(prev, next, name) {
     if (r.judging === 'favourite') out.push(msg('log.favourite', { chooser: name(next.chooserId), winner: name(r.winnerId) }));
     else out.push(msg(r.groupCorrect ? 'log.imposterCaught' : 'log.imposterFooled', { name: name(r.imposterId) }));
   }
-  // Dix'nt marks its winners on the state rather than on each player, so this is not shared/logDiff.js's endOfGame.
-  if (prev && next.phase === 'finished' && prev.phase !== 'finished') {
-    const winners = next.players.filter((p) => next.winners.includes(p.id)).map((p) => p.name);
-    if (winners.length) out.push(msg('log.gameOver', { names: winners, count: winners.length }));
-  }
+  // Who won, on the step the game finishes (shared/logDiff.js); nothing for a state that arrives already finished.
+  if (prev) out.push(...endOfGame(prev, next));
   return out;
 }
 

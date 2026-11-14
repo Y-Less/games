@@ -4,8 +4,8 @@ import { computed, reactive } from 'vue';
 import LobbyView from './components/LobbyView.vue';
 import { DIXNT_KEY } from './useDixnt.js';
 
-const person = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, bot: false, ai: null, connected: true, ...extra });
-const bot = (id, name) => ({ id, slot: `s-${id}`, name, bot: true, ai: null, connected: true });
+const person = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, bot: false, ai: null, online: true, ...extra });
+const bot = (id, name) => ({ id, slot: `s-${id}`, name, bot: true, ai: null, online: true });
 
 function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
   const state = {
@@ -14,7 +14,7 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
     minPlayers: 3,
     maxPlayers,
     hostId: host,
-    me: { id: me },
+    you: me,
     players,
     judging: 'everyone',
     categories: [{ key: 'all', label: 'All', description: '', count: 400, selected: true }],
@@ -28,7 +28,7 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12 }) {
   };
   const store = reactive({ state });
   const send = vi.fn();
-  const api = { store, send, players: computed(() => state.players), isHost: computed(() => state.hostId === state.me.id) };
+  const api = { store, send, players: computed(() => state.players), isHost: computed(() => state.hostId === state.you) };
   const wrapper = mount(LobbyView, { global: { provide: { [DIXNT_KEY]: api } } });
   return { wrapper, send };
 }
@@ -38,7 +38,7 @@ const seats = (w) => w.findAll('ul.players li.row');
 
 describe('Dixnt lobby computer players', () => {
   it('lists people and computer players with their tags', () => {
-    const { wrapper } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob', { connected: false }), bot('b1', 'Ada')] });
+    const { wrapper } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob', { online: false }), bot('b1', 'Ada')] });
     const rows = seats(wrapper);
     expect(rows).toHaveLength(3);
     expect(rows[0].text()).toContain('(you)');

@@ -175,23 +175,23 @@ test('disconnecting and reconnecting in every phase keeps the same seat, hand an
   const site = await launch(t);
   const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat']);
   const bob = people[1];
-  const connectedOf = (viewer, who) => viewer.state.players.find((p) => p.id === who.state.me.id)?.connected;
+  const connectedOf = (viewer, who) => viewer.state.players.find((p) => p.id === who.state.you)?.online;
   for (const phase of ['lobby', 'word', 'picking', 'voting', 'results']) {
     await enterPhase(people, host, phase);
     const before = bob.state;
-    const bobId = before.me.id;
+    const bobId = before.you;
     bob.socket.close();
-    await until(() => connectedOf(host, bob) === false || host.state.players.find((p) => p.id === bobId)?.connected === false, `bob to look away in ${phase}`);
+    await until(() => connectedOf(host, bob) === false || host.state.players.find((p) => p.id === bobId)?.online === false, `bob to look away in ${phase}`);
     assert.equal(host.state.phase, phase, 'the game does not move when someone drops');
     await bob.connect();
     const reply = await bob.call('resume', { code });
     assert.equal(reply.ok, true, `${phase}: ${reply.error}`);
     await until(() => bob.state?.phase === phase, `bob to be back in ${phase}`);
-    assert.equal(bob.state.me.id, bobId, 'the same player');
+    assert.equal(bob.state.you, bobId, 'the same player');
     assert.deepEqual(bob.state.me.hand, before.me.hand, 'the same hand');
     assert.equal(bob.state.me.myPick, before.me.myPick);
     assert.equal(bob.state.me.myVote, before.me.myVote);
-    await until(() => host.state.players.find((p) => p.id === bobId)?.connected === true, 'bob online again');
+    await until(() => host.state.players.find((p) => p.id === bobId)?.online === true, 'bob online again');
     if (phase === 'results') break;
   }
   await finish(people, host);
@@ -204,13 +204,13 @@ test('a disconnect is not a leave: the host dropping keeps the host role, and re
   const site = await launch(t);
   const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat']);
   host.socket.close();
-  await until(() => people[1].state.players.find((p) => p.id === people[1].state.hostId)?.connected === false, 'the host to look away');
+  await until(() => people[1].state.players.find((p) => p.id === people[1].state.hostId)?.online === false, 'the host to look away');
   assert.equal(people[1].state.players.length, 3, 'still seated');
   assert.equal((await people[1].call('start')).ok, false, 'the host role did not move');
   await host.connect();
   assert.equal((await host.call('resume')).ok, true, 'no code needed');
   await until(() => host.state?.phase === 'lobby', 'the lobby again');
-  assert.equal(host.state.hostId, host.state.me.id);
+  assert.equal(host.state.hostId, host.state.you);
   assert.equal((await host.call('start')).ok, true);
 });
 
@@ -232,8 +232,8 @@ test('the host leaving hands the host role on, in the lobby and in the middle of
   await until(() => remaining.every((p) => p.state?.players.length === 3 && p.state.players.some((x) => x.bot)), 'a computer player in the seat');
   assert.equal(remaining.length, 2);
   assert.ok(remaining.every((p) => p.state.phase === 'picking'), 'the round carries on');
-  assert.ok(remaining.some((p) => p.state.hostId === p.state.me.id), 'someone hosts');
-  assert.ok(remaining.filter((p) => p.state.hostId === p.state.me.id).length === 1, 'exactly one host');
+  assert.ok(remaining.some((p) => p.state.hostId === p.state.you), 'someone hosts');
+  assert.ok(remaining.filter((p) => p.state.hostId === p.state.you).length === 1, 'exactly one host');
 });
 
 test('the game vanishing under connected sockets: the last player leaving ends it for every socket of theirs', async (t) => {
@@ -267,7 +267,7 @@ test('the host removing a player sends every socket of theirs out and bars them;
   const bobPhone = await bob.twin();
   await bobPhone.call('resume', { code });
   await toPhase(people, host, 'picking');
-  const bobId = bob.state.me.id;
+  const bobId = bob.state.you;
   const bobSlot = host.state.players.find((p) => p.id === bobId).slot;
   assert.equal((await cat.call('kick', { slot: bobSlot })).ok, false, 'only the host removes others');
   assert.equal((await host.call('kick', { slot: bobSlot })).ok, true);
@@ -288,7 +288,7 @@ test('somebody who leaves of their own accord can take their own place back, car
   const { people, host, code } = await lobby(site, ['ann', 'bob', 'cat', 'dan'], { rounds: 2 });
   const [, bob] = people;
   await toPhase(people, host, 'picking');
-  const bobId = bob.state.me.id;
+  const bobId = bob.state.you;
   const hand = [...bob.state.me.hand];
   assert.equal((await bob.call('leave')).ok, true);
   await until(() => bob.state === null, 'bob out');
@@ -297,7 +297,7 @@ test('somebody who leaves of their own accord can take their own place back, car
 
   assert.equal((await bob.call('join', { code })).ok, true, 'the invitation lets him back in');
   await until(() => bob.state?.phase === 'picking', 'bob back at the table');
-  assert.equal(bob.state.me.id, bobId, 'his own place, not a new one');
+  assert.equal(bob.state.you, bobId, 'his own place, not a new one');
   assert.deepEqual(bob.state.me.hand, hand, 'with the cards he had');
   assert.equal(host.state.players.length, 4, 'and no place was made for him');
   await finish(people, host);

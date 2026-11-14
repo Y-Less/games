@@ -1,54 +1,28 @@
 // The Dixnt store: the game's own view state (Recent moves, the word pop-up, the card lightbox) and the derived values
-// its components read.  The socket plumbing under it is the site's (src/useGameSocket.js, tested there); what is
-// checked here is what Dixnt adds, and that it is wired to that plumbing at all.  The store is built from a component's
-// setup, as the root component builds it, so these tests mount one.
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
-import { flushPromises, mount } from '@vue/test-utils';
+// its components read.  The room's state and the socket under it are the shared screen's (src/components/GameShell.vue
+// over src/useGameSocket.js, both tested there); what is checked here is what Dixnt adds, and that it reads the state
+// from that screen and sends through it.
+import { describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 import { cardUrl, createStore } from './store.js';
 
-/** A minimal fake of the socket.io client: records handlers and emits, and lets a test trigger events. */
-function fakeSocket({ connected = false, replies = {} } = {}) {
-  const handlers = {};
-  const socket = {
-    connected,
-    handlers,
-    emitted: [],
-    on: vi.fn((event, fn) => ((handlers[event] ??= new Set()).add(fn), socket)),
-    off: vi.fn((event, fn) => (handlers[event]?.delete(fn), socket)),
-    emit: vi.fn((event, payload, ack) => {
-      socket.emitted.push([event, payload]);
-      const reply = typeof replies[event] === 'function' ? replies[event](payload) : replies[event];
-      if (ack) ack(reply);
-    }),
-    trigger: (event, ...args) => [...(handlers[event] ?? [])].forEach((fn) => fn(...args)),
-  };
-  return socket;
-}
-
 const user = { id: 1, displayName: 'Ann' };
-let wrapper;
-let setSearch;
 
-/** Mounts a component that builds the store, and returns what it gave back. */
-function make({ socket = fakeSocket(), search = '', leaveConfirm } = {}) {
-  setSearch = vi.fn();
-  let api;
-  wrapper = mount(
-    defineComponent({
-      setup() {
-        api = createStore({ socket, user, search, setSearch, leaveConfirm });
-        return () => h('div');
-      },
-    }),
-  );
-  return { api, socket };
+/**
+ * A store over a stand-in for the mounted shell, and `show(next)` to hand it a state as the shell does: the store is
+ * told of the state first, with the one it replaces, and then the shell holds it.
+ * @param {object | null} [mounted]  false for a shell that is not mounted yet
+ * @returns {{ api: object, shell: import('vue').Ref<object | null>, show: (next: object | null) => void }}
+ */
+function make({ mounted = true } = {}) {
+  const shell = ref(mounted ? { state: null, send: vi.fn(async () => ({ ok: true })) } : null);
+  const api = createStore({ shell, user });
+  const show = (next) => {
+    api.onState(next, shell.value.state);
+    shell.value.state = next;
+  };
+  return { api, shell, show };
 }
-
-afterEach(() => {
-  wrapper?.unmount();
-  wrapper = null;
-});
 
 describe('cardUrl()', () => {
   it('pads the card number to four digits and defaults to medium', () => {
@@ -58,119 +32,84 @@ describe('cardUrl()', () => {
   });
 });
 
-describe('createStore() initial state', () => {
-  it('reads the code from an invite link and the connection from the socket', () => {
-    const { api } = make({ socket: fakeSocket({ connected: true, replies: { resume: { ok: true } } }), search: '?boss-aware-you' });
-    expect(api.initialCode).toBe('boss-aware-you');
-    expect(api.store.connected).toBe(true);
+describe('the shared screen underneath', () => {
+  it('has no state before the shell is mounted, nor before it has been sent one', () => {
+    expect(make({ mounted: false }).api.store.state).toBeNull();
+    const { api } = make();
     expect(api.store.state).toBeNull();
     expect(api.user).toBe(user);
   });
 
-  it('registers its handlers and takes them off again when the component goes', () => {
-    const { socket } = make();
-    expect(Object.keys(socket.handlers).sort()).toEqual(['connect', 'disconnect', 'state']);
-    wrapper.unmount();
-    wrapper = null;
-    for (const set of Object.values(socket.handlers)) expect(set.size).toBe(0);
-  });
-});
-
-describe('the shared plumbing underneath', () => {
-  it('asks to be put back in the room on every connection, with the invite code the first time', async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: true } } });
-    make({ socket, search: '?boss-aware-you' });
-    socket.trigger('connect');
-    await flushPromises();
-    expect(socket.emitted).toEqual([['resume', { code: 'boss-aware-you' }]]);
-    socket.trigger('connect');
-    await flushPromises();
-    expect(socket.emitted[1]).toEqual(['resume', { code: '' }]);
+  it('reads the state the shell holds', () => {
+    const { api, show } = make();
+    const state = { code: 'cat-dog-fox', you: 1, hostId: 1, players: [] };
+    show(state);
+    expect(api.store.state).toEqual(state);
+    show(null);
+    expect(api.store.state).toBeNull();
   });
 
-  it("keeps the server's refusal, in the player's language, for the start screen", async () => {
-    const socket = fakeSocket({ replies: { resume: { ok: false, error: 'noGameWithCode' } } });
-    const { api } = make({ socket, search: '?boss-aware-you' });
-    socket.trigger('connect');
-    await flushPromises();
-    expect(api.store.notice).toBe('No game has that code.');
-  });
-
-  it('tracks the connection going and coming back', async () => {
-    const socket = fakeSocket({ connected: true, replies: { resume: { ok: true } } });
-    const { api } = make({ socket });
-    expect(api.store.connected).toBe(true);
-    socket.trigger('disconnect');
-    await flushPromises();
-    expect(api.store.connected).toBe(false);
-    socket.trigger('connect');
-    await flushPromises();
-    expect(api.store.connected).toBe(true);
-  });
-
-  it("send resolves with the reply and shows a refusal, in the player's language", async () => {
-    const replies = { play: { ok: false, error: 'notYourTurn' }, set: { ok: false, error: 'handSizeRange', params: { min: 3, max: 12 } }, ping: { ok: true } };
-    const { api } = make({ socket: fakeSocket({ replies }) });
-    expect(await api.send('play', { card: 1 })).toEqual({ ok: false, error: 'notYourTurn' });
-    expect(api.store.notice).toBe('It is not your turn.');
-    await api.send('set', { size: 99 });
-    expect(api.store.notice).toBe('Hand size must be between 3 and 12.');
-    await api.send('ping');
-    expect(api.store.notice).toBe('');
+  it('sends through the shell, and gives back its reply', async () => {
+    const { api, shell } = make();
+    shell.value.send.mockResolvedValueOnce({ ok: false, error: 'notInHand' });
+    expect(await api.send('playCard', { cardId: 4 })).toEqual({ ok: false, error: 'notInHand' });
+    expect(shell.value.send).toHaveBeenCalledWith('playCard', { cardId: 4 });
   });
 });
 
 describe('state updates', () => {
-  it('stores the state and puts its code in the address', async () => {
-    const { api, socket } = make();
-    const state = { code: 'cat-dog-fox', me: { id: 1 }, hostId: 1, players: [] };
-    socket.trigger('state', state);
-    await flushPromises();
-    expect(api.store.state).toEqual(state);
-    expect(api.store.loaded).toBe(true);
-    expect(setSearch).toHaveBeenCalledWith('cat-dog-fox');
-  });
-
-  it('a null state clears the zoom, empties the address and asks the server for nothing more', async () => {
-    const socket = fakeSocket();
-    const { api } = make({ socket, search: '?cat-dog-fox' });
+  it('a null state clears the zoom', () => {
+    const { api, show } = make();
     api.store.zoom = { cardId: 3, actions: [] };
-    socket.trigger('state', null);
-    await flushPromises();
+    show(null);
     expect(api.store.zoom).toBeNull();
-    expect(setSearch).toHaveBeenCalledWith('');
-    expect(socket.emitted).toEqual([]);
   });
 
-  it('keeps the Recent moves of a round, and drops them in the lobby', async () => {
-    const { api, socket } = make();
-    const base = { code: 'a-b-c', turn: 1, completedTurns: 0, totalTurns: 2, chooserId: 1, judging: 'everyone', me: { id: 1 }, players: [{ id: 1, name: 'Ann', isChooser: true }] };
-    socket.trigger('state', { ...base, phase: 'word' });
-    await flushPromises();
+  it('keeps the Recent moves of a round, and drops them in the lobby', () => {
+    const { api, show } = make();
+    const base = { code: 'a-b-c', turn: 1, completedTurns: 0, totalTurns: 2, chooserId: 1, judging: 'everyone', you: 1, players: [{ id: 1, name: 'Ann', isChooser: true }] };
+    show({ ...base, phase: 'word' });
     expect(api.store.log.length).toBeGreaterThan(0);
-    socket.trigger('state', { ...base, phase: 'lobby' });
-    await flushPromises();
+    show({ ...base, phase: 'lobby' });
     expect(api.store.log).toEqual([]);
   });
 });
 
 describe('the word popup', () => {
-  const picking = { code: 'a-b-c', phase: 'picking', turn: 1, completedTurns: 0, word: 'sunshine', wordHidden: false, me: { id: 1 }, players: [] };
+  const picking = { code: 'a-b-c', phase: 'picking', turn: 1, completedTurns: 0, word: 'sunshine', wordHidden: false, you: 1, players: [] };
 
   it('is announced when the word is locked in', () => {
-    const { api, socket } = make();
-    socket.trigger('state', { ...picking, phase: 'word', word: null });
-    socket.trigger('state', picking);
+    const { api, show } = make();
+    show({ ...picking, phase: 'word', word: null });
+    show(picking);
     expect(api.store.wordPopup).toMatchObject({ word: 'sunshine', key: '1:0', hidden: false });
   });
 
+  it('is announced to the player kept in the dark without the word, who is told it as the voting opens', () => {
+    const { api, show } = make();
+    show({ ...picking, phase: 'word', word: null });
+    show({ ...picking, word: null, wordHidden: true });
+    expect(api.store.wordPopup).toMatchObject({ word: null, hidden: true });
+    expect(api.store.imposterWord).toBeNull();
+    show({ ...picking, phase: 'voting' });
+    expect(api.store.imposterWord).toEqual({ word: 'sunshine', key: '1:0' });
+    show({ ...picking, phase: 'word', word: null, turn: 2 });
+    expect(api.store.imposterWord).toBeNull();
+  });
+
+  it('is not announced by the first state of a game joined or reloaded in the middle of a turn', () => {
+    const { api, show } = make();
+    show(picking);
+    expect(api.store.wordPopup).toBeNull();
+  });
+
   it('does not outlive the game: back in the lobby it is gone, so the next game does not replay it', () => {
-    const { api, socket } = make();
-    socket.trigger('state', { ...picking, phase: 'word', word: null });
-    socket.trigger('state', picking);
+    const { api, show } = make();
+    show({ ...picking, phase: 'word', word: null });
+    show(picking);
     api.store.zoom = { cardId: 3, actions: [] };
-    socket.trigger('state', { ...picking, phase: 'finished' });
-    socket.trigger('state', { ...picking, phase: 'lobby', word: null });
+    show({ ...picking, phase: 'finished' });
+    show({ ...picking, phase: 'lobby', word: null });
     expect(api.store.wordPopup).toBeNull();
     expect(api.store.zoom).toBeNull();
   });
@@ -180,7 +119,7 @@ describe('derived values', () => {
   const state = {
     code: 'cat-dog-fox',
     hostId: 2,
-    me: { id: 2 },
+    you: 2,
     players: [{ id: 1, name: 'Ann' }, { id: 2, name: 'Bob', isChooser: true }],
   };
 
@@ -193,8 +132,8 @@ describe('derived values', () => {
   });
 
   it('follow the state, and name a player whose id arrived as text', () => {
-    const { api, socket } = make();
-    socket.trigger('state', state);
+    const { api, show } = make();
+    show(state);
     expect(api.players.value).toHaveLength(2);
     expect(api.nameOf(1)).toBe('Ann');
     expect(api.nameOf('1')).toBe('Ann');
@@ -204,14 +143,14 @@ describe('derived values', () => {
   });
 
   it('says I am not the host when someone else is', () => {
-    const { api, socket } = make();
-    socket.trigger('state', { ...state, hostId: 1 });
+    const { api, show } = make();
+    show({ ...state, hostId: 1 });
     expect(api.isHost.value).toBe(false);
   });
 
   it('has no chooser when nobody is marked', () => {
-    const { api, socket } = make();
-    socket.trigger('state', { ...state, players: [{ id: 1, name: 'Ann' }] });
+    const { api, show } = make();
+    show({ ...state, players: [{ id: 1, name: 'Ann' }] });
     expect(api.chooser.value).toBeNull();
   });
 

@@ -67,7 +67,8 @@ test('with one turn each the game ends after the last player has chosen, and sho
   assert.equal(view.me.hand.length, 0);
   assert.equal(view.results, null);
   const best = Math.max(...view.players.map((p) => p.score));
-  assert.deepEqual([...view.winners].sort(), view.players.filter((p) => p.score === best).map((p) => p.id).sort());
+  assert.deepEqual(view.players.filter((p) => p.winner).map((p) => p.id), view.players.filter((p) => p.score === best).map((p) => p.id), 'whoever has the most points has won');
+  assert.ok(view.players.every((p) => p.winner === (p.placement === 1)), 'and the winners are the ones in first place');
   assert.equal(game.nextTurn(room, 1, rng).error, 'turnNotOver', 'nothing more to play');
 });
 
@@ -79,7 +80,7 @@ test('shared top scores produce several winners', () => {
     playTurn(made, { guessRight: true }); // the chooser scores a point each time
     game.nextTurn(room, 1, rng);
   }
-  assert.equal(game.viewFor(room, 1).winners.length, 3, 'everyone scored once');
+  assert.equal(game.viewFor(room, 1).players.filter((p) => p.winner).length, 3, 'everyone scored once');
 });
 
 test('a skipped turn does not count as anyone\'s turn', () => {
