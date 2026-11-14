@@ -185,7 +185,17 @@ needing.
 `namer(room, nameOf)` (a player's saved name, else the account's), and `renameField(holder, was, now)` for a `migrate`
 that has renamed something a saved room still calls by its old word.  `shared/roomServer.js` has `accountNames(ctx)`,
 which is the `nameOf` a `server.js` hands to its rules, and `insist(outcome)`, which turns a refused rule into a throw
-inside a `nextAction`'s `run` so that the room server's retry takes over.
+inside a `nextAction`'s `run` so that the room server's retry takes over.  Beside them are the shapes a `nextAction`
+returns: `botMove(action, wait, play)` for a computer player's move (one that plays nothing is a failure),
+`afterWait(key, wait, rule)` for a rule the server runs when a wait runs out, and `soonest(due, now)` for a game that
+runs several clocks off the one timer.  A phase that waits for everybody to close the scores is
+`createReadyRules({ finish, phase })` (`shared/roster.js`), which gives `ready`, `forceNext`, `waitingForReady`, and
+`unready`; an AI is asked through `attempt` (`shared/ai.js`), so that one that throws falls back to a legal choice.
+
+**Games where people type guesses at a drawing** (Scribblers, Draw!) share `shared/guessing.js`: `cleanGuess`, the
+feed of what everybody has typed (`addFeed`), how fast one player may type (`tooFast`), the characters of a word that
+are never hidden (`ALWAYS_SHOWN`), and a computer player's turn at it (`nextGuesser`, `botWordChoice`,
+`botGuessText`).  What a right guess scores, and when a turn ends, stay in the game.
 
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players.  Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or

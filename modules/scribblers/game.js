@@ -21,7 +21,8 @@ import { numberFrom, textFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { statsRows } from '../../shared/tally.js';
-import { aiById, assignAIs, attempt, describeAI, pickAI } from '../../shared/ai.js';
+import { aiById, assignAIs, describeAI, pickAI } from '../../shared/ai.js';
+import { ALWAYS_SHOWN, GUESS_LENGTH, addFeed, botGuessText, botWordChoice, cleanGuess, nextGuesser, tooFast } from '../../shared/guessing.js';
 import { fail, hostInLobby, isBot, ok } from '../../shared/seats.js';
 import { allOrNothing, eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isHuman, migratePlayers, namer, playerOf, seatOf, withSlot } from '../../shared/roster.js';
@@ -43,12 +44,9 @@ export const WORD_CHOICES = { min: 2, max: 5, default: 3 };
 export const CHOOSE_MS = 30000;
 /** How long the word stays up between one turn and the next, in milliseconds (likewise). */
 export const BETWEEN_MS = 6000;
-/** The longest guess accepted, in characters (a guess is a word, not an essay). */
-export const GUESS_LENGTH = 60;
-/** How many guesses the panel keeps, and how fast one player may type: five in three seconds, as scribble.rs allows. */
-const FEED_LENGTH = 60;
-const TALK_BURST = 5;
-const TALK_WINDOW_MS = 3000;
+// The longest guess accepted, how many lines the panel keeps, and how fast one player may type are the same for every
+// game where people guess at a drawing (shared/guessing.js).
+export { GUESS_LENGTH };
 
 /** The scoring curve, from scribble.rs's "chill" scoring: a base, a bonus that decays over the drawing time, and a bonus
  * for every letter still hidden when the guess came in. */
@@ -66,8 +64,6 @@ const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hattie'
 const LIVE = ['lobby', 'choosing', 'drawing', 'between', 'scores'];
 // Phases in which a turn is under way, so there is a drawer and a word (or a word about to be chosen).
 const TURN = ['choosing', 'drawing', 'between'];
-/** The characters of a word that are never hidden, because they are not what anybody is guessing. */
-const ALWAYS_SHOWN = [' ', '-', '_', '.', '/'];
 
 // The player-list vocabulary (who is in the room, and who is a person) is shared with the other party games.
 export { hasPlayer, humans, isHuman, seatOf };
@@ -465,7 +461,7 @@ export function guess(room, id, text, now) {
   if (!hasPlayer(room, id)) return fail('notInGame');
   if (!TURN.includes(room.phase) && room.phase !== 'scores') return fail('notPlaying');
   const player = playerOf(room, id);
-  const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, GUESS_LENGTH);
+  const clean = cleanGuess(text);
   if (!clean) return fail('typeGuess');
   if (tooFast(player, now)) return fail('tooFast');
   // Outside the drawing, or for somebody who already knows the word, it is talk rather than a guess.
@@ -489,33 +485,6 @@ export function guess(room, id, text, now) {
   return ok({ quality });
 }
 
-/**
- * Is this player doing something faster than the game allows (five in three seconds, as scribble.rs allows for
- * typing)?  Each kind of thing is counted on its own, so pressing the thumbs never uses up anybody's guesses.
- * @param {object} player  the player (mutated: their recent times are kept on them)
- * @param {number} now  the clock
- * @param {string} [what]  which times to count: 'talk' for what they type, 'rated' for the thumbs
- * @returns {boolean} true if this one should be refused
- * Side effects: records `now` in the player's recent times and drops the ones that have fallen out of the window.
- */
-function tooFast(player, now, what = 'talk') {
-  player[what] = (player[what] ?? []).filter((at) => now - at < TALK_WINDOW_MS);
-  if (player[what].length >= TALK_BURST) return true;
-  player[what].push(now);
-  return false;
-}
-
-/**
- * Adds a line to the guess panel, keeping only the last FEED_LENGTH of them.
- * @param {object} room  the room (mutated)
- * @param {object} line  { kind, id, name, text, private? }
- * @returns {void}
- * Side effects: pushes onto room.feed, trims it, and uses up one number from room.nextFeed.
- */
-function addFeed(room, line) {
-  room.feed.push({ n: room.nextFeed++, ...line });
-  if (room.feed.length > FEED_LENGTH) room.feed = room.feed.slice(-FEED_LENGTH);
-}
 
 /**
  * How many thumbs this turn's drawing has each way.
@@ -1068,8 +1037,7 @@ export function pendingBotAction(room) {
   if (room.phase !== 'drawing') return null;
   const waiting = guessers(room).filter((p) => isBot(p) && !hasGuessed(room, p.id));
   if (!waiting.length) return null;
-  const next = waiting.reduce((fewest, p) => ((p.tries ?? 0) < (fewest.tries ?? 0) ? p : fewest), waiting[0]);
-  return { type: 'guess', id: next.id };
+  return { type: 'guess', id: nextGuesser(waiting).id };
 }
 
 /**
@@ -1090,15 +1058,10 @@ export function runBotAction(room, rng, now, action = pendingBotAction(room)) {
   if (!player) return false;
   const ai = aiById(AIS, player.ai);
   const context = aiContext(room, action.id, rng);
-  // An AI is not trusted to answer: a throw (see attempt), or anything out of range, falls back to a plain legal choice.
-  if (action.type === 'word') {
-    const chosen = attempt(() => ai.chooseWord(context));
-    const n = Number.isInteger(chosen) && chosen >= 0 && chosen < room.choices.length ? chosen : Math.floor(rng() * room.choices.length);
-    return chooseWord(room, action.id, n, now).ok;
-  }
-  const guessed = attempt(() => ai.guess(context));
-  const text = typeof guessed === 'string' && guessed.trim() ? guessed.trim() : (context.words[Math.floor(rng() * context.words.length)] ?? 'something');
-  const outcome = guess(room, action.id, text, now);
+  // An AI is not trusted to answer: a throw, or anything out of range, falls back to a plain legal choice
+  // (shared/guessing.js).
+  if (action.type === 'word') return chooseWord(room, action.id, botWordChoice(ai, context, room.choices.length, rng), now).ok;
+  const outcome = guess(room, action.id, botGuessText(ai, context, rng), now);
   // Being refused for guessing too fast is not a failure: the server simply asks again in a moment.
   return outcome.ok || outcome.error === 'tooFast';
 }

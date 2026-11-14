@@ -148,6 +148,23 @@ export function afterWait(key, wait, rule) {
 }
 
 /**
+ * Whichever of several things the server owes a room is due first, as `nextAction` returns it: for a game that runs
+ * several clocks off the one timer the room server gives it (a letter revealed, the end of a turn, a computer
+ * player's move).  Doing it changes the room, which works the next one out again.
+ *
+ * @param {{ key: string, at: number, run: () => void }[]} due  each with the time it falls due, on the server's clock
+ * @param {number} now  the time now
+ * @returns {{ key: string, wait: number, run: () => void } | null} the first of them (the earliest listed, when two
+ *   fall due together), waiting no less than nothing; null when nothing is due
+ * Side effects: none.
+ */
+export function soonest(due, now) {
+  if (!due.length) return null;
+  const first = due.reduce((earliest, next) => (next.at < earliest.at ? next : earliest));
+  return { key: first.key, wait: Math.max(0, first.at - now), run: first.run };
+}
+
+/**
  * A refusal as the client receives it: the rules' code and, when its words need them, the values to put in (see
  * shared/messages.js).  Without the values a sentence such as "You need at least {min} players." reaches the player with
  * the gap still in it.

@@ -35,7 +35,7 @@
 // shared/strokeRelay.js (the boards, the strokes on them, and the picture a computer player paints).
 import fs from 'node:fs';
 import path from 'node:path';
-import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange, soonest } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { BOT_STROKE_RATE, createStrokeRelay, pictureSource, readRate } from '../../shared/strokeRelay.js';
 import * as game from './game.js';
@@ -206,9 +206,7 @@ export default function (ctx) {
       if (room.deadline !== null && room.deadline !== undefined) {
         due.push({ key: `deadline:${turnKey}:${room.phase}`, at: room.deadline, run: () => insist(game.timeUp(room, rng, now(), nameOf)) });
       }
-      if (!due.length) return null;
-      const soonest = due.reduce((first, next) => (next.at < first.at ? next : first));
-      return { key: soonest.key, wait: Math.max(0, soonest.at - now()), run: soonest.run };
+      return soonest(due, now());
     },
     /**
      * Registers the game's own socket events: what a player does through the rules (choose a word, guess, close the

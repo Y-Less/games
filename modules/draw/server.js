@@ -30,7 +30,7 @@
 //
 // Depends on shared/roomServer.js, shared/drawing.js (what a drawing is made of), shared/picture.js (a word turned
 // into something to draw) and ./game.js (the rules).
-import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange } from '../../shared/roomServer.js';
+import { accountNames, botMove, botWait, createRoomServer, insist, pickKeys, readDelayMs, readDelayRange, soonest } from '../../shared/roomServer.js';
 import { rosterLayout } from '../../shared/layout.js';
 import { BOT_STROKE_RATE, createStrokeRelay, pictureSource, readRate } from '../../shared/strokeRelay.js';
 import * as game from './game.js';
@@ -133,9 +133,7 @@ export default function (ctx) {
       if (room.deadline !== null && room.deadline !== undefined) {
         due.push({ key: `deadline:${room.turn}:${room.phase}`, at: room.deadline, run: () => insist(game.timeUp(room, rng, now())) });
       }
-      if (!due.length) return null;
-      const soonest = due.reduce((first, next) => (next.at < first.at ? next : first));
-      return { key: soonest.key, wait: Math.max(0, soonest.at - now()), run: soonest.run };
+      return soonest(due, now());
     },
     /**
      * The game's own socket events: what a player does through the rules, and the drawing, which goes straight to the

@@ -13,7 +13,7 @@
 // Depends on: shared/input.js, shared/messages.js, shared/scores.js, shared/seats.js, shared/roster.js (the lobby),
 // shared/tally.js, shared/words.js (the word list and comparing a guess), ./pairings.js (who draws against whom) and
 // ./tally.js (the counters).
-import { numberFrom, textFrom } from '../../shared/input.js';
+import { numberFrom } from '../../shared/input.js';
 import { msg } from '../../shared/messages.js';
 import { finalStandings, playerScoreboardEntry, standingsOf } from '../../shared/scores.js';
 import { fail, hostInLobby, ok } from '../../shared/seats.js';
@@ -21,7 +21,7 @@ import { eachSetting } from '../../shared/settings.js';
 import { createRosterRules, defaultPlayers, hasPlayer, historyView, humans, isBot, isHuman, migratePlayers, namer, nextGame, playerOf, seatOf, withSlot } from '../../shared/roster.js';
 import { statsRows } from '../../shared/tally.js';
 import { DEFAULT_LANGUAGE, guessQuality, pickWords, wordList } from '../../shared/words.js';
-import { attempt } from '../../shared/ai.js';
+import { ALWAYS_SHOWN, GUESS_LENGTH, addFeed, botGuessText, botWordChoice, cleanGuess, nextGuesser, tooFast } from '../../shared/guessing.js';
 import { AI } from './ai.js';
 import { pairings } from './pairings.js';
 import { newCounters, statsExtras, tallyGuess, tallyTurn } from './tally.js';
@@ -47,20 +47,16 @@ export const WORD_CHOICES = { min: 2, max: 5, default: 3 };
 export const CHOOSE_MS = 5000;
 /** How long the two words stay up before the next turn.  No scores to close: the game simply carries on. */
 export const BETWEEN_MS = 4000;
-/** The longest a guess may be. */
-export const GUESS_LENGTH = 60;
+// The longest guess accepted, how many lines the panel keeps, and how fast one player may type are the same for every
+// game where people guess at a drawing (shared/guessing.js).
+export { GUESS_LENGTH };
 /** What the drawer and the guesser each score for a drawing that is named. */
 export const POINT = 1;
 
-const FEED_LENGTH = 60;
-const TALK_BURST = 5;
-const TALK_WINDOW_MS = 3000;
 const BOT_NAMES = ['Ada', 'Bram', 'Cleo', 'Dex', 'Esme', 'Finn', 'Gus', 'Hattie'];
 const LIVE = ['lobby', 'choosing', 'drawing', 'between'];
 /** The phases in which a turn is under way. */
 const TURN = ['choosing', 'drawing', 'between'];
-/** Characters a guesser always sees in the shape of a word, because they are not letters to be guessed. */
-const ALWAYS_SHOWN = [' ', '-', '_', '.', '/'];
 
 export { hasPlayer, humans, isBot, isHuman, seatOf };
 
@@ -466,7 +462,7 @@ export function guess(room, id, text, now) {
   if (room.phase !== 'drawing') return fail('notGuessing');
   if (isDrawer(room, id)) return fail('drawersDoNotGuess');
   const player = playerOf(room, id);
-  const clean = textFrom(text).replace(/\s+/g, ' ').trim().slice(0, GUESS_LENGTH);
+  const clean = cleanGuess(text);
   if (!clean) return fail('typeGuess');
   if (tooFast(player, now)) return fail('tooFast');
   player.tries = (player.tries ?? 0) + 1;
@@ -484,31 +480,6 @@ export function guess(room, id, text, now) {
   return ok({ quality: close ? 'close' : 'wrong' });
 }
 
-/**
- * Is this player typing faster than the game allows (five in three seconds)?
- * @param {object} player  the player (mutated: their recent times are kept on them)
- * @param {number} now  the clock
- * @returns {boolean} true if this one should be refused
- * Side effects: records `now` and drops the times that have fallen out of the window.
- */
-function tooFast(player, now) {
-  player.talk = (player.talk ?? []).filter((at) => now - at < TALK_WINDOW_MS);
-  if (player.talk.length >= TALK_BURST) return true;
-  player.talk.push(now);
-  return false;
-}
-
-/**
- * Adds a line to the guess panel, keeping only the last FEED_LENGTH of them.
- * @param {object} room  the room (mutated)
- * @param {object} line  { kind, id, name, text }
- * @returns {void}
- * Side effects: pushes onto room.feed and trims it.
- */
-function addFeed(room, line) {
-  room.feed.push({ n: room.nextFeed++, ...line });
-  if (room.feed.length > FEED_LENGTH) room.feed = room.feed.slice(-FEED_LENGTH);
-}
 
 /**
  * Ends the turn: the drawer whose drawing was named and the guesser who named it each score a point, both words go
@@ -794,8 +765,7 @@ export function pendingBotAction(room) {
   if (room.phase !== 'drawing') return null;
   const waiting = guessers(room).filter(isBot);
   if (!waiting.length) return null;
-  const next = waiting.reduce((fewest, p) => ((p.tries ?? 0) < (fewest.tries ?? 0) ? p : fewest), waiting[0]);
-  return { type: 'guess', id: next.id };
+  return { type: 'guess', id: nextGuesser(waiting).id };
 }
 
 /**
@@ -816,15 +786,10 @@ export function runBotAction(room, rng, now, action = pendingBotAction(room), ai
   const player = playerOf(room, action.id);
   if (!player) return false;
   const context = aiContext(room, action.id, rng);
-  if (action.type === 'word') {
-    const offered = room.choices[action.id] ?? [];
-    const chosen = attempt(() => ai.chooseWord(context));
-    const n = Number.isInteger(chosen) && chosen >= 0 && chosen < offered.length ? chosen : Math.floor(rng() * offered.length);
-    return chooseWord(room, action.id, n, now).ok;
-  }
-  const guessed = attempt(() => ai.guess(context));
-  const text = typeof guessed === 'string' && guessed.trim() ? guessed.trim() : (context.words[Math.floor(rng() * context.words.length)] ?? 'something');
-  const outcome = guess(room, action.id, text, now);
+  // An AI is not trusted to answer: a throw, or anything out of range, falls back to a plain legal choice
+  // (shared/guessing.js).
+  if (action.type === 'word') return chooseWord(room, action.id, botWordChoice(ai, context, (room.choices[action.id] ?? []).length, rng), now).ok;
+  const outcome = guess(room, action.id, botGuessText(ai, context, rng), now);
   // Being refused for guessing too fast is not a failure: the server simply asks again in a moment.
   return outcome.ok || outcome.error === 'tooFast';
 }
