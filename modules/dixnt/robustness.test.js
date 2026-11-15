@@ -61,8 +61,8 @@ function assertValidView(view, who) {
   const ids = view.players.map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length, note('player ids are unique'));
   assert.ok(ids.includes(view.you), note('I am in the player list'));
-  assert.ok(view.me.hand.length <= view.handSize, note('hand within the hand size'));
-  assert.equal(new Set(view.me.hand).size, view.me.hand.length, note('no duplicate cards in my hand'));
+  assert.ok(view.hand.length <= view.handSize, note('hand within the hand size'));
+  assert.equal(new Set(view.hand).size, view.hand.length, note('no duplicate cards in my hand'));
   const table = view.table.map((t) => t.cardId);
   assert.equal(new Set(table).size, table.length, note('table cards are unique'));
   for (const row of view.players) {
@@ -76,7 +76,7 @@ function assertValidView(view, who) {
   assert.equal(view.scoreboard.rounds.length, view.completedTurns, note('one history row per completed round'));
   if (view.phase === 'picking') assert.deepEqual(view.table, [], note('nothing on the table while picking'));
   if (['picking', 'voting'].includes(view.phase)) {
-    assert.equal(view.me.isImposter, false, note('the imposter is not revealed'));
+    assert.equal(view.isImposter, false, note('the imposter is not revealed'));
     assert.equal(view.results, null, note('no results yet'));
   }
   if (view.wordHidden) assert.equal(view.word, null, note('the hidden word is not sent'));
@@ -102,9 +102,9 @@ async function playToEnd(people, { timeout = 20000 } = {}) {
       const s = p.state;
       if (!s) continue;
       let reply = null;
-      if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: SECRET_WORD });
-      else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
-      else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
+      if (s.phase === 'word' && s.isChooser) reply = await p.call('submitWord', { word: SECRET_WORD });
+      else if (s.phase === 'picking' && !s.isChooser && s.myPick === null) reply = await p.call('playCard', { cardId: s.hand[0] });
+      else if (s.phase === 'voting' && s.voteTargets.length && s.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
       else if (s.phase === 'results' && p === host) reply = await p.call('nextTurn');
       if (reply) {
         assert.equal(reply.ok, true, reply.error);
@@ -138,11 +138,11 @@ test('every socket event survives garbage in every phase, and a normal game can 
     assert.equal((await ann.call('start')).ok, true);
     await until(() => trio.every((p) => p.state?.phase === 'word'), 'the word phase');
     if (phase === 'word') return;
-    const chooser = trio.find((p) => p.state.me.isChooser);
+    const chooser = trio.find((p) => p.state.isChooser);
     assert.equal((await chooser.call('submitWord', { word: SECRET_WORD })).ok, true);
     await until(() => trio.every((p) => p.state?.phase === 'picking'), 'picking');
     if (phase === 'picking') return;
-    for (const p of trio.filter((x) => x !== chooser)) assert.equal((await p.call('playCard', { cardId: p.state.me.hand[0] })).ok, true);
+    for (const p of trio.filter((x) => x !== chooser)) assert.equal((await p.call('playCard', { cardId: p.state.hand[0] })).ok, true);
     await until(() => trio.every((p) => p.state?.phase === 'voting'), 'voting');
     if (phase === 'voting') return;
     for (const p of trio) if (p.state.voteTargets.length) assert.equal((await p.call('vote', { targetId: p.state.voteTargets[0] })).ok, true);
@@ -151,7 +151,7 @@ test('every socket event survives garbage in every phase, and a normal game can 
 
   const other = { ann: [bob, cat], bob: [ann, cat], cat: [ann, bob], eve: [ann, bob, cat] };
   const secretsFor = (person) => () => [
-    ...other[person.name].flatMap((o) => o.state?.me?.hand ?? []).map(String),
+    ...other[person.name].flatMap((o) => o.state?.hand ?? []).map(String),
     ...(person.state?.wordHidden ? [SECRET_WORD] : []),
   ];
 
@@ -218,13 +218,13 @@ test('actions that need the right moment or the right person are refused with a 
   await until(() => cat.state?.phase === 'word', 'word');
 
   // Word phase: only the chooser, only a sane word.
-  const chooser = [ann, bob, cat].find((p) => p.state.me.isChooser);
-  const notChooser = [ann, bob, cat].find((p) => !p.state.me.isChooser);
+  const chooser = [ann, bob, cat].find((p) => p.state.isChooser);
+  const notChooser = [ann, bob, cat].find((p) => !p.state.isChooser);
   await refused(notChooser, 'submitWord', { word: 'x' }, 'a non-chooser choosing');
   await refused(chooser, 'submitWord', { word: '   ' }, 'a blank word');
   await refused(chooser, 'submitWord', { word: 'w'.repeat(61) }, 'a too long word');
   await refused(chooser, 'submitWord', { word: 'w'.repeat(100 * 1024) }, 'a 100 KB word');
-  await refused(notChooser, 'playCard', { cardId: notChooser.state.me.hand[0] }, 'playing before the word');
+  await refused(notChooser, 'playCard', { cardId: notChooser.state.hand[0] }, 'playing before the word');
   await refused(eve, 'submitWord', { word: 'x' }, 'an outsider choosing');
   assert.equal((await chooser.call('submitWord', { word: `  ${SECRET_WORD}  ` })).ok, true);
   await until(() => cat.state?.phase === 'picking', 'picking');
@@ -233,17 +233,17 @@ test('actions that need the right moment or the right person are refused with a 
   // Picking: not the chooser, not a card you do not hold, not a card someone else holds.
   const players = [ann, bob, cat].filter((p) => p !== chooser);
   const [first, second] = players;
-  await refused(chooser, 'playCard', { cardId: chooser.state.me.hand[0] }, 'the chooser playing');
-  await refused(first, 'playCard', { cardId: second.state.me.hand[0] }, "someone else's card");
+  await refused(chooser, 'playCard', { cardId: chooser.state.hand[0] }, 'the chooser playing');
+  await refused(first, 'playCard', { cardId: second.state.hand[0] }, "someone else's card");
   await refused(first, 'playCard', { cardId: 99999 }, 'a card that does not exist');
-  await refused(first, 'playCard', { cardId: `${first.state.me.hand[0]}abc` }, 'a card id with junk');
+  await refused(first, 'playCard', { cardId: `${first.state.hand[0]}abc` }, 'a card id with junk');
   await refused(first, 'vote', { targetId: second.state.you }, 'voting while picking');
   await refused(eve, 'playCard', { cardId: 10001 }, 'an outsider playing');
   // A card given as a numeric string is the same card.
-  assert.equal((await first.call('playCard', { cardId: String(first.state.me.hand[0]) })).ok, true);
+  assert.equal((await first.call('playCard', { cardId: String(first.state.hand[0]) })).ok, true);
   // Changing the pick before the last card is in is allowed, and still leaves one card each.
-  assert.equal((await first.call('playCard', { cardId: first.state.me.hand[1] })).ok, true);
-  await until(() => first.state.me.myPick === first.state.me.hand[1], 'the changed pick');
+  assert.equal((await first.call('playCard', { cardId: first.state.hand[1] })).ok, true);
+  await until(() => first.state.myPick === first.state.hand[1], 'the changed pick');
 });
 
 test('voting refusals: yourself, a non-player, the chooser, and outsiders', async (t) => {
@@ -257,11 +257,11 @@ test('voting refusals: yourself, a non-player, the chooser, and outsiders', asyn
   await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => cat.state?.phase === 'word', 'word');
-  const chooser = trio.find((p) => p.state.me.isChooser);
+  const chooser = trio.find((p) => p.state.isChooser);
   await chooser.call('submitWord', { word: SECRET_WORD });
   await until(() => cat.state?.phase === 'picking', 'picking');
   const players = trio.filter((p) => p !== chooser);
-  for (const p of players) await p.call('playCard', { cardId: p.state.me.hand[0] });
+  for (const p of players) await p.call('playCard', { cardId: p.state.hand[0] });
   await until(() => cat.state?.phase === 'voting', 'voting');
   const [a, b] = players;
   const refused = async (p, targetId, why) => {
@@ -277,7 +277,7 @@ test('voting refusals: yourself, a non-player, the chooser, and outsiders', asyn
   await refused(a, [b.state.you], 'an array');
   await refused(eve, b.state.you, 'an outsider voting');
   await refused(a, undefined, 'no target');
-  assert.equal(a.state.me.myVote, null, 'no refused vote was counted');
+  assert.equal(a.state.myVote, null, 'no refused vote was counted');
   assert.equal((await a.call('vote', { targetId: b.state.you })).ok, true);
   assert.equal((await a.call('vote', { targetId: b.state.you })).ok, true, 'changing your mind (to the same) is harmless');
 });

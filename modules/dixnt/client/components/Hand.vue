@@ -28,9 +28,9 @@ const { send, store } = useDixnt();
 // The current state.
 const state = computed(() => store.state);
 // The cards still in your hand: the one you have played is not among them until the turn is over and it is replaced.
-const hand = computed(() => state.value.me.hand.filter((cardId) => cardId !== state.value.me.myPick));
+const hand = computed(() => state.value.hand.filter((cardId) => cardId !== state.value.myPick));
 // True when the viewer may play a card now: the picking phase, and not the chooser.
-const canPlay = computed(() => state.value.phase === 'picking' && !state.value.me.isChooser);
+const canPlay = computed(() => state.value.phase === 'picking' && !state.value.isChooser);
 
 /**
  * Builds the buttons the card viewer shows for one of your cards: a Play button while cards are being played.
@@ -42,7 +42,7 @@ const canPlay = computed(() => state.value.phase === 'picking' && !state.value.m
 function actionsFor(cardId) {
   if (!canPlay.value) return [];
   return [{
-    label: t(state.value.me.myPick === null ? 'table.playThis' : 'table.playInstead'),
+    label: t(state.value.myPick === null ? 'table.playThis' : 'table.playInstead'),
     primary: true,
     run: () => send('playCard', { cardId }),
   }];
@@ -66,7 +66,7 @@ function open(cardId) {
         v-for="cardId in hand"
         :key="cardId"
         class="slot"
-        :class="{ dim: state.phase === 'picking' && state.me.myPick !== null }"
+        :class="{ dim: state.phase === 'picking' && state.myPick !== null }"
         :aria-label="t('table.card', { id: cardId })"
         @click="open(cardId)"
       >

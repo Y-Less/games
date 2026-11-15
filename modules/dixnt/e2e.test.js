@@ -148,19 +148,19 @@ async function playToEnd(humans, { vote = (p, turn) => p.state.voteTargets[turn 
     if (phase === 'finished') return turns;
     await waitFor(() => humans.every((p) => p.state?.phase === phase && p.state.turn === turn), `everyone to see ${phase}`);
     if (phase === 'word') {
-      const chooser = humans.find((p) => p.state.me.isChooser);
+      const chooser = humans.find((p) => p.state.isChooser);
       if (chooser) assert.equal((await chooser.call('submitWord', { word: `a word for turn ${turn}` })).ok, true);
       await waitFor(() => host.state.phase !== 'word' || turnOf() !== turn, 'the word to be chosen');
     } else if (phase === 'picking') {
       for (const p of humans) {
-        if (p.state.me.isChooser || p.state.me.myPick !== null) continue;
-        const reply = await p.call('playCard', { cardId: p.state.me.hand[0] });
+        if (p.state.isChooser || p.state.myPick !== null) continue;
+        const reply = await p.call('playCard', { cardId: p.state.hand[0] });
         assert.equal(reply.ok, true, reply.error);
       }
       await waitFor(() => host.state.phase !== 'picking' || turnOf() !== turn, 'every card to be played');
     } else if (phase === 'voting') {
       for (const p of humans) {
-        if (!p.state.voteTargets.length || p.state.me.myVote !== null) continue;
+        if (!p.state.voteTargets.length || p.state.myVote !== null) continue;
         const reply = await p.call('vote', { targetId: vote(p, turn) });
         assert.equal(reply.ok, true, reply.error);
       }
@@ -267,7 +267,7 @@ test('four accounts play a whole game: identity comes from the account, and the 
   assert.equal((await ann.call('settings', { rounds: 1, handSize: 8 })).ok, true);
   assert.equal((await ann.call('start')).ok, true);
   await until(() => cat.state?.phase === 'word', 'the game to start');
-  assert.equal(cat.state.me.hand.length, 8);
+  assert.equal(cat.state.hand.length, 8);
 
   const outsider = await person('fay').open();
   assert.equal((await outsider.call('vote', { targetId: 'x' })).ok, false, 'a non-player cannot act');
@@ -380,7 +380,7 @@ test('the game state, and the fact that it was recorded, survive a restart', asy
   await ann.call('settings', { rounds: 1 });
   await ann.call('start');
   await until(() => players.every((p) => p.state?.phase === 'word'), 'the game to start');
-  const hand = bob.state.me.hand;
+  const hand = bob.state.hand;
   const code = ann.code;
   const cookies = players.map((p) => p.cookie);
   await first.stop(); // saves the games
@@ -395,7 +395,7 @@ test('the game state, and the fact that it was recorded, survive a restart', asy
   assert.equal((await bob2.call('resume', { code })).ok, true);
   await until(() => bob2.state, 'the state after the restart');
   assert.equal(bob2.state.phase, 'word');
-  assert.deepEqual(bob2.state.me.hand, hand);
+  assert.deepEqual(bob2.state.hand, hand);
   for (const p of [ann2, cat2]) await p.call('resume', { code });
 
   const rounds = await playToEnd(again);
@@ -436,10 +436,10 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
   assertScoreboard(players, 0);
 
   // Play one round by hand.
-  const chooser = players.find((p) => p.state.me.isChooser);
+  const chooser = players.find((p) => p.state.isChooser);
   assert.equal((await chooser.call('submitWord', { word: 'anything' })).ok, true);
   await until(() => players.every((p) => p.state?.phase === 'picking'), 'picking');
-  for (const p of players) if (!p.state.me.isChooser) assert.equal((await p.call('playCard', { cardId: p.state.me.hand[0] })).ok, true);
+  for (const p of players) if (!p.state.isChooser) assert.equal((await p.call('playCard', { cardId: p.state.hand[0] })).ok, true);
   await until(() => players.every((p) => p.state?.phase === 'voting'), 'voting');
   for (const p of players) if (p.state.voteTargets.length) await p.call('vote', { targetId: p.state.voteTargets[0] });
   await until(() => players.every((p) => p.state?.phase === 'results'), 'the results');
@@ -507,7 +507,7 @@ async function playComputerGame(t, { judging, categories }) {
   assert.equal(human.state.judging, judging);
   assert.equal((await human.call('start')).ok, true);
 
-  for (const cardId of human.state.me.hand) {
+  for (const cardId of human.state.hand) {
     assert.ok(categories.some((key) => (key === 'alpha' ? cardId < 20000 : cardId >= 20000 && cardId < 30000)), 'only selected categories are dealt');
   }
   const rounds = await playToEnd([human]);

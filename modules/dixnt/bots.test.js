@@ -23,9 +23,9 @@ function personActs({ game, room, rng }, id) {
   if (room.phase === 'results') {
     if (room.hostId !== id) return false;
     game.nextTurn(room, id, rng);
-  } else if (room.phase === 'word' && view.me.isChooser) game.submitWord(room, id, 'a word', rng);
-  else if (room.phase === 'picking' && !view.me.isChooser && view.me.myPick === null) game.playCard(room, id, view.me.hand[0], rng);
-  else if (room.phase === 'voting' && view.voteTargets.length && view.me.myVote === null) game.vote(room, id, view.voteTargets[0]);
+  } else if (room.phase === 'word' && view.isChooser) game.submitWord(room, id, 'a word', rng);
+  else if (room.phase === 'picking' && !view.isChooser && view.myPick === null) game.playCard(room, id, view.hand[0], rng);
+  else if (room.phase === 'voting' && view.voteTargets.length && view.myVote === null) game.vote(room, id, view.voteTargets[0]);
   else return false;
   return true;
 }
@@ -362,9 +362,9 @@ async function drive(people, { limit = 30000 } = {}) {
       const s = p.state;
       if (!s) continue;
       let reply = null;
-      if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: 'a word' });
-      else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
-      else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
+      if (s.phase === 'word' && s.isChooser) reply = await p.call('submitWord', { word: 'a word' });
+      else if (s.phase === 'picking' && !s.isChooser && s.myPick === null) reply = await p.call('playCard', { cardId: s.hand[0] });
+      else if (s.phase === 'voting' && s.voteTargets.length && s.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
       else if (s.phase === 'results' && p === host) reply = await p.call('nextTurn');
       if (reply) {
         assert.equal(reply.ok, true, reply.error);

@@ -38,22 +38,22 @@ function playGame(lineup, { judging = 'everyone', seed = 1, rounds = 2, handSize
     if (room.phase === 'word') {
       const view = game.viewFor(room, room.chooserId);
       const offered = game.nextHints(room, 3, rng);
-      const word = aiOf[room.chooserId].chooseWord({ hints: offered, hand: view.me.hand, cards, turn: room.turn, judging }, rng);
+      const word = aiOf[room.chooserId].chooseWord({ hints: offered, hand: view.hand, cards, turn: room.turn, judging }, rng);
       assert.ok(offered.includes(word), 'a chosen word is one of the hints');
       assert.equal(game.submitWord(room, room.chooserId, word, rng).ok, true);
     } else if (room.phase === 'picking') {
       for (const p of game.cardPlayers(room)) {
         const view = game.viewFor(room, p.id);
         if (view.wordHidden) imposters.add(`${room.turn}:${p.id}`);
-        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.me.hand, cards, turn: room.turn, judging }, rng);
-assert.ok(view.me.hand.includes(cardId), 'the card is from the hand');
+        const cardId = aiOf[p.id].playCard({ word: view.word, hand: view.hand, cards, turn: room.turn, judging }, rng);
+assert.ok(view.hand.includes(cardId), 'the card is from the hand');
         assert.equal(game.playCard(room, p.id, cardId, rng).ok, true);
       }
     } else if (room.phase === 'voting') {
       for (const p of game.voters(room)) {
         if (room.phase !== 'voting') break;
         const view = game.viewFor(room, p.id);
-        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${room.turn}:${p.id}`), chooser: view.me.isChooser, judging, cards, scores: {} }, rng);
+        const targetId = aiOf[p.id].vote({ word: view.word, table: view.table, targets: view.voteTargets, me: p.id, imposter: imposters.has(`${room.turn}:${p.id}`), chooser: view.isChooser, judging, cards, scores: {} }, rng);
         assert.ok(view.voteTargets.includes(targetId), 'the vote is for a legal target');
         assert.equal(game.vote(room, p.id, targetId).ok, true);
       }

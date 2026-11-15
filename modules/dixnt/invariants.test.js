@@ -64,7 +64,7 @@ function check(game, room, memory, where) {
   for (const p of room.players) {
     const view = game.viewFor(room, p.id, { online: () => false });
     if (['picking', 'voting'].includes(room.phase)) {
-      assert.equal(view.me.isImposter, false, `${note}: the imposter is not revealed yet`);
+      assert.equal(view.isImposter, false, `${note}: the imposter is not revealed yet`);
       assert.equal(view.results, null);
       assert.ok(!JSON.stringify(view).includes('"imposterId"'), `${note}: no imposterId in a view`);
     }
@@ -72,7 +72,7 @@ function check(game, room, memory, where) {
       assert.equal(view.word, null, `${note}: the imposter must not see the word`);
       assert.equal(view.wordHidden, true);
     }
-    assert.deepEqual(view.me.hand.filter((c) => !p.hand.includes(c)), [], `${note}: only my own cards in my hand`);
+    assert.deepEqual(view.hand.filter((c) => !p.hand.includes(c)), [], `${note}: only my own cards in my hand`);
     if (room.phase === 'picking') assert.deepEqual(view.table, [], `${note}: nothing is shown on the table yet`);
   }
 }

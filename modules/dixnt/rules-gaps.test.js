@@ -326,7 +326,7 @@ test('viewFor: results and the imposter appear only at the end; the table order 
   for (const p of room.players) {
     const view = game.viewFor(room, p.id, { online: (id) => id === p.id });
     assert.equal(view.results, null);
-    assert.equal(view.me.isImposter, false);
+    assert.equal(view.isImposter, false);
     assert.equal(view.word, 'word');
     assert.equal(view.players.find((x) => x.id === p.id).online, true);
     assert.equal(view.players.filter((x) => x.online).length, 1);
@@ -336,7 +336,7 @@ test('viewFor: results and the imposter appear only at the end; the table order 
   for (const p of room.players) {
     const view = game.viewFor(room, p.id);
     assert.ok(view.results);
-    assert.equal(view.me.isImposter, p.id === room.imposterId);
+    assert.equal(view.isImposter, p.id === room.imposterId);
     assert.ok(view.players.every((x) => x.winner === false && x.placement === null), 'not finished, so nobody has won or been placed');
   }
 });

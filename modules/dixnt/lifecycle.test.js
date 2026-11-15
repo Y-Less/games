@@ -34,7 +34,7 @@ async function lobby(site, names, { rounds = 1 } = {}) {
 }
 
 const everyone = (people, phase) => until(() => people.every((p) => p.state?.phase === phase), `everyone to see ${phase}`);
-const chooserOf = (people) => people.find((p) => p.state.me.isChooser);
+const chooserOf = (people) => people.find((p) => p.state.isChooser);
 
 /** Makes only the single step that leads into `phase` from the one before it. */
 async function enterPhase(people, host, phase) {
@@ -42,7 +42,7 @@ async function enterPhase(people, host, phase) {
   const stage = order.indexOf(phase);
   if (stage === 1) assert.equal((await host.call('start')).ok, true);
   if (stage === 2) assert.equal((await chooserOf(people).call('submitWord', { word: 'a word' })).ok, true);
-  if (stage === 3) for (const p of people.filter((x) => !x.state.me.isChooser)) assert.equal((await p.call('playCard', { cardId: p.state.me.hand[0] })).ok, true);
+  if (stage === 3) for (const p of people.filter((x) => !x.state.isChooser)) assert.equal((await p.call('playCard', { cardId: p.state.hand[0] })).ok, true);
   if (stage === 4) for (const p of people) if (p.state.voteTargets.length) assert.equal((await p.call('vote', { targetId: p.state.voteTargets[0] })).ok, true);
   await everyone(people, phase);
 }
@@ -59,7 +59,7 @@ async function toPhase(people, host, phase) {
     await everyone(people, 'picking');
   }
   if (goal >= 3) {
-    for (const p of people.filter((x) => !x.state.me.isChooser)) assert.equal((await p.call('playCard', { cardId: p.state.me.hand[0] })).ok, true);
+    for (const p of people.filter((x) => !x.state.isChooser)) assert.equal((await p.call('playCard', { cardId: p.state.hand[0] })).ok, true);
     await everyone(people, 'voting');
   }
   if (goal >= 4) {
@@ -77,9 +77,9 @@ async function finish(people, host) {
       const s = p.state;
       if (!s) continue;
       let reply = null;
-      if (s.phase === 'word' && s.me.isChooser) reply = await p.call('submitWord', { word: 'w' });
-      else if (s.phase === 'picking' && !s.me.isChooser && s.me.myPick === null) reply = await p.call('playCard', { cardId: s.me.hand[0] });
-      else if (s.phase === 'voting' && s.voteTargets.length && s.me.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
+      if (s.phase === 'word' && s.isChooser) reply = await p.call('submitWord', { word: 'w' });
+      else if (s.phase === 'picking' && !s.isChooser && s.myPick === null) reply = await p.call('playCard', { cardId: s.hand[0] });
+      else if (s.phase === 'voting' && s.voteTargets.length && s.myVote === null) reply = await p.call('vote', { targetId: s.voteTargets[0] });
       else if (s.phase === 'results' && p === host) reply = await p.call('nextTurn');
       if (reply) {
         assert.equal(reply.ok, true, reply.error);
@@ -94,8 +94,8 @@ test('two people acting in the same tick: both cards count once, both votes coun
   const site = await launch(t);
   const { people, host } = await lobby(site, ['ann', 'bob', 'cat', 'dan']);
   await toPhase(people, host, 'picking');
-  const players = people.filter((p) => !p.state.me.isChooser);
-  const replies = await Promise.all(players.map((p) => p.call('playCard', { cardId: p.state.me.hand[0] })));
+  const players = people.filter((p) => !p.state.isChooser);
+  const replies = await Promise.all(players.map((p) => p.call('playCard', { cardId: p.state.hand[0] })));
   assert.ok(replies.every((r) => r.ok), JSON.stringify(replies));
   await everyone(people, 'voting');
   assert.equal(people[0].state.table.length, 3, 'one card per player, no duplicates');
@@ -125,7 +125,7 @@ test('both pressing start in the same tick starts one game; a second socket of t
   assert.ok(replies.filter((r) => !r.ok).every((r) => typeof r.error === 'string'));
   await everyone([...people, second], 'word');
   for (const p of [...people, second]) assert.equal(p.state.turn, 1);
-  assert.deepEqual(host.state.me.hand, second.state.me.hand, 'both sockets of one account share one hand');
+  assert.deepEqual(host.state.hand, second.state.hand, 'both sockets of one account share one hand');
 
   // Both sockets choose the word at once (whichever account is the chooser): one succeeds.
   const chooser = chooserOf(people);
@@ -135,15 +135,15 @@ test('both pressing start in the same tick starts one game; a second socket of t
   assert.equal(words.filter((r) => r.ok).length, 1);
   await everyone(people, 'picking');
   // And the same card from both sockets of a card player.
-  const player = people.find((p) => !p.state.me.isChooser);
+  const player = people.find((p) => !p.state.isChooser);
   const playerTwin = player === host ? second : await player.twin();
   await playerTwin.call('resume');
-  const [c1, c2] = player.state.me.hand;
+  const [c1, c2] = player.state.hand;
   const picks = await Promise.all([player.call('playCard', { cardId: c1 }), playerTwin.call('playCard', { cardId: c2 })]);
   assert.ok(picks.every((r) => r.ok), 'a change of mind is harmless');
-  await until(() => player.state.me.myPick !== null, 'a pick');
-  assert.ok([c1, c2].includes(player.state.me.myPick));
-  assert.equal(playerTwin.state.me.myPick, player.state.me.myPick, 'both sockets agree');
+  await until(() => player.state.myPick !== null, 'a pick');
+  assert.ok([c1, c2].includes(player.state.myPick));
+  assert.equal(playerTwin.state.myPick, player.state.myPick, 'both sockets agree');
   assert.equal(player.state.players.filter((p) => p.hasPlayed).length, 1, 'one card, not two');
 });
 
@@ -188,9 +188,9 @@ test('disconnecting and reconnecting in every phase keeps the same seat, hand an
     assert.equal(reply.ok, true, `${phase}: ${reply.error}`);
     await until(() => bob.state?.phase === phase, `bob to be back in ${phase}`);
     assert.equal(bob.state.you, bobId, 'the same player');
-    assert.deepEqual(bob.state.me.hand, before.me.hand, 'the same hand');
-    assert.equal(bob.state.me.myPick, before.me.myPick);
-    assert.equal(bob.state.me.myVote, before.me.myVote);
+    assert.deepEqual(bob.state.hand, before.hand, 'the same hand');
+    assert.equal(bob.state.myPick, before.myPick);
+    assert.equal(bob.state.myVote, before.myVote);
     await until(() => host.state.players.find((p) => p.id === bobId)?.online === true, 'bob online again');
     if (phase === 'results') break;
   }
@@ -289,7 +289,7 @@ test('somebody who leaves of their own accord can take their own place back, car
   const [, bob] = people;
   await toPhase(people, host, 'picking');
   const bobId = bob.state.you;
-  const hand = [...bob.state.me.hand];
+  const hand = [...bob.state.hand];
   assert.equal((await bob.call('leave')).ok, true);
   await until(() => bob.state === null, 'bob out');
   await until(() => host.state.players.filter((p) => p.bot).length === 1, 'a computer player keeping his place warm');
@@ -298,7 +298,7 @@ test('somebody who leaves of their own accord can take their own place back, car
   assert.equal((await bob.call('join', { code })).ok, true, 'the invitation lets him back in');
   await until(() => bob.state?.phase === 'picking', 'bob back at the table');
   assert.equal(bob.state.you, bobId, 'his own place, not a new one');
-  assert.deepEqual(bob.state.me.hand, hand, 'with the cards he had');
+  assert.deepEqual(bob.state.hand, hand, 'with the cards he had');
   assert.equal(host.state.players.length, 4, 'and no place was made for him');
   await finish(people, host);
   assert.equal(host.state.phase, 'finished');

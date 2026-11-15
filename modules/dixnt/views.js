@@ -15,9 +15,9 @@ export function seededRng(seed = 1) {
 function hostActs(game, room, hostId, rng) {
   const view = game.viewFor(room, hostId);
   if (room.phase === 'results') game.nextTurn(room, hostId, rng);
-  else if (room.phase === 'word' && view.me.isChooser) game.submitWord(room, hostId, 'a word', rng);
-  else if (room.phase === 'picking' && !view.me.isChooser && view.me.myPick === null) game.playCard(room, hostId, view.me.hand[0], rng);
-  else if (room.phase === 'voting' && view.voteTargets.length && view.me.myVote === null) game.vote(room, hostId, view.voteTargets[0]);
+  else if (room.phase === 'word' && view.isChooser) game.submitWord(room, hostId, 'a word', rng);
+  else if (room.phase === 'picking' && !view.isChooser && view.myPick === null) game.playCard(room, hostId, view.hand[0], rng);
+  else if (room.phase === 'voting' && view.voteTargets.length && view.myVote === null) game.vote(room, hostId, view.voteTargets[0]);
   else return false;
   return true;
 }

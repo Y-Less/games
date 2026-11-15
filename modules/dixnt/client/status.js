@@ -14,7 +14,6 @@ import { msg } from '../../../shared/messages.js';
  * Side effects: none.
  */
 export function statusFor(state, { isHost = false } = {}) {
-  const me = state.me;
   const players = state.players;
   const chooser = players.find((p) => p.isChooser);
   const chooserName = chooser?.name ?? msg('status.theChooser');
@@ -27,7 +26,7 @@ export function statusFor(state, { isHost = false } = {}) {
   const muted = (text) => ({ text, tone: 'muted' });
 
   if (state.phase === 'word') {
-    if (me.isChooser) {
+    if (state.isChooser) {
       return {
         headline: msg('status.chooseWord'),
         mine: true,
@@ -39,8 +38,8 @@ export function statusFor(state, { isHost = false } = {}) {
 
   if (state.phase === 'picking') {
     const waiting = waitingOnCards.length ? msg('status.waitingFor', { names: waitingOnCards }) : null;
-    if (me.isChooser) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
-    if (me.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
+    if (state.isChooser) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
+    if (state.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
     if (state.wordHidden) return { headline: msg('status.playInTheDark'), mine: true, lines: [muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])] };
     return {
       headline: msg('status.playCard'),
@@ -52,10 +51,10 @@ export function statusFor(state, { isHost = false } = {}) {
   if (state.phase === 'voting') {
     if (state.judging === 'favourite' || state.judging === 'chooser') {
       const fav = state.judging === 'favourite';
-      if (me.isChooser) {
+      if (state.isChooser) {
         return {
-          headline: me.myVote === null ? msg(fav ? 'status.pickFavourite' : 'status.decide') : msg(fav ? 'status.picked' : 'status.decided'),
-          mine: me.myVote === null,
+          headline: state.myVote === null ? msg(fav ? 'status.pickFavourite' : 'status.decide') : msg(fav ? 'status.picked' : 'status.decided'),
+          mine: state.myVote === null,
           lines: [
             muted(
               fav
@@ -78,8 +77,8 @@ export function statusFor(state, { isHost = false } = {}) {
       };
     }
     return {
-      headline: msg(me.myVote === null ? 'status.vote' : 'status.voteIn'),
-      mine: me.myVote === null,
+      headline: msg(state.myVote === null ? 'status.vote' : 'status.voteIn'),
+      mine: state.myVote === null,
       lines: [...(waitingOnVotes.length ? [msg('status.stillToVote', { names: waitingOnVotes })] : []), muted(msg('status.explainVote'))],
     };
   }

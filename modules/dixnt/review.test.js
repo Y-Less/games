@@ -269,9 +269,9 @@ test('cards are collected once per round, not after every action', async (t) => 
   assert.equal(collected.length, 0, 'nothing is dealt in the lobby');
   assert.equal((await sockets[0].call('start')).ok, true);
   assert.equal(collected.length, 3, 'one collection for each person when the round is dealt');
-  const chooser = sockets.find((s) => s.state.me.isChooser);
+  const chooser = sockets.find((s) => s.state.isChooser);
   assert.equal((await chooser.call('submitWord', { word: 'a word' })).ok, true);
-  for (const socket of sockets.filter((s) => s !== chooser)) assert.equal((await socket.call('playCard', { cardId: socket.state.me.hand[0] })).ok, true);
+  for (const socket of sockets.filter((s) => s !== chooser)) assert.equal((await socket.call('playCard', { cardId: socket.state.hand[0] })).ok, true);
   assert.equal(collected.length, 3, 'playing cards collects nothing more');
   for (const socket of sockets) if (socket.state.voteTargets.length) await socket.call('vote', { targetId: socket.state.voteTargets[0] });
   assert.equal(collected.length, 3, 'voting collects nothing more');

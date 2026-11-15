@@ -80,7 +80,7 @@ function castVote(playerId) {
 // Returns true if the viewer can currently vote for this player's card.
 const canVoteFor = (playerId) => voting.value && state.value.voteTargets.includes(playerId);
 // Returns the label of the vote button under a card, depending on the style and whether it is your pick.
-const voteLabel = (playerId) => t(state.value.me.myVote === playerId ? 'table.yourPick' : state.value.judging === 'favourite' ? 'table.pickThis' : 'table.vote');
+const voteLabel = (playerId) => t(state.value.myVote === playerId ? 'table.yourPick' : state.value.judging === 'favourite' ? 'table.pickThis' : 'table.vote');
 
 /**
  * Builds the buttons the card viewer shows for a card on the table: a vote button if you can vote for its owner.
@@ -91,7 +91,7 @@ const voteLabel = (playerId) => t(state.value.me.myVote === playerId ? 'table.yo
 function actionsFor(cardId) {
   const entry = state.value.table.find((e) => e.cardId === cardId);
   if (!entry || !canVoteFor(entry.playerId)) return [];
-  const picked = state.value.me.myVote === entry.playerId;
+  const picked = state.value.myVote === entry.playerId;
   const label = picked ? t('table.yourPick') : state.value.judging === 'favourite' ? t('table.pickThis') : t('table.voteFor', { name: nameOf(entry.playerId) });
   return [{ label, primary: true, run: () => !picked && castVote(entry.playerId) }];
 }
@@ -116,7 +116,7 @@ function zoom(cardId) {
         class="played"
         :class="{
           mine: entry.playerId === state.you,
-          chosen: voting && state.me.myVote === entry.playerId,
+          chosen: voting && state.myVote === entry.playerId,
           imposter: results && results.imposterId === entry.playerId,
           winner: results && results.winnerId === entry.playerId,
         }"
@@ -128,7 +128,7 @@ function zoom(cardId) {
         </button>
         <figcaption>
           <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.you" class="muted"> {{ $t('common.youBracketed') }}</span></strong>
-          <button v-if="canVoteFor(entry.playerId)" class="vote" :class="{ primary: state.me.myVote === entry.playerId }" @click="castVote(entry.playerId)">
+          <button v-if="canVoteFor(entry.playerId)" class="vote" :class="{ primary: state.myVote === entry.playerId }" @click="castVote(entry.playerId)">
             {{ voteLabel(entry.playerId) }}
           </button>
           <span v-else-if="results" class="muted votes" :title="voteSummary(entry.playerId)">{{ voteCount(entry.playerId) }}</span>

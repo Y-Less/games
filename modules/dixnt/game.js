@@ -971,10 +971,10 @@ export function runBotAction(room, rng, action = pendingBotAction(room)) {
   if (action.type === 'word') {
     const suggestions = nextHints(room, 3, rng);
     const options = suggestions.length ? suggestions : FALLBACK_WORDS;
-    return submitWord(room, action.id, botDecide(room, player, 'chooseWord', options, { hints: options, hand: view.me.hand }, rng), rng).ok;
+    return submitWord(room, action.id, botDecide(room, player, 'chooseWord', options, { hints: options, hand: view.hand }, rng), rng).ok;
   }
   if (action.type === 'card') {
-    const cardId = botDecide(room, player, 'playCard', view.me.hand, { word: view.word, hand: view.me.hand }, rng);
+    const cardId = botDecide(room, player, 'playCard', view.hand, { word: view.word, hand: view.hand }, rng);
     return playCard(room, action.id, cardId, rng).ok;
   }
   const targetId = botDecide(
@@ -988,7 +988,7 @@ export function runBotAction(room, rng, action = pendingBotAction(room)) {
       targets: view.voteTargets,
       me: action.id,
       imposter: room.imposterId === action.id, // it saw ??? instead of the clue, so it knows
-      chooser: view.me.isChooser,
+      chooser: view.isChooser,
       scores: Object.fromEntries(view.players.map((p) => [p.id, p.score])),
     },
     rng,
@@ -1177,7 +1177,7 @@ export function viewFor(room, id, { online = () => true } = {}) {
     discardCount: room.discard.length,
     word: wordView(room, id, Boolean(me)),
     wordHidden: room.phase === 'picking' && id === room.imposterId,
-    me: meView(room, me),
+    ...meView(room, me), // isChooser, hand, myPick, myVote, and isImposter: the viewer's own place
     players: playersView(room, online, final),
     scoreboard: scoreboardView(room, id, online),
     table,

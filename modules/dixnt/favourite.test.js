@@ -22,7 +22,7 @@ test('favourite style: the word is shown to everyone and there is no imposter', 
     const view = game.viewFor(room, p.id);
     assert.equal(view.word, 'borrowed light', `${p.name} can see the word while picking`);
     assert.equal(view.wordHidden, false);
-    assert.equal(view.me.isImposter, false);
+    assert.equal(view.isImposter, false);
   }
 });
 
@@ -74,7 +74,7 @@ test('favourite style: no imposter is revealed anywhere in the results view', ()
   const view = game.viewFor(room, 1);
   assert.equal(view.results.imposterId, null);
   assert.equal(view.results.groupCorrect, null);
-  assert.equal(view.me.isImposter, false);
+  assert.equal(view.isImposter, false);
 });
 
 test('favourite style: works with rounds, so everyone is judged in turn and the game finishes', () => {

@@ -64,7 +64,7 @@ test('with one turn each the game ends after the last player has chosen, and sho
   assert.equal(room.phase, 'finished');
   const view = game.viewFor(room, 1);
   assert.equal(view.phase, 'finished');
-  assert.equal(view.me.hand.length, 0);
+  assert.equal(view.hand.length, 0);
   assert.equal(view.results, null);
   const best = Math.max(...view.players.map((p) => p.score));
   assert.deepEqual(view.players.filter((p) => p.winner).map((p) => p.id), view.players.filter((p) => p.score === best).map((p) => p.id), 'whoever has the most points has won');

@@ -34,7 +34,7 @@ const finished = computed(() => phase.value === 'finished');
 
 // ---- the sizes ----
 // Size of a card in your hand: sized for a full hand so the zone never changes.
-const hand = computed(() => handCard(props.width, props.height, Math.max(state.value.handSize, state.value.me.hand.length, 1)));
+const hand = computed(() => handCard(props.width, props.height, Math.max(state.value.handSize, state.value.hand.length, 1)));
 // How many players are in this turn: everybody in the room, since a place is never empty while a game is on.
 const inTurn = computed(() => players.value.length);
 // Size and grid of the cards on the table, from what is left after the controls and the hand.
@@ -52,7 +52,7 @@ const busy = ref(false);
 // Template ref to the word box, so it can be focused.
 const input = ref(null);
 // True when it is the viewer's turn to choose the word.
-const choosing = computed(() => phase.value === 'word' && state.value.me.isChooser);
+const choosing = computed(() => phase.value === 'word' && state.value.isChooser);
 
 /**
  * Asks the server for word ideas and shows them.

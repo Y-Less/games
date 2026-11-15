@@ -41,7 +41,7 @@ test('the imposter sees ??? and nobody else is told who they are', () => {
     }
     // Nothing in the view may reveal who the imposter is before the results.
     assert.equal(view.results, null);
-    assert.equal(view.me.isImposter, false);
+    assert.equal(view.isImposter, false);
     assert.ok(!JSON.stringify(view).includes('imposter'.concat('Id')), 'no imposterId field in any view');
   }
   assert.notEqual(room.imposterId, room.chooserId);
@@ -50,7 +50,7 @@ test('the imposter sees ??? and nobody else is told who they are', () => {
 test("players cannot see each other's hands", () => {
   const { game, room } = makeGame(['Ann', 'Bob', 'Cat']);
   const view = game.viewFor(room, 2);
-  assert.deepEqual(view.me.hand, game.playerOf(room, 2).hand);
+  assert.deepEqual(view.hand, game.playerOf(room, 2).hand);
   assert.ok(!view.players.some((p) => 'hand' in p), 'no hand is listed beside anybody else');
   assert.ok(!JSON.stringify(view.players).includes('"hand"'));
 });
@@ -235,7 +235,7 @@ test('somebody arriving at a game under way takes a computer player\'s place, ca
   assert.equal(late.name, 'Late');
   assert.deepEqual(late.hand, hand, 'the hand comes with the place');
   assert.equal(late.ai, undefined, 'the computer player stops playing it');
-  assert.equal(game.viewFor(room, 9).me.hand.length, 8);
+  assert.equal(game.viewFor(room, 9).hand.length, 8);
 });
 
 test('a game of nothing but people is full, and the person coming back gets their own place', () => {
