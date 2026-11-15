@@ -4,8 +4,9 @@
 // in this process on a spare port with a temporary data folder and fast computer players, plus one headless Chrome.
 // Every simulated person is a User with a browser context of their own, so their cookies never mix.
 //
-// Chrome is found at CHROME_PATH, or in the usual Windows/macOS/Linux places.  The built client (dist/) must exist: the
-// helper runs `npm run build` once if it does not.
+// Chrome is found at CHROME_PATH, or in the usual Windows/macOS/Linux places.  The tests are served the built client
+// (dist/): the helper runs `npm run build` first if there is none, or if any client source is newer than it, so that
+// a test never meets yesterday's client talking to today's server.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -61,12 +62,39 @@ function findChrome() {
   return found;
 }
 
+/** What the client is built from: these folders and files, and only files of these kinds (not the card images). */
+const CLIENT_SOURCES = ['src', 'modules', 'shared', 'index.html', 'package.json', 'vite.config.js'];
+const SOURCE_KINDS = new Set(['.js', '.vue', '.json', '.css', '.html', '.svg']);
+
+/**
+ * When the newest client source was last changed.
+ *
+ * @param {string} target  a file or folder (one that does not exist counts as never changed)
+ * @returns {number} the latest modification time under it, in milliseconds (0 if there is nothing)
+ * Side effects: reads the filesystem; changes nothing.
+ */
+function newestSource(target) {
+  const stat = fs.statSync(target, { throwIfNoEntry: false });
+  if (!stat) return 0;
+  if (!stat.isDirectory()) return SOURCE_KINDS.has(path.extname(target)) ? stat.mtimeMs : 0;
+  if (path.basename(target) === 'node_modules') return 0;
+  return Math.max(0, ...fs.readdirSync(target).map((name) => newestSource(path.join(target, name))));
+}
+
 let built = false;
+/**
+ * Makes sure dist/ holds the client as the sources now are, building it if it is missing or older than any of them.
+ *
+ * @returns {void}
+ * Side effects: may run `npm run build` (once per process); throws if that fails.
+ */
 function ensureBuilt() {
   if (built) return;
   const index = path.join(root, 'dist', 'index.html');
-  if (!fs.existsSync(index)) {
-    console.log('dist/index.html is missing, so running `npm run build` first...');
+  const builtAt = fs.statSync(index, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+  const stale = builtAt > 0 && Math.max(...CLIENT_SOURCES.map((name) => newestSource(path.join(root, name)))) > builtAt;
+  if (!builtAt || stale) {
+    console.log(`dist/index.html is ${stale ? 'older than the client sources' : 'missing'}, so running \`npm run build\` first...`);
     const result = spawnSync('npm run build', { cwd: root, shell: true, stdio: 'inherit' });
     if (result.status !== 0 || !fs.existsSync(index)) throw new Error('The client is not built: run `npm run build` first (it failed just now).');
   }
