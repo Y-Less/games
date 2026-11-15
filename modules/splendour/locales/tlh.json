@@ -109,7 +109,7 @@
     "lookOnly": "DaH navmey DaleghlaH, 'ach Qu'lIjDaq neH bIvanglaH.",
     "reserveBlind": "patlh {level} HuDvo' yIpol: Daleghpa' nav Dung Datlhap. Daje'pa' SoH neH 'oH DaSovlaH. wa' baS SuD je Datlhap.",
     "reserveBlindNoGold": "patlh {level} HuDvo' yIpol: Daleghpa' nav Dung Datlhap. Daje'pa' SoH neH 'oH DaSovlaH. baS SuD ratlhbe', vaj Datlhapbe'.",
-    "hint": "DatlhapmeH naghmey tIwIv, pagh Daje'meH joq DapolmeH joq nav yIwIv.",
+    "hint": "DatlhapmeH naghmey tIwIv, pagh Daje'meH joq DapolmeH joq nav yIwIv. SibI' nav Daje'meH, cha'logh yIwIv.",
     "finishFirst": "wa'DIch wIvlIj yIrInmoH.",
     "reserveFull": "{count} nav Dapolpu'. | {count} navmey Dapolpu'.",
     "endLimit": "may' veH paw Quj.",
