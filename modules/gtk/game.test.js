@@ -131,7 +131,6 @@ test('everybody writes an answer to both questions, once, and only while the ans
   assert.equal(game.submitAnswers(room, a.id, 'one', rng, names).error, 'answerEachQuestion');
   assert.equal(game.submitAnswers(room, a.id, ['one', ''], rng, names).error, 'typeAnswers');
   assert.equal(game.submitAnswers(room, a.id, ['one', '  '], rng, names).error, 'typeAnswers');
-  assert.equal(game.submitAnswers(room, a.id, ['one', '!!'], rng, names).error, 'answerNeedsWords');
   assert.equal(game.submitAnswers(room, a.id, ['one', 'x'.repeat(game.ANSWER_LENGTH + 1)], rng, names).error, 'answerTooLong');
   assert.equal(game.submitAnswers(room, 99, ['one', 'two'], rng, names).error, 'notInGame');
   assert.equal(game.submitAnswers(room, a.id, ['one', 'two'], rng, names).ok, true);
@@ -711,6 +710,13 @@ test('an answer is made up only for the box left empty, not for the one that was
     assert.equal(written[kept], typed[kept].trim(), 'the box they typed in is theirs');
     assert.ok(pools[1 - kept].includes(written[1 - kept]), 'the empty (or blank) box is filled from the pool of its question');
   }
+});
+
+test('an answer may be nothing but punctuation', () => {
+  const { room, rng } = writingRoom(186);
+  const writer = room.players.find((p) => p.id !== room.subject);
+  assert.equal(game.submitAnswers(room, writer.id, ['!!', '?... :-)'], rng, names, 0).ok, true);
+  assert.deepEqual(writtenBy(room, writer.id), ['!!', '?... :-)']);
 });
 
 test('nothing but punctuation is still what they typed: it is sent, not replaced, and is an answer of its own', () => {

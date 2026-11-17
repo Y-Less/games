@@ -109,7 +109,6 @@
     "answerEachQuestion": "Answer the question. | Answer all {count} questions.",
     "typeAnswers": "Write an answer to each question first.",
     "answerTooLong": "An answer is at most {max} characters.",
-    "answerNeedsWords": "An answer needs some words in it.",
     "notTimeToPick": "It is not time to pick an answer.",
     "subjectDoesNotPick": "This turn is about you, so you do not pick.",
     "alreadyPicked": "You have already picked.",

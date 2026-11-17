@@ -322,6 +322,7 @@ export function start(room, id, rng, now = 0) {
 
 /**
  * Why an answer is not allowed, or null.  It must be something, and short enough to sit on a card beside the others.
+ * What it is made of is the writer's business: nothing but punctuation is an answer too.
  * @param {string} text  the trimmed answer
  * @returns {string | null} the refusal code (under `errors.`), or null if the answer is allowed
  * Side effects: none.
@@ -329,7 +330,6 @@ export function start(room, id, rng, now = 0) {
 export function answerProblem(text) {
   if (!text) return 'typeAnswers';
   if (text.length > ANSWER_LENGTH) return 'answerTooLong';
-  if (!normal(text)) return 'answerNeedsWords'; // nothing but punctuation
   return null;
 }
 
@@ -431,7 +431,7 @@ function openPicking(room, rng, nameOf = String, now = 0) {
   for (const id of order) {
     const text = answersOf(room, id)?.texts[n];
     if (typeof text !== 'string') continue;
-    // Nothing but punctuation (which only a time-out lets through) has no comparable form, so it is matched as typed:
+    // Nothing but punctuation has no comparable form, so it is matched as typed:
     // "?" and "!!!" are different answers.  The leading space keeps it apart from every comparable form.
     const key = normal(text) || ` ${text}`;
     if (!groups.has(key)) groups.set(key, { text, authors: [], truth: id === room.subject });
@@ -772,8 +772,7 @@ export function fillTimedOut(room, rng, nameOf = String, now = 0) {
   let acted = false;
   if (room.phase === 'writing') {
     for (const p of room.players.filter((player) => !answersOf(room, player.id))) {
-      // What they had typed stands, box by box, whatever it is (even nothing but punctuation, which Send would have
-      // refused: it is theirs, and they are out of time to mend it).  Only an empty box is made up.
+      // What they had typed stands, box by box, whatever it is.  Only an empty box is made up.
       const typed = room.drafts[p.id] ?? [];
       const texts = room.questions.map((question, n) => (typeof typed[n] === 'string' && typed[n] ? typed[n] : poolAnswer(question, rng)));
       takeAnswers(room, p.id, texts, rng, nameOf, now);
