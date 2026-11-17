@@ -72,12 +72,18 @@ export default function (ctx) {
     },
     /**
      * Registers GTK's socket events; each one runs a game.js action for the connected user and broadcasts the result.
-     * @param {object} hooks  { act (run a room action and share it), on (listen for an event), userId, rng }
+     * @param {object} hooks  { act (run a room action and share it), on (listen for an event), userId, rng, now, roomOf (the room this socket is in) }
      * @returns {void}
      * Side effects: adds socket listeners; each event mutates the room through game.js.
      */
-    registerEvents({ act, on, userId, rng, now }) {
-      on('answers', ({ texts }) => act((room) => game.submitAnswers(room, userId, texts, rng, nameOf, now())));
+    registerEvents({ act, on, userId, rng, now, roomOf }) {
+      // What somebody has typed so far, kept in case their time runs out.  It is not a move, and nobody else may see
+      // it, so it does not go through `act`: nothing is shared and nothing is saved for a keystroke.
+      on('draft', ({ texts }) => {
+        const room = roomOf();
+        return room ? game.setDraft(room, userId, texts) : { ok: false, error: 'notInAnyGame' };
+      });
+      on('answers',({ texts }) => act((room) => game.submitAnswers(room, userId, texts, rng, nameOf, now())));
       on('choose', ({ n }) => act((room) => game.choose(room, userId, n, nameOf)));
       on('ready', () => act((room) => game.ready(room, userId, rng, nameOf, now())));
     },

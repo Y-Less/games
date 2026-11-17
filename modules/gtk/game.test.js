@@ -680,3 +680,89 @@ test('answers are tidied before they are compared, and the comparison ignores th
   assert.deepEqual(pie.authors.sort(), [a.id, b.id].sort());
   assert.equal(normal(pie.text), normal('Pie'));
 });
+
+// ---- what was typed but not sent, when the time runs out ----
+
+/** A started four-player game with its random source, in the writing phase. */
+function writingRoom(seed) {
+  const room = lobby(4);
+  const rng = seeded(seed);
+  game.start(room, 1, rng, 0);
+  return { room, rng, pools: room.questions.map((q) => answersFor(q)) };
+}
+const writtenBy = (room, id) => room.answers.find((a) => a.id === id).texts;
+
+test('when the time runs out, what somebody had typed in both boxes is sent as it stands', () => {
+  const { room, rng } = writingRoom(171);
+  const typist = room.players[1];
+  assert.equal(game.setDraft(room, typist.id, ['Half a thought', 'and  another   one ']).ok, true);
+  assert.equal(room.answers.length, 0, 'typing is not answering: nothing is sent yet');
+  game.fillTimedOut(room, rng, names, 60_000);
+  assert.deepEqual(writtenBy(room, typist.id), ['Half a thought', 'and another one'], 'their own words, tidied as a sent answer is');
+});
+
+test('an answer is made up only for the box left empty, not for the one that was typed in', () => {
+  for (const [typed, kept] of [[['Only the first', ''], 0], [['   ', 'Only the second'], 1], [['Only the first'], 0]]) {
+    const { room, rng, pools } = writingRoom(181);
+    const typist = room.players[2];
+    assert.equal(game.setDraft(room, typist.id, typed).ok, true);
+    game.fillTimedOut(room, rng, names, 60_000);
+    const written = writtenBy(room, typist.id);
+    assert.equal(written[kept], typed[kept].trim(), 'the box they typed in is theirs');
+    assert.ok(pools[1 - kept].includes(written[1 - kept]), 'the empty (or blank) box is filled from the pool of its question');
+  }
+});
+
+test('a draft that could not be sent as an answer counts as an empty box', () => {
+  const { room, rng, pools } = writingRoom(191);
+  const typist = room.players[1];
+  game.setDraft(room, typist.id, ['?!...', 'Fine']);
+  game.fillTimedOut(room, rng, names, 60_000);
+  const written = writtenBy(room, typist.id);
+  assert.ok(pools[0].includes(written[0]), 'nothing but punctuation is not an answer, so one is made up');
+  assert.equal(written[1], 'Fine');
+});
+
+test('what the subject had half-typed becomes the truth when the time runs out', () => {
+  const { room, rng } = writingRoom(201);
+  game.setDraft(room, room.subject, ['The real thing', 'Also real']);
+  game.fillTimedOut(room, rng, names, 60_000);
+  assert.equal(room.phase, 'picking');
+  assert.equal(room.options.find((o) => o.truth).text, 'The real thing');
+});
+
+test('the latest draft is the one that counts, and a draft is cut to the longest answer allowed', () => {
+  const { room, rng } = writingRoom(211);
+  const typist = room.players[1];
+  game.setDraft(room, typist.id, ['First go', 'x']);
+  game.setDraft(room, typist.id, ['Second go', 'y'.repeat(500)]);
+  game.fillTimedOut(room, rng, names, 60_000);
+  const written = writtenBy(room, typist.id);
+  assert.equal(written[0], 'Second go');
+  assert.equal(written[1].length, game.viewFor(room, typist.id).limits.answer, 'no longer than an answer may be');
+});
+
+test('a draft is only for somebody still writing, is shown to nobody else, and does not outlast the turn', () => {
+  const { room, rng } = writingRoom(221);
+  const [a, b] = room.players;
+  assert.equal(game.setDraft(room, 'stranger', ['x', 'y']).error, 'notInGame');
+  assert.equal(game.setDraft(room, a.id, ['Secret draft one', 'Secret draft two']).ok, true);
+  assert.deepEqual(game.viewFor(room, a.id).yourDrafts, ['Secret draft one', 'Secret draft two'], 'your own comes back to you, for a reload');
+  for (const p of room.players.filter((x) => x !== a)) {
+    assert.ok(!JSON.stringify(game.viewFor(room, p.id)).includes('Secret draft'), `${p.id} is not shown it`);
+    assert.equal(game.viewFor(room, p.id).yourDrafts, null);
+  }
+  assert.equal(game.submitAnswers(room, b.id, ['Sent one', 'Sent two'], rng, names, 0).ok, true);
+  assert.equal(game.setDraft(room, b.id, ['Too late', 'to change']).error, 'alreadyAnswered');
+  game.fillTimedOut(room, rng, names, 60_000);
+  assert.deepEqual(writtenBy(room, b.id), ['Sent one', 'Sent two'], 'answers already sent are left alone');
+  assert.deepEqual(writtenBy(room, a.id), ['Secret draft one', 'Secret draft two']);
+  assert.equal(game.setDraft(room, a.id, ['x', 'y']).error, 'answersIn', 'the writing is over');
+  assert.equal(game.viewFor(room, a.id).yourDrafts, null);
+  // Play the turn out; the next turn starts with no drafts at all.
+  for (let guard = 0; guard < 200 && room.turn === 0 && room.phase !== 'finished'; guard++) {
+    if (!game.fillTimedOut(room, rng, names, 60_000)) game.forceNext(room, rng, names, 60_000);
+  }
+  assert.equal(room.phase, 'writing', 'the next turn is being written');
+  assert.deepEqual(room.drafts, {});
+});

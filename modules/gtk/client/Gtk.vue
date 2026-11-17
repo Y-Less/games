@@ -40,6 +40,15 @@ function onState(next, previous) {
   log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
 }
 
+/**
+ * Tells the server what is in the answer boxes.  It is not a request: nothing waits on it, and it neither clears a
+ * notice nor shows one, which is why it does not go through the shell's `send`.
+ * @param {string[]} texts  what is typed, one per question
+ * @returns {void}
+ * Side effects: emits a `draft` socket event.
+ */
+const sendDraft = (texts) => props.socket.emit('draft', { texts });
+
 /** The warning to show before leaving mid-game, or '' for no warning. */
 const leaveConfirm = (state) => (['writing', 'picking', 'reveal'].includes(state.phase) ? t('leaveConfirm') : '');
 </script>
@@ -48,7 +57,7 @@ const leaveConfirm = (state) => (['writing', 'picking', 'reveal'].includes(state
   <div class="gtk stack">
     <GameShell :socket="props.socket" :search="props.search" :set-search="props.setSearch" :leave-confirm="leaveConfirm" :on-state="onState" :noun="t('entry.noun')" :intro="t('entry.intro')">
       <template #lobby="{ state, send }"><Lobby :state="state" :send="send" /></template>
-      <template #table="{ state, send }"><Table :state="state" :send="send" :log="log" /></template>
+      <template #table="{ state, send }"><Table :state="state" :send="send" :draft="sendDraft" :log="log" /></template>
     </GameShell>
   </div>
 </template>

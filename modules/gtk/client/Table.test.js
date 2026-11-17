@@ -103,6 +103,45 @@ describe('GTK: writing the answers', () => {
     expect(sent(socket, 'answers')).toEqual([{ texts: ['Satsumas', 'Green'] }]);
   });
 
+  it('tells the server what has been typed, a moment after it changes, without sending the answers', async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = await mountGame(view());
+      await answerBox(1).setValue('Sat');
+      await answerBox(1).setValue('Satsumas');
+      expect(sent(socket, 'draft')).toEqual([]); // not on every keystroke
+      vi.advanceTimersByTime(300);
+      expect(sent(socket, 'draft')).toEqual([{ texts: ['Satsumas', ''] }]);
+      await answerBox(2).setValue('Gre');
+      vi.advanceTimersByTime(300);
+      expect(sent(socket, 'draft').at(-1)).toEqual({ texts: ['Satsumas', 'Gre'] });
+      expect(sent(socket, 'answers')).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends no draft once the answers themselves have gone', async () => {
+    vi.useFakeTimers();
+    try {
+      const { socket } = await mountGame(view());
+      await answerBox(1).setValue('Satsumas');
+      await answerBox(2).setValue('Green');
+      await wrapper.find('form.write-form').trigger('submit');
+      vi.advanceTimersByTime(1000);
+      expect(sent(socket, 'answers')).toEqual([{ texts: ['Satsumas', 'Green'] }]);
+      expect(sent(socket, 'draft')).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('puts back what the server was keeping for you, so a reload in the middle of typing loses nothing', async () => {
+    await mountGame(view({ yourDrafts: ['Satsumas', ''] }));
+    expect(answerBox(1).element.value).toBe('Satsumas');
+    expect(answerBox(2).element.value).toBe('');
+  });
+
   it('asks the subject the same two questions about themselves', async () => {
     await mountGame(asSubject());
     expect(wrapper.text()).toContain('What is your favourite fruit?');
@@ -227,12 +266,12 @@ describe('GTK: the clock', () => {
     expect(shown()).toBeGreaterThanOrEqual(42);
     expect(shown()).toBeLessThanOrEqual(43);
     expect(wrapper.find('.clock').classes()).not.toContain('low');
-    expect(wrapper.text()).not.toContain('an answer will be made up for you');
+    expect(wrapper.text()).not.toContain('The time is nearly up');
     await show(view({ remaining: 5000 }));
     expect(shown()).toBeGreaterThanOrEqual(5);
     expect(shown()).toBeLessThanOrEqual(6);
     expect(wrapper.find('.clock').classes()).toContain('low');
-    expect(wrapper.text()).toContain('The time is nearly up: an answer will be made up for you.');
+    expect(wrapper.text()).toContain('The time is nearly up: what you have typed will be sent, and an answer made up for any box left empty.');
   });
 
   it('warns about the pick instead while you are picking', async () => {

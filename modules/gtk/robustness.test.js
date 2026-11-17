@@ -24,6 +24,7 @@ const EVENTS = {
   settings: ['rounds', 'questionsPerTurn', 'seconds'],
   start: [],
   answers: ['texts'],
+  draft: ['texts'],
   choose: ['n'],
   ready: [],
   again: [],
@@ -126,6 +127,7 @@ test('garbage payloads on every event, in every phase, from members and stranger
       const other = members.find((p) => p !== ann && p !== subject) ?? bob;
       const extra = {
         answers: [{ texts: ['one', 'two'] }, { texts: ['one'] }, { texts: ['one', 'two', 'three'] }, { texts: ['', ''] }, { texts: ['  ', '  '] }, { texts: ['x'.repeat(200), 'y'] }, { texts: [1, 2] }, { texts: 'one' }],
+        draft: [{ texts: ['one', 'two'] }, { texts: ['one'] }, { texts: ['', ''] }, { texts: ['x'.repeat(200), 'y'] }, { texts: [1, { a: 1 }] }, { texts: 'one' }],
         choose: [{ n: 0 }, { n: 1 }, { n: -1 }, { n: 99 }, { n: '0' }, { n: 0.5 }],
         kick: [{ slot: 's0' }, { slot: 's1' }, { slot: 's2' }, { slot: 's99' }, { slot: 0 }, { slot: -5 }, { slot: bob.id }, { slot: String(bob.id) }],
         removeBot: [{ slot: 's1' }, { slot: 's0' }, { slot: 'bot:1' }, { slot: ann.id }],

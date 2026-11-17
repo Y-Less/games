@@ -18,7 +18,7 @@
     "lessTime": "Less time",
     "moreTime": "More time",
     "secondsEach": "{count} second | {count} seconds",
-    "timeNote": "When the time runs out an answer is made up for anybody who has not sent one, and a pick is made for anybody who has not picked."
+    "timeNote": "When the time runs out, whatever somebody has typed is sent as it is, an answer is made up for any box they left empty, and a pick is made for anybody who has not picked."
   },
   "scoreboard": {
     "question": "Turn {turn}: {name}, question {n}"
@@ -88,7 +88,7 @@
     "finishedNote": "Use Leave game (top right) to go back to the menu, or \"All rounds\" in the score bar to see every question again.",
     "waitingReadyNext": "Waiting for {names} to be ready for the next question.",
     "waitingReadyFinal": "Waiting for {names} to be ready for the final scores.",
-    "hurry": "The time is nearly up: an answer will be made up for you.",
+    "hurry": "The time is nearly up: what you have typed will be sent, and an answer made up for any box left empty.",
     "hurryPick": "The time is nearly up: a pick will be made for you."
   },
   "log": {

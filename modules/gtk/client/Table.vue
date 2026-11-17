@@ -4,12 +4,14 @@
 // answer to both of the turn's questions; then the answers to each question in turn go up together and everybody but
 // the subject picks the one they believe is the subject's own.
 //
-// Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), log (Recent moves, an
-// array of messages kept by Gtk.vue, see moveLog.js).
+// Props: state (the server's view), send (function: (event, payload) -> Promise<{ ok, error }>), draft (function:
+// (texts) -> void, which tells the server what is in the answer boxes without waiting for a reply), log (Recent moves,
+// an array of messages kept by Gtk.vue, see moveLog.js).
 // Emits: none.  Slots: none (it fills GameFrame's scorebar, main, others, log, and status slots).
 // Side effects: sends 'answers', 'choose', 'ready', 'removeBot', and 'kick' requests; one watcher on the view empties
-// the answer boxes when the turn changes.
-import { computed, ref, watch } from 'vue';
+// the answer boxes when the turn changes; another tells the server what has been typed, a moment after each change,
+// so that it can send it for you if your time runs out (one timer, cleared when the table goes).
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import GameFrame from '../../../src/components/GameFrame.vue';
 import GameLog from '../../../src/components/GameLog.vue';
 import GameStatus from '../../../src/components/GameStatus.vue';
@@ -25,6 +27,7 @@ import { useGameText } from '../../../src/useGameText.js';
 const props = defineProps({
   state: { type: Object, required: true },
   send: { type: Function, required: true },
+  draft: { type: Function, default: () => {} },
   log: { type: Array, default: () => [] }, // Recent moves: messages, kept by the page (see moveLog.js)
 });
 const { t, text, list, game } = useGameText();
@@ -78,19 +81,41 @@ const { secondsLeft } = useTurnClock(() => props.state);
 const HURRY_AT = 10;
 const hurrying = computed(() => secondsLeft.value !== null && secondsLeft.value <= HURRY_AT && (canWrite.value || canPick.value));
 
-// Typed answers belong to one turn: they are emptied when it changes (and once at the start).
+// Typed answers belong to one turn: they are emptied when it changes.  At the start they are whatever the server is
+// keeping for you, so that a reload in the middle of typing loses nothing.
 watch(
   () => `${s.value.turn}`,
   () => {
-    drafts.value = s.value.prompts.map(() => '');
+    drafts.value = s.value.prompts.map((_, n) => s.value.yourDrafts?.[n] ?? '');
   },
   { immediate: true },
 );
 
+// What is in the boxes is told to the server a moment after it changes, so that if the time runs out before you send
+// your answers, what you had typed is sent for you (and an answer is made up only for a box you left empty).
+const DRAFT_PAUSE_MS = 250;
+let draftTimer = null;
+const dropDraftTimer = () => {
+  clearTimeout(draftTimer);
+  draftTimer = null;
+};
+watch(
+  drafts,
+  () => {
+    if (!canWrite.value || draftTimer !== null) return; // one is already on its way, and will take the latest words
+    draftTimer = setTimeout(() => {
+      draftTimer = null;
+      if (canWrite.value) props.draft(s.value.prompts.map((_, n) => drafts.value[n] ?? ''));
+    }, DRAFT_PAUSE_MS);
+  },
+  { deep: true },
+);
+onBeforeUnmount(dropDraftTimer);
+
 // Every box has something in it, so the answers can be sent.
 const ready = computed(() => s.value.prompts.length > 0 && s.value.prompts.every((_, n) => (drafts.value[n] ?? '').trim()));
 // Sends both answers; returns the request's promise (the server rejects empty or over-long ones).
-const sendAnswers = () => props.send('answers', { texts: s.value.prompts.map((_, n) => (drafts.value[n] ?? '').trim()) });
+const sendAnswers = () => (dropDraftTimer(), props.send)('answers', { texts: s.value.prompts.map((_, n) => (drafts.value[n] ?? '').trim()) });
 
 // ---- the words in the Status box ----
 // The Status headline for the phase and your part in it, as one sentence ('' when there is nothing to say).

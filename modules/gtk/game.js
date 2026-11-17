@@ -128,6 +128,7 @@ export function createRoom({ code, hostId, hostName, settings = {}, now, rounds 
     size: MAX_PLAYERS, // the most who may join; the host may set it lower, and starting settles it for good
     nextIdx: 0,
     ready: [], // at the reveal: the people who have closed the scores pop-up
+    drafts: {}, // while writing: what each person has typed but not sent, by player id (see setDraft)
     nextBot: 1, // computer players are players with kind 'bot', an id 'bot:<n>', a name, and (once started) an ai id
     subject: null, // the player this turn is about
     questions: [], // this turn's questions, as taken from questions.js
@@ -280,6 +281,7 @@ function startTurn(room, rng, now = 0) {
     room.questions.push({ ...QUESTIONS.find((entry) => entry.id === id) });
   }
   room.answers = [];
+  room.drafts = {};
   room.options = [];
   room.picks = [];
   room.result = null;
@@ -355,7 +357,26 @@ export function submitAnswers(room, id, texts, rng, nameOf = String, now = 0) {
     if (problem) return fail(problem, problem === 'answerTooLong' ? { max: ANSWER_LENGTH } : undefined);
   }
   room.answers.push({ id, texts: clean });
+  delete room.drafts[id]; // sent, so there is nothing half-typed to keep
   if (allWritten(room)) openPicking(room, rng, namer(room, nameOf), now);
+  return ok();
+}
+
+/**
+ * Keeps what somebody has typed so far, without sending it: if the time runs out before they send their answers,
+ * these are what the server sends for them (see fillTimedOut).  Nobody else is ever shown a draft.
+ * @param {object} room  the room (mutated)
+ * @param {number | string} id  who is typing
+ * @param {unknown} texts  what is in their answer boxes, one per question (an empty box is an empty string)
+ * @returns {{ ok: boolean, error?: string, params?: object }} the result
+ * Side effects: replaces room.drafts[id].  Each text is tidied as an answer is and cut to the longest answer allowed.
+ */
+export function setDraft(room, id, texts) {
+  if (room.phase !== 'writing') return fail('answersIn');
+  if (!hasPlayer(room, id)) return fail('notInGame');
+  if (answersOf(room, id)) return fail('alreadyAnswered');
+  const list = Array.isArray(texts) ? texts : [];
+  room.drafts[id] = room.questions.map((question, n) => textFrom(list[n]).replace(/\s+/g, ' ').trim().slice(0, ANSWER_LENGTH).trim());
   return ok();
 }
 
@@ -666,6 +687,7 @@ export function migrate(room, nameOf) {
   room.options ??= [];
   room.picks ??= [];
   room.ready ??= []; // ready() reads it unguarded
+  room.drafts ??= {};
   room.turnPicks ??= {};
   room.question ??= 0;
   room.questionsPerTurn ??= QUESTIONS_EACH.default;
@@ -717,9 +739,10 @@ const { unready } = readiness;
 export const { ready, forceNext, waitingForReady } = readiness;
 
 /**
- * The writing or picking time has run out: the server answers or picks for everybody who is left, exactly as a
- * computer player would, so that one person who has wandered off cannot hold up the table.  Anybody who has already
- * acted is untouched.
+ * The writing or picking time has run out: the server answers or picks for everybody who is left, so that one person
+ * who has wandered off cannot hold up the table.  Whatever somebody had typed but not sent is sent as it stands (see
+ * setDraft); an answer is made up, as a computer player would, only for a box they left empty.  Anybody who has
+ * already acted is untouched.
  * @param {object} room  the room (mutated)
  * @param {() => number} rng  random source for the answers and the picks
  * @param {(id: *) => string} [nameOf]  name lookup for history labels
@@ -731,7 +754,9 @@ export function fillTimedOut(room, rng, nameOf = String, now = 0) {
   let acted = false;
   if (room.phase === 'writing') {
     for (const p of room.players.filter((player) => !answersOf(room, player.id))) {
-      const texts = room.questions.map((question) => poolAnswer(question, rng));
+      // What they had typed stands, box by box; only a box with nothing usable in it is made up.
+      const typed = room.drafts[p.id] ?? [];
+      const texts = room.questions.map((question, n) => (typeof typed[n] === 'string' && !answerProblem(typed[n]) ? typed[n] : poolAnswer(question, rng)));
       if (submitAnswers(room, p.id, texts, rng, nameOf, now).ok) acted = true;
       if (room.phase !== 'writing') break; // the last one in opened the picking
     }
@@ -815,6 +840,7 @@ function renameId(room, from, to) {
 function takeOver(room, oldId, bot, rng, now = 0) {
   bot.ai = pickAI(AIS, rng).id;
   renameId(room, oldId, bot.id);
+  delete room.drafts[oldId]; // what the leaver had half-typed goes with them: the computer player writes its own
   room.ready = (room.ready ?? []).filter((x) => x !== oldId); // a computer player is always ready, so it needs no entry
   if (room.phase === 'reveal' && unready(room).length === 0) finishQuestion(room, rng, String, now);
 }
@@ -966,6 +992,7 @@ export function viewFor(room, userId, { nameOf = String, online = () => true, no
     isSubject,
     prompts: member ? room.questions.map((question) => promptOf(question, subjectName, isSubject)) : [],
     yourAnswers: member ? answersOf(room, userId)?.texts.slice() ?? null : null,
+    yourDrafts: member && room.phase === 'writing' && !answersOf(room, userId) ? room.drafts[userId]?.slice() ?? null : null, // your own half-typed answers, for a reload
     options: member ? optionsView(room, userId, nameOf) : [],
     yoursWasTrue: room.phase === 'picking' && Boolean(room.options[truthIndex(room)]?.authors.includes(userId)),
     truth: member && truth ? truth.text : null,

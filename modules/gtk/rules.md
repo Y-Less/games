@@ -27,8 +27,8 @@ go up together and you all try to spot the true one.
 ## The clock
 
 Writing your answers and picking one are both timed, and the countdown is in the Status box.  If the time runs out
-before you have sent your answers, one is made up for you; if it runs out before you have picked, a pick is made for
-you.  That way nobody who has wandered off can hold the table up.  The host sets how long it is.
+before you have sent your answers, whatever you have typed is sent as it is, and an answer is made up only for a box
+you left empty; if it runs out before you have picked, a pick is made for you.  That way nobody who has wandered off can hold the table up.  The host sets how long it is.
 
 ## Scoring
 

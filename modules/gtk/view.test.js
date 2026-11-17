@@ -49,6 +49,7 @@ test('a view lists its parts in a fixed order', () => {
     'isSubject',
     'prompts',
     'yourAnswers',
+    'yourDrafts',
     'options',
     'yoursWasTrue',
     'truth',

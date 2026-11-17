@@ -136,3 +136,22 @@ test('the host can remove a person, who then has no game', async (t) => {
   await until(() => cat.state === null, 'the removed player out of the game');
   await until(() => ann.state.players.length === 2, 'two players');
 });
+
+test('what is being typed is kept by the server, acknowledged, and shown to nobody else', async (t) => {
+  const site = await launch(t);
+  const people = [await site.person('ann').open(), await site.person('bob').open(), await site.person('cat').open()];
+  const { code } = await people[0].call('create', { rounds: 1 });
+  for (const p of people.slice(1)) await p.call('join', { code });
+  await until(() => people[0].state.players.length === 3, 'three players');
+  await people[0].call('start');
+  await until(() => people.every((p) => p.state.phase === 'writing'), 'writing');
+  const [typist, sender, other] = people;
+  assert.ok((await typist.call('draft', { texts: 'nonsense' })).ok, 'rubbish is taken as empty boxes, not as an error to show');
+  assert.ok((await typist.call('draft', { texts: ['A half-typed secret', ''] })).ok);
+  // Somebody else's move makes the server send everybody a fresh view: the draft is in its owner's and nobody else's.
+  assert.ok((await sender.call('answers', { texts: ['Sent one', 'Sent two'] })).ok);
+  await until(() => other.state.players.some((p) => p.written), 'a fresh view for the onlooker');
+  await until(() => typist.state.players.some((p) => p.written), 'a fresh view for the typist');
+  assert.deepEqual(typist.state.yourDrafts, ['A half-typed secret', '']);
+  for (const p of [sender, other]) assert.ok(!JSON.stringify(p.states).includes('half-typed'), `${p.name} never saw it`);
+});
