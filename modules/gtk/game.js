@@ -356,10 +356,26 @@ export function submitAnswers(room, id, texts, rng, nameOf = String, now = 0) {
     const problem = answerProblem(text);
     if (problem) return fail(problem, problem === 'answerTooLong' ? { max: ANSWER_LENGTH } : undefined);
   }
-  room.answers.push({ id, texts: clean });
+  takeAnswers(room, id, clean, rng, nameOf, now);
+  return ok();
+}
+
+/**
+ * Puts somebody's answers in, without asking whether they are allowed: submitAnswers has checked what a person sent,
+ * and fillTimedOut takes what was typed as it stands.
+ * @param {object} room  the room (mutated), in its writing phase
+ * @param {number | string} id  whose answers they are (somebody who has none in yet)
+ * @param {string[]} texts  one tidied answer per question
+ * @param {() => number} rng  random source (for the order the answers are shown in)
+ * @param {(id: *) => string} nameOf  name lookup, needed only if the question is scored the moment it opens
+ * @param {number} now  the time, which the picking deadline is measured from
+ * @returns {void}
+ * Side effects: adds to room.answers and drops the draft; when the last answers arrive, runs openPicking.
+ */
+function takeAnswers(room, id, texts, rng, nameOf, now) {
+  room.answers.push({ id, texts });
   delete room.drafts[id]; // sent, so there is nothing half-typed to keep
   if (allWritten(room)) openPicking(room, rng, namer(room, nameOf), now);
-  return ok();
 }
 
 /**
@@ -415,7 +431,9 @@ function openPicking(room, rng, nameOf = String, now = 0) {
   for (const id of order) {
     const text = answersOf(room, id)?.texts[n];
     if (typeof text !== 'string') continue;
-    const key = normal(text);
+    // Nothing but punctuation (which only a time-out lets through) has no comparable form, so it is matched as typed:
+    // "?" and "!!!" are different answers.  The leading space keeps it apart from every comparable form.
+    const key = normal(text) || ` ${text}`;
     if (!groups.has(key)) groups.set(key, { text, authors: [], truth: id === room.subject });
     const option = groups.get(key);
     if (id !== room.subject) option.authors.push(id);
@@ -754,10 +772,12 @@ export function fillTimedOut(room, rng, nameOf = String, now = 0) {
   let acted = false;
   if (room.phase === 'writing') {
     for (const p of room.players.filter((player) => !answersOf(room, player.id))) {
-      // What they had typed stands, box by box; only a box with nothing usable in it is made up.
+      // What they had typed stands, box by box, whatever it is (even nothing but punctuation, which Send would have
+      // refused: it is theirs, and they are out of time to mend it).  Only an empty box is made up.
       const typed = room.drafts[p.id] ?? [];
-      const texts = room.questions.map((question, n) => (typeof typed[n] === 'string' && !answerProblem(typed[n]) ? typed[n] : poolAnswer(question, rng)));
-      if (submitAnswers(room, p.id, texts, rng, nameOf, now).ok) acted = true;
+      const texts = room.questions.map((question, n) => (typeof typed[n] === 'string' && typed[n] ? typed[n] : poolAnswer(question, rng)));
+      takeAnswers(room, p.id, texts, rng, nameOf, now);
+      acted = true;
       if (room.phase !== 'writing') break; // the last one in opened the picking
     }
     return acted;

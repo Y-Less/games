@@ -713,14 +713,18 @@ test('an answer is made up only for the box left empty, not for the one that was
   }
 });
 
-test('a draft that could not be sent as an answer counts as an empty box', () => {
-  const { room, rng, pools } = writingRoom(191);
-  const typist = room.players[1];
-  game.setDraft(room, typist.id, ['?!...', 'Fine']);
+test('nothing but punctuation is still what they typed: it is sent, not replaced, and is an answer of its own', () => {
+  const { room, rng } = writingRoom(191);
+  const [a, b, c] = room.players.filter((p) => p.id !== room.subject);
+  game.setDraft(room, a.id, ['?!...', 'Fine']);
+  game.setDraft(room, b.id, ['???', 'Good']);
+  game.setDraft(room, c.id, ['???', 'Well']);
   game.fillTimedOut(room, rng, names, 60_000);
-  const written = writtenBy(room, typist.id);
-  assert.ok(pools[0].includes(written[0]), 'nothing but punctuation is not an answer, so one is made up');
-  assert.equal(written[1], 'Fine');
+  assert.deepEqual(writtenBy(room, a.id), ['?!...', 'Fine']);
+  assert.equal(room.phase, 'picking');
+  const shown = (text) => room.options.filter((o) => o.text === text);
+  assert.deepEqual(shown('?!...').map((o) => o.authors), [[a.id]], 'different punctuation is a different answer');
+  assert.deepEqual(shown('???').map((o) => [...o.authors].sort()), [[b.id, c.id].sort()], 'the same punctuation is the same answer');
 });
 
 test('what the subject had half-typed becomes the truth when the time runs out', () => {
