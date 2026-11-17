@@ -13,6 +13,10 @@ import { leaveOffer, playBar } from '../playBar.js';
 import ErrorToast from './ErrorToast.vue';
 import GameShell from './GameShell.vue';
 import RoomEntry from './RoomEntry.vue';
+import TournamentBar from './TournamentBar.vue';
+import TournamentBoard from './TournamentBoard.vue';
+import TournamentLobby from './TournamentLobby.vue';
+import TournamentSetup from './TournamentSetup.vue';
 
 /** A stand-in socket: records listeners and what was sent, and answers each request with `reply`. */
 function fakeSocket({ connected = false, reply = { ok: true } } = {}) {
@@ -234,6 +238,68 @@ describe('GameShell', () => {
     expect(wrapper.vm.state).toEqual({ code: 'a-b-c', phase: 'playing' });
     await wrapper.vm.send('undo');
     expect(socket.sent.at(-1)).toEqual(['undo', {}]);
+  });
+
+  // ---- tournaments ----
+  //
+  // A room whose tournament is being set up or played is not a table of the game, and holds more people than the game
+  // has seats for, so the site draws it rather than the game: see shared/tournamentRoom.js.  A table *of* a
+  // tournament is an ordinary game, with a bar above it saying where the evening has got to.
+
+  const tournament = (extra = {}) => ({ on: true, humans: 2, bots: 2, size: 4, phase: 'lobby', parent: 'a-b-c', here: null, round: 1, rounds: 3, entrants: [], standings: [], tables: [], last: [], yourTable: null, tablesInAll: 1, limits: { min: 3, max: 7, maxEntrants: 16 }, ...extra });
+
+  it('offers the host a tournament under the lobby the game drew', async () => {
+    shell();
+    await state({ code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, tournament: tournament({ on: false }) });
+    expect(wrapper.find('.lobby').exists()).toBe(true);
+    expect(wrapper.findComponent(TournamentSetup).props('isHost')).toBe(true);
+    wrapper.findComponent(TournamentSetup).vm.$emit('change', { on: true });
+    await flushPromises();
+    expect(socket.sent.at(-1)).toEqual(['settings', { tournament: { on: true } }]);
+  });
+
+  it("draws the tournament itself instead of the game's screens, in its lobby and while it runs", async () => {
+    shell();
+    await state({ code: 'a-b-c', phase: 'lobby', you: 1, isHost: true, tournament: tournament() });
+    expect(wrapper.find('.lobby').exists()).toBe(false);
+    expect(wrapper.findComponent(TournamentLobby).exists()).toBe(true);
+    await state({ code: 'a-b-c', phase: 'tournament', you: 1, isHost: true, tournament: tournament({ phase: 'tournament' }) });
+    expect(wrapper.find('.table').exists()).toBe(false);
+    expect(wrapper.findComponent(TournamentBoard).exists()).toBe(true);
+    wrapper.findComponent(TournamentBoard).vm.$emit('go', 'd-e-f');
+    await flushPromises();
+    expect(socket.sent.at(-1)).toEqual(['join', { code: 'd-e-f' }]);
+  });
+
+  it("draws the game as usual at a tournament's table, with the bar above it", async () => {
+    shell();
+    await state({ code: 'd-e-f', phase: 'playing', you: 1, tournament: tournament({ phase: 'tournament', here: 'd-e-f', yourTable: 'd-e-f' }) });
+    expect(wrapper.find('.table').text()).toBe('table of d-e-f in playing');
+    expect(wrapper.findComponent(TournamentBar).exists()).toBe(true);
+    expect(wrapper.findComponent(TournamentLobby).exists()).toBe(false);
+  });
+
+  it('keeps a tournament out of the hands of the game that is drawing it', async () => {
+    // A game works something out from each state as it arrives (its log of recent moves), and a tournament's state is
+    // not one it could read.  Nor is the state of the room before this one, once somebody has walked between the two.
+    const onState = vi.fn();
+    shell({ onState });
+    const lobby = { code: 'a-b-c', phase: 'lobby', you: 1, isHost: true, tournament: tournament({ on: false }) };
+    await state(lobby);
+    expect(onState).toHaveBeenLastCalledWith(lobby, null);
+    const running = { code: 'a-b-c', phase: 'tournament', you: 1, isHost: true, tournament: tournament({ phase: 'tournament' }) };
+    await state(running);
+    expect(onState).toHaveBeenLastCalledWith(null, lobby); // the tournament is kept from it; the lobby it replaces is its own
+    // Walking into a table is a different room, so the state before it is not one this game may be shown either.
+    const table = { code: 'd-e-f', phase: 'playing', you: 1, tournament: tournament({ phase: 'tournament', here: 'd-e-f' }) };
+    await state(table);
+    expect(onState).toHaveBeenLastCalledWith(table, null);
+  });
+
+  it('never warns about leaving a tournament: nothing is being played in it', async () => {
+    shell({ leaveConfirm: () => 'The others will have to stop too.' });
+    await state({ code: 'a-b-c', phase: 'tournament', you: 1, isHost: true, tournament: tournament({ phase: 'tournament' }) });
+    expect(leaveOffer().confirmText).toBe('');
   });
 
   it('stops listening to the socket and takes "Leave game" away when it goes', async () => {

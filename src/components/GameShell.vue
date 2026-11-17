@@ -29,8 +29,13 @@
 // Emits: none.
 // Side effects: useGameSocket subscribes to the socket, sends create/join when the player asks, and installs the
 // leave confirmation while a game is in progress.
+import { computed } from 'vue';
 import ErrorToast from './ErrorToast.vue';
 import RoomEntry from './RoomEntry.vue';
+import TournamentBar from './TournamentBar.vue';
+import TournamentBoard from './TournamentBoard.vue';
+import TournamentLobby from './TournamentLobby.vue';
+import TournamentSetup from './TournamentSetup.vue';
 import { useGameSocket } from '../useGameSocket.js';
 import { useGameText } from '../useGameText.js';
 
@@ -46,13 +51,27 @@ const props = defineProps({
 });
 const { t } = useGameText();
 
+// A room whose tournament is being set up or played is drawn by the site rather than by the game: its people are not
+// at a table of it (see shared/tournamentRoom.js), so the game's own screens have nothing to draw.  A table of a
+// tournament is an ordinary game of it, with the bar above it.
+const isTournament = (view) => Boolean(view?.tournament?.on && !view.tournament.here);
+
 const { state, loaded, busy, notice, connected, initialCode, send } = useGameSocket({
   socket: props.socket,
   search: props.search,
   setSearch: props.setSearch,
-  leaveConfirm: (current) => props.leaveConfirm(current),
-  onState: (next, previous) => props.onState(next, previous),
+  leaveConfirm: (current) => (isTournament(current) ? '' : props.leaveConfirm(current)),
+  // A game works something out from each state as it arrives, and is given only states of its own: a tournament's is
+  // not one it could read, and the one before it is another room's once somebody has walked between the two.
+  onState: (next, previous) => props.onState(isTournament(next) ? null : next, isTournament(previous) || previous?.code !== next?.code ? null : previous),
 });
+
+/** The tournament this room is part of, or null. */
+const tournament = computed(() => state.value?.tournament ?? null);
+/** Is this the room a tournament is run from (rather than one of its games, or an ordinary room)? */
+const running = computed(() => isTournament(state.value));
+/** Only the host sets a tournament up.  A game names its host in its own way, so both are allowed for. */
+const isHost = computed(() => (state.value?.isHost ?? (state.value?.hostId !== undefined ? state.value.hostId === state.value.you : state.value?.hostSeat === state.value?.you)));
 
 defineExpose({ state, send });
 </script>
@@ -71,8 +90,25 @@ defineExpose({ state, send });
   />
   <template v-else>
     <ErrorToast v-if="notice" :text="notice" />
-    <slot v-if="state.phase === lobbyPhase" name="lobby" :state="state" :send="send" />
-    <slot v-else name="table" :state="state" :send="send" />
-    <slot name="overlay" :connected="connected" />
+    <TournamentBar v-if="tournament?.here" :tournament="tournament" :busy="busy" @go="(code) => send('join', { code })" />
+    <template v-if="running">
+      <TournamentLobby
+        v-if="state.phase === lobbyPhase"
+        :tournament="tournament"
+        :code="state.code"
+        :is-host="isHost"
+        :busy="busy"
+        @change="(table) => send('settings', { tournament: table })"
+        @kick="(slot) => send('kick', { slot })"
+        @start="send('start')"
+      />
+      <TournamentBoard v-else :tournament="tournament" :busy="busy" @go="(code) => send('join', { code })" />
+    </template>
+    <template v-else>
+      <slot v-if="state.phase === lobbyPhase" name="lobby" :state="state" :send="send" />
+      <slot v-else name="table" :state="state" :send="send" />
+      <TournamentSetup v-if="tournament && !tournament.here && state.phase === lobbyPhase" :tournament="tournament" :is-host="isHost" @change="(table) => send('settings', { tournament: table })" />
+      <slot name="overlay" :connected="connected" />
+    </template>
   </template>
 </template>

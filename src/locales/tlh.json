@@ -277,6 +277,23 @@
     "rules": "Qujvam chutmey",
     "share": "juppu'lIjvaD mu'vam, pagh rI' He, yI'ang."
   },
+  "tournament": {
+    "title": "Quj'a'",
+    "start": "Quj'a' yItagh",
+    "peopleAtATable": "QujwI'pu'",
+    "people": "{count} QujwI' | {count} QujwI'pu'",
+    "fewerPeople": "puS QujwI'pu'",
+    "morePeople": "law' QujwI'pu'",
+    "botsAtATable": "De'wI' QujwI'pu'",
+    "bots": "{count} De'wI' QujwI' | {count} De'wI' QujwI'pu'",
+    "fewerBots": "puS De'wI' QujwI'pu'",
+    "moreBots": "law' De'wI' QujwI'pu'",
+    "yourTable": "QujlIjDaq yIghoS",
+    "back": "Quj'a'Daq yIchegh",
+    "played": "rIn",
+    "player": "QujwI'",
+    "gamesPlayed": "Qujmey"
+  },
   "invite": {
     "copy": "rI' He yItlhap",
     "copied": "He tlhaplu'pu'",
