@@ -11,10 +11,13 @@
 //
 // Depends on: nothing.
 
-/** How many people a table holds when a tournament is first switched on, before the game's own limits are applied. */
+/**
+ * How many people a table holds when a tournament is first switched on.  Two, whatever the game is for: a tournament
+ * is people playing each other, so the pair is the shape of it, and the computer players are only the numbers.
+ */
 export const DEFAULT_HUMANS = 2;
-/** How many computer players a table holds, likewise. */
-export const DEFAULT_BOTS = 2;
+/** How big a table is when the game has not said what a normal one is for it (the same four shared/members.js assumes). */
+export const DEFAULT_TABLE = 4;
 /** The most people one tournament may hold.  Chosen with MAX_TABLES: sixteen in pairs is exactly a hundred and twenty tables. */
 export const MAX_ENTRANTS = 16;
 /** The most tables a tournament may play in all.  Every combination of a large table is a very great many games. */
@@ -29,18 +32,24 @@ export const MAX_TABLES = 120;
 export const tableSize = (tournament) => tournament.humans + tournament.bots;
 
 /**
- * The table a game would start a tournament with: two people and two computer players, brought inside the game's own
- * limits.  A game for two (Cribbage) ends up with two people and none; a game that needs five has its computer
- * players made up to five.
+ * The table a game would start a tournament with: two people, and enough computer players to make the table up to a
+ * normal one *of that game* — which is four at Hearts and two at Cribbage, since a normal game of Cribbage is two.
+ * That is the game's own "fill up with computer players" number, not a figure chosen here, so a tournament's first
+ * offer is always a table the game would have dealt anyway.
  *
- * @param {{ min: number, max: number }} limits  the game's own minPlayers and maxPlayers
+ * The two people are two whatever the game says: a game that can be played by one is still a tournament of pairs, and
+ * one whose normal table is two is simply two people and no computer player at all.  Only a game that cannot seat two
+ * gets fewer.
+ *
+ * @param {{ min: number, max: number, fillTo?: number }} limits  the game's own table: the fewest it can be played
+ *   with, the most it allows, and how many a normal one is for
  * @returns {{ on: boolean, humans: number, bots: number }} the setting, switched off
  * Side effects: none.
  */
 export function defaultTable(limits) {
+  const usual = Math.min(Math.max(limits.fillTo ?? DEFAULT_TABLE, limits.min), limits.max);
   const humans = Math.max(1, Math.min(DEFAULT_HUMANS, limits.max));
-  const bots = Math.max(0, Math.min(DEFAULT_BOTS, limits.max - humans), limits.min - humans);
-  return { on: false, humans, bots };
+  return { on: false, humans, bots: Math.max(0, usual - humans) };
 }
 
 /**

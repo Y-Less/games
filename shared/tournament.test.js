@@ -6,23 +6,32 @@
 // case that tells the two methods apart.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEFAULT_BOTS, DEFAULT_HUMANS, MAX_ENTRANTS, checkTable, combinations, defaultTable, ranking, recordTable, schedule, tableCount, tableSize } from './tournament.js';
+import { DEFAULT_HUMANS, MAX_ENTRANTS, checkTable, combinations, defaultTable, ranking, recordTable, schedule, tableCount, tableSize } from './tournament.js';
 
 /** Everybody at every table of every round, as "a+b" strings, for counting how often a combination was played. */
 const every = (rounds) => rounds.flat().map((table) => [...table].sort((a, b) => a - b).join('+'));
 /** The ids, as a lobby of that many people would hold them. */
 const people = (n) => Array.from({ length: n }, (_, i) => i + 1);
 
-test('a table starts at two people and two computer players, inside the game it is a tournament of', () => {
-  assert.deepEqual(defaultTable({ min: 3, max: 6 }), { on: false, humans: DEFAULT_HUMANS, bots: DEFAULT_BOTS });
-  // Cribbage is for two: two people and no computer player, rather than a table the game would refuse.
-  assert.deepEqual(defaultTable({ min: 2, max: 2 }), { on: false, humans: 2, bots: 0 });
-  // A game that needs five gets its computer players made up, so the first table it offers is one it can play.
-  const five = defaultTable({ min: 5, max: 8 });
-  assert.equal(tableSize(five), 5);
-  assert.equal(five.humans, 2);
-  // A game for one person is still a tournament: everybody plays their own table.
-  assert.deepEqual(defaultTable({ min: 1, max: 1 }), { on: false, humans: 1, bots: 0 });
+test('a table starts at two people, filled up to a normal game of whatever it is a tournament of', () => {
+  // Hearts: a normal game is four, so two people play two computer players.
+  assert.deepEqual(defaultTable({ min: 3, max: 7, fillTo: 4 }), { on: false, humans: DEFAULT_HUMANS, bots: 2 });
+  // Cribbage: a normal game is two, so two people play each other and no computer player is added.
+  assert.deepEqual(defaultTable({ min: 2, max: 3, fillTo: 2 }), { on: false, humans: 2, bots: 0 });
+  // A game whose normal table is six still starts with two people: it is the computer players that make it up.
+  const six = defaultTable({ min: 3, max: 8, fillTo: 6 });
+  assert.equal(tableSize(six), 6);
+  assert.equal(six.humans, 2);
+  // A game that says nothing about a normal table gets the four everything else assumes.
+  assert.equal(tableSize(defaultTable({ min: 2, max: 8 })), 4);
+  // A normal table the game could not actually deal is brought inside what it allows.
+  assert.equal(tableSize(defaultTable({ min: 5, max: 8, fillTo: 2 })), 5);
+  assert.equal(tableSize(defaultTable({ min: 1, max: 3, fillTo: 9 })), 3);
+  // Two people, whatever the game will settle for: a game that can be played by one is still played in pairs here,
+  // and the table is simply the two of them.
+  assert.deepEqual(defaultTable({ min: 1, max: 4, fillTo: 1 }), { on: false, humans: 2, bots: 0 });
+  // Only a game that cannot seat two gets fewer: then everybody plays their own table.
+  assert.deepEqual(defaultTable({ min: 1, max: 1, fillTo: 1 }), { on: false, humans: 1, bots: 0 });
 });
 
 test('a table must hold somebody, and as many as the game allows', () => {

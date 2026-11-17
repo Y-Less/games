@@ -184,6 +184,7 @@ test("ctx gives a module its id, namespace, users, codes and a prefixed log", as
             nobody: ctx.users.get(987654),
             generated: ctx.codes.generate(),
             normalised: ctx.codes.normalise(payload.raw),
+            meta: ctx.meta,
             keys: Object.keys(ctx).sort(),
           }));
         });
@@ -206,7 +207,12 @@ test("ctx gives a module its id, namespace, users, codes and a prefixed log", as
   assert.equal(reply.nobody, null);
   assert.match(reply.generated, /^[a-z]+-[a-z]+-[a-z]+$/);
   assert.equal(reply.normalised, 'boss-aware-you');
-  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'games', 'id', 'io', 'log', 'markers', 'mount', 'onGameFinished', 'stats', 'tell', 'users']);
+  // Its own manifest, which `ctx.games.list()` deliberately leaves out: the shared room server reads how many the
+  // game is for from here, since a tournament's table must be a game this game can actually play.
+  assert.equal(reply.meta.id, 'probe');
+  assert.equal(reply.meta.minPlayers, 1);
+  assert.equal(reply.meta.maxPlayers, 2);
+  assert.deepEqual(reply.keys, ['achievements', 'codes', 'dataDir', 'games', 'id', 'io', 'log', 'markers', 'meta', 'mount', 'onGameFinished', 'stats', 'tell', 'users']);
 });
 
 test('ctx.games shows a module the other games, and tells it when any game anywhere finishes', async (t) => {

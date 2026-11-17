@@ -12,8 +12,9 @@
 //
 // Every rule returns { ok: true, ... } or { ok: false, error }, and (like all the rules) mutates the room it is given.
 // A place is named from outside by its slot ("s0", "s1"), which here is the seat number; see shared/layout.js.
-// Depends on: shared/members.js, shared/layout.js.
+// Depends on: shared/members.js, shared/layout.js, shared/tournament.js.
 import { seatLayout } from './layout.js';
+import { tableSize } from './tournament.js';
 import { createMemberRules, defaultPlayers, fail, freeName, hostInLobby, isBot, isHuman, ok } from './members.js';
 
 export { DEFAULT_BOT_NAMES, asHost, barFromRoom, defaultPlayers, fail, freeName, hostInLobby, isBarred, isBot, isHuman, nextBotName, nextGame, ok } from './members.js';
@@ -34,12 +35,15 @@ export const taken = (room) => room.seats.filter(Boolean).length;
  * How many the game would be for if it began now, which is what a lobby's "this is what you would be dealt" lines are
  * worked out from.  It is the seats somebody is in, but never fewer than the game needs: a room with one person in it
  * cannot start at all, so the smallest game it could become is the honest thing to show them.
- * @param {{ seats: Array<object | null> }} room  not changed
+ *
+ * A tournament lobby answers the size of one of its tables instead, because that is the game its people are going to
+ * play: a dozen of them in the room does not mean a dozen at the table, and some games cannot deal to a dozen at all.
+ * @param {{ seats: Array<object | null>, tournament?: { on?: boolean, humans: number, bots: number } }} room  not changed
  * @param {number} min  the fewest the game can be played with
  * @returns {number}
  * Side effects: none.
  */
-export const wouldPlay = (room, min) => Math.max(min, taken(room));
+export const wouldPlay = (room, min) => (room.tournament?.on ? tableSize(room.tournament) : Math.max(min, taken(room)));
 /** A list of n empty seats. */
 export const emptySeats = (n) => Array.from({ length: n }, () => null);
 

@@ -84,6 +84,9 @@ export default function (ctx) {
   const handle = createRoomServer(ctx, {
     game,
     pickSettings: () => ({}),
+    // A tour is the one room-based game that cannot be played as a tournament: it plays nothing itself, so a
+    // tournament of tours would be an evening of evenings.
+    tournament: false,
     members: (room) => room.players,
     layout: rosterLayout,
     rng,

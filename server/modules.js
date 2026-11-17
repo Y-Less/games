@@ -160,6 +160,9 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
       fs.mkdirSync(moduleDataDir, { recursive: true });
       const ctx = {
         id: meta.id,
+        /** What this module says about itself (module.json, with every default filled in).  The shared room server
+         *  reads `minPlayers` and `maxPlayers` from it: a tournament table must be a game this game can play. */
+        meta,
         io: namespace,
         dataDir: moduleDataDir,
         stats: { record: (result) => stats.record(meta.id, result) },

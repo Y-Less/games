@@ -20,6 +20,9 @@
 import { refusalReply } from './messages.js';
 import { createRoomLife } from './roomLife.js';
 import { seatLayout } from './layout.js';
+import { allOrNothing } from './settings.js';
+import { MAX_ENTRANTS } from './tournament.js';
+import { createTournamentRules } from './tournamentRoom.js';
 
 /**
  * How long a computer player seems to think before it acts, as "min-max" milliseconds.  The pause is not for the
@@ -218,6 +221,8 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date when it is loaded
  * @param {(room: object) => void} [options.afterChange]  runs after every change to a room, before it is saved and sent to
  *   anybody (for something the game does once per change, such as handing out achievements).  A throw is logged and ignored.
+ * @param {boolean} [options.tournament]  false for a game that may not be played as a tournament (the tour).  Every
+ *   other room-based game has tournament mode without a word of its own: see shared/tournamentRoom.js.
  * @param {(room: object) => void} [options.onFinished]  told once when a game here ends, for something outside this module
  *   that is waiting on it (a tour).  A game does not pass this: it comes from the site as `ctx.onGameFinished`, so that
  *   every module is heard without any of their server.js files knowing anything about it.
@@ -228,12 +233,31 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  *   themselves (see below); `changed` saves and sends a room that something outside the protocol has altered
  */
 export function createRoomServer(ctx, options) {
-  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, rng = Math.random, now = Date.now } = options;
+  const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, tournament = true, rng = Math.random, now = Date.now } = options;
+
+  // How many this game itself is for, which a tournament's table must be inside.  It comes from the module's own
+  // manifest; a hand-built context in a test has none, and is given the widest limits there are rather than nothing.
+  const limits = { min: Number(ctx.meta?.minPlayers ?? 1), max: Number(ctx.meta?.maxPlayers ?? MAX_ENTRANTS) };
+  // Tournament mode, which every room-based game has and none of them writes (shared/tournamentRoom.js).  It opens
+  // its tables through this file's own `openFor` — the same door a tour uses to open a game in another module — and
+  // reads them back out of the rooms this server keeps.  Both are reached through a function so that they are looked
+  // up when a tournament asks, which is long after everything here has been built.
+  const tournaments = createTournamentRules({
+    game,
+    members,
+    layout,
+    limits,
+    rng,
+    enabled: tournament !== false,
+    openTable: (options) => openFor(options),
+    roomOf: (code) => life.rooms.get(code),
+    log: ctx.log,
+  });
 
   // Everything that happens to a room, as against anybody asking for it: shared/roomLife.js owns the saved rooms, the
   // open sockets, the timers, and the vote running in a room.  What is left in this file is the protocol — the events
   // a client may send, what each of them is allowed to do, and what it is told back.
-  const life = createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, rng, now });
+  const life = createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, tournaments, rng, now });
   const { votes } = life;
 
   /**
@@ -251,10 +275,13 @@ export function createRoomServer(ctx, options) {
    * @param {{ id: number, name: string }[]} [options.people]  everybody else to seat, in order
    * @param {number} [options.size]  how many places the game should have (bots fill the rest); the game's own default when left out
    * @param {object} [options.settings]  settings for the game, run through its own `pickSettings`
+   * @param {{ code: string, round: number, players: number[] }} [options.inTournament]  the tournament this room is a
+   *   table of, which is written on the room: it is what makes the table one of that evening's rather than a game of
+   *   its own, and what keeps anybody who was not drawn to play at it from walking in with the code
    * @returns {{ ok: true, code: string, seated: number[] } | { ok: false, error: string, params?: object }}
    * Side effects: creates, saves, starts and schedules a room.  It never throws: a rules refusal comes back as `ok: false`.
    */
-  function openFor({ hostId, hostName, people = [], size, settings = {} }) {
+  function openFor({ hostId, hostName, people = [], size, settings = {}, inTournament }) {
     let room;
     try {
       room = game.createRoom({
@@ -270,6 +297,7 @@ export function createRoomServer(ctx, options) {
       ctx.log('could not open a room for somebody else:', error.message);
       return refusalReply(error);
     }
+    if (inTournament) room.inTournament = inTournament;
     const seated = [hostId];
     for (const person of people) {
       if (person.id === hostId) continue;
@@ -282,6 +310,30 @@ export function createRoomServer(ctx, options) {
     life.keep(room);
     life.changed(room);
     return { ok: true, code: room.code, seated };
+  }
+
+  /**
+   * A lobby setting changes.  Tournament mode is the site's rather than the game's — every room-based game has it —
+   * so it is taken out of the message here and the game is handed the rest, which its own `pickSettings` keeps the
+   * known keys of.  A message carrying both is one change: a table the game refuses leaves tournament mode as it was.
+   *
+   * @param {object} room  the room to change
+   * @param {number} userId  who is asking (the host, in the lobby: the rules say so)
+   * @param {object} payload  what the client sent
+   * @returns {{ ok: boolean, error?: string, params?: object }}
+   * Side effects: on success, changes the room's settings, and may resize it (see shared/tournamentRoom.js).
+   */
+  function changeSettings(room, userId, payload) {
+    const { tournament: asked, ...rest } = payload;
+    if (asked === undefined) return game.setSettings(room, userId, pickSettings(rest));
+    return allOrNothing(room, () => {
+      const set = tournaments.setTable(room, userId, asked);
+      if (!set.ok) return set;
+      const mine = pickSettings(rest);
+      // A message about nothing but the tournament is not handed to the game at all: a game with no settings of its
+      // own refuses an empty one, and rightly.
+      return Object.keys(mine).length ? game.setSettings(room, userId, mine) : { ok: true };
+    });
   }
 
   // One connection per browser tab: track the socket, register the shared events, then the game-specific ones.
@@ -325,6 +377,20 @@ export function createRoomServer(ctx, options) {
       const outcome = rule(room, seat);
       if (outcome.ok) life.changed(room);
       return outcome.ok ? { ok: true } : refused(outcome);
+    };
+
+    /**
+     * The same, for the game's own events.  Nothing of the game is being played in a room whose tournament is under
+     * way — its games are at its tables — so a move sent to one is refused before any rule is asked about a room it
+     * was never written for.
+     * @param {(room: object, seat: number) => { ok: boolean, error?: string }} rule  the rule to run
+     * @returns {{ ok: boolean, error?: string }} the ack for the client
+     * Side effects: as `act`.
+     */
+    const playAct = (rule) => {
+      const room = roomOfSocket();
+      if (room && tournaments.isRunning(room)) return { ok: false, error: 'tournamentRunning' };
+      return act(rule);
     };
 
     on('resume', ({ code }) => life.enter(socket, code));
@@ -409,14 +475,16 @@ export function createRoomServer(ctx, options) {
       return { ok: true };
     });
 
-    on('settings', (payload) => act((room) => game.setSettings(room, userId, pickSettings(payload))));
-    on('addBot', ({ seat }) => act((room) => game.addBot(room, userId, seat)));
+    on('settings', (payload) => act((room) => changeSettings(room, userId, payload)));
+    on('addBot', ({ seat }) => act((room) => tournaments.botsRefused(room) ?? game.addBot(room, userId, seat)));
     on('removeBot', ({ slot }) => act((room) => game.removeBot(room, userId, slot, rng)));
-    on('fillBots', (payload) => act((room) => game.fillWithBots(room, userId, payload.count)));
-    on('start', () => act((room) => (startRule ?? game.start)(room, userId, rng, now())));
-    on('again', () => act((room) => game.playAgain(room, userId)));
+    on('fillBots', (payload) => act((room) => tournaments.botsRefused(room) ?? game.fillWithBots(room, userId, payload.count)));
+    // Starting a tournament is not starting a game: it draws the evening up and the server opens the first round's
+    // tables a moment later.
+    on('start', () => act((room) => (tournaments.settingOf(room) ? tournaments.start(room, userId, now()) : (startRule ?? game.start)(room, userId, rng, now()))));
+    on('again', () => act((room) => tournaments.againRefused(room) ?? game.playAgain(room, userId)));
 
-    registerEvents({ on, act, userId, socket, rng, now, roomOf: roomOfSocket, relay: life.relay });
+    registerEvents({ on, act: playAct, userId, socket, rng, now, roomOf: roomOfSocket, relay: life.relay });
 
     socket.on('disconnect', () => {
       life.dropSocket(userId, socket);

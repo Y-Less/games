@@ -56,6 +56,7 @@ export default function (ctx) {
 | | |
 | --- | --- |
 | `ctx.id` | the module id |
+| `ctx.meta` | this module's own manifest, with every default filled in.  The shared room server reads `minPlayers` and `maxPlayers` from it (a tournament table must be a game this game can play); a module rarely needs it. |
 | `ctx.io` | a Socket.IO namespace (`/<id>`).  Every connection is already authenticated: `socket.data.user` is `{ id, name, isBot }`.  Unauthenticated clients are refused before `connection`. |
 | `ctx.stats.record(result)` | report a finished game (below) |
 | `ctx.achievements` | save progress towards achievements and read anyone's (see Achievements below) |
@@ -210,6 +211,36 @@ are never hidden (`ALWAYS_SHOWN`), and a computer player's turn at it (`nextGues
 **Randomness and the clock are injected.** The server creates `rng` (Math.random) and `now` (Date.now) once and hands them
 to the rules and the computer players.  Rules and AIs must not default to `Math.random` or `Date.now`: take an `rng` or
 `now` argument, so a test can replay a game from a seed.
+
+### Tournaments
+
+**Every room-based game can be played as a tournament, and no game writes a line of it.**  It is a lobby setting
+(`settings` carries `tournament: { on, humans, bots }`), and with it on the room stops being a table and becomes the
+keeper of a list of them: its people are dealt into games of `humans` people and `bots` computer players, each one a
+real room in the same module opened through `openFor`, and when every game of a round has finished the next
+combination is dealt out, until every combination has played once.  `shared/tournament.js` is the arithmetic of an
+evening (the rounds, which for pairs is the chess club's rotating ring, and the standings); `shared/tournamentRoom.js`
+is what it does to a room; the room server and `shared/roomLife.js` run it.  A game opts out with `tournament: false`
+(only the tour does: an evening of evenings is nobody's evening).
+
+What a game author needs to know about it:
+
+- **The first table a tournament offers is a normal game of that game.**  Two people, and enough computer players to
+  make it up to whatever "fill up with computer players" makes a table up to — four at most games, two at Cribbage.
+  Those numbers are measured off the game's own rules rather than read from its manifest, whose `minPlayers` is the
+  fewest *people*, not the fewest players at a table.
+- **A tournament room is never handed to your `viewFor`, `nextAction`, `start`, or your own socket events.**  Its
+  lobby holds more people than your game has seats for, and nothing of your game is played in it; the site draws it
+  (`src/components/Tournament*.vue`, through `GameShell`).  Your lobby is still drawn, with the offer of a tournament
+  under it, until the setting is switched on.
+- **The settings the tables are dealt with are the ones chosen before tournament mode was switched on**, since your
+  own lobby is not on screen afterwards.  They reach each table through `pickSettings`, so a setting your `create`
+  accepts is a setting a tournament can play with.
+- **`wouldPlay` answers the size of a table** while a tournament is on, so a lobby line that describes the deal
+  describes the game that will actually be played rather than one of twelve.
+- A table of a tournament is an ordinary started room of your game, with `room.inTournament` on it.  It admits only
+  the people drawn to play at it, it is never played again, and its `statsPlayers` is what the standings are counted
+  from — so a game that reports its results properly needs nothing else to take part.
 
 ### Where the rooms are kept
 

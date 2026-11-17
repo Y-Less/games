@@ -19,6 +19,7 @@ import { createScheduler } from './scheduler.js';
 import { createSocketRegistry } from './socketRegistry.js';
 import { createVoteKick } from './voteKick.js';
 import { barFromRoom } from './members.js';
+import { NO_TOURNAMENTS } from './tournamentRoom.js';
 
 // Retention and timing: how long to keep a finished room, then an unfinished one (kept longer: players may return to a
 // paused game), and how often to sweep for old rooms.  (How long a save is debounced is the store's business.)
@@ -41,12 +42,14 @@ const SWEEP_EVERY_MS = 60 * 60 * 1000;
  * @param {(room: object) => object} [options.migrate]  brings a saved room up to date
  * @param {(room: object) => void} [options.onFinished]  told once when a game in this module ends, for something outside
  *   it that is waiting (a tour).  It runs beside the statistics, under the same `recorded` guard, and a throw is logged.
+ * @param {object} [options.tournaments]  this game's tournament rules (shared/tournamentRoom.js); left out, the game
+ *   has no tournaments and nothing here changes
  * @param {() => number} options.rng  random source
  * @param {() => number} options.now  the clock
  * @returns {object} rooms, votes, and the operations the protocol performs on a room
  * Side effects: loads the saved rooms, starts the hourly sweep and each room's timer.
  */
-export function createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, rng, now }) {
+export function createRoomLife({ ctx, game, members, layout, viewOptions, afterChange, playerExtras, nextAction, migrate, onFinished, tournaments = NO_TOURNAMENTS, rng, now }) {
   // Naming people by slot, and the vote that uses it (shared/voteKick.js).
   const votes = createVoteKick({ game, members, layout, now });
   // Where the rooms are kept between restarts (shared/roomStore.js); nothing here touches the file itself.
@@ -55,7 +58,9 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   const registry = createSocketRegistry(); // which sockets each account has open, and which room each is looking at
   // `changed` and `relay` are declared below, so the scheduler reaches them through wrappers rather than directly.
   const scheduler = createScheduler({
-    nextAction: (room) => nextAction(room, rng, now, { online: registry.online(room.code), relay }),
+    // A tournament owes itself things no game knows about (opening a round, taking one in), and owes its game
+    // nothing at all: nothing is being played in that room.
+    nextAction: (room) => tournaments.nextAction(room, now) ?? (tournaments.settingOf(room) ? null : nextAction(room, rng, now, { online: registry.online(room.code), relay })),
     current: (room) => rooms.get(room.code) === room,
     changed: (room) => changed(room),
     log: ctx.log,
@@ -74,6 +79,9 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     scheduler.forget(room.code);
     for (const seat of members(room)) if (game.isHuman(seat)) detach(seat.id, room.code);
     store.remove(room.code);
+    // A table everybody walked out of is dropped here, and reports nothing finished: the tournament waiting on it
+    // must be told, or it would wait out its long stop for a room that no longer exists.
+    wakeTournament(room);
   }
 
   /**
@@ -84,14 +92,28 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   function sweep() {
     const current = now();
     for (const room of [...rooms.values()]) {
-      if (current - room.updatedAt > (game.isLive(room) ? KEEP_OTHER_MS : KEEP_FINISHED_MS)) discard(room);
+      if (current - room.updatedAt > (alive(room) ? KEEP_OTHER_MS : KEEP_FINISHED_MS)) discard(room);
     }
   }
+
+  /**
+   * Is there still something happening in this room?  The game answers for its own rooms; a tournament is answered
+   * for here, because its phase while it runs is not one any game knows (and every game's answer is a list of the
+   * phases it has).
+   * @param {object} room  the room
+   * @returns {boolean}
+   * Side effects: none.
+   */
+  const alive = (room) => (tournaments.settingOf(room) ? room.phase !== 'finished' : game.isLive(room));
   // Every room this person is in, from the store's index rather than by looking through all of them.
   const roomsOf = (userId) => store.roomsOf(userId).flatMap((code) => (rooms.has(code) ? [rooms.get(code)] : []));
-  // Returns the unfinished room a person is in, or undefined: a person can be in only one at a time.  The index says
-  // which rooms they are in; whether one is still being played is a rule, so that part is asked of the game.
-  const liveRoomOf = (userId) => roomsOf(userId).find((room) => game.isLive(room));
+  // Returns the unfinished room a person is in, or undefined.  A person is in one at a time, with the one exception
+  // the whole site has: somebody in a tournament is also at the table it sent them to, and the table is the answer —
+  // that is the game being played, and the tournament is where they came from and will go back to.
+  const liveRoomOf = (userId) => {
+    const live = roomsOf(userId).filter((room) => alive(room));
+    return live.find((room) => !tournaments.settingOf(room)) ?? live[0];
+  };
 
   /**
    * Sends every connected person in the room their own view of it.
@@ -108,9 +130,13 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
       const open = registry.openFor(seat.id, room.code);
       if (!open.length) continue; // nobody looking: no view to build
       const vote = votes.viewFor(room, seat.id); // only while one is running: a view nobody is being voted out of is untouched
+      // A tournament is drawn here rather than by the game: its lobby holds more people than the game seats, and its
+      // people are not at a table of it at all.  Every other room is the game's own view, with what the site has to
+      // add (the vote, and the tournament a table is part of) laid over it.
       // Built once per person rather than once per socket, so somebody with the game open in two tabs costs one view.
-      const view = game.viewFor(room, seat.id, { online, ...viewOptions(room, seat.id, now) });
-      const state = vote ? { ...view, vote } : view;
+      const view = tournaments.viewFor(room, seat.id) ?? game.viewFor(room, seat.id, { online, ...viewOptions(room, seat.id, now) });
+      const tournament = view.tournament ?? tournaments.blockFor(room, seat.id);
+      const state = { ...view, ...(vote ? { vote } : {}), ...(tournament ? { tournament } : {}) };
       for (const socket of open) socket.emit('state', state);
     }
   }
@@ -180,6 +206,8 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   function recordIfFinished(room) {
     if (room.phase !== 'finished' || room.recorded) return;
     room.recorded = true;
+    // A tournament is not a game: nobody played anything in this room, and every table it opened reported itself.
+    if (tournaments.settingOf(room)) return;
     try {
       ctx.stats.record({ code: room.code, players: game.statsPlayers(room) });
     } catch (error) {
@@ -193,6 +221,21 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     } catch (error) {
       ctx.log('a watcher of finished games failed:', error);
     }
+    // A table of a tournament tells it that it is over.  The tournament is only woken, not moved: what it does next
+    // is worked out by its own `nextAction`, so that opening the next round's rooms is never nested inside the change
+    // that prompted it, and a server that stopped in between picks it up again.
+    wakeTournament(room);
+  }
+
+  /**
+   * Tells the tournament a room belongs to that something has happened to one of its tables.
+   * @param {object} room  a table (anything else is ignored)
+   * @returns {void}
+   * Side effects: saves, sends and reschedules the tournament, which may open the next round a moment later.
+   */
+  function wakeTournament(room) {
+    const held = tournaments.parentOf(room);
+    if (held) changed(held);
   }
 
   /**
@@ -214,6 +257,12 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     recordIfFinished(room);
     store.put(room);
     push(room);
+    // A tournament moving on is news at its tables too: somebody reading the scores of the game they have just
+    // finished is exactly who needs to be told that the next one is open, and their room has not itself changed.
+    for (const code of tournaments.tableCodes(room)) {
+      const table = rooms.get(code);
+      if (table) push(table);
+    }
     scheduler.schedule(room);
   }
 
@@ -229,6 +278,8 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   function leaveRoom(room, userId) {
     const outcome = game.removeHuman(room, userId, rng, now());
     if (!outcome.ok) return outcome;
+    // Somebody who leaves a tournament keeps the tables they played, and is taken out of the ones still to come.
+    tournaments.withdraw(room, userId);
     detach(userId, room.code);
     if (outcome.empty) discard(room);
     else if (outcome.changed !== false) changed(room);
@@ -246,6 +297,7 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   function putOutByVote(room, targetId) {
     const outcome = game.removeHuman(room, targetId, rng, now());
     if (!outcome.ok) return outcome;
+    tournaments.withdraw(room, targetId);
     barFromRoom(room, targetId);
     detach(targetId, room.code);
     if (outcome.empty) discard(room);
@@ -277,11 +329,14 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     const mine = liveRoomOf(userId);
     const code = ctx.codes.normalise(rawCode);
     if (rawCode && !code) return { ok: false, error: 'notAnInviteCode' };
-    if (mine && code && mine.code !== code) {
+    // Walking from a tournament to the table it drew you to play at, or back again, is not leaving one game for
+    // another: both rooms are the same evening, and you keep your place in both.
+    const sibling = Boolean(mine && code && mine.code !== code && tournaments.related(mine, rooms.get(code)));
+    if (mine && code && mine.code !== code && !sibling) {
       attach(socket, mine);
       return { ok: false, error: 'alreadyInGameJoin', params: { code: mine.code } };
     }
-    if (mine) {
+    if (mine && !sibling) {
       attach(socket, mine);
       return { ok: true, code: mine.code };
     }
@@ -295,6 +350,9 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
       showMenu(socket);
       return { ok: false, error: 'noGameWithCode' };
     }
+    // A tournament table is for the people drawn to play at it.  Anybody else walking in with the code would take a
+    // computer player's place in their game — and would end up on its score sheet.
+    if (!tournaments.admits(room, userId)) return { ok: false, error: 'notYourTable' };
     if (game.hasPlayer(room, userId)) {
       // Somebody who left a list game once it was over is still on its standings, marked as gone; walking back in
       // with the code makes them one of the room's people again, and so at the table if the host plays again.
